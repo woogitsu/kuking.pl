@@ -1,0 +1,22 @@
+[
+  {
+    "code": "429",
+    "theme": "light",
+    "zoom": 2,
+    "geo": {
+      "width": 320,
+      "scroll": 320,
+      "font": "25.2px"
+    }
+  },
+  {
+    "code": "429",
+    "theme": "dark",
+    "zoom": 2,
+    "geo": {
+      "width": 320,
+      "scroll": 320,
+      "font": "25.2px"
+    }
+  }
+]

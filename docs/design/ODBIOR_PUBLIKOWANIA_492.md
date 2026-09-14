@@ -37,3 +37,6 @@ Wyniki w `docs/design/evidence/publikacja492/`: `matrix.json`, `errorzoom.json`,
 Pozostają: błędne pliki, wielozdjęciowa kolejność/wygląd, pełny Tab i sterowanie grupami radiowymi, walidacja i edycja pełnego przepisu, 419/429 z faktycznym ponowieniem, tryb gotowania ze składnikami/zdjęciem/minutnikiem oraz Wyszło. Fizyczna klawiatura ekranowa, czytnik ekranu i Wake Lock nie zostały odebrane. Starszy podstawowy odbiór gotowania nadal jest osobnym dowodem; nie powtarzać go od zera.
 
 Baza wyłącznie `kuking_publikacja492` na 55439, serwer 8033. Bez zapisów na produkcji, zewnętrznej poczty i zmiany limitów. Sama hipoteza limitu podczas prób #547 nie jest potwierdzonym przypadkiem 429.
+## Dostarczenie pakietu
+
+PR546, head8e4da2f, scalony443da38. CI PR i main10/10success, PHP3807/76412. [Potwierdzony odbiór produkcji Alfy0.29](ODBIOR_PRODUKCJI_ALFA_029.md) rozdziela wdrożenie od ograniczonego oglądu zalogowanej strony. Historyczny opis przygotowania wyżej nie jest bieżącym statusem wysyłki.

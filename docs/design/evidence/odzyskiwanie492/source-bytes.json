@@ -1,0 +1,2699 @@
+{
+  "base": "443da38c763f5ee2c26e8610b516c95fa4e42b94",
+  "files": 538,
+  "rawDifferences": [],
+  "differencesAfterLFNormalization": [],
+  "sha256": [
+    {
+      "file": "app/Console/Commands/BramkaR2.php",
+      "copy_sha256": "959df468e6645247598d3848afc149d9571c59e282196d8ac89ab0cef54b5370",
+      "git_sha256": "959df468e6645247598d3848afc149d9571c59e282196d8ac89ab0cef54b5370"
+    },
+    {
+      "file": "app/Console/Commands/CleanUpDataExports.php",
+      "copy_sha256": "640f28adbc9ddf5f3bb1c2ce6b173a3f154a79d1ecabdb0f46e7d650536275cb",
+      "git_sha256": "640f28adbc9ddf5f3bb1c2ce6b173a3f154a79d1ecabdb0f46e7d650536275cb"
+    },
+    {
+      "file": "app/Console/Commands/DopiszWpisyPrzepisow.php",
+      "copy_sha256": "60592f3ff43d1eaf943f8abbbbc71356e6de7944e3affdeba5628388cdc4400f",
+      "git_sha256": "60592f3ff43d1eaf943f8abbbbc71356e6de7944e3affdeba5628388cdc4400f"
+    },
+    {
+      "file": "app/Console/Commands/KtoNieDostalListu.php",
+      "copy_sha256": "e0a43ef9c71b7e0abae8a40662c155f7143d208db8d4c956c841458d7d99a1fa",
+      "git_sha256": "e0a43ef9c71b7e0abae8a40662c155f7143d208db8d4c956c841458d7d99a1fa"
+    },
+    {
+      "file": "app/Console/Commands/MartweZadania.php",
+      "copy_sha256": "1a5946e03d26e47a708f6c3a5c707603adeee0769c431bfc4a6e3362b551db74",
+      "git_sha256": "1a5946e03d26e47a708f6c3a5c707603adeee0769c431bfc4a6e3362b551db74"
+    },
+    {
+      "file": "app/Console/Commands/NadajRole.php",
+      "copy_sha256": "2de41d61da51e009c80049d3d4ffda91f263399f7da2bfc2bdec744b4acbede2",
+      "git_sha256": "2de41d61da51e009c80049d3d4ffda91f263399f7da2bfc2bdec744b4acbede2"
+    },
+    {
+      "file": "app/Console/Commands/NieudaneListy.php",
+      "copy_sha256": "2136e6ba6e4f1d7d9c03ad8d66be66e45945ab20ce2afe1fcb80bffe81414c47",
+      "git_sha256": "2136e6ba6e4f1d7d9c03ad8d66be66e45945ab20ce2afe1fcb80bffe81414c47"
+    },
+    {
+      "file": "app/Console/Commands/PilnujTerminowOdwolan.php",
+      "copy_sha256": "ac04e3de17e3c6883e6f30a7cd1a2906284438fa9c0ca8c275819038d606ff8c",
+      "git_sha256": "ac04e3de17e3c6883e6f30a7cd1a2906284438fa9c0ca8c275819038d606ff8c"
+    },
+    {
+      "file": "app/Console/Commands/PodsumowanieAutomatu.php",
+      "copy_sha256": "14526c0d45733dfea549f9fe95462fea8bdaa671db4920bd761a5f654e48e449",
+      "git_sha256": "14526c0d45733dfea549f9fe95462fea8bdaa671db4920bd761a5f654e48e449"
+    },
+    {
+      "file": "app/Console/Commands/PoliczKolejki.php",
+      "copy_sha256": "2308d42bec22bf68d10304f4444d8ef9e94b6fdcee990a78f41c271216b890db",
+      "git_sha256": "2308d42bec22bf68d10304f4444d8ef9e94b6fdcee990a78f41c271216b890db"
+    },
+    {
+      "file": "app/Console/Commands/PoliczKontaBezPotwierdzenia.php",
+      "copy_sha256": "b5e8c891f04fa0b38998deadc4a9c8e67d255059190eea11dc045405540fdf06",
+      "git_sha256": "b5e8c891f04fa0b38998deadc4a9c8e67d255059190eea11dc045405540fdf06"
+    },
+    {
+      "file": "app/Console/Commands/PoliczKukingow.php",
+      "copy_sha256": "6feddb887f5f948eb79bc11e39828c71fa5f716d1f9d0d9ac31031b8d5a59ac8",
+      "git_sha256": "6feddb887f5f948eb79bc11e39828c71fa5f716d1f9d0d9ac31031b8d5a59ac8"
+    },
+    {
+      "file": "app/Console/Commands/PrzeniesZdjeciaDoNowychBucketow.php",
+      "copy_sha256": "6839d4e7487830f0c18869e9e6fcf88d3288878f5637012e981ada8b338ac530",
+      "git_sha256": "6839d4e7487830f0c18869e9e6fcf88d3288878f5637012e981ada8b338ac530"
+    },
+    {
+      "file": "app/Console/Commands/PurgeExpiredAccountDeletions.php",
+      "copy_sha256": "debd83c9782cc876825d5e81d3e39693876e26512fe304729b7b9c8320893576",
+      "git_sha256": "debd83c9782cc876825d5e81d3e39693876e26512fe304729b7b9c8320893576"
+    },
+    {
+      "file": "app/Console/Commands/RaportPowrotow.php",
+      "copy_sha256": "1c0e605206c9afe17233f41d0842c4df89faf86a5323be4155d5e0829a6bc58f",
+      "git_sha256": "1c0e605206c9afe17233f41d0842c4df89faf86a5323be4155d5e0829a6bc58f"
+    },
+    {
+      "file": "app/Console/Commands/RaportSygnalow.php",
+      "copy_sha256": "97c141cc0a67f50a168aff30cafa941dbcd249812b6919d40d5658c1972d9748",
+      "git_sha256": "97c141cc0a67f50a168aff30cafa941dbcd249812b6919d40d5658c1972d9748"
+    },
+    {
+      "file": "app/Console/Commands/ReportWeeklyActiveCooks.php",
+      "copy_sha256": "5035d47ac68b7af5c4752591577e7f2cb99e1285199aaf71967b4bb231022b27",
+      "git_sha256": "5035d47ac68b7af5c4752591577e7f2cb99e1285199aaf71967b4bb231022b27"
+    },
+    {
+      "file": "app/Console/Commands/RestoreExpiredSuspensions.php",
+      "copy_sha256": "209e0537e13dcda620c0cb9c792c9b73d37a8d16c24d3504de1ff21ef4f30d69",
+      "git_sha256": "209e0537e13dcda620c0cb9c792c9b73d37a8d16c24d3504de1ff21ef4f30d69"
+    },
+    {
+      "file": "app/Console/Commands/SprawdzKopieBazy.php",
+      "copy_sha256": "4b4bff49b8b553e5362d7d7f65bba2fb7fd556a32cf38e4bfd9b88e157f6cb61",
+      "git_sha256": "4b4bff49b8b553e5362d7d7f65bba2fb7fd556a32cf38e4bfd9b88e157f6cb61"
+    },
+    {
+      "file": "app/Console/Commands/SprawdzModel.php",
+      "copy_sha256": "adb206554e13bca5eebe2be1f77504e1650c8f753f55b2f455089b9b710442f4",
+      "git_sha256": "adb206554e13bca5eebe2be1f77504e1650c8f753f55b2f455089b9b710442f4"
+    },
+    {
+      "file": "app/Console/Commands/SprawdzPiksel.php",
+      "copy_sha256": "65050c97670c18e53d49a074247dbc274e7dc2c19d89c8929de678890166c8c4",
+      "git_sha256": "65050c97670c18e53d49a074247dbc274e7dc2c19d89c8929de678890166c8c4"
+    },
+    {
+      "file": "app/Console/Commands/SprawdzPoczte.php",
+      "copy_sha256": "648f483ee013d2a0efdd51a03cb72abbe1a1ea60351eeee861427ba1a7622f34",
+      "git_sha256": "648f483ee013d2a0efdd51a03cb72abbe1a1ea60351eeee861427ba1a7622f34"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajAudyt.php",
+      "copy_sha256": "625adcb320eaa47fa223ed0fd9d490f17391bc99819eb9019cfbea86c2cc272a",
+      "git_sha256": "625adcb320eaa47fa223ed0fd9d490f17391bc99819eb9019cfbea86c2cc272a"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajOsieroconeZdjecia.php",
+      "copy_sha256": "ed861072a217dc05a1418152da02835ad073a8f502faba6d7d56feaf1cde4dcd",
+      "git_sha256": "ed861072a217dc05a1418152da02835ad073a8f502faba6d7d56feaf1cde4dcd"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajPowiadomienia.php",
+      "copy_sha256": "0c26de13b6c2c61d76234b934176842afc7ed029b11f2e03774b590878649ae5",
+      "git_sha256": "0c26de13b6c2c61d76234b934176842afc7ed029b11f2e03774b590878649ae5"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajSprawyModeracyjne.php",
+      "copy_sha256": "ab2e0729f3825d2f2f99861d5d202e4c4ae2db16775b332ed8bded287820fedf",
+      "git_sha256": "ab2e0729f3825d2f2f99861d5d202e4c4ae2db16775b332ed8bded287820fedf"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajSygnaly.php",
+      "copy_sha256": "4fca7a797234571ef16ebb79144189b9f988f2b8cd91decc07da208d61995181",
+      "git_sha256": "4fca7a797234571ef16ebb79144189b9f988f2b8cd91decc07da208d61995181"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajWiadomosci.php",
+      "copy_sha256": "d93944eb3f6c3495fdd8dae4dffcde599b703964f05fc363e87594c0064c27fe",
+      "git_sha256": "d93944eb3f6c3495fdd8dae4dffcde599b703964f05fc363e87594c0064c27fe"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajZaproszenia.php",
+      "copy_sha256": "1d3d48c514f14f10016550377f70011cf11a7b5f3c07db617e0104ba8d94f783",
+      "git_sha256": "1d3d48c514f14f10016550377f70011cf11a7b5f3c07db617e0104ba8d94f783"
+    },
+    {
+      "file": "app/Console/Commands/SprzatajZmianyAdresu.php",
+      "copy_sha256": "f8ed61102aa31ef7ad98f4625175c865202ceb6523ace3e2dff850318a292b75",
+      "git_sha256": "f8ed61102aa31ef7ad98f4625175c865202ceb6523ace3e2dff850318a292b75"
+    },
+    {
+      "file": "app/Console/Commands/WylaczDwuetapowaWeryfikacje.php",
+      "copy_sha256": "2717391a60939f8ddaab58399720eef71a72d0d4325601b4fdf8a2128b3c367a",
+      "git_sha256": "2717391a60939f8ddaab58399720eef71a72d0d4325601b4fdf8a2128b3c367a"
+    },
+    {
+      "file": "app/Console/Commands/WyslijPodsumowaniaTygodnia.php",
+      "copy_sha256": "b834f3e7d40ce9b7892432143b060428ae0cb6ad1027aa473dd5914fcf69bfc5",
+      "git_sha256": "b834f3e7d40ce9b7892432143b060428ae0cb6ad1027aa473dd5914fcf69bfc5"
+    },
+    {
+      "file": "app/Domain/Analytics/AktywniWTygodniu.php",
+      "copy_sha256": "48c3c02b714258e907c05d72d53460bdbead7ab490377e99b010266d86c8a199",
+      "git_sha256": "48c3c02b714258e907c05d72d53460bdbead7ab490377e99b010266d86c8a199"
+    },
+    {
+      "file": "app/Domain/Analytics/CookActivity.php",
+      "copy_sha256": "e9dbe6a3f324f534f5aa561965bdfe23321ea6ebc4ac3a7e1e16f5131750352a",
+      "git_sha256": "e9dbe6a3f324f534f5aa561965bdfe23321ea6ebc4ac3a7e1e16f5131750352a"
+    },
+    {
+      "file": "app/Domain/Analytics/CookEligibility.php",
+      "copy_sha256": "513a50e917c844abcca7f72e9a59071f935ab8aff30cc6001b15c58d6bbd433c",
+      "git_sha256": "513a50e917c844abcca7f72e9a59071f935ab8aff30cc6001b15c58d6bbd433c"
+    },
+    {
+      "file": "app/Domain/Analytics/CookRetentionCohorts.php",
+      "copy_sha256": "786cc2d93358bfba63284e1546e117d8c714922c2339171a6fcd1349a62e791c",
+      "git_sha256": "786cc2d93358bfba63284e1546e117d8c714922c2339171a6fcd1349a62e791c"
+    },
+    {
+      "file": "app/Domain/Analytics/LiczbaKukingow.php",
+      "copy_sha256": "9f36dd91e0244cc99057a3554273cfe5c99bc1f2fde1bfd014956a94b8cc9b7e",
+      "git_sha256": "9f36dd91e0244cc99057a3554273cfe5c99bc1f2fde1bfd014956a94b8cc9b7e"
+    },
+    {
+      "file": "app/Domain/Analytics/PowrotPoDniach.php",
+      "copy_sha256": "2d23100bb14d2d25340daa2040e8a1758079d0f14355ed37f08ff3e69dbe1d7b",
+      "git_sha256": "2d23100bb14d2d25340daa2040e8a1758079d0f14355ed37f08ff3e69dbe1d7b"
+    },
+    {
+      "file": "app/Domain/Analytics/PrzedawnioneSygnaly.php",
+      "copy_sha256": "5054a02dc0da3e94bdff4c86e2b9de4c8d7c54b499b7bddfbeed8dc5e77f1530",
+      "git_sha256": "5054a02dc0da3e94bdff4c86e2b9de4c8d7c54b499b7bddfbeed8dc5e77f1530"
+    },
+    {
+      "file": "app/Domain/Analytics/WeeklyActiveCooks.php",
+      "copy_sha256": "d91b3742ad4529f32c0bce339eb6be10c72ae0c0f8058cb4689c7440bc6c4990",
+      "git_sha256": "d91b3742ad4529f32c0bce339eb6be10c72ae0c0f8058cb4689c7440bc6c4990"
+    },
+    {
+      "file": "app/Domain/Analytics/ZanotujOstatniaWizyte.php",
+      "copy_sha256": "8bc5530d276a10838afa4c124c39bd197b0910b136fd6bc08c4d3b10eff39024",
+      "git_sha256": "8bc5530d276a10838afa4c124c39bd197b0910b136fd6bc08c4d3b10eff39024"
+    },
+    {
+      "file": "app/Domain/Analytics/ZapiszSygnal.php",
+      "copy_sha256": "25dc76eb848c99f6e180fd80f8b7ccbed7d182374d16bd23f550aae517b763e8",
+      "git_sha256": "25dc76eb848c99f6e180fd80f8b7ccbed7d182374d16bd23f550aae517b763e8"
+    },
+    {
+      "file": "app/Domain/Analytics/ZasiegUgotowalem.php",
+      "copy_sha256": "123fe136b74577687280208c1d1e6b364f75efde5dd8bb47913f659b3ed9ed64",
+      "git_sha256": "123fe136b74577687280208c1d1e6b364f75efde5dd8bb47913f659b3ed9ed64"
+    },
+    {
+      "file": "app/Domain/Collections/Actions/SavePostToCollection.php",
+      "copy_sha256": "ff9025bd8600ed2ed5124b5eda051c47ae10b6327205102742448c38934b0243",
+      "git_sha256": "ff9025bd8600ed2ed5124b5eda051c47ae10b6327205102742448c38934b0243"
+    },
+    {
+      "file": "app/Domain/Collections/Actions/SaveRecipeToCollection.php",
+      "copy_sha256": "87d1595821362f388e8e608ae99bd10135db71a77103e16e973d082ab13b671a",
+      "git_sha256": "87d1595821362f388e8e608ae99bd10135db71a77103e16e973d082ab13b671a"
+    },
+    {
+      "file": "app/Domain/Collections/ZapisyWpisu.php",
+      "copy_sha256": "5f2c1831430f42c78f32489b9fb1836d4e3ff7686b702a9f0b2c0a470d42b2b3",
+      "git_sha256": "5f2c1831430f42c78f32489b9fb1836d4e3ff7686b702a9f0b2c0a470d42b2b3"
+    },
+    {
+      "file": "app/Domain/Comments/Actions/PublishComment.php",
+      "copy_sha256": "49b74235ab4a60234b0d0a1fa35f70e5c3ef136b2298f1722befe897a171a3e1",
+      "git_sha256": "49b74235ab4a60234b0d0a1fa35f70e5c3ef136b2298f1722befe897a171a3e1"
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnionePowiadomienia.php",
+      "copy_sha256": "e0aac816c42acdb3de5599e85ec4ffeb81c9240494db2b6fbeb151deb7f3a012",
+      "git_sha256": "e0aac816c42acdb3de5599e85ec4ffeb81c9240494db2b6fbeb151deb7f3a012"
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneSprawyModeracyjne.php",
+      "copy_sha256": "503006bb253c17461c7468c29bf6c0aad2b7ff4f103fcfa2364efa02b589f01c",
+      "git_sha256": "503006bb253c17461c7468c29bf6c0aad2b7ff4f103fcfa2364efa02b589f01c"
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneWiadomosciDoOperatora.php",
+      "copy_sha256": "17c3144d05c8b2d1adf51c5bf8159194b5a0e9937b5a5828c4969c546fe7f965",
+      "git_sha256": "17c3144d05c8b2d1adf51c5bf8159194b5a0e9937b5a5828c4969c546fe7f965"
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneWpisyAudytu.php",
+      "copy_sha256": "3284166964717f09174fa8fa2662b6f941990590b6f2f8cd1ad18adab4a4dbc0",
+      "git_sha256": "3284166964717f09174fa8fa2662b6f941990590b6f2f8cd1ad18adab4a4dbc0"
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneZaproszenia.php",
+      "copy_sha256": "6c172675868fc19ac0b92736c7b61199889c85b7b7c5250c95243b1428189219",
+      "git_sha256": "6c172675868fc19ac0b92736c7b61199889c85b7b7c5250c95243b1428189219"
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneZmianyAdresu.php",
+      "copy_sha256": "89fd93e9811a52bbedde1abe06f86232f7fa3ee563b5fe9b3585b3cfba5fb908",
+      "git_sha256": "89fd93e9811a52bbedde1abe06f86232f7fa3ee563b5fe9b3585b3cfba5fb908"
+    },
+    {
+      "file": "app/Domain/Compliance/RaportRetencjiPowiadomien.php",
+      "copy_sha256": "2da97402673c26cf9f7797d9e282909c302662dda5c8d4df194dbcd0b00b64fc",
+      "git_sha256": "2da97402673c26cf9f7797d9e282909c302662dda5c8d4df194dbcd0b00b64fc"
+    },
+    {
+      "file": "app/Domain/Compliance/RaportRetencjiSpraw.php",
+      "copy_sha256": "1cc33ad3eb7bfa92ee6fa1d0acea76c559f149dbabc5f261294236eb1e5f7984",
+      "git_sha256": "1cc33ad3eb7bfa92ee6fa1d0acea76c559f149dbabc5f261294236eb1e5f7984"
+    },
+    {
+      "file": "app/Domain/Contact/Actions/BrakAdresuDoOdpowiedzi.php",
+      "copy_sha256": "dfebe9cb7fa690dc1bfa2a8e9e249638e9a9834c086afa73b4a5dd73086a94ea",
+      "git_sha256": "dfebe9cb7fa690dc1bfa2a8e9e249638e9a9834c086afa73b4a5dd73086a94ea"
+    },
+    {
+      "file": "app/Domain/Contact/Actions/PrzyjmijWiadomosc.php",
+      "copy_sha256": "5ee14eedd9c9341b4c478b39fc9a3e4ef2a747c7b0c4d467ee5e0de213e414ab",
+      "git_sha256": "5ee14eedd9c9341b4c478b39fc9a3e4ef2a747c7b0c4d467ee5e0de213e414ab"
+    },
+    {
+      "file": "app/Domain/Contact/Actions/WyslijOdpowiedz.php",
+      "copy_sha256": "81302d8e4fa1c0edc8f2acaced51fc32e9d76f16a7d461696f39c94388eb2237",
+      "git_sha256": "81302d8e4fa1c0edc8f2acaced51fc32e9d76f16a7d461696f39c94388eb2237"
+    },
+    {
+      "file": "app/Domain/Contact/DzwonekOperatora.php",
+      "copy_sha256": "7164df64a030aaddb725770fc2f8340f8dd5b53e09172fed13059a08f28e8940",
+      "git_sha256": "7164df64a030aaddb725770fc2f8340f8dd5b53e09172fed13059a08f28e8940"
+    },
+    {
+      "file": "app/Domain/Digest/BramkaDomyslnejZgody.php",
+      "copy_sha256": "471a695838455e4cb8c34cde7fdaedc9aba03a3332123628bb6fdcec51451e0c",
+      "git_sha256": "471a695838455e4cb8c34cde7fdaedc9aba03a3332123628bb6fdcec51451e0c"
+    },
+    {
+      "file": "app/Domain/Digest/OdbiorcyDigestu.php",
+      "copy_sha256": "1e971f4edbac094a416e5e41d39a4fda3067020e039f32a804b94d3bbeb507da",
+      "git_sha256": "1e971f4edbac094a416e5e41d39a4fda3067020e039f32a804b94d3bbeb507da"
+    },
+    {
+      "file": "app/Domain/Digest/OdnosnikWypisania.php",
+      "copy_sha256": "73b82ad4b37645472be1b56c9901da52e3a413c1126c70e3b83ac7fe048421f5",
+      "git_sha256": "73b82ad4b37645472be1b56c9901da52e3a413c1126c70e3b83ac7fe048421f5"
+    },
+    {
+      "file": "app/Domain/Digest/TrescDigestu.php",
+      "copy_sha256": "d6b8412d72f92d8219d37001391099ae3932b914e763d0eb1edfefa01a858745",
+      "git_sha256": "d6b8412d72f92d8219d37001391099ae3932b914e763d0eb1edfefa01a858745"
+    },
+    {
+      "file": "app/Domain/Digest/ZbierzTresciDigestu.php",
+      "copy_sha256": "f6d24ab6c3ae0e4ab252b1550d15c14bcc0f3f128bb31914102f639ef367ac67",
+      "git_sha256": "f6d24ab6c3ae0e4ab252b1550d15c14bcc0f3f128bb31914102f639ef367ac67"
+    },
+    {
+      "file": "app/Domain/Feed/DailyBoard.php",
+      "copy_sha256": "b3f325206cef67904131a037f3a00ae2b8a3f8042ab56d64b6a829e0ef2c4da1",
+      "git_sha256": "b3f325206cef67904131a037f3a00ae2b8a3f8042ab56d64b6a829e0ef2c4da1"
+    },
+    {
+      "file": "app/Domain/Feed/DiscoverFeed.php",
+      "copy_sha256": "6bd46191c5c00c21f9501688f1a5b766ab349d10fa8eb17529c252706852a481",
+      "git_sha256": "6bd46191c5c00c21f9501688f1a5b766ab349d10fa8eb17529c252706852a481"
+    },
+    {
+      "file": "app/Domain/Feed/FollowingFeed.php",
+      "copy_sha256": "b389a03a9d850acf5999b1e25ba9c5e3af3dad06e12dae9e6a9127feeae68192",
+      "git_sha256": "b389a03a9d850acf5999b1e25ba9c5e3af3dad06e12dae9e6a9127feeae68192"
+    },
+    {
+      "file": "app/Domain/Feed/HeroKolaz.php",
+      "copy_sha256": "24a2c1b9badc2fa164b9fe2ae64ee038cabbfa82f3e4cb91cc727d26a67f0caf",
+      "git_sha256": "24a2c1b9badc2fa164b9fe2ae64ee038cabbfa82f3e4cb91cc727d26a67f0caf"
+    },
+    {
+      "file": "app/Domain/Feed/TagFeed.php",
+      "copy_sha256": "6f5f4aa2b2af2eb570591b5c9fc7fdba62c63f164ee8ba8c72f2d102fdbb200b",
+      "git_sha256": "6f5f4aa2b2af2eb570591b5c9fc7fdba62c63f164ee8ba8c72f2d102fdbb200b"
+    },
+    {
+      "file": "app/Domain/Kopie/AlarmKopii.php",
+      "copy_sha256": "dad4098a74de5098b03b1243f5627f4c150e5b2aed75b7c478e0bc578987c5ea",
+      "git_sha256": "dad4098a74de5098b03b1243f5627f4c150e5b2aed75b7c478e0bc578987c5ea"
+    },
+    {
+      "file": "app/Domain/Kopie/StanKopiiBazy.php",
+      "copy_sha256": "dec50b79e412083ac6329cbc6c834229efea8a08b5209a9765bc0b417ce152a6",
+      "git_sha256": "dec50b79e412083ac6329cbc6c834229efea8a08b5209a9765bc0b417ce152a6"
+    },
+    {
+      "file": "app/Domain/Media/Actions/PrzypnijAwatar.php",
+      "copy_sha256": "e5efc4fddbfaaeda40c677441beb1004314a3aa23d88b623717e090861ba2f22",
+      "git_sha256": "e5efc4fddbfaaeda40c677441beb1004314a3aa23d88b623717e090861ba2f22"
+    },
+    {
+      "file": "app/Domain/Media/Actions/StoreUploadedImage.php",
+      "copy_sha256": "2cb13e541d5fe6f0915149150aa434b95dcec87c0cc744fda72ce5b7bb5b3352",
+      "git_sha256": "2cb13e541d5fe6f0915149150aa434b95dcec87c0cc744fda72ce5b7bb5b3352"
+    },
+    {
+      "file": "app/Domain/Media/DecyzjaOZdjeciu.php",
+      "copy_sha256": "256adc2ec1561e5f515b5aab8764450cf336e0e3c9143c9407f9a6650340516a",
+      "git_sha256": "256adc2ec1561e5f515b5aab8764450cf336e0e3c9143c9407f9a6650340516a"
+    },
+    {
+      "file": "app/Domain/Media/DostepDoZdjecia.php",
+      "copy_sha256": "fb6e0d4e30121440976bcfbce96623cd185b169eafc8d86fc3b71f1faf5c3223",
+      "git_sha256": "fb6e0d4e30121440976bcfbce96623cd185b169eafc8d86fc3b71f1faf5c3223"
+    },
+    {
+      "file": "app/Domain/Media/KasujZdjecie.php",
+      "copy_sha256": "a9dd7d881d71cac84dd4296a8fc0cae042816e09d6845479abaf7731303615c5",
+      "git_sha256": "a9dd7d881d71cac84dd4296a8fc0cae042816e09d6845479abaf7731303615c5"
+    },
+    {
+      "file": "app/Domain/Media/OrientacjaZdjecia.php",
+      "copy_sha256": "632eb5d7461e3d886bf2256947a7191a2028536a5658b68b1fa3c465d58b8248",
+      "git_sha256": "632eb5d7461e3d886bf2256947a7191a2028536a5658b68b1fa3c465d58b8248"
+    },
+    {
+      "file": "app/Domain/Media/OsieroconeZdjecia.php",
+      "copy_sha256": "d0232e92dc4ebae7d1b79bf7332143663cddb3309a97d80fec38023035b007d5",
+      "git_sha256": "d0232e92dc4ebae7d1b79bf7332143663cddb3309a97d80fec38023035b007d5"
+    },
+    {
+      "file": "app/Domain/Media/PodgladOdRazu.php",
+      "copy_sha256": "f715af9706f3d8e82d6210a5f8af6f93137e3468622ad22f11ee844345ef46eb",
+      "git_sha256": "f715af9706f3d8e82d6210a5f8af6f93137e3468622ad22f11ee844345ef46eb"
+    },
+    {
+      "file": "app/Domain/Media/UsunGps.php",
+      "copy_sha256": "54d91d53eed90f34287ca1591448e6adcb42c45fce4e19bbb41a7c87202b8672",
+      "git_sha256": "54d91d53eed90f34287ca1591448e6adcb42c45fce4e19bbb41a7c87202b8672"
+    },
+    {
+      "file": "app/Domain/Media/ZdjeciaDoPrzypiecia.php",
+      "copy_sha256": "2395de2ddb78aee96880fa438dcff3e420ac7cb3a8cb4642d96816df25d14405",
+      "git_sha256": "2395de2ddb78aee96880fa438dcff3e420ac7cb3a8cb4642d96816df25d14405"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/AlarmujModeratora.php",
+      "copy_sha256": "43f7dc92b96469395efa245003a8c61864135b131578d1b19b13a1a9b4593eb4",
+      "git_sha256": "43f7dc92b96469395efa245003a8c61864135b131578d1b19b13a1a9b4593eb4"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/FileAppeal.php",
+      "copy_sha256": "644d0696038c6e949b6239d3e47b7e89ca92b4badc431ebb678cba2b9514098b",
+      "git_sha256": "644d0696038c6e949b6239d3e47b7e89ca92b4badc431ebb678cba2b9514098b"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/FileReporterAppeal.php",
+      "copy_sha256": "d172666d2ce9e4d8657f58d1e893c25b7e70fe684a69ba9f1bd84e3afe11d071",
+      "git_sha256": "d172666d2ce9e4d8657f58d1e893c25b7e70fe684a69ba9f1bd84e3afe11d071"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyAppealOutcome.php",
+      "copy_sha256": "ed9287173eade0460850945393dd8a42da873846e24e1c2d380cc8d1d3e4fb42",
+      "git_sha256": "ed9287173eade0460850945393dd8a42da873846e24e1c2d380cc8d1d3e4fb42"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyModerationDecision.php",
+      "copy_sha256": "ae09d77c44e459ecc3839e010c0d46b47aec5b7a7d885caa068a7175d2dafd4b",
+      "git_sha256": "ae09d77c44e459ecc3839e010c0d46b47aec5b7a7d885caa068a7175d2dafd4b"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyReporterAppealOutcome.php",
+      "copy_sha256": "f23d5599fad0b725884b9bc7fefbe10c35c2e16aa2b2fd422b047f480488e7e6",
+      "git_sha256": "f23d5599fad0b725884b9bc7fefbe10c35c2e16aa2b2fd422b047f480488e7e6"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyReporterDecision.php",
+      "copy_sha256": "f9108ecdba7f83a83ef4ea99435c3c559ca2a2927af5b005ae77bc705620b690",
+      "git_sha256": "f9108ecdba7f83a83ef4ea99435c3c559ca2a2927af5b005ae77bc705620b690"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyReporterReceipt.php",
+      "copy_sha256": "dc8f95adafef153de85df9a0890829f97b61a68ba28d6c3bd5e38361573f394b",
+      "git_sha256": "dc8f95adafef153de85df9a0890829f97b61a68ba28d6c3bd5e38361573f394b"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/OznaczDoPrzegladu.php",
+      "copy_sha256": "d6226ce8c4a58595f955dc32d9503f1a73ff0e04db76f59d4ab98048e6a7d74c",
+      "git_sha256": "d6226ce8c4a58595f955dc32d9503f1a73ff0e04db76f59d4ab98048e6a7d74c"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/PowiadomOOdwolaniu.php",
+      "copy_sha256": "721e8a0727222a89303fb4f123f869b654f1eb489b107bf1c910ff7ab9a4476f",
+      "git_sha256": "721e8a0727222a89303fb4f123f869b654f1eb489b107bf1c910ff7ab9a4476f"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/ReportContent.php",
+      "copy_sha256": "22dfa50918a4660324ae416d2130a227eb2d6d18c509bf9fd826b7d48455c2e4",
+      "git_sha256": "22dfa50918a4660324ae416d2130a227eb2d6d18c509bf9fd826b7d48455c2e4"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/ResolveAppeal.php",
+      "copy_sha256": "a4e0952587648553a8e4c0f5f1ce8ef8ba3707bc501c7240630f99328129cd4d",
+      "git_sha256": "a4e0952587648553a8e4c0f5f1ce8ef8ba3707bc501c7240630f99328129cd4d"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/RestoreContent.php",
+      "copy_sha256": "92935567285c4244f0bc9cb00b7f0986e3cc8e4c9d8cd6b7e31fd1e0c9c9eee6",
+      "git_sha256": "92935567285c4244f0bc9cb00b7f0986e3cc8e4c9d8cd6b7e31fd1e0c9c9eee6"
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/ZglosNielegalnaTresc.php",
+      "copy_sha256": "d220e382a0282c713f270c9ce08a4bad3aa367025e2e6185b157c47baf15889a",
+      "git_sha256": "d220e382a0282c713f270c9ce08a4bad3aa367025e2e6185b157c47baf15889a"
+    },
+    {
+      "file": "app/Domain/Moderation/DlugoscZawieszenia.php",
+      "copy_sha256": "0f27009c3f0c73773ed9181717c1d7aab8efbf930bb0a361809b8c35514ee209",
+      "git_sha256": "0f27009c3f0c73773ed9181717c1d7aab8efbf930bb0a361809b8c35514ee209"
+    },
+    {
+      "file": "app/Domain/Moderation/KolejkiPanelu.php",
+      "copy_sha256": "54508da54d60d6aba41e8a9140a5bc9801c2c401c3305ce11aad04bf976f12bc",
+      "git_sha256": "54508da54d60d6aba41e8a9140a5bc9801c2c401c3305ce11aad04bf976f12bc"
+    },
+    {
+      "file": "app/Domain/Moderation/ModeratedContent.php",
+      "copy_sha256": "2ce5e3f04c83208873fbcbb27bcc7d1a390d876f1b267ff9db7d6e098205e1ee",
+      "git_sha256": "2ce5e3f04c83208873fbcbb27bcc7d1a390d876f1b267ff9db7d6e098205e1ee"
+    },
+    {
+      "file": "app/Domain/Moderation/OdpowiedzDlaZglaszajacego.php",
+      "copy_sha256": "69038b706c150ca507ded8087b32920a76c2104a1e7e0cc5985843fc6491f70e",
+      "git_sha256": "69038b706c150ca507ded8087b32920a76c2104a1e7e0cc5985843fc6491f70e"
+    },
+    {
+      "file": "app/Domain/Moderation/PodstawaDecyzji.php",
+      "copy_sha256": "e60e9c0aaf30129e7d332fab54fe48c505f36e891bcc71682410adf480c72e2e",
+      "git_sha256": "e60e9c0aaf30129e7d332fab54fe48c505f36e891bcc71682410adf480c72e2e"
+    },
+    {
+      "file": "app/Domain/Moderation/Sygnaly/Sygnal.php",
+      "copy_sha256": "2b292e2fc40c9dc08b14d64d53231a6d94f0f2d4c1977804a3032d4b2315c8fa",
+      "git_sha256": "2b292e2fc40c9dc08b14d64d53231a6d94f0f2d4c1977804a3032d4b2315c8fa"
+    },
+    {
+      "file": "app/Domain/Moderation/Sygnaly/WykrywaczSygnalow.php",
+      "copy_sha256": "9c90e08794f6eb4519c8b36d5087ebe008c410067328cff7c1c4907994b9431b",
+      "git_sha256": "9c90e08794f6eb4519c8b36d5087ebe008c410067328cff7c1c4907994b9431b"
+    },
+    {
+      "file": "app/Domain/Moderation/UzasadnienieDecyzji.php",
+      "copy_sha256": "8c65e5e64ab5a807f882dda1ba0b572e2515bfeb91d998f3cfe1ddfafb97ae26",
+      "git_sha256": "8c65e5e64ab5a807f882dda1ba0b572e2515bfeb91d998f3cfe1ddfafb97ae26"
+    },
+    {
+      "file": "app/Domain/Notifications/Actions/NotifyUser.php",
+      "copy_sha256": "66e8e6d09dd01771dbffb1e9235122f82ecf29c54cf01e2ba6bf3d4c2efc92bf",
+      "git_sha256": "66e8e6d09dd01771dbffb1e9235122f82ecf29c54cf01e2ba6bf3d4c2efc92bf"
+    },
+    {
+      "file": "app/Domain/Posts/Actions/ArrangePostMedia.php",
+      "copy_sha256": "5a7f97359e21d1b07feec301753a04f3705793f6569b57a3387ea86031893003",
+      "git_sha256": "5a7f97359e21d1b07feec301753a04f3705793f6569b57a3387ea86031893003"
+    },
+    {
+      "file": "app/Domain/Posts/Actions/EditPost.php",
+      "copy_sha256": "fe4e6ef6abf6bce5d7d6a038fbc64ce359d07410e1286a140f0fd8bc67231c04",
+      "git_sha256": "fe4e6ef6abf6bce5d7d6a038fbc64ce359d07410e1286a140f0fd8bc67231c04"
+    },
+    {
+      "file": "app/Domain/Posts/Actions/PublishPost.php",
+      "copy_sha256": "0fe82ff0f2ba2499e7ac878d029b34e2b997a2413a97882cf3e76634d9650167",
+      "git_sha256": "0fe82ff0f2ba2499e7ac878d029b34e2b997a2413a97882cf3e76634d9650167"
+    },
+    {
+      "file": "app/Domain/Posts/SasiedniWpisAutora.php",
+      "copy_sha256": "ff55882e13cac5532fe31ef4c371588f649ca2943e7d6aac3f8ade7094274ae0",
+      "git_sha256": "ff55882e13cac5532fe31ef4c371588f649ca2943e7d6aac3f8ade7094274ae0"
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/GenerateRecipeSlug.php",
+      "copy_sha256": "30cffe9cf7bf80ec6e804cbf41089b4a2897c9837cbdcec6bfad6b66db1b5e84",
+      "git_sha256": "30cffe9cf7bf80ec6e804cbf41089b4a2897c9837cbdcec6bfad6b66db1b5e84"
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/PublishRecipe.php",
+      "copy_sha256": "53c7bca0fadfc5ff99f97b4467dc9e424a0abacd9e083e1e8b28e196dc98ac4c",
+      "git_sha256": "53c7bca0fadfc5ff99f97b4467dc9e424a0abacd9e083e1e8b28e196dc98ac4c"
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/RecordCookedEvent.php",
+      "copy_sha256": "7bb23a7e2f4d3f3b10a8c9c14adf473faad4832ab907a184ff8a38d2b992880e",
+      "git_sha256": "7bb23a7e2f4d3f3b10a8c9c14adf473faad4832ab907a184ff8a38d2b992880e"
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/SnapshotRecipeVersion.php",
+      "copy_sha256": "c1019f0d78487c36389f76326e2d1f3cba043286554ecb268acc5a3eeac978b0",
+      "git_sha256": "c1019f0d78487c36389f76326e2d1f3cba043286554ecb268acc5a3eeac978b0"
+    },
+    {
+      "file": "app/Domain/Recipes/CoMoznaDopisac.php",
+      "copy_sha256": "36695415b98aee940eb2392ecb34338d6d16b527865524415be6559ca19d85e0",
+      "git_sha256": "36695415b98aee940eb2392ecb34338d6d16b527865524415be6559ca19d85e0"
+    },
+    {
+      "file": "app/Domain/Recipes/GrupySkladnikow.php",
+      "copy_sha256": "d9c0ac433437716de13214563d57a572e9a5698a28dcd6929372d6e26c223fb2",
+      "git_sha256": "d9c0ac433437716de13214563d57a572e9a5698a28dcd6929372d6e26c223fb2"
+    },
+    {
+      "file": "app/Domain/Recipes/RecipeStatusTransitions.php",
+      "copy_sha256": "b346cc335743df7b50ae12403b64fd3bec62f3f7aa9ea356f4d47fd74142afc8",
+      "git_sha256": "b346cc335743df7b50ae12403b64fd3bec62f3f7aa9ea356f4d47fd74142afc8"
+    },
+    {
+      "file": "app/Domain/Recipes/StepTimer.php",
+      "copy_sha256": "8893332f2208909747ca033377872854677af5704f986ec8b4b08d65dd3f2c6b",
+      "git_sha256": "8893332f2208909747ca033377872854677af5704f986ec8b4b08d65dd3f2c6b"
+    },
+    {
+      "file": "app/Domain/Recipes/TekstNaWiersze.php",
+      "copy_sha256": "e1fb4f5fd0259e6d84f457ea04fc406e31c321ff396a6a24bb1147c52d49c822",
+      "git_sha256": "e1fb4f5fd0259e6d84f457ea04fc406e31c321ff396a6a24bb1147c52d49c822"
+    },
+    {
+      "file": "app/Domain/Recipes/WpisWskazujacyPrzepis.php",
+      "copy_sha256": "e923081c4b512aafe44c431992303e2c3943b68453c5baa5e81d373248fb2f96",
+      "git_sha256": "e923081c4b512aafe44c431992303e2c3943b68453c5baa5e81d373248fb2f96"
+    },
+    {
+      "file": "app/Domain/Search/SearchQuery.php",
+      "copy_sha256": "8214a004ec79bd46f6431c7e39c0b2da3002d005447a5fd33327960ab1992dfa",
+      "git_sha256": "8214a004ec79bd46f6431c7e39c0b2da3002d005447a5fd33327960ab1992dfa"
+    },
+    {
+      "file": "app/Domain/Security/DziennyBudzetListow.php",
+      "copy_sha256": "4a826e5e4e2104df2f23c3b6725276a55141ad5cfcaa855d7a342312442698d4",
+      "git_sha256": "4a826e5e4e2104df2f23c3b6725276a55141ad5cfcaa855d7a342312442698d4"
+    },
+    {
+      "file": "app/Domain/Security/KomunikatZamknietegoKonta.php",
+      "copy_sha256": "aef6473ae8c782c42c43164f74d5fa92ebd4757630032db8e577c50d2182acea",
+      "git_sha256": "aef6473ae8c782c42c43164f74d5fa92ebd4757630032db8e577c50d2182acea"
+    },
+    {
+      "file": "app/Domain/Security/KontaBezPotwierdzonegoAdresu.php",
+      "copy_sha256": "ccc0befe1443dc7fcaadfe02ff7cba161fe5b33b0589e8a5b103ac6c3b5a4fcb",
+      "git_sha256": "ccc0befe1443dc7fcaadfe02ff7cba161fe5b33b0589e8a5b103ac6c3b5a4fcb"
+    },
+    {
+      "file": "app/Domain/Security/PomiarKontBezPotwierdzenia.php",
+      "copy_sha256": "2bebc5b6064e635fd2ea58911ed08ee3e3a720eefd92fdb058c5d07f490d9a82",
+      "git_sha256": "2bebc5b6064e635fd2ea58911ed08ee3e3a720eefd92fdb058c5d07f490d9a82"
+    },
+    {
+      "file": "app/Domain/Security/TwoFactorAuthenticator.php",
+      "copy_sha256": "ca4f696a9769af50ebd7a91bd30d63277125cab8ff8b7c3bcdc6c29f8d4aabba",
+      "git_sha256": "ca4f696a9769af50ebd7a91bd30d63277125cab8ff8b7c3bcdc6c29f8d4aabba"
+    },
+    {
+      "file": "app/Domain/Security/WyslijLinkDoLogowania.php",
+      "copy_sha256": "0e6cc442f98ab619bd55448618e5e8adf46eb86793082db96d71144f2cb7cde7",
+      "git_sha256": "0e6cc442f98ab619bd55448618e5e8adf46eb86793082db96d71144f2cb7cde7"
+    },
+    {
+      "file": "app/Domain/Security/WyslijOdzyskanieKonta.php",
+      "copy_sha256": "f8857886ac4f1772ca5a1501a5e2cd50d922f11b45d0f995999891bd0433bbd4",
+      "git_sha256": "f8857886ac4f1772ca5a1501a5e2cd50d922f11b45d0f995999891bd0433bbd4"
+    },
+    {
+      "file": "app/Domain/Security/WyslijZaproszenieDoRejestracji.php",
+      "copy_sha256": "0e1ea3e284dad16145ef866171786792822eeed3345ef586ae155fc58376bc10",
+      "git_sha256": "0e1ea3e284dad16145ef866171786792822eeed3345ef586ae155fc58376bc10"
+    },
+    {
+      "file": "app/Domain/Security/ZaproszenieWSesji.php",
+      "copy_sha256": "895f06d0292e28bece80764d0cfb78173f1f6cae6ec1f478993d30804a335d8f",
+      "git_sha256": "895f06d0292e28bece80764d0cfb78173f1f6cae6ec1f478993d30804a335d8f"
+    },
+    {
+      "file": "app/Domain/Sharing/Udostepnianie.php",
+      "copy_sha256": "e8764c4a28f8a45da42a9dcbad46893ef80eb0fc6a75bfeb9473f7bdb2bfc580",
+      "git_sha256": "e8764c4a28f8a45da42a9dcbad46893ef80eb0fc6a75bfeb9473f7bdb2bfc580"
+    },
+    {
+      "file": "app/Domain/Social/Actions/BlockUser.php",
+      "copy_sha256": "b6c3a1e002bfff7804d2cad52a95e8417e9da3ef06b97ae186e94505381de022",
+      "git_sha256": "b6c3a1e002bfff7804d2cad52a95e8417e9da3ef06b97ae186e94505381de022"
+    },
+    {
+      "file": "app/Domain/Social/Actions/FollowUser.php",
+      "copy_sha256": "146aa19d353ef3a930fb547b473bf5879143d36a317ed48c765eca6ffb6515ee",
+      "git_sha256": "146aa19d353ef3a930fb547b473bf5879143d36a317ed48c765eca6ffb6515ee"
+    },
+    {
+      "file": "app/Domain/Social/Actions/UnblockUser.php",
+      "copy_sha256": "768e38fbbf58efce92d2095694a197b1ec58a912922aef89e1d6cb97ba0adb92",
+      "git_sha256": "768e38fbbf58efce92d2095694a197b1ec58a912922aef89e1d6cb97ba0adb92"
+    },
+    {
+      "file": "app/Domain/Social/Actions/UnfollowUser.php",
+      "copy_sha256": "ba2ddba906d2f3c3f71ad0daabf6c22d798fa055e6eeb1739bbe633a437bb8d1",
+      "git_sha256": "ba2ddba906d2f3c3f71ad0daabf6c22d798fa055e6eeb1739bbe633a437bb8d1"
+    },
+    {
+      "file": "app/Domain/Social/ZamekPary.php",
+      "copy_sha256": "d3b4255b468340ea576952089fa729760f14b0ec7bf88f7ce56a82994306174b",
+      "git_sha256": "d3b4255b468340ea576952089fa729760f14b0ec7bf88f7ce56a82994306174b"
+    },
+    {
+      "file": "app/Domain/Tags/Actions/MergeTags.php",
+      "copy_sha256": "ffceeae7403835e186ee411da5ec13f637506bbd8963eec84e9a826fea0b8256",
+      "git_sha256": "ffceeae7403835e186ee411da5ec13f637506bbd8963eec84e9a826fea0b8256"
+    },
+    {
+      "file": "app/Domain/Tags/Actions/ResolveTagsForPost.php",
+      "copy_sha256": "ec0fd7e4bf62d99d7e57d54ae3588a8de63824df838235912957df7d0a1a003d",
+      "git_sha256": "ec0fd7e4bf62d99d7e57d54ae3588a8de63824df838235912957df7d0a1a003d"
+    },
+    {
+      "file": "app/Domain/Tags/FiltrWulgaryzmow.php",
+      "copy_sha256": "d9b84f32bd18c6d122d08f564dc555621e8db9742640743a220966ae25f67d7a",
+      "git_sha256": "d9b84f32bd18c6d122d08f564dc555621e8db9742640743a220966ae25f67d7a"
+    },
+    {
+      "file": "app/Domain/Tags/TagSuggester.php",
+      "copy_sha256": "484ea534bcf0512a7dd58bafb086ccdbd89cf2eb79b12ce71c355ef51c6db74a",
+      "git_sha256": "484ea534bcf0512a7dd58bafb086ccdbd89cf2eb79b12ce71c355ef51c6db74a"
+    },
+    {
+      "file": "app/Domain/Users/Actions/CancelAccountDeletion.php",
+      "copy_sha256": "609d0ccb8da61729459bff9f5ede7ebd8aac51b6e655464f40c325b1f19a56d9",
+      "git_sha256": "609d0ccb8da61729459bff9f5ede7ebd8aac51b6e655464f40c325b1f19a56d9"
+    },
+    {
+      "file": "app/Domain/Users/Actions/CancelEmailChange.php",
+      "copy_sha256": "57300b5723f82e06557f7e7740382874e55bf22a44f4192d0ef29505a2704e28",
+      "git_sha256": "57300b5723f82e06557f7e7740382874e55bf22a44f4192d0ef29505a2704e28"
+    },
+    {
+      "file": "app/Domain/Users/Actions/ConfirmEmailChange.php",
+      "copy_sha256": "5503d0c2ec46cf398d193ad821292a3d6cc7c11bebbc081e66889934789aeabc",
+      "git_sha256": "5503d0c2ec46cf398d193ad821292a3d6cc7c11bebbc081e66889934789aeabc"
+    },
+    {
+      "file": "app/Domain/Users/Actions/EraseAccountData.php",
+      "copy_sha256": "db41afc4af4acf52099215720863fb194666f8d4a4e0072121fbc9b5fbc43a4a",
+      "git_sha256": "db41afc4af4acf52099215720863fb194666f8d4a4e0072121fbc9b5fbc43a4a"
+    },
+    {
+      "file": "app/Domain/Users/Actions/RequestEmailChange.php",
+      "copy_sha256": "a07fddf97b6cbd446e95d0dfdebd3d2ac5e31be67f8a52a4325d3be42c07ccbd",
+      "git_sha256": "a07fddf97b6cbd446e95d0dfdebd3d2ac5e31be67f8a52a4325d3be42c07ccbd"
+    },
+    {
+      "file": "app/Domain/Users/Actions/ZalozKonto.php",
+      "copy_sha256": "953addb203009b7d34032b4c94f773bf6cfad96eb5d2ec3c94580f3c523f2a4d",
+      "git_sha256": "953addb203009b7d34032b4c94f773bf6cfad96eb5d2ec3c94580f3c523f2a4d"
+    },
+    {
+      "file": "app/Domain/Users/Exports/CollectUserExportData.php",
+      "copy_sha256": "12d65a9b0a66fcc85b367db6638450e472fa4f5337c766e0564f11cb40023e25",
+      "git_sha256": "12d65a9b0a66fcc85b367db6638450e472fa4f5337c766e0564f11cb40023e25"
+    },
+    {
+      "file": "app/Domain/Users/Exports/ExportFileNames.php",
+      "copy_sha256": "4c72ab9e41bcde84a35b3ceb583f41467993ef4d228dd338ed9806f853f48572",
+      "git_sha256": "4c72ab9e41bcde84a35b3ceb583f41467993ef4d228dd338ed9806f853f48572"
+    },
+    {
+      "file": "app/Domain/Users/Exports/ExportPhotoPlan.php",
+      "copy_sha256": "60abf0ee397c3edc25a24a9991215fef177f283509080a9df078d8dee48c73d0",
+      "git_sha256": "60abf0ee397c3edc25a24a9991215fef177f283509080a9df078d8dee48c73d0"
+    },
+    {
+      "file": "app/Domain/Users/ZamekKonta.php",
+      "copy_sha256": "00e07fcab18f97ea21e8db49316d3ee211fe53b36c4d430f55f92dd7c1b201d6",
+      "git_sha256": "00e07fcab18f97ea21e8db49316d3ee211fe53b36c4d430f55f92dd7c1b201d6"
+    },
+    {
+      "file": "app/Domain/Wspomnienia/Wspomnienia.php",
+      "copy_sha256": "dd836b5482fd4942cf9a0e87c11b6ff31a49b1292d4f30df198994176174bf3e",
+      "git_sha256": "dd836b5482fd4942cf9a0e87c11b6ff31a49b1292d4f30df198994176174bf3e"
+    },
+    {
+      "file": "app/Domain/Zgody/PrzestawZgodeNaDigest.php",
+      "copy_sha256": "6950e31ef41e45cf032777de516d9ba464c0912122022c2fe32664e434311972",
+      "git_sha256": "6950e31ef41e45cf032777de516d9ba464c0912122022c2fe32664e434311972"
+    },
+    {
+      "file": "app/Exceptions/BladDlaCzlowieka.php",
+      "copy_sha256": "6362133f47e40a59aaa1a3cfcf1754e2a5d5cc337c988921deb24b70ffa93756",
+      "git_sha256": "6362133f47e40a59aaa1a3cfcf1754e2a5d5cc337c988921deb24b70ffa93756"
+    },
+    {
+      "file": "app/Exceptions/DataExportStorageFailure.php",
+      "copy_sha256": "75748d9191a62d2352777d3fe4719c4930217fb273fd8a61dbe3f958c45b9aae",
+      "git_sha256": "75748d9191a62d2352777d3fe4719c4930217fb273fd8a61dbe3f958c45b9aae"
+    },
+    {
+      "file": "app/Exceptions/KontrolaZdrowiaNieprzeszla.php",
+      "copy_sha256": "f8c1bf2d9cec4368368d0451018479db5e906cee8c9e304e39bf30c6cdfce2cb",
+      "git_sha256": "f8c1bf2d9cec4368368d0451018479db5e906cee8c9e304e39bf30c6cdfce2cb"
+    },
+    {
+      "file": "app/Exceptions/OdzyskanyFormularz.php",
+      "copy_sha256": "14186b520f1bb5c92b41b82213a8d0bb22d3357e76b62d8bf8c038450c7ab37d",
+      "git_sha256": "14186b520f1bb5c92b41b82213a8d0bb22d3357e76b62d8bf8c038450c7ab37d"
+    },
+    {
+      "file": "app/Facebook/KlientFacebook.php",
+      "copy_sha256": "bd560385eee25709635ff5fb0575cddf7ad49b94859729c1817423975c2c3f4a",
+      "git_sha256": "bd560385eee25709635ff5fb0575cddf7ad49b94859729c1817423975c2c3f4a"
+    },
+    {
+      "file": "app/Facebook/TozsamoscFacebook.php",
+      "copy_sha256": "e644d3f772a66b0896e4d110164dfb22bfbd11f44a45b89e376337fde388133a",
+      "git_sha256": "e644d3f772a66b0896e4d110164dfb22bfbd11f44a45b89e376337fde388133a"
+    },
+    {
+      "file": "app/Google/KlientGoogle.php",
+      "copy_sha256": "d901b486d5b7b14e404710699e015dfd0a6f5ad039b0f5451d2fc572ecc6219a",
+      "git_sha256": "d901b486d5b7b14e404710699e015dfd0a6f5ad039b0f5451d2fc572ecc6219a"
+    },
+    {
+      "file": "app/Google/TozsamoscGoogle.php",
+      "copy_sha256": "69aab1ab325c2228eb3d38669db92e12671b5293975d95f03c428f16a151ba16",
+      "git_sha256": "69aab1ab325c2228eb3d38669db92e12671b5293975d95f03c428f16a151ba16"
+    },
+    {
+      "file": "app/Http/Controllers/AccountDeletionController.php",
+      "copy_sha256": "f82a2b1cb40afb4dc0267865ec69e14c7c8adf10b26716e4a6146235ee81afca",
+      "git_sha256": "f82a2b1cb40afb4dc0267865ec69e14c7c8adf10b26716e4a6146235ee81afca"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/AppealController.php",
+      "copy_sha256": "980a87ebd938c55abd3ab467cd9538c0f1323041bcf39ca376ad40b8a81a91da",
+      "git_sha256": "980a87ebd938c55abd3ab467cd9538c0f1323041bcf39ca376ad40b8a81a91da"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/BezOdpowiedziController.php",
+      "copy_sha256": "cd9cc33d67654070826c7c62085ef3c7ada87603425a8685c8395fa13f49dd62",
+      "git_sha256": "cd9cc33d67654070826c7c62085ef3c7ada87603425a8685c8395fa13f49dd62"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/DailyBoardController.php",
+      "copy_sha256": "ca25262c72a0ed3f21a9100936dc54ee075a71c0b9629e1af204bad9ad64a54f",
+      "git_sha256": "ca25262c72a0ed3f21a9100936dc54ee075a71c0b9629e1af204bad9ad64a54f"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/HeroKolazController.php",
+      "copy_sha256": "f0cceffd0eef513fa66c2736ed474eea30a40794a07c8607515b929110fb2f04",
+      "git_sha256": "f0cceffd0eef513fa66c2736ed474eea30a40794a07c8607515b929110fb2f04"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/ModerationController.php",
+      "copy_sha256": "989c4ad221e153c71f7d2366b7a41c57ab1d17fb302bf928808af2f880bc08e5",
+      "git_sha256": "989c4ad221e153c71f7d2366b7a41c57ab1d17fb302bf928808af2f880bc08e5"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/SygnalyController.php",
+      "copy_sha256": "f6e77ccce3f1e5607462dbf5774aaf66293a9d28c835b0db08135ad93813e131",
+      "git_sha256": "f6e77ccce3f1e5607462dbf5774aaf66293a9d28c835b0db08135ad93813e131"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/TagPromotionController.php",
+      "copy_sha256": "4d1e104c1a40a6433626371c8b9b86931d51bb8af8dd31f3de250e03925a7ef5",
+      "git_sha256": "4d1e104c1a40a6433626371c8b9b86931d51bb8af8dd31f3de250e03925a7ef5"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/UzytkownicyController.php",
+      "copy_sha256": "34ce153dbc8fe25c4f4fc514b2de3f8fcc73b8042ca2e3f2682dc8095b86a640",
+      "git_sha256": "34ce153dbc8fe25c4f4fc514b2de3f8fcc73b8042ca2e3f2682dc8095b86a640"
+    },
+    {
+      "file": "app/Http/Controllers/Admin/WiadomosciController.php",
+      "copy_sha256": "07a5eb2b847a99853ae421190b8cae278e64ef2d6c8e7836055f2cc26b15977e",
+      "git_sha256": "07a5eb2b847a99853ae421190b8cae278e64ef2d6c8e7836055f2cc26b15977e"
+    },
+    {
+      "file": "app/Http/Controllers/AppealController.php",
+      "copy_sha256": "f873ac5d5bde8e530428794930572cdb5b8558e3dad761eca3f649775789c4cc",
+      "git_sha256": "f873ac5d5bde8e530428794930572cdb5b8558e3dad761eca3f649775789c4cc"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/EmailVerificationController.php",
+      "copy_sha256": "5e955904dda2dbcf265743861e115e2d2561b11a935f696ec0bccd7c01f31489",
+      "git_sha256": "5e955904dda2dbcf265743861e115e2d2561b11a935f696ec0bccd7c01f31489"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/FacebookDeauthorizeController.php",
+      "copy_sha256": "b58dc01cecd3107f2fcbe2f6ca5e117a90aef1cef887251f9b4bebd28b8394ac",
+      "git_sha256": "b58dc01cecd3107f2fcbe2f6ca5e117a90aef1cef887251f9b4bebd28b8394ac"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/FacebookLoginController.php",
+      "copy_sha256": "bf8415f64f09e796c78b7a272517a9f15a75abdc535e32dc284753e53ced177c",
+      "git_sha256": "bf8415f64f09e796c78b7a272517a9f15a75abdc535e32dc284753e53ced177c"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/GoogleLoginController.php",
+      "copy_sha256": "fc19a8de04907d13afa89be9912f256b6e6822bbc5860f33492adf217ab38226",
+      "git_sha256": "fc19a8de04907d13afa89be9912f256b6e6822bbc5860f33492adf217ab38226"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/LoginController.php",
+      "copy_sha256": "cf1d3a79ec159e11af069b0c6a46e9357f857538c26afe9dcd0a07eca9fe36c6",
+      "git_sha256": "cf1d3a79ec159e11af069b0c6a46e9357f857538c26afe9dcd0a07eca9fe36c6"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/LoginLinkController.php",
+      "copy_sha256": "4f4613afe0a3e3e50af3d3b6d7d457341b17772190db31f46d520e99882830fe",
+      "git_sha256": "4f4613afe0a3e3e50af3d3b6d7d457341b17772190db31f46d520e99882830fe"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/PasswordResetController.php",
+      "copy_sha256": "fc63c32ce5601274ed70ba3267ef8f27d00b335aab15ec8a296db6312fe1745a",
+      "git_sha256": "fc63c32ce5601274ed70ba3267ef8f27d00b335aab15ec8a296db6312fe1745a"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/RegisterController.php",
+      "copy_sha256": "e85e4069f21cae99b65e2f4a386c8f41e2307d4a4bc3232a58d3948214aa0c66",
+      "git_sha256": "e85e4069f21cae99b65e2f4a386c8f41e2307d4a4bc3232a58d3948214aa0c66"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/RegistrationInviteController.php",
+      "copy_sha256": "5cff43ae3c90961538d3068390e68f6b950a581169b2197abd43b8659e43a5c4",
+      "git_sha256": "5cff43ae3c90961538d3068390e68f6b950a581169b2197abd43b8659e43a5c4"
+    },
+    {
+      "file": "app/Http/Controllers/Auth/TwoFactorChallengeController.php",
+      "copy_sha256": "7f722092912da9dfe459d349259ba4635ccf82a0488bb4144d2309a65020895b",
+      "git_sha256": "7f722092912da9dfe459d349259ba4635ccf82a0488bb4144d2309a65020895b"
+    },
+    {
+      "file": "app/Http/Controllers/CollectionController.php",
+      "copy_sha256": "85c1b24c36c5d9eae5c15e2080cf04232dfe055918b77311c953c408f8c6c26f",
+      "git_sha256": "85c1b24c36c5d9eae5c15e2080cf04232dfe055918b77311c953c408f8c6c26f"
+    },
+    {
+      "file": "app/Http/Controllers/CommentController.php",
+      "copy_sha256": "2ae18c29676a996a47280f27f8eeb4e0d5abd3942e58377ef6353f8a0005be30",
+      "git_sha256": "2ae18c29676a996a47280f27f8eeb4e0d5abd3942e58377ef6353f8a0005be30"
+    },
+    {
+      "file": "app/Http/Controllers/Controller.php",
+      "copy_sha256": "f12cd4c03a602910ab505e67f4f9f52640d58ff7a4336f216ed5a59e9e615642",
+      "git_sha256": "f12cd4c03a602910ab505e67f4f9f52640d58ff7a4336f216ed5a59e9e615642"
+    },
+    {
+      "file": "app/Http/Controllers/CookedEventController.php",
+      "copy_sha256": "274eea12e68d66f77c625536964432b6589dd66546fa7e2ab0e5e6e77693bc85",
+      "git_sha256": "274eea12e68d66f77c625536964432b6589dd66546fa7e2ab0e5e6e77693bc85"
+    },
+    {
+      "file": "app/Http/Controllers/CookingModeController.php",
+      "copy_sha256": "98373d60d91f7ded82e39d432072d1f56cd7e64368c0d0e4f1aae13a621fe6fb",
+      "git_sha256": "98373d60d91f7ded82e39d432072d1f56cd7e64368c0d0e4f1aae13a621fe6fb"
+    },
+    {
+      "file": "app/Http/Controllers/CspReportController.php",
+      "copy_sha256": "b5efdc0e8fc0e1977309081c337211846d9e17387aae7e3d90bd3f1b3f839ded",
+      "git_sha256": "b5efdc0e8fc0e1977309081c337211846d9e17387aae7e3d90bd3f1b3f839ded"
+    },
+    {
+      "file": "app/Http/Controllers/FeedController.php",
+      "copy_sha256": "1d921091534a3ac24e03554da550912ea07fca76dc938c6928bf11c7a4498319",
+      "git_sha256": "1d921091534a3ac24e03554da550912ea07fca76dc938c6928bf11c7a4498319"
+    },
+    {
+      "file": "app/Http/Controllers/HealthController.php",
+      "copy_sha256": "d836995f42da6cb564815f8c1b017ee289d99d85f106f0cd9473daefcca05e2e",
+      "git_sha256": "d836995f42da6cb564815f8c1b017ee289d99d85f106f0cd9473daefcca05e2e"
+    },
+    {
+      "file": "app/Http/Controllers/MediaController.php",
+      "copy_sha256": "005dd3d4ce37328b2013acac52162b35363b7a1773c2bd6778cb1aa165485b9e",
+      "git_sha256": "005dd3d4ce37328b2013acac52162b35363b7a1773c2bd6778cb1aa165485b9e"
+    },
+    {
+      "file": "app/Http/Controllers/NapiszDoNasController.php",
+      "copy_sha256": "caf6edf5068217c363188a8412a0cec843e1e3cc935f3613cd1ca772f2a6b11d",
+      "git_sha256": "caf6edf5068217c363188a8412a0cec843e1e3cc935f3613cd1ca772f2a6b11d"
+    },
+    {
+      "file": "app/Http/Controllers/NotificationController.php",
+      "copy_sha256": "18041586a0db1c835244bc7b4f6796f3b95a49f7a7c02cd5954bdf0633741dd7",
+      "git_sha256": "18041586a0db1c835244bc7b4f6796f3b95a49f7a7c02cd5954bdf0633741dd7"
+    },
+    {
+      "file": "app/Http/Controllers/OnboardingController.php",
+      "copy_sha256": "53f103b5656d71362cdfd2bf5356b0b6a1083d02175a47b61ddf143929aa1557",
+      "git_sha256": "53f103b5656d71362cdfd2bf5356b0b6a1083d02175a47b61ddf143929aa1557"
+    },
+    {
+      "file": "app/Http/Controllers/PodsumowanieTygodniaController.php",
+      "copy_sha256": "899e18670e00a1edc1b6534d274e7c9dcf4668db9c342fbd5945fbf7e732a462",
+      "git_sha256": "899e18670e00a1edc1b6534d274e7c9dcf4668db9c342fbd5945fbf7e732a462"
+    },
+    {
+      "file": "app/Http/Controllers/PostController.php",
+      "copy_sha256": "7c584ff7049b4039aff864c008c49ab558b90b97428169b4e998db5d664e139f",
+      "git_sha256": "7c584ff7049b4039aff864c008c49ab558b90b97428169b4e998db5d664e139f"
+    },
+    {
+      "file": "app/Http/Controllers/PostMediaController.php",
+      "copy_sha256": "eec016be0be624e3c56bf985d73e35f2090c5f654f16578b3fbabce0c8f98498",
+      "git_sha256": "eec016be0be624e3c56bf985d73e35f2090c5f654f16578b3fbabce0c8f98498"
+    },
+    {
+      "file": "app/Http/Controllers/ProfileController.php",
+      "copy_sha256": "811cb46b493d534070f470a3ebdc875a73a2c81eb28b00eaa2ad5a53744729a7",
+      "git_sha256": "811cb46b493d534070f470a3ebdc875a73a2c81eb28b00eaa2ad5a53744729a7"
+    },
+    {
+      "file": "app/Http/Controllers/RecipeController.php",
+      "copy_sha256": "1d8f78c5d3d3352e5f70465e9ed43b2ef6e53ef5fdadb0543a2760d4898e4c05",
+      "git_sha256": "1d8f78c5d3d3352e5f70465e9ed43b2ef6e53ef5fdadb0543a2760d4898e4c05"
+    },
+    {
+      "file": "app/Http/Controllers/ReportController.php",
+      "copy_sha256": "cf43c3cc08f54cc60fa1611e26386675814204790d0d1c0c3df1be91ccc1d765",
+      "git_sha256": "cf43c3cc08f54cc60fa1611e26386675814204790d0d1c0c3df1be91ccc1d765"
+    },
+    {
+      "file": "app/Http/Controllers/ReporterAppealController.php",
+      "copy_sha256": "bb83435283e115f8480dd2902dd9ba448c663ac1d355fb9cbf120d4dd0917964",
+      "git_sha256": "bb83435283e115f8480dd2902dd9ba448c663ac1d355fb9cbf120d4dd0917964"
+    },
+    {
+      "file": "app/Http/Controllers/SearchController.php",
+      "copy_sha256": "c615f30786d57f1f51c5c0bea5fd15aa76379b8cbe9da2668d7fdddc644a9093",
+      "git_sha256": "c615f30786d57f1f51c5c0bea5fd15aa76379b8cbe9da2668d7fdddc644a9093"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/AccessibilitySettingsController.php",
+      "copy_sha256": "dbd49bff472f99522d65a840b13c1d0444782a92b951da9949020e8a2df4d760",
+      "git_sha256": "dbd49bff472f99522d65a840b13c1d0444782a92b951da9949020e8a2df4d760"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/AvatarSettingsController.php",
+      "copy_sha256": "bd51e552b60ab0eeddc76c6eb12907fbdfb9e0b750392cc4dbc0f8f6f95f07b4",
+      "git_sha256": "bd51e552b60ab0eeddc76c6eb12907fbdfb9e0b750392cc4dbc0f8f6f95f07b4"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/DataSettingsController.php",
+      "copy_sha256": "c197e11614362315919c1a532160c8c56df621705f25109937f25aff0aaae243",
+      "git_sha256": "c197e11614362315919c1a532160c8c56df621705f25109937f25aff0aaae243"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/EmailSettingsController.php",
+      "copy_sha256": "0115a01d7df283b17366f2889d5087ec444cbf17d0d065c3a0a8c5b7fcbc5f82",
+      "git_sha256": "0115a01d7df283b17366f2889d5087ec444cbf17d0d065c3a0a8c5b7fcbc5f82"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/PrivacySettingsController.php",
+      "copy_sha256": "4d966bd84a6570980ca3e0af603e8f69a35aa1450588bc003f7e9be2747ec505",
+      "git_sha256": "4d966bd84a6570980ca3e0af603e8f69a35aa1450588bc003f7e9be2747ec505"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/ProfileSettingsController.php",
+      "copy_sha256": "8d811272779ad757a55ca94cb8912a7f85b7e684d59eb6bdebd87df9af3654b0",
+      "git_sha256": "8d811272779ad757a55ca94cb8912a7f85b7e684d59eb6bdebd87df9af3654b0"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/SecuritySettingsController.php",
+      "copy_sha256": "708e3f6cfc10898eb6bd87d0038644b19199c01ae570146fef335f9dfc81adf7",
+      "git_sha256": "708e3f6cfc10898eb6bd87d0038644b19199c01ae570146fef335f9dfc81adf7"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/SettingsIndexController.php",
+      "copy_sha256": "4ee85d9f1eca1985752b2aab8b3b066dd83fab87f79879b628789717f0cd2517",
+      "git_sha256": "4ee85d9f1eca1985752b2aab8b3b066dd83fab87f79879b628789717f0cd2517"
+    },
+    {
+      "file": "app/Http/Controllers/Settings/TwoFactorSettingsController.php",
+      "copy_sha256": "d925b9a04eddac43c7ca846a3ec29143299d89f4f60dab880ec2ff59a13f3c0e",
+      "git_sha256": "d925b9a04eddac43c7ca846a3ec29143299d89f4f60dab880ec2ff59a13f3c0e"
+    },
+    {
+      "file": "app/Http/Controllers/SitemapController.php",
+      "copy_sha256": "486ecafdba1a6216e16bfe3d32ed759e5361fd4d5575107451560ef025ae0f94",
+      "git_sha256": "486ecafdba1a6216e16bfe3d32ed759e5361fd4d5575107451560ef025ae0f94"
+    },
+    {
+      "file": "app/Http/Controllers/SocialController.php",
+      "copy_sha256": "81aacd462f4e2581e68fb3254a0a4c29c072dec2c99596857ce684420968befa",
+      "git_sha256": "81aacd462f4e2581e68fb3254a0a4c29c072dec2c99596857ce684420968befa"
+    },
+    {
+      "file": "app/Http/Controllers/StaticPageController.php",
+      "copy_sha256": "a6f7a19e53026288109e8137631498f4d61c339dfb86998dd88f6eeeb2aa1d87",
+      "git_sha256": "a6f7a19e53026288109e8137631498f4d61c339dfb86998dd88f6eeeb2aa1d87"
+    },
+    {
+      "file": "app/Http/Controllers/TagController.php",
+      "copy_sha256": "dabb7b95b47c11b9c5eae8a6c034d7721759298a47172ab1592e91bb4dc68595",
+      "git_sha256": "dabb7b95b47c11b9c5eae8a6c034d7721759298a47172ab1592e91bb4dc68595"
+    },
+    {
+      "file": "app/Http/Controllers/TagFollowController.php",
+      "copy_sha256": "da035c47cfe402a253347c347f8fa726ff094b8d98f5abb2a07fceb661bc900b",
+      "git_sha256": "da035c47cfe402a253347c347f8fa726ff094b8d98f5abb2a07fceb661bc900b"
+    },
+    {
+      "file": "app/Http/Controllers/ThemeController.php",
+      "copy_sha256": "8754acfeb10b1199cd0952cae3b6cfcb7b0291b46e1702e02d012771d920904f",
+      "git_sha256": "8754acfeb10b1199cd0952cae3b6cfcb7b0291b46e1702e02d012771d920904f"
+    },
+    {
+      "file": "app/Http/Controllers/WspomnienieController.php",
+      "copy_sha256": "eb2651bf522f36bb7178d485b6b98ec101a2b56ed7fe90035f8beebcc3712d2c",
+      "git_sha256": "eb2651bf522f36bb7178d485b6b98ec101a2b56ed7fe90035f8beebcc3712d2c"
+    },
+    {
+      "file": "app/Http/Controllers/ZgloszenieNielegalnejTresciController.php",
+      "copy_sha256": "333a5cfb5a965cbc86b74f9562de4278c5e9e23f6b1fdc52ac77bac5da8b4ca6",
+      "git_sha256": "333a5cfb5a965cbc86b74f9562de4278c5e9e23f6b1fdc52ac77bac5da8b4ca6"
+    },
+    {
+      "file": "app/Http/Middleware/AktualizujOstatniaWizyte.php",
+      "copy_sha256": "a6e25d8c5ff38afd76a9144af586d82a3cfb60b2122df62e69db551b16e684ab",
+      "git_sha256": "a6e25d8c5ff38afd76a9144af586d82a3cfb60b2122df62e69db551b16e684ab"
+    },
+    {
+      "file": "app/Http/Middleware/ApplySecurityHeaders.php",
+      "copy_sha256": "c75b94029b83e0602141af57c26be1bf699fb28f3958d00f2fa77362de239b7f",
+      "git_sha256": "c75b94029b83e0602141af57c26be1bf699fb28f3958d00f2fa77362de239b7f"
+    },
+    {
+      "file": "app/Http/Middleware/EnsureAccountIsActive.php",
+      "copy_sha256": "4d11a8ff8f0fdc4dc51b9892da2809aeb18eff201bc65469848353da6d81d80d",
+      "git_sha256": "4d11a8ff8f0fdc4dc51b9892da2809aeb18eff201bc65469848353da6d81d80d"
+    },
+    {
+      "file": "app/Http/Middleware/EnsureModeratorHasTwoFactor.php",
+      "copy_sha256": "3e52498e8dd1faa4994ad34af696cf608d2dd2b470fc49c9733670ca444ff441",
+      "git_sha256": "3e52498e8dd1faa4994ad34af696cf608d2dd2b470fc49c9733670ca444ff441"
+    },
+    {
+      "file": "app/Http/Middleware/EnsureUserIsModerator.php",
+      "copy_sha256": "8585ae56ca391eff92c7a6e5611fc588a6dc0b8dcaf347a22a844ed00eef13ea",
+      "git_sha256": "8585ae56ca391eff92c7a6e5611fc588a6dc0b8dcaf347a22a844ed00eef13ea"
+    },
+    {
+      "file": "app/Http/Middleware/NormalizeForwardedFor.php",
+      "copy_sha256": "72f6d2a6147f0223f5b67952e7226581c3ad172b5c3723e774918a750aba7535",
+      "git_sha256": "72f6d2a6147f0223f5b67952e7226581c3ad172b5c3723e774918a750aba7535"
+    },
+    {
+      "file": "app/Jobs/GenerateUserExport.php",
+      "copy_sha256": "57e94464cb02532f2e236576ad1c2c0a039724039eada60ec9acbc86db8aa09e",
+      "git_sha256": "57e94464cb02532f2e236576ad1c2c0a039724039eada60ec9acbc86db8aa09e"
+    },
+    {
+      "file": "app/Jobs/ProcessUploadedImage.php",
+      "copy_sha256": "7eab1df1586872bb75fe26925b0714e14d797fa47f3c36765837c80f35393b60",
+      "git_sha256": "7eab1df1586872bb75fe26925b0714e14d797fa47f3c36765837c80f35393b60"
+    },
+    {
+      "file": "app/Jobs/PrzeanalizujAwatar.php",
+      "copy_sha256": "ee83e897d09e775009934ca828796a269416426b885932529bab4e53fcab4af9",
+      "git_sha256": "ee83e897d09e775009934ca828796a269416426b885932529bab4e53fcab4af9"
+    },
+    {
+      "file": "app/Jobs/PrzeanalizujTresc.php",
+      "copy_sha256": "d85a3955da0d41a95a538bd1553616785fa95ed184fb38fb0549547653ca132d",
+      "git_sha256": "d85a3955da0d41a95a538bd1553616785fa95ed184fb38fb0549547653ca132d"
+    },
+    {
+      "file": "app/Jobs/PurgePublicMediaCache.php",
+      "copy_sha256": "a3a773b04939cbce05269f5b4304b09de855c0aa316de3e5dae8c0a8987fe46f",
+      "git_sha256": "a3a773b04939cbce05269f5b4304b09de855c0aa316de3e5dae8c0a8987fe46f"
+    },
+    {
+      "file": "app/Logging/WebhookBleduHandler.php",
+      "copy_sha256": "064d277119d6039138eb399c598d3e4d5e01f67e2a2a126d7254d2e0c637ee77",
+      "git_sha256": "064d277119d6039138eb399c598d3e4d5e01f67e2a2a126d7254d2e0c637ee77"
+    },
+    {
+      "file": "app/Logging/WebhookBleduLogger.php",
+      "copy_sha256": "7c0298b3a2180506faf33d1af67e03215da04f5557c2041e69da984e1bc682e8",
+      "git_sha256": "7c0298b3a2180506faf33d1af67e03215da04f5557c2041e69da984e1bc682e8"
+    },
+    {
+      "file": "app/Mail/DataExportReady.php",
+      "copy_sha256": "10a2df9ec7b1896158259a7a9c08c268b247d73cf3f86c572d525db58ae3ebae",
+      "git_sha256": "10a2df9ec7b1896158259a7a9c08c268b247d73cf3f86c572d525db58ae3ebae"
+    },
+    {
+      "file": "app/Mail/OdpowiedzNaWiadomosc.php",
+      "copy_sha256": "26b6cdcf0b6d2d8fae1c8908727a7a465b722c0034c4e5390e9fd18bd5913bb6",
+      "git_sha256": "26b6cdcf0b6d2d8fae1c8908727a7a465b722c0034c4e5390e9fd18bd5913bb6"
+    },
+    {
+      "file": "app/Mail/PodsumowanieTygodnia.php",
+      "copy_sha256": "6ab91951c641c045fbf84c66d80328758b2a408793be1829d3dffe892e676a25",
+      "git_sha256": "6ab91951c641c045fbf84c66d80328758b2a408793be1829d3dffe892e676a25"
+    },
+    {
+      "file": "app/Models/Appeal.php",
+      "copy_sha256": "68ffb60a329e98d491e7e503b59c403d55b3d2c567b0c01a0cd87cbe2ca80ad8",
+      "git_sha256": "68ffb60a329e98d491e7e503b59c403d55b3d2c567b0c01a0cd87cbe2ca80ad8"
+    },
+    {
+      "file": "app/Models/AuditLogEntry.php",
+      "copy_sha256": "1c5ef851c6f63c536062e88a65a3806143a6eb4f73fde424fcb69f96b166e28b",
+      "git_sha256": "1c5ef851c6f63c536062e88a65a3806143a6eb4f73fde424fcb69f96b166e28b"
+    },
+    {
+      "file": "app/Models/Block.php",
+      "copy_sha256": "e180c964f13c8bf6ff769b0577102122d631d7b59117a64dd1487846174b65c3",
+      "git_sha256": "e180c964f13c8bf6ff769b0577102122d631d7b59117a64dd1487846174b65c3"
+    },
+    {
+      "file": "app/Models/Collection.php",
+      "copy_sha256": "5bec43516c479cb50cd3a04444a3417fe1d578c36c4de3ac9d56ab90b3e1639d",
+      "git_sha256": "5bec43516c479cb50cd3a04444a3417fe1d578c36c4de3ac9d56ab90b3e1639d"
+    },
+    {
+      "file": "app/Models/Comment.php",
+      "copy_sha256": "5f1707846967cbe17d1bf998071be7c7078b818929503a0dbb98a80fca7095f6",
+      "git_sha256": "5f1707846967cbe17d1bf998071be7c7078b818929503a0dbb98a80fca7095f6"
+    },
+    {
+      "file": "app/Models/ContactMessage.php",
+      "copy_sha256": "ae3e92931fabbc98cf3f3922b34a0fc9e50fd40fb35aa40fc0c498578ff37187",
+      "git_sha256": "ae3e92931fabbc98cf3f3922b34a0fc9e50fd40fb35aa40fc0c498578ff37187"
+    },
+    {
+      "file": "app/Models/ContactMessageReply.php",
+      "copy_sha256": "c4d9ca62e919e6ce8e43baf71d7b59c90b9d38d0704eb7cb6e5963345783c40a",
+      "git_sha256": "c4d9ca62e919e6ce8e43baf71d7b59c90b9d38d0704eb7cb6e5963345783c40a"
+    },
+    {
+      "file": "app/Models/CookedEvent.php",
+      "copy_sha256": "75121b582426d20c84b1b5fd672341db5a4bd7c79a628c2c16f892a084cd2418",
+      "git_sha256": "75121b582426d20c84b1b5fd672341db5a4bd7c79a628c2c16f892a084cd2418"
+    },
+    {
+      "file": "app/Models/DailyPick.php",
+      "copy_sha256": "1aacf4fda054e6ca0c61d4b8bef90dce40d7d1f7f7afa91d3c2e3c060d35c39d",
+      "git_sha256": "1aacf4fda054e6ca0c61d4b8bef90dce40d7d1f7f7afa91d3c2e3c060d35c39d"
+    },
+    {
+      "file": "app/Models/DataExport.php",
+      "copy_sha256": "0926c73641ac745bb348e689413bf87ea6fa814638eccbe6dc7ed7736883db8d",
+      "git_sha256": "0926c73641ac745bb348e689413bf87ea6fa814638eccbe6dc7ed7736883db8d"
+    },
+    {
+      "file": "app/Models/HeroPick.php",
+      "copy_sha256": "75a286cc76c5be5cb3d7bb3b990cc7beaa2de4f90e5c97f90dbe9256678751ab",
+      "git_sha256": "75a286cc76c5be5cb3d7bb3b990cc7beaa2de4f90e5c97f90dbe9256678751ab"
+    },
+    {
+      "file": "app/Models/Ingredient.php",
+      "copy_sha256": "210f7c76aeb37dd5f630a021e1ed2f4ee6eb27f24c26089abeeebd188e5a0647",
+      "git_sha256": "210f7c76aeb37dd5f630a021e1ed2f4ee6eb27f24c26089abeeebd188e5a0647"
+    },
+    {
+      "file": "app/Models/LoginLinkToken.php",
+      "copy_sha256": "ddf3f6390c5d92bdfc539b3c6559eba1f528b12416dfd5a1dbcc61df8fb66214",
+      "git_sha256": "ddf3f6390c5d92bdfc539b3c6559eba1f528b12416dfd5a1dbcc61df8fb66214"
+    },
+    {
+      "file": "app/Models/MailFailure.php",
+      "copy_sha256": "9d06e510737cc0001478f234e7cde3206db529a99f0b128ff61dd90667f73149",
+      "git_sha256": "9d06e510737cc0001478f234e7cde3206db529a99f0b128ff61dd90667f73149"
+    },
+    {
+      "file": "app/Models/Media.php",
+      "copy_sha256": "581aa09d178782a473c13a6d424dd93ed1b77ab9f1b1b692ac262c9495a31e4d",
+      "git_sha256": "581aa09d178782a473c13a6d424dd93ed1b77ab9f1b1b692ac262c9495a31e4d"
+    },
+    {
+      "file": "app/Models/ModerationAction.php",
+      "copy_sha256": "7ff5b5db4ed4142122f98673e0383035e7dd5e9d22cc65baa6471a1e39e46389",
+      "git_sha256": "7ff5b5db4ed4142122f98673e0383035e7dd5e9d22cc65baa6471a1e39e46389"
+    },
+    {
+      "file": "app/Models/Notification.php",
+      "copy_sha256": "d4ba7518df0a7ad70061cd00320994bfbcc4dba4e6b4784e577ab70a09c9ba3d",
+      "git_sha256": "d4ba7518df0a7ad70061cd00320994bfbcc4dba4e6b4784e577ab70a09c9ba3d"
+    },
+    {
+      "file": "app/Models/PendingEmailChange.php",
+      "copy_sha256": "c7d3ee0703b54758267c141f442238316650079eaca99a8ffc87a8c3d5299bb8",
+      "git_sha256": "c7d3ee0703b54758267c141f442238316650079eaca99a8ffc87a8c3d5299bb8"
+    },
+    {
+      "file": "app/Models/Post.php",
+      "copy_sha256": "df281dc82126898ed5803a01eb748a14eb9897231bd17e8566f61b562abff4d9",
+      "git_sha256": "df281dc82126898ed5803a01eb748a14eb9897231bd17e8566f61b562abff4d9"
+    },
+    {
+      "file": "app/Models/ProductSignal.php",
+      "copy_sha256": "05f6ec17af003f7ebcc98a56a33fb90fd394fd4d74a4f7c9901362998d18d4ca",
+      "git_sha256": "05f6ec17af003f7ebcc98a56a33fb90fd394fd4d74a4f7c9901362998d18d4ca"
+    },
+    {
+      "file": "app/Models/Profile.php",
+      "copy_sha256": "801567d865d4e253eec2c95bf54b4cb5a28cf05d60b97b9a599dbec9cfc3e073",
+      "git_sha256": "801567d865d4e253eec2c95bf54b4cb5a28cf05d60b97b9a599dbec9cfc3e073"
+    },
+    {
+      "file": "app/Models/Recipe.php",
+      "copy_sha256": "59425972c168c39b4d7bc976a2dddcae27149f633d594e39b673211c3d4d3b76",
+      "git_sha256": "59425972c168c39b4d7bc976a2dddcae27149f633d594e39b673211c3d4d3b76"
+    },
+    {
+      "file": "app/Models/RecipeIngredient.php",
+      "copy_sha256": "0d1afa8806178c6929359c9e6d8d06e9af6eba93af52ccb321129da54904ac62",
+      "git_sha256": "0d1afa8806178c6929359c9e6d8d06e9af6eba93af52ccb321129da54904ac62"
+    },
+    {
+      "file": "app/Models/RecipeStep.php",
+      "copy_sha256": "d0aae47fc79a1c1cb143e082366428491c296be55b275682a28e0949090ea72e",
+      "git_sha256": "d0aae47fc79a1c1cb143e082366428491c296be55b275682a28e0949090ea72e"
+    },
+    {
+      "file": "app/Models/RecipeVersion.php",
+      "copy_sha256": "d71106e3b6ce538abc7295ac46d384444414d70c7a0cffd43e16edf2e4c9f5dc",
+      "git_sha256": "d71106e3b6ce538abc7295ac46d384444414d70c7a0cffd43e16edf2e4c9f5dc"
+    },
+    {
+      "file": "app/Models/RegistrationInvite.php",
+      "copy_sha256": "611a0b7106dd50f778d9baf63f0beabe81fc6718c37637abf689e33eb959775a",
+      "git_sha256": "611a0b7106dd50f778d9baf63f0beabe81fc6718c37637abf689e33eb959775a"
+    },
+    {
+      "file": "app/Models/Report.php",
+      "copy_sha256": "e45fc4acdd54a2f00daa84b253db5d78b9542ad959d6ff79e793f23123f9b0c9",
+      "git_sha256": "e45fc4acdd54a2f00daa84b253db5d78b9542ad959d6ff79e793f23123f9b0c9"
+    },
+    {
+      "file": "app/Models/Tag.php",
+      "copy_sha256": "832b32d5940bce8b863f0ae9dff8c52f541323e42d81c32d84362360c5aa635c",
+      "git_sha256": "832b32d5940bce8b863f0ae9dff8c52f541323e42d81c32d84362360c5aa635c"
+    },
+    {
+      "file": "app/Models/TagAlias.php",
+      "copy_sha256": "8468591634e2ffdf00005ba75ce834732122366385e17c10c672c0b8abe002d9",
+      "git_sha256": "8468591634e2ffdf00005ba75ce834732122366385e17c10c672c0b8abe002d9"
+    },
+    {
+      "file": "app/Models/TagPromotion.php",
+      "copy_sha256": "17da63adc11658165881ae885b312a82f043245d33b0cce6348f986bd1c46b7f",
+      "git_sha256": "17da63adc11658165881ae885b312a82f043245d33b0cce6348f986bd1c46b7f"
+    },
+    {
+      "file": "app/Models/TozsamoscZewnetrzna.php",
+      "copy_sha256": "349a325cddc0989dd37ce30d972d3a6c02136d103fd99b3eae6cbe7f03b23fc8",
+      "git_sha256": "349a325cddc0989dd37ce30d972d3a6c02136d103fd99b3eae6cbe7f03b23fc8"
+    },
+    {
+      "file": "app/Models/Unit.php",
+      "copy_sha256": "0c0fd3c78790ef81d785adb37ef4de958916180bcb046a086b2a13c4055b8268",
+      "git_sha256": "0c0fd3c78790ef81d785adb37ef4de958916180bcb046a086b2a13c4055b8268"
+    },
+    {
+      "file": "app/Models/User.php",
+      "copy_sha256": "35e4fb2d5f250c40883334b7248888bdf71d358d020ab44c70591ffb5055b798",
+      "git_sha256": "35e4fb2d5f250c40883334b7248888bdf71d358d020ab44c70591ffb5055b798"
+    },
+    {
+      "file": "app/Models/WpisZgody.php",
+      "copy_sha256": "e2275a5d77b174549326d5acbac2d70b7f1a418b6c2e9c37c7bb3bb191cc9c0d",
+      "git_sha256": "e2275a5d77b174549326d5acbac2d70b7f1a418b6c2e9c37c7bb3bb191cc9c0d"
+    },
+    {
+      "file": "app/Moderacja/KategorieModeracji.php",
+      "copy_sha256": "3a256d3e13abed50c1a4a92db587713ee4e18af151794a73e41402d270c38fdd",
+      "git_sha256": "3a256d3e13abed50c1a4a92db587713ee4e18af151794a73e41402d270c38fdd"
+    },
+    {
+      "file": "app/Moderacja/KlientOpenAI.php",
+      "copy_sha256": "79fbcd58a5bfaa9d4ead8d76fb83bb5edeca39fdb5f1730577acb478818a79f5",
+      "git_sha256": "79fbcd58a5bfaa9d4ead8d76fb83bb5edeca39fdb5f1730577acb478818a79f5"
+    },
+    {
+      "file": "app/Moderacja/OcenaModelem.php",
+      "copy_sha256": "000b83856afeb3febe424e6fe009f6017007c83cb211d6ff36660128ae027aab",
+      "git_sha256": "000b83856afeb3febe424e6fe009f6017007c83cb211d6ff36660128ae027aab"
+    },
+    {
+      "file": "app/Moderacja/WynikOceny.php",
+      "copy_sha256": "cf4cf3b608dceeff4d0a4f8ef714997ae059457393f3f3da845d9022783fe445",
+      "git_sha256": "cf4cf3b608dceeff4d0a4f8ef714997ae059457393f3f3da845d9022783fe445"
+    },
+    {
+      "file": "app/Notifications/DecyzjaWSprawieZgloszenia.php",
+      "copy_sha256": "de9d01e550cd7c81c1b4fc65060be371fec770242bda5d1206419175514e5c47",
+      "git_sha256": "de9d01e550cd7c81c1b4fc65060be371fec770242bda5d1206419175514e5c47"
+    },
+    {
+      "file": "app/Notifications/LinkDoLogowania.php",
+      "copy_sha256": "1f1731245239712c6bb102d8252893c7452888d1588992e8705685f0639f26b0",
+      "git_sha256": "1f1731245239712c6bb102d8252893c7452888d1588992e8705685f0639f26b0"
+    },
+    {
+      "file": "app/Notifications/OdpowiedzNaOdwolanieZglaszajacego.php",
+      "copy_sha256": "050fdd758ec4038c018c9f6e67f407f8bd2930f5f451e7710abdbfb5cc57471b",
+      "git_sha256": "050fdd758ec4038c018c9f6e67f407f8bd2930f5f451e7710abdbfb5cc57471b"
+    },
+    {
+      "file": "app/Notifications/PilnyAlarmModeracyjny.php",
+      "copy_sha256": "fedc88e4da6a14010a327820486e8d81286d5330bcef211e4aff41c8745619dc",
+      "git_sha256": "fedc88e4da6a14010a327820486e8d81286d5330bcef211e4aff41c8745619dc"
+    },
+    {
+      "file": "app/Notifications/PodsumowanieKolejkiAutomatu.php",
+      "copy_sha256": "6494b72399125579dfd5465873c60de2011f4817e3ec782facd44a444603c5f6",
+      "git_sha256": "6494b72399125579dfd5465873c60de2011f4817e3ec782facd44a444603c5f6"
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieAdresu.php",
+      "copy_sha256": "b24f882dbaa9b90e98e9d789e44f57ff69525805bf8c57e824b534ec0fcb18d3",
+      "git_sha256": "b24f882dbaa9b90e98e9d789e44f57ff69525805bf8c57e824b534ec0fcb18d3"
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieNowegoAdresu.php",
+      "copy_sha256": "fa976336dfae252fe2119cb085d13eadf16c874d1d83c313031c63ed48757ede",
+      "git_sha256": "fa976336dfae252fe2119cb085d13eadf16c874d1d83c313031c63ed48757ede"
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieOdwolaniaZglaszajacego.php",
+      "copy_sha256": "e5ea1ae834564137483bd1ad249e6cf6839d8f64b5bf5b0069da4fb04e89d3fa",
+      "git_sha256": "e5ea1ae834564137483bd1ad249e6cf6839d8f64b5bf5b0069da4fb04e89d3fa"
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieZgloszeniaNielegalnejTresci.php",
+      "copy_sha256": "4196de8c13476b9ddd1e161053bb9e6a71b35e7e83c32afb69089da992a9d971",
+      "git_sha256": "4196de8c13476b9ddd1e161053bb9e6a71b35e7e83c32afb69089da992a9d971"
+    },
+    {
+      "file": "app/Notifications/ProbaWejsciaKontemFacebooka.php",
+      "copy_sha256": "c10d21f4e422aa56a803eecbae2a85919f0c4e731c11a3dc912c7aefad765108",
+      "git_sha256": "c10d21f4e422aa56a803eecbae2a85919f0c4e731c11a3dc912c7aefad765108"
+    },
+    {
+      "file": "app/Notifications/TerminOdwolaniaBlisko.php",
+      "copy_sha256": "2e7298ac01b8eefd937b02e754b05df6af194bef361e003ba4daac7a9b9bea87",
+      "git_sha256": "2e7298ac01b8eefd937b02e754b05df6af194bef361e003ba4daac7a9b9bea87"
+    },
+    {
+      "file": "app/Notifications/UstawienieHaslaZamiastLinku.php",
+      "copy_sha256": "0b3fe685a4e756132a9cc245c720ec95c4f33419497a385141e24f899b87ea6d",
+      "git_sha256": "0b3fe685a4e756132a9cc245c720ec95c4f33419497a385141e24f899b87ea6d"
+    },
+    {
+      "file": "app/Notifications/UstawienieNowegoHasla.php",
+      "copy_sha256": "aa4d6c0402db76f3c0e8e61b8b36b1457eafed361ea5b74f7a9dbaea49a6afca",
+      "git_sha256": "aa4d6c0402db76f3c0e8e61b8b36b1457eafed361ea5b74f7a9dbaea49a6afca"
+    },
+    {
+      "file": "app/Notifications/ZaproszenieDoZalozeniaKonta.php",
+      "copy_sha256": "8ad8d3929606ca0a960eb3d27576dcb4499b58d2381dec264c21bef2b5fe4a9b",
+      "git_sha256": "8ad8d3929606ca0a960eb3d27576dcb4499b58d2381dec264c21bef2b5fe4a9b"
+    },
+    {
+      "file": "app/Notifications/ZgloszonaZmianaAdresu.php",
+      "copy_sha256": "e9b3d5fca57ec0a6d611445e014c3be7e2ba19e5a3b75ee61d3cf806b76d5d59",
+      "git_sha256": "e9b3d5fca57ec0a6d611445e014c3be7e2ba19e5a3b75ee61d3cf806b76d5d59"
+    },
+    {
+      "file": "app/Poczta/BezpiecznyKomunikat.php",
+      "copy_sha256": "2a6b874db99f9bee87f4d275c514911dc51e8dce2e82af33e54f5a56c792966d",
+      "git_sha256": "2a6b874db99f9bee87f4d275c514911dc51e8dce2e82af33e54f5a56c792966d"
+    },
+    {
+      "file": "app/Poczta/BrakKonfiguracjiEmailLabs.php",
+      "copy_sha256": "be1676711c56895866cf054d19b1d1d34e578f9e6fcc9eea0b102e15cd32d8ae",
+      "git_sha256": "be1676711c56895866cf054d19b1d1d34e578f9e6fcc9eea0b102e15cd32d8ae"
+    },
+    {
+      "file": "app/Poczta/OdmowaEmailLabs.php",
+      "copy_sha256": "e03261c621f1673ffeca0b9fbded8c4516c8247c240ab27447306cb7efa5775d",
+      "git_sha256": "e03261c621f1673ffeca0b9fbded8c4516c8247c240ab27447306cb7efa5775d"
+    },
+    {
+      "file": "app/Poczta/PowodOdmowy.php",
+      "copy_sha256": "c5fd2fe4f2f5856a4a4ceeb8b293e2bc12f0ce19a3cd2910996dec737ca24a52",
+      "git_sha256": "c5fd2fe4f2f5856a4a4ceeb8b293e2bc12f0ce19a3cd2910996dec737ca24a52"
+    },
+    {
+      "file": "app/Poczta/SladySledzeniaOtwarc.php",
+      "copy_sha256": "b8468a58f38cac7a27b8414a3c0aab710424e31e247fea72eeace1da51c37d84",
+      "git_sha256": "b8468a58f38cac7a27b8414a3c0aab710424e31e247fea72eeace1da51c37d84"
+    },
+    {
+      "file": "app/Poczta/TransportEmailLabs.php",
+      "copy_sha256": "ec0ad2139270b3eedf59657764ce913604332df3f55b6b99634ba502ccfd9a97",
+      "git_sha256": "ec0ad2139270b3eedf59657764ce913604332df3f55b6b99634ba502ccfd9a97"
+    },
+    {
+      "file": "app/Poczta/ZapiszNieudanyList.php",
+      "copy_sha256": "1b6612d5d487726e1bd45907aee56c279803df4e3b1ea8f7782e87cf92d1b4cb",
+      "git_sha256": "1b6612d5d487726e1bd45907aee56c279803df4e3b1ea8f7782e87cf92d1b4cb"
+    },
+    {
+      "file": "app/Policies/CollectionPolicy.php",
+      "copy_sha256": "0c95917aaeb1cabe788af0890330caebc5facec03459853f5cb8437af6f02e75",
+      "git_sha256": "0c95917aaeb1cabe788af0890330caebc5facec03459853f5cb8437af6f02e75"
+    },
+    {
+      "file": "app/Policies/CommentPolicy.php",
+      "copy_sha256": "7831062ddecc21693aaa499d9a286b71ea6b72d0a5747791b997deaea2e38cf3",
+      "git_sha256": "7831062ddecc21693aaa499d9a286b71ea6b72d0a5747791b997deaea2e38cf3"
+    },
+    {
+      "file": "app/Policies/ContactMessagePolicy.php",
+      "copy_sha256": "6692b1e743adc9ccbc58d281655ea4d1abaf89576311399262b847cdb038f9d2",
+      "git_sha256": "6692b1e743adc9ccbc58d281655ea4d1abaf89576311399262b847cdb038f9d2"
+    },
+    {
+      "file": "app/Policies/CookedEventPolicy.php",
+      "copy_sha256": "b2cba30bbbb5b826e05b75d1626de921d9c973943e9df5bc8fda8575e5827320",
+      "git_sha256": "b2cba30bbbb5b826e05b75d1626de921d9c973943e9df5bc8fda8575e5827320"
+    },
+    {
+      "file": "app/Policies/PostPolicy.php",
+      "copy_sha256": "f2d727770c81ad240c84560645ddafaf139a2e0a08b1b9435f22e0815b0b1644",
+      "git_sha256": "f2d727770c81ad240c84560645ddafaf139a2e0a08b1b9435f22e0815b0b1644"
+    },
+    {
+      "file": "app/Policies/ProfilePolicy.php",
+      "copy_sha256": "88e707c0818acde5b59e9e3794283fb6c4b6e77424d1fb58b5c69f8a07761f85",
+      "git_sha256": "88e707c0818acde5b59e9e3794283fb6c4b6e77424d1fb58b5c69f8a07761f85"
+    },
+    {
+      "file": "app/Policies/RecipePolicy.php",
+      "copy_sha256": "e84e2007d98a876f35da742e15fba591db41695a371179fb3d7eacf124cd9cf8",
+      "git_sha256": "e84e2007d98a876f35da742e15fba591db41695a371179fb3d7eacf124cd9cf8"
+    },
+    {
+      "file": "app/Policies/RecipeStepPolicy.php",
+      "copy_sha256": "5ce497b9035b295bc06a013f30a344bbd277cf63add09d6d3471c185da0deb02",
+      "git_sha256": "5ce497b9035b295bc06a013f30a344bbd277cf63add09d6d3471c185da0deb02"
+    },
+    {
+      "file": "app/Policies/ReportPolicy.php",
+      "copy_sha256": "ef3ad7e37dd7fcc41ef93007c72d4a4bf241fcbf7cdb6097fc09f01c96ef0548",
+      "git_sha256": "ef3ad7e37dd7fcc41ef93007c72d4a4bf241fcbf7cdb6097fc09f01c96ef0548"
+    },
+    {
+      "file": "app/Policies/UserPolicy.php",
+      "copy_sha256": "c684a5cd2bd173f2b703bd9a7e34bf9f75c43d33b773d5ef37673b3c93398205",
+      "git_sha256": "c684a5cd2bd173f2b703bd9a7e34bf9f75c43d33b773d5ef37673b3c93398205"
+    },
+    {
+      "file": "app/Providers/AppServiceProvider.php",
+      "copy_sha256": "61f7abf21f950c1740de085a0a91f5f6cb94d552b153fd9bfe5b8c80d210b1e1",
+      "git_sha256": "61f7abf21f950c1740de085a0a91f5f6cb94d552b153fd9bfe5b8c80d210b1e1"
+    },
+    {
+      "file": "app/Providers/PocztaServiceProvider.php",
+      "copy_sha256": "a5b168e8b8ff39dbad4fe737ad8295babab11f5e577fd669a41920d3f10b7df8",
+      "git_sha256": "a5b168e8b8ff39dbad4fe737ad8295babab11f5e577fd669a41920d3f10b7df8"
+    },
+    {
+      "file": "app/Rules/CollectionNameNotTaken.php",
+      "copy_sha256": "44cf7a7e8393b705970db00a7d01d0bec8719d2eb14b6eda01c0b0e960ea4eee",
+      "git_sha256": "44cf7a7e8393b705970db00a7d01d0bec8719d2eb14b6eda01c0b0e960ea4eee"
+    },
+    {
+      "file": "app/Rules/ObslugiwaneZdjecie.php",
+      "copy_sha256": "29181cabc172856c19df2d52f7eb99a8122314395f2228cf24917a8418332ac1",
+      "git_sha256": "29181cabc172856c19df2d52f7eb99a8122314395f2228cf24917a8418332ac1"
+    },
+    {
+      "file": "app/Rules/ReservedUsername.php",
+      "copy_sha256": "8ef76f5ac1651517980b8944596de009632b01911e8e664111853e3c95c02ed2",
+      "git_sha256": "8ef76f5ac1651517980b8944596de009632b01911e8e664111853e3c95c02ed2"
+    },
+    {
+      "file": "app/Rules/TurnstileJestPotwierdzony.php",
+      "copy_sha256": "fbbb3779c17c71a3ab0626e12513487bcf5fe5ca4ff24766d564dedb47941aa8",
+      "git_sha256": "fbbb3779c17c71a3ab0626e12513487bcf5fe5ca4ff24766d564dedb47941aa8"
+    },
+    {
+      "file": "app/Rules/UsernameNotTaken.php",
+      "copy_sha256": "b4cdd15d59c7a52806af49dcf2ecf932142bbb318bb7dd2816f6998bf59a003c",
+      "git_sha256": "b4cdd15d59c7a52806af49dcf2ecf932142bbb318bb7dd2816f6998bf59a003c"
+    },
+    {
+      "file": "app/Support/AdresEmail.php",
+      "copy_sha256": "93865676adbf06752ef49474669f84cec9894a85474a61031bab624ab99dde03",
+      "git_sha256": "93865676adbf06752ef49474669f84cec9894a85474a61031bab624ab99dde03"
+    },
+    {
+      "file": "app/Support/AdresKanoniczny.php",
+      "copy_sha256": "3349182b5cb22c959e21392f5a3be8510890eed09d4704abe17a8ab2d4fdc0c9",
+      "git_sha256": "3349182b5cb22c959e21392f5a3be8510890eed09d4704abe17a8ab2d4fdc0c9"
+    },
+    {
+      "file": "app/Support/AnalitykaCloudflare.php",
+      "copy_sha256": "11b87c27ae4b5db06b710bf392061527ec370d24fa6aed7af2a9c14ed3cac8eb",
+      "git_sha256": "11b87c27ae4b5db06b710bf392061527ec370d24fa6aed7af2a9c14ed3cac8eb"
+    },
+    {
+      "file": "app/Support/Czas.php",
+      "copy_sha256": "301e9c739c130fcc2c48949179e3ec0edc2a545da3ae40b319147a5369c6fb5b",
+      "git_sha256": "301e9c739c130fcc2c48949179e3ec0edc2a545da3ae40b319147a5369c6fb5b"
+    },
+    {
+      "file": "app/Support/Facebook.php",
+      "copy_sha256": "51da9c6efadc808c5ffd5f1e5d589daaaaeca4eb64396b920f73d8703008cadc",
+      "git_sha256": "51da9c6efadc808c5ffd5f1e5d589daaaaeca4eb64396b920f73d8703008cadc"
+    },
+    {
+      "file": "app/Support/Google.php",
+      "copy_sha256": "58a3f15adf668e2beb30056388f5f5e405f0cfd8054bc372d4c50b3e70a85b59",
+      "git_sha256": "58a3f15adf668e2beb30056388f5f5e405f0cfd8054bc372d4c50b3e70a85b59"
+    },
+    {
+      "file": "app/Support/JsonLd.php",
+      "copy_sha256": "9bbf6cc8662f8157e3aef41cb586897603280ec464de851e7e2405ba50b561fb",
+      "git_sha256": "9bbf6cc8662f8157e3aef41cb586897603280ec464de851e7e2405ba50b561fb"
+    },
+    {
+      "file": "app/Support/KluczeLimitow.php",
+      "copy_sha256": "423f7074c33b9b3c84df45fc9448629cff581d68b559dfe7ff9346a48eec8933",
+      "git_sha256": "423f7074c33b9b3c84df45fc9448629cff581d68b559dfe7ff9346a48eec8933"
+    },
+    {
+      "file": "app/Support/KomunikatZaDuzaWysylka.php",
+      "copy_sha256": "91ae617e464140ecf52001de25b35e22abf8a874762e5dfaab7d38aa912a6a2a",
+      "git_sha256": "91ae617e464140ecf52001de25b35e22abf8a874762e5dfaab7d38aa912a6a2a"
+    },
+    {
+      "file": "app/Support/LimityTagow.php",
+      "copy_sha256": "48924e5cca149ad4cbdab8c8d11a65f7f83cef4599b2448799e70d16f58df7b7",
+      "git_sha256": "48924e5cca149ad4cbdab8c8d11a65f7f83cef4599b2448799e70d16f58df7b7"
+    },
+    {
+      "file": "app/Support/LimityTekstuPrzepisu.php",
+      "copy_sha256": "09c73f90a0c10f3e14ccd2982da9c7aab205527b21a4a307f1dd6a7b872acd20",
+      "git_sha256": "09c73f90a0c10f3e14ccd2982da9c7aab205527b21a4a307f1dd6a7b872acd20"
+    },
+    {
+      "file": "app/Support/LimityZdjec.php",
+      "copy_sha256": "2156b7cb0ae932aab34d1180a9904d37db58cbfaa495e851624d628294ed5c46",
+      "git_sha256": "2156b7cb0ae932aab34d1180a9904d37db58cbfaa495e851624d628294ed5c46"
+    },
+    {
+      "file": "app/Support/NazwaUzytkownika.php",
+      "copy_sha256": "33329e14ec8bb0a35740ab0b6939f2d1e88d28458e63abf0f336dc3f0b5f84d4",
+      "git_sha256": "33329e14ec8bb0a35740ab0b6939f2d1e88d28458e63abf0f336dc3f0b5f84d4"
+    },
+    {
+      "file": "app/Support/NumerSprawy.php",
+      "copy_sha256": "732e92f601dec03791fc63176c5d1c5de5431ac5b5742691fe2da08b551741ca",
+      "git_sha256": "732e92f601dec03791fc63176c5d1c5de5431ac5b5742691fe2da08b551741ca"
+    },
+    {
+      "file": "app/Support/Odmiana.php",
+      "copy_sha256": "719e7bc8cfacc463a9ff851c65ef9fac735558f307f1708f7645f39ad3161288",
+      "git_sha256": "719e7bc8cfacc463a9ff851c65ef9fac735558f307f1708f7645f39ad3161288"
+    },
+    {
+      "file": "app/Support/OdmianaWalidacji.php",
+      "copy_sha256": "138bc28821abbe8a8a067c7e1f99804688f8a862bde4008d5a4f008f44b7c3d6",
+      "git_sha256": "138bc28821abbe8a8a067c7e1f99804688f8a862bde4008d5a4f008f44b7c3d6"
+    },
+    {
+      "file": "app/Support/OdzyskiwalneDane.php",
+      "copy_sha256": "f09958f7e409fea45898952942a49bb87dd64b0ad8f335626948fa423614cc1e",
+      "git_sha256": "f09958f7e409fea45898952942a49bb87dd64b0ad8f335626948fa423614cc1e"
+    },
+    {
+      "file": "app/Support/PhpIniRozmiar.php",
+      "copy_sha256": "ff0d2e971fe4f73a86f37645db76be8109ec14fa8b916a2baa53f9f1169b8c33",
+      "git_sha256": "ff0d2e971fe4f73a86f37645db76be8109ec14fa8b916a2baa53f9f1169b8c33"
+    },
+    {
+      "file": "app/Support/Poczta.php",
+      "copy_sha256": "61a67516234234191b6e33fde0de5dce3d74cc729cb847e1016312613cc8f9b8",
+      "git_sha256": "61a67516234234191b6e33fde0de5dce3d74cc729cb847e1016312613cc8f9b8"
+    },
+    {
+      "file": "app/Support/ProgPodobienstwa.php",
+      "copy_sha256": "6480a46d08d9851bd10e1c8ee3adfae6507615ab416def08fd96672a899b6fe6",
+      "git_sha256": "6480a46d08d9851bd10e1c8ee3adfae6507615ab416def08fd96672a899b6fe6"
+    },
+    {
+      "file": "app/Support/RozpoznanieZdjecia.php",
+      "copy_sha256": "cd9dc989a5b5a2a18db40a668dc3c8ab24f784560924e0b6c095b2883dc3aeb7",
+      "git_sha256": "cd9dc989a5b5a2a18db40a668dc3c8ab24f784560924e0b6c095b2883dc3aeb7"
+    },
+    {
+      "file": "app/Support/Skrot.php",
+      "copy_sha256": "51da01ea69b11fb6011e70631bfe411965353103cf22656a60aaaba67dfcf5b8",
+      "git_sha256": "51da01ea69b11fb6011e70631bfe411965353103cf22656a60aaaba67dfcf5b8"
+    },
+    {
+      "file": "app/Support/Storage/DyskR2.php",
+      "copy_sha256": "b0e99d22ce88d7f4d40774290570d96aac4891cfa787dd99dc004b9f89a98c91",
+      "git_sha256": "b0e99d22ce88d7f4d40774290570d96aac4891cfa787dd99dc004b9f89a98c91"
+    },
+    {
+      "file": "app/Support/Storage/R2Adapter.php",
+      "copy_sha256": "19fa51e734a6d7882095275aa459e496953b0a8e413f63d9e3ae44ff63d80c9d",
+      "git_sha256": "19fa51e734a6d7882095275aa459e496953b0a8e413f63d9e3ae44ff63d80c9d"
+    },
+    {
+      "file": "app/Support/Turnstile.php",
+      "copy_sha256": "38db9008d30d9ce18cf1b39ba9d06db4429c3a6c6b51355b7417a13e093c0ec4",
+      "git_sha256": "38db9008d30d9ce18cf1b39ba9d06db4429c3a6c6b51355b7417a13e093c0ec4"
+    },
+    {
+      "file": "app/Support/Wersja.php",
+      "copy_sha256": "ed25000aa14e6e640f9e6a0b5f179c134c61c8264793410b904c1a8f2f941e2c",
+      "git_sha256": "ed25000aa14e6e640f9e6a0b5f179c134c61c8264793410b904c1a8f2f941e2c"
+    },
+    {
+      "file": "app/Support/WierszFormularza.php",
+      "copy_sha256": "28bf03bbe5fb0c17840030ffa1757c8c9550e288af2e9272fbcfd4d97744da41",
+      "git_sha256": "28bf03bbe5fb0c17840030ffa1757c8c9550e288af2e9272fbcfd4d97744da41"
+    },
+    {
+      "file": "app/Support/WynikRozpoznania.php",
+      "copy_sha256": "4c727caaa058ddb7c4a96187616bf05aac8f8dacbc18eb274a7b2271b2b9bf9c",
+      "git_sha256": "4c727caaa058ddb7c4a96187616bf05aac8f8dacbc18eb274a7b2271b2b9bf9c"
+    },
+    {
+      "file": "app/Support/ZapowiedzWpisu.php",
+      "copy_sha256": "a7fde7423d9f93a480f08f34f4a09ef62e43ab294ed65f4c1241bde5f4777430",
+      "git_sha256": "a7fde7423d9f93a480f08f34f4a09ef62e43ab294ed65f4c1241bde5f4777430"
+    },
+    {
+      "file": "app/Support/ZaufaneHosty.php",
+      "copy_sha256": "8af9231e5291141a4f79f7b4d32857cd99af8598b9ec61e1c2d4a3f9cc49acb3",
+      "git_sha256": "8af9231e5291141a4f79f7b4d32857cd99af8598b9ec61e1c2d4a3f9cc49acb3"
+    },
+    {
+      "file": "app/Turnstile/KlientTurnstile.php",
+      "copy_sha256": "56b89d6bf27eed5ae320f4c896fc7c91e6697b2fc37b307184d5e97cf476bbf3",
+      "git_sha256": "56b89d6bf27eed5ae320f4c896fc7c91e6697b2fc37b307184d5e97cf476bbf3"
+    },
+    {
+      "file": "app/Turnstile/WynikTurnstile.php",
+      "copy_sha256": "a16d962ffaa79ff6723c74cc51456d576aea56198273b19fed4a4ceef6c00214",
+      "git_sha256": "a16d962ffaa79ff6723c74cc51456d576aea56198273b19fed4a4ceef6c00214"
+    },
+    {
+      "file": "config/app.php",
+      "copy_sha256": "dd9fd9f661e5a3b45f596d964c97842bb48b5240a91bd52e030385f9b861781b",
+      "git_sha256": "dd9fd9f661e5a3b45f596d964c97842bb48b5240a91bd52e030385f9b861781b"
+    },
+    {
+      "file": "config/auth.php",
+      "copy_sha256": "4c3c04aea0426b878bafe2e873a1d16b1df56be4d8e2060d9e16367bb8b0b059",
+      "git_sha256": "4c3c04aea0426b878bafe2e873a1d16b1df56be4d8e2060d9e16367bb8b0b059"
+    },
+    {
+      "file": "config/cache.php",
+      "copy_sha256": "c3d513579bba5963c2bd4e48c36dd96340ba62a42cc35357a4b47f737ee21c62",
+      "git_sha256": "c3d513579bba5963c2bd4e48c36dd96340ba62a42cc35357a4b47f737ee21c62"
+    },
+    {
+      "file": "config/database.php",
+      "copy_sha256": "7b111f04d86b501ff87f2e0612ea51a1459167f236dcbc155fcf3a72349a26d9",
+      "git_sha256": "7b111f04d86b501ff87f2e0612ea51a1459167f236dcbc155fcf3a72349a26d9"
+    },
+    {
+      "file": "config/filesystems.php",
+      "copy_sha256": "cff35e62b8d238caf9d6846c29ad9dca049cf63169538627ba5b9852c6d20a25",
+      "git_sha256": "cff35e62b8d238caf9d6846c29ad9dca049cf63169538627ba5b9852c6d20a25"
+    },
+    {
+      "file": "config/kuking.php",
+      "copy_sha256": "b32c669f59615ad572dce8d1f0524448775eb7c3627cf0a0341e8bae9059884c",
+      "git_sha256": "b32c669f59615ad572dce8d1f0524448775eb7c3627cf0a0341e8bae9059884c"
+    },
+    {
+      "file": "config/livewire.php",
+      "copy_sha256": "d56a239340859fe9eb9ec70b48e9f480ec0189cbce62c92863a1f1871682a9dd",
+      "git_sha256": "d56a239340859fe9eb9ec70b48e9f480ec0189cbce62c92863a1f1871682a9dd"
+    },
+    {
+      "file": "config/logging.php",
+      "copy_sha256": "eb110f1d7a65ac295c7b0da74987ea45acadb654a95570b88ec118d605901144",
+      "git_sha256": "eb110f1d7a65ac295c7b0da74987ea45acadb654a95570b88ec118d605901144"
+    },
+    {
+      "file": "config/mail.php",
+      "copy_sha256": "343d8b64565a5f7e9f140468e9a38fd9918b35db01ee425c5b1f527f67a1e0f1",
+      "git_sha256": "343d8b64565a5f7e9f140468e9a38fd9918b35db01ee425c5b1f527f67a1e0f1"
+    },
+    {
+      "file": "config/proxy.php",
+      "copy_sha256": "04490ea739f0d1ac4f52e221a782e0b3791ccc04610410630546a05d76425345",
+      "git_sha256": "04490ea739f0d1ac4f52e221a782e0b3791ccc04610410630546a05d76425345"
+    },
+    {
+      "file": "config/queue.php",
+      "copy_sha256": "fb72fdd4863926c44e63538a43adb645779efbb6e922e2b304eb225de60891fa",
+      "git_sha256": "fb72fdd4863926c44e63538a43adb645779efbb6e922e2b304eb225de60891fa"
+    },
+    {
+      "file": "config/services.php",
+      "copy_sha256": "8ec384ac621d6b02869e5f379660d50042284eedf60eef6372c2cf998469eb31",
+      "git_sha256": "8ec384ac621d6b02869e5f379660d50042284eedf60eef6372c2cf998469eb31"
+    },
+    {
+      "file": "config/session.php",
+      "copy_sha256": "c98791b4b638c8809bcabbfce0edba2c9df597deb4187ee54b80c170224bad08",
+      "git_sha256": "c98791b4b638c8809bcabbfce0edba2c9df597deb4187ee54b80c170224bad08"
+    },
+    {
+      "file": "resources/css/app.css",
+      "copy_sha256": "a63e69a599285633fc5015d5abbf0916b7ff771e5de3051f44a48d509c51087c",
+      "git_sha256": "a63e69a599285633fc5015d5abbf0916b7ff771e5de3051f44a48d509c51087c"
+    },
+    {
+      "file": "resources/css/ekran-dodawania.css",
+      "copy_sha256": "911e133e20d9325204ef3659ba42372892f55c391c9a517ce18e0af6a39a9282",
+      "git_sha256": "911e133e20d9325204ef3659ba42372892f55c391c9a517ce18e0af6a39a9282"
+    },
+    {
+      "file": "resources/css/ekran-odkrywania.css",
+      "copy_sha256": "784e15473d60b174bdfc1567627c6bad3cab0fde0304283286a58167ba42a35c",
+      "git_sha256": "784e15473d60b174bdfc1567627c6bad3cab0fde0304283286a58167ba42a35c"
+    },
+    {
+      "file": "resources/css/ekran-odwolan.css",
+      "copy_sha256": "c1958a5c248cf159f81a5928e94d32c315e28e0c94f7098a4db4856c5afd56b7",
+      "git_sha256": "c1958a5c248cf159f81a5928e94d32c315e28e0c94f7098a4db4856c5afd56b7"
+    },
+    {
+      "file": "resources/css/ekran-profilu.css",
+      "copy_sha256": "493e2e11d0b2aa8123bb6c0408ec7d7f8d8a9f8f24c9166cd27239515f14930c",
+      "git_sha256": "493e2e11d0b2aa8123bb6c0408ec7d7f8d8a9f8f24c9166cd27239515f14930c"
+    },
+    {
+      "file": "resources/css/ekran-uzytkownikow.css",
+      "copy_sha256": "58f29b7e0a9628d3a34bd3eda4c124a262ed5fb771f6900b969c5023b5997336",
+      "git_sha256": "58f29b7e0a9628d3a34bd3eda4c124a262ed5fb771f6900b969c5023b5997336"
+    },
+    {
+      "file": "resources/css/ekran-wyszukiwania.css",
+      "copy_sha256": "855142ef7124e083dfcbae775122340a943c0c44d626597d5d8c3ace68e67eb3",
+      "git_sha256": "855142ef7124e083dfcbae775122340a943c0c44d626597d5d8c3ace68e67eb3"
+    },
+    {
+      "file": "resources/css/fonts.css",
+      "copy_sha256": "694761b1740046430cd8d26b2dacabad89c392cc44e2101af32a603570de4c2a",
+      "git_sha256": "694761b1740046430cd8d26b2dacabad89c392cc44e2101af32a603570de4c2a"
+    },
+    {
+      "file": "resources/css/karta-ugotowania.css",
+      "copy_sha256": "b4773158ebe4529e7e30245a08e192f7379bf14662253e3d2f6a32f820603d5a",
+      "git_sha256": "b4773158ebe4529e7e30245a08e192f7379bf14662253e3d2f6a32f820603d5a"
+    },
+    {
+      "file": "resources/css/marka-ekrany.css",
+      "copy_sha256": "8bc76899a1df5d21f890431a84dc123c30c7660aa66a93502fb876c9f62ba6a4",
+      "git_sha256": "8bc76899a1df5d21f890431a84dc123c30c7660aa66a93502fb876c9f62ba6a4"
+    },
+    {
+      "file": "resources/css/marka-onboarding.css",
+      "copy_sha256": "7258ec28e589191e0e8027acc0ebea134e963c82070ebdd8e80411cc925d0f83",
+      "git_sha256": "7258ec28e589191e0e8027acc0ebea134e963c82070ebdd8e80411cc925d0f83"
+    },
+    {
+      "file": "resources/css/marka-powiadomienia.css",
+      "copy_sha256": "f03b37421a07cdf978da16aa8312a070fcbd3ede6a2e0208ecc8b924447767b8",
+      "git_sha256": "f03b37421a07cdf978da16aa8312a070fcbd3ede6a2e0208ecc8b924447767b8"
+    },
+    {
+      "file": "resources/css/marka-profil.css",
+      "copy_sha256": "fa924301ea06355855fcb84b6fa6e15b6482ccfb60df62ec006ebf5c975a9ddf",
+      "git_sha256": "fa924301ea06355855fcb84b6fa6e15b6482ccfb60df62ec006ebf5c975a9ddf"
+    },
+    {
+      "file": "resources/css/marka-przepis.css",
+      "copy_sha256": "0810bc5ddc88ebc13a3cf4fade05f347b53b13221df860cdd98fd37c778f7693",
+      "git_sha256": "0810bc5ddc88ebc13a3cf4fade05f347b53b13221df860cdd98fd37c778f7693"
+    },
+    {
+      "file": "resources/css/marka-rama.css",
+      "copy_sha256": "57f98fdcdb60fba9638611e90de1e7b9d71482126cc4242e99d989620e7de8cd",
+      "git_sha256": "57f98fdcdb60fba9638611e90de1e7b9d71482126cc4242e99d989620e7de8cd"
+    },
+    {
+      "file": "resources/css/marka-szukaj.css",
+      "copy_sha256": "72854eecab69ff40d41eeb028561efd821f1343736dc62ddbabde29355b70d23",
+      "git_sha256": "72854eecab69ff40d41eeb028561efd821f1343736dc62ddbabde29355b70d23"
+    },
+    {
+      "file": "resources/css/marka-wejscie.css",
+      "copy_sha256": "425b354bb938060a3f7d3eef20b6d766502ae81e2d7c2ca45a070d607f6be1b7",
+      "git_sha256": "425b354bb938060a3f7d3eef20b6d766502ae81e2d7c2ca45a070d607f6be1b7"
+    },
+    {
+      "file": "resources/css/marka-wlasnosc.css",
+      "copy_sha256": "7fc52673998ef2ea121cefe0fdcd5880ec9f4b8c76a396d8cf61968372fddd5c",
+      "git_sha256": "7fc52673998ef2ea121cefe0fdcd5880ec9f4b8c76a396d8cf61968372fddd5c"
+    },
+    {
+      "file": "resources/css/marka-zeszyt.css",
+      "copy_sha256": "c985aeeac5a4f8b1da5158459b6c1d09ef1561f49b9082a2f358c072ff0c9593",
+      "git_sha256": "c985aeeac5a4f8b1da5158459b6c1d09ef1561f49b9082a2f358c072ff0c9593"
+    },
+    {
+      "file": "resources/css/strony-publiczne.css",
+      "copy_sha256": "71b9d557e260305a763aee0d98ec9fdd2124b2a7f490e77843d8298b17a8aa58",
+      "git_sha256": "71b9d557e260305a763aee0d98ec9fdd2124b2a7f490e77843d8298b17a8aa58"
+    },
+    {
+      "file": "resources/css/tokens.css",
+      "copy_sha256": "fe4aeaaf036d8b67f39b15865ee2160ac6657c2c7284cf9a294df41adb405448",
+      "git_sha256": "fe4aeaaf036d8b67f39b15865ee2160ac6657c2c7284cf9a294df41adb405448"
+    },
+    {
+      "file": "resources/css/wpis-nawigacja-sasiedzi.css",
+      "copy_sha256": "b7ffaf63810eb2817cea25d64d5362beea477d9ff5a8b808769a7bb5e01a00f7",
+      "git_sha256": "b7ffaf63810eb2817cea25d64d5362beea477d9ff5a8b808769a7bb5e01a00f7"
+    },
+    {
+      "file": "resources/fonts/LICENSE-inter.txt",
+      "copy_sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345",
+      "git_sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345"
+    },
+    {
+      "file": "resources/fonts/inter-latin-ext-wght-normal.woff2",
+      "copy_sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956",
+      "git_sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956"
+    },
+    {
+      "file": "resources/fonts/inter-latin-wght-normal.woff2",
+      "copy_sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+      "git_sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62"
+    },
+    {
+      "file": "resources/js/app.js",
+      "copy_sha256": "a2c7f53b37f3a98e4fcae2441f7e81f071f5cbb014fa64bc3893dab0a3aaca5e",
+      "git_sha256": "a2c7f53b37f3a98e4fcae2441f7e81f071f5cbb014fa64bc3893dab0a3aaca5e"
+    },
+    {
+      "file": "resources/js/service-worker.js",
+      "copy_sha256": "46ea4ef526a4a4e579349824b4c08df5c52f19d34b812fe9633a948a059b756d",
+      "git_sha256": "46ea4ef526a4a4e579349824b4c08df5c52f19d34b812fe9633a948a059b756d"
+    },
+    {
+      "file": "resources/legal/polityka-prywatnosci.md",
+      "copy_sha256": "42fb9d2705db7b32d13b8ca101935eaa51476954b8c6d29df39fabb36e02c3a1",
+      "git_sha256": "42fb9d2705db7b32d13b8ca101935eaa51476954b8c6d29df39fabb36e02c3a1"
+    },
+    {
+      "file": "resources/legal/regulamin.md",
+      "copy_sha256": "08bb107e3caa32918b6e3a9276f05d7a8548a63b9f9499008c137faf7041a36e",
+      "git_sha256": "08bb107e3caa32918b6e3a9276f05d7a8548a63b9f9499008c137faf7041a36e"
+    },
+    {
+      "file": "resources/legal/zasady.md",
+      "copy_sha256": "c91482b300456248a695be02bcd5c00092e8e9de922c62ea3b8aaf7eec10e8da",
+      "git_sha256": "c91482b300456248a695be02bcd5c00092e8e9de922c62ea3b8aaf7eec10e8da"
+    },
+    {
+      "file": "resources/views/auth/facebook-bez-adresu.blade.php",
+      "copy_sha256": "d1ab14dfc994685f5e2f54ef8f28832dd7eb229accc8de8f6a3558c009a73c02",
+      "git_sha256": "d1ab14dfc994685f5e2f54ef8f28832dd7eb229accc8de8f6a3558c009a73c02"
+    },
+    {
+      "file": "resources/views/auth/facebook-finish.blade.php",
+      "copy_sha256": "ba796fd62f55c932543185770ff5089279305f79db84ac1b8e2ee06294479afc",
+      "git_sha256": "ba796fd62f55c932543185770ff5089279305f79db84ac1b8e2ee06294479afc"
+    },
+    {
+      "file": "resources/views/auth/facebook-link.blade.php",
+      "copy_sha256": "48c83337c6cd22d285fda8767cbd6eddadd0c9f5047ff0cb70b015a1f806d060",
+      "git_sha256": "48c83337c6cd22d285fda8767cbd6eddadd0c9f5047ff0cb70b015a1f806d060"
+    },
+    {
+      "file": "resources/views/auth/forgot-password.blade.php",
+      "copy_sha256": "353cbfcee8be4f6bfc5cd533ec482004b01e3b94c5dd4b530e2f21168ae8270f",
+      "git_sha256": "353cbfcee8be4f6bfc5cd533ec482004b01e3b94c5dd4b530e2f21168ae8270f"
+    },
+    {
+      "file": "resources/views/auth/google-finish.blade.php",
+      "copy_sha256": "5a41eccdb7531bba8fdee8db8d92a71b7f76413ce48b8f75a55397ba04974319",
+      "git_sha256": "5a41eccdb7531bba8fdee8db8d92a71b7f76413ce48b8f75a55397ba04974319"
+    },
+    {
+      "file": "resources/views/auth/google-link.blade.php",
+      "copy_sha256": "8737585fa99d5d4bfbc12cc484d0f0799f0ddb7e643af1df7b6d073b3b2c1ba6",
+      "git_sha256": "8737585fa99d5d4bfbc12cc484d0f0799f0ddb7e643af1df7b6d073b3b2c1ba6"
+    },
+    {
+      "file": "resources/views/auth/login-link-confirm.blade.php",
+      "copy_sha256": "4ef6dda2b8e1006d1dad8e91104d6c6f2b8629da8abf911193d14c91b6ca7ced",
+      "git_sha256": "4ef6dda2b8e1006d1dad8e91104d6c6f2b8629da8abf911193d14c91b6ca7ced"
+    },
+    {
+      "file": "resources/views/auth/login-link-unavailable.blade.php",
+      "copy_sha256": "466abfa588ddeab9bc79c13b9bc33ab5465c2792b3d6e06fbeeccee6e394e981",
+      "git_sha256": "466abfa588ddeab9bc79c13b9bc33ab5465c2792b3d6e06fbeeccee6e394e981"
+    },
+    {
+      "file": "resources/views/auth/login-link.blade.php",
+      "copy_sha256": "8ee9e6130694092d8310c7c8bbda9bf023d39fd3db050b092ac23fc6741b5e36",
+      "git_sha256": "8ee9e6130694092d8310c7c8bbda9bf023d39fd3db050b092ac23fc6741b5e36"
+    },
+    {
+      "file": "resources/views/auth/login.blade.php",
+      "copy_sha256": "7cd44b3d064bc50ef0c048ef610994d6f83459e6e299dbf6c812211447d5a0cf",
+      "git_sha256": "7cd44b3d064bc50ef0c048ef610994d6f83459e6e299dbf6c812211447d5a0cf"
+    },
+    {
+      "file": "resources/views/auth/register.blade.php",
+      "copy_sha256": "7e29615f53cd97c2864d1827c6294dec7e0eac8bfe93aed41d3c589113704aad",
+      "git_sha256": "7e29615f53cd97c2864d1827c6294dec7e0eac8bfe93aed41d3c589113704aad"
+    },
+    {
+      "file": "resources/views/auth/reset-password.blade.php",
+      "copy_sha256": "f465889a23529518c24f6d3a6010ca84eb6594c49605c3c8418c99a24ac5634e",
+      "git_sha256": "f465889a23529518c24f6d3a6010ca84eb6594c49605c3c8418c99a24ac5634e"
+    },
+    {
+      "file": "resources/views/auth/two_factor_challenge.blade.php",
+      "copy_sha256": "e16d8d3d4abb653913ca988314c51887a27670ea7e2a6f6de966cbe72d0d638d",
+      "git_sha256": "e16d8d3d4abb653913ca988314c51887a27670ea7e2a6f6de966cbe72d0d638d"
+    },
+    {
+      "file": "resources/views/auth/verify-email.blade.php",
+      "copy_sha256": "78d3dcb9d2998982b679610303a5d361d447a0f1d6baba231cd6c3658d0411b6",
+      "git_sha256": "78d3dcb9d2998982b679610303a5d361d447a0f1d6baba231cd6c3658d0411b6"
+    },
+    {
+      "file": "resources/views/auth/zaproszenie-nieaktualne.blade.php",
+      "copy_sha256": "3b2ba91f25538d1058046b63cd43a28b1901500e082633abae8306d6725a93dc",
+      "git_sha256": "3b2ba91f25538d1058046b63cd43a28b1901500e082633abae8306d6725a93dc"
+    },
+    {
+      "file": "resources/views/auth/zaproszenie.blade.php",
+      "copy_sha256": "eb8f2b95b04b3d8c4e4a7e99c950cfeae4c9a61b1d0f1a85b023a474e5709d0e",
+      "git_sha256": "eb8f2b95b04b3d8c4e4a7e99c950cfeae4c9a61b1d0f1a85b023a474e5709d0e"
+    },
+    {
+      "file": "resources/views/components/avatar.blade.php",
+      "copy_sha256": "5eb857dc60b01cbe3299041aad6b7b3edfbfec37657a4dc98c2594441e17952e",
+      "git_sha256": "5eb857dc60b01cbe3299041aad6b7b3edfbfec37657a4dc98c2594441e17952e"
+    },
+    {
+      "file": "resources/views/components/blad-grupy.blade.php",
+      "copy_sha256": "7fa680fe94b37366b3154e16cab3edb2bedfe30d2ae35d409cc62580c0a4153a",
+      "git_sha256": "7fa680fe94b37366b3154e16cab3edb2bedfe30d2ae35d409cc62580c0a4153a"
+    },
+    {
+      "file": "resources/views/components/comment-thread.blade.php",
+      "copy_sha256": "ec4e901f1a8c21c8a48cb9cda915c7b7a82beacde34bf42539843e1806db8751",
+      "git_sha256": "ec4e901f1a8c21c8a48cb9cda915c7b7a82beacde34bf42539843e1806db8751"
+    },
+    {
+      "file": "resources/views/components/confirm-button.blade.php",
+      "copy_sha256": "7be319c392d7c17784e324d380f57c447a629cde8047e7de78227a2643dc3b6e",
+      "git_sha256": "7be319c392d7c17784e324d380f57c447a629cde8047e7de78227a2643dc3b6e"
+    },
+    {
+      "file": "resources/views/components/cooked-card.blade.php",
+      "copy_sha256": "4fc8398327e4617fef9ed7be1d28f70a7350dfb74c01fcdc98eae521ef498196",
+      "git_sha256": "4fc8398327e4617fef9ed7be1d28f70a7350dfb74c01fcdc98eae521ef498196"
+    },
+    {
+      "file": "resources/views/components/empty-state.blade.php",
+      "copy_sha256": "bd8ec8bb61bc7efcaebd384cae00d5a3cd34aa6786d60d2680565d8ab315468f",
+      "git_sha256": "bd8ec8bb61bc7efcaebd384cae00d5a3cd34aa6786d60d2680565d8ab315468f"
+    },
+    {
+      "file": "resources/views/components/error-summary.blade.php",
+      "copy_sha256": "8821d710be4794321eb443faf2912b0aa79beddcf0a6ed43454256408fa2e3af",
+      "git_sha256": "8821d710be4794321eb443faf2912b0aa79beddcf0a6ed43454256408fa2e3af"
+    },
+    {
+      "file": "resources/views/components/field.blade.php",
+      "copy_sha256": "2c4b44d77f29641b7fc860cf49c4fa4a5cbf0b905f9bd9f1fdef9eadd41adcdd",
+      "git_sha256": "2c4b44d77f29641b7fc860cf49c4fa4a5cbf0b905f9bd9f1fdef9eadd41adcdd"
+    },
+    {
+      "file": "resources/views/components/ikona.blade.php",
+      "copy_sha256": "7a125ebc7a9c8382056415d3fd1f66d7e61644e2587871decf91300bdabce593",
+      "git_sha256": "7a125ebc7a9c8382056415d3fd1f66d7e61644e2587871decf91300bdabce593"
+    },
+    {
+      "file": "resources/views/components/json-ld.blade.php",
+      "copy_sha256": "8815eaa102c5ee6419cd885c0303a3e4674e842f9fd50161c9ad99c2858ac3ed",
+      "git_sha256": "8815eaa102c5ee6419cd885c0303a3e4674e842f9fd50161c9ad99c2858ac3ed"
+    },
+    {
+      "file": "resources/views/components/karuzela-zdjec.blade.php",
+      "copy_sha256": "8a30ad637f4c9570c6e248bee7f1945bed37b20c3551182cb13af03b5d73c541",
+      "git_sha256": "8a30ad637f4c9570c6e248bee7f1945bed37b20c3551182cb13af03b5d73c541"
+    },
+    {
+      "file": "resources/views/components/kolaz-zdjec.blade.php",
+      "copy_sha256": "37a55ce5747629bfd593ab78920ffb97146456cf5582866197f7b553d29027a6",
+      "git_sha256": "37a55ce5747629bfd593ab78920ffb97146456cf5582866197f7b553d29027a6"
+    },
+    {
+      "file": "resources/views/components/konto-przykladowe.blade.php",
+      "copy_sha256": "e7f10982dfad4af061c8c7a7e6e2cc24410acbe1ada878d40ad23dbe6ec66c8f",
+      "git_sha256": "e7f10982dfad4af061c8c7a7e6e2cc24410acbe1ada878d40ad23dbe6ec66c8f"
+    },
+    {
+      "file": "resources/views/components/kuking-board.blade.php",
+      "copy_sha256": "30963298db169a3b7afcfafd83cf9506cf0d29c0308300c0ed377140fc59edc2",
+      "git_sha256": "30963298db169a3b7afcfafd83cf9506cf0d29c0308300c0ed377140fc59edc2"
+    },
+    {
+      "file": "resources/views/components/kuking-mark.blade.php",
+      "copy_sha256": "a73c1bac6cbe890eb210153dd1a201898bdc1e8b320b835bd838329f9910d411",
+      "git_sha256": "a73c1bac6cbe890eb210153dd1a201898bdc1e8b320b835bd838329f9910d411"
+    },
+    {
+      "file": "resources/views/components/kuking-word.blade.php",
+      "copy_sha256": "14932aaaba77fd67c8e1db652bfb1b255b412a4eadc7b3ed0ff4647d04a38954",
+      "git_sha256": "14932aaaba77fd67c8e1db652bfb1b255b412a4eadc7b3ed0ff4647d04a38954"
+    },
+    {
+      "file": "resources/views/components/layout.blade.php",
+      "copy_sha256": "4303f23ac6738912f739f6f2fb8edfc8abafecff570e3ac9d813d30e19a41750",
+      "git_sha256": "4303f23ac6738912f739f6f2fb8edfc8abafecff570e3ac9d813d30e19a41750"
+    },
+    {
+      "file": "resources/views/components/liczby-profilu.blade.php",
+      "copy_sha256": "6b113b44eb9888e7bb0079d5ffaa22b019532a27d32e6bbf3a5cab3fd8b1125f",
+      "git_sha256": "6b113b44eb9888e7bb0079d5ffaa22b019532a27d32e6bbf3a5cab3fd8b1125f"
+    },
+    {
+      "file": "resources/views/components/licznik-kolejki.blade.php",
+      "copy_sha256": "4ceccb51f789186465c67606f00a2a588e0b6f1b9907866db24cff0dba02479e",
+      "git_sha256": "4ceccb51f789186465c67606f00a2a588e0b6f1b9907866db24cff0dba02479e"
+    },
+    {
+      "file": "resources/views/components/licznik-profilu.blade.php",
+      "copy_sha256": "ee811b8f731a292ad48048cd044c2f8d9a1552e577d025e065beaca6a76e1a3e",
+      "git_sha256": "ee811b8f731a292ad48048cd044c2f8d9a1552e577d025e065beaca6a76e1a3e"
+    },
+    {
+      "file": "resources/views/components/logo-dostawcy.blade.php",
+      "copy_sha256": "4ad5db9ea09faca7c2d7b153ba0b96f3f577a56dc5cb4e7b147def78d9c0e0e3",
+      "git_sha256": "4ad5db9ea09faca7c2d7b153ba0b96f3f577a56dc5cb4e7b147def78d9c0e0e3"
+    },
+    {
+      "file": "resources/views/components/marka-wejscie.blade.php",
+      "copy_sha256": "48720120648da93fdfbe43475e27fbb3e41c9af84e4b742c74f2f7dcbfe92f03",
+      "git_sha256": "48720120648da93fdfbe43475e27fbb3e41c9af84e4b742c74f2f7dcbfe92f03"
+    },
+    {
+      "file": "resources/views/components/panel-moderacji.blade.php",
+      "copy_sha256": "30e56427e716a7c69638c5ccd4ad31e8861ebafc9adae6b9267cb6059eeef7e9",
+      "git_sha256": "30e56427e716a7c69638c5ccd4ad31e8861ebafc9adae6b9267cb6059eeef7e9"
+    },
+    {
+      "file": "resources/views/components/photo.blade.php",
+      "copy_sha256": "269ad7271e2963359f6dbef8cc74034f497d30bf6cc0f2cf092549dba3ec9f29",
+      "git_sha256": "269ad7271e2963359f6dbef8cc74034f497d30bf6cc0f2cf092549dba3ec9f29"
+    },
+    {
+      "file": "resources/views/components/podziel-sie.blade.php",
+      "copy_sha256": "5f47d9dc495aa2382a3dea5f9be08734f7777aec34e6cd997f3629ad346039b0",
+      "git_sha256": "5f47d9dc495aa2382a3dea5f9be08734f7777aec34e6cd997f3629ad346039b0"
+    },
+    {
+      "file": "resources/views/components/post-card.blade.php",
+      "copy_sha256": "02e60e8eea9c586d07bed4298bce61b878249a223e45ef73ec3de93e26e67a31",
+      "git_sha256": "02e60e8eea9c586d07bed4298bce61b878249a223e45ef73ec3de93e26e67a31"
+    },
+    {
+      "file": "resources/views/components/recipe-card.blade.php",
+      "copy_sha256": "1d232ea5b67892e0f10031a9c62785473b655ef5b532fdfbcf2af5eda102601a",
+      "git_sha256": "1d232ea5b67892e0f10031a9c62785473b655ef5b532fdfbcf2af5eda102601a"
+    },
+    {
+      "file": "resources/views/components/recipe-wizard.blade.php",
+      "copy_sha256": "b8ab22122b3117b3135c126e58ee3cbd325286e9bc7f7c01b72e6271b971ce23",
+      "git_sha256": "b8ab22122b3117b3135c126e58ee3cbd325286e9bc7f7c01b72e6271b971ce23"
+    },
+    {
+      "file": "resources/views/components/show-more.blade.php",
+      "copy_sha256": "a02f7b2620e89ebdf10a0209f96c4832858343fedb5f68236ca115725e5ea6f9",
+      "git_sha256": "a02f7b2620e89ebdf10a0209f96c4832858343fedb5f68236ca115725e5ea6f9"
+    },
+    {
+      "file": "resources/views/components/szyna-blok.blade.php",
+      "copy_sha256": "0c85d84a083c40703dbdce98ce75e7b115a016af19b204c67891345fccced9af",
+      "git_sha256": "0c85d84a083c40703dbdce98ce75e7b115a016af19b204c67891345fccced9af"
+    },
+    {
+      "file": "resources/views/components/szyna-linki.blade.php",
+      "copy_sha256": "3bd95254b3aac5cb21ca2bd41d7bb01a647c747c431b2f319b855686e3fc8965",
+      "git_sha256": "3bd95254b3aac5cb21ca2bd41d7bb01a647c747c431b2f319b855686e3fc8965"
+    },
+    {
+      "file": "resources/views/components/szyna-ostatnio-zapisane.blade.php",
+      "copy_sha256": "1db582e2c607c70afe50f425aacc520213c25dde4ad20ff9e0e5fea9e6b8b2d9",
+      "git_sha256": "1db582e2c607c70afe50f425aacc520213c25dde4ad20ff9e0e5fea9e6b8b2d9"
+    },
+    {
+      "file": "resources/views/components/szyna-profilu.blade.php",
+      "copy_sha256": "e5012627d88373d202cee6594bccaf86403f025cf93cdb425b1a7751213d2254",
+      "git_sha256": "e5012627d88373d202cee6594bccaf86403f025cf93cdb425b1a7751213d2254"
+    },
+    {
+      "file": "resources/views/components/szyna-startowa.blade.php",
+      "copy_sha256": "e43058dbbcdea77e1895a01b15da103624cdb88ae04138c3a1bd1430487d56d7",
+      "git_sha256": "e43058dbbcdea77e1895a01b15da103624cdb88ae04138c3a1bd1430487d56d7"
+    },
+    {
+      "file": "resources/views/components/tagi-formularz.blade.php",
+      "copy_sha256": "9c0f44ba25f3b4cf9597644725f7f6c7bcf4c3cb180c9bc549bfe5536ade8385",
+      "git_sha256": "9c0f44ba25f3b4cf9597644725f7f6c7bcf4c3cb180c9bc549bfe5536ade8385"
+    },
+    {
+      "file": "resources/views/components/turnstile.blade.php",
+      "copy_sha256": "a04a90650bee14d83abffcca856eb3fe56f64d63866898de59e82ea95f43090f",
+      "git_sha256": "a04a90650bee14d83abffcca856eb3fe56f64d63866898de59e82ea95f43090f"
+    },
+    {
+      "file": "resources/views/components/ustawienia-nawigacja.blade.php",
+      "copy_sha256": "5f4be8a3d2c1fb4c2c8567ff8f4d59211d79c273a7954c74c79b17c1b78909b3",
+      "git_sha256": "5f4be8a3d2c1fb4c2c8567ff8f4d59211d79c273a7954c74c79b17c1b78909b3"
+    },
+    {
+      "file": "resources/views/components/wejdz-google.blade.php",
+      "copy_sha256": "81fd81aa03efea4fdeb60a5af22b492a12f725a14b72b1545f1f30b533236e89",
+      "git_sha256": "81fd81aa03efea4fdeb60a5af22b492a12f725a14b72b1545f1f30b533236e89"
+    },
+    {
+      "file": "resources/views/components/wejscia-zewnetrzne.blade.php",
+      "copy_sha256": "1e581427817fd1edfce1df8b0f8f49b46b31543e97bbe584429047d05ab1a216",
+      "git_sha256": "1e581427817fd1edfce1df8b0f8f49b46b31543e97bbe584429047d05ab1a216"
+    },
+    {
+      "file": "resources/views/components/wybor-wygladu.blade.php",
+      "copy_sha256": "4e99c7190ec6f0f5388a3f3681850d4e6f1195df770fd5f81178a71a6ae6f776",
+      "git_sha256": "4e99c7190ec6f0f5388a3f3681850d4e6f1195df770fd5f81178a71a6ae6f776"
+    },
+    {
+      "file": "resources/views/components/wyloguj.blade.php",
+      "copy_sha256": "f10a61228ebc17452602923247e430dc65c9ad4a54bdbde926898aa4b1dfca49",
+      "git_sha256": "f10a61228ebc17452602923247e430dc65c9ad4a54bdbde926898aa4b1dfca49"
+    },
+    {
+      "file": "resources/views/components/zakladki-dodawania.blade.php",
+      "copy_sha256": "ba1ba230e46bf47c49ec35d3cc6e4c4daa278699fe17214d96c750b78a007f64",
+      "git_sha256": "ba1ba230e46bf47c49ec35d3cc6e4c4daa278699fe17214d96c750b78a007f64"
+    },
+    {
+      "file": "resources/views/errors/403.blade.php",
+      "copy_sha256": "121f503a1d7683b4858e08ab6720256c9da16248e1988dee2971c5e98925ba10",
+      "git_sha256": "121f503a1d7683b4858e08ab6720256c9da16248e1988dee2971c5e98925ba10"
+    },
+    {
+      "file": "resources/views/errors/404.blade.php",
+      "copy_sha256": "6b38b8250443c90e9cf643d836b319560e726bf5807158ce546b46897c55a9e9",
+      "git_sha256": "6b38b8250443c90e9cf643d836b319560e726bf5807158ce546b46897c55a9e9"
+    },
+    {
+      "file": "resources/views/errors/419.blade.php",
+      "copy_sha256": "cc6b3844ea03aa0448b166222aca60336e78e9a41680cc290549b9028deca4db",
+      "git_sha256": "cc6b3844ea03aa0448b166222aca60336e78e9a41680cc290549b9028deca4db"
+    },
+    {
+      "file": "resources/views/errors/429.blade.php",
+      "copy_sha256": "caabc89954a46c865c59e659a62bad279b28df505633e967ba9fbef71b7f8a76",
+      "git_sha256": "caabc89954a46c865c59e659a62bad279b28df505633e967ba9fbef71b7f8a76"
+    },
+    {
+      "file": "resources/views/errors/500.blade.php",
+      "copy_sha256": "0614a01c190036200dda31463f9f0733e9e5aef23789b5e8b87577b4a6ea563c",
+      "git_sha256": "0614a01c190036200dda31463f9f0733e9e5aef23789b5e8b87577b4a6ea563c"
+    },
+    {
+      "file": "resources/views/errors/503.blade.php",
+      "copy_sha256": "cf3ee2dc1cc08b0f104f6acc4353e90330b8e5142e96379c1909e4dd15a4a7e8",
+      "git_sha256": "cf3ee2dc1cc08b0f104f6acc4353e90330b8e5142e96379c1909e4dd15a4a7e8"
+    },
+    {
+      "file": "resources/views/errors/_prosty.blade.php",
+      "copy_sha256": "a66747e6c240b50c32cff0f3a477f41a37165066c1ab9badf055629e459cc244",
+      "git_sha256": "a66747e6c240b50c32cff0f3a477f41a37165066c1ab9badf055629e459cc244"
+    },
+    {
+      "file": "resources/views/exports/index.blade.php",
+      "copy_sha256": "d61825691a9e82b36844af7de0ec690dce320392659be96fc10a6a136edd6a41",
+      "git_sha256": "d61825691a9e82b36844af7de0ec690dce320392659be96fc10a6a136edd6a41"
+    },
+    {
+      "file": "resources/views/exports/posts.blade.php",
+      "copy_sha256": "6ab1db3b6acb7aea868d24fab6954538e2d7b1061e760e7c51d9c083f210895c",
+      "git_sha256": "6ab1db3b6acb7aea868d24fab6954538e2d7b1061e760e7c51d9c083f210895c"
+    },
+    {
+      "file": "resources/views/exports/readme.blade.php",
+      "copy_sha256": "951a231b3e5ab1a4696fd4e0b8a2d3d1a99490105a42446ba026c180f8632471",
+      "git_sha256": "951a231b3e5ab1a4696fd4e0b8a2d3d1a99490105a42446ba026c180f8632471"
+    },
+    {
+      "file": "resources/views/exports/recipe.blade.php",
+      "copy_sha256": "7ded137cc862733fe1f7265d914a83894c675cd019177b764fa479faad151391",
+      "git_sha256": "7ded137cc862733fe1f7265d914a83894c675cd019177b764fa479faad151391"
+    },
+    {
+      "file": "resources/views/exports/styles.blade.php",
+      "copy_sha256": "cb9d7528967f5893e6876da56666e9f4d2ccef9ee9ed18bed0944e767dddc810",
+      "git_sha256": "cb9d7528967f5893e6876da56666e9f4d2ccef9ee9ed18bed0944e767dddc810"
+    },
+    {
+      "file": "resources/views/mail/data-export-ready.blade.php",
+      "copy_sha256": "b8442669ea273f64010663c54354e901f24fef3547e84759891502ac29292e4a",
+      "git_sha256": "b8442669ea273f64010663c54354e901f24fef3547e84759891502ac29292e4a"
+    },
+    {
+      "file": "resources/views/mail/haslo-zamiast-linku.blade.php",
+      "copy_sha256": "9d7ea4f68e433b40c67c4b19f641cd7ebe69bf62d0b10dbbdceb4a0e0b540384",
+      "git_sha256": "9d7ea4f68e433b40c67c4b19f641cd7ebe69bf62d0b10dbbdceb4a0e0b540384"
+    },
+    {
+      "file": "resources/views/mail/link-do-logowania.blade.php",
+      "copy_sha256": "cfcace3745bd61bb48845e27b272b3ae4c7e0283a57419e10ab1e31a9cc6a885",
+      "git_sha256": "cfcace3745bd61bb48845e27b272b3ae4c7e0283a57419e10ab1e31a9cc6a885"
+    },
+    {
+      "file": "resources/views/mail/nowe-haslo.blade.php",
+      "copy_sha256": "7728bf9f9d05a6bfe7f4a8f83ed91a99772ae90eb98b36c894d8ee007b2eff4b",
+      "git_sha256": "7728bf9f9d05a6bfe7f4a8f83ed91a99772ae90eb98b36c894d8ee007b2eff4b"
+    },
+    {
+      "file": "resources/views/mail/odpowiedz-na-wiadomosc.blade.php",
+      "copy_sha256": "65be6af487dc70e18fd7ff2207bf49bacb4115f5650d51e5a3ae3da83e5009c7",
+      "git_sha256": "65be6af487dc70e18fd7ff2207bf49bacb4115f5650d51e5a3ae3da83e5009c7"
+    },
+    {
+      "file": "resources/views/mail/podsumowanie-tygodnia-tekst.blade.php",
+      "copy_sha256": "7429766d628e4577398311022e7919756ea0c0596187a2b9b8509c5661e4f108",
+      "git_sha256": "7429766d628e4577398311022e7919756ea0c0596187a2b9b8509c5661e4f108"
+    },
+    {
+      "file": "resources/views/mail/podsumowanie-tygodnia.blade.php",
+      "copy_sha256": "d0bc761c7b9c7dd56a9256366403fdcfd37e0687963c98f302191a820df8b9c0",
+      "git_sha256": "d0bc761c7b9c7dd56a9256366403fdcfd37e0687963c98f302191a820df8b9c0"
+    },
+    {
+      "file": "resources/views/mail/potwierdz-adres.blade.php",
+      "copy_sha256": "06774310d5a718ce50d291ae5a5e077e4cae22c3155b98f570c1d379fdf72774",
+      "git_sha256": "06774310d5a718ce50d291ae5a5e077e4cae22c3155b98f570c1d379fdf72774"
+    },
+    {
+      "file": "resources/views/mail/potwierdz-nowy-adres.blade.php",
+      "copy_sha256": "0b88da11470410bf4005e4ba50f914b818eb043a17bf710f0e1ce4c84cba9747",
+      "git_sha256": "0b88da11470410bf4005e4ba50f914b818eb043a17bf710f0e1ce4c84cba9747"
+    },
+    {
+      "file": "resources/views/mail/proba-wejscia-kontem-facebooka.blade.php",
+      "copy_sha256": "51ffc1ff19ed2724612f259d8cca595616fce0efc3cf62ad5ebf47f206b67e05",
+      "git_sha256": "51ffc1ff19ed2724612f259d8cca595616fce0efc3cf62ad5ebf47f206b67e05"
+    },
+    {
+      "file": "resources/views/mail/zaproszenie-do-zalozenia-konta.blade.php",
+      "copy_sha256": "8b22eb9a9a6889dee0778d0d714759d80f48be4493007c144360edf5132bf925",
+      "git_sha256": "8b22eb9a9a6889dee0778d0d714759d80f48be4493007c144360edf5132bf925"
+    },
+    {
+      "file": "resources/views/mail/zgloszona-zmiana-adresu.blade.php",
+      "copy_sha256": "8eddd81d5a602061677d6fde27096071e9841c5bfed3f136bf927acd3f0b6056",
+      "git_sha256": "8eddd81d5a602061677d6fde27096071e9841c5bfed3f136bf927acd3f0b6056"
+    },
+    {
+      "file": "resources/views/pages/account/cancel-deletion.blade.php",
+      "copy_sha256": "b4a1a44c6c69ff5e351a41c05b13d204286908601c8ba78295358fdd0057f989",
+      "git_sha256": "b4a1a44c6c69ff5e351a41c05b13d204286908601c8ba78295358fdd0057f989"
+    },
+    {
+      "file": "resources/views/pages/add.blade.php",
+      "copy_sha256": "0fe730f1e9495598ae4805dc1b33036ac36764e70a286217e6fa75745049b04b",
+      "git_sha256": "0fe730f1e9495598ae4805dc1b33036ac36764e70a286217e6fa75745049b04b"
+    },
+    {
+      "file": "resources/views/pages/admin/appeals.blade.php",
+      "copy_sha256": "78c1e8445ad50f9704ca8f36d2a38dcb0bd4bbffebd475ea7da4e4189c21859e",
+      "git_sha256": "78c1e8445ad50f9704ca8f36d2a38dcb0bd4bbffebd475ea7da4e4189c21859e"
+    },
+    {
+      "file": "resources/views/pages/admin/bez-odpowiedzi.blade.php",
+      "copy_sha256": "8df358a95cb5f1482ff62d7472a2ba9708bbfa1e8ddd5eef593af071d05581b2",
+      "git_sha256": "8df358a95cb5f1482ff62d7472a2ba9708bbfa1e8ddd5eef593af071d05581b2"
+    },
+    {
+      "file": "resources/views/pages/admin/daily-board.blade.php",
+      "copy_sha256": "6c9fe659f808100b08ec8a6284aa07ddbef55b97ba2205d22ae3741043dc6c37",
+      "git_sha256": "6c9fe659f808100b08ec8a6284aa07ddbef55b97ba2205d22ae3741043dc6c37"
+    },
+    {
+      "file": "resources/views/pages/admin/kolaz-powitalny.blade.php",
+      "copy_sha256": "be0632dfc8911b7800344433d7cfecfacb71c6fe699b9fc3134fd0c1d603df2c",
+      "git_sha256": "be0632dfc8911b7800344433d7cfecfacb71c6fe699b9fc3134fd0c1d603df2c"
+    },
+    {
+      "file": "resources/views/pages/admin/reports.blade.php",
+      "copy_sha256": "0ff75d04a9976603bda76d784a4b3ac43d7276034e6371fca394f967446b859f",
+      "git_sha256": "0ff75d04a9976603bda76d784a4b3ac43d7276034e6371fca394f967446b859f"
+    },
+    {
+      "file": "resources/views/pages/admin/sygnaly.blade.php",
+      "copy_sha256": "5eb50c6cb1ec14edb59f5f7632e30d822b602869b36a3fafd64259bec94c2731",
+      "git_sha256": "5eb50c6cb1ec14edb59f5f7632e30d822b602869b36a3fafd64259bec94c2731"
+    },
+    {
+      "file": "resources/views/pages/admin/tag-promotions.blade.php",
+      "copy_sha256": "a6357774738a542ac0b137c0094dde067c5d93548fb856f67a506444811c9bca",
+      "git_sha256": "a6357774738a542ac0b137c0094dde067c5d93548fb856f67a506444811c9bca"
+    },
+    {
+      "file": "resources/views/pages/admin/uzytkownicy.blade.php",
+      "copy_sha256": "6e37ff8d84dfd4c459b40cadb80cefa4e62d0f74a150677a5690c80f2732ca02",
+      "git_sha256": "6e37ff8d84dfd4c459b40cadb80cefa4e62d0f74a150677a5690c80f2732ca02"
+    },
+    {
+      "file": "resources/views/pages/admin/uzytkownik.blade.php",
+      "copy_sha256": "978a8a821e8db27deab4ca6e492733357e235592a4dce1a837425f13a0bb5bde",
+      "git_sha256": "978a8a821e8db27deab4ca6e492733357e235592a4dce1a837425f13a0bb5bde"
+    },
+    {
+      "file": "resources/views/pages/admin/wiadomosc.blade.php",
+      "copy_sha256": "607e27820a6f2e692cb3900187ac14d885ee344fb8d2311d9ac9314e6407bf80",
+      "git_sha256": "607e27820a6f2e692cb3900187ac14d885ee344fb8d2311d9ac9314e6407bf80"
+    },
+    {
+      "file": "resources/views/pages/admin/wiadomosci.blade.php",
+      "copy_sha256": "dda5df099054d9b6e6fead344c6026d3adda90fa59a92d3772d501efa0114b75",
+      "git_sha256": "dda5df099054d9b6e6fead344c6026d3adda90fa59a92d3772d501efa0114b75"
+    },
+    {
+      "file": "resources/views/pages/admin/wymagane_2fa.blade.php",
+      "copy_sha256": "a843c05ec11e204ecad9b5baa30c936902a121f50dceb95798b369c88e5a5122",
+      "git_sha256": "a843c05ec11e204ecad9b5baa30c936902a121f50dceb95798b369c88e5a5122"
+    },
+    {
+      "file": "resources/views/pages/appeals/create.blade.php",
+      "copy_sha256": "268ea74ce3548f7f70d58bb67d16394cb2de794a88cf92ddcf3930f6bc31283c",
+      "git_sha256": "268ea74ce3548f7f70d58bb67d16394cb2de794a88cf92ddcf3930f6bc31283c"
+    },
+    {
+      "file": "resources/views/pages/appeals/guest.blade.php",
+      "copy_sha256": "2b3bc0520b9d62df45e0621f391637be08f1b03c3db1b04c84b2f6bb03eaa23d",
+      "git_sha256": "2b3bc0520b9d62df45e0621f391637be08f1b03c3db1b04c84b2f6bb03eaa23d"
+    },
+    {
+      "file": "resources/views/pages/appeals/reporter.blade.php",
+      "copy_sha256": "16504f91f913f14986f72a4070598986b34177eb60ef7cc2f88b84a3cde0c0dc",
+      "git_sha256": "16504f91f913f14986f72a4070598986b34177eb60ef7cc2f88b84a3cde0c0dc"
+    },
+    {
+      "file": "resources/views/pages/collections/index.blade.php",
+      "copy_sha256": "b688476493c89eb6cde0860efe861d9eb08c00030b09329c9ee151c5b88b0ce5",
+      "git_sha256": "b688476493c89eb6cde0860efe861d9eb08c00030b09329c9ee151c5b88b0ce5"
+    },
+    {
+      "file": "resources/views/pages/collections/show.blade.php",
+      "copy_sha256": "132a72acf8df991ec194a71b8794156aee91b38f5318b97b91bea6321d388fc8",
+      "git_sha256": "132a72acf8df991ec194a71b8794156aee91b38f5318b97b91bea6321d388fc8"
+    },
+    {
+      "file": "resources/views/pages/cooked/celebrate.blade.php",
+      "copy_sha256": "ab30ef53015812836bb34b43a486f3abea44c5b489b2d46a6728c48e18ec3043",
+      "git_sha256": "ab30ef53015812836bb34b43a486f3abea44c5b489b2d46a6728c48e18ec3043"
+    },
+    {
+      "file": "resources/views/pages/cooked/create.blade.php",
+      "copy_sha256": "f179754f90f5950ce1fb10d71519387bdb9676d6ca31a7d1dc49d5c09ff1dcc9",
+      "git_sha256": "f179754f90f5950ce1fb10d71519387bdb9676d6ca31a7d1dc49d5c09ff1dcc9"
+    },
+    {
+      "file": "resources/views/pages/cooked/show.blade.php",
+      "copy_sha256": "26cfa7c4c4122d99ae8f863137663f24036e6bc297a07f705f61ee5676ee348e",
+      "git_sha256": "26cfa7c4c4122d99ae8f863137663f24036e6bc297a07f705f61ee5676ee348e"
+    },
+    {
+      "file": "resources/views/pages/discover.blade.php",
+      "copy_sha256": "c5f13d539137e662f810ba025bb41f6aae12d21094108393035c02e4f9763ba8",
+      "git_sha256": "c5f13d539137e662f810ba025bb41f6aae12d21094108393035c02e4f9763ba8"
+    },
+    {
+      "file": "resources/views/pages/home.blade.php",
+      "copy_sha256": "4ac8f103464be30f71dda813e114a8a2ffa8a355a53101fb81a4f16e55a7ee65",
+      "git_sha256": "4ac8f103464be30f71dda813e114a8a2ffa8a355a53101fb81a4f16e55a7ee65"
+    },
+    {
+      "file": "resources/views/pages/landing.blade.php",
+      "copy_sha256": "2bc02eff30a7626832e38baa55e71ff81359ddca822e97b03f274d999e3abe5b",
+      "git_sha256": "2bc02eff30a7626832e38baa55e71ff81359ddca822e97b03f274d999e3abe5b"
+    },
+    {
+      "file": "resources/views/pages/napisz-do-nas-potwierdzenie.blade.php",
+      "copy_sha256": "4e9b7e0584d06146f3069513b825e17042bc9fb6c2e2de3cd685c79fae1b2afa",
+      "git_sha256": "4e9b7e0584d06146f3069513b825e17042bc9fb6c2e2de3cd685c79fae1b2afa"
+    },
+    {
+      "file": "resources/views/pages/napisz-do-nas.blade.php",
+      "copy_sha256": "c88772e6dd1613bef369ed437e02c78fcce57c4db0bbeaa1ecda3964e2a20c00",
+      "git_sha256": "c88772e6dd1613bef369ed437e02c78fcce57c4db0bbeaa1ecda3964e2a20c00"
+    },
+    {
+      "file": "resources/views/pages/notifications.blade.php",
+      "copy_sha256": "e13fa1c7de45a926208aebd3799dd96a61e1afc11a6150795c4a9756fe4a7932",
+      "git_sha256": "e13fa1c7de45a926208aebd3799dd96a61e1afc11a6150795c4a9756fe4a7932"
+    },
+    {
+      "file": "resources/views/pages/onboarding/done.blade.php",
+      "copy_sha256": "0ed6788df605855f4b170f1341d7fc8a78b7b7f54dac0657de3a0113a7752964",
+      "git_sha256": "0ed6788df605855f4b170f1341d7fc8a78b7b7f54dac0657de3a0113a7752964"
+    },
+    {
+      "file": "resources/views/pages/onboarding/interests.blade.php",
+      "copy_sha256": "061383c54556628f0cad96c9d6482f3138a53506e0a41c2e500297f78cc88812",
+      "git_sha256": "061383c54556628f0cad96c9d6482f3138a53506e0a41c2e500297f78cc88812"
+    },
+    {
+      "file": "resources/views/pages/onboarding/people.blade.php",
+      "copy_sha256": "f09bc28d1b44b780d0b46aea43b90e544510d0e65ee2c2c70ed0a149a5c079a0",
+      "git_sha256": "f09bc28d1b44b780d0b46aea43b90e544510d0e65ee2c2c70ed0a149a5c079a0"
+    },
+    {
+      "file": "resources/views/pages/podsumowanie-wrocono.blade.php",
+      "copy_sha256": "9f25707172da17b4bc7a2348fee6c19360c5f81fac4ef0c17430203fda8681e4",
+      "git_sha256": "9f25707172da17b4bc7a2348fee6c19360c5f81fac4ef0c17430203fda8681e4"
+    },
+    {
+      "file": "resources/views/pages/podsumowanie-wypisano.blade.php",
+      "copy_sha256": "2832c95cd63819ec150cb37e1cae75b2822f545ee59742f8743e31a2bb1bc6ef",
+      "git_sha256": "2832c95cd63819ec150cb37e1cae75b2822f545ee59742f8743e31a2bb1bc6ef"
+    },
+    {
+      "file": "resources/views/pages/posts/create.blade.php",
+      "copy_sha256": "2bdfd4e640d45ecccc484db73fbcb1319f90f21e715ca35724ceee7d808a4f9d",
+      "git_sha256": "2bdfd4e640d45ecccc484db73fbcb1319f90f21e715ca35724ceee7d808a4f9d"
+    },
+    {
+      "file": "resources/views/pages/posts/edit.blade.php",
+      "copy_sha256": "6810b78fcd56393723b023dae9d2f2fb3a02eb2be32a910288ace3675616866d",
+      "git_sha256": "6810b78fcd56393723b023dae9d2f2fb3a02eb2be32a910288ace3675616866d"
+    },
+    {
+      "file": "resources/views/pages/posts/show.blade.php",
+      "copy_sha256": "1eafa00b871fbe288a3e9a7e369101285073377812b9c4a31ca699bf42bedc64",
+      "git_sha256": "1eafa00b871fbe288a3e9a7e369101285073377812b9c4a31ca699bf42bedc64"
+    },
+    {
+      "file": "resources/views/pages/posts/zdjecia.blade.php",
+      "copy_sha256": "d1054ee072639ce9c87a5e7944d7fab7b5fe69a8c7feb1736cd8f45d014df4b6",
+      "git_sha256": "d1054ee072639ce9c87a5e7944d7fab7b5fe69a8c7feb1736cd8f45d014df4b6"
+    },
+    {
+      "file": "resources/views/pages/profile/connections.blade.php",
+      "copy_sha256": "0d4098460074eb94bdfdd666543e128affff0c5657d7a6d3d3b1ecdf2e1fd94d",
+      "git_sha256": "0d4098460074eb94bdfdd666543e128affff0c5657d7a6d3d3b1ecdf2e1fd94d"
+    },
+    {
+      "file": "resources/views/pages/profile/show.blade.php",
+      "copy_sha256": "5eb722f8a8daf74dddb0a66605b26463024f03f47589622f1fb7355ec01116f7",
+      "git_sha256": "5eb722f8a8daf74dddb0a66605b26463024f03f47589622f1fb7355ec01116f7"
+    },
+    {
+      "file": "resources/views/pages/recipes/cooking.blade.php",
+      "copy_sha256": "c007668a57298225ff59bed1deb0bc28d165dfd20290a7b5acab417ebabd139d",
+      "git_sha256": "c007668a57298225ff59bed1deb0bc28d165dfd20290a7b5acab417ebabd139d"
+    },
+    {
+      "file": "resources/views/pages/recipes/create.blade.php",
+      "copy_sha256": "cf52b123d02fc493e5e01da26bb85c6e7438d0695957bf41fedcbe1762749b3e",
+      "git_sha256": "cf52b123d02fc493e5e01da26bb85c6e7438d0695957bf41fedcbe1762749b3e"
+    },
+    {
+      "file": "resources/views/pages/recipes/show.blade.php",
+      "copy_sha256": "c52f5428dfc25b39f7835bf5f423612204a1cbd4467221d17f0182a51b668fe8",
+      "git_sha256": "c52f5428dfc25b39f7835bf5f423612204a1cbd4467221d17f0182a51b668fe8"
+    },
+    {
+      "file": "resources/views/pages/recipes/szczegoly.blade.php",
+      "copy_sha256": "2930b2ff8859be1a17537b30fe691d1e977343b7f0c1a4df81315c1adba2183d",
+      "git_sha256": "2930b2ff8859be1a17537b30fe691d1e977343b7f0c1a4df81315c1adba2183d"
+    },
+    {
+      "file": "resources/views/pages/recipes/wizard.blade.php",
+      "copy_sha256": "f9ff8ba1b7591c1a659b47a2aaa57e68341d5927f5c699c73a891923407402ca",
+      "git_sha256": "f9ff8ba1b7591c1a659b47a2aaa57e68341d5927f5c699c73a891923407402ca"
+    },
+    {
+      "file": "resources/views/pages/report.blade.php",
+      "copy_sha256": "5c3f6e05c0f19fbeb847ffc17096bf488f314ac382e5762b17558a9dbe229741",
+      "git_sha256": "5c3f6e05c0f19fbeb847ffc17096bf488f314ac382e5762b17558a9dbe229741"
+    },
+    {
+      "file": "resources/views/pages/search.blade.php",
+      "copy_sha256": "864d5e9ca4a99c7d4f5938d56aebf7a8b33658761d1c38133e737bccce990a31",
+      "git_sha256": "864d5e9ca4a99c7d4f5938d56aebf7a8b33658761d1c38133e737bccce990a31"
+    },
+    {
+      "file": "resources/views/pages/settings/accessibility.blade.php",
+      "copy_sha256": "dfb8033181dd3beb6a6942a1654be1de99e0c567bcd56c16a164f4143faa8bdb",
+      "git_sha256": "dfb8033181dd3beb6a6942a1654be1de99e0c567bcd56c16a164f4143faa8bdb"
+    },
+    {
+      "file": "resources/views/pages/settings/avatar.blade.php",
+      "copy_sha256": "0f60acb7c8e7453ba660705ddaf24fc8dfa3be10c79e9a0d85f7fd8b4cc68700",
+      "git_sha256": "0f60acb7c8e7453ba660705ddaf24fc8dfa3be10c79e9a0d85f7fd8b4cc68700"
+    },
+    {
+      "file": "resources/views/pages/settings/data.blade.php",
+      "copy_sha256": "2ae1df908c9ef98d8dbac7a8e95f1b212ceefceb05b55e552fd6a15ebba0feae",
+      "git_sha256": "2ae1df908c9ef98d8dbac7a8e95f1b212ceefceb05b55e552fd6a15ebba0feae"
+    },
+    {
+      "file": "resources/views/pages/settings/email.blade.php",
+      "copy_sha256": "bb74a829be38fb7a26c27b81eea502c2105e47724d652530125f53a7c1445c08",
+      "git_sha256": "bb74a829be38fb7a26c27b81eea502c2105e47724d652530125f53a7c1445c08"
+    },
+    {
+      "file": "resources/views/pages/settings/index.blade.php",
+      "copy_sha256": "18b2cf9746dbc86ff37f5a1e492d952ced9a08419e168b0ff8ddc6ff745ddef5",
+      "git_sha256": "18b2cf9746dbc86ff37f5a1e492d952ced9a08419e168b0ff8ddc6ff745ddef5"
+    },
+    {
+      "file": "resources/views/pages/settings/privacy.blade.php",
+      "copy_sha256": "6215a3d5c2798889a1e821d88c677c74fafff3dea21a7cf8c2963c22ed587ae7",
+      "git_sha256": "6215a3d5c2798889a1e821d88c677c74fafff3dea21a7cf8c2963c22ed587ae7"
+    },
+    {
+      "file": "resources/views/pages/settings/profile.blade.php",
+      "copy_sha256": "82880416fb073399e138e6686dad358e80acee6d70d1ec18402a32af6e627257",
+      "git_sha256": "82880416fb073399e138e6686dad358e80acee6d70d1ec18402a32af6e627257"
+    },
+    {
+      "file": "resources/views/pages/settings/security.blade.php",
+      "copy_sha256": "f5839299674740417049d3d7165d7aa7126a1066f9f94e2edc42cc03dd362a0b",
+      "git_sha256": "f5839299674740417049d3d7165d7aa7126a1066f9f94e2edc42cc03dd362a0b"
+    },
+    {
+      "file": "resources/views/pages/settings/tags.blade.php",
+      "copy_sha256": "1d266df2e43eb49b5373f9402ec245435b18b599e203260535bb36ca9655464a",
+      "git_sha256": "1d266df2e43eb49b5373f9402ec245435b18b599e203260535bb36ca9655464a"
+    },
+    {
+      "file": "resources/views/pages/settings/two_factor/codes.blade.php",
+      "copy_sha256": "52a7eacd71ba19b5ce53d4773115927a76a4ef911ed3b121f87e55dd80986426",
+      "git_sha256": "52a7eacd71ba19b5ce53d4773115927a76a4ef911ed3b121f87e55dd80986426"
+    },
+    {
+      "file": "resources/views/pages/settings/two_factor/enable.blade.php",
+      "copy_sha256": "3ec5fced71e30c19b670e8d3a6993c0dc89b7794b0a0f7c4a1747a86f09c89d9",
+      "git_sha256": "3ec5fced71e30c19b670e8d3a6993c0dc89b7794b0a0f7c4a1747a86f09c89d9"
+    },
+    {
+      "file": "resources/views/pages/settings/two_factor/index.blade.php",
+      "copy_sha256": "ae289711a8788223d1e124294ea922b48230f1b987b07437374dbfce872e07ac",
+      "git_sha256": "ae289711a8788223d1e124294ea922b48230f1b987b07437374dbfce872e07ac"
+    },
+    {
+      "file": "resources/views/pages/static/about.blade.php",
+      "copy_sha256": "0ca5ba2827bdac85a4ab2834727d8d8345046865ab2afab5e839f847b978b294",
+      "git_sha256": "0ca5ba2827bdac85a4ab2834727d8d8345046865ab2afab5e839f847b978b294"
+    },
+    {
+      "file": "resources/views/pages/static/help.blade.php",
+      "copy_sha256": "30d93cf3e83f8996904100bc8f63f2d86346e8fe834507e593f8f8d487b23555",
+      "git_sha256": "30d93cf3e83f8996904100bc8f63f2d86346e8fe834507e593f8f8d487b23555"
+    },
+    {
+      "file": "resources/views/pages/static/legal.blade.php",
+      "copy_sha256": "978382f023ddba242d3cf290b4fc41f007cc0dd8ece997b9597c4fba8bf612bc",
+      "git_sha256": "978382f023ddba242d3cf290b4fc41f007cc0dd8ece997b9597c4fba8bf612bc"
+    },
+    {
+      "file": "resources/views/pages/tags/index.blade.php",
+      "copy_sha256": "451ee69ac8343bf602bc20ace6c6fbcfbefa8bc607bea5856f23cfd4b58bfaaa",
+      "git_sha256": "451ee69ac8343bf602bc20ace6c6fbcfbefa8bc607bea5856f23cfd4b58bfaaa"
+    },
+    {
+      "file": "resources/views/pages/tags/show.blade.php",
+      "copy_sha256": "7324f62e4062cf1d0528daf1c36e6dd03cd018143de11c5a4d50486e02c69522",
+      "git_sha256": "7324f62e4062cf1d0528daf1c36e6dd03cd018143de11c5a4d50486e02c69522"
+    },
+    {
+      "file": "resources/views/pages/zglos-nielegalna-tresc-potwierdzenie.blade.php",
+      "copy_sha256": "ae46588097e9da52d3bd39b4c0b1bafc2489c098db79beeb801cb1acbac11b22",
+      "git_sha256": "ae46588097e9da52d3bd39b4c0b1bafc2489c098db79beeb801cb1acbac11b22"
+    },
+    {
+      "file": "resources/views/pages/zglos-nielegalna-tresc.blade.php",
+      "copy_sha256": "a01fe6b3726fa7bae459c95f93c9241b7aba1b630551a169e3886376205dbf2d",
+      "git_sha256": "a01fe6b3726fa7bae459c95f93c9241b7aba1b630551a169e3886376205dbf2d"
+    },
+    {
+      "file": "resources/views/pages/zgloszenia/lista.blade.php",
+      "copy_sha256": "6c3a57881c080eadd5d9ddc7d481eca0de7d87668743c5dd4dd7469d2b88fe18",
+      "git_sha256": "6c3a57881c080eadd5d9ddc7d481eca0de7d87668743c5dd4dd7469d2b88fe18"
+    },
+    {
+      "file": "resources/views/pages/zgloszenia/szczegoly.blade.php",
+      "copy_sha256": "411c878e793dff422e180bb093d705b0338407ff05199cfce3f1cd452fcf24dc",
+      "git_sha256": "411c878e793dff422e180bb093d705b0338407ff05199cfce3f1cd452fcf24dc"
+    },
+    {
+      "file": "resources/views/sitemap.blade.php",
+      "copy_sha256": "0805291515798f35c2c6db890b003ec2ca1c2eb7a33dff5bae8116154db9a65d",
+      "git_sha256": "0805291515798f35c2c6db890b003ec2ca1c2eb7a33dff5bae8116154db9a65d"
+    },
+    {
+      "file": "resources/views/vendor/mail/html/header.blade.php",
+      "copy_sha256": "f8393564a130d5e2a902a4aaf3636d65f949d583383756ea94da41216beb3226",
+      "git_sha256": "f8393564a130d5e2a902a4aaf3636d65f949d583383756ea94da41216beb3226"
+    },
+    {
+      "file": "resources/views/vendor/mail/html/themes/default.css",
+      "copy_sha256": "4c527a6e11810a93c146ba0a8f7b74a224a6328da4cdf453a544543c0747821a",
+      "git_sha256": "4c527a6e11810a93c146ba0a8f7b74a224a6328da4cdf453a544543c0747821a"
+    },
+    {
+      "file": "routes/console.php",
+      "copy_sha256": "ea50c5019ac56ba990a645c88390d955b1a52b079d96a2d6fefe4b6f5ded772f",
+      "git_sha256": "ea50c5019ac56ba990a645c88390d955b1a52b079d96a2d6fefe4b6f5ded772f"
+    },
+    {
+      "file": "routes/web.php",
+      "copy_sha256": "26e3df3e2446b77953ca81bfe0e94f6f562ab483215271ec950b087b82b23207",
+      "git_sha256": "26e3df3e2446b77953ca81bfe0e94f6f562ab483215271ec950b087b82b23207"
+    }
+  ],
+  "docsExcluded": true
+}

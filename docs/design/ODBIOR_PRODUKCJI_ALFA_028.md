@@ -22,7 +22,7 @@ Publiczny HTTP po przełączeniu: **Alfa 0.28, wydanie 14 września 2026, 20:13,
 
 Nazwy i sumy assetów są takie jak w Alfa0.27. Ten pakiet zmienia treść Blade i pomiary; nie zmienia produkcyjnego CSS/JS. Ich niezmienione adresy przy nowym SHA strony nie są dowodem starego wdrożenia.
 
-Railway6443031526 dotyczy dokładnego SHA5fd45db w środowisku `ideal-exploration / production`. Początkowy Deploy34877115716 został skipped i nie jest dowodem sukcesu. Końcowy status zostanie dopisany przed wysłaniem raportu.
+Railway6443031526 dotyczył SHA5fd45db. Późniejszy PR #544 z dokumentacją został scalony jako `3a1584764637406676ff78ff7afa4b09df5f34b9`. Dla tego końcowego SHA Alfy0.28 potwierdzono Railway6443618388 success (14.09.2026,18:25:03UTC), Deploy34880663803 success oraz CI main34880540245 success w zakresie dokumentacyjnym. HTTP i zalogowana przeglądarka odczytały Alfa0.28/3a15847; assety pozostały jak w tabeli. Statusy API ponownie odczytano podczas odbioru Alfy0.29. Przebiegi Deploy oznaczone skipped nie są dowodem wdrożenia.
 
 ## Granice
 

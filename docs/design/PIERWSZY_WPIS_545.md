@@ -36,3 +36,6 @@ Odrębnie błąd formularza sprawdzono przy 320 px / tekst 140% w obu motywach: 
 Baza `kuking_publikacja492`, PostgreSQL 55439, lokalny serwer 8033. Powstał wyłącznie lokalny prywatny wpis i lokalne konto odbioru, z fotografią z dostarczonej wizualizacji. Wiadomości w pamięci, bez zewnętrznej wysyłki. Sesja poza repo; fixture pozostawiono do kolejnego odbioru edycji. Nie zmieniano danych produkcyjnych.
 
 Nie sprawdzono tutaj błędnego pliku, wszystkich etapów przetwarzania zdjęć, edycji, publikacji przepisu ani wysłania Ugotowałem. Kolejkę uzgodniono w macierzy #492. Nie uznawać brakującego pomiaru za błąd aplikacji.
+## Dostarczenie pakietu
+
+PR546, head8e4da2f, scalony443da38. CI PR i main10/10success, PHP3807/76412. [Potwierdzony odbiór produkcji Alfy0.29](ODBIOR_PRODUKCJI_ALFA_029.md) rozdziela wdrożenie od ograniczonego oglądu zalogowanej strony. Historyczny opis przygotowania wyżej nie jest bieżącym statusem wysyłki.
