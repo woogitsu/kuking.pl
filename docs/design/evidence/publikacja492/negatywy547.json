@@ -1,0 +1,56 @@
+[
+  {
+    "name": "stara-instrukcja",
+    "source": "resources/views/pages/cooked/create.blade.php",
+    "negative_exit": 1,
+    "restored_exit": 0,
+    "md5": "6dc58df4f9cd0012c487a2867d103c54",
+    "mtime_ns": 1789414182958811500,
+    "backup": "/tmp/kuking547-negatywy-78k37c5p/create.blade.php"
+  },
+  {
+    "name": "bez-wlasnego-wyjatku",
+    "source": "resources/views/pages/cooked/create.blade.php",
+    "negative_exit": 1,
+    "restored_exit": 0,
+    "md5": "6dc58df4f9cd0012c487a2867d103c54",
+    "mtime_ns": 1789414182958811500,
+    "backup": "/tmp/kuking547-negatywy-78k37c5p/create.blade.php"
+  },
+  {
+    "name": "bez-wyjatku-wymazanego",
+    "source": "resources/views/pages/cooked/create.blade.php",
+    "negative_exit": 1,
+    "restored_exit": 0,
+    "md5": "6dc58df4f9cd0012c487a2867d103c54",
+    "mtime_ns": 1789414182958811500,
+    "backup": "/tmp/kuking547-negatywy-78k37c5p/create.blade.php"
+  },
+  {
+    "name": "tylko-aktywny-zamiast-czytajacego",
+    "source": "resources/views/pages/cooked/create.blade.php",
+    "negative_exit": 1,
+    "restored_exit": 0,
+    "md5": "6dc58df4f9cd0012c487a2867d103c54",
+    "mtime_ns": 1789414182958811500,
+    "backup": "/tmp/kuking547-negatywy-78k37c5p/create.blade.php"
+  },
+  {
+    "name": "stare-potwierdzenie",
+    "source": "app/Http/Controllers/CookedEventController.php",
+    "negative_exit": 1,
+    "restored_exit": 0,
+    "md5": "5f30edaf4ed48851aa6d44e9bfc8a858",
+    "mtime_ns": 1789414182959894900,
+    "backup": "/tmp/kuking547-negatywy-78k37c5p/CookedEventController.php"
+  },
+  {
+    "name": "stare-powtorzenie",
+    "source": "app/Http/Controllers/CookedEventController.php",
+    "negative_exit": 1,
+    "restored_exit": 0,
+    "md5": "5f30edaf4ed48851aa6d44e9bfc8a858",
+    "mtime_ns": 1789414182959894900,
+    "backup": "/tmp/kuking547-negatywy-78k37c5p/CookedEventController.php"
+  }
+]

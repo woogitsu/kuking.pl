@@ -24,6 +24,10 @@ fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
 
 ## Precyzja opisu działania
 
+Zachęta po pierwszym wpisie wskazuje formularz kolejnego zdjęcia. Nie zakłada
+zawartości telefonu ani nie obiecuje, że następna publikacja pójdzie szybciej
+(D-114, #545). Pierwszy i kolejny wpis są osobnymi stanami odbioru tekstu.
+
 Komunikat przekroczenia limitu podaje wartość z rzeczywistej reguły
 walidacji, np. `:max`, zamiast liczby wpisanej osobno w zdaniu. Zmiana
 limitu nie może pozostawić sprzecznej instrukcji przy polu (#538).
@@ -461,15 +465,22 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 |---|---|
 | przycisk na przepisie | Ugotowałem |
 | nagłówek sekcji | Gotujesz z tego przepisu? |
-| pod nagłówkiem | {autor} naprawdę chce o tym wiedzieć. Wystarczy jedno kliknięcie. |
+| pod nagłówkiem | Otwórz „Ugotowałem”, a potem wyślij formularz. |
 | formularz, uspokojenie | Nie musisz wypełniać żadnego pola — wystarczy, że klikniesz „Wyślij". |
 | zdjęcie efektu | To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne. |
 | pole uwagi | Jak wyszło? |
 | pole zmian | Coś po swojemu? |
-| po wysłaniu | Zapisane. {autor} dowie się, że ktoś ugotował z tego przepisu. |
+| po wysłaniu | Wykonanie zapisane. |
 | powiadomienie autora | {imię} ugotowała Twój rosół. |
 | sekcja pod przepisem | Komu wyszło |
 | pod nagłówkiem | Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie. |
+
+Instrukcja formularza może zapowiadać powiadomienie innego autora, który
+może czytać serwis. Przy własnym przepisie i autorze wymazanym mówi:
+„Zapisz wykonanie tego przepisu.” Zawieszony autor nadal może czytać
+i otrzymuje powiadomienie (AGENTS.md §1). Potwierdzenie zapisu oraz
+ponownego wysłania nie podaje liczby powiadomień: ich brak w tych
+wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnieć.
 
 ### Puste stany
 

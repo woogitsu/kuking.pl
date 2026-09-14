@@ -1,7 +1,11 @@
 <x-layout title="Ugotowałem" :noindex="true">
     <h1>Ugotowałem: {{ $recipe->title }}</h1>
     <p class="mb-5">
-        {{ $recipe->author->displayName() }} dowie się, że ktoś ugotował z tego przepisu.
+        @if($recipe->author_id !== auth()->id() && $recipe->author->mozeCzytac())
+            {{ $recipe->author->displayName() }} dowie się, że ktoś ugotował z tego przepisu.
+        @else
+            Zapisz wykonanie tego przepisu.
+        @endif
         <strong>Nie musisz wypełniać żadnego pola</strong> — wystarczy, że klikniesz „Wyślij”.
     </p>
 

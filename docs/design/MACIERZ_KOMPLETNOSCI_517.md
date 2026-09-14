@@ -1,8 +1,31 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Uzupełniony odbiór publikowania — pakiet Alfa 0.29
+
+[Odbiór rzeczywistych przebiegów](ODBIOR_PUBLIKOWANIA_492.md) uzupełnia poniższą kolejkę: edycja wpisu z błędem i zapisem, prosta publikacja przepisu, zapis szkicu i ponowne otwarcie, kreator ze składnikiem i zdjęciem kroku aż do publikacji oraz Ugotowałem z błędem i poprawieniem. 240 konfiguracji zwykłych formularzy i 12 wariantów błędów z Tab/Enter mają oddzielne zakresy, opisane w raporcie. [#547](KOMUNIKAT_UGOTOWALEM_547.md) poprawia obietnicę powiadomienia własnego autora: osobno 31/148, sześć negatywów, 48 konfiguracji instrukcji i osiem wyników zapisu/powtórzenia. Kod końcowy nadal wymaga potwierdzenia CI i wdrożenia.
+
+Proste `/dodaj/przepis` publikuje bez kreatora. Szkic tworzy formularz na jednej stronie; kreator otwiera istniejący szkic lub szczegóły opublikowanego przepisu. Zdjęcia wpisu mają kolejność i sposób wyświetlania, nie zamianę plików. Nie dodawać tych nieistniejących funkcji jako rzekomych braków wdrożenia marki.
+
+Pozostają wielozdjęciowe stany, błędne pliki, pełna obsługa klawiaturą i pola pełnej edycji, 419/429, rozszerzony tryb gotowania i Wyszło. Pełny port: **CZĘŚCIOWO**. Poniższa kolejka dokumentuje stan przed tym uzupełnieniem.
+
+## Uzgodnienie publikowania i gotowania — 14 września 2026
+
+Aktualna kolejka #492 uwzględnia późniejsze raporty zamiast powtarzać historyczne odbiory. Poprawka #545 pozostaje lokalna, przed CI i wdrożeniem. [Dokładny zakres i dowody](PIERWSZY_WPIS_545.md). Pełny port: **CZĘŚCIOWO**.
+
+| Ekran lub stan | Wygląd i teksty | Mobile i pomiar | Pozostały brak |
+|---|---|---|---|
+| Publikowanie zdjęcia: błędny opis → poprawienie → sukces | Rzeczywisty upload, zachowane zdjęcie i 4001 znaków po walidacji; prywatny wpis powstał | Błąd: 320 px, tekst 140%, oba motywy, fokus podsumowania, axe bez naruszeń | Błędny plik, pełna klawiatura formularza, edycja wpisu oraz kolejność i sposób wyświetlania zdjęć |
+| Podpowiedź po pierwszym wpisie #545 | Usunięta niezmierzona obietnica szybkości; końcowe zrzuty obejrzane | 48 konfiguracji; cztery wąskie warianty z Tab 10/10 i axe | Odbiór wdrożenia; nie rozszerzać wyniku na cały formularz |
+| Kreator: błąd autozapisu | AUTOZAPIS_KREATORA_528.md, odbiór integracji | Długi tytuł, zachowanie zapisu, korekta składnika 241→240; cztery prawdziwe zoomy | Nowy szkic → ponowne otwarcie → pełna publikacja |
+| Szczegóły przepisu | ODBIOR_FOKUSU_SZCZEGOLY_530.md | Cztery przebiegi po 25 kontrolek przy zoomie | Walidacja i końcowy zapis nie były przedmiotem pomiaru |
+| Tryb gotowania podstawowy | ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md, źródła 24afa9e | 48 konfiguracji, długa instrukcja, faktyczne przejścia i zapis odhaczenia | Składniki, zdjęcia kroków, istniejący minutnik, końcowe Ugotowałem; nie przypisywać starego SHA nowemu pomiarowi |
+| Ugotowałem | Istnieją testy domenowe; to nie pełny odbiór wizualny | Do uzupełnienia | Błąd → poprawienie → wysłanie → wynik i odczyt danych |
+
+Nadal sprawdzić formularz przepisu na jednej stronie, edycję przepisu oraz widoczne odzyskiwanie po 419/429. PHP i historyczny ogląd pojedynczych stanów nie zamykają tych przebiegów. Fizyczny telefon, klawiatura ekranowa, Wake Lock i dźwięk minutnika pozostają osobnymi ograniczeniami.
+
 ## Uzupełnienie OAuth — Alfa 0.28
 
-PR #543 domyka lokalny i CI odbiór pięciu końcowych stanów OAuth na head `795dc2f`: oba motywy, 320×740, tekst 140%, pełny Tab, axe i ogląd zrzutów. Obejmuje ostatnią poprawkę tekstu Facebooka bez adresu. [Szczegóły i macierz](EKRANY_OAUTH_345.md), [osobny dowód wdrożenia](ODBIOR_PRODUKCJI_ALFA_028.md). Zewnętrzny dostawca, końcowy POST i prawdziwy zoom 200% nie są objęte tym odbiorem. Pełny port nadal **CZĘŚCIOWO**.
+PR #543 domyka lokalny i CI odbiór pięciu końcowych stanów OAuth na head `795dc2f`: oba motywy, 320×740, tekst 140%, Tab w głównej treści, axe i ogląd zrzutów. Obejmuje ostatnią poprawkę tekstu Facebooka bez adresu. [Szczegóły i macierz](EKRANY_OAUTH_345.md), [osobny dowód wdrożenia](ODBIOR_PRODUKCJI_ALFA_028.md). Zewnętrzny dostawca, końcowy POST i prawdziwy zoom 200% nie są objęte tym odbiorem. Pełny port nadal **CZĘŚCIOWO**.
 
 ## Potwierdzony pakiet Alfa 0.27 — 14 września 2026
 

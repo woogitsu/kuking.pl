@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.29 — prawdziwe komunikaty po publikacji
+
+- Po pierwszym wpisie wskazujemy formularz kolejnego zdjęcia, bez niezmierzonej obietnicy szybszego dodawania (#545).
+- „Ugotowałem” potwierdza zapis wykonania, bez obietnicy powiadomienia o własnym gotowaniu lub dla wymazanego autora. Ponowne wysłanie nadal zapisuje jedno wykonanie (#547).
+
 ## Alfa 0.28 — sprawdzone ekrany wejścia
 
 - Łączenie konta z Facebookiem opisuje przycisk wejścia i możliwe potwierdzenie u dostawcy, bez obietnicy jednego kliknięcia (#542).
