@@ -47,6 +47,29 @@ na nazwie autora zachowuje rozszerzenie kliknięcia na kartę przez pseudo-eleme
 
 ## Uczciwe granice dowodów
 
+### Dodatkowy błąd wykryty przez CI
+
+Pierwszy head PR #558 (`8e957963678fd415a0cf177c9c1e81c8c1266800`),
+CI34907625262: PHP3814 testów /76612 asercji przeszło, ale istniejący
+pomiar kompozycji zatrzymał wydanie. Przy CSS320, bazowej czcionce32px
+i tekście140% szerokość dokumentu wynosiła419px. Lokalnie odtworzono
+dokładnie419px: nagłówek „Poznaj ich kuchnie” miał379px, ponieważ jako
+element flex nie mógł zejść poniżej szerokości słowa.
+
+Podtytuł publicznej tablicy ma teraz min-width:0 i overflow-wrap:anywhere.
+Tekst nie jest zmniejszany ani ukrywany. Skrypt tablica-publiczna-font.mjs
+sprawdza12 wariantów: sześć szerokości i oba motywy, font bazowy32px,
+tekst140%. Wszystkie przechodzą. Obejrzano zrzut320/jasny; duże słowa
+zawijają się i wymagają przewijania pionowego. To nadal nie jest zoom.
+
+Szósta fizyczna kontrola ujemna usuwa obie deklaracje prawdziwego CSS:
+powraca419px i kod1. Kopia poza repo, przywrócenie MD5/mtime, build
+i ponowny wynik12/12. [Wyniki](evidence/landing557/font.json),
+[kontrola ujemna](evidence/landing557/font-negatyw.json).
+Pierwsze pięć negatywów opisuje poprzedzający tę poprawkę stan CSS;
+nowy dowód zawiera hash arkusza z poprawionym nagłówkiem. Nie zmieniono
+progów ani scenariuszy istniejącego testu CI.
+
 Końcowy przebieg wysokości CSS900 zakończył się 48/48: 144 odwiedzone
 linki dań przez Tab i144 kliknięcia fotografii. Wszystkie pięć końcowych
 negatywów: kod1, przywrócenie MD5/mtime, potem kod0. Obejrzano końcowe

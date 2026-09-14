@@ -32,15 +32,21 @@ trzy zdjęcia w profilu, a kliknięcie drugiego prowadziło do wpisu.
 Odbiór zapisano również w #551, #553 i #492.
 
 Menu #555 scalono jako PR #556, main1b43b69668cce731be52d270479264d315b92a24,
-po CI34903826583 (10/10 success). Przy ostatnim odczycie jego Railway
-6447950025 nadal in_progress, mainCI34905715490 wymaga aktualizacji.
-Nie mylić tego ze sprawdzoną produkcją0.30.
+po CI34903826583 (10/10 success). Odbiór zakończony: mainCI34905715490,
+Railway6447950025 i Deploy34907646494 success. HTTP0.31/1b43b69;
+zalogowany Chrome pokazał cztery pozycje w szerokim menu, także panel
+moderacji z niezerowym licznikiem. Potwierdzenie w #555, #556 i #492.
 
 Aktywny pakiet: fix/557-publiczna-tablica, Alfa0.32. Włączono już main
 z menu0.31, zachowując oba wpisy changeloga. Raport TABLICA_PUBLICZNA_557.md
 opisuje duże karty dań, osobne wizytówki i jedno CTA. Pomiar lokalny,
 regresje i fizyczne negatywy mają osobne dowody; końcowy PR/CI i Railway
 muszą zostać potwierdzone. Nie uruchamiać kolejnego pakietu przed odbiorem.
+PR #558 jest już otwarty. Pierwszy CI34907625262 wykrył419px przy oknie320
+i foncie bazowym32px z tekstem140%. Naprawiono kurczenie i zawijanie
+podtytułu; 12 wariantów i szósta fizyczna kontrola ujemna przeszły.
+Sprawdzić najnowszy head i CI przed scaleniem, nie opierać się na starym
+wyniku pierwszego commita8e95796.
 Pełny port marki pozostaje CZĘŚCIOWO. Następne małe zgłoszenia to #548
 (odmiana minut) oraz #549 (wyjaśnienie419), potem pozostała macierz #492.
 

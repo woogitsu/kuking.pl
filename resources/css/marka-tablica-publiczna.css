@@ -8,6 +8,8 @@
   .landing-tablica > .meta { font-size: var(--text-body); max-width: 42rem; }
   .landing-tablica .kuking-board-kolumny { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-8); }
   .landing-tablica .kuking-board-subtitle {
+    min-width: 0;
+    overflow-wrap: anywhere;
     font-size: var(--text-title-lg);
     text-transform: none;
     letter-spacing: -.02em;
