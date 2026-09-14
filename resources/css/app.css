@@ -4990,6 +4990,7 @@
    te same pomiary dawały równe 320. */
 .topbar-konto {
   position: relative;
+  margin-left: auto;
   min-width: 0;
   max-width: 100%;
 }
@@ -5064,32 +5065,11 @@
   position: absolute;
   right: 0;
   z-index: 30;
-  /*
-     `min-width` W `min()`, NIE GOŁE `14rem`.
-
-     ZMIERZONE: przy czcionce przeglądarki 200% korzeń ma 32 px, więc gołe
-     `14rem` to 448 px — w oknie 390 px menu wystawało lewą krawędzią poza
-     ekran (zmierzone `x` od −90 do 358) i pierwsze litery pozycji były nie
-     do przeczytania. `min-width` bije `max-width`, więc samo ograniczenie
-     górne tego nie ratowało.
-  */
-  /*
-     SZEROKOŚĆ MENU = SZEROKOŚĆ PRZYCISKU, KTÓRY JE OTWIERA.
-
-     ZMIERZONE: przy `min-width: 14rem` i oknie 320 px menu wystawało lewą
-     krawędzią poza ekran (`x` od −10), bo przycisk stoi wtedy przy LEWEJ
-     krawędzi zawiniętego paska akcji, a menu rośnie od niego w lewo.
-     Ograniczenia liczone od `100vw` tego nie ratują: menu było węższe niż
-     okno, tylko stało w złym miejscu.
-
-     Reguła „tyle, ile przycisk" nie ma tej wady z definicji — przycisk jest
-     w całości na ekranie (pasek górny się nie przewija w bok, pilnuje tego
-     `scripts/dostepnosc.mjs`), więc menu o jego szerokości też jest. Przy
-     tym przycisk niesie awatar, napis „Moje konto" i strzałkę, więc nie
-     jest wąski: zmierzone 198,4 px przy tekście domyślnym.
-  */
+  /* Lista jest szersza od przycisku. Konto pozostaje po prawej również
+     po zawinięciu belki; margines okna chroni lewą krawędź menu. */
+  width: min(22rem, calc(100vw - 64px));
   min-width: 100%;
-  max-width: 100%;
+  max-width: none;
   /*
      MENU MA SIĘ ROZMINĄĆ Z DOLNĄ BELKĄ (issue #344, D-107).
 
@@ -5154,6 +5134,8 @@
    górny nie zawija się na kilka wierszy i problemu nie ma.
 */
 @media (max-width: 15rem), (max-width: 30rem) and (max-height: 25rem) {
+  .topbar-konto { width: 100%; }
+  .topbar-konto > summary { width: fit-content; margin-left: auto; }
   .topbar-konto-tresc {
     position: static;
     min-width: 0;

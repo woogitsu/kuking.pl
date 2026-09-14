@@ -1,5 +1,21 @@
 # Kontynuacja autonomiczna KuKing
 
+## Najnowsze zgłoszenie: szerokość menu Konto — #555
+
+15.09.2026: właściciel pokazał ciasne menu moderatora. Przygotowana Alfa0.31
+poszerza listę i zachowuje jej dostępność po zawinięciu belki. Raport i jawne
+granice: [MENU_KONTA_555.md](MENU_KONTA_555.md). Wykonano48 konfiguracji
+oraz24 niskiego okna, fizyczny negatyw CSS, przywrócenie MD5/mtime i ponowny
+wynik dodatni. Rola lokalnego konta testowego została przywrócona.
+Odczytaj PR powiązany z #555, jego hook/CI i wdrożenie przed kolejną pracą.
+
+Poprzedni #551 jest scalony w PR #553 jako
+`05f57175d50ab20fc1cfaa935c6da3e9b23f21ec`; wszystkie10 zadań CI PR przeszło.
+Ostatni odczyt nadal wskazywał CI main34902008768 queued i Railway6447341870
+in_progress (runnery zajęte). HTTP pozostawał na Alfa0.29/46b322f. Końcowy
+odbiór zdjęć profilu i menu konta można wykonać na późniejszym wdrożeniu,
+które zawiera obie zmiany. Nie uznawać samego scalenia za odbiór produkcji.
+
 ## Sposób pracy
 
 Użytkownik zatwierdził plan 14.09.2026. Automatyzacja `kuking-kontynuacja-prac` jest aktywna co godzinę w tej samej rozmowie. Przed wznowieniem sprawdzić procesy, agentów, repo, PR, CI i Railway; nie dublować pracy. Polecenie zatrzymania ma pierwszeństwo. Jeden pakiet: odtworzenie → poprawka → fizyczne negatywy → ogląd → review → zwykły hook/push → CI → merge → Railway → odbiór. Bez obchodzenia zabezpieczeń i fikcyjnych danych produkcyjnych.
