@@ -325,6 +325,14 @@ Cztery reguły techniczne:
 
 ## 5. kuKINGi na dziś — tablica polecanych
 
+Na stronie powitalnej wariant D-215 ma nagłówek „Co się dziś gotuje”,
+opis „Codzienne gotowanie, zdjęcia i pomysły od osób z Kuking.” oraz
+podsekcję „Poznaj ich kuchnie”. Wspólne zaproszenie gościa:
+„Obserwuj osoby, do których kuchni chcesz wracać.” i przycisk
+„Załóż konto, żeby obserwować”. Nazwa autora dania jest odnośnikiem do
+wpisu, którego kliknięcie obejmuje również zdjęcie; nie dokładamy
+powtarzanego przycisku „Zobacz”. Pozostałe szyny zachowują swój wariant.
+
 Sekcja z kilkoma osobami i kilkoma wpisami wartymi zobaczenia dzisiaj.
 Odpowiednik „Dla Ciebie" z innych portali, tylko **bez algorytmu i bez rankingu**.
 

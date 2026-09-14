@@ -1,0 +1,73 @@
+/* Publiczna tablica ma miejsce na fotografie. Szyny zachowują swój układ. */
+@layer marka {
+  .landing-tablica > div > h2 {
+    font-size: calc(clamp(2rem, 3.5vw, 3.5rem) * var(--user-text-scale, 1));
+    line-height: 1.15;
+    letter-spacing: -.035em;
+  }
+  .landing-tablica > .meta { font-size: var(--text-body); max-width: 42rem; }
+  .landing-tablica .kuking-board-kolumny { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-8); }
+  .landing-tablica .kuking-board-subtitle {
+    font-size: var(--text-title-lg);
+    text-transform: none;
+    letter-spacing: -.02em;
+    color: var(--color-ink);
+    margin-block: var(--spacing-6);
+  }
+  .landing-tablica .kuking-board-posts,
+  .landing-tablica .kuking-board-people {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, calc(18rem * var(--user-text-scale, 1))), 1fr));
+    gap: var(--spacing-6);
+  }
+  .landing-tablica .kuking-board-post,
+  .landing-tablica .kuking-board-person {
+    padding: 0;
+    border: 0;
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+    min-width: 0;
+  }
+  .landing-tablica .kuking-board-post-row { flex-direction: column; flex-wrap: nowrap; gap: 0; height: 100%; }
+  .landing-tablica .kuking-board-post-photo { width: 100%; }
+  .landing-tablica .kuking-board-post-photo img {
+    display: block;
+    width: 100%;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    object-fit: cover;
+    border-radius: var(--radius-xl) var(--radius-xl) 0 0;
+  }
+  .landing-tablica .kuking-board-post-body {
+    flex: none;
+    width: 100%;
+    max-width: none;
+    padding: var(--spacing-5);
+    gap: var(--spacing-3);
+    overflow-wrap: anywhere;
+  }
+  .landing-tablica .kuking-board-post-link {
+    font-size: var(--text-title-sm);
+    scroll-margin-block: var(--spacing-3);
+  }
+  .landing-tablica .kuking-board-excerpt,
+  .landing-tablica .kuking-board-note,
+  .landing-tablica .kuking-board-person .meta { font-size: var(--text-body); }
+  .landing-tablica .kuking-board-person { padding: var(--spacing-5); gap: var(--spacing-3); align-content: start; }
+  .landing-tablica .kuking-board-avatar { width: 64px; }
+  .landing-tablica .kuking-board-person-body { max-width: none; overflow-wrap: anywhere; }
+  .landing-tablica .kuking-board-preview { margin: 0; }
+  .landing-tablica-zaproszenie {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-4);
+    margin-top: var(--spacing-6);
+    padding-block: var(--spacing-4);
+  }
+  .landing-tablica-zaproszenie p { margin: 0; font-size: var(--text-body); }
+  .landing-tablica-zaproszenie .btn { white-space: normal; max-width: 100%; }
+  .landing-tablica .kuking-board-footer { font-size: var(--text-body); margin-top: var(--spacing-6); }
+}

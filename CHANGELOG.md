@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.32 — fotografie na stronie powitalnej
+
+- Sekcja „Co się dziś gotuje” pokazuje najpierw duże fotografie dań, potem zwarte wizytówki osób. Gość dostaje jedno wspólne zaproszenie do założenia konta. Boczne tablice zachowują dotychczasowy układ, a dobór treści i zasady widoczności pozostają bez zmian (#557).
+
 ## Alfa 0.30 — zdjęcia w pustej kolumnie profilu
 
 - Na cudzym profilu bez tagów i zeszytów pokazujemy trzy ostatnie widoczne wpisy ze zdjęciami. Zdjęcie i data prowadzą do wpisu; treści prywatne pozostają chronione (#551).
