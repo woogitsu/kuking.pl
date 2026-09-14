@@ -1,10 +1,12 @@
 # Co się zmieniło w Kuking
 
-## Alfa 0.25 — poprawny zapis długich przepisów
+## Alfa 0.25 — poprawny zapis i jasne komunikaty przepisów
 
 - Składnik o nazwie do 240 znaków zapisuje się w całości przy tworzeniu i edycji przepisu (#526).
 - Automatyczny zapis sprawdza długość i poprawność pól przed zmianą przepisu. Błędny tekst pozostaje w formularzu, a poprzednia zapisana wersja jest zachowana (#528).
 - Po cofnięciu można wrócić do błędnego składnika lub kroku przygotowania i go poprawić.
+
+- Potwierdzenie zapisu i opis udostępniania rozróżniają treści prywatne, dla obserwujących i publiczne (#530).
 
 ## Alfa 0.24 — pełny tekst po odrzuceniu formularza
 
