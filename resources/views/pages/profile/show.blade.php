@@ -257,7 +257,7 @@
         <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
     </div>
 
-    @php $maSzyneProfilu = $isOwner || $zeszytySzyny->isNotEmpty() || $tagiSzyny->isNotEmpty(); @endphp
+    @php $maSzyneProfilu = $isOwner || $zeszytySzyny->isNotEmpty() || $tagiSzyny->isNotEmpty() || $zdjeciaSzyny->isNotEmpty(); @endphp
     <div class="marka-profil-dol {{ $maSzyneProfilu ? 'marka-profil-dol-z-szyna' : '' }}">
     <div class="marka-profil-archiwum">
     <nav class="tabs" aria-label="Zakładki profilu">
@@ -348,7 +348,7 @@
     </div>
     @if($maSzyneProfilu)
         <aside class="marka-profil-szyna" aria-label="Skróty i podpowiedzi profilu">
-            <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny"
+            <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny" :zdjecia="$zdjeciaSzyny"
                 :tagi="$tagiSzyny" :stats="$stats" />
         </aside>
     @endif

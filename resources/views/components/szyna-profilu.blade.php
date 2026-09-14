@@ -1,4 +1,4 @@
-@props(['profile', 'isOwner', 'zeszyty', 'tagi', 'stats'])
+@props(['profile', 'isOwner', 'zeszyty', 'tagi', 'stats', 'zdjecia' => collect()])
 
 {{--
     Prawa szyna profilu `/@nazwa` (issue #205).
@@ -63,6 +63,20 @@
                 <a class="chip" href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
             @endforeach
         </nav>
+    </x-szyna-blok>
+@endif
+
+@if($zdjecia->isNotEmpty())
+    <x-szyna-blok tytul="Zdjęcia z tej kuchni" id="szyna-zdjecia-profilu" ikona="image">
+        <ul class="marka-profil-zdjecia" aria-label="Ostatnie wpisy ze zdjęciami">
+            @foreach($zdjecia as $wpis)
+                <li>
+                    <img src="{{ $wpis->media->first()->url('thumb') }}" alt=""
+                         width="88" height="88" loading="lazy" decoding="async">
+                    <a href="{{ $wpis->url() }}">Wpis z {{ \App\Support\Czas::data($wpis->published_at, 'j F Y') }}</a>
+                </li>
+            @endforeach
+        </ul>
     </x-szyna-blok>
 @endif
 

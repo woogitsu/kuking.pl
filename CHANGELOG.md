@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.30 — zdjęcia w pustej kolumnie profilu
+
+- Na cudzym profilu bez tagów i zeszytów pokazujemy trzy ostatnie widoczne wpisy ze zdjęciami. Zdjęcie i data prowadzą do wpisu; treści prywatne pozostają chronione (#551).
+
 ## Alfa 0.29 — prawdziwe komunikaty po publikacji
 
 - Po pierwszym wpisie wskazujemy formularz kolejnego zdjęcia, bez niezmierzonej obietnicy szybszego dodawania (#545).

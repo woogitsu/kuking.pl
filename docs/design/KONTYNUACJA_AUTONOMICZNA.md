@@ -8,6 +8,19 @@ Kolejność: publikowanie i przepisy → wyszukiwanie i zeszyty → konto/komuni
 
 ## Punkt pracy — pakiet Alfa0.29
 
+Późniejsze zlecenia właściciela: audyt zapisów względem kodu został scalony
+przez PR #552 (`46b322f41cedfc6527a77ab35388f1705d41adb2`), z CI main
+34897601641 success, Railway6446580739 success, Deploy34897715283 success
+i HTTP Alfa0.29/46b322f. Raport AUDYT_ZAPISOW_A_KOD_2026_09_14.md potwierdza
+odczytany zakres implementacji i naprawia nieaktualne listy dalszych zadań.
+
+Aktywny pakiet to zgłoszone następnie przez właściciela #551: pusta prawa
+kolumna cudzego profilu. Gałąź fix/551-zdjecia-w-szynie, Alfa0.30,
+konstytucja1.11/D-214. SZYNA_ZDJEC_PROFILU_551.md opisuje lokalne dowody,
+zakres i ograniczenia. Przed dalszą pracą sprawdzić aktualny PR tej gałęzi,
+CI i wdrożenie; nie ponawiać setupu konta profil551 w bazie przeglądarkowej.
+Po dostarczeniu wrócić do #548/#549 i poniższej kolejki.
+
 PR #546, head `8e4da2f2ff51178df57d7dd118978e441b8c5130`, scalony jako `443da38c763f5ee2c26e8610b516c95fa4e42b94`. #545/#547 zamknięte przez scalenie. Zwykły końcowy hook PASS244,09s. CI PR34889241332:10/10success, log PHP3807/76412. Fizyczne negatywy i review udokumentowane w PIERWSZY_WPIS_545.md i KOMUNIKAT_UGOTOWALEM_547.md.
 
 MainCI34891635127 zakończone10/10success, PHP3807/76412 potwierdzone w osobnym logu. Railway6445551937 success20:45:52UTC i Deploy34894880938success. HTTP oraz zalogowany Chrome potwierdziły Alfa0.29/443da38 i poprawioną podpowiedź pierwszego wpisu. Pełny odbiór: ODBIOR_PRODUKCJI_ALFA_029.md. Gałąź dokumentacji docs/492-odbior-alfa029 zbiera końcowe raporty; po wysyłce odczytać aktualny PR i SHA, nie dublować push.

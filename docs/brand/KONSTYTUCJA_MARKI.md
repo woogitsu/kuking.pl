@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.10, 14 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.11, 14 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -65,6 +65,11 @@ grą z nazwą, nie rangą użytkownika. Nie zamieniamy znaku na literę K.
 Przy logotypie znak jest dekoracyjny dla czytnika; samodzielnie dostaje nazwę.
 
 ## System wizualny
+
+Pusta prawa kolumna cudzego profilu może pokazać „Zdjęcia z tej kuchni”:
+do trzech ostatnich widocznych wpisów z gotowym zdjęciem, prowadzących do
+wpisu. Tagi i zeszyty mają pierwszeństwo. Bez dostępnych zdjęć nie tworzymy
+wypełniacza; filtr widoczności pozostaje taki sam jak w archiwum (D-214).
 
 Neutralne jasne tło, białe powierzchnie, grafitowe pismo i czerwony akcent.
 Kolory mają role: czerwień wyróżnia czynność lub wybór, nie zastępuje opisu

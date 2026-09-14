@@ -1,5 +1,14 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Uzupełnienie pustej szyny profilu — Alfa 0.30, przygotowanie #551
+
+[Raport i dowody](SZYNA_ZDJEC_PROFILU_551.md): trzy ostatnie widoczne wpisy
+ze zdjęciem uzupełniają cudzy profil bez tagów i zeszytów. Testy PHP
+obejmują uprawnienia i pierwszeństwo istniejących bloków; lokalny ogląd
+48 konfiguracji dotyczy zalogowanego widza. Nie jest to ponowny odbiór
+całego profilu ani wszystkich stanów gościa. Wdrożenie wymaga osobnego
+potwierdzenia. Pełny port marki nadal **CZĘŚCIOWO**.
+
 ## Aktualny odbiór publikowania — Alfa 0.29
 
 PR #546, head `8e4da2f2ff51178df57d7dd118978e441b8c5130`, scalony jako `443da38c763f5ee2c26e8610b516c95fa4e42b94`. CI PR `34889241332`: 10/10 success, PHP 3807 testów / 76412 asercji. [Wdrożenie potwierdzone](ODBIOR_PRODUKCJI_ALFA_029.md): Railway6445551937 i Deploy34894880938 success, HTTP i zalogowany Chrome0.29/443da38. MainCI34891635127 także10/10success. Pełny port marki nadal **CZĘŚCIOWO**.

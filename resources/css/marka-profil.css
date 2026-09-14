@@ -115,6 +115,43 @@
     max-width: 100%;
   }
 
+  .marka-profil-zdjecia {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+    gap: 20px;
+  }
+
+  .marka-profil-zdjecia li {
+    position: relative;
+    display: grid;
+    grid-template-columns: 88px minmax(0, 1fr);
+    align-items: center;
+    gap: 16px;
+  }
+
+  .marka-profil-zdjecia img {
+    width: 88px;
+    height: 88px;
+    object-fit: cover;
+    border-radius: 12px;
+  }
+
+  .marka-profil-zdjecia a {
+    min-height: var(--control-height-min);
+    display: flex;
+    align-items: center;
+    overflow-wrap: anywhere;
+  }
+
+  /* Zdjęcie otwiera wpis, a fokus pozostaje na krótkim podpisie. */
+  .marka-profil-zdjecia a::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+  }
+
   @media (min-width: 80rem) {
     .marka-profil-dol-z-szyna {
       grid-template-columns: minmax(0, 1fr) 330px;
