@@ -24,6 +24,16 @@ fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
 
 ## Precyzja opisu działania
 
+Potwierdzenie zapisu przepisu nazywa faktycznie zapisaną widoczność: prywatny,
+dla obserwujących lub publiczny. Nie sugerujemy odbiorców prywatnej treści.
+Instrukcja dalszego działania używa widocznej nazwy przycisku, np. „Dopisz
+szczegóły”, gdy przepis można uzupełnić (#530).
+
+Automatyczny zapis zatrzymuje się przy niepoprawnych polach. Mówimy wtedy,
+że te zmiany nie zostały zapisane, a tekst nadal jest w formularzu.
+Komunikat „zapisano” pokazujemy po udanym zapisie, nie po samym wpisaniu nazwy
+ani próbie wysłania formularza (#528).
+
 Przy odzyskiwaniu formularza rozróżniamy zachowanie całego tekstu, części pól
 i brak odzyskanej treści. Brak odzyskanych pól nie dowodzi, że formularz był
 pusty. Zapewnienie o tekście nie obejmuje zdjęcia, które trzeba wybrać ponownie.
@@ -423,7 +433,7 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 
 | Miejsce | Tekst |
 |---|---|
-| zachęta do zapisu szkicu (formularz na jednej stronie) | Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz. |
+| zachęta do zapisu szkicu (formularz na jednej stronie) | Zapisz szkic, jeśli chcesz dokończyć przepis później. |
 | to samo w kreatorze, gdzie szkic zapisuje się sam | Wystarczy nazwa, żeby ruszyć dalej. Od niej zaczyna się też zapisywanie: szkic zapisuje się sam po każdym kroku i po chwili przerwy w pisaniu, a przycisk „Zapisz szkic" robi to od razu. |
 | sekcja pochodzenia | Skąd ten przepis |
 | pod nagłówkiem sekcji | Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże. |
@@ -435,7 +445,9 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 | skan kartki | Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie. |
 | składniki, podpowiedź | Pisz tak, jak mówisz: „szklanka mąki", „2 duże cebule", „mleko — ile weźmie". Nie musisz nic przeliczać na gramy. |
 | kroki, podpowiedź | Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku. |
-| po publikacji | Przepis opublikowany. Teraz ktoś może z niego ugotować. |
+| po publikacji dla wszystkich | Przepis opublikowany. Teraz ktoś może z niego ugotować. |
+| po publikacji dla obserwujących | Przepis opublikowany dla osób, które Cię obserwują. |
+| po zapisaniu prywatnego przepisu | Przepis zapisany. Widzisz go tylko Ty. |
 
 ### Ugotowałem
 

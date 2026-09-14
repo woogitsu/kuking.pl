@@ -1524,11 +1524,21 @@ Podstawa search i późniejszego planera.
 `ingredients` — słownik składników **wspólny dla serwisu**, budowany
 z tego, co ludzie wpisują:
 
-- `canonical_name varchar(160)` — nazwa w pisowni, którą pokazujemy
+- `canonical_name varchar(240)` — nazwa w pisowni, którą pokazujemy
   („cebula czerwona"). To jest tekst pochodzący od człowieka, nie z żadnej
   zewnętrznej bazy;
-- `normalized_name varchar(160) UNIQUE` — ta sama nazwa po `kuking_normalize()`,
-  czyli klucz dopasowania; indeks `gin_trgm_ops` pod wyszukiwarkę.
+- `normalized_name text UNIQUE` — klucz dopasowania obliczany w PHP przez
+  `Ingredient::normalize()` (`Str::ascii`, małe litery i redukcja białych
+  znaków). Transliteracja może wydłużyć nazwę: 240 znaków `Æ` daje 480
+  znaków `ae`, więc limit kolumny nie może wynosić 240. Indeks wyszukiwarki
+  GIN nadal używa `kuking_normalize(normalized_name) gin_trgm_ops`.
+
+Migracja `2026_09_14_100000_dopasuj_slownik_skladnikow_do_formularza`
+(#526) rozszerza poprzednie `varchar(160)`. Nie obcina danych, nie zmienia
+normalizacji ani indeksów. `down()` w transakcji blokuje tabelę i odmawia,
+jeżeli którakolwiek z obu nazw ma ponad 160 znaków; przy krótszych danych
+cofnięcie przechodzi. Powód: formularz i `recipe_ingredients` już wcześniej
+akceptowały 240 znaków, lecz zapis słownika kończył wtedy publikację błędem500.
 
 `units` — jednostki miary. Tabela słownikowa, którą wypełnia seeder, a nie
 człowiek przy przepisie:

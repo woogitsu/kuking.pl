@@ -239,11 +239,17 @@ class RecipeController extends Controller
          * — i zdanie kierujące go do formularza bez ani jednego pustego pola
          * byłoby tym samym, co przycisk, który po kliknięciu nic nie robi.
          */
-        return redirect()->route('recipes.show', $recipe)->with('status',
-            CoMoznaDopisac::jest($recipe)
-                ? 'Przepis opublikowany. Teraz ktoś może z niego ugotować. Możesz jeszcze dopisać szczegóły — kliknij „Edytuj”.'
-                : 'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
-        );
+        $potwierdzenie = match ($recipe->visibility) {
+            'private' => 'Przepis zapisany. Widzisz go tylko Ty.',
+            'followers' => 'Przepis opublikowany dla osób, które Cię obserwują.',
+            default => 'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
+        };
+
+        if (CoMoznaDopisac::jest($recipe)) {
+            $potwierdzenie .= ' Możesz jeszcze dopisać szczegóły — wybierz „Dopisz szczegóły”.';
+        }
+
+        return redirect()->route('recipes.show', $recipe)->with('status', $potwierdzenie);
     }
 
     public function edit(Request $request, Recipe $recipe): View
