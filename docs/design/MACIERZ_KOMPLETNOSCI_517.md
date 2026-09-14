@@ -1,16 +1,33 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Regresja gotowości strony w teście fokusu #536
+
+[Diagnoza i kontrole ujemne](FOKUS_ZDJECIA_BEZ_JS_536.md) wyjaśniają
+czerwone zadanie pierwszego CI PR #535: pomiar bez JS zaczynał przed
+załadowaniem CSS. Dodano kontrolowane opóźnienie arkusza i oczekiwanie
+na zasoby, zachowując Tab i obrys. To poprawka testu, nie usunięcie
+fokusu w aplikacji. Nowy head wymaga pełnych kontroli.
+
+## Lokalna poprawka kontrastu #534 — Alfa 0.26 w przygotowaniu
+
+Potwierdzono, że szeroki selektor `.notice a` nadpisywał kolory przycisków.
+[Raport regresji](KONTRAST_PODPOWIEDZI_534.md): 24 konfiguracje, 72 pomiary
+normal/hover/fokus programowy, trzy kontrole ujemne rzeczywistego CSS
+z odtworzeniem MD5 i mtime oraz 12 wariantów prawdziwego zoomu 200%.
+Reprezentatywne zrzuty obejrzano. To odbiór lokalny; wdrożenie poprawki
+pozostaje do potwierdzenia. Pełny port marki nadal **CZĘŚCIOWO**.
+
 ## Potwierdzone wdrożenie Alfy 0.25
 
 [Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_025.md) potwierdza Railway
 `6433957176` success o 09:34:16 UTC, zielone main CI i Deploy oraz
 rzeczywistą stopkę **0.25 / b4d5d8e**. Na istniejącym prywatnym wpisie
 obejrzano poprawiony komunikat widoczności. Nie wykonywano zapisów danych
-produkcyjnych. Ogląd ujawnił podejrzenie słabego kontrastu przycisku w
-podpowiedzi `.notice`, wymagające osobnej diagnozy. Pełny port nadal
+produkcyjnych. Ogląd ujawnił słaby kontrast przycisku w podpowiedzi `.notice`;
+późniejsza diagnoza i poprawka lokalna są opisane powyżej jako #534. Pełny port nadal
 **CZĘŚCIOWO**, z ograniczeniami opisanymi w raporcie.
 
-## Aktualny stan po scaleniu PR #531 — 14 września 2026
+## Historyczny odczyt bezpośrednio po scaleniu PR #531 — 14 września 2026
 
 PR #531 scalono jako `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e`.
 CI `34822658081`: wszystkie dziesięć zadań success, w tym port marki.
