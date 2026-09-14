@@ -1,0 +1,18 @@
+[
+  {
+    "name": "blade",
+    "expected": "OAUTH345_AXE",
+    "md5": "2c1350dd90f305afc3b565bd73e25335",
+    "mtimeNs": 1789399044000000000,
+    "backup": "/tmp/kuking345-negative-4mlw15uy/blade.bak",
+    "positive": true
+  },
+  {
+    "name": "css",
+    "expected": "OAUTH345_OVERFLOW",
+    "md5": "1fb93e752c2ae474b7985e14878ae887",
+    "mtimeNs": 1789399044000000000,
+    "backup": "/tmp/kuking345-negative-4mlw15uy/css.bak",
+    "positive": true
+  }
+]

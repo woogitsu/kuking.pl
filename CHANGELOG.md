@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.28 — sprawdzone ekrany wejścia
+
+- Łączenie konta z Facebookiem opisuje przycisk wejścia i możliwe potwierdzenie u dostawcy, bez obietnicy jednego kliknięcia (#542).
+- Ekran braku adresu z Facebooka kieruje do pełnego formularza i nie obiecuje e-maila po każdym wykonaniu przepisu (#542).
+- Automat dostępności obejmuje pięć stanów po powrocie z Google/Facebooka i zachowuje częściowy raport po błędzie pomiaru (#345).
+
 ## Alfa 0.27 — czytelność na małych ekranach
 
 - Na wąskim, niskim ekranie i przy bardzo dużej czcionce obie belki nawigacji przewijają się ze stroną, aby nie zasłaniać formularzy ani zaznaczenia klawiatury (#434, #492).

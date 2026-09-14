@@ -30,6 +30,7 @@ export async function report(measure) {
       writeFileSync(path, json);
     },
     wersjaPrzegladarki: 'pomiar-integracji', blokujacych: 0, UDZIAL_BELKI_MAKS: .3,
+    oauth: { wyniki: [], blad: null },
     wyborZdjeciaBezJs: { doszloTabem: true }, zbadanePrzezAxe: new Set(['ekran']), zmierzoneUkladem: new Set(['ekran']),
   };
   for (const name of ['WARIANTY', 'wyniki', 'EKRANY', 'SZEROKOSCI_UKLADU', 'SKALE_UKLADU', 'EKRANY_UKLADU',

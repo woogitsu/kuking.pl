@@ -46,6 +46,7 @@
  */
 import { chromium } from 'playwright';
 import { przygotujKaruzele, zmierzKaruzele } from './fixtures/karuzela-mieszana.mjs';
+import { EKRANY_OAUTH, WARIANTY_OAUTH, zmierzOauth } from './fixtures/oauth-dostepnosc.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -53,6 +54,7 @@ import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
 // Szybka regresja końcowego zapisu działa także przez check.sh i w CI,
 // zanim kosztowny pomiar uruchomi przeglądarkę i przygotuje bazę.
 execFileSync(process.execPath, ['--test', 'scripts/fixtures/karuzela-raport.test.mjs'], { stdio: 'inherit' });
+execFileSync(process.execPath, ['--test', 'scripts/fixtures/oauth-raport.test.mjs'], { stdio: 'inherit' });
 
 const SZYBKO = process.argv.includes('--szybko');
 
@@ -555,16 +557,10 @@ const EKRANY = [
    * serwer z atrapami kluczy (`KLUCZE_DOSTAWCOW_DO_POMIARU`), a to, że sekcja
    * naprawdę wyszła, sprawdza `przeszkodaWWejsciachZewnetrznych()`.
    *
-   * CZTERECH EKRANÓW ZA ZGODĄ DOSTAWCY TU NIE MA I NIE JEST TO PRZEOCZENIE.
-   * `/wejdz/google/domknij`, `/wejdz/google/polacz` i odpowiedniki Facebooka
-   * czytają z sesji tożsamość, którą zakłada WYŁĄCZNIE `callback()` po udanej
-   * wymianie kodu u dostawcy — a adres wymiany jest stałą w kodzie
-   * (`App\Support\Google::ADRES_TOKENU`), idzie z serwera i nie da się go
-   * wskazać konfiguracją. Atrapa klucza otwiera przycisk; tamte ekrany
-   * wymagają atrapy CAŁEGO DOSTAWCY, czyli osobnej pracy — issue #345
-   * i stała `WYJATKI` w `PomiarDostepnosciObejmujeStronyPubliczneTest`.
-   * Dopisanie ich tutaj bez tej atrapy dałoby przekierowanie na `/login`,
-   * czyli pomiar ekranu logowania pod cudzą nazwą.
+   * Ekrany za zgodą dostawcy mierzy osobny moduł OAuth (#345), wywołany
+   * przed zapisem wspólnego raportu. Własny lokalny serwer podstawia tylko
+   * transport dostawcy; tożsamość do sesji nadal zapisuje prawdziwy callback.
+   * Samo dopisanie adresu tutaj mierzyłoby przekierowanie na /login.
    */
   { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
 ];
@@ -882,18 +878,9 @@ async function przeszkodaWFormularzachOdzyskania(adres) {
  * GET-y i nie klika w te przyciski — a gdyby kliknął, dostałby
  * przekierowanie na ekran zgody dostawcy, czyli poza mierzony serwis.
  *
- * CZEGO TO NIE ZAŁATWIA — i nie udaje, że załatwia. Cztery ekrany ZA zgodą
- * dostawcy (`/wejdz/google/domknij`, `/wejdz/google/polacz` i odpowiedniki
- * Facebooka) dalej nie są mierzone: atrapa klucza otwiera przycisk, ale nie
- * zakłada w sesji potwierdzonej tożsamości, którą te ekrany czytają. Powód
- * i granica stoją w `tests/Feature/PomiarDostepnosciObejmujeStronyPubliczneTest.php`
- * (stała `WYJATKI`) oraz w issue #345 — to osobna praca: atrapa DOSTAWCY,
- * nie atrapa klucza.
- *
- * Ustawiamy to WYŁĄCZNIE dla serwera, który stawiamy sami — tak samo jak
- * sterownik poczty wyżej. Przy `ADRES=…` mierzymy cudzą instancję w stanie,
- * w jakim ją zastaliśmy, i nie mamy prawa jej przestawiać; dlatego niżej
- * stoi sprawdzenie, a nie założenie.
+ * Atrapy kluczy wystarczają do tego pomiaru przycisków. Formularze po
+ * powrocie dostawcy i stan Facebooka bez adresu są osobno mierzone przez
+ * fixtures/oauth-dostepnosc.mjs, z atrapą transportu i prawdziwym callbackiem.
  */
 const KLUCZE_DOSTAWCOW_DO_POMIARU = {
   GOOGLE_CLIENT_ID: 'atrapa-do-pomiaru-dostepnosci',
@@ -4319,6 +4306,28 @@ if (rozjazdySzynyGoscia.length > 0) {
   }
 }
 
+// OAuth: własny serwer pomiarowy, bez włazu do sesji w aplikacji (#345).
+const oauth = { wyniki: [], blad: null };
+try {
+  await zmierzOauth({ przegladarka, wyniki: oauth.wyniki });
+  const kluczOauth = (w) => JSON.stringify([w.adres, w.stan ?? null, w.wariant]);
+  const oczekiwaneOauth = EKRANY_OAUTH.flatMap((ekran) => WARIANTY_OAUTH.map((wariant) =>
+    kluczOauth({ ...ekran, ...wariant })));
+  const otrzymaneOauth = oauth.wyniki.map(kluczOauth);
+  if (oczekiwaneOauth.length !== 10 || otrzymaneOauth.length !== oczekiwaneOauth.length
+      || new Set(otrzymaneOauth).size !== oczekiwaneOauth.length
+      || ! oczekiwaneOauth.every((klucz) => otrzymaneOauth.includes(klucz))
+      || oauth.wyniki.some((w) => w.status !== 'success')) {
+    throw new Error('OAuth345: niepełny raport pięciu ekranów w dwóch motywach');
+  }
+  log(`OAuth: ${oauth.wyniki.length}/${oczekiwaneOauth.length} pomiarów zakończonych.`);
+} catch (error) {
+  oauth.blad = error?.message ?? String(error);
+  console.error(`BŁĄD OAuth: ${oauth.blad}`);
+  process.exitCode = 1;
+}
+// Koniec pomiaru OAuth.
+
 await przegladarka.close();
 zamknij();
 
@@ -4343,6 +4352,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     przepelnienia,
   },
   karuzelaBezJs,
+  oauth,
   wyborZdjeciaBezJs,
   wyrownanieBelki: {
     szerokosci: SZEROKOSCI_WYROWNANIA,
