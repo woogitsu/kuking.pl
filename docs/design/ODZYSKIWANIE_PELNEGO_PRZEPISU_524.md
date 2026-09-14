@@ -210,3 +210,7 @@ przez bezpieczniki; obietnica dotyczy pól istniejących formularzy.
 Cofnięcie zmiany nie wymaga migracji, ale przywraca utratę poprawnych kroków
 po 419/429. Poprawka #523 uczciwie ostrzega wtedy o utracie; jej cofnięcie
 nie jest częścią rollbacku #524.
+
+## Analiza statyczna PR #529
+
+Pierwszy CI (34818811112) ujawnił przekroczenie limitu 1 GB przez PHPStan przy analizie budowy maksymalnego formularza w `BudzetOdzyskiwaniaTest`. Problem odtworzono na samym teście bez cache. Doprecyzowanie typu akumulatora `array<string, mixed>` zapobiega rozbudowywaniu unii kształtów; nie zmienia danych, asercji ani ustawień CI. Izolowana pełna analiza z tym samym limitem 1 GB i pięć testów (26 asercji) przeszły. Wynik kolejnego CI wymaga osobnego potwierdzenia.

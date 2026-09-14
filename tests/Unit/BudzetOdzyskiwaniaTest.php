@@ -17,6 +17,7 @@ class BudzetOdzyskiwaniaTest extends TestCase
     {
         $dane = [];
         foreach (LimityTekstuPrzepisu::POLA as $name => $max) {
+            /** @var array<string, mixed> $dane */
             $value = str_repeat('"', $max - 1).'ą';
             if (str_starts_with($name, 'ingredients.')) {
                 for ($i = 0; $i < Recipe::MAX_INGREDIENTS; $i++) {
