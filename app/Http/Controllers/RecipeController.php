@@ -15,6 +15,7 @@ use App\Models\Recipe;
 use App\Models\Unit;
 use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\LimityTekstuPrzepisu;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -513,8 +514,8 @@ class RecipeController extends Controller
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'min:3', 'max:180'],
-            'summary' => ['nullable', 'string', 'max:2000'],
+            'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
+            'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
             'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
@@ -528,16 +529,16 @@ class RecipeController extends Controller
              * szczegółów pyta dalej i dalej przysyła wartość.
              */
             'source_type' => ['nullable', 'in:own,family,adaptation,external'],
-            'source_person' => ['nullable', 'string', 'max:120'],
-            'source_note' => ['nullable', 'string', 'max:2000'],
-            'source_url' => ['nullable', 'url', 'max:2000'],
+            'source_person' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_person']],
+            'source_note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_note']],
+            'source_url' => ['nullable', 'url', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
             'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'ingredients' => ['nullable', 'array', 'max:'.Recipe::MAX_INGREDIENTS],
-            'ingredients.*.text' => ['nullable', 'string', 'max:240'],
-            'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],
-            'ingredients.*.note' => ['nullable', 'string', 'max:300'],
+            'ingredients.*.text' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.text']],
+            'ingredients.*.group_name' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.group_name']],
+            'ingredients.*.note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.note']],
             // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
             // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
             // nie przychodzi wcale.
@@ -550,7 +551,7 @@ class RecipeController extends Controller
             // JEST autoryzacją: `PublishRecipe` dopasowuje je wyłącznie do
             // kroków tego przepisu, więc cudzy identyfikator nic nie daje.
             'steps.*.id' => ['nullable', 'uuid'],
-            'steps.*.instruction' => ['nullable', 'string', 'max:4000'],
+            'steps.*.instruction' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['steps.*.instruction']],
             // Człowiek wpisuje MINUTY, bo tak myśli o gotowaniu. Sekundy
             // (`recipe_steps.timer_seconds`, `data-timer-sekundy` w trybie
             // gotowania) liczy `StepTimer` w warstwie domenowej — tu stoi
@@ -579,8 +580,8 @@ class RecipeController extends Controller
              * odciąć wklejenie całej książki kucharskiej, zanim zacznie
              * chodzić parser.
              */
-            'skladniki_tekst' => ['nullable', 'string', 'max:30000'],
-            'przygotowanie_tekst' => ['nullable', 'string', 'max:120000'],
+            'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
+            'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ], [
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
             'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',

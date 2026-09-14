@@ -1,5 +1,20 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Uzupełnienie lokalne #524 i #527
+
+[Pełny przepis po 419/429](ODZYSKIWANIE_PELNEGO_PRZEPISU_524.md):
+48 konfiguracji, osiem prawdziwych zoomów, 51 kroków odzyskanych jeden do
+jednego, rzeczywiste ponowienie utworzenia i edycji z kontrolą CSRF w PHP.
+[Podsumowanie walidacji](PODSUMOWANIE_WALIDACJI_527.md): poprawione sześć
+widoków i historyczne zalecenie COPY_STYLE. Razem 93 testy / 671 asercji
+oraz 13 negatywów źródła w opisanych zakresach. Alfa 0.24 przygotowana
+lokalnie; wynik nie jest potwierdzeniem wdrożenia.
+
+[Odbiór pełnej wiadomości moderatora](ODBIOR_WIADOMOSCI_MODERACJI_2026_09_14.md)
+uzupełnia historyczny wiersz paneli: pełna treść, historia trzech stanów,
+brak adresu, walidacja notatki. Wyłącznie lokalne dane; bez wysyłania listów.
+Pełny port marki nadal **CZĘŚCIOWO** odebrany.
+
 ## Uzupełnienie lokalne #523 — 419 i 429
 
 [Odbiór odzyskiwania formularzy](ODZYSKIWANIE_FORMULARZA_523.md) uzupełnia
