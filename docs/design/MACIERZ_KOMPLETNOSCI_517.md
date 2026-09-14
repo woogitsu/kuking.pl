@@ -1,5 +1,15 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Potwierdzone wdrożenie Alfy 0.25
+
+[Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_025.md) potwierdza Railway
+`6433957176` success o 09:34:16 UTC, zielone main CI i Deploy oraz
+rzeczywistą stopkę **0.25 / b4d5d8e**. Na istniejącym prywatnym wpisie
+obejrzano poprawiony komunikat widoczności. Nie wykonywano zapisów danych
+produkcyjnych. Ogląd ujawnił podejrzenie słabego kontrastu przycisku w
+podpowiedzi `.notice`, wymagające osobnej diagnozy. Pełny port nadal
+**CZĘŚCIOWO**, z ograniczeniami opisanymi w raporcie.
+
 ## Aktualny stan po scaleniu PR #531 — 14 września 2026
 
 PR #531 scalono jako `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e`.

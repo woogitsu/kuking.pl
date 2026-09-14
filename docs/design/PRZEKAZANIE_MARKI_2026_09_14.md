@@ -2,6 +2,17 @@
 
 ## Aktualizacja po wznowieniu
 
+**Późniejsze potwierdzenie:** Alfa 0.25 działa na produkcji jako
+`b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e`. Railway `6433957176` success
+o 09:34:16 UTC, main CI `34826807883` success, Deploy `34828688035` success.
+HTTP i zalogowany Chrome pokazały nową wersję; na istniejącym prywatnym
+wpisie potwierdzono poprawiony komunikat. Szczegóły i ograniczenia:
+[odbiór produkcji 0.25](ODBIOR_PRODUKCJI_ALFA_025.md).
+
+PR #533 dla `32208ff2319fb5379c6d8d81cca9f00c33fbd50c` uzyskał dziesięć
+sukcesów CI `34827406995` (PHP 3794/76279). Dalsze uzupełnienie raportu
+wdrożenia wymaga kontroli nowego head; nie przenoś na niego tego wyniku.
+
 PR #531 jest scalony jako `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e` po
 dziesięciu sukcesach CI `34822658081`. PR #533 ma teraz bazę main i jest
 gotowy do review; jego wymagane kontrole pozostają do potwierdzenia.
