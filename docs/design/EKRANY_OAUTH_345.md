@@ -38,7 +38,7 @@ Pierwszy eksperyment usunięcia etykiety nie oblał axe, bo pole dostało nazwę
 
 Wyniki końcowego odbioru, kontroli ujemnych i CI należy czytać w dalszej części tego raportu. Samo przygotowanie kodu nie potwierdza scalenia ani wdrożenia.
 
-## Stan przy przekazaniu pracy
+## Historyczny stan przy przekazaniu pracy
 
 Użytkownik poprosił o zakończenie i przekazanie przed końcowym odbiorem całej gałęzi. Pakiet jest roboczy; nie scalać na podstawie tego dokumentu.
 
@@ -50,3 +50,28 @@ Użytkownik poprosił o zakończenie i przekazanie przed końcowym odbiorem cał
 - Niezależny review zaakceptował integrację, guardy i cleanup oraz pierwszą poprawkę Facebook-link. Ostatni tekst Facebook-bez-adresu nie ma jeszcze tego review.
 
 **Brakuje końcowego pomiaru przeglądarkowego po ostatnim tekście, pełnej lokalnej kontroli przed push (jej wynik trzeba odczytać z logu), CI PR, scalenia i wdrożenia Alfa0.28.** Samo wysłanie gałęzi nie zmienia tych statusów. Szczegółowa kolejność kontynuacji: `PRZEKAZANIE_OAUTH_2026_09_14.md`.
+
+## Odbiór końcowego źródła — 14 września 2026
+
+Poprzednia sekcja opisuje moment przekazania, a nie aktualną blokadę. Brakujący odbiór wykonano na dokładnym head **795dc2f9a5257143a6aa18d02a1c2266c5fa7ad9**. PR [543](https://github.com/woogitsu/kuking.pl/pull/543) scalono normalnie po kontrolach jako **5fd45db896f07e0bb415b31856c5a43fbbb1c742**.
+
+- Obowiązkowy hook push zakończony sukcesem; log lokalny `/tmp/kuking-push345.log`.
+- [CI 34864822658](https://github.com/woogitsu/kuking.pl/actions/runs/34864822658): wszystkie **10 zadań success**, również wyścigi. Odczyt logu PHP: **3802 testy / 76343 asercje**. Oczekiwane błędy kontroli ujemnych w logu nie są błędem końcowej serii.
+- Log dostępności: główne axe **44/44**, układ **49/49** oraz osobne OAuth **10/10**. To oddzielne zbiory pomiarów, nie 54 zwykłe strony.
+- Ponowny lokalny pomiar Chromium **153.0.8010.12**: **10/10**, 22,316 s, viewport 320×740, tekst aplikacji 140%, oba motywy; zero naruszeń axe i overflow. Zawiera ostatnią zmianę Facebook-bez-adresu, wersja stopki Alfa 0.28.
+- Dodatkowa powtórka z preferencją ograniczenia animacji: **10/10**, 16,207 s. Pierwsze pełne zrzuty ciemnego motywu uchwyciły przejście kolorów; powtórka usunęła ten artefakt odbioru. Nie zmieniano produkcyjnego CSS ani progów testów.
+- Obejrzano wszystkie pięć ekranów w obu motywach oraz viewport z fokusem końcowego przycisku ekranu bez adresu. Pełne zrzuty mają ograniczenie pozycjonowania stałych belek opisane wyżej.
+- Niezależny, odczytowy review ostatniego Facebook-bez-adresu: bez blokera. Porównano z rzeczywistymi polami i oświadczeniami rejestracji oraz `NotifyUser`. Nie zastępuje to testu dostarczenia poczty ani rzeczywistego dostawcy OAuth.
+- Po pomiarze lokalna wyłączna baza `kuking_oauth345` na 55439: **users=0**. Pozostawiony wcześniejszy serwer portu 8029 nie był procesem tego pomiaru; nie zamykano cudzej sesji.
+
+| Ekran | Motywy | Axe / overflow | Tab w main na motyw | Ogląd |
+|---|---|---|---|---|
+| Google — domknięcie | jasny, ciemny | 0 / 0 | 9/9 | oba |
+| Google — połączenie | jasny, ciemny | 0 / 0 | 3/3 | oba |
+| Facebook — domknięcie | jasny, ciemny | 0 / 0 | 8/8 | oba |
+| Facebook — połączenie | jasny, ciemny | 0 / 0 | 3/3 | oba |
+| Facebook — bez adresu | jasny, ciemny | 0 / 0 | 2/2 | oba, także viewport Tab |
+
+Lokalne końcowe artefakty: `/tmp/kuking-final-20260913/storage/dostepnosc/oauth345/` (`final-795dc2f.json`, log i PNG). CI przechowuje swój komplet jako artefakt zadania dostępności. Rzeczywiste negatywy z wcześniejszych sekcji zachowują ważność: końcowy odbiór nie zmienił źródeł objętych kontrolami.
+
+Odbiór wdrożenia: [ODBIOR_PRODUKCJI_ALFA_028.md](ODBIOR_PRODUKCJI_ALFA_028.md). Pełny port marki nadal **CZĘŚCIOWO**: ten pakiet zamyka pięć wskazanych stanów, nie cały audyt ani prawdziwy zoom 200%, fizyczny telefon czy rzeczywiste konto dostawcy.
