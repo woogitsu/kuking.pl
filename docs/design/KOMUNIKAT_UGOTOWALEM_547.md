@@ -42,3 +42,6 @@ Obejrzano końcową instrukcję na małym i dużym ekranie, sukces oraz długie 
 Pomocniczy automat początkowo szukał sukcesu w `.notice`, podczas gdy rzeczywisty komponent używa `.komunikaty .flash`. Zbyt ścisłe oczekiwanie HTTP 302 również przerywało poprawny odbiór w przeglądarce z odpowiedzią 200. Końcowy pomiar sprawdza rzeczywisty adres i komunikat oraz brak dodatkowego zapisu. Hipotezy 429 nie potwierdzono; nie zmieniano progów ani nie czyszczono limitera.
 
 Wszystkie dane są lokalne w `kuking_publikacja492` na 55439. Pozostawiono sześć kontrolowanych wykonań, zero powiadomień o własnym gotowaniu. Wizualnie sprawdzano własny przepis; pozostałe stany autora mają regresję PHP. CI, scalenie i wdrożenie końcowego pakietu należy potwierdzić osobno. Pełny port marki nadal **CZĘŚCIOWO**.
+## Dostarczenie pakietu
+
+PR546, head8e4da2f, scalony443da38. CI PR i main10/10success, PHP3807/76412. [Potwierdzony odbiór produkcji Alfy0.29](ODBIOR_PRODUKCJI_ALFA_029.md) rozdziela wdrożenie od ograniczonego oglądu zalogowanej strony. Historyczny opis przygotowania wyżej nie jest bieżącym statusem wysyłki.

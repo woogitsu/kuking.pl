@@ -1,30 +1,36 @@
 # Kontynuacja autonomiczna KuKing
 
-## Zatwierdzony sposób pracy
+## Sposób pracy
 
-Użytkownik 14 września 2026 zatwierdził realizację planu marki i ulepszeń. Automatyzacja `kuking-kontynuacja-prac` jest aktywna: co godzinę wraca do tej samej rozmowy. Przed wznowieniem sprawdzać procesy, subagentów, zmiany lokalne i PR; nie dublować wykonania. Polecenie zatrzymania użytkownika ma pierwszeństwo.
+Użytkownik zatwierdził plan 14.09.2026. Automatyzacja `kuking-kontynuacja-prac` jest aktywna co godzinę w tej samej rozmowie. Przed wznowieniem sprawdzić procesy, agentów, repo, PR, CI i Railway; nie dublować pracy. Polecenie zatrzymania ma pierwszeństwo. Jeden pakiet: odtworzenie → poprawka → fizyczne negatywy → ogląd → review → zwykły hook/push → CI → merge → Railway → odbiór. Bez obchodzenia zabezpieczeń i fikcyjnych danych produkcyjnych.
 
-Kolejność: publikowanie i przepisy → wyszukiwanie i zeszyty → konto i komunikaty → pozostałe ekrany → poczta → ulepszenia wynikające z potwierdzonych problemów. Zachować zakres MVP i decyzje. Nie rozpoczynać audytu od zera.
+Kolejność: publikowanie i przepisy → wyszukiwanie i zeszyty → konto/komunikaty → pozostałe ekrany → poczta. Ulepszenia wynikają z odtworzonych problemów. Pełny port marki nadal **CZĘŚCIOWO**; aktualna tabela jest na początku MACIERZ_KOMPLETNOSCI_517.md, niżej pozostają historyczne dowody.
 
-Pakiet kończy się regresją według AGENTS.md, oglądem, niezależnym review, zwykłym hookiem, wymaganym CI, scaleniem i potwierdzeniem wdrożenia. Macierz rozdziela kod, lokalny pomiar, ogląd i produkcję. Brak dostępu pozostaje ograniczeniem. Pełna marka nadal **CZĘŚCIOWO**.
+## Punkt pracy — pakiet Alfa0.29
 
-## Aktualny punkt pracy
+PR #546, head `8e4da2f2ff51178df57d7dd118978e441b8c5130`, scalony jako `443da38c763f5ee2c26e8610b516c95fa4e42b94`. #545/#547 zamknięte przez scalenie. Zwykły końcowy hook PASS244,09s. CI PR34889241332:10/10success, log PHP3807/76412. Fizyczne negatywy i review udokumentowane w PIERWSZY_WPIS_545.md i KOMUNIKAT_UGOTOWALEM_547.md.
 
-- Baza: main `3a1584764637406676ff78ff7afa4b09df5f34b9`, Alfa 0.28, wcześniej potwierdzona na produkcji. PR #543 i #544 zakończone.
-- Gałąź: `test/492-publikowanie-gotowanie`, PR #546. Pierwszy zdalny head bd852701f6e5471fc6325c9b9e20b3f201b607c4 zawiera #545. Pakiet poszerzono lokalnie o #547 — nie scalać starszego head na podstawie jego CI.
-- Macierz uzgodniona z późniejszymi odbiorami; niezależny audyt odczytowy zakończony. Lokalna poprawka #545 / Alfa 0.29 usuwa niezmierzoną obietnicę po pierwszym wpisie. Raport `PIERWSZY_WPIS_545.md`: 31/104, dwie fizyczne kontrole ujemne, 48 konfiguracji, niezależny review. Pierwszy push przeszedł hook; końcowy pakiet #547 wymaga nowego push i kontroli.
-- Istnieje odbiór `ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md`: 48 konfiguracji i rzeczywisty zoom na starszym SHA. Nie pomijać dowodu i nie przypisywać go automatycznie dzisiejszemu kodowi. Brakowało składników, zdjęć i wysłania Ugotowałem.
-- Następnie dostarczyć #545 przez zwykły hook, CI i odbiór produkcji. Wykorzystać istniejący lokalny prywatny wpis do edycji; dalej pełna publikacja przepisu i Ugotowałem zgodnie z macierzą.
+MainCI34891635127 zakończone10/10success, PHP3807/76412 potwierdzone w osobnym logu. Railway6445551937 success20:45:52UTC i Deploy34894880938success. HTTP oraz zalogowany Chrome potwierdziły Alfa0.29/443da38 i poprawioną podpowiedź pierwszego wpisu. Pełny odbiór: ODBIOR_PRODUKCJI_ALFA_029.md. Gałąź dokumentacji docs/492-odbior-alfa029 zbiera końcowe raporty; po wysyłce odczytać aktualny PR i SHA, nie dublować push.
 
-## Środowisko
+Ukończone dodatkowe odbiory: ODBIOR_GOTOWANIA_UZUPELNIENIE_492.md (składnik, zdjęcie, fokus, minutnik); ODBIOR_EDYCJI_WYSZLO_492.md (edycja, przywrócenie wartości,37Tab,radio,3TabWyszło,10wyborówpliku). Zmiana UUID kroku przy zwykłym zapisie wynika z istniejącego syncSteps delete/create; nie przywracać go ręcznie. Dokumenty jawnie ograniczają brak pełnego logu HTTP walidacji, brak podziękowania i fizycznego sprzętu.
 
-Repo kanoniczne: `C:\Users\matma\Documents\Codex\kuking.pl`. Kopia wykonawcza WSL `/tmp/kuking-final-20260913`; przed pomiarem porównać źródła. PHP `/opt/kuking-php-8.4-avif/bin/php`; Chromium `/tmp/kuking431-browsers/chromium-1243/chrome-linux64/chrome`. PostgreSQL **55439**, nigdy współdzielony 5432. Nie kopiować `.git` z kopii wykonawczej do repo kanonicznego.
+## Następne małe pakiety
 
-Nie uruchamiać pełnego PHP równolegle z pomiarem korzystającym ze wspólnych mediów. Istniejący serwer 8029 i lokalne fixture wymagają odczytu stanu przed użyciem. Sekrety i sesje pozostają poza dokumentacją.
+1. #548 i #549 (wyjaśnienie419 nie może zawsze zgadywać upływu czasu). #548: poprawić odmianę „na1minuta” w istniejącym minutniku, bez nowej funkcji. Uwzględnić RecipeStep::timerLabel, Blade, JS, istniejące testy i eksport; nie zmieniać jednostek ani odliczania. timerLabel jest też używany jako samodzielna etykieta w kreatorze, więc nie zamieniać bezwarunkowo wszystkich etykiet na biernik. Fizyczne negatywy, wersja/changelog, lokalny ogląd i zwykła ścieżka dostarczenia.
+2. ODBIOR_ZDJEC_492.md zamyka tekst udający JPG i dwa obrazy z zapisem kolejności/karuzeli. Pozostają inne błędne pliki/tryby zdjęć oraz pełny fokus po aktywacji karuzeli. Nie ma funkcji podmiany pliku wpisu.
+3. Podziękowanie z Wyszło, trwały log walidacji edycji oraz odzyskiwanie419/429 w izolowanym środowisku. Nie nazywać wcześniejszego błędnego założenia skryptu potwierdzoną usterką429.
+4. Odnajdywanie: zapis/ponowne znalezienie, wyniki/filtry, paginacja zeszytu/niedostępna treść, listy obserwujących. Korzystać z późniejszych raportów #512/#515/#517/#519 zamiast audytu od zera; szczegóły w KOLEJKA_ODNAJDYWANIA_492.md.
+5. Scenariusze #15: docs/product/SCENARIUSZE_UZUPELNIAJACE_15.md. To plan do rzeczywistych sesji, nie badanie modelu ani zgoda na kontakt z uczestnikami.
 
-Własny serwer publikacji 8033: baza `kuking_publikacja492`, PID launchera w `output/publikacja492/server.pid`. Sesja `/tmp/kuking-publikacja492-state.json` poza repo. Lokalny wpis `01a0a149-64b7-7292-a55a-ec5955ac6fa0` zachowany do odbioru edycji. Przed uruchomieniem sprawdzić proces; helper przygotowania ma historyczną pułapkę cache relacji profile i nie powinien być uruchamiany bez odczytu. Nie powtarzać skryptu publikującego, bo powstanie drugi wpis.
-## Dalszy odbiór w tym pakiecie
+## Środowisko i dane lokalne
 
-Raporty ODBIOR_PUBLIKOWANIA_492.md i KOMUNIKAT_UGOTOWALEM_547.md zawierają 240 konfiguracji formularzy, 12 błędów, rzeczywiste publikacje i szkic. #547: 31/148, sześć negatywów, 48 konfiguracji instrukcji i osiem wyników zapisu/powtórzenia; review zaakceptowane. Nie mylić początkowych założeń automatu z usterką 429 — jej przyczyny nie potwierdzono. Końcowy długi zrzut działa przy viewport:null i rzeczywistym rozmiarze okna Chromium.
+Repo kanoniczne `C:\Users\matma\Documents\Codex\kuking.pl`, wykonawcze WSL `/tmp/kuking-final-20260913`. PHP `/opt/kuking-php-8.4-avif/bin/php`, Chromium `/tmp/kuking431-browsers/chromium-1243/chrome-linux64/chrome`. PostgreSQL **55439**, nigdy5432. Pełny PHP: kuking_final_20260913; przeglądarka: kuking_publikacja492, serwer8033. Nie uruchamiać pełnego PHP równolegle z odbiorem wspólnych mediów. Nie kopiować .git z kopii wykonawczej do kanonicznej.
 
-Lokalne przepisy: lokalna-zupa-odbioru-publikacji oraz lokalny-szkic-odbioru-publikacji (oba published/private, drugi ma składnik, zdjęcie kroku i minutę). Sześć lokalnych wykonań, zero własnych powiadomień; nie powtarzać bez sprawdzenia skryptów tworzących. Zostało odebrać rozszerzony tryb gotowania oraz Wyszło. Przed scaleniem sprawdzić końcowy SHA, wymagane CI i później Railway. Następnie uaktualnić niniejszy punkt oraz raporty produkcji.
+Sesja `/tmp/kuking-publikacja492-state.json` poza repo. Zachowane prywatne lokalne przepisy `lokalna-zupa-odbioru-publikacji` i `lokalny-szkic-odbioru-publikacji`; drugi ma składnik, zdjęcie kroku i minutę. Sześć własnych wykonań, zero powiadomień po odbiorze547. Nie powtarzać setupu ani skryptów tworzących bez odczytu. output/edycja-wyszlo492/run.mjs zawiera stary warunek identyczności UUID i nie nadaje się do ślepego ponowienia. Zwykły zapis zmienia UUID kroków i updated_at, chociaż treść zostaje przywrócona.
+
+Prawdziwy zoom przez chrome.tabs.setZoom/getZoom; przy celu CSS320/zoom2 fizyczne okno640. Do zrzutów viewport:null, rzeczywiste window-size i CDP captureBeyondViewport:false. Nie używać przyciętego pełnostronicowego artefaktu jako dowodu błędu aplikacji. Widoczny fragment pierścienia i działający Enter wysokiej etykiety nie są równoznaczne z trafieniem w jej środek; szczegóły w raporcie edycji.
+
+Helpery GitHub w output używają istniejącego dostępu bez wypisywania sekretów. Po błędzie API zawsze odczytać stan przed ponowieniem. PR#456 pozostawić; #493 nie scalać ponownie. Zgłoszenie ramki#518 użytkownik przestał widzieć w0.19; nie przywracać starej hipotezy jako potwierdzonego błędu.
+Lokalny wpis z dwoma obrazami:01a0a196-9771-710e-8732-79da2a8ff877, private/carousel. Powstał tylko jeden; całkowita liczba wpisów w bazie wzrosła3→4. Drugi obraz to jawny lokalny zrzut testowy. Nie ponawiać output/zdjecia492/run.mjs.
+
+Odzyskiwanie: ODBIOR_ODZYSKIWANIA_492.md potwierdza store419 przez prawdziwy serwer i kontrolowany transport starszego klienta oraz store429 po naturalnym oczekiwaniu576281ms. Natywne ponowienia302 i GETedycji zachowały pola. Brak update/mediów/maksymalnych danych. Własny8534 zatrzymany; oddzielna baza kuking_recovery492_1789417626 pozostawiona z2kontami/5przepisami/15krokami, w tym3wcześniejsze udane próby. Surowe dane/helpery są poza repo w /tmp/kuking-recovery492-evidence-1789417626. Nie kopiować ich doGitHub. Nowe zgłoszenie tekstu419:#549.

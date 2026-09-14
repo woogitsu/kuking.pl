@@ -1,27 +1,24 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
-## Uzupełniony odbiór publikowania — pakiet Alfa 0.29
+## Aktualny odbiór publikowania — Alfa 0.29
 
-[Odbiór rzeczywistych przebiegów](ODBIOR_PUBLIKOWANIA_492.md) uzupełnia poniższą kolejkę: edycja wpisu z błędem i zapisem, prosta publikacja przepisu, zapis szkicu i ponowne otwarcie, kreator ze składnikiem i zdjęciem kroku aż do publikacji oraz Ugotowałem z błędem i poprawieniem. 240 konfiguracji zwykłych formularzy i 12 wariantów błędów z Tab/Enter mają oddzielne zakresy, opisane w raporcie. [#547](KOMUNIKAT_UGOTOWALEM_547.md) poprawia obietnicę powiadomienia własnego autora: osobno 31/148, sześć negatywów, 48 konfiguracji instrukcji i osiem wyników zapisu/powtórzenia. Kod końcowy nadal wymaga potwierdzenia CI i wdrożenia.
+PR #546, head `8e4da2f2ff51178df57d7dd118978e441b8c5130`, scalony jako `443da38c763f5ee2c26e8610b516c95fa4e42b94`. CI PR `34889241332`: 10/10 success, PHP 3807 testów / 76412 asercji. [Wdrożenie potwierdzone](ODBIOR_PRODUKCJI_ALFA_029.md): Railway6445551937 i Deploy34894880938 success, HTTP i zalogowany Chrome0.29/443da38. MainCI34891635127 także10/10success. Pełny port marki nadal **CZĘŚCIOWO**.
 
-Proste `/dodaj/przepis` publikuje bez kreatora. Szkic tworzy formularz na jednej stronie; kreator otwiera istniejący szkic lub szczegóły opublikowanego przepisu. Zdjęcia wpisu mają kolejność i sposób wyświetlania, nie zamianę plików. Nie dodawać tych nieistniejących funkcji jako rzekomych braków wdrożenia marki.
-
-Pozostają wielozdjęciowe stany, błędne pliki, pełna obsługa klawiaturą i pola pełnej edycji, 419/429, rozszerzony tryb gotowania i Wyszło. Pełny port: **CZĘŚCIOWO**. Poniższa kolejka dokumentuje stan przed tym uzupełnieniem.
-
-## Uzgodnienie publikowania i gotowania — 14 września 2026
-
-Aktualna kolejka #492 uwzględnia późniejsze raporty zamiast powtarzać historyczne odbiory. Poprawka #545 pozostaje lokalna, przed CI i wdrożeniem. [Dokładny zakres i dowody](PIERWSZY_WPIS_545.md). Pełny port: **CZĘŚCIOWO**.
-
-| Ekran lub stan | Wygląd i teksty | Mobile i pomiar | Pozostały brak |
+| Ekran lub stan | Wygląd, teksty i rzeczywiste działanie | Mobile i dowód | Pozostałe ograniczenie |
 |---|---|---|---|
-| Publikowanie zdjęcia: błędny opis → poprawienie → sukces | Rzeczywisty upload, zachowane zdjęcie i 4001 znaków po walidacji; prywatny wpis powstał | Błąd: 320 px, tekst 140%, oba motywy, fokus podsumowania, axe bez naruszeń | Błędny plik, pełna klawiatura formularza, edycja wpisu oraz kolejność i sposób wyświetlania zdjęć |
-| Podpowiedź po pierwszym wpisie #545 | Usunięta niezmierzona obietnica szybkości; końcowe zrzuty obejrzane | 48 konfiguracji; cztery wąskie warianty z Tab 10/10 i axe | Odbiór wdrożenia; nie rozszerzać wyniku na cały formularz |
-| Kreator: błąd autozapisu | AUTOZAPIS_KREATORA_528.md, odbiór integracji | Długi tytuł, zachowanie zapisu, korekta składnika 241→240; cztery prawdziwe zoomy | Nowy szkic → ponowne otwarcie → pełna publikacja |
-| Szczegóły przepisu | ODBIOR_FOKUSU_SZCZEGOLY_530.md | Cztery przebiegi po 25 kontrolek przy zoomie | Walidacja i końcowy zapis nie były przedmiotem pomiaru |
-| Tryb gotowania podstawowy | ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md, źródła 24afa9e | 48 konfiguracji, długa instrukcja, faktyczne przejścia i zapis odhaczenia | Składniki, zdjęcia kroków, istniejący minutnik, końcowe Ugotowałem; nie przypisywać starego SHA nowemu pomiarowi |
-| Ugotowałem | Istnieją testy domenowe; to nie pełny odbiór wizualny | Do uzupełnienia | Błąd → poprawienie → wysłanie → wynik i odczyt danych |
+| Zdjęcie i edycja wpisu | Upload → błędny opis → zachowane zdjęcie i tekst → prywatny wpis; edycja z korektą i ponownym odczytem | [Odbiór publikowania](ODBIOR_PUBLIKOWANIA_492.md): 240 konfiguracji pięciu zwykłych widoków i 12 wariantów błędów mają odrębne zakresy | Pełna klawiatura dodawania zdjęcia i inne warianty błędnych plików |
+| Dwa obrazy i błędny JPG | Tekst udający JPG odrzucony bez wpisu; dwa obrazy opublikowane prywatnie, odwrócona kolejność i karuzela zachowane po zapisie | [Odbiór zdjęć](ODBIOR_ZDJEC_492.md): oba motywy320/140/zoom200%, klik i Tab→Enter zmieniają obraz; desktop kontrolny | Drugi obraz to lokalny zrzut testowy; inne formaty/błędy, wszystkie tryby i pełny fokus po aktywacji nie są objęte |
+| Pierwszy wpis #545 | Usunięta niezmierzona obietnica szybkości; zrzuty końcowe obejrzane | [Raport](PIERWSZY_WPIS_545.md): 48 konfiguracji, cztery Tab 10/10, axe, dwie fizyczne kontrole ujemne | Odbiór produkcji osobno; nie rozszerzać na cały formularz |
+| Publikacja przepisu i szkic | Prosty formularz publikuje; pełny zapisuje szkic; ponowne otwarcie i kreator ze składnikiem, zdjęciem i minutą aż do publikacji | [Rzeczywiste przebiegi](ODBIOR_PUBLIKOWANIA_492.md); historyczny [autozapis](AUTOZAPIS_KREATORA_528.md) zachowuje osobny zakres | Wszystkie warianty błędnych plików i odzyskiwania 419/429 |
+| Pełna edycja przepisu | Błędny tytuł odrzucony; poprawiony zapisany i odczytany; treść przywrócona, media/składnik/minuta/private zachowane | [Odbiór edycji](ODBIOR_EDYCJI_WYSZLO_492.md): oba motywy, CSS320, tekst140, prawdziwy zoom200%, 37/37 Tab i komplet grup radio; kontrola desktop1440 | Brak trwałego pełnego logu HTTP walidacji; wysokie etykiety zdjęć wymagają przewijania, choć fokus i Enter działają |
+| Tryb gotowania | Historycznie długa instrukcja, przejścia i odhaczanie; teraz także składniki, zdjęcie i rzeczywisty koniec minutnika | [Podstawa](ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md):48 konfiguracji na starszym SHA; [uzupełnienie](ODBIOR_GOTOWANIA_UZUPELNIENIE_492.md):cztery konfiguracje na końcowym head | #548: odmiana „na 1 minuta”; dźwięk, fizyczny telefon, Wake Lock i praca w tle niepotwierdzone |
+| Ugotowałem #547 | Błąd → korekta → zapis; własny autor poprawnie ma zero powiadomień; tekst nie obiecuje wyjątków | [Raport](KOMUNIKAT_UGOTOWALEM_547.md):31/148, sześć fizycznych negatywów, 48 konfiguracji instrukcji i osiem wyników zapisu/powtórzenia | Inni autorzy: testy PHP, bez oglądu wszystkich stanów na produkcji |
+| Odzyskiwanie419/429 | Autentyczne odmowy → natywne ponowienie → GET edycji z zachowanymi polami;429 po naturalnym TTL | [Raport](ODBIOR_ODZYSKIWANIA_492.md): trzy kroki, oba motywy320/140/zoom200%;419 przez jawny transport starszego klienta | #549: wyjaśnienie419 zgaduje upływ czasu; bez update/PUT, mediów, maksymalnych danych i pełnego fokusu; geometriaJSON tylko429 |
+| Wyszło | Legalny GET istniejącego własnego wykonania, długi tytuł i formularz | [Odbiór](ODBIOR_EDYCJI_WYSZLO_492.md):3/3 Tab, oba motywy320/140/zoom200%, kontrola desktop1440 | Nie wysłano podziękowania; brak dowodu wynikowego komentarza/powiadomienia |
 
-Nadal sprawdzić formularz przepisu na jednej stronie, edycję przepisu oraz widoczne odzyskiwanie po 419/429. PHP i historyczny ogląd pojedynczych stanów nie zamykają tych przebiegów. Fizyczny telefon, klawiatura ekranowa, Wake Lock i dźwięk minutnika pozostają osobnymi ograniczeniami.
+Proste `/dodaj/przepis` nie tworzy szkicu. Szkic zapisuje `/dodaj/przepis/jedna-strona`; kreator otwiera istniejący szkic lub szczegóły przepisu. Zdjęcia wpisu mają kolejność i sposób wyświetlania, nie wymianę plików. Nie dopisywać nieistniejących funkcji jako błędów portu marki.
+
+Następna kolejność: #548 i #549, pozostałe błędne pliki/tryby zdjęć i fokus karuzeli, rzeczywiste podziękowanie z Wyszło, pozostałe warianty odzyskiwania419/429; następnie pozostałe rodziny zatwierdzonego planu. [Scenariusze badań #15](../product/SCENARIUSZE_UZUPELNIAJACE_15.md) są przygotowaniem, nie wynikami sesji. Historyczne dowody poniżej nie otrzymują automatycznie zakresu ani SHA bieżącego odbioru.
 
 ## Uzupełnienie OAuth — Alfa 0.28
 

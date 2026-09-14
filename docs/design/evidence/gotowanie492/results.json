@@ -1,0 +1,188 @@
+{
+  "results": [
+    {
+      "width": 320,
+      "theme": "light",
+      "zoom": 2,
+      "geo": {
+        "width": 320,
+        "scroll": 320,
+        "font": "25.2px",
+        "dpr": 2
+      },
+      "ingredients": "1 litr wody",
+      "image": {
+        "width": 320,
+        "height": 240,
+        "rect": {
+          "x": 36,
+          "y": 323.0390625,
+          "width": 248,
+          "height": 186,
+          "top": 323.0390625,
+          "right": 284,
+          "bottom": 509.0390625,
+          "left": 36
+        }
+      },
+      "focus": {
+        "text": "Uruchom minutnik w tej przeglądarce",
+        "focusVisible": true,
+        "hit": true,
+        "rect": {
+          "x": 56,
+          "y": 314.6328125,
+          "width": 212,
+          "height": 203,
+          "top": 314.6328125,
+          "right": 268,
+          "bottom": 517.6328125,
+          "left": 56
+        },
+        "outline": "rgb(21, 23, 20) none 3px",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      }
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "zoom": 2,
+      "geo": {
+        "width": 320,
+        "scroll": 320,
+        "font": "25.2px",
+        "dpr": 2
+      },
+      "ingredients": "1 litr wody",
+      "image": {
+        "width": 320,
+        "height": 240,
+        "rect": {
+          "x": 36,
+          "y": 323.0390625,
+          "width": 248,
+          "height": 186,
+          "top": 323.0390625,
+          "right": 284,
+          "bottom": 509.0390625,
+          "left": 36
+        }
+      },
+      "focus": {
+        "text": "Uruchom minutnik w tej przeglądarce",
+        "focusVisible": true,
+        "hit": true,
+        "rect": {
+          "x": 56,
+          "y": 314.6328125,
+          "width": 212,
+          "height": 203,
+          "top": 314.6328125,
+          "right": 268,
+          "bottom": 517.6328125,
+          "left": 56
+        },
+        "outline": "rgb(244, 245, 241) none 3px",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "zoom": 1,
+      "geo": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": "25.2px",
+        "dpr": 1
+      },
+      "ingredients": "1 litr wody",
+      "image": {
+        "width": 720,
+        "height": 540,
+        "rect": {
+          "x": 440,
+          "y": 326.671875,
+          "width": 384,
+          "height": 288,
+          "top": 326.671875,
+          "right": 824,
+          "bottom": 614.671875,
+          "left": 440
+        }
+      },
+      "focus": {
+        "text": "Uruchom minutnik w tej przeglądarce",
+        "focusVisible": true,
+        "hit": true,
+        "rect": {
+          "x": 460,
+          "y": 551.453125,
+          "width": 524,
+          "height": 98,
+          "top": 551.453125,
+          "right": 984,
+          "bottom": 649.453125,
+          "left": 460
+        },
+        "outline": "rgb(21, 23, 20) none 3px",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "zoom": 1,
+      "geo": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": "25.2px",
+        "dpr": 1
+      },
+      "ingredients": "1 litr wody",
+      "image": {
+        "width": 720,
+        "height": 540,
+        "rect": {
+          "x": 440,
+          "y": 326.671875,
+          "width": 384,
+          "height": 288,
+          "top": 326.671875,
+          "right": 824,
+          "bottom": 614.671875,
+          "left": 440
+        }
+      },
+      "focus": {
+        "text": "Uruchom minutnik w tej przeglądarce",
+        "focusVisible": true,
+        "hit": true,
+        "rect": {
+          "x": 460,
+          "y": 551.453125,
+          "width": 524,
+          "height": 98,
+          "top": 551.453125,
+          "right": 984,
+          "bottom": 649.453125,
+          "left": 460
+        },
+        "outline": "rgb(244, 245, 241) none 3px",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px"
+      }
+    }
+  ],
+  "timer": {
+    "elapsedMs": 60127,
+    "text": "Czas minął!",
+    "button": "Uruchom minutnik jeszcze raz",
+    "enabled": true
+  },
+  "progress": {
+    "initial": "1",
+    "final": "1",
+    "changed": false
+  },
+  "errors": []
+}
