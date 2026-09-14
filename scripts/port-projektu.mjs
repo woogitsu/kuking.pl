@@ -7,6 +7,7 @@ import { sprawdzZoomMarki } from './zoom-marki.mjs';
 import { sprawdzKompozycje513 } from './zainteresowania-powiadomienia-marki.mjs';
 import { sprawdzZeszyty } from './zeszyty-marki.mjs';
 import { sprawdzPodpowiedzi } from './kontrast-notice.mjs';
+import { sprawdzNawigacje492 } from './nawigacja-niski-widok.mjs';
 import { sprawdzTagi } from './tagi-marki.mjs';
 
 const KONTO = 'ania';
@@ -369,6 +370,7 @@ try {
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
+  await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
 
   // Kontrola ujemna zmienia źródło CSS, nie wynik pomiaru ani atrapę DOM.

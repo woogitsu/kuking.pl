@@ -45,6 +45,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { przygotujKaruzele, zmierzKaruzele } from './fixtures/karuzela-mieszana.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
@@ -1557,6 +1558,10 @@ if (adresPrzepisu === null) {
  * mają co pokazać — inaczej mierzylibyśmy trzy razy ten sam układ i raport
  * wyglądałby na kompletny.
  */
+// Własna rzeczywista próbka, także dla axe/układu: brak fixture jest błędem,
+// nigdy powodem do powrotu do wygodnej karuzeli z samymi poziomymi zdjęciami.
+const mieszanaKaruzela = przygotujKaruzele({ ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA });
+process.once('exit', () => mieszanaKaruzela.sprzataj());
 const wpisyPoTrybie = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
     "foreach (['normal','carousel','collage'] as $t) { "
@@ -1576,6 +1581,7 @@ const wpisyPoTrybie = (() => {
     }
   }
 
+  mapa.carousel = mieszanaKaruzela.id;
   return mapa;
 })();
 
@@ -2845,100 +2851,15 @@ if (pominieteWUkladzie.length > 0) {
 log('');
 log('Karuzela bez JavaScriptu:');
 
-const karuzelaBezJs = await (async () => {
-  const sciezka = sciezkaEkranu({ znajdz: 'wpis:carousel' });
-
-  if (! sciezka) {
-    console.error('BŁĄD: brak wpisu z karuzelą — warunek z issue #92 nie zostałby sprawdzony.');
-    process.exitCode = 1;
-
-    return null;
-  }
-
-  // 320 px: najwęższy ekran z WCAG 2.2 AA. Jeśli karuzela ma gdzieś pęknąć,
-  // pęknie tutaj.
-  const kontekst = await przegladarka.newContext({
-    viewport: { width: 320, height: 740 },
-    javaScriptEnabled: false,
+try {
+  const wynikiKaruzeli = await zmierzKaruzele({
+    browser: przegladarka, adres, path: mieszanaKaruzela.path, executablePath: CHROMIUM,
   });
-
-  const strona = await kontekst.newPage();
-  await strona.goto(`${adres}${sciezka}`, { waitUntil: 'domcontentloaded' });
-
-  await poczekajNaFonty(strona);
-
-  const ile = await strona.locator('.karuzela-slajd').count();
-
-  /** Numer slajdu, który jest teraz na wierzchu taśmy (liczony od 1). */
-  const widocznySlajd = () => strona.evaluate(() => {
-    const tasma = document.querySelector('.karuzela-tasma');
-    const slajdy = [...tasma.querySelectorAll('.karuzela-slajd')];
-    const srodek = tasma.getBoundingClientRect().left + tasma.clientWidth / 2;
-
-    const numer = slajdy.findIndex((s) => {
-      const ramka = s.getBoundingClientRect();
-
-      return ramka.left <= srodek && ramka.right >= srodek;
-    });
-
-    return {
-      numer: numer + 1,
-      przewinieteTasma: Math.round(tasma.scrollLeft),
-      przewinietaStrona: Math.round(document.documentElement.scrollLeft),
-    };
-  });
-
-  const droga = [(await widocznySlajd()).numer];
-
-  for (let i = 1; i < ile; i++) {
-    await strona.locator('.karuzela-slajd').nth(i - 1)
-      .getByRole('link', { name: 'Następne zdjęcie' }).click();
-    await strona.waitForTimeout(200);
-    droga.push((await widocznySlajd()).numer);
-  }
-
-  const naKoncu = await widocznySlajd();
-
-  const powrot = [];
-
-  for (let i = ile - 1; i > 0; i--) {
-    await strona.locator('.karuzela-slajd').nth(i)
-      .getByRole('link', { name: 'Poprzednie zdjęcie' }).click();
-    await strona.waitForTimeout(200);
-    powrot.push((await widocznySlajd()).numer);
-  }
-
-  await kontekst.close();
-
-  const oczekiwana = Array.from({ length: ile }, (_, i) => i + 1);
-
-  return {
-    slajdow: ile,
-    droga,
-    powrot,
-    przewinieteTasma: naKoncu.przewinieteTasma,
-    przewinietaStrona: naKoncu.przewinietaStrona,
-    dotarloDoKonca: JSON.stringify(droga) === JSON.stringify(oczekiwana),
-    wrocilo: JSON.stringify(powrot) === JSON.stringify(oczekiwana.slice(0, -1).reverse()),
-    przewijaSieTasmaNieStrona: naKoncu.przewinieteTasma > 0 && naKoncu.przewinietaStrona === 0,
-  };
-})();
-
-if (karuzelaBezJs) {
-  const dobrze = karuzelaBezJs.dotarloDoKonca
-    && karuzelaBezJs.wrocilo
-    && karuzelaBezJs.przewijaSieTasmaNieStrona;
-
-  log(`  ${dobrze ? '✓' : '✗'} zdjęć: ${karuzelaBezJs.slajdow}, droga ${karuzelaBezJs.droga.join('→')}`
-    + `, powrót ${karuzelaBezJs.powrot.join('→')}`
-    + `, taśma przewinięta o ${karuzelaBezJs.przewinieteTasma} px`
-    + `, strona o ${karuzelaBezJs.przewinietaStrona} px`);
-
-  if (! dobrze) {
-    process.exitCode = 1;
-  }
+  log(`  ✓ mieszana próbka: ${wynikiKaruzeli.length} wariantów, kliknięcia i Tab/Enter, ramka D-191, kontrolki 48px`);
+} catch (error) {
+  console.error(error);
+  process.exitCode = 1;
 }
-
 /* =============================================================================
    WYBÓR ZDJĘCIA BEZ JAVASCRIPTU (decyzja właściciela D-035)
 

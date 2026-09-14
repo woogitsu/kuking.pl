@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.9, 14 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.10, 14 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -88,6 +88,12 @@ Aktywna pozycja pozostaje rozpoznawalna także bez koloru. Nagłówek i pasek
 nie mogą zasłaniać treści ani elementu z fokusem; odstęp uwzględnia ich
 rzeczywistą wysokość oraz bezpieczny obszar urządzenia. Przy dużym tekście
 pierwszeństwo ma dostęp do całej treści, nawet kosztem przyklejenia paska.
+
+Dotyczy to również niskiego obszaru strony przy powiększeniu przeglądarki.
+Jeśli przypięte belki przeszkadzają w korzystaniu z formularza, obie
+przewijają się ze stroną. Zachowujemy wszystkie pozycje, cele dotykowe
+i mały zapas na obrys fokusu; nie rezerwujemy pustego miejsca po odpiętej
+belce. Pomiar i zakres implementacji: [Alfa 0.27](../design/POPRAWKI_ISSUES_ALFA_027.md).
 
 ### Wzorzec kompozycji — D-207
 

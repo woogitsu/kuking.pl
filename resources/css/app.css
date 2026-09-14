@@ -1828,6 +1828,14 @@
     color: var(--color-accent-tint-ink);
   }
 
+  /* #539: pierścień kontrastuje z tłem podpowiedzi po obu stronach.
+     Halo strony i niebieski fokus nie wystarczają na bursztynowym tle w dark. */
+  .notice .btn:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--color-accent-tint),
+      0 0 0 5px var(--color-accent-tint-ink);
+  }
+
   /* ---------------------------------------------------------------------
      Treść społeczności
      --------------------------------------------------------------------- */

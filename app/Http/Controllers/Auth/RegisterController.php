@@ -153,7 +153,7 @@ class RegisterController extends Controller
             // który nazywał pole inaczej niż etykieta na ekranie („Jak mamy
             // Cię nazywać?") i nie mówił, co zrobić.
             'display_name.min' => 'To imię jest za krótkie. Wpisz co najmniej dwie litery — na przykład „Basia”.',
-            'display_name.max' => 'To imię jest za długie. Zmieść się w 100 znakach.',
+            'display_name.max' => 'To imię jest za długie. Zmieść się w :max znakach.',
             /*
              * KOMUNIKATY PO NORMALIZACJI, WIĘC MÓWIĄ O CZYMŚ INNYM NIŻ WCZEŚNIEJ.
              *
