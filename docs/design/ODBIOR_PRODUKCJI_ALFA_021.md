@@ -33,3 +33,14 @@ kolejki ze starym zadaniem. Te zakresy mają dowód lokalnych testów opisany
 w PRECYZJA_KOMUNIKATOW_514.md, nie pozorny odbiór produkcyjny.
 Nie rozszerzamy desktopowego oglądu na wszystkie szerokości i motywy.
 Pełna kompletność marki pozostaje CZĘŚCIOWO.
+
+
+﻿## Dodatkowy odbiór Startu — Alfa 0.21
+
+14 września 2026. Zalogowany Chrome, własna karta GET /home, desktop i jasny motyw. Metryczka: Alfa 0.21 / ae6b519. Obejrzano zrzut przed i po reload.
+
+Widoczna nowa kompozycja: duży nagłówek „Dzień dobry” z prawdziwym imieniem konta, ciemna karta dodawania z okręgiem, krótka instrukcja, ciemna karta „Z innych kuchni” i osobne białe karty osób oraz dań. Zachowany znak garnka, prawdziwe treści, znaczniki widoczności i zakładki strumienia. Nie skopiowano przykładowych osób/liczb z makiety.
+
+Nie odtworzono ramki nagłówka po wejściu i reload. To obserwacja tej ścieżki, nie ustalenie przyczyny dawnego objawu #518. Nie zmieniono fokusu aplikacji. Nie wykonywano POST, nie zapisywano wpisów, nie obserwowano kont i nie zmieniano ustawień. Własną kartę zamknięto. Nie zapisano prywatnych treści ani zrzutów konta do repo.
+
+Ten odbiór nie obejmuje mobile, ciemnego motywu ani wszystkich stanów strumienia.

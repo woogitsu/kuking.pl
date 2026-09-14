@@ -1,5 +1,24 @@
 # Sprostowanie instrukcji modeli — #516
 
+## Aktualny stan — 14 września 2026, po scaleniu PR #521
+
+Pakiet #515–516 jest scalony: PR #521, head
+`1cb2ab5f485a0130a992b1cd4e5ba8db2a02b672`, merge
+`a3cb64df819351b18450603c1dcabe775aa748f0`.
+Obowiązkowy lokalny hook i zwykły push zakończyły się sukcesem.
+CI PR `34792102646`: **10 zadań success**, PHP **3726 testów / 75240 asercji**.
+Port marki job `103818145082` zakończył się sukcesem po 17 min 54 s;
+moduł tagów zaliczył 192 konfiguracje, cztery przejścia bez JS oraz
+sześć rzeczywistych negatywów CSS z przywróceniem końcowego źródła.
+Wyniki wcześniejszych prób poniżej pozostają zapisem historycznym.
+
+Potwierdzenie wdrożenia i granice odbioru opisuje
+[odbiór Alfa 0.22](ODBIOR_PRODUKCJI_ALFA_022.md).
+Pełny port marki nadal ma status **CZĘŚCIOWO**; pozytywny CI nie oznacza
+osobistego oglądu każdej strony, stanu i klienta poczty.
+
+**Poniższy akapit opisuje etap przed wysyłką; aktualny wynik jest powyżej.**
+
 14 września 2026. Instrukcje i ich lokalna regresja poprawione. Kontrole
 całego pakietu, CI, wysyłka i scalenie pozostają do potwierdzenia.
 

@@ -1,5 +1,18 @@
 # Audyt paczki identyfikacji — 13 września 2026
 
+## Aktualizacja po realizacji zgłoszeń — 14 września 2026
+
+Poniższa tabela 19 widoków prototypu opisuje pierwszy audyt, nie aktualną
+listę niezaimplementowanych elementów. Kolejne poprawki trafiły do PR #512
+(kompozycje), #517 (zeszyty), #519 (zainteresowania i powiadomienia),
+#520 (precyzja tekstów) oraz #521 (polecane tagi i instrukcje modeli).
+Źródłowy ZIP pozostaje zachowany; nie kopiowano jego fikcyjnych danych.
+Konstytucja ma wersję 1.9, a decyzja D-213 rozstrzyga użycie rzeczywistych
+promowanych tagów. Stan ekranów i jawne ograniczenia są w
+[aktualizowanej macierzy](MACIERZ_KOMPLETNOSCI_517.md), a dowód ostatniego
+wdrożenia w [odbiorze Alfa 0.22](ODBIOR_PRODUKCJI_ALFA_022.md).
+Status pełnej marki: **CZĘŚCIOWO**, nie odbiór wszystkich stanów aplikacji.
+
 **Pełne przeniesienie identyfikacji: CZĘŚCIOWO.** Zasady, wspólna paleta,
 typografia i wiele komponentów są obecne. Nie wszystkie kompozycje
 oryginalnego prototypu są odtworzone. Ten raport nie nazywa samej obecności
