@@ -14,13 +14,13 @@ Kontrast normalny po zmianie (jasny / ciemny): primary5,771 /5,096; secondary18,
 
 ## Kontrole ujemne rzeczywistego CSS
 
-Każda po dodatniej macierzy: kopia cp-p w zewnętrznym /tmp/kuking-notice-*, mutacja resources/css/app.css, rzeczywisty build, oczekiwany NOTICE_KONTRAST, przywrócenie MD5+mtime, ponowny build i dodatni pomiar. Hash źródła9ad8fbd36e2975d97a67f00b593c6944; mtime1789378814000ms. Negatywy:
+Każda po dodatniej macierzy: kopia cp-p w zewnętrznym /tmp/kuking-notice-*, mutacja resources/css/app.css, rzeczywisty build, oczekiwany NOTICE_KONTRAST, przywrócenie MD5+mtime, ponowny build i dodatni pomiar. Końcowy hash źródła LF: `6d8ec7cb97547c84fd6e15b4fc9a17d0`; mtime `1789380206073.5535 ms`. Negatywy:
 
 1. Powrót `.notice a`: primary dark2,666.
 2. Usunięcie ochrony zwykłego linku: dark1,090 (ochrona historycznej poprawki #89).
 3. Nadpisanie secondary kolorem podpowiedzi: dark1,131.
 
-Pełne komunikaty zapisane w notice534-final.log. Początkowa próba secondary trafiała na uproszczony formularz recipes.create i poprawnie oblała NOTICE_BRAK_PRZYPADKU; fixture poprawiono na rzeczywistą stronę `/dodaj`.
+Pełne komunikaty zapisane w notice534-lf-final.log. Początkowa próba secondary trafiała na uproszczony formularz recipes.create i poprawnie oblała NOTICE_BRAK_PRZYPADKU; fixture poprawiono na rzeczywistą stronę `/dodaj`.
 
 Guard sprawdza local/testing oraz driver i nazwę faktycznego DB::connection() przed pierwszym zapytaniem. Próby DB_CONNECTION=sqlite i DB_URL z nazwą bez kuking_port odmówiły własnym komunikatem i kodem1 przed zapytaniem. Nie sprawdzano ich przez połączenie do cudzej bazy.
 
@@ -30,3 +30,7 @@ Nowy moduł wywołuje istniejący pełny port-projektu; zachowano wcześniejsze 
 
 Dodatkowe miejsca secondary: posts/show przy wielu zdjęciach oraz historyczny warunek w wizard; pozytywny pomiar secondary dotyczy /dodaj. Nie znaleziono rzeczywistego quiet/danger wewnątrz notice; nie stworzono fikcyjnych widoków udających ich użycie. Nie opublikowano zdjęcia, przepisu ani komentarza. Produkcja i canonical/native pozostają poza zakresem zmian tego wykonania.
 Końcowe powtórzenie po poprawie guarda: 24 konfiguracje i trzy negatywy PASS, czas31502ms. Pint fixture PASS. Całość źródła CSS przywrócona po mutacjach.
+
+## Integracja końców linii
+
+Pierwszy hook odmówił wysyłki: CSS skopiowany z Windows miał CRLF, a istniejący PanelSzerokiTelefonTest analizuje źródło z LF. Odtworzono błąd z pełnym logiem (1920 testów przeszło przed zatrzymaniem). Przywrócono LF zgodne z `.gitattributes`, bez zmiany testu ani drzewa Git implementacji. Ta rodzina ponownie: **6 testów / 57 asercji PASS**. Na końcowych bajtach ponowiono 24 konfiguracje / 72 pomiary i wszystkie trzy negatywy: PASS, 37,346 s, z kontrolą MD5 i mtime. CSS w kopii wykonawczej i głównym katalogu jest identyczny.
