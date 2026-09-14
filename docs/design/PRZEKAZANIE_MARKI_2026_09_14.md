@@ -1,5 +1,19 @@
 # Przekazanie prac nad marką — 14 września 2026
 
+## Aktualizacja po wznowieniu
+
+PR #531 jest scalony jako `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e` po
+dziesięciu sukcesach CI `34822658081`. PR #533 ma teraz bazę main i jest
+gotowy do review; jego wymagane kontrole pozostają do potwierdzenia.
+Pierwszy commit dokumentacji `7659a4514ba4a9703ddec0ee078e55d5a07b4364`
+wysłano zwykłym pushem po pełnym hooku (274,06 s); zdalny SHA potwierdzono.
+
+Produkcja **Alfa 0.24 / b0712cf** została potwierdzona rzeczywistym HTTP
+oraz Railway `6433191800` success o 08:44:33 UTC. Deploy `34824265942`
+i main CI `34822427307` zakończyły się sukcesem. Alfa 0.25 wymaga jeszcze
+oddzielnego potwierdzenia wdrożenia. Dalsza treść opisuje wcześniejsze
+przekazanie; w kwestiach stanu ta aktualizacja ma pierwszeństwo.
+
 Użytkownik poprosił o zakończenie sesji, wysyłkę i przekazanie. Kontynuuj
 istniejącą pracę, nie zaczynaj całego audytu od początku. Ten dokument
 uzupełnia [przekazanie z 13 września](PRZEKAZANIE_MARKI_2026_09_13.md).

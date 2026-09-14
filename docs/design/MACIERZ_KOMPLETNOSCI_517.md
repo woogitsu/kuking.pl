@@ -1,5 +1,22 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Aktualny stan po scaleniu PR #531 — 14 września 2026
+
+PR #531 scalono jako `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e`.
+CI `34822658081`: wszystkie dziesięć zadań success, w tym port marki.
+PHP z logu joba `103908931994`: **3793 testy / 76259 asercji**.
+To potwierdza scalenie Alfy 0.25, ale jeszcze nie jej wdrożenie.
+
+Ostatnia potwierdzona produkcja to **Alfa 0.24**,
+`b0712cf8df4a3508ec76e9fada31b4f839c99169`: Railway `6433191800` success
+14 września o 08:44:33 UTC, Deploy `34824265942` success, main CI
+`34822427307` success. Rzeczywisty HTTP ponownie zwrócił stopkę 0.24 /
+`b0712cf`; CSS, JS i oba lokalne fonty Inter odpowiadają 200. Odczyt wersji
+i zasobów nie jest pełnym oglądem wszystkich stanów produkcyjnych.
+
+Poniższe etapy i wyniki pozostają zapisem historycznym. Aktualizacja nie
+przypisuje ich automatycznie nowszym wydaniom. Pełny port: **CZĘŚCIOWO**.
+
 ## Dodatkowy odbiór lokalny — 14 września 2026, kod 24afa9e
 
 [Tryb gotowania](ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md) uzupełnia historyczny
