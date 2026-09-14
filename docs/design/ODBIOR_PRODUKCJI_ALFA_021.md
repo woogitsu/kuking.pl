@@ -35,7 +35,7 @@ Nie rozszerzamy desktopowego oglądu na wszystkie szerokości i motywy.
 Pełna kompletność marki pozostaje CZĘŚCIOWO.
 
 
-﻿## Dodatkowy odbiór Startu — Alfa 0.21
+## Dodatkowy odbiór Startu — Alfa 0.21
 
 14 września 2026. Zalogowany Chrome, własna karta GET /home, desktop i jasny motyw. Metryczka: Alfa 0.21 / ae6b519. Obejrzano zrzut przed i po reload.
 

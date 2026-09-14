@@ -64,7 +64,7 @@ nieudane zadania przeglądarkowe. Nie było podstaw do osłabiania testów.
   rerun-failed-jobs tego samego SHA. Bez zmian źródeł, progów, timeoutów
   i reguł continue-on-error.
 
-## Stan odbioru
+## Historyczny stan po pierwszej próbie
 
 Ponowienie CI i właściwe wdrożenie są w toku. Ostatni rzeczywisty odczyt
 zalogowanego Chrome na /szukaj wskazywał Alfa 0.21 / ae6b519 oraz poprzedni
