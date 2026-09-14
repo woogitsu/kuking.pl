@@ -22,7 +22,29 @@ Użytkownik zatwierdził plan 14.09.2026. Automatyzacja `kuking-kontynuacja-prac
 
 Kolejność: publikowanie i przepisy → wyszukiwanie i zeszyty → konto/komunikaty → pozostałe ekrany → poczta. Ulepszenia wynikają z odtworzonych problemów. Pełny port marki nadal **CZĘŚCIOWO**; aktualna tabela jest na początku MACIERZ_KOMPLETNOSCI_517.md, niżej pozostają historyczne dowody.
 
-## Punkt pracy — pakiet Alfa0.29
+## Aktualizacja 15 września — publiczna tablica #557
+
+Pierwszeństwo ma ten punkt, nie historyczna kolejka poniżej. Profil #551
+jest wdrożony: PR #553, main05f57175d50ab20fc1cfaa935c6da3e9b23f21ec,
+CI34902008768 success, Railway6447341870 success, Deploy34905037101
+success. HTTP potwierdziło Alfa0.30/05f5717; zalogowany Chrome pokazał
+trzy zdjęcia w profilu, a kliknięcie drugiego prowadziło do wpisu.
+Odbiór zapisano również w #551, #553 i #492.
+
+Menu #555 scalono jako PR #556, main1b43b69668cce731be52d270479264d315b92a24,
+po CI34903826583 (10/10 success). Przy ostatnim odczycie jego Railway
+6447950025 nadal in_progress, mainCI34905715490 wymaga aktualizacji.
+Nie mylić tego ze sprawdzoną produkcją0.30.
+
+Aktywny pakiet: fix/557-publiczna-tablica, Alfa0.32. Włączono już main
+z menu0.31, zachowując oba wpisy changeloga. Raport TABLICA_PUBLICZNA_557.md
+opisuje duże karty dań, osobne wizytówki i jedno CTA. Pomiar lokalny,
+regresje i fizyczne negatywy mają osobne dowody; końcowy PR/CI i Railway
+muszą zostać potwierdzone. Nie uruchamiać kolejnego pakietu przed odbiorem.
+Pełny port marki pozostaje CZĘŚCIOWO. Następne małe zgłoszenia to #548
+(odmiana minut) oraz #549 (wyjaśnienie419), potem pozostała macierz #492.
+
+## Historyczny punkt pracy — pakiet Alfa0.29
 
 Późniejsze zlecenia właściciela: audyt zapisów względem kodu został scalony
 przez PR #552 (`46b322f41cedfc6527a77ab35388f1705d41adb2`), z CI main

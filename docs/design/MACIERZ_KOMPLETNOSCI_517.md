@@ -1,13 +1,22 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
-## Uzupełnienie pustej szyny profilu — Alfa 0.30, przygotowanie #551
+## Publiczna tablica — Alfa 0.32, przygotowanie #557
+
+[Raport](TABLICA_PUBLICZNA_557.md) rozdziela nową kompozycję landing od
+pozostałych szyn. Duże fotografie, wizytówki i jedno zaproszenie zastępują
+układ ze zrzutu właściciela. Pomiar dotyczy jawnej lokalnej fixture;
+produkcja wymaga osobnego odbioru. Nie oznacza to ponownego sprawdzenia
+całej strony powitalnej ani zamknięcia całego portu marki.
+
+## Uzupełnienie pustej szyny profilu — Alfa 0.30, wdrożone #551
 
 [Raport i dowody](SZYNA_ZDJEC_PROFILU_551.md): trzy ostatnie widoczne wpisy
 ze zdjęciem uzupełniają cudzy profil bez tagów i zeszytów. Testy PHP
 obejmują uprawnienia i pierwszeństwo istniejących bloków; lokalny ogląd
 48 konfiguracji dotyczy zalogowanego widza. Nie jest to ponowny odbiór
-całego profilu ani wszystkich stanów gościa. Wdrożenie wymaga osobnego
-potwierdzenia. Pełny port marki nadal **CZĘŚCIOWO**.
+całego profilu ani wszystkich stanów gościa. Wdrożenie05f5717 potwierdzają
+Railway6447341870 i Deploy34905037101 success, HTTP0.30 oraz zalogowany
+Chrome z kliknięciem zdjęcia do wpisu. Pełny port marki nadal **CZĘŚCIOWO**.
 
 ## Aktualny odbiór publikowania — Alfa 0.29
 

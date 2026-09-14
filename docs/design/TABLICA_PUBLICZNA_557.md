@@ -47,6 +47,16 @@ na nazwie autora zachowuje rozszerzenie kliknięcia na kartę przez pseudo-eleme
 
 ## Uczciwe granice dowodów
 
+Końcowy przebieg wysokości CSS900 zakończył się 48/48: 144 odwiedzone
+linki dań przez Tab i144 kliknięcia fotografii. Wszystkie pięć końcowych
+negatywów: kod1, przywrócenie MD5/mtime, potem kod0. Obejrzano końcowe
+zrzuty320/zoom200/ciemny/tekst140,1440/zoom100/ciemny/tekst100 oraz
+1440/zoom200/jasny/tekst140; dodatkowo wizytówki320/ciemny i1440/jasny.
+Dowody: [pomiar](evidence/landing557/wyniki.json),
+[negatywy](evidence/landing557/negatywy.json),
+[lokalne dania](evidence/landing557/dania-lokalne.png) i
+[lokalne wizytówki](evidence/landing557/osoby-lokalne.png).
+
 Pierwszy skrypt tracił ustawienia motywu i skali po powrocie z klikniętego
 wpisu. Jego zrzuty nie były dowodem odbioru obu motywów. Końcowy pomiar
 przywraca ustawienia po nawigacji, czeka na fonty i obrazy oraz zapisuje
