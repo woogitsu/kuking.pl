@@ -1,21 +1,50 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Potwierdzone wdrożenie Alfy 0.26 — 14 września 2026
+
+[Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_026.md): PR #535 scalony jako
+`d7f92870bf9a0a3471e305c370ab79524c316d79`, dziesięć sukcesów CI PR i main,
+Railway **6435698933 success o 11:36:07 UTC**, Deploy 34839034097 success.
+HTTP i zalogowany Chrome potwierdziły **0.26 / d7f9287**, nowy arkusz
+z poprawionym selektorem oraz czytelne przyciski w podpowiedziach.
+Pełny port pozostaje **CZĘŚCIOWO**; dokładne zakresy odbiorów są poniżej.
+
+## Dodatkowy lokalny odbiór moderacji — 14 września 2026
+
+[Raport ścieżek moderacji](ODBIOR_MODERACJI_2026_09_14.md) uzupełnia
+historyczne wiersze panelu i odwołań. Prawdziwe lokalne formularze z CSRF
+potwierdziły ukrycie wpisu, brak działania, odwołanie, cofnięcie decyzji,
+przywrócenie wpisu i odmowy 403. Logowanie moderatora i administratora
+obejmowało rzeczywiste wyzwanie TOTP; wiadomości pozostały lokalne.
+
+| Ekran lub stan | Odbiór wyglądu i treści | Mobile i zoom | Ograniczenie |
+|---|---|---|---|
+| Pełna kolejka zgłoszeń i formularz odwołania | Długie treści, realne działania, zrzuty | 320/768/1440, dwa motywy, 100/140; osiem wariantów zoomu 200% | Pierwsza tablica pomiarów JSON nie zachowała się; są zrzuty; późniejszy Tab opisano w osobnym wierszu |
+| Pełna kolejka odwołań, wynik autora i oba puste stany | Działania i stan bazy potwierdzone; reprezentatywne zrzuty obejrzane | 48 zachowanych pomiarów; osiem zachowanych pomiarów zoomu | Brak poziomego overflow nie oznacza pełnej dostępności fokusu |
+| Otwarte formularze zgłoszenia i odwołania, normalne oraz z błędem | 42/42 oczekiwanych przystanków Tab; podsumowanie otrzymuje fokus | Osiem wariantów: zoom 200%, CSS 320, tekst 140%, oba motywy | Widoczny fragment każdej kontrolki; częściowe zasłanianie długiego błędu, bez deklaracji pełnej zgodności WCAG |
+| Zamknięte kolejki | 16 trafień Tab w linki treści z obrysem | 320 / tekst 140% | Nie jest to odbiór wszystkich pól ani zasłaniania przy zoomie |
+
+Nie potwierdzono nowej usterki w tym zakresie. Niezależny review porównał
+raport z zachowanymi dowodami. Pełny port pozostaje **CZĘŚCIOWO**:
+przy zoomie 200% i tekście 140% stała nawigacja zajmuje znaczną część
+wysokości. Uzupełnienie Tab nie obejmuje każdej kombinacji decyzji, sterowania
+wszystkimi opcjami radiowymi ani jednoczesnej widoczności całego długiego błędu.
+
 ## Regresja gotowości strony w teście fokusu #536
 
 [Diagnoza i kontrole ujemne](FOKUS_ZDJECIA_BEZ_JS_536.md) wyjaśniają
 czerwone zadanie pierwszego CI PR #535: pomiar bez JS zaczynał przed
 załadowaniem CSS. Dodano kontrolowane opóźnienie arkusza i oczekiwanie
 na zasoby, zachowując Tab i obrys. To poprawka testu, nie usunięcie
-fokusu w aplikacji. Nowy head wymaga pełnych kontroli.
+fokusu w aplikacji. Końcowy head przeszedł pełne CI; wdrożenie opisano powyżej.
 
-## Lokalna poprawka kontrastu #534 — Alfa 0.26 w przygotowaniu
+## Lokalna regresja kontrastu #534 — zakres dowodu przed wdrożeniem
 
 Potwierdzono, że szeroki selektor `.notice a` nadpisywał kolory przycisków.
 [Raport regresji](KONTRAST_PODPOWIEDZI_534.md): 24 konfiguracje, 72 pomiary
 normal/hover/fokus programowy, trzy kontrole ujemne rzeczywistego CSS
 z odtworzeniem MD5 i mtime oraz 12 wariantów prawdziwego zoomu 200%.
-Reprezentatywne zrzuty obejrzano. To odbiór lokalny; wdrożenie poprawki
-pozostaje do potwierdzenia. Pełny port marki nadal **CZĘŚCIOWO**.
+Reprezentatywne zrzuty obejrzano. To zakres odbioru lokalnego; późniejsze wdrożenie potwierdza raport powyżej. Pełny port marki nadal **CZĘŚCIOWO**.
 
 ## Potwierdzone wdrożenie Alfy 0.25
 

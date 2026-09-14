@@ -1,6 +1,23 @@
 # Przekazanie prac nad marką — 14 września 2026
 
-## Aktualizacja po wznowieniu
+## Potwierdzone wdrożenie Alfy 0.26 — 14 września 2026
+
+[Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_026.md): PR #535 scalony jako
+`d7f92870bf9a0a3471e305c370ab79524c316d79`, dziesięć sukcesów CI PR i main,
+Railway **6435698933 success o 11:36:07 UTC**, Deploy 34839034097 success.
+HTTP i zalogowany Chrome potwierdziły **0.26 / d7f9287**, nowy arkusz
+z poprawionym selektorem oraz czytelne przyciski w podpowiedziach.
+Pełny port pozostaje **CZĘŚCIOWO**; dokładne zakresy odbiorów są poniżej.
+
+PR #533 również jest już scalony jako `1a9752e8fbe97678c8b599b9678f50b423c52fb0`.
+Nie ponawiaj jego wysyłki ani scalenia. Dokumentacja końcowego odbioru
+jest przygotowywana na gałęzi `docs/odbior-alfa-026`; stan jej PR sprawdź
+na GitHubie. Lokalny odbiór moderacji i uzupełnienie Tab:
+[raport](ODBIOR_MODERACJI_2026_09_14.md). Nie ma nowych zmian aplikacji.
+
+Poniższe aktualizacje są historyczne; nie wykonuj z nich ponownie zakończonych działań.
+
+## Historyczna aktualizacja po wznowieniu
 
 **Późniejsze potwierdzenie:** Alfa 0.25 działa na produkcji jako
 `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e`. Railway `6433957176` success
