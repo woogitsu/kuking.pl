@@ -1,0 +1,155 @@
+{
+  "rekordy": [
+    {
+      "nazwa": "Google — domknięcie",
+      "adres": "/wejdz/google/domknij",
+      "stan": null,
+      "wariant": "jasny",
+      "status": "success",
+      "dark": false,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Google — domknięcie",
+      "adres": "/wejdz/google/domknij",
+      "stan": null,
+      "wariant": "ciemny",
+      "status": "success",
+      "dark": true,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Google — połączenie",
+      "adres": "/wejdz/google/polacz",
+      "stan": null,
+      "wariant": "jasny",
+      "status": "success",
+      "dark": false,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Google — połączenie",
+      "adres": "/wejdz/google/polacz",
+      "stan": null,
+      "wariant": "ciemny",
+      "status": "success",
+      "dark": true,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Facebook — domknięcie",
+      "adres": "/wejdz/facebook/domknij",
+      "stan": null,
+      "wariant": "jasny",
+      "status": "success",
+      "dark": false,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Facebook — domknięcie",
+      "adres": "/wejdz/facebook/domknij",
+      "stan": null,
+      "wariant": "ciemny",
+      "status": "success",
+      "dark": true,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Facebook — połączenie",
+      "adres": "/wejdz/facebook/polacz",
+      "stan": null,
+      "wariant": "jasny",
+      "status": "success",
+      "dark": false,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Facebook — połączenie",
+      "adres": "/wejdz/facebook/polacz",
+      "stan": null,
+      "wariant": "ciemny",
+      "status": "success",
+      "dark": true,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Facebook — bez adresu",
+      "adres": "/wejdz/facebook/wroc",
+      "stan": "bez-adresu",
+      "wariant": "jasny",
+      "status": "success",
+      "dark": false,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    },
+    {
+      "nazwa": "Facebook — bez adresu",
+      "adres": "/wejdz/facebook/wroc",
+      "stan": "bez-adresu",
+      "wariant": "ciemny",
+      "status": "success",
+      "dark": true,
+      "width": 320,
+      "tekst": 140,
+      "axe": 0,
+      "overflow": {
+        "width": 320,
+        "scroll": 320
+      }
+    }
+  ],
+  "czasMs": 22911
+}

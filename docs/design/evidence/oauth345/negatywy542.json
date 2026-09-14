@@ -1,0 +1,16 @@
+[
+  {
+    "nazwa": "stara-obietnica-z-nowa-linia",
+    "ujemnyExit": 1,
+    "dodatniExit": 0,
+    "md5": "08c9aed33d54d681a245510ae2e277f8",
+    "mtimePrzywrocony": true
+  },
+  {
+    "nazwa": "brak-informacji-o-potwierdzeniu",
+    "ujemnyExit": 1,
+    "dodatniExit": 0,
+    "md5": "08c9aed33d54d681a245510ae2e277f8",
+    "mtimePrzywrocony": true
+  }
+]

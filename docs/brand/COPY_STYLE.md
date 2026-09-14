@@ -46,6 +46,8 @@ Nie obiecujemy zachowania danych przez przycisk „wstecz” przeglądarki (#523
 Instrukcja opisuje kroki, które aplikacja rzeczywiście zapewnia. Przy logowaniu
 przez Google lub Facebooka podajemy nazwę przycisku i uprzedzamy o przekierowaniu;
 nie gwarantujemy jednego kliknięcia, bo dostawca może wymagać potwierdzenia.
+Ta sama zasada obejmuje ekran łączenia kont po powrocie od dostawcy (#542),
+nie tylko przyciski na stronie logowania.
 Podsumowanie podaje okres odpowiadający liczonym zdarzeniom. Nie wywodzimy
 z działania automatu aktualnej widoczności treści ani wiedzy jej autora.
 Zachęta do odpowiedzi na pierwszy wpis nie potrzebuje twierdzenia o retencji.

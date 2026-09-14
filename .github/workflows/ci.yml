@@ -1250,7 +1250,9 @@ jobs:
         uses: actions/upload-artifact@v7
         with:
           name: dostepnosc-${{ github.sha }}
-          path: storage/dostepnosc.json
+          path: |
+            storage/dostepnosc.json
+            storage/dostepnosc/oauth345/
           retention-days: 14
 
       # ---------------------------------------------------------------------

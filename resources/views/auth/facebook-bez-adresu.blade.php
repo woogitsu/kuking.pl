@@ -10,10 +10,9 @@
         available"), a człowiek może odznaczyć zgodę na adres na ekranie
         Facebooka — świadomie i ma do tego prawo.
 
-        Bez adresu nie da się u nas założyć konta i nie jest to nasz kaprys:
-        adres e-mail jest jedyną drogą odzyskania konta i jedyną drogą
-        powiadomień („ktoś ugotował Twój przepis"). Konto bez niego nie ma
-        sensu i po pierwszym zgubionym haśle byłoby stracone.
+        Konto wymaga adresu e-mail, ale powiadomienia w serwisie nie są
+        tym samym co poczta. Nie obiecujemy listu po każdym wykonaniu przepisu
+        ani nie wyliczamy innych dróg wejścia jako nieistniejących (#542).
 
         CZEGO TU NIE MA, ŚWIADOMIE: przycisku „poproś Facebooka jeszcze raz"
         (`auth_type=rerequest`). Meta ostrzega w tej sprawie sama — „if
@@ -26,10 +25,9 @@
     --}}
     <div class="sekcja-strony">
         <p>
-            Żeby założyć konto w Kuking, potrzebujemy Twojego adresu e-mail — to na niego
-            wysyłamy wiadomość, gdy ktoś ugotuje Twój przepis, i tylko nim odzyskasz konto,
-            jeśli zgubisz hasło. <strong>Facebook nam go nie podał</strong>, więc tą drogą
-            konta nie założymy.
+            Do założenia konta w Kuking potrzebny jest adres e-mail. Użyjesz go między
+            innymi do odzyskania dostępu. <strong>Facebook nam go nie podał</strong>,
+            więc tą drogą konta nie założymy.
         </p>
         <p>
             Zwykle znaczy to jedno z dwóch: albo Twoje konto na Facebooku jest założone
@@ -39,8 +37,8 @@
 
         <h2>Co zrobić</h2>
         <p>
-            <strong>Załóż konto adresem e-mail</strong> — zajmie to chwilę i wymaga tylko
-            adresu oraz hasła. Potem, już na swoim koncie, wejdziesz w
+            Kliknij <strong>„Załóż konto adresem e-mail”</strong> i wypełnij formularz.
+            Potem, już na swoim koncie, wejdziesz w
             <strong>Ustawienia → Bezpieczeństwo</strong> i klikniesz „Połącz konto
             Facebooka". Po połączeniu kont możesz logować się przyciskiem „Wejdź kontem Facebooka”.
         </p>
