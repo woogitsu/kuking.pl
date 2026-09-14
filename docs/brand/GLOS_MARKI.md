@@ -81,12 +81,12 @@ biegnie tam, gdzie biegła:
 | „Top kuKINGi tygodnia" | o hierarchii | ❌ |
 | „Zdobądź poziom kuKING" | o nagrodzie za coś | ❌ |
 
-Powód ostatnich trzech jest produktowy, nie estetyczny, i jest zmierzony:
+Powód ostatnich trzech jest produktowy, nie estetyczny. W przywołanym badaniu
 własne zdjęcie lub film zamieściło w ostatnim miesiącu **17% internautów
-55–64 i 13% z 65+** (`../research/AUDIENCE_50_PLUS.md` §1), a `COPY_STYLE.md`
-§2 dokłada do tego, że **ponad połowa osób 50+ w mediach społecznościowych
-nigdy nic nie publikuje**. Komplement za publikację podnosi poprzeczkę.
-Nazwa przynależności ją obniża — wystarczy tu być.
+55–64 i 13% z 65+** (`../research/AUDIENCE_50_PLUS.md` §1). Te dane nie mówią,
+ile osób nigdy nic nie publikuje. Przyjmujemy zasadę projektową z
+`COPY_STYLE.md` §2: nie oceniamy użytkownika za publikację. Komplement może
+podnosić poprzeczkę; nazwa przynależności ma ją obniżać — wystarczy tu być.
 
 ### Odmiana
 

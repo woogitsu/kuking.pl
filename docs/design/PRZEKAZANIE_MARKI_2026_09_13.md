@@ -3,6 +3,37 @@
 Poniższy tekst jest promptem do przekazania kolejnemu modelowi. Statusy są
 zapisem sesji, nie gwarancją aktualnego stanu. Najpierw sprawdź GitHub.
 
+## Aktualizacja odbioru — 14 września 2026, po Alfa 0.21
+
+PR #519 / #513 (Alfa0.20) i PR #520 / #514 (Alfa0.21) są scalone.
+Aktualnie potwierdzona produkcja: `ae6b519cd5b7ccf68bc43e7b2e61ff46d54de8c2`,
+Railway6427633492 success, Deploy34790184134 success; metryczka HTTP i
+zalogowany Chrome wskazują Alfa0.21/ae6b519. Szczegóły:
+`ODBIOR_PRODUKCJI_ALFA_020.md` i `ODBIOR_PRODUKCJI_ALFA_021.md`.
+CI PR52034788400687 i main34789154494 mają po10 sukcesów.
+PHP PR520:3719testów/75077asercji, bez przypisywania tych liczb innym próbom.
+
+#518: użytkownik nie widzi ramki od0.19. Nie ustalono historycznej przyczyny;
+nie wyłączono globalnego fokusu. `DIAGNOZA_RAMKI_TYTULU.md` pozostaje
+obserwacją, nie deklaracją naprawy na podstawie przypuszczenia.
+
+Dalszy pakiet jest na `fix/515-tematy-i-zasady`, przygotowany w osobnym
+worktree `C:/Users/matma/Documents/Codex/kuking-marki515`. Obejmuje Alfę0.22,
+rzeczywiste kafle promowanych tagów, drogę do wszystkich tagów, D-213,
+konstytucję1.9, wskaźniki modeli i sprostowania dokumentów marki (#516).
+Szczegóły i stan kontroli: `POLECANE_TAGI_515.md`,
+`SPROSTOWANIE_INSTRUKCJI_516.md`, `MACIERZ_KOMPLETNOSCI_517.md`.
+Przed kontynuacją sprawdź zdalny SHA/PR/CI; tej notatki nie należy traktować
+jako dowodu wdrożenia0.22.
+
+Pełny lokalny port przed końcowym dodaniem linku do wszystkich tagów:
+exit0,19min29s,432wcześniejsze/96zeszytów/96onboardingu-powiadomień/
+192tagów/88rzeczywistych zoomów, wraz z kontrolami ujemnymi. Końcowy link
+ma osobną regresję; nie przypisuj mu starszego wyniku. Handlery fixture513/515
+mają procesową regresję: wyjątek nie może oddać kodu sukcesu. Pełna marka
+nadal **CZĘŚCIOWO**: granice oglądu opisuje macierz, nie każdy stan i klient
+poczty był obejrzany. Zachowano wszystkie wcześniejsze asercje.
+
 ## Późniejsza aktualizacja — 14 września 2026
 
 PR #519 dokończony i scalony: head `dcd1c5958c4cf23ef2a7fb6194f1aa37fc3e855d`,

@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.8, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.9, 14 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -158,7 +158,9 @@ zoomu ani ukrycie nazw. Ważna czynność ma widoczny opis; wyjątek trzech krop
 na karcie wpisu nie rozszerza się na pozostałe przyciski.
 
 Układ pozostaje używalny przy **320 px** szerokości oraz tekście przeglądarki
-powiększonym do **200%**. Przy powiększaniu rośnie w dół, a długie nazwy
+powiększonym do **200%**. Oddzielnie sprawdzamy rzeczywisty zoom przeglądarki
+**200%**, także w połączeniu z tekstem aplikacji **140%**. Zmiana samego
+fontu nie zastępuje zoomu. Przy powiększaniu układ rośnie w dół, a długie nazwy
 zawijają się w dostępnej szerokości. Kolumna treści nie może kurczyć się do
 pionowego ciągu liter. Nie maskujemy błędu siatki przez obcięcie całej strony.
 
@@ -206,4 +208,15 @@ nie są specyfikacją backendu ani dowodem działania funkcji.
 
 Przed scaleniem wymagane są testy aplikacji, pomiar dostępności oraz kontrola
 telefonu przy szerokości 320, 360, 390 i 414 px oraz czcionce przeglądarki
-powiększonej do 200%. Brak wyniku zapisujemy jako brak weryfikacji.
+powiększonej do 200%, a także osobny test rzeczywistego zoomu 200%
+i połączenia zoomu z tekstem aplikacji 140%. Starszych pomiarów fontu
+nie przypisujemy zoomowi. Brak wyniku zapisujemy jako brak weryfikacji.
+
+
+## Polecane tagi w wyszukiwaniu — D-213
+
+Przed zapytaniem kafle pokazują rzeczywiste promowane tagi i ich opisy.
+Pastelowe powierzchnie rozróżniają kafle, nie oznaczają popularności.
+Długi tytuł pozostaje w całości; krótka akcja prowadzi do danego tagu.
+Brak danych zachowuje uczciwy pusty stan. Konstytucja nie upoważnia
+modelu do tworzenia fikcyjnych tematów lub liczników dla podobieństwa do makiety.

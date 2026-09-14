@@ -91,3 +91,18 @@ Są to rendery Chromium, nie test rzeczywistych klientów poczty. Lokalny
 zapasowy adres CTA pochodzi z APP_URL środowiska testowego. Nie wysyłano
 wiadomości ani nie zmieniano produkcyjnych danych. Wariant font200% axe
 nie zastępuje rzeczywistego zoomu; ten osobny pomiar wykonuje port w CI.
+
+
+## Końcowy CI i scalenie
+
+PR #520, head `c2a05d015ba6e197f3be5bb3334864c3967ec582`:
+CI `34788400687` zakończył wszystkie dziesięć zadań sukcesem.
+Pełne PHP w tym przebiegu: **3719 testów / 75077 asercji**.
+Scalono zwykłą drogą jako `ae6b519cd5b7ccf68bc43e7b2e61ff46d54de8c2`.
+Wcześniejsze wzmianki o oczekiwaniu na hook i CI są historyczne.
+Wynik wdrożenia wymaga osobnego odczytu produkcji.
+
+
+Alfa 0.21 ma teraz potwierdzone wdrożenie Railway6427633492 i rzeczywisty
+odczyt metryczki ae6b519. Zakres oglądu i ograniczenia:
+[odbiór produkcji0.21](ODBIOR_PRODUKCJI_ALFA_021.md).

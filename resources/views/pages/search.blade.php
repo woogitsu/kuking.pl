@@ -72,6 +72,25 @@
 
     @if($phrase === '')
         <p class="meta">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
+        <section class="marka-szukaj-tagi" aria-labelledby="polecane-tagi-title">
+            <h2 id="polecane-tagi-title">Polecane tagi</h2>
+            @if($promowaneTagi->isNotEmpty())
+                <ul class="lista-naga marka-szukaj-siatka">
+                    @foreach($promowaneTagi as $tag)
+                        <li class="marka-szukaj-tag">
+                            <h3>{{ $tag->name }}</h3>
+                            @if(filled($tag->promotion?->note))
+                                <p>{{ $tag->promotion?->note }}</p>
+                            @endif
+                            <a class="marka-szukaj-tag-link" href="{{ route('tags.show', $tag) }}" aria-label="Zobacz tag: {{ $tag->name }}">Zobacz tag</a>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <p>Nie ma jeszcze polecanych tagów.</p>
+            @endif
+            <p><a class="btn btn-secondary marka-szukaj-wszystkie" href="{{ route('tags.index') }}">Wszystkie tagi</a></p>
+        </section>
         {{--
             Ekran wyszukiwania bez frazy nie może kończyć się na samej
             instrukcji — to ślepy zaułek (docs/product/SOUL.md 4.11: pusty

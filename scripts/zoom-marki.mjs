@@ -179,7 +179,7 @@ async function sprawdzUklad(page, { zoom, width, scale, dark, path }) {
   return r;
 }
 
-export async function sprawdzZoomMarki({ adres, sesja, przepis, zeszyt = null, sciezki513 = [], negatywy = true }) {
+export async function sprawdzZoomMarki({ adres, sesja, przepis, zeszyt = null, sciezki513 = [], sciezki515 = [], negatywy = true }) {
   const directory = mkdtempSync(tmpdir() + '/kuking-zoom-');
   writeFileSync(directory + '/manifest.json', JSON.stringify({ manifest_version: 3, name: 'Odbior zoom Kuking', version: '1.0', permissions: ['tabs'], background: { service_worker: 'worker.js' } }));
   writeFileSync(directory + '/worker.js', 'chrome.runtime.onInstalled.addListener(() => {});');
@@ -194,9 +194,9 @@ export async function sprawdzZoomMarki({ adres, sesja, przepis, zeszyt = null, s
     const page = await context.newPage();
     for (const width of [640, 1440]) for (const dark of [false, true]) for (const scale of [100, 140]) {
       await page.setViewportSize({ width, height: 1480 });
-      for (const path of ['/login', '/register', '/', przepis, '/@ania', '/@zofia_z_bieszczad', ...(zeszyt ? ['/zeszyt', zeszyt] : []), ...sciezki513]) {
+      for (const path of ['/login', '/register', '/', przepis, '/@ania', '/@zofia_z_bieszczad', ...(zeszyt ? ['/zeszyt', zeszyt] : []), ...sciezki513, ...sciezki515]) {
         await context.clearCookies();
-        if (path.startsWith('/@') || path === przepis || path === '/zeszyt' || path === zeszyt || sciezki513.includes(path)) await context.addCookies(sesja.cookies);
+        if (path.startsWith('/@') || path === przepis || path === '/zeszyt' || path === zeszyt || sciezki513.includes(path) || sciezki515.includes(path)) await context.addCookies(sesja.cookies);
         const response = await page.goto(adres + path, { waitUntil: 'networkidle' });
         if (response.status() !== 200) throw new Error('ZOOM_HTTP ' + path);
         const zoom = await worker.evaluate(async url => {

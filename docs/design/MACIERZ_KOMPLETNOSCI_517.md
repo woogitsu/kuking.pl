@@ -1,4 +1,4 @@
-# Macierz pokrycia identyfikacji — stan przed odbiorem PR #517
+# Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
 13.09.2026. Źródło przekazane do przeglądu: `667ace890492f02b1221e259a73977cac0897ee3`, PR #517 / #511. CI `34780301310` trwało przy rozpoczęciu tej notki; ta notka nie weryfikuje jego zakończenia ani wdrożenia. Inwentaryzacja opiera się na `routes/web.php`, istniejących raportach i przyrządach, uzupełnionych aktualnym spisem tras oraz oddzielnym lokalnym odbiorem 20 wariantów stanów #511 opisanym poniżej. Aktualizacja tej notki nie uruchamia kolejnych testów ani nie mutuje źródeł.
 
@@ -89,7 +89,42 @@ pustych stron i cztery przejścia paginacji mają tylko dowód HTTP, treści
 i braku poziomego overflow; nie dziedziczą pełnych skal ani Tab.
 
 Produkcja Alfa 0.19 jest potwierdzona dla `34b4b61`: [osobny odbiór](ODBIOR_PRODUKCJI_ALFA_019.md).
-Zmiany Alfa 0.20 pozostają w draft PR #519, przed końcowym CI i wdrożeniem.
+Powyższy odbiór lokalny uzupełniono po scaleniu PR #519: Alfa 0.20
+`ce82638dc6a69be3f73dbc0094db7cb7cede6e97` ma potwierdzone CI, Railway,
+HTTP i ograniczony ogląd zalogowanej produkcji — [osobny odbiór](ODBIOR_PRODUKCJI_ALFA_020.md).
 Status pełnego portu marki pozostaje **CZĘŚCIOWO**. Ta aktualizacja nie
 rozszerza odbioru na wszystkie typy wiadomości, klientów poczty, panele
 moderatora ani pozostałe zakresy #514–516.
+
+
+## Aktualizacja #514 — 14 września 2026
+
+PR #520, head `c2a05d015ba6e197f3be5bb3334864c3967ec582`, scalono jako
+`ae6b519cd5b7ccf68bc43e7b2e61ff46d54de8c2`. CI PR `34788400687`:
+10 zadań success, PHP 3719 testów / 75077 asercji. Szczegóły, rzeczywiste
+negatywy, lokalny render MailMessage i ograniczenia w
+[raporcie precyzji](PRECYZJA_KOMUNIKATOW_514.md). Nie przeprowadzono
+wysyłki do rzeczywistych klientów poczty ani całego zewnętrznego OAuth.
+Samo scalenie nie potwierdza wdrożenia Alfa 0.21.
+
+## Aktualizacja #515–516 — prace lokalne
+
+Kafle prawdziwych promowanych tagów na pustej wyszukiwarce oraz
+[sprostowanie instrukcji modeli](SPROSTOWANIE_INSTRUKCJI_516.md)
+są przygotowane lokalnie. Końcowy zintegrowany port, CI, scalenie
+i produkcja tego pakietu wymagają osobnego potwierdzenia.
+Nie zmienia to statusu pełnej marki: **CZĘŚCIOWO**.
+
+
+Alfa 0.21 ma teraz potwierdzone wdrożenie Railway6427633492 i rzeczywisty
+odczyt metryczki ae6b519. Zakres oglądu i ograniczenia:
+[odbiór produkcji0.21](ODBIOR_PRODUKCJI_ALFA_021.md).
+
+
+Końcowy lokalny odbiór pustej wyszukiwarki (#515):
+[szczegółowy raport](POLECANE_TAGI_515.md) — 192 konfiguracje, cztery
+przejścia bez JS do wszystkich tagów i 112 wariantów prawdziwego zoomu
+(w tym 16 wyszukiwarki). Pełne/puste dane, gość i konto zalogowane,
+pełne nazwy/opisy, widoczny fokus i rzeczywiste negatywy. Ogląd obejmuje
+reprezentatywne zrzuty, nie każdy wariant. Ten odbiór nie rozszerza
+pokrycia wszystkich filtrów i wyników ani innych tras z wspólnego wiersza.
