@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.22 — polecane tagi w wyszukiwaniu
+
+- Przed wpisaniem zapytania wyszukiwarka pokazuje kafle rzeczywistych polecanych tagów, z ich opisami i odnośnikami.
+- Zarówno przy pełnej, jak i pustej liście można przejść do wszystkich tagów; pozostaje też droga do aktualności.
+
 ## Alfa 0.21 — precyzyjne komunikaty
 
 - Instrukcje logowania przez Google i Facebooka opisują sposób wejścia bez obietnicy liczby kliknięć.

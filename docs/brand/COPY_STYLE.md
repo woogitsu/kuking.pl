@@ -86,10 +86,9 @@ w tym, o czym jest żart:
 | „Jesteś prawdziwym kuKINGiem!" | o użytkowniku | ❌ zakaz |
 | „Top kuKINGi tygodnia" | o hierarchii | ❌ zakaz |
 
-Powód nie jest estetyczny, a produktowy. Ponad połowa osób 50+ w mediach
-społecznościowych **nigdy nic nie publikuje**. Komplement za publikację
-podnosi poprzeczkę („skoro to ma być królewskie, to ja nie mam czego pokazać").
-Nazwa przynależności ją **obniża** — wystarczy tu być.
+Założenie projektowe: nie oceniamy użytkownika za publikację. Komplement
+może podnosić poprzeczkę („skoro to ma być królewskie, to ja nie mam czego pokazać”).
+Nazwa przynależności ma ją **obniżać** — wystarczy tu być.
 
 ### Odmiana
 
@@ -106,8 +105,8 @@ Jeśli zdanie wymaga takiej formy — przepisz zdanie, nie odmieniaj słowa na s
 
 ### Forma żeńska: nie tworzymy jej
 
-Głównymi użytkownikami Kuking są kobiety 60+ (w badaniu UTW **83,8% słuchaczy
-to kobiety**). Żadna żeńska forma od „kuKING" nie brzmi po polsku dobrze —
+W założeniach projektowych uwzględniamy między innymi kobiety 60+. To wybór
+persony, nie pomiar składu społeczności Kuking. Żadna żeńska forma od „kuKING" nie brzmi po polsku dobrze —
 każda próba wychodzi albo pretensjonalnie, albo śmiesznie w złym sensie.
 
 Dlatego: **kuKING jest nazwą rodzaju wspólnego, jak „gość" w „mamy gościa"**,
@@ -456,7 +455,7 @@ Regresja: `tests/Feature/PytanieDniaTest.php`.
 | pusty feed | Jeszcze nic tu nie ma |
 | + wyjaśnienie | Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe. |
 | pusty zeszyt | Zeszyt jest jeszcze pusty |
-| + wyjaśnienie | Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję". Trafi tutaj i zawsze go znajdziesz. |
+| + wyjaśnienie | Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję". Zapisany przepis pojawi się w Twoim zeszycie. |
 | puste archiwum, własne | Twoje archiwum jest jeszcze puste |
 | + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj. |
 | brak powiadomień | Nie ma jeszcze żadnych powiadomień |

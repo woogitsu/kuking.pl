@@ -849,7 +849,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -907,7 +907,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1071,7 +1071,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1239,7 +1239,7 @@ jobs:
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/fokus-karty-dania.mjs
 
-      - name: axe-core (27 ekranów × 4 warianty)
+      - name: axe-core (aktualna macierz ekranów i wariantów)
         if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs
 

@@ -18,6 +18,10 @@ use Illuminate\Support\Facades\DB;
 require __DIR__.'/../../vendor/autoload.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
+set_exception_handler(function (Throwable $error): never {
+    fwrite(STDERR, $error->getMessage().PHP_EOL);
+    exit(1);
+});
 if ($app->environment('production') || ! str_starts_with((string) config('database.connections.pgsql.database'), 'kuking_port')) {
     throw new RuntimeException('Fixture513 wymaga wyłącznej bazy kuking_port*.');
 }

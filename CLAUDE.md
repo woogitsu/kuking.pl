@@ -7,18 +7,18 @@ i jedyne źródło prawdy — dla Claude, GPT, Gemini i każdego innego modelu.
 > w jednym miejscu: [`AGENTS.md`](./AGENTS.md). Nie duplikuj tu treści —
 > rozjazd między plikami instrukcji jest gorszy niż brak instrukcji.
 
-## Ściąga (pełne uzasadnienia w AGENTS.md)
+## Ściąga (pełne wymagania i uzasadnienia w AGENTS.md)
 
 - Kuking = **społeczność ludzi, którzy gotują**, nie baza przepisów.
 - Grupa: **50+**, ale produkt nie jest oznaczany jako „dla seniorów”.
 - Stack: Laravel 13 · PHP 8.4 · Blade + Livewire 4 · Tailwind 4 · PostgreSQL 18 · Railway.
 - Modularny monolit. **Zero mikroserwisów, SPA, Redisa i osobnego search engine.**
 - Główna akcja: **Co dziś ugotowałeś?** → zdjęcie + kilka słów → Opublikuj.
-- **„Ugotowałem” jest ważniejsze niż lajk** i zawsze powiadamia autora przepisu.
+- **„Ugotowałem” jest ważniejsze niż lajk** i powiadamia autora przepisu z trzema granicami opisanymi w AGENTS.md.
 - Feed obserwowanych: **chronologiczny**, bez algorytmu.
-- UX 50+: tekst ≥ 18 px, przyciski ≥ 48 px, ikona nigdy sama, bez hover/swipe,
+- UX 50+: tekst ≥ 18 px, przyciski ≥ 48 px, ikony zgodnie z jawnymi wyjątkami w AGENTS.md (menu trzech kropek), bez hover/swipe,
   błędy po polsku mówiące co zrobić, poprawne dane nigdy nie znikają.
-- **Ważne funkcje działają bez JavaScriptu.**
+- JavaScript: stosuj AGENTS.md i D-053 — newralgiczne formularze mogą wymagać JS; nie zostawiaj martwych przycisków.
 - Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback.
 - Bugfix = test regresyjny.
 - `status` i `role` użytkownika **nigdy** w `$fillable`.

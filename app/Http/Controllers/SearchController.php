@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Search\SearchQuery;
+use App\Models\Tag;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -129,6 +130,7 @@ class SearchController extends Controller
         return view('pages.search', [
             'board' => $this->dailyBoard->forViewer($request->user()),
             'phrase' => $phrase,
+            'promowaneTagi' => $phrase === '' ? Tag::promowane()->get() : collect(),
             'section' => $section,
             'zaKrotka' => $zaKrotka,
             'szukaPrzepisow' => $szukaPrzepisow,

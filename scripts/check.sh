@@ -2,12 +2,13 @@
 #
 # Kuking — pełna kontrola przed wysłaniem zmian.
 #
-# To jest DOKŁADNIE to samo, co robi CI. Uruchamiane lokalnie nie kosztuje
-# ani minuty GitHub Actions, a łapie te same błędy.
+# Bazowe kontrole uruchamiane także przez pre-push. CI ma dodatkowe
+# obowiązkowe zadania, m.in. pełny port marki, zoom i kontrole ujemne.
+# Sukces hooka nie zastępuje wyniku CI ani odbioru wdrożenia.
 #
 #   ./scripts/check.sh          # pełna kontrola
 #   ./scripts/check.sh --szybko # bez budowania assetów (szybsze przy pracy nad PHP)
-#   ./scripts/check.sh --dostepnosc # dodatkowo axe na 27 ekranach w 4 wariantach
+#   ./scripts/check.sh --dostepnosc # dodatkowo aktualna macierz axe i układu
 #                                   # oraz pomiar układu przy 320/360/414/768 px
 #   ./scripts/check.sh --wydajnosc  # dodatkowo Lighthouse (wydajność + SEO)
 #                                   # na 8 stronach publicznych (issue #26)

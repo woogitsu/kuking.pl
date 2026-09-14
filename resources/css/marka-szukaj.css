@@ -1,0 +1,41 @@
+/* Kafle z prototypu wyszukiwania: wyłącznie redakcyjnie promowane tagi. */
+.marka-szukaj-tagi { margin-block: var(--spacing-6); min-width: 0; }
+.marka-szukaj-siatka {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
+  gap: var(--spacing-5);
+}
+.marka-szukaj-tag {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: var(--spacing-3);
+  min-width: 0;
+  min-height: 14.375rem;
+  padding: var(--spacing-6);
+  border-radius: var(--radius-xl);
+  background: var(--color-success-tint);
+  color: var(--color-success-tint-ink);
+}
+.marka-szukaj-tag:nth-child(even) {
+  background: var(--color-accent-tint);
+  color: var(--color-accent-tint-ink);
+}
+.marka-szukaj-tag h3,
+.marka-szukaj-tag p { margin: 0; max-width: 100%; overflow-wrap: anywhere; color: inherit; }
+.marka-szukaj-tag h3 { font-size: var(--text-title); }
+.marka-szukaj-tag-link {
+  display: inline-flex;
+  align-items: center;
+  min-height: 48px;
+  min-width: 48px;
+  margin-top: auto;
+  color: inherit;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+.marka-szukaj-tag-link::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.marka-szukaj-tag-link:focus-visible { outline: 3px solid currentColor; outline-offset: 3px; }
+.marka-szukaj-wszystkie { margin-top: var(--spacing-5); }
