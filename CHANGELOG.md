@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.35 — ponowne wysłanie formularza
+
+- Ekran odzyskiwania formularza nie przypisuje każdego błędu potwierdzenia zbyt długiemu otwarciu strony. Wskazuje ponowienie wysłania i zachowuje osobne informacje o odzyskanej treści, zdjęciach oraz logowaniu (#549).
+
 ## Alfa 0.34 — odmiana czasu minutnika
 
 - Instrukcja, podgląd przepisu i komunikat po uruchomieniu minutnika używają poprawnej formy „na 1 minutę” oraz „na 1 sekundę”. Czas i działanie odliczania pozostają bez zmian (#548).

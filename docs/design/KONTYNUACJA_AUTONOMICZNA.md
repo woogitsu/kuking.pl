@@ -1,5 +1,24 @@
 # Kontynuacja autonomiczna KuKing
 
+## Rozpoczęte #549 — neutralny komunikat odzyskiwania
+
+Gałąź fix/549-komunikat-odzyskiwania, robocza Alfa0.35. Zmieniono wyłącznie
+teksty419 i komentarz o logowaniu; mechanizmy CSRF, odzyskania i ponowienia
+pozostają. Nowy test obejmuje prawdziwy błędny token bez zmiany zegara,
+cztery stany odzyskania. Lokalnie18 testów/330 asercji razem z pełnym
+odzyskaniem przepisu i PUT. Trzy fizyczne negatywy: H1, wyjaśnienie oraz
+fałszywa obietnica pełnego tekstu; restore MD5/mtime, view:clear i PASS.
+Dowód: evidence/odzyskiwanie549/negatywy.json. Pint przeszedł.
+
+Lokalny odbiór zakończony: 16 konfiguracji, cztery obejrzane zrzuty,
+niezależne review bez blokera. Brak jeszcze hooka, push, PR i CI.
+COPY_STYLE i KOMUNIKAT_ODZYSKIWANIA_549.md uzupełnione.
+Audyt utworzył #567, #568, #569; raport AUDYT_WIELODYSCYPLINARNY_2026_09_15.md.
+Pierwszy nowy test używał pętli tworzącej drugi profil „odczyt”; poprawiono
+izolację przez DataProvider, bez zmiany źródeł aplikacji ani ograniczeń DB.
+Produkcja nadal Alfa0.34/e6d94d8, poprzedni pakiet #548 zakończony.
+
+
 ## Odbiór wydania 15 września 2026
 
 PR #565 scalony: be3d35503a328b8f63848e91e43ab0ddb659a670.

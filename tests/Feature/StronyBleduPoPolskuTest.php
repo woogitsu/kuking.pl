@@ -156,7 +156,7 @@ final class StronyBleduPoPolskuTest extends TestCase
         // (pułapka 1b, zmierzone 12.09.2026: po podmianie `<h1>` asercja na
         // całej odpowiedzi nadal przechodziła).
         $this->assertStringContainsString(
-            'Ta strona była otwarta zbyt długo',
+            'Nie udało się wysłać formularza',
             $this->trescEkranu((string) $odpowiedz->getContent()),
         );
         $odpowiedz->assertSee('Twój tekst jest na miejscu');

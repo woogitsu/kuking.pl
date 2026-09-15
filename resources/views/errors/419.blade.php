@@ -28,8 +28,8 @@
             && ($middleware === 'auth' || str_starts_with($middleware, 'auth:')));
 @endphp
 
-<x-layout title="Ta strona była otwarta zbyt długo" :noindex="true">
-    <h1>Ta strona była otwarta zbyt długo</h1>
+<x-layout title="Nie udało się wysłać formularza" :noindex="true">
+    <h1>Nie udało się wysłać formularza</h1>
 
     @if($formularz->maCoOdzyskac())
         {{-- ZDANIE O TEKŚCIE ZALEŻY OD TEGO, CZY TEKST NAPRAWDĘ JEST CAŁY.
@@ -47,22 +47,19 @@
              o tym wprost pomoc przy polu pliku niżej. --}}
         @if($formularz->obciete)
             <p class="mb-5">
-                Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
-                a ten był otwarty dłużej. <strong>Część Twojego tekstu jest niżej</strong>,
+                Nie mogliśmy potwierdzić tego wysłania. <strong>Część Twojego tekstu jest niżej</strong>,
                 ale formularz był wyjątkowo duży i nie wszystko udało się przenieść.
                 Przeczytaj treść, uzupełnij, czego brakuje, i kliknij „Wyślij jeszcze raz”.
             </p>
         @else
             <p class="mb-5">
-                Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
-                a ten był otwarty dłużej. <strong>Twój tekst jest na miejscu</strong> —
-                nic z niego nie przepadło. Kliknij „Wyślij jeszcze raz”, a wpis pójdzie tam,
-                gdzie miał iść.
+                Nie mogliśmy potwierdzić tego wysłania. <strong>Twój tekst jest na miejscu</strong> —
+                nic z niego nie przepadło. Sprawdź treść i kliknij „Wyślij jeszcze raz”.
             </p>
         @endif
 
         @if(auth()->guest() && $wymagaLogowania)
-            {{-- Sesja wygasła, więc razem z tokenem przepadło też zalogowanie.
+            {{-- Ta trasa wymaga zalogowania, a obecne żądanie pochodzi od gościa.
                  Mówimy o tym wprost i ZANIM ktoś kliknie, bo po kliknięciu
                  trafi na ekran logowania i drugi raz zobaczy pusty formularz.
                  Link otwiera się w nowej karcie właśnie po to, żeby ta strona
@@ -169,8 +166,7 @@
         </form>
     @else
         <p class="mb-5">
-            Ze względów bezpieczeństwa formularz jest ważny tylko przez pewien czas,
-            a ten był otwarty dłużej.
+            Nie mogliśmy potwierdzić tego wysłania.
             @if($formularz->obciete)
                 <strong>Nie udało się odzyskać tekstu</strong>, bo formularz był wyjątkowo duży.
                 Wróć do poprzedniej strony. Jeśli przeglądarka zachowała wpisaną treść,
