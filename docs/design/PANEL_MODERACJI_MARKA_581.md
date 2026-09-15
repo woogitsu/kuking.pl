@@ -174,3 +174,7 @@ Celowane odtworzenie czterech rodzin dało 25 testów, 267 asercji, 4 porażki: 
 
 Log hooka: /home/mateusz/push581-final.log. Proces wysyłki zakończony. Runtime ma teraz własne repo git utworzone z bundle; nie kopiować jego metadanych do repo kanonicznego. Helper push581-final.py służył do pierwszego przygotowania i odmawia ponowienia przy istniejącym .git; do kolejnej próby przygotować świadomie zwykły push po synchronizacji źródeł. Pozostaje niezależny PR bezpieczeństwa #586, wcześniej opublikowany, nadal draft przy ostatnim odczycie.
 
+
+## Wznowienie: cztery kontrakty regresji
+
+Po przeniesieniu ostatniej normalizacji whitespace do runtime: 25 testów /272asercje PASS. Cztery fizyczne mutacje źródeł wykryte osobno (licznik aria-hidden, etykieta powrotu, atrybut trybu panelu, zakres marginesów). Każda: dodatni baseline, ujemny wynik kod1, przywrócenie identycznych bajtów/MD5/mtime, dodatni wynik. Dowody: evidence/panel581/negatives/contracts/report.json. Pierwsze próby baseline kod2 były błędem nieczynnego PostgreSQL55439 i nie stanowią negatywów. Po uruchomieniu wyłącznie izolowanego klastra wykonano komplet prób. Pełny hook/push nadal do ponowienia.
