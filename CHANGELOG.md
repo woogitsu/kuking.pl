@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.34 — odmiana czasu minutnika
+
+- Instrukcja, podgląd przepisu i komunikat po uruchomieniu minutnika używają poprawnej formy „na 1 minutę” oraz „na 1 sekundę”. Czas i działanie odliczania pozostają bez zmian (#548).
+
 ## Alfa 0.33 — 15 września 2026
 
 - Strona powitalna: kolejne wpisy zaczynają się pod poprzednią kartą we własnej kolumnie, bez pustych przerw wynikających z wysokości sąsiedniej karty (#560). Układ reaguje na rozwijanie treści, zdjęcia i zmianę szerokości; kolejność DOM oraz pojedyncza kolumna na telefonie pozostają.
