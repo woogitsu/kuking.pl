@@ -806,3 +806,253 @@ w przeglądarce, nie kontaktowałem się z żadną instytucją wymienioną w §1
 2. Postawiłem hipotezę o przecieku statyków Livewire jako przyczynie porażki
    `NapiszDoNasTest` i **obaliłem ją własnym odtworzeniem** (§10.3).
    Mechanizm jest nieznany i tak jest to zapisane.
+
+---
+
+# Runda trzecia — 15 września 2026, wieczór
+
+Obszary nietknięte w rundach 1–2: powiadomienia i ich limity, dostępność,
+waga front-endu, terminy moderacyjne, schemat bazy pod kątem indeksów.
+
+## 14. Najpierw sprostowanie własnego znaleziska §4.1 — i jest to sprostowanie na korzyść projektu
+
+W §4.1 napisałem, że nie ma żadnej kopii bazy, i opatrzyłem to zdaniem
+o „bramkach po stronie właściciela”. **Było to prawdziwe co do stanu, ale
+mylące co do kosztu** — i ta różnica zmienia priorytet.
+
+**Mechanizm kopii jest w repozytorium napisany w całości:**
+
+| Element | Gdzie |
+|---|---|
+| obraz osobnego serwisu (bez PHP) | `docker/kopia/Dockerfile` |
+| zrzut `pg_dump` 18, szyfrowanie kluczem publicznym, wysyłka | `docker/kopia/kopia-bazy.sh`, `docker/kopia/s3.sh` |
+| serwis `kopia-bazy`, cron `17 2 * * *`, `restartPolicyType: NEVER` | `.railway/railway.ts:955` |
+| czujka „kopia przestała powstawać”, niezerowy kod wyjścia | `app/Console/Commands/SprawdzKopieBazy.php` |
+| model stanu kopii | `app/Domain/Kopie/StanKopiiBazy.php` |
+
+`docs/OTWARCIE.md` mówi to zresztą wprost w Etapie 0: *„Kod tej warstwy jest
+już w repozytorium… Nie ma za to ani jednej z rzeczy, których nie da się zrobić
+kodem — bucketu, tokenów, klucza i serwisu w Railway.”*
+
+**Co to zmienia.** Bramka nr 1 z §7 nie jest projektem inżynierskim na tygodnie,
+tylko **popołudniem pracy w panelach**: bucket, token, para kluczy, ręczne
+założenie serwisu. Zostawiam ją na pierwszym miejscu — zero kopii to nadal zero
+kopii — ale znika argument „to daleko”. To jest najtańsza rzecz o najwyższym
+priorytecie w całym audycie i moja pierwsza runda niepotrzebnie sprawiła
+wrażenie, że jest odwrotnie.
+
+**Sprawdziłem też podejrzenie zakleszczenia** między wierszem 8 (kopia) a 13
+(`railway config apply`, opatrzony ostrzeżeniem „nie uruchamiaj bez kopii
+z wiersza 8”), skoro serwis kopii jest opisany właśnie w `railway.ts`.
+**Zakleszczenia nie ma** — `OTWARCIE.md` rozstrzyga to akapit wyżej: *„Serwis
+kopii zakłada się dziś ręcznie w panelu”*, bo `apply` skasowałby jedyny
+działający serwis produkcyjny. Dokument był szybszy ode mnie.
+
+---
+
+## 15. `P1` · Najcenniejsze powiadomienie w serwisie nie ma jak wyjść poza serwis
+
+To jest najważniejsze znalezisko całego audytu i powstaje dopiero ze złożenia
+trzech rzeczy zmierzonych w trzech różnych rundach.
+
+**AGENTS.md §1 mówi o „Ugotowałem”:** *„to on generuje najcenniejsze
+powiadomienie w całym serwisie”*. `RETENTION_LOOPS.md` oznacza Pętlę 1
+— *Ugotowałem → wzruszenie autora → odpowiedź → kolejne wykonanie* — gwiazdką
+jako **główną**.
+
+**Dowód, czym to powiadomienie jest w kodzie.**
+`app/Domain/Notifications/Actions/NotifyUser.php` robi dokładnie jedną rzecz:
+
+```php
+return Notification::create([...]);
+```
+
+Wiersz w bazie. **Bez maila. Bez pusha.** Autor dowiaduje się, że ktoś ugotował
+z jego przepisu, wyłącznie wtedy, gdy **sam z siebie wróci** na `/powiadomienia`.
+
+**Dowód, że nie ma innej drogi.** Wszystkie osiemnaście listów, jakie ten serwis
+umie wysłać (`app/Mail/` + `app/Notifications/`), to: uwierzytelnianie
+(potwierdzenie adresu, reset hasła, link logowania, 2FA, zaproszenie),
+moderacja i prawo (decyzje, odwołania, zgłoszenia, alarmy dla moderatora),
+eksport danych, odpowiedź na wiadomość do redakcji — oraz `PodsumowanieTygodnia`.
+`grep -rlnE "CookedEvent|ugotowa" app/Mail app/Notifications` zwraca
+**jeden plik: `PodsumowanieTygodnia.php`**.
+
+**Czyli cała droga „ktoś ugotował Twój przepis” poza serwis prowadzi przez
+tygodniowe podsumowanie** — to samo, o którym §4.3 tego audytu ustalił, że jest
+wyłączone na trzy sposoby naraz: flagą `KUKING_DIGEST_WLACZONY=false`, domyślną
+zgodą `wants_weekly_digest DEFAULT false` i brakiem miejsca, w którym zwykły
+człowiek tę zgodę wyrazi (ani rejestracja, ani onboarding o nią nie pytają).
+
+**Złożenie, którego nie widać z żadnego pojedynczego miejsca:**
+
+```
+ktoś ugotował Twój przepis
+        │
+        ├─ wiersz w `notifications`  → zobaczysz, JEŚLI sam wrócisz
+        ├─ e-mail natychmiastowy     → NIE ISTNIEJE
+        ├─ web push                  → odłożony (#35)
+        └─ tygodniowe podsumowanie   → najwcześniej za 7 dni,
+                                        a domyślnie NIGDY (flaga + zgoda)
+```
+
+A `/admin/bez-odpowiedzi` — jedyne narzędzie, którym gospodarz mógłby tę ciszę
+wychwycić ręcznie — **wykonań nie widzi w ogóle** (§10.1).
+
+**Wniosek.** Pętla oznaczona w dokumentacji jako główna **nie domyka się dziś
+dla nikogo, kto nie wraca na stronę z własnego nawyku** — czyli dokładnie dla
+tej grupy, dla której `COLD_START.md` pisze „50+ daje produktowi jedną szansę”.
+To nie jest błąd w kodzie; każdy element z osobna jest napisany poprawnie
+i świadomie. To jest **dziura między elementami**, i dlatego nie znalazł jej
+ani PHPStan, ani 3829 testów, ani pięć wcześniejszych audytów.
+
+**Czego to NIE znaczy.** Nie proponuję cofania poprawki RODO ani dosypywania
+maili. `RETENTION_LOOPS.md` §3.2 sam ustala sufit: transakcyjne maksimum
+**jeden dziennie, zbiorczo** („Dziś w Kuking: Marek ugotował Twój przepis
+i 2 osoby coś napisały”). Chodzi o to, żeby ten jeden istniał.
+
+---
+
+## 16. `P1` · Autoryzacja każdego zdjęcia to sześć skanów sekwencyjnych — dowiedzione planem zapytania
+
+§4.6 zmierzył, że jedno żądanie zdjęcia kosztuje **6 zapytań**, i uznał ten
+koszt za uzasadniony, bo to jest sama reguła (status autora, blokada).
+**Ta ocena była niepełna, bo liczyła zapytania, a nie ich koszt.**
+
+`app/Domain/Media/DostepDoZdjecia.php` pyta `UNION`-em siedem tabel o to, która
+w ogóle wspomina dane zdjęcie:
+
+```
+post_media.media_id · cooked_event_media.media_id · profiles.avatar_media_id
+recipes.hero_media_id · recipes.source_scan_media_id · recipe_steps.media_id
+hero_picks.media_id
+```
+
+**Sześć z tych siedmiu kolumn nie ma indeksu, po którym da się szukać.**
+`EXPLAIN` na żywej bazie `kuking`:
+
+```
+Seq Scan on post_media          Filter: (media_id = …)
+Seq Scan on cooked_event_media  Filter: (media_id = …)
+Seq Scan on recipes             Filter: ((hero_media_id = …) OR (source_scan_media_id = …))
+```
+
+Przyczyna jest subtelna i dlatego przeoczona: `post_media` i `cooked_event_media`
+**mają** indeksy — ale klucz główny to `(post_id, media_id)` i
+`(cooked_event_id, media_id)`, czyli `media_id` stoi na **drugiej** pozycji
+i do wyszukiwania po samym `media_id` jest bezużyteczny. `recipe_steps.media_id`
+i `profiles.avatar_media_id` nie mają indeksu żadnego. Jedyna tabela zrobiona
+tu poprawnie to `hero_picks` (`hero_picks_media_id_unique`).
+
+Szerzej: **24 klucze obce w tym schemacie nie mają indeksu wiodącego**
+(zapytanie po `pg_constraint`/`pg_index`, pełna lista w wyjściu audytu). Większość
+jest dziś nieszkodliwa; te sześć leżą na najgorętszej ścieżce, jaką ten produkt ma.
+
+**Dlaczego to jest groźne mimo małych liczb dzisiaj.** Koszt rośnie
+**z rozmiarem tabeli, nie z liczbą zapytań**. Przy 10 tys. wpisów po trzy
+zdjęcia `post_media` ma 30 tys. wierszy — i tyle właśnie przeskanuje
+**każde** żądanie miniatury, po wygaśnięciu 150-sekundowego cache przeglądarki
+(`MediaController::sekundyCache()`). Produkt, którego główną treścią są
+fotografie, ma tu wbudowaną degradację wprost proporcjonalną do własnego
+sukcesu.
+
+**Dlaczego nie złapał tego żaden istniejący test — i to jest osobna lekcja.**
+Repozytorium ma wzorowe testy N+1, które wypisują LICZBY zamiast koloru
+(`[N03 /odkryj] … 15 zapytan` przy dziesięciokrotnym wzroście danych).
+`PomiarZapytanAutoryzacjiZdjeciaTest` robi dokładnie to samo dla zdjęć:
+liczy `count($zapytania)` i pilnuje, żeby było ich sześć.
+
+**Przy tej usterce liczba zapytań się NIE ZMIENIA.** Zostaje sześć — przy stu
+wierszach i przy stu tysiącach. Rośnie tylko to, ile wierszy każde z nich
+przeczyta. Świetna dyscyplina pomiarowa tego projektu ma tu dokładnie jeden
+ślepy punkt: mierzy **liczbę** zapytań, nie **koszt** planu. Test, który by to
+złapał, musiałby czytać `EXPLAIN` i oblewać na `Seq Scan` w tej ścieżce —
+i jest to, moim zdaniem, wartościowszy kandydat na nowy test niż cokolwiek
+innego w tym repozytorium.
+
+---
+
+## 17. `P2` · Siedem twardych limitów powiadomień istnieje w dokumencie, zero w kodzie
+
+`RETENTION_LOOPS.md` §3.2 nosi nagłówek „Limity częstotliwości (**twarde**)”
+i wymienia siedem reguł. Sprawdziłem każdą przeciwko kodowi:
+
+| Reguła z §3.2 | W kodzie |
+|---|---|
+| E-maile transakcyjne: maks. 1 dziennie, zbiorczo | **nie ma** (i nie ma czego ograniczać — §15) |
+| E-maile nietransakcyjne: maks. 1 tygodniowo każdy typ, łącznie 2 | **częściowo** — digest chodzi tygodniowo, drugiego typu nie ma |
+| **Cisza nocna 21:00–8:00** | **nie ma** — `grep` po `app/` za godzinami i „cisza nocna” daje wyłącznie komentarze o nocnym sprzątaniu |
+| In-app bez limitu, grupowane po typie | **jest** — `NotifyUser::TYPY_WYCISZANE_W_OKNIE` |
+| Web Push | nie dotyczy (V1, #35) |
+| Nowy użytkownik: maks. 3 e-maile w pierwszych 7 dniach | **nie ma** |
+| Nieaktywny >60 dni: maks. 1 miesięcznie, po 6 miesiącach zero | **nie ma** |
+
+**Uczciwe zastrzeżenie, bez którego to znalezisko byłoby nieuczciwe:** cztery
+z tych reguł są dziś **puste z braku przedmiotu** — skoro nie ma maili
+transakcyjnych (§15), nie ma czego ograniczać do jednego dziennie. To nie jest
+zaniedbanie, tylko kolejność prac.
+
+**Ale jedna z nich nie jest pusta i będzie potrzebna pierwszego dnia, gdy §15
+zostanie domknięte: cisza nocna.** Grupa 50+ to ludzie, którzy kładą telefon
+przy łóżku. Pierwszy mail o 23:40 z informacją, że ktoś ugotował ich przepis,
+jest dokładnie tym rodzajem pierwszego wrażenia, po którym wyłącza się
+powiadomienia i już nie wraca. `DziennyBudzetListow` (510 linii) tego nie
+pilnuje — to jest **globalny dobowy sufit wysyłki** (ochrona kosztu i przed
+nadużyciem, D-057), nie limit na osobę ani okno godzinowe. To są dwie różne
+rzeczy i łatwo je pomylić po nazwie.
+
+---
+
+## 18. Gdzie jeszcze szukałem i nie znalazłem dziury
+
+| Obszar | Pomiar | Wynik |
+|---|---|---|
+| **Waga front-endu** | zbudowane: CSS **125,21 kB → 22,50 kB gzip**, JS **7,90 kB → 3,22 kB gzip**, fonty 133 kB woff2 | **bardzo dobrze** — przy 486 kB źródeł Tailwind 4 ścina do 125 kB; to jest lekkie nawet na słabym łączu |
+| **Dostępność** | `dostepnosc.mjs` (axe-core) + Lighthouse **chodzą w CI** jako osobne joby, na kilkunastu ekranach łącznie z panelem moderacji; `A11Y_CHECKLIST.md` celuje w WCAG 2.2 AA i każdy punkt ma metodę weryfikacji do 30 s | **bez zastrzeżeń** |
+| **Terminy moderacyjne** | `PilnujTerminowOdwolan` + `TerminOdwolaniaBlisko` pilnują terminów odwołań automatem | **bez zastrzeżeń** |
+| **Higiena poczty** | `SprawdzPoczte`, `KtoNieDostalListu`, `NieudaneListy`, `MartweZadania`, `SprawdzPiksel` (#204) | **bez zastrzeżeń** — wysyłka ma czujki na każdym etapie |
+| **Zakleszczenie bramek 8↔13** | podejrzenie sprawdzone i **obalone** — `OTWARCIE.md` rozstrzyga to wprost (§14) | **dokument był szybszy ode mnie** |
+
+---
+
+## 19. Co zmienia się w kolejności po rundzie trzeciej
+
+1. **§14 obniża koszt bramki nr 1**, nie jej priorytet. Kopia bazy zostaje
+   pierwsza — ale jako popołudnie w panelach, nie jako projekt.
+2. **§15 wchodzi tuż za bramkami infrastrukturalnymi** i **przed** wszystkim
+   innym z listy produktowej. Jest warunkiem sensowności punktów 5–7 z §7
+   i punktu 10.1 z rundy drugiej: klub, w którym najcenniejsza wiadomość nie
+   ma jak wyjść poza serwis, nie utrzyma nikogo, komu nie wyrobiono nawyku.
+3. **§16 wchodzi przed otwarciem na jakikolwiek kanał o pojemności UTW/KGW**
+   (§11.3). Sześć indeksów to praca na godzinę; zrobienie tego po wpuszczeniu
+   ludzi oznacza robienie tego pod ruchem.
+4. **§17 (cisza nocna) jest częścią pakietu §15**, nie osobną pozycją —
+   pierwszy mail transakcyjny i okno godzinowe mają powstać razem.
+
+Reszta kolejności z §7 i §12 zostaje.
+
+---
+
+## 20. Metoda rundy trzeciej
+
+**Uruchomione:** `npm run build` (pomiar wagi front-endu), `psql` z `EXPLAIN`
+i zapytaniem po `pg_constraint`/`pg_index` na bazie `kuking`, `grep`/`find`
+po `app/`, `docker/`, `.railway/`, `scripts/`, `.github/`, odczyt `docs/`.
+
+**Czego nie robiłem:** nie zmieniałem ani jednej linijki kodu produkcyjnego
+w tej rundzie, nie wchodziłem na produkcję, nie oglądałem żadnego ekranu
+w przeglądarce, nie mierzyłem niczego pod realnym ruchem — bo ruchu nie ma.
+
+**Granica znaleziska §16, którą trzeba znać:** `EXPLAIN` wykonałem na bazie
+**deweloperskiej, prawie pustej**. Plan `Seq Scan` przy kilkudziesięciu
+wierszach jest normalny i sam w sobie niczego nie dowodzi — dowodem jest
+**brak indeksu użytecznego dla tego warunku**, sprawdzony osobno w `pg_indexes`
+i w definicjach kluczy głównych. Pomiaru czasu przy realnym wolumenie nie ma
+i go nie udaję; przewidywanie degradacji opieram na strukturze, nie na
+stoperze.
+
+**Trzecie sprostowanie własnej pracy w tym audycie** (po `aggregateRating`
+i hipotezie o statykach Livewire): §4.1 rundy pierwszej sugerował, że kopii
+bazy nie ma, bo nie została napisana. Została napisana w całości. §14 prostuje
+to jawnie i zostawia oba zdania obok siebie, zamiast po cichu podmieniać
+pierwsze.
