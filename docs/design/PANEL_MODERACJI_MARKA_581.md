@@ -178,3 +178,5 @@ Log hooka: /home/mateusz/push581-final.log. Proces wysyłki zakończony. Runtime
 ## Wznowienie: cztery kontrakty regresji
 
 Po przeniesieniu ostatniej normalizacji whitespace do runtime: 25 testów /272asercje PASS. Cztery fizyczne mutacje źródeł wykryte osobno (licznik aria-hidden, etykieta powrotu, atrybut trybu panelu, zakres marginesów). Każda: dodatni baseline, ujemny wynik kod1, przywrócenie identycznych bajtów/MD5/mtime, dodatni wynik. Dowody: evidence/panel581/negatives/contracts/report.json. Pierwsze próby baseline kod2 były błędem nieczynnego PostgreSQL55439 i nie stanowią negatywów. Po uruchomieniu wyłącznie izolowanego klastra wykonano komplet prób. Pełny hook/push nadal do ponowienia.
+
+Review korekt wykryło zbyt szeroki wyjątek listy selektorów. Zastąpiono go dokładnym porównaniem normalizowanego selektora panelu. Powtórzono pięć fizycznych kontroli, w tym dopisanie selektora .panel-formularza poza panelem: wszystkie wykryte, źródła przywrócone MD5/mtime. Końcowe celowane25testów/272asercje i Pint PASS. Próbę przygotowania wysyłki przerwano przed git push na czas tej poprawki.
