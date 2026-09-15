@@ -13,53 +13,10 @@ $pdo = new PDO("pgsql:host=127.0.0.1;port=5432;dbname={$db}", 'kuking', 'kuking'
     PDO::ATTR_EMULATE_PREPARES => false,
 ]);
 
-$FEED = <<<SQL
-select "posts".*,
-  (select count(*) from "comments" where "comments"."post_id" = "posts"."id"
-     and "comments"."status" = 'published' and "comments"."deleted_at" is null) as "comments_count",
-  (select count(*) from "collection_items" where "collection_items"."post_id" = "posts"."id") as "zapisow_count",
-  exists (select 1 from "collection_items"
-     inner join "collections" on "collections"."id" = "collection_items"."collection_id"
-     where "collection_items"."post_id" = "posts"."id" and "collections"."owner_id" = :v) as "czy_zapisany"
-from "posts"
-where "posts"."status" = 'published' and "posts"."published_at" is not null
-  and "posts"."visibility" = 'public'
-  and exists (select 1 from "users" where "users"."id" = "posts"."author_id" and "users"."status" = 'active')
-  and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = :v2 and "blocks"."blocked_id" = "posts"."author_id")
-                    or ("blocks"."blocker_id" = "posts"."author_id" and "blocks"."blocked_id" = :v3))
-  and ("posts"."recipe_id" is null or exists (
-        select 1 from "recipes" where "recipes"."id" = "posts"."recipe_id"
-          and "recipes"."status" = 'published' and "recipes"."published_at" is not null
-          and "recipes"."visibility" = 'public' and "recipes"."deleted_at" is null))
-  and "posts"."deleted_at" is null
-order by "posts"."published_at" desc, "posts"."id" desc
-limit 10
-SQL;
-
-$FEED_FIX = <<<SQL
-select "posts".*,
-  (select count(*) from "comments" where "comments"."post_id" = "posts"."id"
-     and "comments"."status" = 'published' and "comments"."deleted_at" is null) as "comments_count",
-  (select count(*) from "collection_items" where "collection_items"."post_id" = "posts"."id") as "zapisow_count",
-  exists (select 1 from "collection_items"
-     inner join "collections" on "collections"."id" = "collection_items"."collection_id"
-     where "collection_items"."post_id" = "posts"."id" and "collections"."owner_id" = :v) as "czy_zapisany"
-from "posts"
-left join "recipes" on "recipes"."id" = "posts"."recipe_id"
-  and "recipes"."status" = 'published' and "recipes"."published_at" is not null
-  and "recipes"."visibility" = 'public' and "recipes"."deleted_at" is null
-inner join "users" on "users"."id" = "posts"."author_id" and "users"."status" = 'active'
-where "posts"."status" = 'published' and "posts"."published_at" is not null
-  and "posts"."visibility" = 'public'
-  and not exists (select 1 from "blocks" where ("blocks"."blocker_id" = :v2 and "blocks"."blocked_id" = "posts"."author_id")
-                    or ("blocks"."blocker_id" = "posts"."author_id" and "blocks"."blocked_id" = :v3))
-  and ("posts"."recipe_id" is null or "recipes"."id" is not null)
-  and "posts"."deleted_at" is null
-order by "posts"."published_at" desc, "posts"."id" desc
-limit 10
-SQL;
-
-if (getenv('BENCH_FIX') === '1') { $FEED = $FEED_FIX; }
+$sqlDir = getenv('BENCH_SQL_DIR') ?: __DIR__;
+$FEED = file_get_contents($sqlDir . '/' . (getenv('BENCH_FIX') === '1' ? 'feed_fix_php.sql' : 'feed_orig_php.sql'));
+if ($FEED === false) { fwrite(STDERR, "brak pliku SQL\n"); exit(1); }
+$LICZBA_V = substr_count($FEED, '?');
 
 $STMT = [];
 $prep = function (string $sql) use ($pdo, &$STMT) {
@@ -79,11 +36,18 @@ for ($n = 0; $n < $iter; $n++) {
     // 1. FEED
     $q0 = hrtime(true);
     $st = $prep($FEED);
-    $st->execute([':v' => $viewer, ':v2' => $viewer, ':v3' => $viewer]);
+    $st->execute(array_fill(0, $LICZBA_V, $viewer));
     $posts = $st->fetchAll(PDO::FETCH_ASSOC);
     $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
 
     if ($posts === []) { continue; }
+
+    if (getenv('BENCH_VERIFY') === '1' && $n === 0) {
+        fwrite(STDERR, "KONTROLA PHP+PDO:\n");
+        foreach ($posts as $p) {
+            fwrite(STDERR, sprintf("  %s c=%d z=%d\n", $p['id'], (int) $p['comments_count'], (int) $p['zapisow_count']));
+        }
+    }
 
     $postIds   = array_column($posts, 'id');
     $authorIds = array_values(array_unique(array_column($posts, 'author_id')));

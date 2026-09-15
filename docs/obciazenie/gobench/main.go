@@ -7,6 +7,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 	"time"
 
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -60,10 +61,17 @@ order by "posts"."published_at" desc, "posts"."id" desc
 limit 10`
 
 func activeFeedSQL() string {
-	if os.Getenv("BENCH_FIX") == "1" {
-		return feedFixSQL
+	dir := os.Getenv("BENCH_SQL_DIR")
+	if dir == "" {
+		dir = ".."
 	}
-	return feedSQL
+	name := "feed_orig_go.sql"
+	if os.Getenv("BENCH_FIX") == "1" {
+		name = "feed_fix_go.sql"
+	}
+	b, err := os.ReadFile(dir + "/" + name)
+	must(err)
+	return string(b)
 }
 
 func labelSuffix() string {
@@ -199,13 +207,14 @@ func runPgx(db string, iter int, viewer string) {
 	must(err)
 	defer pool.Close()
 
+	sqlText := activeFeedSQL()
 	var dbTime time.Duration
 	queries, rendered := 0, 0
 	t0 := time.Now()
 
 	for n := 0; n < iter; n++ {
 		q0 := time.Now()
-		rows, err := pool.Query(ctx, activeFeedSQL(), viewer)
+		rows, err := pool.Query(ctx, sqlText, viewer)
 		must(err)
 		var posts []row
 		var postIDs, authorIDs, recipeIDs []string
@@ -244,6 +253,12 @@ func runPgx(db string, iter int, viewer string) {
 
 		if len(posts) == 0 {
 			continue
+		}
+		if os.Getenv("BENCH_VERIFY") == "1" && n == 0 {
+			fmt.Fprintf(os.Stderr, "KONTROLA Go+pgx:\n")
+			for _, p := range posts {
+				fmt.Fprintf(os.Stderr, "  %s c=%d z=%d\n", p.id, p.comments, p.zapisow)
+			}
 		}
 		seenA := map[string]bool{}
 		seenR := map[string]bool{}
@@ -426,40 +441,46 @@ func runPgx(db string, iter int, viewer string) {
 }
 
 func runGorm(dbName string, iter int, viewer string) {
+	licznik := &liczacyLogger{}
 	gdb, err := gorm.Open(postgres.Open(dsn(dbName)), &gorm.Config{
-		Logger:                 logger.Default.LogMode(logger.Silent),
+		Logger:                 licznik,
 		SkipDefaultTransaction: true,
 		PrepareStmt:            true,
 	})
 	must(err)
 
+	sqlText := activeFeedSQL()
 	var dbTime time.Duration
-	queries, rendered := 0, 0
+	rendered := 0
 	t0 := time.Now()
 
 	for n := 0; n < iter; n++ {
 		var posts []Post
 		q0 := time.Now()
-		must(gdb.Raw(activeFeedSQL(), viewer).Scan(&posts).Error)
-		dbTime += time.Since(q0)
-		queries++
 
-		if len(posts) == 0 {
-			continue
-		}
-
-		// Odpowiednik Eloquentowego with(): GORM Preload — po jednym zapytaniu na relację.
-		q0 = time.Now()
-		must(gdb.Preload("Author").
+		// JEDNO pobranie feedu: zapytanie wchodzi jako podzapytanie do Find,
+		// więc Preload dokłada relacje do TYCH SAMYCH wierszy. Wcześniejsza
+		// wersja tego harnessu robiła Raw().Scan() i zaraz potem drugi Find()
+		// po identyfikatorach — czyli liczyła GORM-owi jedno zapytanie za dużo.
+		sub := gdb.Raw(sqlText, viewer)
+		must(gdb.Table("(?) as posts", sub).
+			Preload("Author").
 			Preload("Author.Profile").
 			Preload("Author.Profile.Avatar").
 			Preload("Media").
 			Preload("Tags").
 			Preload("Recipe").
 			Preload("Recipe.HeroMedia").
-			Find(&posts, "id in ?", ids(posts)).Error)
+			Order("published_at desc, id desc").
+			Find(&posts).Error)
 		dbTime += time.Since(q0)
-		queries += 7
+
+		if len(posts) == 0 {
+			continue
+		}
+		if os.Getenv("BENCH_VERIFY") == "1" && n == 0 {
+			wypiszKontrole("Go+GORM", posts)
+		}
 
 		var sb strings.Builder
 		sb.WriteString(`<main class="feed">`)
@@ -519,7 +540,27 @@ func runGorm(dbName string, iter int, viewer string) {
 		rendered += sb.Len()
 	}
 
-	report(dbName, "Go+GORM"+labelSuffix(), iter, time.Since(t0), dbTime, queries, rendered)
+	report(dbName, "Go+GORM"+labelSuffix(), iter, time.Since(t0), dbTime, int(licznik.n), rendered)
+}
+
+// liczacyLogger liczy KAŻDĄ instrukcję SQL, którą GORM naprawdę wysyła.
+// Poprzednia wersja harnessu dopisywała stałą `queries += 7` — to było
+// założenie, nie pomiar.
+type liczacyLogger struct{ n int64 }
+
+func (l *liczacyLogger) LogMode(logger.LogLevel) logger.Interface { return l }
+func (l *liczacyLogger) Info(context.Context, string, ...any)     {}
+func (l *liczacyLogger) Warn(context.Context, string, ...any)     {}
+func (l *liczacyLogger) Error(context.Context, string, ...any)    {}
+func (l *liczacyLogger) Trace(_ context.Context, _ time.Time, fc func() (string, int64), _ error) {
+	atomic.AddInt64(&l.n, 1)
+}
+
+func wypiszKontrole(label string, posts []Post) {
+	fmt.Fprintf(os.Stderr, "KONTROLA %s:\n", label)
+	for _, p := range posts {
+		fmt.Fprintf(os.Stderr, "  %s c=%d z=%d\n", p.ID, p.CommentsCount, p.ZapisowCount)
+	}
 }
 
 func ids(posts []Post) []string {
