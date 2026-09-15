@@ -217,6 +217,13 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
                     continue;
                 }
 
+                // Nowa rama panelu ma własny slot; ta reguła nie może objąć logowania.
+                $czystySelektor = trim(preg_replace('/\s+/', ' ', preg_replace('~/\*.*?\*/~s', '', $selektor) ?? '') ?? '');
+                if (str_starts_with($czystySelektor, '[data-marka-panel] .marka-panel-tresc > :is(')
+                    && str_contains($czystySelektor, '+ :is(')) {
+                    continue;
+                }
+
                 $winne[] = trim(preg_replace('/\s+/', ' ', $selektor) ?? '')
                     .' { '.trim(preg_replace('/\s+/', ' ', $tresc) ?? '').' } — '.basename($plik);
             }
