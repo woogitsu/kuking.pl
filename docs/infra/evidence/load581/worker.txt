@@ -1,0 +1,21 @@
+  2026-09-15 18:25:43 App\Jobs\ProcessUploadedImage .................. RUNNING
+  2026-09-15 18:25:44 App\Jobs\ProcessUploadedImage ............ 365.13ms DONE
+  2026-09-15 18:25:44 App\Jobs\PrzeanalizujTresc ..................... RUNNING
+  2026-09-15 18:25:44 App\Jobs\PrzeanalizujTresc ................ 11.94ms DONE
+  2026-09-15 18:25:46 App\Jobs\ProcessUploadedImage .................. RUNNING
+  2026-09-15 18:25:46 App\Jobs\ProcessUploadedImage ............ 327.47ms DONE
+  2026-09-15 18:25:46 App\Jobs\PrzeanalizujTresc ..................... RUNNING
+  2026-09-15 18:25:46 App\Jobs\PrzeanalizujTresc ................. 2.53ms DONE
+  2026-09-15 18:25:48 App\Jobs\ProcessUploadedImage .................. RUNNING
+  2026-09-15 18:25:48 App\Jobs\ProcessUploadedImage ............ 317.54ms DONE
+  2026-09-15 18:25:48 App\Jobs\PrzeanalizujTresc ..................... RUNNING
+  2026-09-15 18:25:48 App\Jobs\PrzeanalizujTresc ................. 2.65ms DONE
+  2026-09-15 18:25:50 App\Jobs\ProcessUploadedImage .................. RUNNING
+  2026-09-15 18:25:51 App\Jobs\ProcessUploadedImage ............ 315.83ms DONE
+  2026-09-15 18:25:51 App\Jobs\PrzeanalizujTresc ..................... RUNNING
+  2026-09-15 18:25:51 App\Jobs\PrzeanalizujTresc ................. 2.15ms DONE
+  2026-09-15 18:25:52 App\Jobs\ProcessUploadedImage .................. RUNNING
+  2026-09-15 18:25:52 App\Jobs\ProcessUploadedImage ............ 318.78ms DONE
+  2026-09-15 18:25:52 App\Jobs\PrzeanalizujTresc ..................... RUNNING
+  2026-09-15 18:25:52 App\Jobs\PrzeanalizujTresc ................. 2.11ms DONE
+  2026-09-15 18:26:29 Worker STOPPED Maximum run time exceeded

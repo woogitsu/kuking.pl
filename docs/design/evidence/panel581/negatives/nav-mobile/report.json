@@ -1,0 +1,11 @@
+{
+  "mutation": "nav-mobile",
+  "source": "/home/mateusz/kuking-panel581-runtime/resources/css/marka-panel.css",
+  "md5": "4deaad0af4fbcc2de1663fbff6fef73d",
+  "mtime_ns": 1789498049309966700,
+  "passed": true,
+  "negative_exit": 1,
+  "negative_detected": true,
+  "source_restored": true,
+  "restored_exit": 0
+}

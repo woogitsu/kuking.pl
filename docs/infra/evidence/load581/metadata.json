@@ -1,0 +1,12 @@
+{
+  "main_logical_requests": 4596,
+  "main_http_requests": 5316,
+  "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+  "login_n": 20,
+  "login_median_ms": 210.9954485022172,
+  "login_min_ms": 204.87615700403694,
+  "login_max_ms": 344.5142630007467,
+  "upload_cpu_max_percent": 62.1,
+  "upload_ram_max_percent": 8.04,
+  "upload_queue_sample_max": 2
+}
