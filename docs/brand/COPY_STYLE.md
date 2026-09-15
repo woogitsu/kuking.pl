@@ -653,3 +653,10 @@ i „Nie mogliśmy potwierdzić tego wysłania.”, bez przypisywania nieznanej
 przyczyny. Osobno informujemy o pełnym, częściowym albo nieudanym odzyskaniu
 tekstu. Ponowienie nie jest gwarancją publikacji — nadal działa walidacja
 i sprawdzanie uprawnień.
+
+## Niedostępne zapisy — #567
+
+Brak dostępu do zapisanej treści nie oznacza pustego zeszytu ani usunięcia
+samego zapisu. Komunikat podaje liczbę bez tytułów, autorów i zdjęć. Nie
+zgaduje przyczyny ani wcześniejszego dostępu. „W tym zeszycie” pasuje
+również do cudzej kolekcji; „w Twoim” wymaga potwierdzenia właściciela.

@@ -66,18 +66,16 @@
             {{--
                 NIE MÓWIMY, CO TU BYŁO — MÓWIMY, ŻE COŚ BYŁO.
 
-                Wpis zapisany, gdy autor pokazywał go obserwującym, znika
+                Zapisana treść, którą autor pokazywał obserwującym, znika
                 po tym, jak przestaniesz go obserwować. Ciche zniknięcie
                 wygląda jak utrata danych („miałam to tu wczoraj"), a pokazanie
                 treści łamie widoczność, którą autor sobie ustawił. Zostaje
                 trzecia droga: powiedzieć ILE, nie mówiąc CZEGO.
             --}}
-            <p class="notice mt-6">
+            <p class="notice mt-6" data-niedostepne-zapisy>
                 {{ $niewidoczne }}
-                {{ \App\Support\Odmiana::rzeczownik($niewidoczne, 'zapisany wpis', 'zapisane wpisy', 'zapisanych wpisów') }}
-                {{ $niewidoczne === 1 ? 'nie jest' : 'nie są' }}
-                już dla Ciebie widoczne — autor zmienił ustawienia albo konto nie jest już dostępne.
-                Nic nie zniknęło z Twojego zeszytu.
+                {{ \App\Support\Odmiana::rzeczownik($niewidoczne, 'zapis nie jest dla Ciebie dostępny', 'zapisy nie są dla Ciebie dostępne', 'zapisów nie jest dla Ciebie dostępnych') }}.
+                Te zapisy nadal są w tym zeszycie.
             </p>
         @endif
     @endif

@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.36 — niedostępne zapisy w zeszycie
+
+- Zeszyt informuje o zapisach, których nie możesz teraz zobaczyć — także przepisach. Nie pokazuje mylącego pustego stanu ani prywatnych treści; komunikat pasuje również do cudzego publicznego zeszytu (#567).
+
 ## Alfa 0.35 — ponowne wysłanie formularza
 
 - Ekran odzyskiwania formularza nie przypisuje każdego błędu potwierdzenia zbyt długiemu otwarciu strony. Wskazuje ponowienie wysłania i zachowuje osobne informacje o odzyskanej treści, zdjęciach oraz logowaniu (#549).

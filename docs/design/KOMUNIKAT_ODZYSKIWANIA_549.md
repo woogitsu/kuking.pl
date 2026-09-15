@@ -58,3 +58,14 @@ nie oznacza to302 błędów w pierwszym hooku. Wymagany ponowny pełny hook.
 Druga próba hooka wykryła formatowanie pomocniczego pliku PHP w dowodach
 #567. Zatrzymano nieudaną próbę, poprawiono formatowanie i przygotowano
 kolejny pełny hook. Nie pomijano zabezpieczeń ani asercji.
+
+## Końcowe dostarczenie — 15 września 2026
+
+Zwykły hook zakończył się sukcesem. PR #570: CI 34964204421, wszystkie
+10 zadań success; PHP 3820 testów / 76674 asercje. Scalenie:
+72b96f979a264ed1982a4803bc7e07e623428c2e. Main CI 34966287461: 10/10 success.
+Railway 6458271154 success (12:23:40 UTC), Deploy 34968590919 success.
+HTTP produkcji: Alfa 0.35 / 72b96f9, CSS i JS oraz oba fonty Inter HTTP 200.
+Rzeczywisty POST z błędnym tokenem, bez treści zgłoszenia, zwrócił 419
+z H1 „Nie udało się wysłać formularza”. Nie próbowano poprawnego zapisu.
+To odbiór komunikatu produkcyjnego; nie nowy pełny odbiór ponowienia formularza.
