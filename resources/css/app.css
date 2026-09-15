@@ -3730,39 +3730,9 @@
     gap: 0 var(--spacing-8);
   }
 
-  /* --- „ŚWIEŻO Z KUKING" W DWÓCH KOLUMNACH (issue #365) -------------------
-
-     Zgłoszenie właściciela: „na głównej (…) »Świeżo z Kuking« też można
-     rozdzielić na dwie kolumny by było więcej treści a nie wydłużona strona".
-
-     TO JEST ŚWIADOME COFNIĘCIE POŁOWY POPRZEDNIEJ DECYZJI i mówimy to wprost.
-     `resources/css/strony-publiczne.css` opisuje przy `.landing-wpisy-kolumna`,
-     dlaczego 11 września rano wybrano jedną kolumnę — i podaje cenę, którą
-     wtedy przyjęto: „lista prawie dwa razy dłuższa (2697 → 4956 px), na
-     pierwszym ekranie jeden wpis zamiast dwóch". Właściciel wybrał teraz
-     drugą stronę tego rachunku. Cena wraca odwrócona: rząd jest tak wysoki
-     jak wyższa z dwóch kart, więc pod niższą zostaje pustka (zmierzone
-     wtedy: 388 px łącznie na dziewięciu kartach) — za 2259 px krótszą stronę.
-
-     CO Z TAMTEJ DECYZJI ZOSTAJE, BO NIE BYŁO PRZEDMIOTEM ZGŁOSZENIA:
-       * siatka W RZĘDACH, nie `columns: 2` — wielokolumnowy układ CSS
-         wypełnia kolumnę pierwszą do końca, więc piąty co do świeżości wpis
-         lądowałby na samej górze po prawej, nad starszymi od siebie;
-       * DUŻE ZDJĘCIE. Karta ma w dwóch kolumnach ~480 px przy pasie 992 px —
-         to nie jest „ściana miniaturowych kart", której zabrania
-         `docs/UX_50_PLUS.md` §Desktop, tylko dwie pełne karty obok siebie.
-         Wiersz tekstu w karcie to przy tym ~55 znaków, czyli dolna granica
-         przedziału 55–75 z tego samego dokumentu; przy jednej kolumnie
-         w całym pasie (992 px) byłoby ich ~100 i dlatego tamta szerokość
-         została odrzucona.
-
-     PRÓG 64rem NA OKNIE, nie na kontenerze: te karty stoją w JEDNYM miejscu
-     w serwisie — w pasie strony powitalnej — więc nie ma trzech szerokości
-     do rozróżnienia i zapytanie o kontener nie kupiłoby niczego poza jeszcze
-     jedną warstwą. Przy czcionce przeglądarki 200% `64rem` to 2048 px, więc
-     próg się nie załapuje i wraca jedna kolumna — wtedy karta ma całe
-     `--container-content` i wiersz zostaje czytelny.
-     ---------------------------------------------------------------------- */
+  /* #365 zachowuje duże karty i próg dwóch kolumn 64rem.
+     #560 / D-216 zastępuje wyrównane rzędy niezależną wysokością kolumn.
+     Bez skryptu działa układ podstawowy; kolejność DOM nie jest zmieniana. */
 
   @media (min-width: 64rem) {
     .landing-wpisy-dwie {
@@ -3776,6 +3746,17 @@
          nią ma wyglądać na odstęp, a nie na pustą połowę karty. */
       align-items: start;
     }
+  }
+
+  /* #560: JS wylicza początek karty w jej kolumnie, DOM zostaje chronologiczny.
+     Małe ekrany i niedostępny skrypt zachowują zwykłą siatkę powyżej. */
+  .landing-wpisy-dwie[data-zwarte-kolumny] {
+    grid-auto-rows: 1px;
+    row-gap: 0;
+  }
+
+  .landing-wpisy-dwie[data-zwarte-kolumny] > article {
+    margin-bottom: var(--spacing-5);
   }
 
   @container tablica (min-width: 44rem) {
