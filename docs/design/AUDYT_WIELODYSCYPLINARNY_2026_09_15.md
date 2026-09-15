@@ -34,3 +34,13 @@ w tle, wymagająca pomiaru; nie ogłaszamy potwierdzonej awarii.
 Każdy pakiet: odtworzenie → regresja z rzeczywistym negatywem → ogląd →
 review → hook → CI → merge → Railway → produkcja. Audyt nie dodaje
 fikcyjnych danych produkcyjnych, nowego stosu ani funkcji V2.
+
+## Późniejsze odtworzenie #567
+
+Lokalny Laravel/PHP, osobna baza kuking_test_audyt567 na55439: zapis
+publicznego przepisu pozostał w collection_items po zmianie na prywatny,
+tytuł prawidłowo zniknął, lecz ekran mówił „W tym zeszycie nic jeszcze
+nie ma”. Pierwszy test wykrył błąd, drugi potwierdził prawdziwie pusty
+zeszyt: 2 testy, 11 asercji, 1 oczekiwana porażka. Dowody w
+evidence/audyt567. To odtworzenie odpowiedzi HTTP i stanu DB, bez oglądu
+przeglądarkowego. #568 i #569 nadal wymagają odtworzenia.

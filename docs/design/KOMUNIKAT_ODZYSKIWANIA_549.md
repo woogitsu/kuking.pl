@@ -43,3 +43,14 @@ Ponowienie pokrywa wymieniony PHP i wcześniejszy raport
 [Wyniki przeglądarki](evidence/odzyskiwanie549/przegladarka.json).
 Skrypt odbioru w tym samym katalogu zapisuje lokalne ścieżki środowiska;
 nie jest nową bramką CI. Pełny port marki pozostaje CZĘŚCIOWO.
+
+## Kontrola pełnego hooka
+
+Pierwszy push został prawidłowo zablokowany: StronyBleduPoPolskuTest
+nadal wymagał starego nagłówka. Zaktualizowano oczekiwanie w treści
+ekranu, bez usunięcia asercji. Osobny fizyczny negatyw starego H1
+wykryty; restore MD5/mtime oraz 10 testów/95 asercji PASS.
+Dowód: evidence/odzyskiwanie549/negatyw-starszej-regresji.json.
+Ponowny zestaw rodzin zapisanych w cache wcześniejszych błędów:
+302 testy/2203 asercje PASS. Cache obejmował także dawne negatywy;
+nie oznacza to302 błędów w pierwszym hooku. Wymagany ponowny pełny hook.
