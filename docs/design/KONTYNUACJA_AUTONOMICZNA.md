@@ -10,9 +10,10 @@ odzyskaniem przepisu i PUT. Trzy fizyczne negatywy: H1, wyjaśnienie oraz
 fałszywa obietnica pełnego tekstu; restore MD5/mtime, view:clear i PASS.
 Dowód: evidence/odzyskiwanie549/negatywy.json. Pint przeszedł.
 
-To WIP: brak końcowego oglądu, niezależnego review, hooka, push, PR i CI.
-Przed wysyłką uzupełnić COPY_STYLE, raport i odbiór trzech stanów oraz
-logowania na lokalnym55439, według planu #549 issuecomment-5677810602.
+Lokalny odbiór zakończony: 16 konfiguracji, cztery obejrzane zrzuty,
+niezależne review bez blokera. Brak jeszcze hooka, push, PR i CI.
+COPY_STYLE i KOMUNIKAT_ODZYSKIWANIA_549.md uzupełnione.
+Audyt utworzył #567, #568, #569; raport AUDYT_WIELODYSCYPLINARNY_2026_09_15.md.
 Pierwszy nowy test używał pętli tworzącej drugi profil „odczyt”; poprawiono
 izolację przez DataProvider, bez zmiany źródeł aplikacji ani ograniczeń DB.
 Produkcja nadal Alfa0.34/e6d94d8, poprzedni pakiet #548 zakończony.

@@ -6,21 +6,24 @@
       "negative_exit": 1,
       "restored_md5": "997d57ee3b3d76050d24290c0406c7f6",
       "mtime_restored": true,
-      "positive_exit": 0
+      "positive_exit": 0,
+      "mutation": "Przywrócenie starego H1 o czasie otwarcia"
     },
     {
       "file": "resources/views/errors/419.blade.php",
       "negative_exit": 1,
       "restored_md5": "997d57ee3b3d76050d24290c0406c7f6",
       "mtime_restored": true,
-      "positive_exit": 0
+      "positive_exit": 0,
+      "mutation": "Przywrócenie wyjaśnienia o czasie we wszystkich gałęziach"
     },
     {
       "file": "resources/views/errors/419.blade.php",
       "negative_exit": 1,
       "restored_md5": "997d57ee3b3d76050d24290c0406c7f6",
       "mtime_restored": true,
-      "positive_exit": 0
+      "positive_exit": 0,
+      "mutation": "Fałszywa obietnica pełnego odzyskania w stanie częściowym"
     }
   ]
 }

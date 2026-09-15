@@ -374,3 +374,10 @@ pokrycia wszystkich filtrów i wyników ani innych tras z wspólnego wiersza.
 ## Uzupełnienie odbioru #539
 
 Potwierdzono i poprawiono kontrast fokusu przy jednoczesnym najechaniu na przycisk podpowiedzi. Regresja: 88 wierszy pomiarów, pięć kontroli ujemnych rzeczywistego CSS i cztery próby prawdziwego zoomu. Niezależny końcowy odbiór po integracji z nawigacją: ciemny motyw, zoom 200%, tekst 140%, Tab 14/14 PASS wraz z hover + focus-visible. Wcześniejszego nieudanego przebiegu nie traktujemy jako pozytywnego. Szczegóły: [FOKUS_PODPOWIEDZI_539.md](FOKUS_PODPOWIEDZI_539.md). Wdrożenie pakietu wymaga osobnego potwierdzenia.
+
+## Uzupełnienie 15.09 — #549 i audyt
+
+[Komunikat419](KOMUNIKAT_ODZYSKIWANIA_549.md): lokalne 16 konfiguracji,
+18 testów/330 asercji i trzy fizyczne negatywy. CI/wdrożenie oczekują.
+[Audyt wielodyscyplinarny](AUDYT_WIELODYSCYPLINARNY_2026_09_15.md)
+zapisuje #567–569 oraz priorytety. Nie rozszerza wykonanych odbiorów.

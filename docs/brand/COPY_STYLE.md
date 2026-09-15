@@ -644,3 +644,12 @@ Rozstrzyga sprzeczność, która stała w produkcie: karta wpisu mówiła
 `BRAND_EXTENDED.md` (słownik i słowa zakazane) · `MASCOT_CONCEPT.md` (zakaz
 komplementowania koroną) · `../UX_50_PLUS.md` (wzorce błędów) ·
 `../product/SOUL.md` (mikro-copy pustych stanów) · `../research/AUDIENCE_50_PLUS.md`
+
+## Odrzucone wysłanie formularza — #549
+
+Sam kod 419 nie dowodzi, że strona była otwarta zbyt długo. Token może
+zmienić się także po zmianie sesji. Piszemy „Nie udało się wysłać formularza”
+i „Nie mogliśmy potwierdzić tego wysłania.”, bez przypisywania nieznanej
+przyczyny. Osobno informujemy o pełnym, częściowym albo nieudanym odzyskaniu
+tekstu. Ponowienie nie jest gwarancją publikacji — nadal działa walidacja
+i sprawdzanie uprawnień.
