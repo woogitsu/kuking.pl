@@ -31,7 +31,7 @@ class PoliczKolejki extends Command
         $liczby = $kolejki->przelicz();
 
         foreach ($liczby as $nazwa => $ile) {
-            $this->line($nazwa.': '.$ile);
+            $this->line($nazwa.': '.($nazwa === 'bez_odpowiedzi' ? 'osobno dla każdego gospodarza' : $ile));
         }
 
         return self::SUCCESS;

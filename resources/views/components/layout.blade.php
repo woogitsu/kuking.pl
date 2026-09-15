@@ -128,7 +128,7 @@
     //  Liczby czytamy tylko dla moderatora — zwykły użytkownik nie ma w menu
     //  ani jednej pozycji panelu, więc nie ma po co sięgać nawet do cache.
     $kolejki = $user?->isModerator() === true
-        ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby()
+        ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby($user)
         : [];
 
     // Suma, nie `array_sum($kolejki)` — nazwy kolejek

@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.39 — kolejka gospodarza
+
+- Panel „Bez odpowiedzi” obejmuje również przepisy i wykonania „Ugotowałem”, z przejściem do komentarzy. Licznik uwzględnia dostęp gospodarza, a własne dopiski autora nie udają odpowiedzi innej osoby (#579).
+- Odpowiedź z panelu ponownie sprawdza dostępność wpisu i zachowuje tekst po błędzie.
+
 ## Alfa 0.38 — szybkie ustawienia wyglądu
 
 - Panel Aa · Wygląd pozwala od pierwszej wizyty zmienić rozmiar tekstu i motyw, także bez konta. Zapamiętuje wybór i pozwala wrócić do ustawień domyślnych (#574).

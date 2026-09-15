@@ -14,21 +14,23 @@
     <x-panel-moderacji ekran="Wpisy bez odpowiedzi" />
 
     <h1>Wpisy bez odpowiedzi</h1>
+    @include('pages.admin._bez-odpowiedzi-nawigacja', ['type' => 'wpisy'])
+
+    <x-error-summary />
 
     @if($wpisy->isEmpty())
         <x-empty-state title="Nikt nie czeka">
             <p class="mb-0">
-                Każdy opublikowany wpis ma odpowiedź. To jest dokładnie ten stan,
-                o który chodzi.
+                Nie ma teraz dostępnych Ci wpisów bez odpowiedzi innej osoby.
             </p>
         </x-empty-state>
     @else
         <div class="notice">
-            <strong>{{ $wpisy->count() }} {{ \App\Support\Odmiana::rzeczownik($wpisy->count(), 'wpis czeka', 'wpisy czekają', 'wpisów czeka') }} na odpowiedź.</strong>
+            Na tej liście (do 50 pozycji): <strong>{{ $wpisy->count() }} {{ \App\Support\Odmiana::rzeczownik($wpisy->count(), 'wpis czeka', 'wpisy czekają', 'wpisów czeka') }} na odpowiedź.</strong>
             Najstarszy czeka {{ $najstarszy }} {{ \App\Support\Odmiana::rzeczownik((int) $najstarszy, 'godzinę', 'godziny', 'godzin') }}.
             @if($medianaReakcji !== null)
-                Zwykle odpowiadamy po {{ str_replace('.', ',', (string) $medianaReakcji) }} h
-                (mediana z ostatnich 30 dni).
+                Mediana oczekiwania na odpowiedź: {{ str_replace('.', ',', (string) $medianaReakcji) }} h
+                (mediana dla wpisów z ostatnich 30 dni).
             @endif
         </div>
     @endif
@@ -71,11 +73,9 @@
                      playbook przestaje być wykonalny. --}}
                 <form method="POST" action="{{ route('admin.unanswered.reply', $wpis) }}">
                     @csrf
-                    <div class="field">
-                        <label for="odp-{{ $wpis->getKey() }}">Odpowiedz</label>
-                        <textarea class="field-input" id="odp-{{ $wpis->getKey() }}"
-                                  name="body" rows="3" required></textarea>
-                    </div>
+                    <input type="hidden" name="_wiersz" value="{{ $wpis->getKey() }}">
+                    <x-field name="body" label="Odpowiedz" type="textarea" :rows="3"
+                             :wiersz="$wpis->getKey()" :required="true" />
                     <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
                 </form>
             </article>

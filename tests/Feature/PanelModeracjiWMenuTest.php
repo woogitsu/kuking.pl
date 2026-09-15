@@ -167,7 +167,7 @@ class PanelModeracjiWMenuTest extends TestCase
         $moderator = $this->moderator();
 
         Cache::forever('panel:kolejki', [
-            'bez_odpowiedzi' => 6,
+            'bez_odpowiedzi_per_host' => [$moderator->getKey() => 6],
             'zgloszenia' => 2,
             'sygnaly' => 1,
             'odwolania' => 0,
@@ -190,7 +190,7 @@ class PanelModeracjiWMenuTest extends TestCase
         // Stan przeciwny: puste kolejki nie pokazują „0”. Zero to sam hałas,
         // a plakietka ma znaczyć „tu jest praca”.
         Cache::forever('panel:kolejki', [
-            'bez_odpowiedzi' => 0,
+            'bez_odpowiedzi_per_host' => [$moderator->getKey() => 0],
             'zgloszenia' => 0,
             'sygnaly' => 0,
             'odwolania' => 0,
