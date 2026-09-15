@@ -578,7 +578,7 @@
              drugą. Ekran, który ją podaje, nie ma `<aside class="app-rail">`
              i mieć nie będzie; kolumnę szyny zajmuje jego własna siatka
              (`szynaWTresci` wyżej, issue #365). --}}
-        <div class="app-body marka-rama @if($maSzyne) marka-rama-z-szyna @endif @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest @if($szynaWTresci) app-body-tresc-z-szyna @endif" @if($wTrybiePanelu) data-tryb-panelu @endif>
+        <div class="app-body marka-rama @if($maSzyne) marka-rama-z-szyna @endif @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest @if($szynaWTresci) app-body-tresc-z-szyna @endif" @if($wTrybiePanelu) data-tryb-panelu data-marka-panel @endif>
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
@@ -639,7 +639,7 @@
                             Bez `aria-current`: to nie jest bieżący ekran.
                         --}}
                         <a class="side-nav-item side-nav-powrot" href="{{ route('home') }}">
-                            <x-ikona nazwa="home" /> Wróć do Kuking
+                            <x-ikona nazwa="home" /> <span class="marka-panel-nav-etykieta">Wróć do Kuking</span>
                         </a>
                     @else
                         <ul class="stack-tight list-none p-0 m-0">
@@ -679,10 +679,10 @@
                             grupa" PRZED pierwszą pozycją, a nie jako dalszy ciąg
                             po „Profil".
 
-                            WYRÓŻNIENIE JEST CELOWO STONOWANE: `--color-accent`
-                            (oliwkowy/musztardowy — token już używany np. w
-                            `.notice`), NIGDY `--color-danger`. To miejsce PRACY
-                            moderatora, nie alarm.
+                            Tryb wyróżnia osobna powierzchnia nawigacji i nazwa
+                            panelu. Port #581 zachowuje tę granicę bez dawnego
+                            musztardowego tła; czerwień wskazuje bieżącą pozycję,
+                            a nie stan alarmowy.
 
                             `aria-current="page"` zostaje bez zmian na każdej
                             pozycji — `.side-nav-item[aria-current="page"]` ma
@@ -725,8 +725,8 @@
                         <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
                             <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>
                             <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">
-                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi <x-licznik-kolejki :ile="$kolejki['bez_odpowiedzi'] ?? 0" /></a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia <x-licznik-kolejki :ile="$kolejki['zgloszenia'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> <span class="marka-panel-nav-etykieta">Bez odpowiedzi</span> <x-licznik-kolejki :ile="$kolejki['bez_odpowiedzi'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> <span class="marka-panel-nav-etykieta">Zgłoszenia</span> <x-licznik-kolejki :ile="$kolejki['zgloszenia'] ?? 0" /></a></li>
                                 {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
                                      to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
                                      i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
@@ -737,28 +737,28 @@
                                      okaże się niczym. Ikona „filter", bo to jest sito, a nie
                                      tarcza: nic tu nikogo nie chroni, dopóki człowiek nie
                                      przeczyta. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> <span class="marka-panel-nav-etykieta">Sygnały automatu</span> <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> <span class="marka-panel-nav-etykieta">Odwołania</span> <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> <span class="marka-panel-nav-etykieta">Tablica na dziś</span></a></li>
                                 {{-- Kolaż na stronie powitalnej — ten sam rodzaj wyboru
                                      redakcyjnego co tablica na dziś, ale ikona „image",
                                      bo tu wybiera się ZDJĘCIA, nie osoby i wpisy. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.hero-kolaz') }}" @if(request()->routeIs('admin.hero-kolaz')) aria-current="page" @endif><x-ikona nazwa="image" /> Kolaż na powitanie</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.hero-kolaz') }}" @if(request()->routeIs('admin.hero-kolaz')) aria-current="page" @endif><x-ikona nazwa="image" /> <span class="marka-panel-nav-etykieta">Kolaż na powitanie</span></a></li>
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                      co tablica na dziś, stąd ta sama ikona. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> <span class="marka-panel-nav-etykieta">Tagi promowane</span></a></li>
                                 {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
                                      co odwołania, bo to też jest pismo od człowieka,
                                      a nie sprawa do rozstrzygnięcia. Osobna pozycja,
                                      nie zakładka w Zgłoszeniach: to jest inna kolejka
                                      i inna praca (patrz `WiadomosciController`). --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas <x-licznik-kolejki :ile="$kolejki['wiadomosci'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> <span class="marka-panel-nav-etykieta">Wiadomości do nas</span> <x-licznik-kolejki :ile="$kolejki['wiadomosci'] ?? 0" /></a></li>
                                 {{-- Konta użytkowników — ekran do WGLĄDU, nie do zarządzania
                                      rolami (te nadaje `kuking:nadaj-role` z powłoki, D-039).
                                      Ostatni w sekcji, bo to jest miejsce, do którego wchodzi
                                      się z pytaniem („kim jest ta osoba"), a nie kolejka, którą
                                      trzeba dziś opróżnić — kolejki zostają na górze. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.users') }}" @if(request()->routeIs('admin.users*')) aria-current="page" @endif><x-ikona nazwa="users" /> Użytkownicy</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.users') }}" @if(request()->routeIs('admin.users*')) aria-current="page" @endif><x-ikona nazwa="users" /> <span class="marka-panel-nav-etykieta">Użytkownicy</span></a></li>
                             </ul>
 
                             {{--
@@ -925,7 +925,13 @@
                     </div>
                 @endif
 
-                {{ $slot }}
+                @if($wTrybiePanelu)
+                    <div class="marka-panel-tresc">
+                        {{ $slot }}
+                    </div>
+                @else
+                    {{ $slot }}
+                @endif
             </main>
 
             @isset($rail)

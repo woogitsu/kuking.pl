@@ -1,0 +1,238 @@
+{
+  "kind": "table-height",
+  "theme": "light",
+  "width": 320,
+  "height": 900,
+  "scale": 100,
+  "expectedHypothesis": "P581_FOKUS_ZASLONIETY",
+  "passed": true,
+  "keyboard": {
+    "oczekiwane": 38,
+    "odwiedzone": 38,
+    "grupyRadio": 0,
+    "ustalenieFokusu": [
+      {
+        "id": "4",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "5",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "6",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "7",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "8",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "9",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "10",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "11",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "12",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "13",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "14",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "15",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "16",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "17",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "18",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "19",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "20",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "21",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "22",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "23",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "24",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "25",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "25",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "25",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "25",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "26",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "26",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "26",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "26",
+        "klatki": 0,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "27",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "28",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "29",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "30",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "31",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "32",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "33",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "34",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "35",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "36",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "37",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "38",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "39",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "40",
+        "klatki": 1,
+        "wejscie": "Tab"
+      },
+      {
+        "id": "41",
+        "klatki": 1,
+        "wejscie": "Tab"
+      }
+    ],
+    "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+  },
+  "blockedMethods": []
+}

@@ -1,0 +1,320 @@
+/* #581: panel ma własną nawigację, ale tę samą markę co serwis.
+   Nie zmieniamy koloru ostrzeżeń ani decyzji destrukcyjnych. D-089/D-138:
+   dwie kolumny, pełna szerokość pracy, bez pustej prawej szyny. */
+[data-marka] [data-marka-panel] {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+  gap: var(--spacing-6);
+  width: 100%;
+  max-width: none;
+  margin: var(--spacing-6) auto 0;
+  padding: 0 var(--spacing-3);
+}
+
+[data-marka] [data-marka-panel] > .app-main {
+  grid-column: 1;
+  min-width: 0;
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  padding: 0 0 var(--spacing-8);
+}
+
+/* Jawny spis narzędzi również na telefonie: bez rozwijania i bez skryptu. */
+[data-marka-panel] > .side-nav[data-tryb-panelu] {
+  display: flex;
+  position: static;
+  flex-direction: column;
+  align-self: start;
+  gap: var(--spacing-4);
+  min-width: 0;
+  width: 100%;
+  margin: 0;
+  padding: var(--spacing-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--marka-promien);
+  background: var(--color-surface-raised);
+  box-shadow: var(--marka-cien);
+}
+
+[data-marka-panel] .side-nav-moderacja {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+[data-marka-panel] .side-nav-moderacja-naglowek {
+  margin: 0 0 var(--spacing-3);
+  padding: 0 var(--spacing-2);
+  color: var(--color-ink);
+  font-size: var(--text-body);
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: -.02em;
+}
+
+[data-marka-panel] .side-nav-moderacja-lista {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(max(13rem, calc(13rem * var(--user-text-scale, 1))), 100%), 1fr));
+  gap: var(--spacing-2);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+[data-marka-panel] .side-nav-moderacja-lista > li {
+  min-width: 0;
+  margin: 0;
+}
+
+[data-marka-panel] .side-nav-item {
+  min-width: 0;
+  min-height: var(--control-height-min);
+  padding: var(--spacing-3);
+  gap: var(--spacing-2);
+  border-radius: var(--radius-lg);
+  color: var(--color-ink);
+  overflow-wrap: anywhere;
+  line-height: 1.35;
+}
+
+[data-marka-panel] .side-nav-moderacja-lista .side-nav-item { height: 100%; }
+
+/* Ikona, zawijana etykieta i licznik mają osobne miejsca. Anonimowy tekst
+   w starym flex-wrap spadał w całości pod ikonę zamiast zawijać się obok. */
+[data-marka-panel] .side-nav-item:has(.marka-panel-nav-etykieta) {
+  flex-wrap: nowrap;
+}
+
+[data-marka-panel] .marka-panel-nav-etykieta {
+  flex: 1 1 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-marka-panel] .side-nav-item > .ikona { flex: none; }
+
+[data-marka-panel] .side-nav-moderacja-lista .side-nav-item:not([aria-current="page"]) .ikona {
+  color: var(--color-ink-muted);
+}
+
+[data-marka-panel] .side-nav-item[aria-current="page"] {
+  color: var(--color-brand-tint-ink);
+  background: var(--color-brand-tint);
+  font-weight: 800;
+  box-shadow: inset 3px 0 0 var(--color-brand);
+}
+
+[data-marka-panel] .side-nav-powrot {
+  height: auto;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  color: var(--color-ink);
+}
+
+[data-marka-panel] .side-nav-powrot:hover {
+  border-color: var(--color-ink);
+  background: var(--color-surface-raised);
+  color: var(--color-ink);
+}
+
+[data-marka-panel] .side-nav-powrot .ikona {
+  color: currentColor;
+}
+
+[data-marka-panel] .side-nav-item .licznik-kolejki {
+  background: var(--color-surface-sunken);
+  color: var(--color-ink);
+}
+
+[data-marka-panel] .side-nav-item[aria-current="page"] .licznik-kolejki {
+  background: var(--color-surface-raised);
+  color: var(--color-brand-tint-ink);
+}
+
+/* Nazwa trybu jest nad tytułem strony, nie w kolejnym złotym alert-boxie. */
+[data-marka] .marka-panel-naglowek {
+  gap: var(--spacing-3);
+  margin: 0 0 var(--spacing-3);
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--color-ink);
+}
+
+[data-marka] .marka-panel-naglowek > .ikona {
+  box-sizing: content-box;
+  padding: var(--spacing-3);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  background: var(--color-surface-raised);
+}
+
+[data-marka] .marka-panel-naglowek .panel-pasek-tekst {
+  min-width: 0;
+  font-size: var(--text-body);
+  color: var(--color-ink-muted);
+  overflow-wrap: anywhere;
+}
+
+[data-marka] .marka-panel-naglowek .panel-pasek-nazwa {
+  color: var(--color-ink);
+  font-weight: 800;
+  text-transform: none;
+  letter-spacing: -.02em;
+}
+
+.marka-panel-tresc {
+  min-width: 0;
+  width: 100%;
+  overflow-wrap: anywhere;
+}
+
+[data-marka-panel] .marka-panel-tresc > h1,
+[data-marka-panel] .marka-panel-tresc > div > h1,
+[data-marka-panel] .marka-panel-bramka > h1 {
+  margin-top: 0;
+  margin-bottom: var(--spacing-5);
+  font-size: calc(clamp(1.75rem, 3vw, 2.5rem) * var(--user-text-scale, 1));
+  line-height: 1.15;
+  font-weight: 800;
+  letter-spacing: -.04em;
+}
+
+[data-marka-panel] .marka-panel-tresc > p { max-width: 75ch; }
+
+/* Wspólna rama opakowuje slot: zachowujemy rytm sąsiadujących powierzchni,
+   który wcześniej wynikał z ich bezpośredniego sąsiedztwa w app-main. */
+[data-marka-panel] .marka-panel-tresc
+  > :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)
+  + :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary) {
+  margin-top: var(--spacing-6);
+}
+
+[data-marka-panel] .marka-panel-bramka {
+  max-width: 54rem;
+  padding: clamp(var(--spacing-4), 3vw, var(--spacing-8));
+  border: 1px solid var(--color-border);
+  border-radius: var(--marka-promien);
+  background: var(--color-surface-raised);
+  box-shadow: var(--marka-cien);
+}
+
+/* Rozdzielenie ról powierzchni: treść, formularz i pomoc nadal nie są
+   jedną kartą. Kontrolki zachowują obwódki i własny widoczny fokus. */
+[data-marka-panel] .marka-panel-tresc :is(.card, .panel-formularza, .sekcja-strony, .empty-state) {
+  min-width: 0;
+  border-radius: var(--marka-promien);
+}
+
+[data-marka-panel] .marka-panel-tresc .card {
+  padding: clamp(var(--spacing-4), 2vw, var(--spacing-6));
+  background: var(--color-surface-raised);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--marka-cien);
+}
+
+[data-marka-panel] .marka-panel-tresc .panel-formularza {
+  padding: clamp(var(--spacing-4), 2vw, var(--spacing-6));
+  border-color: var(--color-border-strong);
+  background: var(--color-surface-raised);
+}
+
+[data-marka-panel] .marka-panel-tresc .sekcja-strony {
+  padding: clamp(var(--spacing-4), 2vw, var(--spacing-6));
+  background: var(--color-surface-raised);
+}
+
+[data-marka-panel] .marka-panel-tresc :is(.tabs, .filtry-kont) {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+  padding: var(--spacing-3);
+  margin-bottom: var(--spacing-6);
+  border: 1px solid var(--color-border);
+  border-radius: var(--marka-promien);
+  background: var(--color-surface-raised);
+}
+
+/* Stałe 11rem nie rosło ze skalą konta: desktop mieścił trzy kolumny,
+   ale ucinał format daty. Pola rezerwują miejsce proporcjonalne do tekstu
+   i przechodzą do następnego wiersza, zanim zabraknie go na kalendarz.
+   Na telefonie minimum kończy się na szerokości kontenera; zachowujemy
+   dotychczasową natywną kontrolkę i jej lokalne przewijanie. */
+[data-marka-panel] .filtry-kont > .field {
+  flex: 1 1 calc(18rem * var(--user-text-scale, 1));
+  min-width: min(100%, calc(18rem * var(--user-text-scale, 1)));
+}
+
+[data-marka-panel] .filtry-kont > .filtr-data {
+  flex: 1 1 calc(14rem * var(--user-text-scale, 1));
+  min-width: min(100%, calc(14rem * var(--user-text-scale, 1)));
+}
+
+[data-marka-panel] .filtry-kont > .filtry-kont-akcje {
+  flex: 1 1 100%;
+  min-width: 0;
+  padding-top: var(--spacing-2);
+}
+
+[data-marka-panel] .marka-panel-tresc .tabs .tab {
+  min-width: 0;
+  min-height: var(--control-height-min);
+  max-width: 100%;
+  padding: var(--spacing-3) var(--spacing-4);
+  border: 0;
+  border-radius: var(--radius-lg);
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+[data-marka-panel] .marka-panel-tresc .tabs .tab[aria-current="page"] {
+  background: var(--color-brand-tint);
+  color: var(--color-brand-tint-ink);
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: .2em;
+}
+
+/* Chromium przenosi Tab z segmentów daty na natywną ikonę kalendarza:
+   host traci :focus-visible, ale zachowuje :focus-within. Pierścień obejmuje
+   wtedy nadal całe pole, również po kliknięciu kalendarza. Ujemny offset
+   mieści go wewnątrz przewijanego kontenera daty; natywna kontrolka zostaje. */
+[data-marka-panel] .filtry-kont input[type="date"]:focus-within {
+  outline: 3px solid var(--color-focus);
+  outline-offset: -3px;
+}
+
+/* Tabela nadal przewija się we własnym, osiągalnym klawiaturą kontenerze. */
+[data-marka-panel] .tabela-kont-przewijanie {
+  min-width: 0;
+  /* Tab do przewijanej tabeli musi zostawić miejsce na obrys pod belką. */
+  scroll-margin-block: var(--spacing-3);
+  max-block-size: calc(100svh - var(--rezerwa-nad-belka) - var(--rezerwa-pod-belka) - 24px);
+  overflow: auto;
+  border: 1px solid var(--color-border);
+  border-radius: var(--marka-promien);
+  background: var(--color-surface-raised);
+}
+
+@media (min-width: 64rem) {
+  [data-marka] [data-marka-panel] {
+    /* Etykiety rosną razem z tekstem; stałe 16rem rozcinało krótkie słowa. */
+    grid-template-columns: minmax(0, max(16rem, calc(16rem * var(--user-text-scale, 1)))) minmax(0, 1fr);
+    gap: var(--spacing-6);
+    padding-inline: var(--spacing-6);
+  }
+
+  [data-marka] [data-marka-panel] > .app-main { grid-column: 2; }
+  [data-marka-panel] .side-nav-moderacja-lista { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (forced-colors: active) {
+  [data-marka-panel] .side-nav-item[aria-current="page"] {
+    outline: 2px solid CanvasText;
+    outline-offset: -2px;
+  }
+}

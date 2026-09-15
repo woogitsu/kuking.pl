@@ -1,0 +1,654 @@
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-panel581-runtime/phpunit.xml
+
+[41;37mF[0m...                                                                4 / 4 (100%)
+
+Time: 00:00.833, Memory: 131.00 MB
+
+There was 1 failure:
+
+1) Tests\Feature\KolejkaSygnalowFormularzeNiezalezneTest::test_odrzucenie_jednej_grupy_nie_wypelnia_notatki_przy_pozostalych
+Failed asserting that '<!DOCTYPE html>\r\n
+<html lang="pl"  >\r\n
+<head>\r\n
+    <meta charset="utf-8">\r\n
+    <meta name="viewport" content="width=device-width, initial-scale=1">\r\n
+    <meta name="kuking-service-worker" content="/sw.js?v=Alfa%200.40">\r\n
+    <title>Sygnały automatu — Panel moderacji — Kuking</title>\r\n
+\r\n
+    \r\n
+            <meta name="robots" content="noindex, nofollow">\r\n
+    \r\n
+    <meta property="og:site_name" content="Kuking">\r\n
+    <meta property="og:title" content="Sygnały automatu — Panel moderacji — Kuking">\r\n
+        <meta property="og:type" content="website">\r\n
+    <meta property="og:locale" content="pl_PL">\r\n
+    \r\n
+    <meta property="og:url" content="http://localhost/admin/sygnaly">\r\n
+    <meta property="og:image" content="http://localhost/icons/kuking-udostepnianie.png">\r\n
+    <meta property="og:image:alt" content="Sygnały automatu — Panel moderacji">\r\n
+    \r\n
+    \r\n
+    \r\n
+    <meta name="twitter:card" content="summary">\r\n
+\r\n
+    <link rel="canonical" href="http://localhost/admin/sygnaly">\r\n
+    <meta name="theme-color" content="#151714">\r\n
+\r\n
+    <link rel="icon" href="http://localhost/icons/kuking-mark.svg" type="image/svg+xml">\r\n
+    <link rel="apple-touch-icon" href="http://localhost/icons/kuking-icon-192.png">\r\n
+    <link rel="manifest" href="http://localhost/manifest.webmanifest">\r\n
+\r\n
+        \r\n
+    \r\n
+    \r\n
+    \r\n
+</head>\r\n
+\r\n
+<body class="" data-marka="kuking-2026">\r\n
+    <a class="skip-link" href="#tresc">Przejdź do treści</a>\r\n
+\r\n
+    <header class="topbar marka-topbar" >\r\n
+        <div class="topbar-inner">\r\n
+            <a class="wordmark" href="http://localhost/home">\r\n
+                \r\n
+                <svg class="kuking-mark" viewBox="0 0 64 64" width="36" height="36"\n
+     fill="none"\n
+      aria-hidden="true" focusable="false"      >\n
+    \n
+    <path d="M18 22 L16 15 L24 19 L32 11 L40 19 L48 15 L46 22 C39 25 25 25 18 22 Z"\n
+          fill="currentColor" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/>\n
+    <circle cx="16" cy="14" r="3.5" fill="currentColor"/>\n
+    <circle cx="32" cy="9" r="3.5" fill="currentColor"/>\n
+    <circle cx="48" cy="14" r="3.5" fill="currentColor"/>\n
+\n
+    <path d="M17 29 H47 V38 C47 49 41 54 32 54 C23 54 17 49 17 38 Z" fill="currentColor"/>\n
+\n
+    <path d="M17 32 C12 29 9 31 9 36 C9 42 13 44 18 42" stroke="currentColor"\n
+          stroke-width="5" stroke-linecap="round"/>\n
+    <path d="M47 32 C52 29 55 31 55 36 C55 42 51 44 46 42" stroke="currentColor"\n
+          stroke-width="5" stroke-linecap="round"/>\n
+\n
+    \n
+    <path d="M24 43 C28 47 36 47 40 41" stroke="var(--color-surface-raised)"\n
+          stroke-width="3.5" stroke-linecap="round"/>\n
+    <path d="M18 28 C27 30 37 30 46 28" stroke="var(--color-surface-raised)"\n
+          stroke-width="3" stroke-linecap="round"/>\n
+</svg>\n
+                \r\n
+                <span aria-hidden="true">Ku<span class="wordmark-king">King</span><span class="wordmark-tld">.pl</span></span>\r\n
+                <span class="visually-hidden">Kuking — strona główna</span>\r\n
+            </a>\r\n
+\r\n
+            \r\n
+                            \r\n
+                <form class="topbar-szukaj" method="GET" action="http://localhost/szukaj" role="search">\r\n
+                    <label class="visually-hidden" for="topbar-q">Szukaj przepisów, osób i składników</label>\r\n
+                    <svg class="ikona topbar-szukaj-ikona" width="22" height="22" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>\n
+                    <input class="topbar-szukaj-pole" id="topbar-q" type="search" name="q"\r\n
+                           value=""\r\n
+                           placeholder="Szukaj przepisów, osób i składników…">\r\n
+                </form>\r\n
+            \r\n
+\r\n
+                                        \r\n
+            <div class="topbar-actions">\r\n
+                                    <a class="btn btn-quiet marka-szukaj-link" href="http://localhost/szukaj"><svg class="ikona" width="20" height="20" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m15.5 15.5 5 5"/></svg>\n
+ Szukaj</a>\r\n
+                    \r\n
+                    <a class="btn btn-quiet topbar-mobile-only marka-powiadomienia-link" href="http://localhost/powiadomienia">\r\n
+                        Powiadomienia\r\n
+                                            </a>\r\n
+                    \r\n
+                    <a class="btn btn-primary topbar-desktop-only" href="http://localhost/dodaj">Dodaj</a>\r\n
+\r\n
+                    \r\n
+                    <details class="topbar-konto">\r\n
+                        \r\n
+                        <summary class="topbar-konto-przycisk" aria-label="Konto — menu: profil, ustawienia, wylogowanie">\r\n
+                            <span class="avatar" aria-hidden="true" data-rozmiar="40">T</span>\n
+                            <span class="topbar-konto-napis">Konto</span>\r\n
+                            <svg class="ikona topbar-konto-strzalka" width="20" height="20" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="m9 6 6 6-6 6"/></svg>\n
+                        </summary>\r\n
+                        \r\n
+                        <ul class="topbar-konto-tresc">\r\n
+                            <li><a href="http://localhost/@mulnphmxtkk4">Mój profil</a></li>\r\n
+                            <li><a href="http://localhost/ustawienia">Ustawienia</a></li>\r\n
+                                                        <li><form method="POST" action="http://localhost/logout" class="topbar-konto-wyjscie-formularz">\n
+        <input type="hidden" name="_token" value="[REDACTED_LOCAL_CSRF]" autocomplete="off">        <button type="submit" class="topbar-konto-wyjscie">\n
+            Wyloguj się\n
+        </button>\n
+    </form>\n
+</li>\r\n
+                        </ul>\r\n
+                    </details>\r\n
+                            </div>\r\n
+        </div>\r\n
+    </header>\r\n
+\r\n
+    <div class="app-shell">\r\n
+        \r\n
+        <div class="app-body marka-rama   "  data-tryb-panelu data-marka-panel >\r\n
+                            \r\n
+                \r\n
+                <nav class="side-nav"  data-tryb-panelu  aria-label="Nawigacja panelu moderacji">\r\n
+                    \r\n
+                                            \r\n
+                        <a class="side-nav-item side-nav-powrot" href="http://localhost/home">\r\n
+                            <svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M3 11.5 12 4l9 7.5v8a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H4.5A1.5 1.5 0 0 1 3 19.5z"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Wróć do Kuking</span>\n
+                        </a>\r\n
+                    \r\n
+                                            \r\n
+                        \r\n
+                        \r\n
+\r\n
+\r\n
+                                                <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">\r\n
+                            <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>\r\n
+                            <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">\r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/bez-odpowiedzi" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="9"/><path d="M12 7v6l4 2"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Bez odpowiedzi</span> <span class="badge licznik-kolejki">\n
+        <span aria-hidden="true">3</span>\n
+        <span class="visually-hidden">3 czekają</span>\n
+    </span>\n
+</a></li>\r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/zgloszenia" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Zgłoszenia</span> </a></li>\r\n
+                                \r\n
+                                \r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/sygnaly"  aria-current="page" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M4 6h16M7 12h10M10 18h4"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Sygnały automatu</span> <span class="badge licznik-kolejki">\n
+        <span aria-hidden="true">3</span>\n
+        <span class="visually-hidden">3 czekają</span>\n
+    </span>\n
+</a></li>\r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/odwolania" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M21 11.5a8.5 8.5 0 0 1-9 8.5 10 10 0 0 1-4-.9L3 21l1.8-4A8 8 0 1 1 21 11.5Z"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Odwołania</span> </a></li>\r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/kuking-na-dzis" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Tablica na dziś</span></a></li>\r\n
+                                \r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/kolaz-powitalny" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="9" r="2"/><path d="m5 18 5-5 3 3 2-2 4 4"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Kolaż na powitanie</span></a></li>\r\n
+                                \r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/tagi-promowane" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M12 21s7-6.2 7-11a7 7 0 1 0-14 0c0 4.8 7 11 7 11z"/><circle cx="12" cy="10" r="2.5"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Tagi promowane</span></a></li>\r\n
+                                \r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/wiadomosci" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M21 11.5a8.5 8.5 0 0 1-9 8.5 10 10 0 0 1-4-.9L3 21l1.8-4A8 8 0 1 1 21 11.5Z"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Wiadomości do nas</span> </a></li>\r\n
+                                \r\n
+                                <li><a class="side-nav-item" href="http://localhost/admin/uzytkownicy" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><circle cx="9" cy="8" r="3"/><circle cx="17" cy="9" r="2.5"/><path d="M3 20c.5-4 2.5-6 6-6s5.5 2 6 6M15 15c3.5 0 5 1.7 5.5 5"/></svg>\n
+ <span class="marka-panel-nav-etykieta">Użytkownicy</span></a></li>\r\n
+                            </ul>\r\n
+\r\n
+                            \r\n
+                        </div>\r\n
+                                            \r\n
+                    \r\n
+                    <ul class="stack-tight list-none p-0 m-0 side-nav-dol">\r\n
+                        <li><a class="side-nav-item" href="http://localhost/powiadomienia" >\r\n
+                            <svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M6 9a6 6 0 0 1 12 0c0 6 2.5 6 2.5 8H3.5C3.5 15 6 15 6 9Z"/><path d="M9.5 20a3 3 0 0 0 5 0"/></svg>\n
+ Powiadomienia\r\n
+                                                    </a></li>\r\n
+                        \r\n
+                        <li><a class="side-nav-item" href="http://localhost/ustawienia" ><svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><circle cx="12" cy="12" r="3"/><path d="M19 13.5v-3l2-1.5-2-3-2.5 1A8 8 0 0 0 14 5.5L13.5 3h-3L10 5.5A8 8 0 0 0 7.5 7L5 6 3 9l2 1.5v3L3 15l2 3 2.5-1A8 8 0 0 0 10 18.5l.5 2.5h3l.5-2.5a8 8 0 0 0 2.5-1.5l2.5 1 2-3z"/></svg>\n
+ Ustawienia</a></li>\r\n
+                        \r\n
+                                                \r\n
+                        <li><form method="POST" action="http://localhost/logout" class="">\n
+        <input type="hidden" name="_token" value="[REDACTED_LOCAL_CSRF]" autocomplete="off">        <button type="submit" class="side-nav-item side-nav-wyloguj">\n
+            <svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M15 4h3.5A1.5 1.5 0 0 1 20 5.5v13a1.5 1.5 0 0 1-1.5 1.5H15"/><path d="M10 8l4 4-4 4"/><path d="M14 12H4"/></svg>\n
+ Wyloguj się\n
+        </button>\n
+    </form>\n
+</li>\r\n
+                    </ul>\r\n
+                </nav>\r\n
+            \r\n
+            \r\n
+            <main class="app-main" id="tresc">\r\n
+                \r\n
+                <div class="komunikaty" aria-live="polite">\r\n
+                                    </div>\r\n
+                \r\n
+                                \r\n
+                \r\n
+                \r\n
+                                    <div class="marka-panel-tresc">\r\n
+                        <div class="panel-pasek marka-panel-naglowek">\n
+    \n
+    <svg class="ikona" width="22" height="22" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M12 3l7 3v6c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V6z"/></svg>\n
+    <p class="panel-pasek-tekst">\n
+        <span class="panel-pasek-nazwa">Panel moderacji</span>\n
+                    <span class="panel-pasek-oddzielacz" aria-hidden="true">·</span>\n
+            <span class="panel-pasek-ekran">Sygnały automatu</span>\n
+            </p>\n
+</div>\n
+\n
+    <h1>Sygnały automatu</h1>\n
+\n
+\n
+\n
+    \n
+    <p class="lead">\n
+        Treści, przy których automat podniósł rękę. <strong>Nikt ich nie zgłosił</strong>, nic się\n
+        z nimi nie stało i ich autorzy o niczym nie wiedzą — są widoczne w serwisie tak samo jak\n
+        wszystko inne. Automat niczego nie ukrywa i nie blokuje; to Ty decydujesz, czy jest tu coś do zrobienia.\n
+    </p>\n
+\n
+    <p class="meta">\n
+        Czeka 3 oznaczeń.\n
+        Zgłoszenia od ludzi są osobno: <a href="http://localhost/admin/zgloszenia">Zgłoszenia</a>.\n
+    </p>\n
+\n
+                            \n
+                \n
+        <article class="card mb-5">\n
+            <h2 class="mt-0 text-title-sm">\n
+                                    Testowa osoba\n
+                            </h2>\n
+\n
+            <p class="meta">\n
+                1 oznaczenie ·\n
+                ostatnie 15 września 2026, 21:44\n
+            </p>\n
+\n
+            <ul class="stack-tight">\n
+                                                        <li>\n
+                        <strong>Automat: model wskazał treść do przejrzenia</strong>\n
+                        <span class="meta">· wpis ·\n
+                            15 września 2026, 21:44</span>\n
+\n
+                                                    <p class="whitespace-pre-line">Model ocenił zdjęcie: przemoc (pewność 86%).</p>\n
+                        \n
+                                                    \n
+                            <div class="sygnal-podglad">\n
+                                \n
+                                <div class="sygnal-podglad-tekst">\n
+                                                                            <p class="sygnal-podglad-cytat">Excepturi nostrum eaque voluptatibus soluta provident.</p>\n
+                                    \n
+                                                                            <p class="m-0">\n
+                                            <a href="http://localhost/wpisy/01a0a699-3ac7-7380-ac5c-722157397643">Otwórz treść i przeczytaj ją</a>\n
+                                        </p>\n
+                                                                    </div>\n
+                            </div>\n
+                                            </li>\n
+                            </ul>\n
+\n
+            \n
+            \n
+            <form class="mt-4" method="POST" action="http://localhost/admin/sygnaly/odrzuc">\n
+                <input type="hidden" name="_token" value="[REDACTED_LOCAL_CSRF]" autocomplete="off">                <input type="hidden" name="autor" value="01a0a699-3abe-72c2-8b10-6aeff2725a08">\n
+                \n
+                <input type="hidden" name="_wiersz" value="01a0a699-3abe-72c2-8b10-6aeff2725a08">\n
+\n
+                <div class="field ">\n
+    <label for="f-note-01a0a699-3abe-72c2-8b10-6aeff2725a08">\n
+        Notatka wewnętrzna\n
+                                    <span class="meta">(nieobowiązkowe)</span>\n
+                        </label>\n
+\n
+            <span class="field-help" id="f-note-01a0a699-3abe-72c2-8b10-6aeff2725a08-help">Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia.</span>\n
+    \n
+            <textarea class="field-input" id="f-note-01a0a699-3abe-72c2-8b10-6aeff2725a08" name="note"\n
+                  rows="2"\n
+                                                                         aria-describedby="f-note-01a0a699-3abe-72c2-8b10-6aeff2725a08-help"                           ></textarea>\n
+    \n
+    </div>\n
+\n
+                <button class="btn btn-primary mt-5" type="submit">\n
+                    To nic takiego — zamknij to oznaczenie\n
+                </button>\n
+            </form>\n
+\n
+            <p class="meta mt-4">\n
+                Jeśli jednak jest tu co robić:\n
+                <a href="http://localhost/admin/zgloszenia?status=open&amp;zrodlo=automat">rozpatrz oznaczenia pojedynczo</a>\n
+                — tam jest pełny formularz decyzji z uzasadnieniem dla autora.\n
+            </p>\n
+        </article>\n
+                            \n
+                \n
+        <article class="card mb-5">\n
+            <h2 class="mt-0 text-title-sm">\n
+                                    Testowa osoba\n
+                            </h2>\n
+\n
+            <p class="meta">\n
+                1 oznaczenie ·\n
+                ostatnie 15 września 2026, 21:44\n
+            </p>\n
+\n
+            <ul class="stack-tight">\n
+                                                        <li>\n
+                        <strong>Automat: model wskazał treść do przejrzenia</strong>\n
+                        <span class="meta">· wpis ·\n
+                            15 września 2026, 21:44</span>\n
+\n
+                                                    <p class="whitespace-pre-line">Model ocenił zdjęcie: przemoc (pewność 86%).</p>\n
+                        \n
+                                                    \n
+                            <div class="sygnal-podglad">\n
+                                \n
+                                <div class="sygnal-podglad-tekst">\n
+                                                                            <p class="sygnal-podglad-cytat">Suscipit recusandae sit totam libero.</p>\n
+                                    \n
+                                                                            <p class="m-0">\n
+                                            <a href="http://localhost/wpisy/01a0a699-3ad1-7167-8894-b6f4b5296028">Otwórz treść i przeczytaj ją</a>\n
+                                        </p>\n
+                                                                    </div>\n
+                            </div>\n
+                                            </li>\n
+                            </ul>\n
+\n
+            \n
+            \n
+            <form class="mt-4" method="POST" action="http://localhost/admin/sygnaly/odrzuc">\n
+                <input type="hidden" name="_token" value="[REDACTED_LOCAL_CSRF]" autocomplete="off">                <input type="hidden" name="autor" value="01a0a699-3ac1-7024-81fd-f8f6e0b9b39d">\n
+                \n
+                <input type="hidden" name="_wiersz" value="01a0a699-3ac1-7024-81fd-f8f6e0b9b39d">\n
+\n
+                <div class="field  has-error ">\n
+    <label for="f-note-01a0a699-3ac1-7024-81fd-f8f6e0b9b39d">\n
+        Notatka wewnętrzna\n
+                                    <span class="meta">(nieobowiązkowe)</span>\n
+                        </label>\n
+\n
+            <span class="field-help" id="f-note-01a0a699-3ac1-7024-81fd-f8f6e0b9b39d-help">Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia.</span>\n
+    \n
+            <textarea class="field-input" id="f-note-01a0a699-3ac1-7024-81fd-f8f6e0b9b39d" name="note"\n
+                  rows="2"\n
+                                                                         aria-describedby="f-note-01a0a699-3ac1-7024-81fd-f8f6e0b9b39d-help f-note-01a0a699-3ac1-7024-81fd-f8f6e0b9b39d-error"                    aria-invalid="true"         >aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa</textarea>\n
+    \n
+            <span class="field-error" id="f-note-01a0a699-3ac1-7024-81fd-f8f6e0b9b39d-error">Pole „notatka” jest za długie. Skróć je do 2000 znaków.</span>\n
+    </div>\n
+\n
+                <button class="btn btn-primary mt-5" type="submit">\n
+                    To nic takiego — zamknij to oznaczenie\n
+                </button>\n
+            </form>\n
+\n
+            <p class="meta mt-4">\n
+                Jeśli jednak jest tu co robić:\n
+                <a href="http://localhost/admin/zgloszenia?status=open&amp;zrodlo=automat">rozpatrz oznaczenia pojedynczo</a>\n
+                — tam jest pełny formularz decyzji z uzasadnieniem dla autora.\n
+            </p>\n
+        </article>\n
+                            \n
+                \n
+        <article class="card mb-5">\n
+            <h2 class="mt-0 text-title-sm">\n
+                                    Testowa osoba\n
+                            </h2>\n
+\n
+            <p class="meta">\n
+                1 oznaczenie ·\n
+                ostatnie 15 września 2026, 21:44\n
+            </p>\n
+\n
+            <ul class="stack-tight">\n
+                                                        <li>\n
+                        <strong>Automat: model wskazał treść do przejrzenia</strong>\n
+                        <span class="meta">· wpis ·\n
+                            15 września 2026, 21:44</span>\n
+\n
+                                                    <p class="whitespace-pre-line">Model ocenił zdjęcie: przemoc (pewność 86%).</p>\n
+                        \n
+                                                    \n
+                            <div class="sygnal-podglad">\n
+                                \n
+                                <div class="sygnal-podglad-tekst">\n
+                                                                            <p class="sygnal-podglad-cytat">Delectus praesentium doloribus odio nisi fugit voluptatem.</p>\n
+                                    \n
+                                                                            <p class="m-0">\n
+                                            <a href="http://localhost/wpisy/01a0a699-3ad7-7162-95cc-a5f77ecfbdb0">Otwórz treść i przeczytaj ją</a>\n
+                                        </p>\n
+                                                                    </div>\n
+                            </div>\n
+                                            </li>\n
+                            </ul>\n
+\n
+            \n
+            \n
+            <form class="mt-4" method="POST" action="http://localhost/admin/sygnaly/odrzuc">\n
+                <input type="hidden" name="_token" value="[REDACTED_LOCAL_CSRF]" autocomplete="off">                <input type="hidden" name="autor" value="01a0a699-3ac4-70a0-a306-18faacd28517">\n
+                \n
+                <input type="hidden" name="_wiersz" value="01a0a699-3ac4-70a0-a306-18faacd28517">\n
+\n
+                <div class="field ">\n
+    <label for="f-note-01a0a699-3ac4-70a0-a306-18faacd28517">\n
+        Notatka wewnętrzna\n
+                                    <span class="meta">(nieobowiązkowe)</span>\n
+                        </label>\n
+\n
+            <span class="field-help" id="f-note-01a0a699-3ac4-70a0-a306-18faacd28517-help">Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia.</span>\n
+    \n
+            <textarea class="field-input" id="f-note-01a0a699-3ac4-70a0-a306-18faacd28517" name="note"\n
+                  rows="2"\n
+                                                                         aria-describedby="f-note-01a0a699-3ac4-70a0-a306-18faacd28517-help"                           ></textarea>\n
+    \n
+    </div>\n
+\n
+                <button class="btn btn-primary mt-5" type="submit">\n
+                    To nic takiego — zamknij to oznaczenie\n
+                </button>\n
+            </form>\n
+\n
+            <p class="meta mt-4">\n
+                Jeśli jednak jest tu co robić:\n
+                <a href="http://localhost/admin/zgloszenia?status=open&amp;zrodlo=automat">rozpatrz oznaczenia pojedynczo</a>\n
+                — tam jest pełny formularz decyzji z uzasadnieniem dla autora.\n
+            </p>\n
+        </article>\n
+    \n
+    <div class="mt-6"></div>\r\n
+                    </div>\r\n
+                            </main>\r\n
+\r\n
+                    </div>\r\n
+\r\n
+        \r\n
+        \r\n
+        <footer class="site-footer">\r\n
+            <div class="site-footer-inner">\r\n
+                <p class="site-footer-haslo"><span class="kuking-word">\n
+    <span aria-hidden="true">ku<strong>KING</strong></span>\n
+    <span class="visually-hidden">kuking</span>\n
+</span>\n
+ — gotujemy po swojemu.</p>\r\n
+\r\n
+                \r\n
+                \r\n
+\r\n
+                \r\n
+                <div class="site-footer-grupy">\r\n
+                    <nav class="site-footer-grupa" aria-label="O serwisie">\r\n
+                        <p class="site-footer-naglowek" aria-hidden="true">O serwisie</p>\r\n
+                        <ul>\r\n
+                            <li><a href="http://localhost/o-kuking">O <span class="kuking-word">\n
+    <span aria-hidden="true">ku<strong>KING</strong></span>\n
+    <span class="visually-hidden">kuking</span>\n
+</span>\n
+</a></li>\r\n
+                            <li><a href="http://localhost/zasady">Zasady</a></li>\r\n
+                        </ul>\r\n
+                    </nav>\r\n
+\r\n
+                    <nav class="site-footer-grupa" aria-label="Pomoc i kontakt">\r\n
+                        <p class="site-footer-naglowek" aria-hidden="true">Pomoc i kontakt</p>\r\n
+                        <ul>\r\n
+                            \r\n
+                            <li><a href="http://localhost/napisz-do-nas">Napisz do nas</a></li>\r\n
+                            <li><a href="http://localhost/pomoc">Pomoc</a></li>\r\n
+                        </ul>\r\n
+                    </nav>\r\n
+\r\n
+                    <nav class="site-footer-grupa" aria-label="Sprawy formalne">\r\n
+                        <p class="site-footer-naglowek" aria-hidden="true">Sprawy formalne</p>\r\n
+                        <ul>\r\n
+                            <li><a href="http://localhost/regulamin">Regulamin</a></li>\r\n
+                            <li><a href="http://localhost/prywatnosc">Prywatność</a></li>\r\n
+                            \r\n
+                            <li><a href="http://localhost/zglos-nielegalna-tresc">Zgłoś nielegalną treść</a></li>\r\n
+                        </ul>\r\n
+                    </nav>\r\n
+\r\n
+                    \r\n
+                                            <nav class="site-footer-grupa" aria-label="Konto">\r\n
+                            <p class="site-footer-naglowek" aria-hidden="true">Konto</p>\r\n
+                            <ul>\r\n
+                                <li><a href="http://localhost/zgloszenia">Twoje zgłoszenia</a></li>\r\n
+                            </ul>\r\n
+                        </nav>\r\n
+                                    </div>\r\n
+\r\n
+                \r\n
+                <div class="site-footer-pasek">\r\n
+                    \r\n
+                    <form method="POST" action="http://localhost/motyw" class="site-footer-motyw">\r\n
+                        <input type="hidden" name="_token" value="[REDACTED_LOCAL_CSRF]" autocomplete="off">                        <input type="hidden" name="theme" value="dark">\r\n
+                        <span class="visually-hidden">Wygląd strony: jasny.</span>\r\n
+                                                <button\r\n
+                            class="btn btn-quiet site-footer-motyw-przycisk"\r\n
+                            type="submit"\r\n
+                            aria-label="Włącz ciemny wygląd"\r\n
+                            title="Włącz ciemny wygląd"\r\n
+                        >\r\n
+                            <svg class="ikona" width="24" height="24" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>\n
+                        </button>\r\n
+                    </form>\r\n
+\r\n
+                    \r\n
+                    <span class="site-version">\r\n
+                        <strong class="site-version-etap">Alfa 0.40</strong>\r\n
+                        <span class="site-version-wydanie">lokalnie</span>\r\n
+                    </span>\r\n
+                </div>\r\n
+            </div>\r\n
+        </footer>\r\n
+\r\n
+        \r\n
+        <dialog id="powiekszenie" class="lightbox" aria-label="Powiększone zdjęcie">\r\n
+            <img class="lightbox-obraz" src="" alt="">\r\n
+\r\n
+            \r\n
+            <form method="dialog" class="lightbox-akcje">\r\n
+                <button class="btn btn-secondary" type="submit">Zamknij</button>\r\n
+            </form>\r\n
+        </dialog>\r\n
+    </div>\r\n
+\r\n
+                        \r\n
+            <nav class="bottom-nav bottom-nav-panel" aria-label="Wyjście z panelu moderacji">\r\n
+                <a class="bottom-nav-item" href="http://localhost/home">\r\n
+                    <svg class="ikona bottom-nav-icon" width="26" height="26" viewBox="0 0 24 24"\n
+         fill="none" stroke="currentColor" stroke-width="1.8"\n
+         stroke-linecap="round" stroke-linejoin="round"\n
+         aria-hidden="true" focusable="false"><path d="M3 11.5 12 4l9 7.5v8a1.5 1.5 0 0 1-1.5 1.5H15v-6H9v6H4.5A1.5 1.5 0 0 1 3 19.5z"/></svg>\n
+ Wróć do Kuking\r\n
+                </a>\r\n
+            </nav>\r\n
+            \r\n
+    ﻿<details class="szybki-wyglad" data-szybki-wyglad>\n
+    <summary><span aria-hidden="true">Aa · </span>Wygląd</summary>\n
+    <section class="szybki-wyglad-panel" aria-labelledby="szybki-wyglad-tytul">\n
+        <h2 id="szybki-wyglad-tytul">Dopasuj wygląd</h2>\n
+        <form method="POST" action="http://localhost/motyw">\n
+            <input type="hidden" name="_token" value="[REDACTED_LOCAL_CSRF]" autocomplete="off">            <label for="szybka-skala">Rozmiar tekstu</label>\n
+            <div class="szybki-wyglad-skala">\n
+                <button class="btn btn-secondary" type="button" data-skala-krok="-1" aria-label="Zmniejsz tekst" hidden>A−</button>\n
+                <select id="szybka-skala" name="text_scale">\n
+                                            <option value="70" >70% — Bardzo mały</option>\n
+                                            <option value="80" >80% — Mały</option>\n
+                                            <option value="90" >90% — Trochę mniejszy</option>\n
+                                            <option value="100" selected>100% — Zwykły</option>\n
+                                            <option value="112" >112% — Trochę większy</option>\n
+                                            <option value="125" >125% — Duży</option>\n
+                                            <option value="140" >140% — Bardzo duży</option>\n
+                                    </select>\n
+                <button class="btn btn-secondary" type="button" data-skala-krok="1" aria-label="Powiększ tekst" hidden>A+</button>\n
+            </div>\n
+            <label for="szybki-motyw">Wygląd strony</label>\n
+            <select id="szybki-motyw" name="theme">\n
+                <option value="light" selected>Jasny</option>\n
+                <option value="dark" >Ciemny</option>\n
+            </select>\n
+            <p class="szybki-wyglad-info"> Zapisujemy wybór na Twoim koncie. </p>\n
+            <p role="status" data-wyglad-status></p>\n
+            <button class="btn btn-secondary" type="submit">Zapisz wygląd</button>\n
+            <button class="btn btn-secondary" type="submit" name="reset_appearance" value="1">Przywróć domyślne</button>\n
+            <button class="btn btn-secondary" type="button" data-wyglad-zamknij hidden>Zamknij</button>\n
+        </form>\n
+    </section>\n
+</details>\n
+<aside class="szybki-wyglad-podpowiedz" data-wyglad-podpowiedz hidden>\n
+        <p>Dopasuj rozmiar tekstu i wygląd strony.</p>\n
+        <button class="btn btn-secondary" type="button" data-wyglad-pomin>Rozumiem</button>\n
+    </aside>\n\r
+\n
+    </body>\r\n
+</html>\r\n
+' [UTF-8](length: 36609) contains "class="error-summary"" [ASCII](length: 21).
+
+/home/mateusz/kuking-panel581-runtime/vendor/laravel/framework/src/Illuminate/Testing/TestResponseAssert.php:46
+/home/mateusz/kuking-panel581-runtime/vendor/laravel/framework/src/Illuminate/Testing/TestResponse.php:720
+/home/mateusz/kuking-panel581-runtime/tests/Feature/KolejkaSygnalowFormularzeNiezalezneTest.php:91
+
+[37;41mFAILURES![0m
+[37;41mTests: 4[0m[37;41m, Assertions: 21[0m[37;41m, Failures: 1[0m[37;41m.[0m
