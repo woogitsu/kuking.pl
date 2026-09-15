@@ -14,6 +14,7 @@
 // --- Service worker (PWA) -------------------------------------------------
 
 import './service-worker.js';
+import './landing-wpisy.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 

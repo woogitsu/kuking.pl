@@ -9,6 +9,7 @@ import { sprawdzZeszyty } from './zeszyty-marki.mjs';
 import { sprawdzPodpowiedzi } from './kontrast-notice.mjs';
 import { sprawdzNawigacje492 } from './nawigacja-niski-widok.mjs';
 import { sprawdzTagi } from './tagi-marki.mjs';
+import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
 
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
@@ -369,6 +370,7 @@ try {
   const paczka513 = JSON.parse(execFileSync('php', ['scripts/fixtures/kompozycje-513.php'], { env: env() }).toString());
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
+  await sprawdzZwarteKolumny({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });

@@ -191,27 +191,10 @@
                     </x-empty-state>
                 </div>
             @else
-                {{-- `landing-wpisy-kolumna`: kształt karty i jej sufit
-                     szerokości. Pomiar obu układów stoi przy tej klasie
-                     w `resources/css/strony-publiczne.css`.
-
-                     `landing-wpisy-dwie` DOCHODZI do niej (issue #365).
-                     Zgłoszenie właściciela: „na głównej (…) »Świeżo z Kuking«
-                     też można rozdzielić na dwie kolumny by było więcej treści
-                     a nie wydłużona strona". To jest świadome cofnięcie połowy
-                     poprzedniej decyzji — tamta wybrała jedną kolumnę, pisząc
-                     wprost, ile to kosztuje („lista prawie dwa razy dłuższa,
-                     2697 → 4956 px"). Właściciel wybrał teraz drugą stronę tego
-                     kosztu; zostaje to, co było w tamtej decyzji NAJWAŻNIEJSZE:
-                     kolejność chronologiczna (siatka w rzędach, nie `columns`,
-                     które wypełniają kolumnę pierwszą do końca i wynoszą piąty
-                     wpis nad starsze od siebie) oraz duże zdjęcie — karta ma
-                     w dwóch kolumnach ~480 px, nie miniaturę.
-
-                     Próg i pomiar: `app.css`, przy `.landing-wpisy-dwie`.
-
-                     Bez `stack`. `.stack` to margines na dzieciach, a nie flex —
-                     w siatce dodawałby się do `gap`. --}}
+                {{-- #560: kolejność DOM i Tab pozostaje chronologiczna. Na szerokim
+                     ekranie skrypt układa parzyste i nieparzyste karty niezależnie,
+                     więc krótka karta nie czeka na wysoką sąsiadkę. Bez skryptu
+                     działa zwykła siatka, a na telefonie jedna kolumna (D-216). --}}
                 <div class="landing-wpisy-kolumna landing-wpisy-dwie odstep-nad">
                     @foreach($posts as $post)
                         <x-post-card :post="$post" />
