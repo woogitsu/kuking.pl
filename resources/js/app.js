@@ -15,6 +15,7 @@
 
 import './service-worker.js';
 import './landing-wpisy.js';
+import './pasek-przewijany.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 

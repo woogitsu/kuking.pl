@@ -16,6 +16,7 @@
 /* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
 @import "./fonts.css";
 @import "./marka-rama.css";
+@import "./pasek-przewijany.css";
 @import "./marka-ekrany.css";
 @import "./marka-wejscie.css";
 @import "./marka-wlasnosc.css";
