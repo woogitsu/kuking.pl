@@ -1,6 +1,25 @@
 # Zwarte kolumny publicznych wpisów — #560
 
-## Zakres i stan
+## Odbiór produkcji 15 września 2026
+
+Alfa 0.33 działa na SHA 05151d76cc4f609800b214504882492fee376e00.
+Raporty PR #563 scalono po zwykłym hooku oraz CI34943425320; main
+CI34943541748 success w zakresie dokumentacji. Kod wcześniej przeszedł
+pełne 10/10 zadań PR i main. Nowe Railway6454177593 success oraz
+Deploy34943686652 success potwierdzają normalne wdrożenie bez pomijania CI.
+
+HTTP pokazało Alfa0.33 / 05151d7, CSS app-dQNr5eTe.css i JS
+app-BADFgUD0.js; oba lokalne pliki Inter odpowiedziały200.
+Odbiór przeglądarkowy: 390 i1440 px, oba motywy, 4/4 PASS.
+Sprawdzono odstępy wszystkich kart, brak poziomego overflow, jedną/dwie
+kolumny oraz rzeczywiste otwarcie wpisu i HTTP200. Obejrzano wszystkie
+cztery zrzuty: On The Plate jest bezpośrednio pod bigosem na desktopie;
+telefon zachowuje jedną kolumnę. Nie zmieniano danych produkcyjnych.
+Dowody: evidence/kolumny560/produkcja/ (zrzuty, wyniki, assety, wdrożenie).
+To odbiór poprawionego fragmentu, a nie całego portalu. Pozostaje #561
+oraz niezakończona macierz #492; pełna marka nadal CZĘŚCIOWO.
+
+## Historia kontroli i wdrożenia
 
 PR #562 scalono normalnie po pełnym CI34936291390 (10/10 success).
 Head: 2b221f3ae97f03b0a24d68e375b3abc70be0e7b4.
@@ -15,7 +34,7 @@ port104288023282. Dowód: evidence/kolumny560/ci-main.json.
 Railway6453239381 pozostało inactive po pierwszej próbie. Panel oferował
 „Deploy commit” z ostrzeżeniem o pominięciu nieudanego statusu; anulowano.
 Kod ma już pełne zielone CI. Ten raport przechodzi zwykły PR i uruchomi
-nową normalną ścieżkę wdrożenia. Odbiór produkcji Alfa0.33 nadal oczekuje.
+nową normalną ścieżkę wdrożenia. W tym punkcie historycznym odbiór produkcji oczekiwał; wynik końcowy jest powyżej.
 Baza porównania:
 320c1d7173377f0f293afbab905b0f1bb6a806f7 (Alfa 0.32).
 

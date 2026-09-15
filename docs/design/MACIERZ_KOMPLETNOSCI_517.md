@@ -3,13 +3,14 @@
 ## Zwarte kolumny wpisów — Alfa 0.33, odbiór lokalny i CI #560
 
 PR #562 scalony; CI PR34936291390 oraz main34938070574 (próba2)
-mają 10/10 success. Produkcja czeka na normalne wdrożenie po pominiętej
-próbie Railway; szczegóły i historyczny timeout w raporcie.
+mają 10/10 success. Produkcja Alfa0.33/05151d7 odebrana: Railway6454177593 i
+Deploy34943686652 success; 390/1440 px × oba motywy, 4/4 PASS.
+Ogląd czterech zrzutów i rzeczywiste otwieranie wpisów zakończone.
 
 [Raport](ZWARTE_KOLUMNY_560.md): 48 konfiguracji z rzeczywistym zoomem,
 działania linków i dialogu zdjęć, zmiana szerokości oraz pięć fizycznych
 kontroli ujemnych. Niezależny review bez blokera. CI i produkcja tego
-pakietu jeszcze niepotwierdzone. Osobno zapisano odtworzony także na
+pakietu potwierdzone powyżej. Osobno zapisano odtworzony także na
 bazowym main problem pełnej widoczności fokusu dużego zdjęcia przy
 domyślnym foncie przeglądarki 32 px i tekście 140%.
 
