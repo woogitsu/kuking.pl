@@ -1,12 +1,25 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
-## Publiczna tablica — Alfa 0.32, przygotowanie #557
+## Publiczna tablica — Alfa 0.32, wdrożone #557
 
 [Raport](TABLICA_PUBLICZNA_557.md) rozdziela nową kompozycję landing od
 pozostałych szyn. Duże fotografie, wizytówki i jedno zaproszenie zastępują
-układ ze zrzutu właściciela. Pomiar dotyczy jawnej lokalnej fixture;
-produkcja wymaga osobnego odbioru. Nie oznacza to ponownego sprawdzenia
+układ ze zrzutu właściciela. Odbiór lokalny ma osobną fixture; produkcyjny
+obejmuje390/1440, oba motywy i12 rzeczywistych kliknięć zdjęć. Main181b93f,
+CI34910661018, Railway6448719034 i Deploy34912846146 potwierdzają wydanie;
+HTTP oraz przeglądarka pokazały Alfa0.32 i właściwe zdjęcia. Nie oznacza to ponownego sprawdzenia
 całej strony powitalnej ani zamknięcia całego portu marki.
+
+## Menu Konto — Alfa 0.31, wdrożone #555
+
+[Raport](MENU_KONTA_555.md): szersza lista z zachowaniem miejsca po
+zawinięciu belki; lokalnie48 konfiguracji i24 niskiego okna, fizyczny
+negatyw CSS oraz przywrócenie MD5/mtime. PR #556, merge
+`1b43b69668cce731be52d270479264d315b92a24`; CI34903826583:10/10 success.
+MainCI34905715490, Railway6447950025 i Deploy34907646494: success.
+HTTP potwierdziło Alfa0.31/1b43b69; zalogowany Chrome pokazał cztery pozycje
+bez wymuszonego zawijania, także panel moderacji z niezerowym licznikiem.
+Nie wykonano działań moderacyjnych ani wylogowania podczas tego odbioru.
 
 ## Uzupełnienie pustej szyny profilu — Alfa 0.30, wdrożone #551
 
