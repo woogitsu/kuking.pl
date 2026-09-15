@@ -70,8 +70,8 @@ Pierwsze pięć negatywów opisuje poprzedzający tę poprawkę stan CSS;
 nowy dowód zawiera hash arkusza z poprawionym nagłówkiem. Nie zmieniono
 progów ani scenariuszy istniejącego testu CI.
 
-Końcowy przebieg wysokości CSS900 zakończył się 48/48: 144 odwiedzone
-linki dań przez Tab i144 kliknięcia fotografii. Wszystkie pięć końcowych
+Przebieg wysokości CSS900, przed dodatkową poprawką fontu z CI, zakończył się 48/48: 144 odwiedzone
+linki dań przez Tab i144 kliknięcia fotografii. Wszystkie pięć ówczesnych
 negatywów: kod1, przywrócenie MD5/mtime, potem kod0. Obejrzano końcowe
 zrzuty320/zoom200/ciemny/tekst140,1440/zoom100/ciemny/tekst100 oraz
 1440/zoom200/jasny/tekst140; dodatkowo wizytówki320/ciemny i1440/jasny.
@@ -95,6 +95,41 @@ notatek oraz brakujących mediów. Ich reguły sprawdzają testy istniejącej
 tablicy, co nie zastępuje osobnego oglądu.
 
 Niezależne review Blade/CSS i testów nie wykazało blokera; było odczytem
-kodu, bez uruchamiania testów przez recenzenta. CI, scalenie i faktyczny
-commit Railway wymagają osobnego potwierdzenia. Pełny port marki nadal
+kodu, bez uruchamiania testów przez recenzenta. Na końcowych źródłach po
+poprawce fontu ponowiono również cztery konfiguracje kompozycji (QUICK).
+
+## Dostarczenie kodu
+
+PR #558: końcowy head `55ba96f77c89c6d1f635661256c712f0d0cf9491`,
+CI34908849825: wszystkie10 zadań success, PHP3814 testów /76612 asercji
+odczytane z logu104191632718. Zwykły push z obowiązkowym hookiem przeszedł.
+Merge `181b93f6f1f06c437b4bd93413a5bed23c136960` zawiera Alfa0.32.
+Wdrożenie i odbiór produkcji potwierdzono osobno poniżej.
+Pełny port marki nadal
 **CZĘŚCIOWO**.
+
+## Odbiór produkcji — 15 września 2026
+
+Kod `181b93f6f1f06c437b4bd93413a5bed23c136960` działa jako Alfa0.32. MainCI34910661018:
+10/10 success; PHP3814/76612 z rzeczywistego logu104197225378.
+Railway6448719034: success (2026-09-15T00:21:29Z); Deploy34912846146: success.
+[Odczyt wersji, CSS, JS i obu plików Inter](evidence/landing557/produkcja-http.txt)
+oraz [statusy wdrożenia](evidence/landing557/wdrozenie.json) są odrębne od CI.
+
+Czysta niezalogowana przeglądarka Chromium: szerokości390 i1440, oba motywy,
+zwykły tekst i zoom100%. Cztery konfiguracje mają załadowane duże zdjęcia,
+kolejność dania → osoby, jedno zaproszenie oraz brak poziomego przewijania.
+Wykonano12 rzeczywistych kliknięć zdjęć i sprawdzono adresy docelowych wpisów lub powiązanego przepisu.
+Nie tworzono ani nie zmieniano danych. [Pomiar produkcji](evidence/landing557/produkcja.json).
+Obejrzano zrzuty obu układów; przykłady:
+[dania desktop](evidence/landing557/produkcja-dania-1440-light.png),
+[osoby desktop](evidence/landing557/produkcja-osoby-1440-light.png),
+[dania mobile, ciemny](evidence/landing557/produkcja-dania-390-dark.png).
+To odbiór tej sekcji, nie całej strony powitalnej, fizycznych urządzeń ani
+produkcyjnego zoomu200%. Szersza macierz pozostaje dowodem lokalnym.
+
+Pierwszy odbiornik oczekiwał zawsze końcowego adresu `/wpisy/`, więc zatrzymał
+się na poprawnym przekierowaniu do przepisu. PostController::show zachowuje
+tę istniejącą ścieżkę. Odbiornik odczytuje teraz rzeczywisty cel HTTP linku,
+a następnie wymaga tego samego adresu po kliknięciu; zapisuje obydwa adresy
+w `visits`. Ponowiony pełny odbiór4/4 przeszedł. Nie był to błąd aplikacji.

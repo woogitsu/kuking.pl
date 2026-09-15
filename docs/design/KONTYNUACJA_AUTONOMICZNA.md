@@ -1,27 +1,5 @@
 # Kontynuacja autonomiczna KuKing
 
-## Najnowsze zgłoszenie: szerokość menu Konto — #555
-
-15.09.2026: właściciel pokazał ciasne menu moderatora. Przygotowana Alfa0.31
-poszerza listę i zachowuje jej dostępność po zawinięciu belki. Raport i jawne
-granice: [MENU_KONTA_555.md](MENU_KONTA_555.md). Wykonano48 konfiguracji
-oraz24 niskiego okna, fizyczny negatyw CSS, przywrócenie MD5/mtime i ponowny
-wynik dodatni. Rola lokalnego konta testowego została przywrócona.
-Odczytaj PR powiązany z #555, jego hook/CI i wdrożenie przed kolejną pracą.
-
-Poprzedni #551 jest scalony w PR #553 jako
-`05f57175d50ab20fc1cfaa935c6da3e9b23f21ec`; wszystkie10 zadań CI PR przeszło.
-Ostatni odczyt nadal wskazywał CI main34902008768 queued i Railway6447341870
-in_progress (runnery zajęte). HTTP pozostawał na Alfa0.29/46b322f. Końcowy
-odbiór zdjęć profilu i menu konta można wykonać na późniejszym wdrożeniu,
-które zawiera obie zmiany. Nie uznawać samego scalenia za odbiór produkcji.
-
-## Sposób pracy
-
-Użytkownik zatwierdził plan 14.09.2026. Automatyzacja `kuking-kontynuacja-prac` jest aktywna co godzinę w tej samej rozmowie. Przed wznowieniem sprawdzić procesy, agentów, repo, PR, CI i Railway; nie dublować pracy. Polecenie zatrzymania ma pierwszeństwo. Jeden pakiet: odtworzenie → poprawka → fizyczne negatywy → ogląd → review → zwykły hook/push → CI → merge → Railway → odbiór. Bez obchodzenia zabezpieczeń i fikcyjnych danych produkcyjnych.
-
-Kolejność: publikowanie i przepisy → wyszukiwanie i zeszyty → konto/komunikaty → pozostałe ekrany → poczta. Ulepszenia wynikają z odtworzonych problemów. Pełny port marki nadal **CZĘŚCIOWO**; aktualna tabela jest na początku MACIERZ_KOMPLETNOSCI_517.md, niżej pozostają historyczne dowody.
-
 ## Aktualizacja 15 września — publiczna tablica #557
 
 Pierwszeństwo ma ten punkt, nie historyczna kolejka poniżej. Profil #551
@@ -37,18 +15,27 @@ Railway6447950025 i Deploy34907646494 success. HTTP0.31/1b43b69;
 zalogowany Chrome pokazał cztery pozycje w szerokim menu, także panel
 moderacji z niezerowym licznikiem. Potwierdzenie w #555, #556 i #492.
 
-Aktywny pakiet: fix/557-publiczna-tablica, Alfa0.32. Włączono już main
-z menu0.31, zachowując oba wpisy changeloga. Raport TABLICA_PUBLICZNA_557.md
-opisuje duże karty dań, osobne wizytówki i jedno CTA. Pomiar lokalny,
-regresje i fizyczne negatywy mają osobne dowody; końcowy PR/CI i Railway
-muszą zostać potwierdzone. Nie uruchamiać kolejnego pakietu przed odbiorem.
-PR #558 jest już otwarty. Pierwszy CI34907625262 wykrył419px przy oknie320
-i foncie bazowym32px z tekstem140%. Naprawiono kurczenie i zawijanie
-podtytułu; 12 wariantów i szósta fizyczna kontrola ujemna przeszły.
-Sprawdzić najnowszy head i CI przed scaleniem, nie opierać się na starym
-wyniku pierwszego commita8e95796.
+PR #558 scalono po końcowym CI34908849825 (10/10 success) z head
+55ba96f77c89c6d1f635661256c712f0d0cf9491 do main
+181b93f6f1f06c437b4bd93413a5bed23c136960. PHP3814/76612 potwierdzono
+w logu104191632718. Alfa0.32 zawiera duże karty dań, osobne wizytówki
+i jedno zaproszenie. Pierwszy CI wykrył przepełnienie419px przy oknie320;
+naprawiono je bez osłabiania testu. Raport TABLICA_PUBLICZNA_557.md
+rozdziela wcześniejsze48 konfiguracji od końcowego pomiaru powiększonego
+fontu i szóstej kontroli ujemnej. Odbiór zakończony: mainCI34910661018,
+Railway6448719034 i Deploy34912846146 success. HTTP i niezalogowany
+Chromium potwierdziły Alfa0.32/181b93f;390/1440 w obu motywach, duże zdjęcia,
+jedno zaproszenie i12 kliknięć do treści. Dowody w raporcie #557.
+Gałąź docs/558-odbior-publicznej-tablicy zbiera ten raport; przed ponowną
+wysyłką sprawdzić aktualny PR, SHA i procesy, nie dublować hooka ani push.
 Pełny port marki pozostaje CZĘŚCIOWO. Następne małe zgłoszenia to #548
 (odmiana minut) oraz #549 (wyjaśnienie419), potem pozostała macierz #492.
+
+## Sposób pracy
+
+Użytkownik zatwierdził plan 14.09.2026. Automatyzacja `kuking-kontynuacja-prac` jest aktywna co godzinę w tej samej rozmowie. Przed wznowieniem sprawdzić procesy, agentów, repo, PR, CI i Railway; nie dublować pracy. Polecenie zatrzymania ma pierwszeństwo. Jeden pakiet: odtworzenie → poprawka → fizyczne negatywy → ogląd → review → zwykły hook/push → CI → merge → Railway → odbiór. Bez obchodzenia zabezpieczeń i fikcyjnych danych produkcyjnych.
+
+Kolejność: publikowanie i przepisy → wyszukiwanie i zeszyty → konto/komunikaty → pozostałe ekrany → poczta. Ulepszenia wynikają z odtworzonych problemów. Pełny port marki nadal **CZĘŚCIOWO**; aktualna tabela jest na początku MACIERZ_KOMPLETNOSCI_517.md, niżej pozostają historyczne dowody.
 
 ## Historyczny punkt pracy — pakiet Alfa0.29
 
@@ -58,7 +45,7 @@ przez PR #552 (`46b322f41cedfc6527a77ab35388f1705d41adb2`), z CI main
 i HTTP Alfa0.29/46b322f. Raport AUDYT_ZAPISOW_A_KOD_2026_09_14.md potwierdza
 odczytany zakres implementacji i naprawia nieaktualne listy dalszych zadań.
 
-Aktywny pakiet to zgłoszone następnie przez właściciela #551: pusta prawa
+W tamtym momencie aktywnym pakietem było zgłoszone przez właściciela #551: pusta prawa
 kolumna cudzego profilu. Gałąź fix/551-zdjecia-w-szynie, Alfa0.30,
 konstytucja1.11/D-214. SZYNA_ZDJEC_PROFILU_551.md opisuje lokalne dowody,
 zakres i ograniczenia. Przed dalszą pracą sprawdzić aktualny PR tej gałęzi,
