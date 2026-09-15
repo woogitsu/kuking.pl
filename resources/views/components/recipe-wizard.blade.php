@@ -867,7 +867,7 @@ new class extends Component
             return null;
         }
 
-        return (new RecipeStep(['timer_seconds' => $seconds]))->timerLabel();
+        return (new RecipeStep(['timer_seconds' => $seconds]))->timerLabel(afterNa: true);
     }
 
     public function totalMinutes(): ?int

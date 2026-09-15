@@ -200,7 +200,9 @@ class CookingModeTest extends TestCase
         $recipe = $this->przepisZKrokami($this->user('autorka10'), 1, minutnikNaPierwszym: 90);
 
         $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
-            ->assertSee('Ustaw sobie kuchenny minutnik na 1 minuta i 30 sekund.');
+            ->assertSee('Ustaw sobie kuchenny minutnik na 1 minutę i 30 sekund.')
+            ->assertSee('data-timer-etykieta="1 minutę i 30 sekund"', false)
+            ->assertSee('data-timer-sekundy="90"', false);
     }
 
     public function test_przycisk_gotuje_widoczny_na_stronie_przepisu_tylko_gdy_sa_kroki(): void

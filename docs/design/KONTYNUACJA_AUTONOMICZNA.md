@@ -1,5 +1,14 @@
 # Kontynuacja autonomiczna KuKing
 
+## Rozpoczęte #548 — odmiana minutnika
+
+Gałąź fix/548-odmiana-minutnika; Alfa0.34 lokalnie. Raport
+[ODMIANA_MINUTNIKA_548.md](ODMIANA_MINUTNIKA_548.md) zawiera testy, negatywy
+i ogląd. Następne: zwykły hook, PR, CI i odbiór produkcji.
+Ostatnia potwierdzona produkcja Alfa0.33/22f89ac (Railway6454342908,
+Deploy34944590085 success). Starszy SHA odbioru poniżej jest historyczny.
+
+
 ## Odbiór produkcji 15 września 2026
 
 Alfa 0.33 działa na SHA 05151d76cc4f609800b214504882492fee376e00.

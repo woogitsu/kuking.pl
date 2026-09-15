@@ -1,7 +1,7 @@
 @php
     $poprzedniKrok = $krok > 1 ? $krok - 1 : null;
     $nastepnyKrok = $krok < $total ? $krok + 1 : null;
-    $timerLabel = $aktualnyKrok->timerLabel();
+    $timerLabel = $aktualnyKrok->timerLabel(afterNa: true);
 @endphp
 <x-layout
     :title="'Gotuję: '.$recipe->title"
