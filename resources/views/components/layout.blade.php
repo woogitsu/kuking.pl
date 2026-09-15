@@ -60,7 +60,8 @@
 
 @php
     $user = auth()->user();
-    $scale = $user?->text_scale ?? 100;
+    $guestScale = (int) request()->cookie(config('kuking.text.cookie'), 100);
+    $scale = $user?->text_scale ?? (in_array($guestScale, config('kuking.text.scales'), true) ? $guestScale : 100);
     // Jasny/ciemny wygląd (docs/DECISIONS.md, D-019). Zalogowany ma wybór
     // na koncie; gość — w ciasteczku (ThemeController). Brak jednego
     // i drugiego znaczy jasny, bo to jest teraz DOMYŚLNY motyw serwisu,
@@ -1288,6 +1289,8 @@
         </nav>
         @endif
     @endauth
+
+    <x-szybki-wyglad :scale="$scale" :theme="$theme" />
 
     @if($livewire)
         @livewireScripts

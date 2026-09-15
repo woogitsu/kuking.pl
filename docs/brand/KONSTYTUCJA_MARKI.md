@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.13, 15 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.14, 15 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -245,3 +245,11 @@ Na publicznej stronie głównej kolejne karty w dwóch kolumnach zaczynają się
 pod poprzednią kartą swojej kolumny. Nie zmniejszamy zdjęć ani treści, żeby
 wyrównać wysokości. Kolejność HTML i klawiatury zostaje chronologiczna;
 na wąskim ekranie wszystkie wpisy tworzą jeden ciąg.
+
+## Szybki wybór czytelności — D-217
+
+Przycisk Aa · Wygląd jest dostępny także dla gościa. Rozmiar tekstu i
+jasny/ciemny motyw można wybrać od pierwszej wizyty; mała zamykana
+podpowiedź nie blokuje treści. Domyślnie nadal18px. Mniejszy tekst to
+świadomy wybór osoby, bez zmniejszania celów dotykowych poniżej48px.
+Preferencje konta mają pierwszeństwo przed ciasteczkiem gościa.

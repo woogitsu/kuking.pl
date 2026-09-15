@@ -9,6 +9,7 @@ import { sprawdzZeszyty } from './zeszyty-marki.mjs';
 import { sprawdzPodpowiedzi } from './kontrast-notice.mjs';
 import { sprawdzNawigacje492 } from './nawigacja-niski-widok.mjs';
 import { sprawdzTagi } from './tagi-marki.mjs';
+import { sprawdzSzybkiWyglad } from './szybki-wyglad.mjs';
 import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
 
@@ -373,6 +374,7 @@ try {
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
   await sprawdzPasek({ browser: przegladarka, adres });
+  await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });

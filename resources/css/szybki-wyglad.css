@@ -1,0 +1,39 @@
+/* Przycisk i panel zachowują wygodne cele dotykowe przy małej skali. */
+.szybki-wyglad {
+  position: fixed; right: var(--spacing-3); bottom: calc(var(--wyglad-dol, 0px) + env(safe-area-inset-bottom, 0px) + var(--spacing-3));
+  z-index: 25; max-width: calc(100vw - 24px); font-size: max(16px, var(--text-body));
+}
+.szybki-wyglad summary {
+  list-style: none; cursor: pointer; min-height: 48px; padding: var(--spacing-3) var(--spacing-4);
+  background: var(--color-surface-raised); color: var(--color-ink); border: 1px solid var(--color-border);
+  border-radius: var(--spacing-4); box-shadow: var(--marka-cien); font-weight: 700;
+}
+.szybki-wyglad summary::-webkit-details-marker { display: none; }
+.szybki-wyglad-panel, .szybki-wyglad-podpowiedz {
+  position: absolute; bottom: calc(100% + var(--spacing-2)); right: 0;
+  width: min(360px, calc(100vw - 24px)); padding: var(--spacing-4);
+  background: var(--color-surface-raised); color: var(--color-ink); border: 1px solid var(--color-border);
+  border-radius: var(--spacing-4); box-shadow: var(--marka-cien);
+  max-height: calc(100dvh - var(--wyglad-dol, 0px) - 100px); overflow-y: auto;
+}
+.szybki-wyglad-panel h2 { font-size: max(20px, var(--text-body-lg)); margin-bottom: var(--spacing-3); }
+.szybki-wyglad form { display: grid; gap: var(--spacing-3); }
+.szybki-wyglad button, .szybki-wyglad select { min-height: 48px; min-width: 48px; max-width: 100%; font: inherit; }
+.szybki-wyglad select { width: 100%; }
+.szybki-wyglad-skala { display: flex; align-items: center; gap: var(--spacing-2); }
+.szybki-wyglad-skala select { min-width: 0; flex: 1; }
+.szybki-wyglad-info { font-size: inherit; }
+.szybki-wyglad [data-wyglad-status]:empty { display: none; }
+/* Podpowiedź jest dostępna również przy zwiniętym details. */
+.szybki-wyglad:not([open]) > .szybki-wyglad-podpowiedz:not([hidden]) { display: block; content-visibility: visible; }
+body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 80px); }
+@media (max-height: 400px) {
+  .szybki-wyglad[open] { inset: 8px; max-width: none; background: var(--color-surface-raised); overflow: auto; }
+  .szybki-wyglad[open] .szybki-wyglad-panel { position: static; width: auto; max-height: none; box-shadow: none; }
+}
+
+.szybki-wyglad-podpowiedz { position: fixed; z-index: 26; right: var(--spacing-3); bottom: calc(var(--wyglad-dol, 0px) + 76px); }
+
+.szybki-wyglad select { border: 1px solid var(--color-border); border-radius: var(--spacing-2); padding: var(--spacing-2); background: var(--color-surface); color: var(--color-ink); }
+/* .btn ma własne display, więc jawnie zachowujemy wariant bez JavaScriptu. */
+.szybki-wyglad [hidden], .szybki-wyglad-podpowiedz[hidden] { display: none !important; }

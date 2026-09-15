@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.38 — szybkie ustawienia wyglądu
+
+- Panel Aa · Wygląd pozwala od pierwszej wizyty zmienić rozmiar tekstu i motyw, także bez konta. Zapamiętuje wybór i pozwala wrócić do ustawień domyślnych (#574).
+
 ## Alfa 0.37 — pasek podczas przewijania
 
 - Pasek z logo, logowaniem i rejestracją chowa się podczas przewijania w dół i wraca przy przewijaniu w górę. Fokus klawiatury przywraca pasek.

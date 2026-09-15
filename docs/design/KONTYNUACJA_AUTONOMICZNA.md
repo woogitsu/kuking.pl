@@ -1,6 +1,14 @@
 # Kontynuacja autonomiczna KuKing
 
-## Bieżący punkt — #549 scalone, #567 lokalne
+## Bieżący punkt — #574, szybki wygląd
+
+PR #572 scalony jako d50183eecda28455ece64469571c074e3897c408 po10/10
+CI34969399425. MainCI34971936281 i Railway6459320591 oczekują odbioru.
+PR #573 (pasek gościa, Alfa0.37) draft; CI34970650611 w toku.
+Gałąź feat/szybki-wyglad przygotowuje #574/Alfa0.38, raport SZYBKI_WYGLAD_574.md.
+Wdrożyć kolejno, nie uznawać roboczej wersji za produkcyjną.
+
+## Historyczny punkt — #549 i #567
 
 PR #570 scalono normalnie po 10/10 success CI 34964204421.
 Head: 6388747aa9b5a6070b05f8cac605ebaa6da3bbe9.
