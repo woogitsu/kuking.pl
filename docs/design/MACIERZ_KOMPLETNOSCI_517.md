@@ -1,5 +1,14 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Zwarte kolumny wpisów — Alfa 0.33, lokalny odbiór #560
+
+[Raport](ZWARTE_KOLUMNY_560.md): 48 konfiguracji z rzeczywistym zoomem,
+działania linków i dialogu zdjęć, zmiana szerokości oraz pięć fizycznych
+kontroli ujemnych. Niezależny review bez blokera. CI i produkcja tego
+pakietu jeszcze niepotwierdzone. Osobno zapisano odtworzony także na
+bazowym main problem pełnej widoczności fokusu dużego zdjęcia przy
+domyślnym foncie przeglądarki 32 px i tekście 140%.
+
 ## Publiczna tablica — Alfa 0.32, wdrożone #557
 
 [Raport](TABLICA_PUBLICZNA_557.md) rozdziela nową kompozycję landing od

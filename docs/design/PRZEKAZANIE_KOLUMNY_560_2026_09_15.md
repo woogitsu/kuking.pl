@@ -1,6 +1,14 @@
 ﻿# Przekazanie: zwarte kolumny strony powitalnej — #560
 
-Stan: 15 września 2026, po godzinie 07:27 czasu polskiego. Ten dokument ma
+Późniejsza aktualizacja po wznowieniu: środowisko jest kompletne w
+/home/mateusz/kuking-work560, serwer8033 i PostgreSQL127.0.0.1:55439 działają.
+Bazy kuking_560_browser oraz kuking_560_tests są osobne. Raport
+[ZWARTE_KOLUMNY_560.md](ZWARTE_KOLUMNY_560.md) zapisuje wykonane48 konfiguracji,
+akcje, pięć fizycznych negatywów, review oraz osobny problem fokusu zdjęcia
+odtworzony także na bazowym main. Opis niepełnego vendor poniżej jest
+historyczny. Push, CI i wdrożenie nadal wymagają potwierdzenia.
+
+Stan historyczny: 15 września 2026, po godzinie 07:27 czasu polskiego. Ten dokument ma
 pierwszeństwo przed starym opisem środowiska /tmp i przed historycznym punktem
 #557 w KONTYNUACJA_AUTONOMICZNA.md. Właściciel poprosił o przekazanie innemu
 modelowi. Nie zaczynaj całego audytu od zera.

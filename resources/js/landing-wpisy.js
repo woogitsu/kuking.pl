@@ -10,7 +10,7 @@ function initialize() {
         let frame = 0;
         const arrange = () => {
             frame = 0;
-            const columns = getComputedStyle(container).gridTemplateColumns.split(' ').length;
+            const columns = Number(getComputedStyle(container).getPropertyValue('--landing-wpisy-kolumny'));
             if (columns !== 2) {
                 delete container.dataset.zwarteKolumny;
                 cards.forEach((card) => {

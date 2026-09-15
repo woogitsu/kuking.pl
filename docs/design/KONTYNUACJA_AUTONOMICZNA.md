@@ -1,5 +1,15 @@
 # Kontynuacja autonomiczna KuKing
 
+## Aktualizacja 15 września — lokalny odbiór #560
+
+Gałąź fix/560-zwarte-kolumny, baza main320c1d7. Raport
+[ZWARTE_KOLUMNY_560.md](ZWARTE_KOLUMNY_560.md) zawiera zakończone
+48 konfiguracji, akcje, pięć fizycznych negatywów i ograniczenie font32.
+Kopia wykonawcza działa w /home/mateusz/kuking-work560, serwer8033;
+PG55439 i osobne bazy kuking_560_browser oraz kuking_560_tests.
+Stare ścieżki /tmp nie obowiązują. Następne: zwykły hook, push, PR,
+wymagane CI i odbiór Railway. Nie deklarować wdrożenia Alfa0.33.
+
 ## Aktualizacja 15 września — publiczna tablica #557
 
 Pierwszeństwo ma ten punkt, nie historyczna kolejka poniżej. Profil #551

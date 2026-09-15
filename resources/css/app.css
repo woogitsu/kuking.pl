@@ -3736,6 +3736,7 @@
 
   @media (min-width: 64rem) {
     .landing-wpisy-dwie {
+      --landing-wpisy-kolumny: 2;
       /* Sufit `--container-content` z `.landing-wpisy-kolumna` opisuje
          SZEROKOŚĆ KARTY, a tu opisuje już szerokość DWÓCH kart — zdejmujemy
          go z siatki, a długości wiersza pilnuje szerokość kolumny. */
@@ -3750,6 +3751,10 @@
 
   /* #560: JS wylicza początek karty w jej kolumnie, DOM zostaje chronologiczny.
      Małe ekrany i niedostępny skrypt zachowują zwykłą siatkę powyżej. */
+  .landing-wpisy-dwie :is(a, button, summary) {
+    scroll-margin-block: 12px;
+  }
+
   .landing-wpisy-dwie[data-zwarte-kolumny] {
     grid-auto-rows: 1px;
     row-gap: 0;

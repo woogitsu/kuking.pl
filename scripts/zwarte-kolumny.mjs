@@ -20,6 +20,7 @@ export async function measureColumns(page, { theme = 'light', scale = 100 } = {}
     const inspect = async () => {
         const g = await grid.evaluate(el => ({
             columns: getComputedStyle(el).gridTemplateColumns.split(' ').length,
+            expectedColumns: matchMedia('(min-width: 64rem)').matches ? 2 : 1,
             active: el.hasAttribute('data-zwarte-kolumny'),
             width: innerWidth, scroll: document.documentElement.scrollWidth,
             cards: [...el.children].map(c => {
@@ -30,6 +31,8 @@ export async function measureColumns(page, { theme = 'light', scale = 100 } = {}
             }),
         }));
         assert(g.cards.length >= 3, 'ZA_MALO_KART');
+        assert.equal(g.columns, g.expectedColumns, 'KOLUMNY_PO_ZMIANIE_OKNA');
+        assert(g.cards.every(c => c.width >= Math.min(240, g.width - 56)), 'KARTA_ZWEZONA');
         assert(g.scroll <= g.width + 1, 'PRZEPELNIENIE');
         assert.equal(g.active, g.columns === 2, 'TRYB_KOLUMN');
         for (let i = g.columns; i < g.cards.length; i++) {
@@ -54,15 +57,20 @@ export async function measureColumns(page, { theme = 'light', scale = 100 } = {}
     await settle();
     const after = await inspect();
     assert.deepEqual(after.cards.map(c => c.links), before.cards.map(c => c.links), 'ZMIENIONA_KOLEJNOSC');
-    const controls = grid.locator('a:visible, button:visible, summary:visible');
+    const controls = grid.locator('a[href]:not([tabindex="-1"]):visible, button:not([disabled]):not([tabindex="-1"]):visible, summary:not([tabindex="-1"]):visible');
     const count = await controls.count(); assert(count > 0, 'BRAK_KONTROLEK');
     await controls.first().focus(); await page.keyboard.press('Shift+Tab');
     for (let i = 0; i < count; i++) {
         await page.keyboard.press('Tab');
         assert(await controls.nth(i).evaluate(el => el === document.activeElement), 'KOLEJNOSC_TAB ' + i);
         assert(await controls.nth(i).evaluate(el => {
-            const r = el.getBoundingClientRect(), hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
-            return el.matches(':focus-visible') && (hit === el || el.contains(hit));
+            // Link daty może mieć dwa wiersze. Środek sumy prostokątów
+            // trafia wtedy w pusty odstęp; sprawdzamy każdy rzeczywisty wiersz.
+            const rects = [...el.getClientRects()].filter(r => r.width > 0 && r.height > 0);
+            return el.matches(':focus-visible') && rects.length > 0 && rects.every(r => {
+                const hit = document.elementFromPoint(r.x + r.width / 2, r.y + r.height / 2);
+                return r.y >= 3 && r.bottom <= innerHeight - 3 && (hit === el || el.contains(hit));
+            });
         }), 'FOKUS_ZASLONIETY ' + i);
     }
     await grid.evaluate(el => scrollTo(0, scrollY + el.getBoundingClientRect().top - document.querySelector('header').getBoundingClientRect().height - 24));
@@ -77,6 +85,12 @@ export async function sprawdzZwarteKolumny({ browser, adres }) {
             for (const theme of ['light', 'dark']) for (const scale of [100, 140]) {
                 await page.goto(adres + '/');
                 await measureColumns(page, { theme, scale });
+            }
+            // Ta sama strona: jawne pozycje kart nie mogą utrzymać kolumny
+            // niejawnej po zwężeniu okna poniżej progu CSS.
+            if (width === 1440) for (const resized of [390, 1440]) {
+                await page.setViewportSize({ width: resized, height: 900 });
+                await measureColumns(page);
             }
         } finally { await context.close(); }
     }
