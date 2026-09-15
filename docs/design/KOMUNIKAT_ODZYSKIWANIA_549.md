@@ -54,3 +54,7 @@ Dowód: evidence/odzyskiwanie549/negatyw-starszej-regresji.json.
 Ponowny zestaw rodzin zapisanych w cache wcześniejszych błędów:
 302 testy/2203 asercje PASS. Cache obejmował także dawne negatywy;
 nie oznacza to302 błędów w pierwszym hooku. Wymagany ponowny pełny hook.
+
+Druga próba hooka wykryła formatowanie pomocniczego pliku PHP w dowodach
+#567. Zatrzymano nieudaną próbę, poprawiono formatowanie i przygotowano
+kolejny pełny hook. Nie pomijano zabezpieczeń ani asercji.

@@ -82,6 +82,7 @@ final class NiedostepnyPrzepis567Test extends TestCase
         }
         $nodes = (new \DOMXPath($dom))->query('//*[contains(concat(" ", normalize-space(@class), " "), " marka-zeszyt ")]');
         $this->assertSame(1, $nodes->length, 'Wymagany rzeczywisty obszar zeszytu, bez naglowka dokumentu i szyn.');
+
         return $nodes->item(0)->textContent;
     }
 }
