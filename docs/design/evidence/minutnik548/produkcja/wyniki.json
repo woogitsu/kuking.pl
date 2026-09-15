@@ -1,0 +1,30 @@
+[
+  {
+    "width": 390,
+    "theme": "light",
+    "sha": "be3d35503a328b8f63848e91e43ab0ddb659a670",
+    "status": 200,
+    "timerCount": 0
+  },
+  {
+    "width": 390,
+    "theme": "dark",
+    "sha": "be3d35503a328b8f63848e91e43ab0ddb659a670",
+    "status": 200,
+    "timerCount": 0
+  },
+  {
+    "width": 1440,
+    "theme": "light",
+    "sha": "be3d35503a328b8f63848e91e43ab0ddb659a670",
+    "status": 200,
+    "timerCount": 0
+  },
+  {
+    "width": 1440,
+    "theme": "dark",
+    "sha": "be3d35503a328b8f63848e91e43ab0ddb659a670",
+    "status": 200,
+    "timerCount": 0
+  }
+]

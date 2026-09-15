@@ -1,5 +1,14 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Odmiana minutnika — #548, Alfa0.34
+
+[Raport](ODMIANA_MINUTNIKA_548.md): lokalnie51 testów/258 asercji,
+trzy fizyczne negatywy,4 warianty działania w przeglądarce z zoomem200%.
+PR #565 i main CI10/10 success; be3d355 wdrożony i HTTP potwierdzony.
+Produkcja:4 renderowania publicznego gotowania; dostępny przepis bez
+minutnika, więc dokładne odliczanie i podgląd kreatora odebrane lokalnie.
+
+
 ## Zwarte kolumny wpisów — Alfa 0.33, odbiór lokalny i CI #560
 
 PR #562 scalony; CI PR34936291390 oraz main34938070574 (próba2)

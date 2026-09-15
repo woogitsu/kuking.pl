@@ -1,0 +1,56 @@
+{
+  "sha": "be3d35503a328b8f63848e91e43ab0ddb659a670",
+  "run": 34952744130,
+  "jobs": [
+    {
+      "id": 104327295976,
+      "name": "Zakres zmiany",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367773,
+      "name": "Dost\u0119pno\u015b\u0107 (axe-core) i wydajno\u015b\u0107 (Lighthouse)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367808,
+      "name": "Wy\u015bcigi na dw\u00f3ch po\u0142\u0105czeniach (nie blokuje)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367831,
+      "name": "Pint (styl kodu)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367881,
+      "name": "Audyt zale\u017cno\u015bci",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367898,
+      "name": "Testy (PostgreSQL 18)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367899,
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367921,
+      "name": "Build obrazu (weryfikacja)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327367954,
+      "name": "Larastan (analiza statyczna)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104327368013,
+      "name": "Build asset\u00f3w (Vite)",
+      "conclusion": "success"
+    }
+  ]
+}
