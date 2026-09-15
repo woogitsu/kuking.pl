@@ -50,11 +50,11 @@ class PolaDoWpisywaniaSaWiekszeTest extends TestCase
 
     public function test_wysokosc_pola_jest_w_pikselach_a_nie_w_jednostce_pisma(): void
     {
-        foreach (['--pole-wysokosc-min', '--pole-wielowierszowe-min'] as $nazwa) {
+        foreach (['--pole-wysokosc-min' => 'max(48px, calc(64px * var(--user-layout-scale, 1)))', '--pole-wielowierszowe-min' => 'calc(176px * var(--user-layout-scale, 1))'] as $nazwa => $oczekiwana) {
             $wartosc = $this->token($nazwa);
 
-            $this->assertMatchesRegularExpression(
-                '/^\d+px$/',
+            $this->assertSame(
+                $oczekiwana,
                 $wartosc,
                 'Token `'.$nazwa.'` ma wartość „'.$wartosc.'". Wysokość pola istnieje dla ekranu '
                 .'i dla palca, a te nie rosną, gdy ktoś powiększy czcionkę w przeglądarce '
@@ -65,7 +65,9 @@ class PolaDoWpisywaniaSaWiekszeTest extends TestCase
 
     public function test_pole_jest_wyzsze_niz_przycisk(): void
     {
-        $pole = (int) $this->token('--pole-wysokosc-min');
+        $this->assertSame(1, preg_match('/^max\(48px, calc\((\d+)px \* var\(--user-layout-scale, 1\)\)\)$/', $this->token('--pole-wysokosc-min'), $dopasowanie));
+        // Przy 100% i 140% układ zachowuje bazowe minimum; 70% ma podłogę 48px.
+        $pole = (int) $dopasowanie[1];
         $przycisk = $this->token('--control-height-min');
 
         // Przycisk zostaje przy 3rem (48 px) i to jest w porządku: jego liczba

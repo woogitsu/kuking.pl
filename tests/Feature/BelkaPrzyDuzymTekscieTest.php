@@ -235,7 +235,7 @@ class BelkaPrzyDuzymTekscieTest extends TestCase
          * telefonie, żeby ta poprawka niczego nie zmniejszała: ma tylko nie
          * pozwolić minimum rosnąć.
          */
-        preg_match('~--control-height-touch:\s*([0-9.]+)rem~', $this->css('tokens.css'), $token);
+        preg_match('~--control-height-touch:\s*max\(48px, calc\(([0-9.]+)rem \* var\(--user-layout-scale, 1\)\)\)~', $this->css('tokens.css'), $token);
 
         $this->assertNotEmpty(
             $token,

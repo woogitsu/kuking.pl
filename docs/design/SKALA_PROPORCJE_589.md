@@ -1,0 +1,41 @@
+﻿# Proporcje mniejszej skali — #589
+
+Przygotowana Alfa 0.41 na gałęzi `fix/skala-proporcje`, z bazy `3dc2b33f7c760c4feeb78581382c5ef6c7c9aebb`. Poniższe wyniki dotyczą lokalnego kodu i końcowego CSS `app-DPAmbRUP.css`; nie stanowią potwierdzenia CI ani wdrożenia.
+
+## Zmiana
+
+Mniejsze wartości rozmiaru tekstu zagęszczają także układ. Współczynnik `min(1, var(--user-text-scale))` obejmuje tokeny odstępów, utility spacing, minimalne wysokości pól i większych kontrolek oraz odstępy wspólnej ramy: nagłówka, formularza publikacji, kart wpisów, zakładek, dolnej nawigacji i sekcji powitalnych. Przy 100% i 140% współczynnik przestrzeni wynosi 1; większy tekst nadal naturalnie zwiększa wysokość elementu.
+
+Ważne przyciski i pola zachowują minimum 48 px. Nie zmieniono szerokości kontenerów, breakpointów, promieni, proporcji zdjęć ani równych wysokości kart tablicy. Nie zastosowano globalnego zoomu, transform ani ukrywania overflow. Nie obiecujemy liniowego zmniejszenia całej geometrii. W zasobach nie znaleziono użyć utility `h-12`, `w-12`, `min-h-12` ani `size-12`, które wymagałyby dodatkowych zabezpieczeń celów dotykowych; nie dodano martwych reguł dla tych klas.
+
+Obejrzano cztery zdjęcia zgłoszenia, od `1-Photo-1.jpg` do `4-Photo-4.jpg`. Stałe odstępy przy mniejszym tekście odpowiadały problemowi. Sam różny poziom wypełnienia kart treścią nie uzasadniał usunięcia ich równych wysokości.
+
+## Weryfikacja automatyczna
+
+- Build Vite: 72 pary kontrastu PASS, końcowy CSS `app-DPAmbRUP.css`.
+- `scripts/skala-proporcje.mjs`: 72 pomiary PASS — szerokości 320, 360, 390, 414, 768 i 1440, oba motywy, przejścia skali 100 → 70 → 80 → 90 → 140 → 100. Chromium używa rzeczywistego zbudowanego CSS i lokalnego fontu Inter. Test mierzy padding, gap, wysokości przycisku i pola, minimum dotyku, brak poziomego overflow, wspólne klasy ramy oraz powrót do 100%. HTML jest reprezentatywną fixture, nie renderem Laravel. To nie jest test zoomu przeglądarki ani zapisu preferencji przez HTTP.
+- Fizyczny negatyw rzeczywistego `tokens.css`: zastąpienie współczynnika wartością 1, build i oczekiwany FAIL „padding przycisku”; następnie odtworzenie MD5 i mtime, build i ponownie 72 pomiary PASS. Kopia źródła pozostała poza repozytorium.
+- Celowane PHP: 15 testów / 399 asercji PASS. Testy `BelkaPrzyDuzymTekscieTest`, `PolaDoWpisywaniaSaWiekszeTest` i `KafelDodawaniaPrzyDuzymTekscieTest` rozpoznają dokładną nową składnię tokenów, zachowując kontrolę minimum 48 px i wartości bazowych. Nie zastąpiono tych kontroli dowolnym dopasowaniem liczby.
+- Trzy fizyczne negatywy kontraktów PHP: obniżenie podłogi dotyku, podmiana jednostki tokenu pola oraz zmiana bazowego odstępu. Każdy wywołał FAIL; po przywróceniu bajtów i mtime właściwa rodzina testów przeszła. Testy działały w osobnej kopii, z bazą `kuking_589_tests` i własnymi mediami.
+- Pint: 4 pliki PASS. Nie uruchamiano pełnego zestawu PHP.
+- CI ma obowiązkowe wywołanie pomiaru Chromium po buildzie w istniejącym zadaniu assetów. Zmiana samego skryptu również uruchamia zadanie. Wyniku CI tego pakietu jeszcze nie ma.
+
+Dowody: `evidence/skala589/wyniki.json`, `negative.json`, `negative-php.json` i `php.txt`.
+
+## Odczyt produkcji i ręczny odbiór lokalny
+
+Odczyt produkcji Alfa 0.39 / `108bc93` przez przeglądarkę: przycisk „Najpierw się rozejrzę” przy 100% miał font 18 px, wysokość 50,5 px i padding 12 / 20 px. Przy 70% font wynosił 12,6 px, interlinia 15,75 px, wysokość 48 px, lecz padding pozostał 12 / 20 px, a spacing-6 wynosił nadal 1,5 rem. Potwierdza to problem odstępów, nie interlinii.
+
+Końcowy lokalny render Laravel na porcie 8059, z CSS `app-DPAmbRUP.css`, obejrzano przy 1440 px / 100% oraz 390 px / 70%. Przy 70% padding publikacji wynosił 14 px. Po wejściu przez „Dodaj zdjęcie” pole miało 48 px wysokości, textarea 123,95 px, padding 11,2 px i font 12,6 px; nie wystąpił poziomy overflow. Pusty POST „Opublikuj” pokazał aktywny alert i błąd przy polu, bez utworzenia publikacji.
+
+Formularz z błędem obejrzano także przy 320 px / 140% w ciemnym motywie, bez poziomego overflow. Panel Wygląd przy tych ustawieniach miał wewnętrzne przewijanie, dostępne kontrolki i działające „Zamknij”. Wybranie 70% oraz ciemnego motywu przez interfejs, a następnie przeładowanie, zachowało obie preferencje konta przez HTTP. Ten odbiór jest oddzielny od 72 pomiarów syntetycznej fixture. Ogląd wykonano w przeglądarce bez utrwalonych plików PNG; lokalne zdjęcia demonstracyjne były placeholderami, więc nie jest to odbiór zdjęć.
+
+## Ograniczenia i integracja
+
+Nie wykonano pełnego odbioru wszystkich stron, całej ścieżki klawiatury ani rzeczywistego zoomu 200%. Wysokie belki przy 140% zachowują dotychczasową kompozycję. Minimalne cele 48 px, logo, obrysy i proporcje zdjęć celowo nie skalują się liniowo.
+
+Wersja 0.41 i D-219 są przygotowane dla tego pakietu. Równolegle scalony panel #587 ma wersję 0.40 oraz D-218; przed commitem konieczna jest integracja aktualnego main `9a44ccc455232fa3cf56e115b5764695c16e2592`, zachowanie zmian panelu, jego CI i konstytucji 1.16 oraz rozstrzygnięcie numeracji dokumentów. Tego połączenia nie wykonano w ramach powyższych wyników.
+
+## Krótkie uruchomienie regresji
+
+W katalogu z zależnościami: `npm run build`, następnie `CHROMIUM_PATH=/pełna/ścieżka/chrome node scripts/skala-proporcje.mjs`. Bez `CHROMIUM_PATH` używany jest Chromium Playwright. Wynik trafia do `output/skala589/wyniki.json`. Ten pomiar nie wymaga PHP ani bazy. Lokalny runtime ma własne `.env`, vendor i storage; synchronizacja źródeł nie może ich nadpisywać.
