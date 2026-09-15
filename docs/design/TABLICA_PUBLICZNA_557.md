@@ -128,7 +128,7 @@ Obejrzano zrzuty obu układów; przykłady:
 To odbiór tej sekcji, nie całej strony powitalnej, fizycznych urządzeń ani
 produkcyjnego zoomu200%. Szersza macierz pozostaje dowodem lokalnym.
 
-Pierwszy odbiornik oczekiwał zawsze końcowego adresu `/wpisy/`, więc zatrzymał
+Pierwszy odbiornik oczekiwał zawsze końcowego adresu wpisu, więc zatrzymał
 się na poprawnym przekierowaniu do przepisu. PostController::show zachowuje
 tę istniejącą ścieżkę. Odbiornik odczytuje teraz rzeczywisty cel HTTP linku,
 a następnie wymaga tego samego adresu po kliknięciu; zapisuje obydwa adresy

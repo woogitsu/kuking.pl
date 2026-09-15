@@ -49,5 +49,6 @@
   "deploy": 34912846146,
   "php_job": 104197225378,
   "php_tests": 3814,
-  "php_assertions": 76612
+  "php_assertions": 76612,
+  "deploy_status": "success"
 }
