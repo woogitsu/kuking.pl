@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 // Zestaw zapytań jednej strony feedu odkrywania dla ZALOGOWANEGO widza,
 // w kształcie, jaki generuje Eloquent (feed + 7 doładowań relacji).
@@ -16,22 +17,31 @@ $pdo = new PDO($dsn, $user, $password, [
 ]);
 
 $sqlDir = getenv('BENCH_SQL_DIR') ?: __DIR__;
-$FEED = file_get_contents($sqlDir . '/' . (getenv('BENCH_FIX') === '1' ? 'feed_fix_php.sql' : 'feed_orig_php.sql'));
-if ($FEED === false) { fwrite(STDERR, "brak pliku SQL\n"); exit(1); }
+$FEED = file_get_contents($sqlDir.'/'.(getenv('BENCH_FIX') === '1' ? 'feed_fix_php.sql' : 'feed_orig_php.sql'));
+if ($FEED === false) {
+    fwrite(STDERR, "brak pliku SQL\n");
+    exit(1);
+}
 $LICZBA_V = substr_count($FEED, '?');
 
 $STMT = [];
 $prep = function (string $sql) use ($pdo, &$STMT) {
-    if (getenv('BENCH_CACHE') !== '1') { return $pdo->prepare($sql); }
+    if (getenv('BENCH_CACHE') !== '1') {
+        return $pdo->prepare($sql);
+    }
     $k = crc32($sql);
+
     return $STMT[$k] ??= $pdo->prepare($sql);
 };
 
-function inList(array $ids): string {
+function inList(array $ids): string
+{
     return implode(',', array_fill(0, max(count($ids), 1), '?'));
 }
 
-$dbTime = 0.0; $rendered = 0; $queries = 0;
+$dbTime = 0.0;
+$rendered = 0;
+$queries = 0;
 $t0 = hrtime(true);
 
 for ($n = 0; $n < $iter; $n++) {
@@ -40,9 +50,12 @@ for ($n = 0; $n < $iter; $n++) {
     $st = $prep($FEED);
     $st->execute(array_fill(0, $LICZBA_V, $viewer));
     $posts = $st->fetchAll(PDO::FETCH_ASSOC);
-    $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+    $dbTime += (hrtime(true) - $q0) / 1e9;
+    $queries++;
 
-    if ($posts === []) { continue; }
+    if ($posts === []) {
+        continue;
+    }
 
     if (getenv('BENCH_VERIFY') === '1' && $n === 0) {
         fwrite(STDERR, "KONTROLA PHP+PDO:\n");
@@ -51,7 +64,7 @@ for ($n = 0; $n < $iter; $n++) {
         }
     }
 
-    $postIds   = array_column($posts, 'id');
+    $postIds = array_column($posts, 'id');
     $authorIds = array_values(array_unique(array_column($posts, 'author_id')));
     $recipeIds = array_values(array_filter(array_unique(array_column($posts, 'recipe_id'))));
 
@@ -60,14 +73,16 @@ for ($n = 0; $n < $iter; $n++) {
     $st = $prep('select * from users where id in ('.inList($authorIds).')');
     $st->execute($authorIds);
     $authors = $st->fetchAll(PDO::FETCH_ASSOC);
-    $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+    $dbTime += (hrtime(true) - $q0) / 1e9;
+    $queries++;
 
     // 3. profile
     $q0 = hrtime(true);
     $st = $prep('select * from profiles where user_id in ('.inList($authorIds).')');
     $st->execute($authorIds);
     $profiles = $st->fetchAll(PDO::FETCH_ASSOC);
-    $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+    $dbTime += (hrtime(true) - $q0) / 1e9;
+    $queries++;
 
     // 4. awatary
     $avatarIds = array_values(array_filter(array_unique(array_column($profiles, 'avatar_media_id'))));
@@ -76,7 +91,8 @@ for ($n = 0; $n < $iter; $n++) {
         $st = $prep('select * from media where id in ('.inList($avatarIds).')');
         $st->execute($avatarIds);
         $st->fetchAll(PDO::FETCH_ASSOC);
-        $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+        $dbTime += (hrtime(true) - $q0) / 1e9;
+        $queries++;
     }
 
     // 5. zdjęcia wpisów
@@ -86,7 +102,8 @@ for ($n = 0; $n < $iter; $n++) {
         where "post_media"."post_id" in ('.inList($postIds).') order by "post_media"."position"');
     $st->execute($postIds);
     $media = $st->fetchAll(PDO::FETCH_ASSOC);
-    $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+    $dbTime += (hrtime(true) - $q0) / 1e9;
+    $queries++;
 
     // 6. przepisy
     if ($recipeIds !== []) {
@@ -94,7 +111,8 @@ for ($n = 0; $n < $iter; $n++) {
         $st = $prep('select id, title, slug, visibility, hero_media_id from recipes where id in ('.inList($recipeIds).')');
         $st->execute($recipeIds);
         $recipes = $st->fetchAll(PDO::FETCH_ASSOC);
-        $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+        $dbTime += (hrtime(true) - $q0) / 1e9;
+        $queries++;
 
         $heroIds = array_values(array_filter(array_unique(array_column($recipes, 'hero_media_id'))));
         if ($heroIds !== []) {
@@ -102,7 +120,8 @@ for ($n = 0; $n < $iter; $n++) {
             $st = $prep('select * from media where id in ('.inList($heroIds).')');
             $st->execute($heroIds);
             $st->fetchAll(PDO::FETCH_ASSOC);
-            $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+            $dbTime += (hrtime(true) - $q0) / 1e9;
+            $queries++;
         }
     }
 
@@ -113,37 +132,46 @@ for ($n = 0; $n < $iter; $n++) {
         where "post_tags"."post_id" in ('.inList($postIds).')');
     $st->execute($postIds);
     $tags = $st->fetchAll(PDO::FETCH_ASSOC);
-    $dbTime += (hrtime(true) - $q0) / 1e9; $queries++;
+    $dbTime += (hrtime(true) - $q0) / 1e9;
+    $queries++;
 
     // RENDER: sklejenie relacji + HTML (to jest praca klienta, nie bazy)
     $byAuthor = [];
-    foreach ($authors as $a) { $byAuthor[$a['id']] = $a; }
+    foreach ($authors as $a) {
+        $byAuthor[$a['id']] = $a;
+    }
     $profByUser = [];
-    foreach ($profiles as $p) { $profByUser[$p['user_id']] = $p; }
+    foreach ($profiles as $p) {
+        $profByUser[$p['user_id']] = $p;
+    }
     $mediaByPost = [];
-    foreach ($media as $m) { $mediaByPost[$m['pivot_post_id']][] = $m; }
+    foreach ($media as $m) {
+        $mediaByPost[$m['pivot_post_id']][] = $m;
+    }
     $tagsByPost = [];
-    foreach ($tags as $t) { $tagsByPost[$t['pivot_post_id']][] = $t; }
+    foreach ($tags as $t) {
+        $tagsByPost[$t['pivot_post_id']][] = $t;
+    }
 
     $html = '<main class="feed">';
     foreach ($posts as $p) {
         $prof = $profByUser[$p['author_id']] ?? ['display_name' => '', 'username' => ''];
         $html .= '<article class="post"><header><img src="/zdjecia/'
-            . htmlspecialchars((string) ($prof['avatar_media_id'] ?? '')) . '/male" alt=""><a href="/@'
-            . htmlspecialchars((string) $prof['username']) . '">'
-            . htmlspecialchars((string) $prof['display_name']) . '</a></header><p>'
-            . nl2br(htmlspecialchars((string) $p['body'])) . '</p>';
+            .htmlspecialchars((string) ($prof['avatar_media_id'] ?? '')).'/male" alt=""><a href="/@'
+            .htmlspecialchars((string) $prof['username']).'">'
+            .htmlspecialchars((string) $prof['display_name']).'</a></header><p>'
+            .nl2br(htmlspecialchars((string) $p['body'])).'</p>';
         foreach ($mediaByPost[$p['id']] ?? [] as $m) {
-            $html .= '<img src="/zdjecia/' . htmlspecialchars($m['id']) . '/duze" width="'
-                . (int) $m['width'] . '" height="' . (int) $m['height'] . '" alt="" loading="lazy">';
+            $html .= '<img src="/zdjecia/'.htmlspecialchars($m['id']).'/duze" width="'
+                .(int) $m['width'].'" height="'.(int) $m['height'].'" alt="" loading="lazy">';
         }
         $html .= '<ul class="tagi">';
         foreach ($tagsByPost[$p['id']] ?? [] as $t) {
-            $html .= '<li><a href="/tag/' . htmlspecialchars($t['slug']) . '">#'
-                . htmlspecialchars($t['name']) . '</a></li>';
+            $html .= '<li><a href="/tag/'.htmlspecialchars($t['slug']).'">#'
+                .htmlspecialchars($t['name']).'</a></li>';
         }
-        $html .= '</ul><footer>' . (int) $p['comments_count'] . ' komentarzy · '
-            . (int) $p['zapisow_count'] . ' zapisów</footer></article>';
+        $html .= '</ul><footer>'.(int) $p['comments_count'].' komentarzy · '
+            .(int) $p['zapisow_count'].' zapisów</footer></article>';
     }
     $html .= '</main>';
     $rendered += strlen($html);
