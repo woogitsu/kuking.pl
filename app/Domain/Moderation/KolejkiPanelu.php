@@ -6,8 +6,8 @@ namespace App\Domain\Moderation;
 
 use App\Models\Appeal;
 use App\Models\ContactMessage;
-use App\Models\Post;
 use App\Models\Report;
+use App\Models\User;
 use Illuminate\Support\Facades\Cache;
 
 /**
@@ -100,16 +100,9 @@ final class KolejkiPanelu
     public function przelicz(): array
     {
         $liczby = [
-            // Wpisy bez ani jednej odpowiedzi — dokładnie ten sam warunek co
-            // lista na `/admin/bez-odpowiedzi`. Gdyby liczby i lista liczyły
-            // co innego, licznik „3" nad pustym ekranem byłby usterką, której
-            // nikt nie umiałby wyjaśnić.
-            'bez_odpowiedzi' => Post::query()
-                ->published()
-                ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
-                ->whereDoesntHave('allComments', fn ($q) => $q->where('status', 'published'))
-                ->whereHas('author', fn ($q) => $q->widocznyJakoOsoba())
-                ->count(),
+            // Bez konkretnego gospodarza nie istnieje wspólna liczba:
+            // obserwowanie i blokady zmieniają dostęp do każdej treści.
+            'bez_odpowiedzi' => 0,
 
             // Zgłoszenia OD LUDZI, których jeszcze nikt nie tknął. Nie
             // wliczamy `reviewing`: sprawa wzięta do przeglądu już jest
@@ -141,7 +134,18 @@ final class KolejkiPanelu
                 ->count(),
         ];
 
-        Cache::forever(self::KLUCZ_CACHE, $liczby);
+        $queue = app(UnansweredContent::class);
+        $perHost = [];
+        foreach (User::query()->whereIn('role', [User::ROLE_MODERATOR, User::ROLE_ADMIN])
+            ->widocznyJakoOsoba()->get() as $host) {
+            $perHost[$host->getKey()] = $queue->posts($host)->count()
+                + $queue->recipes($host)->count()
+                + $queue->cooked($host)->count();
+        }
+
+        // Jedna mapa w tym samym wpisie: nadal jeden odczyt cache na stronę.
+        // Przeliczanie pozostaje poza publikacją wpisów i komentarzy.
+        Cache::forever(self::KLUCZ_CACHE, [...$liczby, 'bez_odpowiedzi_per_host' => $perHost]);
 
         return $liczby;
     }
@@ -156,7 +160,7 @@ final class KolejkiPanelu
      *
      * @return array<string, int>
      */
-    public function liczby(): array
+    public function liczby(?User $host = null): array
     {
         $zapisane = Cache::get(self::KLUCZ_CACHE);
         $zapisane = is_array($zapisane) ? $zapisane : [];
@@ -166,6 +170,13 @@ final class KolejkiPanelu
         foreach (self::KOLEJKI as $nazwa) {
             $liczby[$nazwa] = max(0, (int) ($zapisane[$nazwa] ?? 0));
         }
+
+        // Stary globalny licznik nie jest bezpiecznym fallbackiem. Nowy
+        // gospodarz czeka na harmonogram; CLI bez widza dostaje tu zero.
+        $perHost = $zapisane['bez_odpowiedzi_per_host'] ?? [];
+        $liczby['bez_odpowiedzi'] = $host !== null && $host->isModerator() && is_array($perHost)
+            ? max(0, (int) ($perHost[$host->getKey()] ?? 0))
+            : 0;
 
         return $liczby;
     }
