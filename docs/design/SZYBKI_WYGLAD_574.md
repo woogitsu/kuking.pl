@@ -80,3 +80,87 @@ MD5 i mtime przywrócone, końcowe pomiary dodatnie.
 Obejrzane zrzuty fokusu i panelu obu motywów; końcowy odczyt niezależnego
 review bez nowego blokera w zmierzonym zakresie. Dowody: evidence/wyglad574/ci575.
 Kontrole fizycznego telefonu, czytnika i klawiatury ekranowej nadal niewykonane.
+
+## Ponowne CI na a6958b6
+
+Pełny zwykły hook i push a6958b658574487bddd9e226cac2e97c8e0fde49 przeszły.
+CI 34978064181 zakończyło się jednak failure: ponownie wykryło zasłonięcie
+przycisku przy czcionce przeglądarki 32 px na tablicy i ustawieniach profilu.
+Wcześniejszy lokalny pomiar czekał po Tab 100 ms, więc nie dowodził braku
+tego błędu w natychmiastowym pomiarze CI. Wymagana jest poprawka i regresja
+bez tego oczekiwania. Ten sam przebieg wykrył osobno problem namalowanego
+obrysu linku zmiany awatara przy rzeczywistym zoomie; diagnoza trwa.
+Nie jest to odebrana ani wdrożona Alfa 0.38.
+
+### Odsłonięcie fokusu profilu
+
+Odtworzono drugie niepowodzenie tego CI na dokładnym zoomie 200%,
+320×740 CSS px i tekście 140%. Nowy handler panelu przewijał stronę o około
+84 px i wsuwał obrys zmiany awatara pod przypięty nagłówek. Samo usunięcie
+przewijania zostawiało zasłonięty podpis i prawy dolny fragment obrysu.
+
+Teraz przewijanie jest ograniczone rzeczywistym miejscem pod nagłówkiem.
+Przy kolizji, której nie można tak rozwiązać, przycisk ustępuje do przepływu
+strony; wraca po przewinięciu lub przejściu do panelu. Kliknięcie myszą
+nie przenosi celu między naciśnięciem a puszczeniem przycisku.
+
+Końcowe źródła: oba motywy, 53/53 przystanki Tab profilu; pełne cztery
+odcinki obrysu bez kolizji; rzeczywiste kliknięcie, Shift+Tab, powrót po
+scroll, Tab/Enter/Escape panelu. Ponownie 4 warianty bez czekania oraz
+12 wariantów panelu / 108 pozycji scroll. Dwa fizyczne negatywy prawdziwego
+JS wykryte, MD5 i mtime przywrócone, oba motywy ponownie PASS.
+Regresja jest wywoływana przez istniejącą rodzinę rzeczywistego zoomu.
+
+Dowody i obejrzane zrzuty: `evidence/wyglad574/ci575/profil/`.
+Pusty wycinek `fixed-widget-tab.png` jest opisanym ograniczeniem
+Playwright page.screenshot przy zoomie i dalekim przewinięciu, nie dowodem
+poprawności. Końcowe obrazy przycisku pobrano bezpośrednio przez CDP,
+tak samo jak raster istniejącej kontroli obrysu; pokazują przycisk i fokus.
+Pełne CI oraz odbiór produkcji tej poprawki nadal wymagane.
+
+## Diagnoza natychmiastowego fokusu po CI 34978064181
+
+Lokalnie odtworzono błąd bez zmiany `scripts/dostepnosc.mjs`: pomocniczy
+przebieg wywołał dokładną funkcję `przejdzTabemIZmierzFocus` odczytaną z tego
+pliku, z limitem 400 kroków. Każdy Tab następował bez dodatkowego oczekiwania
+przed pomiarem siatki 4×4. Użyto `/home` i `/ustawienia/profil`, trzech
+powtórzeń, okna 320×740, rzeczywistej czcionki bazowej 32 px przez CDP oraz
+`reducedMotion: reduce`. Wszystkie sześć przebiegów przed poprawką wykazało
+częściowe albo pełne zasłonięcie przycisku przez dolną nawigację.
+
+Przyczyna była podwójna. Tab przewijał stronę przed obsłużeniem zdarzenia
+scroll, a handler focusin pomijał sam przełącznik. Dodatkowo globalna reguła
+reduced-motion ustawia `transition-duration: 0.01ms !important` także na
+elementach z domyślnym `transition-property: all`. Zmiana pozycji czekała więc
+na klatkę: podczas diagnozy zmienna `--wyglad-dol` miała już około 249 px,
+ale wyliczone `bottom` przełącznika nadal wynosiło 24 px. Samo skrócenie
+animacji nie oznacza jej wyłączenia.
+
+Końcowa poprawka przelicza geometrię synchronicznie na początku focusin,
+przed powrotem dla elementów przełącznika. Wąski selektor wyłącza przejścia
+CSS przełącznika, panelu i podpowiedzi (`transition-property: none`). Panel
+wymaga tej samej ochrony przy zmianie między zwykłym układem a układem
+w obrębie całego okna. Nie zmieniono globalnych reguł reduced-motion ani
+timingu i asercji `dostepnosc.mjs`; eksperymentalne handlery keyup i dodatkowe
+zabezpieczenie odłożonego callbacku usunięto z końcowej poprawki.
+
+Wyniki końcowe:
+
+- Dokładny algorytm CI: sześć pełnych przebiegów, pokrycie przycisku przez
+  nawigację równe 0 w każdym z nich.
+- Trwała regresja `sprawdzFokusBezCzekania` w `scripts/szybki-wyglad.mjs`:
+  cztery przebiegi (320/360 px × obie trasy), pełny Tab, odczyt bez pauzy,
+  siatka 4×4 i zero pokrycia. Wywołuje ją zwykły odbiór szybkiego wyglądu.
+- Ponownie przeszło 12 konfiguracji otwartego panelu, jego kontrolek,
+  zamknięcia i Escape oraz 108 pozycji przewijania nawigacji. Kontrolki
+  mieszczą się wewnątrz panelu, nie tylko wewnątrz viewportu.
+- Fizyczne usunięcie reguły wyłączającej przejścia CSS odtworzyło usterkę.
+  To wyścig zależny od klatki: w zachowanym logu próba 0 była zielona,
+  a próba 1 wykryła zasłonięcie. Nie przedstawiamy tej kontroli jako
+  deterministycznej ani pierwszej zielonej próby jako dowodu braku błędu.
+  Kopia CSS znajdowała się poza repo; po przywróceniu MD5 i mtime były
+  identyczne, a wszystkie sześć pomiarów dodatnich ponownie przeszło.
+
+Trwałe dane i opis metody: [dowody natychmiastowego fokusu](evidence/wyglad574/ci575/TIMING_FOKUSU.md).
+To odbiór lokalny zmienionych źródeł, bez potwierdzenia nowego CI i wdrożenia.
+Nie rozstrzyga osobnego problemu namalowanego obrysu awatara przy zoomie.

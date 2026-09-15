@@ -253,3 +253,7 @@ jasny/ciemny motyw można wybrać od pierwszej wizyty; mała zamykana
 podpowiedź nie blokuje treści. Domyślnie nadal18px. Mniejszy tekst to
 świadomy wybór osoby, bez zmniejszania celów dotykowych poniżej48px.
 Preferencje konta mają pierwszeństwo przed ciasteczkiem gościa.
+Pływający przycisk nie może zasłaniać aktywnej kontrolki ani przesuwać jej
+pod nawigację. Gdy przy dużym powiększeniu brakuje miejsca, ustępuje
+chwilowo do przepływu strony, zachowując dostęp myszą i klawiaturą;
+wraca po ustaniu kolizji lub przejściu do ustawień wyglądu.

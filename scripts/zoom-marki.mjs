@@ -6,6 +6,7 @@ import { sep } from 'node:path';
 import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { tmpdir } from 'node:os';
+import { sprawdzFokusProfilu } from './szybki-wyglad.mjs';
 
 export async function sprawdzTab(page, path, { bezJs = false } = {}) {
   const expected = await page.evaluate(() => {
@@ -228,6 +229,7 @@ export async function sprawdzZoomMarki({ adres, sesja, przepis, zeszyt = null, s
           for (let i = 0; i < 30; i++) await new Promise(requestAnimationFrame);
         }, { dark, scale });
         await sprawdzUklad(page, { zoom, width, scale, dark, path });
+        if (width === 640 && scale === 140 && path === '/@ania') await sprawdzFokusProfilu(page, `storage/port-projektu/profil-widget-${dark}`);
         if (width === 640 && scale === 140) await sprawdzTab(page, path);
         if (width === 640 && scale === 140) await page.screenshot({ path: `storage/port-projektu/zoom200-${path.replaceAll('/', '').replace('@', '') || 'publiczna'}-${dark}.png`, fullPage: true });
         liczba++;

@@ -33,7 +33,11 @@ zamiast wymagać dokładnie 0 s.
 
 Zwykły hook przeszedł. PR #573: CI 34970650611, wszystkie 10 zadań success.
 Scalono normalnie jako 91c8b4106fb96b4447ecc5db8ae39eb94996b49d.
-Odbiór Railway i rzeczywistego zachowania produkcji nadal w toku.
+CI main 34975700310 przekroczyło limit 25 minut zadania portu marki
+(104402800738); pozostałe dziewięć zadań przeszło. Railway 6460017818
+ma stan inactive. Alfa 0.37 nie ma potwierdzonego wdrożenia ani odbioru
+produkcyjnego zachowania. Naprawę podziału pomiarów opisuje
+PODZIAL_POMIAROW_CI_577.md. Ostatnia potwierdzona produkcja to Alfa 0.36.
 Pakiet bazuje na PR #572 (zeszyty); dostarczyć po jego zakończeniu.
 Pełny port marki pozostaje CZĘŚCIOWO.
 

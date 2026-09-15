@@ -17,6 +17,7 @@ function initialize() {
     let pending = null;
     let running = false;
     let revision = 0;
+    let pointerOnFlowSummary = false;
     const apply = (choice) => {
         document.documentElement.dataset.textScale = String(choice.text_scale);
         document.documentElement.dataset.theme = choice.theme;
@@ -33,6 +34,9 @@ function initialize() {
         try { localStorage.setItem('kuking-wyglad-poznany', '1'); } catch { /* Brak pamięci nie blokuje ustawień. */ }
     };
     const geometry = () => {
+        if (pointerOnFlowSummary) return;
+        const wasInFlow = widget.hasAttribute('data-wyglad-w-przeplywie');
+        if (wasInFlow) widget.removeAttribute('data-wyglad-w-przeplywie');
         const nav = document.querySelector('.bottom-nav');
         const rect = nav?.getBoundingClientRect();
         // Przy dużym piśmie nawigacja przewija się ze stroną. Nadal może
@@ -48,6 +52,11 @@ function initialize() {
         widget.removeAttribute('data-wyglad-malo-miejsca');
         const panelOutside = widget.open && widget.querySelector('.szybki-wyglad-panel').getBoundingClientRect().top < 4;
         widget.toggleAttribute('data-wyglad-malo-miejsca', summary.getBoundingClientRect().top < 240 || panelOutside);
+        if (wasInFlow && document.activeElement && !document.activeElement.matches('body, html') && !widget.contains(document.activeElement)) {
+            const target = document.activeElement;
+            const floating = summary.getBoundingClientRect();
+            if ([...target.getClientRects()].some(r => r.right + 8 > floating.left && r.left - 8 < floating.right && r.bottom + 8 > floating.top && r.top - 8 < floating.bottom)) widget.setAttribute('data-wyglad-w-przeplywie', '');
+        }
     };
     const save = async () => {
         if (running || !pending) return;
@@ -116,18 +125,59 @@ function initialize() {
     const closeButton = widget.querySelector('[data-wyglad-zamknij]');
     closeButton.hidden = false;
     listen(closeButton, 'click', close);
+    listen(summary, 'pointerdown', () => { pointerOnFlowSummary = widget.hasAttribute('data-wyglad-w-przeplywie'); });
+    listen(summary, 'pointercancel', () => { pointerOnFlowSummary = false; });
+    listen(document, 'pointerup', () => {
+        if (pointerOnFlowSummary) setTimeout(() => {
+            if (!widget.isConnected) return;
+            pointerOnFlowSummary = false;
+            geometry();
+        }, 0);
+    });
+    listen(summary, 'click', () => {
+        pointerOnFlowSummary = false;
+        widget.removeAttribute('data-wyglad-w-przeplywie');
+        geometry();
+    });
     listen(widget, 'keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
     listen(widget, 'toggle', () => { if (widget.open) { forgetHint(); geometry(); } });
     listen(document, 'pointerdown', event => { if (!widget.contains(event.target)) widget.open = false; });
     listen(document, 'focusin', event => {
-        if (widget.contains(event.target) || hint.contains(event.target)) return;
+        // Tab przewija stronę, zanim dotrze zdarzenie scroll. Aktualizujemy
+        // położenie również dla fokusu wewnątrz samego przełącznika.
+        geometry();
+        if (widget.contains(event.target)) {
+            if (pointerOnFlowSummary) return;
+            widget.removeAttribute('data-wyglad-w-przeplywie');
+            geometry();
+            return;
+        }
+        if (hint.contains(event.target)) return;
         widget.open = false;
         hint.hidden = true;
         requestAnimationFrame(() => {
-            const focused = event.target.getBoundingClientRect();
+            if (document.activeElement !== event.target) return;
+            widget.removeAttribute('data-wyglad-w-przeplywie');
+            geometry();
+            const fragments = [...event.target.getClientRects()];
+            const css = getComputedStyle(event.target);
+            const ring = Math.max(8, (parseFloat(css.outlineWidth) || 0) + (parseFloat(css.outlineOffset) || 0));
             const floating = summary.getBoundingClientRect();
-            if (focused.right > floating.left && focused.left < floating.right && focused.bottom > floating.top && focused.top < floating.bottom) {
-                window.scrollBy(0, focused.bottom - floating.top + 16);
+            const collisions = fragments.filter(r => r.right + ring > floating.left && r.left - ring < floating.right && r.bottom + ring > floating.top && r.top - ring < floating.bottom);
+            if (!collisions.length) return;
+            const shift = Math.max(...collisions.map(r => r.bottom + ring - floating.top)) + 16;
+            const header = document.querySelector('.topbar');
+            const headerStyle = header && getComputedStyle(header);
+            const top = headerStyle && ['fixed', 'sticky'].includes(headerStyle.position) ? Math.max(0, header.getBoundingClientRect().bottom) : 0;
+            if (fragments.every(r => r.top - ring - shift > top)) {
+                window.scrollBy(0, shift);
+                // Koniec dokumentu może ograniczyć faktyczne przesunięcie.
+                const after = summary.getBoundingClientRect();
+                if ([...event.target.getClientRects()].some(r => r.right + ring > after.left && r.left - ring < after.right && r.bottom + ring > after.top && r.top - ring < after.bottom)) widget.setAttribute('data-wyglad-w-przeplywie', '');
+            } else {
+                // Nie chowamy fokusu pod nagłówkiem, by odsłonić go spod widgetu.
+                // Zwykły przepływ zachowuje dostęp przez Tab i mysz.
+                widget.setAttribute('data-wyglad-w-przeplywie', '');
             }
         });
     });

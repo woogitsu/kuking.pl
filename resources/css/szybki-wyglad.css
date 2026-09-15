@@ -56,3 +56,11 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
   .szybki-wyglad summary > [aria-hidden="true"] { display: none; }
 }
 .szybki-wyglad form { min-width: 0; grid-template-columns: minmax(0, 1fr); }
+/* Globalne reduced-motion ustawia krótki czas także przy domyślnym „all”.
+   Położenie fokusu musi zmienić się od razu, bez oczekiwania na klatkę. */
+.szybki-wyglad, .szybki-wyglad-panel, .szybki-wyglad-podpowiedz { transition-property: none; }
+
+/* Widget ustępuje, gdy przesunięcie treści schowałoby jej fokus pod paskiem. */
+.szybki-wyglad[data-wyglad-w-przeplywie] {
+  position: relative; inset: auto; margin: 12px; max-width: 360px;
+}
