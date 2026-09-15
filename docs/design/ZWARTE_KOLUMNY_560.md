@@ -2,8 +2,21 @@
 
 ## Zakres i stan
 
-Alfa 0.33 jest przygotowana lokalnie. Push, CI i wdrożenie tego pakietu
-nie są jeszcze potwierdzone. Baza porównania:
+PR #562 scalono normalnie po pełnym CI34936291390 (10/10 success).
+Head: 2b221f3ae97f03b0a24d68e375b3abc70be0e7b4.
+Merge: bc76db12dc1e628a37325491bb7b2d4a0246401d.
+W logu portu104274843028 potwierdzono 24 konfiguracje nowych kolumn PASS.
+PHP104274843208: 3814 testów, 76612 asercji. MainCI34938070574 w pierwszej
+próbie został anulowany: adnotacja104280296986 potwierdza przekroczenie
+25 minut. Kroki pomiaru, kreatora i zrzutów miały success, ale job nie ma
+wyniku pozytywnego. Ponowiono tylko nieudane zadanie, bez zmiany limitu
+lub testów. Próba 2 zakończyła się success: 10/10 zadań, w tym
+port104288023282. Dowód: evidence/kolumny560/ci-main.json.
+Railway6453239381 pozostało inactive po pierwszej próbie. Panel oferował
+„Deploy commit” z ostrzeżeniem o pominięciu nieudanego statusu; anulowano.
+Kod ma już pełne zielone CI. Ten raport przechodzi zwykły PR i uruchomi
+nową normalną ścieżkę wdrożenia. Odbiór produkcji Alfa0.33 nadal oczekuje.
+Baza porównania:
 320c1d7173377f0f293afbab905b0f1bb6a806f7 (Alfa 0.32).
 
 Dotyczy wyłącznie „Świeżo z Kuking” na stronie dla gościa. Zwykły Grid
@@ -48,6 +61,16 @@ Regresja jest wywoływana przez scripts/port-projektu.mjs: 24 konfiguracje
 bez dodatkowego zoomu oraz zmiana szerokości. Lokalny pomiar 48 wariantów
 rozszerza ten zakres; nie należy przypisywać go automatycznie wynikowi CI.
 
+Dodatkowo lokalnie scripts/dostepnosc.mjs zakończył się exit0:
+axe44/44, układ49/49, wszystkie raportowane naruszenia0, OAuth10/10.
+Zwykły hook przeszedł Pint, składnię, testy skryptów, PHPStan, pełne PHP
+i odwracalność migracji. Pierwsza próba push została zatrzymana przez
+testy: odbudowana baza miała strefę Europe/Warsaw zamiast UTC, brakowało
+części wartości z .env.example i adres testów PHP wskazywał serwer
+przeglądarkowy zamiast localhost. Poprawiono konfigurację środowiska;
+testów ani hooka nie zmieniano. Automat dostępności korzystał z
+dozwolonej bazy kuking_a11y na tym samym izolowanym porcie55439.
+
 ## Fizyczne kontrole ujemne
 
 Pięć osobnych zmian prawdziwych źródeł w kopii wykonawczej, każda z buildem:
@@ -65,7 +88,7 @@ Test poprawiono również w dwóch miejscach pomiarowych: pomija celowo
 niefokusowalne avatary tabindex=-1 i bada każdy rzeczywisty prostokąt
 wielowierszowego linku, a nie pusty środek jego prostokąta zbiorczego.
 
-## Oddzielny istniejący brak
+## Oddzielny istniejący brak — #561
 
 Przy domyślnym foncie przeglądarki 32 px, tekście aplikacji 140% i oknie
 1440×900 próg 64rem daje jedną kolumnę. Link powiększenia zdjęcia ma

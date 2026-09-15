@@ -2,13 +2,23 @@
 
 ## Aktualizacja 15 września — lokalny odbiór #560
 
-Gałąź fix/560-zwarte-kolumny, baza main320c1d7. Raport
+PR #562 scalono z head2b221f3 do mainbc76db1 po CI34936291390 (10/10).
+MainCI34938070574: pierwsza próba cancelled przez timeout25m portu marki;
+ponowiono tylko nieudane zadanie bez zmiany limitu. Próba2 ma success,
+10/10 zadań. Railway6453239381 pozostało inactive; anulowano oferowane
+wdrożenie pomijające zapamiętany czerwony status. Produkcja0.32.
+Raporty przechodzą zwykły PR po zielonym CI kodu; nowy commit ma przejść
+normalną bramkę wdrożenia. Raport
 [ZWARTE_KOLUMNY_560.md](ZWARTE_KOLUMNY_560.md) zawiera zakończone
 48 konfiguracji, akcje, pięć fizycznych negatywów i ograniczenie font32.
 Kopia wykonawcza działa w /home/mateusz/kuking-work560, serwer8033;
 PG55439 i osobne bazy kuking_560_browser oraz kuking_560_tests.
-Stare ścieżki /tmp nie obowiązują. Następne: zwykły hook, push, PR,
-wymagane CI i odbiór Railway. Nie deklarować wdrożenia Alfa0.33.
+Stare ścieżki /tmp nie obowiązują. Gałąź docs/562-odbior-kolumn zbiera
+wyniki; następne: odbiór Railway, uzupełnienie i wysyłka dokumentacji.
+Nie deklarować wdrożenia Alfa0.33. Oddzielny problem dużego zdjęcia ma #561.
+Analiza #548 jest w komentarzu issuecomment-5675971318: objąć także dwa
+miejsca podglądu kreatora, zachować domyślny mianownik etykiety i zmienić
+wyłącznie wariant po „na”. Nie jest to jeszcze implementacja.
 
 ## Aktualizacja 15 września — publiczna tablica #557
 

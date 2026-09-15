@@ -1,12 +1,38 @@
 ﻿# Przekazanie: zwarte kolumny strony powitalnej — #560
 
+Najnowszy punkt po scaleniu: PR #562 zawiera head
+2b221f3ae97f03b0a24d68e375b3abc70be0e7b4; zwykły push i hook przeszły.
+PR CI34936291390: 10/10 success, PHP3814/76612, port kolumn24 PASS.
+Normalny merge: bc76db12dc1e628a37325491bb7b2d4a0246401d.
+MainCI34938070574: pierwsza próba cancelled przez limit25 minut
+(adnotacja job104280296986); kroki pomiarowe i zrzuty success, ale całość
+nie była zielona. Ponowiono wyłącznie nieudane zadanie, bez zmiany
+limitu/testów. Próba2 ma success, 10/10 zadań. Railway6453239381
+pozostało inactive. Panel proponował wdrożenie pomijające zapamiętany
+czerwony status: anulowano. Kod ma pełne zielone CI; raporty można
+przeprowadzić normalnym PR-em i odebrać kolejny zwykły deploy.
+Produkcja nadal0.32; nie deklarować wdrożenia0.33 przed odbiorem.
+Gałąź docs/562-odbior-kolumn zbiera aktualizację raportów; przed wysyłką
+sprawdzić stan i uzupełnić faktyczny odbiór. Osobny brak fokusu zdjęć
+jest zapisany jako #561; nie zmieniono asercji, aby go ukryć.
+
 Późniejsza aktualizacja po wznowieniu: środowisko jest kompletne w
 /home/mateusz/kuking-work560, serwer8033 i PostgreSQL127.0.0.1:55439 działają.
 Bazy kuking_560_browser oraz kuking_560_tests są osobne. Raport
 [ZWARTE_KOLUMNY_560.md](ZWARTE_KOLUMNY_560.md) zapisuje wykonane48 konfiguracji,
 akcje, pięć fizycznych negatywów, review oraz osobny problem fokusu zdjęcia
 odtworzony także na bazowym main. Opis niepełnego vendor poniżej jest
-historyczny. Push, CI i wdrożenie nadal wymagają potwierdzenia.
+historyczny. Wyniki push i PR CI są potwierdzone powyżej; wdrożenie czeka.
+
+W nowym środowisku testy wymagają UTC w bazie (ALTER DATABASE dla
+kuking_560_tests), APP_URL=http://localhost dla PHP oraz wartości
+domyślnych z .env.example, w tym konfiguracji dysków. Pierwszy hook
+prawidłowo zatrzymał wysyłkę przy tych brakach; po naprawie środowiska
+przeszedł cały. Automat dostępności korzysta z dozwolonej nazwy
+kuking_a11y na127.0.0.1:55439, strefaUTC; exit0, axe44/44, układ49/49.
+Helpery output/git560.sh, prepare-push560.py, php560.py i a11y560.py
+wskazują nową kopię. prepare-push560.py ma strażnika gałęzi #560 — przed
+użyciem na gałęzi dokumentacji trzeba go świadomie dostosować.
 
 Stan historyczny: 15 września 2026, po godzinie 07:27 czasu polskiego. Ten dokument ma
 pierwszeństwo przed starym opisem środowiska /tmp i przed historycznym punktem
