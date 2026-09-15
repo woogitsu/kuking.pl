@@ -64,6 +64,22 @@ class OdzyskanyTekstBezSprzecznychObietnicTest extends TestCase
         $this->assertStringNotContainsString('Nie udało się odzyskać tekstu', $html);
     }
 
+    public static function stany419(): array
+    {
+        return array_map(fn ($dane) => [$dane], [['body' => 'Zachowany tekst'], ['body' => 'Zachowany tekst', 'za_duze' => str_repeat('x', 200001)], ['body' => str_repeat('x', 200001)], []]);
+    }
+
+    #[DataProvider('stany419')]
+    public function test_419_nie_zgaduje_przyczyny_bledu_tokenu_w_zadnej_galezi(array $dane): void
+    {
+        $html = $this->odpowiedz(419, $dane);
+        $this->assertStringContainsString('<h1>Nie udało się wysłać formularza</h1>', $html);
+        $this->assertStringContainsString('Nie mogliśmy potwierdzić tego wysłania.', $html);
+        $this->assertStringNotContainsString('była otwarta zbyt długo', $html);
+        $this->assertStringNotContainsString('był otwarty dłużej', $html);
+        $this->assertStringNotContainsString('wpis pójdzie tam', $html);
+    }
+
     public function test_publiczne_zgloszenie_po_419_nie_odsyla_do_logowania(): void
     {
         $env = $this->app['env'];
