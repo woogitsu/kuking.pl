@@ -32,7 +32,7 @@ operator odpowiada za to, by wskazana baza zawierała tylko dane benchmarku.
 
 ## Regresje bez bazy
 
-- `PHP_BIN=/ścieżka/php python3 docs/obciazenie/test_connection.py`: 7 testów
+- `PHP_BIN=php python3 docs/obciazenie/test_connection.py`: 7 testów
   przeszło. Stub psql/createdb/dropdb zapisuje tylko argumenty i SQL; nie
   otwiera połączeń. Sprawdzono odmowę nazwy produkcyjnej i znaków SQL,
   portu 5432, niejawnego połączenia, istniejącej bazy i resetu innej nazwy;

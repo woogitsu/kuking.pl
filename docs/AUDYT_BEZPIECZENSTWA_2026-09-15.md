@@ -208,7 +208,7 @@ Dwa wiersze oznaczone **Nie** są treścią tego znaleziska.
 
 **Scenariusz.** Z puli 100 adresów: 500 prób/h na jedno konto przez `POST /odwolanie`, bez śladu w `logowanie:konto:*`. Po trafieniu zwykłe logowanie (konto bez 2FA).
 
-**Naprawa.** Najpierw stan konta, dopiero potem hasło; jeden komunikat dla „złe hasło" i „nie dotyczy"; `KluczeLimitow::konto()/para()` + `RateLimiter::hit` przy porażce; `TurnstileJestPotwierdzony::reguly('odwolanie')`; wpis `AuditLogEntry` przy porażce; test na identyczność komunikatów.
+**Naprawa.** Najpierw stan konta, dopiero potem hasło; jeden komunikat dla „złe hasło" i „nie dotyczy"; `KluczeLimitow::konto()` i `KluczeLimitow::para()` + `RateLimiter::hit` przy porażce; `TurnstileJestPotwierdzony::reguly('odwolanie')`; wpis `AuditLogEntry` przy porażce; test na identyczność komunikatów.
 
 #### A-03 · Średnie · Połączenie konta Facebooka bez hasła i bez rozłączenia
 
@@ -256,7 +256,7 @@ Dwa wiersze oznaczone **Nie** są treścią tego znaleziska.
 
 **Co robi kod.** `decide()` sprawdza `authorize('moderate', User::class)` i wykonuje karę na `subject_user_id` bez sprawdzenia roli ukaranego, tożsamości z moderatorem ani tego, czy moderator jest autorem zgłoszenia.
 
-**Scenariusz.** Moderator (złośliwy lub z przejętym kontem) zgłasza profil admina (`/zglos/user/{username}` przechodzi), w `/admin/zgloszenia` wybiera `action=ban` na własnym zgłoszeniu. `ban()` unieważnia sesje, `EnsureAccountIsActive` wylogowuje. Odwołania rozpatruje tylko admin (`UserPolicy::resolveAppeals`) — przy jedynym adminie projekt zostaje bez adminów aż do `kuking:nadaj-role` z konsoli.
+**Scenariusz.** Moderator (złośliwy lub z przejętym kontem) zgłasza profil admina (`/zglos/{type}/{id}` z typem `user` i UUID konta przechodzi), w `/admin/zgloszenia` wybiera `action=ban` na własnym zgłoszeniu. `ban()` unieważnia sesje, `EnsureAccountIsActive` wylogowuje. Odwołania rozpatruje tylko admin (`UserPolicy::resolveAppeals`) — przy jedynym adminie projekt zostaje bez adminów aż do `kuking:nadaj-role` z konsoli.
 
 **Naprawa.** Nowa ability `UserPolicy::punish(User $moderator, User $target)`: odmowa gdy `$target->isAdmin()` (chyba że działa admin), gdy `$target->is($moderator)`, gdy `$report->reporter_id === $moderator->getKey()`; moderator na moderatora — tylko admin. Testy: moderator nie banuje admina; admin zawiesza moderatora; nikt nie rozstrzyga własnego zgłoszenia.
 
@@ -436,7 +436,7 @@ Tabela append-only (triggery `dziennik_zgod_bez_zmian`, `…_bez_czyszczenia`, m
 - `composer audit --locked`: brak znanych podatności w `composer.lock`.
 - `npm audit` (z dev i bez): 0 podatności.
 - Skan historii gita i drzewa pod kątem kluczy AWS/Slack/Discord/Google, kluczy prywatnych, `APP_KEY`, plików `.env`/`.sql`/`.pem`: brak prawdziwych sekretów. `docs/audyt-gpt-2026-09-dowody/` zawiera tylko sumy kontrolne.
-- `Dockerfile`: wieloetapowy, `composer` usuwany z obrazu, zejście z roota przez `setpriv`, `APP_DEBUG=false` wypalone w `ENV`, `.dockerignore` wyklucza `.env*`, `tests`, `docs`, `.git`. `docker/php.ini`: `expose_php=Off`, `display_errors=Off`, `disable_functions` z `exec/system/proc_open`, `session.cookie_secure=1`. Caddy zdejmuje `Server` i `X-Powered-By`, blokuje `/.env*`, `/.git/*`, `/*.md`.
+- `Dockerfile`: wieloetapowy, `composer` usuwany z obrazu, zejście z roota przez `setpriv`, `APP_DEBUG=false` wypalone w `ENV`, `.dockerignore` wyklucza `.env*`, `tests`, `docs`, `.git`. `docker/php.ini`: `expose_php=Off`, `display_errors=Off`, `disable_functions` z `exec/system/proc_open`, `session.cookie_secure=1`. Caddy zdejmuje `Server` i `X-Powered-By`, blokuje pliki `.env*`, katalog `.git` i pliki Markdown.
 - CI: akcje przypięte do wersji głównych (nie do SHA — do rozważenia), `permissions:` zadeklarowane, brak `pull_request_target`, sekrety tylko w `deploy.yml`/`preview.yml` na `workflow_dispatch`.
 
 ---
@@ -508,20 +508,20 @@ błędu i go nie znaleziono; odniesienia pozwalają to powtórzyć.
 | `GET /health` | web | — | **E-01** |
 | `GET /sitemap.xml`, `/robots.txt` | web | `publiclyVisible` + status autora | OK |
 | `GET/POST /napisz-do-nas*` | throttle + Turnstile | publiczne, celowo | OK |
-| `GET/POST /podsumowanie/{wypisz,wracam}/{user}` | signed + throttle | podpis | C-04 / D-06 |
+| `GET/POST /podsumowanie/wypisz/{user}` i `GET/POST /podsumowanie/wracam/{user}` | signed + throttle | podpis | C-04 / D-06 |
 | `POST /motyw` | throttle | własny user / cookie | OK |
 | `GET /przepisy/{recipe}` | web | `RecipePolicy::view` | OK (B-02) |
 | `GET/POST /przepisy/{recipe}/gotuj` | throttle | `RecipePolicy::view` | OK |
 | `GET /wpisy/{post}` | web | `PostPolicy::view` | OK (B-02, B-05) |
 | `GET /ugotowane/{cookedEvent}` | web | `CookedEventPolicy::view` | **B-03** |
 | `GET /zdjecia/{media}/{wariant}` | whereUuid + whereIn + throttle | `DostepDoZdjecia` → Policy rodzica | OK (B-06) |
-| `GET /@{username}`, `/obserwujacy`, `/obserwowani` | web | `UserPolicy::viewProfile` + blokady | OK |
+| `GET /@{username}`, `/@{username}/obserwujacy`, `/@{username}/obserwowani` | web | `UserPolicy::viewProfile` + blokady | OK |
 | grupa `guest` (register/login/reset/link/google/kod) | guest + throttle | — | OK (A-04, A-05) |
-| `POST /cofnij-usuniecie` | guest + throttle + Turnstile | hasło | **A-02** |
+| `POST /cofnij-usuniecie-konta` | guest + throttle + Turnstile | hasło | **A-02** |
 | `GET/POST /odwolanie` (gość) | throttle | login + hasło | **A-02 / B-04** |
 | `/wejdz/facebook/*` | throttle / signed_request | — | A-03 |
 | `GET/POST /zgloszenie/{report}/odwolanie` | signed + throttle | podpis + `jestZgloszeniemPrawnym` | OK |
-| `GET /home`, `/witaj/*` | auth | `widoczneDla`, `FollowUser` | OK |
+| `GET /home`, `/witaj/zainteresowania`, `/witaj/ludzie`, `/witaj/gotowe` | auth | `widoczneDla`, `FollowUser` | OK |
 | `/potwierdz-email/*` | auth (+signed) | własny user | OK |
 | `GET /dodaj`, `POST /dodaj/zdjecie` | auth + throttle | `media_ids` po `owner_id` | OK |
 | `POST /wpisy/{post}/komentarz` | auth | `PostPolicy::comment` | OK |
@@ -535,7 +535,7 @@ błędu i go nie znaleziono; odniesienia pozwalają to powtórzyć.
 | `GET/POST/DELETE /zeszyt*` | auth | `CollectionPolicy`, własne | OK |
 | `POST/DELETE /przepisy/{recipe}/zapisz`, `/wpisy/{post}/zapisz` | auth | `view` celu + `collection_id` własny | OK |
 | `POST/DELETE /tag/{tag}/obserwuj` | auth | status tagu | OK |
-| `POST/DELETE /@{u}/obserwuj`, `/blokuj` | auth | `UserPolicy::follow`, `BlockUser` | OK (B-02) |
+| `POST/DELETE /@{u}/obserwuj`, `/@{username}/blokuj` | auth | `UserPolicy::follow`, `BlockUser` | OK (B-02) |
 | `GET /powiadomienia*` | auth | własne | OK |
 | `/ustawienia/**` | auth + throttle | własny user / `ProfilePolicy::update` | OK (A-06) |
 | `GET /ustawienia/twoje-dane/pobierz/{export}` | auth + signed | `user_id === user` | OK |
