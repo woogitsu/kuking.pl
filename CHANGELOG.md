@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.37 — pasek podczas przewijania
+
+- Pasek z logo, logowaniem i rejestracją chowa się podczas przewijania w dół i wraca przy przewijaniu w górę. Fokus klawiatury przywraca pasek.
+
 ## Alfa 0.36 — niedostępne zapisy w zeszycie
 
 - Zeszyt informuje o zapisach, których nie możesz teraz zobaczyć — także przepisach. Nie pokazuje mylącego pustego stanu ani prywatnych treści; komunikat pasuje również do cudzego publicznego zeszytu (#567).

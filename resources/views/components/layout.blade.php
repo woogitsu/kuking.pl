@@ -358,7 +358,7 @@
 <body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
-    <header class="topbar marka-topbar">
+    <header class="topbar marka-topbar" @guest data-pasek-przewijany @endguest>
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
                 {{-- Znak wklejony wprost, nie przez <img> — inaczej nie

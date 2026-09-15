@@ -388,3 +388,9 @@ zapisuje #567–569 oraz priorytety. Nie rozszerza wykonanych odbiorów.
 cztery fizyczne negatywy i 36 konfiguracji przeglądarki. Obejrzano trzy
 końcowe zrzuty. Zakres: informacja o niedostępnych zapisach w istniejącym
 zeszycie; nie jest to ponowny odbiór całej rodziny. CI i wdrożenie oczekują.
+
+## Pasek gościa — Alfa 0.37, odbiór lokalny
+
+[PASEK_PRZEWIJANIE.md](PASEK_PRZEWIJANIE.md): 24 warianty oraz osobno
+rzeczywisty zoom200% i Shift+Tab, dwa fizyczne negatywy. Wdrożenie
+jeszcze niepotwierdzone; nie zmienia statusu pełnej macierzy.
