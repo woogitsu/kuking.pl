@@ -1,5 +1,28 @@
 ﻿# Przekazanie: zwarte kolumny strony powitalnej — #560
 
+## Odbiór produkcji 15 września 2026
+
+Alfa 0.33 działa na SHA 05151d76cc4f609800b214504882492fee376e00.
+Raporty PR #563 scalono po zwykłym hooku oraz CI34943425320; main
+CI34943541748 success w zakresie dokumentacji. Kod wcześniej przeszedł
+pełne 10/10 zadań PR i main. Nowe Railway6454177593 success oraz
+Deploy34943686652 success potwierdzają normalne wdrożenie bez pomijania CI.
+
+HTTP pokazało Alfa0.33 / 05151d7, CSS app-dQNr5eTe.css i JS
+app-BADFgUD0.js; oba lokalne pliki Inter odpowiedziały200.
+Odbiór przeglądarkowy: 390 i1440 px, oba motywy, 4/4 PASS.
+Sprawdzono odstępy wszystkich kart, brak poziomego overflow, jedną/dwie
+kolumny oraz rzeczywiste otwarcie wpisu i HTTP200. Obejrzano wszystkie
+cztery zrzuty: On The Plate jest bezpośrednio pod bigosem na desktopie;
+telefon zachowuje jedną kolumnę. Nie zmieniano danych produkcyjnych.
+Dowody: evidence/kolumny560/produkcja/ (zrzuty, wyniki, assety, wdrożenie).
+To odbiór poprawionego fragmentu, a nie całego portalu. Pozostaje #561
+oraz niezakończona macierz #492; pełna marka nadal CZĘŚCIOWO.
+
+Następne: #548, #549 oraz #492. Stan środowiska opisany niżej pozostaje
+ważny; informacje o oczekującym wdrożeniu są historyczne.
+
+
 Najnowszy punkt po scaleniu: PR #562 zawiera head
 2b221f3ae97f03b0a24d68e375b3abc70be0e7b4; zwykły push i hook przeszły.
 PR CI34936291390: 10/10 success, PHP3814/76612, port kolumn24 PASS.
