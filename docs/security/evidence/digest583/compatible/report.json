@@ -1,0 +1,64 @@
+{
+  "source": "/home/mateusz/kuking-digest583-runtime/app/Domain/Digest/TrescDigestu.php",
+  "md5": "aa88de62ac3b87be5c71d9b7c23fde9c",
+  "mtime_ns": 1789499139952970055,
+  "database_guard": true,
+  "baseline": {
+    "exit": 0,
+    "summary": [
+      "",
+      "Time: 00:00.866, Memory: 125.00 MB",
+      "",
+      "OK (4 tests, 113 assertions)"
+    ]
+  },
+  "negative_secrets": {
+    "exit": 1,
+    "summary": [
+      "/home/mateusz/kuking-digest583-runtime/tests/Feature/DigestNieKolejkujeSekretowTest.php:69",
+      "",
+      "FAILURES!",
+      "Tests: 1, Assertions: 2, Failures: 1."
+    ]
+  },
+  "secrets_expected": true,
+  "secrets_restored_exact": true,
+  "restored_secrets": {
+    "exit": 0,
+    "summary": [
+      "",
+      "Time: 00:01.163, Memory: 125.00 MB",
+      "",
+      "OK (4 tests, 113 assertions)"
+    ]
+  },
+  "negative_old_reader": {
+    "exit": 2,
+    "summary": [
+      "/home/mateusz/kuking-digest583-runtime/tests/Feature/DigestNieKolejkujeSekretowTest.php:172",
+      "",
+      "ERRORS!",
+      "Tests: 1, Assertions: 1, Errors: 1."
+    ]
+  },
+  "old_reader_expected": true,
+  "old_reader_restored_exact": true,
+  "restored_old_reader": {
+    "exit": 0,
+    "summary": [
+      "",
+      "Time: 00:01.092, Memory: 125.00 MB",
+      "",
+      "OK (4 tests, 113 assertions)"
+    ]
+  },
+  "regressions": {
+    "exit": 0,
+    "summary": [
+      "",
+      "Time: 00:03.672, Memory: 139.00 MB",
+      "",
+      "OK (85 tests, 333 assertions)"
+    ]
+  }
+}

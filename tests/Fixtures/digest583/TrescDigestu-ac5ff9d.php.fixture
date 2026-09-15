@@ -6,8 +6,6 @@ namespace App\Domain\Digest;
 
 use App\Models\CookedEvent;
 use App\Models\Post;
-use App\Models\Profile;
-use App\Models\Recipe;
 use App\Models\User;
 
 /**
@@ -42,8 +40,6 @@ use App\Models\User;
  * - **Propozycji nieznajomych („osoby, które warto poznać").** To jest
  *   redakcyjny wybór gospodarza, a nie coś, co wolno złożyć zapytaniem —
  *   każde automatyczne „warto poznać" jest rankingiem pod inną nazwą.
- *
- * @phpstan-type Zapis array{odbiorca: User, wykonania: list<CookedEvent>, nowiObserwujacy: list<User>, ileNowychObserwujacych: int, wpisyObserwowanych: list<Post>, pytanieGospodarza: ?string}
  */
 final class TrescDigestu
 {
@@ -61,64 +57,6 @@ final class TrescDigestu
         public readonly array $wpisyObserwowanych,
         public readonly ?string $pytanieGospodarza,
     ) {}
-
-    /**
-     * SerializesModels na liście nie zagląda do wnętrza DTO (#583).
-     * Budujemy NOWE modele z jawną listą pól, bez kopiowania attributes/relations.
-     * Sześć pól i ich typy pozostają zgodne ze starszym workerem: podczas
-     * rolling deploy stary czytnik musi obsłużyć nowego producenta.
-     * Snapshot treści zostaje; żaden model nie jest odświeżany w workerze.
-     *
-     * @return Zapis
-     */
-    public function __serialize(): array
-    {
-        return [
-            'odbiorca' => self::kopiaOsoby($this->odbiorca),
-            'wykonania' => array_map(static function (CookedEvent $w): CookedEvent {
-                $kopia = new CookedEvent;
-                $kopia->setRawAttributes(['id' => (string) $w->getKey(), 'note' => $w->note]);
-                $kopia->setRelation('user', $w->user === null ? null : self::kopiaOsoby($w->user));
-                $kopia->setRelation('recipe', self::kopiaPrzepisu($w->recipe));
-
-                return $kopia;
-            }, $this->wykonania),
-            'nowiObserwujacy' => array_map(self::kopiaOsoby(...), $this->nowiObserwujacy),
-            'ileNowychObserwujacych' => $this->ileNowychObserwujacych,
-            'wpisyObserwowanych' => array_map(static function (Post $w): Post {
-                $kopia = new Post;
-                $kopia->setRawAttributes(['id' => (string) $w->getKey(), 'body' => $w->body]);
-                $kopia->setRelation('author', $w->author === null ? null : self::kopiaOsoby($w->author));
-                $kopia->setRelation('recipe', self::kopiaPrzepisu($w->recipe));
-
-                return $kopia;
-            }, $this->wpisyObserwowanych),
-            'pytanieGospodarza' => $this->pytanieGospodarza,
-        ];
-    }
-
-    private static function kopiaOsoby(User $oryginal): User
-    {
-        $profil = new Profile;
-        $profil->setRawAttributes(['display_name' => $oryginal->displayName()]);
-        $osoba = new User;
-        $osoba->setRawAttributes(['id' => (string) $oryginal->getKey()]);
-        $osoba->setRelation('profile', $profil);
-
-        return $osoba;
-    }
-
-    private static function kopiaPrzepisu(?Recipe $oryginal): ?Recipe
-    {
-        if ($oryginal === null) {
-            return null;
-        }
-
-        $przepis = new Recipe;
-        $przepis->setRawAttributes(['title' => $oryginal->title]);
-
-        return $przepis;
-    }
 
     public static function pusta(User $odbiorca): self
     {
