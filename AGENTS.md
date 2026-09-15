@@ -111,7 +111,7 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | Kolejka | Laravel database queue | `composer.json`: `laravel/framework` |
 | Hosting | Railway | usługa zewnętrzna |
 | DNS / CDN / storage | Cloudflare + R2 | usługa zewnętrzna · `composer.json`: `league/flysystem-aws-s3-v3` |
-| Wyszukiwarka | PostgreSQL FTS + `pg_trgm` + `unaccent` | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php` |
+| Wyszukiwarka | `pg_trgm` (`word_similarity`, próg 0,5) + `unaccent` — dopasowanie trigramowe (D-004, D-046) | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php`, `app/Domain/Search/SearchQuery.php` |
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) | w repozytorium: `app/Logging/WebhookBleduHandler.php` |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) | w repozytorium: `app/Domain/Analytics`, `app/Support/AnalitykaCloudflare.php` · usługa zewnętrzna |
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
