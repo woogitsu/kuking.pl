@@ -262,7 +262,10 @@ class PanelModeracjiWMenuTest extends TestCase
 
         $html = $this->actingAs($moderator)->get(route('admin.reports'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('class="panel-pasek"', $html, 'Brak paska panelu na ekranie.');
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $this->assertCount(1, $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' panel-pasek ')]"), 'Brak paska panelu na ekranie.');
         $this->assertStringContainsString('Panel moderacji', $html);
         $this->assertStringContainsString(
             '<title>Zgłoszenia — Panel moderacji — Kuking</title>',
@@ -314,9 +317,12 @@ class PanelModeracjiWMenuTest extends TestCase
         foreach ($trasy as $uri) {
             $html = $this->actingAs($moderator)->get('/'.$uri)->assertOk()->getContent();
 
-            $this->assertStringContainsString(
-                'class="panel-pasek"',
-                (string) $html,
+            $dom = new DOMDocument;
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new DOMXPath($dom);
+            $this->assertCount(
+                1,
+                $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' panel-pasek ')]"),
                 'Ekran /'.$uri.' nie ma paska panelu. Dodaj `<x-panel-moderacji ekran="…" />` '
                 .'zaraz po otwarciu `<x-layout>` — po to ten komponent istnieje.',
             );

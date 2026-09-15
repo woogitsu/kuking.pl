@@ -17,6 +17,7 @@ import './service-worker.js';
 import './landing-wpisy.js';
 import './pasek-przewijany.js';
 import './szybki-wyglad.js';
+import './panel-tabela.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 

@@ -108,7 +108,7 @@ class PanelSzerokiTelefonTest extends TestCase
         $moderator = $this->moderator();
         $html = (string) $this->actingAs($moderator)->get(route('admin.users'))->assertOk()->getContent();
         $this->assertMatchesRegularExpression(
-            '/<div class="app-body[^"]*"\s+data-tryb-panelu\s*>/',
+            '/<div class="app-body[^"]*"\s+data-tryb-panelu(?:\s+data-marka-panel)?\s*>/',
             $html,
             '`/admin/uzytkownicy` nie niesie `data-tryb-panelu` na `.app-body` — selektor '
             .'z app.css nigdy by tu nie trafił.',

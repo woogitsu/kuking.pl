@@ -29,3 +29,17 @@ Odbiór nie obejmuje fizycznego telefonu, klawiatury ekranowej ani czytnika ekra
 CI, push, PR, scalenie i produkcja tego pakietu: jeszcze niewykonane. Produkcja potwierdzona osobno na Alfa0.38/61360bf. Pełny port marki pozostaje CZĘŚCIOWO.
 
 Rollback: cofnięcie commita aplikacji; bez migracji. Przy cofnięciu przeliczyć cache kolejek dotychczasowym poleceniem. Treści i komentarze pozostają w bazie.
+
+## Aktualizacja dostarczenia — 15 września 2026
+
+Zwykły push z obowiązkowym hookiem zakończył się sukcesem. PR #580, head ac5ff9d7716d000318870a2120522fdd7930303a, przeszedł wszystkie 11 zadań CI 34996570461. Log zadania PHP104474252355 potwierdza 3850 testów / 77000 asercji. Zakończone zostały również rozszerzony port, dostępność, wydajność i wyścigi na dwóch połączeniach.
+
+PR scalono normalnie jako 108bc93f809ff904baf694b04e96c956d17bdbd3 po sprawdzeniu dokładnego head, wszystkich wyników i stanu PR. Przy odczycie po scaleniu main CI34999668844 oczekiwało, Railway6464297399 było in_progress, a wstępny workflow Deploy34999677073 został pominięty. To jeszcze nie dowód wdrożenia Alfa0.39; pozostaje końcowy odczyt Railway, HTTP i zalogowanej produkcji. Powyższe historyczne „jeszcze niewykonane” opisuje etap przed wysyłką.
+
+### Odbiór produkcji po PR #580
+
+Railway 6464297399 zakończył się success 15.09.2026 o 17:39:24 UTC. Main CI 34999668844 zakończył się success. Produkcja przez HTTP oraz zalogowaną przeglądarkę pokazuje Alfa 0.39 / 108bc93 (pełny SHA 108bc93f809ff904baf694b04e96c956d17bdbd3).
+
+W zalogowanej przeglądarce otwarto kolejkę wpisów, następnie kliknięto zakładki Przepisy i Ugotowałem. Pierwsza pokazała dostępny przepis z odnośnikiem do komentarzy, druga prawidłowy pusty stan. Nie wysyłano odpowiedzi ani nie zmieniano treści produkcyjnych.
+
+Pozostaje oddzielna awaria smoke testu: Deploy 35002625751 / job 104494492772 nie wykonał kroków, ponieważ docker-runner-05 nie mógł utworzyć /home/runner/_work/_tool (Permission denied). Awaria inicjalizacji runnera nie jest wynikiem testów aplikacji. Ten test należy ponowić po usunięciu przyczyny; bieżący HTTP200 i /health200 go nie zastępują.

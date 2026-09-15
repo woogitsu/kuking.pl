@@ -1,0 +1,41 @@
+{
+  "scope": "Jeden bledny POST z rzeczywistym CSRF i sesja; rzeczywisty zoom 200%, 320 CSS px, tekst 140%, oba motywy, fokus i zaslanianie podsumowania",
+  "rows": [
+    {
+      "theme": "light",
+      "focus": {
+        "top": 326.09375,
+        "bottom": 605.4375,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "body",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nNapisz coś, zanim wyślesz odpowiedź.",
+      "before": "bd37c8105d8a24282b72c106dd6902c5610201fb81bcd0d0d65599f56cd51cd8",
+      "after": "bd37c8105d8a24282b72c106dd6902c5610201fb81bcd0d0d65599f56cd51cd8",
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "focus": {
+        "top": 326.09375,
+        "bottom": 605.4375,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "body",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nNapisz coś, zanim wyślesz odpowiedź.",
+      "before": "bd37c8105d8a24282b72c106dd6902c5610201fb81bcd0d0d65599f56cd51cd8",
+      "after": "bd37c8105d8a24282b72c106dd6902c5610201fb81bcd0d0d65599f56cd51cd8",
+      "pass": true
+    }
+  ]
+}
