@@ -34,8 +34,20 @@ function initialize() {
     };
     const geometry = () => {
         const nav = document.querySelector('.bottom-nav');
-        const bottom = nav && nav.getBoundingClientRect().height > 0 && getComputedStyle(nav).position === 'fixed' ? Math.max(0, innerHeight - nav.getBoundingClientRect().top) : 0;
+        const rect = nav?.getBoundingClientRect();
+        // Przy dużym piśmie nawigacja przewija się ze stroną. Nadal może
+        // zasłonić przycisk: liczy się jej widoczny prostokąt, nie position.
+        const margin = parseFloat(getComputedStyle(widget).right) || 0;
+        const summaryHeight = summary.getBoundingClientRect().height;
+        const visible = rect && rect.height > 0 && rect.bottom > innerHeight - summaryHeight - margin && rect.top < innerHeight;
+        const limit = Math.max(0, innerHeight - summaryHeight - margin - 4);
+        const bottom = visible ? Math.min(limit, Math.max(0, innerHeight - rect.top)) : 0;
         document.documentElement.style.setProperty('--wyglad-dol', bottom + 'px');
+        // Sprawdzamy także rzeczywisty panel: duża czcionka może zajmować
+        // więcej niż stała rezerwa arkusza nawet przy 240 px nad przyciskiem.
+        widget.removeAttribute('data-wyglad-malo-miejsca');
+        const panelOutside = widget.open && widget.querySelector('.szybki-wyglad-panel').getBoundingClientRect().top < 4;
+        widget.toggleAttribute('data-wyglad-malo-miejsca', summary.getBoundingClientRect().top < 240 || panelOutside);
     };
     const save = async () => {
         if (running || !pending) return;
@@ -125,6 +137,8 @@ function initialize() {
     const nav = document.querySelector('.bottom-nav');
     if (nav) observer.observe(nav);
     listen(window, 'resize', geometry);
+    listen(window, 'scroll', geometry);
+    widget.dataset.wygladGotowy = '1';
     geometry();
     cleanup = () => { events.abort(); observer.disconnect(); hint.hidden = true; };
 }

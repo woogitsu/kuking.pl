@@ -31,7 +31,9 @@ zamiast wymagać dokładnie 0 s.
 
 ## Dostarczenie
 
-Przygotowane lokalnie. Wymagane pełny hook, PR, CI i odbiór produkcji.
+Zwykły hook przeszedł. PR #573: CI 34970650611, wszystkie 10 zadań success.
+Scalono normalnie jako 91c8b4106fb96b4447ecc5db8ae39eb94996b49d.
+Odbiór Railway i rzeczywistego zachowania produkcji nadal w toku.
 Pakiet bazuje na PR #572 (zeszyty); dostarczyć po jego zakończeniu.
 Pełny port marki pozostaje CZĘŚCIOWO.
 

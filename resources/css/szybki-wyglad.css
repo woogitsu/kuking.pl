@@ -37,3 +37,22 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
 .szybki-wyglad select { border: 1px solid var(--color-border); border-radius: var(--spacing-2); padding: var(--spacing-2); background: var(--color-surface); color: var(--color-ink); }
 /* .btn ma własne display, więc jawnie zachowujemy wariant bez JavaScriptu. */
 .szybki-wyglad [hidden], .szybki-wyglad-podpowiedz[hidden] { display: none !important; }
+/* Przy dużym tekście panel potrzebuje całego okna, nie szczeliny nad przyciskiem. */
+.szybki-wyglad[open][data-wyglad-malo-miejsca] { z-index: 40; }
+.szybki-wyglad[open][data-wyglad-malo-miejsca] .szybki-wyglad-panel {
+  position: fixed; inset: 8px; width: auto; max-height: none; overflow-y: auto;
+}
+/* Bez załadowanego skryptu zwykły formularz pozostaje w przepływie strony. */
+.szybki-wyglad:not([data-wyglad-gotowy]) {
+  position: relative; inset: auto; margin: 12px; max-width: 360px;
+}
+.szybki-wyglad:not([data-wyglad-gotowy]) .szybki-wyglad-panel {
+  position: static; width: auto; max-height: none;
+}
+/* Duże podpisy nie mogą wypychać kontroli poza wąski panel. */
+.szybki-wyglad-skala { flex-wrap: wrap; }
+.szybki-wyglad-skala select { min-width: min(100%, 120px); }
+@media (max-width: 400px) {
+  .szybki-wyglad summary > [aria-hidden="true"] { display: none; }
+}
+.szybki-wyglad form { min-width: 0; grid-template-columns: minmax(0, 1fr); }

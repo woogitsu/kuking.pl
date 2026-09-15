@@ -45,7 +45,13 @@ Nie resetujemy CAPTCHA podczas zmiany wyglądu i nie kasujemy danych formularza.
 
 ## Dostarczenie
 
-Przygotowane lokalnie. Przed wdrożeniem wymagane pełny hook, PR i CI.
+Wysłano PR #575, head 99538033e81052b9644c7cf6b3e827b198fc7524.
+Zwykły pełny hook przeszedł także po poprawce desktopu.
+CI 34974259551 wykryło zasłonięcie fokusu summary przez dolną nawigację
+przy czcionce przeglądarki 32 px i szerokości 320 px (job 104397949295).
+To rzeczywisty brak pomiaru relative nav i reakcji na scroll w nowym module,
+nie awaria Lighthouse ani powód do osłabienia kontroli. Poprawiono uwzględnianie przewijanej nawigacji i aktualizację podczas scrolla.
+Przed wdrożeniem wymagane ponowne kontrole na końcowym źródle i zielone CI.
 Pakiet bazuje na #573; scalić po poprzedniku. Brak migracji. Rollback przez
 zwykły revert; zapisane dopuszczalne preferencje pozostają zgodne ze schematem.
 Pełny port marki nadal CZĘŚCIOWO.
@@ -54,4 +60,23 @@ Dodatkowy odbiór konta ujawnił nieuwzględnione display:none dolnej belki
 na desktopie. Poprawiono pomiar jej rzeczywistej wysokości. Test przechodzi
 kolejno1440→320→390→1440 na tej samej stronie. Piąty fizyczny negatyw usuwa
 warunek widocznej wysokości; FAIL i restore MD5/mtime oraz PASS potwierdzone.
-Pierwszy pełny hook przeszedł przed tą poprawką JS; wymagany ponowny hook.
+Pełny hook powtórzono po tej poprawce JS: PASS na9953803; nie obejmuje
+jeszcze późniejszej naprawy ujawnionej przez CI przy relative nav.
+
+## Regresja ujawniona przez CI #575
+
+Naprawa obejmuje pozycję przycisku przy relative nav, otwarcie panelu w obrębie
+okna przy braku miejsca i formularz w przepływie strony bez JS. Na szerokości
+do400px znika wyłącznie ozdobne Aa; etykieta Wygląd i rozmiar tekstu zostają.
+Kontrolki zawijają się, a kolumna formularza nie przekracza szerokości panelu.
+
+Końcowy pomiar:12wariantów rzeczywistej czcionki przeglądarki32px
+(320/390, oba motywy, tekst70/100/140) i108pozycji scroll.
+Tab, Enter, oba selecty, Zamknij i Escape PASS; kontrolki wewnątrz panelu.
+To odrębny pomiar od wcześniej wykonanego rzeczywistego zoomu200%.
+BezJS: rzeczywisty POST70, reload i przywrócenie preferencji lokalnego konta PASS.
+Dwa nowe fizyczne negatywy JS/CSS oblały odpowiednio kolizję i panel poza oknem;
+MD5 i mtime przywrócone, końcowe pomiary dodatnie.
+Obejrzane zrzuty fokusu i panelu obu motywów; końcowy odczyt niezależnego
+review bez nowego blokera w zmierzonym zakresie. Dowody: evidence/wyglad574/ci575.
+Kontrole fizycznego telefonu, czytnika i klawiatury ekranowej nadal niewykonane.
