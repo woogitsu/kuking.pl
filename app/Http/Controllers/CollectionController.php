@@ -149,6 +149,27 @@ class CollectionController extends Controller
     {
         $this->authorize('view', $collection);
 
+        $recipes = $collection->recipes()
+            ->widoczneDla($request->user())
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->with(['author.profile', 'heroMedia'])
+            ->paginate(12);
+
+        $posts = $collection->posts()
+            ->widoczneDla($request->user())
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->with(['author.profile.avatar', 'media'])
+            ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
+            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+            // zapytaniem (issue #275, D-081). Reguły siedzą
+            // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
+            ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
+            ->paginate(
+                (int) config('kuking.collections.saved_posts_page_size'),
+                ['*'],
+                'wpisy',
+            );
+
         return view('pages.collections.show', [
             'collection' => $collection,
             // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
@@ -163,11 +184,7 @@ class CollectionController extends Controller
             // zbanowany albo kasuje konto. Bez tego przepis dawał 403 przy
             // wejściu wprost, a w cudzym zeszycie stał dalej z tytułem,
             // nazwiskiem autora i miniaturą.
-            'recipes' => $collection->recipes()
-                ->widoczneDla($request->user())
-                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->with(['author.profile', 'heroMedia'])
-                ->paginate(12),
+            'recipes' => $recipes,
             // Wpisy przechodzą przez ten sam filtr widoczności co przepisy —
             // zeszyt jest cudzym pojemnikiem i nie może pokazywać treści,
             // do której oglądający nie ma prawa.
@@ -187,20 +204,7 @@ class CollectionController extends Controller
             // przycisk „Pokaż więcej" pod tą listą przesuwałby PRZY OKAZJI
             // też stronę `recipes()` obok, bo oba paginatory czytałyby ten
             // sam parametr z adresu.
-            'posts' => $collection->posts()
-                ->widoczneDla($request->user())
-                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->with(['author.profile.avatar', 'media'])
-                ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
-                // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-                // zapytaniem (issue #275, D-081). Reguły siedzą
-                // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
-                ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
-                ->paginate(
-                    (int) config('kuking.collections.saved_posts_page_size'),
-                    ['*'],
-                    'wpisy',
-                ),
+            'posts' => $posts,
             // ILE POZYCJI SCHOWAŁ FILTR — I DLACZEGO TO W OGÓLE POKAZUJEMY.
             //
             // Wpis zapisany, gdy autor pokazywał go obserwującym, znika
@@ -208,11 +212,11 @@ class CollectionController extends Controller
             // wygląda jak utrata danych („miałam to tu wczoraj"), a pokazanie
             // treści łamie widoczność. Zostaje trzecia droga: powiedzieć, ile
             // pozycji tu jest, nie mówiąc jakich.
-            'niewidoczne' => max(
-                0,
-                $collection->posts()->count()
-                    - $collection->posts()->widoczneDla($request->user())->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())->count(),
-            ),
+            // Paginatory policzyły już wszystkie widoczne pozycje. Liczymy
+            // także przepisy i treści usunięte miękko: ich zapisy nadal istnieją.
+            // withTrashed dotyczy wyłącznie COUNT, nigdy listy ani treści.
+            'niewidoczne' => max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
+                + max(0, $collection->posts()->withTrashed()->count() - $posts->total()),
             // PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
             //
             // Zeszyt jest jednym z kilku pojemników i wejście do drugiego

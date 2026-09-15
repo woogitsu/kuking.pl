@@ -381,3 +381,10 @@ Potwierdzono i poprawiono kontrast fokusu przy jednoczesnym najechaniu na przyci
 18 testów/330 asercji i trzy fizyczne negatywy. CI/wdrożenie oczekują.
 [Audyt wielodyscyplinarny](AUDYT_WIELODYSCYPLINARNY_2026_09_15.md)
 zapisuje #567–569 oraz priorytety. Nie rozszerza wykonanych odbiorów.
+
+## Uzupełnienie #567 — niedostępne zapisy
+
+[Raport](NIEDOSTEPNE_ZAPISY_567.md): lokalnie 23 testy / 185 asercji,
+cztery fizyczne negatywy i 36 konfiguracji przeglądarki. Obejrzano trzy
+końcowe zrzuty. Zakres: informacja o niedostępnych zapisach w istniejącym
+zeszycie; nie jest to ponowny odbiór całej rodziny. CI i wdrożenie oczekują.

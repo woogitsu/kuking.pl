@@ -1,6 +1,27 @@
 # Kontynuacja autonomiczna KuKing
 
-## Rozpoczęte #549 — neutralny komunikat odzyskiwania
+## Bieżący punkt — #549 scalone, #567 lokalne
+
+PR #570 scalono normalnie po 10/10 success CI 34964204421.
+Head: 6388747aa9b5a6070b05f8cac605ebaa6da3bbe9.
+Main: 72b96f979a264ed1982a4803bc7e07e623428c2e.
+PHP CI: 3820 testów / 76674 asercje. Main CI 34966287461 oraz Railway
+6458271154 wymagają końcowego odczytu; Deploy 34966293384 był skipped.
+Produkcja ostatnio Alfa 0.34 / e6d94d8. Nie uznawać scalenia za wdrożenie.
+
+Gałąź fix/567-niedostepne-zapisy, robocza Alfa 0.36: kontroler, komunikat,
+osiem nowych testów, uaktualniona starsza asercja. Lokalnie 23 testy /
+185 asercji, cztery fizyczne negatywy i 36 konfiguracji przeglądarki.
+Niezależne review bez blokera. Raport NIEDOSTEPNE_ZAPISY_567.md.
+Wysyłka oraz CI tej gałęzi pozostają do wykonania.
+
+Research #568, #569 i #571 zapisano w issues. #568 ma odtworzenie HTTP+DB
+na 201 rekordach obu rodzajów; #571 kontrolowaną pauzę JavaScriptu.
+Dalsza kolejność po zakończeniu #567: #568, następnie #569/#571, pozostałe
+stany macierzy #492 oraz #561. Nie tworzyć kolejnego planu badań #15 —
+istniejący docs/product/TESTY_Z_UZYTKOWNIKAMI.md wymaga prawdziwych osób.
+
+## Historia rozpoczęcia #549 — neutralny komunikat odzyskiwania
 
 Gałąź fix/549-komunikat-odzyskiwania, robocza Alfa0.35. Zmieniono wyłącznie
 teksty419 i komentarz o logowaniu; mechanizmy CSRF, odzyskania i ponowienia

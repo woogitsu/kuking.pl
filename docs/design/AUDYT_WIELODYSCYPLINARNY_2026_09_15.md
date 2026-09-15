@@ -44,3 +44,21 @@ nie ma”. Pierwszy test wykrył błąd, drugi potwierdził prawdziwie pusty
 zeszyt: 2 testy, 11 asercji, 1 oczekiwana porażka. Dowody w
 evidence/audyt567. To odtworzenie odpowiedzi HTTP i stanu DB, bez oglądu
 przeglądarkowego. #568 i #569 nadal wymagają odtworzenia.
+
+## Dalsze dowody i research
+
+#568 odtworzono na201 pasujących przepisach i201 osobach: HTTP200,
+200 pokazanych wyników i kolejny link identyczny z bieżącym adresem.
+1 test/10 asercji potwierdził obecny błąd, nie naprawę. Wynik zapisany
+w komentarzu issue568.
+
+#569: [WAI-ARIA timer](https://www.w3.org/TR/wai-aria-1.2/#timer)
+ma domyślnie aria-live=off. Zalecenie: udostępnić istniejący licznik
+w drzewie dostępności, zachować osobne ogłoszenia startu/końca.
+Zachowanie i wymowę musi odebrać prawdziwy czytnik; AX nie dowodzi ciszy.
+Przycisk odczytu jest opcją do zbadania, nie wymogiem standardu.
+
+#571: wcześniejsza hipoteza dryfu otrzymała ograniczone odtworzenie.
+Lokalny60s minutnik:0:59 przed pauzą JS4002,55ms;0:57 po niej;0:56
+po kolejnych1100ms. Około2s opóźnienia. To kontrolowana pauza CDP,
+nie badanie telefonu ani karty w tle. Osobne issue i kryteria regresji.
