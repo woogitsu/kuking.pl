@@ -43,7 +43,9 @@ Zrzuty, wyniki i negatywy w evidence/wyglad574. Nie odebrano fizycznego
 czytnika, klawiatury ekranowej ani zmiany motywu już otwartego Turnstile.
 Nie resetujemy CAPTCHA podczas zmiany wyglądu i nie kasujemy danych formularza.
 
-## Dostarczenie
+## Historia pierwszego dostarczenia
+
+Poniższy stan poprzedza końcowy odbiór CI PR opisany na końcu raportu.
 
 Wysłano PR #575, head 99538033e81052b9644c7cf6b3e827b198fc7524.
 Zwykły pełny hook przeszedł także po poprawce desktopu.
@@ -51,8 +53,8 @@ CI 34974259551 wykryło zasłonięcie fokusu summary przez dolną nawigację
 przy czcionce przeglądarki 32 px i szerokości 320 px (job 104397949295).
 To rzeczywisty brak pomiaru relative nav i reakcji na scroll w nowym module,
 nie awaria Lighthouse ani powód do osłabienia kontroli. Poprawiono uwzględnianie przewijanej nawigacji i aktualizację podczas scrolla.
-Przed wdrożeniem wymagane ponowne kontrole na końcowym źródle i zielone CI.
-Pakiet bazuje na #573; scalić po poprzedniku. Brak migracji. Rollback przez
+Wtedy wymagano ponownych kontroli na końcowym źródle i zielonego CI.
+Pakiet bazował na #573; oba PR są już scalone. Brak migracji. Rollback przez
 zwykły revert; zapisane dopuszczalne preferencje pozostają zgodne ze schematem.
 Pełny port marki nadal CZĘŚCIOWO.
 
@@ -81,15 +83,16 @@ Obejrzane zrzuty fokusu i panelu obu motywów; końcowy odczyt niezależnego
 review bez nowego blokera w zmierzonym zakresie. Dowody: evidence/wyglad574/ci575.
 Kontrole fizycznego telefonu, czytnika i klawiatury ekranowej nadal niewykonane.
 
-## Ponowne CI na a6958b6
+## Historia ponownego CI na a6958b6
 
 Pełny zwykły hook i push a6958b658574487bddd9e226cac2e97c8e0fde49 przeszły.
 CI 34978064181 zakończyło się jednak failure: ponownie wykryło zasłonięcie
 przycisku przy czcionce przeglądarki 32 px na tablicy i ustawieniach profilu.
 Wcześniejszy lokalny pomiar czekał po Tab 100 ms, więc nie dowodził braku
-tego błędu w natychmiastowym pomiarze CI. Wymagana jest poprawka i regresja
+tego błędu w natychmiastowym pomiarze CI. Wymagana była poprawka i regresja
 bez tego oczekiwania. Ten sam przebieg wykrył osobno problem namalowanego
-obrysu linku zmiany awatara przy rzeczywistym zoomie; diagnoza trwa.
+obrysu linku zmiany awatara przy rzeczywistym zoomie; diagnozę i poprawkę
+opisano poniżej.
 Nie jest to odebrana ani wdrożona Alfa 0.38.
 
 ### Odsłonięcie fokusu profilu
@@ -116,7 +119,8 @@ Pusty wycinek `fixed-widget-tab.png` jest opisanym ograniczeniem
 Playwright page.screenshot przy zoomie i dalekim przewinięciu, nie dowodem
 poprawności. Końcowe obrazy przycisku pobrano bezpośrednio przez CDP,
 tak samo jak raster istniejącej kontroli obrysu; pokazują przycisk i fokus.
-Pełne CI oraz odbiór produkcji tej poprawki nadal wymagane.
+Końcowy CI PR tej poprawki przeszedł — wynik na końcu raportu.
+Odbiór main CI i produkcji pozostaje wymagany.
 
 ## Diagnoza natychmiastowego fokusu po CI 34978064181
 
@@ -164,3 +168,25 @@ Wyniki końcowe:
 Trwałe dane i opis metody: [dowody natychmiastowego fokusu](evidence/wyglad574/ci575/TIMING_FOKUSU.md).
 To odbiór lokalny zmienionych źródeł, bez potwierdzenia nowego CI i wdrożenia.
 Nie rozstrzyga osobnego problemu namalowanego obrysu awatara przy zoomie.
+
+## Odbiór CI PR — 15 września 2026
+
+Końcowy head `7cbdef8a5d1236d36542008527ee4b322d3506e6`: zwykły pełny
+hook zakończony sukcesem; CI 34983616697 — 11/11 success. Log PHP
+104430040169 potwierdza 3834 testy / 76883 asercje pełnej rodziny.
+Wcześniejsze niepowodzenia kontrolowane w tym logu należą do negatywów,
+nie do końcowego przebiegu pełnego PHP. Port bazowy: 261 s całego zadania;
+rozszerzony: 1295 s. Sam pomiar rozszerzeń: 1226,32 s, kreator: 15 s.
+Oba zadania mieszczą się w niezmienionym limicie 25 minut; pojedynczy wynik
+nie stanowi gwarancji czasu każdego przyszłego przebiegu.
+
+PR #575 scalono jako `0e1bdbe80ffe25d72accf2f773a3a533675ef458`.
+Main CI 34986762320 i Railway 6462041446 wymagają odrębnego odbioru.
+Na tym etapie nie deklarujemy Alfy 0.38 na produkcji.
+
+## Zakończony odbiór wdrożenia
+
+Alfa0.38/0e1bdbe potwierdzona na produkcji: mainCI34986762320
+11/11success, Railway6462041446 i Deploy34989544692 success.
+[Szczegóły, zakres i ograniczenia odbioru](ODBIOR_PRODUKCJI_ALFA_038.md).
+Powyższe oczekiwanie na main/produkcję jest stanem historycznym.

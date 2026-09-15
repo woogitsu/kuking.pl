@@ -45,17 +45,42 @@ tych pomiarów uruchamia odpowiednie kontrole.
   są identyczne. Dowody: `evidence/ci577/`.
 - Niezależny odczyt podziału nie wykazał blokera.
 
-## Status i granice
+## Historyczny stan przed końcowym CI PR
 
-Zmiana przygotowana w PR #575. Nie wykonano jeszcze CI dwóch nowych zadań;
+Poniższy stan poprzedza odbiór 11/11 opisany na końcu raportu.
+
+W tym momencie zmiana była przygotowana w PR #575 bez CI dwóch nowych zadań;
 nie deklarujemy, że zmieszczą się w limicie bez pomiaru. Przed scaleniem
 wymagany sukces wszystkich zadań, także nowego `port_funkcje`.
 Odczyt API ochrony gałęzi zwrócił 403. Nie zmieniano ochrony ani jej wymagań.
 
 Późniejszy CI PR #575, 34978064181, zakończył się innymi błędami:
 zasłonięciem fokusu szybkiego wyglądu oraz brakiem namalowanego fragmentu
-obrysu linku zmiany awatara przy rzeczywistym zoomie. Te wyniki wymagają
-osobnej diagnozy; podział czasu ich nie naprawia ani nie pomija.
+obrysu linku zmiany awatara przy rzeczywistym zoomie. Te wyniki wymagały
+osobnej diagnozy, zakończonej w SZYBKI_WYGLAD_574.md; podział czasu sam
+ich nie naprawia ani nie pomija.
 
 Brak zmian danych i migracji. Rollback: zwykły revert zmian podziału;
 przywróci dłuższe pojedyncze zadanie i jego znane ryzyko przekroczenia limitu.
+
+## Odbiór CI PR — 15 września 2026
+
+Końcowy head `7cbdef8a5d1236d36542008527ee4b322d3506e6`: zwykły pełny
+hook zakończony sukcesem; CI 34983616697 — 11/11 success. Log PHP
+104430040169 potwierdza 3834 testy / 76883 asercje pełnej rodziny.
+Wcześniejsze niepowodzenia kontrolowane w tym logu należą do negatywów,
+nie do końcowego przebiegu pełnego PHP. Port bazowy: 261 s całego zadania;
+rozszerzony: 1295 s. Sam pomiar rozszerzeń: 1226,32 s, kreator: 15 s.
+Oba zadania mieszczą się w niezmienionym limicie 25 minut; pojedynczy wynik
+nie stanowi gwarancji czasu każdego przyszłego przebiegu.
+
+PR #575 scalono jako `0e1bdbe80ffe25d72accf2f773a3a533675ef458`.
+Main CI 34986762320 i Railway 6462041446 wymagają odrębnego odbioru.
+Na tym etapie nie deklarujemy Alfy 0.38 na produkcji.
+
+## Zakończony odbiór wdrożenia
+
+Alfa0.38/0e1bdbe potwierdzona na produkcji: mainCI34986762320
+11/11success, Railway6462041446 i Deploy34989544692 success.
+[Szczegóły, zakres i ograniczenia odbioru](ODBIOR_PRODUKCJI_ALFA_038.md).
+Powyższe oczekiwanie na main/produkcję jest stanem historycznym.

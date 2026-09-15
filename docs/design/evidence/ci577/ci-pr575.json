@@ -1,0 +1,84 @@
+{
+  "run": 34983616697,
+  "sha": "7cbdef8a5d1236d36542008527ee4b322d3506e6",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "id": 104429975059,
+      "name": "Zakres zmiany",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:43:57Z",
+      "completed_at": "2026-09-15T14:44:05Z"
+    },
+    {
+      "id": 104430040072,
+      "name": "Larastan (analiza statyczna)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:44:07Z",
+      "completed_at": "2026-09-15T14:44:36Z"
+    },
+    {
+      "id": 104430040079,
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:44:07Z",
+      "completed_at": "2026-09-15T14:48:28Z"
+    },
+    {
+      "id": 104430040119,
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:48:30Z",
+      "completed_at": "2026-09-15T14:48:57Z"
+    },
+    {
+      "id": 104430040150,
+      "name": "Pint (styl kodu)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:44:38Z",
+      "completed_at": "2026-09-15T14:44:57Z"
+    },
+    {
+      "id": 104430040169,
+      "name": "Testy (PostgreSQL 18)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:48:59Z",
+      "completed_at": "2026-09-15T14:56:18Z"
+    },
+    {
+      "id": 104430040204,
+      "name": "Build assetów (Vite)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:53:47Z",
+      "completed_at": "2026-09-15T14:54:06Z"
+    },
+    {
+      "id": 104430040215,
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:44:07Z",
+      "completed_at": "2026-09-15T14:53:45Z"
+    },
+    {
+      "id": 104430040246,
+      "name": "Build obrazu (weryfikacja)",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:44:59Z",
+      "completed_at": "2026-09-15T14:49:26Z"
+    },
+    {
+      "id": 104430040266,
+      "name": "Port marki — rodziny ekranów, zoom i kreator",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:49:28Z",
+      "completed_at": "2026-09-15T15:11:03Z"
+    },
+    {
+      "id": 104430040297,
+      "name": "Audyt zależności",
+      "conclusion": "success",
+      "started_at": "2026-09-15T14:54:08Z",
+      "completed_at": "2026-09-15T14:54:26Z"
+    }
+  ]
+}

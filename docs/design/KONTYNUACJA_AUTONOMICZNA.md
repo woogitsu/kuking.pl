@@ -1,35 +1,42 @@
 # Kontynuacja autonomiczna KuKing
 
-## Bieżący punkt — #575 i #577, 15 września 2026
+## Bieżący punkt — odbiór #575, 15 września 2026
 
-Potwierdzona produkcja: Alfa 0.36, d50183eecda28455ece64469571c074e3897c408.
-PR #572 i jego CI 34969399425 przeszły wszystkie 10 zadań. Main CI
-34971936281, Railway 6459320591 i Deploy 34975402661 mają success.
-HTTP potwierdziło wersję, SHA, CSS, JS oraz dwa lokalne pliki Inter.
+PR #575 scalono normalnie jako `0e1bdbe80ffe25d72accf2f773a3a533675ef458`
+z head `7cbdef8a5d1236d36542008527ee4b322d3506e6`. Zwykły push z pełnym
+hookiem przeszedł. CI PR 34983616697: wszystkie 11 zadań success;
+pełny PHP 3834 testy / 76883 asercje odczytano w logu 104430040169.
+Port bazowy trwał 261 s, rozszerzony 1295 s, w granicach 25 minut.
+Fizyczne negatywy i końcowy ogląd: SZYBKI_WYGLAD_574.md oraz
+PODZIAL_POMIAROW_CI_577.md. Dowód CI: evidence/ci577/ci-pr575.json.
 
-PR #573 scalono jako 91c8b4106fb96b4447ecc5db8ae39eb94996b49d po 10/10
-CI PR. Main CI 34975700310 przekroczyło 25 minut portu marki; Railway
-6460017818 ma inactive. Alfa 0.37 nie ma odbioru produkcyjnego.
+Main CI34986762320:11/11success, PHP3834/76883. Railway6462041446
+success15:36:08UTC, Deploy34989544692 success. Produkcja Alfa0.38,
+0e1bdbe80ffe25d72accf2f773a3a533675ef458, CSSapp-Bx-MzRPK.css,
+JSapp-BlSF1GKB.js i oba Inter HTTP200. Odbiór wykonany: realny zapis
+skali70/motywu, reload/reset,6 kompozycji panelu i24 warianty paska,
+rzeczywiste przewijanie oraz ogląd8 zrzutów. Raport: ODBIOR_PRODUKCJI_ALFA_038.md.
+To odbiór gościa; stany konta i zoom mają osobne dowody lokalne/CI.
+Nie odtwarzać ponownie zakończonego pakietu. Przewijany pasek z0.37
+odebrano razem z0.38; starsza wersja nie miała osobnego odbioru.
 
-PR #575 jest draftem na gałęzi feat/szybki-wyglad. Wysłany a6958b6
-przeszedł zwykły pełny hook, ale CI 34978064181 ma failure: fokus przycisku
-Wygląd oraz fragment obrysu zmiany awatara przy zoomie. Końcowa poprawka
-na tej samej gałęzi ma lokalny odbiór: oba motywy 53/53, kliknięcie i powrót
-panelu, 4 warianty bez czekania i 12/108 przy font32; fizyczne negatywy
-wykryte, źródła przywrócone. Raport: SZYBKI_WYGLAD_574.md. Równolegle #577
-dzieli port na dwa izolowane zadania bez usuwania testów ani zwiększania
-limitu. Raport: PODZIAL_POMIAROW_CI_577.md.
+Raporty zbiera docs/575-odbior-wygladu; przed ponowną wysyłką sprawdzić
+lokalny i zdalny SHA, PR oraz istniejący proces hooka. Środowisko:
+/home/mateusz/kuking-work560, PG55439, browser kuking_560_browser,
+testy kuking_560_tests. Nigdy5432 ani historyczne /tmp poniżej.
 
-Następne: zwykły hook/push na końcowym commicie, wszystkie 11 zadań CI,
-normalny merge i faktyczny odbiór Railway oraz produkcji. Nie scalać
-na podstawie poprzedniego lokalnego wyniku. Po pakiecie: #568, #561
-i dalsza macierz #492. Pełny port marki pozostaje CZĘŚCIOWO.
-
-Aktualizacja triażu: #120 ma już adapter R2 i testy, lecz nie ma odbioru
-realnego storage; #258/#259 mają już nazwane kontrole konfiguracji health,
-lecz wymagają dostępu do paneli dostawców. Issues zachowują te ograniczenia.
-Research potrzeb zapisano w #576, bez tworzenia fikcyjnych danych ani
-nowych funkcji V2. Starsze punkty poniżej nie są bieżącym stanem wysyłki.
+Po dostarczeniu raportu: zweryfikować operacyjne tezy audytu przekazanego
+przez właściciela15.09 (#193/#9 kopie i restore, #120R2, #204EmailLabs),
+przed rozpoczynaniem kolejnych poprawek powierzchni. Stare OTWARCIE.md
+nie jest dowodem aktualnego panelu; nie zakładać braku użytkowników
+ani włączać korespondencji lub zwiększać TTL mediów bez sprawdzenia
+zgód, dostępu i konsekwencji prywatności. Audyt bazował na0.36 i nie obejmował
+produkcji. W kolejce pozostają #568 (pętla po200 wynikach), #561
+(wysokie zdjęcia pod klawiaturą), dalsza macierz #492. Research i scenariusze dopisano do
+istniejącego #576; nie zastępują badań z rzeczywistymi uczestnikami #15.
+#120 wymaga odbioru rzeczywistego R2, #258/#259 paneli dostawców OAuth;
+adapter i nazwane kontrole health już istnieją. Pełny port marki: CZĘŚCIOWO.
+Starsze punkty poniżej są historią, nie stanem bieżącej wysyłki.
 
 ## Historyczny punkt — #549 i #567
 
