@@ -1,5 +1,22 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Bieżące uzupełnienie — 15 września 2026
+
+Pełny port marki nadal **CZĘŚCIOWO**. Poniższe wpisy aktualizują zakres
+konkretnych pakietów; nie rozszerzają historycznych odbiorów na inne stany.
+
+| Pakiet | Kod i kontrole | Produkcja / ograniczenie |
+|---|---|---|
+| #574 szybki wygląd i #577 podział CI | PR #575, head7cbdef8, 11/11 CI34983616697, PHP3834/76883; lokalne negatywy, oba motywy53/53 fokusu profilu, kliknięcie panelu i powrót do stałego miejsca | Merge0e1bdbe; mainCI11/11, Railway6462041446 i Deploy34989544692 success; gość6 paneli,24 warianty paska, zapis/reload/reset. [Raport](SZYBKI_WYGLAD_574.md) |
+| Przewijany pasek | PR #573; obecny również w merge0e1bdbe, objęty CI PR #575 | Alfa0.37 nie miała osobnego potwierdzenia; odebrano razem z0.38. [Raport](PASEK_PRZEWIJANIE.md) |
+| #567 niedostępne zapisy | PR #572, CI PR i main10/10; widoczność pozostaje chroniona | Alfa0.36/d50183e, Railway6459320591 i Deploy34975402661 success; HTTP potwierdzone. [Raport](NIEDOSTEPNE_ZAPISY_567.md) |
+| #549 komunikat419 | PR #570, CI PR i main10/10; komunikat nie zgaduje przyczyny odmowy | Alfa0.35/72b96f9, Railway6458271154 i Deploy34968590919 success; rzeczywista odpowiedź419 odebrana. [Raport](KOMUNIKAT_ODZYSKIWANIA_549.md) |
+
+[Odbiór produkcji0.38 i ograniczenia](ODBIOR_PRODUKCJI_ALFA_038.md).
+Aktualna kolejka po zakończonym odbiorze0.38: #568 (dalsze wyniki wyszukiwania), #561
+(fokus wysokich zdjęć), pozostałe stany #492. Dawne wskazania „następne
+#548/#549” poniżej są historią; obie poprawki zostały już wykonane.
+
 ## Odmiana minutnika — #548, Alfa0.34
 
 [Raport](ODMIANA_MINUTNIKA_548.md): lokalnie51 testów/258 asercji,

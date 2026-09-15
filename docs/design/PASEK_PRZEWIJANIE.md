@@ -43,3 +43,10 @@ Pełny port marki pozostaje CZĘŚCIOWO.
 
 Dodatkowo RezerwaNadPaskiemTest: 3 testy / 27 asercji PASS.
 Po przywróceniu źródeł ponownie 24 warianty PASS i reduced-motion PASS.
+
+## Zakończony odbiór wdrożenia
+
+Alfa0.38/0e1bdbe potwierdzona na produkcji: mainCI34986762320
+11/11success, Railway6462041446 i Deploy34989544692 success.
+[Szczegóły, zakres i ograniczenia odbioru](ODBIOR_PRODUKCJI_ALFA_038.md).
+Powyższe oczekiwanie na main/produkcję jest stanem historycznym.
