@@ -1,0 +1,506 @@
+[
+  {
+    "type": "wpisy",
+    "width": 320,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 320,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 320,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 320,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 360,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 360,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 360,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 360,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 390,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 390,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 390,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 390,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 414,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 414,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 414,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 414,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 768,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 768,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 768,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 768,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 1440,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 1440,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 1440,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "wpisy",
+    "width": 1440,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 320,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 320,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 320,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 320,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 360,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 360,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 360,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 360,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 390,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 390,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 390,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 390,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 414,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 414,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 414,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 414,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 768,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 768,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 768,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 768,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 1440,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 1440,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 1440,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "przepisy",
+    "width": 1440,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 320,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 320,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 320,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 320,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 360,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 360,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 360,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 360,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 390,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 390,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 390,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 390,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 414,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 414,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 414,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 414,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 768,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 768,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 768,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 768,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 1440,
+    "theme": "light",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 1440,
+    "theme": "light",
+    "scale": 140,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 1440,
+    "theme": "dark",
+    "scale": 100,
+    "result": "PASS"
+  },
+  {
+    "type": "ugotowane",
+    "width": 1440,
+    "theme": "dark",
+    "scale": 140,
+    "result": "PASS"
+  }
+]

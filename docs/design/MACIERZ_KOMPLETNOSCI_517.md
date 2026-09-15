@@ -7,6 +7,7 @@ konkretnych pakietów; nie rozszerzają historycznych odbiorów na inne stany.
 
 | Pakiet | Kod i kontrole | Produkcja / ograniczenie |
 |---|---|---|
+| #579 kolejka gospodarza | Lokalnie 43/274, 72 konfiguracje i rzeczywisty zoom200/Tab; pięć fizycznych negatywów. [Raport](KOLEJKA_GOSPODARZA_579.md) | Robocza0.39, bez potwierdzenia CI/produkcji |
 | #574 szybki wygląd i #577 podział CI | PR #575, head7cbdef8, 11/11 CI34983616697, PHP3834/76883; lokalne negatywy, oba motywy53/53 fokusu profilu, kliknięcie panelu i powrót do stałego miejsca | Merge0e1bdbe; mainCI11/11, Railway6462041446 i Deploy34989544692 success; gość6 paneli,24 warianty paska, zapis/reload/reset. [Raport](SZYBKI_WYGLAD_574.md) |
 | Przewijany pasek | PR #573; obecny również w merge0e1bdbe, objęty CI PR #575 | Alfa0.37 nie miała osobnego potwierdzenia; odebrano razem z0.38. [Raport](PASEK_PRZEWIJANIE.md) |
 | #567 niedostępne zapisy | PR #572, CI PR i main10/10; widoczność pozostaje chroniona | Alfa0.36/d50183e, Railway6459320591 i Deploy34975402661 success; HTTP potwierdzone. [Raport](NIEDOSTEPNE_ZAPISY_567.md) |
