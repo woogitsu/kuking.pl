@@ -1,6 +1,10 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
-## Zwarte kolumny wpisów — Alfa 0.33, lokalny odbiór #560
+## Zwarte kolumny wpisów — Alfa 0.33, odbiór lokalny i CI #560
+
+PR #562 scalony; CI PR34936291390 oraz main34938070574 (próba2)
+mają 10/10 success. Produkcja czeka na normalne wdrożenie po pominiętej
+próbie Railway; szczegóły i historyczny timeout w raporcie.
 
 [Raport](ZWARTE_KOLUMNY_560.md): 48 konfiguracji z rzeczywistym zoomem,
 działania linków i dialogu zdjęć, zmiana szerokości oraz pięć fizycznych
