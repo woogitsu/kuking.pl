@@ -34,7 +34,7 @@ function initialize() {
     };
     const geometry = () => {
         const nav = document.querySelector('.bottom-nav');
-        const bottom = nav && getComputedStyle(nav).position === 'fixed' ? Math.max(0, innerHeight - nav.getBoundingClientRect().top) : 0;
+        const bottom = nav && nav.getBoundingClientRect().height > 0 && getComputedStyle(nav).position === 'fixed' ? Math.max(0, innerHeight - nav.getBoundingClientRect().top) : 0;
         document.documentElement.style.setProperty('--wyglad-dol', bottom + 'px');
     };
     const save = async () => {

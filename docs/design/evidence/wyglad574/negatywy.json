@@ -19,9 +19,9 @@
   },
   {
     "case": "cofniecie",
-    "before": "a1173ef94b5e76e091c736a6cbe42f2c",
-    "changed": "6470f343a84345418ea25f1d5c940ab6",
-    "restored": "a1173ef94b5e76e091c736a6cbe42f2c",
+    "before": "35dd8afcb1a9e61d6fe068bdc49f166f",
+    "changed": "ac9e319690c8a34bdd3b6008b8ddfd5f",
+    "restored": "35dd8afcb1a9e61d6fe068bdc49f166f",
     "mtime_restored": true,
     "negative": 1,
     "positive": 0
@@ -31,6 +31,15 @@
     "before": "ef97c25626a903f73026725bd5bfa330",
     "changed": "33e752c4a4c8cf5c28fc64082f535d91",
     "restored": "ef97c25626a903f73026725bd5bfa330",
+    "mtime_restored": true,
+    "negative": 1,
+    "positive": 0
+  },
+  {
+    "case": "polozenie-konta",
+    "before": "35dd8afcb1a9e61d6fe068bdc49f166f",
+    "changed": "a1173ef94b5e76e091c736a6cbe42f2c",
+    "restored": "35dd8afcb1a9e61d6fe068bdc49f166f",
     "mtime_restored": true,
     "negative": 1,
     "positive": 0

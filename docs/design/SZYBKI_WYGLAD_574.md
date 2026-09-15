@@ -49,3 +49,9 @@ Przygotowane lokalnie. Przed wdrożeniem wymagane pełny hook, PR i CI.
 Pakiet bazuje na #573; scalić po poprzedniku. Brak migracji. Rollback przez
 zwykły revert; zapisane dopuszczalne preferencje pozostają zgodne ze schematem.
 Pełny port marki nadal CZĘŚCIOWO.
+
+Dodatkowy odbiór konta ujawnił nieuwzględnione display:none dolnej belki
+na desktopie. Poprawiono pomiar jej rzeczywistej wysokości. Test przechodzi
+kolejno1440→320→390→1440 na tej samej stronie. Piąty fizyczny negatyw usuwa
+warunek widocznej wysokości; FAIL i restore MD5/mtime oraz PASS potwierdzone.
+Pierwszy pełny hook przeszedł przed tą poprawką JS; wymagany ponowny hook.

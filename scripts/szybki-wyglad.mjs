@@ -16,6 +16,19 @@ for(const width of [320,360,390,414,768,1440])for(const theme of ['light','dark'
  rows.push({width,theme,scale,result:'PASS'});
 }
 await p.keyboard.press('Escape');assert(!await p.locator('[data-szybki-wyglad]').evaluate(e=>e.open));assert(await p.locator('[data-szybki-wyglad] summary').evaluate(e=>e===document.activeElement));
+
+const account = await b.newPage({viewport:{width:1440,height:900},serviceWorkers:'block'});
+await account.goto(adres+'/login');
+await account.fill('input[name=login]','ania');
+await account.fill('input[name=password]','haslo-testowe-123');
+await Promise.all([account.waitForURL(u=>!u.pathname.endsWith('/login')),account.click('button[type=submit]')]);
+for(const width of [1440,320,390,1440]) {
+ await account.setViewportSize({width,height:900});await account.waitForTimeout(120);
+ const box=await account.locator('[data-szybki-wyglad] summary').boundingBox();
+ assert(box.y>=0&&box.y+box.height<=901,'POZYCJA_KONTO');
+}
+await account.close();
+
 writeFileSync(out+'/wyniki.json',JSON.stringify({functional:'guest persistence, reset, 429 rollback, hint, Escape PASS',rows},null,2));await p.close();console.log('36 geometrii + zapis gościa/reset/429/Escape PASS');
 }finally{}
 }
