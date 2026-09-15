@@ -17,7 +17,7 @@ Obejrzano cztery zdjęcia zgłoszenia, od `1-Photo-1.jpg` do `4-Photo-4.jpg`. St
 - Fizyczny negatyw rzeczywistego `tokens.css`: zastąpienie współczynnika wartością 1, build i oczekiwany FAIL „padding przycisku”; następnie odtworzenie MD5 i mtime, build i ponownie 72 pomiary PASS. Kopia źródła pozostała poza repozytorium.
 - Celowane PHP: 15 testów / 399 asercji PASS. Testy `BelkaPrzyDuzymTekscieTest`, `PolaDoWpisywaniaSaWiekszeTest` i `KafelDodawaniaPrzyDuzymTekscieTest` rozpoznają dokładną nową składnię tokenów, zachowując kontrolę minimum 48 px i wartości bazowych. Nie zastąpiono tych kontroli dowolnym dopasowaniem liczby.
 - Trzy fizyczne negatywy kontraktów PHP: obniżenie podłogi dotyku, podmiana jednostki tokenu pola oraz zmiana bazowego odstępu. Każdy wywołał FAIL; po przywróceniu bajtów i mtime właściwa rodzina testów przeszła. Testy działały w osobnej kopii, z bazą `kuking_589_tests` i własnymi mediami.
-- Pint: 4 pliki PASS. Nie uruchamiano pełnego zestawu PHP.
+- Pint: 4 pliki PASS. Pełny zestaw PHP uruchomiono później podczas obowiązkowego hooka — wynik i korekty opisano poniżej.
 - CI ma obowiązkowe wywołanie pomiaru Chromium po buildzie w istniejącym zadaniu assetów. Zmiana samego skryptu również uruchamia zadanie. Wyniku CI tego pakietu jeszcze nie ma.
 
 Dowody: `evidence/skala589/wyniki.json`, `negative.json`, `negative-php.json` i `php.txt`.
@@ -39,3 +39,11 @@ Integracja main `9a44ccc455232fa3cf56e115b5764695c16e2592` została wykonana w `
 ## Krótkie uruchomienie regresji
 
 W katalogu z zależnościami: `npm run build`, następnie `CHROMIUM_PATH="$CHROME_BINARY" node scripts/skala-proporcje.mjs`. Bez `CHROMIUM_PATH` używany jest Chromium Playwright. Wynik trafia do `output/skala589/wyniki.json`. Ten pomiar nie wymaga PHP ani bazy. Lokalny runtime ma własne `.env`, vendor i storage; synchronizacja źródeł nie może ich nadpisywać.
+
+## Korekty ujawnione przez pełny hook
+
+Pierwszy zwykły push został prawidłowo zatrzymany przez pełne PHP. Zalogowane powtórzenie wykazało dwa dodatkowe testy wymagające obsługi nowej składni: `OdstepPodNaglowkiemStronyTest` oraz `RytmPionowyStronyPrzepisuTest`. Zmieniono wyłącznie ścisłe parsowanie `calc(... * var(--user-layout-scale, 1))`: nagłówek Start nadal wymaga bazowego odstępu co najmniej 24 px, a tokeny rytmu nadal muszą używać rem, aby rosły przy powiększeniu czcionki przeglądarki. Nie zmieniono CSS ani progów.
+
+Diagnostyczne pełne powtórzenie miało 3850 PASS i 4 FAIL: oprócz tych dwóch parserów jego helper miał inne APP_URL i brak regionu dysku niż poprawny zestaw zmiennych zwykłego hooka. Po ujednoliceniu środowiska i korektach parserów cztery rodziny przeszły: 26 testów / 78 asercji PASS. Dwa fizyczne negatywy rzeczywistych źródeł (odstęp Start poniżej 24 px oraz rem zastąpione px) wywołały FAIL; odtworzenie MD5/mtime i dodatnie testy PASS. Pint 2 pliki PASS. Dowód: `negative-merged-contracts.json`. Kolejny zwykły hook jest wymagany przed publikacją; ten raport nie deklaruje jego przyszłego wyniku.
+
+Po integracji wykonano również ogląd rzeczywistego Laravel z CSS BbC4zqzk: formularz 320 px / ciemny / 70% oraz landing 390 px / jasny / 70%, 1440 px / ciemny / 70% i 320 px / ciemny / 140%, bez poziomego overflow. Stopka wskazywała Alfa 0.41. Kontrolki i etykiety formularza pozostawały widoczne podczas przewijania. Zrzuty zachowano lokalnie w `output/skala589-real`. To odbiór przeglądarki, nie fizycznego urządzenia ani pełnej ścieżki fokusu.

@@ -90,7 +90,7 @@ class OdstepPodNaglowkiemStronyTest extends TestCase
             $this->assertSame(1, $xpath->query('.//h1', $headers->item(0))->length);
             $css = (string) file_get_contents(resource_path('css/marka-rama.css'));
             $this->assertSame(1, preg_match('/\.start-naglowek\s*\{([^}]*)\}/', $css, $rule));
-            $this->assertSame(1, preg_match('/margin-bottom:\s*([\d.]+)px/', $rule[1], $margin));
+            $this->assertSame(1, preg_match('/margin-bottom:\s*calc\(\s*([\d.]+)px\s*\*\s*var\(--user-layout-scale,\s*1\)\s*\)\s*;/', $rule[1], $margin));
             $this->assertGreaterThanOrEqual(24, (float) $margin[1], 'Nagłówek Start musi zachować odstęp od kafla.');
 
             return;
