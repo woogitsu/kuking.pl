@@ -844,6 +844,89 @@ jobs:
   # Pełny port ma osobny budżet czasu i własną bazę. Nie pomija żadnego
   # dotychczasowego pomiaru; nowe konfiguracje #513 nie konkurują o limit
   # czasu z axe i Lighthouse (PR #517: wspólny job trwał 18 min 34 s).
+  # #581: 600 konfiguracji panelu ma własny budżet czasu i PostgreSQL.
+  # Każda zmiana kodu (również samego skryptu/fixture/workflow) uruchamia job.
+  port_panelu:
+    name: Panel marki — puste i pełne widoki
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_port_panel
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_port_panel"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_DATABASE: kuking_port_panel
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+    steps:
+      - uses: actions/checkout@v7
+      - name: Izolowane połączenie i narzędzia PHP
+        run: |
+          set -euo pipefail
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
+          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
+          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Instalacja zależności
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+      - name: Przeglądarka
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+      - name: Nowa baza bez danych demonstracyjnych i rzeczywiste assety
+        run: |
+          cp .env.example .env
+          php artisan storage:link
+          php artisan migrate --force --no-interaction
+          npm run build
+      - name: Panel — logowanie z TOTP, faza pusta i pełna
+        run: node scripts/panel-marki-run.mjs
+      - name: Dowody panelu bez sesji i poświadczeń
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: panel-marki-${{ github.sha }}
+          path: |
+            storage/port-panelu/*.json
+            storage/port-panelu/*.png
+          retention-days: 14
+
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
     needs: zakres

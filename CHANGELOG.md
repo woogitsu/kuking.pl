@@ -3,6 +3,13 @@
 ## Przygotowane — bezpieczeństwo logowania (#584)
 
 - Wylogowanie innych urządzeń unieważnia również ich zapamiętane logowanie. Bieżąca sesja pozostaje aktywna; po jej utracie trzeba zalogować się ponownie. Ta sama ochrona obejmuje zmianę i reset hasła oraz decyzje o zamknięciu lub zawieszeniu konta.
+## Alfa 0.40 — wygląd panelu moderacji
+
+- Panel moderacji korzysta ze wspólnej identyfikacji: neutralnej nawigacji, czytelnych kart, formularzy i filtrów. Dłuższe nazwy narzędzi zawijają się obok ikon (#581).
+- Zachowane są oznaczenie trybu moderacji, pełna szerokość pracy i dotychczasowe działania.
+- Filtry dat mają więcej miejsca przy powiększonym tekście. Obrys klawiatury pozostaje widoczny także na ikonie kalendarza.
+- Tabelę użytkowników można przewijać w dostępnym obszarze ekranu; przejście klawiszem Tab odsłania jej kolejne linki.
+- „Sygnały automatu” pokazują podsumowanie błędów formularza, także gdy brakuje identyfikatora grupy. Notatka pozostaje do poprawienia.
 
 ## Alfa 0.39 — kolejka gospodarza
 

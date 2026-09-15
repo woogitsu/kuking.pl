@@ -1,0 +1,42 @@
+[
+  {
+    "label": "authenticated-warmup",
+    "exit": 0,
+    "start": 1789496152.0020287,
+    "end": 1789496182.4184222,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "authenticated-1",
+    "exit": 0,
+    "start": 1789496212.4187205,
+    "end": 1789496272.7397985,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "authenticated-5",
+    "exit": 0,
+    "start": 1789496302.7399228,
+    "end": 1789496363.1835885,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "authenticated-10",
+    "exit": 0,
+    "start": 1789496393.183741,
+    "end": 1789496453.6382315,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "authenticated-20",
+    "exit": 0,
+    "start": 1789496483.6383502,
+    "end": 1789496544.0270712,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  }
+]
