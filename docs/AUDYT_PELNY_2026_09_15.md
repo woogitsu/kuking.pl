@@ -165,8 +165,8 @@ pod ścieżką.
 2. `users.wants_weekly_digest` ma `DEFAULT false` (migracja `2026_09_07_400000`).
 3. Jedyne miejsce, gdzie da się tę zgodę wyrazić, to `/ustawienia/prywatnosc`
    (`grep -rln wants_weekly_digest resources/views app/Http` → dwa pliki, oba
-   w `Settings`). **Formularz rejestracji o to nie pyta i onboarding `/witaj/*`
-   też nie** — `register.blade.php:86` tylko *wspomina* o przeglądzie w tekście.
+   w `Settings`). **Formularz rejestracji o to nie pyta i onboarding `/witaj/zainteresowania`
+   → `/witaj/ludzie` → `/witaj/gotowe` też nie** — `register.blade.php:86` tylko *wspomina* o przeglądzie w tekście.
 4. Web Push odłożony (#35), PWA nie ma sklepu, feed jest chronologiczny.
 
 **Skutek, złożony do kupy.** Osoba 63-letnia zakłada konto, publikuje obiad —
@@ -177,7 +177,7 @@ to najdroższym możliwym błędem: „50+ daje produktowi jedną szansę”.
 
 **To nie jest argument za cofnięciem poprawki RODO.** Poprawka jest słuszna.
 Argument jest odwrotny: skoro zgoda ma być wyraźna, to **trzeba o nią wyraźnie
-zapytać** — niezaznaczony haczyk w rejestracji albo krok w `/witaj/*`
+zapytać** — niezaznaczony haczyk w rejestracji albo krok w onboardingu `/witaj/zainteresowania`
 („Chcesz w sobotę jeden list o tym, co się wydarzyło przy Twoim gotowaniu?”)
 jest zgodą lepszej jakości niż odhaczony `DEFAULT` i daje realny opt-in
 zamiast zerowego. Do tego `KUKING_DIGEST_WLACZONY=true` na produkcji przed
@@ -195,7 +195,7 @@ kodowi:
 | 1 · Ugotowałem → autor | główna | **jest** | `RecordCookedEvent`, `NotifyUser`, `UgotowalemZawszePowiadamiaAutoraTest` |
 | 2 · Zdjęcie dnia → odzew | główna | **jest** | `Post`, `Comment`, `DailyPick`, `HeroPick` |
 | 3 · Zapisuję → sobotnie przypomnienie | **MVP, koszt S** | **NIE MA** | brak polecenia/joba; `grep` po `app/Console`, `app/Jobs`, `app/Domain/Notifications` — zero |
-| 4 · Temat tygodnia | MVP | **częściowo** | `TagPromotion` + `/tagi-promowane`; „tematy” skasowane migracją `2026_09_07_300000_drop_topics` |
+| 4 · Temat tygodnia | MVP | **tylko narzędzie moderatora** | `TagPromotion` wystawiony wyłącznie pod `/admin/tagi-promowane`; publicznej powierzchni „tematu tygodnia” nie ma, a „tematy” skasowała migracja `2026_09_07_300000_drop_topics` |
 | 5 · Sezon / kalendarz kuchni | MVP | **NIE MA** | issue #18 otwarte; brak kodu sezonowego |
 | 6 · Rodzinny przepis → zaproszenie | MVP | **jest** | `RegistrationInvite` |
 | 7 · Archiwum → nostalgia | MVP | **jest** | `app/Domain/Wspomnienia` |
@@ -451,7 +451,7 @@ poprzedniego.
 **Zaraz potem — tanie rzeczy w kodzie, które decydują o retencji**
 
 5. `KUKING_DIGEST_WLACZONY=true` + wyraźne pytanie o zgodę w rejestracji
-   albo w `/witaj/*` (§4.3).
+   albo w onboardingu `/witaj/zainteresowania` (§4.3).
 6. Pętla 3 — sobotnie przypomnienie o jednym zapisanym przepisie (§4.4).
    Wyceniona przez sam projekt na „koszt S”, największy zwrot na liście.
 7. Treść zapisanych przepisów w eksporcie RODO (§4.5) — to jest ta połowa
@@ -499,3 +499,310 @@ z testów repozytorium, nie z produkcji.
 przebieg testów zakończył się kodem 2. Był to skutek dwóch moich równoległych
 przebiegów na jednej bazie testowej, nie usterki repozytorium. Czysty przebieg
 (`vendor/bin/phpunit`, 543 s) jest zielony: **3828/3828**.
+
+---
+
+# Runda druga — 15 września 2026, po południu
+
+Kontynuacja tego samego audytu w obszarach, których pierwsza runda nie
+dotknęła: narzędzia gospodarza, powierzchnia logowania, lejek „Ugotowałem",
+koszty, kolejka zadań, SEO oraz świeży research rynkowy.
+
+## 9. Gdzie szukałem i NIE znalazłem dziury
+
+To jest połowa wyniku audytu i nie wolno jej pominąć — inaczej lista znalezisk
+udaje, że opisuje całość.
+
+| Obszar | Co sprawdziłem | Wynik |
+|---|---|---|
+| **OAuth (Google)** | `state` + `nonce` + **PKCE**, porównanie `hash_equals()`, `session()->pull()` (jednorazowość), `session()->regenerate()` po zalogowaniu | **bez zastrzeżeń** — podręcznikowo poprawne |
+| **Link logowania** | token `Str::random`, w bazie **tylko skrót** (`token_hash` z `UNIQUE`), `expires_at`, a wiersz jest **kasowany przy użyciu** (`LoginLinkController:373,382`) | **bez zastrzeżeń** — jednorazowy i nieodwracalny |
+| **Kolejka zadań** | 5 z 5 jobów ma `$tries`/`$backoff`/`failed()`; do tego `kuking:martwe-zadania` | **bez zastrzeżeń** |
+| **SEO** | `robots.txt` blokuje przedrostki szukaj, home, dodaj, witaj, ustawienia, zeszyt i admin; `noindex` na 12 ekranach wejścia; `Recipe`, `HowToStep`, `BreadcrumbList`, `ProfilePage` w JSON-LD; sitemap z `chunkById` i cache 6 h | **bez zastrzeżeń** |
+| **`aggregateRating`** | szukałem znaleziska „brak gwiazdek = brak rich result" — **projekt ma to rozstrzygnięte lepiej ode mnie** w `docs/seo/SEO_TECHNICAL.md:193-201`: Google zabrania ocen „self-serving", a `would_make_again` to sygnał binarny, nie skala 1–5 | **moje znalezisko było błędne, dokument ma rację** |
+| **Lejek „Ugotowałem"** | **wszystkie sześć pól formularza jest `nullable`** — zdjęcia, notatka, zmiany, „zrobisz ponownie", trudność, czas. Akcja to jedno kliknięcie | **bez zastrzeżeń** — dokładnie tak, jak powinna wyglądać główna akcja produktu |
+| **Retencja zdjęć** | kasowanie zdjęcia usuwa też oryginał (`KasujZdjecie:245`), jest `kuking:sprzataj-osierocone-zdjecia` | **bez zastrzeżeń** |
+
+Policzyłem też koszt magazynu, bo podejrzewałem tam ryzyko: oryginał (do 15 MB,
+realnie 3–5 MB z telefonu) to ~90% objętości wobec trzech wariantów
+(320/960/1600 px, razem ~0,4 MB). Osoba publikująca obiad codziennie to
+**~1,6 GB rocznie ≈ 0,29 USD rocznie** przy 0,015 USD/GB-mies., a egress z R2
+jest bez opłaty. **Magazyn nie jest zagrożeniem** i `COSTS.md` ma rację
+w konkluzji („nie framework”).
+
+---
+
+## 10. Nowe znaleziska
+
+### 10.1 `P1` · Obietnica, na której stoi cały cold start, ma narzędzie dla JEDNEJ z trzech rzeczy, które ludzie publikują
+
+`COLD_START.md` §2 nazywa to „zasadą nadrzędną” i pisze wprost: *„To nie jest
+miły dodatek — to jest produkt”*:
+
+> **Każdy wpis pierwszych 200 użytkowników dostaje odpowiedź od prawdziwego
+> człowieka. Zwykle w ciągu 2 godzin, najpóźniej tego samego dnia.**
+
+Gospodarz ma pod to ekran `/admin/bez-odpowiedzi` — i jest to dobry ekran:
+sortuje najstarsze na górze, **wyróżnia pierwszy wpis danej osoby**, ma poziomy
+pilności (`$wpis->pilnosc`) i liczy medianę czasu do pierwszej reakcji.
+
+**Dowód dziury:**
+
+```
+Co da się skomentować (php artisan route:list):
+  POST wpisy/{post}/komentarz               posts.comment
+  POST przepisy/{recipe}/komentarz          recipes.comment
+  POST ugotowane/{cookedEvent}/komentarz    cooked.comment
+  POST ugotowane/{cookedEvent}/podziekuj    cooked.thank
+
+Co widzi kolejka gospodarza (BezOdpowiedziController):
+  Post::query()      ← i nic więcej
+```
+
+`grep -cE "Recipe::|CookedEvent::" app/Http/Controllers/Admin/BezOdpowiedziController.php` → **0**.
+
+Czyli: **opublikowany przepis bez ani jednego komentarza i wykonanie
+„Ugotowałem” bez reakcji są dla gospodarza niewidoczne.** Nie ma też żadnej
+kolejki niepodziękowanych wykonań (`grep` po `app/Console`, `app/Jobs`,
+`app/Domain` za `podziekuj|thank` → zero).
+
+**Dlaczego to jest najgorsza z możliwych luk w tym konkretnym miejscu.**
+Pominięty typ to nie jest przypadkowy trzeci obiekt. `AGENTS.md` §1 stawia
+„Ugotowałem” ponad wszystkim innym, a `RETENTION_LOOPS.md` Pętla 1 —
+*Ugotowałem → wzruszenie autora → odpowiedź → kolejne wykonanie* — jest
+oznaczona jako ⭐ główna. Cisza pod cudzym wykonaniem boli mocniej niż cisza
+pod wpisem: ktoś poświęcił popołudnie, ugotował z czyjegoś przepisu, zrobił
+zdjęcie — i nikt się nie odezwał. To jest dokładnie ten moment, o którym
+`COLD_START.md` pisze „50+ daje produktowi jedną szansę”.
+
+**Zakres pracy jest mały**, bo cała mechanika już stoi: trasy komentarzy
+istnieją dla wszystkich trzech typów, `pilnosc` i `pierwszeWpisyAutorow()` są
+napisane, a zapytanie to ten sam kształt `whereDoesntHave('allComments', …)`.
+
+---
+
+### 10.2 `P2` · Nikt nie powie gospodarzowi, że ktoś przestał przychodzić
+
+`COLD_START.md` opisuje pierwsze 20 osób jako klub prowadzony ręcznie, w którym
+gospodarz ma reagować na zachowanie konkretnych ludzi. Kolumna `ostatnio_widziany_at`
+istnieje i jest uczciwie utrzymywana (`AktualizujOstatniaWizyte`, `ZanotujOstatniaWizyte`).
+
+Ale jedyny ekran panelu, który jej używa, to `/admin/uzytkownicy` — **narzędzie
+moderacji** (filtry po statusie, dacie, braku wpisów; sortowanie trafia wprost
+do `ORDER BY`). Ono odpowiada na pytanie „kogo zbanować”, nie na pytanie
+**„kto z moich pierwszych dwudziestu nie był tu od dziesięciu dni”**.
+
+Analityka serwerowa umie to policzyć — `PowrotPoDniach`, `AktywniWTygodniu`,
+`CookRetentionCohorts` są napisane i dobre — ale liczą **kohorty**, czyli
+odpowiadają właścicielowi na pytanie o produkt. Gospodarzowi potrzebna jest
+**lista z imionami**, bo on ma zadzwonić, a nie zoptymalizować wskaźnik.
+
+To jest ta sama klasa braku co 10.1: reguła istnieje w planie, dane istnieją
+w bazie, a warstwy, która zamienia je w czynność jednej osoby, nie ma.
+
+---
+
+### 10.3 `P2` · `php artisan test --parallel`: zmierzona niestabilność 1 na 5 przebiegów
+
+Zmierzone na tej maszynie (4 rdzenie), pięć pełnych przebiegów pod rząd:
+
+| Przebieg | Testy | Porażki | Czas |
+|---|---|---|---|
+| 1 | 3829 | **2** | 173 s |
+| 2 | 3829 | 0 | 173 s |
+| 3 | 3829 | 0 | ~173 s |
+| 4 | 3829 | 0 | ~173 s |
+| 5 | 3829 | 0 | ~173 s |
+
+Z dwóch porażek przebiegu 1 **jedna była moja** (martwe odnośniki do tras
+w tym dokumencie — poprawione). Druga to
+`NapiszDoNasTest::test_formularz_dziala_bez_javascriptu`: formularz „Napisz do
+nas” przyszedł ze wstrzykniętym `livewire.js`, choć `layout.blade.php:299`
+zamyka `@livewireStyles` i `@livewireScripts` za flagą `$livewire`, a ten ekran
+jej nie podnosi.
+
+**Czego NIE ustaliłem i nie udaję, że ustaliłem.** Postawiłem hipotezę, że
+przecieka statyk `SupportAutoInjectedAssets::$hasRenderedAComponentThisRequest`
+między testami w jednym procesie — i **obaliłem ją własnym odtworzeniem**:
+napisałem test, który najpierw renderuje kreator, a potem czyta oba statyki, i
+oba były `false`. Mechanizm pozostaje nieznany. Porażka nie powtórzyła się
+w czterech kolejnych przebiegach.
+
+**Wniosek operacyjny, świadomie ostrożny:** to jest za mało, żeby przestawiać
+CI na `--parallel` (`ci.yml:629` i `scripts/check.sh:169` chodzą szeregowo).
+Jedna porażka na pięć przebiegów w bramce deployu to jedna zablokowana
+publikacja na pięć. Za to lokalna pętla zwrotna skraca się z **543 s do 173 s
+(3,1×)** i to jest realny zysk dla człowieka pracującego nad kodem.
+`docs/PULAPKI_TESTOW.md` ma rację również tutaj: dopóki nie znamy mechanizmu,
+słowo „flake” nie jest diagnozą.
+
+---
+
+### 10.4 `P3` · `COSTS.md` nie wycenia jedynej rzeczy, która blokuje start
+
+`docs/COSTS.md` ma **42 linie** i jest najsłabiej rozwiniętym dokumentem
+operacyjnym w repozytorium (dla porównania `docs/design/` ma 83 pliki,
+`docs/marketing/` — jeden).
+
+Konkret: `docs/infra/KOPIE_I_ODTWORZENIE.md` i D-043 stwierdzają, że Volume
+Backups i PITR **istnieją wyłącznie w planie Pro**, a Kuking jest na Free/Hobby.
+Bramka nr 8 z `OTWARCIE.md` — brak jakiejkolwiek kopii bazy — jest pierwszą
+pozycją listy w §7 tego audytu. **A `COSTS.md` nie wymienia ani planu Pro, ani
+kopii zapasowych, ani poczty.** Wymienia Free, Hobby i „Pro: wyższy próg”, bez
+liczby.
+
+Nie jest to wielkie znalezisko i nie udaję, że jest. Jest to jednak dokładnie
+ten rodzaj braku, który każe właścicielowi podejmować decyzję blokującą start
+bez liczby przed oczami.
+
+---
+
+## 11. Nowe kierunki rozwoju — z rynku, nie z głowy
+
+### 11.1 Rok 2026 dał Kuking drugi, ostrzejszy przekaz — i okno, które się zamknie
+
+Jesienią 2025 i w 2026 „AI slop” w przepisach stał się problemem opisywanym
+przez Bloomberga, Fortune i Futurism: przepisy generowane bez żadnego
+ludzkiego sprawdzenia, z błędnymi proporcjami i niebezpiecznymi krokami
+(przykład z prasy: wersja świątecznego ciasta złożona przez AI kazała piec
+6-calowy tort 3–4 godziny w 160°C). Dwudziestu dwóch niezależnych twórców
+kulinarnych wystąpiło publicznie, że „recipe slop” niszczy ich pracę i wprowadza
+ludzi w błąd.
+([Fortune](https://fortune.com/2025/11/26/ai-slop-recipes-thanksgiving-food-blog-collapse-traffic),
+[Bloomberg](https://www.bloomberg.com/news/articles/2025-11-25/ai-slop-recipes-are-taking-over-the-internet-and-thanksgiving-dinner),
+[Futurism](https://futurism.com/artificial-intelligence/cooking-actual-ai-generated-recipes))
+
+**Uczciwie o liczbach:** krążące „−40% rok do roku” to **pomiar jednej twórczyni**
+(Eb Gargano, Easy Peasy Foodie, ruch na przepis na indyka), nie badanie branży.
+Sprawdziłem tekst źródłowy: to zbiór **niezależnych samodzielnych pomiarów**
+z własnych analityk — 30% (Marita Sinden, Google), 50% (ta sama osoba,
+Pinterest), 80% w dwa lata (Carrie Forrest), 30% CTR (Adam Gallagher).
+Zbieżność kierunku jest mocna, ale to nie jest jedna zmierzona liczba branżowa
+i nie wolno jej tak cytować.
+
+**Co to znaczy dla Kuking — i dlaczego to jest KIERUNEK, a nie ciekawostka.**
+Issue #30 proponuje drugi przekaz obok społeczności: „Twoje przepisy nie zginą”
+(trwałość). Rynek właśnie otworzył trzeci, ostrzejszy i trudniejszy do
+podrobienia:
+
+> **Każdy przepis tutaj ktoś naprawdę ugotował — i pokazał zdjęcie.**
+
+To nie jest hasło do wymyślenia. To jest **opis mechaniki, która już działa
+w kodzie**: `cooked_events` z `RecordCookedEvent`, zdjęciem wyniku,
+`would_make_again` i `perceived_difficulty`. Żadna treściówka generowana
+maszynowo nie podrobi czterdziestu prawdziwych osób, które w tym tygodniu
+ugotowały ten przepis i wrzuciły fotografię swojego garnka. Konkurencja nie
+może tego skopiować bez zbudowania społeczności — czyli bez zrobienia tego, co
+Kuking robi od początku.
+
+**Dlaczego okno się zamknie:** jak tylko duże serwisy kulinarne zrozumieją, że
+„dowód wykonania” jest walutą zaufania, dorobią własną wersję. Kuking ma
+przewagę mniej więcej tak długo, jak długo jest jedynym polskim serwisem,
+w którym to jest główna akcja, a nie dodatek.
+
+**Czego to NIE zmienia:** nie jest to powód, żeby ruszyć hasło przed bramkami
+z §7 pkt 1–3. Przekaz „u nas jest prawdziwie” wymaga, żeby serwis miał kopię
+bazy, tak samo jak przekaz „u nas nie zginie”.
+
+### 11.2 „Grandmacore” jest nazwanym trendem 2026 — a zeszyt babci ma w Polsce instytucjonalne wsparcie
+
+Polska publicystyka kulinarna nazywa w 2026 trend **„grandmacore”** — modę na
+kuchnię babci, z rozróżnieniem na *nostalgię* (gotowanie wprost ze starych
+receptur) i *newstalgię* (adaptowanie ich do dzisiejszych technik).
+([Pożywka](https://www.pozywka.pl/mowie/trendy-kulinarne-2026-autentycznosc-zdrowie-doswiadczenie))
+
+Mocniejsze: istnieje **finansowany ze środków publicznych projekt digitalizacji
+polskich zeszytów kulinarnych** — „Babci Józi” (BaJa), mapowanie narzędziami AI
+receptur spisanych odręcznie w latach 1946–1947, dofinansowanie **6 187 000 zł**
+z programu Ministra Nauki „Regionalna inicjatywa doskonałości”
+(RID/SP/0039/2024/01), okres realizacji **2024–2027**.
+([Digital Heritage](https://digitalheritage.pl/dziedzictwo-kulinarne/))
+
+**Co z tego wynika dla Kuking.** Trzy rzeczy, w kolejności pewności:
+
+1. **Teza produktu ma zewnętrzne potwierdzenie.** „Rodzinne receptury, których
+   szkoda stracić” to nie jest przeczucie właściciela — to jest przedmiot
+   trwającego programu naukowego za sześć milionów złotych i nazwany trend
+   konsumencki. `docs/PRODUCT.md` może się na to powołać zamiast na intuicję.
+2. **V2 #28 (OCR starych zeszytów) ma precedens metodologiczny.** BaJa robi
+   dokładnie to, co #28 opisuje, tylko na zbiorze archiwalnym. Zanim Kuking
+   napisze własny OCR, warto przeczytać, co im wyszło — to jest tańsze niż
+   pierwsza iteracja.
+3. **To jest kandydat na partnera, nie na konkurenta.** Projekt naukowy
+   digitalizuje zeszyty zmarłych; Kuking daje miejsce zeszytom żyjących.
+   Zbiory się nie pokrywają, a obie strony mówią tym samym językiem.
+   **Zastrzeżenie: kontaktu nie nawiązywałem i nie wiem, czy są zainteresowani.**
+
+### 11.3 Kanały cold-startu są w planie potraktowane detalicznie, a to są sieci z federacjami
+
+`COLD_START.md` §3.2 opisuje zdobywanie pierwszych osób przez KGW i UTW jako
+pracę listową: „napisać do 15 kół w jednym regionie… odpowie 2–3”, UTW jako
+„2–4 osoby”. Skala tych kanałów jest o dwa rzędy wielkości większa, niż ten
+opis zakłada:
+
+| Kanał | Skala | Źródło |
+|---|---|---|
+| Koła Gospodyń Wiejskich | **18 073 zarejestrowane koła** (2026) | [wykaz COIG](https://www.coig.com.pl/wykaz_lista_kola-gospodyn-wiejskich_w_polsce.php) |
+| Uniwersytety Trzeciego Wieku | **125,9 tys. słuchaczy** (rok akad. 2024/2025), 747 badanych podmiotów, 526 z zajęciami regularnymi | [GUS](https://stat.gov.pl/files/gfx/portalinformacyjny/pl/defaultaktualnosci/5488/10/1/1/uniwersytety_trzeciego_wieku.pdf) |
+| UTW prowadzące **zajęcia komputerowe** | **blisko 70%** UTW | GUS, jw. |
+
+Ostatni wiersz jest tym, który zmienia plan. **Około pięciuset instytucji
+w Polsce prowadzi regularne zajęcia komputerowe dla osób 60+** — a każde takie
+zajęcia potrzebują materiału do ćwiczeń: czegoś polskiego, darmowego, prostego
+i bezpiecznego, na czym słuchacz założy konto, wrzuci zdjęcie i napisze dwa
+zdania. To jest opis ekranu głównego Kuking.
+
+Precedens, że takie programy istnieją i mają pieniądze: **„Cyfrowe Koła
+Gospodyń Wiejskich”** — warsztaty w 12 powiatach, ponad **3,7 mln zł** z Funduszy
+Europejskich, tablet dla każdej uczestniczki.
+([gov.pl](https://www.gov.pl/web/cyfryzacja/cyfrowe-kola-gospodyn-wiejskich--bezplatne-warsztaty-w-12-powiatach))
+**Sprawdziłem datę i muszę to od razu ostudzić: ten konkretny projekt pochodzi
+z listopada 2022 i nie jest dziś kanałem.** Podaję go wyłącznie jako dowód, że
+publiczne pieniądze na uczenie tej grupy internetu istnieją i bywają
+uruchamiane — a nie jako drogę, którą można pójść w listopadzie 2026.
+
+**Proponowana zmiana w planie — jedna, konkretna.** Zamiast piętnastu listów do
+pojedynczych kół, jedna rozmowa na poziomie federacji (Federacja UTW ma krajową
+strukturę i wspólny program zajęć komputerowych). Koszt jest ten sam —
+popołudnie — a przy powodzeniu daje kanał powtarzalny zamiast jednorazowego.
+**Nie zmienia to reguły nadrzędnej z `COLD_START.md` §2:** nie wolno rosnąć
+szybciej, niż redakcja zdąży odpowiadać, więc kanał o takiej pojemności trzeba
+otwierać z zaworem, a nie na oścież. I wymaga najpierw 10.1 — bo klub, w którym
+cisza zapada pod przepisami i wykonaniami, nie uniesie jednej grupy UTW, a co
+dopiero federacji.
+
+---
+
+## 12. Zaktualizowana kolejność
+
+Zmiany wobec §7 są dwie i obie wynikają z rundy drugiej:
+
+- **10.1 wchodzi wysoko** — przed cold startem, bo jest jego warunkiem.
+  Bez niego obietnica odzewu pilnuje jednej trzeciej treści.
+- **11.1 dopisuje przekaz** do pakietu #30, nie zastępuje go.
+
+Reszta kolejności z §7 zostaje bez zmian. Nadal obowiązuje zdanie stamtąd:
+dopóki bramki 1–4 stoją otwarte, powierzchnia nie jest pracą do wykonania.
+
+---
+
+## 13. Metoda rundy drugiej
+
+**Uruchomione:** `php artisan route:list`, `php artisan test --parallel`
+(pięć pełnych przebiegów), `php artisan test --compact` (wielokrotnie),
+`vendor/bin/pint`, `grep`/`find` po `app/`, `database/`, `config/`, `routes/`,
+`resources/`, odczyt `docs/`, sześć zapytań do sieci z weryfikacją dwóch źródeł
+przez pobranie pełnego tekstu.
+
+**Czego nie robiłem:** nie wchodziłem na produkcję, nie oglądałem żadnego ekranu
+w przeglądarce, nie kontaktowałem się z żadną instytucją wymienioną w §11.
+
+**Dwie rzeczy, które sam sobie prostuję w tej rundzie:**
+
+1. Szykowałem znalezisko „brak `aggregateRating` odcina Kuking od rich results
+   Google”. **Było błędne** — `docs/seo/SEO_TECHNICAL.md:193-201` rozstrzyga to
+   poprawnie i z powołaniem na wytyczne Google, których ja nie sprawdziłem
+   przed postawieniem tezy. Zostawiam to w §9 jako wynik, a nie usuwam.
+2. Postawiłem hipotezę o przecieku statyków Livewire jako przyczynie porażki
+   `NapiszDoNasTest` i **obaliłem ją własnym odtworzeniem** (§10.3).
+   Mechanizm jest nieznany i tak jest to zapisane.
