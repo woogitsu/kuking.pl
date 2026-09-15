@@ -1,51 +1,63 @@
-# Issue 583 — sekrety poza payloadem digestu
+# Issue 583 — minimalny i kompatybilny payload digestu
 
-## Wynik wykonanych regresji i kontroli ujemnej
+## Wynik końcowy
 
-Wykonano na `/home/mateusz/kuking-digest583-runtime`, PHP 8.4.24, izolowanej bazie `kuking_583_tests`, PostgreSQL pod `127.0.0.1:55439`, użytkownik `kuking`, timezone UTC. Tożsamość bazy/port/użytkownik/timezone sprawdzone zapytaniem przed każdym przebiegiem zestawu. MAIL_MAILER=array; bez wysyłki do dostawcy.
+Obecny format zachowuje sześć dawnych pól DTO i typy modeli. Do kolejki trafiają NOWE minimalne modele z jawną listą atrybutów i relacji. Nie ma klonowania oryginałów, kopiowania pełnych attributes/relations ani własnego __unserialize. Stary worker może odczytać nowy payload podczas rolling deploy.
 
-- Poprawny baseline nowego pliku: **3 testy / 74 asercje PASS**.
-- Rzeczywista mutacja ciała __serialize w runtime do zwracania pełnych modeli: **oczekiwany FAIL**, 1 test / 2 asercje / 1 failure. Porażka dotyczyła nieobecności `FAKE_SECRET_583_0_password` w całym jobs.payload (test:68), nie awarii składni ani DB.
-- Przywrócenie z zewnętrznego backupu w finally: identyczne bajty, **MD5 `dc32d25b86d68e070af92a16e554ce64`**, **mtime_ns `1789497455626931200`**, oba sprawdzone ponownie po kontroli. Nie używano git checkout do odtwarzania.
-- Przywrócone źródło: **3 testy / 74 asercje PASS**.
-- Dziewięć zaplanowanych rodzin istniejących regresji: **85 testów / 333 asercje PASS**. Pomiar zbieracza: 11 zapytań dla 5 odbiorców i 11 dla 50. Łącznie nowe i istniejące przypadki: **88 testów / 407 asercji** (bez ponownego liczenia baseline/restored).
+- Pint obu plików i pełny PHPStan: PASS.
+- Nowe regresje: **4 testy / 113 asercji PASS**, również osobne procesy starego i obecnego czytnika.
+- Negatyw sekretów: oczekiwany FAIL na obecności fałszywego password w całym jobs.payload.
+- Negatyw dawnego formatu tablicowego: oczekiwany TypeError w OSOBNYM starym czytniku. Dedykowany test dochodzi do niego przed jakąkolwiek asercją allowlisty.
+- Po każdej mutacji: dokładne odtworzenie źródła, następnie **4 testy / 113 asercji PASS**.
+- Dziewięć istniejących rodzin: **85 testów / 333 asercje PASS**. Łącznie **89 testów / 446 asercji**, bez ponownego liczenia baseline/restored.
 
-Pierwszy skrypt kontrolny oczekiwał angielskiej frazy `not to contain`, podczas gdy PHPUnit wypisał `does not contain`. Źródło zostało mimo tego od razu przywrócone, a dodatni przebieg zaliczony. Oczekiwany negatyw potwierdzono następnie na zapisanym logu po dokładnym kodzie, liczbie failures i markerze; bez zmiany testu i bez kolejnej mutacji.
+Dowody bieżącej implementacji: [report.json](evidence/digest583/compatible/report.json), [baseline](evidence/digest583/compatible/baseline.txt), [negatyw sekretów](evidence/digest583/compatible/negative_secrets.txt), [odtworzenie po sekretach](evidence/digest583/compatible/restored_secrets.txt), [negatyw starego czytnika](evidence/digest583/compatible/negative_old_reader.txt), [odtworzenie po starym czytniku](evidence/digest583/compatible/restored_old_reader.txt), [regresje](evidence/digest583/compatible/regressions.txt).
 
-Dowody: [report.json](evidence/digest583/report.json), [baseline.txt](evidence/digest583/baseline.txt), [negative.txt](evidence/digest583/negative.txt), [restored.txt](evidence/digest583/restored.txt), [regressions.txt](evidence/digest583/regressions.txt). Backup poza repo pozostał w `/home/mateusz/digest583-negative-7y78hkhd/source.backup` wraz z metadanymi. Log negatywu zawiera wyłącznie syntetyczne dane testu; żadnych produkcyjnych payloadów nie odczytywano. Procesy zakończone, zasób PHP/DB zwolniony dla root. Poniższy opis przygotowania i plan pozostaje zapisem zakresu; powyższy wynik zastępuje jego wcześniejszy status „niewykonano”.
+## Format i zachowanie
 
-Aktualizacja kontroli: w izolowanym `/home/mateusz/kuking-digest583-runtime`, z jawnym APP_BASE_PATH, Pint obu plików PASS (poprawił format testu), pełny PHPStan zgodny z repo PASS bez błędów. Runtime bez .env; analiza dostała jawny niedostępny endpoint DB 127.0.0.1:1 zamiast konfiguracji współdzielonej bazy. Testów i migracji nie uruchamiano. Oba pliki PHP przeniesiono do worktree; SHA-256 źródła i celu zgodne dla każdego pliku. `git diff --check` PASS. Testy integracyjne i kontrolę ujemną następnie wykonano; wyniki powyżej.
+SerializesModels na Mailable nie zagląda do TrescDigestu. Własne __serialize buduje nowe obiekty według tabeli:
 
-Gałąź `fix/583-sekrety-digestu`, baza `ac5ff9d`. Zmiana wyłącznie w kontrakcie serializacji `TrescDigestu` i nowej regresji digestu.
+| Obiekt | Atrybuty | Relacje |
+|---|---|---|
+| User | id | profile |
+| Profile | display_name | brak |
+| CookedEvent | id, note | user, recipe |
+| Post | id, body | author, recipe |
+| Recipe | title | brak |
 
-`SerializesModels` na Mailable nie przechodzi rekurencyjnie przez DTO. DTO zapisuje teraz jawną listę skalarów: identyfikatory linków, wyświetlane imiona, tytuły, teksty, licznik i pytanie gospodarza. Nie zapisuje modeli, ich atrybutów ani relacji. Deserializacja buduje lekkie modele wyłącznie w pamięci, z ustawionymi relacjami potrzebnymi obecnym szablonom. Dzięki temu mail zachowuje ten sam temat, HTML, tekst i podpisany odnośnik wypisania.
+Pozostają licznik obserwujących i pytanie gospodarza. Nazwy klas modeli w payloadzie są celowe; test kontroluje dokładną zawartość, brak markerów hasła, remember_token, sekretów i kodów 2FA, nieznanej przyszłej kolumny oraz zbędnych relacji. Brak również adresów innych osób; adres odbiorcy pozostaje w Mailable do doręczenia.
 
-Nie odświeżamy treści w workerze: istniejący dobór widoczności i treści zostaje snapshotem. D-057 określa dobór, zgodę, limit i rozłożenie wysyłki; D-077 rezerwuje osobę/tydzień przed kolejkowaniem; D-078 odróżnia kolejkę od doręczenia. Zmiana nie dodaje odczytu/odświeżenia kont przy obsłudze zadania i nie ingeruje w te mechanizmy. Odbiorcy i relacje używane przez mail są już eager-loaded w zbieraczu. Helper nie zmienia wejściowych modeli współdzielonych przez paczkę.
+Allowlista pokrywa oba szablony i temat: powitanie, imiona, nazwy potraw, notatki, wpisy, licznik pozostałych osób, linki do wykonania/wpisu oraz wypisanie. Metody miary/jestPusty/maCosOsobistego zachowują wynik. Note/body/pytanie i relacje mogą być null. Relacje ustawiamy jawnie także na null, aby uniknąć lazy-load. DisplayName zachowuje istniejący fallback.
 
-Stary format DTO z modelami pozostaje czytelny; ponowna serializacja przechodzi przez nową listę pól. Sam deploy nie usuwa sekretów z już zapisanych jobs/failed_jobs/backupu. Ten pakiet nie czyści kolejki, nie ponawia wiadomości i nie włącza wysyłki. Ocena istniejących payloadów oraz ich retencji wymaga osobnego działania właściciela.
+Treść pozostaje snapshotem. Worker nie dobiera treści i nie odświeża kont. Zgoda, budżet i dobór D-057, rezerwacja osoba/tydzień D-077 oraz rozróżnienie kolejkowania i doręczenia D-078 pozostają bez zmian. Oryginalne modele współdzielone przez paczkę nie są mutowane. Nie włączono digestu, nie czyszczono kolejki i nie ponawiano wiadomości.
 
-Przygotowane testy używają rzeczywistego `Mail::queue` i `DatabaseQueue`, odczytują pełny `jobs.payload`, sprawdzają brak fałszywych sekretów czterech osób i zagnieżdżonych relacji oraz zachowanie treści po deserializacji. Obejmują HTML, tekst, temat, nagłówki i odbiorcę; liczą zapytania podczas odczytu/renderowania, sprawdzają niewrażliwość na późniejszą zmianę profilu, dawny format i brak opcjonalnych relacji. Bez wysyłania maili.
+Producent ma eager loading: OdbiorcyDigestu:115 profile odbiorców; ZbierzTresciDigestu:154 user.profile/recipe, :196 profile obserwujących, :250 author.profile/recipe. Ręcznie skonstruowany DTO z brakującymi relacjami może je załadować przy serializacji po stronie producenta; nie obiecujemy zero zapytań dla dowolnego ręcznego obiektu. Nowe payloady mają komplet potrzebnych relacji. Test potwierdza zero zapytań przy odczycie/renderowaniu i brak wpływu późniejszej zmiany nazwy w DB. Zbieracz: 11 zapytań dla 5 i dla 50 odbiorców.
 
-Root potwierdził także `php -l` obu plików przy PHP 8.4 z AVIF: PASS. Następnie wykonano Pint, PHPStan i testy opisane powyżej. Nie wykonano commit/push ani zmian wersji.
+Wypisanie używa signedRoute bez expires; porównanie nie wymaga zamrażania czasu. Kontrakt nie zabrania szyfrowania, ale usuwa niepotrzebne dane zamiast maskować je ShouldBeEncrypted.
 
-## Ponowny review statyczny
+## Rolling deploy i stare wiadomości
 
-Allowlista odpowiada wszystkim obecnym odczytom listu: odbiorca id → podpisane wypisanie, displayName → powitanie; wykonanie id/note/user.displayName/recipe.title → obie wersje i temat; obserwujący displayName + licznik → imiona i liczba pozostałych; wpis id/body/author.displayName/recipe.title → tekst i link; pytanie → zakończenie. `miary`, `jestPusty`, `maCosOsobistego` zależą wyłącznie od zachowanych list/liczników. Nie znaleziono innych użyć DTO wymagających atrybutów pominiętych w zapisie.
+Stary DTO ma readonly User odbiorca i nie ma własnego czytnika. Tablica w tym polu powoduje TypeError. Długotrwały queue:work, recykling i graceful shutdown nie gwarantują atomowej wymiany wszystkich producentów i konsumentów. Sama zgodność nowego czytnika ze starym payloadem nie wystarcza.
 
-`note`, `body`, autor/kucharz/przepis i pytanie mogą być null; odczyt ustawia relacje również na null, aby brak relacji nie uruchamiał lazy-load. Tytuł istniejącego przepisu jest niepustą kolumną wymaganą przez schemat; null w zapisie oznacza brak przepisu. DisplayName jest już wynikiem obecnego fallbacku `Użytkownik Kuking`; po odtworzeniu tę samą nazwę przechowuje profil w pamięci.
+Obecny zapis zachowuje stare sześć pól i znane klasy. Natywna deserializacja obsługuje nowe minimalne modele oraz dawne pełne modele. Ponowna serializacja starego DTO przechodzi przez allowlistę. Nie usuwa to sekretów z już zapisanych jobs/failed_jobs ani backupów; ich retencja/przegląd wymagają osobnego działania właściciela.
 
-Główna ścieżka przygotowuje wszystkie potrzebne relacje: OdbiorcyDigestu:115 profile odbiorców, ZbierzTresciDigestu:154 user.profile/recipe, :196 profile obserwujących, :250 author.profile/recipe. **Nie twierdzimy, że serializacja dowolnego ręcznie skonstruowanego DTO zawsze wykona zero zapytań:** `displayName` i odczyty relacji mogą załadować brakujące dane po stronie producenta. Dla obecnej ścieżki są już załadowane. Nowy zapis odtwarza komplet potrzebnych relacji, więc worker nie potrzebuje odczytów. Dawny payload otrzymuje publiczne pola bez konstruktora; __unserialize rozpoznaje User i przepuszcza dane przez tę samą allowlistę. Stare payloady z niezaładowanymi relacjami mogły już wcześniej ładować je przy renderowaniu; ten pakiet nie obiecuje naprawy ich historycznej kompletności.
+Test uruchamia osobne procesy PHP starego i obecnego czytnika. Stary ładuje przed bootstrapem dokładny plik z git show ac5ff9d:app/Domain/Digest/TrescDigestu.php. Fixture w tests/Fixtures/digest583 ma SHA-256 d6b8412d72f92d8219d37001391099ae3932b914e763d0eb1edfefa01a858745, sprawdzany przez test. Oba procesy odczytują payload producenta i zwracają identyczny HTML/tekst/temat/nagłówki oraz zero zapytań. Dodatkowy samodzielny test starego czytnika nie ma wcześniejszej asercji allowlisty.
 
-OdnosnikWypisania::dla używa `URL::signedRoute`, bez expires i bez zegara; adresy posts/cooked też nie mają TTL. Nie ma potrzeby zamrażania czasu dla porównania tych szablonów. Usunięto asercję wymuszającą brak szyfrowania zadania: wymogiem jest minimalizacja zawartości, nie zakaz szyfrowania.
+## Wykonanie kontroli ujemnych
 
-## Procedura wykonanej fizycznej kontroli ujemnej
+Runtime /home/mateusz/kuking-digest583-runtime, PHP 8.4.24, PostgreSQL 127.0.0.1:55439, baza kuking_583_tests, użytkownik kuking, timezone UTC. Tożsamość bazy/port/użytkownik/strefa sprawdzone zapytaniem. APP_BASE_PATH jawny; mail=array, cache/session=array, AWS_BUCKET=kuking-local-test, APP_DEBUG=true. Procesy czytników mają DB skierowaną na niedostępny port 1. Bez produkcyjnych danych i wysyłki do dostawcy.
 
-1. Root przygotowuje izolowaną kopię wykonawczą tego worktree oraz osobną bazę PostgreSQL, jawnie sprawdza APP_BASE_PATH, DB_HOST/PORT/DATABASE, sterownik queue=database i mail=array. Żadnej produkcyjnej bazy, istniejącej kolejki ani rzeczywistych adresatów. Bez równoległego edytora/testera tego runtime.
-2. Poprawne źródło: uruchomić `DigestNieKolejkujeSekretowTest` w całości; wymagany PASS trzech przypadków. Zachować kod wyjścia i pełny raport. Następnie zapisać dokładne bajty `app/Domain/Digest/TrescDigestu.php` i mtime_ns poza repo oraz MD5; odczyt ponownie musi zgadzać się z backupem.
-3. Fizyczna mutacja wyłącznie kopii wykonawczej: w rzeczywistym ciele `__serialize` zastąpić allowlistę dawnymi sześcioma polami (`odbiorca`, `wykonania`, `nowiObserwujacy`, `ileNowychObserwujacych`, `wpisyObserwowanych`, `pytanieGospodarza`) bezpośrednio z `$this`. Nie zmieniać testu, modeli, $hidden, bazy ani vendor. Zachować składnię i nazwy sześciu pól. Bez zmian __unserialize: czytanie dawnego formatu nadal działa, więc regresja musi wykryć **payload**, a nie wywrócić się na typie.
-4. Uruchomić wyłącznie test `test_pelny_payload_kolejki_nie_zawiera_sekretow_a_list_zachowuje_tresc_bez_odczytow_bazy`. Wymagane niezero i porażka asercji nieobecności `FAKE_SECRET_583_0_password` w pełnym jobs.payload. Błąd bootowania, SQL, składni lub serializacji callbacka nie zalicza negatywu. Markery są syntetyczne; nigdy nie podmieniać ich danymi kont.
-5. W finally przywrócić z backupu bajty i mtime_ns, sprawdzić MD5 i mtime. Odtworzenie z Git nie wystarcza. Powtórzyć pełny nowy plik testów; wymagany PASS. Wynik negatywu uznać dopiero po udanym przywróconym przebiegu. Proces PHP testu jest świeży, nie potrzeba buildu front-endu ani restartowania produkcyjnych workerów. Przerwanie bez finally wymaga ręcznej kontroli backupu przed dalszą pracą.
+Backup poza repo: /home/mateusz/digest583-compatible-7rygrt_w/source.backup. MD5 aa88de62ac3b87be5c71d9b7c23fde9c, mtime_ns 1789499139952970055. Każde odtworzenie w finally potwierdzono bajtami, MD5 i mtime; potem cały nowy plik testów przeszedł poprawnie. Backup źródła nie trafił do repo.
 
-Rodziny regresji po kontroli: `TygodniowePodsumowanieTest` (zgoda, wyłącznik, pusty tydzień, rozłożenie, temat i szablony); `PodsumowanieSzanujePrywatnoscTest` (blokady/status/widoczność); `PodsumowanieBezWachlarzaZapytanTest`; `DigestNieWysylaDwaRazyTest`; `SygnalDigestuMowiZakolejkowanoTest`; `DowodZgodyNaDigestTest`, `RollbackNieWlaczaDigestuTest`; `WypisanieZPodsumowaniaTest`; testy budżetu poczty, w szczególności `PodzialLimituPocztyTest`. Po nich Pint/PHPStan zgodnie CI. Po review uruchomiono te dziewięć rodzin: 85 testów / 333 asercje PASS, zgodnie z logiem regressions.txt.
+1. Po baseline rzeczywiste ciało __serialize zastąpiono zwracaniem sześciu pól z oryginalnymi modelami. Test pełnego payloadu: exit 1, 1 test, 2 asercje, 1 failure, dokładnie does not contain "FAKE_SECRET_583_0_password". Odtworzenie i PASS.
+2. Rzeczywisty plik DTO zastąpiono wersją tablicową z f007ec3. Dedykowany test rolling: exit 2, 1 test, 1 asercja, 1 error. ProcessFailedException pochodzi z potomnego PHP; stderr zawiera TypeError: Cannot assign array to property App\Domain\Digest\TrescDigestu::$odbiorca of type App\Models\User. Nie zaliczono błędu wcześniejszej asercji w procesie producenta. Odtworzenie i PASS.
 
-Stan źródłowego PR #582 odczytany przez root z GitHub API 15 września 2026: otwarty, head 29e73cc820992cbfcf4d670fb3b3485c49c4742f, jeden plik dokumentacji. Kontrola Zakres zmiany: success; testy PHP, Pint, Larastan, buildy, audyt zależności i pomiary przeglądarkowe: skipped. Ten przebieg nie weryfikuje ustaleń audytu ani poprawki #583.
+Pierwsza próba pobrania historycznego pliku przez Git WSL zatrzymała przygotowanie przed mutacją, ponieważ .git worktree zawiera ścieżkę Windows. Pobrano go Git dla Windows do prywatnego katalogu; test i oczekiwany błąd nie zostały zmienione.
+
+Rodziny: TygodniowePodsumowanieTest, PodsumowanieSzanujePrywatnoscTest, PodsumowanieBezWachlarzaZapytanTest, DigestNieWysylaDwaRazyTest, SygnalDigestuMowiZakolejkowanoTest, DowodZgodyNaDigestTest, RollbackNieWlaczaDigestuTest, WypisanieZPodsumowaniaTest, PodzialLimituPocztyTest.
+
+Formatowanie dwóch plików PHP przeniesiono do worktree; SHA-256 runtime i worktree zgodne. Procesy zakończone. Bez commit/push w tej kontroli.
+
+## Historia
+
+Pierwsza próba f007ec3 używała skalarów/tablic i własnego __unserialize. Przeszła 88 testów / 407 asercji oraz negatyw sekretów, lecz nie gwarantowała zgodności ze starym workerem. Jej logi pozostają bezpośrednio w evidence/digest583 jako historia. Bieżący format i wyniki mają osobne dowody w compatible; tylko one opisują wersję końcową.
