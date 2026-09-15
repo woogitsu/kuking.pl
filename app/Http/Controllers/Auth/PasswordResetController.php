@@ -15,7 +15,6 @@ use Illuminate\Auth\Events\PasswordReset;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Password;
-use Illuminate\Support\Str;
 use Illuminate\Validation\Rules\Password as PasswordRule;
 use Illuminate\View\View;
 
@@ -131,12 +130,9 @@ class PasswordResetController extends Controller
             ],
             function ($user, string $password) use ($request, $anuluj): void {
                 // Hasło jedną nazwaną drogą (`assignPassword()`), bo
-                // `password` jest poza `$fillable`; `remember_token` obok,
-                // bo reset unieważnia „zapamiętaj mnie" na starych
-                // urządzeniach.
-                $user->assignPassword($password)
-                    ->forceFill(['remember_token' => Str::random(60)])
-                    ->save();
+                // `password` jest poza `$fillable`. Wspólna metoda niżej
+                // odwołuje również token „zapamiętaj mnie” (#584).
+                $user->assignPassword($password)->save();
 
                 // Rotacja sesji (issue #12): to jest DOKŁADNIE sytuacja, w
                 // której zmiana hasła musi kasować stare sesje — ktoś prosi
