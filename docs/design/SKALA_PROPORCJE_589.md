@@ -1,4 +1,4 @@
-﻿# Proporcje mniejszej skali — #589
+# Proporcje mniejszej skali — #589
 
 Przygotowana Alfa 0.41 na gałęzi `fix/skala-proporcje`, z bazy `3dc2b33f7c760c4feeb78581382c5ef6c7c9aebb`. Poniższe wyniki dotyczą lokalnego kodu i końcowego CSS `app-DPAmbRUP.css`; nie stanowią potwierdzenia CI ani wdrożenia.
 
@@ -34,8 +34,8 @@ Formularz z błędem obejrzano także przy 320 px / 140% w ciemnym motywie, bez 
 
 Nie wykonano pełnego odbioru wszystkich stron, całej ścieżki klawiatury ani rzeczywistego zoomu 200%. Wysokie belki przy 140% zachowują dotychczasową kompozycję. Minimalne cele 48 px, logo, obrysy i proporcje zdjęć celowo nie skalują się liniowo.
 
-Wersja 0.41 i D-219 są przygotowane dla tego pakietu. Równolegle scalony panel #587 ma wersję 0.40 oraz D-218; przed commitem konieczna jest integracja aktualnego main `9a44ccc455232fa3cf56e115b5764695c16e2592`, zachowanie zmian panelu, jego CI i konstytucji 1.16 oraz rozstrzygnięcie numeracji dokumentów. Tego połączenia nie wykonano w ramach powyższych wyników.
+Integracja main `9a44ccc455232fa3cf56e115b5764695c16e2592` została wykonana w `e669173`. Zachowano panel #587, wpisy changelogu 0.40 i 0.41, D-218 oraz D-219, konstytucję 1.16 i jego CI. Po integracji ponownie wykonano build (72 pary kontrastu PASS), 72 pomiary skali, celowane PHP 15/399 i Pint 4 pliki — PASS. Nowe assety to `app-BbC4zqzk.css` i `app-BfcwSyV6.js`. Wcześniejszy ręczny odbiór oraz negatywy dotyczą historycznego CSS DPAmbRUP; nie przedstawiamy ich jako powtórzonych po merge. Wyniki po integracji zapisano oddzielnie jako `merged-wyniki.json`, `merged-build.txt` i `merged-php.txt`.
 
 ## Krótkie uruchomienie regresji
 
-W katalogu z zależnościami: `npm run build`, następnie `CHROMIUM_PATH=/pełna/ścieżka/chrome node scripts/skala-proporcje.mjs`. Bez `CHROMIUM_PATH` używany jest Chromium Playwright. Wynik trafia do `output/skala589/wyniki.json`. Ten pomiar nie wymaga PHP ani bazy. Lokalny runtime ma własne `.env`, vendor i storage; synchronizacja źródeł nie może ich nadpisywać.
+W katalogu z zależnościami: `npm run build`, następnie `CHROMIUM_PATH="$CHROME_BINARY" node scripts/skala-proporcje.mjs`. Bez `CHROMIUM_PATH` używany jest Chromium Playwright. Wynik trafia do `output/skala589/wyniki.json`. Ten pomiar nie wymaga PHP ani bazy. Lokalny runtime ma własne `.env`, vendor i storage; synchronizacja źródeł nie może ich nadpisywać.
