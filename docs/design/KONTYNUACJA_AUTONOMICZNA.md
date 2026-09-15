@@ -5,9 +5,9 @@
 PR #570 scalono normalnie po 10/10 success CI 34964204421.
 Head: 6388747aa9b5a6070b05f8cac605ebaa6da3bbe9.
 Main: 72b96f979a264ed1982a4803bc7e07e623428c2e.
-PHP CI: 3820 testów / 76674 asercje. Main CI 34966287461 oraz Railway
-6458271154 wymagają końcowego odczytu; Deploy 34966293384 był skipped.
-Produkcja ostatnio Alfa 0.34 / e6d94d8. Nie uznawać scalenia za wdrożenie.
+PHP CI PR: 3820 testów / 76674 asercje. Main CI 34966287461: 10/10 success.
+Railway 6458271154 success, Deploy 34968590919 success. HTTP potwierdza
+Alfa 0.35 / 72b96f9 oraz nowy nagłówek rzeczywistej odpowiedzi 419.
 
 Gałąź fix/567-niedostepne-zapisy, robocza Alfa 0.36: kontroler, komunikat,
 osiem nowych testów, uaktualniona starsza asercja. Lokalnie 23 testy /
