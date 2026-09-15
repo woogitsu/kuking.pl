@@ -36,7 +36,12 @@ zostało po raz drugi odczytane w kodzie przez osobę składającą ten dokument
    `.railway/railway.ts`, przyjęto za zamiar, nie za stan. Poprzednie audyty
    (`docs/AUDYT_2026-09.md`, `docs/AUDYT_GPT_2026-09.md` G02) zostawiły to
    samo nierozstrzygnięte.
-3. **Zależności:** `composer audit --locked` (baza Packagist) i `npm audit`
+3. **Dwa znaleziska zweryfikowano po publikacji raportu** (PR #582): D-01
+   odtworzono wykonaniem i przeniesiono do ZMIERZONE, a A-01 **częściowo
+   wycofano** — zmiana hasła unieważnia recallery, wbrew pierwotnemu
+   twierdzeniu. Oba sprostowania są wpisane przy znaleziskach, nie schowane
+   w historii gita.
+4. **Zależności:** `composer audit --locked` (baza Packagist) i `npm audit`
    zostały uruchomione i **nie wykazały żadnej znanej podatności**.
    Skan historii gita pod kątem sekretów (klucze AWS, Slack, Discord, klucze
    prywatne, `APP_KEY`) — czysty; jedyne trafienia to placeholdery
@@ -58,19 +63,21 @@ i sekretów 2FA), **są naprawione** i mają testy regresyjne.
 Znaleziono **39 pozycji**: 0 krytycznych, **3 wysokie**, **10 średnich**,
 14 niskich, 12 informacyjnych. Trzy wysokie to:
 
-1. **A-01 · „Zmień hasło" i „Wyloguj inne urządzenia" nie działają** na
-   żadnym urządzeniu, bo każde logowanie wymusza ciasteczko „zapamiętaj mnie"
-   (~400 dni), którego nikt nie rotuje i którego nie sprawdza brakujący
-   middleware `AuthenticateSession`. Komunikat sukcesu na ekranie jest
-   nieprawdziwy. To bije dokładnie w scenariusz osoby 50+, która zalogowała
-   się na cudzym komputerze.
+1. **A-01 · „Wyloguj inne urządzenia" nie wylogowuje, a włączenie 2FA nie
+   wyrzuca już zalogowanych.** Każde logowanie wymusza ciasteczko „zapamiętaj
+   mnie" (~400 dni), którego żadna z tych dwóch operacji nie rotuje. Komunikat
+   „Wylogowaliśmy wszystkie inne urządzenia" jest nieprawdziwy, a drugi
+   składnik nie obejmuje sesji sprzed jego włączenia. Zmiana hasła działa
+   poprawnie — pierwotna wersja raportu twierdziła inaczej i to sprostowano.
 2. **B-01 · Moderator może zbanować administratora, innego moderatora
    i siebie**, także na własnym zgłoszeniu. Utrata jedynego admina jest
    odwracalna tylko z konsoli.
 3. **D-01 · Zakolejkowany digest tygodniowy niesie w payloadzie pełny wiersz
    `users` odbiorcy** (e-mail, hash hasła, `remember_token`, szyfrogram 2FA),
-   a `failed_jobs` nie ma retencji. Zrzut tej tabeli to hashe haseł poza
-   tabelą `users`. WYWNIOSKOWANE, weryfikacja to jedna linijka.
+   a `failed_jobs` nie ma retencji. To są dokładnie trzy człony ciasteczka
+   „zapamiętaj mnie", więc zrzut tej tabeli daje gotowy klucz do konta, nie
+   tylko hashe do łamania offline. **Potwierdzone wykonaniem** w PR #582:
+   wszystkie cztery markery znalezione w 5041 bajtach payloadu.
 
 Wspólny mianownik średnich: **spójność granic**. Kilka publicznych formularzy
 z hasłem omija trzykoszykowy limiter logowania (A-02, B-04), formularz DSA
@@ -84,7 +91,7 @@ składa obietnice (D-03, D-04, D-05).
 
 | Krok | Pozycje | Szacunek | Dlaczego w tej kolejności |
 |---|---|---|---|
-| 1 | A-01 | 2–4 h | Naprawia dwie funkcje bezpieczeństwa, które dziś kłamią użytkownikowi; poprawka lokalna (rotacja tokenu + jeden middleware) |
+| 1 | A-01 | 2–4 h | Przycisk „wyloguj inne urządzenia" dziś kłamie, a 2FA nie obejmuje już zalogowanych; poprawka to rotacja `remember_token` w jednej metodzie plus dwa testy na dwóch klientach |
 | 2 | D-01 + D-02 | 3–5 h | Zdejmuje poświadczenia z tabeli kolejki i dodaje retencję `failed_jobs`; potem dopiero można spokojnie robić zrzuty bazy do restore-testów |
 | 3 | B-01 | 2–3 h | Hierarchia ról w `decide()` + test „moderator nie banuje admina" |
 | 4 | A-02, B-04 | 2–3 h | Jeden wspólny wzorzec: stan konta przed hasłem, wspólny komunikat, koszyki `KluczeLimitow`, Turnstile |
@@ -100,7 +107,7 @@ składa obietnice (D-03, D-04, D-05).
 
 | ID | Waga | Obszar | Jedno zdanie | Pewność |
 |---|---|---|---|---|
-| A-01 | **Wysokie** | Konto | Zmiana hasła, „wyloguj inne", włączenie 2FA i ban nie unieważniają ciasteczka „zapamiętaj mnie", które jest wymuszone przy każdym logowaniu | ZMIERZONE (kod) / WYWNIOSKOWANE (recaller) |
+| A-01 | **Wysokie** | Konto | „Wyloguj inne urządzenia" i włączenie 2FA nie unieważniają ciasteczka „zapamiętaj mnie"; zmiana hasła unieważnia (sprostowane) | ZMIERZONE (kod aplikacji i frameworka v13.30.1); regresja HTTP do wykonania |
 | A-02 | Średnie | Konto | Cofnięcie usunięcia konta i odwołanie gościa to wyrocznie hasła poza koszykami per konto, z różnicującym komunikatem; odwołanie bez Turnstile | ZMIERZONE |
 | A-03 | Średnie | Konto | Połączenie konta Facebooka bez hasła i bez drogi rozłączenia | ZMIERZONE |
 | A-04 | Niskie | Konto | Czas odpowiedzi logowania zdradza istnienie konta (bcrypt tylko dla istniejących) | ZMIERZONE |
@@ -125,7 +132,7 @@ składa obietnice (D-03, D-04, D-05).
 | C-06 | Informacyjne | DoS | Dekodowanie obrazu do 25 Mpx w żądaniu HTTP przy `memory_limit=256M` | ZMIERZONE (świadome) |
 | C-07 | Informacyjne | Media | Prywatne zdjęcia przez 302 na podpisany URL R2 — przekazywalny przez `signed_url_minutes` | ZMIERZONE |
 | C-08 | Informacyjne | Prywatność | Oryginały zachowują EXIF poza GPS (prywatny bucket) | ZMIERZONE |
-| D-01 | **Wysokie** | Kolejka / dane | Payload digestu niesie pełne wiersze `users` (hash hasła, `remember_token`, sekret 2FA) i leży w `failed_jobs` bez retencji | WYWNIOSKOWANE |
+| D-01 | **Wysokie** | Kolejka / dane | Payload digestu niesie pełne wiersze `users` (hash hasła, `remember_token`, sekret 2FA) i leży w `failed_jobs` bez retencji | **ZMIERZONE** — odtworzone wykonaniem, PR #582 |
 | D-02 | Średnie | Kolejka / dane | Tokeny jednorazowe (link logowania, zaproszenie, reset) jawnie w `jobs`/`failed_jobs`; brak `queue:prune-failed` | ZMIERZONE |
 | D-03 | Średnie | RODO | `weekly_digest_sends` to historia bez retencji, polityka obiecuje „jedną nadpisywaną wartość" | ZMIERZONE |
 | D-04 | Średnie | RODO | Wymazanie konta zostawia dane w `notifications` innych osób, `contact_messages`, `mail_failures`, `product_signals` | ZMIERZONE |
@@ -146,24 +153,49 @@ składa obietnice (D-03, D-04, D-05).
 
 ### A. Uwierzytelnianie, sesje, cykl życia konta
 
-#### A-01 · Wysokie · Ciasteczko „zapamiętaj mnie" przeżywa zmianę hasła, „wyloguj inne urządzenia", włączenie 2FA i ban
+#### A-01 · Wysokie · „Wyloguj inne urządzenia" i włączenie 2FA nie unieważniają ciasteczka „zapamiętaj mnie"
+
+> **SPROSTOWANIE z 15.09.2026, po weryfikacji w PR #582.** Pierwotna wersja tego
+> znaleziska twierdziła, że recaller przeżywa także **zmianę hasła**. To było
+> błędne i zostało wycofane. Sprawdzenie w `laravel/framework` **v13.30.1**
+> (dokładnie ta wersja stoi w `composer.lock`), plik
+> `src/Illuminate/Auth/SessionGuard.php:234-243`: `userFromRecaller()` porównuje
+> `hash_equals($this->hashPasswordForCookie($userPassword), $recallerHash)`,
+> czyli **hash hasła jest częścią ciasteczka i zmiana hasła unieważnia recallery
+> na wszystkich urządzeniach, bez `AuthenticateSession`**. Pozostała część
+> znaleziska stoi i jest opisana niżej.
 
 **Pliki**
 - `app/Http/Controllers/Settings/SecuritySettingsController.php:63-69` (`updatePassword`), `:109` (`logoutOtherSessions`) — komunikat „Wylogowaliśmy wszystkie inne urządzenia" w `:80` i `:112`.
 - `app/Models/User.php:1242-1257` (`invalidateSessions()`) — kasuje wiersze w `sessions` i tokeny linków; **nie rusza `remember_token`**. To samo `confirmTwoFactor()` (`:1325`), `markForDeletion/suspend/ban` (`:1110/1178/1195`).
 - `bootstrap/app.php` — grupa `web` bez `Illuminate\Session\Middleware\AuthenticateSession`.
+- Framework: `Illuminate\Auth\SessionGuard::userFromRecaller()` (v13.30.1, `:234-243`) i `logoutOtherDevices()` (`:752-786`), który **przemusza rehash hasła** i dlatego wywala pozostałe urządzenia. Aplikacja tej metody **nie woła**.
 - Każde logowanie: `Auth::login($user, remember: true)` — `LoginController.php:155`, `LoginLinkController.php:421`, `GoogleLoginController.php:464,607`, `FacebookLoginController.php:521,674`, `RegisterController.php:238`. Widok logowania nie ma pola wyboru.
 - Kontrast: `PasswordResetController.php:138` rotuje `remember_token` poprawnie.
 
-**Co robi kod.** Laravel wystawia recaller `id|remember_token|hash` (domyślnie ~400 dni). `SessionGuard::login()` tworzy `remember_token` tylko gdy pusty, więc jest stały dla konta. Kasowanie sesji z bazy nic nie daje: przeglądarka z recallerem przy następnym żądaniu dostaje nową sesję bez logowania. Segment z hashem hasła sprawdza wyłącznie `AuthenticateSession`, którego nie ma.
+**Co robi kod.** Laravel wystawia recaller `id|remember_token|hash(hasła)` (domyślnie ~400 dni). `SessionGuard::login()` tworzy `remember_token` tylko gdy jest pusty, więc token jest **stały dla konta**. Przy odzyskiwaniu sesji `userFromRecaller()` sprawdza dwie rzeczy: czy `remember_token` pasuje i czy trzeci segment odpowiada **bieżącemu** hashowi hasła.
 
-**Scenariusz.** Osoba loguje się w bibliotece. W domu zmienia hasło i klika „Wyloguj inne urządzenia", widzi sukces. Komputer w bibliotece przy kolejnym otwarciu kuking.pl jest dalej zalogowany; włączenie 2FA też go nie wyrzuci (`TwoFactorChallengeController.php:106` daje `remember: false` tylko nowym logowaniom). Dla `banned`/`pending_delete` skutek łagodzi `EnsureAccountIsActive`; dla zmiany hasła nic.
+Stąd podział:
+
+| Operacja | Czy unieważnia recallery na innych urządzeniach | Dlaczego |
+|---|---|---|
+| Zmiana hasła (`updatePassword`) | **Tak** | zmienia się hash hasła, trzeci segment przestaje pasować |
+| Reset hasła (`PasswordResetController:138`) | **Tak** | dodatkowo jawnie rotuje `remember_token` |
+| **„Wyloguj inne urządzenia"** (`logoutOtherSessions`) | **Nie** | kasuje wiersze w `sessions`, nie rusza `remember_token` ani hasła |
+| **Włączenie 2FA** (`confirmTwoFactor`) | **Nie** | hasło bez zmian, więc recaller dalej pasuje |
+| `ban` / `suspend` / `markForDeletion` | formalnie nie, w praktyce tak | recaller działa, ale `EnsureAccountIsActive` wylogowuje przy pierwszym żądaniu |
+
+Dwa wiersze oznaczone **Nie** są treścią tego znaleziska.
+
+**Scenariusz 1 — przycisk, który kłamie.** Osoba loguje się w bibliotece. W domu klika „Wyloguj inne urządzenia" **bez zmiany hasła** i czyta na ekranie „Wylogowaliśmy wszystkie inne urządzenia zalogowane na to konto" (`SecuritySettingsController:112`). Komputer w bibliotece przy kolejnym otwarciu kuking.pl jest dalej zalogowany. Komunikat jest nieprawdziwy, a to jest jedyna samoobsługowa droga, jaką ma osoba, która nie chce zmieniać hasła.
+
+**Scenariusz 2 — 2FA, które nie obejmuje już zalogowanych.** Osoba włącza uwierzytelnianie dwuskładnikowe, wierząc, że od tej chwili wejście wymaga kodu. Urządzenie zalogowane wcześniej odzyskuje sesję z recallera **z pominięciem kodu** i robi to nawet przez ~400 dni (`TwoFactorChallengeController.php:106` daje `remember: false` tylko nowym logowaniom). Włączenie drugiego składnika nie wyrzuca nikogo, kto już jest w środku.
 
 **Naprawa**
-1. W `User::invalidateSessions()` rotować token: `$this->setRememberToken(Str::random(60)); $this->save();`, a bieżącej przeglądarce po zmianie hasła wystawić nowy recaller przez ponowne `Auth::login($user, remember: true)`.
-2. Dodać `AuthenticateSession::class` do `web(append: [...])` w `bootstrap/app.php` — zmiana hasha hasła sama unieważni recallery.
-3. Rozważyć `Auth::setRememberDuration()` na np. 30 dni (zgodnie z `SESSION_LIFETIME=43200` z `.railway/railway.ts`).
-4. Test regresyjny: po zmianie hasła żądanie z samym recallerem z innego urządzenia kończy się jako gość.
+1. W `User::invalidateSessions()` rotować token: `$this->setRememberToken(Str::random(60)); $this->save();`, a bieżącej przeglądarce wystawić nowy recaller przez ponowne `Auth::login($user, remember: true)`. To załatwia oba scenariusze naraz i **nie wymaga hasła**, więc działa też przy włączaniu 2FA.
+2. Alternatywa dla samego przycisku: `Auth::logoutOtherDevices($request->string('current_password'))` — metoda frameworka, która wymusza rehash hasła. Wymaga podania hasła, więc nie nadaje się do ścieżki 2FA.
+3. Rozważyć `Auth::setRememberDuration()` na np. 30 dni (zgodnie z `SESSION_LIFETIME=43200` z `.railway/railway.ts`) zamiast domyślnych ~400.
+4. **Test regresyjny musi objąć obie operacje osobno i użyć dwóch niezależnych klientów HTTP.** Odczyt kodu tego nie zastąpi: klient A loguje się i zachowuje ciasteczko recallera, klient B klika „Wyloguj inne urządzenia" (bez zmiany hasła), po czym żądanie klienta A z samym recallerem musi skończyć się jako gość. Drugi test to samo dla włączenia 2FA. Test na zmianę hasła też warto mieć, ale on przechodzi już dziś.
 
 #### A-02 · Średnie · Publiczne formularze z hasłem poza trzykoszykowym limiterem, z różnicującym komunikatem
 
@@ -307,6 +339,16 @@ składa obietnice (D-03, D-04, D-05).
 
 #### D-01 · Wysokie · Payload digestu niesie pełne wiersze `users`
 
+> **POTWIERDZONE WYKONANIEM (PR #582).** Sonda na rzeczywistych klasach
+> `TrescDigestu`, `PodsumowanieTygodnia` i `SendQueuedMailable` wykonała
+> `serialize(clone $job)` na dwóch niezapisanych modelach `User` z jawnie
+> syntetycznymi atrybutami. W 5041 bajtach wyniku znalazły się **wszystkie
+> cztery markery**: hash hasła i `remember_token` odbiorcy **oraz**
+> obserwującego. `shouldBeEncrypted = false`. Nie wykonano pełnego
+> `Queue::createPayload()`, zapisu do `jobs`, wysyłki ani odczytu produkcji —
+> potwierdza to **zbędne powielenie atrybutów w serializowanym zadaniu**,
+> a nie publiczny wyciek. Oznaczenie zmienione z WYWNIOSKOWANE na ZMIERZONE.
+
 **Pliki**
 - `app/Console/Commands/WyslijPodsumowaniaTygodnia.php:309` — `Mail::to($osoba->email)->queue($list)`.
 - `app/Mail/PodsumowanieTygodnia.php:37-39` — `use SerializesModels; __construct(public TrescDigestu $tresc)`.
@@ -315,12 +357,16 @@ składa obietnice (D-03, D-04, D-05).
 
 **Co robi kod (WYWNIOSKOWANE).** `SerializesModels` redukuje do identyfikatorów tylko **bezpośrednie** właściwości Mailable będące modelem lub kolekcją. `$tresc` jest zwykłym obiektem, więc `serialize()` schodzi w głąb i zapisuje modele z **pełną tablicą atrybutów** (`$hidden` dotyczy tylko `toArray()`): `email`, `password`, `remember_token`, `two_factor_secret`, `two_factor_backup_codes` odbiorcy oraz atrybuty autorów wpisów i nowych obserwujących.
 
-**Dlaczego problem.** Payload leży w `jobs` do wysłania, a po wyczerpaniu prób **bezterminowo** w `failed_jobs`. Zrzut bazy ujawnia hashe haseł i `remember_token` (patrz A-01: ten token jest dziś stały i wystarcza do wejścia) poza tabelą `users`, o której myśli się przy rotacji. Dodatkowo treść listu jest zamrożoną kopią sprzed rezerwacji.
+**Dlaczego problem.** Payload leży w `jobs` do wysłania, a po wyczerpaniu prób **bezterminowo** w `failed_jobs`. Zrzut bazy ujawnia hashe haseł i `remember_token` poza tabelą `users`, o której myśli się przy rotacji.
+
+Sedno jest ostrzejsze, niż wygląda na pierwszy rzut oka: ciasteczko recallera ma postać `id|remember_token|hash(hasła)` (patrz A-01). Payload digestu zawiera **wszystkie trzy człony naraz** — identyfikator, token i hash hasła — czyli komplet potrzebny do **sfabrykowania ważnego ciasteczka „zapamiętaj mnie"** dla odbiorcy listu i dla każdego, kto go obserwuje. To już nie jest „wyciek hashy do złamania offline", tylko gotowy klucz do konta, ważny aż do zmiany hasła. Dodatkowo treść listu jest zamrożoną kopią sprzed rezerwacji.
 
 **Scenariusz.** Awaria EmailLabs w dniu wysyłki → dziesiątki zadań w `failed_jobs` z pełnymi wierszami użytkowników, na zawsze.
 
 **Weryfikacja (1 min):** `serialize(new PodsumowanieTygodnia($tresc))` i `grep password`.
-**Naprawa.** Do Mailable przekazywać tylko identyfikatory i budować `TrescDigestu` w `content()` po stronie workera, albo dać `TrescDigestu` `__serialize/__unserialize` redukujące modele do kluczy; `Schedule` z `queue:prune-failed --hours=168`; test: payload nie zawiera `password`, `two_factor_secret` ani `@`.
+**Naprawa.** Do Mailable przekazywać tylko identyfikatory i budować `TrescDigestu` w `content()` po stronie workera, albo dać `TrescDigestu` metody `__serialize`/`__unserialize` redukujące modele do kluczy; `Schedule` z `queue:prune-failed --hours=168`.
+
+**Test regresyjny — uwaga na kształt asercji.** Sprawdzaj **brak konkretnych sekretów**: `password`, `remember_token`, `two_factor_secret`, `two_factor_backup_codes`. **Nie** asercję „payload nie zawiera znaku `@`”: adres odbiorcy jest prawidłowym i potrzebnym elementem zadania pocztowego, więc taki test albo od razu oblewa, albo zostanie obejściem. (Pierwsza wersja tego raportu proponowała właśnie `@` — poprawione po uwadze w PR #582.)
 
 #### D-02 · Średnie · Tokeny jednorazowe jawnie w `jobs`/`failed_jobs`
 
