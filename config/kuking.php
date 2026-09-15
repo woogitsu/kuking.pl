@@ -369,7 +369,7 @@ return [
          *
          * TRZY MNIEJSZE SĄ NOWE. Zasada „tekst ≥ 18 px" z AGENTS.md dotyczy
          * DOMYŚLNEGO wyglądu — 100% nadal daje 18 px. Niżej schodzi wyłącznie
-         * ten, kto sam tak ustawi, i tylko na swoim koncie.
+         * ten, kto sam tak ustawi, na swoim koncie lub w przeglądarce gościa.
          */
         'scales' => [70, 80, 90, 100, 112, 125, 140],
 
@@ -397,6 +397,7 @@ return [
         ],
 
         'default_scale' => 100,
+        'cookie' => 'kuking_text_scale',
     ],
 
     'theme' => [
@@ -2628,7 +2629,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.37',
+        'etykieta' => 'Alfa 0.38',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

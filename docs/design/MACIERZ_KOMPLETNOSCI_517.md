@@ -394,3 +394,9 @@ zeszycie; nie jest to ponowny odbiór całej rodziny. CI i wdrożenie oczekują.
 [PASEK_PRZEWIJANIE.md](PASEK_PRZEWIJANIE.md): 24 warianty oraz osobno
 rzeczywisty zoom200% i Shift+Tab, dwa fizyczne negatywy. Wdrożenie
 jeszcze niepotwierdzone; nie zmienia statusu pełnej macierzy.
+
+## Szybki wygląd — #574, lokalnie
+
+[SZYBKI_WYGLAD_574.md](SZYBKI_WYGLAD_574.md):36 geometrii, zapis gościa,
+reset, błąd429, bezJS, nawigacja w trakcie zapisu, konto i zoom200%.
+Cztery fizyczne negatywy. CI i odbiór produkcji pozostają wymagane.

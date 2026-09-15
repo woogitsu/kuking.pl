@@ -1,6 +1,37 @@
 # Kontynuacja autonomiczna KuKing
 
-## Bieżący punkt — #549 scalone, #567 lokalne
+## Bieżący punkt — #575 i #577, 15 września 2026
+
+Potwierdzona produkcja: Alfa 0.36, d50183eecda28455ece64469571c074e3897c408.
+PR #572 i jego CI 34969399425 przeszły wszystkie 10 zadań. Main CI
+34971936281, Railway 6459320591 i Deploy 34975402661 mają success.
+HTTP potwierdziło wersję, SHA, CSS, JS oraz dwa lokalne pliki Inter.
+
+PR #573 scalono jako 91c8b4106fb96b4447ecc5db8ae39eb94996b49d po 10/10
+CI PR. Main CI 34975700310 przekroczyło 25 minut portu marki; Railway
+6460017818 ma inactive. Alfa 0.37 nie ma odbioru produkcyjnego.
+
+PR #575 jest draftem na gałęzi feat/szybki-wyglad. Wysłany a6958b6
+przeszedł zwykły pełny hook, ale CI 34978064181 ma failure: fokus przycisku
+Wygląd oraz fragment obrysu zmiany awatara przy zoomie. Końcowa poprawka
+na tej samej gałęzi ma lokalny odbiór: oba motywy 53/53, kliknięcie i powrót
+panelu, 4 warianty bez czekania i 12/108 przy font32; fizyczne negatywy
+wykryte, źródła przywrócone. Raport: SZYBKI_WYGLAD_574.md. Równolegle #577
+dzieli port na dwa izolowane zadania bez usuwania testów ani zwiększania
+limitu. Raport: PODZIAL_POMIAROW_CI_577.md.
+
+Następne: zwykły hook/push na końcowym commicie, wszystkie 11 zadań CI,
+normalny merge i faktyczny odbiór Railway oraz produkcji. Nie scalać
+na podstawie poprzedniego lokalnego wyniku. Po pakiecie: #568, #561
+i dalsza macierz #492. Pełny port marki pozostaje CZĘŚCIOWO.
+
+Aktualizacja triażu: #120 ma już adapter R2 i testy, lecz nie ma odbioru
+realnego storage; #258/#259 mają już nazwane kontrole konfiguracji health,
+lecz wymagają dostępu do paneli dostawców. Issues zachowują te ograniczenia.
+Research potrzeb zapisano w #576, bez tworzenia fikcyjnych danych ani
+nowych funkcji V2. Starsze punkty poniżej nie są bieżącym stanem wysyłki.
+
+## Historyczny punkt — #549 i #567
 
 PR #570 scalono normalnie po 10/10 success CI 34964204421.
 Head: 6388747aa9b5a6070b05f8cac605ebaa6da3bbe9.

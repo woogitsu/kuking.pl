@@ -1,4 +1,5 @@
 /* Pomiar portu na prawdziwych stronach Laravel i danych demonstracyjnych. */
+import { wybierzGrupe, wykonajGrupe } from './port-grupy.mjs';
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
@@ -9,9 +10,11 @@ import { sprawdzZeszyty } from './zeszyty-marki.mjs';
 import { sprawdzPodpowiedzi } from './kontrast-notice.mjs';
 import { sprawdzNawigacje492 } from './nawigacja-niski-widok.mjs';
 import { sprawdzTagi } from './tagi-marki.mjs';
+import { sprawdzSzybkiWyglad } from './szybki-wyglad.mjs';
 import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
 
+const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
 
@@ -297,6 +300,7 @@ const pomiar = async (page, width, path) => {
   return result;
 };
 try {
+  await wykonajGrupe(grupa, 'baza', async () => {
   for (const width of [320, 360, 390, 414, 768, 1440]) {
     for (const dark of [false, true]) {
       const context = await przegladarka.newContext({ storageState: sesja, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
@@ -363,6 +367,8 @@ try {
   }
   await context.close();
 
+  });
+  await wykonajGrupe(grupa, 'rozszerzenia', async () => {
   if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
   const kompozycje = JSON.parse(execFileSync('php', ['scripts/fixtures/kompozycje-marki.php'], { env: env() }).toString());
   await sprawdzKompozycje({ browser: przegladarka, adres, sesja, ...kompozycje });
@@ -373,10 +379,13 @@ try {
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
   await sprawdzPasek({ browser: przegladarka, adres });
+  await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
 
+  });
+  await wykonajGrupe(grupa, 'baza', async () => {
   // Kontrola ujemna zmienia źródło CSS, nie wynik pomiaru ani atrapę DOM.
   const source = 'resources/css/marka-rama.css';
   const copy = `${mkdtempSync(`${tmpdir()}/kuking-port-`)}/marka-rama.css`;
@@ -520,6 +529,7 @@ try {
   const landingOdbior = await przegladarka.newContext({ viewport: { width: 1440, height: 900 } });
   await pomiarLanding(await landingOdbior.newPage(), 1440);
   await landingOdbior.close();
+  });
   console.log(`PORT_OK ${JSON.stringify(wyniki)}`);
 } finally {
   await przegladarka.close();

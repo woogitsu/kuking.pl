@@ -867,6 +867,7 @@ jobs:
           --health-retries=10
 
     env:
+      PORT_GRUPA: baza
       APP_ENV: local
       APP_DEBUG: "false"
       APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
@@ -907,7 +908,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -945,6 +946,146 @@ jobs:
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
 
+      - name: Regresja wyboru grup portu
+        if: steps.zmiany.outputs.warto == '1'
+        run: node --test scripts/port-grupy.test.mjs
+
+      - name: Przeglądarka
+        if: steps.zmiany.outputs.warto == '1'
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+
+      - name: Przygotowanie
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          cp .env.example .env
+          php artisan storage:link
+          npm run build
+
+          php artisan migrate:fresh --seed --force --no-interaction
+
+      - name: Port projektu — układ i kontrola ujemna
+        if: steps.zmiany.outputs.warto == '1'
+        env:
+          DB_DATABASE: kuking_port_pomiar
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/port-projektu.mjs
+
+      - name: Zrzuty portu marki
+        if: always() && steps.zmiany.outputs.warto == '1'
+        uses: actions/upload-artifact@v7
+        with:
+          name: port-marki-${{ github.sha }}
+          path: |
+            storage/port-projektu
+          retention-days: 14
+
+  # #577: osobny checkout i PostgreSQL; mutacje negatywów nie współdzielą plików.
+  port_funkcje:
+    name: Port marki — rodziny ekranów, zoom i kreator
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      PORT_GRUPA: rozszerzenia
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
+
+      - name: Czy zmieniła się warstwa widoku
+        id: zmiany
+        run: |
+          set -euo pipefail
+          baza='${{ github.event.pull_request.base.sha || github.event.before }}'
+
+          if [ -z "$baza" ] || [ "$baza" = "0000000000000000000000000000000000000000" ]; then
+            echo "warto=1" >> "$GITHUB_OUTPUT"
+            echo "Brak punktu odniesienia — sprawdzam."
+            exit 0
+          fi
+
+          zmienione="$(git diff --name-only "$baza" HEAD)"
+          echo "Zmienione pliki:"; echo "$zmienione"
+
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+            echo "warto=1" >> "$GITHUB_OUTPUT"
+          else
+            echo "warto=0" >> "$GITHUB_OUTPUT"
+            echo "Warstwa widoku nietknięta — pomijam."
+          fi
+
+      - name: Własny katalog narzędzi PHP (issue #262)
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          set -euo pipefail
+          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
+          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
+          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
+
+      - name: Konfiguracja PHP
+        if: steps.zmiany.outputs.warto == '1'
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Konfiguracja Node
+        if: steps.zmiany.outputs.warto == '1'
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalacja zależności
+        if: steps.zmiany.outputs.warto == '1'
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+
+      - name: Regresja wyboru grup portu
+        if: steps.zmiany.outputs.warto == '1'
+        run: node --test scripts/port-grupy.test.mjs
+
       - name: Przeglądarka
         if: steps.zmiany.outputs.warto == '1'
         run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
@@ -975,7 +1116,7 @@ jobs:
         if: always() && steps.zmiany.outputs.warto == '1'
         uses: actions/upload-artifact@v7
         with:
-          name: port-marki-${{ github.sha }}
+          name: port-funkcje-${{ github.sha }}
           path: |
             storage/port-projektu
             storage/kroki-kreatora
@@ -1071,7 +1212,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
