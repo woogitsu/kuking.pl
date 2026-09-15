@@ -1,6 +1,24 @@
 # Odmiana czasu minutnika — #548
 
-Stan: poprawka lokalna Alfa 0.34, przed CI i wdrożeniem.
+## Odbiór wydania 15 września 2026
+
+PR #565 scalony: be3d35503a328b8f63848e91e43ab0ddb659a670.
+CI PR34950631328 i main34952744130: wszystkie10 zadań success.
+PHP PR:3816 testów /76642 asercje. Zwykły push z pełnym hookiem przeszedł.
+Railway6455792284 oraz Deploy34954919836 success. HTTP potwierdziło
+Alfa0.34/be3d355; oba lokalne fonty200, CSS/JS bez zmiany wobec0.33.
+
+Produkcja: publiczny tryb gotowania bigosu,390/1440px × oba motywy,
+4/4 poprawnych renderów HTTP200 bez poziomego overflow; obejrzano cztery
+zrzuty. Ten przepis nie zawiera minutnika, więc nie przypisujemy temu
+odbiorowi sprawdzenia tekstu „na1minutę” ani odliczania. Dokładny przypadek
+jednej minuty oraz podgląd kreatora sprawdzono lokalnie opisanymi niżej
+regresjami i rzeczywistym uruchomieniem. Nie tworzono danych produkcyjnych.
+Pełny port marki nadal CZĘŚCIOWO. Kolejne zadanie #549 ma plan w komentarzu
+issuecomment-5677810602, następnie #561 i pozostała macierz #492.
+
+
+Stan: kod Alfy 0.34 wdrożony; szczegóły i ograniczenia odbioru poniżej.
 Baza: main22f89ac59777e5133a5b542cd09e5b7de6824734, produkcja Alfa0.33.
 
 RecipeStep::timerLabel ma opcjonalny wariant afterNa. Domyślny mianownik
