@@ -6,6 +6,8 @@ namespace App\Domain\Digest;
 
 use App\Models\CookedEvent;
 use App\Models\Post;
+use App\Models\Profile;
+use App\Models\Recipe;
 use App\Models\User;
 
 /**
@@ -40,6 +42,11 @@ use App\Models\User;
  * - **Propozycji nieznajomych („osoby, które warto poznać").** To jest
  *   redakcyjny wybór gospodarza, a nie coś, co wolno złożyć zapytaniem —
  *   każde automatyczne „warto poznać" jest rankingiem pod inną nazwą.
+ *
+ * @phpstan-type Osoba array{id: string, imie: string}
+ * @phpstan-type Wykonanie array{id: string, note: ?string, osoba: ?Osoba, przepis: ?string}
+ * @phpstan-type Wpis array{id: string, body: ?string, osoba: ?Osoba, przepis: ?string}
+ * @phpstan-type Zapis array{odbiorca: Osoba, wykonania: list<Wykonanie>, nowiObserwujacy: list<Osoba>, ileNowychObserwujacych: int, wpisyObserwowanych: list<Wpis>, pytanieGospodarza: ?string}
  */
 final class TrescDigestu
 {
@@ -57,6 +64,103 @@ final class TrescDigestu
         public readonly array $wpisyObserwowanych,
         public readonly ?string $pytanieGospodarza,
     ) {}
+
+    /**
+     * SerializesModels na liście nie zagląda do wnętrza tego DTO (#583).
+     * Zapisujemy więc wyłącznie dane używane przez list, nigdy attributes ani
+     * relacje modeli. Zostaje snapshot dobranej treści: worker nie odczytuje
+     * ponownie kont ani nie dobiera nowych treści (D-057, D-077, D-078).
+     *
+     * @return Zapis
+     */
+    public function __serialize(): array
+    {
+        return [
+            'odbiorca' => self::zapisOsoby($this->odbiorca),
+            'wykonania' => array_map(static fn (CookedEvent $w): array => [
+                'id' => (string) $w->getKey(),
+                'note' => $w->note,
+                'osoba' => $w->user === null ? null : self::zapisOsoby($w->user),
+                'przepis' => $w->recipe?->title,
+            ], $this->wykonania),
+            'nowiObserwujacy' => array_map(self::zapisOsoby(...), $this->nowiObserwujacy),
+            'ileNowychObserwujacych' => $this->ileNowychObserwujacych,
+            'wpisyObserwowanych' => array_map(static fn (Post $w): array => [
+                'id' => (string) $w->getKey(),
+                'body' => $w->body,
+                'osoba' => $w->author === null ? null : self::zapisOsoby($w->author),
+                'przepis' => $w->recipe?->title,
+            ], $this->wpisyObserwowanych),
+            'pytanieGospodarza' => $this->pytanieGospodarza,
+        ];
+    }
+
+    /**
+     * Lekkie modele zachowują API szablonów; wszystkie potrzebne relacje są
+     * ustawione w pamięci. Nie ma find(), odświeżania ani zapisu do bazy.
+     * Stare zadania mogą jeszcze zawierać modele: obsługujemy ich odczyt,
+     * ale ponowna serializacja zawsze przechodzi przez listę dozwolonych pól.
+     *
+     * @param  Zapis|array{odbiorca: User, wykonania: list<CookedEvent>, nowiObserwujacy: list<User>, ileNowychObserwujacych: int, wpisyObserwowanych: list<Post>, pytanieGospodarza: ?string}  $data
+     */
+    public function __unserialize(array $data): void
+    {
+        if ($data['odbiorca'] instanceof User) {
+            $stary = new self(...$data);
+            $data = $stary->__serialize();
+        }
+
+        $this->odbiorca = self::odczytajOsobe($data['odbiorca']);
+        $this->wykonania = array_map(static function (array $w): CookedEvent {
+            $model = new CookedEvent;
+            $model->setRawAttributes(['id' => $w['id'], 'note' => $w['note']]);
+            $model->setRelation('user', $w['osoba'] === null ? null : self::odczytajOsobe($w['osoba']));
+            $model->setRelation('recipe', self::odczytajPrzepis($w['przepis']));
+
+            return $model;
+        }, $data['wykonania']);
+        $this->nowiObserwujacy = array_map(self::odczytajOsobe(...), $data['nowiObserwujacy']);
+        $this->ileNowychObserwujacych = $data['ileNowychObserwujacych'];
+        $this->wpisyObserwowanych = array_map(static function (array $w): Post {
+            $model = new Post;
+            $model->setRawAttributes(['id' => $w['id'], 'body' => $w['body']]);
+            $model->setRelation('author', $w['osoba'] === null ? null : self::odczytajOsobe($w['osoba']));
+            $model->setRelation('recipe', self::odczytajPrzepis($w['przepis']));
+
+            return $model;
+        }, $data['wpisyObserwowanych']);
+        $this->pytanieGospodarza = $data['pytanieGospodarza'];
+    }
+
+    /** @return Osoba */
+    private static function zapisOsoby(User $osoba): array
+    {
+        return ['id' => (string) $osoba->getKey(), 'imie' => $osoba->displayName()];
+    }
+
+    /** @param Osoba $zapis */
+    private static function odczytajOsobe(array $zapis): User
+    {
+        $profil = new Profile;
+        $profil->setRawAttributes(['display_name' => $zapis['imie']]);
+        $osoba = new User;
+        $osoba->setRawAttributes(['id' => $zapis['id']]);
+        $osoba->setRelation('profile', $profil);
+
+        return $osoba;
+    }
+
+    private static function odczytajPrzepis(?string $tytul): ?Recipe
+    {
+        if ($tytul === null) {
+            return null;
+        }
+
+        $przepis = new Recipe;
+        $przepis->setRawAttributes(['title' => $tytul]);
+
+        return $przepis;
+    }
 
     public static function pusta(User $odbiorca): self
     {
