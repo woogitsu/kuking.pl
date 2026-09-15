@@ -166,16 +166,9 @@ type row struct {
 	zapisow      int
 }
 
-func dsn(db string) string {
-	return fmt.Sprintf("postgres://kuking:kuking@127.0.0.1:5432/%s", db)
-}
-
 func main() {
 	mode := os.Getenv("BENCH_MODE")
 	db := os.Getenv("BENCH_DB")
-	if db == "" {
-		db = "kuking_bench"
-	}
 	iter, _ := strconv.Atoi(os.Getenv("BENCH_ITER"))
 	if iter == 0 {
 		iter = 200

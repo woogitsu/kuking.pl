@@ -4,11 +4,13 @@ declare(strict_types=1);
 // w kształcie, jaki generuje Eloquent (feed + 7 doładowań relacji).
 // Mierzy osobno czas w bazie i czas w kliencie.
 
-$db   = getenv('BENCH_DB') ?: 'kuking_bench';
+require __DIR__.'/connection.php';
+[$dsn, $user, $password] = benchmarkConnection();
+$db = getenv('BENCH_DB');
 $iter = (int) (getenv('BENCH_ITER') ?: 200);
 $viewer = getenv('BENCH_VIEWER') ?: '00000000-0000-4000-8000-000000000003';
 
-$pdo = new PDO("pgsql:host=127.0.0.1;port=5432;dbname={$db}", 'kuking', 'kuking', [
+$pdo = new PDO($dsn, $user, $password, [
     PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
     PDO::ATTR_EMULATE_PREPARES => false,
 ]);
