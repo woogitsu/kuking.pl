@@ -1,0 +1,134 @@
+[
+  {
+    "mp": "12",
+    "threshold": 25,
+    "wall_ms": 421.368998,
+    "cpu_ms": 421.236,
+    "peak_rss_kib": 211508,
+    "variants": {
+      "podglad": {
+        "key": "measurement/12_podglad.webp",
+        "width": 480,
+        "height": 640,
+        "bytes": 66168
+      }
+    },
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "24",
+    "threshold": 25,
+    "wall_ms": 266.355138,
+    "cpu_ms": 266.356,
+    "peak_rss_kib": 161344,
+    "variants": {
+      "podglad": {
+        "key": "measurement/24_podglad.webp",
+        "width": 640,
+        "height": 427,
+        "bytes": 21788
+      }
+    },
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "48",
+    "threshold": 25,
+    "wall_ms": 0.014297,
+    "cpu_ms": 0.017,
+    "peak_rss_kib": 69196,
+    "variants": [],
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "12",
+    "threshold": 25,
+    "wall_ms": 411.016498,
+    "cpu_ms": 411.021,
+    "peak_rss_kib": 211336,
+    "variants": {
+      "podglad": {
+        "key": "measurement/12_podglad.webp",
+        "width": 480,
+        "height": 640,
+        "bytes": 66168
+      }
+    },
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "24",
+    "threshold": 25,
+    "wall_ms": 265.356086,
+    "cpu_ms": 265.355,
+    "peak_rss_kib": 161168,
+    "variants": {
+      "podglad": {
+        "key": "measurement/24_podglad.webp",
+        "width": 640,
+        "height": 427,
+        "bytes": 21788
+      }
+    },
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "48",
+    "threshold": 25,
+    "wall_ms": 0.015928,
+    "cpu_ms": 0.019,
+    "peak_rss_kib": 69320,
+    "variants": [],
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "12",
+    "threshold": 25,
+    "wall_ms": 440.471167,
+    "cpu_ms": 440.485,
+    "peak_rss_kib": 211320,
+    "variants": {
+      "podglad": {
+        "key": "measurement/12_podglad.webp",
+        "width": 480,
+        "height": 640,
+        "bytes": 66168
+      }
+    },
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "24",
+    "threshold": 25,
+    "wall_ms": 270.704893,
+    "cpu_ms": 270.706,
+    "peak_rss_kib": 161316,
+    "variants": {
+      "podglad": {
+        "key": "measurement/24_podglad.webp",
+        "width": 640,
+        "height": 427,
+        "bytes": 21788
+      }
+    },
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  },
+  {
+    "mp": "48",
+    "threshold": 25,
+    "wall_ms": 0.01741,
+    "cpu_ms": 0.021,
+    "peak_rss_kib": 69360,
+    "variants": [],
+    "source": "/home/mateusz/kuking-search568-runtime/app/Domain/Media/PodgladOdRazu.php",
+    "scope": "Local single preview call, input already loaded, local disk, process peak RSS includes bootstrap; not request or R2 latency"
+  }
+]

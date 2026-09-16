@@ -142,10 +142,15 @@ class ProcessUploadedImage implements ShouldQueue
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
 
-            foreach (config('kuking.media.variants') as $name => $maxEdge) {
-                $image = $manager->read($original);
+            $sourceImage = $manager->read($original);
+            OrientacjaZdjecia::zastosuj($sourceImage, $orientation);
 
-                OrientacjaZdjecia::zastosuj($image, $orientation);
+            foreach (config('kuking.media.variants') as $name => $maxEdge) {
+                // Dekodujemy bajty raz. Odczyt obiektu GD tworzy osobną ramkę,
+                // a scaleDown zapisuje wynik w nowej bitmapie; źródło pozostaje
+                // niezmienione. Każdy wariant powstaje z pełnej rozdzielczości,
+                // nie z poprzedniej miniatury. Nie klonujemy dużej bitmapy GD.
+                $image = $manager->read($sourceImage->core()->native());
 
                 // scaleDown nigdy nie powiększa — małe zdjęcie zostaje małe,
                 // zamiast być rozmyte na siłę.

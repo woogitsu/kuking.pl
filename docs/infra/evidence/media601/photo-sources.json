@@ -1,0 +1,38 @@
+[
+  {
+    "name": "12mp",
+    "source": "https://commons.wikimedia.org/wiki/File:Eja_yoyo_and_Ede_Dindin.jpg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/e/e7/Eja_yoyo_and_Ede_Dindin.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "path": "/home/mateusz/kuking-601-photos/12mp.jpg",
+    "bytes": 2862883,
+    "sha256": "f4edc96e422bf0bf3f197be13d4ef0c9692d4c84aa5c65ef04f11ebc5302a253",
+    "modified": false,
+    "author": "Dolpina",
+    "license": "CC0 1.0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+    "name": "24mp",
+    "source": "https://wordpress.org/photos/photo/7346201ece/",
+    "original": "https://pd.w.org/2022/02/7346201ece8de04e8.58501530.jpeg",
+    "path": "/home/mateusz/kuking-601-photos/24mp.jpg",
+    "bytes": 2783219,
+    "sha256": "d55c11254e79e7de361078b3f20a45fb102e7aec20eed4436459a07740c67e15",
+    "modified": false,
+    "author": "Chuck Grimmett",
+    "license": "CC0 1.0",
+    "license_url": "https://creativecommons.org/publicdomain/zero/1.0/"
+  },
+  {
+    "name": "48mp",
+    "source": "https://commons.wikimedia.org/wiki/File:Sambar_4.jpg",
+    "original": "https://upload.wikimedia.org/wikipedia/commons/1/11/Sambar_4.jpg?utm_source=commons.wikimedia.org&utm_campaign=index&utm_content=original",
+    "path": "/home/mateusz/kuking-601-photos/48mp.jpg",
+    "bytes": 10343919,
+    "sha256": "84c7c9fac42f02de3dd32621a5d5cdce17a3e5c2018917dc163ac482589a71ff",
+    "modified": false,
+    "author": "KARANK21",
+    "license": "CC BY-SA 4.0",
+    "license_url": "https://creativecommons.org/licenses/by-sa/4.0/"
+  }
+]
