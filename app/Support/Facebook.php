@@ -40,12 +40,10 @@ final class Facebook
      *
      *  1. Każde dodatkowe uprawnienie to punkt na ekranie zgody Facebooka,
      *     na którym osoba 60+ ma prawo się wystraszyć i wyjść — i słusznie.
-     *  2. Te dwa uprawnienia są JEDYNYMI, których Meta nie każe uzasadniać
-     *     w przeglądzie aplikacji (App Review). Poproszenie o cokolwiek
-     *     więcej — listę znajomych, zdjęcia, strony — zamienia tę funkcję
-     *     z jednodniowej w tygodniową, a dokumentacja Meta mówi wprost:
-     *     „Selecting unneeded permissions is a common reason for rejection
-     *     during app review".
+     *  2. Pobieramy tylko dane potrzebne do wejścia. Nie oznacza to braku
+     *     App Review: przy wdrożeniu Kuking 12.09.2026 właściciel zgłosił
+     *     zatwierdzony przegląd przed przejściem na Live. Instrukcja i zakres
+     *     dowodów: docs/infra/DEPLOYMENT_RUNBOOK.md, krok 8E.
      *
      * Zdjęcia profilowego NIE bierzemy wcale (D-061: każde zdjęcie u nas
      * przechodzi przez moderację i przekodowanie, zdjęcie z zewnątrz weszłoby

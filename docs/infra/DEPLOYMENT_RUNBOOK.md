@@ -1115,7 +1115,7 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 > „App Review NIE jest potrzebny — to przełącznik". **Był potrzebny:**
 > właściciel złożył wniosek, Meta go zatwierdziła, dopiero potem aplikacja
 > poszła na Live. To samo przewidywanie stoi w `FACEBOOK_LOGIN_URUCHOMIENIE.md`
-> §2 i §6.1 — tam też jest sprostowane.
+> — obecnie ten plik jest indeksem ze sprostowaniem historycznych założeń.
 >
 > **Planując kolejne wdrożenie, przewiduj czas na przegląd aplikacji**, nawet
 > przy samych uprawnieniach podstawowych (`public_profile`, `email`). Ile on
@@ -1124,7 +1124,7 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 
 **Kiedy:** po kroku 8D, przed kampanią startową.
 **Ile zajmuje:** kilkanaście czynności w panelu Meta (pełna lista jest
-w osobnym runbooku, niżej), dwie zmienne w Railway.
+poniżej w 8E.1), dwie zmienne w Railway.
 **Co się stanie, jeśli tego nie zrobisz:** nic się nie zepsuje — przycisku
 „Wejdź kontem Facebooka" po prostu nie będzie na ekranie, a hasło, wiadomość
 z linkiem i wejście kontem Google działają jak dziś.
@@ -1142,18 +1142,16 @@ z linkiem i wejście kontem Google działają jak dziś.
 > wejścia nie istnieje. Dlatego sprawdzenie z 8E.3 jest tu obowiązkowe, a nie
 > „jak będzie czas".
 
-**Cały panel Meta krok po kroku stoi w osobnym pliku:**
-[`docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md)
-— tabela czynności właściciela jest tam w §12, adresy przekierowań w §4.2,
-usuwanie danych w §9. Ten krok **go nie powtarza**: streszcza to, co dotyczy
-wdrożenia, i mówi, jak sprawdzić, że działa.
+**Ten krok jest kanoniczną instrukcją wdrożenia Facebook Login.**
+[`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md)
+pozostaje indeksem i sprostowaniem historycznych założeń; nie zawiera drugiej
+checklisty operacyjnej.
 
 Decyzja i uzasadnienie: [`docs/DECISIONS.md` D-113](../DECISIONS.md), issue #259.
 
 ### 8E.1 Co założyć w panelu Meta
 
-To jest **praca właściciela**, nie agenta — poniższa lista jest skrótem §12
-tamtego pliku, do odhaczania:
+Poniższa lista wymaga dostępu do panelu Meta właściwej aplikacji:
 
 1. **Aplikacja**: [developers.facebook.com](https://developers.facebook.com)
    → **My Apps** → **Create App**. Przypadek użycia: **„Authenticate and
@@ -1169,8 +1167,8 @@ tamtego pliku, do odhaczania:
    - **App Category** i **Business Use**;
    - **App Domains:** `kuking.pl`, `staging.kuking.pl`.
 4. **Data Deletion Instructions URL:** `https://kuking.pl/prywatnosc`
-   (Settings → Basic). **Nie** callback — wybór i uzasadnienie w §9.2 tamtego
-   pliku.
+   (Settings → Basic). Jest to adres instrukcji, nie callback usuwania danych.
+   Callback odebrania dostępu nie zastępuje procedury usunięcia konta.
 5. **Products → Facebook Login → Settings → Valid OAuth Redirect URIs** —
    **wpisz wszystkie trzy, co do znaku** (bez ukośnika na końcu, z `https`):
 
@@ -1188,7 +1186,7 @@ tamtego pliku, do odhaczania:
    **Środowisk preview (jedno na każdy PR) na tej liście NIE BĘDZIE** i nie
    ma sensu tego obchodzić: adresy `*.up.railway.app` są losowe, a Meta nie
    przyjmuje `*`. Bez kluczy przycisku tam po prostu nie ma i to jest
-   zachowanie poprawne (§4.4).
+   zachowanie poprawne dla takich środowisk.
 6. **App Roles → Roles**: dodaj siebie jako **testera** i przyjmij
    zaproszenie — w trybie deweloperskim wejdą tylko konta z tej listy.
 7. **App Review → Permissions and Features**: `public_profile` i `email` na
@@ -2206,7 +2204,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | 23 | `RAILWAY_TOKEN_PRODUCTION` | Railway Project Tokens | 11.1 |
 | 24 | `RAILWAY_TOKEN_STAGING` | Railway Project Tokens | 11.1 |
 | 25 | ✅ `GOOGLE_CLIENT_ID` + `GOOGLE_CLIENT_SECRET` | Google Cloud Console → Credentials → OAuth client ID (wejście kontem Google, D-069) | 8D |
-| 26 | ✅ `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Cały panel krok po kroku: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) §12 | 8E |
+| 26 | ✅ `FACEBOOK_CLIENT_ID` + `FACEBOOK_CLIENT_SECRET` (= **App ID** i **App Secret**) | panel Meta → Settings → Basic (wejście kontem Facebooka, D-113). Panel krok po kroku: 8E.1; historyczne sprostowanie: [`FACEBOOK_LOGIN_URUCHOMIENIE.md`](./FACEBOOK_LOGIN_URUCHOMIENIE.md) | 8E |
 
 ### Zmiany w kodzie aplikacji (przed pierwszym deployem)
 
