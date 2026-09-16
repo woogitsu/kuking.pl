@@ -191,6 +191,7 @@ const KONTO_MODERATORA = 'moderacja';
 const KONTO_DLUGA_NAZWA = 'zofia_z_bieszczad';
 
 const EKRANY = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
   { nazwa: 'logowanie', adres: '/login' },
@@ -572,6 +573,7 @@ const EKRANY = [
  * (kilkadziesiąt milisekund), a przebieg axe kosztuje sekundę na ekran.
  */
 const EKRANY_UKLADU = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
   /*
@@ -1980,6 +1982,13 @@ if (tablicaDnia === null) {
  * ze sprawdzania, jest gorszy niż ekran, który oblewa.
  */
 function sciezkaEkranu(ekran) {
+  if (ekran.znajdz === 'link-zewnetrzny') {
+    const token = execFileSync('php', ['artisan', 'tinker', '--execute',
+      "echo Illuminate\\Support\\Facades\\Crypt::encryptString('https://example.test/przepis');",
+    ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } }).toString().trim();
+    if (!token) throw new Error('Nie utworzono tokenu ostrzeżenia');
+    return `/otworz-link?cel=${encodeURIComponent(token)}`;
+  }
   if (! ekran.znajdz) {
     return ekran.adres;
   }

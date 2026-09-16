@@ -47,7 +47,7 @@
             @if($commentIsRemoved)
                 <p class="meta italic">{{ $comment->body }}</p>
             @else
-                <p class="tekst-jak-napisano">{{ $comment->body }}</p>
+                <p class="tekst-jak-napisano">{{ \App\Support\LinkiWTekscie::render($comment->body) }}</p>
             @endif
 
             @foreach($comment->replies as $reply)
@@ -69,7 +69,7 @@
                     @if($replyIsRemoved)
                         <p class="meta italic">{{ $reply->body }}</p>
                     @else
-                        <p class="tekst-jak-napisano">{{ $reply->body }}</p>
+                        <p class="tekst-jak-napisano">{{ \App\Support\LinkiWTekscie::render($reply->body) }}</p>
 
                         @auth
                             @php($replyRemainingMinutes = 15 - (int) $reply->created_at->diffInMinutes(now()))

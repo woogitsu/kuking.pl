@@ -12,6 +12,7 @@
  */
 
 @import "./tokens.css";
+@import "./linki-w-tresci.css";
 
 /* Deklaracje @font-face muszą stać PRZED pierwszym użyciem --font-sans. */
 @import "./fonts.css";

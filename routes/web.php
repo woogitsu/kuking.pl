@@ -29,6 +29,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
+use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
@@ -86,6 +87,7 @@ $limits = config('kuking.limits');
 // --------------------------------------------------------------------------
 
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
+Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
 Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
 Route::get('/szukaj', [SearchController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
