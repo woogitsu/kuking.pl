@@ -14,6 +14,7 @@
 // --- Service worker (PWA) -------------------------------------------------
 
 import './service-worker.js';
+import './pwa-install.js';
 import './landing-wpisy.js';
 import './pasek-przewijany.js';
 import './szybki-wyglad.js';

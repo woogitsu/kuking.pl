@@ -562,6 +562,9 @@ Route::match(['get', 'post'], '/zgloszenie/{report}/odwolanie', [ReporterAppealC
 
 Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/home', [FeedController::class, 'home'])->name('home');
+    Route::post('/instalacja/decyzja', [\App\Http\Controllers\PwaInstallController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('pwa.decision');
 
     // Weryfikacja e-maila. Świadomie NIE blokuje publikowania — patrz
     // RegisterController. Wymagamy jej tylko przy eksporcie danych.

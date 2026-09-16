@@ -46,6 +46,8 @@
         </div>
     </section>
 
+    <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
+
     @if($wspomnienie ?? null)
         {{--
             „ROK TEMU GOTOWAŁAŚ…" — WŁASNE ARCHIWUM JAKO POWÓD POWROTU (issue #34).

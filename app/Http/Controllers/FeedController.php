@@ -9,6 +9,8 @@ use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
 use App\Domain\Feed\HeroKolaz;
 use App\Domain\Feed\TagFeed;
+use App\Domain\Pwa\InstallPrompt;
+use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Recipe;
 use App\Models\User;
@@ -158,6 +160,10 @@ class FeedController extends Controller
             ->get();
 
         return view('pages.home', [
+            'pwaEligible' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE,
+            'pwaContext' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE
+                ? app(InstallPromptContext::class)->issue($user, $request->session()->getId())
+                : null,
             'greeting' => $this->pytanieDnia($user),
             'zeszyt' => $zeszyt,
             'wspomnienie' => $wspomnienie,

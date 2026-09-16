@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.46 — propozycja instalacji po powrocie
+
+- Po powrocie zalogowanej osoby serwis może raz zaproponować instalację, jeśli przeglądarka ją udostępnia (#278).
+- Propozycja nie zasłania strony. Zamknięcie jest zapamiętywane na koncie; bez obsługi instalacji panel pozostaje ukryty.
+- Wybranie instalacji nie jest liczone jako jej ukończenie.
+
 ## Alfa 0.45 — przycisk rejestracji przy dużym tekście
 
 - Na wąskim ekranie przycisk rejestracji zostawia więcej miejsca na pełny napis, zachowując wybrany rozmiar tekstu (#621).

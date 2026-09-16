@@ -64,6 +64,47 @@ Konto:
 - `weekly_digest_sent_at` — kiedy poszło ostatnie podsumowanie (patrz niżej);
 - verified timestamps.
 
+#### `pwa_prompt_state` — jednorazowa propozycja instalacji (#278)
+
+Migracja `2026_09_16_200000_add_pwa_prompt_state_to_users` dodaje nullable
+`varchar(16)` z CHECK: `eligible`, `offered`, `requested`, `dismissed`,
+`installed`. `NULL` oznacza brak kwalifikacji. Kolumna nie trafia do
+`$fillable`; przejścia wykonuje `App\Domain\Pwa\InstallPrompt` warunkowym
+UPDATE. Zamknięte konta nie zmieniają stanu.
+
+Kwalifikacja wymaga poprzedniej aktywności sprzed co najmniej 24 godzin
+i nawigacji HTML zalogowanej osoby. Jest to przybliżenie powrotu po przerwie,
+nie wykrywanie zamknięcia przeglądarki. Żądanie w tle zachowuje poprzedni
+czas w sesji jako kandydata ważnego godzinę, przypisanego do tego konta;
+nie kwalifikuje samo i nie przedłuża tego okna. Następna nawigacja zużywa
+kandydata. Dzięki temu tracker aktywności nadal obsługuje żądania tła,
+ale prefetch nie odbiera kwalifikacji późniejszemu otwarciu strony.
+Rezerwacja `offered` blokuje kolejne
+propozycje również po odświeżeniu. `requested` oznacza wybranie przycisku,
+a `installed` zgłoszenie zdarzenia `appinstalled` przez klienta; samo
+zaakceptowanie okna instalacji nie wystarcza. Stan nie jest spisem
+zainstalowanych urządzeń i nie wykrywa późniejszego odinstalowania.
+
+Odmowa jest przypisana do konta, bez identyfikatora lub odmowy w localStorage.
+Eksport oddaje `konto.stan_zachety_instalacji`, a wymazanie konta zeruje pole.
+Kontekst zapisu jest szyfrowany, związany z kontem i sesją, ważny godzinę;
+endpoint dodatkowo wymaga zwykłej ochrony CSRF.
+
+**Rollback:** migracja odmawia usunięcia kolumny, jeśli istnieje stan
+`offered`, `requested`, `dismissed` lub `installed`, którego ponowna migracja
+nie odtworzy. Dla `NULL`/`eligible` wycofanie jest dozwolone. Kontrola i DDL
+są w jednej transakcji z blokadą tabeli. Nie kasować decyzji ludzi w celu
+wymuszenia rollbacku.
+
+Migracja `2026_09_16_210000_add_pwa_product_signals` rozszerza zamknięty
+słownik `product_signals` o `pwa_prompt_shown`, `pwa_install_requested`,
+`pwa_prompt_dismissed`, `pwa_installed`. Każdy ma puste `properties` i podlega
+dotychczasowej retencji 90 dni. Wyświetlenie zapisuje się po potwierdzeniu
+widoczności panelu przez klienta, nie przy samej rezerwacji. Telemetria jest
+pomocnicza: awaria jej zapisu nie cofa decyzji. Rollback tej migracji usuwa
+wyłącznie te cztery rodzaje telemetrii i przywraca wcześniejszy CHECK;
+nie zmienia `users.pwa_prompt_state`.
+
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
 Migracja `2026_09_07_400000_default_weekly_digest_to_off`.
@@ -1016,8 +1057,10 @@ policzyć wcale. `php artisan kuking:raport` czyta tę kolumnę przez
 domysł.** Pełne uzasadnienie stoi w komentarzu samej migracji; w skrócie:
 retencja `product_signals` (90 dni) NIE jest tym, co przesądza — jest dłuższa
 niż 30 dni, więc D30 dałoby się policzyć nawet z sygnałów. Przesądza kształt
-tabeli: `product_signals_signal_name_check` zamyka `signal_name` na dwa
-rzadkie zdarzenia techniczne i tabela ma tak zostać (migracja
+tabeli: `product_signals_signal_name_check` zamyka `signal_name` na nazwane,
+rzadkie zdarzenia. Początkowo były dwa; późniejsze migracje dodały zdarzenia
+przeglądu tygodniowego i jednorazowej propozycji PWA. Nadal nie jest to
+ogólny dziennik każdej wizyty (migracja
 `2026_09_06_220000_create_product_signals_table`, kontrastowana tam wprost
 z generalnym serwisem `product_events`, którego to repozytorium nie buduje —
 AGENTS.md §3). Log odwiedzin na KAŻDE żądanie każdego konta zmieniłby ten
@@ -2959,13 +3002,14 @@ i `Wyscigi\EksportDanychRaceTest`.
 ### product_signals
 
 Sygnały produktowe (issue #115), migracja
-`2026_09_06_220000_create_product_signals_table`. Dziś **cztery** zdarzenia:
+`2026_09_06_220000_create_product_signals_table`. Osiem zdarzeń:
 `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
 `App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
 (wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
 od tygodniowego podsumowania: `weekly_digest_queued` i
 `weekly_digest_unsubscribed` (issue #11, D-057; migracja
-`2026_09_10_100100_add_digest_signals_to_product_signals`). Jedyne miejsce,
+`2026_09_10_100100_add_digest_signals_to_product_signals`) oraz cztery sygnały
+instalacji PWA opisane przy `users.pwa_prompt_state` powyżej. Jedyne miejsce,
 które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
 
 **`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
@@ -3027,7 +3071,7 @@ potrzebuje).
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
 | `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
-| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed` \| `pwa_prompt_shown` \| `pwa_install_requested` \| `pwa_prompt_dismissed` \| `pwa_installed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
 | `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
 | `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
 

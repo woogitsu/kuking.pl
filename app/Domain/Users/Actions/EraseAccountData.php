@@ -300,6 +300,7 @@ final class EraseAccountData
                 // to zdanie musi się tu zgadzać z kodem (AGENTS.md, część 11
                 // i `tests/Feature/DokumentyPrawneNieKlamiaTest.php`).
                 'ostatnio_widziany_at' => null,
+                'pwa_prompt_state' => null,
             ])->save();
 
             // STAN KOŃCOWY KONTA — I TO JEST NAPRAWA DRUGIEJ POŁOWY D-018.

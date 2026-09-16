@@ -101,6 +101,7 @@ final class CollectUserExportData
             // (`App\Domain\Analytics\ZanotujOstatniaWizyte`), nie logiem —
             // paczka pokazuje tu wyłącznie NAJNOWSZĄ znaną wartość.
             'ostatnio_widziany' => $this->date($user->ostatnio_widziany_at),
+            'stan_zachety_instalacji' => $user->pwa_prompt_state,
         ];
     }
 

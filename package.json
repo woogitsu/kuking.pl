@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "node scripts/kontrast-marki.mjs && vite build",
+        "build": "node scripts/kontrast-marki.mjs && node --test scripts/pwa-install.test.mjs && vite build",
         "dev": "vite",
         "sprawdz:marke": "node scripts/kontrast-marki.mjs"
     },

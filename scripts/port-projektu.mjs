@@ -14,6 +14,7 @@ import { sprawdzSzybkiWyglad } from './szybki-wyglad.mjs';
 import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
 import { sprawdzPrzyciskRejestracji } from './przycisk-rejestracji.mjs';
+import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
@@ -380,6 +381,7 @@ try {
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
   await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
+  await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzPasek({ browser: przegladarka, adres });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
