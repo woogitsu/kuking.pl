@@ -95,7 +95,7 @@
                     <button type="button" class="btn btn-secondary btn-cook cook-timer-start" hidden>
                         Uruchom minutnik w tej przeglądarce
                     </button>
-                    <p class="cook-timer-odliczanie" aria-hidden="true" hidden></p>
+                    <p class="cook-timer-odliczanie" role="timer" aria-live="off" hidden></p>
                     <p class="visually-hidden cook-timer-komunikat" aria-live="assertive"></p>
                 </div>
             @endif
