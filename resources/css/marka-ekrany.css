@@ -255,6 +255,33 @@
     box-shadow: none;
   }
 
+  /* #632: niepełny dobór ma własną siatkę, bez pustych pól czwórki. */
+  .hero-kolaz:not(:has(> :nth-child(4))) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
+  .hero-kolaz:not(:has(> :nth-child(4))) > .hero-kolaz-kafel {
+    grid-column: auto;
+    grid-row: auto;
+    aspect-ratio: 4 / 3;
+    height: auto;
+    width: 100%;
+  }
+
+  .hero-kolaz:not(:has(> :nth-child(2))) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-kolaz:has(> :nth-child(3)):not(:has(> :nth-child(4))) > :first-child {
+    grid-column: 1 / -1;
+    aspect-ratio: 2 / 1;
+  }
+
+  .hero:not(:has(.hero-kolaz-blok)) .hero-tekst {
+    margin-inline: auto;
+  }
+
   .hero-kolaz-podpis {
     padding: var(--spacing-2);
     font-size: var(--text-body);
@@ -328,7 +355,7 @@
   }
 
   @media (min-width: 64rem) {
-    .hero {
+    .hero:has(.hero-kolaz-blok) {
       grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
       gap: var(--spacing-10);
     }

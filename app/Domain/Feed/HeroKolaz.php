@@ -12,97 +12,22 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
 
 /**
- * Kolaż zdjęć w hero strony powitalnej — cztery zdjęcia, które gość widzi,
- * zanim cokolwiek kliknie.
- *
- * ─────────────────────────────────────────────────────────────────────────
- *  JEDNA KLASA, BO TO JEDNO PYTANIE
- * ─────────────────────────────────────────────────────────────────────────
- *
- * Trzy miejsca pytają tu o to samo, tylko z różnych stron:
- *
- *   `doKolazu()`         — co pokazać gościowi TERAZ,
- *   `kandydaci()`        — z czego gospodarz może wybierać w panelu,
- *   `dopuszczZdjecia()`  — co wolno zapisać jako wybór.
- *
- * Wszystkie trzy muszą odpowiadać na jedno pytanie „czy to zdjęcie wolno
- * pokazać nieznajomemu" DOKŁADNIE TAK SAMO. Trzy kopie tego filtru rozjadą
- * się przy pierwszej zmianie i rozjadą się po cichu — a tutaj rozjazd znaczy
- * cudze prywatne zdjęcie na stronie powitalnej. Stąd jedna prywatna metoda
- * `wpisyDoPokazania()` i trzy publiczne wejścia do niej.
- *
- * ─────────────────────────────────────────────────────────────────────────
- *  FILTR WIDOCZNOŚCI DZIAŁA PRZY KAŻDYM WYŚWIETLENIU, NIE PRZY ZAPISIE
- * ─────────────────────────────────────────────────────────────────────────
- *
- * `hero_picks` trzyma wskazanie, nie zgodę. Między wskazaniem a wyświetleniem
- * może się wydarzyć wszystko: autor przełącza wpis na „tylko dla
- * obserwujących" albo „prywatny", moderator go chowa, konto zostaje
- * zawieszone, zablokowane albo zgłoszone do usunięcia, zdjęcie idzie do
- * skasowania. Żadne z tych zdarzeń nie kasuje wiersza w `hero_picks` i żadne
- * nie ma takiego obowiązku — bo filtr i tak liczy się od nowa przy każdym
- * wejściu na stronę.
- *
- * `publiclyVisible()` + `tylkoOdAktywnychAutorow()` to ta sama para, której
- * używa `DailyBoard` i `DiscoverFeed` — czyli wszędzie tam, gdzie serwis SAM
- * PODSUWA komuś cudzą treść. Próg jest tam surowszy niż w politykach (te
- * dopuszczają jeszcze konto zawieszone), bo to jest promowanie, a nie wejście
- * na adres wpisu. Kolaż w hero jest z tej rodziny i najdalej w niej wysunięty.
- *
- * ─────────────────────────────────────────────────────────────────────────
- *  STAN ZAPASOWY: DOBÓR AUTOMATYCZNY, A W OSTATECZNOŚCI BRAK KOLAŻU
- * ─────────────────────────────────────────────────────────────────────────
- *
- * Kolaż ma zawsze DOKŁADNIE `SLOTOW` zdjęć albo nie ma go wcale. Trzeciej
- * możliwości nie ma i to jest tu decyzja, nie uproszczenie: układ kolażu
- * (dwa wysokie kafle zazębione z dwoma niskimi) jest ZAZĘBIONY — wyjęcie
- * z niego jednego kafla nie zostawia mniejszego kolażu, tylko dziurę
- * w kształcie tego kafla. Ekran, na którym widać dziurę, mówi gościowi
- * „coś się tu zepsuło" w pierwszej sekundzie kontaktu z serwisem.
- *
- * Kolejność decyzyjna jest więc taka:
- *
- *   1. zdjęcia wskazane przez gospodarza, które WCIĄŻ wolno pokazać,
- *   2. uzupełnienie do czterech najnowszymi publicznymi zdjęciami —
- *      najpierw po jednym od osoby, a gdy to nie starcza, po dwa
- *      (uzasadnienie przy `dobraneAutomatycznie()`),
- *   3. jeśli i tak nie ma czterech — kolaż nie renderuje się wcale,
- *      a hero wraca do jednej kolumny tekstu, czyli do układu sprzed
- *      tej zmiany.
- *
- * DLACZEGO UZUPEŁNIAMY, A NIE POKAZUJEMY „TYLE, ILE GOSPODARZ WSKAZAŁ"
- * `DailyBoard` robi inaczej — tam wybór redakcyjny WYŁĄCZA dobór
- * automatyczny, bo tablica składa się z osobnych kart i trzy karty zamiast
- * czterech nie są usterką. Kolaż nie ma tej własności (patrz akapit wyżej),
- * a przede wszystkim: uzupełnianie jest jedyną odpowiedzią na „wybrane
- * zdjęcia zniknęły", która nie wymaga od nikogo zauważenia, że zniknęły.
- * Usunięte konto, wpis schowany przez moderację i zdjęcie skasowane przez
- * autora to zdarzenia, o których gospodarz dowiaduje się najwcześniej
- * następnego dnia — a strona powitalna działa cały czas.
- *
- * Panel mówi to gospodarzowi wprost, jednym zdaniem, zamiast zostawiać go
- * ze zdziwieniem „wskazałem dwa, a widzę cztery".
- *
- * DLACZEGO TRZECI STOPIEŃ TO BRAK KOLAŻU, A NIE ZDJĘCIA ZASTĘPCZE
- * Bo cały argument tej strony brzmi „tu są prawdziwe zdjęcia prawdziwych
- * ludzi". Grafika poglądowa w tym miejscu nie jest ozdobą — jest
- * zaprzeczeniem zdania, które stoi obok niej. Serwis, w którym nie ma
- * jeszcze czterech publicznych zdjęć, ma powiedzieć prawdę: pustą prawą
- * stronę hero, czyli dokładnie to, co strona ma dzisiaj.
+ * Prawdziwe publiczne zdjęcia na powitanie: wybór gospodarza, potem automat.
+ * Każdy odczyt ponownie sprawdza widoczność, aktywność autora i stan ready.
+ * Pokazujemy od jednego do czterech dostępnych zdjęć; brak pełnej czwórki
+ * nie usuwa całego kolażu (#632). Widok dopasowuje siatkę do liczby kafli.
  */
 final class HeroKolaz
 {
     /**
-     * Ile kafli ma kolaż. Zmiana tej liczby wymaga zmiany układu w CSS
-     * (`.hero-kolaz` w `resources/css/strony-publiczne.css`) — obszary
-     * siatki są tam nazwane po kolei i jest ich dokładnie tyle.
+     * Maksymalna liczba kafli; CSS obsługuje również zestawy 1–3.
      */
     public const SLOTOW = 4;
 
     /**
      * Ile najnowszych wpisów oglądamy przy doborze automatycznym.
      *
-     * Zapas, nie limit wyniku: z tych wpisów bierzemy najwyżej jedno zdjęcie
+     * Zapas, nie limit wyniku: z tych wpisów bierzemy najwyżej dwa zdjęcia
      * od osoby i najwyżej cztery razem. Zapas jest potrzebny, bo jeden bardzo
      * aktywny autor potrafi zająć cały początek listy — a `COLD_START.md` §4.2
      * każe gospodarzowi publikować codziennie, więc to jest wzorzec wpisany
@@ -114,7 +39,7 @@ final class HeroKolaz
      * Zdjęcia do kolażu — gotowe do wyrenderowania albo pusta kolekcja.
      *
      * Pusta kolekcja znaczy „nie ma czego pokazać" i widok ma wtedy NIE
-     * renderować kolażu w ogóle. Kolekcja niepusta ma zawsze dokładnie
+     * renderować kolażu w ogóle. Kolekcja niepusta ma od jednej do
      * `SLOTOW` pozycji.
      *
      * @return Collection<int, array{media: Media, autor: User, wybrane: bool}>
@@ -136,9 +61,7 @@ final class HeroKolaz
             );
         }
 
-        return $kafle->count() === self::SLOTOW
-            ? $kafle->values()
-            : new Collection;
+        return $kafle->values();
     }
 
     /**
@@ -268,16 +191,11 @@ final class HeroKolaz
      * (docs/product/COLD_START.md).
      *
      * Drugi przebieg dokłada brakujące kafle, dopuszczając DRUGIE zdjęcie
-     * od tej samej osoby — i tylko drugie. Bez niego serwis z trzema
-     * aktywnymi osobami nie miałby kolażu W OGÓLE, a dokładnie tak wygląda
-     * Kuking w pierwszych tygodniach: `COLD_START.md` zakłada garstkę osób
-     * i gospodarza publikującego codziennie. Reguła „jedno od osoby",
-     * potraktowana jako ściana, wyłączałaby kolaż dokładnie wtedy, kiedy
-     * jest najbardziej potrzebny — na starcie.
+     * od tej samej osoby — i tylko drugie. Dzięki temu automat może
+     * uzupełnić kolaż przy niewielkiej liczbie aktywnych autorów.
      *
-     * Twardy limit dwóch zostaje: przy jednej aktywnej osobie kolaż się nie
-     * zbierze i to jest właściwa odpowiedź. Cztery zdjęcia jednej osoby
-     * pokazane jako „zobacz, co tu się gotuje" byłyby nieprawdą o serwisie.
+     * Twardy limit dwóch zostaje. Przy jednej aktywnej osobie pokażemy
+     * mniejszy kolaż, podpisany jej nazwą, zamiast ukrywać dostępne zdjęcia.
      *
      * @param  list<string>  $pomijaniAutorzy
      * @param  list<string>  $pomijaneZdjecia
@@ -286,6 +204,7 @@ final class HeroKolaz
     private function dobraneAutomatycznie(int $ile, array $pomijaniAutorzy, array $pomijaneZdjecia): Collection
     {
         $wpisy = $this->wpisyDoPokazania()
+            ->whereHas('media', fn ($query) => $query->where('status', Media::STATUS_READY))
             ->when(
                 $pomijaniAutorzy !== [],
                 fn ($query) => $query->whereNotIn('author_id', $pomijaniAutorzy),

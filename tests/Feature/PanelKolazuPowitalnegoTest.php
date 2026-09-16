@@ -143,6 +143,24 @@ class PanelKolazuPowitalnegoTest extends TestCase
     // 3. Co da się zapisać
     // ---------------------------------------------------------------------
 
+    public function test_wyczyszczenie_wyboru_pokazuje_dostepne_zdjecie_zamiast_pustego_hero(): void
+    {
+        $autor = $this->user('autor_powrotu');
+        [, $zdjecie] = $this->wpisZeZdjeciem($autor);
+        $gospodarz = $this->moderator();
+
+        $this->actingAs($gospodarz)->put(route('admin.hero-kolaz'), [
+            'zdjecia' => [$zdjecie->getKey()],
+        ])->assertRedirect();
+        $this->delete(route('admin.hero-kolaz'))->assertRedirect();
+        $this->assertDatabaseCount('hero_picks', 0);
+        auth()->logout();
+
+        $html = $this->get('/')->assertOk()->getContent();
+        $this->assertSame(1, substr_count($html, 'class="hero-kolaz-kafel"'));
+        $this->assertStringContainsString(e($zdjecie->url('thumb')), $html);
+    }
+
     public function test_gospodarz_zapisuje_i_czysci_wybor(): void
     {
         $autor = $this->user('autor');

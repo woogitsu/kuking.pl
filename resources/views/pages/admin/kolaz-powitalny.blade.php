@@ -20,10 +20,10 @@
 
     <h1>Kolaż na powitanie</h1>
     <p class="mb-5">
-        To cztery zdjęcia w prawym górnym rogu strony powitalnej — pierwsza rzecz,
+        To maksymalnie cztery zdjęcia w prawym górnym rogu strony powitalnej — pierwsza rzecz,
         jaką widzi ktoś, kto trafił tu z wyszukiwarki i nie ma jeszcze konta.
         Zaznacz najwyżej {{ $slotow }} zdjęcia. Jeśli zaznaczysz mniej, brakujące
-        dobierzemy automatycznie z najnowszych publicznych zdjęć — po jednym od osoby.
+        dobierzemy automatycznie z najnowszych publicznych zdjęć — najpierw po jednym od osoby, a w razie potrzeby po dwa.
     </p>
 
     {{--
@@ -165,7 +165,7 @@
 
     <div class="danger-zone">
         <h2>Wyczyść wybór</h2>
-        <p>Kolaż wróci do doboru automatycznego: najnowsze publiczne zdjęcia, po jednym od osoby.</p>
+        <p>Kolaż wróci do doboru automatycznego: najnowsze publiczne zdjęcia, najpierw po jednym od osoby, a w razie potrzeby po dwa.</p>
         <x-confirm-button
             :action="route('admin.hero-kolaz')"
             label="Wyczyść wybór zdjęć"
