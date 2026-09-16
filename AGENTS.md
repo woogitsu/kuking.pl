@@ -105,16 +105,22 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 |---|---|---|
 | Backend | Laravel 13 | `composer.json`: `laravel/framework` |
 | PHP | 8.4 (minimum frameworka: 8.3) | `composer.json`: `php` |
-| UI | Blade + Livewire 4 + Alpine.js | `composer.json`: `livewire/livewire` |
+| UI | Blade + Alpine.js; Livewire 4 w kreatorze przepisu | `composer.json`: `livewire/livewire` |
 | CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) | `package.json`: `tailwindcss`, `@tailwindcss/vite` |
 | Baza | PostgreSQL 18 (lokalnie i w CI wystarczy 16+) | usługa zewnętrzna |
 | Kolejka | Laravel database queue | `composer.json`: `laravel/framework` |
 | Hosting | Railway | usługa zewnętrzna |
 | DNS / CDN / storage | Cloudflare + R2 | usługa zewnętrzna · `composer.json`: `league/flysystem-aws-s3-v3` |
-| Wyszukiwarka | PostgreSQL FTS + `pg_trgm` + `unaccent` | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php` |
+| Wyszukiwarka | PostgreSQL: `pg_trgm` + `unaccent` | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php` |
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) | w repozytorium: `app/Logging/WebhookBleduHandler.php` |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) | w repozytorium: `app/Domain/Analytics`, `app/Support/AnalitykaCloudflare.php` · usługa zewnętrzna |
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
+
+Feed, wyszukiwanie, komentarze i „Ugotowałem” korzystają z kontrolerów
+i widoków Blade, z JavaScriptem jako ulepszeniem. Livewire obsługuje złożony
+formularz kreatora przepisu (`resources/views/components/recipe-wizard.blade.php`).
+Dodanie `wire:poll` do często odwiedzanych ekranów wymaga osobnej decyzji
+i pomiaru kosztu żądań; nie wynika z wyboru Livewire dla kreatora.
 
 ### Ta tabela opisuje STAN, nie zamiar — i trzecia kolumna jest sprawdzana testem (D-104)
 
