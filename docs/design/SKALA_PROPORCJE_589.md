@@ -38,6 +38,19 @@ Integracja main `9a44ccc455232fa3cf56e115b5764695c16e2592` została wykonana w `
 
 ## Krótkie uruchomienie regresji
 
+### Kontrola ujemna nawigacji po zmianie składni CSS
+
+CI `35026661619`, zadanie `104680326817`, zakończyło się 16 września błędem
+`N492_MUTACJA_NIE_ZMIENIA`. Test szukał literalnych marginesów 8 px oraz
+paddingu 4 px, podczas gdy źródło używa już mnożnika skali. Dopasowania
+zaktualizowano do rzeczywistych reguł; mutacje nadal przypinają dolną belkę
+lub zwiększają padding do 16 px. Progi i wymóg wykrycia błędu pozostają.
+Pełna lokalna kontrola nawigacji w osobnej bazie `kuking_port589_nav` na 55439
+przeszła: 20 konfiguracji, 7 fizycznych negatywów, 160,941 s. Każda mutacja
+wywołała oczekiwany błąd, a przywrócenie potwierdziło MD5
+`c9bcdeb03dd17093c8c5f2abb53da2ad` i mtime. Niezależny review dopasowań nie
+znalazł blokerów. Ponowny hook i CI nadal są wymagane przed scaleniem.
+
 W katalogu z zależnościami: `npm run build`, następnie `CHROMIUM_PATH="$CHROME_BINARY" node scripts/skala-proporcje.mjs`. Bez `CHROMIUM_PATH` używany jest Chromium Playwright. Wynik trafia do `output/skala589/wyniki.json`. Ten pomiar nie wymaga PHP ani bazy. Lokalny runtime ma własne `.env`, vendor i storage; synchronizacja źródeł nie może ich nadpisywać.
 
 ## Korekty ujawnione przez pełny hook
