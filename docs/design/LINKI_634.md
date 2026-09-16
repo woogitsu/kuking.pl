@@ -41,3 +41,9 @@ Web Risk wymaga osobnej integracji i oceny przekazywania adresów prywatnych tre
 
 Dowody: `evidence/linki634/`. Dalsze bramki: pełny hook, CI, końcowe
 uzgodnienie wersji z main oraz odbiór produkcji. Nie zamykać issue przed odbiorem.
+
+Pełny hook zatrzymał wysyłkę na inwentaryzacji nowej trasy (SEO/a11y) oraz
+znanej różnicy livewire.js/livewire.min.js. Dodano rzeczywisty ekran z tokenem
+do obu pomiarów dostępności, adres do testu SEO i przeniesiono wąską
+normalizację Livewire z #633. Celowany przebieg: 16 testów / 236 asercji PASS.
+Pełna kontrola musi zostać powtórzona.

@@ -374,6 +374,8 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
             '/livewire-89abcdef/css/{component}.global.css',
             '/livewire-01234567/js/{component}.js',
             '/livewire-01234567/livewire.csp.min.js.map',
+            '/livewire-01234567/livewire.js',
+            '/livewire-01234567/livewire.min.js',
         ] as $trasa) {
             $this->assertSame([$trasa], $this->trasyZFragmentu('GET '.$trasa), $trasa);
             $this->assertArrayHasKey($this->znormalizujTrase($trasa), $realne, $trasa);
@@ -385,6 +387,8 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
             '/livewire-01234567/nieistniejaca-trasa',
             '/livewire-niehash/livewire.js', '/livewire-012345678/livewire.js',
             '/inny-01234567/livewire.js',
+            '/livewire-01234567/livewire.nieistnieje.js',
+            '/livewire-01234567/livewire.min.js/nieistnieje',
         ] as $trasa) {
             $this->assertSame([$trasa], $this->trasyZFragmentu($trasa), $trasa);
             $this->assertArrayNotHasKey($this->znormalizujTrase($trasa), $realne, $trasa);
@@ -456,7 +460,9 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         }
 
         // EndpointResolver: pierwsze 8 cyfr hex SHA-256(app.key + livewire-endpoint).
-        // Zmienny jest tylko prefiks instalacji; cały dalszy adres nadal musi istnieć.
+        // Prefiks zależy od instalacji, a minifikacja głównego skryptu od app.debug.
+        // Nie normalizujemy innych plików ani dodatkowych segmentów ścieżki.
+        $trasa = preg_replace('#^(livewire-[a-f0-9]{8}/livewire)\.min\.js$#', '$1.js', $trasa) ?? $trasa;
         $trasa = preg_replace('#^livewire-[a-f0-9]{8}/#', 'livewire-{instalacja}/', $trasa) ?? $trasa;
 
         return preg_replace('/\{[^}]+\}/u', '{}', $trasa) ?? $trasa;
