@@ -86,8 +86,7 @@ pozostawieniu `AWS_BUCKET=kuking-local-test`, zgodnie z konfiguracją hooka,
 73 testy tych rodzin i konfiguracji dysków przeszły (295 asercji).
 Trzeci pełny przebieg zakończył się bez porażek: 3864 testy, 77206 asercji, trzy uwagi PHPUnit; czas 5:16.575. Nie zmieniano kodu kasowania mediów. Log: full568-final-env.log w kopii wykonawczej.
 
-Nie zakończono odbioru wszystkich stanów i zrzutów, rzeczywistego zoomu 200%
-ani całej macierzy klawiatury. Potrzebne są również aktualizacja
+Nie zakończono odbioru wszystkich stanów i zrzutów ani całej macierzy klawiatury. Potrzebne są również aktualizacja
 wersji/changeloga, pełny hook, push, CI, scalenie oraz odbiór produkcji.
 Powyższe wyniki nie stanowią dowodu ukończenia całego portu marki.
 
@@ -97,3 +96,14 @@ Cztery konfiguracje: szerokości CSS 320 i 768 px, oba motywy, tekst 140%. Rozsz
 
 
 Wyjaśnienie zrzutu: w tym samym stanie strony bezpośrednie CDP Page.captureScreenshot z captureBeyondViewport=false nie zawiera pustej przestrzeni, pokazuje przepis 201 i pełny fokus. Artefakt występuje w page.screenshot przy połączeniu zoomu 200% i przewinięcia. Zapisano oba obrazy, skrypt i log geometrii; nie zmieniano CSS aplikacji. Obejrzano wariant 320/dark.
+
+### Puste dalsze okno
+
+Sprawdzono offset 400 przy 201 przepisach: rzeczywisty zoom 200%, tekst 140%, szerokości CSS 320 i 768 px, oba motywy. Cztery przejścia Tab bez naruszeń, brak poziomego overflow. Kliknięcie odnośnika powrotu faktycznie przywróciło od_przepisu=0. Obejrzano zrzut CDP 320/dark: komunikat pustego zakresu i fokus powrotu są widoczne. Dowody: empty568.log, empty568.json i empty568-320-dark.png; skrypt uruchamiany z output kopii wykonawczej.
+
+
+### Odtworzenie pomiarów i końcowy przegląd
+
+Skrypty zoom568-cdp.mjs i empty568.mjs są kopiami narzędzi z katalogu output kopii wykonawczej. Aby odtworzyć pomiar, skopiuj je do output/ w uruchomionej aplikacji z lokalną bazą demonstracyjną 201 przepisów i serwerem na 127.0.0.1:8068. Uruchom Node z katalogu głównego repo i ustaw CHROMIUM_PATH na lokalne Chromium obsługujące rozszerzenia. Względny import ../scripts/zoom-marki.mjs zakłada właśnie takie położenie. Nie uruchamiaj tych scenariuszy na produkcji.
+
+Końcowy odczyt agenta review568: brak nowych blokerów implementacji; uzupełnione wcześniejsze luki testów. Agent obejrzał zrzut CDP, nie uruchamiał własnych testów. Nadal obowiązuje pełny hook na stanie po aktualizacji main oraz CI i odbiór produkcji.
