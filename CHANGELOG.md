@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.43 — dokładniejsze odliczanie minutnika
+
+- Minutnik uwzględnia czas, który minął podczas wstrzymania karty przez przeglądarkę (#571). Po wznowieniu nie odlicza pominiętych sekund od nowa.
+- Bieżący czas można odczytać czytnikiem ekranu bez automatycznego ogłaszania każdej sekundy (#569).
+
 ## Alfa 0.42 — dalsze wyniki wyszukiwania
 
 - „Pokaż więcej” pozwala dotrzeć do przepisów i osób poza pierwszymi 200 wynikami (#568).

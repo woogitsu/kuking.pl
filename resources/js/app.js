@@ -339,7 +339,9 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
     przycisk.hidden = false;
 
-    let pozostalo = sekundyCalkiem;
+    // Callback może wrócić z opóźnieniem po uśpieniu karty. Liczymy czas do
+    // terminu, zamiast zakładać, że każde wywołanie oznacza jedną sekundę.
+    let termin = null;
     let interwal = null;
 
     const pokaz = (sekundy) => {
@@ -380,11 +382,12 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
         przycisk.disabled = true;
         odliczanie.hidden = false;
-        pokaz(pozostalo);
+        termin = Date.now() + sekundyCalkiem * 1000;
+        pokaz(sekundyCalkiem);
         komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
 
         interwal = window.setInterval(() => {
-            pozostalo -= 1;
+            const pozostalo = Math.ceil((termin - Date.now()) / 1000);
             pokaz(Math.max(pozostalo, 0));
 
             if (pozostalo <= 0) {
@@ -399,7 +402,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
                 komunikat.textContent = 'Czas minął!';
                 przycisk.textContent = 'Uruchom minutnik jeszcze raz';
                 przycisk.disabled = false;
-                pozostalo = sekundyCalkiem;
+                termin = null;
             }
         }, 1000);
     });

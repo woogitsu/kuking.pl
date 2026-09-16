@@ -4651,6 +4651,13 @@
     margin: 0;
 }
 
+/* Fokus na tle minutnika musi kontrastować z ramką także w ciemnym motywie. */
+.cook-timer .btn:focus-visible {
+    box-shadow:
+        0 0 0 2px var(--color-accent-tint),
+        0 0 0 5px var(--color-accent-tint-ink);
+}
+
 .cook-timer-odliczanie {
     font-size: var(--text-title);
     font-weight: 800;
