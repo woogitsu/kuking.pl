@@ -85,6 +85,18 @@ class SearchController extends Controller
         // zapytania liczącego (`COUNT`) — a przy sortowaniu po podobieństwie
         // kursor z feedu tu nie zadziała.
         $ile = min(max((int) $request->query('ile', (string) self::NA_STRONIE), self::NA_STRONIE), self::MAKS);
+        $odPrzepisu = $szukaPrzepisow ? $this->offset($request, 'od_przepisu') : 0;
+        $odOsoby = $szukaLudzi ? $this->offset($request, 'od_osoby') : 0;
+        $parametry = ['q' => $phrase, 'sekcja' => $section, 'ile' => $ile,
+            'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby];
+        $nastepnePrzepisy = $parametry;
+        $nastepneOsoby = $parametry;
+        if ($ile < self::MAKS) {
+            $nastepnePrzepisy['ile'] = $nastepneOsoby['ile'] = min($ile + self::NA_STRONIE, self::MAKS);
+        } else {
+            $nastepnePrzepisy['od_przepisu'] += $ile;
+            $nastepneOsoby['od_osoby'] += $ile;
+        }
 
         // „ZA KRÓTKA" TO NIE „BEZ WYNIKÓW"
         //
@@ -102,7 +114,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut)
+            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -112,7 +124,7 @@ class SearchController extends Controller
         // w miejscu, którego nie dało się rozpoznać: przy dwudziestu jeden
         // Basiach dwudziesta pierwsza po prostu nie istniała dla szukającego.
         $ludzie = $szukaLudzi
-            ? $this->search->people($phrase, $request->user(), $ile + 1)
+            ? $this->search->people($phrase, $request->user(), $ile + 1, $odOsoby)
             : collect();
 
         // SYGNAŁ `search_performed` (issue #115) — PO POLICZENIU WYNIKÓW,
@@ -140,6 +152,21 @@ class SearchController extends Controller
             'jestWiecej' => $przepisy->count() > $ile,
             'jestWiecejOsob' => $ludzie->count() > $ile,
             'nastepneIle' => min($ile + self::NA_STRONIE, self::MAKS),
+            'odPrzepisu' => $odPrzepisu,
+            'odOsoby' => $odOsoby,
+            'nastepnePrzepisy' => $nastepnePrzepisy,
+            'nastepneOsoby' => $nastepneOsoby,
+            'poczatekPrzepisow' => array_replace($parametry, ['od_przepisu' => 0]),
+            'poczatekOsob' => array_replace($parametry, ['od_osoby' => 0]),
         ]);
+    }
+
+    private function offset(Request $request, string $key): int
+    {
+        $value = filter_var($request->query($key, 0), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 0, 'max_range' => PHP_INT_MAX - self::MAKS],
+        ]);
+
+        return $value === false ? 0 : $value;
     }
 }
