@@ -1,0 +1,17 @@
+[
+  {
+    "case": "existing",
+    "exit": 1,
+    "message": "Przygotowanie danych przerwane: Dane pomiarowe już istnieją. Sprawdź je; generator ich nie zastępuje."
+  },
+  {
+    "case": "wrong_database",
+    "exit": 1,
+    "message": "Przygotowanie danych przerwane: Generator wymaga lokalnej bazy kuking_585_benchmark na 127.0.0.1:55439."
+  },
+  {
+    "case": "production",
+    "exit": 1,
+    "message": "Przygotowanie danych przerwane: Generator wymaga lokalnej bazy kuking_585_benchmark na 127.0.0.1:55439."
+  }
+]
