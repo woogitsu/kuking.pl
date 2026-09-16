@@ -297,7 +297,9 @@ bezwzględne będą wyższe.
 
 ## 8. Czego brakuje, żeby decyzja miała pełną podstawę
 
-Jedna liczba: **narzut Laravela na żądanie**. Zmierz ją tak:
+Potrzebny jest pomiar **pełnej ścieżki HTTP aplikacji**, nie tylko harnessu
+zapytań. Pojedynczy odczyt poniżej to kontrola wstępna, nie benchmark
+przepustowości ani izolowany pomiar narzutu frameworka:
 
 ```bash
 composer install
@@ -316,8 +318,11 @@ danych** zestawić trzy rzeczy:
    `pg_stat_statements`),
 3. czas tej samej strony z harnessu `docs/obciazenie/` na tej samej bazie.
 
-Różnica między (1) a (3) jest narzutem frameworka i tylko ona jest do
-odzyskania przepisaniem.
+Różnica między (1) a (3) obejmuje różną pracę całych ścieżek: HTTP, sesję,
+middleware, autoryzację, renderowanie i pobieranie danych. Nie jest czystym
+narzutem frameworka ani obietnicą oszczędności po przepisaniu. Nawet ta sama
+maszyna i baza nie zapewniają równoważności operacji. Potrzebne są kontrola
+wykonywanej pracy, powtarzalne próby i profilowanie etapów rzeczywistej aplikacji.
 
 ---
 
@@ -353,7 +358,7 @@ W kolejności zwrotu z godziny pracy:
 | 2 | To samo dla podzapytań liczących zapisy w `ZapisyWpisu` | ~10 ms przy skali L | godziny |
 | 3 | `EXISTS`/`JOIN` zamiast `pluck` + `whereIn` w `FollowingFeed` | 175 ms → jednostki ms dla kont z 10 tys. obserwowanych | 1 dzień |
 | 4 | Podręczna pamięć przygotowanych zapytań w połączeniu | 5,5 ms → 2,2 ms na stronę | godziny |
-| 5 | Zmierzyć narzut Laravela wg §8 | podstawa do dalszych decyzji | godziny |
+| 5 | Zmierzyć i profilować pełną ścieżkę HTTP wg §8 | podstawa do dalszych decyzji | godziny |
 | 6 | Test regresyjny na plan zapytania (asercja „bez `Seq Scan` na `recipes`") | chroni przed nawrotem z §4.3 | godziny |
 | 7 | Powtórzyć §4 i §5 na PostgreSQL 18 | potwierdza, że przeskok planu zachowuje się tak samo | godziny |
 
@@ -378,9 +383,14 @@ Narzędzie leży w `docs/obciazenie/`:
 
 ```bash
 cd docs/obciazenie
-export PGHOST=127.0.0.1 PGUSER=kuking PGPASSWORD=kuking BENCH_SQL_DIR="$PWD"
+export PGHOST=127.0.0.1 PGPORT=55439 PGUSER=kuking BENCH_SQL_DIR="$PWD"
+# PGUSER musi być właścicielem izolowanej bazy benchmarku.
+# Hasło ustaw w PGPASSWORD lub pgpass; nie wpisuj go do repo ani historii poleceń.
 
 ./build_scale.sh kuking_bench_m 20000 400000 100000
+# Istniejącej bazy skrypt domyślnie NIE resetuje. Tylko gdy świadomie usuwasz
+# dokładnie te lokalne dane syntetyczne, dopisz --reset=kuking_bench_m.
+# Nazwy spoza kuking_bench_[a-z0-9_] oraz port 5432 są odrzucane.
 
 # kontrola zgodności — najpierw to, potem czasy
 BENCH_VERIFY=1 BENCH_FIX=1 BENCH_DB=kuking_bench_m BENCH_ITER=1 php feed_php.php
