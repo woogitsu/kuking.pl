@@ -1241,6 +1241,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function invalidateSessions(?string $exceptSessionId = null): void
     {
+        // Sesja może odtworzyć się z ciasteczka „zapamiętaj mnie” (#584).
+        // Token należy do konta, więc wyjątek dla bieżącej SESJI nie jest
+        // wyjątkiem dla starego ciasteczka: po utracie tej sesji trzeba się
+        // zalogować ponownie. Nie dotykamy guarda moderatora ani jego cookies.
+        $this->forceFill(['remember_token' => Str::random(60)])->save();
+
         // OCZEKUJĄCY LINK DO LOGOWANIA GINIE RAZEM Z SESJAMI (issue #25, D-056).
         //
         // Ta linijka stoi PRZED wyjściem na `session.driver` niżej i to nie

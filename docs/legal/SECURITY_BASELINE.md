@@ -72,7 +72,7 @@ X-Frame-Options: DENY
 
 - **Cookies sesji:** `secure=true`, `httponly=true`, `samesite=lax` (nie `strict`, bo `strict` łamie powrót z linków e-mail typu reset hasła w niektórych przeglądarkach) — w `config/session.php`.
 - **Rotacja ID sesji** przy logowaniu i przy zmianie uprawnień (Laravel robi to domyślnie przez `Auth::login()` + regenerację sesji — upewnij się, że nic w kodzie nie wyłącza tego zachowania).
-- **Wylogowanie z innych urządzeń:** Laravel udostępnia `Auth::logoutOtherDevices($password)` — wystaw to jako opcję w ustawieniach konta ("Wyloguj wszystkie inne urządzenia"), wymagaj ponownego podania hasła przy tej akcji.
+- **Wylogowanie z innych urządzeń:** ustawienia wymagają ponownego podania hasła i wywołują `User::invalidateSessions()` z wyjątkiem bieżącej sesji. Metoda odwołuje też linki logowania i wspólny `remember_token` (#584). Bieżąca sesja zostaje, ale po jej utracie stare ciasteczko pamiętania nie zaloguje ponownie. Implementacja nie używa `Auth::logoutOtherDevices()`; nie należy zakładać obecności middleware `auth.session`. Zakres i dowody: `docs/security/ZAPAMIETANE_LOGOWANIE_584.md`.
 - **Invalidacja sesji przy zmianie hasła:** wymuś wylogowanie wszędzie poza bieżącym urządzeniem automatycznie przy zmianie hasła (nie tylko jako opcja) — to standard, nie luksus.
 - **2FA — kiedy:**
   - **Obowiązkowe dla kont administracyjnych/moderatorskich** od dnia startu — to konta z realną władzą nad treścią i danymi innych osób.

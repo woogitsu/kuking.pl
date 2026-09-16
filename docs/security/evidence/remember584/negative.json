@@ -1,0 +1,24 @@
+{
+  "source": "app/Models/User.php",
+  "backup_outside_repo": "/tmp/kuking584-negative-u38ao1d0/User.php",
+  "before": {
+    "md5": "addc2e7a2f1c73cd59f936f1aa12c372",
+    "mtime_ns": 1789504554137245500
+  },
+  "after": {
+    "md5": "addc2e7a2f1c73cd59f936f1aa12c372",
+    "mtime_ns": 1789504554137245500
+  },
+  "baseline": {
+    "exit": 0,
+    "output": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-remember584-runtime/phpunit.xml\n\n.                                                                   1 / 1 (100%)\n\nTime: 00:02.440, Memory: 61.00 MB\n\n\u001b[30;42mOK (1 test, 47 assertions)\u001b[0m\n"
+  },
+  "negative": {
+    "exit": 1,
+    "output": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-remember584-runtime/phpunit.xml\n\n\u001b[41;37mF\u001b[0m                                                                   1 / 1 (100%)\n\nTime: 00:02.010, Memory: 61.00 MB\n\nThere was 1 failure:\n\n1) Tests\\Feature\\ZapamietaneLogowanieUniewaznienieTest::test_wylogowanie_odcina_stary_recaller_i_zachowuje_biezaca_sesje\nStare poświadczenie odtworzyło dostęp.\nFailed asserting that 200 is identical to 302.\n\n/home/mateusz/kuking-remember584-runtime/tests/Feature/ZapamietaneLogowanieUniewaznienieTest.php:79\n/home/mateusz/kuking-remember584-runtime/tests/Feature/ZapamietaneLogowanieUniewaznienieTest.php:98\n\n\u001b[37;41mFAILURES!\u001b[0m\n\u001b[37;41mTests: 1\u001b[0m\u001b[37;41m, Assertions: 34\u001b[0m\u001b[37;41m, Failures: 1\u001b[0m\u001b[37;41m.\u001b[0m\n"
+  },
+  "restored": {
+    "exit": 0,
+    "output": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-remember584-runtime/phpunit.xml\n\n.                                                                   1 / 1 (100%)\n\nTime: 00:02.345, Memory: 61.00 MB\n\n\u001b[30;42mOK (1 test, 47 assertions)\u001b[0m\n"
+  }
+}

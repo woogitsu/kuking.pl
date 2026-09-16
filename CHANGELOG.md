@@ -5,6 +5,9 @@
 - Przy rozmiarze tekstu poniżej 100% odstępy i zapas wewnątrz kontrolek zmniejszają się razem z tekstem; cele dotykowe zachowują minimum 48 px (#589).
 - Domyślne odstępy przy 100% i 140% pozostają bez zmian. Wybór skali opisuje też zagęszczenie układu.
 
+## Przygotowane — bezpieczeństwo logowania (#584)
+
+- Wylogowanie innych urządzeń unieważnia również ich zapamiętane logowanie. Bieżąca sesja pozostaje aktywna; po jej utracie trzeba zalogować się ponownie. Ta sama ochrona obejmuje zmianę i reset hasła oraz decyzje o zamknięciu lub zawieszeniu konta.
 ## Alfa 0.40 — wygląd panelu moderacji
 
 - Panel moderacji korzysta ze wspólnej identyfikacji: neutralnej nawigacji, czytelnych kart, formularzy i filtrów. Dłuższe nazwy narzędzi zawijają się obok ikon (#581).
