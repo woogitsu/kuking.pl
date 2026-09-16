@@ -1,0 +1,31 @@
+
+  [90;1m.[39;22m[90;1m.[39;22m[31;1m⨯[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\GaleriaMieszanychOrientacjiTest[22m [90m>[39m slajdy karuzeli m…   
+[39;1m  Pole zdjęcia w karuzeli straciło stałą proporcję. Bez niej slajdy mają różną wysokość, a taśma bierze wysokość NAJWYŻSZEGO — czyli wraca dokładnie to, co zgłosił właściciel (zmierzone: 220,5 px pustego pola przy 320 px).
+Failed asserting that '{\n
+    display: block;\n
+    width: 100%;\n
+\n
+    background-color: var(--color-surface-sunken);\n
+    \n
+    min-height: 0;\n
+  ' matches PCRE pattern "/aspect-ratio:\s*1\s*\/\s*1/u".[39;22m
+
+  at [32mtests/Feature/GaleriaMieszanychOrientacjiTest.php[39m:[32m144[39m
+    140▕     public function test_slajdy_karuzeli_maja_te_sama_wysokosc(): void
+    141▕     {
+    142▕         $blok = $this->blok($this->arkusz(), '.karuzela-slajd .photo-zoom-media,');
+    143▕ 
+  ➜ 144▕         $this->assertMatchesRegularExpression(
+    145▕             '/aspect-ratio:\s*1\s*\/\s*1/u',
+    146▕             $blok,
+    147▕             'Pole zdjęcia w karuzeli straciło stałą proporcję. Bez niej slajdy '.
+    148▕             'mają różną wysokość, a taśma bierze wysokość NAJWYŻSZEGO — czyli '.
+
+  [33m1   [39m[39;1mtests/Feature/GaleriaMieszanychOrientacjiTest.php[39;22m:[39;1m144[39;22m
+
+
+  [90mTests:[39m    [31;1m1 failed[39;22m[90m,[39m[39m [39m[32;1m6 passed[39;22m[90m (54 assertions)[39m
+  [90mDuration:[39m [39m1.53s[39m
+

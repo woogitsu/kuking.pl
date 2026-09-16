@@ -86,3 +86,18 @@ przejścia 1→2→3→2→1 wykonano naprzemiennie myszą i dotykiem. Kliknięc
 zdjęcia otworzyło podgląd. Dowody: `interakcje.json`, `interakcje/` oraz
 lokalny skrypt pomiaru (wymaga odtworzenia osobnej bazy i pliku jej adresów).
 Ta bramka jest zakończona; hook, PR, CI i produkcja pozostają przed nami.
+
+Pierwszy push zatrzymał hook na dwóch testach przywiązanych do dawnej struktury:
+`GaleriaMieszanychOrientacjiTest` szukał kwadratu na zewnętrznym linku zamiast
+polu obrazu; `KompozycjaHeroPrzepisuTest` wymagał bezpośredniego rodzica `a`.
+Po dostosowaniu lokalizatorów zachowano reguły proporcji i min-height oraz
+adres dużego wariantu; dodano kontrolę jednego linku i jego widocznego podpisu.
+Celowane 7 testów / 55 asercji PASS. Trzy fizyczne negatywy (aspect-ratio,
+min-height, adres large→feed) wykryte, MD5/mtime przywrócone, dodatni przebieg
+PASS. Dowody `php-negatives.json` i logi `php-*`.
+
+Oryginalny scenariusz #561 na pełnym landing: font Chromium32, tekst140%,
+1440×900, oba motywy — PASS35/35 kontrolek, 9 linków zdjęć. Dowód
+`landing-original.json`. Dodatkowe 320×900 zatrzymało się przed zdjęciami na
+przycisku rejestracji wysokości962px. Taką samą wysokość potwierdzono na
+produkcji Alfa0.41/ae0068a; problem zgłoszono osobno, testu nie osłabiono.
