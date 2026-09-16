@@ -30,8 +30,11 @@ if (($argv[1] ?? '') === 'przywroc') {
     $state = json_decode($argv[2], true, flags: JSON_THROW_ON_ERROR);
     foreach ($owner->notifications()->get() as $n) {
         if (array_key_exists((string) $n->id, $state['read'])) {
-            $n->read_at = $state['read'][(string) $n->id];
-            $n->save();
+            // Zachowaj offset ISO dla timestamptz. Cast Eloquent przy zapisie
+            // usuwa strefę, więc PostgreSQL interpretuje czas w strefie sesji.
+            DB::table($n->getTable())->where('id', $n->id)->update([
+                'read_at' => $state['read'][(string) $n->id],
+            ]);
         }
     }
     $owner->followedTags()->sync($state['tags']);

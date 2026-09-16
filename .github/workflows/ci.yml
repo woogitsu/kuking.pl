@@ -765,6 +765,11 @@ jobs:
       - name: Build
         run: npm run build
 
+      - name: Proporcje małej skali — rzeczywisty CSS w Chromium
+        run: |
+          flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+          node scripts/skala-proporcje.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.

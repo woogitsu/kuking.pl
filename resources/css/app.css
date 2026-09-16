@@ -986,8 +986,8 @@
    * trzy, u nas w obrazie deweloperskim wcale — zależnie od tego, co akurat
    * wpadło w ten pasek.
    *
-   * `--user-text-scale` mnoży wyłącznie tokeny `--text-*` (`tokens.css`),
-   * KORZENIA NIE RUSZA. Belka rośnie więc razem z tekstem, a `rem` stoi
+   * `--user-text-scale` powiększa tokeny tekstu; od 100% odstępy nie rosną.
+   * Korzenia nie zmieniamy. Poniżej 100% osobny współczynnik zagęszcza układ (#589). Belka rośnie więc razem z tekstem, a `rem` stoi
    * w miejscu — i luz zapada się dokładnie wtedy, gdy tekst jest największy,
    * czyli u osoby, dla której ten produkt jest robiony. Mnożnik w `calc()`
    * wiąże rezerwę z tą samą wielkością, która rozpycha belkę.
@@ -4560,8 +4560,8 @@
         z odległości wyciągniętej ręki, nie kanapy;
      2. główne przyciski są WYŻSZE niż standardowe --control-height-min
         (48px) — umączony albo mokry palec trafia gorzej. DESIGN_SYSTEM.md
-        §„Tekst i dostępność” mówi, że skala tekstu skaluje WYŁĄCZNIE tekst,
-        nigdy wysokość kontrolek — i to zostaje prawdą: `--user-text-scale`
+        W tym trybie zwiększona skala tekstu nie mnoży wysokości kontrolek;
+        D-219 zagęszcza odstępy tylko poniżej 100%. `--user-text-scale`
         rośnie tu, `min-height` w rem poniżej nie.
    --------------------------------------------------------------------------- */
 
@@ -5273,9 +5273,10 @@
  * PRZY BARDZO DUŻYM TEKŚCIE KÓŁKO PRZESTAJE ROSNĄĆ (issue #295).
  *
  * Komentarz wyżej mówi, że kółko „nie rośnie ze skalą tekstu" — i to jest
- * prawda o NASZYM ustawieniu z profilu (`--user-text-scale` mnoży tylko
- * tokeny `--text-*`, korzenia nie rusza). Przy czcionce powiększonej
- * w PRZEGLĄDARCE korzeń podwaja się realnie i `3rem` to zmierzone 96 px
+ * prawda o NASZYM ustawieniu z profilu (`--user-text-scale` mnoży
+ * tokeny `--text-*`, a poniżej 100% zagęszcza odstępy przez osobny współczynnik;
+ * korzenia nie rusza). Przy czcionce powiększonej w PRZEGLĄDARCE korzeń
+ * podwaja się realnie i `3rem` to zmierzone 96 px
  * wokół ikony o 26 px — sama ta jedna ozdoba robi wtedy z wiersza „Dodaj"
  * 135 px z 376,2 px całej belki.
  *
