@@ -1,8 +1,14 @@
 # Propozycja instalacji PWA — #278
 
-Status: **robocze, niewdrożone**. Raport z 16 września 2026.
-Podstawa gałęzi: `e30492ca7df87a221ae6092c82a3f98c083133a1`.
-Alfa 0.46 jest przygotowaną wersją, nie potwierdzeniem produkcji.
+Status: **robocze, niewdrożone**. Aktualizacja 17 września 2026.
+Pierwotna podstawa gałęzi: `e30492ca7df87a221ae6092c82a3f98c083133a1`.
+Lokalna integracja obejmuje main `3f122d6c3b48efd0e737aec48f4235743bd1477c`
+(linkowanie z PR #635). Przygotowana wersja PWA to **Alfa 0.49**.
+Nie jest to potwierdzenie wdrożenia. Pełny hook poprzedniego head
+`bd1c8df45fd2a2eacfef29374638eb6a477f615d` przeszedł; CI 35153996608
+tego head nadal trwało w chwili aktualizacji. Integracja wymaga nowego
+pełnego hooka i CI. Historyczne pomiary poniżej dotyczą wskazanych etapów,
+nie stanowią wyniku testów nowego połączenia gałęzi.
 
 ## Zachowanie
 

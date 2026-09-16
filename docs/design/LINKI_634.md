@@ -1,8 +1,11 @@
 # Automatyczne linki — #634
 
-Stan 16 września 2026: implementacja lokalna, przed pełnym hookiem i CI.
-Nie potwierdzono wdrożenia. Numer 0.48 wymaga uzgodnienia z oczekującymi
-pakietami 0.46 (PWA) i 0.47 (kolaż) przed scaleniem.
+Stan 17 września 2026: PR #635 scalony do main jako
+`3f122d6c3b48efd0e737aec48f4235743bd1477c`, Alfa 0.48.
+Pełny lokalny hook head `be9124db527e56a8e9d9be344b3d8e022cd5ae20`
+przeszedł, a CI 35152795313 zakończyło wszystkie 12 zadań sukcesem.
+Nie potwierdzono jeszcze wdrożenia: main CI 35157303451 pozostaje w toku.
+PWA ma osobną przygotowaną wersję 0.49.
 
 Wspólny renderer linkuje HTTP/HTTPS/www w kartach wpisów oraz komentarzach
 i odpowiedziach. Nie zmienia danych autora ani reguł moderacji. HTML pozostaje
@@ -46,4 +49,5 @@ Pełny hook zatrzymał wysyłkę na inwentaryzacji nowej trasy (SEO/a11y) oraz
 znanej różnicy livewire.js/livewire.min.js. Dodano rzeczywisty ekran z tokenem
 do obu pomiarów dostępności, adres do testu SEO i przeniesiono wąską
 normalizację Livewire z #633. Celowany przebieg: 16 testów / 236 asercji PASS.
-Pełna kontrola musi zostać powtórzona.
+Pełna kontrola została następnie powtórzona i zakończona sukcesem przed
+zwykłym push. Pozostały odbiór produkcji i aktualizacja statusu issue #634.
