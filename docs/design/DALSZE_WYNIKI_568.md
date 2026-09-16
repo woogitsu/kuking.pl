@@ -70,7 +70,30 @@ przesunąć pozycje, jak w pozostałych listach tego rodzaju.
 
 ## Pozostałe bramki
 
+Pierwszy pełny przebieg PHP: 3864 testy, 4 błędy i 61 porażek. Kopia z
+archiwum nie zawierała 13 śledzonych plików (m.in. workflowów), testowa baza
+miała strefę Europe/Warsaw zamiast UTC, brakowało lokalnych nazw bucketów.
+Po naprawie środowiska 252 testy z wcześniej czerwonych rodzin miały jedną
+porażkę: historyczna trasa Livewire wymagała konfiguracji debug. Z
+`APP_DEBUG=true` trzy testy dokumentacyjnych tras przeszły (41 asercji).
+Nie zmieniano dla tego testów ani kodu aplikacji. Ponowny pełny przebieg
+na poprawionym środowisku nie zmienia wyniku pierwszego przebiegu.
+
+Drugi pełny przebieg: 3864 testy, 77164 asercje, 16 porażek dotyczących
+kasowania mediów. Helper miał nadmiarowo ustawione fikcyjne endpoint i klucze
+AWS, które aktywowały ścieżkę magazynu chmurowego. Po ich usunięciu i
+pozostawieniu `AWS_BUCKET=kuking-local-test`, zgodnie z konfiguracją hooka,
+73 testy tych rodzin i konfiguracji dysków przeszły (295 asercji).
+Trzeci pełny przebieg zakończył się bez porażek: 3864 testy, 77206 asercji, trzy uwagi PHPUnit; czas 5:16.575. Nie zmieniano kodu kasowania mediów. Log: full568-final-env.log w kopii wykonawczej.
+
 Nie zakończono odbioru wszystkich stanów i zrzutów, rzeczywistego zoomu 200%
 ani całej macierzy klawiatury. Potrzebne są również aktualizacja
 wersji/changeloga, pełny hook, push, CI, scalenie oraz odbiór produkcji.
 Powyższe wyniki nie stanowią dowodu ukończenia całego portu marki.
+
+### Pomiar zoomu 200% — 16 września
+
+Cztery konfiguracje: szerokości CSS 320 i 768 px, oba motywy, tekst 140%. Rozszerzenie Chromium ustawiło zoom 2 i odczytało go przez API. Brak poziomego overflow; przejście Tab 8/8 w każdym wariancie. Wynik zapisano w zoom568.json. Ogląd zrzutu 320/dark po przejściu Tab ujawnił dużą pustą przestrzeń nad kontrolkami: wymaga odróżnienia usterki układu od artefaktu zrzutu. Ten pomiar nie oznacza pełnego odbioru wizualnego.
+
+
+Wyjaśnienie zrzutu: w tym samym stanie strony bezpośrednie CDP Page.captureScreenshot z captureBeyondViewport=false nie zawiera pustej przestrzeni, pokazuje przepis 201 i pełny fokus. Artefakt występuje w page.screenshot przy połączeniu zoomu 200% i przewinięcia. Zapisano oba obrazy, skrypt i log geometrii; nie zmieniano CSS aplikacji. Obejrzano wariant 320/dark.
