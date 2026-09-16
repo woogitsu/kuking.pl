@@ -283,7 +283,8 @@ class KafelDodawaniaPrzyDuzymTekscieTest extends TestCase
          * żeby ta poprawka niczego nie zmniejszała: ma tylko nie pozwolić
          * wcięciu urosnąć.
          */
-        preg_match('~--spacing-5:\s*([0-9.]+)rem~', $this->css('tokens.css'), $token);
+        // #589: przy 100% i większym tekście gęstość pozostaje równa 1.
+        preg_match('~--spacing-5:\s*calc\(([0-9.]+)rem \* var\(--user-layout-scale, 1\)\)~', $this->css('tokens.css'), $token);
 
         $this->assertNotEmpty(
             $token,
