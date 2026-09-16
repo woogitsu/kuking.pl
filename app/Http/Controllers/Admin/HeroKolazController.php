@@ -168,7 +168,7 @@ class HeroKolazController extends Controller
             ip: $request->ip(),
         );
 
-        return back()->with('status', 'Wyczyszczone. Kolaż dobierze zdjęcia sam — najnowsze publiczne, po jednym od osoby.');
+        return back()->with('status', 'Wyczyszczone. Kolaż dobierze zdjęcia sam — najnowsze publiczne, najpierw po jednym od osoby, a w razie potrzeby po dwa.');
     }
 
     private function komunikat(int $zapisanych, int $odrzuconych): string

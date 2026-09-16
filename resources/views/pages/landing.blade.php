@@ -52,12 +52,9 @@
                  witał bez jedzenia.
 
                  STAN ZAPASOWY JEST W `App\Domain\Feed\HeroKolaz`, NIE TUTAJ.
-                 Widok zna dokładnie dwa przypadki: są cztery kafle albo nie
-                 ma ich wcale. Kolekcja nigdy nie przychodzi niepełna — układ
-                 siatki jest zazębiony i brakujący kafel zostawiłby w hero
-                 dziurę w swoim kształcie, a nie mniejszy kolaż. Pełne
-                 uzasadnienie kolejności „wybór gospodarza → dobór
-                 automatyczny → brak kolażu" stoi w docblocku tamtej klasy.
+                 Widok pokazuje od jednego do czterech dostępnych kafli.
+                 CSS dopasowuje siatkę do ich liczby; bez zdjęć hero ma jedną
+                 kolumnę. Dobór i sprawdzenie widoczności należą do HeroKolaz.
 
                  DLACZEGO TO JEST OZDOBNIK (`alt=""` + `aria-hidden`)
                  Rozstrzygnięcie, nie odruch. Te zdjęcia nie są odnośnikiem,
