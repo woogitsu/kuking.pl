@@ -30,7 +30,12 @@ class KompozycjaHeroPrzepisuTest extends TestCase
         $this->assertSame($media->url('large'), $xpath->evaluate('string('.$image.'/@src)'));
         $this->assertSame('Pierogi na talerzu', $xpath->evaluate('string('.$image.'/@alt)'));
         $this->assertNotSame('', $xpath->evaluate('string('.$image.'/@srcset)'));
-        $this->assertSame($media->url('large'), $xpath->evaluate('string('.$image.'/parent::a[@data-powieksz]/@href)'));
+        $photo = $image.'/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " photo-zoom ")][1]';
+        $link = $photo.'/a[@data-powieksz]';
+        $this->assertSame(1, $xpath->query($photo)->length);
+        $this->assertSame(1, $xpath->query($link)->length);
+        $this->assertSame($media->url('large'), $xpath->evaluate('string('.$link.'/@href)'));
+        $this->assertSame('Powiększ zdjęcie', trim($xpath->evaluate('string('.$link.')')));
     }
 
     public function test_opis_i_prawdziwe_liczby_sa_w_hero_a_akcje_za_nim(): void

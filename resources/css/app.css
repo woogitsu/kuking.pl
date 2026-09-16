@@ -1840,6 +1840,16 @@
       0 0 0 5px var(--color-accent-tint-ink);
   }
 
+  .notice a:not(.btn):focus-visible {
+    outline-color: var(--color-accent-tint-ink);
+  }
+
+  @media (forced-colors: active) {
+    .notice a:not(.btn):focus-visible {
+      outline-color: Highlight;
+    }
+  }
+
   /* ---------------------------------------------------------------------
      Treść społeczności
      --------------------------------------------------------------------- */
@@ -2522,7 +2532,7 @@
      `object-fit: contain` centruje obraz w polu — czyli rama, a nie dziura.
      Żaden slajd nie pożycza już wysokości od żadnego innego.
      --------------------------------------------------------------------- */
-  .karuzela-slajd .photo-zoom,
+  .karuzela-slajd .photo-zoom-media,
   .karuzela-slajd > .post-photo {
     display: block;
     width: 100%;
@@ -2633,7 +2643,7 @@
     display: flex;
   }
 
-  .kolaz-pole .photo-zoom,
+  .kolaz-pole .photo-zoom-media,
   .kolaz-pole .post-photo {
     width: 100%;
     height: 100%;
@@ -2641,6 +2651,16 @@
 
   .kolaz-pole .post-photo {
     object-fit: contain;
+  }
+
+  /* Kwadrat należy do zdjęcia, podpis linku ma własne miejsce pod nim. */
+  .kolaz-pole:has(.photo-zoom) {
+    aspect-ratio: auto;
+  }
+
+  .kolaz-pole .photo-zoom-media {
+    aspect-ratio: 1;
+    height: auto;
   }
 
   /* POLE Z KOMUNIKATEM ZAMIAST ZDJĘCIA IDZIE NA CAŁĄ SZEROKOŚĆ (issue #432).
@@ -2681,9 +2701,13 @@
       background-color: transparent;
     }
 
-    .kolaz-pole .photo-zoom,
+    .kolaz-pole .photo-zoom-media,
     .kolaz-pole .post-photo {
       height: auto;
+    }
+
+    .kolaz-pole .photo-zoom-media {
+      aspect-ratio: auto;
     }
   }
 
@@ -4432,12 +4456,60 @@
      Powiększone zdjęcie (nakładka)
      --------------------------------------------------------------------- */
 
-  /* Kursor „lupka” to jedyna podpowiedź dostępna WYŁĄCZNIE przez najazd
-     myszą — dlatego nie jest jedyną. Właściwą informację niesie `aria-label`
-     linku („Powiększ zdjęcie: …”), czytany też przez czytnik ekranu. */
+  /* Podpis „Powiększ zdjęcie” jest widoczny także bez najechania myszą.
+     Kursor jest dodatkiem, a aria-label uzupełnia podpis opisem fotografii. */
   .photo-zoom {
+    position: relative;
+    isolation: isolate;
     display: block;
+    width: 100%;
+    min-width: 0;
     cursor: zoom-in;
+  }
+
+  .photo-zoom-media {
+    display: block;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .photo-zoom-link {
+    display: inline-flex;
+    align-items: center;
+    min-height: 48px;
+    max-width: calc(100% - 16px);
+    margin: 8px;
+    padding: 4px 8px;
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-body);
+    line-height: 1.5;
+    text-decoration: underline;
+    overflow-wrap: anywhere;
+  }
+
+  /* Link pozostaje statyczny: containing block to cała fotografia z podpisem.
+     Pseudo-element nie jest osobnym celem klawiatury ani osobnym przyciskiem. */
+  .photo-zoom-link::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+  }
+
+  .photo-zoom-link:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 2px var(--color-surface-raised),
+      0 0 0 5px var(--color-focus);
+  }
+
+  @media (forced-colors: active) {
+    .photo-zoom-link:focus-visible {
+      outline: 3px solid Highlight;
+      outline-offset: 2px;
+    }
   }
 
   .lightbox {

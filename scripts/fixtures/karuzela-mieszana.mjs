@@ -97,7 +97,8 @@ export async function zmierzKaruzele({ browser, adres, path, executablePath, out
               const all = [...track.querySelectorAll('.karuzela-slajd')];
               const index = all.findIndex(el => { const r = el.getBoundingClientRect(); return r.left <= bounds.left + bounds.width / 2 && r.right > bounds.left + bounds.width / 2; });
               const current = all[index];
-              const frame = current.querySelector('.photo-zoom, .post-photo').getBoundingClientRect();
+              // Kwadrat D-191 dotyczy obrazu; podpis powiększenia leży pod nim.
+              const frame = current.querySelector('.photo-zoom-media, .post-photo').getBoundingClientRect();
               return {
                 slide: index + 1, width: innerWidth, documentWidth: document.documentElement.scrollWidth,
                 scrollX, trackScroll: track.scrollLeft, trackHeight: bounds.height,

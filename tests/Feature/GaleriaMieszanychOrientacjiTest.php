@@ -139,7 +139,7 @@ class GaleriaMieszanychOrientacjiTest extends TestCase
     #[Test]
     public function test_slajdy_karuzeli_maja_te_sama_wysokosc(): void
     {
-        $blok = $this->blok($this->arkusz(), '.karuzela-slajd .photo-zoom,');
+        $blok = $this->blok($this->arkusz(), '.karuzela-slajd .photo-zoom-media,');
 
         $this->assertMatchesRegularExpression(
             '/aspect-ratio:\s*1\s*\/\s*1/u',

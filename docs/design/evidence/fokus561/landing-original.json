@@ -1,0 +1,16 @@
+[
+  {
+    "width": 1440,
+    "theme": "light",
+    "font": 32,
+    "scale": 140,
+    "photos": 9
+  },
+  {
+    "width": 1440,
+    "theme": "dark",
+    "font": 32,
+    "scale": 140,
+    "photos": 9
+  }
+]

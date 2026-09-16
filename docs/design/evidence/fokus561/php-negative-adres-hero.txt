@@ -1,0 +1,26 @@
+
+  [90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[31;1m⨯[39;22m[90;1m.[39;22m
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\KompozycjaHeroPrzepisuTest[22m [90m>[39m zdjecie pozostaje w dr…   
+[39;1m  Failed asserting that two strings are identical.
+  [39;22m[31m-'http://localhost/zdjecia/01a0a98c-51ee-7341-be85-d118cc21a48b/large'[39m[39;1m
+  [39;22m[32m+'http://localhost/zdjecia/01a0a98c-51ee-7341-be85-d118cc21a48b/feed'[39m[39;1m
+  [39;22m
+
+  at [32mtests/Feature/KompozycjaHeroPrzepisuTest.php[39m:[32m37[39m
+     33▕         $photo = $image.'/ancestor::div[contains(concat(" ", normalize-space(@class), " "), " photo-zoom ")][1]';
+     34▕         $link = $photo.'/a[@data-powieksz]';
+     35▕         $this->assertSame(1, $xpath->query($photo)->length);
+     36▕         $this->assertSame(1, $xpath->query($link)->length);
+  ➜  37▕         $this->assertSame($media->url('large'), $xpath->evaluate('string('.$link.'/@href)'));
+     38▕         $this->assertSame('Powiększ zdjęcie', trim($xpath->evaluate('string('.$link.')')));
+     39▕     }
+     40▕ 
+     41▕     public function test_opis_i_prawdziwe_liczby_sa_w_hero_a_akcje_za_nim(): void
+
+  [33m1   [39m[39;1mtests/Feature/KompozycjaHeroPrzepisuTest.php[39;22m:[39;1m37[39;22m
+
+
+  [90mTests:[39m    [31;1m1 failed[39;22m[90m,[39m[39m [39m[32;1m6 passed[39;22m[90m (54 assertions)[39m
+  [90mDuration:[39m [39m1.43s[39m
+
