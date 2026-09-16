@@ -40,6 +40,7 @@ use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PwaInstallController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
@@ -564,6 +565,9 @@ Route::match(['get', 'post'], '/zgloszenie/{report}/odwolanie', [ReporterAppealC
 
 Route::middleware('auth')->group(function () use ($limits): void {
     Route::get('/home', [FeedController::class, 'home'])->name('home');
+    Route::post('/instalacja/decyzja', [PwaInstallController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('pwa.decision');
 
     // Weryfikacja e-maila. Świadomie NIE blokuje publikowania — patrz
     // RegisterController. Wymagamy jej tylko przy eksporcie danych.

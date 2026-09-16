@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.49 — propozycja instalacji po powrocie
+
+- Po powrocie zalogowanej osoby serwis może raz zaproponować instalację, jeśli przeglądarka ją udostępnia (#278).
+- Propozycja nie zasłania strony. Zamknięcie jest zapamiętywane na koncie; bez obsługi instalacji panel pozostaje ukryty.
+- Wybranie instalacji nie jest liczone jako jej ukończenie.
+
 ## Alfa 0.48 — linki we wpisach i komentarzach
 
 - Adresy HTTP, HTTPS i www we wpisach, komentarzach i odpowiedziach są klikalne (#634).
