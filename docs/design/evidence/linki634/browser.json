@@ -1,0 +1,121 @@
+{
+  "zoom": [
+    {
+      "width": 320,
+      "theme": "light",
+      "scale": "100",
+      "actual": 2,
+      "scroll": 320,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "focusVisible": true,
+        "visible": true
+      }
+    },
+    {
+      "width": 320,
+      "theme": "light",
+      "scale": "140",
+      "actual": 2,
+      "scroll": 320,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "focusVisible": true,
+        "visible": true
+      }
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "scale": "100",
+      "actual": 2,
+      "scroll": 320,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "focusVisible": true,
+        "visible": true
+      }
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "scale": "140",
+      "actual": 2,
+      "scroll": 320,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "focusVisible": true,
+        "visible": true
+      }
+    },
+    {
+      "width": 720,
+      "theme": "light",
+      "scale": "100",
+      "actual": 2,
+      "scroll": 720,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(255, 255, 255, 0.176) 0px 0px 0px 0.355178px, rgba(21, 94, 239, 0.176) 0px 0px 0px 0.887944px",
+        "focusVisible": true,
+        "visible": true
+      }
+    },
+    {
+      "width": 720,
+      "theme": "light",
+      "scale": "140",
+      "actual": 2,
+      "scroll": 720,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(255, 255, 255, 0.176) 0px 0px 0px 0.355096px, rgba(21, 94, 239, 0.176) 0px 0px 0px 0.887741px",
+        "focusVisible": true,
+        "visible": true
+      }
+    },
+    {
+      "width": 720,
+      "theme": "dark",
+      "scale": "100",
+      "actual": 2,
+      "scroll": 720,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(34, 38, 32, 0.176) 0px 0px 0px 0.355096px, rgba(110, 168, 255, 0.176) 0px 0px 0px 0.887741px",
+        "focusVisible": true,
+        "visible": true
+      }
+    },
+    {
+      "width": 720,
+      "theme": "dark",
+      "scale": "140",
+      "actual": 2,
+      "scroll": 720,
+      "dpr": 2,
+      "focus": {
+        "outline": "none",
+        "shadow": "rgba(0, 0, 0, 0) 0px 0px 0px 0px, rgba(0, 0, 0, 0) 0px 0px 0px 0px",
+        "focusVisible": true,
+        "visible": true
+      }
+    }
+  ],
+  "external": {
+    "url": "https://www.mojewypieki.com/przepis/marcinek",
+    "referer": null
+  },
+  "noJsReturn": true
+}

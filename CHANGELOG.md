@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.48 — linki we wpisach i komentarzach
+
+- Adresy HTTP, HTTPS i www we wpisach, komentarzach i odpowiedziach są klikalne (#634).
+- Przed przejściem do innej witryny pokazujemy jej domenę, pełny adres i ostrzeżenie. Nie jest to skan antywirusowy ani zapewnienie o bezpieczeństwie strony.
+
 ## Alfa 0.47 — kolaż po wyczyszczeniu wyboru
 
 - Kolaż powitalny pokazuje również jeden, dwa lub trzy dostępne zdjęcia.

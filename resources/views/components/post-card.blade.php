@@ -251,7 +251,7 @@
             $skracamy = ! $naStronieTegoWpisu && \App\Support\ZapowiedzWpisu::czyZaDluga($post->body);
         @endphp
 
-        <div class="post-card-body">{{ $skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body }}</div>
+        <div class="post-card-body">{{ \App\Support\LinkiWTekscie::render($skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body) }}</div>
 
         @if($skracamy)
             {{-- Odnośnik, nie przycisk: czytnik ekranu ogłasza go jako
