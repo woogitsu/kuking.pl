@@ -1,0 +1,18 @@
+{
+  "backup": "/home/mateusz/kuking608-negative-lziy3z_o",
+  "results": [
+    {
+      "mutation": "local",
+      "exit": 1,
+      "restored_md5": "525c9c0bcc61468faa250e0285ab89d6",
+      "restored_mtime_ns": 1789567565415311300
+    },
+    {
+      "mutation": "missing",
+      "exit": 1,
+      "restored_md5": "525c9c0bcc61468faa250e0285ab89d6",
+      "restored_mtime_ns": 1789567565415311300
+    }
+  ],
+  "positive_exit": 0
+}
