@@ -40,6 +40,7 @@ class LandingKompozycjaFotografiiTest extends TestCase
     public function test_fotografia_i_podpis_sa_z_tego_samego_publicznego_zrodla_i_znikaja_po_prywatyzacji(): void
     {
         $first = null;
+        $remaining = [];
         foreach (range(0, 3) as $i) {
             $author = $this->user('autor'.$i, ['display_name' => 'Autor fotografii '.$i]);
             $post = Post::factory()->create(['author_id' => $author->getKey(), 'visibility' => Post::VISIBILITY_PUBLIC, 'status' => Post::STATUS_PUBLISHED, 'published_at' => now()->subMinutes($i + 1)]);
@@ -47,6 +48,7 @@ class LandingKompozycjaFotografiiTest extends TestCase
             $post->media()->attach($photo->getKey(), ['position' => 0]);
             HeroPick::create(['post_id' => $post->getKey(), 'media_id' => $photo->getKey(), 'position' => $i]);
             $first ??= [$post, $photo];
+            $remaining[] = [$post, $photo];
         }
         $dom = $this->landing();
         $figures = $dom->query('//*[@id="ugotowalem"]//figure');
@@ -59,7 +61,17 @@ class LandingKompozycjaFotografiiTest extends TestCase
         $this->assertSame(0, $dom->query('ancestor-or-self::*[@aria-hidden="true"]', $figures->item(0))->length);
         $first[0]->update(['visibility' => Post::VISIBILITY_PRIVATE]);
         $dom = $this->landing();
-        $this->assertSame(0, $dom->query('//*[@id="ugotowalem"]//figure')->length, 'Brak czwartego publicznego zdjęcia musi usunąć fotografię, nie ujawnić prywatną.');
+        $figures = $dom->query('//*[@id="ugotowalem"]//figure');
+        $this->assertSame(1, $figures->length);
+        $this->assertSame($remaining[1][1]->url('feed'), $dom->query('.//img', $figures->item(0))->item(0)->getAttribute('src'));
+        $this->assertSame('Zdjęcie: Autor fotografii 1', rtrim($this->tekst($dom->query('.//figcaption', $figures->item(0))->item(0)->textContent), '.'));
+        foreach ($dom->query('//img') as $image) {
+            $this->assertNotContains($image->getAttribute('src'), [$first[1]->url('feed'), $first[1]->url('thumb')]);
+        }
+        foreach ($remaining as [$post]) {
+            $post->update(['visibility' => Post::VISIBILITY_PRIVATE]);
+        }
+        $this->assertSame(0, $this->landing()->query('//*[@id="ugotowalem"]//figure')->length);
         $first[0]->update(['visibility' => Post::VISIBILITY_PUBLIC]);
         $first[1]->update(['status' => Media::STATUS_PENDING]);
         $this->assertSame(0, $this->landing()->query('//*[@id="ugotowalem"]//figure')->length, 'Zdjęcie przed przetworzeniem nie może być publiczną fotografią sekcji.');

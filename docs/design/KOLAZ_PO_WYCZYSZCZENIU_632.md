@@ -44,7 +44,20 @@ zmianie fixture nie zaliczono; końcowe raporty pochodzą z przebiegu szeregoweg
 
 ## Do zakończenia
 
-Pełny hook, CI, końcowy ogląd kadrów rzeczywistych zdjęć, scalenie i odbiór
+Pierwszy hook zatrzymał wysyłkę: starszy test kompozycji wymagał ukrycia
+fotografii po utracie czwartego zdjęcia. Teraz sprawdza dokładny kolejny
+publiczny obraz i jego autora, brak prywatnego URL oraz brak ilustracji
+po ukryciu wszystkich zdjęć. Lokalna baza miała Europe/Warsaw; wyłącznie
+bazie tego zadania ustawiono UTC. Przeniesiono także z PR #631 korektę
+normalizacji dokładnej trasy Livewire debug/minified i jej opis.
+Celowany przebieg po korektach: 44 testy / 190 asercji.
+
+Wykonano dodatkowy ogląd układów 1–4 z fotografią placków z dostarczonego
+ZIP wzorcowego: 320 i 1440 px, osiem zrzutów `photo-*`. To jawnie lokalne
+fixture, nie konta ani aktywności produkcyjne. Obraz wypełnia kafle,
+podpis jest czytelny, nie występują puste pola siatki.
+
+Pełny hook, CI, scalenie i odbiór
 wdrożenia. Produkcja nie została zmieniona tym pakietem. Cały port marki
 pozostaje CZĘŚCIOWO. Zakres kandydatów panelu (60) i różnorodność autorów
 w automatycznej puli 40 to istniejące ograniczenia, poza tym zgłoszeniem.
