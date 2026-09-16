@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.44 — powiększanie zdjęć
+
+- Zdjęcie można nadal otworzyć kliknięciem lub dotykiem, a link „Powiększ zdjęcie” pozostaje widoczny przy obsłudze klawiaturą także pod wysokimi zdjęciami (#561).
+- Szybkie zamknięcie i ponowne otwarcie podglądu nie usuwa już wyświetlanego zdjęcia.
+- Fokus linków w komunikatach ma czytelniejszy kontrast w ciemnym motywie.
+
 ## Alfa 0.43 — dokładniejsze odliczanie minutnika
 
 - Minutnik uwzględnia czas, który minął podczas wstrzymania karty przez przeglądarkę (#571). Po wznowieniu nie odlicza pominiętych sekund od nowa.

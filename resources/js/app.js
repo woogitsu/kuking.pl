@@ -241,6 +241,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Po zamknięciu zwalniamy zdjęcie z pamięci. Przy przeglądaniu feedu
     // z wieloma dużymi zdjęciami inaczej zostają wszystkie naraz.
     okno.addEventListener('close', () => {
+        // Zdarzenie close jest kolejkowane. Jeśli w tym czasie otwarto
+        // następne zdjęcie, poprzednie zamknięcie nie może go wyczyścić.
+        if (okno.open) {
+            return;
+        }
+
         obraz.removeAttribute('src');
         obraz.alt = '';
     });

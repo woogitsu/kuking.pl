@@ -1,0 +1,19 @@
+PASS poziome/pojedyncze light 320 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 320 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 320 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 320 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 390 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 390 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+file:///home/mateusz/kuking-photo561-runtime/scripts/zoom-marki.mjs:146
+    if (!r.visible || !r.centerVisible || r.occluded) throw new Error('ZOOM_FOCUS_OCCLUDED ' + path + ' ' + JSON.stringify(r));
+                                                            ^
+
+Error: ZOOM_FOCUS_OCCLUDED zdjecia-poziome/pojedyncze {"id":"0","name":"","hidden":false,"opacity":1,"fragments":[{"x":24,"y":24,"width":342,"height":256.5}],"visible":true,"centerVisible":true,"occluded":true,"contrast":4.903219691716509,"color":"rgb(21, 94, 239)","ring":"outline","paint":[21,94,239],"ambiguousPoints":[]}
+    at sprawdzTab (file:///home/mateusz/kuking-photo561-runtime/scripts/zoom-marki.mjs:146:61)
+    at async file:///home/mateusz/kuking-photo561-runtime/scripts/fokus-zdjec.mjs:100:78
+
+Node.js v24.19.0
