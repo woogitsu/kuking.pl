@@ -1,5 +1,7 @@
 # Minutnik po wstrzymaniu karty — #571 i #569
 
+Pakiet przygotowany jako Alfa 0.43, po wyszukiwarce Alfa 0.42.
+
 Status: poprawka lokalna, bez PR i bez wdrożenia. Nie zamyka całej macierzy marki.
 
 ## Problem i zmiana
@@ -61,3 +63,24 @@ pierwsza próba nie jest zaliczonym dowodem przywrócenia.
   jako 12,6/18/25,2 px. Obejrzano zrzuty 320 px: jasny 140% i ciemny 70%.
   Licznik oraz przycisk restartu są widoczne. Ten przebieg nie jest testem
   rzeczywistego zoomu 200% ani potwierdzeniem końcowej integracji z Alfą 0.42.
+
+## Integracja i rzeczywisty zoom
+
+Gałąź połączono z `main` ae0068a oraz przygotowaną wyszukiwarką e4d4d0e.
+Powtórzono build, 33 testy / 177 asercji i odbiór 36 wariantów po przeładowaniu
+strony. Rzeczywisty zoom przez `chrome.tabs.setZoom(2)` ujawnił kontrast
+fokusu przycisku minutnika 1,24:1 w ciemnym motywie na bursztynowym tle.
+Dodano lokalny dwukolorowy pierścień zgodny z rozwiązaniem ramek informacyjnych.
+
+Po zmianie cztery warianty (320/768 px, dwa motywy, tekst 140%, zoom odczytany
+przez `chrome.tabs.getZoom` równy 2) przeszły: 6/6 kontrolek Tab w każdym,
+kontrast i brak zasłonięcia fokusu oraz brak poziomego overflow.
+Nowa reguła CSS przeszła osobną fizyczną kontrolę ujemną: usunięcie jej
+z prawdziwego arkusza i build wywołały `ZOOM_FOCUS_CONTRAST`. Przywrócono
+MD5 oraz mtime, odbudowano assety i uzyskano wynik dodatni. Końcowy niezależny
+przegląd implementacji nie znalazł blokera.
+
+Do CI dodano też `scripts/minutnik-fokus.mjs`: rzeczywisty fragment Blade,
+skompilowany arkusz oraz Tab w obu motywach. Ten test osobno przeszedł
+fizyczny negatyw CSS, przywrócenie i ponowny wynik dodatni. Nie udaje zoomu:
+rzeczywisty zoom sprawdzono osobno na stronie Laravel, jak opisano wyżej.

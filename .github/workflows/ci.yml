@@ -996,7 +996,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1132,7 +1132,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1202,7 +1202,9 @@ jobs:
 
       - name: Minutnik — opóźnione wywołania i dostępny czas
         if: steps.zmiany.outputs.warto == '1'
-        run: node scripts/minutnik-regresja.mjs
+        run: |
+          node scripts/minutnik-regresja.mjs
+          node scripts/minutnik-fokus.mjs
 
       - name: Zrzuty portu marki
         if: always() && steps.zmiany.outputs.warto == '1'
@@ -1304,7 +1306,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|kontrast-notice|nawigacja-niski-widok|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
