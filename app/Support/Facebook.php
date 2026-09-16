@@ -159,7 +159,7 @@ final class Facebook
      * Wychodzi wyłącznie w żądaniu serwer-serwer o token oraz jako klucz
      * HMAC-a w `appsecret_proof` — nie do widoku, nie do logu, nie do
      * komunikatu błędu (AGENTS.md §7). Ten sam sekret weryfikuje podpis
-     * żądania usunięcia danych od Meta (runbook §9.4), więc jego wyciek to
+     * żądania odebrania dostępu od Meta (FacebookDeauthorizeController), więc jego wyciek to
      * nie tylko cudze logowanie. Rotacja u Meta jest jednym przyciskiem
      * („Reset"), więc w razie wątpliwości rotuj bez wahania.
      */

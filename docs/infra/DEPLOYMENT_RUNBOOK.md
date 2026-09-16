@@ -550,7 +550,7 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | `GOOGLE_CLIENT_ID` | z kroku 8D | nie | Client ID OAuth — wchodzi do adresu przekierowania, nie jest sekretem |
 | `GOOGLE_CLIENT_SECRET` | z kroku 8D | **TAK** | Client secret OAuth (wejście kontem Google, D-069) |
 | `FACEBOOK_CLIENT_ID` | z kroku 8E | nie | **App ID** aplikacji Meta — wchodzi do adresu przekierowania, nie jest sekretem |
-| `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania usunięcia danych od Meta |
+| `FACEBOOK_CLIENT_SECRET` | z kroku 8E | **TAK** | **App Secret** aplikacji Meta (wejście kontem Facebooka, D-113). Tym samym sekretem weryfikuje się podpis żądania odebrania dostępu od Meta |
 | `CLOUDFLARE_ANALYTICS_TOKEN` | z kroku 8F | nie | Token serwisu Cloudflare Web Analytics — stoi w HTML-u każdej strony, nie jest sekretem (D-092). **Tylko `production`.** Brak tej zmiennej przy obietnicy w polityce prywatności = `/health` oddaje `analityka_bez_tokenu` |
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
@@ -1106,7 +1106,7 @@ nie powiesz mu wprost `KUKING_ROLLBACK_KASUJ_TOZSAMOSCI_ZEWNETRZNE=true`.
 >
 > **Czego to sprawdzenie NIE obejmuje** i co zostaje po stronie właściciela:
 > przejście całej ścieżki **z konta, które nie jest na liście testerów**
-> (punkt 12 listy z 8E.1) — to jedyne sprawdzenie odróżniające „działa
+> (końcowe sprawdzenie z 8E.3) — to jedyne sprawdzenie odróżniające „działa
 > Tobie" od „działa ludziom", a z tego kontenera nie da się go wykonać.
 > Oraz **umowa powierzenia z Meta** (#8), która jest ryzykiem formalnym,
 > nie technicznym, i nie blokuje działania funkcji.
