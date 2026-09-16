@@ -1,10 +1,16 @@
 # Co się zmieniło w Kuking
 
-## Alfa 0.46 — propozycja instalacji po powrocie
+## Alfa 0.49 — propozycja instalacji po powrocie
 
 - Po powrocie zalogowanej osoby serwis może raz zaproponować instalację, jeśli przeglądarka ją udostępnia (#278).
 - Propozycja nie zasłania strony. Zamknięcie jest zapamiętywane na koncie; bez obsługi instalacji panel pozostaje ukryty.
 - Wybranie instalacji nie jest liczone jako jej ukończenie.
+
+## Alfa 0.47 — kolaż po wyczyszczeniu wyboru
+
+- Kolaż powitalny pokazuje również jeden, dwa lub trzy dostępne zdjęcia.
+- Nowsze wpisy bez gotowych zdjęć nie wypychają zdjęć z automatycznego doboru.
+- Gdy nie ma dostępnych zdjęć, powitanie zajmuje jedną kolumnę bez pustego miejsca po prawej.
 
 ## Alfa 0.45 — przycisk rejestracji przy dużym tekście
 

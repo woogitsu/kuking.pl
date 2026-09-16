@@ -116,3 +116,14 @@ Wynik: 5 testów / 44 asercje, kod 0. Pierwszy przebieg zgłaszał ostrzeżenia
 przy braku lokalnego pliku .env; po przygotowaniu izolowanej konfiguracji
 powtórzenie przeszło bez ostrzeżeń. Jest to istniejąca grupa regresji
 blokad i usuwania kont, nie osobny dowód równoczesnych żądań instalacji PWA.
+
+## Aktualizacja po CI — 16 września, wieczór
+
+Pierwsze CI wykazało rzeczywisty brak pliku scripts/pwa-install.test.mjs
+w etapie assets Dockerfile. Dodano jawny COPY; budowanie dokładnego zestawu
+plików tego etapu przeszło (4 testy JS, 72 kontrasty, Vite). Nie jest to jeszcze
+pełny build obrazu. Część pozostałych zadań przerwała utrata runnera.
+Zintegrowano main 5b4c748 (kolaż), zachowując jego zmiany. Przygotowana wersja
+to teraz Alfa 0.49, aby nie cofnąć0.47 i oczekujących linków0.48.
+Przed merge trzeba ponownie zintegrować finalny pakiet linków oraz uruchomić
+pełny hook i CI. Natywna instalacja Android/iOS pozostaje nieweryfikowana.
