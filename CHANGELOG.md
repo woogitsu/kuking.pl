@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.42 — dalsze wyniki wyszukiwania
+
+- „Pokaż więcej” pozwala dotrzeć do przepisów i osób poza pierwszymi 200 wynikami (#568).
+- Dalsze strony pokazują zakres wyników i pozwalają wrócić do początku, również gdy wyniki w międzyczasie znikną.
+- Przeglądanie dalszych przepisów zachowuje pozycję listy osób i odwrotnie. Filtry czasu, prywatność i blokady nadal obowiązują.
+
 ## Alfa 0.40 — wygląd panelu moderacji
 
 - Panel moderacji korzysta ze wspólnej identyfikacji: neutralnej nawigacji, czytelnych kart, formularzy i filtrów. Dłuższe nazwy narzędzi zawijają się obok ikon (#581).
