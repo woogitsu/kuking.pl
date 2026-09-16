@@ -23,9 +23,13 @@ również w pustym dalszym oknie.
   niezależność list, powrót, puste dalsze okno, błędne parametry,
   filtr czasu, prywatność i blokady w obu kierunkach. Sprawdzono również
   klikane przejście 180 → 200 → następne okno.
+- Szerszy zestaw 12 rodzin wyszukiwania: 83 testy, 324 asercje. Obejmuje
+  istniejące regresje trafności, literówek, indeksów, widoczności, układu
+  oraz stałej liczby zapytań. Dowód: `evidence/search568/search-suite568.log`.
 - Pint: trzy zmienione pliki PHP poprawne.
 - PHPStan: zmienione SearchQuery i SearchController bez błędów.
 - `npm ci` i build na Vite 8.3.0 zgodnie z lockfile; 72 pary kontrastu.
+  Zapis buildu i wyniki przywrócenia źródeł: `evidence/search568/`.
 - Fizyczna kontrola ujemna kontrolera w kopii wykonawczej: zastąpienie
   przesunięcia przepisów zerem powoduje porażkę testów (kod 1).
   Kopia poza repo: `/home/mateusz/search568-negative-1789538560927228659.php`.
