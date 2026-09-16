@@ -15,11 +15,15 @@ najważniejszych twierdzeń w źródle przez prowadzącego audyt.
 
 ## Czego ten dokument NIE jest
 
-**To nie jest pomiar.** Nie ma tu ani jednej liczby zdjętej z produkcji.
-Wszystkie wartości req/s to szacunki z arytmetyki: rozmiar feedu × tempo
-przewijania × liczba użytkowników. Tam, gdzie liczba pochodzi z pomiaru
-zapisanego wcześniej w repozytorium (np. RSS przy przetwarzaniu zdjęcia),
-jest to powiedziane wprost.
+**To nie jest pomiar produkcji.** Nie ma tu ani jednej liczby zdjętej
+z działającego serwisu. Wartości req/s w §3 to szacunki z arytmetyki: rozmiar
+feedu × tempo przewijania × liczba użytkowników.
+
+**Istnieje natomiast pomiar lokalny** — `docs/infra/evidence/load581/` z 15
+września, wykonany rzetelnie i z jawnie nazwanymi ograniczeniami. Sekcja §2a
+opiera się na nim i jest jedyną częścią tego dokumentu popartą liczbami
+z przyrządu. Tam, gdzie liczba pochodzi z wcześniejszego pomiaru zapisanego
+w repozytorium (RSS przy przetwarzaniu zdjęcia), jest to powiedziane wprost.
 
 **Trzy rzeczy, których nie dało się sprawdzić w tym kontenerze** i które
 są tu oznaczone jako niepotwierdzone, a nie jako fakty:
@@ -126,6 +130,57 @@ potem na produkcji, rozbijając na `web` / `worker` / `scheduler`. Uwaga
 praktyczna: nazwy serwisów w IaC nie odpowiadają dziś niczemu istniejącemu
 w Railway (produkcyjny serwis nazywa się `kuking.pl`, nie `web`), więc pierwszy
 `apply` wymaga uwagi — `plan` pokaże, co dokładnie zostanie utworzone i usunięte.
+
+---
+
+## 2a. Co mówi istniejący pomiar k6 (i czego nie mówi)
+
+`docs/infra/evidence/load581/RAPORT.md` — baseline z 15 września, wykonany na
+obrazie produkcyjnym (FrankenPHP, tryb klasyczny, OPcache, cache konfiguracji
+z produkcyjnego entrypointu), przy **twardym limicie 2 CPU / 2 GiB** dla web,
+czyli w przybliżeniu na budżecie produkcyjnym.
+
+| Seria | Zadane żądania/s | p95 | Szczyt CPU web |
+|---|---:|---:|---:|
+| Publiczne strony + obraz | 20 | 33 ms | 28,5% jednego CPU |
+| Zalogowany feed, zeszyt, gotowanie | 20 | 52 ms | 42,5% jednego CPU |
+| Wyszukiwanie (pg_trgm) | 5 | 54 ms | 14,0% jednego CPU |
+
+Maksymalnie **2 połączenia** do bazy, zero oczekujących na lock, zero
+deadlocków, zero 429, zero zaległości w kolejce.
+
+**Co z tego wynika.** Najcięższa mieszanka zużyła przy 20 żądaniach/s około
+42% jednego rdzenia z dostępnych dwóch. Ekstrapolując liniowo — a więc
+optymistycznie, bo nasycenie nie jest liniowe — daje to rząd **90–100 żądań
+użytkowych na sekundę** na jednej replice, zanim procesor stanie się
+ograniczeniem. Raport sam podkreśla, że **nie doprowadzono hosta do
+nasycenia**, więc jest to oszacowanie sufitu, nie zmierzony sufit.
+
+Potwierdza to jednak rząd wielkości przyjęty w §2 („niskie setki req/s") i —
+co ważniejsze — **wyklucza framework jako winowajcę**. Przy p95 rzędu 30–50 ms
+i 42% jednego rdzenia nic tu nie wskazuje, że Laravel czy Blade są
+ograniczeniem. Raport stawia to wprost: „Nie znaleziono w tym zakresie dowodu,
+że framework jest ograniczeniem wymagającym przepisania."
+
+**Czego ten pomiar nie obejmuje** — i to jest istotne, bo dotyczy dokładnie
+tych miejsc, które ten audyt uznaje za wąskie gardła:
+
+* **Obraz testowy ważył 2356 bajtów** (syntetyczny WebP 960×640). Prawdziwe
+  zdjęcie z telefonu po obróbce to ~177 KB w wariancie feedowym — dwa rzędy
+  wielkości więcej. Pomiar mierzył koszt *decyzji Policy i przekierowania*,
+  nie transferu.
+* **Nie dotykał R2 ani CDN** — dyski były lokalne. Prawdziwy `temporaryUrl()`
+  i round-trip do Cloudflare nie zostały zmierzone.
+* **Zbiór danych był mały** (1000 wpisów, 300 przepisów). Zapytania feedu
+  zachowują się inaczej przy milionach wierszy — tu właśnie ujawniłyby się
+  `whereIn` z setkami ID i `withCount` (§5).
+* **Nie było mieszanki jednoczesnej** — uploady i czytanie mierzono osobno,
+  a to właśnie ich współbieżność jest problemem trybu `all` (§2).
+* Mierzono bez opóźnień sieciowych, na 24-rdzeniowym hoście z 31 GiB RAM.
+
+Wniosek praktyczny: **kolejny pomiar powinien mieć realne rozmiary zdjęć,
+większy zbiór danych i jednoczesne uploady z czytaniem** — bo dziś zmierzono
+głównie tę część systemu, która i tak jest zdrowa.
 
 ---
 
@@ -312,9 +367,17 @@ Dwie, obie warte zapamiętania:
   Skalowanie w górę jest ręczne. Jedyne „auto" to Serverless, działający
   w dół (scale-to-zero), nie w górę. Przy nagłym skoku ruchu nikt nie doda
   repliki za nas.
-* **Postgres bez wysokiej dostępności i bez replik do odczytu**, niezależnie
-  od planu. Przy tysiącach użytkowników pojedyncza instancja bez failoveru
+* **Postgres bez wysokiej dostępności i bez replik do odczytu** w obecnej
+  konfiguracji. Przy tysiącach użytkowników pojedyncza instancja bez failoveru
   przestaje być akceptowalna.
+
+  **Do zweryfikowania przed decyzją:** pojawiła się informacja, że Railway
+  dokumentuje dziś możliwość przekształcenia Postgresa w klaster wysokiej
+  dostępności z automatycznym przełączeniem po awarii. Nie sprawdzono tego
+  w panelu ani w aktualnej dokumentacji Railway. Jeśli to prawda, **zmienia
+  to plan z §7**: trzeci etap (wyprowadzenie bazy do zewnętrznego dostawcy)
+  mógłby się okazać zbędny, a zostałby wyłącznie brak replik do odczytu.
+  To jedno sprawdzenie w panelu warte jest więcej niż cała reszta tej sekcji.
 
 Pierwsza granica jest do przeżycia (ruch rośnie tygodniami, nie minutami).
 Druga wyznacza moment, w którym trzeba działać — i dotyczy bazy, nie aplikacji.
@@ -366,6 +429,13 @@ To P1, do zrobienia razem z rozbiciem serwisów — nie później.
 3. Cache Rule w Cloudflare dla `/zdjecia/*` + wydłużenie TTL podpisu dla
    treści publicznej.
 4. Ustalić i zapisać `max_connections` Postgresa oraz próg alarmowy.
+4a. **Sprawdzić w panelu Railway, czy do serwisu produkcyjnego nie jest
+   podpięty wolumen.** Railway nie pozwala replikować usługi z zamontowanym
+   wolumenem, więc jeśli tam jest, blokuje krok 2 i trzeba go odpiąć.
+   `railway.ts:677` deklaruje, że wolumenów nie używamy (zdjęcia w R2), ale
+   `Dockerfile:259` opisuje prawdziwą awarię produkcji „przy podpinaniu
+   woluminu" — ktoś go kiedyś podpiął. Z repozytorium nie wynika, czy nadal
+   tam jest.
 5. Podstawowa obserwowalność: p95, liczba online, długość kolejki.
 
 **Zrób przy ~500–1000 online:**
