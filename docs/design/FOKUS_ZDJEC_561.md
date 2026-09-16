@@ -66,9 +66,10 @@ nie zmieniano na ich podstawie CSS. Dowody `settled-*` i `top-*` zachowano.
 
 ## Status dostarczenia i pozostałe bramki
 
-Stan: lokalne zmiany, bez PR i wdrożenia. Alfa 0.44 jest przygotowana.
-Przed wysyłką pozostają: ukończenie dodatkowego odbioru mieszanych orientacji
-oraz przycisków karuzeli myszą/dotykiem, pełny hook i aktualizacja dowodów.
+Stan: gałąź wysłana po pełnym hooku (commit `9fe0229`), bez PR i wdrożenia.
+Alfa 0.44 jest przygotowana. Dodatkowy odbiór mieszanych orientacji oraz
+przycisków karuzeli myszą/dotykiem zakończono; wyniki poniżej.
+Korekta pomiaru istniejącej karuzeli bez JS wymaga jeszcze wysyłki.
 Następnie PR, wymagane CI, normalne scalenie i odbiór produkcji.
 
 Gałąź `fix/561-fokus-zdjec` bazuje na `3a4156d` z PR #616 (Alfa 0.43).
@@ -101,3 +102,15 @@ Oryginalny scenariusz #561 na pełnym landing: font Chromium32, tekst140%,
 `landing-original.json`. Dodatkowe 320×900 zatrzymało się przed zdjęciami na
 przycisku rejestracji wysokości962px. Taką samą wysokość potwierdzono na
 produkcji Alfa0.41/ae0068a; problem zgłoszono osobno, testu nie osłabiono.
+
+Istniejący pomiar `scripts/fixtures/karuzela-mieszana.mjs` dostosowano do
+wewnętrznego pola `.photo-zoom-media`: podpis powiększenia nie jest częścią
+kwadratowej ramki obrazu. Osiem rzeczywistych przebiegów bez JS (320/390 px,
+zwykły tekst, 140%, font Chromium 32 px i rzeczywisty zoom 200%) PASS.
+Zachowano progi kwadratu, contain, stabilnej wysokości, kontrolek 48 px,
+braku overflow i widoczności fokusu oraz rzeczywiste przejścia klik/Tab/Enter.
+Fizyczne usunięcie `aspect-ratio` z CSS wykryto jako „utracona ramka D-191”.
+Kopię wykonano poza repo; po przywróceniu zweryfikowano MD5 i mtime,
+przebudowano assety i ponownie uzyskano 8/8 PASS. Dowody `karuzela-*`.
+Obejrzano także zrzut 320 px przy zoomie 200%: podpis i kontrolki mieszczą
+się w szerokości. Cztery testy integralności raportu karuzeli PASS.
