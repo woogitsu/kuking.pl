@@ -12,6 +12,27 @@ export async function sprawdzZeszyty({ browser, adres, sesja, zeszyt, negatywy =
     const context = await browser.newContext({ storageState: sesja, viewport: { width, height: 900 }, reducedMotion: 'reduce' });
     try {
       const page = await context.newPage();
+      const imageRequests = new Map();
+      const pathname = url => { try { return new URL(url).pathname; } catch { return null; } };
+      const imageTrace = request => {
+        let first = request;
+        while (first.redirectedFrom()) first = first.redirectedFrom();
+        if (first.resourceType() !== 'image') return null;
+        // Łączymy również odpowiedź docelową po 302 z adresem użytym przez img.
+        // Pełne URL służą tylko dopasowaniu w pamięci; raport zawiera same ścieżki.
+        if (!imageRequests.has(first.url())) imageRequests.set(first.url(), []);
+        return imageRequests.get(first.url());
+      };
+      page.on('response', response => {
+        const trace = imageTrace(response.request());
+        if (trace) trace.push({ pathname: pathname(response.url()), status: response.status() });
+      });
+      page.on('requestfailed', request => {
+        const trace = imageTrace(request);
+        // Nie wypisujemy surowej treści błędu: mogłaby zawierać podpisany URL.
+        const failure = request.failure()?.errorText?.match(/\bnet::ERR_[A-Z0-9_]+\b/)?.[0] ?? 'REQUEST_FAILED';
+        if (trace) trace.push({ pathname: pathname(request.url()), failure });
+      });
       const large = String(scale).startsWith('font-200');
       const factor = scale === 140 || scale === 'font-200+140' ? 1.4 : 1;
       if (large) await (await context.newCDPSession(page)).send('Page.setFontSizes', { fontSizes: { standard: 32, fixed: 32 } });
@@ -27,13 +48,22 @@ export async function sprawdzZeszyty({ browser, adres, sesja, zeszyt, negatywy =
       // Zdjęcia poniżej ekranu są lazy: najpierw rzeczywiście je przewijamy.
       for (const image of await page.locator('.marka-zeszyt img').all()) {
         await image.scrollIntoViewIfNeeded();
-        await image.evaluate(async img => {
-          for (let i = 0; i < 100; i++) {
-            if (img.complete && img.naturalWidth > 0) return;
-            await new Promise(resolve => setTimeout(resolve, 50));
-          }
-          throw new Error('K511_IMAGE ' + img.currentSrc);
-        });
+        try {
+          await image.evaluate(async img => {
+            for (let i = 0; i < 100; i++) {
+              if (img.complete && img.naturalWidth > 0) return;
+              await new Promise(resolve => setTimeout(resolve, 50));
+            }
+            throw new Error('K511_IMAGE');
+          });
+        } catch (error) {
+          if (!error.message.includes('K511_IMAGE')) throw error;
+          const source = await image.evaluate(img => img.currentSrc || img.src);
+          throw new Error('K511_IMAGE ' + JSON.stringify({
+            width, dark, scale, path: pathname(adres + path),
+            pathname: pathname(source), responses: imageRequests.get(source) ?? [],
+          }));
+        }
       }
       await page.evaluate(() => scrollTo(0, 0));
       const r = await page.evaluate(() => {

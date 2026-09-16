@@ -1,6 +1,6 @@
 # Konstytucja marki Kuking
 
-Wersja 1.15, 15 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.16, 15 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
@@ -252,6 +252,10 @@ Przycisk Aa · Wygląd jest dostępny także dla gościa. Rozmiar tekstu i
 jasny/ciemny motyw można wybrać od pierwszej wizyty; mała zamykana
 podpowiedź nie blokuje treści. Domyślnie nadal18px. Mniejszy tekst to
 świadomy wybór osoby, bez zmniejszania celów dotykowych poniżej48px.
+Przy wartościach poniżej 100% zmniejszamy także odstępy i zapas wewnątrz
+kontrolek (#589, polecenie właściciela). Minimum dotykowe pozostaje 48px.
+Od 100% odstępy zachowują bazową wielkość; większy tekst może naturalnie
+zwiększać wysokość kontrolek. To zagęszczenie, nie globalne skalowanie strony.
 Preferencje konta mają pierwszeństwo przed ciasteczkiem gościa.
 Pływający przycisk nie może zasłaniać aktywnej kontrolki ani przesuwać jej
 pod nawigację. Gdy przy dużym powiększeniu brakuje miejsca, ustępuje
