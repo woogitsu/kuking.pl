@@ -1,6 +1,6 @@
 # Jedno dekodowanie oryginału — #601
 
-Status: przygotowane lokalnie, bez push, CI tego pakietu i wdrożenia.
+Status: draft PR #625, commit 47cbdebf24b1e0451f7f2f2311e55469e2206174 wysłany zwykłym pushem. Pełny obowiązkowy hook przeszedł; CI 35100722575 dla tego commita zakończyło się sukcesem (12/12 zadań). Brak scalenia i wdrożenia tego pakietu.
 Baza: main `f77bd4d7f16e93469b9a731f80c41e6b151e7faf`.
 
 ## Zmiana
@@ -45,6 +45,29 @@ magazynu. To nie był proces workera, R2 ani benchmark przepustowości produkcji
 Maszyna była współdzielona i obciążona; RSS jest szczytem procesu, nie deltą
 alokacji joba. Nie sumujemy szczytów procesów jako pomiaru wspólnego maksimum.
 Rzeczywisty EXIF/GPS sprawdzono osobną próbą joba, lecz bez parsera uploadu;
-nie zbadano wejścia ICC/CMYK. Pełny hook i wymagane CI pozostają do wykonania.
+nie zbadano wejścia ICC/CMYK. Pełny hook przeszedł: Pint, składnia, PHPStan, pełne testy PHP oraz odwracalność migracji. Wymagane CI kodu 35100722575 przeszło; uzupełnienie tego raportu wymaga osobnego potwierdzenia wysyłki i kontroli.
 
 Rollback: cofnięcie zmiany joba; brak migracji, zmian kluczy magazynu i danych.
+
+## Osobny koszt synchronicznego podglądu
+
+Trzy wywołania `PodgladOdRazu::zrob()` dla każdej z tych samych fotografii:
+12 MP — 411–440 ms CPU i peak RSS procesu 211320–211508 KiB;
+24 MP — 265–271 ms CPU i 161168–161344 KiB. Przy 48 MP próg 25 MP
+poprawnie pomija dekodowanie. Wyniki nie tworzą krzywej kosztu zależnej tylko
+od megapikseli: fotografie różnią się także orientacją i zawartością.
+
+To wywołanie po wczytaniu bajtów, na lokalnym dysku. RSS obejmuje bootstrap;
+nie zmierzono requestu, R2 ani doświadczenia człowieka przy publikacji.
+Źródło ładowane ze współdzielonego vendora porównano z plikiem PR po
+normalizacji LF: identyczne. [Surowe wyniki](evidence/media601/preview.json).
+
+Koszt jest mierzalny, lecz ten eksperyment nie uzasadnia usunięcia podglądu
+ani zmiany progu. Opóźnienie całej publikacji i pamięć równoczesnych uploadów
+wymagają osobnego pomiaru. Ten PR nie zmienia synchronicznego podglądu.
+
+## Blokada wdrożenia
+
+Poprzedni main f77bd4d ma nieudany deployment Railway 6481180494;
+przyczyna nie została ustalona. Nie scalać kolejnego pakietu przed jej
+wyjaśnieniem. Sukces CI nie jest potwierdzeniem działającej produkcji.
