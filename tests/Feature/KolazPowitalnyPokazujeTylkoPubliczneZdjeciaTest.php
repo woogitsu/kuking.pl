@@ -121,6 +121,38 @@ class KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest extends TestCase
         $this->assertCount(HeroKolaz::SLOTOW, $this->idZdjecWKolazu());
     }
 
+    public function test_od_zera_do_czterech_dostepnych_zdjec_jest_renderowane_bez_odrzucania_mniejszego_zestawu(): void
+    {
+        for ($liczba = 0; $liczba <= 4; $liczba++) {
+            if ($liczba > 0) {
+                $this->wpisZeZdjeciem($this->user('kafel_'.$liczba));
+            }
+
+            $this->assertCount($liczba, $this->idZdjecWKolazu());
+            $response = $this->get('/')->assertOk();
+            $this->assertSame($liczba, substr_count($response->getContent(), 'class="hero-kolaz-kafel"'));
+        }
+    }
+
+    public function test_nowsze_wpisy_bez_gotowych_zdjec_nie_wypychaja_zdjecia_z_automatu(): void
+    {
+        $autor = $this->user('fotograf');
+        [, $zdjecie] = $this->wpisZeZdjeciem($autor, ['published_at' => now()->subDays(2)]);
+        Post::factory()->count(41)->create([
+            'author_id' => $autor->getKey(),
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDay(),
+        ]);
+
+        foreach (range(1, 41) as $i) {
+            [, $niegotowe] = $this->wpisZeZdjeciem($autor, ['published_at' => now()]);
+            $niegotowe->update(['status' => ['pending', 'processing', 'deleted'][$i % 3]]);
+        }
+
+        $this->assertSame([(string) $zdjecie->getKey()], $this->idZdjecWKolazu());
+    }
+
     public function test_wskazane_zdjecie_stoi_w_kolazu_na_pierwszym_miejscu(): void
     {
         $zestaw = $this->czteryPubliczneZdjecia();
@@ -271,18 +303,19 @@ class KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest extends TestCase
         $this->assertSame(count($kolaz), count(array_unique($kolaz)), 'To samo zdjęcie weszło do kolażu dwa razy.');
     }
 
-    public function test_bez_czterech_publicznych_zdjec_kolazu_nie_ma_wcale(): void
+    public function test_mniejszy_kolaz_zachowuje_limit_dwoch_zdjec_od_osoby(): void
     {
         // Trzy zdjęcia, ale wszystkie od JEDNEJ osoby: dobór automatyczny
-        // bierze najwyżej dwa od osoby, więc czterech nie uzbiera.
+        // bierze najwyżej dwa od osoby i pokazuje te dwa zamiast pustki.
         $autor = $this->user('samotny');
 
         foreach (range(1, 3) as $i) {
             $this->wpisZeZdjeciem($autor);
         }
 
-        $this->assertSame([], $this->idZdjecWKolazu());
-        $this->get('/')->assertOk()->assertDontSee('hero-kolaz-kafel', false);
+        $this->assertCount(2, $this->idZdjecWKolazu());
+        $html = $this->get('/')->assertOk()->getContent();
+        $this->assertSame(2, substr_count($html, 'class="hero-kolaz-kafel"'));
     }
 
     public function test_dwie_osoby_po_dwa_zdjecia_daja_pelny_kolaz(): void

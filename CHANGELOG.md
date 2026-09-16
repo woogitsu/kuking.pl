@@ -5,6 +5,12 @@
 - Adresy HTTP, HTTPS i www we wpisach, komentarzach i odpowiedziach są klikalne (#634).
 - Przed przejściem do innej witryny pokazujemy jej domenę, pełny adres i ostrzeżenie. Nie jest to skan antywirusowy ani zapewnienie o bezpieczeństwie strony.
 
+## Alfa 0.47 — kolaż po wyczyszczeniu wyboru
+
+- Kolaż powitalny pokazuje również jeden, dwa lub trzy dostępne zdjęcia.
+- Nowsze wpisy bez gotowych zdjęć nie wypychają zdjęć z automatycznego doboru.
+- Gdy nie ma dostępnych zdjęć, powitanie zajmuje jedną kolumnę bez pustego miejsca po prawej.
+
 ## Alfa 0.45 — przycisk rejestracji przy dużym tekście
 
 - Na wąskim ekranie przycisk rejestracji zostawia więcej miejsca na pełny napis, zachowując wybrany rozmiar tekstu (#621).
