@@ -1,13 +1,13 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
-## Bieżące uzupełnienie — 15 września 2026
+## Bieżące uzupełnienie — 16 września 2026
 
 Pełny port marki nadal **CZĘŚCIOWO**. Poniższe wpisy aktualizują zakres
 konkretnych pakietów; nie rozszerzają historycznych odbiorów na inne stany.
 
 | Pakiet | Kod i kontrole | Produkcja / ograniczenie |
 |---|---|---|
-| #579 kolejka gospodarza | Lokalnie 43/274, 72 konfiguracje i rzeczywisty zoom200/Tab; pięć fizycznych negatywów. [Raport](KOLEJKA_GOSPODARZA_579.md) | Robocza0.39, bez potwierdzenia CI/produkcji |
+| #579 kolejka gospodarza | Lokalnie 43/274, 72 konfiguracje i rzeczywisty zoom200/Tab; pięć fizycznych negatywów. [Raport](KOLEJKA_GOSPODARZA_579.md) | Alfa0.39/108bc93, main CI34999668844 i Railway6464297399 success; HTTP i zalogowana przeglądarka potwierdzone. Osobny smoke Deploy35002625751 nie wykonał kroków z powodu awarii inicjalizacji runnera; nie jest zaliczony |
 | #574 szybki wygląd i #577 podział CI | PR #575, head7cbdef8, 11/11 CI34983616697, PHP3834/76883; lokalne negatywy, oba motywy53/53 fokusu profilu, kliknięcie panelu i powrót do stałego miejsca | Merge0e1bdbe; mainCI11/11, Railway6462041446 i Deploy34989544692 success; gość6 paneli,24 warianty paska, zapis/reload/reset. [Raport](SZYBKI_WYGLAD_574.md) |
 | Przewijany pasek | PR #573; obecny również w merge0e1bdbe, objęty CI PR #575 | Alfa0.37 nie miała osobnego potwierdzenia; odebrano razem z0.38. [Raport](PASEK_PRZEWIJANIE.md) |
 | #567 niedostępne zapisy | PR #572, CI PR i main10/10; widoczność pozostaje chroniona | Alfa0.36/d50183e, Railway6459320591 i Deploy34975402661 success; HTTP potwierdzone. [Raport](NIEDOSTEPNE_ZAPISY_567.md) |
@@ -391,12 +391,12 @@ pokrycia wszystkich filtrów i wyników ani innych tras z wspólnego wiersza.
 
 ## Uzupełnienie odbioru #539
 
-Potwierdzono i poprawiono kontrast fokusu przy jednoczesnym najechaniu na przycisk podpowiedzi. Regresja: 88 wierszy pomiarów, pięć kontroli ujemnych rzeczywistego CSS i cztery próby prawdziwego zoomu. Niezależny końcowy odbiór po integracji z nawigacją: ciemny motyw, zoom 200%, tekst 140%, Tab 14/14 PASS wraz z hover + focus-visible. Wcześniejszego nieudanego przebiegu nie traktujemy jako pozytywnego. Szczegóły: [FOKUS_PODPOWIEDZI_539.md](FOKUS_PODPOWIEDZI_539.md). Wdrożenie pakietu wymaga osobnego potwierdzenia.
+Potwierdzono i poprawiono kontrast fokusu przy jednoczesnym najechaniu na przycisk podpowiedzi. Regresja: 88 wierszy pomiarów, pięć kontroli ujemnych rzeczywistego CSS i cztery próby prawdziwego zoomu. Niezależny końcowy odbiór po integracji z nawigacją: ciemny motyw, zoom 200%, tekst 140%, Tab 14/14 PASS wraz z hover + focus-visible. Wcześniejszego nieudanego przebiegu nie traktujemy jako pozytywnego. Szczegóły: [FOKUS_PODPOWIEDZI_539.md](FOKUS_PODPOWIEDZI_539.md). Wdrożenie pakietu potwierdzono w [odbiorze Alfa0.27](ODBIOR_PRODUKCJI_ALFA_027.md): SHA4c537b220af20c8efdd8cc109cc36dcbb46e3377, Railway6439273567 i Deploy34859662013 success. Zakres produkcyjnego oglądu pozostaje dokładnie taki jak w raporcie; nie rozszerzamy go o wszystkie warianty lokalne.
 
 ## Uzupełnienie 15.09 — #549 i audyt
 
 [Komunikat419](KOMUNIKAT_ODZYSKIWANIA_549.md): lokalne 16 konfiguracji,
-18 testów/330 asercji i trzy fizyczne negatywy. CI/wdrożenie oczekują.
+18 testów/330 asercji i trzy fizyczne negatywy. Późniejszy odbiór w tym raporcie potwierdza CI PR/main oraz Railway6458271154 i Deploy34968590919 success dla SHA72b96f979a264ed1982a4803bc7e07e623428c2e.
 [Audyt wielodyscyplinarny](AUDYT_WIELODYSCYPLINARNY_2026_09_15.md)
 zapisuje #567–569 oraz priorytety. Nie rozszerza wykonanych odbiorów.
 
@@ -405,16 +405,21 @@ zapisuje #567–569 oraz priorytety. Nie rozszerza wykonanych odbiorów.
 [Raport](NIEDOSTEPNE_ZAPISY_567.md): lokalnie 23 testy / 185 asercji,
 cztery fizyczne negatywy i 36 konfiguracji przeglądarki. Obejrzano trzy
 końcowe zrzuty. Zakres: informacja o niedostępnych zapisach w istniejącym
-zeszycie; nie jest to ponowny odbiór całej rodziny. CI i wdrożenie oczekują.
+zeszycie; nie jest to ponowny odbiór całej rodziny. CI PR/main oraz Railway6459320591 i Deploy34975402661 zakończyły się success dla SHAd50183eecda28455ece64469571c074e3897c408; szczegóły w powiązanym raporcie #567.
 
 ## Pasek gościa — Alfa 0.37, odbiór lokalny
 
 [PASEK_PRZEWIJANIE.md](PASEK_PRZEWIJANIE.md): 24 warianty oraz osobno
 rzeczywisty zoom200% i Shift+Tab, dwa fizyczne negatywy. Wdrożenie
-jeszcze niepotwierdzone; nie zmienia statusu pełnej macierzy.
+potwierdzone razem z Alfą0.38, SHA0e1bdbe80ffe25d72accf2f773a3a533675ef458, w [odbiorze produkcji](ODBIOR_PRODUKCJI_ALFA_038.md). Nie ma osobnego potwierdzenia wdrożenia0.37; nie zmienia to statusu pełnej macierzy.
 
 ## Szybki wygląd — #574, lokalnie
 
 [SZYBKI_WYGLAD_574.md](SZYBKI_WYGLAD_574.md):36 geometrii, zapis gościa,
 reset, błąd429, bezJS, nawigacja w trakcie zapisu, konto i zoom200%.
-Cztery fizyczne negatywy. CI i odbiór produkcji pozostają wymagane.
+Cztery fizyczne negatywy. Późniejszy odbiór w powiązanym raporcie potwierdza main CI11/11, Railway6462041446 i Deploy34989544692 success dla SHA0e1bdbe80ffe25d72accf2f773a3a533675ef458. Zakres produkcyjny jest opisany oddzielnie od lokalnych konfiguracji.
+
+
+## Korekta historycznych statusów — 16 września 2026
+
+Powyższe sześć korekt (#539, #549, #567, #574, pasek i #579) wynika z odczytu późniejszych raportów obecnych w main f77bd4d. Nie wykonano przy tej korekcie nowego odbioru przeglądarkowego ani produkcyjnego. Zachowano ograniczenie smoke testu #579. Pełny port marki pozostaje **CZĘŚCIOWO**; pozostałe wiersze wymagają oceny własnych dowodów, a nie zbiorowego uznania za zakończone.
