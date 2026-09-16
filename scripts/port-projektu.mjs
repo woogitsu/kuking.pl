@@ -13,6 +13,7 @@ import { sprawdzTagi } from './tagi-marki.mjs';
 import { sprawdzSzybkiWyglad } from './szybki-wyglad.mjs';
 import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
+import { sprawdzPrzyciskRejestracji } from './przycisk-rejestracji.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
@@ -378,6 +379,7 @@ try {
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
+  await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
   await sprawdzPasek({ browser: przegladarka, adres });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });

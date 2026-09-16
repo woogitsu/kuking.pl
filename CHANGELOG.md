@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.45 — przycisk rejestracji przy dużym tekście
+
+- Na wąskim ekranie przycisk rejestracji zostawia więcej miejsca na pełny napis, zachowując wybrany rozmiar tekstu (#621).
+- Przejście klawiaturą pozostawia zapas na obrys przycisku przy krawędzi okna.
+
 ## Alfa 0.44 — powiększanie zdjęć
 
 - Zdjęcie można nadal otworzyć kliknięciem lub dotykiem, a link „Powiększ zdjęcie” pozostaje widoczny przy obsłudze klawiaturą także pod wysokimi zdjęciami (#561).
