@@ -1,0 +1,35 @@
+[
+  {
+    "case": "default",
+    "settings": {
+      "version": "18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)",
+      "jit": "on",
+      "jit_above_cost": "100000",
+      "jit_inline_above_cost": "500000",
+      "jit_optimize_above_cost": "500000"
+    },
+    "paginate_ms": 327.991925
+  },
+  {
+    "case": "session_off",
+    "settings": {
+      "version": "18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)",
+      "jit": "off",
+      "jit_above_cost": "100000",
+      "jit_inline_above_cost": "500000",
+      "jit_optimize_above_cost": "500000"
+    },
+    "paginate_ms": 27.861385
+  },
+  {
+    "case": "default_again",
+    "settings": {
+      "version": "18.6 (Ubuntu 18.6-0ubuntu0.26.04.1)",
+      "jit": "on",
+      "jit_above_cost": "100000",
+      "jit_inline_above_cost": "500000",
+      "jit_optimize_above_cost": "500000"
+    },
+    "paginate_ms": 325.008044
+  }
+]

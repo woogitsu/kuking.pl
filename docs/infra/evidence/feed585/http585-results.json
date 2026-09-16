@@ -1,0 +1,101 @@
+{
+  "scope": "loopback PHP development server; real password login and CSRF; no TLS/assets/concurrency; first request excluded",
+  "runs": [
+    {
+      "follows": 10,
+      "sample": 1,
+      "ttfb_ms": 311.5215169964358,
+      "total_ms": 311.98996999592055,
+      "bytes": 98672,
+      "status": 200
+    },
+    {
+      "follows": 10,
+      "sample": 2,
+      "ttfb_ms": 312.7602519962238,
+      "total_ms": 313.200323995261,
+      "bytes": 98672,
+      "status": 200
+    },
+    {
+      "follows": 10,
+      "sample": 3,
+      "ttfb_ms": 311.82867899769917,
+      "total_ms": 312.2394979945966,
+      "bytes": 98672,
+      "status": 200
+    },
+    {
+      "follows": 100,
+      "sample": 1,
+      "ttfb_ms": 314.3756889985525,
+      "total_ms": 314.8685850028414,
+      "bytes": 100314,
+      "status": 200
+    },
+    {
+      "follows": 100,
+      "sample": 2,
+      "ttfb_ms": 317.11380500200903,
+      "total_ms": 317.5827989980462,
+      "bytes": 100314,
+      "status": 200
+    },
+    {
+      "follows": 100,
+      "sample": 3,
+      "ttfb_ms": 316.1433279965422,
+      "total_ms": 316.40063999657286,
+      "bytes": 100314,
+      "status": 200
+    },
+    {
+      "follows": 500,
+      "sample": 1,
+      "ttfb_ms": 565.4350060067372,
+      "total_ms": 565.8875299995998,
+      "bytes": 100315,
+      "status": 200
+    },
+    {
+      "follows": 500,
+      "sample": 2,
+      "ttfb_ms": 566.8576719981502,
+      "total_ms": 567.2080699951039,
+      "bytes": 100315,
+      "status": 200
+    },
+    {
+      "follows": 500,
+      "sample": 3,
+      "ttfb_ms": 564.6214230000624,
+      "total_ms": 564.988562000508,
+      "bytes": 100315,
+      "status": 200
+    },
+    {
+      "follows": 2000,
+      "sample": 1,
+      "ttfb_ms": 582.9397139968933,
+      "total_ms": 583.327330998145,
+      "bytes": 101071,
+      "status": 200
+    },
+    {
+      "follows": 2000,
+      "sample": 2,
+      "ttfb_ms": 578.0245930000092,
+      "total_ms": 578.4985420032172,
+      "bytes": 101071,
+      "status": 200
+    },
+    {
+      "follows": 2000,
+      "sample": 3,
+      "ttfb_ms": 575.255459996697,
+      "total_ms": 575.7364859964582,
+      "bytes": 101071,
+      "status": 200
+    }
+  ]
+}
