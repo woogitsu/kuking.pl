@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.48 — linki we wpisach i komentarzach
+
+- Adresy HTTP, HTTPS i www we wpisach, komentarzach i odpowiedziach są klikalne (#634).
+- Przed przejściem do innej witryny pokazujemy jej domenę, pełny adres i ostrzeżenie. Nie jest to skan antywirusowy ani zapewnienie o bezpieczeństwie strony.
+
 ## Alfa 0.45 — przycisk rejestracji przy dużym tekście
 
 - Na wąskim ekranie przycisk rejestracji zostawia więcej miejsca na pełny napis, zachowując wybrany rozmiar tekstu (#621).

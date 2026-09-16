@@ -1,0 +1,10 @@
+@layer components {
+  .link-w-tresci {
+    overflow-wrap: anywhere;
+    word-break: normal;
+  }
+  a.link-w-tresci {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+  }
+}
