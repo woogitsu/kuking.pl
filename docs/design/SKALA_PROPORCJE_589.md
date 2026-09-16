@@ -60,3 +60,13 @@ Pierwszy zwykły push został prawidłowo zatrzymany przez pełne PHP. Zalogowan
 Diagnostyczne pełne powtórzenie miało 3850 PASS i 4 FAIL: oprócz tych dwóch parserów jego helper miał inne APP_URL i brak regionu dysku niż poprawny zestaw zmiennych zwykłego hooka. Po ujednoliceniu środowiska i korektach parserów cztery rodziny przeszły: 26 testów / 78 asercji PASS. Dwa fizyczne negatywy rzeczywistych źródeł (odstęp Start poniżej 24 px oraz rem zastąpione px) wywołały FAIL; odtworzenie MD5/mtime i dodatnie testy PASS. Pint 2 pliki PASS. Dowód: `negative-merged-contracts.json`. Kolejny zwykły hook jest wymagany przed publikacją; ten raport nie deklaruje jego przyszłego wyniku.
 
 Po integracji wykonano również ogląd rzeczywistego Laravel z CSS BbC4zqzk: formularz 320 px / ciemny / 70% oraz landing 390 px / jasny / 70%, 1440 px / ciemny / 70% i 320 px / ciemny / 140%, bez poziomego overflow. Stopka wskazywała Alfa 0.41. Kontrolki i etykiety formularza pozostawały widoczne podczas przewijania. Zrzuty zachowano lokalnie w `output/skala589-real`. To odbiór przeglądarki, nie fizycznego urządzenia ani pełnej ścieżki fokusu.
+
+## Dalsza diagnoza CI — 16 września
+
+CI 35064876515, job 104692882230 zakończył rodzinę ekranów błędem K511_IMAGE. Pierwotny komunikat nie zawierał statusu HTTP. Dodano ograniczoną diagnostykę odpowiedzi i przekierowań obrazów, bez query, cookies i treści odpowiedzi. Zachowano dotychczasowe asercje oraz czas oczekiwania.
+
+Lokalne odtworzenie w osobnej bazie kuking_port591_diagnostic na porcie 55439 przeszło K509 (432 warianty) i K511 (96 konfiguracji), wraz z pięcioma kontrolami ujemnymi zeszytów oraz przywróceniem MD5 35b47482c05ab1dfa5e209fa579c3276 i mtime. Ten przebieg następnie zakończył się błędem K513_FIXTURE_RESTORE. Błędu obrazu nie odtworzono; 429 jest hipotezą, nie diagnozą. Log: /home/mateusz/port591-diagnostic.log.
+
+Osobna próba kodu diagnostyki potwierdziła przypisanie 302 → 403 do tego samego obrazu, zapis kodu awarii sieci, pomijanie zasobów innych niż obrazy i brak sekretów z query w raporcie. Nie dowodzi to statusu rzeczywistej awarii CI.
+
+Odtworzono przyczynę K513_FIXTURE_RESTORE na izolowanej bazie: zapis daty ISO przez cast Eloquent usuwał offset przed zapisem do timestamptz; strefa sesji PostgreSQL przesuwała chwilę o dwie godziny. Fixture przywraca teraz oryginalny ciąg ISO bezpośrednio przez Query Builder. Próba dodatnia zachowała cały stan (8 powiadomień i tagi). Fizyczne przywrócenie starego kodu PHP wywołało różnicę dat; po odtworzeniu kopii spoza repo MD5 b82bbfffe18cc8f1b84b857c25701ca8 oraz mtime były identyczne, a próba dodatnia przeszła. Pint PASS. Ponowny pełny przebieg grupy uruchomiono; jego wyniku jeszcze nie potwierdzono.
