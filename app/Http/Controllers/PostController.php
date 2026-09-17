@@ -457,6 +457,7 @@ class PostController extends Controller
         $post->load([
             'author.profile.avatar',
             'media',
+            'tags:id,slug,name,status',
             /*
              * KOLUMNY, KTÓRYCH WIDOK NAPRAWDĘ UŻYWA — a nie te trzy, które
              * wyglądają na wystarczające (issue #447).
@@ -614,7 +615,9 @@ class PostController extends Controller
             // Lista robocza tagów: to, co ktoś zdążył zmienić w tym
             // formularzu (`old()`), a jeśli to pierwsze wejście na ekran —
             // tagi, które wpis ma już dziś.
-            'tagNames' => (array) old('tag_names', $post->tags->pluck('name')->all()),
+            'tagNames' => old('_tag_form_post_id') === (string) $post->getKey()
+                ? (array) old('tag_names', [])
+                : $post->tags->filter(fn (Tag $tag): bool => $tag->pivot->dodany_recznie === true)->pluck('name')->all(),
             'sugestieTagow' => $this->sugestieDlaZapytania(),
         ]);
     }
@@ -622,6 +625,11 @@ class PostController extends Controller
     public function update(Request $request, Post $post): RedirectResponse
     {
         $this->authorize('update', $post);
+
+        // Zakres old input pochodzi z autoryzowanej trasy, nie z podrobionego
+        // pola. Brak tag_names[] oznacza usunięcie całej ręcznej listy tylko
+        // w tym konkretnym formularzu; cudzy formularz nie zeruje tagów.
+        $request->merge(['_tag_form_post_id' => (string) $post->getKey()]);
 
         $tagNames = $this->tagiZFormularza($request);
 

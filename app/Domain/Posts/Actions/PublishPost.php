@@ -6,7 +6,7 @@ namespace App\Domain\Posts\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
-use App\Domain\Tags\Actions\ResolveTagsForPost;
+use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
@@ -50,7 +50,7 @@ final class PublishPost
 {
     public function __construct(
         private readonly NotifyUser $notify,
-        private readonly ResolveTagsForPost $resolveTags,
+        private readonly ResolvePostTags $resolveTags,
     ) {}
 
     /**
@@ -76,12 +76,9 @@ final class PublishPost
             throw new BladDlaCzlowieka('Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.');
         }
 
-        // Tagi (D-021, zastępują usunięty już Temat/`topic_id` z issue #31)
-        // — rozwiązywane PRZED transakcją tworzącą wpis, żeby
-        // `BladDlaCzlowieka` za zbyt wiele tagów przerwało publikację, zanim
-        // cokolwiek trafi do bazy (dokładnie tak samo jak sprawdzenie
-        // pustego wpisu wyżej).
-        $tags = $this->resolveTags->handle($tagNames);
+        // Nowe nazwy i pivoty powstają w tej samej transakcji co wpis.
+        // Odrzucony limit ani ponowione wysłanie nie zostawiają tagów-sierot.
+        $tags = [];
 
         $trybZadany = $displayMode;
 
@@ -89,8 +86,9 @@ final class PublishPost
         $orderedMedia = [];
         $displayMode = Post::DISPLAY_NORMAL;
 
-        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tags, &$orderedMedia, &$displayMode): Post {
-            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tags, $klucz, &$orderedMedia, &$displayMode): Post {
+        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, &$tags, &$orderedMedia, &$displayMode): Post {
+            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $klucz, &$tags, &$orderedMedia, &$displayMode): Post {
+                $tags = $this->resolveTags->handle($body, $tagNames);
                 /*
                  * WYBÓR ZDJĘĆ STOI W TEJ SAMEJ TRANSAKCJI CO PRZYPIĘCIE
                  * (issue #285, D-083).
@@ -151,12 +149,10 @@ final class PublishPost
                     $post->media()->attach($mediaId, ['position' => $position]);
                 }
 
-                foreach ($tags as $position => $tag) {
-                    $post->tags()->attach($tag->getKey(), ['position' => $position]);
-                }
+                $post->tags()->attach($tags);
 
                 return $post;
-            });
+            }, 3);
         };
 
         try {

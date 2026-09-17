@@ -185,7 +185,7 @@ final class CollectUserExportData
         // Bez `published()` i bez filtra widoczności — wpis prywatny należy
         // do użytkownika dokładnie tak samo jak publiczny.
         $posts = $user->posts()
-            ->with(['media', 'recipe', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe', 'tags', 'comments.replies.author.profile', 'comments.author.profile'])
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
@@ -196,6 +196,12 @@ final class CollectUserExportData
             'utworzono' => $this->date($post->created_at),
             'opublikowano' => $this->date($post->published_at),
             'dotyczy_przepisu' => $post->recipe?->title,
+            'tagi' => $post->tags->map(fn ($tag): array => [
+                'id' => $tag->getKey(),
+                'nazwa' => $tag->name,
+                'slug' => $tag->slug,
+                'dodany_recznie' => $tag->pivot->dodany_recznie === true,
+            ])->all(),
             'zdjecia' => $post->media
                 ->map(fn ($photo) => $photos->pathFor((string) $photo->getKey()))
                 ->filter()

@@ -564,6 +564,10 @@ Route::match(['get', 'post'], '/zgloszenie/{report}/odwolanie', [ReporterAppealC
 // --------------------------------------------------------------------------
 
 Route::middleware('auth')->group(function () use ($limits): void {
+    Route::get('/tagi/podpowiedzi', \App\Http\Controllers\TagSuggestionController::class)
+        ->middleware("throttle:{$limits['tag_suggestions']},tag_suggestions")
+        ->name('tags.suggestions');
+
     Route::get('/home', [FeedController::class, 'home'])->name('home');
     Route::post('/instalacja/decyzja', [PwaInstallController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
