@@ -1,0 +1,26 @@
+{
+  "source": "resources/css/marka-panel.css",
+  "md5": "b6a31b77e29d750766ec19b90d731737",
+  "mtime_ns": 1789605148389985860,
+  "backup": "/tmp/kuking637-font-zkt0sfzs",
+  "negative_exit": 1,
+  "negative": {
+    "etap": "WYGLAD",
+    "kod": "P581_ZOOM_FONT_NIEUSTALONY",
+    "konfiguracja": {
+      "width": 640,
+      "dark": false,
+      "scale": 140
+    },
+    "geometria": null,
+    "wyglad": {
+      "stable": false,
+      "font": 18,
+      "scale": 140,
+      "tokenScale": 1.4
+    }
+  },
+  "restored_md5": "b6a31b77e29d750766ec19b90d731737",
+  "restored_mtime_ns": 1789605148389985860,
+  "positive_exit": 0
+}

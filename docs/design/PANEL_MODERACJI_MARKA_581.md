@@ -207,3 +207,14 @@ Log hooka: /home/mateusz/push581-final.log. Proces wysyłki zakończony. Runtime
 Po przeniesieniu ostatniej normalizacji whitespace do runtime: 25 testów /272asercje PASS. Cztery fizyczne mutacje źródeł wykryte osobno (licznik aria-hidden, etykieta powrotu, atrybut trybu panelu, zakres marginesów). Każda: dodatni baseline, ujemny wynik kod1, przywrócenie identycznych bajtów/MD5/mtime, dodatni wynik. Dowody: evidence/panel581/negatives/contracts/report.json. Pierwsze próby baseline kod2 były błędem nieczynnego PostgreSQL55439 i nie stanowią negatywów. Po uruchomieniu wyłącznie izolowanego klastra wykonano komplet prób. Pełny hook/push nadal do ponowienia.
 
 Review korekt wykryło zbyt szeroki wyjątek listy selektorów. Zastąpiono go dokładnym porównaniem normalizowanego selektora panelu. Powtórzono pięć fizycznych kontroli, w tym dopisanie selektora .panel-formularza poza panelem: wszystkie wykryte, źródła przywrócone MD5/mtime. Końcowe celowane25testów/272asercje i Pint PASS. Próbę przygotowania wysyłki przerwano przed git push na czas tej poprawki.
+
+
+## PR #637 — stabilność pomiaru zoomu, 17 września 2026
+
+CI 35167308602: 11/12 zadań PASS. W zadaniu panelu przeszło 288 pustych i 312 pełnych konfiguracji oraz 8 scenariuszy menu; zawiódł późniejszy pomiar zoomu. Lokalnie odtworzono przejściowy font 18 px przy już ustawionej skali 140% i tokenie 1.4; następna klatka miała poprawne 25.2 px. Nie był to reset preferencji użytkownika.
+
+Pomiar czeka teraz maksymalnie 2 s na trzy kolejne poprawne klatki, bez ponawiania ustawień. Zachowano wymóg rzeczywistego zoomu 2, DPR 2, szerokości, braku overflow i przejścia klawiaturą. Błędy zapisują bezpieczny kod, etap i liczby, bez URL ani ciasteczek. Review wskazało prefiks wyjątków Playwright oraz zbędne 30 klatek diagnostycznych; poprawiono oba punkty i dodano osobny timeout.
+
+Fizyczne wymuszenie fontu 18 px w prawdziwym marka-panel.css zostało wykryte jako P581_ZOOM_FONT_NIEUSTALONY. Kopia poza repo, MD5 i mtime potwierdzają dokładne przywrócenie. Po przywróceniu: 8/8 dodatkowych scenariuszy i 4/4 rzeczywistych zoomów PASS. Dowody: evidence/menu581/zoom-font-negative.json, zoom-stable-200.json, menu-stable-extra.json. Pierwsza próba negatywu oblała prawidłowo, lecz miała kod NIEZNANY; nie zaliczono jej jako pełnego dowodu diagnostyki.
+
+To poprawka narzędzia pomiarowego; świeży CI i wdrożenie PR #637 pozostają do potwierdzenia.
