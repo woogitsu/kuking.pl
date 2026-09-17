@@ -84,3 +84,26 @@ zapisu pozostaje nad dolną nawigacją. Dodano również pełne zrzuty przepisu
 `przepis-ciemny-140.png` i `przepis-jasny-140.png`; jasny układ obejrzano.
 Testy korzystały z odrębnej bazy `kuking_644_tests`, odbiór
 przeglądarkowy z `kuking_492_zeszyt_success`, wyłącznie port 55439.
+
+## Końcowy zoom i wysyłka — 17 września 2026
+
+Zwykły hook na `d788ea7b3fd39658e5e9aafd86e76f155432aa48` przeszedł:
+Pint, składnia, skrypty powłoki, PHPStan, pełne PHP oraz odwracalność migracji.
+Zdalny SHA potwierdzono; utworzono draft PR #645. CI 35239994765 trwało
+w momencie uzupełnienia. Nie jest to jeszcze scalenie ani wdrożenie.
+
+Brakujący rzeczywisty zoom został zmierzony w izolowanym Chromium:
+`chrome.tabs.setZoom(2)` i `getZoom()` = 2, DPR = 2, szerokość CSS 320 px
+przy oknie 640 px. Nie użyto CSS zoom ani fontu jako zamiennika powiększenia.
+Osiem wariantów: przepis/wpis × jasny/ciemny × tekst 100/140%.
+We wszystkich brak poziomego overflow strony i etykiet; Tab → radio →
+strzałka → Tab prowadzi do widocznego przycisku zapisu. Body ma 18/25,2 px.
+Pomiary i zrzuty są w `evidence/zeszyt644/zoom200/`. Obejrzano jasny przepis
+100% i ciemny wpis 140%: cały obrys przycisku mieści się między belkami.
+Test zoomu nie wysyłał formularza; rzeczywiste zapisy mają osobny wcześniejszy
+odbiór. Native window bez emulacji viewport; zapis obrazu przez
+`captureVisibleTab`. Pierwszy obraz z emulowanego viewport był wadliwy i nie
+jest końcowym dowodem. Pomiar korzysta wyłącznie z lokalnego konta testowego.
+
+Pozostałe bramki: wymagane CI końcowego SHA, normalne scalenie, Railway
+oraz odbiór wdrożonego wyboru zeszytu. Produkcja nadal osobno: Alfa 0.55.
