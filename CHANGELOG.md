@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.60 — komentarze i wykonania bez cofania
+
+- Na stronie przepisu przejście do kolejnych komentarzy zachowuje wybraną stronę wykonań — i odwrotnie. Możesz przeglądać obie listy bez wracania do początku.
+
 ## Alfa 0.59 — obie listy zostają na swoim miejscu
 
 - W zeszycie przejście do kolejnej strony wpisów zachowuje wybraną stronę przepisów — i odwrotnie. Możesz przeglądać obie listy bez ciągłego wracania do początku.
