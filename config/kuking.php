@@ -1800,6 +1800,70 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Budżet połączeń PostgreSQL — issue #598
+    |--------------------------------------------------------------------------
+    |
+    | Wyczerpanie `max_connections` jest awarią SKOKOWĄ: dopóki zostaje jedno
+    | wolne miejsce, wszystko wygląda normalnie, a po jego zajęciu nie łączy
+    | się nikt — łącznie z administratorem, który przyszedł to naprawić.
+    | Dlatego próg alarmowy stoi daleko przed limitem, a nie tuż przed nim.
+    |
+    | SKĄD SIĘ BIORĄ TE LICZBY — PEŁNE WYPROWADZENIE W `docs/DATABASE.md` §
+    | „Budżet połączeń". W skrócie, i z rozdzieleniem pomiaru od obliczenia:
+    |
+    | ZMIERZONE 17.09.2026
+    |   * produkcja: `max_connections` = 500, `superuser_reserved_connections`
+    |     = 3, czyli 497 miejsc dla aplikacji;
+    |   * jeden kontener, `APP_ROLE=all`, `numReplicas` = 1;
+    |   * FrankenPHP przy starcie: `num_threads=4`, `max_threads=4`
+    |     (GOMAXPROCS=2 z limitu CPU kontenera) — to jest TWARDY sufit
+    |     równoległości HTTP na replikę;
+    |   * lokalnie: jeden równoległy cykl żądania = DOKŁADNIE jeden backend
+    |     PostgreSQL, także przy sesjach, cache i kolejce na bazie;
+    |     `queue:work` trzyma jeden, `schedule:run` i `migrate` po jednym.
+    |
+    | POLICZONE Z TYCH POMIARÓW
+    |   szczyt zwykły:  4 (web) + 1 (kolejka) + 1 (harmonogram)          =  6
+    |   szczyt wdrożeniowy: stary kontener 6 + nowy 6 + migracja 1       = 13
+    |   zapas na administrację i CLI                                     = +3
+    |   ----------------------------------------------------------------------
+    |   budżet szczytowy dzisiejszej topologii                           = 16
+    |
+    | PRÓG OSTRZEGAWCZY (50) nie pyta „czy blisko limitu", tylko „czy budżet
+    | nadal opisuje rzeczywistość". 50 to ponad trzykrotność policzonego
+    | szczytu: przy poprawnej topologii nie da się tego osiągnąć, więc
+    | przekroczenie znaczy wyciek połączeń albo procesy, o których nikt nie
+    | wie. To jest sygnał DIAGNOSTYCZNY, nie awaryjny.
+    |
+    | PRÓG KRYTYCZNY (125) to jedna czwarta z 497 dostępnych miejsc. Zostawia
+    | trzy czwarte puli na reakcję i mieści się grubo pod limitem nawet przy
+    | kilkunastu replikach. Nie jest to „90% i alarm", bo przy awarii skokowej
+    | alarm przy 90% przychodzi wtedy, gdy nie ma już czasu na nic.
+    |
+    | CZEGO TE LICZBY NIE ZNACZĄ
+    | Nie są przepustowością ani liczbą obsługiwanych osób. Ten sam portal
+    | może mieć tysiące ludzi przy kilku równoczesnych żądaniach i odwrotnie.
+    | Decyzja o PgBouncerze (#600) ma wynikać z tych liczb, nie z progu
+    | „ilu jest online".
+    */
+    'polaczenia' => [
+        // Ile połączeń MA PRAWO zająć dzisiejsza topologia. Liczba policzona,
+        // nie zmierzona — przy zmianie topologii (#595, kolejna replika)
+        // trzeba ją przeliczyć razem z `docs/DATABASE.md`.
+        'budzet_szczytowy' => (int) env('KUKING_POLACZENIA_BUDZET', 16),
+
+        'prog_ostrzegawczy' => (int) env('KUKING_POLACZENIA_PROG_OSTRZEGAWCZY', 50),
+
+        'prog_krytyczny' => (int) env('KUKING_POLACZENIA_PROG_KRYTYCZNY', 125),
+
+        // Czujka chodzi co godzinę, a stan „za dużo połączeń" trwa godzinami.
+        // Bez tej ciszy kanał dostawałby 24 identyczne wiadomości na dobę
+        // i nauczyłby ignorować siebie. Zmiana stanu dzwoni od razu.
+        'cisza_godzin' => (int) env('KUKING_POLACZENIA_CISZA_GODZIN', 6),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
