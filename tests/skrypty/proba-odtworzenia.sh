@@ -531,15 +531,22 @@ echo
 echo "── HASŁO BAZY POZA LISTĄ PROCESÓW (#594) ──"
 # =============================================================================
 #
-#  ODTWORZONE 17.09.2026 PRAWDZIWYM `ps`, nie odczytem kodu: przez cały czas
-#  trwania zrzutu wiersz `ps -o args=` procesu `pg_dump` zawierał pełny DSN
-#  razem z hasłem. Argumenty procesu są na Linuksie jawne dla KAŻDEGO
-#  użytkownika maszyny — a tym DSN-em jest poświadczenie do produkcyjnej bazy.
+#  ODTWORZONE 17.09.2026 PRAWDZIWYM `ps`: przez cały czas trwania zrzutu
+#  wiersz `ps -o args=` procesu `pg_dump` zawierał pełny DSN razem z hasłem.
+#  Argumenty procesu są na Linuksie jawne dla KAŻDEGO użytkownika maszyny —
+#  a tym DSN-em jest poświadczenie do produkcyjnej bazy.
 #
-#  Test podstawia `pg_dump`, który uruchamia PRAWDZIWY program w tle i czyta
-#  JEGO wiersz z `ps`. Sprawdza dwie rzeczy naraz, bo jedna bez drugiej nic
-#  nie znaczy: że w `ps` hasła NIE MA i że zrzut mimo to POWSTAŁ (czyli że
-#  libpq wzięło hasło z `PGPASSFILE`, a nie że skrypt stracił dostęp do bazy).
+#  TEST NIE UŻYWA JUŻ `ps` I TO JEST POPRAWKA, NIE ULGA. Pierwsza wersja
+#  uruchamiała prawdziwy `pg_dump` w tle i próbowała złapać jego wiersz
+#  z `ps`. Przy pełnym zestawie testów zrzut fikstury kończył się szybciej,
+#  niż pętla zdążyła spróbować — asercja „ps naprawdę pokazał wiersz"
+#  oblewała się losowo (zmierzone: samotnie zielona, w pełnym przebiegu
+#  czerwona, dwa razy z rzędu). Wyścig w teście jest usterką testu.
+#
+#  Patrzymy więc na ARGUMENTY, które podstawiony `pg_dump` naprawdę dostał.
+#  To jest dokładnie to, co pokazuje `ps`: `ps -o args=` wypisuje `argv`
+#  procesu — ten sam wektor, który przekazuje `execve`. Różnica jest tylko
+#  taka, że tu nie ma czego przegapić.
 KATALOG_PS="$(mktemp -d)"
 cat >"${KATALOG_PS}/pg_dump" <<'PODSTAWKA'
 #!/usr/bin/env bash
@@ -553,16 +560,10 @@ if [[ -n "${PGPASSFILE:-}" && -f "${PGPASSFILE}" ]]; then
   cat "${PGPASSFILE}" >>"${PODGLAD_PASS}"
 fi
 PRAWDZIWY="$(PATH="${PATH#*:}" command -v pg_dump)"
-"${PRAWDZIWY}" "$@" &
-PID=$!
-for _ in $(seq 1 500); do
-  LINIA="$(ps -o args= -p "${PID}" 2>/dev/null)"
-  [[ -n "${LINIA}" ]] && {
-    printf '%s\n' "${LINIA}" >>"${PODGLAD_PS}"
-    break
-  }
-done
-wait "${PID}"
+# `argv` procesu — to samo, co wypisałby `ps -o args=`, tylko bez wyścigu
+# o to, czy zdążymy zajrzeć, zanim proces się skończy.
+printf '%s\n' "${PRAWDZIWY} $*" >>"${PODGLAD_PS}"
+exec "${PRAWDZIWY}" "$@"
 PODSTAWKA
 chmod +x "${KATALOG_PS}/pg_dump"
 
@@ -597,9 +598,9 @@ sprawdz "…z hasłem bazy w środku" "tak" \
 sprawdz "…i prawami 600, bo to poświadczenie do bazy" "PRAWA=600" \
   "$(grep -m1 '^PRAWA=' "${PODGLAD_PASS}" || echo 'PRAWA=brak')"
 
-sprawdz "ps NAPRAWDĘ pokazał wiersz pg_dumpa (inaczej test nic nie mierzy)" \
+sprawdz "argumenty pg_dumpa NAPRAWDĘ zapisane (inaczej test nic nie mierzy)" \
   "tak" "$(grep -qF 'format=custom' "${PODGLAD_PS}" && echo tak || echo nie)"
-sprawdz "…i nie ma w nim hasła do bazy" "brak" \
+sprawdz "…i nie ma w nich hasła do bazy" "brak" \
   "$(grep -qF ":${BAZA_HASLO}@" "${PODGLAD_PS}" && echo JEST || echo brak)"
 sprawdz "…a sam adres bazy w argumentach nadal jest (dowód, że patrzymy w to miejsce)" \
   "tak" "$(grep -qF "@${BAZA_HOST}:${BAZA_PORT}/" "${PODGLAD_PS}" && echo tak || echo nie)"
