@@ -2219,6 +2219,19 @@
 
   .post-card-actions .btn { max-width: 100%; }
 
+  .wybor-zeszytu {
+    min-width: 0;
+    max-width: 100%;
+  }
+  .wybor-zeszytu[open] { flex-basis: 100%; }
+  .wybor-zeszytu > summary { width: fit-content; max-width: 100%; }
+  .wybor-zeszytu-lista { min-width: 0; border: 0; padding: 0; }
+  .wybor-zeszytu-opcja { display: flex; align-items: flex-start; gap: .5rem; min-height: 48px; padding-block: .5rem; cursor: pointer; }
+  .wybor-zeszytu-opcja input { flex: 0 0 auto; margin-top: .35em; }
+  .wybor-zeszytu-opcja span { min-width: 0; overflow-wrap: anywhere; }
+  .wybor-zeszytu-opcja small { display: block; font-size: 1em; }
+  .wybor-zeszytu .panel-formularza { overflow-wrap: anywhere; }
+
   /* Odsunięcie zgłoszenia na koniec wiersza. Przy zawijaniu po prostu
      schodzi do nowej linii, zamiast wypychać cokolwiek poza ekran. */
   .post-card-report { margin-left: auto; }
