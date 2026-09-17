@@ -55,7 +55,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
         foreach (['port_marki', 'port_funkcje', 'dostepnosc'] as $name) {
             $this->assertSame(1, preg_match("/grep -qE '([^']+)'/", $this->job($name), $matches));
             $pattern = '~'.str_replace('~', '\\~', $matches[1]).'~';
-            foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css'] as $path) {
+            foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css'] as $path) {
                 $this->assertSame(1, preg_match($pattern, $path), $name.': pominięto '.$path);
             }
             $this->assertSame(0, preg_match($pattern, 'docs/PRODUCT.md'));

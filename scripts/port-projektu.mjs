@@ -15,6 +15,8 @@ import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
 import { sprawdzPrzyciskRejestracji } from './przycisk-rejestracji.mjs';
 import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
+import { sprawdzMacierzNawigacji } from './nawigacja-etykiety.mjs';
+import { sprawdzZoomNawigacji } from './nawigacja-zoom.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
@@ -369,6 +371,8 @@ try {
   }
   await context.close();
 
+  await sprawdzMacierzNawigacji({ browser: przegladarka, adres, sesja });
+  await sprawdzZoomNawigacji({ chromium, adres, sesja, outputDir: 'storage/port-projektu/nawigacja638' });
   });
   await wykonajGrupe(grupa, 'rozszerzenia', async () => {
   if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');

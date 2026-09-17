@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.51 — pełne nazwy dolnej nawigacji
+
+- Skróty Start, Szukaj, Dodaj, Moje i Profil zachowują pełne nazwy na wąskim ekranie (#638).
+- Przy większym tekście przyciski przechodzą do kolejnego rzędu; nie zmniejszamy pisma ani obszaru dotyku.
+
 ## Alfa 0.50 — krótsza nawigacja panelu na telefonie
 
 - Narzędzia moderacji można rozwinąć przyciskiem „Nawigacja panelu”, dzięki czemu szybciej dociera się do treści (#581).
