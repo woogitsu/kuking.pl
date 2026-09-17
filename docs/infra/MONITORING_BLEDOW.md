@@ -470,3 +470,123 @@ HealthNieZdradzaSzczegolowTest.php`), nie tylko przeczytane w kodzie:
   "environment":"production","time":"…","checks":{"database":{"ok":true},
   "migrations":{"ok":true},"media":{"ok":true},"turnstile":{"ok":true},
   "poczta":{"ok":true},"kolejka":{"ok":true}}}`.
+
+---
+
+## 7. Inwentarz alertów — co dzwoni dziś, a co tylko istnieje (issue #599)
+
+**Sprawdzone 17 września 2026.** Ten rozdział istnieje, bo dokument opisujący
+mechanizm i mechanizm faktycznie działający to dwie różne rzeczy — dokładnie
+ta pomyłka, przed którą `AGENTS.md` §3 ostrzega przy tabeli stacku (wiersz
+„Monitoring" opisywał Sentry, którego w projekcie nigdy nie było).
+
+Kolumna „dowód" mówi, skąd wiadomo. Puste pole znaczyłoby `NIE WIEMY`,
+a `NIE WIEMY` jest nieprzejściem bramki, nie sukcesem (`docs/OTWARCIE.md`).
+
+| Sygnał | Mechanizm | Stan na 17.09.2026 | Dowód |
+|---|---|---|---|
+| błąd 500 na produkcji | kanał `blad_webhook`, wołany jawnie z `bootstrap/app.php` | **KOD JEST, NIE DZWONI** | w usłudze produkcyjnej **nie ma zmiennej `LOG_BLAD_WEBHOOK_URL`** — odczyt listy zmiennych przez API Railway, `sealedVariableNames` puste, więc brak nazwy znaczy brak zmiennej |
+| awaria bazy / niedokończone migracje | `/health` → HTTP 503 | DZIAŁA, ale **nikt z zewnątrz nie pyta** | `/health` sprawdzone testami; zewnętrznego monitora nie ma (`docs/OTWARCIE.md` wiersz 11) |
+| awaria niekrytyczna (poczta, zdjęcia, Turnstile) | `/health` → `status: degraded` | DZIAŁA, ale **stoi na czerwono na stałe** — patrz niżej | log wdrożenia `fa8f012e`, 17.09.2026 19:58:19 UTC |
+| brak aktualnej kopii bazy | `kuking:sprawdz-kopie`, codziennie 06:15 | **WYŁĄCZONA Z POWODU BRAKU KONFIGURACJI** — komenda kończy się sukcesem i milczy | w usłudze produkcyjnej nie ma `AWS_KOPIE_BUCKET`; umowa „brak zmiennej = zero efektu" jest opisana w `config/kuking.php` |
+| nieudany przebieg kopii | alarm z serwisu `kopia-bazy` | **SERWISU NIE MA** | inwentaryzacja środowiska production: dwie usługi, `Postgres` i `kuking.pl` |
+| martwe zadania (świeże `failed_jobs`) | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** (ten dokument) — dostarczenie sprawdzone lokalnie | §7.2 niżej |
+| opóźnienie kolejki / martwy worker | `kuking:sprawdz-kolejke`, co 15 min | **NOWE** — wcześniej nie mierzyło tego NIC | §7.2 niżej |
+| wyczerpywanie połączeń PostgreSQL | `kuking:budzet-polaczen`, co godzinę | **NOWE** — progi i wyprowadzenie w `docs/DATABASE.md` | §7.2 niżej |
+| awaria całej aplikacji (strona nie odpowiada) | zewnętrzny monitor `/health` | **NIEZROBIONE** | §6 wyżej opisuje, jak to założyć; to jest czynność właściciela |
+
+### 7.1. Dlaczego `/health` przestał odróżniać awarię od jej braku
+
+Pole `kolejka` w `/health` liczy **wszystkie** wiersze w `failed_jobs`
+i przy liczbie większej od zera stawia serwis w `degraded`. W tabeli leżą
+cztery zadania z **9 września 2026** (wszystkie `UstawienieNowegoHasla`:
+jeden `UnsupportedSchemeException`, dwa `TimeoutExceededException`, jeden
+`TransportException` — odczyt z produkcji zapisany w komentarzu do #599).
+
+Skutek: od tamtego dnia `/health` jest w `degraded` **nieprzerwanie**. Widać
+to w logu wdrożenia z 17.09.2026 19:58:19 UTC — ten sam komunikat, ta sama
+czwórka, tydzień później. **Piąte zadanie, które padnie dziś w nocy, nie
+zmieni w tej odpowiedzi ani jednego znaku.** Sygnał, który świeci zawsze,
+nie niesie informacji, a monitor zewnętrzny z §6 nauczyłby się go ignorować,
+zanim w ogóle powstał.
+
+To NIE jest usterka `/health` — pole odpowiada dokładnie na pytanie, które
+zadaje („czy w tabeli coś leży"). Usterką jest brak drugiego sygnału, który
+pyta o **zdarzenie**. Dlatego powstała czujka z §7.2, a `/health` zostaje
+bez zmian.
+
+**Czego NIE robimy przy okazji:** nie ponawiamy i nie kasujemy tych czterech
+zadań. Żeton resetu hasła wygasa `config/auth.php` → `expire` minut od
+wystawienia, więc zbiorowe `queue:retry` po tygodniu wysłałoby czterem
+osobom martwy link. Rozliczenie tabeli jest osobną czynnością na produkcji
+(`php artisan kuking:martwe-zadania`, bez `--skasuj` niczego nie usuwa)
+i należy do właściciela, nie do tej zmiany.
+
+### 7.2. Trzy nowe czujki i jak sprawdzono, że naprawdę wysyłają
+
+Wszystkie trzy używają **tego samego kanału** co błędy 500 (`blad_webhook`,
+D-041). Świadomie nie dokładamy drugiej platformy monitoringu — drugie
+miejsce do patrzenia jest drugim miejscem do niepatrzenia.
+
+| Komenda | Częstość | Kiedy dzwoni |
+|---|---|---|
+| `kuking:sprawdz-kopie` | codziennie 06:15 | brak świeżej kopii (dziś: wyłączona brakiem bucketu) |
+| `kuking:budzet-polaczen` | co godzinę, minuta 25 | zajętych backendów powyżej progu (50 / 125) |
+| `kuking:sprawdz-kolejke` | co 15 minut | zaległość ≥ 600 s, zawieszona rezerwacja, albo zadanie, które padło w ostatnich 3 h |
+
+**Dostarczenie sprawdzone na prawdziwym odbiorniku HTTP**, nie na atrapie
+w teście — lokalny serwer zapisujący każde żądanie, baza `kuking_599_odbiornik`
+na `127.0.0.1:55439`, 17.09.2026:
+
+| Próba | Oczekiwane | Wynik |
+|---|---|---|
+| kolejka pusta | cisza | 0 wiadomości, kod wyjścia 0 |
+| zadanie czeka 900 s | jedna wiadomość | 1 wiadomość, kod wyjścia 1 |
+| ta sama awaria drugi raz | cisza (okno ciszy) | nadal 1 wiadomość |
+| kolejka wraca do normy | **jedna** wiadomość odwołująca | 2 wiadomości, kod wyjścia 0 |
+| kolejny spokojny przebieg | cisza | nadal 2 wiadomości |
+| połączenia w normie | cisza | nadal 2 wiadomości |
+| połączenia powyżej progu | jedna wiadomość | 3 wiadomości, kod wyjścia 1 |
+
+Kontrola ujemna treści na tych samych dostarczonych wiadomościach: nie ma
+w nich nazwy klasy zadania z `payload`, adresu e-mail z `payload`, treści
+`exception` ani nazwy bazy.
+
+**Ta sama próba wykryła usterkę, której nie widział żaden test z `Http::fake`:**
+`WebhookBleduHandler` sam dokleja nagłówek `[nazwa/środowisko]`, a klasy
+alarmu doklejały go drugi raz — dostarczana wiadomość zaczynała się od
+`[Kuking/local] [Kuking/local] …`. Asercje typu „treść zawiera X" przechodzą
+przy podwojeniu bez mrugnięcia. Naprawione w `AlarmPolaczen` i `AlarmKolejki`,
+a pilnuje tego teraz asercja liczby wystąpień nagłówka w treści, która
+naprawdę poszła.
+
+> ⚠️ **`App\Domain\Kopie\AlarmKopii` ma dokładnie tę samą usterkę** i nie jest
+> naprawiony w tej zmianie, bo pracuje nad tym plikiem równoległy pakiet
+> #193/#594. Poprawka to jedna linia (usunięcie `'[Kuking/'.config('app.env').'] '`
+> z `tresc()`) plus ta sama asercja w `CichyBrakKopiiBazyDajeAlarmTest`.
+> Skutek jest wyłącznie kosmetyczny — wiadomość dochodzi.
+
+### 7.3. Czego ten rozdział NIE dowodzi
+
+**Że na produkcji zadzwoni cokolwiek.** Dopóki `LOG_BLAD_WEBHOOK_URL` nie
+istnieje w usłudze, wszystkie trzy czujki liczą, zapisują w dzienniku
+i **nie wysyłają nic** — świadomie, zgodnie z umową „brak zmiennej = zero
+efektu". Wszystkie pomiary wyżej są lokalne.
+
+Kolejność zamykania tej bramki:
+
+1. właściciel zakłada webhook (§1 tego dokumentu) i wpisuje
+   `LOG_BLAD_WEBHOOK_URL` w panelu Railway — **z restartem usługi**,
+   bo konfiguracja jest zapiekana przy starcie kontenera;
+2. `railway ssh -- php artisan kuking:budzet-polaczen` i
+   `railway ssh -- php artisan kuking:sprawdz-kolejke` — obie mają wtedy
+   wypisać stan i **nie** zadzwonić, bo produkcja jest w normie;
+3. kontrolowana próba awarii uzgodniona z właścicielem (np. jednorazowe
+   uruchomienie z zaniżonym progiem przez zmienną) — i dopiero wiadomość,
+   która **dojdzie na kanał**, zamyka wiersz 18 w `docs/OTWARCIE.md`;
+4. rozliczenie czterech zadań z 9 września, żeby `/health` wyszedł
+   z `degraded` i znowu coś znaczył;
+5. zewnętrzny monitor `/health` z §6.
+
+Do wykonania kroku 1 **nie ogłaszamy działającego alarmu produkcyjnego** —
+ani tutaj, ani w `docs/OTWARCIE.md`, ani w opisie Pull Requesta.

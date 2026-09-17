@@ -233,6 +233,22 @@ Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
     ->hourlyAt(25)
     ->withoutOverlapping();
 
+// Czujka kolejki (issue #599). Pole `kolejka` w `/health` liczy WSZYSTKIE
+// wiersze `failed_jobs`, więc od 9 września 2026 świeci nieprzerwanie przez
+// cztery stare zadania — i nie odróżni piątej awarii od czwartej. Ta czujka
+// pyta o ZDARZENIE (co padło w oknie kilku godzin) i mierzy zaległość
+// najstarszego gotowego zadania, czyli jedyny sygnał, który zauważa MARTWEGO
+// workera. Proces, który nie chodzi, nie zgłasza żadnego błędu.
+//
+// CO KWADRANS: martwy worker to zatrzymane potwierdzenia adresu, resety hasła
+// i przetwarzanie zdjęć. Godzina ciszy przy rejestracji nowej osoby jest
+// różnicą między „wolno" a „nie działa". Powtórzeń pilnuje `AlarmKolejki`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprawdz-kolejke'))
+    ->name('kuking:sprawdz-kolejke')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.

@@ -1864,6 +1864,52 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Czujka kolejki — issue #599
+    |--------------------------------------------------------------------------
+    |
+    | DLACZEGO TO NIE JEST TO SAMO, CO POLE `kolejka` W `/health`
+    | Tamto liczy WSZYSTKIE wiersze w `failed_jobs` i przy liczbie większej od
+    | zera stawia serwis w `degraded`. Na produkcji leżą cztery zadania
+    | z 9 września 2026 (wszystkie `UstawienieNowegoHasla`), więc `/health`
+    | jest w `degraded` NIEPRZERWANIE od tamtego dnia. Zmierzone w logu
+    | wdrożenia z 17.09.2026 19:58:19 UTC — ten sam komunikat, ta sama czwórka.
+    | Sygnał, który świeci zawsze, nie odróżni piątej awarii od czwartej.
+    |
+    | Dlatego czujka pyta o ZDARZENIE (co padło w oknie ostatnich godzin),
+    | a nie o stan tabeli — i mierzy drugą rzecz, której `/health` nie mierzy
+    | wcale: jak długo czeka najstarsze zadanie gotowe do wzięcia. To jedyny
+    | sygnał, który zauważa MARTWEGO WORKERA, bo proces, który nie chodzi,
+    | nie generuje żadnego błędu do zgłoszenia.
+    |
+    | BRAK KONFIGURACJI WEBHOOKA = ZERO EFEKTU, tak samo jak przy czujce kopii.
+    | Na produkcji nie ma dziś `LOG_BLAD_WEBHOOK_URL`, więc czujka liczy
+    | i zapisuje w dzienniku, ale nie dzwoni nigdzie. To jest stan do zamknięcia
+    | w #599, nie właściwość tej konfiguracji.
+    */
+    'kolejka' => [
+        // Okno „co padło niedawno". 3 h przy czujce co kwadrans: awaria nocna
+        // zostanie zgłoszona kilka razy w swoim oknie i nie zginie, a zadanie
+        // sprzed tygodnia nie będzie zgłaszane w kółko.
+        'okno_nieudanych_godzin' => (int) env('KUKING_KOLEJKA_OKNO_GODZIN', 3),
+
+        // Worker chodzi z `--sleep=1`, więc gotowe zadanie ma być wzięte
+        // w sekundy. 600 s to nie „trochę wolniej" — to znaczy, że przez
+        // dziesięć minut nikt po nie nie sięgnął.
+        'prog_zaleglosci_sekundy' => (int) env('KUKING_KOLEJKA_PROG_ZALEGLOSCI', 600),
+
+        // Dwukrotność `DB_QUEUE_RETRY_AFTER` (960 s, `config/queue.php`).
+        // Po `retry_after` kolejka sama zwalnia porzuconą rezerwację, więc
+        // rezerwacja starsza niż dwa takie okresy znaczy, że nie zwolnił jej
+        // nikt — czyli nie chodzi też proces, który miał to zrobić.
+        'prog_zawieszenia_sekundy' => (int) env('KUKING_KOLEJKA_PROG_ZAWIESZENIA', 1920),
+
+        // Martwy worker bywa martwy dobę, a czujka chodzi co kwadrans.
+        // Bez ciszy dałoby to 96 identycznych wiadomości na dobę.
+        'cisza_godzin' => (int) env('KUKING_KOLEJKA_CISZA_GODZIN', 3),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
     | Tygodniowe podsumowanie (digest) — issue #11, D-057
     |--------------------------------------------------------------------------
     |
