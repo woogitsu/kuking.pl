@@ -202,6 +202,8 @@
   [data-marka] .marka-rama:not([data-tryb-panelu]) { width: calc(100% - 16px); }
   [data-marka] .bottom-nav-item { flex-basis: 40%; min-height: max(48px, calc(60px * var(--user-layout-scale, 1))); gap: calc(8px * var(--user-layout-scale, 1)); }
   [data-marka] .bottom-nav-item-glowna { flex-basis: 100%; }
+  /* Pozioma ikona i pełne słowo wymagają własnej szerokości także przy dużym foncie przeglądarki. */
+  [data-marka] :where(.bottom-nav:not(.bottom-nav-panel)) > .bottom-nav-item:not(.bottom-nav-item-glowna) { flex-basis: max-content; }
   [data-marka] .marka-publikacja { padding: calc(16px * var(--user-layout-scale, 1)); }
 }
 /* Przy niskim telefonie dostęp do treści ma pierwszeństwo przed przypięciem.

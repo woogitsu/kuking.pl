@@ -34,7 +34,7 @@ export async function sprawdzEtykietyDolnejNawigacji(page) {
     const x=result.items[a], y=result.items[b];
     if (Math.min(x.right,y.right)-Math.max(x.left,y.left)>1 && Math.min(x.bottom,y.bottom)-Math.max(x.top,y.top)>1) throw new Error('NAV638_NAKLADANIE');
   }
-  if (result.scale <= 100 && result.navWidth >= 289 && new Set(result.items.map(i=>Math.round(i.top))).size !== 1) throw new Error('NAV638_ZBEDNY_WIERSZ');
+  if (result.rootFont <= 16 && result.scale <= 100 && result.navWidth >= 289 && new Set(result.items.map(i=>Math.round(i.top))).size !== 1) throw new Error('NAV638_ZBEDNY_WIERSZ');
   return result;
 }
 export async function sprawdzMacierzNawigacji({browser, adres, sesja, outputDir='storage/port-projektu/nawigacja638'}) {
@@ -60,6 +60,38 @@ export async function sprawdzMacierzNawigacji({browser, adres, sesja, outputDir=
     }
     if(rows.length!==168) throw new Error('NAV638_MACIERZ_NIEPELNA');
     writeFileSync(resolve(outputDir,'macierz.json'),JSON.stringify(rows,null,2));
+    await sprawdzDuzyFontNawigacji({browser,adres,sesja,outputDir});
+    return rows;
+  } finally {await context.close();}
+}
+// Font przeglądarki 32 px to osobny test; nie zastępuje rzeczywistego zoomu.
+export async function sprawdzDuzyFontNawigacji({browser,adres,sesja,outputDir}) {
+  if(!['127.0.0.1','localhost'].includes(new URL(adres).hostname)) throw new Error('NAV638_HOST');
+  const context=await browser.newContext({storageState:sesja,reducedMotion:'reduce'});
+  const rows=[];
+  try {
+    const page=await context.newPage();
+    await (await context.newCDPSession(page)).send('Page.setFontSizes',{fontSizes:{standard:32,fixed:32}});
+    for(const width of [305,320,360,390,414,768]) for(const dark of [false,true]) for(const scale of [100,140]) {
+      await page.setViewportSize({width,height:900});
+      if((await page.goto(`${adres}/home`,{waitUntil:'networkidle'})).status()!==200) throw new Error('NAV638_HTTP');
+      await page.evaluate(async ({dark,scale})=>{
+        document.documentElement.dataset.theme=dark?'dark':'light';
+        document.documentElement.dataset.textScale=String(scale);
+        await document.fonts.ready;
+      },{dark,scale});
+      await page.waitForFunction(scale=>Math.abs(parseFloat(getComputedStyle(document.body).fontSize)-36*scale/100)<.15,scale,{timeout:2000});
+      const result=await sprawdzEtykietyDolnejNawigacji(page);
+      if(result.rootFont!==32 || await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+1)) throw new Error('NAV638_DUZY_FONT_OVERFLOW');
+      rows.push({width,dark,scale,result,pass:true});
+      if(width===320&&scale===140) {
+        const nav=page.getByRole('navigation',{name:'Nawigacja główna',exact:true});
+        await nav.scrollIntoViewIfNeeded();
+        await nav.screenshot({path:resolve(outputDir,`nav-font32-${dark}-140.png`)});
+      }
+    }
+    if(rows.length!==24) throw new Error('NAV638_DUZY_FONT_NIEPELNY');
+    writeFileSync(resolve(outputDir,'font32.json'),JSON.stringify(rows,null,2));
     return rows;
   } finally {await context.close();}
 }
