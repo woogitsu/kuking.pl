@@ -1,5 +1,20 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Pośrednie stany logowania w ciemnym motywie — 18 września 2026
+
+[Dodatkowy odbiór logowania](LOGOWANIE_CIEMNE_STANY_492.md) uzupełnia
+historyczny brak ciemnych wariantów: potwierdzenie wysłania i ważnego
+linku przy 390/1440 (4 konfiguracje), a następnie osobno zalogowany
+Start po sukcesie przy tych samych szerokościach (2 konfiguracje).
+Po zalogowaniu motyw konta przełączono rzeczywistym interfejsem.
+Obejrzano zrzuty; pomiary nie wykazały poziomego przepełnienia.
+
+Poczta pozostała w lokalnym SMTP. Limit prób wygasł naturalnie, bez
+resetowania ani zmiany tożsamości. Odbiór nie obejmuje nowych kontroli
+zoomu, całej klawiatury, dostarczalności zewnętrznej ani klientów poczty.
+Źródła runtime: `609328b`; relewantne pliki logowania i interfejsu
+porównano z `c6bed3e`, bez twierdzenia o identyczności całej aplikacji.
+
 ## Nakładki publicznej strony przy zoomie 200% — 18 września 2026
 
 [Odbiór nakładek](NAKLADKI_ZOOM_492.md) obejmuje lokalną stronę publiczną,
