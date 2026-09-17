@@ -110,3 +110,28 @@ zapis czeka na scalanie. Nie wykonywano zmian danych; nie jest to pełny
 równoległy scenariusz publikacji i scalania. Przeglądarka potwierdziła też
 odrzucenie spóźnionej odpowiedzi po zmianie wpisywanego tokenu. Wyniki tych
 trzech dodatkowych kontroli zapisano obok pozostałych dowodów.
+
+## Poprawka po CI #649: semantyka podpowiedzi
+
+CI dla `984806a` wykryło cztery naruszenia `aria-allowed-attr`: pole opisu
+miało `aria-expanded`, którego rola wielowierszowego textboxu nie obsługuje.
+Lokalny skan otwartej listy ujawnił też umieszczenie popupu poza landmarkiem.
+Usunięto `aria-expanded`, dodano `aria-haspopup="listbox"`, a listę umieszczono
+wewnątrz formularza w `main`. Zachowano natywną rolę textarea, powiązanie
+`aria-controls`, aktywną opcję i komunikaty stanu.
+
+Do istniejącej macierzy CI dodano oddzielny ekran otwartych podpowiedzi.
+Pobiera propozycje rzeczywistą trasą, naciska ArrowDown i sprawdza powiązania,
+fokus oraz semantykę przed axe. Lokalna próba zamkniętej i otwartej listy:
+zero naruszeń. Build, 72 pary kontrastu i siedem testów JS przeszły.
+
+Fizyczne negatywy JS: przywrócenie `aria-expanded` oraz umieszczenie listy
+w `body` zostały wykryte. Kopia poza repo:
+`/tmp/kuking647-aria-negative-gnj7utpf/tagi-w-opisie.js`.
+Przywrócono MD5 `e2c70b439b411e6f969c7de856afb0a1` i mtime; ponowny build
+oraz dodatni skan zamkniętej/otwartej listy przeszły. Dowód lokalny:
+`output/negative647-aria-result.json` w repo kanonicznym.
+Niezależny przegląd diffu nie wykazał blokera; nie zastępuje pomiaru geometrii.
+Zmiana wymaga ponownego hooka, wysyłki i CI; pierwszy przebieg CI nie jest sukcesem.
+
+Po zmianie rodzica popupu: 24/24 konfiguracje geometrii, wybór myszą i klawiaturą oraz 4/4 rzeczywistego zoomu 200% przeszły. Obejrzano mobilny zrzut 320 px w ciemnym motywie przy 140%. Dowody macierzy, zoomu i negatywów zachowano w evidence/tagi647/aria*.json.

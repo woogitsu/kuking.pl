@@ -29,14 +29,15 @@ function setup(root, index) {
     list.className = 'tagi-opis-popup'; list.id = `tagi-opis-${index}`;
     list.setAttribute('role', 'listbox'); list.setAttribute('aria-label', 'Podpowiedzi tagów'); list.hidden = true;
     const status = document.createElement('p'); status.className = 'field-help'; status.setAttribute('role', 'status');
-    root.append(status); document.body.append(list);
-    input.setAttribute('aria-autocomplete', 'list'); input.setAttribute('aria-controls', list.id); input.setAttribute('aria-expanded', 'false');
+    root.append(status, list);
+    // Opis pozostaje wielowierszowym textboxem; aria-expanded nie należy do tej roli.
+    input.setAttribute('aria-autocomplete', 'list'); input.setAttribute('aria-controls', list.id); input.setAttribute('aria-haspopup', 'listbox');
     let timer, controller, sequence = 0, composing = false, items = [], active = -1, current = null, observed = null;
     const token = () => aktywnyTag(input.value, input.selectionStart, input.selectionEnd);
     const key = t => t && `${t.from}:${t.to}:${t.query}:${input.selectionStart}`;
     function hide() {
         clearTimeout(timer); controller?.abort(); sequence++; list.hidden = true; items = []; active = -1;
-        input.setAttribute('aria-expanded', 'false'); input.removeAttribute('aria-activedescendant');
+        input.removeAttribute('aria-activedescendant');
     }
     function position() {
         if (list.hidden) return;
@@ -99,7 +100,7 @@ function setup(root, index) {
                 option.setAttribute('role', 'option'); option.setAttribute('aria-selected', 'false'); option.textContent = item.label;
                 option.addEventListener('pointerdown', e => e.preventDefault()); option.addEventListener('click', () => choose(i)); list.append(option);
             });
-            list.hidden = items.length === 0; input.setAttribute('aria-expanded', String(!list.hidden));
+            list.hidden = items.length === 0;
             status.textContent = items.length ? 'Wybierz tag z podpowiedzi albo pisz dalej.' : 'Brak podpowiedzi. Możesz skorzystać z wyszukiwania tagów poniżej.';
             position();
         } catch (error) {
