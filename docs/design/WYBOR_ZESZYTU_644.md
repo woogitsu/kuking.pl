@@ -107,3 +107,6 @@ jest końcowym dowodem. Pomiar korzysta wyłącznie z lokalnego konta testowego.
 
 Pozostałe bramki: wymagane CI końcowego SHA, normalne scalenie, Railway
 oraz odbiór wdrożonego wyboru zeszytu. Produkcja nadal osobno: Alfa 0.55.
+
+## Limit czasu końcowego CI
+Przebieg 35241344523 na 6df37d6 został anulowany przez limit zadania 25 minut (adnotacja job 105270326266). Kroki pomiaru układu, kreatora, minutnika i uploadu zakończyły się success; końcowy status zadania pozostaje cancelled i nie uprawnia do scalenia. Pomiar układu trwał 23 min 20 s. Zwiększono wyłącznie limit port_funkcje do 35 minut, pozostawiając wszystkie kroki, progi i warunki. Niezależne review diffu: bez blokera. Wymagany nowy zielony przebieg dokładnego końcowego SHA.
