@@ -371,6 +371,8 @@ try {
   }
   await context.close();
 
+  await sprawdzMacierzNawigacji({ browser: przegladarka, adres, sesja });
+  await sprawdzZoomNawigacji({ chromium, adres, sesja, outputDir: 'storage/port-projektu/nawigacja638' });
   });
   await wykonajGrupe(grupa, 'rozszerzenia', async () => {
   if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
@@ -388,8 +390,6 @@ try {
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
-  await sprawdzMacierzNawigacji({ browser: przegladarka, adres, sesja });
-  await sprawdzZoomNawigacji({ chromium, adres, sesja, outputDir: 'storage/port-projektu/nawigacja638' });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
 
   });

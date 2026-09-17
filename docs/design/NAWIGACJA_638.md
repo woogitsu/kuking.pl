@@ -19,7 +19,7 @@ Przygotowano wersję Alfa 0.51 i changelog. Obejrzano końcowe zrzuty przy 320 p
 
 4/4 konfiguracje: prawdziwy chrome.tabs.setZoom(2), odczyt zoom2/DPR2, szerokości CSS320/720, oba motywy i tekst140%=25.2px. Pięć pozycji osiągniętych kolejno przez Tab, każda z widocznym fokusem i kontrolą zasłaniania; Enter otworzył Profil. W każdej konfiguracji wykonano pięć kliknięć: Start/Szukaj/Dodaj/Moje/Profil, z kontrolą adresu i widocznej treści. Wyłącznie GET po logowaniu fixture, bez wpisów produkcyjnych. Dowód zoom200-interakcje.json.
 
-Pomiar macierzy i zoomu podłączono do grupy rozszerzenia w port-projektu.mjs. Lokalny przebieg eksportowanych funkcji z sesją w formacie obiektu używanym przez ten runner zakończył się wynikiem 168/168 oraz 4/4. Dowód macierzy integracyjnej: evidence/nawigacja638/integracja-macierz.json. To celowany przebieg integracyjny, nie pełny CI.
+Pomiar macierzy i zoomu podłączono do grupy baza w port-projektu.mjs (pierwotnie rozszerzenia; podział poprawiony po pomiarze czasu CI). Lokalny przebieg eksportowanych funkcji z sesją w formacie obiektu używanym przez ten runner zakończył się wynikiem 168/168 oraz 4/4. Dowód macierzy integracyjnej: evidence/nawigacja638/integracja-macierz.json. To celowany przebieg integracyjny, nie pełny CI.
 
 Po tym przebiegu doprecyzowano test kliknięć: po każdej pełnej nawigacji przywraca on motyw i tekst 140%, ponieważ konto testowe ma domyślne preferencje. Końcowy przebieg w izolowanym runtime kuking-nav638-zoomfinal i bazie kuking_638_zoomfinal na porcie 55439 zakończył się kodem 0: 4/4 konfiguracje, 20 przejść fokusu oraz 20 kliknięć i cztery wejścia do profilu klawiszem Enter. Plik zoom200-interakcje.json pochodzi z tego ostatniego przebiegu i zastępuje wcześniejszy dowód kliknięć przy domyślnej skali po nawigacji.
 
@@ -45,3 +45,19 @@ Fizyczne usunięcie nowej reguły z CSS wykryte jako NAV638_ETYKIETY;
 przywrócono MD5 i mtime, przebieg dodatni PASS. Dowody: font32.json oraz
 font32-negative.json. Niezależny odczyt trzech zmienionych plików nie
 wykazał blockera. Nie jest to jeszcze wynik ponownego CI ani produkcji.
+
+## Rozdzielenie czasu CI bez ograniczania zakresu
+
+CI 35191739074 na 0fed1bd: 11 zadań success; job 105105684647
+anulowany z adnotacją przekroczenia 25 minut (06:57:32–07:23:01 UTC).
+Przed limitem zapisał komplet nowych dowodów nawigacji: 168 macierzy,
+24 dużego fontu i 4 zoomu. Cały job nie przeszedł; dalsze kroki
+kreatora i minutnika były pominięte wskutek limitu.
+
+Dwa wywołania nowych pomiarów przeniesiono z grupy rozszerzenia do
+krótszej grupy baza. Oba zadania pozostają obowiązkowe, pełny
+lokalny tryb nadal wykonuje całość. Nie zmieniono timeoutu,
+asercji ani liczby przypadków. Node syntax i cztery testy selektora grup
+PASS; niezależny review potwierdził brak pominięcia/duplikowania
+oraz prawidłowe życie sesji i przeglądarki. Czas nowego podziału
+wymaga potwierdzenia następnym CI.
