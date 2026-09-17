@@ -14,6 +14,8 @@ import { sprawdzNegatywyMenu } from './panel-menu-negative.mjs';
 import { sprawdzDetailsPanelu } from './panel-details.mjs';
 import { sprawdzZoomDetails } from './panel-details-zoom.mjs';
 import { sprawdzNegatywyDetails } from './panel-details-negative.mjs';
+import { runCandidate as sprawdzWalidacjePanelu } from './panel-validation.mjs';
+import { createSnapshotCallback } from './panel-validation-snapshot.mjs';
 
 const repo = realpathSync(process.cwd());
 const ci = process.env.GITHUB_ACTIONS === 'true';
@@ -122,6 +124,28 @@ try {
     await sprawdzDetailsPanelu({ browser, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details') });
     await sprawdzZoomDetails({ chromium, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details-zoom'), executablePath: process.env.CHROMIUM_PATH });
     if (negatywyDetails) await sprawdzNegatywyDetails({ browser, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details-negative') });
+    if (ci) {
+      const stanyPath = resolve(prywatne, 'stany.json');
+      try {
+        execFileSync(php, ['scripts/fixtures/panel-stany.php', statePath, stanyPath], {
+          cwd: repo, env, stdio: 'pipe', timeout: 30000,
+        });
+      } catch {
+        throw new Error('P581_STANY_FIXTURE: przygotowanie przerwane.');
+      }
+      chmodSync(stanyPath, 0o600);
+      const snapshot = createSnapshotCallback({
+        php, script: resolve(repo, 'scripts/panel-validation-snapshot.php'),
+        base: repo, fullManifest: statePath, statesManifest: stanyPath, env,
+      });
+      await sprawdzWalidacjePanelu({
+        browser, origin: adres, session: sesje.konto,
+        fullManifest: statePath, statesManifest: stanyPath, snapshot,
+        reportPath: resolve(outputDir, 'walidacja.json'),
+        appearance: { width: 320, theme: 'dark', scale: 140 },
+      });
+    }
+
   }
   const menu = await sprawdzDodatkoweStanyMenu({ browser, adres, sesja: sesje.konto, outputDir });
   writeFileSync(resolve(outputDir, 'menu-dodatkowe.json'), JSON.stringify(menu, null, 2));

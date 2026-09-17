@@ -1,5 +1,35 @@
 # #581 — brakujące stany rozwinięte i walidacyjne
 
+## Aktualizacja po scaleniu #640 — 17 września 2026
+
+Pakiet z sekcji 1 poniżej został wykonany w PR #640, scalonym jako
+`13712d303eab63ff594341fe2a01479be3538538`. Szczegółowy dowód znajduje się
+w `PANEL_DETAILS_581.md`: 24 konfiguracje rozwiniętych elementów, sześć
+przypadków prawdziwego zoomu 200%, ogląd zrzutów oraz kontrole ujemne źródeł.
+CI PR 35208128945 przeszło wszystkie 12 zadań; odczytany artefakt panelu
+zawiera 642 przypadki bez porażek (w tym wcześniejsze macierze i menu).
+Zadanie panelu na main w CI 35210542806 również zakończyło się sukcesem.
+Jego artefakt 10493055242 potwierdza 288 pustych i 312 pełnych konfiguracji,
+24 przypadki details, sześć zoomu details oraz osiem menu i cztery zoomu menu.
+Raporty nie zawierają porażek; sam agregat obejmuje tylko pierwsze 600,
+dlatego pozostałe 42 odczytano z osobnych plików JSON.
+
+Main CI 35210542806, Railway 6500620974 i Deploy 35212601635: success.
+Produkcja potwierdzona w publicznej przeglądarce: Alfa 0.52 / 13712d3,
+CSS app-CVK-IJbC.css, JS app-DNnuLVJi.js. Nie jest to odbiór wszystkich
+zalogowanych stanów panelu. Dowód:
+https://github.com/woogitsu/kuking.pl/pull/640#issuecomment-5713166578.
+
+Nie należy ponownie
+implementować sekcji 1 ani uznawać poniższych stanów walidacji za objęte
+tymi 642 przypadkami. Następny zakres to rzeczywiste błędne POST formularzy
+decyzji, przywracania i odwołań w izolowanej lokalnej bazie, zachowanie
+wpisanych wartości oraz brak zmian danych i przenoszenia błędów między
+wierszami. Pozostałe rodziny z sekcji 3 pozostają w kolejce.
+
+Poniższy pierwotny opis zachowuje kontekst i selektory; jego sekcja 1 nie jest
+już listą niewykonanych prac.
+
 Odczyt Blade, kontrolerów i kontraktu panel-marki.mjs. Bez przeglądarki, buildów, PHP i DB. Miernik obejmuje początkowo widoczne kontrolki, nie otwiera details i blokuje POST. Zatem 600 konfiguracji nie dowodzi poniższych stanów. Numery rekordów należy pobierać z istniejącej pełnej fixture, nie wpisywać cudzych identyfikatorów.
 
 ## 1. Najkrótszy pakiet bez zapisu — priorytet wysoki

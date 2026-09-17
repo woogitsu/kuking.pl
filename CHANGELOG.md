@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.53 — czytelny błąd wyboru decyzji w odwołaniu
+
+- Jeśli przy rozpatrywaniu odwołania nie wybrano wyniku, komunikat u góry prowadzi do właściwego pola.
+- Wyjaśnienie pojawia się również przy wyborze decyzji, wyłącznie w wysłanym formularzu. Pozostałe odwołania zachowują własne wartości.
+
 ## Alfa 0.52 — widoczny fokus potwierdzeń w panelu
 
 - Przy przechodzeniu klawiaturą do czyszczenia tablicy i kolażu panel pozostawia miejsce na cały obrys aktywnego przycisku, także przy zwiększonym tekście.

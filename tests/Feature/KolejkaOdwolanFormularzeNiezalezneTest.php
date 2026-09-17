@@ -112,6 +112,41 @@ class KolejkaOdwolanFormularzeNiezalezneTest extends TestCase
     }
 
     #[Test]
+    public function test_brak_wyniku_ma_link_do_radia_i_blad_tylko_przy_wyslanym_odwolaniu(): void
+    {
+        $administrator = $this->admin();
+        $a = $this->otwarteOdwolanie($administrator, 'lucyna');
+        $b = $this->otwarteOdwolanie($administrator, 'marian');
+
+        foreach ([[$a, $b], [$b, $a]] as [$wyslane, $inne]) {
+            $this->actingAs($administrator)
+                ->from(route('admin.appeals'))
+                ->post(route('admin.appeals.resolve', $wyslane), [
+                    WierszFormularza::POLE => (string) $wyslane->id,
+                    'decision_note' => 'Uzasadnienie bez wybranego wyniku.',
+                ])->assertRedirect(route('admin.appeals'));
+
+            // Błędy sprawdzamy po rzeczywistym przekierowaniu, w HTML strony,
+            // bez ponownego otwierania sesji przez asercję pomocniczą.
+
+            $html = (string) $this->get(route('admin.appeals'))->assertOk()->getContent();
+            $dom = new \DOMDocument;
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+            $xpath = new \DOMXPath($dom);
+            $id = 'f-outcome-'.$wyslane->id;
+            $blad = $id.'-error';
+            $this->assertSame(1, $xpath->query('//a[@href="#'.$id.'"]')->length);
+            $this->assertSame(1, $xpath->query('//input[@id="'.$id.'" and @name="outcome" and @type="radio"]')->length);
+            $this->assertSame(2, $xpath->query('//input[@name="outcome" and @aria-invalid="true" and @aria-describedby="'.$blad.'"]')->length);
+            $this->assertSame(1, $xpath->query('//p[@id="'.$blad.'"]')->length);
+            $this->assertSame('Wybierz, czy podtrzymujesz decyzję, czy ją cofasz.', $xpath->query('//p[@id="'.$blad.'"]')->item(0)->textContent);
+            $this->assertSame(0, $xpath->query('//*[@id="f-outcome-'.$inne->id.'-error"]')->length);
+            $this->assertSame(0, $xpath->query('//input[@id="f-outcome-'.$inne->id.'" and @aria-invalid]')->length);
+            $this->assertSame(Appeal::STATUS_OPEN, $wyslane->fresh()->status);
+        }
+    }
+
+    #[Test]
     public function test_zadne_id_pola_uzasadnienia_nie_powtarza_sie_na_stronie_z_dwoma_odwolaniami(): void
     {
         $administrator = $this->admin();
