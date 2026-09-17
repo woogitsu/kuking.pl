@@ -180,8 +180,12 @@ class SocialController extends Controller
                 // pośrednia zapytania zewnętrznego i PRZYSŁANIA ją. Dopóki tak
                 // jest, ten zapis znaczy to, co mówi. Gdyby `follows` dostało
                 // kiedyś w środku alias, warunek związałby się z pivotem
-                // zewnętrznym i usterka #648 wróciłaby BEZ BŁĘDU SQL — zmierzone
-                // na tych samych danych. Wariantem odpornym na taki alias jest
+                // zewnętrznym i wróciłby błąd TEJ SAMEJ KLASY, BEZ BŁĘDU SQL —
+                // zmierzone. Zdegenerowałby się przy tym inaczej na każdej
+                // liście: na `obserwujacy` dokładnie w #648 („osoba z listy to
+                // widz"), a na `obserwowani` w „gospodarz to widz", czyli
+                // jedną stałą odpowiedź dla całej strony. Regresja łapie obie.
+                // Wariantem odpornym na taki alias jest
                 // `whereKey($widzId)`: wstawia `laravel_reserved_N.id = ?`,
                 // czyli wiąże się z aliasem wprost. Wybrano mimo to kolumnę
                 // pivotu, bo mówi o KIERUNKU relacji, a `whereKey()` milczy

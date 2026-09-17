@@ -26,10 +26,11 @@ class FollowListsTest extends TestCase
      * Usterka: `withExists` na relacji User→User (`followers`) dostawał warunek
      * `users.id = <widz>`. W podzapytaniu `users` jest zaaliasowane, więc
      * `users.id` wskazywało WIERSZ ZEWNĘTRZNY — osobę z listy, nie
-     * obserwującego. Warunek zmieniał się cicho w „czy ta osoba to widz",
-     * prawdziwy dokładnie dla własnego wiersza widza, który widok i tak rysuje
-     * jako „To Ty". Obie listy pokazywały więc „Obserwuj" przy każdej osobie,
-     * także po udanym POST-cie i po świeżym GET-cie.
+     * obserwującego. Warunek zmieniał się cicho w „czy ta osoba to widz, i czy
+     * ktokolwiek ją obserwuje" — bywał więc prawdziwy najwyżej na jednym
+     * wierszu, własnym wierszu widza, który widok i tak rysuje jako „To Ty".
+     * Obie listy pokazywały przez to „Obserwuj" przy każdej osobie, także po
+     * udanym POST-cie i po świeżym GET-cie.
      *
      * Dlatego ten test rozdziela trzy stany, które usterka skleiła w jeden:
      *
@@ -223,6 +224,12 @@ class FollowListsTest extends TestCase
      *
      * Lista jest mieszana, bo jednorodna przeszłaby także wtedy, gdyby
      * kolumna miała stałą wartość.
+     *
+     * CZEGO TEN TEST NIE DOWODZI: że kolumna liczy stan WIDZA, a nie stan
+     * właściciela listy. Na tym ekranie to ta sama osoba, więc rozróżnić się
+     * ich tutaj nie da — i nie ma potrzeby, bo rozdziela je
+     * `test_obie_listy_pokazuja_stan_obserwowania_widza_po_post_i_po_delete`,
+     * gdzie widz, właściciel i osoba obserwowana to trzy różne konta.
      */
     public function test_wlasciciel_listy_widzi_na_niej_swoj_wlasny_stan_obserwowania(): void
     {
