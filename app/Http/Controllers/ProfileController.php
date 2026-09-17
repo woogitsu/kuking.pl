@@ -214,11 +214,11 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            // 'tags:id,slug,name' — patrz komentarz w
+            // 'tags:id,slug,name,status' — patrz komentarz w
             // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
             // gdy relacja jest już doładowana, więc bez tego archiwum
             // profilu nie miałoby żadnych chipów tematów.
-            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name'])
+            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name,status'])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,

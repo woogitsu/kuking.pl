@@ -17,7 +17,11 @@
     <form class="panel-formularza" method="POST" action="{{ route('posts.update', $post) }}">
         @csrf
         @method('PUT')
+        <input type="hidden" name="_tag_form_post_id" value="{{ $post->getKey() }}">
 
+        <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"
+             data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
+             data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
         <x-field
             name="body"
             label="Napisz kilka słów"
@@ -26,6 +30,8 @@
             :value="$post->body"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
+            <p class="field-help">Wpisz # i nazwę, na przykład #sernik. Tagi możesz też znaleźć poniżej.</p>
+        </div>
 
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
              wiążą błąd z grupą — patrz `x-blad-grupy`. --}}

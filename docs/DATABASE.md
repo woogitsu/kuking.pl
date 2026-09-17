@@ -3196,6 +3196,33 @@ Limit 5 tagów/wpis egzekwowany w `App\Domain\Tags\Actions\ResolveTagsForPost`
 (`App\Support\LimityTagow`), liczony na unikalnych `tag_id`, nie na wpisanych
 frazach.
 
+Od #647 `post_tags.dodany_recznie` jest `boolean NOT NULL DEFAULT true`.
+Migracja `2026_09_18_000000_add_manual_origin_to_post_tags` zachowuje dawne
+powiązania jako ręczne; nie zmienia opisów ani nie importuje ich tokenów.
+Przy świadomej publikacji/edycji parser rozpoznaje tokeny `#slug` w końcowym
+opisie. `ResolvePostTags` łączy ręczny zbiór M i zbiór tokenów I po kanonicznym
+ID: relacja istnieje dla M OR I, a flaga zapisuje M. Skasowanie ostatniego
+tokenu usuwa wyłącznie relację inline-only. Ręczne nazwy wielowyrazowe nadal
+działają; slug istniejącego taga rozwiązuje się do jego nazwy bez tworzenia
+duplikatu. Limit obejmuje unię obu źródeł po aliasach/scaleniu.
+
+Ukrycie taga nie zmienia pochodzenia istniejącego powiązania. Zapis nie
+reaktywuje ukrytego taga ani nie przypina go do nowego wpisu. Scalenie
+zachowuje OR ręcznego pochodzenia dwóch pivotów i nie przepisuje body.
+Współdzielona transakcyjna blokada `TagMutationLock` dopuszcza równoległe
+zapisy wpisów, natomiast scalenie bierze wyłączność na czas zmiany słownika
+i pivotów. Edycja dodatkowo blokuje swój wpis. Opis, nowe nazwy i pivoty
+zapisują się atomowo. Eksport własnych wpisów zawiera nazwy, slugi, ID tagów
+i flagę pochodzenia, również dla wpisów prywatnych.
+
+**Rollback #647:** `down()` blokuje tabelę na czas kontroli i DDL. Odmawia,
+jeżeli jakikolwiek pivot ma false, także przy usuniętym miękko wpisie:
+odtworzenie kolumny zamieniłoby inline-only na ręczny wybór. Przy samych true
+usunięcie kolumny jest bezstratne. Powrót samej aplikacji do starego obrazu
+także nie jest bezstratny: stary formularz traktuje wszystkie relacje jako
+ręczne. Zachowaj kolumnę i nowy kontrakt zapisu albo wstrzymaj edycje na czas
+uzgodnionej migracji danych; nie zastępuj istniejących false przez true.
+
 `tag_follows`: **bez własnego `id`**, `PRIMARY KEY(user_id, tag_id)` —
 jeden do jednego z (usuwanym) `topic_follows`.
 

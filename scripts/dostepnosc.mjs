@@ -252,6 +252,7 @@ const EKRANY = [
   { nazwa: 'profil (najdłuższa dopuszczalna nazwa)', adres: `/@${KONTO_DLUGA_NAZWA}` },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
+  { nazwa: 'dodaj zdjęcie — otwarte podpowiedzi tagów', adres: '/dodaj/zdjecie', zalogowany: true, tagiOpis: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
   /*
    * ROZDROŻE USTAWIEŃ (#344) — ekran, na który od teraz prowadzi KAŻDY napis
@@ -2590,6 +2591,27 @@ for (const wariant of WARIANTY) {
       await strona.evaluate(() => new Promise((gotowe) => {
         requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
       }));
+    }
+
+    if (ekran.tagiOpis) {
+      const opis = strona.locator('textarea[name="body"]');
+      await opis.fill('Gotuję #probaregresjitagow');
+      const lista = strona.locator('.tagi-opis-popup:not([hidden])');
+      await lista.waitFor({ state: 'visible' });
+      await opis.press('ArrowDown');
+      const semantyka = await opis.evaluate((element) => {
+        const lista = document.getElementById(element.getAttribute('aria-controls'));
+        const aktywny = document.getElementById(element.getAttribute('aria-activedescendant'));
+        return element.tagName === 'TEXTAREA'
+          && !element.hasAttribute('role') && !element.hasAttribute('aria-expanded')
+          && element.getAttribute('aria-autocomplete') === 'list'
+          && element.getAttribute('aria-haspopup') === 'listbox'
+          && lista?.getAttribute('role') === 'listbox' && !lista.hidden
+          && lista.closest('main') !== null && lista.contains(aktywny)
+          && aktywny?.getAttribute('aria-selected') === 'true'
+          && document.activeElement === element;
+      });
+      if (!semantyka) throw new Error('TAGI_OPIS_ARIA: niepoprawna semantyka otwartej listy');
     }
 
     const wynik = await new AxeBuilder({ page: strona })

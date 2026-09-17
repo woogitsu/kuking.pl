@@ -19,7 +19,10 @@
     $limit = \App\Support\LimityTagow::maksTagowNaWpis();
     $limitOsiagniety = count($tagNames) >= $limit;
     $zapytanie = trim((string) old('tag_query', ''));
-    $pasujeDokladnie = $sugestieTagow->contains(
+    $juzWybrany = collect($tagNames)->contains(
+        fn ($name) => \App\Models\Tag::znormalizujNazwe($name) === \App\Models\Tag::znormalizujNazwe($zapytanie),
+    );
+    $pasujeDokladnie = $juzWybrany || $sugestieTagow->contains(
         fn ($tag) => mb_strtolower($tag->name) === mb_strtolower($zapytanie),
     );
 @endphp
@@ -69,7 +72,9 @@
         </div>
         <span class="field-help" id="f-tag-query-help">Na przykład: sernik, zupa pomidorowa, bez glutenu.</span>
 
-        @if($sugestieTagow->isNotEmpty())
+        @if($juzWybrany)
+            <p class="field-help mt-3">Ten tag jest już dodany.</p>
+        @elseif($sugestieTagow->isNotEmpty())
             <p class="font-bold mt-4 mb-2">Podpowiedzi</p>
             <ul class="lista-naga stack-tight mb-3" aria-label="Podpowiedzi tagów">
                 @foreach($sugestieTagow as $sugestia)
@@ -81,7 +86,7 @@
                     </li>
                 @endforeach
             </ul>
-        @elseif($zapytanie !== '')
+        @elseif($zapytanie !== '' && ! $pasujeDokladnie)
             <p class="field-help mt-3">Nic nie znaleźliśmy — możesz dodać ten tag jako nowy.</p>
         @endif
 

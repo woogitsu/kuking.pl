@@ -20,6 +20,7 @@ import './pasek-przewijany.js';
 import './szybki-wyglad.js';
 import './panel-tabela.js';
 import './panel-menu.js';
+import './tagi-w-opisie.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
