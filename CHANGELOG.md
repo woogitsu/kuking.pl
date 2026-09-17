@@ -1,5 +1,18 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.60 — komentarze i wykonania bez cofania
+
+- Na stronie przepisu przejście do kolejnych komentarzy zachowuje wybraną stronę wykonań — i odwrotnie. Możesz przeglądać obie listy bez wracania do początku.
+
+## Alfa 0.59 — obie listy zostają na swoim miejscu
+
+- W zeszycie przejście do kolejnej strony wpisów zachowuje wybraną stronę przepisów — i odwrotnie. Możesz przeglądać obie listy bez ciągłego wracania do początku.
+
+## Alfa 0.58 — prawidłowy stan obserwowania
+
+- Na listach obserwujących i obserwowanych przyciski pokazują, kogo obserwujesz. Po kliknięciu „Obserwuj” zobaczysz „Przestań obserwować”, także po ponownym otwarciu listy.
+- Cofnięcie obserwowania nie wymaga już przejścia na profil.
+
 ## Alfa 0.57 — tagi podczas pisania wpisu
 
 - W opisie wpisu możesz wpisać `#sernik` i wybrać tag z podpowiedzi. Przy istniejących tagach zobaczysz liczbę publicznych wpisów dostępnych dla Ciebie.
