@@ -59,8 +59,16 @@ spisu ustawiono istniejący token `--radius-md`; trwa ponowny odbiór tej
 poprawki i fizyczna kontrola ujemna CSS. Powyższe pierwsze zrzuty dokumentują
 stan przed poprawką promienia, nie końcowy wygląd.
 
-Trwa końcowe niezależne review. Potem zwykły hook, wymagane CI i odbiór
-produkcji. Pełny port marki nadal **CZĘŚCIOWO**.
+Końcowy odbiór poprawki obrysu zakończony: ponownie 48 układów i zoom 200%
+w obu motywach bez problemu. Fizyczny powrót do `radius-pill` wykrył cztery
+znaki poza obrysem (`TEXT_OUTSIDE_ROUNDED_BORDER`); przywrócenie MD5/mtime,
+ponowny build i kontrola dodatnia przeszły. Dowody `outline-final.json`,
+`outline-negative.json` i końcowe zrzuty `outline-final-*.png`.
+
+Niezależny przegląd implementacji nie znalazł blokera funkcjonalnego ani
+prywatności. Pełny raport agenta: `evidence/tags369/ODBIOR.md`.
+Pozostają zwykły hook, wymagane CI i odbiór produkcji.
+Pełny port marki nadal **CZĘŚCIOWO**.
 
 Codex niezależnie obejrzał `dark-320-eligible.png` i `dark-1440-index.png`
 z lokalnego odbioru: licznik i długa nazwa zawijają się, a statystyka w spisie
