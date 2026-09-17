@@ -157,6 +157,7 @@ posprzataj() {
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}pelny WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}obca WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}cms WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}bezhasla WITH (FORCE)" >/dev/null 2>&1
   [[ -n "${KATALOG_KOPII}" && -d "${KATALOG_KOPII}" ]] && rm -rf "${KATALOG_KOPII}"
   return 0
 }
@@ -541,6 +542,15 @@ echo "── HASŁO BAZY POZA LISTĄ PROCESÓW (#594) ──"
 KATALOG_PS="$(mktemp -d)"
 cat >"${KATALOG_PS}/pg_dump" <<'PODSTAWKA'
 #!/usr/bin/env bash
+# Podglądamy dwie rzeczy naraz: wiersz z `ps` prawdziwego procesu ORAZ to,
+# co pg_dump dostał w `PGPASSFILE`. Druga połowa jest tu konieczna, bo
+# „zrzut powstał" niczego nie dowodzi na kliencie, którego `pg_hba.conf`
+# ustawiono na `trust` — a tak stoi lokalny klaster deweloperski.
+printf 'PGPASSFILE=%s\n' "${PGPASSFILE:-BRAK}" >>"${PODGLAD_PASS}"
+if [[ -n "${PGPASSFILE:-}" && -f "${PGPASSFILE}" ]]; then
+  printf 'PRAWA=%s\n' "$(stat -c %a "${PGPASSFILE}")" >>"${PODGLAD_PASS}"
+  cat "${PGPASSFILE}" >>"${PODGLAD_PASS}"
+fi
 PRAWDZIWY="$(PATH="${PATH#*:}" command -v pg_dump)"
 "${PRAWDZIWY}" "$@" &
 PID=$!
@@ -558,22 +568,35 @@ chmod +x "${KATALOG_PS}/pg_dump"
 KATALOG_KOPII_PS="${KATALOG_PS}/kopia"
 mkdir -p "${KATALOG_KOPII_PS}"
 PODGLAD_PS="${KATALOG_PS}/ps.txt"
+PODGLAD_PASS="${KATALOG_PS}/pass.txt"
 : >"${PODGLAD_PS}"
+: >"${PODGLAD_PASS}"
 
-# `PGPASSWORD` MUSI ZNIKNĄĆ NA CZAS TEJ PRÓBY. Z nim w środowisku zrzut
-# powstaje niezależnie od tego, czy PGPASSFILE w ogóle działa — i tak właśnie
-# pierwsza wersja tej poprawki przeszła ten test, mając `export PGPASSFILE`
-# zamknięty w podpowłoce i nigdy nie docierający do `pg_dump`.
+# `PGPASSWORD` MUSI ZNIKNĄĆ NA CZAS TEJ PRÓBY — inaczej nie widać RÓŻNICY
+# między „hasło poszło przez plik" a „hasło poszło przez środowisko".
 kod_ps="$(
   unset PGPASSWORD
-  PATH="${KATALOG_PS}:${PATH}" PODGLAD_PS="${PODGLAD_PS}" \
+  PATH="${KATALOG_PS}:${PATH}" PODGLAD_PS="${PODGLAD_PS}" PODGLAD_PASS="${PODGLAD_PASS}" \
     bash "${SKRYPT_KOPII}" --zrodlo "${DSN_ZRODLA}" --katalog "${KATALOG_KOPII_PS}" \
     >/dev/null 2>&1
   printf '%s' "$?"
 )"
 
-sprawdz "kopia POWSTAŁA bez PGPASSWORD (czyli hasło doszło przez PGPASSFILE)" "0" "${kod_ps}"
-sprawdz "…a ps NAPRAWDĘ pokazał wiersz pg_dumpa (inaczej test nic nie mierzy)" \
+sprawdz "kopia powstała (kod 0)" "0" "${kod_ps}"
+
+# UWAGA NA FAŁSZYWY DOWÓD. Lokalny klaster deweloperski przyjmuje połączenia
+# BEZ hasła (`trust` w pg_hba.conf) — sprawdzone 17.09.2026. Samo „zrzut
+# powstał" nie dowodzi więc, że `PGPASSFILE` w ogóle zadziałał: dowodzi tylko,
+# że `pg_dump` się połączył. Dlatego niżej patrzymy PROSTO na plik, który
+# `pg_dump` dostał, i na jego prawa.
+sprawdz "pg_dump dostał PGPASSFILE" "tak" \
+  "$(grep -q '^PGPASSFILE=/' "${PODGLAD_PASS}" && echo tak || echo nie)"
+sprawdz "…z hasłem bazy w środku" "tak" \
+  "$(grep -qF ":${BAZA_HASLO}" "${PODGLAD_PASS}" && echo tak || echo nie)"
+sprawdz "…i prawami 600, bo to poświadczenie do bazy" "PRAWA=600" \
+  "$(grep -m1 '^PRAWA=' "${PODGLAD_PASS}" || echo 'PRAWA=brak')"
+
+sprawdz "ps NAPRAWDĘ pokazał wiersz pg_dumpa (inaczej test nic nie mierzy)" \
   "tak" "$(grep -qF 'format=custom' "${PODGLAD_PS}" && echo tak || echo nie)"
 sprawdz "…i nie ma w nim hasła do bazy" "brak" \
   "$(grep -qF ":${BAZA_HASLO}@" "${PODGLAD_PS}" && echo JEST || echo brak)"
@@ -581,6 +604,50 @@ sprawdz "…a sam adres bazy w argumentach nadal jest (dowód, że patrzymy w to
   "tak" "$(grep -qF "@${BAZA_HOST}:${BAZA_PORT}/" "${PODGLAD_PS}" && echo tak || echo nie)"
 
 rm -rf "${KATALOG_PS}"
+
+# --- POŚWIADCZENIE MUSI PRZEŻYĆ KATALOG ROBOCZY -----------------------------
+#
+#  `sprzataj()` kasuje katalog roboczy, a DOPIERO POTEM robi `DROP DATABASE`.
+#  Pierwsza wersja poprawki z #594 trzymała `PGPASSFILE` właśnie tam — więc na
+#  serwerze WYMAGAJĄCYM HASŁA (CI, produkcja za tunelem) `DROP` nie miałby czym
+#  się zalogować i baza próbna zostawałaby po ćwiczeniu, przy samym ostrzeżeniu
+#  w logu.
+#
+#  Lokalnie tego nie da się pokazać zachowaniem: ten klaster stoi na `trust`
+#  i kasowanie udaje się także bez poświadczenia (zmierzone — sabotaż przeszedł
+#  zielono). Dlatego asercja jest na KOLEJNOŚĆ w pliku, tak samo jak przy
+#  „zrzut jawny ginie przed wysyłką" w `tests/skrypty/kopia-bazy.sh`.
+bez_komentarzy_proby() { sed 's/[[:space:]]*#.*$//' "${SKRYPT_PROBY}"; }
+
+sprawdz "PGPASSFILE NIE leży w katalogu roboczym (ten ginie przed DROP-em)" "nie" \
+  "$(bez_komentarzy_proby | grep -q 'SCIEZKA_PGPASS="${KATALOG_ROBOCZY}' && echo tak || echo nie)"
+
+linia_rm_roboczy="$(bez_komentarzy_proby | grep -n 'rm -rf "${KATALOG_ROBOCZY}"' | tail -1 | cut -d: -f1)"
+linia_drop="$(bez_komentarzy_proby | grep -n 'DROP DATABASE IF EXISTS' | tail -1 | cut -d: -f1)"
+linia_rm_pass="$(bez_komentarzy_proby | grep -n 'rm -rf "${KATALOG_POSWIADCZEN}"' | tail -1 | cut -d: -f1)"
+
+sprawdz "…a jego katalog ginie DOPIERO po DROP DATABASE" "tak" \
+  "$(if [[ -n "${linia_rm_roboczy}" && -n "${linia_drop}" && -n "${linia_rm_pass}" ]] \
+    && ((linia_rm_roboczy < linia_drop)) && ((linia_drop < linia_rm_pass)); then
+    echo tak
+  else
+    echo "nie (rm_roboczy=${linia_rm_roboczy:-?} drop=${linia_drop:-?} rm_pass=${linia_rm_pass:-?})"
+  fi)"
+
+# CAŁY PRZEBIEG BEZ `PGPASSWORD` W ŚRODOWISKU — tak jak u człowieka, który
+# wkleił DSN z tunelu i nic więcej nie ustawiał. Na tym kliencie (`trust`) nie
+# dowodzi to uwierzytelnienia; dowodzi, że rozbicie DSN-u na adres i plik
+# niczego po drodze nie psuje i że po ćwiczeniu nie zostaje baza.
+kod_sprzatania="$(
+  unset PGPASSWORD
+  bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_DOBRY}" --serwer "${SERWER}" \
+    --baza "${BAZA_PROBNA}bezhasla" --tabele users,follows >/dev/null 2>&1
+  printf '%s' "$?"
+)"
+sprawdz "cały przebieg działa bez PGPASSWORD w środowisku" "0" "${kod_sprzatania}"
+sprawdz "…i baza próbna NIE zostaje na serwerze po sprzątaniu" "0" \
+  "$("${PSQL[@]}" -d postgres -Atc \
+    "SELECT count(*) FROM pg_database WHERE datname='${BAZA_PROBNA}bezhasla'")"
 
 # =============================================================================
 echo

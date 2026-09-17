@@ -157,6 +157,7 @@ PETLA_LOKALNA=0
 # Bezpiecznik 3: jawnie potwierdzony odcisk instancji docelowej.
 INSTANCJA_POTWIERDZONA="${PROBA_INSTANCJA:-}"
 ODCISK_CELU=''
+KATALOG_POSWIADCZEN=''
 SCIEZKA_PGPASS=''
 DSN_BEZ_HASLA=''
 HASLO_Z_DSN=''
@@ -1529,6 +1530,13 @@ sprzataj() {
     rm -rf "${KATALOG_ROBOCZY}"
   fi
 
+  # POŚWIADCZENIE MA PRZEŻYĆ SKASOWANIE KATALOGU ROBOCZEGO O JEDEN KROK.
+  # Pierwsza wersja poprawki z #594 trzymała `PGPASSFILE` w katalogu roboczym,
+  # więc `DROP DATABASE` niżej dostawał adres bez hasła i bez pliku — baza
+  # próbna zostawała na cudzym serwerze, a skrypt tylko ostrzegał. Przeszło to
+  # testy wyłącznie dlatego, że w ich środowisku stało `PGPASSWORD`.
+  # Dlatego plik ma własny katalog i ginie DOPIERO na końcu tej funkcji.
+
   # DROP pod TRZEMA warunkami naraz:
   #   * bazę założył TEN przebieg (`BAZA_NASZA`) — bazy zastanej nie kasujemy
   #     nigdy, bo nie wiemy, czemu służy i kto ją założył;
@@ -1542,6 +1550,10 @@ sprzataj() {
     psql "${SERWER}" --no-password --quiet \
       --command "DROP DATABASE IF EXISTS \"${BAZA}\" WITH (FORCE)" >/dev/null 2>&1 \
       || log "OSTRZEŻENIE: nie udało się skasować bazy próbnej ${BAZA} — zrób to ręcznie."
+  fi
+
+  if [[ -n "${KATALOG_POSWIADCZEN}" && -d "${KATALOG_POSWIADCZEN}" ]]; then
+    rm -rf "${KATALOG_POSWIADCZEN}"
   fi
 
   return "${kod}"
@@ -1602,8 +1614,9 @@ main() {
   sprawdz_narzedzia
 
   # Od tej linii adresy nie zawierają już haseł — leżą one w PGPASSFILE
-  # w katalogu roboczym, który ginie razem z ćwiczeniem.
-  SCIEZKA_PGPASS="${KATALOG_ROBOCZY}/pgpass"
+  # w OSOBNYM katalogu, kasowanym na samym końcu `sprzataj` (powód tam).
+  KATALOG_POSWIADCZEN="$(mktemp -d "${TMPDIR:-/tmp}/proba-pass.XXXXXX")"
+  SCIEZKA_PGPASS="${KATALOG_POSWIADCZEN}/pgpass"
   schowaj_haslo_z_dsn "${SERWER}"
   SERWER="${DSN_BEZ_HASLA}"
   if [[ -n "${DSN_ZRODLA}" ]]; then
