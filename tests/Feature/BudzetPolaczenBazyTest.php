@@ -261,6 +261,32 @@ class BudzetPolaczenBazyTest extends TestCase
     }
 
     #[Test]
+    public function naglowek_kuking_jest_w_dostarczonej_wiadomosci_dokladnie_raz(): void
+    {
+        // ZNALEZIONE POMIAREM NA PRAWDZIWYM ODBIORNIKU, nie w tym pliku.
+        // `WebhookBleduHandler::tresc()` sam dokleja `[nazwa/środowisko]` do
+        // każdej wiadomości na tym kanale. Klasa alarmu, która dokleja go
+        // drugi raz, dostarcza „[Kuking/production] [Kuking/production] …".
+        // Asercje typu `assertStringContainsString` tego NIE ŁAPIĄ — dlatego
+        // sprawdzamy LICZBĘ wystąpień w treści, która naprawdę poszła.
+        $this->wlaczKanalAlarmu();
+        config()->set('kuking.polaczenia.prog_ostrzegawczy', 1);
+
+        app(AlarmPolaczen::class)->zadzwonJesliTrzeba(app(StanPolaczenBazy::class)->sprawdz());
+
+        $naglowek = sprintf('[%s/%s]', config('app.name'), config('app.env'));
+
+        Http::assertSent(function (Request $zadanie) use ($naglowek): bool {
+            $wyslane = (string) ($zadanie->data()['text'] ?? '');
+
+            $this->assertSame(1, substr_count($wyslane, $naglowek), 'Nagłówek dokłada kanał, nie klasa alarmu.');
+            $this->assertStringStartsWith($naglowek, $wyslane);
+
+            return true;
+        });
+    }
+
+    #[Test]
     public function stan_spokojny_nigdy_nie_dzwoni_nawet_z_wlaczonym_kanalem(): void
     {
         $this->wlaczKanalAlarmu();

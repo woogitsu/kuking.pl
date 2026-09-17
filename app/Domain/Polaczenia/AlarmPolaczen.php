@@ -93,8 +93,7 @@ final class AlarmPolaczen
         Cache::forget(self::KLUCZ);
 
         return $this->wyslij(sprintf(
-            '[Kuking/%s] połączenia PostgreSQL wróciły do normy (poprzedni stan: %s).',
-            (string) config('app.env'),
+            'połączenia PostgreSQL wróciły do normy (poprzedni stan: %s).',
             (string) ($poprzedni['stan'] ?? 'nieznany'),
         ));
     }
@@ -130,7 +129,7 @@ final class AlarmPolaczen
         };
 
         return implode(' ', [
-            '[Kuking/'.config('app.env').'] połączenia PostgreSQL:',
+            'połączenia PostgreSQL:',
             $co,
             'Co zrobić: NIE dokładaj replik ani workerów, zanim nie wiadomo, co je zajmuje.',
             'Najpierw `php artisan kuking:budzet-polaczen`, potem porównaj z budżetem w docs/DATABASE.md.',
