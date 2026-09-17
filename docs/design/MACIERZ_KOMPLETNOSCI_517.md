@@ -1,5 +1,23 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Uzupełnienie formularzy — 18 września 2026
+
+[Odbiór PUT i linku logowania](ODBIOR_PUT_I_LINKU_492.md) aktualizuje
+wyłącznie poniższe historyczne braki. Źródła wykonania: `609328b`;
+bez zmian aplikacji i bez testowych zapisów na produkcji.
+Pełny port marki pozostaje **CZĘŚCIOWO**.
+
+| Stan | Potwierdzenie lokalne | Nadal poza dowodem |
+|---|---|---|
+| Istniejący przepis: PUT po 419/429 | Odmowa bez zmiany danych, odzyskany payload, rzeczywiste ponowienie i odczyt opisu/kroków/mediów/prywatności/czasów. 429 po naturalnym TTL; 419 przez kontrolowany transport fallbacku CSRF. 16 zrzutów 390/1440 i obu motywów | Nowe uploady, maksymalne dane, pełny fokus, zoom 200%, fizyczny telefon; motyw przez data-theme nie sprawdza przełącznika ani kontrastu |
+| Link logowania: formularz → lokalny SMTP → GET → POST → sesja | Trzy pełne przejścia z odczytem bazy, odrzucenie ponownego użycia, osobny kontrolowanie wygasły token bez autoryzowanej sesji | Dostarczalność poza lokalnym SMTP, prawdziwe programy pocztowe i urządzenia |
+| Formularz prośby o link i ekran nieaktualnego linku | Rzeczywisty przełącznik aplikacji, 390/1440 × jasny/ciemny, osiem obejrzanych PNG bez poziomego przepełnienia | Pozostałe pośrednie stany mają dowody jasnego motywu, nie pełną macierz; brak nowego odbioru zoomu |
+
+Nie powtarzać aktualizacji PUT tylko dlatego, że historyczny wiersz Alfy
+0.29 wykluczał ją z ówczesnego zakresu. Odrębny odbiór błędu pliku i pełnej
+klawiatury formularza zdjęć pozostaje otwarty. Historyczne wyniki nie
+uzyskują automatycznie nowego SHA ani szerszego zakresu.
+
 ## Bieżące uzupełnienie panelu — 17 września 2026
 
 Poniższy stan ma pierwszeństwo przed historycznymi zapisami „niewysłane”
