@@ -561,7 +561,7 @@ class BramkaR2 extends Command
                 array_merge(
                     array_map(static fn (string $wpis): string => 'nieużyteczny wpis: '.$wpis, $nieuzyteczne),
                     [
-                        'Adres musi być pełny, z protokołem: `https://cdn.kuking.pl`, nie `cdn.kuking.pl`.',
+                        'Pełny adres zaczyna się od `https://`: `https://cdn.kuking.pl`, nie `cdn.kuking.pl`.',
                         'Panel Cloudflare pokazuje te adresy bez protokołu — trzeba go dopisać.',
                     ],
                 ));
