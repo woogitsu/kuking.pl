@@ -49,7 +49,7 @@ if (PHP_SAPI !== 'cli' || ! $app->environment(['local', 'testing'])
     || $connection->getDriverName() !== 'pgsql'
     || $connection->getConfig('host') !== '127.0.0.1'
     || ! getenv('DB_PORT') || $port !== (string) getenv('DB_PORT')
-    || (! $ci && ($port !== '55439' || ! in_array($database, ['kuking_581_browser', 'kuking_581_acceptance'], true)))
+    || (! $ci && ($port !== '55439' || ! in_array($database, ['kuking_581_browser', 'kuking_581_acceptance', 'kuking_581_menu', 'kuking_581_menu_extra'], true)))
     || ($ci && $database !== 'kuking_port_panel')
     || config('mail.default') !== 'array'
     || config('filesystems.disks.public.driver') !== 'local') {

@@ -641,6 +641,11 @@
                         <a class="side-nav-item side-nav-powrot" href="{{ route('home') }}">
                             <x-ikona nazwa="home" /> <span class="marka-panel-nav-etykieta">Wróć do Kuking</span>
                         </a>
+                        <button type="button" class="side-nav-item panel-menu-przelacznik" hidden
+                            data-panel-menu-przelacznik aria-expanded="true" aria-controls="panel-menu-tresc">
+                            <span>Nawigacja panelu</span>
+                        </button>
+                        <div id="panel-menu-tresc" class="panel-menu-tresc" data-panel-menu-tresc>
                     @else
                         <ul class="stack-tight list-none p-0 m-0">
                             <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
@@ -859,6 +864,9 @@
                              `components/wyloguj.blade.php`. --}}
                         <li><x-wyloguj class="side-nav-item side-nav-wyloguj"><x-ikona nazwa="logout" /> Wyloguj się</x-wyloguj></li>
                     </ul>
+                    @if($wTrybiePanelu)
+                        </div>
+                    @endif
                 </nav>
             @endauth
 

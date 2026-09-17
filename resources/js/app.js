@@ -19,6 +19,7 @@ import './landing-wpisy.js';
 import './pasek-przewijany.js';
 import './szybki-wyglad.js';
 import './panel-tabela.js';
+import './panel-menu.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 

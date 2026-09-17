@@ -21,7 +21,7 @@
   padding: 0 0 var(--spacing-8);
 }
 
-/* Jawny spis narzędzi również na telefonie: bez rozwijania i bez skryptu. */
+/* Bez skryptu pełny spis; na telefonie JS udostępnia zwijanie narzędzi. */
 [data-marka-panel] > .side-nav[data-tryb-panelu] {
   display: flex;
   position: static;
@@ -42,6 +42,43 @@
   margin: 0;
   padding: 0;
   border: 0;
+}
+
+[data-marka-panel] .panel-menu-tresc {
+  display: flex;
+  flex-direction: column;
+  gap: var(--spacing-4);
+  min-width: 0;
+}
+
+[data-marka-panel] .panel-menu-przelacznik {
+  width: 100%;
+  flex-wrap: nowrap;
+  justify-content: space-between;
+  border: 1px solid var(--color-border-strong);
+  background: var(--color-surface);
+  font: inherit;
+  font-weight: 700;
+  text-align: left;
+}
+
+[data-marka-panel] .panel-menu-przelacznik > span {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+[data-marka-panel] .panel-menu-przelacznik::after {
+  content: '+';
+  flex: none;
+}
+
+[data-marka-panel] .panel-menu-przelacznik[aria-expanded="true"]::after {
+  content: '−';
+}
+
+[data-marka-panel] .panel-menu-tresc[hidden],
+[data-marka-panel] .panel-menu-przelacznik[hidden] {
+  display: none;
 }
 
 [data-marka-panel] .side-nav-moderacja-naglowek {
