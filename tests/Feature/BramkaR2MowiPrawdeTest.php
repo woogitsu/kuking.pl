@@ -45,8 +45,18 @@ class BramkaR2MowiPrawdeTest extends TestCase
     /** Klucz oryginału użyty w testach — jeden, żeby dało się go szukać w wyjściu. */
     private const KLUCZ_ORYGINALU = 'incoming/2026/09/rosol.jpg';
 
-    /** Endpoint z identyfikatorem konta — NIE MA prawa wyjść na ekran. */
-    private const ENDPOINT = 'https://1a2b3c4d5e6f.r2.cloudflarestorage.com';
+    /**
+     * Endpoint z identyfikatorem konta — NIE MA prawa wyjść na ekran.
+     *
+     * KSZTAŁT JURYSDYKCYJNY (`.eu.`), bo tak wygląda środowisko skonfigurowane
+     * zgodnie z tym, co polityka prywatności mówi użytkownikom: zdjęcia leżą
+     * w Unii Europejskiej. Testy mierzące brak tej gwarancji podstawiają
+     * `ENDPOINT_BEZ_JURYSDYKCJI` same.
+     */
+    private const ENDPOINT = 'https://1a2b3c4d5e6f.eu.r2.cloudflarestorage.com';
+
+    /** Zwykły endpoint konta — bez segmentu jurysdykcji (issue #619). */
+    private const ENDPOINT_BEZ_JURYSDYKCJI = 'https://1a2b3c4d5e6f.r2.cloudflarestorage.com';
 
     /**
      * Zadeklarowane publiczne adresy — droga, którą naprawdę chodzi
@@ -364,6 +374,219 @@ class BramkaR2MowiPrawdeTest extends TestCase
                     && $zadanie->header('Authorization') === [],
             );
         }
+    }
+
+    /**
+     * #619 — ENDPOINT BEZ JURYSDYKCJI DOWODZI, ŻE BUCKETY NIE SĄ „EU JURISDICTION".
+     *
+     * Polityka prywatności mówi użytkownikom, że zdjęcia leżą w Unii
+     * Europejskiej (`resources/legal/polityka-prywatnosci.md`, tabela
+     * podwykonawców). Do 17.09.2026 w repozytorium nie było ANI JEDNEGO
+     * miejsca, w którym cokolwiek to sprawdzało — a sprawdzić się da,
+     * z serwera, bez panelu Cloudflare.
+     *
+     * Dokumentacja Cloudflare (odczyt 17.09.2026,
+     * https://developers.cloudflare.com/r2/reference/data-location/) mówi
+     * dwie rzeczy, które razem dają dowód:
+     *
+     *   1. bucket z ograniczeniem jurysdykcyjnym jest dostępny WYŁĄCZNIE
+     *      przez endpoint `https://<KONTO>.<JURYSDYKCJA>.r2.cloudflarestorage.com`,
+     *   2. jurysdykcji istniejącego bucketu nie da się później zmienić.
+     *
+     * Czyli: jeśli aplikacja NAPRAWDĘ odczytała obiekt przez endpoint bez
+     * segmentu jurysdykcji, to ten bucket żadnej jurysdykcji nie ma. To nie
+     * jest „nie wiemy" — to jest „wiemy, że nie".
+     */
+    #[Test]
+    public function test_endpoint_bez_jurysdykcji_przy_dzialajacym_api_oblewa(): void
+    {
+        $this->ustawR2();
+        config(['filesystems.disks.r2.endpoint' => self::ENDPOINT_BEZ_JURYSDYKCJI]);
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('ALARM: te buckety NIE mają ograniczenia jurysdykcyjnego')
+            ->expectsOutputToContain('NIEPRZEJŚCIONA')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * KONTROLA DODATNIA do testu wyżej: endpoint jurysdykcji `eu` przechodzi.
+     *
+     * Bez tej pary „endpoint bez jurysdykcji oblewa" nie dowodziłoby niczego
+     * — oblewałoby też wtedy, gdyby sprawdzenie zawsze mówiło NIE
+     * (pułapka 4 z `docs/PULAPKI_TESTOW.md`).
+     */
+    #[Test]
+    public function test_endpoint_jurysdykcji_eu_przechodzi(): void
+    {
+        $this->ustawR2();
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('Endpoint należy do jurysdykcji `eu`')
+            ->assertExitCode(0);
+    }
+
+    /**
+     * Cudza jurysdykcja to alarm, a nie „coś tam jest, więc dobrze".
+     *
+     * Osobna gałąź warunku, więc osobny test — pułapka 3b: dwa sprawdzenia
+     * trafiające w tę samą gałąź dają jedno sprawdzenie i jedną atrapę.
+     */
+    #[Test]
+    public function test_endpoint_cudzej_jurysdykcji_to_alarm(): void
+    {
+        $this->ustawR2();
+        config(['filesystems.disks.r2.endpoint' => 'https://1a2b3c4d5e6f.us.r2.cloudflarestorage.com']);
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('ALARM: endpoint należy do jurysdykcji `us`')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * Bez odczytu przez API endpoint niczego nie dowodzi — to `NIE WIEMY`.
+     *
+     * Cały dowód z tego sprawdzenia opiera się na tym, że aplikacja NAPRAWDĘ
+     * sięgnęła po obiekt TYM endpointem. Sama nazwa hosta w konfiguracji
+     * mówi tylko, co ktoś wpisał — nie, gdzie leżą pliki. Gdyby sprawdzenie
+     * obywało się bez tej kontroli dodatniej, meldowałoby „wiemy, że nie"
+     * o środowisku, w którym nie udało się odczytać ani jednego bajtu.
+     */
+    #[Test]
+    public function test_endpoint_bez_jurysdykcji_bez_odczytu_przez_api_to_nie_wiemy(): void
+    {
+        $this->ustawR2();
+        config(['filesystems.disks.r2.endpoint' => self::ENDPOINT_BEZ_JURYSDYKCJI]);
+        $media = $this->zdjecie();
+        Storage::disk('r2')->delete(self::KLUCZ_ORYGINALU);
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('nie udało się przez niego odczytać ani jednego obiektu')
+            ->doesntExpectOutputToContain('ALARM: te buckety NIE mają ograniczenia jurysdykcyjnego')
+            ->assertExitCode(1);
+
+        $this->assertSame(self::KLUCZ_ORYGINALU, $media->object_key);
+    }
+
+    /**
+     * IDENTYFIKATOR KONTA NIE MA PRAWA WYJŚĆ RAZEM Z JURYSDYKCJĄ.
+     *
+     * Sprawdzenie #619 czyta host endpointu, czyli jedyne miejsce
+     * w konfiguracji, w którym stoi identyfikator konta Cloudflare.
+     * Wyjście komendy wkleja się do zgłoszeń na GitHubie.
+     */
+    #[Test]
+    public function test_sprawdzenie_jurysdykcji_nie_wypisuje_identyfikatora_konta(): void
+    {
+        $this->ustawR2();
+        config(['filesystems.disks.r2.endpoint' => self::ENDPOINT_BEZ_JURYSDYKCJI]);
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('ALARM: te buckety NIE mają ograniczenia jurysdykcyjnego')
+            ->doesntExpectOutputToContain('1a2b3c4d5e6f')
+            ->doesntExpectOutputToContain(self::ENDPOINT_BEZ_JURYSDYKCJI)
+            ->assertExitCode(1);
+    }
+
+    /**
+     * #120 — ADRES, POD KTÓRY NIE DA SIĘ WYSŁAĆ ŻĄDANIA, NIE JEST DOWODEM.
+     *
+     * To jest usterka odtworzona, nie hipoteza. Panel Cloudflare pokazuje
+     * publiczne adresy bucketu BEZ protokołu — `pub-abc123.r2.dev`
+     * i `cdn.kuking.pl`. Przepisane do `KUKING_R2_PUBLICZNE_ADRESY`
+     * dokładnie tak, jak je widać, nie dają się zamienić w żądanie HTTP:
+     * adres bez hosta wywala klienta wyjątkiem, który bramka łapie jako
+     * „brak odpowiedzi".
+     *
+     * A „brak odpowiedzi" przy działającym wyjściu na świat bramka liczy
+     * jako ODMOWĘ — świadomie, bo domena, której nie ma w DNS-ie, naprawdę
+     * nikomu pliku nie wyda. Tyle że tutaj nie odmówił nikt: żądanie nigdy
+     * nie powstało. Bramka meldowała więc „Każdy zadeklarowany adres
+     * odmówił" i kod wyjścia 0 o środowisku, w którym `r2.dev` mogło być
+     * włączone na oścież.
+     *
+     * To jest ta sama klasa usterki, przed którą ostrzega sama bramka
+     * („adres niezapytany nie jest dowodem na nic") i pułapka 5
+     * z `docs/PULAPKI_TESTOW.md`.
+     */
+    #[Test]
+    public function test_publiczny_adres_bez_protokolu_nie_jest_dowodem_odmowy(): void
+    {
+        $this->ustawR2();
+        config(['kuking.media.publiczne_adresy' => ['cdn.test.kuking.pl', self::PUBLICZNY_R2_DEV]]);
+        $this->zdjecie();
+        $this->odpowiedziR2(bezPodpisu: 403, oryginal: 403);
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('Zadeklarowano adres, pod który NIE DA SIĘ wysłać żądania')
+            ->expectsOutputToContain('cdn.test.kuking.pl')
+            ->expectsOutputToContain('NIEPRZEJŚCIONA')
+            ->assertExitCode(1);
+    }
+
+    /**
+     * Kontrola dodatnia do testu wyżej — i zarazem kontrola „nie za szeroko".
+     *
+     * Odrzucenie MUSI dotyczyć tylko wpisów, z których nie da się zbudować
+     * żądania. Gdyby odrzucało też poprawne adresy, bramka nie miałaby jak
+     * przejść nigdy, a każda inna asercja tego pliku oblewałaby się z tego
+     * samego, niewłaściwego powodu (pułapka 8 z `docs/PULAPKI_TESTOW.md`).
+     */
+    #[Test]
+    public function test_poprawne_adresy_z_protokolem_przechodza(): void
+    {
+        $this->ustawR2();
+        config(['kuking.media.publiczne_adresy' => [
+            self::PUBLICZNA_DOMENA,
+            self::PUBLICZNY_R2_DEV.'/',
+            'http://cdn2.test.kuking.pl',
+        ]]);
+        $this->zdjecie();
+
+        Http::fake(fn (Request $zadanie) => Str::contains($zadanie->url(), 'expiration=')
+            ? Http::response('bajty wariantu', 200)
+            : Http::response('', 403));
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('Każdy zadeklarowany adres odmówił.')
+            ->expectsOutputToContain('cdn2.test.kuking.pl: HTTP 403')
+            ->assertExitCode(0);
+    }
+
+    /**
+     * Dysk wariantów też musi być sterownikiem `r2`.
+     *
+     * Bez tego sprawdzenia `KUKING_MEDIA_PUBLIC_DISK` wskazujący dysk
+     * lokalny przepuszczał bramkę do sprawdzeń, które CZYTAJĄ Z TEGO DYSKU:
+     * sprawdzenie 9 („w publicznym buckecie nie ma kluczy `incoming/`")
+     * listowało wtedy pusty katalog na dysku lokalnym i odpowiadało TAK —
+     * odpowiedź prawdziwa, tylko że nie o R2. To jest ta sama choroba, przed
+     * którą broni pierwsze sprawdzenie komendy, wpuszczona bocznymi drzwiami.
+     */
+    #[Test]
+    public function test_dysk_lokalny_w_roli_bucketu_wariantow_nie_przechodzi_dalej(): void
+    {
+        $this->ustawR2();
+        config(['kuking.media.public_disk' => 'public']);
+        $this->zdjecie();
+        Http::fake();
+
+        $this->artisan('kuking:bramka-r2 --zapis')
+            ->expectsOutputToContain('Dysk wariantów nie jest sterownikiem `r2`')
+            ->assertExitCode(1);
+
+        // Skoro komenda odmówiła na wejściu, nie ma prawa zapytać R2 o nic —
+        // inaczej sprawdzałaby coś innego, niż serwis naprawdę używa.
+        Http::assertNothingSent();
     }
 
     #[Test]
