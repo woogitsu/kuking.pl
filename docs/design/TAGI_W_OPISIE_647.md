@@ -1,7 +1,9 @@
 # Tagi w opisie wpisu — #647
 
 Stan 17.09.2026: **lokalna implementacja, odbiór w toku**. Bez PR i wdrożenia.
-Podstawa worktree: b83d7c0; przed dostarczeniem zintegrować aktualny main.
+Zintegrowano main b988139 po lokalnym zapisie WIP de82796 (merge 6f0de3d).
+Na połączonych źródłach, z roboczą wersją Alfa 0.57, ponowiono build,
+PHPStan, testy tagów i wyboru zeszytu oraz poniższy odbiór przeglądarkowy.
 
 ## Zachowanie
 
@@ -56,9 +58,34 @@ w katalogu `output` kanonicznego repo: `negative647-js-result.json`,
 
 ## Do zakończenia
 
+### Powtórka po integracji main
+
+- 100 testów PHP / 1859 asercji: tagi i wybór zeszytu — wszystkie przeszły.
+- PHPStan bez błędów; build, 72 pary kontrastu i 7 testów JS przeszły.
+- 24/24 konfiguracje: 320/360/390/414/768/1440, oba motywy, tekst 100/140%.
+- 4/4 rzeczywisty zoom 200%: `chrome.tabs.getZoom() = 2`, DPR 2,
+  szerokość CSS 320, oba motywy i obie skale tekstu.
+- Rzeczywiste kliknięcie, ArrowDown/Enter, publikacja i GET wpisu, edycja
+  z usunięciem hashtagu oraz GET bez jego odnośnika — przeszły.
+- Wklejenie przez Control+V, Escape, zastąpienie tokenu w środku tekstu,
+  wybór nowego taga bez ukrytego ręcznego pola i błąd transportu — przeszły.
+
+Dowody lokalne powtórki: `output/tagi647-browser/integrated/` w repo kanonicznym.
+To Chromium na lokalnych danych; nie fizyczny telefon ani odbiór produkcji.
+Wybrane wyniki i zrzuty zachowano w `docs/design/evidence/tagi647/`.
+Przy wyłączonym JavaScript rzeczywista publikacja hashtagu oraz usunięcie go
+przy edycji również przeszły. Osiem uwag Pint poprawiono i sprawdzono ponownie.
+
+Wcześniejszy odbiór przeglądarkowy na snapshotcie sprzed integracji main: przejście
+wybór taga → publikacja → odczyt → edycja z usunięciem hashtagu działa lokalnie.
+Zebrano 16 konfiguracji (320/390/768/1440, dwa motywy, tekst 100/140%).
+Sprawdzono również Escape, zastąpienie tokenu w środku tekstu i brak propozycji
+tworzenia nowego taga po błędzie transportu. Nie jest to jeszcze pełny odbiór:
+uzupełnienie szerokości 360/414 i rzeczywistego zoomu 200% zapisano osobno.
+
 - Odbiór rzeczywistych podpowiedzi, publikacji i edycji w przeglądarce,
   obu motywów, szerokości mobilnych i desktopowych, powiększenia oraz błędów sieci.
 - Pomiar zapytań i adekwatne kontrole współbieżności nowych blokad/scalania.
-- Integracja aktualnego main, końcowy Pint/PHPStan/testy i review.
-- Wersja i changelog, zwykły hook/push, PR i wymagane CI.
+- Końcowy pełny hook na dokładnym commicie i review kompletnego pakietu.
+- Zwykły push, PR i wymagane CI. Wersja Alfa 0.57 i changelog są przygotowane.
 - Wdrożenie oraz potwierdzenie rzeczywistego produkcyjnego SHA.

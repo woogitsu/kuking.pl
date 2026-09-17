@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Tags\PodpowiedziTagow;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\Tag;
@@ -23,7 +24,7 @@ class PodpowiedziTagowEndpointTest extends TestCase
             DB::flushQueryLog();
             DB::enableQueryLog();
             try {
-                $result = app(\App\Domain\Tags\PodpowiedziTagow::class)->dla('sernik', $viewer);
+                $result = app(PodpowiedziTagow::class)->dla('sernik', $viewer);
                 $queries = count(DB::getQueryLog());
             } finally {
                 DB::disableQueryLog();

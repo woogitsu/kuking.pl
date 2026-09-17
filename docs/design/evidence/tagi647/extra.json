@@ -1,0 +1,29 @@
+{
+  "rows": [],
+  "checks": {
+    "pasteExactNoCreate": true,
+    "escape": true,
+    "middleReplacement": true,
+    "newChoice": true,
+    "noManualHidden": true,
+    "transportNotCreate": true
+  },
+  "requests": [
+    {
+      "method": "GET",
+      "query": "sernik"
+    },
+    {
+      "method": "GET",
+      "query": "ser"
+    },
+    {
+      "method": "GET",
+      "query": "nowytag647"
+    },
+    {
+      "method": "GET",
+      "query": "awaria"
+    }
+  ]
+}

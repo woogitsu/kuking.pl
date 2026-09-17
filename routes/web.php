@@ -59,6 +59,7 @@ use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
+use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
@@ -564,7 +565,7 @@ Route::match(['get', 'post'], '/zgloszenie/{report}/odwolanie', [ReporterAppealC
 // --------------------------------------------------------------------------
 
 Route::middleware('auth')->group(function () use ($limits): void {
-    Route::get('/tagi/podpowiedzi', \App\Http\Controllers\TagSuggestionController::class)
+    Route::get('/tagi/podpowiedzi', TagSuggestionController::class)
         ->middleware("throttle:{$limits['tag_suggestions']},tag_suggestions")
         ->name('tags.suggestions');
 
