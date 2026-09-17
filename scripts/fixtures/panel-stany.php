@@ -32,7 +32,7 @@ if (PHP_SAPI !== 'cli' || ! $app->environment(['local', 'testing'])
     || realpath((string) getenv('APP_BASE_PATH')) !== realpath(__DIR__.'/../..')
     || $connection->getDriverName() !== 'pgsql' || $connection->getConfig('host') !== '127.0.0.1'
     || ! getenv('DB_PORT') || $port !== (string) getenv('DB_PORT')
-    || (! $ci && ($port !== '55439' || $database !== 'kuking_581_browser'))
+    || (! $ci && ($port !== '55439' || ! in_array($database, ['kuking_581_browser', 'kuking_581_validation'], true)))
     || ($ci && $database !== 'kuking_port_panel')
     || config('mail.default') !== 'array' || config('filesystems.disks.public.driver') !== 'local') {
     throw new RuntimeException('Wymagana wydzielona baza panelu i lokalne środowisko.');
