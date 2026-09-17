@@ -560,11 +560,16 @@ przy podwojeniu bez mrugnięcia. Naprawione w `AlarmPolaczen` i `AlarmKolejki`,
 a pilnuje tego teraz asercja liczby wystąpień nagłówka w treści, która
 naprawdę poszła.
 
-> ⚠️ **`App\Domain\Kopie\AlarmKopii` ma dokładnie tę samą usterkę** i nie jest
-> naprawiony w tej zmianie, bo pracuje nad tym plikiem równoległy pakiet
-> #193/#594. Poprawka to jedna linia (usunięcie `'[Kuking/'.config('app.env').'] '`
-> z `tresc()`) plus ta sama asercja w `CichyBrakKopiiBazyDajeAlarmTest`.
-> Skutek jest wyłącznie kosmetyczny — wiadomość dochodzi.
+`App\Domain\Kopie\AlarmKopii` miał dokładnie tę samą usterkę i nie był
+naprawiony w tej zmianie, bo pracował nad tym plikiem równoległy pakiet
+#193/#594. **Naprawiono go tam** — razem z tą samą asercją na liczbę
+wystąpień nagłówka w `CichyBrakKopiiBazyDajeAlarmTest`. Wszystkie trzy klasy
+alarmu wysyłają dziś nagłówek dokładnie raz, i każda ma na to strażnika.
+
+Warto zapamiętać sam wzorzec, bo nie dotyczy on wyłącznie nagłówka:
+**test na atrapie klienta HTTP sprawdza, co program CHCIAŁ wysłać, a nie co
+dotarło.** Dopóki asercje mają kształt „treść zawiera X", podwojenie,
+obcięcie i zła kolejność przechodzą przez nie bez śladu.
 
 ### 7.3. Czego ten rozdział NIE dowodzi
 
