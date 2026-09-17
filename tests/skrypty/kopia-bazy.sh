@@ -416,6 +416,60 @@ wynik="$(wczytaj; bez_hasla 'postgresql://kuking:bardzo-tajne@postgres.railway.i
 sprawdz "hasło bazy nie trafia do logu" \
   "postgresql://kuking:***@postgres.railway.internal:5432/railway" "${wynik}"
 
+# --- HASŁO POZA LISTĄ ARGUMENTÓW (#594) --------------------------------------
+#
+#  Odtworzone 17.09.2026 na bliźniaczym `scripts/kopia-lokalna.sh` prawdziwym
+#  `ps`: przez cały czas trwania zrzutu wiersz procesu `pg_dump` zawierał pełny
+#  DSN razem z hasłem. Argumenty procesu są na Linuksie jawne, a tym DSN-em
+#  jest poświadczenie do produkcyjnej bazy.
+#
+#  Tu sprawdzamy wynik `sprawdz_srodowisko()`: adres, który pójdzie do
+#  `pg_dump` i `psql`, ma być BEZ hasła, a samo hasło ma leżeć w prywatnym
+#  `PGPASSFILE` z prawami 600. Bez drugiej połowy tej asercji „adres bez
+#  hasła" znaczyłoby tylko tyle, że kopia przestała się łączyć.
+poswiadczenie_wynik="$(
+  wczytaj
+  katalog="$(mktemp -d)"
+  trap 'rm -rf "${katalog}"' EXIT
+  export KOPIA_KATALOG_ROBOCZY="${katalog}"
+  export DB_URL='postgresql://kuking:bardzo-tajne@postgres.railway.internal:5432/railway'
+  export KOPIA_S3_ENDPOINT='https://konto.r2.cloudflarestorage.com'
+  export KOPIA_S3_BUCKET='b' KOPIA_S3_KLUCZ='k' KOPIA_S3_SEKRET='s'
+  export KOPIA_KLUCZ_PUBLICZNY='x'
+  sprawdz_srodowisko >/dev/null 2>&1
+  printf 'dsn=%s pgpass=%s prawa=%s' \
+    "${DB_URL}" \
+    "$(grep -qF 'bardzo-tajne' "${PGPASSFILE}" && echo 'ma hasło' || echo 'PUSTY')" \
+    "$(stat -c %a "${PGPASSFILE}")"
+)"
+sprawdz "hasło bazy nie trafia do argumentów pg_dump, tylko do PGPASSFILE" \
+  "dsn=postgresql://kuking@postgres.railway.internal:5432/railway pgpass=ma hasło prawa=600" \
+  "${poswiadczenie_wynik}"
+
+# Adres BEZ hasła ma przejść przez ten sam kod nietknięty — inaczej skrypt
+# psułby konfiguracje, w których poświadczenie przychodzi spoza DSN-u.
+sprawdz "adres bez hasła zostaje nietknięty" \
+  "postgresql://kuking@postgres.railway.internal:5432/railway" \
+  "$(
+    wczytaj
+    SCIEZKA_PGPASS="$(mktemp -u)"
+    schowaj_haslo_z_dsn 'postgresql://kuking@postgres.railway.internal:5432/railway'
+    printf '%s' "${DSN_BEZ_HASLA}"
+  )"
+
+# Hasło z bajtami, które rozbiłyby i adres, i plik `.pgpass`: `@`, `:`, `/`
+# oraz odwrotny ukośnik. `%XX` rozkodowujemy, bo libpq robi to samo.
+sprawdz "hasło z %XX, dwukropkiem i ukośnikiem trafia do pliku DOSŁOWNIE" \
+  'ha:sl\o@1' \
+  "$(
+    wczytaj
+    plik="$(mktemp)"
+    SCIEZKA_PGPASS="${plik}"
+    schowaj_haslo_z_dsn 'postgresql://kuking:ha%3Asl%5Co%401@host:5432/db'
+    sed -E 's/^[^:]*:[^:]*:[^:]*:[^:]*://' "${plik}" | sed -E 's/\\(.)/\1/g'
+    rm -f "${plik}"
+  )"
+
 # Publiczny adres bazy = komplet danych osobowych przez publiczny internet
 # przy każdym przebiegu, i nic by o tym nie powiedziało (#193: „po sieci
 # wewnętrznej Railwaya, nie po publicznym adresie").

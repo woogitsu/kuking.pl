@@ -53,6 +53,11 @@
 #  komputerze** — hasło widać wtedy w `ps` i w historii powłoki; użyj
 #  zmiennej `KOPIA_ZRODLO`.
 #
+#  Hasła NIE MA za to w `ps` samego `pg_dump` (#594): skrypt przekłada je
+#  do prywatnego `PGPASSFILE` i woła narzędzia adresem bez hasła. To jest
+#  jedyna część, którą skrypt może załatwić za Ciebie — swojego własnego
+#  wiersza polecenia nie schowa.
+#
 #  KODY WYJŚCIA
 #  ------------
 #     2  błąd użycia
@@ -94,6 +99,103 @@ padnij() {
 }
 
 bez_hasla() { sed -E 's#(://[^:/@]+):[^@]*@#\1:***@#' <<<"$1"; }
+
+# =============================================================================
+#  POŚWIADCZENIE POZA LISTĄ PROCESÓW (#594)
+#
+#  `pg_dump "postgresql://user:HASŁO@host/db"` pokazuje hasło w `ps` KAŻDEMU
+#  użytkownikowi maszyny: argumenty procesu są na Linuksie jawne. Zmierzone
+#  17.09.2026 na tym skrypcie — `ps -o args=` przez cały czas trwania zrzutu
+#  zawierało pełny DSN razem z hasłem produkcyjnej bazy.
+#
+#  Hasło idzie więc do pliku `PGPASSFILE` (prawa 600, w prywatnym katalogu
+#  roboczym, który ginie razem z przebiegiem), a do narzędzi trafia DSN BEZ
+#  hasła. libpq czyta plik sam; `--no-password` tego nie wyłącza — ten
+#  przełącznik blokuje wyłącznie pytanie na terminalu.
+#
+#  `~/.pgpass` użytkownika NIE JEST dotykane. Plik żyje tylko przez ten jeden
+#  przebieg.
+# =============================================================================
+odkoduj_procenty() {
+  local s="${1//\\/\\\\}"
+  printf '%b' "${s//%/\\x}"
+}
+
+# Rozkłada DSN na części. Ustawia: DSN_BEZ_HASLA, HASLO_Z_DSN, HOST_Z_DSN,
+# PORT_Z_DSN, UZYTKOWNIK_Z_DSN. Adres bez hasła zostawia nietknięty.
+rozdziel_dsn() {
+  local dsn="$1"
+  DSN_BEZ_HASLA="${dsn}"
+  HASLO_Z_DSN=''
+  HOST_Z_DSN='*'
+  PORT_Z_DSN='*'
+  UZYTKOWNIK_Z_DSN='*'
+
+  case "${dsn}" in
+    postgresql://* | postgres://*) ;;
+    *) return 0 ;;
+  esac
+
+  local schemat="${dsn%%://*}://" reszta="${dsn#*://}"
+  local przed_sciezka="${reszta%%/*}"
+
+  case "${przed_sciezka}" in
+    *@*) ;;
+    *) return 0 ;;
+  esac
+
+  local userinfo="${przed_sciezka%@*}" gospodarz="${przed_sciezka##*@}"
+  UZYTKOWNIK_Z_DSN="$(odkoduj_procenty "${userinfo%%:*}")"
+
+  case "${gospodarz}" in
+    \[*) ;; # IPv6 — zostawiamy gwiazdkę, dopasowanie po użytkowniku wystarczy
+    *:*)
+      HOST_Z_DSN="${gospodarz%%:*}"
+      PORT_Z_DSN="${gospodarz##*:}"
+      ;;
+    *) HOST_Z_DSN="${gospodarz}" ;;
+  esac
+
+  case "${userinfo}" in
+    *:*) ;;
+    *) return 0 ;;
+  esac
+
+  HASLO_Z_DSN="$(odkoduj_procenty "${userinfo#*:}")"
+  DSN_BEZ_HASLA="${schemat}${userinfo%%:*}@${gospodarz}${reszta#"${przed_sciezka}"}"
+}
+
+# Dopisuje poświadczenie z DSN-u do prywatnego PGPASSFILE i zostawia adres bez
+# hasła w `DSN_BEZ_HASLA`. Wynik JEST W ZMIENNEJ, a nie na wyjściu, i to jest tu
+# istotne: `X="$(schowaj_haslo_z_dsn "$X")"` uruchomiłoby tę funkcję
+# w podpowłoce, a wtedy `export PGPASSFILE` zginąłby razem z nią. Pierwsza
+# wersja tej poprawki miała dokładnie ten błąd i przechodziła tylko dlatego,
+# że w środowisku stało `PGPASSWORD` — czyli zielono, bez PGPASSFILE.
+schowaj_haslo_z_dsn() {
+  local dsn="$1"
+  rozdziel_dsn "${dsn}"
+
+  if [[ -n "${HASLO_Z_DSN}" ]]; then
+    # Plik powstaje DOPIERO gdy jest co w nim schować. Pusty PGPASSFILE
+    # przesłoniłby `~/.pgpass` użytkownika i zerwałby połączenie adresem,
+    # który hasła w sobie nie miał.
+    if [[ -z "${PGPASSFILE:-}" || "${PGPASSFILE}" != "${SCIEZKA_PGPASS}" ]]; then
+      (
+        umask 077
+        : >"${SCIEZKA_PGPASS}"
+      )
+      chmod 600 "${SCIEZKA_PGPASS}"
+      export PGPASSFILE="${SCIEZKA_PGPASS}"
+    fi
+
+    local pole="${HASLO_Z_DSN//\\/\\\\}"
+    pole="${pole//:/\\:}"
+    printf '%s:%s:*:%s:%s\n' \
+      "${HOST_Z_DSN}" "${PORT_Z_DSN}" "${UZYTKOWNIK_Z_DSN}" "${pole}" >>"${SCIEZKA_PGPASS}"
+  fi
+}
+
+zaloz_pgpassfile() { SCIEZKA_PGPASS="$1"; }
 
 pomoc() {
   cat <<'POMOC'
@@ -388,6 +490,12 @@ LICZBA_TABEL=0
 CZAS_ZRZUTU=0
 ODCISK=''
 SKROT_JAWNEGO=''
+SCIEZKA_PGPASS=''
+DSN_BEZ_HASLA=''
+HASLO_Z_DSN=''
+HOST_Z_DSN='*'
+PORT_Z_DSN='*'
+UZYTKOWNIK_Z_DSN='*'
 
 sprzataj() {
   local kod=$?
@@ -405,6 +513,11 @@ main() {
   KATALOG_ROBOCZY="$(mktemp -d "${TMPDIR:-/tmp}/kopia-lokalna.XXXXXX")"
   trap sprzataj EXIT
   PLIK_BLEDU="${KATALOG_ROBOCZY}/blad.txt"
+
+  # Od tej linii `ZRODLO` nie zawiera już hasła — leży ono w PGPASSFILE.
+  zaloz_pgpassfile "${KATALOG_ROBOCZY}/pgpass"
+  schowaj_haslo_z_dsn "${ZRODLO}"
+  ZRODLO="${DSN_BEZ_HASLA}"
 
   zrzut
   weryfikuj

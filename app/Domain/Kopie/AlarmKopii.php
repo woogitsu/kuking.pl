@@ -100,8 +100,12 @@ final class AlarmKopii
             default => 'Nieznany stan kopii bazy.',
         };
 
+        // BEZ NAGŁÓWKA `[nazwa/środowisko]`. Dokleja go sam kanał
+        // (`WebhookBleduHandler::tresc()`), więc wpisany tutaj drugi raz
+        // dochodził do odbiornika jako „[Kuking/production] [Kuking/production]
+        // kopia bazy: …". Zmierzone na prawdziwym odbiorniku webhooka 17.09.2026.
         return implode(' ', [
-            '[Kuking/'.config('app.env').'] kopia bazy:',
+            'kopia bazy:',
             $co,
             'To znaczy, że serwis `kopia-bazy` prawdopodobnie przestał chodzić —',
             'sprawdź jego ostatnie uruchomienie w Railway (Deployments → Cron).',

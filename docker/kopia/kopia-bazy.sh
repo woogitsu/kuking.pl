@@ -169,6 +169,100 @@ bez_hasla() {
 }
 
 # =============================================================================
+#  POŚWIADCZENIE POZA LISTĄ PROCESÓW (#594)
+#
+#  `pg_dump "postgresql://user:HASŁO@host/db"` pokazuje hasło w `ps` KAŻDEMU
+#  użytkownikowi maszyny: argumenty procesu są na Linuksie jawne. Zmierzone
+#  17.09.2026 na bliźniaczym `scripts/kopia-lokalna.sh` — `ps -o args=` przez
+#  cały czas trwania zrzutu zawierało pełny DSN razem z hasłem.
+#
+#  W tym kontenerze chodzi jeden proces, więc ryzyko jest mniejsze niż na
+#  cudzym laptopie — ale nie zerowe (obraz da się uruchomić lokalnie, a wyjście
+#  `ps` trafia do zrzutów diagnostycznych). Hasło idzie więc do prywatnego
+#  `PGPASSFILE` (prawa 600), a do `pg_dump` i `psql` trafia DSN BEZ hasła.
+#  `--no-password` tego nie psuje: ten przełącznik blokuje wyłącznie pytanie
+#  na terminalu, nie odczyt pliku.
+# =============================================================================
+odkoduj_procenty() {
+  local s="${1//\\/\\\\}"
+  printf '%b' "${s//%/\\x}"
+}
+
+# Rozkłada DSN na części. Ustawia: DSN_BEZ_HASLA, HASLO_Z_DSN, HOST_Z_DSN,
+# PORT_Z_DSN, UZYTKOWNIK_Z_DSN. Adres bez hasła zostawia nietknięty.
+rozdziel_dsn() {
+  local dsn="$1"
+  DSN_BEZ_HASLA="${dsn}"
+  HASLO_Z_DSN=''
+  HOST_Z_DSN='*'
+  PORT_Z_DSN='*'
+  UZYTKOWNIK_Z_DSN='*'
+
+  case "${dsn}" in
+    postgresql://* | postgres://*) ;;
+    *) return 0 ;;
+  esac
+
+  local schemat="${dsn%%://*}://" reszta="${dsn#*://}"
+  local przed_sciezka="${reszta%%/*}"
+
+  case "${przed_sciezka}" in
+    *@*) ;;
+    *) return 0 ;;
+  esac
+
+  local userinfo="${przed_sciezka%@*}" gospodarz="${przed_sciezka##*@}"
+  UZYTKOWNIK_Z_DSN="$(odkoduj_procenty "${userinfo%%:*}")"
+
+  case "${gospodarz}" in
+    \[*) ;; # IPv6 — zostawiamy gwiazdkę, dopasowanie po użytkowniku wystarczy
+    *:*)
+      HOST_Z_DSN="${gospodarz%%:*}"
+      PORT_Z_DSN="${gospodarz##*:}"
+      ;;
+    *) HOST_Z_DSN="${gospodarz}" ;;
+  esac
+
+  case "${userinfo}" in
+    *:*) ;;
+    *) return 0 ;;
+  esac
+
+  HASLO_Z_DSN="$(odkoduj_procenty "${userinfo#*:}")"
+  DSN_BEZ_HASLA="${schemat}${userinfo%%:*}@${gospodarz}${reszta#"${przed_sciezka}"}"
+}
+
+# Dopisuje poświadczenie z DSN-u do prywatnego PGPASSFILE i zostawia adres bez
+# hasła w `DSN_BEZ_HASLA`. Wynik JEST W ZMIENNEJ, a nie na wyjściu, i to jest tu
+# istotne: `X="$(schowaj_haslo_z_dsn "$X")"` uruchomiłoby tę funkcję
+# w podpowłoce, a wtedy `export PGPASSFILE` zginąłby razem z nią. Pierwsza
+# wersja tej poprawki miała dokładnie ten błąd i przechodziła tylko dlatego,
+# że w środowisku stało `PGPASSWORD` — czyli zielono, bez PGPASSFILE.
+#
+# Plik powstaje DOPIERO gdy jest co w nim schować — pusty PGPASSFILE
+# przesłoniłby `~/.pgpass` i zerwałby połączenie adresem bez hasła.
+schowaj_haslo_z_dsn() {
+  local dsn="$1"
+  rozdziel_dsn "${dsn}"
+
+  if [[ -n "${HASLO_Z_DSN}" ]]; then
+    if [[ "${PGPASSFILE:-}" != "${SCIEZKA_PGPASS}" ]]; then
+      (
+        umask 077
+        : >"${SCIEZKA_PGPASS}"
+      )
+      chmod 600 "${SCIEZKA_PGPASS}"
+      export PGPASSFILE="${SCIEZKA_PGPASS}"
+    fi
+
+    local pole="${HASLO_Z_DSN//\\/\\\\}"
+    pole="${pole//:/\\:}"
+    printf '%s:%s:*:%s:%s\n' \
+      "${HOST_Z_DSN}" "${PORT_Z_DSN}" "${UZYTKOWNIK_Z_DSN}" "${pole}" >>"${SCIEZKA_PGPASS}"
+  fi
+}
+
+# =============================================================================
 #  KROK 0 — środowisko
 # =============================================================================
 sprawdz_srodowisko() {
@@ -214,6 +308,13 @@ sprawdz_srodowisko() {
 
   log "baza: $(bez_hasla "${DB_URL}")"
   log "bucket: ${KOPIA_S3_BUCKET} prefiks: ${PREFIKS}"
+
+  # Od tej linii `DB_URL` nie zawiera już hasła — leży ono w PGPASSFILE
+  # w katalogu, który ginie razem z przebiegiem (`sprzataj`).
+  KATALOG_POSWIADCZEN="$(mktemp -d "${KOPIA_KATALOG_ROBOCZY:-/tmp}/kopia-pass.XXXXXX")"
+  SCIEZKA_PGPASS="${KATALOG_POSWIADCZEN}/pgpass"
+  schowaj_haslo_z_dsn "${DB_URL}"
+  DB_URL="${DSN_BEZ_HASLA}"
 }
 
 # =============================================================================
@@ -643,15 +744,26 @@ retencja() {
 #  PRZEBIEG
 # =============================================================================
 KATALOG_ROBOCZY=''
+KATALOG_POSWIADCZEN=''
+SCIEZKA_PGPASS=''
+DSN_BEZ_HASLA=''
+HASLO_Z_DSN=''
+HOST_Z_DSN='*'
+PORT_Z_DSN='*'
+UZYTKOWNIK_Z_DSN='*'
 
 sprzataj() {
   # Zrzut jawny ginie już w `szyfruj()`; ta pętla to druga linia obrony
   # na wypadek przerwania przed tamtą linią.
   [[ -n "${KATALOG_ROBOCZY}" && -d "${KATALOG_ROBOCZY}" ]] && rm -rf "${KATALOG_ROBOCZY}"
+  # Hasło do bazy ginie razem ze swoim katalogiem, także po przerwaniu.
+  [[ -n "${KATALOG_POSWIADCZEN}" && -d "${KATALOG_POSWIADCZEN}" ]] && rm -rf "${KATALOG_POSWIADCZEN}"
   return 0
 }
 
 main() {
+  trap sprzataj EXIT
+
   if [[ "${1:-}" == '--sprawdz' ]]; then
     sprawdz_srodowisko
     sprawdz_wersje
@@ -662,7 +774,6 @@ main() {
   sprawdz_srodowisko
 
   KATALOG_ROBOCZY="$(mktemp -d "${KOPIA_KATALOG_ROBOCZY:-/tmp}/kopia.XXXXXX")"
-  trap sprzataj EXIT
 
   ZNACZNIK="$(date -u +%Y%m%d-%H%M%S)Z"
   PLIK_ZRZUTU="${KATALOG_ROBOCZY}/kuking-${ZNACZNIK}.dump"
