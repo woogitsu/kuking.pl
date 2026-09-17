@@ -1,5 +1,20 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Nakładki publicznej strony przy zoomie 200% — 18 września 2026
+
+[Odbiór nakładek](NAKLADKI_ZOOM_492.md) obejmuje lokalną stronę publiczną,
+CSS viewport 320×740, rzeczywisty zoom 200%, tekst 140% oraz oba motywy.
+Podpowiedź można zamknąć; zamknięcie utrzymuje się po odświeżeniu.
+Nagłówek chowa się i wraca przy zmianie kierunku przewijania.
+Osiem kolejnych przystanków Tab w każdym motywie miało widoczny fokus,
+cały element w viewport i niezasłonięty środek kontrolki.
+
+Nakładki nadal przykrywają fragmenty tekstu w niektórych kadrach.
+W sprawdzonym scenariuszu treść można odsłonić przewijaniem i zamknięciem
+podpowiedzi; nie jest to dowód braku zasłaniania na całej stronie.
+Nie badano zalogowanego Start ani fizycznego telefonu. Ten odbiór nie
+zastępuje osobnego zakresu dolnej nawigacji #638 i nie zamyka całego #492.
+
 ## Korekta stanu dostarczenia panelu i nawigacji — 18 września 2026
 
 Poniższe potwierdzenia zastępują historyczne statusy „lokalne”,
