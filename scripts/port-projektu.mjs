@@ -15,6 +15,8 @@ import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
 import { sprawdzPrzyciskRejestracji } from './przycisk-rejestracji.mjs';
 import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
+import { sprawdzMacierzNawigacji } from './nawigacja-etykiety.mjs';
+import { sprawdzZoomNawigacji } from './nawigacja-zoom.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
@@ -386,6 +388,8 @@ try {
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
+  await sprawdzMacierzNawigacji({ browser: przegladarka, adres, sesja });
+  await sprawdzZoomNawigacji({ chromium, adres, sesja, outputDir: 'storage/port-projektu/nawigacja638' });
   await sprawdzZoomMarki({ adres, sesja, przepis: kompozycje.przepis, ...zeszyty, ...paczka513, sciezki515: ['/szukaj'] });
 
   });

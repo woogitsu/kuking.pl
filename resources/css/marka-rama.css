@@ -157,6 +157,17 @@
   box-shadow: 0 8px 32px rgb(21 23 20 / 16%);
 }
 [data-marka] .bottom-nav-item { flex-basis: calc(3.3rem * var(--user-text-scale, 1)); min-height: max(48px, calc(68px * var(--user-layout-scale, 1))); padding: calc(4px * var(--user-layout-scale, 1)) 0; }
+/* Pełne etykiety pięciu skrótów wyznaczają szerokość przycisków.
+   Przy dużym tekście zawija się cały przycisk, nigdy pojedyncze słowo. */
+[data-marka] :where(.bottom-nav:not(.bottom-nav-panel)) > .bottom-nav-item {
+  flex-basis: max-content;
+  padding-inline: calc(2px * var(--user-layout-scale, 1));
+  flex-shrink: 0;
+  min-width: 48px;
+  white-space: nowrap;
+  overflow-wrap: normal;
+  hyphens: none;
+}
 [data-marka] .bottom-nav-item[aria-current="page"] { box-shadow: none; font-weight: 800; }
 [data-marka] .bottom-nav-kolko { background: #151714; color: #fff; width: 48px; height: 48px; margin: 0; }
 @media (min-width: 48rem) {
