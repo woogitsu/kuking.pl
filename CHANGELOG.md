@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.59 — obie listy zostają na swoim miejscu
+
+- W zeszycie przejście do kolejnej strony wpisów zachowuje wybraną stronę przepisów — i odwrotnie. Możesz przeglądać obie listy bez ciągłego wracania do początku.
+
 ## Alfa 0.58 — prawidłowy stan obserwowania
 
 - Na listach obserwujących i obserwowanych przyciski pokazują, kogo obserwujesz. Po kliknięciu „Obserwuj” zobaczysz „Przestań obserwować”, także po ponownym otwarciu listy.
