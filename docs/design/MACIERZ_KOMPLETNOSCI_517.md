@@ -1,5 +1,20 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Korekta stanu dostarczenia panelu i nawigacji — 18 września 2026
+
+Poniższe potwierdzenia zastępują historyczne statusy „lokalne”,
+„wdrożenie w toku” i „pozostaje #638” w dalszych sekcjach.
+Nie rozszerzają zakresu oglądu poszczególnych ekranów.
+
+| Pakiet | Potwierdzony stan | Pozostałe ograniczenie |
+|---|---|---|
+| Notatki tagów #642 i cel błędu wiadomości #643 | Wdrożone w Alfie 0.55, `b83d7c070b9725f117464d0ec75241e10c6cfb8d`; main CI 35233772201 i Railway 6504992264 success. Odczyt produkcji potwierdził wersję. [Dowód #581](https://github.com/woogitsu/kuking.pl/issues/581#issuecomment-5717126088) | Dowód wersji nie zastępuje oglądu zalogowanych formularzy po tych zmianach; #581 pozostaje otwarte do opisanych stanów produkcyjnych |
+| Pełne etykiety dolnej nawigacji #638 | PR #639 scalony, CI 35197757945: 12/12 success; lokalne kontrole geometrii, zoomu, klawiatury i emulowanego dotyku oraz reprezentatywny odbiór produkcji zakończone. [Końcowy odbiór](https://github.com/woogitsu/kuking.pl/issues/638#issuecomment-5719666685); issue zamknięte | Fizyczny telefon i zoom 200% na produkcji nie były badane; zoom ma dowód lokalny/CI. Nie powtarzać implementacji na podstawie historycznego statusu niżej |
+
+Pełny port marki pozostaje **CZĘŚCIOWO**. Brak rzeczywistych danych do
+odbioru zgłoszeń, odwołań lub 2FA nie jest pozytywnym wynikiem i nie
+uzasadnia tworzenia fikcyjnych rekordów na produkcji.
+
 ## Uzupełnienie formularzy — 18 września 2026
 
 [Odbiór PUT i linku logowania](ODBIOR_PUT_I_LINKU_492.md) aktualizuje
