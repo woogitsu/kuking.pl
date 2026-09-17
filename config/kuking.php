@@ -359,6 +359,14 @@ return [
         'index_page_size' => (int) env('KUKING_TAGS_INDEX_PAGE_SIZE', 100),
     ],
 
+    // #369: mały zbiór zaprasza do publikacji zamiast eksponować pustkę.
+    // Pięć zdjęć od trzech osób pokazuje kilka kuchni, nie pojedynczy album.
+    // To próg prezentacji, nie ranking ani próg dostępu do treści.
+    'tag_public_stats' => [
+        'min_photos' => 5,
+        'min_contributors' => 3,
+    ],
+
     'text' => [
         /*
          * Skala tekstu ustawiana przez użytkownika w /ustawienia/czytelnosc.
@@ -2745,7 +2753,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.61',
+        'etykieta' => 'Alfa 0.62',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

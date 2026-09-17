@@ -37,6 +37,8 @@
 
     <h1 class="mt-0">{{ $tag->name }}</h1>
 
+    <p><x-tag-public-stats :stats="$publicStats" /></p>
+
     @auth
         {{-- Zwykły formularz, nie przycisk sterowany skryptem: bez JavaScriptu
              ma działać jedno i drugie (AGENTS.md §5). --}}

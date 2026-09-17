@@ -5677,6 +5677,19 @@
     overflow-wrap: anywhere;
 }
 
+/* Nazwa i liczba wpisów pozostają razem; dodatkowe statystyki mają
+   własny wiersz, również przy długich nazwach i dużym tekście. */
+.tag-directory-link {
+  display: block;
+  border-radius: var(--radius-md);
+}
+
+.tag-directory-link [data-tag-public-stats] {
+  display: block;
+  margin-top: var(--spacing-1);
+  font-weight: 400;
+}
+
 .chip:hover {
   background-color: var(--color-surface-sunken);
 }

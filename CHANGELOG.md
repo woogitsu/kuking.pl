@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.62 — zdjęcia i osoby przy tagach
+
+- Przy tagach z co najmniej pięcioma publicznymi zdjęciami od trzech osób zobaczysz liczbę zdjęć i ich autorów. Przy mniejszym zbiorze strona tagu zaprasza do dodania własnego wpisu. Kolejność tagów pozostaje bez zmian.
+
 ## Alfa 0.61 — jasna instrukcja po zbyt dużym zdjęciu
 
 - Jeśli jedno z nowych zdjęć wpisu przekracza limit, formularz prosi o ponowny wybór wszystkich nowych zdjęć. Opis i ustawienie widoczności pozostają zachowane.

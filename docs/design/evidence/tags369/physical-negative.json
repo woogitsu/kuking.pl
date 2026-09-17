@@ -1,0 +1,14 @@
+{
+  "mutation": "Actual runtime Blade first condition forced false",
+  "negativeExit": 1,
+  "detected": "PUBLIC_STATS_MISSING",
+  "before": {
+    "md5": "10a347723aa05b265856a7aabd2e5f8b",
+    "mtime_ns": 1789686487343290100
+  },
+  "after": {
+    "md5": "10a347723aa05b265856a7aabd2e5f8b",
+    "mtime_ns": 1789686487343290100
+  },
+  "positiveRestored": true
+}

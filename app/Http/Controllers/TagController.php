@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Tags\TagPublicStats;
 use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +28,10 @@ use Illuminate\View\View;
  */
 class TagController extends Controller
 {
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+    public function __construct(
+        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
+        private readonly TagPublicStats $publicStats = new TagPublicStats,
+    ) {}
 
     /**
      * Spis wszystkich tagów (#273, druga połowa — D-026 dała słownik,
@@ -77,6 +81,9 @@ class TagController extends Controller
         return view('pages.tags.index', [
             'polecane' => $polecane,
             'tagi' => $tagi,
+            'publicStats' => $this->publicStats->forTags(
+                array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
+            ),
         ]);
     }
 
@@ -123,6 +130,7 @@ class TagController extends Controller
 
         return view('pages.tags.show', [
             'tag' => $tag,
+            'publicStats' => $this->publicStats->forTags([$tag->getKey()])[$tag->getKey()],
             'posts' => $wpisy,
             'obserwowany' => $widz !== null && $widz->isFollowingTag($tag),
         ]);

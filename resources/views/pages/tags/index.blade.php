@@ -58,10 +58,11 @@
         <p class="meta">Wybór gospodarza <x-kuking-word />.</p>
         <nav class="chipsy" aria-label="Polecane tagi">
             @foreach($polecane as $tag)
-                <a class="chip" href="{{ route('tags.show', $tag) }}">
+                <a class="chip tag-directory-link" href="{{ route('tags.show', $tag) }}">
                     {{ $tag->name }}
                     ({{ $tag->posts_count }}
                     {{ \App\Support\Odmiana::rzeczownik($tag->posts_count, 'wpis', 'wpisy', 'wpisów') }})
+                    <x-tag-public-stats :stats="$publicStats[$tag->getKey()]" :invitation="false" />
                 </a>
             @endforeach
         </nav>
@@ -79,10 +80,11 @@
     @else
         <nav class="chipsy" aria-label="Wszystkie tagi, alfabetycznie">
             @foreach($tagi as $tag)
-                <a class="chip" href="{{ route('tags.show', $tag) }}">
+                <a class="chip tag-directory-link" href="{{ route('tags.show', $tag) }}">
                     {{ $tag->name }}
                     ({{ $tag->posts_count }}
                     {{ \App\Support\Odmiana::rzeczownik($tag->posts_count, 'wpis', 'wpisy', 'wpisów') }})
+                    <x-tag-public-stats :stats="$publicStats[$tag->getKey()]" :invitation="false" />
                 </a>
             @endforeach
         </nav>
