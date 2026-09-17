@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.56 — wybór zeszytu przy zapisie
+
+- Przy przepisie i wpisie możesz wybrać własny zeszyt, również gdy treść jest już zapisana w innym miejscu. Szybki zapis do „Zapisanych” nadal jest dostępny.
+- Pełne nazwy zeszytów zawijają się na małym ekranie. Jeśli wybrany zeszyt został usunięty przed zapisem, formularz pokazuje błąd przy właściwym wyborze.
+
 ## Alfa 0.55 — wskazanie błędnego stanu wiadomości
 
 - Jeśli zapis stanu wiadomości w panelu zostanie odrzucony, odnośnik w podsumowaniu błędów prowadzi do wyboru stanu.

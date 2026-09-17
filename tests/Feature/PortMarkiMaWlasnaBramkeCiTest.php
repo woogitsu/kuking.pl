@@ -32,7 +32,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             $this->assertStringContainsString($port, $job);
             $this->assertStringContainsString('run: node --test scripts/port-grupy.test.mjs', $job);
             $this->assertStringContainsString('PORT_GRUPA: '.$group, $job);
-            $this->assertStringContainsString('timeout-minutes: 25', $job);
+            $this->assertStringContainsString('timeout-minutes: '.($name === 'port_funkcje' ? 35 : 25), $job);
             $this->assertStringContainsString("if: needs.zakres.outputs.kod == 'true'", $job);
             $this->assertStringNotContainsString('continue-on-error:', $job);
             $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
