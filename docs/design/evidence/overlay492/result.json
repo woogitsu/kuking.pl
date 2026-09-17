@@ -1,0 +1,255 @@
+{
+  "source": "9fa1bc9740a15e23cf51149323674c87de1f85a9",
+  "rows": [
+    {
+      "theme": "light",
+      "zoom": 2,
+      "geometry": {
+        "width": 320,
+        "height": 740,
+        "dpr": 2,
+        "font": 25.2,
+        "theme": "light"
+      },
+      "hintBefore": true,
+      "down": {
+        "bottom": -16,
+        "hidden": true
+      },
+      "up": true,
+      "hintHiddenAfterReload": true,
+      "tabs": [
+        {
+          "tag": "A",
+          "text": "Przejdź do treści",
+          "rect": {
+            "x": 16,
+            "y": 16,
+            "width": 241.578125,
+            "height": 67.0625
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "KuKing.pl\n                Kuking — strona główna",
+          "rect": {
+            "x": 24,
+            "y": 20,
+            "width": 231.734375,
+            "height": 60.7578125
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Zaloguj się",
+          "rect": {
+            "x": 24,
+            "y": 88.7578125,
+            "width": 176.3046875,
+            "height": 59.5
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Załóż konto",
+          "rect": {
+            "x": 24,
+            "y": 156.2578125,
+            "width": 187.65625,
+            "height": 59.5
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Zostań \n    kuKINGiem\n    kukingiem\n\n — bez opłat i bez reklam",
+          "rect": {
+            "x": 28,
+            "y": 301.8828125,
+            "width": 264,
+            "height": 168
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Najpierw się rozejrzę",
+          "rect": {
+            "x": 28,
+            "y": 402.3828125,
+            "width": 264,
+            "height": 91
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Dodaj zdjęcie dania",
+          "rect": {
+            "x": 28,
+            "y": 361.75,
+            "width": 238.8828125,
+            "height": 48
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Zobacz dodawanie przepisu",
+          "rect": {
+            "x": 28,
+            "y": 347.0234375,
+            "width": 264,
+            "height": 78.125
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        }
+      ],
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "zoom": 2,
+      "geometry": {
+        "width": 320,
+        "height": 740,
+        "dpr": 2,
+        "font": 25.2,
+        "theme": "dark"
+      },
+      "hintBefore": true,
+      "down": {
+        "bottom": -16,
+        "hidden": true
+      },
+      "up": true,
+      "hintHiddenAfterReload": true,
+      "tabs": [
+        {
+          "tag": "A",
+          "text": "Przejdź do treści",
+          "rect": {
+            "x": 16,
+            "y": 16,
+            "width": 241.578125,
+            "height": 67.0625
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "KuKing.pl\n                Kuking — strona główna",
+          "rect": {
+            "x": 24,
+            "y": 20,
+            "width": 231.734375,
+            "height": 60.7578125
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Zaloguj się",
+          "rect": {
+            "x": 24,
+            "y": 88.7578125,
+            "width": 176.3046875,
+            "height": 59.5
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Załóż konto",
+          "rect": {
+            "x": 24,
+            "y": 156.2578125,
+            "width": 187.65625,
+            "height": 59.5
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Zostań \n    kuKINGiem\n    kukingiem\n\n — bez opłat i bez reklam",
+          "rect": {
+            "x": 28,
+            "y": 301.8828125,
+            "width": 264,
+            "height": 168
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Najpierw się rozejrzę",
+          "rect": {
+            "x": 28,
+            "y": 402.3828125,
+            "width": 264,
+            "height": 91
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Dodaj zdjęcie dania",
+          "rect": {
+            "x": 28,
+            "y": 361.75,
+            "width": 238.8828125,
+            "height": 48
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        },
+        {
+          "tag": "A",
+          "text": "Zobacz dodawanie przepisu",
+          "rect": {
+            "x": 28,
+            "y": 347.0234375,
+            "width": 264,
+            "height": 78.125
+          },
+          "focusVisible": true,
+          "within": true,
+          "hit": true
+        }
+      ],
+      "pass": true
+    }
+  ]
+}

@@ -1,5 +1,50 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Pośrednie stany logowania w ciemnym motywie — 18 września 2026
+
+[Dodatkowy odbiór logowania](LOGOWANIE_CIEMNE_STANY_492.md) uzupełnia
+historyczny brak ciemnych wariantów: potwierdzenie wysłania i ważnego
+linku przy 390/1440 (4 konfiguracje), a następnie osobno zalogowany
+Start po sukcesie przy tych samych szerokościach (2 konfiguracje).
+Po zalogowaniu motyw konta przełączono rzeczywistym interfejsem.
+Obejrzano zrzuty; pomiary nie wykazały poziomego przepełnienia.
+
+Poczta pozostała w lokalnym SMTP. Limit prób wygasł naturalnie, bez
+resetowania ani zmiany tożsamości. Odbiór nie obejmuje nowych kontroli
+zoomu, całej klawiatury, dostarczalności zewnętrznej ani klientów poczty.
+Źródła runtime: `609328b`; relewantne pliki logowania i interfejsu
+porównano z `c6bed3e`, bez twierdzenia o identyczności całej aplikacji.
+
+## Nakładki publicznej strony przy zoomie 200% — 18 września 2026
+
+[Odbiór nakładek](NAKLADKI_ZOOM_492.md) obejmuje lokalną stronę publiczną,
+CSS viewport 320×740, rzeczywisty zoom 200%, tekst 140% oraz oba motywy.
+Podpowiedź można zamknąć; zamknięcie utrzymuje się po odświeżeniu.
+Nagłówek chowa się i wraca przy zmianie kierunku przewijania.
+Osiem kolejnych przystanków Tab w każdym motywie miało widoczny fokus,
+cały element w viewport i niezasłonięty środek kontrolki.
+
+Nakładki nadal przykrywają fragmenty tekstu w niektórych kadrach.
+W sprawdzonym scenariuszu treść można odsłonić przewijaniem i zamknięciem
+podpowiedzi; nie jest to dowód braku zasłaniania na całej stronie.
+Nie badano zalogowanego Start ani fizycznego telefonu. Ten odbiór nie
+zastępuje osobnego zakresu dolnej nawigacji #638 i nie zamyka całego #492.
+
+## Korekta stanu dostarczenia panelu i nawigacji — 18 września 2026
+
+Poniższe potwierdzenia zastępują historyczne statusy „lokalne”,
+„wdrożenie w toku” i „pozostaje #638” w dalszych sekcjach.
+Nie rozszerzają zakresu oglądu poszczególnych ekranów.
+
+| Pakiet | Potwierdzony stan | Pozostałe ograniczenie |
+|---|---|---|
+| Notatki tagów #642 i cel błędu wiadomości #643 | Wdrożone w Alfie 0.55, `b83d7c070b9725f117464d0ec75241e10c6cfb8d`; main CI 35233772201 i Railway 6504992264 success. Odczyt produkcji potwierdził wersję. [Dowód #581](https://github.com/woogitsu/kuking.pl/issues/581#issuecomment-5717126088) | Dowód wersji nie zastępuje oglądu zalogowanych formularzy po tych zmianach; #581 pozostaje otwarte do opisanych stanów produkcyjnych |
+| Pełne etykiety dolnej nawigacji #638 | PR #639 scalony, CI 35197757945: 12/12 success; lokalne kontrole geometrii, zoomu, klawiatury i emulowanego dotyku oraz reprezentatywny odbiór produkcji zakończone. [Końcowy odbiór](https://github.com/woogitsu/kuking.pl/issues/638#issuecomment-5719666685); issue zamknięte | Fizyczny telefon i zoom 200% na produkcji nie były badane; zoom ma dowód lokalny/CI. Nie powtarzać implementacji na podstawie historycznego statusu niżej |
+
+Pełny port marki pozostaje **CZĘŚCIOWO**. Brak rzeczywistych danych do
+odbioru zgłoszeń, odwołań lub 2FA nie jest pozytywnym wynikiem i nie
+uzasadnia tworzenia fikcyjnych rekordów na produkcji.
+
 ## Uzupełnienie formularzy — 18 września 2026
 
 [Odbiór PUT i linku logowania](ODBIOR_PUT_I_LINKU_492.md) aktualizuje
