@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityTekstuPrzepisu;
 use App\Support\LimityZdjec;
+use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -398,8 +399,10 @@ class RecipeController extends Controller
         $cookedEvents = $model->cookedEvents()
             ->widoczneDla($request->user())
             ->with(['user.profile.avatar', 'media'])
-            ->paginate(12, ['*'], 'wykonania')
-            ->withQueryString();
+            ->paginate(12, ['*'], 'wykonania');
+
+        PaginationLinks::preserveOtherPage($komentarze, $cookedEvents);
+        PaginationLinks::preserveOtherPage($cookedEvents, $komentarze);
 
         return view('pages.recipes.show', [
             'recipe' => $model,

@@ -12,6 +12,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
+use App\Support\PaginationLinks;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -197,21 +198,12 @@ class CollectionController extends Controller
         // nie rysuje własnego przycisku dla pustej strony, a nie z przenoszenia
         // numeru. Tego docięcie nie leczy i nie udaje, że leczy.
         //
-        // Drugi argument `min()` MUSI należeć do tego samego paginatora co
-        // pierwszy. Obie linie niżej są prawie bliźniacze i pomylenie w nich
-        // paginatorów jest niewidoczne w zeszycie, w którym obie listy mają
+        // Wspólny helper docina numer do ostatniej strony tego samego
+        // paginatora. Pomylenie paginatorów jest niewidoczne w zeszycie, w którym obie listy mają
         // tyle samo stron — a w zeszycie o nierównych listach cofałoby człowieka
         // o stronę. Pilnuje tego osobna scena w `ZeszytPaginacjaObuListTest`.
-        $stronaWpisow = min($posts->currentPage(), $posts->lastPage());
-        $stronaPrzepisow = min($recipes->currentPage(), $recipes->lastPage());
-
-        if ($stronaWpisow > 1) {
-            $recipes->appends($posts->getPageName(), $stronaWpisow);
-        }
-
-        if ($stronaPrzepisow > 1) {
-            $posts->appends($recipes->getPageName(), $stronaPrzepisow);
-        }
+        PaginationLinks::preserveOtherPage($recipes, $posts);
+        PaginationLinks::preserveOtherPage($posts, $recipes);
 
         return view('pages.collections.show', [
             'collection' => $collection,
