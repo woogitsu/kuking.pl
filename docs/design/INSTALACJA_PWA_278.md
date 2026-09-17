@@ -1,14 +1,17 @@
 # Propozycja instalacji PWA — #278
 
-Status: **robocze, niewdrożone**. Aktualizacja 17 września 2026.
-Pierwotna podstawa gałęzi: `e30492ca7df87a221ae6092c82a3f98c083133a1`.
-Lokalna integracja obejmuje main `3f122d6c3b48efd0e737aec48f4235743bd1477c`
-(linkowanie z PR #635). Przygotowana wersja PWA to **Alfa 0.49**.
-Nie jest to potwierdzenie wdrożenia. Pełny hook poprzedniego head
-`bd1c8df45fd2a2eacfef29374638eb6a477f615d` przeszedł; CI 35153996608
-tego head nadal trwało w chwili aktualizacji. Integracja wymaga nowego
-pełnego hooka i CI. Historyczne pomiary poniżej dotyczą wskazanych etapów,
-nie stanowią wyniku testów nowego połączenia gałęzi.
+Status: **wdrożone; natywna instalacja na telefonach niezweryfikowana**. Aktualizacja 17 września 2026.
+PR #631 scalono normalnie do main jako
+`7c15301418e51c0bfe10624d1cd73f109cbe5ce9`, wersja **Alfa 0.49**.
+Końcowy head `6281bf862ed10fb616cc1e35e9ecf1a173e6a175` zawiera integrację
+linków z PR #635. Zwykły push przeszedł pełny lokalny hook: Pint, składnię,
+PHPStan, pełne testy PHP i odwracalność migracji. Build Vite, 4 testy JS
+i 72 kontrole kontrastu przeszły. CI PR 35160170049: wszystkie 12 zadań success.
+
+Main CI 35162248526 zakończyło wszystkie 12 zadań sukcesem.
+Railway 6492330249 oraz Deploy 35164363419 zakończyły się sukcesem.
+HTTP i przeglądarka potwierdziły Alfa 0.49 / `7c15301`. Natywna instalacja
+na Androidzie i iOS pozostaje nieweryfikowana; issue #278 nadal jest otwarte.
 
 ## Zachowanie
 
@@ -85,7 +88,7 @@ telemetrię, eksport oraz usunięcie konta. Nie zastępuje odbioru natywnej
 instalacji. Rezerwacja offered zużywa propozycję także wtedy, gdy późniejsza
 nawigacja przerwie jej wyświetlenie; to świadoma granica jednorazowości.
 
-## Do ukończenia przed odbiorem
+## Regresja i pozostałe warunki odbioru
 
 Trwały pomiar `scripts/pwa-install-browser.mjs` jest podłączony do grupy
 rozszerzeń portu. Review wykryło i usunięto brak jego nazwy w trzech filtrach
@@ -98,10 +101,10 @@ odmowa przez Enter, HTTP/DB/reload, accepted bez installed, następnie
 appinstalled oraz cleanup nawigacji. Fixture przywróciła stan konta
 i sygnały; ponowny odczyt potwierdził zgodność z kopią.
 
-- wykonanie trwałej regresji w CI;
+- trwała regresja w CI PR: wykonana pomyślnie;
 - natywne Android Chrome/Edge i iOS Safari albo jawne ograniczenie dostępu;
-- review końcowej regresji, pełny hook, CI oraz odbiór produkcji;
-- dołączenie wybranych dowodów i aktualizacja macierzy #492.
+- review, pełny hook i CI PR/main: wykonane; zakres odbioru produkcji opisano poniżej;
+- wybrane dowody dołączone; macierz #492 uzupełniona o ten ograniczony zakres.
 
 Pełny port marki pozostaje **CZĘŚCIOWO**. Nie scalać na podstawie tego raportu
 ani samych testów celowanych. Przy cofnięciu wdrożenia zachować kolumnę
@@ -123,7 +126,7 @@ przy braku lokalnego pliku .env; po przygotowaniu izolowanej konfiguracji
 powtórzenie przeszło bez ostrzeżeń. Jest to istniejąca grupa regresji
 blokad i usuwania kont, nie osobny dowód równoczesnych żądań instalacji PWA.
 
-## Aktualizacja po CI — 16 września, wieczór
+## Historyczny etap CI — 16 września, wieczór
 
 Pierwsze CI wykazało rzeczywisty brak pliku scripts/pwa-install.test.mjs
 w etapie assets Dockerfile. Dodano jawny COPY; budowanie dokładnego zestawu
@@ -131,5 +134,37 @@ plików tego etapu przeszło (4 testy JS, 72 kontrasty, Vite). Nie jest to jeszc
 pełny build obrazu. Część pozostałych zadań przerwała utrata runnera.
 Zintegrowano main 5b4c748 (kolaż), zachowując jego zmiany. Przygotowana wersja
 to teraz Alfa 0.49, aby nie cofnąć0.47 i oczekujących linków0.48.
-Przed merge trzeba ponownie zintegrować finalny pakiet linków oraz uruchomić
+Na tym historycznym etapie przed merge należało zintegrować finalny pakiet linków i uruchomić
 pełny hook i CI. Natywna instalacja Android/iOS pozostaje nieweryfikowana.
+
+
+## Rzeczywisty sygnał instalowalności Chromium
+
+Na lokalnej, izolowanej instancji użyto trwałego profilu Chromium.
+`Page.getInstallabilityErrors` zwróciło pustą listę; manifest nie miał błędów.
+Po odświeżeniu bezpiecznego kontekstu wystąpiło rzeczywiste
+`beforeinstallprompt` (`isTrusted=true`, platforma `web`, dostępna funkcja
+`prompt`). Profil incognito zgłaszał `in-incognito`, dlatego nie uznano go
+za dowód braku instalowalności aplikacji.
+
+Ten pomiar potwierdza kwalifikację lokalnej aplikacji w Chromium, nie ukończoną
+instalację systemową ani działanie na Androidzie/iOS. Testy panelu z symulowanym
+sygnałem dostawcy i rzeczywisty sygnał Chromium są odrębnymi dowodami.
+
+
+## Odbiór wdrożenia — 17 września 2026
+
+- Main CI 35162248526: wszystkie 12 zadań success; ostatnia grupa ukończyła
+  również port rodzin, testy minutnika i zapis zrzutów.
+- Railway 6492330249: success; Deploy 35164363419: success.
+- HTTP i rzeczywista przeglądarka gościa oraz zalogowany Start pokazały
+  Alfa 0.49 / `7c15301`. Obejrzano oba ekrany i załadowane zdjęcia.
+- CSS `app-CqDBQi62.css`, JS `app-CUSOOyVH.js`, manifest oraz pięć ikon
+  manifestu: HTTP 200. Manifest wskazuje `/home` i `display: standalone`.
+- Na aktualnym zalogowanym koncie propozycja instalacji nie była widoczna.
+  Nie zmieniano jego wcześniejszych wizyt ani decyzji, aby wymusić panel.
+  Jest to ograniczony smoke test wdrożenia, nie odbiór kwalifikującego się
+  powracającego konta ani natywnego dialogu systemu.
+
+Issue #278 pozostaje otwarte do brakujących scenariuszy. Nie należy zamykać
+całego wiersza offline/PWA w macierzy na podstawie samego manifestu i HTTP 200.

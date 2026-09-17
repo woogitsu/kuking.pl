@@ -423,3 +423,15 @@ Cztery fizyczne negatywy. Późniejszy odbiór w powiązanym raporcie potwierdza
 ## Korekta historycznych statusów — 16 września 2026
 
 Powyższe sześć korekt (#539, #549, #567, #574, pasek i #579) wynika z odczytu późniejszych raportów obecnych w main f77bd4d. Nie wykonano przy tej korekcie nowego odbioru przeglądarkowego ani produkcyjnego. Zachowano ograniczenie smoke testu #579. Pełny port marki pozostaje **CZĘŚCIOWO**; pozostałe wiersze wymagają oceny własnych dowodów, a nie zbiorowego uznania za zakończone.
+
+## Uzupełnienie 17.09 — linki #634 i instalacja #278
+
+| Ekran / stan | Kod i lokalny odbiór | CI | Produkcja i ograniczenia |
+|---|---|---|---|
+| Link w treści oraz „Opuszczasz Kuking” | Wspólny renderer, 24 konfiguracje ostrzeżenia, 8 prób rzeczywistego zoomu 200%, testy XSS/tokenów i fizyczne negatywy | PR #635 i main: po 12 zadań success | Alfa 0.48 / 3f122d6: istniejący wpis Marcinka, ostrzeżenie, przejście do celu i powrót sprawdzone; bez zmiany danych użytkownika. Nie jest to skaner antywirusowy |
+| Jednorazowa propozycja instalacji PWA | 24 konfiguracje, 8 prób rzeczywistego zoomu 200%, odmowa HTTP/DB/reload, symulowane accepted/appinstalled; osobno rzeczywisty beforeinstallprompt lokalnego Chromium | PR #631 i main: po 12 success, zwykły hook przeszedł | Railway i Deploy success, HTTP i przeglądarka gościa/konta: Alfa 0.49 / 7c15301. Panel nie pojawił się na aktualnym koncie; bez wymuszania decyzji. Brak odbioru natywnej instalacji Android/iOS |
+
+Szczegóły i zakres dowodów: [linki](LINKI_634.md) oraz
+[instalacja PWA](INSTALACJA_PWA_278.md). Uzupełnienie PWA dotyczy propozycji
+instalacji, nie zastępuje całego historycznego wiersza offline/service worker.
+Pełny port marki pozostaje **CZĘŚCIOWO**.
