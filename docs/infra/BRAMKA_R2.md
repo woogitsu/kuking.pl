@@ -178,7 +178,7 @@ przy dawnym `!== 200` — tam przekierowanie jest nierealne, bo bez sygnatury
 R2 nie ma gdzie odsyłać, a zmiana ich semantyki nie jest częścią tej
 poprawki.
 
-Trzy rzeczy, o których warto wiedzieć, zanim się ją uruchomi:
+Cztery rzeczy, o których warto wiedzieć, zanim się ją uruchomi:
 
 1. **Bez `--zapis` bramka NIE JEST domknięta.** Punkt 11 zostaje wtedy
    niesprawdzony, a niesprawdzony liczy się jak oblany. `--zapis` dokłada
