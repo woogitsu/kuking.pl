@@ -158,6 +158,7 @@ posprzataj() {
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}obca WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}cms WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}bezhasla WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}drop WITH (FORCE)" >/dev/null 2>&1
   [[ -n "${KATALOG_KOPII}" && -d "${KATALOG_KOPII}" ]] && rm -rf "${KATALOG_KOPII}"
   return 0
 }
@@ -613,26 +614,45 @@ rm -rf "${KATALOG_PS}"
 #  się zalogować i baza próbna zostawałaby po ćwiczeniu, przy samym ostrzeżeniu
 #  w logu.
 #
-#  Lokalnie tego nie da się pokazać zachowaniem: ten klaster stoi na `trust`
-#  i kasowanie udaje się także bez poświadczenia (zmierzone — sabotaż przeszedł
-#  zielono). Dlatego asercja jest na KOLEJNOŚĆ w pliku, tak samo jak przy
-#  „zrzut jawny ginie przed wysyłką" w `tests/skrypty/kopia-bazy.sh`.
-bez_komentarzy_proby() { sed 's/[[:space:]]*#.*$//' "${SKRYPT_PROBY}"; }
+#  SAMEGO SKUTKU (baza zostaje) NA TYM KLIENCIE POKAZAĆ SIĘ NIE DA: stoi on na
+#  `trust`, więc `DROP` udaje się także bez poświadczenia — sprawdzone, sabotaż
+#  przechodził zielono. Sprawdzamy więc PRZYCZYNĘ, i to zachowaniem, nie
+#  czytaniem pliku: podstawiony `psql` zapisuje, czy w chwili `DROP DATABASE`
+#  plik z `PGPASSFILE` jeszcze ISTNIEJE. Jeśli nie istnieje, to na serwerze
+#  wymagającym hasła tego `DROP`-a już nie będzie.
+KATALOG_DROP="$(mktemp -d)"
+PODGLAD_DROP="${KATALOG_DROP}/drop.txt"
+: >"${PODGLAD_DROP}"
 
-sprawdz "PGPASSFILE NIE leży w katalogu roboczym (ten ginie przed DROP-em)" "nie" \
-  "$(bez_komentarzy_proby | grep -q 'SCIEZKA_PGPASS="${KATALOG_ROBOCZY}' && echo tak || echo nie)"
+cat >"${KATALOG_DROP}/psql" <<'PODSTAWKA'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  case "${arg}" in
+    *'DROP DATABASE IF EXISTS'*)
+      if [[ -n "${PGPASSFILE:-}" && -f "${PGPASSFILE}" ]]; then
+        printf 'PGPASSFILE_ISTNIEJE\n' >>"${PODGLAD_DROP}"
+      else
+        printf 'PGPASSFILE_ZNIKNAL\n' >>"${PODGLAD_DROP}"
+      fi
+      ;;
+  esac
+done
+exec "$(PATH="${PATH#*:}" command -v psql)" "$@"
+PODSTAWKA
+chmod +x "${KATALOG_DROP}/psql"
 
-linia_rm_roboczy="$(bez_komentarzy_proby | grep -n 'rm -rf "${KATALOG_ROBOCZY}"' | tail -1 | cut -d: -f1)"
-linia_drop="$(bez_komentarzy_proby | grep -n 'DROP DATABASE IF EXISTS' | tail -1 | cut -d: -f1)"
-linia_rm_pass="$(bez_komentarzy_proby | grep -n 'rm -rf "${KATALOG_POSWIADCZEN}"' | tail -1 | cut -d: -f1)"
+(
+  PATH="${KATALOG_DROP}:${PATH}" PODGLAD_DROP="${PODGLAD_DROP}" \
+    bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_DOBRY}" --serwer "${SERWER}" \
+    --baza "${BAZA_PROBNA}drop" --tabele users >/dev/null 2>&1
+)
 
-sprawdz "…a jego katalog ginie DOPIERO po DROP DATABASE" "tak" \
-  "$(if [[ -n "${linia_rm_roboczy}" && -n "${linia_drop}" && -n "${linia_rm_pass}" ]] \
-    && ((linia_rm_roboczy < linia_drop)) && ((linia_drop < linia_rm_pass)); then
-    echo tak
-  else
-    echo "nie (rm_roboczy=${linia_rm_roboczy:-?} drop=${linia_drop:-?} rm_pass=${linia_rm_pass:-?})"
-  fi)"
+sprawdz "podstawiony psql NAPRAWDĘ zobaczył DROP DATABASE (inaczej nic nie mierzymy)" \
+  "tak" "$([[ -s "${PODGLAD_DROP}" ]] && echo tak || echo nie)"
+sprawdz "…a PGPASSFILE w tej chwili WCIĄŻ ISTNIEJE (inaczej DROP nie miałby hasła)" \
+  "PGPASSFILE_ISTNIEJE" "$(head -1 "${PODGLAD_DROP}" 2>/dev/null || echo brak)"
+
+rm -rf "${KATALOG_DROP}"
 
 # CAŁY PRZEBIEG BEZ `PGPASSWORD` W ŚRODOWISKU — tak jak u człowieka, który
 # wkleił DSN z tunelu i nic więcej nie ustawiał. Na tym kliencie (`trust`) nie
