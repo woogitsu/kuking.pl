@@ -66,7 +66,7 @@ class StanWiadomosciCelBleduTest extends TestCase
         $m->refresh();
         $this->assertSame(ContactMessage::STATUS_W_TOKU, $m->status);
         $this->assertSame('Sprawdzam', $m->handler_note);
-        $this->assertSame($operator->id,$m->handled_by);
+        $this->assertSame($operator->id, $m->handled_by);
         Mail::assertNothingOutgoing();
     }
 }
