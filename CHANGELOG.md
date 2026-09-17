@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.58 — prawidłowy stan obserwowania
+
+- Na listach obserwujących i obserwowanych przyciski pokazują, kogo obserwujesz. Po kliknięciu „Obserwuj” zobaczysz „Przestań obserwować”, także po ponownym otwarciu listy.
+- Cofnięcie obserwowania nie wymaga już przejścia na profil.
+
 ## Alfa 0.57 — tagi podczas pisania wpisu
 
 - W opisie wpisu możesz wpisać `#sernik` i wybrać tag z podpowiedzi. Przy istniejących tagach zobaczysz liczbę publicznych wpisów dostępnych dla Ciebie.
