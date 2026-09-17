@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace App\Domain\Tags\Actions;
 
 use App\Domain\Tags\FiltrWulgaryzmow;
+use App\Domain\Tags\TagMutationLock;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Tag;
 use App\Models\TagAlias;
 use App\Support\LimityTagow;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Zamienia to, co ktoś WPISAŁ jako tagi (wolny tekst z formularza), na
@@ -47,7 +49,31 @@ final class ResolveTagsForPost
      * @param  list<string>  $rawNames  to, co przyszło z hidden inputs `tag_names[]`
      * @return list<Tag> unikalne (po id), w kolejności pierwszego wystąpienia
      */
-    public function handle(array $rawNames): array
+    public function handle(array $rawNames, array $preservedHiddenIds = []): array
+    {
+        return DB::transaction(function () use ($rawNames, $preservedHiddenIds): array {
+            TagMutationLock::forPost();
+
+            return $this->resolve($rawNames, $preservedHiddenIds, false);
+        });
+    }
+
+    /**
+     * @param  list<string>  $tokens
+     * @param  list<string>  $preservedHiddenIds  wyłącznie istniejące powiązania wpisu z DB
+     * @return list<Tag>
+     */
+    public function handleTokens(array $tokens, array $preservedHiddenIds = []): array
+    {
+        return DB::transaction(function () use ($tokens, $preservedHiddenIds): array {
+            TagMutationLock::forPost();
+
+            return $this->resolve($tokens, $preservedHiddenIds, true);
+        });
+    }
+
+    /** @return list<Tag> */
+    private function resolve(array $rawNames, array $preservedHiddenIds, bool $tokens): array
     {
         $poprawne = [];
 
@@ -59,7 +85,7 @@ final class ResolveTagsForPost
             $znormalizowana = Tag::znormalizujNazwe($surowa);
 
             if ($znormalizowana === ''
-                || ! LimityTagow::dlugoscOk($znormalizowana)
+                || ($tokens ? mb_strlen($znormalizowana) > 40 : ! LimityTagow::dlugoscOk($znormalizowana))
                 || ! LimityTagow::pasujeDoWzorca($znormalizowana)
             ) {
                 continue;
@@ -72,30 +98,20 @@ final class ResolveTagsForPost
             $poprawne[$znormalizowana] = trim($surowa);
         }
 
-        // Limit liczony na unikalnych WPISACH na tym etapie — druga,
-        // dokładniejsza kontrola (po unikalnych `tag_id`) jest niżej, bo
-        // dwie różne pisownie mogą rozwiązać się do JEDNEGO kanonicznego
-        // tagu przez alias (LimityTagow, R1 §4).
-        if (count($poprawne) > LimityTagow::maksTagowNaWpis()) {
-            throw new BladDlaCzlowieka(LimityTagow::komunikatZaDuzoTagow());
-        }
-
         $tagi = [];
 
         foreach ($poprawne as $nazwa) {
-            $tag = $this->znajdzAlboUtworz($nazwa);
+            $tag = $tokens ? Tag::query()->where('slug', Tag::znormalizujNazwe($nazwa))->first() : null;
+            $tag = $tag === null ? $this->znajdzAlboUtworz($nazwa) : $tag->tagKanoniczny();
 
-            if ($tag !== null) {
+            if ($tag !== null && ($tag->isActive() || in_array((string) $tag->getKey(), $preservedHiddenIds, true))) {
                 $tagi[$tag->getKey()] = $tag;
             }
-        }
-
-        if (count($tagi) > LimityTagow::maksTagowNaWpis()) {
-            // Dwie różne pisownie ROZWIĄZAŁY SIĘ do tego samego kanonicznego
-            // tagu (alias) — to zmniejsza liczbę, nigdy nie zwiększa, więc
-            // to gałąź teoretyczna. Zostawiona jako siatka bezpieczeństwa,
-            // nie usuwamy jej "bo i tak nigdy się nie wykona".
-            throw new BladDlaCzlowieka(LimityTagow::komunikatZaDuzoTagow());
+            // Dopiero kanoniczne ID liczą się do limitu. Sześć aliasów
+            // jednego taga jest jednym tagiem. Transakcja cofa nowe nazwy.
+            if (count($tagi) > LimityTagow::maksTagowNaWpis()) {
+                throw new BladDlaCzlowieka(LimityTagow::komunikatZaDuzoTagow());
+            }
         }
 
         return array_values($tagi);
@@ -123,17 +139,21 @@ final class ResolveTagsForPost
         // publiczną etykietą indeksowaną przez wyszukiwarkę, wyższa ekspozycja
         // niż wolny tekst wpisu). Cicho pomijamy, nie rzucamy — patrz
         // komentarz klasy.
-        if (FiltrWulgaryzmow::zawieraNiedozwoloneSlowo($znormalizowana)) {
+        if (! LimityTagow::dlugoscOk($znormalizowana) || FiltrWulgaryzmow::zawieraNiedozwoloneSlowo($znormalizowana)) {
             return null;
         }
 
         // `firstOrCreate` po `normalized_name`: bezpieczne przy dwóch prawie
         // jednoczesnych żądaniach tworzących ten sam nowy tag (drugie już
         // go zastanie). Ten sam wzorzec co `Ingredient::findOrCreateByName()`.
-        return Tag::query()->firstOrCreate(
+        $created = Tag::query()->firstOrCreate(
             ['normalized_name' => $znormalizowana],
             ['name' => $nazwa, 'slug' => $this->wolnySlug(Tag::slugDlaNazwy($nazwa))],
         );
+
+        // Status ma DEFAULT w bazie, więc nowo utworzony model bez tego
+        // atrybutu nie może udawać ukrytego taga przy kontroli isActive().
+        return $created->refresh()->tagKanoniczny();
     }
 
     /** Wzorem `GenerateRecipeSlug` — sufiks numeryczny przy kolizji. */

@@ -110,7 +110,7 @@ class TagController extends Controller
             // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
             ->tylkoOdAktywnychAutorow()
-            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
+            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name,status'])
             ->withCount(['comments' => fn ($query) => $query->widoczneDla($widz)])
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,

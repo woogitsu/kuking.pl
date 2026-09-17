@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Tags\Actions;
 
+use App\Domain\Tags\TagMutationLock;
 use App\Models\Tag;
 use App\Models\TagAlias;
 use App\Models\TagPromotion;
@@ -63,11 +64,21 @@ final class MergeTags
         }
 
         return DB::transaction(function () use ($zrodlo, $cel): Tag {
+            TagMutationLock::forMerge();
+            $zrodlo->refresh();
+            $cel = $cel->fresh()->tagKanoniczny();
+            if ($zrodlo->getKey() === $cel->getKey() || $cel->merged_into_tag_id === $zrodlo->getKey()) {
+                throw new RuntimeException('Nie da się scalić tagu z samym sobą ani utworzyć cyklu.');
+            }
             $this->przepnijWpisy($zrodlo, $cel);
             $this->przepnijObserwacje($zrodlo, $cel);
             $this->przepnijAliasy($zrodlo, $cel);
             $this->dopiszNazweZrodlaJakoAlias($zrodlo, $cel);
             $this->przepnijPromocje($zrodlo, $cel);
+            // Dawne slugi scalone wcześniej do źródła nadal mają prowadzić
+            // jednym skokiem do aktywnego celu, również w tokenach opisu.
+            Tag::query()->where('merged_into_tag_id', $zrodlo->getKey())
+                ->update(['merged_into_tag_id' => $cel->getKey()]);
 
             // `forceFill`, bo `status` i `merged_into_tag_id` są ŚWIADOMIE
             // poza `$fillable` (patrz komentarz klasy `Tag`) — ta klasa jest
@@ -78,7 +89,7 @@ final class MergeTags
             ])->save();
 
             return $cel;
-        });
+        }, 3);
     }
 
     /**
@@ -93,6 +104,9 @@ final class MergeTags
      */
     private function przepnijWpisy(Tag $zrodlo, Tag $cel): void
     {
+        // Przy dwóch pivotach ręczne pochodzenie przeżywa scalenie, jeśli
+        // miało je źródło LUB cel. Wykonujemy OR przed usunięciem duplikatu.
+        DB::statement('UPDATE post_tags AS target SET dodany_recznie = target.dodany_recznie OR source.dodany_recznie FROM post_tags AS source WHERE target.tag_id = ? AND source.tag_id = ? AND target.post_id = source.post_id', [$cel->getKey(), $zrodlo->getKey()]);
         $juzMajaCel = DB::table('post_tags')
             ->where('tag_id', $cel->getKey())
             ->pluck('post_id');
