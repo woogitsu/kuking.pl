@@ -106,7 +106,8 @@ class Post extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class, 'post_tags')
-            ->withPivot('position')
+            ->using(PostTag::class)
+            ->withPivot('position', 'dodany_recznie')
             ->orderBy('post_tags.position');
     }
 

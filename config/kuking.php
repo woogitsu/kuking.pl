@@ -337,6 +337,9 @@ return [
         'min_length' => (int) env('KUKING_TAG_MIN_LENGTH', 2),
 
         'max_length' => (int) env('KUKING_TAG_MAX_LENGTH', 30),
+        // Zapytanie może być istniejącym slugiem (kolumna do 40 znaków).
+        // Nie zwiększa limitu długości nowej nazwy taga.
+        'suggestions_query_max_length' => 40,
 
         // Ile RÓŻNYCH tagów (po unikalnych tag_id, patrz LimityTagow) wolno
         // przypiąć do jednego wpisu. Dość, żeby oznaczyć danie, okazję
@@ -1397,6 +1400,8 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+        // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
+        'tag_suggestions' => '120,1',
         // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd
         // wielkości co 'search' — to jest ten sam rodzaj zapytania
         // (trigramowe podobieństwo po kuking_normalize()), tylko na innej
@@ -2630,7 +2635,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.56',
+        'etykieta' => 'Alfa 0.57',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

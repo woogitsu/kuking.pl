@@ -81,7 +81,7 @@ final class FollowingFeed
                 // Bez tego karta wpisu (post-card.blade.php) nie pokaże
                 // tematów tego wpisu — `relationLoaded()` tam celowo NIE
                 // dociąga ich sama, żeby nie odpalić zapytania per wpis.
-                'tags:id,slug,name',
+                'tags:id,slug,name,status',
             ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
@@ -89,7 +89,7 @@ final class FollowingFeed
             // (kto się liczy, od ilu osób widać liczbę) siedzą w
             // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
             // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name`
+            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
             // wyżej.
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')

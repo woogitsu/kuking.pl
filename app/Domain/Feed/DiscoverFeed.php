@@ -71,7 +71,7 @@ final class DiscoverFeed
                 // pokazuje tematy TYLKO wtedy, gdy relacja jest już
                 // doładowana, więc bez tego wpisy na „Świeżo z Kuking"
                 // nie miałyby żadnych chipów tematów.
-                'tags:id,slug,name',
+                'tags:id,slug,name,status',
             ])
             ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
@@ -79,7 +79,7 @@ final class DiscoverFeed
             // (kto się liczy, od ilu osób widać liczbę) siedzą w
             // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
             // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name`
+            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
             // wyżej.
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')

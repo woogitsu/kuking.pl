@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.57 — tagi podczas pisania wpisu
+
+- W opisie wpisu możesz wpisać `#sernik` i wybrać tag z podpowiedzi. Przy istniejących tagach zobaczysz liczbę publicznych wpisów dostępnych dla Ciebie.
+- Tagi wpisane lub wklejone do opisu zapisują się przy publikacji. Usunięcie hashtagu podczas edycji nie usuwa taga dodanego osobno ręcznie.
+- Ręczne dodawanie tagów nadal działa. Wybrany wcześniej tag nie jest jednocześnie proponowany jako nowy, a ukryte tagi nie pojawiają się w odnośnikach pod wpisami.
+
 ## Alfa 0.56 — wybór zeszytu przy zapisie
 
 - Przy przepisie i wpisie możesz wybrać własny zeszyt, również gdy treść jest już zapisana w innym miejscu. Szybki zapis do „Zapisanych” nadal jest dostępny.

@@ -64,7 +64,7 @@ class BezOdpowiedziController extends Controller
         }
 
         $wpisy = $this->queue->posts($request->user())
-            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
+            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name,status'])
             ->orderBy('published_at')
             ->limit(50)
             ->get();

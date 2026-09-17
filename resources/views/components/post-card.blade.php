@@ -341,7 +341,7 @@
         ekranach, które tagów nie doładowują (np. `PostController::show`,
         zakładka „Ugotowane" na profilu). Odwołanie się do relacji wprost
         odpaliłoby tam osobne zapytanie PER WPIS — `TagController`
-        i `App\Domain\Feed\TagFeed` już ładowały `tags:id,slug,name` na
+        i `App\Domain\Feed\TagFeed` już ładowały `tags:id,slug,name,status` na
         zapas, więc ten warunek tylko bierze to, co jest, i nigdzie nic
         nie dociąga po cichu.
 
@@ -350,9 +350,15 @@
         żadnego nowego CSS, więc rozmiar dotyku i kontrast mają policzone
         pokrycie od pierwszego dnia.
     --}}
-    @if($post->relationLoaded('tags') && $post->tags->isNotEmpty())
+    @php
+        // Ukryte relacje pozostają w modelu; publiczna karta nie linkuje do nich.
+        $tagiDoPokazania = $post->relationLoaded('tags')
+            ? $post->tags->where('status', \App\Models\Tag::STATUS_ACTIVE)
+            : collect();
+    @endphp
+    @if($tagiDoPokazania->isNotEmpty())
         <nav class="chipsy post-card-tagi" aria-label="Tagi tego wpisu">
-            @foreach($post->tags as $tag)
+            @foreach($tagiDoPokazania as $tag)
                 <a class="chip" href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
             @endforeach
         </nav>

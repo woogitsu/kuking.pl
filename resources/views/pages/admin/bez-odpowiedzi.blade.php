@@ -53,7 +53,7 @@
                         czeka {{ $wpis->godzinCzekania }}
                         {{ \App\Support\Odmiana::rzeczownik($wpis->godzinCzekania, 'godzinę', 'godziny', 'godzin') }}
                     </time>
-                    @foreach($wpis->tags as $tag)
+                    @foreach($wpis->tags->where('status', \App\Models\Tag::STATUS_ACTIVE) as $tag)
                         · <a href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
                     @endforeach
                 </p>
