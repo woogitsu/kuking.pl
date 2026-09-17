@@ -213,6 +213,26 @@ Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
     ->dailyAt('06:15')
     ->withoutOverlapping();
 
+// Budżet połączeń PostgreSQL (issue #598). Wyczerpanie `max_connections` jest
+// awarią SKOKOWĄ: dopóki zostaje jedno wolne miejsce, `/health` odpowiada
+// „baza działa" — bo właśnie to miejsce zajął. Po wyczerpaniu nie łączy się
+// nikt, łącznie z administratorem. Dlatego pomiar jest OSOBNY od `/health`.
+//
+// CO GODZINĘ, a nie raz na dobę jak czujka kopii: brak kopii to stan, który
+// trwa i poczeka do rana, a wyciek połączeń narasta w ciągu godzin i o świcie
+// jest już po wszystkim. Powtórzeń pilnuje `AlarmPolaczen`
+// (`kuking.polaczenia.cisza_godzin`), żeby stan trwający dobę nie dał
+// dwudziestu czterech identycznych wiadomości.
+//
+// Minuta 25, a nie 00: o pełnej godzinie tyka już licznik społeczności
+// i zdejmowanie kar. Pomiar liczby połączeń wykonany dokładnie wtedy, gdy
+// harmonogram sam otwiera swoje, mierzyłby po części własny hałas.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
+    ->name('kuking:budzet-polaczen')
+    ->hourlyAt(25)
+    ->withoutOverlapping();
+
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
