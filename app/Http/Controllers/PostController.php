@@ -124,14 +124,17 @@ class PostController extends Controller
         // Cena: zdjecia nieprzypiete do niczego, gdy ktos zamknie karte
         // zamiast poprawic blad — sprzata je `kuking:sprzataj-osierocone-zdjecia`
         // po dobie karencji.
+        $bladRozmiaruZdjecia = 'Jedno ze zdjęć waży za dużo. Wybierz ponownie wszystkie nowe zdjęcia — każde do '
+            .LimityZdjec::maksMegabajtowDoKomunikatu().' MB.';
+
         $request->validate([
             'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
-            'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'photos.*' => ['file', new ObslugiwaneZdjecie(komunikatZaDuzyPlik: $bladRozmiaruZdjecia), 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'media_ids.*' => ['uuid'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
-            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'photos.*.max' => $bladRozmiaruZdjecia,
             'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
         ]);
 
