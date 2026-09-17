@@ -60,10 +60,12 @@
                     <form method="POST" action="{{ route('admin.tag-promotions.update', $tag) }}" class="mt-3">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="_wiersz" value="{{ $tag->getKey() }}">
 
                         <x-field
                             name="note"
-                            label="Notatka (nieobowiązkowo)"
+                            :wiersz="$tag->getKey()"
+                            label="Notatka"
                             :value="$tag->promotion?->note"
                             help="Np. „Temat tygodnia: rozgrzewające zupy na jesień”."
                         />

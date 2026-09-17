@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.54 — osobne notatki promowanych tagów
+
+- Po błędnym zapisie notatki tekst i komunikat pozostają przy wybranym tagu. Pozostałe formularze zachowują własne wartości.
+- Odnośnik w podsumowaniu błędów prowadzi do właściwej notatki. Usunięto powtórzony dopisek o nieobowiązkowym polu.
+
 ## Alfa 0.53 — czytelny błąd wyboru decyzji w odwołaniu
 
 - Jeśli przy rozpatrywaniu odwołania nie wybrano wyniku, komunikat u góry prowadzi do właściwego pola.
