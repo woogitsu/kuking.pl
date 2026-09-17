@@ -110,3 +110,5 @@ oraz odbiór wdrożonego wyboru zeszytu. Produkcja nadal osobno: Alfa 0.55.
 
 ## Limit czasu końcowego CI
 Przebieg 35241344523 na 6df37d6 został anulowany przez limit zadania 25 minut (adnotacja job 105270326266). Kroki pomiaru układu, kreatora, minutnika i uploadu zakończyły się success; końcowy status zadania pozostaje cancelled i nie uprawnia do scalenia. Pomiar układu trwał 23 min 20 s. Zwiększono wyłącznie limit port_funkcje do 35 minut, pozostawiając wszystkie kroki, progi i warunki. Niezależne review diffu: bez blokera. Wymagany nowy zielony przebieg dokładnego końcowego SHA.
+
+Test bramki CI zaktualizowano do dokładnych limitów obu zadań: 25/35 minut. Wynik dodatni: 2 testy, 76 asercji. Fizyczna zmiana rzeczywistego ci.yml z 35 na 25 została wykryta; plik przywrócono z kopii poza repo, MD5 86531bb20522dc249d7b56a5d68bf715 i mtime zgodne. Ponowny wynik dodatni: 2/76.
