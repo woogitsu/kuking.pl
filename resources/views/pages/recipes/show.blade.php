@@ -325,6 +325,7 @@
                             <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
