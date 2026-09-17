@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.50 — krótsza nawigacja panelu na telefonie
+
+- Narzędzia moderacji można rozwinąć przyciskiem „Nawigacja panelu”, dzięki czemu szybciej dociera się do treści (#581).
+- Powrót do Kuking pozostaje widoczny. Na komputerze oraz bez JavaScriptu spis narzędzi jest rozwinięty.
+- Menu obsługuje dotyk, mysz i klawiaturę; przy zmianie szerokości nie chowa aktywnego linku.
+
 ## Alfa 0.49 — propozycja instalacji po powrocie
 
 - Po powrocie zalogowanej osoby serwis może raz zaproponować instalację, jeśli przeglądarka ją udostępnia (#278).

@@ -1,20 +1,47 @@
 # Panel moderacji — port marki #581
 
-Status: **w przygotowaniu; częściowy odbiór przeglądarkowy, brak wdrożenia**.
-Gałąź fix/581-marka-panelu, podstawa ac5ff9d7716d000318870a2120522fdd7930303a.
+Status: **podstawowy port wdrożony; odbiór całości częściowy**.
+Pierwotna gałąź fix/581-marka-panelu miała podstawę ac5ff9d7716d000318870a2120522fdd7930303a.
+PR #587 został scalony. [Odbiór produkcyjny dziewięciu sekcji na Alfa 0.45 / e30492c](https://github.com/woogitsu/kuking.pl/issues/581#issuecomment-5704855089)
+potwierdził nową oprawę i wskazał długą nawigację mobilną jako pozostałe tarcie.
+Nie był odbiorem wszystkich operacji, walidacji ani stanów 2FA.
+
+## Kontynuacja mobilnej nawigacji — 17 września 2026
+
+Na gałęzi `fix/581-menu-mobilne`, na podstawie `89c45e69b895c4a65defda938da6e855d8a6371e`,
+przygotowano zwijanie istniejącego spisu narzędzi poniżej 64rem.
+Przycisk „Wróć do Kuking” pozostaje widoczny. Bez JavaScriptu cały spis pozostaje dostępny.
+Zmiana jest lokalna, jeszcze niewysłana i niewdrożona.
+
+Nowy odbiór jest odrębny od historycznych wyników poniżej: przebieg zakończył
+się wynikiem **600/600** (288 pustych i 312 z danymi). Po drobnej korekcie
+etykiety przycisku wykonano celowany odbiór końcowych źródeł:
+
+- [8 scenariuszy menu](evidence/menu581/menu-dodatkowe.json): zmiana szerokości i zachowanie fokusu, brak JavaScriptu z rzeczywistym przejściem linkiem, emulowany dotyk oraz cleanup i podwójna ponowna inicjalizacja Livewire;
+- [4 pomiary zoomu 200%](evidence/menu581/menu-zoom200.json): rzeczywiste `setZoom/getZoom`, szerokość CSS 320/720, oba motywy, tekst 140%, 18/18 kontrolek w przejściu Tab;
+- [2 fizyczne kontrole ujemne](evidence/menu581/menu-negatywy.json): zmiana JS i CSS wykryta przez regresję, przywrócone MD5 i mtime oraz dodatni wynik po odtworzeniu;
+- ogląd [zwiniętego menu](evidence/menu581/menu-zwiniete-light-100.png) i [poprawionej etykiety przy zoomie](evidence/menu581/menu-zoom200-640-dark.png).
+
+Pierwszy wariant próby ujemnej CSS przerwał runner bez rozstrzygającej diagnozy;
+nie zaliczamy go. Końcowa próba ukrycia przycisku wykazała błąd oczekiwanej
+asercji. Kopie źródeł przechowano poza repo, wcześniejsze bazy i dowody zachowano.
+Niezależne review kodu nie znalazło blockera; wskazany brak testu cyklu Livewire
+uzupełniono i wykonano z wynikiem dodatnim. Przygotowano Alfę 0.50, changelog
+oraz D-220. Pozostają hook, CI i odbiór wdrożenia.
+Historyczne 600/600 i pomiary zoomu pierwotnego portu nie są dowodem nowego menu.
 Zakres pozostałych powierzchni opisuje [audyt marki](AUDYT_POZOSTALOSCI_MARKI_2026_09_15.md).
 Dokładną kolejkę nieodebranych rozwinięć, alternatywnych kompozycji i walidacji
 opisują [stany panelu](PANEL_STANY_ROZWINIETE_581.md). To wynik odczytu kodu,
 nie wykonania wymienionych scenariuszy.
 
-## Bieżący stan odbioru (późniejszy niż historia poniżej)
+## Końcowy odbiór lokalny pierwotnego portu (historia)
 
 - Jedna świeża izolowana sesja obu faz: **600/600** konfiguracji PASS.
 - Rzeczywisty zoom 200%, tekst 140%: **26/26** głównych ekranów i **12/12** dodatkowych stanów PASS; zakres asercji podany przy dowodach poniżej.
 - Walidacja jedenastu formularzy w obu motywach przy rzeczywistym zoomie 200%: **22/22** PASS, badane tabele bez zmian.
 - Najnowsza kontrola PHP: **24 testy / 152 asercje**, Pint dwóch plików PASS. Bajtowo porównano istotne źródła runtime z worktree przed tym przebiegiem.
 - Fizyczne negatywy mają dowody przywrócenia źródeł. Log negatywu podsumowania błędów zawierał lokalne tokeny CSRF w HTML; przed publikacją zastąpiono siedem wartości znacznikiem `[REDACTED_LOCAL_CSRF]`. MD5/mtime w raporcie opisują źródło Blade, nie zredagowany log.
-- Niezależne review nie znalazło blokera kodu; redakcja tokenów i uporządkowanie raportu zakończone. PHPStan: 0 błędów. Hook, push, CI, merge i odbiór produkcji tego pakietu **nie są zakończone**.
+- Niezależne review nie znalazło blokera kodu; redakcja tokenów i uporządkowanie raportu zakończone. PHPStan: 0 błędów. W chwili tego historycznego pomiaru hook, push, CI, merge i odbiór produkcji pozostawały do wykonania; późniejsze scalenie i zakres odbioru wskazano na początku raportu.
 
 Poniższe sekcje zachowują historię prób. Ich dawne sformułowania „pozostaje” i „w toku” nie zastępują późniejszych, konkretnych wyników. Wyniki nie obejmują wszystkich poprawnych operacji moderacyjnych ani wszystkich możliwych komunikatów błędów.
 

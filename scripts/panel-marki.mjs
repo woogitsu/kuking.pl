@@ -184,6 +184,117 @@ export async function sprawdzCzytelnoscNawigacjiPanelu(page) {
   wymagaj(podzieloneSlowa.length === 0, 'ROZCIETE_SLOWO_NAWIGACJI', podzieloneSlowa);
 }
 
+export async function sprawdzZwijaniePanelu(page) {
+  const button = page.locator('[data-panel-menu-przelacznik]');
+  const content = page.locator('[data-panel-menu-tresc]');
+  const desktop = await page.evaluate(() => matchMedia('(min-width:64rem)').matches);
+  wymagaj(await button.count() === 1 && await content.count() === 1, 'MENU_JEDNA_LISTA');
+  if (desktop) {
+    wymagaj(!await button.isVisible() && await content.isVisible(), 'MENU_DESKTOP');
+    return;
+  }
+  wymagaj(await button.isVisible() && !await content.isVisible(), 'MENU_MOBILE_ZWINIETE');
+  wymagaj(await button.getAttribute('aria-expanded') === 'false', 'MENU_ARIA_ZWINIETE');
+  wymagaj(await button.getAttribute('aria-controls') === await content.getAttribute('id'), 'MENU_ARIA_CEL');
+  const przed = await page.locator('main h1').first().evaluate(e => e.getBoundingClientRect().top + scrollY);
+  await button.click();
+  wymagaj(await content.isVisible() && await button.getAttribute('aria-expanded') === 'true', 'MENU_OTWARCIE');
+  const po = await page.locator('main h1').first().evaluate(e => e.getBoundingClientRect().top + scrollY);
+  wymagaj(po - przed > 100, 'MENU_ODZYSKANE_MIEJSCE', { przed, po });
+  await button.press('Tab');
+  wymagaj(await content.evaluate(e => e.contains(document.activeElement)), 'MENU_TAB_WEJSCIE');
+  await page.keyboard.press('Escape');
+  wymagaj(!await content.isVisible() && await button.evaluate(e => e === document.activeElement), 'MENU_ESCAPE_FOKUS');
+  await button.press('Enter');
+  wymagaj(await content.isVisible(), 'MENU_ENTER');
+  // Dalszy historyczny pomiar nadal obejmuje WSZYSTKIE linki rozwiniętej listy.
+}
+
+export async function sprawdzDodatkoweStanyMenu({ browser, adres, sesja, outputDir }) {
+  wymagaj(['localhost', '127.0.0.1', '[::1]'].includes(new URL(adres).hostname), 'MENU_TYLKO_LOKALNIE');
+  const wyniki = [];
+  for (const dark of [false, true]) for (const scale of [100, 140]) {
+    const context = await browser.newContext({ storageState: sesja, viewport: { width: 320, height: 900 }, reducedMotion: 'reduce' });
+    try {
+      await context.route('**/*', route => ['GET', 'HEAD'].includes(route.request().method()) ? route.continue() : route.abort());
+      const page = await context.newPage();
+      await page.goto(`${adres}/admin/zgloszenia`, { waitUntil: 'load' });
+      const zmienSzerokosc = async width => {
+        await page.setViewportSize({ width, height: 900 });
+        // matchMedia aktualizuje menu w zdarzeniu change, po zmianie viewportu.
+        await page.evaluate(async () => {
+          for (let i = 0; i < 2; i++) await new Promise(requestAnimationFrame);
+        });
+      };
+      await page.evaluate(({ dark, scale }) => {
+        document.documentElement.dataset.theme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.textScale = String(scale);
+      }, { dark, scale });
+      const button = page.locator('[data-panel-menu-przelacznik]');
+      const content = page.locator('[data-panel-menu-tresc]');
+      await button.click();
+      await button.press('Tab');
+      const link = await page.evaluate(() => document.activeElement.getAttribute('href'));
+      wymagaj(link && await content.evaluate(e => e.contains(document.activeElement)), 'MENU_RESIZE_LINK');
+      await zmienSzerokosc(1440);
+      wymagaj(await content.isVisible() && !await button.isVisible(), 'MENU_RESIZE_DESKTOP');
+      wymagaj(await page.evaluate(() => document.activeElement.getAttribute('href')) === link, 'MENU_RESIZE_ZACHOWAJ_FOKUS');
+      await zmienSzerokosc(320);
+      wymagaj(await content.isVisible() && await page.evaluate(() => document.activeElement.getAttribute('href')) === link, 'MENU_RESIZE_MOBILE_FOKUS');
+      await page.keyboard.press('Escape');
+      wymagaj(!await content.isVisible() && await button.evaluate(e => e === document.activeElement), 'MENU_RESIZE_ESCAPE');
+      await zmienSzerokosc(1440);
+      wymagaj(await page.locator('.side-nav-powrot').evaluate(e => e === document.activeElement), 'MENU_RESIZE_PRZELACZNIK_FOKUS');
+      await zmienSzerokosc(320);
+      wymagaj(!await content.isVisible(), 'MENU_RESIZE_PONOWNE_ZWINIECIE');
+      await page.screenshot({ path: resolve(outputDir, `menu-zwiniete-${dark ? 'dark' : 'light'}-${scale}.png`), fullPage: false });
+      wyniki.push({ stan: 'resize', dark, scale, pass: true });
+    } finally { await context.close(); }
+  }
+  for (const width of [320, 1440]) {
+    const context = await browser.newContext({ storageState: sesja, viewport: { width, height: 900 }, javaScriptEnabled: false });
+    try {
+      const page = await context.newPage();
+      const response = await page.goto(`${adres}/admin/zgloszenia`, { waitUntil: 'load' });
+      wymagaj(response.status() === 200, 'MENU_BEZ_JS_HTTP');
+      wymagaj(!await page.locator('[data-panel-menu-przelacznik]').isVisible(), 'MENU_BEZ_JS_PRZYCISK');
+      const links = page.locator('.side-nav-moderacja-lista a');
+      wymagaj(await links.count() === 9, 'MENU_BEZ_JS_KOMPLET');
+      for (const link of await links.all()) wymagaj(await link.isVisible(), 'MENU_BEZ_JS_LINK');
+      await page.locator('.side-nav-moderacja-lista a').filter({ hasText: 'Tagi promowane' }).click();
+      wymagaj(new URL(page.url()).pathname === '/admin/tagi-promowane', 'MENU_BEZ_JS_NAWIGACJA');
+      wyniki.push({ stan: 'bez-js', width, pass: true });
+    } finally { await context.close(); }
+  }
+  const touch = await browser.newContext({ storageState: sesja, viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true });
+  try {
+    const page = await touch.newPage();
+    await page.goto(`${adres}/admin/zgloszenia`, { waitUntil: 'load' });
+    const button = page.locator('[data-panel-menu-przelacznik]');
+    const content = page.locator('[data-panel-menu-tresc]');
+    await button.tap();
+    wymagaj(await content.isVisible(), 'MENU_DOTYK_OTWORZ');
+    await button.tap();
+    wymagaj(!await content.isVisible(), 'MENU_DOTYK_ZAMKNIJ');
+    wyniki.push({ stan: 'dotyk-emulowany', width: 390, pass: true });
+    await button.tap();
+    await page.evaluate(() => document.dispatchEvent(new Event('livewire:navigating')));
+    wymagaj(await content.isVisible() && !await button.isVisible(), 'MENU_CLEANUP');
+    await page.evaluate(() => {
+      document.dispatchEvent(new Event('livewire:navigated'));
+      document.dispatchEvent(new Event('livewire:navigated'));
+    });
+    wymagaj(!await content.isVisible() && await button.isVisible(), 'MENU_REINIT');
+    await button.tap();
+    wymagaj(await content.isVisible(), 'MENU_REINIT_JEDEN_LISTENER');
+    await button.focus();
+    await page.keyboard.press('Escape');
+    wymagaj(!await content.isVisible(), 'MENU_REINIT_ESCAPE');
+    wyniki.push({ stan: 'livewire-cleanup-reinit', width: 390, pass: true });
+  } finally { await touch.close(); }
+  return wyniki;
+}
+
 export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, outputDir }) {
   sprawdzKontrakt(adres, scenariusze, phase);
   wymagaj(outputDir, 'KATALOG_DOWODOW');
@@ -215,6 +326,7 @@ export async function sprawdzPanelMarki({ browser, adres, scenariusze, phase, ou
         wymagaj(count >= e.min && (e.max === undefined || count <= e.max), 'DANE', { id: s.id, selector: e.selector, count, min: e.min, max: e.max });
       }
       if (s.stan === 'bramka') wymagaj(await page.locator('main .marka-panel-bramka[aria-labelledby="panel-wymaga-2fa"] #panel-wymaga-2fa').count() === 1, 'KARTA_BRAMKI');
+      await sprawdzZwijaniePanelu(page);
       const geo = await page.evaluate(() => {
         const box = selector => { const e = document.querySelector(selector); if (!e) return null; const b = e.getBoundingClientRect(), c = getComputedStyle(e); return { x: b.x, y: b.y, right: b.right, bottom: b.bottom, width: b.width, height: b.height, background: c.backgroundColor, color: c.color, radius: parseFloat(c.borderRadius), display: c.display, paddingLeft: parseFloat(c.paddingLeft), paddingRight: parseFloat(c.paddingRight), borderLeft: parseFloat(c.borderLeftWidth), borderRight: parseFloat(c.borderRightWidth), gap: parseFloat(c.columnGap) }; };
         const probe = document.createElement('i');
