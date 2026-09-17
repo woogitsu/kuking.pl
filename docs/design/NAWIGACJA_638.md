@@ -61,3 +61,20 @@ asercji ani liczby przypadków. Node syntax i cztery testy selektora grup
 PASS; niezależny review potwierdził brak pominięcia/duplikowania
 oraz prawidłowe życie sesji i przeglądarki. Czas nowego podziału
 wymaga potwierdzenia następnym CI.
+
+## Uruchamianie pomiarów po zmianie samego przyrządu
+
+Review wykrył, że wewnętrzne filtry trzech zadań CI nie obejmowały
+nowych plików nawigacja-etykiety, nawigacja-zoom i nawigacja-negatywy.
+Bieżący PR uruchamiał pomiary dzięki zmianie CSS i port-projektu,
+ale przyszły PR ograniczony do tych plików mógł je pominąć.
+Uzupełniono wszystkie trzy filtry i istniejący test ich zakresu.
+
+Lokalny test: 2 testy / 76 asercji PASS, Pint PASS. Trzy osobne fizyczne
+kontrole ujemne usuwały wpis z prawdziwego ci.yml kolejno dla port_marki,
+port_funkcje i dostepnosc. Każda została wykryta; kopia poza repo,
+przywrócenie MD5 i mtime oraz końcowy dodatni przebieg potwierdzone.
+Dowód: evidence/nawigacja638/ci-scope-negative.json. To nie przenosi
+lokalnego narzędzia kontroli ujemnej do CI: filtr uruchamia pomiary
+pozytywne także po zmianie tego narzędzia.
+Niezależny review potwierdził poprawne grupowanie ERE i brak blockerów. Istniejące dopasowanie dodatkowego sufiksu .mjs.bak może uruchomić nadmiarowy pomiar; nie pomija wymaganych kontroli.
