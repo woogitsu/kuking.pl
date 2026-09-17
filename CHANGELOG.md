@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.61 — jasna instrukcja po zbyt dużym zdjęciu
+
+- Jeśli jedno z nowych zdjęć wpisu przekracza limit, formularz prosi o ponowny wybór wszystkich nowych zdjęć. Opis i ustawienie widoczności pozostają zachowane.
+
 ## Alfa 0.60 — komentarze i wykonania bez cofania
 
 - Na stronie przepisu przejście do kolejnych komentarzy zachowuje wybraną stronę wykonań — i odwrotnie. Możesz przeglądać obie listy bez wracania do początku.
