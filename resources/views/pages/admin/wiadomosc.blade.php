@@ -228,12 +228,14 @@
                 @foreach(\App\Models\ContactMessage::STATUSY as $wartosc => $etykieta)
                     <label class="choice">
                         <input type="radio" name="status" value="{{ $wartosc }}"
+                               @if($loop->first) id="f-status" @endif
+                               @error('status') aria-invalid="true" aria-describedby="f-status-error" @enderror
                                @checked(old('status', $wiadomosc->status) === $wartosc)>
                         <span class="choice-label">{{ $etykieta }}</span>
                     </label>
                 @endforeach
             </div>
-            @error('status')<span class="field-error">{{ $message }}</span>@enderror
+            @error('status')<span class="field-error" id="f-status-error">{{ $message }}</span>@enderror
         </fieldset>
 
         {{-- ETYKIETA BEZ „(nieobowiązkowe)" — tę adnotację dokłada sam
