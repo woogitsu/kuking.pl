@@ -223,6 +223,12 @@
 
 [data-marka-panel] .marka-panel-tresc > p { max-width: 75ch; }
 
+/* Native keyboard scrolling must include the outer focus ring, not only the box. */
+[data-marka-panel] .confirm-summary,
+[data-marka-panel] .confirm-body button {
+  scroll-margin-block: .5rem;
+}
+
 /* Wspólna rama opakowuje slot: zachowujemy rytm sąsiadujących powierzchni,
    który wcześniej wynikał z ich bezpośredniego sąsiedztwa w app-main. */
 [data-marka-panel] .marka-panel-tresc

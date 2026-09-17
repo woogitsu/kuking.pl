@@ -11,14 +11,19 @@ import { resolve, relative, isAbsolute } from 'node:path';
 import { sprawdzPanelMarki, sprawdzKompletnoscPaneluMarki, sprawdzDodatkoweStanyMenu } from './panel-marki.mjs';
 import { sprawdzZoomMenu } from './panel-menu-zoom.mjs';
 import { sprawdzNegatywyMenu } from './panel-menu-negative.mjs';
+import { sprawdzDetailsPanelu } from './panel-details.mjs';
+import { sprawdzZoomDetails } from './panel-details-zoom.mjs';
+import { sprawdzNegatywyDetails } from './panel-details-negative.mjs';
 
 const repo = realpathSync(process.cwd());
 const ci = process.env.GITHUB_ACTIONS === 'true';
 const tylkoMenu = process.argv.includes('--menu-only');
+const negatywyDetails = process.argv.includes('--negative-details');
+if (negatywyDetails && (ci || tylkoMenu)) throw new Error('P581_NEGATYW_DETAILS_ZAKRES');
 if (tylkoMenu && ci) throw new Error('P581_RUN_CI_PELNY_ZAKRES');
 if (!['local', 'testing'].includes(process.env.APP_ENV) || process.env.DB_HOST !== '127.0.0.1'
   || !/^\d+$/.test(process.env.DB_PORT || '') || process.env.MAIL_MAILER !== 'array'
-  || (ci ? process.env.DB_DATABASE !== 'kuking_port_panel' : !['kuking_581_browser', 'kuking_581_acceptance', 'kuking_581_menu', 'kuking_581_menu_extra'].includes(process.env.DB_DATABASE) || process.env.DB_PORT !== '55439')) {
+  || (ci ? process.env.DB_DATABASE !== 'kuking_port_panel' : !['kuking_581_browser', 'kuking_581_acceptance', 'kuking_581_menu', 'kuking_581_menu_extra', 'kuking_581_details'].includes(process.env.DB_DATABASE) || process.env.DB_PORT !== '55439')) {
   throw new Error('P581_RUN_IZOLACJA: wymagane lokalne środowisko, wydzielona baza, jawny port i mailer array.');
 }
 process.umask(0o077);
@@ -111,8 +116,12 @@ try {
   let agregat;
   if (!tylkoMenu) {
     const pusty = await zmierz(empty);
-    const pelny = await zmierz(fixture('pelny'));
+    const pelnaFixture = fixture('pelny');
+    const pelny = await zmierz(pelnaFixture);
     agregat = sprawdzKompletnoscPaneluMarki({ pusty, pelny });
+    await sprawdzDetailsPanelu({ browser, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details') });
+    await sprawdzZoomDetails({ chromium, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details-zoom'), executablePath: process.env.CHROMIUM_PATH });
+    if (negatywyDetails) await sprawdzNegatywyDetails({ browser, adres, sesja: sesje.konto, fixture: pelnaFixture, outputDir: resolve(outputDir, 'details-negative') });
   }
   const menu = await sprawdzDodatkoweStanyMenu({ browser, adres, sesja: sesje.konto, outputDir });
   writeFileSync(resolve(outputDir, 'menu-dodatkowe.json'), JSON.stringify(menu, null, 2));
