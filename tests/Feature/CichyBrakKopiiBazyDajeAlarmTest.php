@@ -322,6 +322,20 @@ class CichyBrakKopiiBazyDajeAlarmTest extends TestCase
             $this->assertStringContainsString('kopia bazy', $wyslane);
             $this->assertStringContainsString('KOPIE_I_ODTWORZENIE.md', $wyslane);
 
+            // NAGŁÓWEK `[nazwa/środowisko]` DOKŁADA KANAŁ, NIE TEN ALARM.
+            // Zmierzone na prawdziwym odbiorniku webhooka 17.09.2026:
+            // `AlarmKopii::tresc()` doklejało go drugi raz i do odbiorcy
+            // przychodziło „[Kuking/production] [Kuking/production] kopia
+            // bazy: …". Asercja jest na LICZBĘ wystąpień, bo sama obecność
+            // nagłówka przechodziła też przy dwóch.
+            $naglowek = sprintf('[%s/%s]', config('app.name'), config('app.env'));
+            $this->assertStringContainsString($naglowek, $wyslane);
+            $this->assertSame(
+                1,
+                substr_count($wyslane, $naglowek),
+                'Nagłówek [nazwa/środowisko] ma stać w wiadomości DOKŁADNIE raz — dokłada go kanał.',
+            );
+
             // Kontrola UJEMNA w tym samym miejscu — dopiero para dowodzi,
             // że mechanizm pracował, gdy sprawdzamy, czego w treści nie ma
             // (audyt A6-01).

@@ -588,6 +588,28 @@ o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 |---|---|---|---|
 | 9 IX 2026 | `docker/kopia/kopia-bazy.sh` na lokalnej bazie po migracjach, z podstawionym bucketem na dysku, prawdziwym `openssl cms` i prawdziwą parą kluczy RSA | Zrzut 125 592 B, 42 tabele z danymi, szyfrogram 126 147 B. Odszyfrowanie **samym kluczem prywatnym** dało plik o identycznym `sha256`; `pg_restore` wczytał go do pustej bazy bez błędu (42 tabele) | Serwera PostgreSQL **18** (lokalnie 16), prawdziwej rozmowy z R2 (podpis SigV4 sprawdzony wektorami AWS, nie wobec Cloudflare), zbudowania obrazu (brak Dockera w środowisku), harmonogramu Railway |
 | 11 IX 2026 | `scripts/kopia-lokalna.sh` + `scripts/proba-odtworzenia.sh` na lokalnej bazie po migracjach (PostgreSQL 16), z parą kluczy RSA generowaną w trakcie — pełny obieg: zrzut → weryfikacja → szyfrowanie kluczem publicznym → odszyfrowanie SAMYM kluczem prywatnym → `pg_restore` → sprawdzenie treści i zachowania | Zrzut 153 061 B, 49 tabel z danymi, szyfrogram 153 630 B. `pg_restore` bez błędu, **1-2 s**. Odtworzona baza: 49 tabel, 3 wyzwalacze (wszystkie włączone), 87 `CHECK`, 25 `UNIQUE`, 68 kluczy obcych. Cztery sondy zachowania odrzuciły zapis, a kontrola dodatnia go przyjęła. Kontrole ujemne oblały skrypt na: zrzucie 0 B, zrzucie pustej bazy, zrzucie bez wierszy, braku wyzwalacza, wyzwalaczu wyłączonym i **wyzwalaczu-atrapie** (obecnym, włączonym, z wypatroszoną funkcją) | Produkcyjnej bazy, serwera PostgreSQL **18**, prawdziwego R2 i prawdziwego zrzutu z bucketu. To jest pomiar MECHANIZMU, nie kopii: liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+| **17 IX 2026 — ĆWICZENIE LOKALNE** | `scripts/proba-odtworzenia.sh --petla-lokalna` na **odizolowanym klastrze PostgreSQL 18.6** (`127.0.0.1:55439`, `PGTZ=UTC`), na świeżej bazie po wszystkich migracjach z małym, kontrolowanym zestawem danych (5 kont, 15 wpisów, 30 komentarzy, 7 tagów, 10 przepisów, 10 ugotowań — **nie** `DemoSeeder`). Pełny obieg: kopia `scripts/kopia-lokalna.sh` → odtworzenie do **innej** bazy → porównanie każdej tabeli co do jednego wiersza → `migrate:status` → sondy zachowania | **Zrzut 164 897 B**, 50 tabel z danymi, `pg_dump`/`pg_restore` 18. Etapy: `CREATE DATABASE` 0,05 s, migracje ~7,5 s, dane ~2 s, zrzut <1 s, **`pg_restore` 2 s**, cała pętla 8 s. Odtworzona baza: 50 tabel, **192 wiersze = 192 w źródle**, 50/50 tabel zgodnych co do jednego wiersza, `migrate:status` 80 wykonanych / **0 czekających**, 3 wyzwalacze (włączone), 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Osobno sprawdzone poza skryptem: rozszerzenia `pg_trgm`, `unaccent`, `pgcrypto` obecne i działające (`%`, `unaccent()`), **25 indeksów częściowych** i 159 indeksów łącznie — tyle samo co w źródle; zapytania domenowe Eloquenta na odtworzonej bazie zwróciły to samo. Strefa sesji **UTC po obu stronach**; `md5` z `(id, created_at)` tabeli `users` identyczny w źródle i w celu | Produkcyjnej bazy, prawdziwego R2 i zrzutu pobranego z bucketu. **To NIE JEST produkcyjne RTO** — 2 s to czas odtworzenia 192 wierszy na pętli lokalnej, bez pobierania pliku i bez odszyfrowania. **RPO nie jest tu w ogóle mierzalne**: nie ma harmonogramu ani ani jednej udanej kopii produkcyjnej, z której dałoby się policzyć wiek danych. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+
+### 5.2 Co pozostaje do wykonania na produkcji — odczyt panelu 17 IX 2026
+
+Odczyt przez zalogowane API Railway (**tylko odczyt**, projekt `ideal-exploration`,
+środowisko `production`). To jest lista **faktów**, nie planu:
+
+| Co | Stan 17 IX 2026 | Skutek |
+|---|---|---|
+| Serwis `kopia-bazy` | **NIE ISTNIEJE.** W środowisku są wyłącznie `Postgres` i `kuking.pl` | Nie powstała ani jedna kopia automatyczna. `.railway/railway.ts` deklaruje ten serwis, ale `railway config apply` nie był uruchamiany |
+| Harmonogram (cron) | **Żaden serwis nie ma `cronSchedule`** | Nie ma z czego liczyć RPO |
+| Zmienne współdzielone | **Lista jest pusta** — nie ma `R2_ENDPOINT`, `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_*` ani `KOPIA_KLUCZ_PUBLICZNY` | Serwis kopii nie miałby czym się połączyć ani czym zaszyfrować |
+| Buckety po stronie Railwaya | **Brak** (`buckets: []`) | Bucket na zrzuty, jeśli ma istnieć, jest po stronie Cloudflare R2 — a tego z Railwaya nie widać (§2.2) |
+| Czujka `kuking:sprawdz-kopie` | Serwis `kuking.pl` **nie ma** `AWS_KOPIE_BUCKET`, `AWS_KOPIE_ACCESS_KEY_ID` ani `AWS_KOPIE_SECRET_ACCESS_KEY` | Czujka jest w stanie `WYLACZONA` — „nie znaczy, że kopie są w porządku, znaczy, że nikt nie patrzy" |
+| Kanał alarmu | Serwis `kuking.pl` **nie ma** `LOG_BLAD_WEBHOOK_URL` | Nawet gdyby czujka była włączona, alarm nie doszedłby do nikogo |
+| Railway Backups / PITR | Panel: „only available for customers on the Pro plan" (odczyt 17 IX, #594) | Bez zmian wobec D-043 |
+| Wolumen `kuking.pl-volume` | 500 MB, **odpięty** (`mountedOn: null`) | Osobny wątek, #596 |
+
+**Czego to NIE rozstrzyga i czego z repozytorium rozstrzygnąć się nie da:**
+czy w Cloudflare R2 istnieje bucket na zrzuty i czy istnieje para kluczy
+(panel Cloudflare wymaga logowania właściciela). Do odbioru produkcyjnego
+potrzebne są cztery czynności z §7.3 — kolejność i skutek każdej: §8.
 
 ---
 
@@ -1030,6 +1052,15 @@ export KOPIA_ZRODLO="postgresql://postgres:<HASLO>@localhost:<PORT>/railway"
 Hasło idzie przez zmienną, nie przez argument: argument widać w `ps`
 i zostaje w historii powłoki.
 
+Sam skrypt tego samego błędu już nie popełnia. Do 17 IX 2026 przekazywał DSN
+jako argument `pg_dump`, więc **hasło do produkcyjnej bazy stało w `ps` przez
+cały czas trwania zrzutu** — zmierzone prawdziwym `ps -o args=`, a na Linuksie
+widzi to każdy użytkownik maszyny. Dziś hasło ląduje w prywatnym `PGPASSFILE`
+(prawa 600, ginie razem z przebiegiem), a do `pg_dump` i `psql` idzie adres bez
+hasła. To samo robi serwis kopii (`docker/kopia/kopia-bazy.sh`) i próba
+odtworzenia. **Twojego** wiersza polecenia żaden skrypt nie schowa — dlatego
+`KOPIA_ZRODLO` wyżej zostaje.
+
 **Czym potwierdzasz, że kopia istnieje** — skrypt kończy się kodem 0 i wypisuje:
 
 ```text
@@ -1064,7 +1095,33 @@ z Dockera, byle nie tego, który obsługuje serwis.
 Skrypt zakłada bazę `proba_odtworzenia_<znacznik>`, wlewa do niej zrzut,
 sprawdza wynik i **kasuje ją po sobie** (chcesz obejrzeć? dodaj `--zostaw`).
 Do produkcji nie sięga w żadnym kroku i odmawia startu, gdyby miał —
-pilnują tego dwa niezależne bezpieczniki, opisane w nagłówku skryptu.
+pilnują tego **trzy** niezależne bezpieczniki, opisane w nagłówku skryptu.
+
+> **Jeśli odtwarzasz przez tunel (`railway connect postgres --tunnel-only`),
+> skrypt ODMÓWI za pierwszym razem — i tak ma być (kod 24).**
+> Za tunelem produkcja nazywa się `127.0.0.1`, więc blokada po nazwie hosta
+> (bezpiecznik 1) jej nie widzi, a baza próbna jest świeża, więc bezpiecznik 2
+> też nie ma się czego uczepić. Zmierzone 17 IX 2026: ten sam klaster odrzucony
+> pod adresem `*.proxy.rlwy.net` został przyjęty pod `127.0.0.1` i dostał pełny
+> zrzut danych osobowych. Bezpiecznik 3 pyta o **tożsamość instancji**
+> (`system_identifier` klastra) i przepuszcza bez pytania wyłącznie Postgresa
+> tego repozytorium. Dla każdego innego serwera odmowa wypisuje odcisk:
+>
+> ```text
+> --instancja 1870cee372ae8b30
+> ```
+>
+> **Przeczytaj, do czego jesteś podłączony, zanim to wkleisz.** Jeśli odcisku
+> nie rozpoznajesz, to jest dokładnie ten przebieg, którego nie wolno
+> uruchomić. Odmowa następuje **przed** `CREATE DATABASE`, więc na cudzej
+> instancji nie zostaje nic.
+>
+> Drugi nowy kod: **44** — odszyfrowany zrzut nie zgadza się ze skrótem
+> `sha256_jawnego` z pliku `.meta`. CMS z AES-256-CBC nie niesie
+> uwierzytelnienia, więc uszkodzony szyfrogram odszyfrowuje się **bez błędu**;
+> do 17 IX 2026 poznać to było dopiero po `pg_restore`, czyli po wlaniu części
+> danych do bazy. Trzymaj `.meta` razem ze zrzutem — bez niego tej kontroli
+> nie ma, a skrypt mówi o tym wprost w logu.
 
 **Czym potwierdzasz, że odtworzenie się udało** — kod wyjścia 0 i lista
 zaliczonych kontroli, w tej kolejności:
