@@ -1,8 +1,14 @@
 # Bramka R2 przed wystawieniem `cdn.kuking.pl`
 
 **Zgłoszenie:** issue #120 (P0, `typ: bezpieczeństwo`), audyt fali 2 — G-02 i G-11.
-**Ostatnia aktualizacja tego pliku:** 2026-09-11.
+**Ostatnia aktualizacja tego pliku:** 2026-09-17.
 **Stan:** strona aplikacyjna ZAMKNIĘTA · część serwerowa **do uruchomienia jedną komendą** (§2) · część panelowa **NIEPRZEJŚCIONA** — kroki krok po kroku w §2a.
+
+> **Odczyt produkcji 17.09.2026 (Railway MCP, same nazwy zmiennych, bez
+> wartości): `KUKING_R2_PUBLICZNE_ADRESY` na produkcji NIE ISTNIEJE.** Krok 4
+> z §2a nie został więc wykonany, a bramka uruchomiona dziś na produkcji da
+> w sprawdzeniach 7 i 8 `NIE WIEMY` i obleje. Nie znaczy to, że bucket jest
+> otwarty — znaczy, że nikt o to nie zapytał.
 
 > **Twarda zasada, dopóki komenda z §2 nie przechodzi i tabela w §3 nie jest wypełniona na zielono:**
 > nie wystawiaj produkcyjnego bucketu mediów pod `cdn.kuking.pl`.
@@ -106,6 +112,28 @@ publiczny, więc komenda nigdy nie pyta o klucz, którego nie ma.
 | 9 | w publicznym buckecie nie ma ani jednego klucza `incoming/` | 5 |
 | 10 | wariant nie niesie bloku EXIF | 10 (część o wariancie) |
 | 11 | `PutObject` przechodzi bez `x-amz-acl` (tylko z `--zapis`) | 6 |
+| 12 | **endpoint R2 jest endpointem jurysdykcji UE** (issue #619) | 13 |
+
+### Sprawdzenie 12 pyta o co innego niż cała reszta — i to jest celowe
+
+Sprawdzenia 1–11 pytają, czy zdjęcia nie wychodzą do niepowołanych. Dwunaste
+pyta, **gdzie te zdjęcia w ogóle leżą** — bo
+`resources/legal/polityka-prywatnosci.md` mówi użytkownikom, że w Unii
+Europejskiej, a do 17.09.2026 nic w tym repozytorium tego nie sprawdzało.
+
+Dowód jest w kształcie `AWS_ENDPOINT` i da się go zebrać z serwera, bez panelu.
+Bucket z ograniczeniem jurysdykcyjnym jest osiągalny **wyłącznie** przez
+endpoint `https://<KONTO>.<JURYSDYKCJA>.r2.cloudflarestorage.com`, więc udany
+odczyt prawdziwego obiektu przez endpoint **bez** tego segmentu dowodzi, że te
+buckety jurysdykcji nie mają. Location Hint (`weur`/`eeur`) to co innego —
+Cloudflare nazywa go „best effort", nie gwarancją — i z endpointu go nie widać.
+
+Pełny wywód, granice tego dowodu, lista do odczytania w panelu i oba warianty
+wyjścia: **`docs/infra/LOKALIZACJA_DANYCH_R2.md`**.
+
+To sprawdzenie **liczy się do werdyktu**, jak każde inne. Zdanie w polityce
+prywatności jest obietnicą złożoną człowiekowi; „nie wiemy" nie jest tu
+łagodniejsze od „nie".
 
 ### Sprawdzenia 7 i 8 pytają WYŁĄCZNIE o to, co im zadeklarujesz
 
@@ -170,12 +198,23 @@ Trzy rzeczy, o których warto wiedzieć, zanim się ją uruchomi:
    kontroli dodatniej kontener bez wyjścia na świat przechodziłby bramkę
    zawsze: odmawiałaby sieć, nie Cloudflare, a raport brzmiałby identycznie
    jak przy prawdziwie zamkniętym buckecie.
-3. **Na dysku lokalnym komenda odmawia działania.** Lokalnie każde
+3. **Adres bez protokołu nie jest adresem.** Panel Cloudflare pokazuje
+   publiczne adresy bucketu bez `https://` (`cdn.kuking.pl`,
+   `pub-abc123.r2.dev`). Przepisany tak do zmiennej wpis nie ma hosta, żądanie
+   z niego nie powstaje, a bramka do 17.09.2026 liczyła to milczenie jak
+   odmowę — i kończyła się **kodem 0**, nie zapytawszy o nic. Dziś taki wpis
+   daje `NIE WIEMY`, oblewa i jest wypisany dosłownie, żeby dało się go
+   poprawić. Pisz `https://cdn.kuking.pl`, nie `cdn.kuking.pl`.
+4. **Na dysku lokalnym komenda odmawia działania.** Lokalnie każde
    sprawdzenie wychodzi ładnie — nie ma bucketu ani publicznego adresu,
    więc „oryginał nie jest publiczny" jest prawdą, która o R2 nie mówi
    nic. Zielona bramka na dysku lokalnym byłaby narzędziem, które melduje
    sukces, nie robiąc nic; to jest ta sama klasa usterki co martwy
-   `kuking.media_disk` czy `MAIL_MAILER=log` na produkcji.
+   `kuking.media_disk` czy `MAIL_MAILER=log` na produkcji. **Dotyczy to
+   obu dysków:** od 17.09.2026 komenda odmawia także wtedy, gdy sterownikiem
+   `r2` nie jest dysk WARIANTÓW. Wcześniej dysk lokalny w tej roli
+   przepuszczał ją do sprawdzeń 2, 8, 9 i 10, które z tego dysku czytają —
+   a sprawdzenie 9 listowało wtedy pusty katalog lokalny i odpowiadało TAK.
 
 Czego komenda **nie robi i nie będzie robić**: nie kasuje niczyich zdjęć
 (punkt 11 z §3 wymagałby usunięcia czyjegoś zdjęcia z produkcji), nie
@@ -185,8 +224,8 @@ wgra zdjęcia z aparatu (punkty 7 i 8) i nie podmieni sekretu, żeby zobaczyć
 ścieżkę błędu (punkt 12). Punkty 4, 7, 8, 11 i 12 z §3 komenda wypisuje na
 końcu jako pozostałe do zrobienia — zamiast udawać, że ich nie ma.
 
-Pilnuje jej `tests/Feature/BramkaR2MowiPrawdeTest.php` — 20 przypadków,
-z których **przejście sprawdza pięć, a nieprzejście piętnaście**, bo
+Pilnuje jej `tests/Feature/BramkaR2MowiPrawdeTest.php` — 28 przypadków,
+z których **przejście sprawdza siedem, a nieprzejście dwadzieścia jeden**, bo
 komenda, która melduje przejście, nie sprawdziwszy niczego, jest gorsza od
 jej braku. Jeden z nich (`test_bramka_pyta_kazdy_zadeklarowany_adres_…`)
 nie patrzy na wyjście komendy, a na to, co naprawdę poszło w sieć: pod
@@ -226,6 +265,10 @@ zmiennych środowiskowych serwisu (Railway) i `railway ssh`.
    ```
    KUKING_R2_PUBLICZNE_ADRESY=https://cdn.kuking.pl,https://pub-abc123.r2.dev,https://pub-def456.r2.dev
    ```
+
+   **Z `https://` na początku każdego z nich.** Panel pokazuje te adresy bez
+   protokołu; przepisane dosłownie nie dadzą się zamienić w żądanie i bramka
+   je odrzuci, wypisując, który wpis poprawić.
 
    Bramka pyta tylko o to, co jest w tej zmiennej. Adres pominięty tutaj nie
    został sprawdzony — i bramka nie ma jak się o nim dowiedzieć.
@@ -301,6 +344,7 @@ adresów da się przeczytać wyłącznie z panelu.
 | 10 | oryginał ma EXIF, wariant **nie ma** | `exiftool` na pliku z bucketu oryginałów i na wariancie | | |
 | 11 | skasowanie zabiera oryginał **i wszystkie** warianty | skasuj wpis, potem `list-objects-v2` na oba buckety | | |
 | 12 | błąd zapisu do R2 daje bezpieczny komunikat i alert dla operatora | podmień sekret na błędny, spróbuj wgrać, sprawdź Sentry i to, co widzi człowiek | | |
+| 13 | **typ lokalizacji KAŻDEGO bucketu z danymi** (Automatic / Location Hint / Jurisdiction, a jeśli jurysdykcja — czy `eu`) | panel R2 → bucket → Settings. Sprawdzenie 12 komendy rozstrzyga to dla bucketów, po które sięga aplikacja; panel jest jedynym miejscem dla bucketu kopii (#193) i kwarantanny (#602). Lista i procedura: `docs/infra/LOKALIZACJA_DANYCH_R2.md` §5 | | |
 
 Punkty 6–11 to jeden przebieg przez formularz — nie ma sensu robić ich osobno.
 
@@ -330,3 +374,11 @@ wyjątkiem, nie cichym `false`. Człowiek ma zobaczyć polski komunikat, a nie
   honoruje — nie jest zmierzone i wymaga prawdziwego bucketu.
 - **Stary, jeden bucket (`r2_legacy`).** Publiczności nie zdejmujemy, dopóki
   `kuking:przenies-zdjecia` nie dojdzie do końca.
+- **Lokalizacja danych (#619).** Sprawdzenie 12 rozstrzyga jurysdykcję
+  bucketów, po które sięga aplikacja. Nie widzi bucketu kopii bazy (#193),
+  przyszłej kwarantanny (#602) ani Location Hintu — te zostają do odczytania
+  w panelu. Szczegóły: `docs/infra/LOKALIZACJA_DANYCH_R2.md`.
+- **Ochrona przed logicznym usunięciem obiektów (#617).** Bramka sprawdza, czy
+  zdjęcia nie wychodzą do niepowołanych — **nie** sprawdza, czy da się je
+  odzyskać po poprawnym `DELETE`. Trwałość R2 nie jest kopią zapasową i tak jej
+  nazywać nie wolno. Temat jest w #617.
