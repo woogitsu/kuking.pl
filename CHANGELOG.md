@@ -5,6 +5,12 @@
 - Skróty Start, Szukaj, Dodaj, Moje i Profil zachowują pełne nazwy na wąskim ekranie (#638).
 - Przy większym tekście przyciski przechodzą do kolejnego rzędu; nie zmniejszamy pisma ani obszaru dotyku.
 
+## Alfa 0.50 — krótsza nawigacja panelu na telefonie
+
+- Narzędzia moderacji można rozwinąć przyciskiem „Nawigacja panelu”, dzięki czemu szybciej dociera się do treści (#581).
+- Powrót do Kuking pozostaje widoczny. Na komputerze oraz bez JavaScriptu spis narzędzi jest rozwinięty.
+- Menu obsługuje dotyk, mysz i klawiaturę; przy zmianie szerokości nie chowa aktywnego linku.
+
 ## Alfa 0.49 — propozycja instalacji po powrocie
 
 - Po powrocie zalogowanej osoby serwis może raz zaproponować instalację, jeśli przeglądarka ją udostępnia (#278).

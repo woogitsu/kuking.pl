@@ -14619,3 +14619,13 @@ Zakres testów i status wdrożenia: docs/design/PANEL_MODERACJI_MARKA_581.md.
 ## D-219 — Mniejszy tekst zagęszcza układ (#589, 15 września 2026)
 
 Na jawne polecenie właściciela wartości 70/80/90% zmniejszają również odstępy i zapas wewnątrz kontrolek, zamiast pozostawiać mały tekst w dużych powierzchniach. Osobny współczynnik min(1, user-text-scale) zachowuje domyślne odstępy przy 100% i 140%; duży tekst naturalnie zwiększa potrzebną wysokość. Ważne cele dotykowe mają nadal minimum 48 px. Nie zmieniamy szerokości kontenerów, breakpointów ani proporcji zdjęć i nie stosujemy globalnego zoomu/transform. Nie obiecujemy liniowej skali całej geometrii. To uzupełnienie D-217.
+
+## D-220 — Zwijanie narzędzi panelu na telefonie (#581, 17 września 2026)
+
+Odbiór produkcyjny wykazał, że pełny spis narzędzi odsuwa kolejkę poza pierwszy
+ekran telefonu. Poniżej 64rem JavaScript początkowo zwija tę samą listę;
+przycisk „Nawigacja panelu” pozwala ją rozwinąć. Powrót do Kuking pozostaje
+poza zwijanym obszarem. Bez JavaScriptu i na komputerze lista jest widoczna.
+Nie zmieniamy linków, uprawnień ani 2FA. Escape zamyka menu i oddaje fokus
+przyciskowi; zmiana szerokości nie chowa skupionego linku. To uzupełnia
+D-218, a nie zmienia zakresu uprawnień moderacji.

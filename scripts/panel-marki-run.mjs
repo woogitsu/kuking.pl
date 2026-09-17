@@ -8,17 +8,21 @@ import { createHmac } from 'node:crypto';
 import { mkdtempSync, chmodSync, readFileSync, writeFileSync, rmSync, realpathSync, mkdirSync, readdirSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve, relative, isAbsolute } from 'node:path';
-import { sprawdzPanelMarki, sprawdzKompletnoscPaneluMarki } from './panel-marki.mjs';
+import { sprawdzPanelMarki, sprawdzKompletnoscPaneluMarki, sprawdzDodatkoweStanyMenu } from './panel-marki.mjs';
+import { sprawdzZoomMenu } from './panel-menu-zoom.mjs';
+import { sprawdzNegatywyMenu } from './panel-menu-negative.mjs';
 
 const repo = realpathSync(process.cwd());
 const ci = process.env.GITHUB_ACTIONS === 'true';
+const tylkoMenu = process.argv.includes('--menu-only');
+if (tylkoMenu && ci) throw new Error('P581_RUN_CI_PELNY_ZAKRES');
 if (!['local', 'testing'].includes(process.env.APP_ENV) || process.env.DB_HOST !== '127.0.0.1'
   || !/^\d+$/.test(process.env.DB_PORT || '') || process.env.MAIL_MAILER !== 'array'
-  || (ci ? process.env.DB_DATABASE !== 'kuking_port_panel' : !['kuking_581_browser', 'kuking_581_acceptance'].includes(process.env.DB_DATABASE) || process.env.DB_PORT !== '55439')) {
+  || (ci ? process.env.DB_DATABASE !== 'kuking_port_panel' : !['kuking_581_browser', 'kuking_581_acceptance', 'kuking_581_menu', 'kuking_581_menu_extra'].includes(process.env.DB_DATABASE) || process.env.DB_PORT !== '55439')) {
   throw new Error('P581_RUN_IZOLACJA: wymagane lokalne środowisko, wydzielona baza, jawny port i mailer array.');
 }
 process.umask(0o077);
-const outputDir = resolve(repo, 'storage/port-panelu');
+const outputDir = resolve(repo, tylkoMenu ? 'storage/port-panelu-menu' : 'storage/port-panelu');
 mkdirSync(outputDir, { recursive: true });
 if (readdirSync(outputDir).length !== 0) {
   throw new Error('P581_RUN_STARE_DOWODY: storage/port-panelu nie jest pusty. Zachowaj wcześniejsze dowody w innym katalogu przed ponownym uruchomieniem.');
@@ -104,11 +108,22 @@ try {
     if (!sesje[s.sesja]) throw new Error('P581_ALIAS_SESJI');
     return { ...s, sesja: sesje[s.sesja] };
   }) });
-  const pusty = await zmierz(empty);
-  const pelny = await zmierz(fixture('pelny'));
-  const agregat = sprawdzKompletnoscPaneluMarki({ pusty, pelny });
-  writeFileSync(resolve(outputDir, 'agregat.json'), JSON.stringify(agregat, null, 2));
-  console.log(`P581 PASS: pusty ${agregat.pusty}, pelny ${agregat.pelny}, razem ${agregat.razem}. Bez testu zoomu i negatywów w tym jobie.`);
+  let agregat;
+  if (!tylkoMenu) {
+    const pusty = await zmierz(empty);
+    const pelny = await zmierz(fixture('pelny'));
+    agregat = sprawdzKompletnoscPaneluMarki({ pusty, pelny });
+  }
+  const menu = await sprawdzDodatkoweStanyMenu({ browser, adres, sesja: sesje.konto, outputDir });
+  writeFileSync(resolve(outputDir, 'menu-dodatkowe.json'), JSON.stringify(menu, null, 2));
+  await sprawdzZoomMenu({ chromium, adres, sesja: sesje.konto, outputDir });
+  if (process.argv.includes('--negative-menu')) await sprawdzNegatywyMenu({ browser, adres, sesja: sesje.konto, outputDir });
+  if (agregat) {
+    writeFileSync(resolve(outputDir, 'agregat.json'), JSON.stringify(agregat, null, 2));
+    console.log(`P581 PASS: pusty ${agregat.pusty}, pelny ${agregat.pelny}, razem ${agregat.razem}. Dodatkowo menu i jego zoom 200%; bez kontroli ujemnych w tym jobie.`);
+  } else {
+    console.log(`P581 MENU PASS: ${menu.length} dodatkowych scenariuszy. Nie jest to pełny odbiór panelu.`);
+  }
 } catch (error) {
   // Błąd Playwright może zawierać tekst wpisywanych poświadczeń.
   console.error(/^P581_[A-Z_]+(?::|$)/.test(error.message) ? error.message : 'P581_RUN_FAIL: sprawdź bezpieczny raport miernika, logowanie lub start serwera.');
