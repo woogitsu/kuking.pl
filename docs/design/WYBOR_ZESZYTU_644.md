@@ -58,6 +58,15 @@ regresję POST → przekierowanie → render.
 
 ## Pozostałe warunki dostarczenia
 
+Pierwszy zwykły push zatrzymał hook: test kompozycji hero przepisu liczył
+CSRF we wszystkich formularzach o tej samej akcji i znalazł dwa zamiast
+jednego. Diagnostyka odtworzyła dokładnie tę porażkę. Test teraz wybiera
+unikalny formularz szybkiego zapisu po jego przycisku; nadal wymaga POST,
+CSRF oraz obecności akcji za hero. Dwa testy / 23 asercje przechodzą.
+Fizyczne usunięcie `@csrf` z tego formularza powoduje porażkę; przywrócono
+MD5 `5356eb1d22e4dbeeeeac8c000489c408` i mtime, następnie ponownie 2/23 PASS.
+Pierwsza wysyłka niczego nie opublikowała. Pełny hook wymaga ponownego przebiegu.
+
 Próba uruchomienia zoomu skrótem Ctrl+plus w dostępnej przeglądarce aplikacji
 nie zmieniła powiększenia: przed i po `innerWidth=1280`, `innerHeight=720`,
 `devicePixelRatio=1`. Nie zaliczono jej jako testu 200%. Zmiana szerokości

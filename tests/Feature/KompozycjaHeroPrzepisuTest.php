@@ -74,7 +74,8 @@ class KompozycjaHeroPrzepisuTest extends TestCase
         $panel = $header.'/following-sibling::*[1][contains(concat(" ", normalize-space(@class), " "), " przepis-panel ")]';
         $this->assertSame(1, $xpath->query($panel)->length);
         $this->assertSame(route('cooked.create', $recipe->slug), $xpath->evaluate('string('.$panel.'//a[normalize-space(.)="Ugotowałem"]/@href)'));
-        $save = $panel.'//form[@action="'.route('collections.save', $recipe->slug).'"]';
+        $save = $panel.'//form[@action="'.route('collections.save', $recipe->slug).'"][button[normalize-space(.)="Zapisuję"]]';
+        $this->assertSame(1, $xpath->query($save)->length, 'Szybki zapis pozostaje osobną akcją w panelu.');
         $this->assertSame('POST', $xpath->evaluate('string('.$save.'/@method)'));
         $this->assertSame(1, $xpath->query($save.'/input[@name="_token"]')->length);
     }
