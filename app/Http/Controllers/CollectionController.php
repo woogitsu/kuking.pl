@@ -170,6 +170,49 @@ class CollectionController extends Controller
                 'wpisy',
             );
 
+        // KAŻDY PRZYCISK „POKAŻ WIĘCEJ" PRZESUWA SWOJĄ LISTĘ, A DRUGĄ ZOSTAWIA
+        // TAM, GDZIE BYŁA (issue #646).
+        //
+        // Paginator buduje adres wyłącznie ze swojego numeru strony, więc
+        // przejście na drugą stronę wpisów cofało przepisy obok na pierwszą —
+        // i odwrotnie. Człowiek, który przewinął obie listy, tracił jedną przy
+        // każdym kliknięciu.
+        //
+        // Doklejamy SAM numer drugiej listy, nie całe query string
+        // (`withQueryString()`): obce parametry adresu nie mają czego szukać
+        // w naszych odnośnikach. `currentPage()` przechodzi przez walidację
+        // Laravela (liczba całkowita >= 1, inaczej 1), a strony pierwszej nie
+        // doklejamy, bo jest domyślna i tylko zaśmiecałaby adres.
+        //
+        // `min(..., lastPage())` NIE JEST OZDOBĄ — bez niego ta poprawka
+        // psułaby coś, co dotąd działało. Laravel uznaje `?page=999` za
+        // poprawne i oddaje pustą stronę, bez cofania na ostatnią. Zanim
+        // powstał ten kod, taki numer znikał sam przy pierwszym kliknięciu
+        // w drugą listę, bo adres budował się od zera; przenoszony dalej BEZ
+        // DOCIĘCIA zostawałby w adresie na zawsze. Docięcie daje dokładnie
+        // tyle: w pustą listę NIE DA SIĘ WEJŚĆ KLIKANIEM — każdy przycisk
+        // prowadzi na ostatnią stronę, na której druga lista ma treść. Ręcznie
+        // wpisany adres z dwoma numerami poza zakresem dalej pokaże pusty
+        // ekran; to stan sprzed tej poprawki i bierze się stąd, że paginator
+        // nie rysuje własnego przycisku dla pustej strony, a nie z przenoszenia
+        // numeru. Tego docięcie nie leczy i nie udaje, że leczy.
+        //
+        // Drugi argument `min()` MUSI należeć do tego samego paginatora co
+        // pierwszy. Obie linie niżej są prawie bliźniacze i pomylenie w nich
+        // paginatorów jest niewidoczne w zeszycie, w którym obie listy mają
+        // tyle samo stron — a w zeszycie o nierównych listach cofałoby człowieka
+        // o stronę. Pilnuje tego osobna scena w `ZeszytPaginacjaObuListTest`.
+        $stronaWpisow = min($posts->currentPage(), $posts->lastPage());
+        $stronaPrzepisow = min($recipes->currentPage(), $recipes->lastPage());
+
+        if ($stronaWpisow > 1) {
+            $recipes->appends($posts->getPageName(), $stronaWpisow);
+        }
+
+        if ($stronaPrzepisow > 1) {
+            $posts->appends($recipes->getPageName(), $stronaPrzepisow);
+        }
+
         return view('pages.collections.show', [
             'collection' => $collection,
             // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
