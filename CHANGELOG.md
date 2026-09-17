@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.55 — wskazanie błędnego stanu wiadomości
+
+- Jeśli zapis stanu wiadomości w panelu zostanie odrzucony, odnośnik w podsumowaniu błędów prowadzi do wyboru stanu.
+- Komunikat przy polu jest powiązany ze wszystkimi opcjami. Wpisana notatka pozostaje w formularzu.
+
 ## Alfa 0.54 — osobne notatki promowanych tagów
 
 - Po błędnym zapisie notatki tekst i komunikat pozostają przy wybranym tagu. Pozostałe formularze zachowują własne wartości.

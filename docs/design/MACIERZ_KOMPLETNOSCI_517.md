@@ -1,5 +1,23 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Bieżące uzupełnienie panelu — 17 września 2026
+
+Poniższy stan ma pierwszeństwo przed historycznymi zapisami „niewysłane”
+w raportach poszczególnych etapów. Pełny port nadal **CZĘŚCIOWO**.
+
+| Pakiet | Kod i kontrole | Produkcja / pozostały zakres |
+|---|---|---|
+| Walidacja odwołań, Alfa 0.53 | PR #641 scalony; main `2b26853d14701dca79968adf922b92dd0086ce4c`, CI 35220851228: 12/12 success | Railway 6502545149 i Deploy 35223754657 success. Publiczna przeglądarka potwierdziła wersję i SHA; nie zastępuje to oglądu zalogowanych odwołań |
+| Osobne notatki tagów, Alfa 0.54 | [Raport](NOTATKI_TAGOW_581.md); PR #642 scalony jako `4b824c146f24d4bdb60ce6e952a6384b51727f85`. CI PR 35222930757: 12/12 success. Artefakt panelu: 288 pustych i 312 pełnych konfiguracji oraz 9 błędnych POST — PASS | W momencie aktualizacji Railway 6503528112 trwało, przeglądarka nadal pokazywała Alfę 0.53. Odbiór produkcyjny pozostaje otwarty |
+| Błąd stanu wiadomości, przygotowana Alfa 0.55 | [Raport i granice](STAN_WIADOMOSCI_581.md): 48 testów / 233 asercje, 24 konfiguracje, 4 scenariusze klawiatury/myszy, 2 rzeczywiste zoomy oraz 3 fizyczne negatywy | Pakiet lokalny, bez potwierdzenia CI i wdrożenia |
+
+600 konfiguracji panelu sprawdza kompozycję pełnych i pustych widoków;
+nie oznacza 600 wykonanych operacji moderacji. Dziewięć błędnych POST
+również nie obejmuje wszystkich możliwych błędów. Pozostają końcowe
+odbiory #581 i dolnej nawigacji #638 oraz odrębne ograniczenia poczty,
+urządzeń i pozostałych rodzin opisane niżej. Nie należy ponownie
+implementować panelu na podstawie historycznych zapisów o zatrzymanym push.
+
 ## Bieżące uzupełnienie — 16 września 2026
 
 Pełny port marki nadal **CZĘŚCIOWO**. Poniższe wpisy aktualizują zakres
