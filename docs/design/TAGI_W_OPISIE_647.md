@@ -89,3 +89,24 @@ uzupełnienie szerokości 360/414 i rzeczywistego zoomu 200% zapisano osobno.
 - Końcowy pełny hook na dokładnym commicie i review kompletnego pakietu.
 - Zwykły push, PR i wymagane CI. Wersja Alfa 0.57 i changelog są przygotowane.
 - Wdrożenie oraz potwierdzenie rzeczywistego produkcyjnego SHA.
+
+## Korekta po pierwszym pełnym hooku
+
+Pierwszy push został zatrzymany przez testy; gałąź nie została wysłana.
+Model `PostTag` wymagał jawnej nazwy tabeli `post_tags`, aby także utworzony
+poza relacją wskazywał prawidłowy schemat. Osobna baza dostarczenia miała
+strefę `Europe/Warsaw`; ustawiono UTC tylko dla tej izolowanej bazy na 55439.
+Po obu korektach wszystkie rodziny wcześniejszych porażek oraz pochodzenie
+tagów przeszły: 259 testów / 2246 asercji. Pint modelu przeszedł.
+
+Fizyczna zamiana nazwy tabeli na błędną została wykryta przez istniejący test
+inwentaryzacji modeli. Przywrócono plik z kopii poza repo, MD5
+`81c7d42384b8f40eb7b1228f72e7e2d9` i mtime; dodatni przebieg: 6 testów / 147
+asercji. To nie zastępuje ponownego pełnego hooka.
+
+Dodatkowo cztery rzeczywiste procesy PHP sprawdziły `TagMutationLock`:
+dwa zapisy mogą trzymać blokadę wspólnie, scalanie czeka na oba, a kolejny
+zapis czeka na scalanie. Nie wykonywano zmian danych; nie jest to pełny
+równoległy scenariusz publikacji i scalania. Przeglądarka potwierdziła też
+odrzucenie spóźnionej odpowiedzi po zmianie wpisywanego tokenu. Wyniki tych
+trzech dodatkowych kontroli zapisano obok pozostałych dowodów.
