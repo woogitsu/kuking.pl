@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.52 — widoczny fokus potwierdzeń w panelu
+
+- Przy przechodzeniu klawiaturą do czyszczenia tablicy i kolażu panel pozostawia miejsce na cały obrys aktywnego przycisku, także przy zwiększonym tekście.
+- Dodano regresje rozwijanych potwierdzeń i pomocy pocztowej, rzeczywistego zoomu 200% oraz fizyczne kontrole ujemne. Nie oznacza to zakończenia całego odbioru panelu #581.
+
 ## Alfa 0.51 — pełne nazwy dolnej nawigacji
 
 - Skróty Start, Szukaj, Dodaj, Moje i Profil zachowują pełne nazwy na wąskim ekranie (#638).

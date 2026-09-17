@@ -930,6 +930,10 @@ jobs:
           path: |
             storage/port-panelu/*.json
             storage/port-panelu/*.png
+            storage/port-panelu/details/*.json
+            storage/port-panelu/details/*.png
+            storage/port-panelu/details-zoom/*.json
+            storage/port-panelu/details-zoom/*.png
           retention-days: 14
 
   port_marki:
