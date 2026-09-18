@@ -56,13 +56,22 @@
     @if($polecane->isNotEmpty())
         <h2>Polecane tagi</h2>
         <p class="meta">Wybór gospodarza <x-kuking-word />.</p>
-        <nav class="chipsy" aria-label="Polecane tagi">
+        <nav class="tag-featured" aria-label="Polecane tagi">
             @foreach($polecane as $tag)
-                <a class="chip tag-directory-link" href="{{ route('tags.show', $tag) }}">
-                    {{ $tag->name }}
+                <a class="tag-featured-card" href="{{ route('tags.show', $tag) }}">
+                    <x-tag-collage :photos="$collages[$tag->getKey()]" :linked="false" />
+                    <span class="tag-featured-copy">
+                    <strong>{{ $tag->name }}</strong>
+                    @if($tag->promotion?->note)
+                        <span>{{ $tag->promotion->note }}</span>
+                    @endif
+                    <span class="meta">
                     ({{ $tag->posts_count }}
                     {{ \App\Support\Odmiana::rzeczownik($tag->posts_count, 'wpis', 'wpisy', 'wpisów') }})
+                    </span>
                     <x-tag-public-stats :stats="$publicStats[$tag->getKey()]" :invitation="false" />
+                    <span class="tag-featured-action">Zobacz wpisy <span aria-hidden="true">→</span></span>
+                    </span>
                 </a>
             @endforeach
         </nav>

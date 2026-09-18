@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.63 — zobacz, co gotują inni pod tym tagiem
+
+- Strony tagów pokazują kolaż najnowszych publicznych zdjęć od różnych osób. Zdjęcie prowadzi do wpisu, a przycisk dodawania otwiera formularz z wybranym tagiem.
+- Promowane tagi mają karty ze zdjęciami i krótkim zaproszeniem. Pozostałe tagi nadal znajdziesz na liście alfabetycznej.
+
 ## Alfa 0.62 — zdjęcia i osoby przy tagach
 
 - Przy tagach z co najmniej pięcioma publicznymi zdjęciami od trzech osób zobaczysz liczbę zdjęć i ich autorów. Przy mniejszym zbiorze strona tagu zaprasza do dodania własnego wpisu. Kolejność tagów pozostaje bez zmian.

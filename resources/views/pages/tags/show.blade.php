@@ -35,7 +35,11 @@
         <a href="{{ route('tags.index') }}">wszystkie tagi</a>
     </p>
 
-    <h1 class="mt-0">{{ $tag->name }}</h1>
+    <section class="tag-welcome" aria-labelledby="tag-title">
+    <div class="tag-welcome-copy">
+    <h1 class="mt-0" id="tag-title">{{ $tag->name }}</h1>
+
+    <p class="lead">{{ $tagNote ?: 'Zobacz, co gotują inni. Dodaj zdjęcie ze swojej kuchni i kilka słów.' }}</p>
 
     <p><x-tag-public-stats :stats="$publicStats" /></p>
 
@@ -56,6 +60,18 @@
         </form>
     @endauth
 
+    <p class="mb-0">
+        <a class="btn btn-primary" href="{{ route('posts.create', ['tag' => $tag->slug]) }}">Dodaj wpis z tym tagiem</a>
+    </p>
+    </div>
+    @if($collage->isNotEmpty())
+        <div class="tag-welcome-photos">
+            <x-tag-collage :photos="$collage" />
+            <p class="meta">Zdjęcia z ostatnich publicznych wpisów. Wybierz zdjęcie, żeby zobaczyć wpis.</p>
+        </div>
+    @endif
+    </section>
+
     <div class="stack mt-6">
         @forelse($posts as $post)
             <x-post-card :post="$post" />
@@ -66,7 +82,7 @@
                     możesz być pierwszą osobą.
                 </p>
                 <p class="mb-0">
-                    <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
+                    <a class="btn btn-primary" href="{{ route('posts.create', ['tag' => $tag->slug]) }}">Dodaj zdjęcie</a>
                 </p>
             </x-empty-state>
         @endforelse

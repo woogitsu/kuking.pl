@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Tags\TagCollage;
 use App\Domain\Tags\TagPublicStats;
 use App\Models\Post;
 use App\Models\Tag;
@@ -31,6 +32,7 @@ class TagController extends Controller
     public function __construct(
         private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
         private readonly TagPublicStats $publicStats = new TagPublicStats,
+        private readonly TagCollage $collage = new TagCollage,
     ) {}
 
     /**
@@ -47,7 +49,7 @@ class TagController extends Controller
      * wpisów albo obserwujących — to byłby ranking, którego zakazuje
      * `AGENTS.md`.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         // JEDNO domknięcie, użyte w obu sekcjach, żeby liczba wpisów nigdy
         // nie rozjechała się między „Polecane" a „Wszystkie" — ten sam
@@ -81,6 +83,7 @@ class TagController extends Controller
         return view('pages.tags.index', [
             'polecane' => $polecane,
             'tagi' => $tagi,
+            'collages' => $this->collage->forTags($polecane->modelKeys(), $request->user()),
             'publicStats' => $this->publicStats->forTags(
                 array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
             ),
@@ -130,6 +133,8 @@ class TagController extends Controller
 
         return view('pages.tags.show', [
             'tag' => $tag,
+            'collage' => $this->collage->forTags([$tag->getKey()], $widz)[$tag->getKey()],
+            'tagNote' => $tag->promotion?->note,
             'publicStats' => $this->publicStats->forTags([$tag->getKey()])[$tag->getKey()],
             'posts' => $wpisy,
             'obserwowany' => $widz !== null && $widz->isFollowingTag($tag),
