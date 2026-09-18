@@ -21,7 +21,8 @@ Odniesienie dla całej tej pracy: `main` na `bdc56b8cf9b664eda104b628d85149b08d8
 | Pakiet | Gałąź | SHA | PR | Stan |
 |---|---|---|---|---|
 | Kopie i R2 (#193 #594 #120 #617 #619) | `infra/594-odbior-kopii` | `31a0b40b7601fefa0c37ed7a8efad124eb8eb34d` | **#674** | Draft, CI **12/12 pass**, bez automerge, **niescalony** |
-| Czujki i odbiór alarmów (#598 #599) | `infra/599-odbior-alarmow` | `7c300ccccc5a81f098e85667498e3afdaf89c89c` | **#676** | Draft, bez automerge, **niescalony**; hook `pre-push` przeszedł w całości |
+| Czujki i odbiór alarmów (#598 #599) | `infra/599-odbior-alarmow` | `7c300ccccc5a81f098e85667498e3afdaf89c89c` | **#676** | Draft, CI **12/12 pass**, bez automerge, **niescalony**; hook `pre-push` przeszedł w całości |
+| To przekazanie | `docs/przekazanie-2026-09-18` | `10f738f719…` | **#677** | Draft, CI **12/12 pass**, bez automerge, **niescalony** |
 | Obciążenie mieszane (#605) | `perf/605-obciazenie-mieszane` | `047460da…` + `ae6781a…` | **brak — commity lokalne** | przyrząd, zbiór danych i metoda gotowe; **serii pomiarowych nie zdjęto** — powód w punkcie 6 |
 
 **Wszystkie PR-y zostają do końcowego review i scalenia przez Codeksa.**
@@ -68,6 +69,31 @@ zadziałał. Powiązane: #66.
 Powłoka Windows rozwija `$(pwd)` do repozytorium kanonicznego. Subagent A
 stracił na tym cały przebieg: sześć testów oblało bez żadnego związku ze zmianą.
 Po wpisaniu ścieżki dosłownie — zero oblanych.
+
+### 2.3a. „Czy runner pracuje" — pytanie, które łatwo zadać źle
+
+Przy bramkowaniu pomiarów obciążeniem trzeba wiedzieć, czy runnery CI tego
+projektu akurat coś robią. Naturalna komenda **daje zawsze tę samą odpowiedź**:
+
+```bash
+ps -eo args | grep -oE 'actions-runner-kuking-0[0-9]' | sort -u
+# → kuking-01 kuking-02 kuking-03 kuking-04   ← ZAWSZE, nawet gdy nic nie robią
+```
+
+Powód: `runsvc.sh` i `Runner.Listener` każdego runnera stoją nieprzerwanie jako
+usługa i mają tę ścieżkę w linii poleceń. Rozstrzyga `Runner.Worker`, bo ten
+proces istnieje **wyłącznie** przy przydzielonym zadaniu:
+
+```bash
+ps -eo args | grep 'Runner\.Worker' | grep -oE 'actions-runner-kuking-0[0-9]' | sort -u
+# → kuking-01 kuking-02                       ← stan faktyczny
+```
+
+**Dlaczego to warto zapamiętać.** Bramka oparta na pierwszej komendzie
+**nigdy by się nie otworzyła** — a wyglądałoby to na ustalenie („maszyna jest
+zawsze zajęta"), nie na zepsuty przyrząd. To najgorszy rodzaj pomyłki: taki,
+który udaje pomiar. Wyszło tylko dlatego, że subagent B sprawdził podaną mu
+komendę, zamiast jej użyć.
 
 ### 2.4. Push wyłącznie z klonu w systemie plików WSL
 
@@ -242,6 +268,52 @@ Zamiast „poczekamy na ciszę" obowiązuje protokół, w którym warunki pomiar
 5. stopień, którego nie da się zdjąć czysto, zostaje zapisany jako
    **niewykonany, z powodem**. Wiersz „przy 110 rps trzy próby skażone" jest
    wartościowy. Zmyślony punkt nasycenia nie jest.
+
+**Próg, ustalony pomiarem rozkładu obcego obciążenia** (278 próbek co sekundę;
+mediana 17,9 rdzenia z 24, PSI `some avg10` mediana 22,2 %):
+
+> obce ≤ **18,0 rdzenia** ORAZ PSI ≤ **25 %**, utrzymane **60 s**,
+> ORAZ **zero** pracujących `Runner.Worker` runnerów `kuking`.
+
+Uzasadniony z obu stron: przy 20 rdzeniach przechodzi 88,5 % próbek, czyli
+bramka przepuszczałaby zwyczajny stan maszyny; przy 16 najdłuższy spokój trwał
+13 s, przy 12 — dwie sekundy, a próg dobrany tak, żeby nic nie przeszło, jest
+wyborem niemierzenia niczego. Sens fizyczny: stanowisko potrzebuje w szczycie
+ok. 2,6 rdzenia, więc przy 18 zajętych zostaje 2,3× tyle — degradacja pochodzi
+z **własnego limitu 2 CPU**, a to jest rzecz mierzona.
+
+**Czego próg NIE usuwa:** wspólnej przepustowości pamięci i cache'u L3. Tego
+wybramkować się nie da i każda tabela wyników ma to mówić.
+
+### Reguła skażenia — zmieniona 18 IX **przed** rampą
+
+Stopień jest skażony, gdy zachodzi którekolwiek z: (1) przebicia w ≥ 3 %
+próbek **oraz** seria ≥ 2 s pod rząd; (2) jakakolwiek seria ≥ 5 s; (3) choć
+jedna próbka z pracującym `Runner.Worker` runnera `kuking`.
+
+Pierwotna reguła patrzyła na sam procent. Zmieniono ją, bo przy stopniu 120 s
+i 5 rps pojedyncza sekunda zakłócenia dotyka ok. 5 żądań z 600 i widać ją
+wyłącznie w p99, a zakłócenie ciągłe od 2 s wchodzi już w p95 i przepustowość.
+
+**Dlaczego to nie jest dobieranie wyników.** Oba dotychczasowe wiersze
+(`r005-p1`, `r005-p2`) odpadają **niezależnie po warunku 3** — szły przy
+pracujących runnerach `kuking`. Zmiana reguły procentowej nie ratuje żadnego
+z nich, więc nie ma wyniku, który by na niej zyskał. Warunek przyjęcia zmiany:
+w każdym wierszu zostają **surowe liczby skażenia**, żeby czytelnik mógł
+zastosować ostrzejszą regułę bez powtarzania pomiaru.
+
+### Dwa pierwsze stopnie — skażone, i to jest dowód, że bramka działa
+
+| próba | przebicia | najdłuższa seria | obce (mediana) | PSI | werdykt |
+|---|---|---|---|---|---|
+| `r005-p1` | 82/92 = 89,1 % | **55 s** | 17,7 rdzenia | 26,9 % | SKAŻONY |
+| `r005-p2` | 3/92 = 3,3 % | 1 s | 11,9 rdzenia | 3,5 % | SKAŻONY |
+
+Oba poszły przy pracujących runnerach `kuking` — a te pracowały, **bo
+koordynator wypchnął dwie gałęzie** (#676 i #677) i dał zielone światło,
+patrząc wyłącznie na to, czy skończył się jego własny `phpunit`. Lokalny
+zestaw to nie to samo, co CI, które ten push wystartował. Błąd koordynacji
+po stronie koordynatora, zapisany tutaj, żeby się nie powtórzył.
 
 Zbiór jest realistycznie nierówny: 200 000 wpisów, 20 000 przepisów,
 200 000 komentarzy, 399 697 powiązań z tagami, 60 % wpisów od 20 kont, 40
