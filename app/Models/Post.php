@@ -25,6 +25,15 @@ class Post extends Model
     use HasUuids;
     use SoftDeletes;
 
+    public const KIND_DISH = 'dish';
+
+    public const KIND_QUESTION = 'question';
+
+    protected $attributes = [
+        'kind' => self::KIND_DISH,
+        'title' => null,
+    ];
+
     public const STATUS_DRAFT = 'draft';
 
     public const STATUS_PUBLISHED = 'published';
@@ -49,6 +58,8 @@ class Post extends Model
     public const DISPLAY_COLLAGE = 'collage';
 
     protected $fillable = [
+        'kind',
+        'title',
         'author_id',
         'body',
         'visibility',

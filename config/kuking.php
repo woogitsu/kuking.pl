@@ -16,6 +16,11 @@ use App\Support\Facebook;
 
 return [
 
+    // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
+    'questions' => [
+        'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Profil
