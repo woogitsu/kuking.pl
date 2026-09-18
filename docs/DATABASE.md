@@ -3960,3 +3960,41 @@ dokładnie jedną wiadomość odwołującą.
 - **Ilu użytkowników serwis obsłuży.** Liczba osób online nie przekłada się
   1:1 na połączenia. Decyzja o PgBouncerze (#600) ma wynikać z tych liczb,
   a nie z progu „ilu jest online" — i na dziś te liczby jej **nie uzasadniają**.
+
+### F. Skąd weźmie się szereg czasowy — i co go może zablokować
+
+**Zmierzone 17.09.2026 23:25:20 UTC:** harmonogram produkcji uruchomił
+`kuking:budzet-polaczen` i zameldował „DONE" w 21 ms — po czym zmierzone
+liczby przepadły. `Schedule::call()` woła komendę przez `Artisan::call()`,
+a to przechwytuje wyjście konsoli do bufora, który kończy się razem
+z przebiegiem. Czujka mierzyła co godzinę i za każdym razem zapominała, więc
+definicji gotowości „znany peak active connections" nie dało się spełnić
+**mimo działającego kodu**.
+
+Od 18.09.2026 obie czujki zapisują jedną linię pomiaru do dziennika serwera:
+
+```text
+kuking:budzet-polaczen  {"stan":…,"zajete_serwer":…,"zajete_baza":…,"aktywne":…,
+                         "bezczynne":…,"w_transakcji":…,"dostepne":…,
+                         "max_connections":…,"budzet_szczytowy":…,"prog_ostrzegawczy":…}
+kuking:sprawdz-kolejke  {"stan":…,"oczekujace":…,"zaleglosc_sekundy":…,"zawieszone":…,
+                         "nieudane_w_oknie":…,"nieudane_razem":…,…}
+```
+
+Do produkcyjnego Postgresa nie ma dziś dostępu z zewnątrz — nie ma proxy TCP
+i nie ma zalogowanego CLI — więc **to jest jedyna droga, którą ten szereg
+czasowy może w ogóle powstać**. Historia dziennika Railway jest jego jedynym
+magazynem; nie zakładamy tabeli ani zewnętrznej bazy metryk.
+
+**Co go blokuje, i trzeba to sprawdzić w panelu:** wpisy idą poziomem `info`,
+bo zdrowy pomiar nie jest ostrzeżeniem, a podnoszenie poziomu tylko po to,
+żeby przebić się przez próg, zamieniłoby dziennik w ciąg fałszywych ostrzeżeń.
+Jeżeli produkcyjne `LOG_LEVEL` stoi powyżej `info`, **szereg nie powstanie
+mimo działającej czujki** — dokładnie ten sam kształt pomyłki, który ten
+rozdział opisuje wyżej. Wartości tej zmiennej nie dało się odczytać z tej
+sesji (API oddaje same nazwy), więc pozostaje to do sprawdzenia.
+
+Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
+`payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
+— to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
+`PomiarCzujekTrafiaDoDziennikaTest`.

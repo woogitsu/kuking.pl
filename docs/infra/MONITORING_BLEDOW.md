@@ -583,15 +583,50 @@ Kolejność zamykania tej bramki:
 1. właściciel zakłada webhook (§1 tego dokumentu) i wpisuje
    `LOG_BLAD_WEBHOOK_URL` w panelu Railway — **z restartem usługi**,
    bo konfiguracja jest zapiekana przy starcie kontenera;
-2. `railway ssh -- php artisan kuking:budzet-polaczen` i
-   `railway ssh -- php artisan kuking:sprawdz-kolejke` — obie mają wtedy
-   wypisać stan i **nie** zadzwonić, bo produkcja jest w normie;
-3. kontrolowana próba awarii uzgodniona z właścicielem (np. jednorazowe
-   uruchomienie z zaniżonym progiem przez zmienną) — i dopiero wiadomość,
-   która **dojdzie na kanał**, zamyka wiersz 18 w `docs/OTWARCIE.md`;
-4. rozliczenie czterech zadań z 9 września, żeby `/health` wyszedł
+2. `railway ssh -- php artisan kuking:sprawdz-alarm` — jedno polecenie,
+   jedna wiadomość próbna, jasna odpowiedź na pytanie „czy DOCHODZI";
+3. rozliczenie czterech zadań z 9 września, żeby `/health` wyszedł
    z `degraded` i znowu coś znaczył;
-5. zewnętrzny monitor `/health` z §6.
+4. zewnętrzny monitor `/health` z §6.
 
 Do wykonania kroku 1 **nie ogłaszamy działającego alarmu produkcyjnego** —
 ani tutaj, ani w `docs/OTWARCIE.md`, ani w opisie Pull Requesta.
+
+### 7.4. Pięć warstw, które łatwo pomylić ze sobą
+
+To jest jedyny powód, dla którego ten rozdział ma tyle zastrzeżeń. Monitoring
+tego serwisu składa się z pięciu rzeczy i **każda działa albo nie działa
+osobno**:
+
+| # | Warstwa | Stan na 18.09.2026 | Czym udowodniona |
+|---|---|---|---|
+| 1 | kod czujki | działa | testy + kontrole ujemne |
+| 2 | konfiguracja produkcji | **brak** | w usłudze nie ma `LOG_BLAD_WEBHOOK_URL` |
+| 3 | faktyczne wywołanie | działa | log produkcji: `Running [kuking:budzet-polaczen] … DONE`, 17.09 23:25:20 UTC |
+| 4 | **odebranie wiadomości** | **niesprawdzone na produkcji** | lokalnie: prawdziwy odbiornik HTTP |
+| 5 | wyciszanie duplikatów i powrót do normy | działa | testy + prawdziwy odbiornik |
+
+Zielona warstwa 1 i 3 przy pustej 2 daje dokładnie to, co produkcja ma dziś:
+czujkę, która sumiennie chodzi co godzinę i **nie ma dokąd zadzwonić**.
+Najłatwiejszy błąd w tym miejscu to uznać wdrożenie kodu za wdrożenie alarmu.
+
+**Warstwę 4 zamyka jedno polecenie:**
+
+```bash
+php artisan kuking:sprawdz-alarm
+```
+
+Wysyła JEDNĄ wiadomość, jawnie oznaczoną jako próba, ze znacznikiem czasu —
+tym samym kanałem, którym poszedłby prawdziwy alarm. Nie dotyka bazy, nie
+czyta kolejki i **nie zapisuje pamięci wyciszania**, więc nie zagłusza
+prawdziwego alarmu, który mógłby przyjść zaraz po niej. Przy pustej zmiennej
+kończy się błędem i mówi wprost, czego brakuje, zamiast milczeć.
+
+Wcześniejsza wersja tej listy kazała w kroku 3 „wywołać kontrolowaną awarię
+przez zaniżenie progu na produkcji". To był zły pomysł: zaniżony próg zostaje
+w zmiennych, a prawdziwy alarm ginie potem w szumie. Osobna komenda robi
+dokładnie jedną rzecz i nie zostawia po sobie stanu.
+
+`--bez-wysylki` odpowiada wyłącznie na pytanie, czy kanał jest skonfigurowany.
+**Sama konfiguracja nie jest dowodem dostarczenia** — to jest właśnie różnica
+między warstwą 2 a 4.
