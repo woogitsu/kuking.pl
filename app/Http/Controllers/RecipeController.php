@@ -431,11 +431,8 @@ class RecipeController extends Controller
             // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
             // więc dane dla wyszukiwarek zostają bez zmian.
             'cookedCount' => $cookedEvents->total(),
-            // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
-            // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
-            // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
-            // gwiazdek nie ma i nie będzie, bo są abstrakcją, a zdanie
-            // „dziesięć z dwunastu osób zrobi to ponownie" rozumie każdy.
+            // #666: każde wykonanie może mieć osobną odpowiedź, także od tej samej osoby.
+            // Liczniki opisujemy jako wykonania i odpowiedzi, bez deduplikacji kucharzy.
             // Czy oglądający obserwuje autora — jedno zapytanie, żeby przycisk
             // „Obserwuj" na stronie przepisu pokazywał prawdziwy stan
             // (UI kit v2, ekran 02).

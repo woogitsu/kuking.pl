@@ -121,7 +121,7 @@ class LicznikUgotowanZgadzaSieZListaTest extends TestCase
         // zdjęciem, więc asercja na całym dokumencie nie mierzyłaby tego
         // miejsca.
         $sekcja = $this->wycinekKomuWyszlo($odpowiedz->getContent());
-        $this->assertStringContainsString('2 osoby ugotowały to danie', $sekcja);
+        $this->assertStringContainsString('2 wykonania', $sekcja);
     }
 
     /**
@@ -145,7 +145,7 @@ class LicznikUgotowanZgadzaSieZListaTest extends TestCase
         $this->assertCount(4, $odpowiedz->viewData('cookedEvents'));
 
         $sekcja = $this->wycinekKomuWyszlo($odpowiedz->getContent());
-        $this->assertStringContainsString('4 osoby ugotowały to danie', $sekcja);
+        $this->assertStringContainsString('4 wykonania', $sekcja);
     }
 
     /**

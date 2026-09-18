@@ -397,17 +397,17 @@
 
         {{--
             Plakietki, których kit nie ma, a które są tym, czym Kuking różni
-            się od bazy receptur: ile osób to naprawdę zrobiło i od kiedy
+            się od bazy receptur: ile razy ktoś to ugotował i od kiedy
             przepis jest w rodzinie. Zostają POD hero, żeby nie konkurowały
             z trzema liczbami, które mówią „czy zdążę i dla ilu osób".
         --}}
         <ul class="recipe-facts">
             @if($cookedCount > 0)<li><span class="badge badge-cooked">Ugotowane {{ $cookedCount }} ×</span></li>@endif
-            {{-- „X z Y osób zrobi to ponownie" — od trzech ocen (SOUL 4.2).
+            {{-- Odpowiedzi przy wykonaniach, nie unikalne osoby — od trzech ocen (#666).
                  Poniżej trzech jedna opinia waży za dużo, a zdanie brzmi jak
                  werdykt, którym nie jest. --}}
             @if($oceniloWykonanie >= 3)
-                <li><span class="badge badge-cooked">{{ $zrobiaPonownie }} z {{ $oceniloWykonanie }} {{ \App\Support\Odmiana::rzeczownik($oceniloWykonanie, 'osoby', 'osób', 'osób') }} zrobi to ponownie</span></li>
+                <li><span class="badge badge-cooked">Zrobię ponownie: {{ $zrobiaPonownie }} z {{ $oceniloWykonanie }} odpowiedzi</span></li>
             @endif
             @if($recipe->family_since_year)<li><span class="badge badge-cooked">W rodzinie od {{ $recipe->family_since_year }}</span></li>@endif
         </ul>
@@ -594,9 +594,9 @@
                 <h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
                 @if($cookedCount > 0)
                     <p class="pasek-liczb meta m-0">
-                        {{ $cookedCount }} {{ \App\Support\Odmiana::rzeczownik($cookedCount, 'osoba ugotowała', 'osoby ugotowały', 'osób ugotowało') }} to danie
+                        {{ $cookedCount }} {{ \App\Support\Odmiana::rzeczownik($cookedCount, 'wykonanie', 'wykonania', 'wykonań') }}
                         @if($oceniloWykonanie >= 3)
-                            · {{ (int) round($zrobiaPonownie / $oceniloWykonanie * 100) }}% zrobi to ponownie
+                            · {{ (int) round($zrobiaPonownie / $oceniloWykonanie * 100) }}% odpowiedzi: „Zrobię ponownie”
                         @endif
                     </p>
                 @endif

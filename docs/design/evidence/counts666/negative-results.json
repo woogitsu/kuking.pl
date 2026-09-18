@@ -1,0 +1,33 @@
+{
+  "backup": "/home/mateusz/kuking-666-negative-n2dl87nj",
+  "results": [
+    {
+      "mutation": "units",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "13be20e36dd0cb098a4ea810d4743b23",
+      "mtime_restored_ns": 1789713519191925200
+    },
+    {
+      "mutation": "answers",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "13be20e36dd0cb098a4ea810d4743b23",
+      "mtime_restored_ns": 1789713519191925200
+    },
+    {
+      "mutation": "percentage",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "13be20e36dd0cb098a4ea810d4743b23",
+      "mtime_restored_ns": 1789713519191925200
+    },
+    {
+      "mutation": "threshold",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "13be20e36dd0cb098a4ea810d4743b23",
+      "mtime_restored_ns": 1789713519191925200
+    }
+  ]
+}

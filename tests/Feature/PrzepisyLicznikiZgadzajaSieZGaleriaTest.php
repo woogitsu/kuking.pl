@@ -120,8 +120,8 @@ class PrzepisyLicznikiZgadzajaSieZGaleriaTest extends TestCase
         $odpowiedz->assertOk();
         // Kontrola: znaczek NADAL jest na stronie i podaje liczby widocznych
         // wykonań. „2 z 3", nie „3 z 4".
-        $odpowiedz->assertSee('2 z 3 osób zrobi to ponownie');
-        $odpowiedz->assertDontSee('3 z 4 osób zrobi to ponownie');
+        $odpowiedz->assertSee('Zrobię ponownie: 2 z 3 odpowiedzi');
+        $odpowiedz->assertDontSee('Zrobię ponownie: 3 z 4 odpowiedzi');
     }
 
     /**
@@ -149,7 +149,7 @@ class PrzepisyLicznikiZgadzajaSieZGaleriaTest extends TestCase
 
         $odpowiedz->assertOk();
         $odpowiedz->assertSee('Ugotowane 3 ×');
-        $odpowiedz->assertSee('2 z 3 osób zrobi to ponownie');
+        $odpowiedz->assertSee('Zrobię ponownie: 2 z 3 odpowiedzi');
         $odpowiedz->assertSee('"userInteractionCount":3', false);
     }
 
