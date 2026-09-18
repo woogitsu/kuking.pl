@@ -96,7 +96,7 @@ odpowiedzi w fałszywe błędy — to jest kontrola przeciwna do wiersza F.
   procent nieistniejących błędów.
 - **Czas mierzony przed sklejeniem treści**, a seria w ogóle jej nie zbiera.
   Wcześniej `Buffer.concat().toString()` wpadało do zmierzonego czasu
-  odpowiedzi; na ciałach rzędu megabajta (trasa `/zdjecia/*` to 25 % mieszanki)
+  odpowiedzi; na ciałach rzędu megabajta (trasa `/zdjecia/{uuid}/{wariant}` to 25 % mieszanki)
   zawyżało to raportowane p95 blisko dwukrotnie.
 - **Percentyl rangą najbliższą** zamiast `floor`, który przy n = 20 podawał
   maksimum jako „p95"; obok percentyli stoi teraz liczność próbki.
