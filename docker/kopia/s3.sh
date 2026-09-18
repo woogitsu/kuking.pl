@@ -275,14 +275,37 @@ s3_lista_obiektow() {
   # `<Key>` i `<Size>` stoją w tym samym `<Contents>`, w tej kolejności.
   # `^Key>` nie łapie `<KeyCount>`, a `^Size>` występuje wyłącznie
   # wewnątrz `<Contents>`. Wyjście: „rozmiar<TAB>klucz".
+  #
+  # KLUCZ BEZ `<Size>` WYCHODZI Z PUSTYM ROZMIAREM, A NIE ZNIKA.
+  # Pierwsza wersja tego parsera drukowała linię dopiero przy `<Size>`, więc
+  # `<Contents>` bez rozmiaru gubiło klucz W CAŁOŚCI i cicho: lista wracała
+  # z kodem 0 i o jeden obiekt krótsza. To jest dokładnie ta klasa usterki,
+  # którą ten plik naprawia gdzie indziej — „nie wiem" udające „nie ma".
+  # Prawdziwy ListObjectsV2 oddaje `<Size>` zawsze, ale kod czytający cudzą
+  # odpowiedź nie ma prawa zakładać, że będzie.
+  #
+  # W kolumnie rozmiaru staje wtedy ZNAK ZAPYTANIA — nie pusty łańcuch i nie
+  # zero. Pusty odpadał po drodze i to jest zmierzone, nie przewidziane:
+  # `read -r rozmiar klucz` z `IFS=<TAB>` zjada WIODĄCY tabulator (tabulator
+  # jest białym znakiem IFS), więc linia „<TAB>klucz" wracała jako JEDNO pole
+  # i klucz ginął dokładnie tak samo jak przed poprawką. Zero byłoby
+  # zmyśleniem: nie wiemy, ile ten obiekt waży.
+  #
+  # `retencja()` odrzuca „?" jako obiekt BEZ POTWIERDZENIA (i alarmuje),
+  # a `s3_lista_kluczy` dalej widzi sam klucz.
   tr '<' '\n' <"${plik}" | awk '
-    /^Key>/  { klucz = substr($0, 5); next }
+    /^Key>/  { if (klucz != "") printf "?\t%s\n", klucz; klucz = substr($0, 5); next }
     /^Size>/ { if (klucz != "") { printf "%s\t%s\n", substr($0, 6), klucz; klucz = "" } }
+    END      { if (klucz != "") printf "?\t%s\n", klucz }
   '
   rm -f "${plik}"
 }
 
-# Same klucze, po jednym na linię — kontrakt sprzed rozmiarów, nietknięty.
+# Same klucze, po jednym na linię. Kontrakt WOŁAJĄCEGO jest ten sam co przed
+# dołożeniem rozmiarów, ale droga już nie: klucze przechodzą teraz przez
+# parser dwukolumnowy i `cut`. Dlatego parser wyżej wypisuje także klucz bez
+# `<Size>` (z pustą pierwszą kolumną) — inaczej ta funkcja milcząco gubiłaby
+# obiekty, a `sprawdz_poprzednia_kopie` ogłaszałaby przestój, którego nie ma.
 # Kod powrotu MUSI przeżyć obcięcie do drugiej kolumny, dlatego przez plik,
 # a nie przez potok: `cut` zwróciłby 0 nawet po nieudanym listowaniu,
 # a `pipefail` nie jest tu niczym zagwarantowanym (biblioteka bywa wczytana

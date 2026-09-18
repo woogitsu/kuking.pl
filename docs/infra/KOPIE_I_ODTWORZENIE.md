@@ -701,8 +701,17 @@ specyficzne dla kopii i odtwarzania.
   i alarmuje. Co z takim obiektem zrobić — **decyzja jest twoja, nie
   automatu**:
 
-  1. **Rozmiar 0 B albo brak `.meta`** — to jest ślad po nieudanej wysyłce.
-     Skasuj go ręcznie, nic w nim nie ma.
+  1. **Rozmiar 0 B** — to jest ślad po nieudanej wysyłce. Skasuj go
+     ręcznie, nic w nim nie ma.
+  1a. **Brak `.meta`, ale rozmiar niezerowy — NIE KASUJ.** To jest
+     najprawdopodobniej **dobra, w pełni odzyskiwalna kopia**. `wyslij()`
+     wysyła najpierw szyfrogram, potem `.meta`, więc gwarantowanym kształtem
+     porażki w tym kroku (kod 71) jest kompletny szyfrogram bez papierka.
+     Tak samo kończy się nieudane potwierdzenie (kod 80): `.meta` znika,
+     szyfrogram zostaje. Zmierzone: taki obiekt odszyfrowuje się do bajtu
+     (`md5` jawnego zgodny) i czyta do końca — `.meta` nie bierze udziału
+     w odszyfrowaniu. Najpierw §7.4 kroki 2 i 4b; kasuj dopiero, gdy się
+     nie odszyfruje albo nie przeczyta.
   2. **Rozmiar niezgodny z `.meta`** — obiekt jest niepełny albo nadpisany.
      Zanim skasujesz, sprawdź, czy da się go odszyfrować i przeczytać (§7.4
      kroki 2 i 4b). Jeśli się da mimo niezgodności, zachowaj go i **zgłoś

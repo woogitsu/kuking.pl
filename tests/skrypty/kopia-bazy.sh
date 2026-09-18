@@ -336,6 +336,10 @@ SCENARIUSZE = {
     'niezgodny': [('20200101-020000Z', 5000, 5000), ('20200102-020000Z', 900, 250000)],
     # Szyfrogram bez zadnych papierow.
     'bez-meta': [('20200101-020000Z', 5000, None), ('20200102-020000Z', 5000, 5000)],
+    # Dziesiec dobrych kopii + jeden obiekt, ktorego <Size> w listowaniu NIE MA.
+    # rozmiar=None znaczy tu „element <Size> pomijamy w odpowiedzi".
+    'bez-rozmiaru': [('202001%02d-020000Z' % d, 5000, 5000) for d in range(1, 11)]
+                    + [('20200111-020000Z', None, 5000)],
 }
 
 def lista():
@@ -343,9 +347,14 @@ def lista():
          b'<Name>k</Name><Prefix>baza/</Prefix><MaxKeys>1000</MaxKeys>'
          b'<IsTruncated>false</IsTruncated>']
     for znacznik, rozmiar, meta in SCENARIUSZE[TRYB]:
-        w.append(b'<Contents><Key>baza/kuking-%s.dump.cms</Key><Size>%d</Size>'
-                 b'<StorageClass>STANDARD</StorageClass></Contents>'
-                 % (znacznik.encode(), rozmiar))
+        if rozmiar is None:
+            w.append(b'<Contents><Key>baza/kuking-%s.dump.cms</Key>'
+                     b'<StorageClass>STANDARD</StorageClass></Contents>'
+                     % znacznik.encode())
+        else:
+            w.append(b'<Contents><Key>baza/kuking-%s.dump.cms</Key><Size>%d</Size>'
+                     b'<StorageClass>STANDARD</StorageClass></Contents>'
+                     % (znacznik.encode(), rozmiar))
         if meta is not None:
             tresc = tresc_meta(znacznik, meta)
             w.append(b'<Contents><Key>baza/kuking-%s.meta</Key><Size>%d</Size>'
@@ -526,6 +535,33 @@ PYTON
   else
     sprawdz "…tylko mówi, że to nie jest liczba (a nie „unbound variable\")" \
       "tak" "nie: ${wynik_log}"
+  fi
+
+  # OBIEKT BEZ `<Size>` MA BYĆ WIDOCZNY JAKO NIEPOTWIERDZONY, NIE ZNIKAĆ.
+  #
+  #  Zastrzeżenie recenzji do #689: parser dwukolumnowy drukował linię
+  #  dopiero przy `<Size>`, więc `<Contents>` bez rozmiaru gubiło klucz
+  #  W CAŁOŚCI — cicho, z kodem 0. Prawdziwy S3 rozmiar oddaje zawsze, ale
+  #  „nie wiem" udające „nie ma" to jest dokładnie ta usterka, którą cały ten
+  #  pakiet naprawia gdzie indziej. Tu odpowiedź składa PRAWDZIWY serwer.
+  wynik="$(retencja_na_serwerze bez-rozmiaru 7)"
+  wynik_log="${wynik#*|log=}"
+
+  if [[ "${wynik_log}" == *'BEZ POTWIERDZENIA: 1'* ]]; then
+    sprawdz "obiekt bez <Size> jest liczony jako NIEPOTWIERDZONY, a nie gubiony" "tak" "tak"
+  else
+    sprawdz "obiekt bez <Size> jest liczony jako NIEPOTWIERDZONY, a nie gubiony" "tak" "nie: ${wynik_log}"
+  fi
+
+  # Kontrola do tego samego: nie wolno go ani skasować, ani policzyć jako kopię.
+  sprawdz "…i nie trafia pod nóż retencji" \
+    "skasowane=20200101-020000Z.dump.cms,20200101-020000Z.meta,20200102-020000Z.dump.cms,20200102-020000Z.meta,20200103-020000Z.dump.cms,20200103-020000Z.meta" \
+    "${wynik%%|*}"
+
+  if [[ "${wynik_log}" == *'kopii POTWIERDZONYCH w buckecie: 10'* ]]; then
+    sprawdz "…i nie jest doliczany do potwierdzonych" "tak" "tak"
+  else
+    sprawdz "…i nie jest doliczany do potwierdzonych" "tak" "nie: ${wynik_log}"
   fi
 
   rm -f "${SERWER_RET_PY}"
@@ -884,6 +920,68 @@ sprawdz "zły rozmiar w buckecie — obiekt TEGO przebiegu znika razem z .meta" 
 # Kontrola dodatnia do tej samej rzeczy: UDANE potwierdzenie nie kasuje nic.
 sprawdz "udane potwierdzenie nie kasuje niczego" \
   "" "$(sprzatanie_po_potwierdzeniu 200 1000)"
+
+# -----------------------------------------------------------------------------
+#  SPRZĘŻENIE `potwierdz()` → `retencja()` MA WŁASNY POMIAR.
+#
+#  Zastrzeżenie recenzji do #689, i najpoważniejsze z nich. Wszystkie testy
+#  retencji wyżej USTAWIAJĄ `KOPIA_POTWIERDZONA=1` własną ręką, więc mierzą
+#  samą bramkę — a nie to, czy ktokolwiek ją kiedykolwiek otwiera. Sabotaż:
+#  wycięcie jedynej linii `KOPIA_POTWIERDZONA=1` z końca `potwierdz()`
+#  (md5 skryptu 3be5bfae wobec 18dc19f2) — 93 z 93 testów dalej zielone,
+#  a na prawdziwym buckecie retencja nie ruszyłaby NIGDY.
+#
+#  Tu ta zmienna NIE JEST ustawiana przez test. Wychodzi z `potwierdz()`
+#  albo nie ma jej wcale. Atrapa jest jedna i ta sama dla obu przypadków,
+#  różni się WYŁĄCZNIE tym, czy krok potwierdzenia się wykonał.
+# -----------------------------------------------------------------------------
+sprzezenie_potwierdzenia_z_retencja() { # <'wyslij' | 'wyslij+potwierdz'>
+  local kroki="$1"
+  (
+    wczytaj
+    katalog="$(mktemp -d)"
+    trap 'rm -rf "${katalog}"' EXIT
+    KATALOG_ROBOCZY="${katalog}"
+    PREFIKS='baza/'
+    ZNACZNIK='20260909-021700Z'
+    PLIK_SZYFROGRAMU="${katalog}/s"; printf 'x' >"${PLIK_SZYFROGRAMU}"
+    PLIK_META="${katalog}/m"; printf 'y' >"${PLIK_META}"
+    ROZMIAR_SZYFROGRAMU=1000
+    MINIMUM_KOPII=7
+    RETENCJA_DNI=30
+    alarm() { :; }
+    s3_zadanie() {
+      case "$1" in
+        PUT) S3_KOD=200; return 0 ;;
+        HEAD) S3_KOD=200; printf 'Content-Length: 1000\r\n' >"${5}"; return 0 ;;
+        GET) S3_KOD=200; printf 'rozmiar_szyfrogramu_bajty: 1000\n' >"${5}"; return 0 ;;
+        DELETE) S3_KOD=204; return 0 ;;
+      esac
+      return 0
+    }
+    # Kontrakt `rozmiar<TAB>klucz`, ten sam co w prawdziwym `s3_lista_obiektow`.
+    s3_lista_obiektow() {
+      printf '1000\tbaza/kuking-20260909-021700Z.dump.cms\n'
+      printf '64\tbaza/kuking-20260909-021700Z.meta\n'
+      S3_KOD=200
+      return 0
+    }
+
+    wyslij >/dev/null 2>&1
+    [[ "${kroki}" == 'wyslij+potwierdz' ]] && potwierdz >/dev/null 2>&1
+    # Ta linia pada WYŁĄCZNIE za bramką `KOPIA_POTWIERDZONA` — jej obecność
+    # jest dowodem, że retencja ruszyła, a nie że ma poprawną bramkę.
+    retencja 2>&1 >/dev/null | grep -c 'kopii POTWIERDZONYCH w buckecie: 1'
+  )
+}
+
+sprawdz "po UDANYM potwierdzeniu retencja naprawdę RUSZA (sprzężenie, nie sama bramka)" \
+  "1" "$(sprzezenie_potwierdzenia_z_retencja 'wyslij+potwierdz')"
+
+# Kontrola dodatnia do asercji wyżej (pułapka §4): ta sama atrapa, ten sam
+# bucket, jedyna różnica to pominięty krok potwierdzenia — i retencja stoi.
+sprawdz "bez potwierdzenia retencja nie rusza (kontrola do sprzężenia wyżej)" \
+  "0" "$(sprzezenie_potwierdzenia_z_retencja 'wyslij')"
 
 # Nazwa obiektu musi nieść znacznik czasu w formacie SORTOWALNYM — na tym
 # stoi i wybór najnowszej kopii, i cała arytmetyka retencji, i czujka

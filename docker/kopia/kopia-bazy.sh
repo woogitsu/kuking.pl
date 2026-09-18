@@ -552,6 +552,12 @@ zrzut() {
 #    * porównanie rozmiaru z poprzednim przebiegiem — nie ma progu, który
 #      odróżnia „baza urosła" od „łącze padło pod koniec".
 #
+#  CZEGO NIE ŁAPIE, A WYGLĄDA, JAKBY ŁAPAŁO: przekręconego bajtu w SPISIE
+#  TREŚCI. Spis w formacie `custom` nie ma sumy kontrolnej, więc zmiana
+#  litery w nazwie tabeli przechodzi i `--list`, i pełny odczyt — zmierzone
+#  w recenzji: `zdjecia` → `xdjecia`, oba `rc=0`. Bloki danych są wtedy całe,
+#  psuje się tylko etykieta. Przed tym broni dopiero prawdziwe odtworzenie.
+#
 #  CO TO SPRAWDZENIE DOWODZI: że archiwum daje się przeczytać do końca, że
 #  każdy blok danych jest obecny i rozpakowuje się bez błędu i że plik ma
 #  poprawne zakończenie.
@@ -560,11 +566,18 @@ zrzut() {
 #  oczekujemy, ani ILE POTRWA odtworzenie produkcji. Prawdziwe odtworzenie
 #  zostaje ćwiczeniem człowieka — `KOPIE_I_ODTWORZENIE.md` §4.
 #
-#  KOSZT, ZMIERZONY: na zrzucie 331 974 B pełny odczyt trwa 19–20 ms wobec
-#  ~10 ms samego `--list`, `Maximum resident set size` rośnie z 10 220 KiB
-#  do 10 484 KiB (+264 KiB), `File system outputs` wynosi 0. Koszt rośnie
-#  liniowo z rozmiarem archiwum, bo to zwykłe rozpakowanie zlib; miejsca na
-#  dysku nie zajmuje w ogóle, bo SQL (tu 765 416 B) idzie do `/dev/null`.
+#  KOSZT, ZMIERZONY. Na zrzucie 331 974 B pełny odczyt trwa 19–20 ms wobec
+#  ~10 ms samego `--list`, czyli około dwa razy dłużej — na tle całej kopii
+#  (zrzut, szyfrowanie, wysyłka) to jest niemierzalne. Czas rośnie liniowo
+#  z rozmiarem archiwum, bo to zwykłe rozpakowanie zlib.
+#
+#  Miejsca na dysku nie zajmuje w ogóle: `File system outputs` wynosi 0,
+#  bo SQL (tu 765 416 B) idzie do `/dev/null` i nigdy nie ląduje w pliku.
+#
+#  Pamięć jest STAŁA i nie zależy od rozmiaru archiwum. Niezależny pomiar
+#  w recenzji dał ten sam `Maximum resident set size` dla `--list` i dla
+#  pełnego odczytu, także przy archiwum 116 MB. Wcześniejsze „+264 KiB"
+#  było szumem pojedynczego pomiaru i zostaje tu odwołane.
 #
 #  Klucza prywatnego w tym kontenerze nie ma, więc wszystko powyżej dzieje
 #  się na zrzucie JAWNYM, przed szyfrowaniem. Integralności szyfrogramu
@@ -775,9 +788,29 @@ wyslij() {
 #  jako jedną z kopii chronionych przez `MINIMUM_KOPII`.
 #
 #  Kasujemy WYŁĄCZNIE klucz z TEGO przebiegu — jego nazwa niesie znacznik
-#  czasu co do sekundy, więc nie da się nim trafić w cudzą kopię. Zostawienie
-#  go byłoby gorsze niż skasowanie: to jedyny obiekt w buckecie, o którym
-#  wiemy na pewno, że nie jest tym, co wysłaliśmy.
+#  czasu co do sekundy, więc nie da się nim trafić w cudzą kopię.
+#
+#  SZYFROGRAM KASUJE SIĘ TYLKO WTEDY, GDY NAPRAWDĘ WIEMY, ŻE JEST ZŁY.
+#  Pierwsza wersja tej poprawki kasowała go przy KAŻDEJ porażce `HEAD` —
+#  także przy 500, 503, 403 i przy zerwanej sieci. Zmierzone w recenzji:
+#  jeden blip po udanym `PUT` niszczył jedyną kopię tej doby, a przed
+#  poprawką obiekt zostawał i widział go następny przebieg. Sprzeczne też
+#  z zasadą, którą ten sam plik pisze przy retencji: automat kasujący to,
+#  czego nie potrafi opisać, jest gorszy od automatu zostawiającego bałagan.
+#
+#  Dlatego dwie różne czynności:
+#    * `usun_meta_tego_przebiegu` — gdy nie wiemy, co z szyfrogramem. Bierze
+#      tylko `.meta`, bo osierocone `.meta` jest papierem bez kopii, a sam
+#      szyfrogram zostaje i trafi do klasyfikacji jako „bez potwierdzenia";
+#    * `usun_obiekt_tego_przebiegu` — gdy rozmiar w buckecie NIE ZGADZA SIĘ
+#      z wysłanym, czyli mamy dowód, że ten obiekt nie jest naszą kopią.
+usun_meta_tego_przebiegu() {
+  log 'Usuwam .meta tego przebiegu — bez potwierdzenia jest papierem bez kopii.'
+  log '  Szyfrogram ZOSTAJE: nie wiemy, czy jest zły, a kasowanie go byłoby zgadywaniem.'
+  s3_zadanie DELETE "${KLUCZ_OBIEKTU%.dump.cms}.meta" \
+    || log "OSTRZEŻENIE: nie udało się usunąć .meta (HTTP ${S3_KOD:-brak})."
+}
+
 usun_obiekt_tego_przebiegu() {
   log 'Usuwam z bucketu obiekt tego przebiegu — nie jest tym, co wysłaliśmy.'
   s3_zadanie DELETE "${KLUCZ_OBIEKTU}" \
@@ -791,10 +824,11 @@ potwierdz() {
   naglowki="$(mktemp -p "${KATALOG_ROBOCZY}")"
 
   if ! s3_zadanie HEAD "${KLUCZ_OBIEKTU}" '' '' "${naglowki}"; then
-    log "BŁĄD: obiektu nie ma w buckecie po wysyłce (HTTP ${S3_KOD:-brak})."
-    # Szyfrogramu nie ma, ale `.meta` z `wyslij()` mogło dojść — a osierocone
-    # `.meta` jest papierem bez kopii.
-    usun_obiekt_tego_przebiegu
+    log "BŁĄD: nie udało się potwierdzić obiektu w buckecie (HTTP ${S3_KOD:-brak})."
+    log '  To NIE znaczy, że szyfrogram jest zły — 404 znaczy „nie doszedł", ale 500,'
+    log '  503, 403 i zerwana sieć znaczą tylko „nie wiemy". Zostawiamy go i niech'
+    log '  rozstrzygnie następny przebieg albo człowiek.'
+    usun_meta_tego_przebiegu
     padnij potwierdzenie 80
   fi
 
@@ -989,6 +1023,16 @@ retencja() {
   local ile="${#potwierdzone[@]}"
   local ile_bez_dowodu="${#niepotwierdzone[@]}"
   log "kopii POTWIERDZONYCH w buckecie: ${ile}"
+
+  # ZERO POTWIERDZONYCH TO NIEMOŻLIWOŚĆ, NIE STAN SPOKOJNY.
+  # Retencja biegnie DOPIERO po udanym `potwierdz()`, więc w buckecie stoi
+  # co najmniej jedna potwierdzona kopia — nasza własna, sprzed chwili.
+  # Zero znaczy, że listowanie nie mówi prawdy: gubi rozmiary, oddaje pustą
+  # stronę albo `.meta` jest nie do odczytania. Bez tego alarmu pełen bucket
+  # wyglądałby jak pusty i nikt by się nie dowiedział.
+  if ((ile == 0)); then
+    alarm retencja 94 'Retencja nie widzi ANI JEDNEJ potwierdzonej kopii tuż po udanym potwierdzeniu własnej — listowanie albo odczyt .meta nie mówi prawdy.'
+  fi
 
   if ((ile_bez_dowodu > 0)); then
     log "obiektów BEZ POTWIERDZENIA: ${ile_bez_dowodu} — nie liczę ich i nie kasuję:"
