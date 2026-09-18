@@ -43,6 +43,7 @@ final class FollowingFeed
         $authorIds = array_values(array_unique([...$followedIds, $viewer->getKey()]));
 
         return Post::query()
+            ->enabledKinds()
             ->published()
             ->whereIn('author_id', $authorIds)
             // Wpisy "tylko dla obserwujących" widzi obserwujący i autor.
@@ -83,7 +84,7 @@ final class FollowingFeed
                 // dociąga ich sama, żeby nie odpalić zapytania per wpis.
                 'tags:id,slug,name,status',
             ])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
             // (kto się liczy, od ilu osób widać liczbę) siedzą w
@@ -114,6 +115,7 @@ final class FollowingFeed
     public function isEmptyFor(User $viewer): bool
     {
         return Post::query()
+            ->enabledKinds()
             ->published()
             ->whereIn('author_id', $viewer->following()->pluck('users.id')->all())
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])

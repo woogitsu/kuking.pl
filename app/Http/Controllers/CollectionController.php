@@ -160,7 +160,7 @@ class CollectionController extends Controller
             ->widoczneDla($request->user())
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->with(['author.profile.avatar', 'media'])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
+            ->withVisibleCommentCount($request->user())
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą
             // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.

@@ -91,7 +91,7 @@ final class Udostepnianie
     {
         return $tresc instanceof Recipe
             ? route('recipes.show', $tresc)
-            : route('posts.show', $tresc);
+            : $tresc->url();
     }
 
     /**
@@ -105,6 +105,10 @@ final class Udostepnianie
     {
         if ($tresc instanceof Recipe) {
             return $tresc->title;
+        }
+
+        if ($tresc instanceof Post && $tresc->kind === Post::KIND_QUESTION) {
+            return (string) $tresc->title;
         }
 
         return $tresc->author->displayName().' na Kuking';

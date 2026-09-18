@@ -88,6 +88,7 @@ class AutoryzacjaTrasZWiazaniemModeluTest extends TestCase
         // to wspólna nawigacja serwisu, nie czyjaś własność). Obserwowanie
         // zapisuje się w relacji osoby zalogowanej.
         'tags.show' => 'Tag jest publiczny — zamknięcie go byłoby regresją produktową.',
+        'questions.index' => 'Publiczna lista: firstOrFail wybiera wyłącznie aktywny tag filtra; pytania filtruje QuestionList przez widoczneDla. Bramka działu pozostaje obowiązkowa.',
         'tags.follow' => 'Tag publiczny; zapis idzie przez relację zalogowanego (followedTags).',
         'tags.unfollow' => 'Tag publiczny; zapis idzie przez relację zalogowanego (followedTags).',
 

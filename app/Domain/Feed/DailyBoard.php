@@ -195,7 +195,7 @@ final class DailyBoard
                 'recipe:id,title,slug,visibility,hero_media_id',
                 'recipe.heroMedia',
             ])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             ->get();
 
         return [
@@ -393,7 +393,7 @@ final class DailyBoard
                 'recipe:id,title,slug,visibility,hero_media_id',
                 'recipe.heroMedia',
             ])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             ->orderByDesc('published_at')
             ->orderByDesc('id')
             ->get();

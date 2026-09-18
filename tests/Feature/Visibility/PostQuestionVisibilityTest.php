@@ -10,6 +10,12 @@ use Illuminate\Database\Eloquent\Model;
 /** Schemat pytań korzysta z tej samej macierzy uprawnień co zwykły wpis. */
 class PostQuestionVisibilityTest extends PostWidocznoscTest
 {
+    protected function setUp(): void
+    {
+        parent::setUp();
+        config(['kuking.questions.enabled' => true]);
+    }
+
     protected function utworz(string $widocznosc): Model
     {
         return Post::factory()->question()->create([

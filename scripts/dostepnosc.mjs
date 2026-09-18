@@ -194,6 +194,7 @@ const EKRANY = [
   { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
+  { nazwa: 'Poradźcie — lista pytań', adres: '/pytania' },
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },
@@ -957,6 +958,8 @@ async function podnies_serwer() {
       env: {
         ...process.env,
         DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
+        // Mierzymy również dział przed publicznym włączeniem (#372).
+        KUKING_QUESTIONS_ENABLED: 'true',
         // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
         MAIL_MAILER: STEROWNIK_POCZTY_DO_POMIARU,
         // Uzasadnienie i kontrola — przy `KLUCZE_DOSTAWCOW_DO_POMIARU` wyżej.

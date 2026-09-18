@@ -79,6 +79,7 @@ final class OdzyskiwalneDane
     private const TRASY_TRESCI = [
         // Treść społeczności
         'posts.store',
+        'questions.store',
         'recipes.store',
         'recipes.update',
         'posts.comment',
