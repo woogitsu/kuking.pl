@@ -66,8 +66,8 @@ odpowiada dziś `bezczynnoscMs`; doszedł jawny `calkowityMs`.
 | B. brak odpowiedzi | 300 / 5000 | ZAKOŃCZONE | `bezczynnosc` | 301 ms |
 | **C. odpowiedź urwana po nagłówkach** | 200 / 5000 | **ZAKOŃCZONE** | **`urwana`** (5 B odebranych) | **22 ms** |
 | D. nagłówki bez zakończenia body | 300 / 5000 | ZAKOŃCZONE | `bezczynnosc` | 302 ms |
-| E. fragmenty 12 B co 75 ms (12 sztuk) | 200 / 5000 | ZAKOŃCZONE | `ok` (200) | 904 ms |
-| **F. fragmenty bez końca** | 200 / **1000** | **ZAKOŃCZONE** | **`deadline`** | **1001 ms** |
+| E. fragmenty 12 B co 75 ms (12 sztuk) | 200 / 5000 | ZAKOŃCZONE | `ok` (200) | 902 ms |
+| **F. fragmenty bez końca** | 200 / **1000** | **ZAKOŃCZONE** | **`deadline`** | **1000 ms** |
 
 Po próbach na stanowisku zostało **0 otwartych połączeń**.
 
