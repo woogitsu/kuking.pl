@@ -192,8 +192,40 @@ x-amz-date:${amz_data}
   [[ -n "${plik_ciala}" ]] && polecenie+=(--upload-file "${plik_ciala}")
 
   # Kod HTTP zbieramy ZAWSZE, także gdy curl zwróci błąd — inaczej
-  # rozróżnienie „403 zły podpis" od „brak sieci" znika.
-  S3_KOD="$("${polecenie[@]}" "${adres}" 2>/dev/null || true)"
+  # rozróżnienie „403 zły podpis" od „brak sieci" znika. Ale kod WYJŚCIA
+  # curla zbieramy OSOBNO, zamiast wyrzucać go przez `|| true` — powód niżej.
+  local kod_curla=0
+  S3_KOD="$("${polecenie[@]}" "${adres}" 2>/dev/null)" || kod_curla=$?
+
+  # -------------------------------------------------------------------------
+  #  SAM KOD HTTP NIE WYSTARCZY — USTERKA ODTWORZONA 18.09.2026
+  #
+  #  Status odpowiedzi przychodzi PRZED ciałem. Gdy połączenie urwie się
+  #  w połowie ciała albo wyczerpie `--max-time`, curl trzyma już w ręku
+  #  „200", a plik jest NIEPEŁNY. Samo `case 2*` uznawało to za sukces.
+  #
+  #  Zmierzone wobec serwera oddającego 200 i połowę ciała ListObjectsV2:
+  #  `s3_lista_kluczy` zwracała 0 i CZTERY klucze zamiast dziewięciu, więc
+  #  `sprawdz_poprzednia_kopie` brała za najnowszą kopię sprzed czterech dni
+  #  i alarmowała o przestoju, którego nie było.
+  #
+  #  `IsTruncated` tego nie łapie: ten element stoi w odpowiedzi PRZED
+  #  `<Contents>` (sprawdzone na prawdziwej odpowiedzi), więc obcięcie ciała
+  #  zabiera klucze, a znacznik stronicowania zostawia nietknięty.
+  #  `--fail-with-body` też nie — on patrzy wyłącznie na status HTTP.
+  #  Łapie to dopiero kod wyjścia curla: 18 (ciało krótsze, niż obiecał
+  #  `Content-Length`), 28 (limit czasu), 55/56 (zerwany zapis/odczyt).
+  # -------------------------------------------------------------------------
+  if ((kod_curla != 0)); then
+    case "${S3_KOD}" in
+      2*)
+        # 2xx RAZEM z błędem curla znaczy dokładnie jedno: nagłówek doszedł,
+        # ciało nie. Mówimy to wprost, zamiast meldować sukces.
+        S3_KOD="${S3_KOD}/urwany-curl-${kod_curla}"
+        return 1
+        ;;
+    esac
+  fi
 
   case "${S3_KOD}" in
     2*) return 0 ;;

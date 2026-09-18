@@ -409,6 +409,143 @@ wynik="$(
 sprawdz "nieudane listowanie w retencji nie przerywa przebiegu" "kod=0" "${wynik}"
 
 # =============================================================================
+echo "── Odpowiedź urwana w połowie NIE jest sukcesem (regresja) ──"
+# =============================================================================
+#
+#  USTERKA ODTWORZONA 18.09.2026 wobec PRAWDZIWEGO serwera HTTP.
+#
+#  `s3_zadanie` decydowała wyłącznie po kodzie HTTP, a kod wyjścia curla
+#  wyrzucała przez `|| true`. Status odpowiedzi przychodzi PRZED ciałem, więc
+#  zerwane połączenie w połowie ciała daje „200" przy NIEPEŁNYM pliku.
+#  Zmierzone: serwer oddał 200 i połowę ListObjectsV2 — `s3_lista_kluczy`
+#  zwróciła 0 i CZTERY klucze zamiast dziewięciu, a `sprawdz_poprzednia_kopie`
+#  ogłosiła jako najnowszą kopię sprzed czterech dni i zaalarmowała
+#  o przestoju, którego nie było.
+#
+#  `IsTruncated` tego NIE łapie: ten element stoi w odpowiedzi PRZED
+#  `<Contents>` (sprawdzone na prawdziwej odpowiedzi serwera S3), więc
+#  obcięcie ciała zabiera klucze, a znacznik stronicowania zostawia.
+#
+#  DLACZEGO PRAWDZIWY SERWER, A NIE ATRAPA `s3_lista_kluczy`
+#  Bo atrapa sprawdza reakcję WOŁAJĄCEGO na umówiony kod powrotu i nie dotyka
+#  ani jednej linii, która ten kod wylicza. Kontrola ujemna: wycięcie straży
+#  `IsTruncated` z `docker/kopia/s3.sh` nie oblewało ani jednego testu, dopóki
+#  ten blok nie powstał. Tu leci prawdziwy `curl` po prawdziwym gnieździe.
+
+if ! command -v python3 >/dev/null 2>&1; then
+  # Testu, którego nie wykonano, nie liczymy jako zdany — to jest cała
+  # zasada tego pliku (patrz nagłówek).
+  sprawdz "serwer próbny do testu urwanej odpowiedzi" "python3 jest" "python3 BRAK"
+else
+  SERWER_PY="$(mktemp)"
+  cat >"${SERWER_PY}" <<'PYTON'
+import socket, sys, threading
+PORT = int(sys.argv[1]); TRYB = sys.argv[2]
+# Ksztalt i KOLEJNOSC elementow jak w prawdziwej odpowiedzi ListObjectsV2:
+# IsTruncated stoi PRZED Contents.
+def cialo(obciety_znacznik):
+    return (b'<?xml version="1.0" encoding="UTF-8"?>'
+            b'<ListBucketResult><Name>k</Name><Prefix>baza/</Prefix>'
+            b'<KeyCount>9</KeyCount><MaxKeys>1000</MaxKeys>'
+            + (b'<IsTruncated>true</IsTruncated>' if obciety_znacznik
+               else b'<IsTruncated>false</IsTruncated>')
+            + b''.join(b'<Contents><Key>baza/kuking-2026091%d-020000Z.dump.cms</Key>'
+                       b'<Size>172162</Size></Contents>' % i for i in range(9))
+            + b'</ListBucketResult>')
+def obsluz(c):
+    try:
+        c.recv(65536)
+        if TRYB == 'urwany':
+            b = cialo(False)
+            c.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n' % len(b))
+            c.sendall(b[: len(b) // 2])          # polowa ciala i rozlaczenie
+        elif TRYB == 'istruncated':
+            b = cialo(True)
+            c.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n' % len(b) + b)
+        else:
+            b = cialo(False)
+            c.sendall(b'HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n' % len(b) + b)
+    except Exception:
+        pass
+    finally:
+        try: c.close()
+        except Exception: pass
+s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('127.0.0.1', PORT)); s.listen(8)
+print('gotowy', flush=True)
+while True:
+    k, _ = s.accept()
+    threading.Thread(target=obsluz, args=(k,), daemon=True).start()
+PYTON
+
+  # Port z zakresu nieużywanego przez resztę projektu; gdyby był zajęty,
+  # `curl` nie dostanie oczekiwanej odpowiedzi i test OBLEJE — nie przejdzie.
+  PORT_PROBNY=59788
+
+  z_serwerem() { # z_serwerem <tryb> <polecenia w podpowloce>
+    local tryb="$1"; shift
+    python3 "${SERWER_PY}" "${PORT_PROBNY}" "${tryb}" >/dev/null 2>&1 &
+    local pid=$!
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      (exec 3<>"/dev/tcp/127.0.0.1/${PORT_PROBNY}") 2>/dev/null && break
+      sleep 0.2
+    done
+    ( "$@" )
+    kill "${pid}" 2>/dev/null
+    wait "${pid}" 2>/dev/null
+  }
+
+  probuj_liste() { # probuj_liste — wypisuje „rc=<kod> kluczy=<ile>"
+    wczytaj
+    export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_PROBNY}"
+    export KOPIA_S3_BUCKET=k KOPIA_S3_KLUCZ=x KOPIA_S3_SEKRET=y
+    export KOPIA_S3_REGION=us-east-1 KOPIA_S3_TIMEOUT=10
+    local plik; plik="$(mktemp)"
+    local rc=0
+    s3_lista_kluczy_do_pliku 'baza/' "${plik}" || rc=$?
+    printf 'rc=%s kluczy=%s' "${rc}" "$(grep -c . "${plik}")"
+    rm -f "${plik}"
+  }
+
+  # 1. Kontrola DODATNIA — pełna odpowiedź musi nadal przechodzić, inaczej
+  #    „wszystko odrzucamy" udawałoby poprawność.
+  wynik="$(z_serwerem pelny probuj_liste)"
+  sprawdz "pełna odpowiedź nadal przechodzi i oddaje wszystkie klucze" \
+    "rc=0 kluczy=9" "${wynik}"
+
+  # 2. Sedno regresji: 200 + urwane ciało to PORAŻKA, nie krótsza lista.
+  wynik="$(z_serwerem urwany probuj_liste)"
+  sprawdz "odpowiedź 200 z urwanym ciałem NIE jest sukcesem" \
+    "rc=1 kluczy=0" "${wynik}"
+
+  # 3. Kod HTTP w komunikacie ma powiedzieć, że ciało urwano — „200" samo
+  #    w sobie wprowadzałoby w błąd, bo status naprawdę był dwusetką.
+  probuj_kod() { # probuj_kod — wypisuje samo S3_KOD po nieudanym listowaniu
+    wczytaj
+    export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_PROBNY}"
+    export KOPIA_S3_BUCKET=k KOPIA_S3_KLUCZ=x KOPIA_S3_SEKRET=y
+    export KOPIA_S3_REGION=us-east-1 KOPIA_S3_TIMEOUT=10
+    local plik; plik="$(mktemp)"
+    s3_lista_kluczy_do_pliku 'baza/' "${plik}" >/dev/null 2>&1
+    printf '%s' "${S3_KOD}"
+    rm -f "${plik}"
+  }
+
+  wynik="$(z_serwerem urwany probuj_kod | grep -c 'urwany')"
+  sprawdz "S3_KOD mówi wprost, że ciało urwano (a nie samo „200\")" "1" "${wynik}"
+
+  # 4. Straż `IsTruncated` sprawdzana FIZYCZNIE, na odpowiedzi serwera —
+  #    a nie przez podstawienie funkcji, która ten kod wylicza. Bez tego
+  #    wycięcie straży z docker/kopia/s3.sh nie oblewało niczego.
+  wynik="$(z_serwerem istruncated probuj_liste)"
+  sprawdz "pełna odpowiedź z IsTruncated=true daje kod 2, nie krótszą listę" \
+    "rc=2 kluczy=0" "${wynik}"
+
+  rm -f "${SERWER_PY}"
+fi
+
+# =============================================================================
 echo "── Wysyłka i POTWIERDZENIE, że obiekt naprawdę tam jest ──"
 # =============================================================================
 #
