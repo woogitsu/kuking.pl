@@ -30,13 +30,31 @@ use ZipArchive;
  *     przechodzi także wtedy, gdy ta reguła nie łapie żadnego elementu na
  *     stronie (pułapka 2 z `docs/PULAPKI_TESTOW.md` — skan, który niczego
  *     nie znajduje, jest dla testu sukcesem). Dlatego dopasowujemy selektor
- *     do konkretnego węzła DOM i pytamy o WARTOŚĆ, która z tego wychodzi.
+ *     do konkretnego węzła DOM i pytamy o wartość, którą ta reguła mu nadaje
+ *     — z zastrzeżeniem o kaskadzie opisanym niżej.
  *
- * Czego ten dopasowywacz NIE UDAJE: nie jest silnikiem CSS. Rozumie tylko
- * te kształty selektora, które w `exports/styles.blade.php` naprawdę stoją
- * (`tag`, `.klasa`, `tag.klasa` i potomka rozdzielonego spacją). Na każdym
- * innym kształcie OBLEWA z nazwą selektora, zamiast po cichu przepuścić —
- * bo „nie wiem" nie jest tym samym co „w porządku" (pułapka 5).
+ * CZEGO TEN DOPASOWYWACZ NIE UDAJE — I TO JEST WAŻNIEJSZE OD TEGO, CO UMIE.
+ *
+ * Nie jest silnikiem CSS i nie liczy kaskady. Rozumie tylko te kształty
+ * selektora, które w `exports/styles.blade.php` naprawdę stoją (`tag`,
+ * `.klasa`, `tag.klasa` i potomka rozdzielonego spacją), a przy konflikcie
+ * bierze regułę PÓŹNIEJSZĄ W PLIKU — nie tę o wyższej wadze. Zmierzone
+ * w recenzji: reguła `p.akcja a { min-height: 20px }` postawiona PRZED
+ * regułą `.akcja a { min-height: 48px }` wygrywa w przeglądarce (waga 0,1,2
+ * bije 0,1,1), a ten pomocnik zwróci 48 px. Nie widzi też tego, czy element
+ * w ogóle jest rysowany — `display: none` przepuści.
+ *
+ * Dlatego pomiar geometrii w prawdziwej przeglądarce NIE JEST tu zbędnym
+ * dodatkiem, tylko drugą połową dowodu: wysokości, brak przewijania w bok
+ * i fokus są zmierzone Chromium i Firefoksem, a wyniki leżą
+ * w `docs/design/evidence/eksport492/` (`ekran.json`, `zoom.json`,
+ * `druk.json`, `klawiatura.json`). Ten pomocnik pilnuje, żeby reguła nie
+ * zniknęła z arkusza i żeby dotyczyła właściwego węzła; tamte pliki
+ * pilnują, co z tego wychodzi na ekranie.
+ *
+ * Na kształcie selektora, którego nie rozumie, OBLEWA z jego nazwą, zamiast
+ * po cichu przepuścić — bo „nie wiem" nie jest tym samym co „w porządku"
+ * (pułapka 5).
  */
 abstract class EksportWygladStylPaczki extends TestCase
 {

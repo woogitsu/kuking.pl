@@ -170,7 +170,11 @@
     <ul class="spis">
         <li>
             <a href="dane.json">dane.json</a>
-            <br><span class="podpis">Wszystkie dane w formacie, który zrozumie inny serwis albo program.
+            {{-- „Te same dane", nie „wszystkie": ten opis stoi dwa ekrany pod
+                 zdaniem otwierającym, które przestało obiecywać komplet,
+                 i opisuje plik, którego własne `co_zawiera` też przestało.
+                 Paczka nie ma prawa przeczyć samej sobie o dwa akapity. --}}
+            <br><span class="podpis">Te same dane w formacie, który zrozumie inny serwis albo program.
             To jest plik na przeniesienie danych, nie do czytania.</span>
         </li>
         <li>

@@ -114,9 +114,14 @@ Skopiuj całą tę paczkę w dwa miejsca — na komputer i na pendrive
 albo dysk zewnętrzny. Jeśli jeden nośnik się zepsuje, Twoje przepisy
 zostaną na drugim.
 
+@if($recipeCount > 0)
+{{-- Ta rada odsyła do katalogu — więc podlega tej samej regule co spis
+     wyżej: na koncie bez przepisów katalogu „przepisy" w paczce nie ma
+     i nie ma czego otwierać. --}}
 Jeśli chcesz mieć przepis na papierze: otwórz go z katalogu "przepisy"
 i wciśnij Ctrl+P (drukowanie). Strona jest przygotowana tak, żeby
 wydruk był czytelny.
+@endif
 
 
 O KOMENTARZACH INNYCH OSÓB

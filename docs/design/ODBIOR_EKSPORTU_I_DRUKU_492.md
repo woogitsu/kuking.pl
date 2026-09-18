@@ -28,11 +28,12 @@ niezależnych środowiskach:
 | zdjęcia w drodze | ostrzeżenie o niekompletnej paczce (#113) |
 | konto bez zdjęć | brak martwego odnośnika do `zdjecia/` |
 | zdjęcie odrzucone | co paczka mówi o zdjęciu, które nie wejdzie NIGDY |
-| długi przepis 15 kroków | podziały stron na wydruku |
-| konto demonstracyjne do druku | 8 różnych układów wydruku |
+| długi przepis 15 kroków i 8 układów wydruku | podziały stron; to jedno archiwum obsługuje oba cele |
 
 Zdjęcia były prawdziwymi plikami (GD), nie łańcuchami tekstu — inaczej
-przeglądarka nie miałaby czego wyrenderować.
+przeglądarka nie miałaby czego wyrenderować. Plików ZIP jest siedem:
+pięć w środowisku badającym archiwum, dwa w środowisku badającym wygląd
+i druk.
 
 **Wszystkie pomiary wyglądu i druku na `file://`, bez serwera.** Ruch sieciowy
 był blokowany i liczony: `offline: true`, `--host-resolver-rules=MAP * ~NOTFOUND`,
@@ -51,10 +52,21 @@ zero żądań nieudanych.**
 - **Polskie znaki i długie nazwy** — treść po polsku renderuje się poprawnie,
   nazwy plików są slugowane do ASCII i przycinane (70 znaków dla stron
   przepisów, 60 dla zdjęć), z fallbackiem `przepis-<uuid>.html`.
-- **Samodzielność** — w całym archiwum zero adresów `http(s)://`, zero
-  `signature=`/`expires=`, zero `APP_KEY`, tokenów, ciasteczek sesji
-  i adresów e-mail innych osób. Jedyny adres e-mail to adres właściciela
-  konta (to jego dane) i adres kontaktowy serwisu.
+- **Samodzielność** — żaden `href` ani `src` w archiwum nie wychodzi poza
+  paczkę, zero `signature=`/`expires=`, zero `APP_KEY`, tokenów, ciasteczek
+  sesji i adresów e-mail innych osób. Jedyny adres e-mail to adres
+  właściciela konta (to jego dane) i adres kontaktowy serwisu.
+
+  **Sprostowanie po niezależnym review.** Pierwsza wersja tego zdania mówiła
+  „w całym archiwum zero adresów `http(s)://`" i to była nieprawda: pole
+  „Skąd masz ten przepis" (`recipes.source_url`) jest zwykłym polem
+  formularza i paczka wypisuje je jako TEKST — w `dane.json` i na stronie
+  przepisu. Adres w treści niczego nie ściąga; ściąga dopiero odnośnik.
+  Pilnujący tego test skanował na początku całą treść, więc **oblałby się
+  u pierwszej osoby, która ten adres poda** — z komunikatem „paczka wymaga
+  Kuking albo sieci" o zdaniu, które ta osoba sama napisała. Test pyta
+  teraz o `href`/`src`, a scena testowa ma adres źródła wpisany celowo,
+  z asercją, że on w paczce ZOSTAJE.
 - **Escapowanie** — `<script>`, `"`, `&`, `<` wpisane w tytuł i treść
   wychodzą jako tekst; zero żywych tagów `<script>`, zero atrybutów `on*`.
 - **Ekran** — 320/390/768/1440 px × jasny/ciemny, 8 stron: **128 przebiegów
@@ -67,9 +79,12 @@ zero żądań nieudanych.**
   usterki**. To jest dowód, którego macierz nie miała („brak Z").
 - **Klawiatura** — Tab dochodzi do pierwszego odnośnika przepisu w jednym
   kroku, `:focus-visible` prawdziwe, obrys 3 px w obu motywach, Enter otwiera.
-- **Kolory wobec `tokens.css`** — zgodne co do wartości w obu motywach;
-  kontrast tekstu 16,33:1 (jasny) i 16,47:1 (ciemny), odnośników 5,77:1,
-  fokusu 4,9:1 / 7,48:1.
+- **Kolory wobec `tokens.css`** — 13/13 wartości zgodnych w obu motywach
+  (potwierdzone niezależnie w review). Kontrast tekstu 16,33:1 (jasny)
+  i 16,47:1 (ciemny), fokusu 4,90:1 / 7,48:1, `.uwaga` 9,75:1,
+  `.plakietka` 6,53:1. Odnośnik: **5,77:1 na białej karcie i 5,23:1 na tle
+  strony** — oba przechodzą AA; pierwsza wersja raportu podawała tylko
+  korzystniejszą z tych dwóch liczb.
 
 ---
 
@@ -123,10 +138,17 @@ pozostają bez zmian.**
    nagłówków (zmierzone: „Składniki" kończyło stronę 1, pierwszy składnik
    zaczynał stronę 2).
 
-7. **Skan zajmował całą kartkę i dokładał stronę.** Skan 1200 × 1600 schodził
-   na wydruku do około 24 cm, więc przepis rósł z 5 kartek do 6, a jedna
-   zostawała zapełniona w kilkunastu procentach. `max-height: 16cm` **tylko
-   w druku**; ekran bez zmian.
+7. **Skan zajmował na wydruku około 24 cm i spychał resztę przepisu.**
+   Zmierzone `pdfimages -list`: skan 1600 px szedł przy 168 ppi, czyli
+   24,2 cm wysokości; po poprawce 255 ppi, czyli 15,9 cm — `max-height: 16cm`
+   działa. Skutek na liczbie kartek zależy od tego, ile tekstu ma przepis:
+   w niezależnym review przepis z długim skanem zszedł z **7 kartek do 4**.
+
+   **Sprostowanie po review.** Pierwsza wersja tego punktu mówiła „przepis
+   rósł z 5 kartek do 6". Tego nie da się odtworzyć z zachowanych PDF-ów:
+   `pdfinfo` na `pdf-przed/rosol-z-tlem.pdf` i `pdf/rosol-z-tlem.pdf` daje
+   **5 stron w obu**. Efekt jest realny i zmierzony wysokością zdjęcia —
+   ta konkretna para liczb nie była.
 
 Niespójności wyglądu naprawiono we wspólnym `styles.blade.php`, nie w każdym
 pliku osobno.
@@ -135,12 +157,20 @@ pliku osobno.
 
 ## 3. Czego świadomie NIE zmieniono
 
-- **Nazwa „Kuking" bez znaku garnka i bez dwukolorowego zapisu — to jest
-  poprawne.** `AGENTS.md` §11: „**nigdy tam, gdzie koloru nie ma** — `alt`,
-  `title`, `aria-label`, tytuł strony, `meta`, temat listu, **pliki eksportu**.
-  Tam piszemy zwyczajnie »Kuking«". Konstytucja marki mówi to samo o tekście
-  bez formatowania. Reguła i konstytucja się nie rozjeżdżają, więc nie ma tu
-  pytania do właściciela ani powodu do zmiany.
+- **Zwykły zapis „Kuking" w plikach eksportu jest wymagany wprost.**
+  `AGENTS.md` §11: „**nigdy tam, gdzie koloru nie ma** — `alt`, `title`,
+  `aria-label`, tytuł strony, `meta`, temat listu, **pliki eksportu**. Tam
+  piszemy zwyczajnie »Kuking«". Cytat sprawdzony w źródle, także przez
+  niezależne review.
+
+  **Uściślenie po review.** O **znaku garnka** nie mówi ani §11, ani
+  konstytucja — jego brak w paczce nie jest więc ani nakazany, ani zakazany,
+  i zdanie „to jest poprawne" było w tej części opinią, nie cytatem.
+  Konstytucja wciąga przy tym „pobraną paczkę danych" w zakres portu marki
+  z paletą marki — i ten warunek paczka spełnia: 13/13 wartości kolorów
+  zgodnych z `resources/css/tokens.css` w obu motywach. Decyzja, czy paczka
+  ma dostać znak, należy do właściciela; ten pakiet jej nie podejmuje
+  i niczego w tej sprawie nie zmienia.
 - **Zakres danych eksportu.** Ani jedno pole nie zostało dodane ani usunięte.
 - **Gałąź o zdjęciach w drodze** (`$photosStillProcessing`) — jest poprawna
   i ma własne testy (#113).
@@ -174,7 +204,7 @@ poza tym odbiorem. Ten pakiet ogranicza się do przestania obiecywać
 | Rzecz | Czym zmierzone |
 |---|---|
 | Silniki | **Chromium 151.0.7922.34** i **Firefox 155.0** (doinstalowany w trakcie). Playwright 1.63 |
-| Wydruk | 16 PDF-ów (8 układów × `printBackground` false/true), A4, margines 10 mm; paginacja czytana `pdftotext`/`pdfimages` strona po stronie; obejrzano 11 wyrenderowanych stron |
+| Wydruk | 16 PDF-ów (8 układów × `printBackground` false/true), A4, margines 10 mm; paginacja czytana `pdftotext`/`pdfimages` strona po stronie; obejrzano 11 wyrenderowanych stron. Niezależnie powtórzone w review: 7 → 4 kartki na przepisie z długim skanem |
 | Zoom | rzeczywisty `chrome.tabs.setZoom`, potwierdzony trzema niezależnymi odczytami |
 | Baza | wyłącznie `127.0.0.1:55439`, bazy `kuking_492a_tests`, `kuking_492b_tests`, `kuking_492c_tests` |
 | Poczta | `MAIL_MAILER=array` / `log` — nic nie wyszło na zewnątrz |
@@ -193,9 +223,12 @@ poza tym odbiorem. Ten pakiet ogranicza się do przestania obiecywać
 - **Nie sprawdzono rozpakowania wbudowanym rozpakowywaczem Windows, 7-Zip ani
   macOS Archive Utility** — użyto `unzip` i `python3 zipfile`. Nie sprawdzono
   zachowania przy ścieżkach dłuższych niż 260 znaków (najdłuższa nazwa
-  w archiwum: 81 znaków, limity sluga to 70/60).
+  w archiwum: **91 znaków** z prefiksem katalogu, 82 bez; limity sluga to
+  70/60). Pierwsza wersja raportu podawała 81.
 - **Nie sprawdzono dużego archiwum** (setki MB, tysiące zdjęć, wielokrotne
-  domykanie ZIP-a co `photo_flush_every`). Największe archiwum: 27 KB.
+  domykanie ZIP-a co `photo_flush_every`). Największe archiwum: **92 KB**
+  (`492b-claude/pelna.zip`, 94 652 B). Pierwsza wersja raportu podawała
+  27 KB — to był największy plik tylko jednego z dwóch środowisk.
 - **Nie sprawdzono README w starym Notatniku Windows** — sygnaturę UTF-8 (BOM)
   i CRLF potwierdzono bajtowo, nie okiem.
 - **Nie sprawdzono kolejki w osobnym procesie** przy `disk=r2_eksporty`.
@@ -214,3 +247,59 @@ spoza `unzip`/`zipfile`**.
 
 **To nie jest zamknięcie #492 ani ogłoszenie pełnego portu marki.** To jest
 domknięcie jednego wiersza macierzy.
+
+---
+
+## 7. Co zmieniło niezależne review
+
+Pakiet przeszedł przez recenzenta pracującego na osobnej kopii, osobnej bazie
+i własnych archiwach. **Werdykt: do scalenia po poprawkach** — i poprawki
+zostały zrobione. Recenzja znalazła rzeczy, których pomiar autorów nie złapał:
+
+1. **Test „paczka nie odwołuje się do serwera" był miną.** Skanował całą treść
+   wzorcem `https?://`, a `recipes.source_url` to zwykłe pole formularza, które
+   paczka wypisuje jako tekst. Test przechodził tylko dlatego, że scena była
+   uboższa od prawdziwego konta. Teraz pyta o `href`/`src`, a scena ma adres
+   źródła wpisany celowo — z asercją, że on w paczce zostaje.
+2. **`index.html` dalej obiecywał komplet** — „Wszystkie dane w formacie, który
+   zrozumie inny serwis" stało dwa ekrany pod zdaniem, które właśnie przestało
+   obiecywać komplet, i opisywało plik, którego własne `co_zawiera` też
+   przestało. Paczka przeczyła sama sobie.
+3. **„DOBRA RADA" w README dalej odsyłała do katalogu `przepisy`**, którego na
+   pustym koncie w paczce nie ma — dwie sekcje po zdaniu „Tego katalogu w tej
+   paczce NIE MA".
+4. **Pułapka 3b: jedna asercja zaspokajała dwie gałęzie.** Skasowanie CAŁEJ
+   gałęzi o zdjęciach przechodziło na zielono, bo napis „Tego katalogu w tej
+   paczce NIE MA" znajdował się przy przepisach. Asercje są teraz rozdzielone
+   na wycinki opisu każdego katalogu; kontrola ujemna po poprawce oblewa.
+5. **Pomocnik `EksportWygladStylPaczki` obiecywał w docblocku więcej, niż
+   robi** — bierze regułę późniejszą w pliku, nie tę o wyższej wadze, i nie
+   widzi `display: none`. Docblock mówi o tym teraz wprost i wskazuje, gdzie
+   leży druga połowa dowodu.
+6. **Dowody przeglądarkowe były cytowane spoza repozytorium.** Kompaktowy
+   zestaw (`ekran.json`, `zoom.json`, `druk.json`, `klawiatura.json`,
+   `kontrola-ujemna.log`, dwa zrzuty) leży teraz w
+   `docs/design/evidence/eksport492/`.
+7. **Trzy liczby w tym raporcie były nieprawdziwe** — sprostowane w tekście
+   wyżej wraz z powodem: „zero adresów `http(s)://`", „27 KB", „81 znaków",
+   „5 → 6 kartek" i podana jednostronnie wartość kontrastu odnośnika.
+   Twierdzenie o znaku garnka zostało uściślone: cytat z §11 jest prawdziwy,
+   ale o samym znaku nie mówi ani reguła, ani konstytucja.
+
+Uzasadnienia reguł CSS przeniesiono przy okazji z komentarzy `/* */` do
+komentarza Blade: arkusz jedzie w całości do **każdego** pliku HTML paczki,
+więc komentarz deweloperski dokładał ~2,5 KB do każdego z nich. Komentarz
+Blade zostaje w repozytorium i do paczki nie trafia.
+
+### Czego review nie potwierdziło własnym pomiarem
+
+Firefox i rzeczywisty zoom 200 % recenzent przyjął z zapisanych dowodów
+(spójnych wewnętrznie), nie z własnego przebiegu — mierzył wyłącznie
+Chromium. Pozostałe granice z §5 potwierdził jako uczciwie zadeklarowane.
+
+### Co review zostawiło jako otwarte, świadomie nietknięte
+
+Puste konto dostaje w `index.html` zdanie o cudzych przepisach w zeszycie,
+choć zeszytu nie ma; zdanie „tytuł i autor" zaniża zakres (pól są cztery:
+tytuł, autor, notatka, data zapisania); wydruk przepisu kończy się pustą
+kartką — usterka starsza od tego pakietu i przez niego nietknięta.

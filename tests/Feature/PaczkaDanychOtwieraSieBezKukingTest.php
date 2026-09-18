@@ -130,6 +130,7 @@ class PaczkaDanychOtwieraSieBezKukingTest extends TestCase
         $wpisy = $this->wpisyArchiwum($export);
 
         $przeskanowane = 0;
+        $sprawdzonychOdnosnikow = 0;
         $zarzuty = [];
 
         foreach ($wpisy as $plik) {
@@ -140,8 +141,24 @@ class PaczkaDanychOtwieraSieBezKukingTest extends TestCase
             $tresc = $this->zArchiwum($export, $plik);
             $przeskanowane++;
 
+            /*
+             * SPRAWDZAMY ODNOŚNIKI, NIE SUROWĄ TREŚĆ — I TO NIE JEST
+             * OSTROŻNOŚĆ, TYLKO WARUNEK SENSU TEGO TESTU.
+             *
+             * Pierwsza wersja skanowała cały tekst wzorcem `https?://`.
+             * Przechodziła, bo dane w scenie budował test — ale `recipes
+             * .source_url` to ZWYKŁE POLE FORMULARZA („Skąd masz ten
+             * przepis"), które człowiek wpisuje sam i które paczka
+             * wypisuje jako tekst w `dane.json` i na stronie przepisu.
+             * Pierwsza osoba, która dodałaby adres źródła do dowolnego
+             * fixture, dostałaby czerwień z komunikatem „paczka wymaga
+             * Kuking albo sieci" — o zdaniu, które sama napisała.
+             *
+             * Adres w treści niczego nie ściąga. Ściąga dopiero `href`
+             * i `src`, więc pytanie brzmi: czy przeglądarka, otwierając
+             * ten plik bez sieci, będzie czegoś szukać na zewnątrz.
+             */
             foreach ([
-                'adres z protokołem' => '#https?://#i',
                 'podpisany adres pobrania' => '#signature=#i',
                 'adres z podpisem czasowym' => '#[?&]expires=#i',
                 'znacznik sesji' => '#kuking-session|XSRF-TOKEN#i',
@@ -153,10 +170,26 @@ class PaczkaDanychOtwieraSieBezKukingTest extends TestCase
 
             if (str_ends_with($plik, '.html')) {
                 $dokument = $this->dokument($tresc);
-                $skrypty = (new DOMXPath($dokument))->query('//script');
+                $xpath = new DOMXPath($dokument);
+
+                $skrypty = $xpath->query('//script');
 
                 if ($skrypty !== false && $skrypty->length > 0) {
                     $zarzuty[] = "{$plik}: {$skrypty->length} × <script>";
+                }
+
+                $zrodla = $xpath->query('//*/@href | //*/@src');
+
+                if ($zrodla !== false) {
+                    foreach ($zrodla as $atrybut) {
+                        $adres = trim($atrybut->nodeValue ?? '');
+
+                        if (preg_match('#^(https?:)?//#i', $adres) === 1) {
+                            $zarzuty[] = "{$plik}: odnośnik wychodzi poza paczkę — {$adres}";
+                        }
+                    }
+
+                    $sprawdzonychOdnosnikow += $zrodla->length;
                 }
             }
         }
@@ -164,8 +197,21 @@ class PaczkaDanychOtwieraSieBezKukingTest extends TestCase
         $this->assertGreaterThanOrEqual(8, $przeskanowane,
             'Skan nie przeczytał plików paczki — zły filtr albo pusta paczka.');
 
+        // Kontrola dodatnia rozróżnienia: adres źródła wpisany przez człowieka
+        // JEST w paczce jako tekst i ma tam zostać. Gdyby zniknął, ten test
+        // przestałby dowodzić, że odróżnia treść od odnośnika.
+        $this->assertStringContainsString(
+            'https://przyklad.test/rosol-babci',
+            $this->zArchiwum($export, 'dane.json'),
+            'Adres źródła wpisany przez człowieka wypadł z paczki — test przestał mierzyć rozróżnienie treść/odnośnik.',
+        );
+
+        // Pułapka 2: skan bez odnośników przechodzi, nic nie mierząc.
+        $this->assertGreaterThanOrEqual(15, $sprawdzonychOdnosnikow,
+            'Skan nie przeczytał ani jednego `href`/`src` — nie ma czego mierzyć.');
+
         $this->assertSame([], $zarzuty,
-            "Paczka wymaga Kuking albo sieci:\n".implode("\n", $zarzuty));
+            "Paczka po otwarciu bez sieci sięgałaby na zewnątrz albo do sesji:\n".implode("\n", $zarzuty));
     }
 
     /**
@@ -216,10 +262,22 @@ class PaczkaDanychOtwieraSieBezKukingTest extends TestCase
         $skan = $this->zdjecie($basia, 'skan');
         $krok = $this->zdjecie($basia, 'krok');
 
+        /*
+         * `source_url` JEST TU CELOWO I JEST NAJWAŻNIEJSZYM POLEM TEJ SCENY.
+         *
+         * To zwykłe pole formularza („Skąd masz ten przepis"), które człowiek
+         * wpisuje sam i które paczka wypisuje jako TEKST — w `dane.json`
+         * i na stronie przepisu. Bez niego test „paczka nie odwołuje się do
+         * serwera" przechodził tylko dlatego, że scena była uboższa od
+         * prawdziwego konta, i oblałby się u pierwszej osoby, która ten adres
+         * poda. Adres w treści niczego nie ściąga; ściąga dopiero `href`
+         * i `src` — i to jest granica, której ten test pilnuje.
+         */
         $rosol = Recipe::factory()->for($basia, 'author')->create([
             'title' => 'Rosół z kury na niedzielę — żółciutki',
             'hero_media_id' => $hero->getKey(),
             'source_scan_media_id' => $skan->getKey(),
+            'source_url' => 'https://przyklad.test/rosol-babci',
         ]);
 
         RecipeStep::create([
