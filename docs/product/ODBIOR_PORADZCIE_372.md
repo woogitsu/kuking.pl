@@ -90,7 +90,7 @@ kompilacji Blade i nie przeszła; nie był to udany wynik kontroli.
 
 ## Pozostaje przed dostarczeniem
 
-- Przeglądarkowy odbiór odpowiedzi innej osoby, powiadomień i kolejki gospodarza;
+- Przeglądarkowy odbiór kolejki gospodarza; odpowiedź innej osoby i powiadomienie autora sprawdzone poniżej;
   publikacja, zachowanie zdjęcia po błędzie i publikacja bez JS już sprawdzone.
 - Rozszerzenie macierzy pustego formularza na listę, szczegół i pozostałe stany;
   rzeczywisty zoom 200% nadal niezmierzony. Oba motywy i sześć szerokości
@@ -146,3 +146,30 @@ Próba uploadu przez inputfile: lokalny PNG będący zrzutem testowego formularz
 ### Pełna suita po poprawkach: zakończona
 
 Sesja19354 zakończona kodem0: 4153 testy / 81915 asercji, brak błędów i porażek, 3 PHPUnit Notices, czas7:06.675. Nie jest to wynik CI ani hooka. Testowano runtime z poprawkami funkcjonalnymi; późniejsze pliki wersji0.66/changelogu/D-221 i końcowe raporty wymagają jeszcze celowanej weryfikacji dokumentów oraz zwykłego hooka. Review372 zamknęło oba dodatkowe P2, ocena statyczna. Pełny port marki nadal CZĘŚCIOWO, etap uruchomienia Poradźcie nie zakończony.
+
+## Odpowiedź drugiej osoby i kontrola wysyłki
+
+Na tej samej izolowanej bazie wykonano rzeczywiste logowanie drugiego konta,
+publikację odpowiedzi, odczyt powiadomienia na koncie autora oraz kliknięcie
+przycisku „Zobacz”. Prowadzi on do właściwego pytania, gdzie odpowiedź jest
+widoczna. Przy szerokości 390 px szczegół nie przewijał się poziomo.
+Obejrzano `second-answer372.png` (jasny motyw) i `answer-notification372.png`
+(ciemny motyw, tekst 140%). Zrzuty pełnej strony zawierają przyklejoną dolną
+nawigację i podpowiedź wyglądu; nie zastępują sprawdzenia zasłaniania kontrolek
+podczas przewijania. Nie wysłano żadnej wiadomości do rzeczywistych użytkowników.
+
+Pierwszy zwykły push został zatrzymany przez test domyślnej flagi pytań.
+Helper błędnie dziedziczył `KUKING_QUESTIONS_ENABLED=true` ze środowiska
+przeglądarkowego. Usunięcie tej zmiennej z helpera przywróciło domyślną
+konfigurację testów, bez zmiany testu ani kodu aplikacji. Osobno usunięto
+ostrzeżenia phpdotenv przez utworzenie brakującego lokalnego `.env` zawierającego
+wyłącznie komentarz (ustawienia nadal przekazywane jawnie przez środowisko).
+Celowana próba `artisan test`: 21 testów / 153 asercje, bez porażek i tych
+ostrzeżeń. To nie zastępuje ponownego pełnego hooka ani CI.
+Druga próba hooka wskazała także test zaufanych hostów: odziedziczony
+przeglądarkowy `APP_URL` ustawiał host 127.0.0.1 zamiast testowego localhost.
+Helpery odłączono całkowicie od konfiguracji przeglądarkowej; korzystają
+z jawnej konfiguracji odrębnej bazy testowej na 55439. Ponownie sprawdzono
+wszystkie rodziny testów odnotowane jako wadliwe w lokalnej pamięci PHPUnit:
+83 testy / 1256 asercji przeszło. Żadnej asercji nie osłabiono. Nadal potrzebny
+jest pełny zwykły hook na końcowym commicie.
