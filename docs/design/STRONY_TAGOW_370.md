@@ -111,3 +111,11 @@ nowych kart promowanych. Test sprawdza teraz osobno kolejność href, nazwę
 i licznik na każdej karcie. Bezpośredni PHPUnit: 10 testów / 52 asercje PASS.
 Fizyczne odwrócenie foreach w Blade wykryte, MD5/mtime przywrócone, wynik
 dodatni PASS. Artefakty negative-order.json i targeted.py w katalogu dowodów.
+
+Review wskazał wcześniejszą lukę fixture: Zupy(5), Barszcz(1) odpowiadały
+również kolejności malejącej popularności. Dodano trzeci tag Salatki(8),
+aby kolejność gospodarza różniła się od alfabetu i obu sortowań liczby wpisów.
+10 testów / 55 asercji PASS. Fizyczny sortByDesc(posts_count) w Blade
+wywołał właściwą porażkę href: oczekiwano Zupy, otrzymano Salatki.
+Przywrócono MD5/mtime i potwierdzono wynik dodatni. Osobna baza form-tests;
+nie zmieniano źródeł działającego pełnego hooka f26f727.
