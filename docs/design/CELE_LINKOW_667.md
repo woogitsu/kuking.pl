@@ -79,3 +79,18 @@ zoom200/tekście140. Wybrane zrzuty, wyniki i review zapisano w
  docs/design/evidence/links667/. Odbiór dotyczy zmienionych odnośników,
 nie oznacza zatwierdzenia całego istniejącego układu nawigacji ani tytułów.
 Brak nowego CSS, JS, migracji czy zmiany uprawnień.
+
+## Integracja po #666
+
+PR671 scalony po12/12CI: main bdc56b8cf9b664eda104b628d85149b08d84d8d9.
+Zintegrowano go bez konfliktów z gałęzią667 (merge lokalny e5b0d798).
+Przygotowano Alfę0.65 i changelog; jeszcze niewysłane. Następne kontrole
+muszą używać tej zintegrowanej wersji, nie poprzedniego runtime.
+
+Na zintegrowanych źródłach Alfy0.65: 33 testy /207 asercji PASS (również
+CookedCountsUnitsTest z #666). Powtórzone cztery fizyczne kontrole ujemne
+prawdziwego Blade również PASS; zaktualizowano dowód MD5/mtime.
+Synchronizacja wstrzymała się najpierw na lokalnych plikach i sesjach;
+zachowano kopię runtime poza repo, ciasteczka wykluczono wyłącznie lokalnie
+w .git/info/exclude. Żadnych metadanych Git nie przenoszono do Windows.
+Serwer8073 zatrzymany przed testami; żaden test/push nie pozostaje aktywny.
