@@ -83,3 +83,8 @@ produkcyjny dowód niezerowych podpisów. Issue666 pozostaje otwarte wyłącznie
 do reprezentatywnego odbioru niezerowych liczników na rzeczywistych danych.
 Nie tworzono produkcyjnego fixture. Wielokrotne wykonania, odmiany,
 odpowiedzi i prywatność mają zakres lokalny/CI opisany powyżej.
+
+Produkcję obejrzano także w rzeczywistym Chromium jako gość,1440×1000,
+jasny motyw: przepis Bigos z cukinii, sekcja Komu wyszło i pusty stan.
+Zrzut production-empty666.png obejrzany, production-browser.json potwierdza
+wersję i SHA. Bez zmiany danych. Nie rozszerza to odbioru na niezerowe liczniki.
