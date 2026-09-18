@@ -83,7 +83,10 @@ class TagController extends Controller
         return view('pages.tags.index', [
             'polecane' => $polecane,
             'tagi' => $tagi,
-            'collages' => $this->collage->forTags($polecane->modelKeys(), $request->user()),
+            'collages' => $this->collage->forTags(
+                array_unique(array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys())),
+                $request->user(),
+            ),
             'publicStats' => $this->publicStats->forTags(
                 array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
             ),
