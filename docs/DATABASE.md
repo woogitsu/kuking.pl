@@ -4015,10 +4015,10 @@ kuking:sprawdz-kolejke  {"stan":…,"oczekujace":…,"zaleglosc_sekundy":…,"za
                          "nieudane_w_oknie":…,"nieudane_razem":…,…}
 ```
 
-Do produkcyjnego Postgresa nie ma dziś dostępu z zewnątrz — nie ma proxy TCP
-i nie ma zalogowanego CLI — więc **to jest jedyna droga, którą ten szereg
-czasowy może w ogóle powstać**. Historia dziennika Railway jest jego jedynym
-magazynem; nie zakładamy tabeli ani zewnętrznej bazy metryk.
+W sesji pomiarowej nie było dostępu do produkcyjnego Postgresa z zewnątrz
+ani zalogowanego CLI. W tej implementacji historia dziennika Railway jest
+magazynem szeregu czasowego; nie zakładamy tabeli ani zewnętrznej bazy metryk.
+Pojedynczy odczyt w konsoli produkcji nie zastępuje historii pomiarów.
 
 **Co go blokuje, i trzeba to sprawdzić w panelu:** wpisy idą poziomem `info`,
 bo zdrowy pomiar nie jest ostrzeżeniem, a podnoszenie poziomu tylko po to,
