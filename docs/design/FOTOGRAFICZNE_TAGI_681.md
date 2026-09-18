@@ -198,7 +198,8 @@ Chrome wyświetlił Alfę 0.67 / `0f30f07`. Obejrzano katalog przy szerokości
 1717 px w jasnym motywie, 390 px w obu motywach i 1440 px w ciemnym.
 Zachowano istniejącą preferencję tekstu 80%. Rama katalogu na komputerze
 miała 1120 px, karta bez publicznej fotografii była kwadratowa; nie wystąpił
-poziomy overflow. Kliknięcie karty prowadziło do `/tag/sernik`, powrót działał.
+poziomy overflow. Kliknięcie karty prowadziło do
+[strony tagu sernik](https://kuking.pl/tag/sernik), powrót działał.
 Motyw i rozmiar okna po odbiorze przywrócono.
 
 W chwili odbioru tag miał zero publicznych wpisów, więc poprawnie pokazywał
