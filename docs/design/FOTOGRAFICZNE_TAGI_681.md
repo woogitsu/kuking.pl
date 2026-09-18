@@ -172,3 +172,43 @@ mtime ns `1789741516102299727`), przebudowano assety; połączony przebieg
 
 ### Uzupełnienie bramki CI
 Filtry trzech zadań przeglądarkowych uwzględniają teraz również zmianę samego scripts/katalog-tagow.mjs. Istniejąca regresja PortMarkiMaWlasnaBramkeCiTest: 2 testy, 79 asercji PASS. Fizyczne usunięcie wpisu z rzeczywistego workflow dało oczekiwaną porażkę: pominięto scripts/katalog-tagow.mjs. Kopia poza repo, przywrócone MD5 b41c579815acb5ae9c333a6deec3198f i mtime_ns 1789742883821854100; ponowny wynik dodatni 2/79. To pomiar lokalny, końcowy push i CI tego uzupełnienia pozostają do wykonania.
+
+## Odbiór końcowy — 18 września 2026
+
+Poniższy wynik zastępuje historyczne oczekiwanie na push, CI i wdrożenie
+w powyższych wpisach. Nie zmienia zakresu wcześniejszych pomiarów.
+
+- Zwykły push z obowiązkowym hookiem zakończył się sukcesem dla
+  `a228675b40e3c80a1c0f2802f9a76d1e0b16df94`; zdalny SHA potwierdzono.
+- [PR #688](https://github.com/woogitsu/kuking.pl/pull/688) scalono po
+  [CI 35360132759](https://github.com/woogitsu/kuking.pl/actions/runs/35360132759):
+  12/12 zadań zakończonych sukcesem na tym SHA.
+- Commit main i wdrożenia: `0f30f07b4bb9c481d4a2e6fc0d9d18cec93c8af7`.
+  [CI main 35363170161](https://github.com/woogitsu/kuking.pl/actions/runs/35363170161)
+  zakończyło się sukcesem 12/12. Pełny PHP: 4154 testy, 81992 asercje.
+  Log rodzin ekranów zawiera `K681_OK 36`, `ZOOM200_OK 88` i `PORT_OK []`.
+  Liczba 88 dotyczy szerszego zestawu zoomu, nie samych kart tagów.
+- GitHub deployment Railway `6527600446`: success, 16:15:50 UTC.
+  Panel Railway potwierdził aktywne wdrożenie
+  `79060bd2-ced3-48e6-b11c-c64558587556`.
+
+### Rzeczywista produkcja
+
+Chrome wyświetlił Alfę 0.67 / `0f30f07`. Obejrzano katalog przy szerokości
+1717 px w jasnym motywie, 390 px w obu motywach i 1440 px w ciemnym.
+Zachowano istniejącą preferencję tekstu 80%. Rama katalogu na komputerze
+miała 1120 px, karta bez publicznej fotografii była kwadratowa; nie wystąpił
+poziomy overflow. Kliknięcie karty prowadziło do `/tag/sernik`, powrót działał.
+Motyw i rozmiar okna po odbiorze przywrócono.
+
+W chwili odbioru tag miał zero publicznych wpisów, więc poprawnie pokazywał
+wariant ze znakiem garnka. Wpis widoczny właścicielowi na stronie tagu był
+prywatny: jego zdjęcie nie mogło trafić do publicznego katalogu. Nie publikowano
+danych demonstracyjnych. Fotograficzny wariant ma dowód lokalny i CI, lecz
+nie ma odbioru zdjęcia na rzeczywistych publicznych danych produkcji.
+
+Dowód odbioru:
+[komentarz #681](https://github.com/woogitsu/kuking.pl/issues/681#issuecomment-5732860881).
+To ogląd Chrome i emulacja szerokości, nie fizyczny telefon ani Safari.
+Znane zasłanianie treści przez widżet „Wygląd” pozostaje w #684; ten raport
+nie ogłasza pełnej dostępności całego serwisu. Pełny port marki: **CZĘŚCIOWO**.
