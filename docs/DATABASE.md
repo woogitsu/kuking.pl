@@ -1300,6 +1300,30 @@ w bazie. Nic nie trzeba backfillować.
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+
+**Rodzaj wpisu i tytuł pytania (#371).** Migracja
+`2026_09_18_100000_add_kind_and_title_to_posts` dodaje `kind varchar(20)
+NOT NULL DEFAULT 'dish'` i `title varchar(180) NULL` razem z ograniczeniami
+`posts_kind_check` i `posts_kind_title_check` w jednym poleceniu ALTER.
+Dozwolone są `dish` (tytuł zawsze NULL) oraz `question` (tytuł nie-NULL,
+10–180 znaków po usunięciu brzegowych spacji, tabulatorów, LF, CR i VT).
+To zestaw PHP trim poza NUL, którego PostgreSQL nie dopuszcza w tekście.
+Długość liczymy w znakach, także polskich, nie w bajtach; varchar(180)
+ogranicza również surowy tytuł przed trim. Nie normalizujemy środka tytułu.
+
+Dotychczasowe wpisy otrzymują `dish` i NULL bez zmiany treści, widoczności,
+relacji ani `recipe_id`. Nie ma wariantu `kind=recipe` ani drugiej tabeli.
+Konfiguracja `kuking.questions.enabled` (`KUKING_QUESTIONS_ENABLED`, domyślnie
+false) przygotowuje kolejny etap #372; sama nie filtruje istniejących feedów
+ani ręcznie zapisanych pytań. Ten etap nie dodaje ścieżki HTTP tworzenia pytań.
+
+**Rollback:** przy braku pytań `down()` usuwa oba CHECK-i i nowe kolumny,
+zachowując stare wpisy. Jeśli istnieje choć jedno pytanie, również ukryte
+lub miękko usunięte, odmawia przed DDL. Wtedy wycofujemy kod, pozostawiając
+rozszerzony schemat; nie usuwamy pytań w celu przepchnięcia rollbacku.
+Sprawdzenie i DDL są objęte transakcją oraz blokadą tabeli, aby równoległy
+zapis nie wszedł pomiędzy sprawdzenie a usunięcie kolumn.
+
 **`posts.recipe_id` — wpis WSKAZUJĄCY przepis** (issue #368). Kolumna istnieje
 od pierwszej migracji (`2026_09_05_000500_create_posts_tables`, `nullable`,
 `nullOnDelete`) i **nie zmienia się tą pracą ani o jeden bajt** — zmienia się
