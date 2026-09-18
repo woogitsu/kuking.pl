@@ -78,12 +78,17 @@ błędem.
 ## Granica dowodu produkcyjnego — 18 września 2026
 
 Odczyt produkcji `https://kuking.pl`, 13:10–13:24 UTC, wyłącznie HTTP GET.
-Stopka: `Alfa 0.65 · wydanie 18 września 2026, 12:12 · 55877e2`. Porównanie
+Stopka **w chwili pomiaru**: `Alfa 0.65 · wydanie 18 września 2026, 12:12 ·
+55877e2`. Wieczorem tego samego dnia produkcja stała już na `3f315b3`
+(Alfa 0.67) — patrz sekcja z 19:02 UTC. Twierdzenia poniżej nie mają własnego
+pliku wynikowego w repozytorium; są prozą przebiegu. Porównanie
 przez API GitHub: wdrożony `55877e2` jest 29 commitów przed `8418692`
 i **0 wstecz** — naprawa jest na żywo. To dowód wersji, nie odbiór
 interakcji.
 
-Publicznie dostępne są trzy treści (`/szukaj?sekcja=przepisy`):
+W jednej sprawdzonej powierzchni (`/szukaj?sekcja=przepisy`) znaleziono trzy
+treści. **To nie jest spis całej produkcji** — sformułowanie zawężono
+18.09.2026 wieczorem:
 
 | treść | trasa | wykonania | komentarze |
 | --- | --- | --- | --- |
@@ -91,13 +96,14 @@ Publicznie dostępne są trzy treści (`/szukaj?sekcja=przepisy`):
 | „Rolada kawowa", 01a0a6af-4aea-7230-9b41-8c6d4b694eee | `/wpisy/{post}` | sekcji brak (to wpis, nie przepis) | 0 |
 | sałatka ziemniaczana, 01a08f53-75fc-714d-9828-af759b1024af | `/wpisy/{post}` | sekcji brak (to wpis, nie przepis) | 1 |
 
-**Publiczny przepis jest dokładnie jeden.** „Rolada kawowa" to wpis, a nie
-przepis — adres przepisu o slugu rolada-kawowa zwraca 404.
+**W sprawdzonych adresach publiczny przepis jest jeden.** „Rolada kawowa" to
+wpis, a nie przepis — adres przepisu o slugu rolada-kawowa zwraca 404. Pełnego
+spisu publicznych przepisów ten odbiór nie wykonał i nie udaje, że wykonał.
 
 Rozmiar strony komentarzy to 12 (`config/kuking.php`,
-`comments.page_size`), więc **żaden publiczny przepis nie wystawia nawet
-jednego przycisku „Pokaż więcej"**, a scenariusz #652 wymaga dwóch
-paginatorów naraz. Dołożenie komentarza albo wykonania wymagałoby zalogowania
+`comments.page_size`), więc **sprawdzony przepis nie wystawia ani jednego
+przycisku „Pokaż więcej"**, a scenariusz #652 wymaga dwóch paginatorów naraz.
+Twierdzenie dotyczy sprawdzonego przepisu, nie wszystkich publicznych treści. Dołożenie komentarza albo wykonania wymagałoby zalogowania
 się i zapisu na produkcji — czego w odbiorze nie robimy.
 
 **Nie tworzono w tym celu komentarzy ani wykonań na produkcji.** To granica
@@ -108,3 +114,31 @@ Pokrewny ekran zeszytu ma osobny raport
 [`PAGINACJA_ZESZYTU_646.md`](PAGINACJA_ZESZYTU_646.md) — tam znajduje się
 komplet dowodu lokalnego dla wspólnego `preserveOtherPage()` przy myszy,
 dotyku i klawiaturze, wykonany na wdrożonym `55877e2`.
+
+## Ponowny odczyt produkcji — 18 września 2026, 19:02 UTC
+
+Poprzednia sekcja opisuje `55877e2` (Alfa 0.65) i zostaje z tą datą. Ten
+odczyt wykonano wieczorem na `3f315b3` (Alfa 0.67, wydanie 18 września 2026,
+20:53), wyłącznie GET-em bez sesji. Zapis:
+[`evidence/zeszyt646/produkcja-20260918T1902Z.json`](evidence/zeszyt646/produkcja-20260918T1902Z.json).
+
+Zmieniła się jedna rzecz, która mogłaby wyglądać na domknięcie #652, a nim
+nie jest: **sprawdzony przepis ma już jedno wykonanie** (nagłówek „Komu
+wyszło” niesie `1 wykonanie` zamiast pustego stanu). Paginatora to nie
+uruchamia — rozmiar strony to 12, więc do pierwszego przycisku „Pokaż więcej”
+brakuje dwunastu wykonań albo trzynastu komentarzy. W pobranym HTML strony
+przepisu **nie ma ani jednego przycisku „Pokaż więcej”**.
+
+### Brakujący dowód #652 — jeden, z kryterium
+
+- **Scenariusz:** wejść na stronę przepisu, który ma naraz **ponad 12
+  komentarzy i ponad 12 wykonań**, przejść obiema listami i sprawdzić, że
+  przejście jedną nie cofa drugiej.
+- **Potrzebne dane:** taki przepis. Na produkcji go nie ma i **nie tworzymy
+  tam komentarzy ani wykonań**, żeby go uzyskać.
+- **Kryterium zaliczenia:** po kliknięciu „Pokaż więcej komentarzy” adres
+  niesie także numer strony wykonań, lista wykonań zostaje na swojej stronie,
+  a numer spoza zakresu nie trafia do odnośnika — tak jak w regresji
+  opisanej w [`PAGINACJA_ZESZYTU_646.md`](PAGINACJA_ZESZYTU_646.md).
+
+**Nie zamykamy #652 na tej podstawie.**

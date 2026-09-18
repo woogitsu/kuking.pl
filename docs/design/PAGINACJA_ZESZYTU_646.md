@@ -26,15 +26,44 @@ listy. Nie kopiuje dowolnego query stringa. Zmienia odnośniki, nie bieżącą
 odpowiedź — dwa numery wpisane ręcznie poza zakres nadal dają puste listy.
 
 Regresja Laravel: `tests/Feature/ZeszytPaginacjaObuListTest.php` — oba
-kierunki, listy o różnej liczbie stron (docięcie do własnej, nie cudzej
-ostatniej strony), listy trzystronicowe (strona bieżąca, nie ostatnia),
-numery puste/zerowe/ujemne/tekstowe/tablicowe/przepełnione, obce parametry
-adresu, cudzy publiczny zeszyt oraz przekierowanie gościa na logowanie.
+kierunki, listy o różnej liczbie stron, listy trzystronicowe (strona bieżąca,
+nie ostatnia), numery puste/zerowe/ujemne/tekstowe/tablicowe/przepełnione,
+obce parametry adresu, cudzy publiczny zeszyt oraz przekierowanie gościa na
+logowanie.
+
+### Docięcie numeru: który dokładnie test tego pilnuje
+
+Docięcia strzeże **jeden** test i warto go nazwać po imieniu, bo nazwa
+sąsiada myli:
+
+| Test | Czy pilnuje docięcia |
+|---|---|
+| `test_numer_strony_spoza_zakresu_nie_jest_przenoszony_do_odnosnika` | **tak** |
+| `test_nierowne_listy_docinaja_sie_do_wlasnej_ostatniej_strony` | **nie**, mimo nazwy |
+
+Sprawdzone kontrolą ujemną 18 września 2026 na `3f315b3`, w izolowanym
+worktree i na własnej bazie do wyrzucenia (`127.0.0.1:55439`,
+`kuking_odbior_claude` — **nie** `kuking_d_b_browser`, która trzyma scenę
+odbiorową). Przebieg PASS → FAIL → PASS: w `App\Support\PaginationLinks`
+podmieniono `min($other->currentPage(), $other->lastPage())` na samo
+`$other->currentPage()`, po czym przywrócono plik i sprawdzono zgodność
+MD5 (`e5535fc0c883095b6d19191600993779`) oraz czasu modyfikacji.
+
+- z zepsutym docięciem **oblewa** test `…spoza_zakresu…`: przy `page=999`
+  odnośnik niósł `page=999` zamiast `page=2`;
+- z zepsutym docięciem **przechodzi** test `…docinaja_sie…` — jego scena
+  ustawia numer w zakresie dłuższej listy, więc docięcia nie dotyka.
+
+Cały plik na `3f315b3`: **9 testów, 235 asercji, PASS**. Zapis przebiegu:
+[`evidence/zeszyt646/regresja-docinanie-20260918.json`](evidence/zeszyt646/regresja-docinanie-20260918.json).
+To wynik **lokalny**; nie jest ani wynikiem CI, ani oglądem produkcji.
 
 ## Odbiór lokalny — 18 września 2026
 
-Wykonany na **dokładnie wdrożonym SHA** `55877e2b5c0aff04d93e6db75f079c7e61d4df5d`
-(Alfa 0.65). Wcześniejszy przebieg na innym drzewie odrzucono, bo widoki
+Wykonany na SHA **wdrożonym w chwili tego pomiaru** —
+`55877e2b5c0aff04d93e6db75f079c7e61d4df5d` (Alfa 0.65). To nie jest deklaracja
+o zawsze aktualnym wdrożeniu: jeszcze tego samego dnia, o 18:54 UTC, produkcja
+stała na `3f315b3` (Alfa 0.67). Wynik zostaje ważny z tą datą i tym SHA. Wcześniejszy przebieg na innym drzewie odrzucono, bo widoki
 `pages/collections/show.blade.php` i `pages/recipes/show.blade.php` różniły
 się od main (etykieta okruszków i adres pustego stanu); pliki paginacji były
 identyczne, ale dowód powtórzono w całości.
@@ -62,8 +91,17 @@ Kolejność kroków identyczna w każdym przebiegu; dane z
 
 Trzecia kolumna jest sednem #646: po przejściu wpisów przepisy **zostają**
 na stronie 2, a po kolejnym przejściu przepisów wpisy **zostają** na
-stronie 2. Czwarty krok pokazuje dodatkowo docięcie — wpisy mają tylko dwie
-strony, więc do adresu trafia `wpisy=2`, nie `wpisy=3`.
+stronie 2.
+
+**Sprostowanie z 18 września 2026 (wieczorem).** Stało tu zdanie, że czwarty
+krok pokazuje dodatkowo docięcie numeru. Nie pokazuje. W chwili tego kroku
+wpisy stoją na stronie 2, a 2 jest ich **własną ostatnią** stroną, więc
+`min(currentPage, lastPage)` i samo `currentPage` dają tę samą wartość —
+przebieg nie odróżnia docięcia od zachowania pozycji. W całym
+[`evidence/zeszyt646/raport.json`](evidence/zeszyt646/raport.json) (trzy sceny
+po pięć kroków) największa wartość `wpisy` to `2`; numer spoza zakresu nie
+pada ani razu. Czwarty krok dowodzi więc **wyłącznie zachowania aktualnej
+strony wpisów**. Dowód docięcia jest gdzie indziej — niżej.
 
 Wynik identyczny dla:
 
@@ -83,13 +121,20 @@ Zrzuty oglądane, nie tylko zapisane. Kadr
 i jego odpowiedniki pokazują na jednym ekranie koniec listy przepisów
 („Przepis 24" + „Pokaż więcej przepisów") i zaraz pod nim sekcję „Zapisane
 wpisy" z samym „Wpis 13 kontrolny" — czyli obie listy na stronie drugiej
-naraz. To samo przy 390 px z dotykiem, w obu motywach.
+naraz. Przy 390 px z dotykiem przebieg przejść jest w `raport.json` zapisany
+**tylko dla motywu ciemnego** (`dotyk-pixel5-ciemny`); jasny motyw przy 390 px
+pokrywają `wizual-light.json` i zrzut `obie-listy-390-dotyk-jasny.png`, czyli
+ogląd układu, a nie ponowione przejścia. Zdanie „to samo w obu motywach”
+zawężono 18.09.2026 wieczorem do tego, co pokrywa dowód.
 
 Motyw bierze się z konta (`users.theme`), nie z samego
 `prefers-color-scheme` — pierwszy przebieg zapisał ciemny motyw przy
 logowaniu z ciemnego kontekstu (D-019) i trzeba było ustawiać go jawnie
 przed każdą serią. Potwierdzone tłem `rgb(243, 244, 241)` dla jasnego
-i `rgb(21, 23, 20)` dla ciemnego oraz `data-theme` w `<html>`.
+i `rgb(21, 23, 20)` dla ciemnego. `data-theme` w `<html>` niesie wartość
+wyłącznie w motywie ciemnym (`wizual-dark.json`: `"dataTheme": "dark"`);
+w jasnym atrybutu nie ma (`wizual-light.json`: `"dataTheme": null`), więc
+motyw jasny rozpoznaje się po tle, nie po atrybucie.
 
 Fokus sprawdzony **prawdziwymi Tabami**, bez programowego `focus()`, dla
 przycisku „Pokaż więcej zapisanych wpisów", przy 320, 390 i 1440 px w obu
