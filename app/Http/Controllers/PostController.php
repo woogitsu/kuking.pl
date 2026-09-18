@@ -47,6 +47,8 @@ class PostController extends Controller
 
     public function create(Request $request): View
     {
+        $question = $request->routeIs('questions.create');
+        abort_if($question && ! config('kuking.questions.enabled'), 404);
         $tagNames = (array) old('tag_names', []);
         // Puste stare wejście też jest decyzją: po usunięciu ostatniego
         // tagu lub błędzie walidacji nie przywracamy wyboru z adresu.
@@ -60,7 +62,7 @@ class PostController extends Controller
             }
         }
 
-        return view('pages.posts.create', [
+        return view($question ? 'pages.questions.create' : 'pages.posts.create', [
             'tagNames' => $tagNames,
             'sugestieTagow' => $this->sugestieDlaZapytania(),
             'kluczWyslania' => $this->kluczDlaFormularza(),
@@ -117,6 +119,8 @@ class PostController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $question = $request->routeIs('questions.store');
+        abort_if($question && ! config('kuking.questions.enabled'), 404);
         $user = $request->user();
 
         // ZDJECIA WGRYWAMY PRZED WALIDACJA RESZTY — I TO JEST CALY SENS C1.
@@ -141,15 +145,24 @@ class PostController extends Controller
             .LimityZdjec::maksMegabajtowDoKomunikatu().' MB.';
 
         $request->validate([
-            'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'photos' => ['nullable', 'array', 'max:'.($question ? 1 : LimityZdjec::maksZdjecNaWysylke())],
             'photos.*' => ['file', new ObslugiwaneZdjecie(komunikatZaDuzyPlik: $bladRozmiaruZdjecia), 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'media_ids.*' => ['uuid'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
             'photos.*.max' => $bladRozmiaruZdjecia,
-            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
+            'photos.max' => $question ? 'Do pytania wybierz jedno zdjęcie.' : LimityZdjec::komunikatZaDuzoZdjec(),
         ]);
+
+        if ($question && $request->filled('usun_zdjecie')) {
+            $mediaIds = Media::query()->whereIn('id', (array) $request->input('media_ids', []))
+                ->where('owner_id', $user->getKey())->whereDoesntHave('posts')
+                ->pluck('id')->reject(fn (string $id): bool => $id === $request->input('usun_zdjecie'))->values()->all();
+
+            return redirect()->route('questions.create')
+                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $this->tagiZFormularza($request)));
+        }
 
         try {
             $mediaIds = $this->zebranZdjecia($request, $user);
@@ -172,7 +185,7 @@ class PostController extends Controller
             // Fragment `#tagi` w adresie, żeby przeglądarka wróciła w miejsce,
             // gdzie ta osoba faktycznie pracuje, a nie na górę formularza
             // z tekstem i zdjęciami nad sekcją tagów (R1 §6.1).
-            $powrot = redirect(url()->previous().'#tagi')
+            $powrot = redirect(url()->previous().($question ? '#f-tagi' : '#tagi'))
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames));
 
             return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
@@ -186,9 +199,13 @@ class PostController extends Controller
         // co trafia do starego wejscia, musi zostac tutaj.
         $walidator = Validator::make($request->all(), [
             'body' => ['nullable', 'string', 'max:4000'],
-            'visibility' => ['required', 'in:public,followers,private'],
+            'visibility' => $question ? ['exclude'] : ['required', 'in:public,followers,private'],
+            'title' => $question ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
+            'title.required' => 'Napisz pytanie w tytule.',
+            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
+            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
             // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
@@ -211,7 +228,7 @@ class PostController extends Controller
                 author: $user,
                 body: $data['body'] ?? null,
                 mediaIds: $mediaIds,
-                visibility: $data['visibility'],
+                visibility: $question ? Post::VISIBILITY_PUBLIC : $data['visibility'],
                 tagNames: $tagNames,
                 ip: $request->ip(),
                 // Wygląd zdjęć ustawia się DOPIERO PO publikacji, na osobnym
@@ -219,6 +236,7 @@ class PostController extends Controller
                 // powstaje więc zawsze jako „zwykle".
                 displayMode: Post::DISPLAY_NORMAL,
                 kluczWyslania: $this->kluczZZadania($request),
+                questionTitle: $question ? $data['title'] : null,
             );
         } catch (BladDlaCzlowieka $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
@@ -227,7 +245,8 @@ class PostController extends Controller
             // na aliasy) — komunikat trafia pod pole, którego naprawdę
             // dotyczy, żeby „Poprawne dane nigdy nie znikają" nie zgubiło
             // się w złym miejscu ekranu.
-            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow() ? 'tagi' : 'photos';
+            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow()
+                || ($question && str_contains($e->getMessage(), '3 tagi')) ? 'tagi' : 'photos';
 
             return back()
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
@@ -242,6 +261,10 @@ class PostController extends Controller
         // drugie kliknięcie nie jest pomyłką człowieka. Komunikat mówi wprost,
         // że nic się nie zepsuło, i pokazuje drogę do wpisu OSOBNEGO, gdyby
         // ktoś naprawdę chciał dodać drugi.
+        if ($question) {
+            return redirect()->route('questions.show', $post)->with('status',
+                $post->wasRecentlyCreated ? 'Pytanie opublikowane.' : 'To pytanie jest już opublikowane. Drugie kliknięcie nie dodało go ponownie.');
+        }
         if (! $post->wasRecentlyCreated) {
             return redirect()->route('posts.show', $post)->with(
                 'status',
@@ -401,8 +424,11 @@ class PostController extends Controller
                 return [$tagNames, LimityTagow::komunikatTagJuzDodany()];
             }
 
-            if (count($tagNames) >= LimityTagow::maksTagowNaWpis()) {
-                return [$tagNames, LimityTagow::komunikatZaDuzoTagow()];
+            $routePost = $request->route('post');
+            $question = $request->routeIs('questions.store')
+                || ($request->routeIs('posts.update') && $routePost instanceof Post && $routePost->kind === Post::KIND_QUESTION);
+            if (count($tagNames) >= ($question ? 3 : LimityTagow::maksTagowNaWpis())) {
+                return [$tagNames, $question ? 'Do pytania dodaj najwyżej 3 tagi.' : LimityTagow::komunikatZaDuzoTagow()];
             }
 
             $tagNames[] = $nowa;
@@ -468,6 +494,9 @@ class PostController extends Controller
 
     public function show(Request $request, Post $post): View|RedirectResponse
     {
+        if ($request->routeIs('questions.show')) {
+            abort_unless(config('kuking.questions.enabled') && $post->kind === Post::KIND_QUESTION, 404);
+        }
         $this->authorize('view', $post);
 
         $post->load([
@@ -557,6 +586,17 @@ class PostController extends Controller
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
+        if ($post->kind === Post::KIND_QUESTION) {
+            $answerCount = $post->comments()->widoczneDla($request->user())->whereNull('comments.body_removed_at')->count();
+            $post->setAttribute('comments_count', $answerCount);
+
+            return view('pages.questions.show', [
+                'komentarze' => $komentarze,
+                'komentarzyRazem' => $answerCount,
+                'post' => $post,
+            ]);
+        }
+
         return view('pages.posts.show', [
             'komentarze' => $komentarze,
             'komentarzyRazem' => $komentarze->total(),
@@ -625,6 +665,7 @@ class PostController extends Controller
     public function edit(Request $request, Post $post): View
     {
         $this->authorize('update', $post);
+        abort_if($post->kind === Post::KIND_QUESTION && ! config('kuking.questions.enabled'), 404);
 
         return view('pages.posts.edit', [
             'post' => $post,
@@ -641,6 +682,8 @@ class PostController extends Controller
     public function update(Request $request, Post $post): RedirectResponse
     {
         $this->authorize('update', $post);
+        $question = $post->kind === Post::KIND_QUESTION;
+        abort_if($question && ! config('kuking.questions.enabled'), 404);
 
         // Zakres old input pochodzi z autoryzowanej trasy, nie z podrobionego
         // pola. Brak tag_names[] oznacza usunięcie całej ręcznej listy tylko
@@ -654,7 +697,7 @@ class PostController extends Controller
         if ($this->toAkcjaTagow($request)) {
             [$tagNames, $bladTagow] = $this->zastosujAkcjeTagow($request, $tagNames);
 
-            $powrot = redirect(url()->previous().'#tagi')
+            $powrot = redirect(url()->previous().($question ? '#f-tagi' : '#tagi'))
                 ->withInput($request->except('tag_names') + ['tag_names' => $tagNames]);
 
             return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
@@ -663,8 +706,12 @@ class PostController extends Controller
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
+            'title' => $question ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
+            'title.required' => 'Napisz pytanie w tytule.',
+            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
+            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
             // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
@@ -677,17 +724,18 @@ class PostController extends Controller
                 body: $data['body'] ?? null,
                 visibility: $data['visibility'],
                 tagNames: $tagNames,
+                questionTitle: $question ? $data['title'] : null,
             );
         } catch (BladDlaCzlowieka $e) {
             // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
             // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md). Ten sam rozdział
             // pola błędu co w `store()` — patrz komentarz tam.
-            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow() ? 'tagi' : 'body';
+            $pole = in_array($e->getMessage(), [LimityTagow::komunikatZaDuzoTagow(), 'Do pytania dodaj najwyżej 3 tagi, także te wpisane w opisie.'], true) ? 'tagi' : 'body';
 
             return back()->withInput()->withErrors([$pole => $e->getMessage()]);
         }
 
-        return redirect()->route('posts.show', $post)->with('status', 'Wpis zapisany.');
+        return redirect($post->url())->with('status', $question ? 'Pytanie zapisane.' : 'Wpis zapisany.');
     }
 
     public function destroy(Request $request, Post $post): RedirectResponse

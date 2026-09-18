@@ -196,6 +196,7 @@ final class PublishComment
                     'comment_id' => $comment->getKey(),
                     'excerpt' => mb_substr($body, 0, 120),
                     'url' => $this->urlFor($subject),
+                    'question_answer' => $subject instanceof Post && $subject->kind === Post::KIND_QUESTION && $parentId === null,
                 ],
             );
 

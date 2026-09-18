@@ -1,0 +1,33 @@
+[
+  {
+    "zoom": 2,
+    "innerWidth": 720,
+    "outerWidth": 1440,
+    "dpr": 2,
+    "scrollWidth": 712,
+    "scale": "140",
+    "focused": "f-title",
+    "submit": {
+      "visibleAtCenter": true,
+      "top": 248.6328125,
+      "bottom": 308.1328125,
+      "viewport": 456
+    }
+  },
+  {
+    "zoom": 2,
+    "innerWidth": 720,
+    "outerWidth": 1440,
+    "dpr": 2,
+    "scrollWidth": 712,
+    "theme": "dark",
+    "scale": "140",
+    "focused": "f-title",
+    "submit": {
+      "visibleAtCenter": true,
+      "top": 248.6328125,
+      "bottom": 308.1328125,
+      "viewport": 456
+    }
+  }
+]

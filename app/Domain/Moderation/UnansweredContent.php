@@ -34,6 +34,16 @@ final class UnansweredContent
         return $this->withoutResponse($this->eligiblePosts($host), 'post_id', 'posts', 'author_id');
     }
 
+    /** Pytanie czeka na główną odpowiedź innej osoby, widoczną dla pytającego.
+     * @return Builder<Post>
+     */
+    public function questions(User $host): Builder
+    {
+        return $this->eligiblePosts($host)->where('posts.kind', Post::KIND_QUESTION)
+            ->whereNotExists($this->responses('post_id', 'posts', 'author_id')
+                ->whereNull('queue_comments.parent_id')->whereNull('queue_comments.body_removed_at'));
+    }
+
     /** @return Builder<Recipe> */
     public function recipes(User $host): Builder
     {

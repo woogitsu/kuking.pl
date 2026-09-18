@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.66 — porządek w rozmowach i przygotowanie Poradźcie
+
+- Przy błędzie odpowiedzi lub poprawki komentarza formularz zachowuje tekst i wskazuje właściwe pole.
+- Przygotowaliśmy „Poradźcie”: pytania o gotowanie, odpowiedzi i kolejkę dla gospodarza. Dział pozostaje wyłączony do zakończenia odbioru i stopniowego uruchomienia.
+- Usunięta odpowiedź z dalszą rozmową pozostawia miejsce dla tej rozmowy, ale nie zwiększa liczby odpowiedzi na pytanie.
+
 ## Alfa 0.65 — odnośniki prowadzą tam, gdzie obiecują
 
 - „Poszukaj przepisów” w pustym zeszycie otwiera wyszukiwarkę przepisów. Odnośnik nad przepisem prowadzący do tablicy wpisów ma teraz zgodną z nią nazwę „Świeżo z Kuking”.

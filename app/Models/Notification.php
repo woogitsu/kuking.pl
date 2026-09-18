@@ -440,6 +440,10 @@ class Notification extends Model
     {
         $widzId = $widz->getKey();
 
+        if ($tabela === 'posts' && ! config('kuking.questions.enabled')) {
+            $sub->where('tw.kind', Post::KIND_DISH);
+        }
+
         $sub->selectRaw('1')
             ->from("{$tabela} as tw")
             ->whereColumn('tw.id', $fk)

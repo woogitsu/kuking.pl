@@ -1971,6 +1971,16 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
 
+`body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
+wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
+„Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
+rozmowę, ale nie jest odpowiedzią na pytanie: nie trafia do licznika odpowiedzi,
+QAPage ani nie usuwa pytania z kolejki gospodarza. Nie można go ponownie edytować.
+Migracja nie odgaduje historycznych usunięć z samego tekstu. Cofnięcie kolumny
+jest dozwolone tylko, gdy wszystkie wartości są NULL; sprawdzenie i DDL są
+objęte jedną blokadą tabeli. Przy istniejących znacznikach wycofuje się kod
+bez cofania tej migracji.
+
 **Podwójne kliknięcie „Wyślij" NIE jest tu pilnowane przez schemat —
 i to jest świadome.** Zmierzone przed poprawką (audyt podwójnego wysłania,
 12 września 2026): dwa identyczne `POST /wpisy/{post}/komentarz` dawały

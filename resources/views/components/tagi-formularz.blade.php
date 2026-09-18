@@ -1,4 +1,4 @@
-@props(['tagNames' => [], 'sugestieTagow' => null])
+@props(['tagNames' => [], 'sugestieTagow' => null, 'maksTagow' => null, 'pytanie' => false])
 
 {{--
     Sekcja „Tagi" w formularzu wpisu (D-021) — dodawanie, szukanie i usuwanie
@@ -16,7 +16,7 @@
 --}}
 @php
     $sugestieTagow ??= collect();
-    $limit = \App\Support\LimityTagow::maksTagowNaWpis();
+    $limit = $maksTagow ?? \App\Support\LimityTagow::maksTagowNaWpis();
     $limitOsiagniety = count($tagNames) >= $limit;
     $zapytanie = trim((string) old('tag_query', ''));
     $juzWybrany = collect($tagNames)->contains(
@@ -28,9 +28,9 @@
 @endphp
 
 <div class="mt-6" id="f-tagi">
-    <h2 class="font-bold mb-1">Tagi <span class="meta">(maksymalnie {{ $limit }})</span></h2>
+    <h2 class="font-bold mb-1">{{ $pytanie ? 'Z czym to jest związane?' : 'Tagi' }} <span class="meta">(maksymalnie {{ $limit }})</span></h2>
     <p class="field-help mb-3">
-        Tagi pomagają innym znaleźć Twój wpis, a Tobie — trafić na ludzi,
+        Tagi pomagają innym znaleźć {{ $pytanie ? 'Twoje pytanie' : 'Twój wpis' }}, a Tobie — trafić na ludzi,
         którzy gotują to samo. Możesz to pominąć.
     </p>
 
@@ -44,7 +44,7 @@
                 <li class="flex items-center justify-between gap-3">
                     <input type="hidden" name="tag_names[]" value="{{ $nazwaTagu }}">
                     <span class="font-bold">{{ $nazwaTagu }}</span>
-                    <button class="btn btn-quiet" type="submit" name="usun_tag" value="{{ $nazwaTagu }}">
+                    <button class="btn btn-quiet" type="submit" formnovalidate name="usun_tag" value="{{ $nazwaTagu }}">
                         Usuń
                     </button>
                 </li>
@@ -66,7 +66,7 @@
                 maxlength="{{ \App\Support\LimityTagow::maksZnakow() }}"
                 aria-describedby="f-tag-query-help"
             >
-            <button class="btn btn-secondary" type="submit" name="szukaj_tagu" value="1">
+            <button class="btn btn-secondary" type="submit" formnovalidate name="szukaj_tagu" value="1">
                 Znajdź tag
             </button>
         </div>
@@ -80,7 +80,7 @@
                 @foreach($sugestieTagow as $sugestia)
                     <li class="flex items-center justify-between gap-3">
                         <span>{{ $sugestia->name }}</span>
-                        <button class="btn btn-quiet" type="submit" name="dodaj_tag" value="{{ $sugestia->name }}">
+                        <button class="btn btn-quiet" type="submit" formnovalidate name="dodaj_tag" value="{{ $sugestia->name }}">
                             Dodaj
                         </button>
                     </li>
@@ -92,7 +92,7 @@
 
         @if($zapytanie !== '' && mb_strlen($zapytanie) >= \App\Support\LimityTagow::minZnakow() && ! $pasujeDokladnie)
             <p class="mt-3">
-                <button class="btn btn-quiet" type="submit" name="dodaj_tag" value="{{ $zapytanie }}">
+                <button class="btn btn-quiet" type="submit" formnovalidate name="dodaj_tag" value="{{ $zapytanie }}">
                     Dodaj „{{ $zapytanie }}” jako nowy tag
                 </button>
             </p>

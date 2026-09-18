@@ -33,20 +33,34 @@ final class EditPost
         ?string $body,
         string $visibility,
         array $tagNames = [],
+        ?string $questionTitle = null,
     ): Post {
         $body = $this->cleanBody($body);
 
         // Ten sam twardy warunek co przy publikacji (PublishPost): wpis musi
         // mieć CO NAJMNIEJ zdjęcie ALBO tekst. Zdjęć ten ekran nie dotyka,
         // więc liczy się to, co wpis ma już przypięte.
-        if ($body === null && $post->media()->count() === 0) {
+        if ($post->kind !== Post::KIND_QUESTION && $body === null && $post->media()->count() === 0) {
             throw new BladDlaCzlowieka('Wpis nie może być całkiem pusty. Napisz kilka słów.');
         }
 
-        return DB::transaction(function () use ($post, $body, $visibility, $tagNames): Post {
+        return DB::transaction(function () use ($post, $body, $visibility, $tagNames, $questionTitle): Post {
             TagMutationLock::forPost();
             $locked = Post::query()->whereKey($post->getKey())->lockForUpdate()->firstOrFail();
+            if ($locked->kind === Post::KIND_QUESTION) {
+                if (! config('kuking.questions.enabled')) {
+                    throw new BladDlaCzlowieka('Edycja pytań jest teraz niedostępna.');
+                }
+                $title = trim($questionTitle ?? $locked->title);
+                if (mb_strlen($title) < 10 || mb_strlen($title) > 180) {
+                    throw new BladDlaCzlowieka('Napisz pytanie w tytule — od 10 do 180 znaków.');
+                }
+                $locked->title = $title;
+            }
             $tags = $this->resolveTags->handle($body, $tagNames, $locked);
+            if ($locked->kind === Post::KIND_QUESTION && count($tags) > 3) {
+                throw new BladDlaCzlowieka('Do pytania dodaj najwyżej 3 tagi, także te wpisane w opisie.');
+            }
             $locked->forceFill(['body' => $body, 'visibility' => $visibility])->save();
 
             // Cały pivot ma tylko pozycję i pochodzenie. Odtworzenie go
