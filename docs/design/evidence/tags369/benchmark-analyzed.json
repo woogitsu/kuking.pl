@@ -1,0 +1,124 @@
+{
+  "fixture": {
+    "posts": 10000,
+    "photos": 30000,
+    "authors": 1000,
+    "tags": 30,
+    "extraUnattachedFactoryTemplates": true
+  },
+  "setupSeconds": 0.9587399959564209,
+  "samples": [
+    {
+      "scope": "batch",
+      "tags": 2,
+      "run": 0,
+      "queries": 1,
+      "ms": 7.552862167358398
+    },
+    {
+      "scope": "batch",
+      "tags": 2,
+      "run": 1,
+      "queries": 1,
+      "ms": 5.685091018676758
+    },
+    {
+      "scope": "batch",
+      "tags": 2,
+      "run": 2,
+      "queries": 1,
+      "ms": 5.377054214477539
+    },
+    {
+      "scope": "batch",
+      "tags": 2,
+      "run": 3,
+      "queries": 1,
+      "ms": 5.128145217895508
+    },
+    {
+      "scope": "batch",
+      "tags": 30,
+      "run": 0,
+      "queries": 1,
+      "ms": 31.3570499420166
+    },
+    {
+      "scope": "batch",
+      "tags": 30,
+      "run": 1,
+      "queries": 1,
+      "ms": 29.829978942871094
+    },
+    {
+      "scope": "batch",
+      "tags": 30,
+      "run": 2,
+      "queries": 1,
+      "ms": 29.795169830322266
+    },
+    {
+      "scope": "batch",
+      "tags": 30,
+      "run": 3,
+      "queries": 1,
+      "ms": 30.121803283691406
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 2,
+      "run": 0,
+      "queries": 4,
+      "ms": 24.554014205932617
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 2,
+      "run": 1,
+      "queries": 4,
+      "ms": 13.079166412353516
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 2,
+      "run": 2,
+      "queries": 4,
+      "ms": 13.464927673339844
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 2,
+      "run": 3,
+      "queries": 4,
+      "ms": 12.935161590576172
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 30,
+      "run": 0,
+      "queries": 4,
+      "ms": 56.39982223510742
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 30,
+      "run": 1,
+      "queries": 4,
+      "ms": 57.29413032531738
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 30,
+      "run": 2,
+      "queries": 4,
+      "ms": 57.0068359375
+    },
+    {
+      "scope": "GET /tagi",
+      "tags": 30,
+      "run": 3,
+      "queries": 4,
+      "ms": 55.67502975463867
+    }
+  ]
+}

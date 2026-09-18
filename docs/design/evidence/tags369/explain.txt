@@ -1,0 +1,66 @@
+GroupAggregate  (cost=62076.27..62268.04 rows=30 width=32) (actual time=36.410..39.773 rows=30.00 loops=1)
+  Group Key: post_tags.tag_id
+  Buffers: shared hit=33374
+  ->  Sort  (cost=62076.27..62124.14 rows=19147 width=48) (actual time=36.273..37.000 rows=30000.00 loops=1)
+        Sort Key: post_tags.tag_id, media.id
+        Sort Method: quicksort  Memory: 2644kB
+        Buffers: shared hit=33374
+        ->  Hash Join  (cost=4148.08..60714.46 rows=19147 width=48) (actual time=7.065..28.809 rows=30000.00 loops=1)
+              Hash Cond: (posts.author_id = users.id)
+              Buffers: shared hit=33374
+              ->  Nested Loop  (cost=4096.06..60611.96 rows=19147 width=48) (actual time=6.927..26.317 rows=30000.00 loops=1)
+                    Buffers: shared hit=33347
+                    ->  Hash Join  (cost=4095.76..5001.03 rows=19149 width=64) (actual time=6.895..14.307 rows=30000.00 loops=1)
+                          Hash Cond: (post_media.media_id = media.id)
+                          Buffers: shared hit=3347
+                          ->  Hash Join  (cost=336.74..1191.73 rows=19149 width=64) (actual time=1.804..6.051 rows=30000.00 loops=1)
+                                Hash Cond: (post_media.post_id = post_tags.post_id)
+                                Buffers: shared hit=338
+                                ->  Seq Scan on post_media  (cost=0.00..551.00 rows=30000 width=32) (actual time=0.003..1.043 rows=30000.00 loops=1)
+                                      Buffers: shared hit=251
+                                ->  Hash  (cost=256.95..256.95 rows=6383 width=32) (actual time=1.796..1.800 rows=10000.00 loops=1)
+                                      Buckets: 16384 (originally 8192)  Batches: 1 (originally 1)  Memory Usage: 753kB
+                                      Buffers: shared hit=87
+                                      ->  Hash Join  (cost=2.83..256.95 rows=6383 width=32) (actual time=0.013..1.207 rows=10000.00 loops=1)
+                                            Hash Cond: (post_tags.tag_id = tags.id)
+                                            Buffers: shared hit=87
+                                            ->  Seq Scan on post_tags  (cost=0.07..235.07 rows=6383 width=32) (actual time=0.004..0.559 rows=10000.00 loops=1)
+                                                  Filter: (tag_id = ANY ('{01a0b1aa-3eb9-7019-9d32-8f8177154f12,01a0b1aa-3eb9-7019-9d32-8f81775da26a,01a0b1aa-3eba-718c-9813-a7d634cf43fe,01a0b1aa-3eba-718c-9813-a7d6351c3c82,01a0b1aa-3eba-718c-9813-a7d635c582d6,01a0b1aa-3ebb-7278-a8b8-7d7295dcdb54,01a0b1aa-3ebb-7278-a8b8-7d7296b69f82,01a0b1aa-3ebb-7278-a8b8-7d7296d66f38,01a0b1aa-3ebc-73fd-94a9-8d1ac33ede2d,01a0b1aa-3ebc-73fd-94a9-8d1ac4164c82,01a0b1aa-3ebc-73fd-94a9-8d1ac4fa04e3,01a0b1aa-3ebd-735b-b9a6-cf0aefdb736a,01a0b1aa-3ebd-735b-b9a6-cf0af0160c65,01a0b1aa-3ebe-73a1-956a-303482290d21,01a0b1aa-3ebe-73a1-956a-3034829c011c,01a0b1aa-3ebe-73a1-956a-303482a65a7e,01a0b1aa-3ebf-723f-afc5-23049b3193dc,01a0b1aa-3ebf-723f-afc5-23049c0523cc,01a0b1aa-3ebf-723f-afc5-23049c6d20f0,01a0b1aa-3ec0-73cf-8f8f-d02b7e40db72,01a0b1aa-3ec0-73cf-8f8f-d02b7ef1f3e3,01a0b1aa-3ec0-73cf-8f8f-d02b7f1a07e9,01a0b1aa-3ec1-7395-84b9-b1de716ca68f,01a0b1aa-3ec1-7395-84b9-b1de71f8c326,01a0b1aa-3ec2-70f3-b299-c38e4814647b,01a0b1aa-3ec2-70f3-b299-c38e48cb2d07,01a0b1aa-3ec3-729b-96fe-7a126de50a9d,01a0b1aa-3ec3-729b-96fe-7a126e3cc03f,01a0b1aa-3ec3-729b-96fe-7a126ee16dd9,01a0b1aa-3ec4-71ac-bb5e-f5321e5f2d9b}'::uuid[]))
+                                                  Buffers: shared hit=85
+                                            ->  Hash  (cost=2.38..2.38 rows=30 width=16) (actual time=0.007..0.009 rows=30.00 loops=1)
+                                                  Buckets: 1024  Batches: 1  Memory Usage: 10kB
+                                                  Buffers: shared hit=2
+                                                  ->  Seq Scan on tags  (cost=0.00..2.38 rows=30 width=16) (actual time=0.004..0.006 rows=30.00 loops=1)
+                                                        Filter: ((status)::text = 'active'::text)
+                                                        Buffers: shared hit=2
+                          ->  Hash  (cost=3384.01..3384.01 rows=30001 width=16) (actual time=5.074..5.075 rows=30001.00 loops=1)
+                                Buckets: 32768  Batches: 1  Memory Usage: 1663kB
+                                Buffers: shared hit=3009
+                                ->  Seq Scan on media  (cost=0.00..3384.01 rows=30001 width=16) (actual time=0.010..3.331 rows=30001.00 loops=1)
+                                      Filter: ((status)::text = 'ready'::text)
+                                      Buffers: shared hit=3009
+                    ->  Memoize  (cost=0.30..8.65 rows=1 width=32) (actual time=0.000..0.000 rows=1.00 loops=30000)
+                          Cache Key: post_tags.post_id
+                          Cache Mode: logical
+                          Hits: 20000  Misses: 10000  Evictions: 0  Overflows: 0  Memory Usage: 1407kB
+                          Buffers: shared hit=30000
+                          ->  Index Scan using posts_pkey on posts  (cost=0.29..8.64 rows=1 width=32) (actual time=0.001..0.001 rows=1.00 loops=10000)
+                                Index Cond: (id = post_tags.post_id)
+                                Filter: ((published_at IS NOT NULL) AND (deleted_at IS NULL) AND ((status)::text = 'published'::text) AND ((visibility)::text = 'public'::text) AND ((recipe_id IS NULL) OR (ANY (recipe_id = (hashed SubPlan 2).col1))))
+                                Index Searches: 10000
+                                Buffers: shared hit=30000
+                                SubPlan 2
+                                  ->  Index Scan using recipes_author_published_idx on recipes  (cost=0.14..8.16 rows=1 width=16) (never executed)
+                                        Index Cond: ((published_at IS NOT NULL) AND (published_at IS NOT NULL))
+                                        Filter: (((status)::text = 'published'::text) AND ((visibility)::text = 'public'::text))
+                                        Index Searches: 0
+              ->  Hash  (cost=39.51..39.51 rows=1001 width=16) (actual time=0.134..0.134 rows=1001.00 loops=1)
+                    Buckets: 1024  Batches: 1  Memory Usage: 55kB
+                    Buffers: shared hit=27
+                    ->  Seq Scan on users  (cost=0.00..39.51 rows=1001 width=16) (actual time=0.008..0.082 rows=1001.00 loops=1)
+                          Filter: ((status)::text = 'active'::text)
+                          Buffers: shared hit=27
+Planning:
+  Buffers: shared hit=57
+Planning Time: 0.926 ms
+Execution Time: 39.831 ms

@@ -1,0 +1,13 @@
+{
+  "negativeExit": 1,
+  "detected": "TEXT_OUTSIDE_ROUNDED_BORDER",
+  "before": {
+    "md5": "1511d218cd5d30e8538fd0943732263a",
+    "mtime_ns": 1789687707143003310
+  },
+  "after": {
+    "md5": "1511d218cd5d30e8538fd0943732263a",
+    "mtime_ns": 1789687707143003310
+  },
+  "restoredPositive": true
+}
