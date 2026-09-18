@@ -173,3 +173,58 @@ z jawnej konfiguracji odrębnej bazy testowej na 55439. Ponownie sprawdzono
 wszystkie rodziny testów odnotowane jako wadliwe w lokalnej pamięci PHPUnit:
 83 testy / 1256 asercji przeszło. Żadnej asercji nie osłabiono. Nadal potrzebny
 jest pełny zwykły hook na końcowym commicie.
+
+## Aktualizacja: wysyłka i rzeczywisty zoom 200%
+
+Zwykły hook zakończył się sukcesem: Pint, składnia, kontrole skryptów,
+PHPStan, testy PHP i odwracalność migracji. Zdalny commit
+8d9145763f3ebbf5a7cc41906a707fb09d612bd0 potwierdzono przez GitHub API.
+Utworzono draft PR #680. Nie oznacza to przejścia CI ani wdrożenia.
+
+Rzeczywisty zoom ustawiono przez chrome.tabs.setZoom(2), potwierdzając
+getZoom=2, DPR=2 i zmianę szerokości treści z 640 do 320 oraz z 1440 do 720 px.
+Oba motywy, tekst aplikacji 140%. Formularz po rzeczywistym POST odrzucał
+zbyt krótki tytuł, zachowywał opis, a kliknięcie podsumowania błędów skupiało
+pole tytułu. Brak poziomego overflow; środek przycisku publikacji dostępny
+według elementFromPoint po przewinięciu. Wyniki: zoom372-results-*.json.
+
+Obejrzano osiem zrzutów walidacji i przycisku w obu szerokościach i motywach.
+Playwright page.screenshot zwracał samo tło również w trybie okienkowym;
+poprawny obraz uzyskano przez CDP Page.captureScreenshot z fromSurface=false
+w okienkowym Chromium pod Xvfb. Puste obrazy nie są dowodem odbioru.
+Poprzedni timeout zamknięcia panelu nie występuje po wejściu na świeży
+formularz dla każdego wariantu oraz skupieniu wybieranego selecta.
+Nie rozstrzyga to osobno przyczyny wcześniejszego timeoutu.
+
+Ograniczenie oglądu: pływający przycisk Wygląd nadal przykrywa fragmenty
+tekstu pomocniczego / komunikatu walidacji w uchwyconych pozycjach przewijania.
+Pole z fokusem i przycisk publikacji są odsłonięte. Wynik NIE oznacza pełnego
+odbioru zasłaniania wszystkich treści, listy pytań ani szczegółu.
+
+### Poprawka zasłaniania błędów — lokalnie, jeszcze nie w PR
+
+Wspólny szybki-wyglad.js przenosi zwinięty widget do zwykłego przepływu,
+gdy jego prostokąt przecina widoczny fragment .field-error. Działa również
+przy przewijaniu myszą bez przenoszenia fokusu na błąd. Nie dotyczy to jeszcze
+wszelkich tekstów pomocniczych. Powtórka rzeczywistego zoomu 200%, tekst140%,
+320/720px i oba motywy przeszła wraz z nową kontrolą braku kolizji z błędami.
+Obejrzano końcowy zrzut ciemny720px: cały komunikat błędu jest odsłonięty.
+
+Fizyczna kontrola ujemna prawdziwego JS: wyłączenie warunku obscuresError,
+build, ten sam scenariusz przy720px — oczekiwany FAIL na braku kolizji.
+Przywrócono bajty i mtime, ponowiono build i scenariusz — PASS.
+Kopia poza repo i logi: /home/mateusz/kuking-negative372/1789733656216203912.
+MD5 przywróconego JS: 3cc4e6398841fa2b1905d0e02d216a7a;
+mtime_ns:1789733604097062864. Build obejmuje72kontrolekontrastu i7testówJS.
+Pozostaje włączenie regresji do trwałego zestawu, review wspólnego komponentu
+oraz ponowny hook/CI po wysłaniu tej poprawki. Obecny zdalny PR jej nie zawiera.
+
+Regresję utrwalono w scripts/szybki-wyglad.mjs jako sprawdzBladPodWygladem,
+wywoływaną przez istniejący odbiór port-projektu. Wysyła prawdziwy błędny
+formularz logowania, przewija komunikat pod widget, sprawdza odsłonięcie oraz
+możliwość otwarcia panelu. Lokalnie PASS. Osobna fizyczna kontrola ujemna tej
+regresji: /home/mateusz/kuking-negative372/1789733873280398889 — FAIL po
+wyłączeniu warunku w JS, zgodne przywrócenie MD5 i mtime jak wyżej, ponowny
+build i PASS. Nie jest to wynik całego port-projektu. Readonly review372 nie
+znalazło pewnego blokera w interakcjach z fokusowaniem, przewijaniem i
+otwieraniem panelu. Żaden test ani push nie trwa po zakończeniu tej próby.

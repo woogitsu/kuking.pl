@@ -52,6 +52,19 @@ function initialize() {
         widget.removeAttribute('data-wyglad-malo-miejsca');
         const panelOutside = widget.open && widget.querySelector('.szybki-wyglad-panel').getBoundingClientRect().top < 4;
         widget.toggleAttribute('data-wyglad-malo-miejsca', summary.getBoundingClientRect().top < 240 || panelOutside);
+        // Komunikat błędu musi być czytelny także podczas przewijania myszą,
+        // gdy fokus pozostaje w polu, a nie w samym komunikacie.
+        if (!widget.open) {
+            const floating = summary.getBoundingClientRect();
+            const obscuresError = [...document.querySelectorAll('.field-error')].some(error =>
+                [...error.getClientRects()].some(r => r.width > 0 && r.height > 0
+                    && r.right > floating.left && r.left < floating.right
+                    && r.bottom > floating.top && r.top < floating.bottom));
+            if (obscuresError) {
+                widget.setAttribute('data-wyglad-w-przeplywie', '');
+                return;
+            }
+        }
         if (wasInFlow && document.activeElement && !document.activeElement.matches('body, html') && !widget.contains(document.activeElement)) {
             const target = document.activeElement;
             const floating = summary.getBoundingClientRect();
