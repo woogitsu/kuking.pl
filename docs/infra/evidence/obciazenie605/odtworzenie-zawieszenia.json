@@ -1,0 +1,187 @@
+{
+ "UWAGA": "NIE JEST TO WYNIK WYDAJNOŚCIOWY PORTALU. To jest badanie samego PRZYRZĄDU na `scripts/serwer-scenariuszy-605.mjs` — małym serwerze HTTP na porcie przydzielanym dynamicznie. Aplikacja Kuking, baza, kolejka, media i produkcja nie były dotykane. Czasy poniżej są czasami stanowiska, nie serwisu.",
+ "sha_przed_poprawka": "0e5d27079007195173c98768f8b474e315c1f44a",
+ "jak_powtorzyc": "git show 0e5d270:scripts/generator-obciazenia-605.mjs > /tmp/g.mjs && node docs/infra/evidence/obciazenie605/odtworzenie-przed-poprawka.mjs /tmp/g.mjs",
+ "przed_poprawka": {
+  "zrodlo": "/mnt/c/Users/matma/AppData/Local/Temp/claude/C--Users-matma-Documents-Codex/3f6a0269-2b62-48c3-96e8-8409a029cb13/scratchpad/605/g0e5d270.mjs",
+  "port_stanowiska": 33125,
+  "scenariusze": [
+   {
+    "scenariusz": "A. poprawna odpowiedź",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 7,
+    "watchdog_ms": 5000,
+    "limitMs_zadany": 2000,
+    "wynik": {
+     "status": 200,
+     "ms": 6,
+     "bajty": 58,
+     "blad": null
+    }
+   },
+   {
+    "scenariusz": "B. brak odpowiedzi",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 301,
+    "watchdog_ms": 5000,
+    "limitMs_zadany": 300,
+    "wynik": {
+     "status": 0,
+     "ms": 302,
+     "bajty": 0,
+     "blad": "timeout"
+    }
+   },
+   {
+    "scenariusz": "C. przerwana odpowiedź po nagłówkach",
+    "stan": "ZAWIESZONE",
+    "ms_do_rozwiazania": null,
+    "watchdog_ms": 4000,
+    "limitMs_zadany": 200,
+    "wynik": null
+   },
+   {
+    "scenariusz": "D. nagłówki bez zakończenia body",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 302,
+    "watchdog_ms": 5000,
+    "limitMs_zadany": 300,
+    "wynik": {
+     "status": 0,
+     "ms": 302,
+     "bajty": 0,
+     "blad": "timeout"
+    }
+   },
+   {
+    "scenariusz": "E. powolne fragmenty 12 B co 75 ms (12 sztuk)",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 903,
+    "watchdog_ms": 6000,
+    "limitMs_zadany": 200,
+    "wynik": {
+     "status": 200,
+     "ms": 903,
+     "bajty": 144,
+     "blad": null
+    }
+   },
+   {
+    "scenariusz": "F. powolne fragmenty bez końca",
+    "stan": "ZAWIESZONE",
+    "ms_do_rozwiazania": null,
+    "watchdog_ms": 4000,
+    "limitMs_zadany": 200,
+    "wynik": null
+   }
+  ],
+  "polaczenia_otwarte_po_probach": 1
+ },
+ "po_poprawce": {
+  "scenariusze": [
+   {
+    "scenariusz": "A. poprawna odpowiedź",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 5,
+    "watchdog_ms": 5000,
+    "limity": {
+     "bezczynnoscMs": 2000,
+     "calkowityMs": 3000
+    },
+    "wynik": {
+     "status": 200,
+     "ms": 5,
+     "bajty": 58,
+     "powod": "ok",
+     "blad": null
+    }
+   },
+   {
+    "scenariusz": "B. brak odpowiedzi",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 301,
+    "watchdog_ms": 5000,
+    "limity": {
+     "bezczynnoscMs": 300,
+     "calkowityMs": 5000
+    },
+    "wynik": {
+     "status": 0,
+     "ms": 301,
+     "bajty": 0,
+     "powod": "bezczynnosc",
+     "blad": "brak ruchu na gnieździe przez 300 ms"
+    }
+   },
+   {
+    "scenariusz": "C. przerwana odpowiedź po nagłówkach",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 22,
+    "watchdog_ms": 4000,
+    "limity": {
+     "bezczynnoscMs": 200,
+     "calkowityMs": 5000
+    },
+    "wynik": {
+     "status": 0,
+     "ms": 22,
+     "bajty": 5,
+     "powod": "urwana",
+     "blad": "odpowiedź urwana po nagłówkach"
+    }
+   },
+   {
+    "scenariusz": "D. nagłówki bez zakończenia body",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 302,
+    "watchdog_ms": 5000,
+    "limity": {
+     "bezczynnoscMs": 300,
+     "calkowityMs": 5000
+    },
+    "wynik": {
+     "status": 0,
+     "ms": 301,
+     "bajty": 0,
+     "powod": "bezczynnosc",
+     "blad": "brak ruchu na gnieździe przez 300 ms"
+    }
+   },
+   {
+    "scenariusz": "E. powolne fragmenty 12 B co 75 ms (12 sztuk)",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 905,
+    "watchdog_ms": 6000,
+    "limity": {
+     "bezczynnoscMs": 200,
+     "calkowityMs": 5000
+    },
+    "wynik": {
+     "status": 200,
+     "ms": 905,
+     "bajty": 144,
+     "powod": "ok",
+     "blad": null
+    }
+   },
+   {
+    "scenariusz": "F. powolne fragmenty bez końca",
+    "stan": "ZAKOŃCZONE",
+    "ms_do_rozwiazania": 1001,
+    "watchdog_ms": 4000,
+    "limity": {
+     "bezczynnoscMs": 200,
+     "calkowityMs": 1000
+    },
+    "wynik": {
+     "status": 0,
+     "ms": 1001,
+     "bajty": 156,
+     "powod": "deadline",
+     "blad": "przekroczony całkowity limit żądania 1000 ms"
+    }
+   }
+  ],
+  "polaczenia_otwarte_po_probach": 0
+ }
+}

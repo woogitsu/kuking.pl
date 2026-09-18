@@ -227,9 +227,85 @@ Odpowiedzi 429 **nie są liczone jako błąd serwera** — stoją osobno w polu
 
 Generator chodzi na tej samej maszynie co aplikacja, więc każdy jego takt jest
 taktem zabranym aplikacji. Każdy wynik serii zawiera `koszt_generatora`:
-`cpu_user_s`, `cpu_system_s`, `cpu_rdzenie_srednio` (własny czas CPU procesu
-Node podzielony przez czas trwania serii) i `maxrss_mb`. Bez tej liczby wynik
-jest nieinterpretowalny.
+`cpu_user_s`, `cpu_system_s`, `cpu_rdzenie_srednio` i `maxrss_mb`. Bez tej
+liczby wynik jest nieinterpretowalny.
+
+`cpu_rdzenie_srednio` to CPU **całego biegu** podzielone przez `trwanie_naplywu_s`,
+czyli sam czas podawania obciążenia, bez domykania. Zaokrągla to własny koszt
+przyrządu w górę — i tak ma być, bo zaniżony koszt generatora fałszuje wnioski
+mocniej niż zawyżony. Z tego samego okna liczona jest `przepustowosc_rps`;
+gdyby dzielić przez `trwanie_s`, każda sekunda domykania zaniżałaby przepustowość.
+
+### 4.4 Limity pojedynczego żądania: bezczynność to nie to samo co deadline
+
+To są **dwa różne limity dla dwóch różnych awarii** i wcześniejsza wersja
+przyrządu miała tylko jeden, opisany nieprawdziwie.
+
+| parametr serii | co ogranicza | domyślnie |
+|---|---|---|
+| `--bezczynnosc` | brak jakiegokolwiek ruchu na gnieździe (`req.setTimeout`) | 20 000 ms |
+| `--calkowity` | **cały czas życia żądania**, od jego startu | 30 000 ms |
+| `--domkniecie` | ile seria czeka po zakończeniu napływu, zanim zerwie to, co zostało w locie | 30 000 ms |
+
+Powód jest zmierzony, nie teoretyczny. Serwer, który co 75 ms dosyła dwanaście
+bajtów, **nigdy** nie narusza limitu bezczynności — a więc bez całkowitego
+deadline'u pomiar trwa tyle, ile zechce badany serwer. Odtworzenie i liczby:
+[`ODTWORZENIE_ZAWIESZENIA.md`](ODTWORZENIE_ZAWIESZENIA.md).
+
+Każde żądanie kończy się dokładnie raz i niesie **powód**:
+
+| powód | znaczenie |
+|---|---|
+| `ok` | odpowiedź odebrana w całości |
+| `bezczynnosc` | gniazdo milczało dłużej niż `--bezczynnosc` |
+| `deadline` | przekroczony całkowity limit żądania |
+| `urwana` | serwer zamknął połączenie **w środku body**, po nagłówkach |
+| `anulowane` | przyrząd zerwał żądanie przy domykaniu serii albo po Ctrl+C |
+| `blad` | błąd gniazda przed odpowiedzią |
+
+Rozkład powodów jest w wyniku serii, per scenariusz (`endpointy.*.powody`).
+Dobierając limity do rampy pamiętaj, że **`deadline` jest błędem tego pomiaru,
+nie właściwością serwisu**: jeśli stopień rampy produkuje `deadline`, w raporcie
+trzeba podać próg, od którego liczono.
+
+### 4.5 Czego brakująca odpowiedź NIE może zrobić z wynikiem
+
+Percentyl policzony wyłącznie z odpowiedzi poprawnych jest prawdziwy tylko przy
+zerowym odsetku błędów. Gdy serwis zaczyna zrywać albo przekraczać deadline,
+najdłuższe żądania **wypadają z próbki** i p95 spada, choć serwis działa gorzej.
+Dlatego wynik serii podaje jedno i drugie i mówi to wprost:
+
+- `p50`/`p95`/`p99` — z odpowiedzi poprawnych,
+- `p95_z_bledami`/`p99_z_bledami` — razem z nieudanymi i zerwanymi,
+- `razem.uwagi[]` — jawne ostrzeżenie, gdy `blad_procent > 0`.
+
+Mianownik odsetka błędów obejmuje **także żądania, które nigdy nie poszły**:
+
+| pole | co to jest |
+|---|---|
+| `zadan_wyslanych` | żądania faktycznie wysłane |
+| `porzuconych_przez_limit` | napływ odrzucony przez `--maks_w_locie` — **wliczone w mianownik**, bo brak odpowiedzi nie jest sukcesem |
+| `pominietych_brak_celu` | scenariusz bez celu w manifeście — **ograniczenie przyrządu**, nie serwisu; poza mianownikiem, ale zawsze widoczne |
+| `anulowanych_przy_domykaniu` | zerwane po `--domkniecie`, liczone jako błędy |
+| `w_locie_na_koniec` | musi być **0**; cokolwiek innego znaczy usterkę przyrządu |
+
+### 4.6 Sprawdzenie samego przyrządu przed serią
+
+```bash
+node scripts/przyrzad-605.test.mjs
+```
+
+Osiemnaście sprawdzeń (na Windows siedemnaście — system nie dostarcza SIGINT
+do procesu potomnego, więc przerwanie serii jest tam jawnie POMINIĘTE, nie
+zaliczone) na `scripts/serwer-scenariuszy-605.mjs` — małym serwerze
+na porcie przydzielanym dynamicznie, który udaje odpowiedź poprawną, brak
+odpowiedzi, odpowiedź urwaną po nagłówkach, nagłówki bez zakończenia body
+i strumień podtrzymujący połączenie. W komplecie pięć **fizycznych kontroli
+ujemnych**: każda wycina kawałek poprawki z kopii generatora i wymaga, żeby
+odpowiadające jej sprawdzenie OBLAŁO.
+
+**To stanowisko nie jest Kukingiem.** Żadnej liczby z tego testu nie wolno
+przedstawiać jako wyniku wydajnościowego portalu.
 
 ---
 
@@ -431,6 +507,10 @@ cd /home/mateusz/kuking-B-obciazenie
 export DB_CONNECTION=pgsql DB_HOST=127.0.0.1 DB_PORT=55439 \
        DB_DATABASE=kuking_b605_obciazenie DB_USERNAME=kuking DB_PASSWORD=kuking \
        APP_BASE_PATH="$(pwd)" APP_URL=http://localhost PGTZ=UTC
+
+# 0. sprawdzenie samego przyrządu — PRZED czymkolwiek innym
+#    (nie dotyka bazy, aplikacji ani sieci poza własnym serwerem scenariuszy)
+node scripts/przyrzad-605.test.mjs
 
 # 1. baza i migracje
 createdb -h 127.0.0.1 -p 55439 -U kuking kuking_b605_obciazenie

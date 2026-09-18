@@ -40,8 +40,9 @@
 
 import http from 'node:http';
 import { readFile, writeFile } from 'node:fs/promises';
-import { readFileSync, statSync } from 'node:fs';
+import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 // -----------------------------------------------------------------------------
 // Argumenty
@@ -65,19 +66,109 @@ if (adres.protocol !== 'http:' || !['127.0.0.1', 'localhost'].includes(adres.hos
 
 const agent = new http.Agent({ keepAlive: true, maxSockets: 4096, maxFreeSockets: 512 });
 
+/** Domyślny cel — własna, lokalna instancja. Testy przyrządu podają swój. */
+const CEL_DOMYSLNY = { hostname: adres.hostname, port: adres.port, agent };
+
+export function zamknijAgenta() {
+  agent.destroy();
+}
+
 // -----------------------------------------------------------------------------
 // Warstwa HTTP — cienka, bo każdy takt generatora to takt zabrany aplikacji
 // -----------------------------------------------------------------------------
 
-function zadanie({ sciezka, metoda = 'GET', ciasteczka = null, dane = null, naglowki = {}, limitMs = 20000 }) {
+/*
+ * DWA LIMITY, BO TO SĄ DWIE RÓŻNE AWARIE — i pomylenie ich zawiesza pomiar.
+ *
+ * Poprzednia wersja miała jeden `limitMs` wpięty w `req.setTimeout()`. To jest
+ * limit BEZCZYNNOŚCI GNIAZDA, nie limit czasu żądania: serwer, który co 75 ms
+ * dosyła dwanaście bajtów, resetuje go w nieskończoność. Zmierzone na
+ * `0e5d2707` przeciwko lokalnemu serwerowi scenariuszy: przy `limitMs: 200`
+ * żądanie kończyło się poprawnym 200 po 905 ms, a przy strumieniu bez końca
+ * nie kończyło się wcale.
+ *
+ * Druga, gorsza dziura: obietnica rozwiązywała się WYŁĄCZNIE w `res.end`
+ * albo w `req.error`. Odpowiedź urwana PO NAGŁÓWKACH (`res.destroy()` po
+ * kilku bajtach) nie daje ani jednego, ani drugiego — daje `res.aborted`
+ * i `close` z `res.complete === false`. Obietnica nie rozwiązywała się nigdy,
+ * a `wLocie` w serii nigdy nie wracało do zera. Pod nasyceniem, czyli dokładnie
+ * tam, gdzie ten przyrząd ma pracować, zerwane odpowiedzi są spodziewane.
+ *
+ * Dlatego teraz:
+ *   `bezczynnoscMs` — brak ruchu na gnieździe (to, co mierzył stary `limitMs`),
+ *   `calkowityMs`   — TWARDY deadline całego żądania, liczony od `hrtime` startu,
+ *                     nie do zresetowania przez nic, co robi serwer,
+ *   `sygnal`        — anulowanie z zewnątrz (koniec serii, Ctrl+C).
+ *
+ * Każde wyjście przechodzi przez `skoncz()`, które rozwiązuje DOKŁADNIE RAZ,
+ * i przez `zerwij()`, które niszczy gniazdo — żeby zerwane żądanie nie zostawiło
+ * po sobie ani deskryptora, ani niezliczonego wyniku.
+ */
+export function zadanie({
+  sciezka,
+  metoda = 'GET',
+  ciasteczka = null,
+  dane = null,
+  naglowki = {},
+  bezczynnoscMs = 20000,
+  calkowityMs = 30000,
+  sygnal = null,
+  cel = CEL_DOMYSLNY,
+}) {
+  if (!['127.0.0.1', 'localhost'].includes(cel.hostname)) {
+    throw new Error('Generator #605 działa wyłącznie przeciwko lokalnemu http://127.0.0.1');
+  }
   return new Promise((resolve) => {
     const start = process.hrtime.bigint();
+    const kawalki = [];
+    let bajty = 0;
+    let zakonczone = false;
+    let zegar = null;
+    let req = null;
+
+    const skoncz = (w) => {
+      if (zakonczone) return;
+      zakonczone = true;
+      if (zegar) { clearTimeout(zegar); zegar = null; }
+      if (sygnal) sygnal.removeEventListener('abort', naAnulowanie);
+      resolve({
+        status: 0,
+        ms: Number(process.hrtime.bigint() - start) / 1e6,
+        bajty,
+        tresc: '',
+        setCookie: [],
+        location: null,
+        ...w,
+      });
+    };
+
+    /*
+     * Kolejność jest istotna: najpierw zapisujemy wynik, dopiero potem niszczymy
+     * gniazdo. Odwrotnie `req.destroy()` wywołałoby własne `error`, które
+     * zameldowałoby „socket hang up" zamiast prawdziwego powodu zerwania.
+     */
+    const zerwij = (powod, komunikat) => {
+      if (zakonczone) return;
+      skoncz({ powod, blad: komunikat });
+      try { req?.destroy(); } catch { /* gniazdo już zamknięte */ }
+    };
+
+    function naAnulowanie() {
+      zerwij('anulowane', 'żądanie anulowane przez przyrząd');
+    }
+
+    if (sygnal?.aborted) {
+      skoncz({ powod: 'anulowane', blad: 'żądanie anulowane przed wysłaniem' });
+      return;
+    }
+    if (sygnal) sygnal.addEventListener('abort', naAnulowanie, { once: true });
+
     const konfiguracja = {
-      host: adres.hostname,
-      port: adres.port,
+      host: cel.hostname,
+      port: cel.port,
       path: sciezka,
       method: metoda,
-      agent,
+      agent: cel.agent ?? agent,
       headers: {
         'accept-encoding': 'identity',
         accept: 'text/html,application/xhtml+xml,image/webp',
@@ -87,9 +178,12 @@ function zadanie({ sciezka, metoda = 'GET', ciasteczka = null, dane = null, nagl
     };
     if (ciasteczka) konfiguracja.headers.cookie = ciasteczka;
 
-    const req = http.request(konfiguracja, (res) => {
-      const kawalki = [];
-      let bajty = 0;
+    zegar = setTimeout(
+      () => zerwij('deadline', `przekroczony całkowity limit żądania ${calkowityMs} ms`),
+      calkowityMs,
+    );
+
+    req = http.request(konfiguracja, (res) => {
       res.on('data', (c) => {
         bajty += c.length;
         // Treść zbieramy tylko do 2 MB i tylko po to, żeby wyłuskać token
@@ -97,21 +191,25 @@ function zadanie({ sciezka, metoda = 'GET', ciasteczka = null, dane = null, nagl
         // generatora dopisanym do wyniku aplikacji.
         if (bajty <= 2_000_000) kawalki.push(c);
       });
-      res.on('end', () => {
-        resolve({
-          status: res.statusCode,
-          ms: Number(process.hrtime.bigint() - start) / 1e6,
-          bajty,
-          tresc: Buffer.concat(kawalki).toString('utf8'),
-          setCookie: res.headers['set-cookie'] ?? [],
-          location: res.headers.location ?? null,
-        });
+      res.on('aborted', () => zerwij('urwana', 'odpowiedź urwana po nagłówkach'));
+      res.on('error', (e) => zerwij('urwana', `błąd strumienia odpowiedzi: ${e.message}`));
+      // `close` bez `res.complete` to jedyny sygnał, jaki zostaje, gdy druga
+      // strona zamknie gniazdo w środku body — `aborted` nie zawsze pada.
+      res.on('close', () => {
+        if (!res.complete) zerwij('urwana', 'połączenie zamknięte przed końcem odpowiedzi');
       });
+      res.on('end', () => skoncz({
+        status: res.statusCode,
+        tresc: Buffer.concat(kawalki).toString('utf8'),
+        setCookie: res.headers['set-cookie'] ?? [],
+        location: res.headers.location ?? null,
+        powod: 'ok',
+      }));
     });
-    req.setTimeout(limitMs, () => req.destroy(new Error('timeout')));
-    req.on('error', (e) => {
-      resolve({ status: 0, ms: Number(process.hrtime.bigint() - start) / 1e6, bajty: 0, tresc: '', setCookie: [], blad: e.message });
-    });
+    req.setTimeout(bezczynnoscMs, () => zerwij('bezczynnosc', `brak ruchu na gnieździe przez ${bezczynnoscMs} ms`));
+    req.on('error', (e) => zerwij('blad', e.message));
+    // Ostatnia deska ratunku: gniazdo zamknięte, zanim w ogóle przyszła odpowiedź.
+    req.on('close', () => zerwij('blad', 'żądanie zamknięte bez odpowiedzi'));
     if (dane) req.write(dane);
     req.end();
   });
@@ -201,7 +299,8 @@ async function przygotuj() {
   // Cele bierzemy Z APLIKACJI, nie z bazy: sitemap i listy publiczne oddają
   // dokładnie te adresy, które naprawdę istnieją i naprawdę są publiczne.
   // Dzięki temu żadna seria nie mierzy przypadkiem trasy zwracającej 404.
-  const mapa = await zadanie({ sciezka: '/sitemap.xml', limitMs: 120000 });
+  // Sitemapa bywa duża i wolna; deadline jest hojny, ale SKOŃCZONY.
+  const mapa = await zadanie({ sciezka: '/sitemap.xml', bezczynnoscMs: 30000, calkowityMs: 180000 });
   const sciezki = [...mapa.tresc.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => new URL(m[1]).pathname);
 
   const strona = await zadanie({ sciezka: '/odkryj' });
@@ -282,7 +381,10 @@ async function media() {
       ciasteczka: sesja.ciasteczka,
       dane,
       naglowki: { 'content-type': typ, 'content-length': dane.length },
-      limitMs: 180000,
+      // Przetwarzanie 48 Mpx trwa, więc bezczynność gniazda musi być hojna —
+      // ale całkowity deadline i tak zamyka wgranie, które utknęło.
+      bezczynnoscMs: 180000,
+      calkowityMs: 300000,
     });
     wyniki.push({
       nr: i,
@@ -370,6 +472,16 @@ async function seria() {
   const nazwa = opcje.nazwa ?? `r${rps}`;
   const wynikPlik = opcje.wynik ?? `/home/mateusz/kuking-b605-run/seria-${nazwa}.json`;
   const maksWLocie = Number(opcje.maks_w_locie ?? 3000);
+  // Ile czekamy po zakończeniu napływu, zanim zerwiemy to, co zostało w locie.
+  const domkniecieMs = Number(opcje.domkniecie ?? 30000);
+  /*
+   * Limity pojedynczego żądania w serii. `bezczynnosc` to brak ruchu na
+   * gnieździe, `calkowity` to twardy deadline całego żądania. Obie liczby lądują
+   * w wyniku, bo każde żądanie zerwane deadline'em jest błędem tego pomiaru
+   * i czytający musi wiedzieć, od jakiego progu.
+   */
+  const bezczynnoscSerii = Number(opcje.bezczynnosc ?? 20000);
+  const calkowitySerii = Number(opcje.calkowity ?? 30000);
   const katalog = opcje.zdjecia ?? '/home/mateusz/kuking-b605-run/zdjecia';
   // Do uploadu w serii świadomie najmniejszy plik: 48 Mpx przy każdym wgraniu
   // zamieniłby test mieszany w test jednego zadania w tle.
@@ -382,18 +494,44 @@ async function seria() {
 
   const suma = MIESZANKA.reduce((a, [, w]) => a + w, 0);
   const stat = new Map();
+  /*
+   * KSIĘGOWANIE. `ms` to czasy odpowiedzi POPRAWNYCH, `msWszystkie` — wszystkich
+   * doprowadzonych do końca, razem z błędami i zerwaniami. Percentyl liczony
+   * wyłącznie z `ms` jest prawdziwy tylko przy zerowym `blad_procent`: gdy serwis
+   * zaczyna zrywać albo przekraczać deadline, najdłuższe żądania wypadają
+   * z próbki i p95 SPADA, choć serwis działa gorzej. Dlatego raportujemy oba,
+   * a mianownik błędu obejmuje też żądania nigdy niewysłane.
+   */
   const dodaj = (klucz, ms, status, ok) => {
     let s = stat.get(klucz);
-    if (!s) { s = { n: 0, ok: 0, ms: [], statusy: {} }; stat.set(klucz, s); }
+    if (!s) { s = { n: 0, ok: 0, ms: [], msWszystkie: [], statusy: {}, powody: {} }; stat.set(klucz, s); }
     s.n += 1;
+    s.msWszystkie.push(ms);
     if (ok) { s.ok += 1; s.ms.push(ms); }
     s.statusy[status] = (s.statusy[status] ?? 0) + 1;
   };
+  const dodajPowod = (klucz, powod) => {
+    const s = stat.get(klucz);
+    if (s) s.powody[powod] = (s.powody[powod] ?? 0) + 1;
+  };
+  /*
+   * Żądania, które w ogóle nie poszły — przez limit żądań w locie albo przez
+   * brak celu w manifeście. Stara wersja gubiła je bez śladu: nie było ich ani
+   * w liczniku żądań, ani w błędach, więc brakująca odpowiedź POPRAWIAŁA wynik.
+   */
+  let porzucone = 0;
+  const pominiete = new Map();
 
   let wLocie = 0;
   let wLocieSzczyt = 0;
-  let porzucone = 0;
   const probkiWLocie = [];
+  // Jeden sygnał dla całej serii: zamyka wszystko, co zostało w locie.
+  const przerywacz = new AbortController();
+  let anulowanePoSerii = 0;
+  let przerwanaRecznie = false;
+  // Wyjątki samego przyrządu (np. brak pliku do wgrania) — osobno od błędów
+  // serwisu, żeby usterki narzędzia nie wyglądały jak degradacja portalu.
+  const bledyPrzyrzadu = [];
   const cpuStart = process.cpuUsage();
   const start = Date.now();
   const koniec = start + sekundy * 1000;
@@ -456,30 +594,74 @@ async function seria() {
       case 'upload': {
         const { dane, typ } = multipart({ _token: sesja.token, visibility: 'public', body: `Wpis z serii ${nazwa} nr ${i}` }, plikUpload);
         cfg = {
-          sciezka: '/dodaj/zdjecie', metoda: 'POST', ciasteczka: sesja.ciasteczka, dane, limitMs: 60000,
+          sciezka: '/dodaj/zdjecie', metoda: 'POST', ciasteczka: sesja.ciasteczka, dane,
+          bezczynnoscMs: 60000, calkowityMs: 90000,
           naglowki: { 'content-type': typ, 'content-length': dane.length },
         };
         break;
       }
       default: cfg = { sciezka: '/' };
     }
-    if (!cfg || !cfg.sciezka) return;
+    if (!cfg || !cfg.sciezka) {
+      pominiete.set(scenariusz, (pominiete.get(scenariusz) ?? 0) + 1);
+      return;
+    }
+    // Limity serii są jawne i zapisane w wyniku. Scenariusz może je podnieść
+    // (wgranie zdjęcia), ale żaden nie może zostać bez całkowitego deadline'u.
+    cfg = { bezczynnoscMs: bezczynnoscSerii, calkowityMs: calkowitySerii, ...cfg };
 
     wLocie += 1;
     if (wLocie > wLocieSzczyt) wLocieSzczyt = wLocie;
-    const odp = await zadanie(cfg);
-    wLocie -= 1;
+    let odp;
+    try {
+      odp = await zadanie({ ...cfg, sygnal: przerywacz.signal });
+    } finally {
+      // `finally`, bo licznik żądań w locie musi wrócić do zera także wtedy,
+      // gdy `zadanie()` rzuci — inaczej seria domyka się w nieskończoność.
+      wLocie -= 1;
+    }
+    if (odp.powod === 'anulowane') anulowanePoSerii += 1;
 
     // Poprawna odpowiedź to 200 dla odczytów i 302 dla zapisów (przekierowanie
     // po zapisie). 429 NIE jest awarią serwera, tylko zadziałaniem limitu —
-    // liczymy je osobno w `statusy`, bo to jest wynik, a nie błąd.
-    dodaj(scenariusz, odp.ms, odp.blad === 'timeout' ? 'timeout' : (odp.status || 'blad'), odp.status === 200 || odp.status === 302);
+    // ale w `blad_procent` i tak jest błędem, bo nie jest odpowiedzią na pytanie
+    // „ile serwis obsłużył". Rozbicie na `statusy` pokazuje, ile z błędów to 429.
+    dodaj(scenariusz, odp.ms, odp.powod === 'ok' ? (odp.status || 'blad') : odp.powod, odp.status === 200 || odp.status === 302);
+    dodajPowod(scenariusz, odp.powod ?? 'blad');
+  };
+
+  /*
+   * PRZERWANIE Z KLAWIATURY. Ctrl+C w starej wersji zabijał proces w środku
+   * serii i zostawiał pomiar bez pliku wyniku oraz z otwartymi gniazdami.
+   * Teraz pierwszy sygnał kończy napływ i anuluje to, co w locie; wynik
+   * powstaje, oznaczony `przerwana: true`. Drugi sygnał zabija natychmiast.
+   */
+  let naSygnal = null;
+  const odepnijSygnaly = () => {
+    if (!naSygnal) return;
+    for (const s of ['SIGINT', 'SIGTERM']) process.off(s, naSygnal);
+    naSygnal = null;
   };
 
   // Zegar napływu: tik co 5 ms, ułamki żądań kumulowane w `dlug`.
   await new Promise((resolve) => {
     let dlug = 0;
     let poprzedni = Date.now();
+    let zakonczony = false;
+    const zakoncz = () => {
+      if (zakonczony) return;
+      zakonczony = true;
+      clearInterval(tik);
+      resolve();
+    };
+    naSygnal = () => {
+      if (przerwanaRecznie) { process.exit(130); }
+      przerwanaRecznie = true;
+      process.stderr.write('\nPrzerwano — kończę napływ i anuluję żądania w locie. Wynik zostanie zapisany.\n');
+      zakoncz();
+    };
+    for (const s of ['SIGINT', 'SIGTERM']) process.on(s, naSygnal);
+
     const tik = setInterval(() => {
       const teraz = Date.now();
       dlug += ((teraz - poprzedni) / 1000) * rps;
@@ -487,18 +669,41 @@ async function seria() {
       while (dlug >= 1) {
         dlug -= 1;
         if (wLocie >= maksWLocie) { porzucone += 1; continue; }
-        jedno();
+        // Bez `catch` wyjątek z przygotowania żądania (np. brak pliku do
+        // wgrania) byłby nieobsłużoną odrzuconą obietnicą i zabiłby serię.
+        jedno().catch((e) => {
+          bledyPrzyrzadu.push(String(e?.message ?? e));
+        });
       }
       probkiWLocie.push(wLocie);
-      if (teraz >= koniec) { clearInterval(tik); resolve(); }
+      if (teraz >= koniec) zakoncz();
     }, 5);
   });
 
-  // Domknięcie: czekamy na żądania w locie, ale nie w nieskończoność.
+  /*
+   * DOMKNIĘCIE JEST OGRANICZONE I ZAWSZE SIĘ KOŃCZY.
+   * Najpierw łaska: czekamy `domkniecieMs` na żądania, które już poszły.
+   * Potem sygnał anulujący zrywa wszystko, co zostało — bo seria, która czeka
+   * na serwer w nieskończoność, nie jest pomiarem, tylko zawieszeniem.
+   * Pętla po anulowaniu też ma limit, żeby żadna ścieżka nie została bez wyjścia.
+   */
   const domkniecie = Date.now();
-  while (wLocie > 0 && Date.now() - domkniecie < 120000) {
-    await new Promise((r) => setTimeout(r, 100));
+  // Czas NAPŁYWU, osobno od czasu całego biegu. Przepustowość liczy się z tego
+  // pierwszego: domykanie potrafi trwać dziesiątki sekund i zaniżałoby wynik.
+  const trwanieNaplywu = (domkniecie - start) / 1000;
+  while (wLocie > 0 && !przerwanaRecznie && Date.now() - domkniecie < domkniecieMs) {
+    await new Promise((r) => setTimeout(r, 50));
   }
+  if (wLocie > 0) {
+    process.stderr.write(`Domknięcie: ${wLocie} żądań nadal w locie — anuluję.\n`);
+    przerywacz.abort();
+    const twarde = Date.now();
+    while (wLocie > 0 && Date.now() - twarde < 5000) {
+      await new Promise((r) => setTimeout(r, 20));
+    }
+  }
+  odepnijSygnaly();
+  const wLocieNaKoniec = wLocie;
 
   const trwanie = (Date.now() - start) / 1000;
   const cpu = process.cpuUsage(cpuStart);
@@ -508,23 +713,82 @@ async function seria() {
   let wszystkieN = 0;
   let wszystkieOk = 0;
   const wszystkieMs = [];
+  const wszystkieMsZBledami = [];
   for (const [klucz, s] of [...stat].sort()) {
     const posortowane = [...s.ms].sort((a, b) => a - b);
+    const zBledami = [...s.msWszystkie].sort((a, b) => a - b);
+    const pominietychTu = pominiete.get(klucz) ?? 0;
     wszystkieN += s.n;
     wszystkieOk += s.ok;
     wszystkieMs.push(...s.ms);
+    wszystkieMsZBledami.push(...s.msWszystkie);
     endpointy[klucz] = {
       zadan: s.n,
       poprawnych: s.ok,
+      pominietych_brak_celu: pominietychTu,
       blad_procent: Math.round(((s.n - s.ok) / s.n) * 1000) / 10,
       p50: percentyl(posortowane, 50),
       p95: percentyl(posortowane, 95),
       p99: percentyl(posortowane, 99),
+      // Ten sam percentyl policzony RAZEM z odpowiedziami nieudanymi. Gdy
+      // różni się od `p95`, znaczy, że najdłuższe żądania wypadły z próbki
+      // poprawnych — i samego `p95` nie wolno podawać jako czasu odpowiedzi.
+      p95_z_bledami: percentyl(zBledami, 95),
       max: posortowane.length ? Math.round(posortowane[posortowane.length - 1]) : null,
       statusy: s.statusy,
+      powody: s.powody,
     };
   }
+  for (const [klucz, ile] of pominiete) {
+    if (!endpointy[klucz]) {
+      endpointy[klucz] = {
+        zadan: 0, poprawnych: 0, pominietych_brak_celu: ile, blad_procent: null,
+        p50: null, p95: null, p99: null, p95_z_bledami: null, max: null, statusy: {}, powody: {},
+      };
+    }
+  }
   wszystkieMs.sort((a, b) => a - b);
+  wszystkieMsZBledami.sort((a, b) => a - b);
+
+  const pominietychRazem = [...pominiete.values()].reduce((a, b) => a + b, 0);
+  /*
+   * MIANOWNIK BŁĘDU. Żądanie porzucone przez limit żądań w locie nigdy nie
+   * dostało odpowiedzi — i właśnie dlatego MUSI być w mianowniku. Gdyby go tam
+   * nie było, nasycony serwis, przy którym generator porzuca połowę napływu,
+   * pokazywałby niższy odsetek błędów niż serwis zdrowy. Pominięcia z braku celu
+   * są usterką PRZYRZĄDU (niekompletny manifest), nie serwisu — stoją osobno,
+   * ale zawsze są widoczne w wyniku.
+   */
+  const mianownik = wszystkieN + porzucone;
+  const nieudanych = mianownik - wszystkieOk;
+
+  const uwagi = [];
+  if (wszystkieOk < mianownik) {
+    uwagi.push('p50/p95/p99 liczone są z odpowiedzi POPRAWNYCH; przy niezerowym blad_procent'
+      + ' nie wolno ich cytować jako czasu odpowiedzi serwisu — porównaj z p95_z_bledami.');
+  }
+  if (porzucone > 0) {
+    uwagi.push(`Porzucono ${porzucone} żądań przez limit maks_w_locie=${maksWLocie}:`
+      + ' napływ nie został zrealizowany w całości, a przepustowość jest zaniżona względem zadanego RPS.');
+  }
+  if (pominietychRazem > 0) {
+    uwagi.push(`Pominięto ${pominietychRazem} żądań z braku celów w manifeście —`
+      + ' to ograniczenie przyrządu (niekompletny manifest), nie wynik serwisu.');
+  }
+  if (anulowanePoSerii > 0) {
+    uwagi.push(`Anulowano ${anulowanePoSerii} żądań przy domykaniu serii po ${domkniecieMs} ms —`
+      + ' policzone jako błędy, bo odpowiedzi nie było.');
+  }
+  if (wLocieNaKoniec > 0) {
+    uwagi.push(`UWAGA: ${wLocieNaKoniec} żądań nie zakończyło się nawet po anulowaniu —`
+      + ' wynik jest niepełny, zgłoś to jako usterkę przyrządu.');
+  }
+  if (bledyPrzyrzadu.length) {
+    uwagi.push(`Przyrząd zgłosił ${bledyPrzyrzadu.length} własnych wyjątków — patrz bledy_przyrzadu.`);
+  }
+  if (przerwanaRecznie) {
+    uwagi.push('Seria przerwana sygnałem — wynik jest fragmentem, nie pomiarem zadanego czasu.');
+  }
 
   const wynik = {
     seria: nazwa,
@@ -533,22 +797,41 @@ async function seria() {
     zadany_rps: rps,
     czas_s: sekundy,
     trwanie_s: Math.round(trwanie * 10) / 10,
+    trwanie_naplywu_s: Math.round(trwanieNaplywu * 10) / 10,
+    przerwana: przerwanaRecznie,
     razem: {
-      zadan: wszystkieN,
+      zadan_wyslanych: wszystkieN,
       poprawnych: wszystkieOk,
+      nieudanych: nieudanych,
       porzuconych_przez_limit: porzucone,
-      przepustowosc_rps: Math.round((wszystkieOk / trwanie) * 100) / 100,
-      blad_procent: wszystkieN ? Math.round(((wszystkieN - wszystkieOk) / wszystkieN) * 1000) / 10 : 0,
+      pominietych_brak_celu: pominietychRazem,
+      anulowanych_przy_domykaniu: anulowanePoSerii,
+      w_locie_na_koniec: wLocieNaKoniec,
+      przepustowosc_rps: Math.round((wszystkieOk / trwanieNaplywu) * 100) / 100,
+      blad_procent: mianownik ? Math.round((nieudanych / mianownik) * 1000) / 10 : 0,
       p50: percentyl(wszystkieMs, 50),
       p95: percentyl(wszystkieMs, 95),
       p99: percentyl(wszystkieMs, 99),
+      p95_z_bledami: percentyl(wszystkieMsZBledami, 95),
+      p99_z_bledami: percentyl(wszystkieMsZBledami, 99),
+    },
+    uwagi,
+    bledy_przyrzadu: bledyPrzyrzadu.slice(0, 20),
+    limity_ms: {
+      bezczynnosc_zadania: bezczynnoscSerii,
+      calkowity_zadania: calkowitySerii,
+      domkniecie: domkniecieMs,
+      maks_w_locie: maksWLocie,
     },
     w_locie_szczyt: wLocieSzczyt,
     w_locie_mediana: mediana(probkiWLocie),
     koszt_generatora: {
       cpu_user_s: Math.round(cpu.user / 1e4) / 100,
       cpu_system_s: Math.round(cpu.system / 1e4) / 100,
-      cpu_rdzenie_srednio: Math.round(((cpu.user + cpu.system) / 1e6 / trwanie) * 1000) / 1000,
+      // Licznik to CPU CAŁEGO biegu, mianownik — sam czas napływu. Zaokrągla
+      // to własny koszt generatora W GÓRĘ, i tak ma być: zaniżony koszt
+      // przyrządu jest groźniejszy dla wniosków niż zawyżony.
+      cpu_rdzenie_srednio: Math.round(((cpu.user + cpu.system) / 1e6 / trwanieNaplywu) * 1000) / 1000,
       maxrss_mb: Math.round(zasoby.maxRSS / 1024),
     },
     endpointy,
@@ -562,9 +845,39 @@ async function seria() {
 // -----------------------------------------------------------------------------
 
 const komendy = { przygotuj, media, 'zbierz-media': zbierzMedia, seria };
-if (!komendy[komenda]) {
-  console.error('Komendy: przygotuj | media | zbierz-media | seria');
-  process.exit(2);
+
+/*
+ * Plik jest i narzędziem, i modułem: `scripts/przyrzad-605.test.mjs` importuje
+ * z niego `zadanie()` i liczy na nim regresje. Dlatego rozdział poleceń dzieje
+ * się TYLKO przy uruchomieniu wprost — import nie może nic wystartować ani
+ * zakończyć procesu.
+ */
+const uruchomionyWprost = (() => {
+  if (!process.argv[1]) return false;
+  try {
+    return realpathSync(process.argv[1]) === realpathSync(fileURLToPath(import.meta.url));
+  } catch {
+    return false;
+  }
+})();
+
+if (uruchomionyWprost) {
+  if (!komendy[komenda]) {
+    console.error('Komendy: przygotuj | media | zbierz-media | seria');
+    process.exit(2);
+  }
+  await komendy[komenda]();
+  /*
+   * Stare `process.exit(0)` kończyło proces NIEZALEŻNIE od tego, co jeszcze
+   * żyło — i tym samym ukrywało każdy wyciek gniazd czy zegarów. Teraz
+   * zwalniamy agenta i pozwalamy procesowi zamknąć się samemu; jeżeli po
+   * dwóch sekundach nadal żyje, mówimy to głośno i dopiero wtedy wychodzimy.
+   * Sprzątanie przyrządu jest częścią pomiaru, nie szczegółem.
+   */
+  zamknijAgenta();
+  process.exitCode = 0;
+  setTimeout(() => {
+    console.error('UWAGA: proces nie zakończył się sam — zostały aktywne uchwyty przyrządu.');
+    process.exit(4);
+  }, 2000).unref();
 }
-await komendy[komenda]();
-process.exit(0);

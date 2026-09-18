@@ -101,6 +101,22 @@ else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi
 
+# --- 3c. Przyrząd do testu obciążeniowego (#605) ---------------------------
+# Regresje NARZĘDZIA POMIAROWEGO, nie produktu. Bez bazy, bez PHP, bez sieci
+# poza własnym serwerem scenariuszy na porcie przydzielanym dynamicznie.
+# Pilnuje usterki z 18.09.2026: żądanie, którego odpowiedź została urwana po
+# nagłówkach, nie kończyło pomiaru, a limit mierzył bezczynność gniazda zamiast
+# czasu żądania. Odtworzenie:
+# docs/infra/evidence/obciazenie605/ODTWORZENIE_ZAWIESZENIA.md
+krok "Przyrząd obciążeniowy (#605)"
+if ! command -v node >/dev/null 2>&1; then
+    zle "Brak node — nie sprawdzono przyrządu #605 (to jest brak kontroli, nie sukces)"
+elif node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
+    ok "Regresje i kontrole ujemne przyrządu przechodzą"
+else
+    zle "Przyrząd #605 oblewa — uruchom: node scripts/przyrzad-605.test.mjs"
+fi
+
 # --- 3c. Dostępność (opcjonalna) -------------------------------------------
 # Automat axe łapie około 30% problemów z dostępnością — ale dokładnie te,
 # które najłatwiej wprowadzić przypadkiem: pole bez etykiety, przycisk bez

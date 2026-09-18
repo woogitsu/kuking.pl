@@ -374,6 +374,37 @@ jobs:
         run: bash tests/skrypty/kopia-bazy.sh
 
   # ===========================================================================
+  #  1b. Przyrząd do testu obciążeniowego (#605)
+  # ===========================================================================
+  #  Osobny job, bo to jedyny zestaw w tym repozytorium, który sprawdza
+  #  NARZĘDZIE POMIAROWE, a nie produkt. Nie potrzebuje bazy, PHP, przeglądarki
+  #  ani sieci: stanowiskiem jest `scripts/serwer-scenariuszy-605.mjs` na
+  #  porcie przydzielanym dynamicznie. Całość trwa ok. 20 s.
+  #
+  #  Bez tego kroku regresja z 18 września 2026 wraca po cichu: `zadanie()`
+  #  nie kończyło obietnicy przy odpowiedzi urwanej po nagłówkach, a limit
+  #  mierzył bezczynność gniazda zamiast czasu żądania — i pomiar wisiał.
+  #  Odtworzenie: docs/infra/evidence/obciazenie605/ODTWORZENIE_ZAWIESZENIA.md
+  # ===========================================================================
+  przyrzad_605:
+    name: Przyrząd testu obciążeniowego (#605)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Bez `npm ci` — przyrząd i jego testy nie mają ani jednej zależności.
+      - name: Regresje i kontrole ujemne przyrządu
+        run: node scripts/przyrzad-605.test.mjs
+
+  # ===========================================================================
   #  2. Analiza statyczna — Larastan / PHPStan
   # ===========================================================================
   static-analysis:
