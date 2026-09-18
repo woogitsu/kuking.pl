@@ -110,17 +110,28 @@ trap - EXIT
 { echo; echo '## uptime po serii i po 60 s wybiegu'; uptime; } >> "$OTOCZENIE"
 
 # ---------------------------------------------------------------------------
-#  WERDYKT. Reguła skażenia jest MOJA i stoi tu jawnie, żeby dało się ją
-#  zakwestionować:
+#  WERDYKT. Reguła skażenia stoi tu jawnie, żeby dało się ją zakwestionować.
+#  Wersja z 18.09.2026, ustalona PRZED rampą (uzasadnienie: METODA.md §6.4):
 #
-#    skażony = przebicia w ponad 3 % próbek stopnia
-#              ALBO choć jedno przebicie trwające 5 sekund z rzędu.
+#    stopień jest skażony, gdy zachodzi KTÓREKOLWIEK z:
+#      1. przebicia w >= 3 % próbek ORAZ istnieje seria >= 2 s pod rząd,
+#      2. jakakolwiek pojedyncza seria >= 5 s pod rząd, bez względu na procent,
+#      3. choć jedna próbka z pracującym `Runner.Worker` runnera `kuking`.
 #
-#  Pojedyncza sekunda ponad progiem w przebiegu 180-sekundowym to ziarnistość
-#  pomiaru, nie cudza interferencja — gdyby dyskwalifikowała stopień, na tej
-#  maszynie nie dałoby się zdjąć NICZEGO, a bramka produkowałaby wyłącznie
-#  puste wyniki. Pięć sekund z rzędu albo 3 % przebiegu to już cudzy job,
-#  który wystartował w środku.
+#  Dlaczego „procent ORAZ seria >= 2 s", a nie sam procent: przy stopniu 120 s
+#  i 5 rps pojedyncza sekunda zakłócenia dotyka ok. 5 żądań z 600 — zobaczy to
+#  p99 i tylko p99. Zakłócenie CIĄGŁE przez 2 s i więcej wchodzi już w p95
+#  i w przepustowość, czyli w to, co mierzymy. Reguła ma odrzucać interferencję,
+#  a nie szum kwantyzacji próbkowania co sekundę. Limb 5 s zostaje osobno, bo
+#  taka seria psuje stopień nawet przy niskim procencie.
+#
+#  Warunek 3 nie ma marginesu: runnery `kuking` pracują dlatego, że ktoś z nas
+#  wypchnął gałąź. Cudzego CI nie kontrolujemy, własnego się nie toleruje.
+#
+#  W werdykcie ZOSTAJĄ SUROWE LICZBY — procent przebić, najdłuższa seria,
+#  mediana obcego obciążenia, PSI, liczba próbek z runnerem — żeby czytelnik
+#  mógł zastosować regułę ostrzejszą niż ta i przeliczyć wszystko sam,
+#  bez powtarzania pomiaru.
 # ---------------------------------------------------------------------------
 python3 - "$PROBNIK" "$WERDYKT" "$NAZWA" "$RPS" "$OD" "$DO" "$PROG_RDZENI" "$PROG_PSI" <<'PY'
 import json, sys
@@ -136,13 +147,9 @@ for linia in open(probnik, encoding='utf-8'):
     (pod_obciazeniem if od <= p['t'] <= do else wybieg).append(p)
 
 def przebicie(p):
-    # Trzeci warunek jest TWARDY i nie ma dla niego marginesu: jeżeli w trakcie
-    # stopnia ruszył runner `kuking`, to nasz własny push wywołał CI w środku
-    # pomiaru. To jedyna część hałasu, na którą mamy wpływ, więc jej się nie
-    # toleruje — w odróżnieniu od CI cudzych projektów, które jest tłem.
-    return (p['rdzenie_obce'] > prog_rdzeni
-            or p['psi_cpu_some_avg10'] > prog_psi
-            or p.get('runnery_kuking_pracujace', 0) > 0)
+    """Przebicie progu OBCEGO OBCIĄŻENIA — bez warunku runnerów, który jest
+    osobnym limbem i nie ma być rozmywany w statystyce procentowej."""
+    return p['rdzenie_obce'] > prog_rdzeni or p['psi_cpu_some_avg10'] > prog_psi
 
 flagi = [przebicie(p) for p in pod_obciazeniem]
 n = len(flagi) or 1
@@ -152,8 +159,21 @@ for f in flagi:
     biezaca = biezaca + 1 if f else 0
     naj = max(naj, biezaca)
 
+z_runnerem = sum(1 for p in pod_obciazeniem if p.get('runnery_kuking_pracujace', 0) > 0)
+brak_pola_runnerow = any('runnery_kuking_pracujace' not in p for p in pod_obciazeniem)
+
 udzial = round(100 * ile / n, 1)
-skazona = udzial > 3.0 or naj >= 5
+limb1 = udzial >= 3.0 and naj >= 2
+limb2 = naj >= 5
+limb3 = z_runnerem > 0
+skazona = limb1 or limb2 or limb3
+powody = [
+    nazwa_limbu for warunek, nazwa_limbu in (
+        (limb1, 'limb 1: >=3 % próbek ORAZ seria >=2 s'),
+        (limb2, 'limb 2: seria >=5 s'),
+        (limb3, 'limb 3: pracujący Runner.Worker runnera kuking'),
+    ) if warunek
+]
 
 def statystyka(probki, pole):
     if not probki:
@@ -170,7 +190,12 @@ json.dump({
     'seria': nazwa,
     'zadany_rps': int(rps),
     'werdykt': 'SKAZONY' if skazona else 'CZYSTY',
-    'regula_skazenia': 'przebicia w ponad 3% próbek albo przebicie trwające co najmniej 5 s z rzędu',
+    'regula_skazenia': (
+        'wersja 18.09.2026, ustalona przed rampą. Skażony, gdy KTÓREKOLWIEK z: '
+        '(1) przebicia w >=3 % próbek ORAZ seria >=2 s pod rząd; '
+        '(2) jakakolwiek seria >=5 s pod rząd; '
+        '(3) choć jedna próbka z pracującym Runner.Worker runnera kuking.'),
+    'limby_ktore_zadzialaly': powody,
     'prog_rdzeni': prog_rdzeni,
     'prog_psi': prog_psi,
     'probek_pod_obciazeniem': len(pod_obciazeniem),
@@ -179,16 +204,23 @@ json.dump({
     'najdluzsze_przebicie_s': naj,
     'obce_obciazenie_rdzenie': statystyka(pod_obciazeniem, 'rdzenie_obce'),
     'psi_cpu_some_avg10': statystyka(pod_obciazeniem, 'psi_cpu_some_avg10'),
-    'probek_z_pracujacym_runnerem_kuking': sum(
-        1 for p in pod_obciazeniem if p.get('runnery_kuking_pracujace', 0) > 0),
+    'probek_z_pracujacym_runnerem_kuking': z_runnerem,
+    'runnery_mierzone_per_probka': not brak_pola_runnerow,
     'wlasne_stanowisko_rdzenie': statystyka(pod_obciazeniem, 'rdzenie_stanowiska'),
     'generator_rdzenie': statystyka(pod_obciazeniem, 'generator_rdzenie'),
     'okno_pod_obciazeniem': {'od': od, 'do': do},
     'probek_w_wybiegu_po_zdjeciu_obciazenia': len(wybieg),
+    'ograniczenie_ktorego_bramka_NIE_usuwa': (
+        'Wspólna przepustowość pamięci i wspólny cache L3. Nawet przy wolnych '
+        'rdzeniach cudze procesy podnoszą opóźnienia dostępu do pamięci. '
+        'To jest pomiar na maszynie współdzielonej, nie na stanowisku '
+        'laboratoryjnym — dotyczy KAŻDEJ liczby w tym pliku.'),
 }, open(wyjscie, 'w', encoding='utf-8'), indent=1, ensure_ascii=False)
 
 print(f"seria {nazwa}: {'SKAZONY' if skazona else 'CZYSTY'} "
-      f"(przebicia {ile}/{n} = {udzial}%, najdłuższe {naj}s)")
+      f"(przebicia {ile}/{n} = {udzial}%, najdłuższa seria {naj}s, "
+      f"próbek z runnerem kuking {z_runnerem}"
+      + (f", zadziałało: {'; '.join(powody)}" if powody else '') + ')')
 PY
 
 echo "seria $NAZWA: $WYNIK / $PROBNIK / $WERDYKT / $OTOCZENIE"

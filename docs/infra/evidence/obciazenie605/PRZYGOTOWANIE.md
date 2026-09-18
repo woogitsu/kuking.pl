@@ -1,18 +1,39 @@
 # Stan przygotowania i co jeszcze NIE jest zmierzone (#605)
 
-Stan na 18.09.2026, 11:35 czasu lokalnego. Metoda: `METODA.md` w tym katalogu.
+Stan na 18.09.2026. Metoda: `METODA.md` w tym katalogu.
 
-**Seria pomiarowa do nasycenia NIE ZOSTAŁA jeszcze zdjęta.** Powód jest
-zapisany, bo bez niego ten dokument wyglądałby na niedokończony, a jest
-świadomie wstrzymany: maszyna pomiarowa jest współdzielona i w oknie pracy nad
-tym zadaniem chodziły na niej stale cudze procesy — self-hosted runner CI
-(port 34555), pełne `php artisan test` w worktree Codeksa, pętla kopii
-Subagenta A (MinIO + trzy kontenery PostgreSQL) i zestawy Playwrighta.
-`load average` trzymał się między **9 a 18** przy 24 rdzeniach. Seria zdjęta
-w takim otoczeniu mierzyłaby cudzy hałas, a nie aplikację, i nie dałoby się
-później odróżnić jednego od drugiego. Okno ciszy potwierdza koordynator.
+**Rampy do nasycenia NIE ZDJĘTO. To jest pakiet przyrządu, nie pakiet wyników.**
 
-Wszystko poza samymi seriami jest gotowe i sprawdzone działaniem.
+Powód nie jest wymówką, tylko zmierzoną właściwością tej maszyny: jest ona
+**wspólnym hostem CI pięciu projektów** (17 runnerów — `kuking` 4, `woogitsu` 4,
+`lockstate` 3, `metro` 3, `osadale` 3). Obciążenie nie pochodzi od tego zadania,
+nie wolno go wyłączać i nie mija samo. Rozkład zmierzony w 278 próbkach co
+sekundę (`rozpoznanie-obcego.csv`): **mediana 17,9 zajętego rdzenia z 24**,
+PSI cpu `some avg10` mediana 22,2 %.
+
+Zamiast czekać na ciszę, która nie nadejdzie, serie są **bramkowane
+obciążeniem** (METODA.md §6). Pierwsze podejście rampy, 18.09, 12:48–13:05:
+
+| stopień | wynik | powód |
+|---|---|---|
+| 5 rps | **NIEWYKONANY** | bramka nie doczekała — 2 próby po 300 s |
+| 15 rps | **NIEWYKONANY** | bramka nie doczekała — 2 próby po 300 s |
+| 30 rps | **NIEWYKONANY** | bramka nie doczekała — 2 próby po 300 s |
+| 50 / 80 / 120 / 170 rps | nierozpoczęte | rampa przerwana, żeby najpierw wysłać gotowy przyrząd |
+
+Przez cały ten czas pracowało 6–7 runnerów **obcych projektów**
+(`lockstate` ×3, `metro` ×3, `osadale` ×1) przy `load average` 27–32.
+Runnery `kuking` były wolne — czyli warunek, na który mamy wpływ, był
+spełniony; nie były spełnione progi obcego obciążenia.
+
+Wcześniej, przy pracujących runnerach `kuking` (CI PR-ów #676 i #677), dwa
+przebiegi 5 rps zostały zdjęte i **odrzucone jako skażone**. Zostają
+w `serie/` jako dowód, że bramka odrzuca to, co ma odrzucać.
+
+Budżet czekania ustalony z góry, przed pierwszą sekundą oczekiwania:
+`BUDZET-CZEKANIA.md`.
+
+Wszystko poza samymi wynikami jest gotowe i sprawdzone działaniem.
 
 ---
 
