@@ -516,3 +516,18 @@ Szczegóły i zakres dowodów: [linki](LINKI_634.md) oraz
 [instalacja PWA](INSTALACJA_PWA_278.md). Uzupełnienie PWA dotyczy propozycji
 instalacji, nie zastępuje całego historycznego wiersza offline/service worker.
 Pełny port marki pozostaje **CZĘŚCIOWO**.
+
+
+## Odzyskanie PUT po 419 przy rzeczywistym zoomie — 18 września 2026
+
+[Wąski odbiór](ODBIOR_PUT_ZOOM_492.md) na źródłach6fb497c uzupełnia wcześniejszy
+PUT: oba motywy ustawione przez UI, rzeczywisty zoom200%, CSS320×900, tekst140.
+Payload i snapshot badanego przepisu zachowane przy odmowie; Tab dociera do
+ponowienia, które po dodatkowym przewinięciu jest widoczne i niezasłonięte.
+Enter wykonuje prawdziwy PUT, z potwierdzeniem opisu, kroków, przypisań mediów,
+minutników kroków i prywatności. Oba PNG obejrzane również przez reviewera.
+
+Zakres nie obejmuje nowych uploadów, maksymalnych danych, wszystkich pól
+fokusu, naturalnego wygaśnięcia sesji, 429 przy zoomie ani fizycznych urządzeń.
+Nie dowodzi samoczynnego odsłonięcia celu przez sam Tab. Historyczne ograniczenia
+pozostają ważne poza tym zakresem. Pełny port marki nadal CZĘŚCIOWO.
