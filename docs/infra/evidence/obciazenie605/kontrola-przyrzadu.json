@@ -1,4 +1,5 @@
 {
+ "UWAGA": "NIE JEST TO WYNIK POMIAROWY. Kontrola działania przyrządu zdjęta 18.09.2026 ok. 11:30 przy load average 12-15 pochodzącym od CUDZYCH procesów na tej maszynie (self-hosted runner CI, pełne `php artisan test` w worktree Codeksa, pętla kopii Subagenta A, zestawy Playwrighta). Liczb bezwzględnych z tego pliku NIE WOLNO cytować ani porównywać z load581. Wartość tego pliku to dowód, że wszystkie 14 scenariuszy mieszanki działa, oraz KOLEJNOŚĆ kosztu tras — nie ich wydajność.",
  "seria": "kontrola-pelna",
  "baza": "http://127.0.0.1:8605",
  "start": "2026-09-18T09:30:32.393Z",
@@ -6,6 +7,7 @@
  "czas_s": 30,
  "trwanie_s": 30,
  "razem": {
+  "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
   "zadan": 149,
   "poprawnych": 149,
   "porzuconych_przez_limit": 0,
@@ -25,6 +27,7 @@
  },
  "endpointy": {
   "anon_landing": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 8,
    "poprawnych": 8,
    "blad_procent": 0,
@@ -37,6 +40,7 @@
    }
   },
   "anon_profil": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 4,
    "poprawnych": 4,
    "blad_procent": 0,
@@ -49,6 +53,7 @@
    }
   },
   "anon_przepis": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 27,
    "poprawnych": 27,
    "blad_procent": 0,
@@ -61,6 +66,7 @@
    }
   },
   "anon_tag": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 7,
    "poprawnych": 7,
    "blad_procent": 0,
@@ -73,6 +79,7 @@
    }
   },
   "anon_wpis": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 7,
    "poprawnych": 7,
    "blad_procent": 0,
@@ -85,6 +92,7 @@
    }
   },
   "komentarz": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 8,
    "poprawnych": 8,
    "blad_procent": 0,
@@ -97,6 +105,7 @@
    }
   },
   "szukaj": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 17,
    "poprawnych": 17,
    "blad_procent": 0,
@@ -109,6 +118,7 @@
    }
   },
   "ugotowalem": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 1,
    "poprawnych": 1,
    "blad_procent": 0,
@@ -121,6 +131,7 @@
    }
   },
   "upload": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 2,
    "poprawnych": 2,
    "blad_procent": 0,
@@ -133,6 +144,7 @@
    }
   },
   "zal_discover": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 9,
    "poprawnych": 9,
    "blad_procent": 0,
@@ -145,6 +157,7 @@
    }
   },
   "zal_feed": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 17,
    "poprawnych": 17,
    "blad_procent": 0,
@@ -157,6 +170,7 @@
    }
   },
   "zal_feed_str2": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 8,
    "poprawnych": 8,
    "blad_procent": 0,
@@ -169,6 +183,7 @@
    }
   },
   "zal_zeszyt": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 4,
    "poprawnych": 4,
    "blad_procent": 0,
@@ -181,6 +196,7 @@
    }
   },
   "zdjecie": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
    "zadan": 30,
    "poprawnych": 30,
    "blad_procent": 0,
@@ -208,6 +224,5 @@
   "komentarz": 4,
   "ugotowalem": 2,
   "upload": 1
- },
- "uwaga": "KONTROLA DZIAŁANIA PRZYRZĄDU, NIE WYNIK POMIAROWY. Zdjęta 18.09 ok. 11:30 przy load average 12-15 pochodzącym od cudzych procesów na tej maszynie (runner CI, testy innych agentów). Pokazuje, że wszystkie 14 scenariuszy działa i jaka jest KOLEJNOŚĆ kosztu tras — nie pokazuje wydajności."
+ }
 }

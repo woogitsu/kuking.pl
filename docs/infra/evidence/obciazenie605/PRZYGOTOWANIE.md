@@ -63,8 +63,9 @@ Trzy prawdziwe pliki JPEG (`scripts/zdjecia-obciazenia-605.php`):
 | 24 Mpx (5657 × 4243) | 24,0 | 88 | **11,12 MB** |
 | 48 Mpx (8000 × 6000) | 48,0 | 72 | **13,62 MB** |
 
-Wgrane **ścieżką produktową** (`POST /dodaj/zdjecie`), po 8 z każdego rozmiaru:
-24 wiersze `media`, wszystkie w statusie `ready`, **0 nieudanych zadań**,
+Wgrane **ścieżką produktową** (`POST /dodaj/zdjecie`), po 8 z każdego rozmiaru
+w rozgrzewce plus 8 z celowych sprawdzeń progu 25 Mpx — razem **32 wiersze
+`media`**, wszystkie w statusie `ready`, **0 nieudanych zadań**,
 55 adresów `/zdjecia/{uuid}/{wariant}` (thumb / feed / large) sprawdzonych
 przez generator. Kontrolnie wariant `large` spod `/zdjecia/{uuid}/{wariant}`
 oddaje **636 618 B `image/webp`**, czyli prawdziwy plik, a nie 404.
@@ -97,13 +98,20 @@ wszystkie zielone** (385 s).
 
 ### 2.1 Koszt ścieżki wgrania rośnie NIEMONOTONICZNIE z rozmiarem zdjęcia
 
-`rozgrzewka-mediow.txt`, 24 kolejne wgrania, odstęp 5 s, kolejka pusta między nimi:
+`rozgrzewka-mediow.txt`, 24 kolejne wgrania, odstęp 5 s, kolejka pusta między nimi.
 
-| rozmiar | czas `POST /dodaj/zdjecie` (8 wgrań) |
+**Każda liczba w tej tabeli jest zdjęta na GŁOŚNEJ MASZYNIE** (`load average`
+12–15 od cudzych procesów) i **nie jest wynikiem pomiarowym**. Żadnej z nich
+nie wolno cytować jako „tyle kosztuje wgranie zdjęcia”. Nośna jest tu wyłącznie
+**relacja między wierszami** — i to dlatego, że powtarza się osiem razy z rzędu
+w każdym wierszu, bez ani jednego wyjątku, a taki podział nie bierze się
+z hałasu.
+
+| rozmiar | czas `POST /dodaj/zdjecie`, 8 wgrań — **GŁOŚNA MASZYNA, NIE WYNIK, NIE CYTOWAĆ** |
 |---|---|
-| 12 Mpx | 228 · 258 · 264 · 264 · 265 · 278 · 281 · 327 ms |
-| 24 Mpx | 447 · 452 · 455 · 456 · 462 · 470 · 486 · 503 ms |
-| **48 Mpx** | **71 · 75 · 78 · 82 · 83 · 89 · 89 · 93 ms** |
+| 12 Mpx | 228 · 258 · 264 · 264 · 265 · 278 · 281 · 327 ms (nie wynik) |
+| 24 Mpx | 447 · 452 · 455 · 456 · 462 · 470 · 486 · 503 ms (nie wynik) |
+| **48 Mpx** | **71 · 75 · 78 · 82 · 83 · 89 · 89 · 93 ms** (nie wynik) |
 
 Największe zdjęcie jest na ścieżce żądania **pięć razy TAŃSZE** niż średnie.
 To nie jest artefakt pomiaru — to wynika wprost z konfiguracji:
@@ -112,40 +120,68 @@ synchroniczny wariant 640 px tylko poniżej tego progu (issue #430,
 `docs/MEDIA_PIPELINE.md`). Zdjęcie 48 Mpx próg przekracza, więc **całą pracę
 oddaje kolejce** i żądanie kończy się od razu.
 
-Konsekwencja do sprawdzenia w serii: autor zdjęcia 48 Mpx dostaje szybką
-odpowiedź, ale zamiast wariantu podglądu widzi „Twoje zdjęcie się jeszcze
-przygotowuje” — czyli dokładnie to, co #430 naprawiał. Warto to rozstrzygnąć
-pomiarem opóźnienia kolejki, a nie domysłem.
+**Sprawdzone celowo, nie domysłem** — pełny zapis w `prog-25mpx-a-podglad.md`.
+To sprawdzenie nie jest pomiarem czasu, więc hałas na maszynie go nie dotyczy:
+
+- **poziom danych** — ani jedno wgranie 48 Mpx nie ma
+  `metadata.variants.podglad`; wszystkie wgrania 12 i 24 Mpx mają;
+- **poziom strony** — przy 24 Mpx świeże zdjęcie jest na stronie wpisu już
+  w pierwszym renderze (jako `podglad`); przy 48 Mpx **identyfikatora świeżego
+  zdjęcia nie ma w HTML-u wcale**, aż kolejka skończy pracę.
+
+Czyli powyżej 25 Mpx naprawa z #430 przestaje działać: autor publikuje wpis
+i przez czas przetwarzania **nie widzi swojego zdjęcia**. Dopowiedzenie, którego
+nie wolno pominąć: w dzienniku aplikacji **nie ma** ostrzeżenia „Zdjęcie bez
+wygenerowanych wariantów”, więc `Media::url()` nie jest w ogóle wołany — widok
+pomija zdjęcie warunkiem `isReady()` (komentarz AUDYT A3
+w `resources/views/components/layout.blade.php`). Autor nie dostaje więc ani
+zastępczego znaku marki, ani komunikatu — po prostu zdjęcia nie ma.
+
+Czego to jeszcze nie mówi: **ile trwa to okno pod obciążeniem**. To należy do
+serii. Rzecz jest zauważona przy okazji i **nie została zgłoszona do #430 ani
+#605** — to decyzja do podjęcia razem z pomiarem opóźnienia kolejki.
 
 ### 2.2 Kolejność kosztu tras na realistycznym zbiorze
 
-`kontrola-przyrzadu.json` — **kontrola działania przyrządu, nie wynik**:
-5 żądań/s przez 30 s, zdjęta przy `load average` 12–15 pochodzącym od cudzych
-procesów. Liczb bezwzględnych z niej nie wolno cytować. Kolejność jednak jest
-na tyle wyraźna, że warto ją zapisać jako hipotezę do sprawdzenia w oknie ciszy:
+Źródło: `kontrola-przyrzadu.json` — **kontrola działania przyrządu, NIE wynik
+pomiarowy**. 5 żądań/s przez 30 s (149 żądań), zdjęta 18.09 ok. 11:30 przy
+`load average` 12–15 pochodzącym od CUDZYCH procesów na tej maszynie:
+self-hosted runner CI, pełne `php artisan test` w worktree Codeksa, pętla kopii
+Subagenta A, zestawy Playwrighta.
 
-| scenariusz | p50 | dla porównania load581 (mały zbiór, k6) |
+**Czytelniku: żadnej liczby z poniższej tabeli nie wolno zacytować, wstawić do
+issue ani porównać z load581.** Kolumna „p50 (NIE WYNIK)” jest tu po to i tylko
+po to, żeby pokazać **kolejność** tras — który ekran jest tani, a który drogi.
+Wartości bezwzględne zawierają cudzy hałas i przy 149 próbkach mają przedział
+ufności, którego nikt nie policzył. Tabela w prawej kolumnie zestawia je
+z load581 **wyłącznie dla skali zjawiska**, a nie jako pomiar „przed/po”:
+tamte liczby powstały innym przyrządem, na innym (małym) zbiorze i przy innym
+limicie kontenera.
+
+| scenariusz | p50 — **NIE WYNIK, głośna maszyna, nie cytować** | load581: inny przyrząd, mały zbiór — **nie odejmować** |
 |---|---:|---:|
-| `/home?page=2` (feed obserwowanych, str. 2) | ~1 164 ms | 38 ms |
-| `/home` (feed obserwowanych) | ~1 039 ms | 46 ms |
-| `/szukaj?q=…` | ~557 ms | 41 ms |
-| `/odkryj` z sesją | ~540 ms | — |
-| `/` (anonimowo) | ~440 ms | 31 ms |
-| `/@profil` | ~88 ms | — |
-| `/tag/{tag}` | ~80 ms | — |
-| `/przepisy/{slug}` | ~48 ms | 20 ms |
-| `/zdjecia/{uuid}/{wariant}` | ~47 ms | 19 ms |
-| `/wpisy/{uuid}` | ~41 ms | — |
-| `POST komentarz` | ~39 ms | — |
+| `/home?page=2` (feed obserwowanych, str. 2) | ~1 164 ms (nie wynik) | 38 ms |
+| `/home` (feed obserwowanych) | ~1 039 ms (nie wynik) | 46 ms |
+| `/szukaj?q=…` | ~557 ms (nie wynik) | 41 ms |
+| `/odkryj` z sesją | ~540 ms (nie wynik) | — |
+| `/` (anonimowo) | ~440 ms (nie wynik) | 31 ms |
+| `/@profil` | ~88 ms (nie wynik) | — |
+| `/tag/{tag}` | ~80 ms (nie wynik) | — |
+| `/przepisy/{slug}` | ~48 ms (nie wynik) | 20 ms |
+| `/zdjecia/{uuid}/{wariant}` | ~47 ms (nie wynik) | 19 ms |
+| `/wpisy/{uuid}` | ~41 ms (nie wynik) | — |
+| `POST komentarz` | ~39 ms (nie wynik) | — |
 
-Hipoteza: **na realistycznym zbiorze rozjazd między najtańszą a najdroższą
-trasą jest dwudziestopięciokrotny**, a cała droga „wejście przez feed” kosztuje
-rząd wielkości więcej niż strona przepisu czy oddanie zdjęcia. W load581 tego
-nie było widać, bo tamten zbiór był mały i równomierny. Do potwierdzenia serią
-w oknie ciszy — łącznie z rozbiciem na to, ile z tego czasu to baza,
-a ile renderowanie.
+Hipoteza do sprawdzenia serią: **na realistycznym zbiorze rozjazd między
+najtańszą a najdroższą trasą jest rzędu dwudziestopięciokrotnego**, a cała droga
+„wejście przez feed” kosztuje rząd wielkości więcej niż strona przepisu czy
+oddanie zdjęcia. W load581 tego nie było widać, bo tamten zbiór był mały
+i równomierny. Do potwierdzenia w oknie ciszy — łącznie z rozbiciem na to, ile
+z tego czasu to baza, a ile renderowanie.
 
-Koszt samego generatora w tej kontroli: **0,03 rdzenia**, 80 MB RSS.
+Koszt samego generatora w tej kontroli: **0,03 rdzenia**, 80 MB RSS. Ta akurat
+liczba jest wiarygodna niezależnie od hałasu, bo pochodzi z `process.cpuUsage()`
+własnego procesu, a nie z zegara ściennego.
 
 ---
 

@@ -1,5 +1,13 @@
 # Mieszany test obciążeniowy do nasycenia — metoda (#605)
 
+> **W TYM KATALOGU NIE MA JESZCZE ŻADNEGO WYNIKU WYDAJNOŚCIOWEGO.**
+> Jedyny plik z czasami odpowiedzi — `kontrola-przyrzadu.json` — jest
+> **kontrolą działania przyrządu**, zdjętą przy `load average` 12–15
+> pochodzącym od cudzych procesów na współdzielonej maszynie. Jego liczb
+> nie wolno cytować, wstawiać do issue ani porównywać z load581; pokazują
+> najwyżej KOLEJNOŚĆ kosztu tras. Powód wstrzymania serii i pełny stan
+> przygotowania: `PRZYGOTOWANIE.md` w tym katalogu.
+
 Data pomiaru: 18.09.2026. Gałąź `perf/605-obciazenie-mieszane` z `main` `bdc56b8`.
 Topologia: **`all`** — web, worker kolejki i scheduler w JEDNYM kontenerze.
 To jest dzisiejsza produkcja (`kuking-entrypoint all`, jedna replika), a nie
