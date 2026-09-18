@@ -31,6 +31,13 @@ Przywrócono kopię spoza repo:
 MD5 `b85b85f2dbfad50952450c270895692e`, mtime ns `1789749028633844800`.
 Po przywróceniu ponownie 4/12 PASS. Błąd formatowania nowego testu poprawił Pint.
 
+Po uwadze review test korzysta także z parsera `DB_URL` Laravela przed
+utworzeniem połączenia. Osobny przebieg z prawidłowym lokalnym URL i celowo
+nieprawidłowym `DB_HOST` zakończył się 4/12 PASS: połączenie pochodziło z URL.
+Po tej zmianie ponowiono kontrolę ujemną: 4 FAIL, przywrócenie tego samego
+MD5 i mtime, ponownie 4/12 PASS. Kopia:
+`/tmp/kuking693-negative-ifrf_cj5/database.php`.
+
 ## Granice i odbiór
 
 Test obejmuje rzeczywisty PostgreSQL i repozytorium tokenów frameworka;

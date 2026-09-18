@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Models\User;
 use Illuminate\Auth\Passwords\DatabaseTokenRepository;
+use Illuminate\Database\ConfigurationUrlParser;
 use Illuminate\Database\Connectors\PostgresConnector;
 use Illuminate\Database\PostgresConnection;
 use Illuminate\Support\Carbon;
@@ -61,7 +62,7 @@ class StrefaPolaczeniaPostgresTest extends TestCase
         putenv('PGTZ=Europe/Warsaw');
 
         try {
-            $config = config('database.connections.pgsql');
+            $config = (new ConfigurationUrlParser)->parseConfiguration(config('database.connections.pgsql'));
             $connector = new PostgresConnector;
             $bezOchrony = $config;
             unset($bezOchrony['timezone']);
