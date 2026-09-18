@@ -1,7 +1,13 @@
 # Paginacja komentarzy i wykonań — #652
 
-Status: przygotowana poprawka, jeszcze bez PR i wdrożenia. Baza prac:
+Status: **scalona i wdrożona**. PR #654, merge
+`84186922f2c9c5bb91d2fd9f352a86eb9b8cf935`. Baza prac:
 `a51aaca932e5da08995a93a514890664a5eeb4ce` (integracja #651).
+
+Zdanie „przygotowana poprawka, jeszcze bez PR i wdrożenia" stało tu do
+18 września 2026 i było już nieprawdziwe — opisywało stan z chwili pisania
+pliku, przed wysyłką. Sekcja „Dostarczenie i wycofanie" niżej ma aktualne
+liczby.
 
 ## Problem i zmiana
 
@@ -63,7 +69,42 @@ nie odbiorowi całej kompozycji przepisu.
 
 ## Dostarczenie i wycofanie
 
-Przygotowano wersję Alfa 0.60 i changelog. Pozostały pełny hook, push,
-wymagane CI, normalne scalenie i odbiór produkcyjnego SHA.
-Nie ma migracji. Wycofanie przez sprawdzony PR cofający pakiet przywróci
-poprzednie budowanie odnośników, wraz z opisanym błędem.
+Wersja Alfa 0.60 i changelog. Pakiet przeszedł hook, push i wymagane CI
+(35277046687: 12/12 success, pełne PHP 3983 testy / 80649 asercji) i został
+scalony jako `8418692`. Nie ma migracji. Wycofanie przez sprawdzony PR
+cofający pakiet przywróci poprzednie budowanie odnośników, wraz z opisanym
+błędem.
+
+## Granica dowodu produkcyjnego — 18 września 2026
+
+Odczyt produkcji `https://kuking.pl`, 13:10–13:24 UTC, wyłącznie HTTP GET.
+Stopka: `Alfa 0.65 · wydanie 18 września 2026, 12:12 · 55877e2`. Porównanie
+przez API GitHub: wdrożony `55877e2` jest 29 commitów przed `8418692`
+i **0 wstecz** — naprawa jest na żywo. To dowód wersji, nie odbiór
+interakcji.
+
+Publicznie dostępne są trzy treści (`/szukaj?sekcja=przepisy`):
+
+| treść | trasa | wykonania | komentarze |
+| --- | --- | --- | --- |
+| „Bigos z cukinii", slug bigos-z-cukinii | `/przepisy/{recipe}` | 0 — „Jeszcze nikt tego nie gotował" | 0 — „Jeszcze nikt tu nic nie napisał" |
+| „Rolada kawowa", 01a0a6af-4aea-7230-9b41-8c6d4b694eee | `/wpisy/{post}` | sekcji brak (to wpis, nie przepis) | 0 |
+| sałatka ziemniaczana, 01a08f53-75fc-714d-9828-af759b1024af | `/wpisy/{post}` | sekcji brak (to wpis, nie przepis) | 1 |
+
+**Publiczny przepis jest dokładnie jeden.** „Rolada kawowa" to wpis, a nie
+przepis — adres przepisu o slugu rolada-kawowa zwraca 404.
+
+Rozmiar strony komentarzy to 12 (`config/kuking.php`,
+`comments.page_size`), więc **żaden publiczny przepis nie wystawia nawet
+jednego przycisku „Pokaż więcej"**, a scenariusz #652 wymaga dwóch
+paginatorów naraz. Dołożenie komentarza albo wykonania wymagałoby zalogowania
+się i zapisu na produkcji — czego w odbiorze nie robimy.
+
+**Nie tworzono w tym celu komentarzy ani wykonań na produkcji.** To granica
+dowodu, nie wynik pozytywny. Odbiór produkcyjny #652 pozostaje niewykonany
+i tylko z tego powodu issue jest otwarte.
+
+Pokrewny ekran zeszytu ma osobny raport
+[`PAGINACJA_ZESZYTU_646.md`](PAGINACJA_ZESZYTU_646.md) — tam znajduje się
+komplet dowodu lokalnego dla wspólnego `preserveOtherPage()` przy myszy,
+dotyku i klawiaturze, wykonany na wdrożonym `55877e2`.

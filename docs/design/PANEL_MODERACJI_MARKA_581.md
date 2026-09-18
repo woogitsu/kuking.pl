@@ -6,6 +6,53 @@ PR #587 został scalony. [Odbiór produkcyjny dziewięciu sekcji na Alfa 0.45 / 
 potwierdził nową oprawę i wskazał długą nawigację mobilną jako pozostałe tarcie.
 Nie był odbiorem wszystkich operacji, walidacji ani stanów 2FA.
 
+## Bramki dostępu na produkcji — 18 września 2026
+
+Odczyt `https://kuking.pl`, 13:12 UTC, wyłącznie HTTP GET bez sesji.
+Stopka: `Alfa 0.65 · wydanie 18 września 2026, 12:12 · 55877e2`.
+**Nie logowano się, nie wykonano żadnej decyzji moderacyjnej, nie zmieniano
+ustawień konta ani 2FA.**
+
+Wszystkie dziewięć pozycji nawigacji panelu odpowiada gościowi
+przekierowaniem 302 na `https://kuking.pl/login` — bez różnicowania
+odpowiedzi, czyli bez wycieku informacji o istnieniu rekordów:
+
+| trasa | odpowiedź |
+| --- | --- |
+| `/admin/zgloszenia` | 302 → `/login` |
+| `/admin/sygnaly` | 302 → `/login` |
+| `/admin/wiadomosci` | 302 → `/login` |
+| `/admin/odwolania` | 302 → `/login` |
+| `/admin/bez-odpowiedzi` | 302 → `/login` |
+| `/admin/kolaz-powitalny` | 302 → `/login` |
+| `/admin/kuking-na-dzis` | 302 → `/login` |
+| `/admin/tagi-promowane` | 302 → `/login` |
+| `/admin/uzytkownicy` | 302 → `/login` |
+
+Trasy szczegółowe i z parametrami zachowują się tak samo, również dla
+zmyślonego UUID — `/admin/uzytkownicy/{uuid}`, `/admin/wiadomosci/{uuid}`,
+`/admin/zgloszenia?strona=2`, `/admin/odwolania?stan=rozpatrzone`:
+wszystkie 302 → `/login`. Ustawienia `/ustawienia/2fa` również: 302 →
+`/login`.
+
+Adresy „admin" bez dalszego członu oraz „admin/tagi" zwracają 404 — i to
+jest poprawne, bo takich tras nie ma (`routes/web.php`: spis tagów stoi
+publicznie pod `/tagi`, a panel ma wyłącznie `/admin/tagi-promowane`).
+Nie jest to niespójność bramki.
+
+### Czego ta kontrola NIE pokazuje
+
+- **Odmowy dla osoby zalogowanej bez uprawnień** — do tego trzeba konta bez
+  roli moderatora. Nie było takiej sesji i nie zakładano konta.
+- **Bramki 2FA w działaniu** — `moderator.2fa` stoi za `moderator`, więc
+  gość nigdy do niej nie dociera. Bez uprawnionej sesji nie da się jej
+  zobaczyć.
+- **Szczegółów zgłoszeń i odwołań z decyzjami** — wymagają uprawnionej
+  sesji, a treści decyzji nie wolno wytwarzać na produkcji.
+
+Brak sesji jest **granicą dowodu, nie wynikiem pozytywnym**. Pozostałe
+warunki odbioru #581 z opisu issue są w tej części nadal niespełnione.
+
 ## Kontynuacja mobilnej nawigacji — 17 września 2026
 
 Na gałęzi `fix/581-menu-mobilne`, na podstawie `89c45e69b895c4a65defda938da6e855d8a6371e`,
