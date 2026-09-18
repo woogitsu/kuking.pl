@@ -259,16 +259,168 @@ klastra, z którego korzystają inni — dlatego **nie zostało użyte**.
 
 ---
 
-## 6. Higiena pomiaru
+## 6. Higiena pomiaru: bramkowanie obciążeniem zamiast czekania na ciszę
+
+### 6.1 Dlaczego bramka, a nie „ciche okno"
+
+Ta maszyna jest **wspólnym hostem CI pięciu projektów**: 17 zarejestrowanych
+runnerów (`kuking` 4, `woogitsu` 4, `lockstate` 3, `metro` 3, `osadale` 3).
+Zajętość nie pochodzi od tego zadania, **nie wolno jej wyłączać** i nie mija
+sama — jest strukturalna, nie chwilowa. Każdy push w którymkolwiek z pięciu
+repozytoriów startuje job, który może wypaść w środku stopnia rampy.
+
+Umawianie się na 45 minut ciszy byłoby więc umawianiem się na coś, co nie
+nadejdzie. Zamiast czekać — **bramkujemy**: stopień startuje tylko wtedy, gdy
+obce obciążenie utrzyma się pod progiem przez pełne 60 s, a stopień, w którym
+próg został przebity, dostaje werdykt SKAŻONY i nadaje się wyłącznie do
+powtórzenia.
+
+**Bramka niczego cudzego nie zatrzymuje ani nie usypia.** Czyta /proc i czeka.
+
+### 6.2 Jak liczone jest „obce obciążenie"
+
+```
+obce = rdzenie zajęte na hoście  −  rdzenie zjedzone przez własne stanowisko
+```
+
+Zajętość hosta z plik stat w /proc (suma pól minus `idle` i `iowait`, podzielona
+przez czas i takt zegara). Własne stanowisko = cgroup kontenera aplikacji
++ proces generatora + sam próbnik. Różnica jest zacinana na zerze, bo dwa
+niezależne liczniki potrafią na jednej próbce dać minimalnie ujemny wynik.
+
+Druga, **niezależna** miara: plik pressure/cpu w /proc, pole `some avg10` — ile
+procent czasu zadania CZEKAŁY na procesor. Wolne rdzenie i brak czekania to
+dwie różne rzeczy i przy bramkowaniu potrzebne są obie.
+
+### 6.3 Próg — liczba z pomiaru, nie z odczucia
+
+Przed wyborem progu zmierzyłem rozkład obcego obciążenia próbnikiem co
+sekundę (`rozpoznanie-obcego.csv`, 278 próbek, 18.09 ok. 12:14–12:19, przy
+24 rdzeniach):
+
+| miara | min | p10 | mediana | p90 | max |
+|---|---:|---:|---:|---:|---:|
+| obce rdzenie | 9,3 | 14,4 | **17,9** | 20,3 | 23,2 |
+| PSI cpu `some avg10` | 3,5 % | 5,5 % | **22,2 %** | 42,4 % | 46,1 % |
+
+Najdłuższy ciąg spełniający oba warunki naraz, w tym samym oknie:
+
+| próg | najdłuższy ciągły spokój |
+|---|---:|
+| obce ≤ 12 i PSI ≤ 15 % | 2 s |
+| obce ≤ 14 i PSI ≤ 20 % | 3 s |
+| obce ≤ 16 i PSI ≤ 20 % | 13 s |
+| **obce ≤ 18 i PSI ≤ 25 %** | **70 s** |
+| obce ≤ 20 i PSI ≤ 30 % | 139 s |
+
+**Przyjęty próg: obce ≤ 18,0 rdzeni z 24 ORAZ PSI cpu `some avg10` ≤ 25 %,
+utrzymane przez 60 s z rzędu.**
+
+Uzasadnienie od góry i od dołu, bo próg musi być broniony z obu stron:
+
+- **Dlaczego nie wyżej.** Przy progu 20 rdzeni przechodzi 88,5 % próbek, czyli
+  bramka przepuszczałaby **zwyczajny stan tej maszyny** — a to jest dokładnie
+  ten stan, który mamy wykluczyć. Próg 18 przepuszcza 51,1 % próbek, czyli
+  wybiera spokojniejszą połowę.
+- **Dlaczego nie niżej.** Przy progu 16 najdłuższy spokój w oknie pomiarowym
+  trwał 13 s, a przy 12 — dwie sekundy. Bramka z takim progiem **nigdy by się
+  nie otworzyła**, a próg dobrany tak, żeby nic nie przeszło, to wybór
+  niemierzenia niczego, nie ostrożność.
+- **Dlaczego akurat 18 ma sens fizyczny, a nie tylko statystyczny.**
+  Stanowisko potrzebuje w szczycie ok. **2,6 rdzenia**: 2,0 (twardy przydział
+  kontenera `--cpus=2`) + ok. 0,5 (generator przy wysokim rps) + 0,05 (próbnik).
+  Przy 18 zajętych zostaje **6 wolnych rdzeni, czyli 2,3 × tyle, ile stanowisko
+  potrzebuje** — przydział kontenera da się zaspokoić bez stania w kolejce do
+  procesora. Degradacja, którą wtedy widać, pochodzi z **własnego limitu 2 CPU**,
+  czyli z rzeczy mierzonej, a nie z konkurencji o host.
+
+### 6.3a Trzeci warunek: żaden runner `kuking` nie może pracować
+
+Progi CPU i PSI opisują hałas jako zjawisko. Trzeci warunek opisuje jego
+**jedyną część, na którą mamy wpływ**.
+
+Runnery `kuking-01..04` pracują dlatego, że **ktoś z nas wypchnął gałąź** —
+każdy push uruchamia komplet zadań CI, w tym dwa długie: „Panel marki"
+(ok. 17 min) i „Testy (PostgreSQL 18)" (ok. 9 min). Runnery `lockstate`,
+`metro` i `osadale` należą do cudzych projektów: **nie zatrzymujemy ich, nie
+prosimy o nic i nie czekamy na nie w nieskończoność** — są pogodą, nie
+warunkiem. Jeśli po zamknięciu naszego CI obce obciążenie i tak nie zejdzie
+pod próg, to jest wynik i tak go zapisujemy.
+
+Warunek jest **osobny od progu CPU**, bo runner ma przerwy między zadaniami:
+obciążenie na chwilę spada pod próg, bramka by się otworzyła, a trzy minuty
+później startuje „Panel marki" i rozjeżdża stopień. Dokładnie tak przepadły
+`r005-p1` i `r005-p2`.
+
+W regule skażenia ten warunek jest **twardy, bez marginesu**: jedna próbka
+z pracującym runnerem `kuking` skaża stopień. Próg procentowy dotyczy hałasu,
+którego nie kontrolujemy; własnego CI się nie toleruje.
+
+**Wykrywanie — prosty wzorzec po nazwie katalogu NIE DZIAŁA i to jest pułapka
+warta zapisania.** Komenda
+
+```
+ps -eo args | grep -oE 'actions-runner-kuking-0[0-9]' | sort -u
+```
+
+zwraca **wszystkie cztery ZAWSZE**, bo `Runner.Listener` każdego runnera stoi
+nieprzerwanie jako usługa i ma tę ścieżkę w linii poleceń. Zmierzone: przy
+dwóch faktycznie pracujących runnerach ta komenda pokazywała cztery. Gdyby
+bramka opierała się na niej, **nie otworzyłaby się nigdy** — i wyglądałoby to
+na wynik („maszyna zawsze zajęta"), a nie na błąd przyrządu.
+
+Rozstrzyga `Runner.Worker` — ten proces istnieje wyłącznie wtedy, gdy runner
+ma przydzielone zadanie:
+
+```
+ps -eo args | grep 'Runner\.Worker' | grep -oE 'actions-runner-kuking-0[0-9]' | sort -u
+```
+
+**Czego próg NIE usuwa:** współdzielonej przepustowości pamięci i wspólnego
+cache'u ostatniego poziomu. Nawet przy wolnych rdzeniach cudze procesy
+podnoszą opóźnienia dostępu do pamięci. Tego nie da się wybramkować i dlatego
+wszystkie liczby z tego katalogu są **pomiarem na maszynie współdzielonej**,
+a nie na stanowisku laboratoryjnym.
+
+### 6.4 Kiedy stopień jest skażony
+
+> **skażony = przebicia w ponad 3 % próbek stopnia ALBO choć jedno przebicie
+> trwające co najmniej 5 sekund z rzędu ALBO choć jedna próbka z pracującym
+> runnerem `kuking`**
+
+Ta reguła jest moja i stoi tu jawnie, żeby dało się ją zakwestionować.
+Pojedyncza sekunda ponad progiem w przebiegu 180-sekundowym to ziarnistość
+pomiaru, nie cudza interferencja; gdyby dyskwalifikowała stopień, na tej
+maszynie nie dałoby się zdjąć **niczego**. Pięć sekund z rzędu albo 3 %
+przebiegu to już cudzy job, który wystartował w środku.
+
+Stopnie skażone **zostają w dowodach** razem z powodem — to jest dowód, że
+bramka działała, a nie że dobierano wyniki. Stopień, którego nie udało się
+zdjąć czysto mimo powtórzeń, zapisujemy jako **NIEWYKONANY z powodem**.
+Wiersz „nie udało się zmierzyć przy 110 rps, trzy próby skażone" jest wynikiem.
+Zmyślony punkt nasycenia nie jest.
+
+**Reguły nie zmieniamy po zobaczeniu wyniku.** Pierwszy stopień `r005-p2`
+został odrzucony granicznie: trzy POJEDYNCZE sekundy ponad progiem na 92 próbki,
+czyli 3,3 % wobec odcięcia 3,0 %, przy najdłuższym przebiciu 1 s i medianie
+obcego obciążenia 11,9 rdzenia. Ten przebieg był w istocie spokojny i odrzuciła
+go arytmetyka limbu procentowego, a nie stwierdzona interferencja. Poluzowanie
+odcięcia w tym momencie byłoby dokładnie tym dobieraniem wyników, przed którym
+ta reguła ma chronić — więc `r005-p2` zostaje skażony. Jeżeli reguła ma być
+poprawiona (np. „3 % ORAZ choć jedno przebicie ≥ 2 s"), to **przed** kolejnymi
+przebiegami i dla wszystkich stopni tak samo.
+
+### 6.5 Pozostała higiena
 
 - Serie **szeregowo**, nigdy równolegle.
-- Przed każdą serią zapis `uptime` i listy ciężkich procesów; przy każdej serii
-  w `SERIE.md` stoi, co jeszcze chodziło na maszynie.
+- Obce obciążenie jest **osobną kolumną przy każdej liczbie** (`werdykt-*.json`),
+  obok kosztu własnego generatora — czytelnik ma widzieć, w jakich warunkach
+  powstał każdy wiersz.
 - Wszystko na własnej bazie `kuking_b605_obciazenie` (port 55439, **nigdy 5432**)
   i własnym porcie aplikacji 8605.
 - Budowanie zbioru danych pod `nice -n 19 ionice -c3`, żeby ustępowało
-  runnerowi CI i testom innych agentów.
-- Żadnych `pkill` po wzorcu.
+  runnerom CI i testom innych agentów.
+- Żadnych `pkill` po wzorcu, żadnego zatrzymywania cudzych procesów.
 
 ---
 
