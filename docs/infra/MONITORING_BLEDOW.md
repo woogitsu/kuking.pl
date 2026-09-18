@@ -548,6 +548,19 @@ na `127.0.0.1:55439`, 17.09.2026:
 | połączenia w normie | cisza | nadal 2 wiadomości |
 | połączenia powyżej progu | jedna wiadomość | 3 wiadomości, kod wyjścia 1 |
 
+Dwa wiersze dopisane 18.09.2026, na tym samym rodzaju odbiornika
+(`127.0.0.1`), po poprawce wyciszania z warstwy 5 (§7.4):
+
+| Próba | Oczekiwane | Wynik |
+|---|---|---|
+| odbiornik oddaje HTTP 404 | żadnego wyciszenia | 1 żądanie, czujka mówi „nie doszło”, pamięć bez dostarczenia |
+| ten sam stan minutę później | bez ponawiania w pętli | nadal 1 żądanie |
+| ten sam stan 6 minut później, odbiornik już oddaje 200 | wiadomość dochodzi | 2 żądania, czujka mówi „przyjęte” |
+| ten sam stan zaraz po przyjęciu | cisza (okno 6 h) | nadal 2 żądania |
+
+Ten sam pomiar na kodzie sprzed poprawki: **jedno żądanie, HTTP 404,
+czujka zamilkła** — sprawny dzwonek trzy przebiegi później już nie wyszedł.
+
 Kontrola ujemna treści na tych samych dostarczonych wiadomościach: nie ma
 w nich nazwy klasy zadania z `payload`, adresu e-mail z `payload`, treści
 `exception` ani nazwy bazy.
@@ -604,11 +617,26 @@ osobno**:
 | 2 | konfiguracja produkcji | **brak** | w usłudze nie ma `LOG_BLAD_WEBHOOK_URL` |
 | 3 | faktyczne wywołanie | działa | log produkcji: `Running [kuking:budzet-polaczen] … DONE`, 17.09 23:25:20 UTC |
 | 4 | **odebranie wiadomości** | **niesprawdzone na produkcji** | lokalnie: `Http::fake()` oraz lokalny odbiornik HTTP na 127.0.0.1 — kanał PRZYJĄŁ (2xx), co nie dowodzi, że człowiek to zobaczył |
-| 5 | wyciszanie duplikatów i powrót do normy | **działa warunkowo** | testy. UWAGA: `AlarmPolaczen::wyslij()` i `AlarmKolejki` zwracają sukces na sam brak wyjątku, więc alarm, który NIE doszedł (np. HTTP 404), zapisuje pamięć wyciszania i zagłusza następny, sprawny dzwonek. Zmierzone; poprawka poza zakresem tego pakietu |
+| 5 | wyciszanie duplikatów i powrót do normy | **poprawione, zmierzone lokalnie** | testy + kontrole ujemne. Cisza (`cisza_godzin`) należy się WYŁĄCZNIE wiadomości, którą kanał potwierdził odpowiedzią 2xx. Do 18.09.2026 było inaczej: `AlarmPolaczen` i `AlarmKolejki` uznawały wysyłkę za udaną na sam brak wyjątku, więc jedna odpowiedź 404 zapisywała pamięć wyciszania i zagłuszała następny, SPRAWNY dzwonek o wciąż trwającej awarii. Poprawione i zmierzone na odbiorniku na 127.0.0.1 (§7.2) — na produkcji nie zmienia to nic, dopóki warstwa 2 jest pusta |
 
 Zielona warstwa 1 i 3 przy pustej 2 daje dokładnie to, co produkcja ma dziś:
 czujkę, która sumiennie chodzi co godzinę i **nie ma dokąd zadzwonić**.
 Najłatwiejszy błąd w tym miejscu to uznać wdrożenie kodu za wdrożenie alarmu.
+
+**Co po poprawce znaczy „cisza” w warstwie 5.** Okno ciszy (`cisza_godzin`)
+liczy się od chwili, w której kanał POTWIERDZIŁ przyjęcie wiadomości — nie od
+chwili, w której próbowaliśmy ją wysłać. Próba, której kanał nie potwierdził,
+daje wyłącznie kilkuminutową przerwę między żądaniami: tyle, żeby martwy webhook
+nie dostawał żądania w pętli, i za mało, żeby pominąć choć jeden przebieg czujki.
+Dzięki temu pierwszy dzwonek po powrocie kanału do życia dochodzi, zamiast
+wpaść w ciszę kupioną przez porażkę. Tak samo traktowane jest odwołanie
+„wróciło do normy”: nieprzyjęte nie kasuje pamięci alarmu, a alarm, który do
+nikogo nie doszedł, nie dostaje odwołania w ogóle.
+
+**I to nadal jest tylko przyjęcie.** Kod 2xx znaczy „usługa przyjęła
+wiadomość”, nie „człowiek ją zobaczył”. Tej drugiej rzeczy nie sprawdza ani ten
+mechanizm, ani żaden test — zależy od tego, na który kanał Discorda albo
+Slacka wskazuje webhook i kto go obserwuje.
 
 **Warstwę 4 domyka jedno polecenie — o tyle, o ile kanał potwierdzi przyjęcie:**
 
