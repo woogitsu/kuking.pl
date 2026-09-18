@@ -23,7 +23,15 @@ Odniesienie dla całej tej pracy: `main` na `bdc56b8cf9b664eda104b628d85149b08d8
 | Kopie i R2 (#193 #594 #120 #617 #619) | `infra/594-odbior-kopii` | `31a0b40b7601fefa0c37ed7a8efad124eb8eb34d` | **#674** | Draft, CI **12/12 pass**, bez automerge, **niescalony** |
 | Czujki i odbiór alarmów (#598 #599) | `infra/599-odbior-alarmow` | `7c300ccccc5a81f098e85667498e3afdaf89c89c` | **#676** | Draft, CI **12/12 pass**, bez automerge, **niescalony**; hook `pre-push` przeszedł w całości |
 | To przekazanie | `docs/przekazanie-2026-09-18` | `10f738f719…` | **#677** | Draft, CI **12/12 pass**, bez automerge, **niescalony** |
-| Obciążenie mieszane (#605) | `perf/605-obciazenie-mieszane` | `047460da…` + `ae6781a…` | **brak — commity lokalne** | przyrząd, zbiór danych i metoda gotowe; **serii pomiarowych nie zdjęto** — powód w punkcie 6 |
+| Obciążenie mieszane (#605) | `perf/605-obciazenie-mieszane` | `047460da…`, `ae6781a…`, `456df92…` | **wysyłany 18 IX na koniec sesji** | przyrząd, zbiór danych, bramka i metoda gotowe; **ani jednej serii pomiarowej nie zdjęto** — powód w punkcie 6 |
+
+> **Jeśli gałęzi `perf/605-obciazenie-mieszane` nie ma na GitHubie**, znaczy to,
+> że sesja skończyła się przed jej wysłaniem. Commity leżą wtedy w
+> `/home/mateusz/kuking-B-obciazenie` na tej maszynie i **to jedyne miejsce,
+> gdzie istnieją.** Odzyskanie: wejść do tego katalogu, uruchomić pełny zestaw
+> ze zmiennymi z punktu 2 (**bez `APP_URL`**), `git push -u origin
+> perf/605-obciazenie-mieszane`, otworzyć **Draft** PR i dopisać komentarz do
+> #605. Nic tam nie wymaga poprawek — pakiet był gotowy i zielony.
 
 **Wszystkie PR-y zostają do końcowego review i scalenia przez Codeksa.**
 Automerge nigdzie nie jest włączony. Żadnego issue nie zamknięto — sprawdzone:
@@ -430,6 +438,48 @@ Kolejność jest ułożona według skutku, nie według wygody.
   przebieg dowodzi tylko, że hasło nie wychodzi w argumentach procesu.
 
 ---
+
+## 9a. Rampa #605 — niewykonana, i to jest wynik
+
+**Sesja skończyła się, zanim bramka przepuściła choć jeden stopień.** Stan
+w chwili zamknięcia: `load average` **28,8**, trzy pracujące runnery `kuking`
+i siedem obcych (`lockstate` ×3, `metro` ×3, `osadale`), przy progu **18,0**.
+Zdjęto **zero** stopni; dwa jedyne przebiegi są oznaczone jako **skażone**.
+
+Tak ma to zostać zaraportowane — bez ostrożnego przybliżania i bez „z grubsza
+widać, że":
+
+> Rampy nie zdjęto 18 IX 2026. Przyrząd, zbiór danych (200 000 wpisów,
+> 20 000 przepisów, 200 000 komentarzy, realistycznie nierówny), stanowisko
+> w obrazie produkcyjnym (`APP_ROLE=all`, 2 CPU / 1 GB, `GOMAXPROCS=2`,
+> `num_threads=4`), bramka i metoda są **gotowe i otestowane**. Pomiaru nie
+> da się wykonać na tej maszynie, bo jest **wspólnym hostem CI pięciu
+> projektów** i obce obciążenie nie schodzi pod próg.
+>
+> **Czego potrzeba, żeby ten pomiar w ogóle powstał:** maszyny, która nie jest
+> hostem CI, **albo** okna uzgodnionego z właścicielami pozostałych czterech
+> projektów. To jest decyzja właściciela, nie brak kodu.
+
+**Czego nie wolno zrobić w zastępstwie:** podać liczb z dwóch skażonych
+przebiegów jako wyniku, policzyć punktu nasycenia z przebiegu kontrolnego ani
+przeliczyć czegokolwiek na „tysiące użytkowników". Rampa mierzy żądania na
+sekundę na jednej replice; przeliczenie na liczbę ludzi wymaga założeń
+o sesji, których **nikt nie zmierzył**.
+
+## 9b. Co zostaje do posprzątania na maszynie
+
+Jeśli sesja skończyła się przed sprzątaniem subagenta B:
+
+- kontener **`kuking-b605-app`** (port **8605**) — do zatrzymania i usunięcia;
+- `log_min_duration_statement` na bazie `kuking_b605_obciazenie` — do `RESET`;
+- bazy `kuking_b605_obciazenie`, `kuking_b605_proba`, `kuking_b605_testy`,
+  `kuking_b605_tests` — do skasowania, **gdy pomiar przestanie być potrzebny**
+  (odtworzenie zbioru trwa ok. 350 s);
+- `/home/mateusz/kuking-b605-run/` — artefakty poza repozytorium, **zawierają
+  ciasteczka sesji i `APP_KEY` stanowiska**, więc do skasowania, a nie do
+  zarchiwizowania gdziekolwiek indziej.
+
+Nic z tego nie jest pilne i nic z tego nie dotyka produkcji.
 
 ## 10. Jedna rzecz o metodzie, warta zapamiętania
 
