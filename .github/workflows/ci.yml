@@ -1055,6 +1055,10 @@ jobs:
 
           php artisan migrate:fresh --seed --force --no-interaction
 
+      - name: Utrwalenie klucza aplikacji dla pomiaru portu
+        if: steps.zmiany.outputs.warto == '1'
+        run: sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+
       - name: Port projektu — układ i kontrola ujemna
         if: steps.zmiany.outputs.warto == '1'
         env:
@@ -1191,6 +1195,10 @@ jobs:
           npm run build
 
           php artisan migrate:fresh --seed --force --no-interaction
+
+      - name: Utrwalenie klucza aplikacji dla pomiaru portu
+        if: steps.zmiany.outputs.warto == '1'
+        run: sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
 
       - name: Port projektu — układ i kontrola ujemna
         if: steps.zmiany.outputs.warto == '1'
@@ -1406,6 +1414,10 @@ jobs:
           # tworzy. Gdy pierwsze nie doszło do końca, drugie startowało na
           # pustej bazie i padało na healthchecku (issue #215).
           php artisan migrate:fresh --seed --force --no-interaction
+
+          # Laravel ładuje .env dla procesu `artisan serve`; utrwalamy klucz
+          # przekazany jobowi, aby runner nie użył pustej wartości z przykładu.
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
 
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową

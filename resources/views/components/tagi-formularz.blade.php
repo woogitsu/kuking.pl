@@ -1,10 +1,11 @@
 @props(['tagNames' => [], 'sugestieTagow' => null, 'maksTagow' => null, 'pytanie' => false])
 
 {{--
-    Sekcja „Tagi" w formularzu wpisu (D-021) — dodawanie, szukanie i usuwanie
-    DZIAŁA BEZ JAVASCRIPTU (AGENTS.md §5). Trzy osobne przyciski w TYM SAMYM
-    formularzu co „Opublikuj"/„Zapisz zmiany": „Znajdź tag", „Dodaj" przy
-    każdej podpowiedzi i „Usuń" przy każdym wybranym tagu. Każde kliknięcie
+    Sekcja „Tagi" w formularzu wpisu (D-021) — podgląd, usuwanie i awaryjne
+    dodawanie tagów.
+    DZIAŁA BEZ JAVASCRIPTU (AGENTS.md §5). Główna ścieżka prowadzi przez
+    hashtag w opisie; awaryjny panel nadal ma zwykłe przyciski „Sprawdź tag",
+    „Dodaj" i „Usuń" w TYM SAMYM formularzu co publikacja. Każde kliknięcie
     to zwykły POST przeładowujący stronę — `PostController` rozpoznaje, że to
     krok pośredni, i NIE próbuje wtedy publikować wpisu.
 
@@ -30,8 +31,9 @@
 <div class="mt-6" id="f-tagi">
     <h2 class="font-bold mb-1">{{ $pytanie ? 'Z czym to jest związane?' : 'Tagi' }} <span class="meta">(maksymalnie {{ $limit }})</span></h2>
     <p class="field-help mb-3">
-        Tagi pomagają innym znaleźć {{ $pytanie ? 'Twoje pytanie' : 'Twój wpis' }}, a Tobie — trafić na ludzi,
-        którzy gotują to samo. Możesz to pominąć.
+        Wpisuj tagi bezpośrednio w opisie, na przykład <strong>#sernik</strong>.
+        Podpowiedź pokaże istniejące tagi i liczbę publicznych wpisów.
+        Możesz też pominąć tagi.
     </p>
 
     @error('tagi')
@@ -55,7 +57,10 @@
     @if($limitOsiagniety)
         <p class="field-help">Masz już maksymalną liczbę tagów. Usuń jeden, żeby dodać inny.</p>
     @else
-        <label for="f-tag-query">Znajdź albo dodaj tag</label>
+        <details class="mt-3">
+            <summary class="btn btn-quiet inline-flex">Dodaj tag bezpośrednio, jeśli nie używasz podpowiedzi w opisie</summary>
+            <div class="mt-3">
+        <label for="f-tag-query">Nazwa tagu</label>
         <div class="flex flex-wrap gap-3 mt-2">
             <input
                 class="field-input max-w-xs"
@@ -67,7 +72,7 @@
                 aria-describedby="f-tag-query-help"
             >
             <button class="btn btn-secondary" type="submit" formnovalidate name="szukaj_tagu" value="1">
-                Znajdź tag
+                Sprawdź tag
             </button>
         </div>
         <span class="field-help" id="f-tag-query-help">Na przykład: sernik, zupa pomidorowa, bez glutenu.</span>
@@ -97,5 +102,7 @@
                 </button>
             </p>
         @endif
+            </div>
+        </details>
     @endif
 </div>
