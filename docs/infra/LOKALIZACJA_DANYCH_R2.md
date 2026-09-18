@@ -164,17 +164,30 @@ Panel R2 → każdy bucket → zakładka **Settings**, karta z lokalizacją. Dla
 każdego z bucketów wypisać cztery rzeczy: **nazwę**, **typ lokalizacji**,
 **wartość** (region hintu albo kod jurysdykcji) i **datę odczytu**.
 
-Buckety do objęcia:
+**Tabela jest PUSTA i to jest cały jej sens.** Wiersz bez daty nie mówi nic
+o dzisiejszym stanie (ta sama zasada, co w `BRAMKA_R2.md` §3). Wypełnia ją
+**właściciel**, po zalogowaniu do panelu.
 
-1. oryginały zdjęć (`AWS_BUCKET`) — leży tam pełny EXIF, czyli GPS kuchni,
-2. warianty zdjęć (`AWS_PUBLIC_BUCKET`),
-3. paczki RODO (`AWS_EXPORTS_BUCKET`) — kopia całego konta człowieka,
-4. stary, jeden bucket (`AWS_LEGACY_BUCKET`), jeśli nadal istnieje,
-5. bucket kopii bazy z #193 (dziś na produkcji nieskonfigurowany),
-6. przyszła kwarantanna z #602.
+| # | Bucket | Co odczytać | Typ lokalizacji<br>(Automatic / Hint / Jurisdiction) | Wartość<br>(region hintu albo kod jurysdykcji) | Bucket Lock<br>(jest / nie ma / zakres) | `r2.dev` | Własna domena | Data odczytu | Kto |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | oryginały zdjęć (`AWS_BUCKET`) — leży tam pełny EXIF, czyli GPS kuchni | lokalizacja + publiczność | | | | | | | |
+| 2 | warianty zdjęć (`AWS_PUBLIC_BUCKET`) | lokalizacja + publiczność | | | | | | | |
+| 3 | paczki RODO (`AWS_EXPORTS_BUCKET`) — kopia całego konta człowieka | lokalizacja + publiczność | | | | | | | |
+| 4 | stary, jeden bucket (`AWS_LEGACY_BUCKET`), jeśli nadal istnieje | lokalizacja + publiczność | | | | | | | |
+| 5 | bucket kopii bazy z #193 — dziś na produkcji **nieskonfigurowany** | lokalizacja + publiczność | | | | | | | |
+| 6 | przyszła kwarantanna z #602 | lokalizacja + publiczność | | | | | | | |
+| 7 | bucket kopii zdjęć z #617 — **jeszcze nie istnieje**, §6a | lokalizacja + rygiel | | | | | | | |
 
-Plus jedna rzecz spoza panelu: **kształt `AWS_ENDPOINT`** — sam segment
-jurysdykcji albo jego brak, **bez identyfikatora konta**.
+Plus trzy rzeczy spoza tej tabeli, też z datą:
+
+| Co odczytać | Gdzie | Wartość | Data odczytu |
+|---|---|---|---|
+| **kształt `AWS_ENDPOINT`** — sam segment jurysdykcji albo jego brak, **BEZ identyfikatora konta** | Railway → `kuking.pl` → Variables (albo jeden przebieg `kuking:bramka-r2`) | | |
+| czy `KUKING_R2_PUBLICZNE_ADRESY` jest ustawione (bez niego bramka #120 daje `NIE WIEMY` w punktach 7 i 8) | Railway → `kuking.pl` → Variables | | |
+| zakładka **Backups** przy serwisie `Postgres`: harmonogramy do wyboru czy komunikat o planie Pro (`KOPIE_I_ODTWORZENIE.md` §5.3) | Railway → `Postgres` → Backups | | |
+
+**Nie wpisuj tu identyfikatora konta Cloudflare ani nazw tokenów.** Ten plik
+jest w repozytorium, a wiersze z tej tabeli trafiają do zgłoszeń na GitHubie.
 
 ---
 
@@ -202,6 +215,217 @@ faktycznie są i na jakiej podstawie, zamiast obiecywać UE.
 
 **Czego nie wolno w żadnym z wariantów:** poprawić polityki bez ustalenia
 faktów albo zostawić w niej „UE" z komentarzem, że pewnie tak jest.
+
+---
+
+## 6a. #617 — ochrona przed logicznym usunięciem. `[REKOMENDACJA — NIE WYKONANA]`
+
+**Stan na 18 IX 2026: nic nie zostało założone ani zmienione.** To jest
+procedura gotowa do wykonania, nie jej wykonanie. Panel Cloudflare jest poza
+zasięgiem tej sesji (§5), a nawet gdyby nie był — ta decyzja ma skutki prawne
+i należy do właściciela.
+
+### Dlaczego NIE WOLNO zaryglować żywego bucketu oryginałów
+
+Odczyt dokumentacji Cloudflare **„Bucket locks"** (18 IX 2026):
+
+- rygiel „prevent the deletion and overwriting of objects […] for a specified
+  period — or indefinitely";
+- regułę da się zawęzić **prefiksem**, a reguła bez prefiksu obejmuje cały
+  bucket; do 1000 reguł na bucket;
+- warunek: wiek w sekundach, konkretna data albo bezterminowo;
+- gdy kilka reguł dotyczy tego samego klucza, **wygrywa najostrzejsza**;
+- rygiel **nie kasuje niczego** — to jest wyłącznie zakaz usuwania
+  i nadpisywania. Usuwaniem zajmuje się osobny mechanizm (lifecycle, §6a
+  krok 2a niżej);
+- reguły rygla **da się zdjąć**: dokumentacja ma na to własny rozdział
+  („Remove bucket lock rules from your R2 bucket") i trzy drogi — panel,
+  Wrangler (`r2 bucket lock remove`) i API. Warunek jest jeden:
+  „An API token with permissions to edit R2 bucket configuration".
+
+> **SPROSTOWANIE Z 18 IX 2026.** Do tego dnia stało w tym miejscu zdanie,
+> że rygiel jest **nieodwracalny**, bo „reguły rygla z założenia nie dają
+> się poluzować". To jest **niezgodne z dokumentacją Cloudflare** —
+> reguła jest zwykłym elementem konfiguracji bucketu i zdejmuje się ją
+> panelem, Wranglerem albo API. Zdanie brało się z pomylenia R2 Bucket
+> Locks z **trybem compliance S3 Object Lock w innym produkcie**, gdzie
+> okres retencji faktycznie nie daje się skrócić. **To nie jest ten sam
+> mechanizm i nie wolno ich utożsamiać.** Reszta tej sekcji była budowana
+> na tamtym błędnym założeniu, więc uzasadnienie i model zagrożeń są niżej
+> napisane od nowa.
+
+I tu jest sedno problemu, które zamyka drogę „po prostu włączmy rygiel":
+**wszystkie oryginały leżą pod jednym prefiksem `incoming/`**, a prefiks nie
+niesie informacji o właścicielu zdjęcia. Rygiel na `incoming/` obejmie więc
+tak samo zdjęcia, których nikt nie zgłosił do usunięcia, jak i te, o których
+usunięcie ktoś **właśnie poprosił** — a `EraseAccountData` i procedura RODO
+muszą móc je skasować.
+
+**Model zagrożeń, poprawiony.** Rygiel nie jest ścianą, tylko **dodatkowym
+uprawnieniem po drugiej stronie**:
+
+- **czego broni:** tokenu aplikacji i tokenu procesu kopiującego. Te tokeny
+  mają prawo do OBIEKTÓW, a nie do konfiguracji bucketu, więc przejęta
+  aplikacja nie skasuje zaryglowanych zdjęć i nie zdejmie reguły. To jest
+  prawdziwy zysk i to jest cała treść #617;
+- **przed czym NIE broni:** przed kimś, kto ma prawo edytować konfigurację
+  bucketu R2 — czyli przed właścicielem konta Cloudflare i przed każdym
+  tokenem z tym uprawnieniem. Taki ktoś zdejmuje regułę i kasuje. Rygiel
+  **nie jest** więc zabezpieczeniem przed złośliwym administratorem ani
+  dowodem niezmienności dla audytu;
+- **co z tego wynika dla RODO:** rygiel na `incoming/` nie jest
+  nieodwracalnym zobowiązaniem, ale **wyprowadza skasowanie danych poza
+  automat** (`EraseAccountData`) i przenosi je do ręcznej czynności
+  uprzywilejowanej: zdejmij regułę, skasuj, załóż regułę z powrotem.
+  Procedura, która przy każdym żądaniu usunięcia wymaga wejścia
+  z uprawnieniem do konfiguracji bucketu, jest procedurą, która kiedyś
+  nie zostanie wykonana. **Dlatego nadal: nie na buckecie oryginałów** —
+  ale z tego powodu, a nie z powodu „nieodwracalności".
+
+> **Zasada, którą trzeba tu utrzymać (z samego #617):** retencja techniczna
+> to co innego niż aktywne dane użytkownika. Kopia wolno, żeby przeżyła
+> żądanie usunięcia o **ograniczony, zapisany** czas. Nie wolno, żeby
+> wracała do produktu i żeby trwała bezterminowo.
+
+### Co rekomendować zamiast tego — wariant B z #617, w trzech krokach
+
+**Krok 1. Osobny bucket kopii, nie rygiel na produkcyjnym.**
+
+- nowy bucket, np. `kuking-zdjecia-kopia`, **ta sama jurysdykcja** co
+  oryginały (inaczej kopia rozjeżdża się z polityką prywatności — §2),
+- **bez własnej domeny, `r2.dev` WYŁĄCZONE.** Ten bucket nie jest serwowany
+  nikomu, nigdy. To jest ta sama zasada, co przy buckecie kopii bazy
+  (`KOPIE_I_ODTWORZENIE.md` §7.3 krok 1),
+- **osobny token**, i to dwa: zapisu — wyłącznie dla procesu kopiującego,
+  odczytu — dla ewentualnego odtworzenia. **Aplikacja nie dostaje żadnego
+  z nich.** Gdyby dostała prawo zapisu, udany atak na nią kasowałby razem
+  z oryginałami także ich kopie, czyli dokładnie to, przed czym ta warstwa
+  ma chronić.
+
+**Krok 2. Rygiel — ale TYLKO na buckecie kopii i TYLKO na czas.**
+
+- jedna reguła, warunek **wieku**, `MaxAgeSeconds = 2592000` (30 dni),
+- **nigdy `indefinite`, nigdy data odległa.** Bezterminowy rygiel nie jest
+  wprawdzie nieodwracalny (sprostowanie wyżej), ale zamienia każde usunięcie
+  danych osobowych w ręczną czynność uprzywilejowaną — a takiej procedury
+  nikt nie wykona rok później,
+- 30 dni to ta sama liczba, co retencja kopii bazy (`KOPIA_RETENCJA_DNI`),
+  i to jest celowe: jedno okno do zapamiętania, jedno do wytłumaczenia
+  w rejestrze czynności przetwarzania.
+
+> **RYGIEL NIE KASUJE. SPROSTOWANIE Z 18 IX 2026.**
+> Do tego dnia ta sekcja obiecywała, że kopia „zostaje maksymalnie 30 dni,
+> po czym **wygasa sama**". **Nieprawda.** `MaxAgeSeconds = 2592000` znaczy
+> wyłącznie tyle, że przez 30 dni obiektu **nie da się** usunąć ani nadpisać.
+> Po tych 30 dniach obiekt **nadal leży w buckecie** — zmienia się tylko to,
+> że od tej chwili wolno go skasować. Dokumentacja Cloudflare mówi o ryglu
+> jedno zdanie i nie ma w nim słowa o kasowaniu: *„Bucket locks prevent the
+> deletion and overwriting of objects in an R2 bucket for a specified
+> period — or indefinitely."*
+>
+> To są **trzy różne rzeczy** i dotąd były w tym dokumencie zlepione w jedną:
+>
+> | | Co to jest | Czym się to robi | Czego dowodzi |
+> |---|---|---|---|
+> | **(a) minimalna ochrona przed usunięciem** | „przez 30 dni nikt tego nie skasuje" | Bucket Lock, `MaxAgeSeconds` | że kopia przetrwa pomyłkę i przejęty token aplikacji |
+> | **(b) polityka usuwania kopii** | „po 30 dniach tego ma nie być" | **osobna reguła lifecycle** (Object lifecycles), „delete objects" | że istnieje koniec retencji — sam rygiel go NIE daje |
+> | **(c) rzeczywisty pomiar** | „sprawdziliśmy, że po 30 dniach naprawdę zniknęło" | kontrolny obiekt własny + `HEAD` po terminie | że (b) faktycznie zadziałało na tym koncie |
+>
+> **Wykonanie kroków 1–3 w obecnej postaci zostawia kopie BEZ automatycznego
+> końca retencji.** Będzie rygiel, nie będzie usuwania, a zdjęcia osób, które
+> poprosiły o usunięcie konta, będą leżeć w buckecie kopii bezterminowo —
+> czyli dokładnie odwrotnie do zasady z ramki wyżej. Dlatego doszedł krok 2a.
+
+**Krok 2a. Reguła lifecycle — to ona, i tylko ona, kasuje kopie.**
+
+- na TYM SAMYM buckecie kopii: reguła *Object lifecycles* typu „delete
+  objects" po **31 dniach** od zapisu. Nie 30: reguła lifecycle nie może
+  próbować kasować obiektu wcześniej, niż pozwala rygiel, bo wtedy nie
+  skasuje nic. Dokumentacja Cloudflare mówi o tym wprost — *„Bucket lock
+  rules take precedence over lifecycle rules. For example, if a lifecycle
+  rule attempts to delete an object at 30 days but a bucket lock rule
+  requires it be retained for 90 days, the object will not be deleted until
+  the 90-day requirement is met."*;
+- **usuwanie jest ASYNCHRONICZNE i nie ma twardego terminu.** Dokumentacja:
+  *„Objects will typically be removed from a bucket within 24 hours of the
+  `x-amz-expiration` value."* — czyli „31 dni" znaczy w praktyce „31 dni
+  plus zwykle do doby", i tak to trzeba zapisać w polityce prywatności,
+  a nie jako datę co do godziny;
+- **jedna uwaga operacyjna z tej samej dokumentacji:** *„A bucket cannot be
+  emptied while any bucket lock rules are configured. Remove all lock rules
+  before emptying a bucket."* Bucket kopii nie da się więc „wyczyścić
+  jednym kliknięciem" dopóki rygiel stoi — i to jest cecha, nie usterka.
+
+**Krok 3. Pogodzenie z prawem do usunięcia — zapisane, zanim się włączy.**
+
+| Co się dzieje | Produkcja | Bucket kopii |
+|---|---|---|
+| użytkownik prosi o usunięcie konta | obiekty znikają **natychmiast**, dotychczasową drogą (`EraseAccountData`) | kopia zostaje objęta ryglem przez 30 dni, a **kasuje ją reguła lifecycle z kroku 2a** — po 31 dniach od zapisu, zwykle w ciągu doby od tego terminu |
+| ktoś odtwarza z kopii | — | odtwarza się **wyłącznie** obiekty, których nie objęło żądanie usunięcia; listę bierze się z bazy, nie z bucketu |
+| ktoś pyta, gdzie są jego dane | odpowiedź obejmuje kopię i jej okno 30 dni | — |
+
+Tego ostatniego wiersza nie da się załatwić kodem: **to jest zdanie do
+dopisania w polityce prywatności i rozstrzygnięcia razem z #8**, dokładnie
+tak jak wariant B z §6. Bez niego rygiel nie ma prawa powstać.
+
+**Bez kroku (c) nic z powyższego nie jest zamknięte.** Reguła lifecycle
+w panelu to zamiar, nie skutek: dopóki nikt nie położył własnego,
+kontrolnego obiektu i nie sprawdził `HEAD`-em po terminie, że naprawdę
+zniknął, w dokumencie wolno napisać wyłącznie „reguła jest założona",
+a nie „kopie wygasają". Ten pomiar należy do listy z „Obowiązkowa próba
+odtworzenia" niżej.
+
+### Koszt — wg cennika R2 z 18 IX 2026
+
+Standard storage **0,015 USD / GB-miesiąc**, egress **darmowy**, klasa A
+(zapis/lista) **4,50 USD / mln żądań**, klasa B (odczyt) **0,36 USD / mln**.
+Darmowy próg miesięczny: **10 GB-miesiąc**, 1 mln żądań klasy A, 10 mln klasy B.
+
+Dopóki komplet zdjęć mieści się w kilku GB, **kopia mieści się w darmowym
+progu** albo kosztuje grosze; kopiowanie raz na dobę to żądania klasy A liczone
+w tysiącach, nie milionach. **Koszt nie jest tu argumentem za odkładaniem
+decyzji** — czasem jest, tu nie jest.
+
+### Obowiązkowa próba odtworzenia (definicja gotowości #617)
+
+Na **koncie testowym albo na kilku kontrolnych obiektach własnych**, nigdy na
+cudzych zdjęciach: skasować obiekt finalny, odtworzyć go z bucketu kopii,
+porównać `sha256` i rozmiar, sprawdzić, że wariant i wpis znów się pokazują,
+zapisać RPO (odstęp kopiowania) i RTO (czas odtworzenia). Dopiero ten wiersz
+zamyka #617 — tak samo jak tabela w `KOPIE_I_ODTWORZENIE.md` §5 zamyka #193.
+
+Do tej samej listy należą **dwa pomiary rygla i lifecycle**, bo bez nich
+kroki 2 i 2a są zamiarem, a nie stanem:
+
+1. **Rygiel trzyma:** położyć własny obiekt kontrolny, spróbować go skasować
+   tokenem procesu kopiującego i zapisać, że `DELETE` został odrzucony.
+   Próba usunięcia, która się udała, znaczy, że reguła nie obejmuje tego
+   prefiksu — a wygląda to identycznie jak „reguła jest".
+2. **Lifecycle kasuje:** ten sam obiekt kontrolny sprawdzić `HEAD`-em po
+   terminie z kroku 2a i zapisać DATĘ oraz GODZINĘ, o której naprawdę
+   zniknął. Usuwanie jest asynchroniczne (dokumentacja: zwykle do 24 h), więc
+   jeden `HEAD` dokładnie w terminie niczego nie rozstrzyga — potrzebny jest
+   pomiar do skutku. Dopóki go nie ma, w tym dokumencie i w polityce
+   prywatności wolno napisać „reguła jest założona", a nie „kopie wygasają".
+
+### Czego świadomie NIE rekomendujemy
+
+- **Rygla na buckecie oryginałów** — powód wyżej;
+- **wersjonowania obiektów zamiast kopii** — R2 trzyma wtedy stare wersje
+  w TYM SAMYM buckecie i pod tymi samymi poświadczeniami, więc token z prawem
+  zapisu nadal je dosięga. To nie chroni przed scenariuszem z #617;
+- **nazywania trwałości R2 kopią zapasową.** Jedenaście dziewiątek dotyczy
+  awarii nośnika, a nie poprawnie wykonanego `DELETE` (wariant C z #617 wolno
+  wybrać, ale trzeba go wtedy **nazwać** akceptacją ryzyka, z datą powrotu);
+- **nazywania R2 Bucket Locks trybem compliance ani „niezmiennością".**
+  Reguła rygla jest elementem konfiguracji bucketu i zdejmuje ją panel,
+  Wrangler albo API — patrz sprostowanie w „Dlaczego NIE WOLNO zaryglować
+  żywego bucketu oryginałów". Rygiel broni przed tokenem aplikacji, a nie
+  przed właścicielem konta; obiecywanie tego drugiego audytowi albo
+  w polityce prywatności byłoby obietnicą bez pokrycia;
+- **traktowania rygla jako końca retencji.** Rygiel nie kasuje. Koniec
+  retencji daje wyłącznie reguła lifecycle z kroku 2a — i dopiero jej
+  zmierzone zadziałanie.
 
 ---
 
