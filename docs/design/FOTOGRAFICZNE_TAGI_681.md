@@ -169,3 +169,6 @@ polecanych. Pomiar odrzucił zmianę przez `K681_JEDNA_POLECANA`.
 Przywrócono kopię spoza repo (MD5 `ceefda49a4d969d4fe41220195bbc401`,
 mtime ns `1789741516102299727`), przebudowano assety; połączony przebieg
 36 konfiguracji z pojedynczą rekomendacją ponownie PASS.
+
+### Uzupełnienie bramki CI
+Filtry trzech zadań przeglądarkowych uwzględniają teraz również zmianę samego scripts/katalog-tagow.mjs. Istniejąca regresja PortMarkiMaWlasnaBramkeCiTest: 2 testy, 79 asercji PASS. Fizyczne usunięcie wpisu z rzeczywistego workflow dało oczekiwaną porażkę: pominięto scripts/katalog-tagow.mjs. Kopia poza repo, przywrócone MD5 b41c579815acb5ae9c333a6deec3198f i mtime_ns 1789742883821854100; ponowny wynik dodatni 2/79. To pomiar lokalny, końcowy push i CI tego uzupełnienia pozostają do wykonania.
