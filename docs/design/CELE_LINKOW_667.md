@@ -102,6 +102,13 @@ Serwer8073 zatrzymany przed testami; żaden test/push nie pozostaje aktywny.
 
 ## Odbiór produkcji — 18 września 2026
 
+**Warstwa dowodu (dopisane 18.09.2026 wieczorem).** Wszystkie cztery pliki
+w `evidence/links667/` pochodzą z runtime lokalnego — nie ma w nich ani jednego
+wystąpienia adresu produkcyjnego. Cytaty HTML z tej sekcji są więc prozą
+przebiegu, nie zapisem maszynowym. Maszynowe potwierdzenie kodów odpowiedzi
+i wersji dla tych samych adresów — dla **wieczornego** stanu produkcji — jest
+w [`evidence/produkcja/odczyt-20260918T1854Z.json`](evidence/produkcja/odczyt-20260918T1854Z.json).
+
 Odbiór wyłącznie odczytowy: GET-y HTTP bez sesji, bez zapisu i bez danych
 demonstracyjnych. **Odczyt HTML, nie interakcja w przeglądarce.**
 
@@ -149,3 +156,33 @@ produkcyjnym pozostają nieodebrane. Potwierdzony jest **cel** obu przycisków
 (`/szukaj?sekcja=przepisy` działa i zachowuje zakres), niepotwierdzone jest ich
 **wyrenderowanie w pustych stanach** na produkcji. Lokalny odbiór obu stanów
 opisano wyżej w tym raporcie i to jedyne, co dziś je pokrywa.
+
+## Ponowny odczyt produkcji — 18 września 2026, 18:54 UTC
+
+Poprzednia sekcja opisuje `55877e2` (Alfa 0.65) i zostaje z tą datą. Ten
+odczyt wykonano wieczorem, GET-ami bez sesji, gdy produkcja stała na
+`3f315b3` (Alfa 0.67, wydanie 18 września 2026, 20:53). Wszystkie ustalenia
+#667 **utrzymały się po zmianie wdrożenia**:
+
+| Rzecz | Stan o 18:54 UTC |
+|---|---|
+| widoczny okruszek na stronie przepisu | `<ol class="okruchy">`, pozycje `Start` → `Świeżo z Kuking` → bieżący przepis |
+| `BreadcrumbList` w JSON-LD | `position 1 "Kuking"`, `position 2 "Świeżo z Kuking"`, `position 3 "Bigos z cukinii"` — zgodne z listą widoczną |
+| cel etykiety „Świeżo z Kuking” | `/odkryj` → 200, `<h1>Świeżo z <span class="kuking-word">…` |
+| zakres wyszukiwarki | `/szukaj?sekcja=przepisy` → 200, `<input type="hidden" name="sekcja" value="przepisy">`, treść `Wpisz coś w pole powyżej i kliknij „Szukaj”.` |
+| ukryty katalog przepisów | `/przepisy` → **404**, czyli nie powstał |
+| CTA zeszytu | `/zeszyt` → **302** na `/login` — nadal niewidoczne bez sesji |
+
+### Brakujący dowód #667 — jeden, z kryterium
+
+- **Scenariusz:** wyrenderować oba puste stany zeszytu i sprawdzić, że każdy
+  z dwóch przycisków „Poszukaj przepisów” prowadzi na
+  `/szukaj?sekcja=przepisy`, a nie na nieistniejący katalog.
+- **Potrzebne uprawnienie:** zalogowana sesja. Na produkcji **nie zakładamy
+  konta i nie logujemy się** — scenariusz należy wykonać na lokalnym runtime
+  z pustym zeszytem, a produkcyjnie dopiero wtedy, gdy właściciel udostępni
+  sesję do odczytu.
+- **Kryterium zaliczenia:** w obu pustych stanach (zeszyt bez przepisów
+  i zeszyt bez zapisanych wpisów) `href` przycisku kończy się na
+  `sekcja=przepisy`, a kliknięcie ląduje na stronie wyszukiwarki z zachowanym
+  zakresem — nie na 404.
