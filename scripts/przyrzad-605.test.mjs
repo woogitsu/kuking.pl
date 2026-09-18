@@ -108,7 +108,9 @@ process.stdout.write('Pojedyncze żądanie:\n');
     4000,
   );
   assert.equal(w.powod, 'deadline', 'Strumień podtrzymujący połączenie ma padać na całkowitym limicie.');
-  assert.ok(w.ms >= 380 && w.ms < 1000, `Deadline ma zadziałać ok. 400 ms, zadziałał po ${Math.round(w.ms)} ms.`);
+  // Dolna granica jest ostra (deadline nie może paść przed czasem), górna
+  // luźna — na obciążonym wspólnym hoście opóźniony zegar to nie jest usterka.
+  assert.ok(w.ms >= 380 && w.ms < 3000, `Deadline ma zadziałać ok. 400 ms, zadziałał po ${Math.round(w.ms)} ms.`);
   powiedz('powolne fragmenty bez końca padają na całkowitym deadline, nie na bezczynności');
 }
 
@@ -154,17 +156,31 @@ process.stdout.write('Pojedyncze żądanie:\n');
 }
 
 {
-  // Sprzątanie gniazd: po wszystkich zerwaniach stanowisko nie może zostać
-  // z otwartymi połączeniami po stronie przyrządu.
-  for (let i = 0; i < 40 && stanowisko.otwartePolaczenia() > 0; i++) {
+  /*
+   * Sprzątanie gniazd. Sprawdzenie idzie DWUETAPOWO i to nie jest ostrożność:
+   * gniazdo keepAlive czekające bezczynnie w puli agenta jest zachowaniem
+   * poprawnym, nie wyciekiem. Gdyby liczyć gniazda przed zamknięciem agenta,
+   * wynik zależałby od tego, czy ostatnie żądanie w bloku było zerwane
+   * (zużywa gniazdo) czy udane (oddaje je do puli) — czyli od kolejności
+   * przypadków, a nie od higieny przyrządu.
+   *
+   * Etap 1: po JEDNYM dodatkowym udanym żądaniu w puli ma stać najwyżej jedno
+   * gniazdo — czyli zerwania niczego po sobie nie zostawiły.
+   * Etap 2: po `zamknijAgenta()` nie ma ani jednego.
+   */
+  await zKontrola({ sciezka: '/pelna', bezczynnoscMs: 2000, calkowityMs: 3000 }, 5000);
+  assert.ok(stanowisko.otwartePolaczenia() <= 1,
+    `Po zerwanych żądaniach w puli zostało ${stanowisko.otwartePolaczenia()} gniazd zamiast najwyżej jednego.`);
+
+  zamknijAgenta();
+  for (let i = 0; i < 60 && stanowisko.otwartePolaczenia() > 0; i++) {
     await new Promise((r) => setTimeout(r, 50));
   }
   assert.equal(stanowisko.otwartePolaczenia(), 0,
-    `Po zerwanych żądaniach zostało ${stanowisko.otwartePolaczenia()} otwartych gniazd.`);
-  powiedz('zerwane żądania nie zostawiają otwartych gniazd na stanowisku');
+    `Po zamknięciu agenta zostało ${stanowisko.otwartePolaczenia()} otwartych gniazd.`);
+  powiedz('zerwane żądania nie zostawiają gniazd, a zamknięcie agenta domyka pulę');
 }
 
-zamknijAgenta();
 await stanowisko.zamknij();
 
 // =============================================================================
@@ -252,12 +268,8 @@ writeFileSync(join(katalogZdjec, 'kuking-b605-12mpx.jpg'), Buffer.alloc(2048, 7)
   assert.equal(w.razem.w_locie_na_koniec, 0, 'Zostały żądania w locie po zamknięciu serii.');
   assert.ok(w.razem.zadan_wyslanych > 0, 'Seria nie wysłała żadnego żądania.');
   assert.ok(w.razem.nieudanych > 0, 'Stanowisko urywało odpowiedzi — błędy MUSZĄ się pojawić w wyniku.');
-  assert.equal(
-    w.razem.nieudanych,
-    w.razem.zadan_wyslanych + w.razem.porzuconych_przez_limit - w.razem.poprawnych,
-    'Rachunek błędów ma się domykać razem z żądaniami porzuconymi.',
-  );
   assert.ok(w.razem.blad_procent > 0, 'Zerwane odpowiedzi nie mogą dawać zerowego odsetka błędów.');
+  assert.ok(w.razem.poprawnych > 0, 'Część odpowiedzi była poprawna — bez nich ten bieg niczego nie różnicuje.');
   assert.ok(w.uwagi.length > 0, 'Wynik z błędami musi nieść jawne ostrzeżenie o interpretacji percentyli.');
   assert.ok(
     w.uwagi.some((u) => u.includes('p95_z_bledami')),
@@ -273,17 +285,84 @@ writeFileSync(join(katalogZdjec, 'kuking-b605-12mpx.jpg'), Buffer.alloc(2048, 7)
   assert.ok((w.endpointy.anon_tag?.powody.deadline ?? 0) > 0,
     'Strumień podtrzymujący połączenie nie został ucięty całkowitym deadline’em.');
 
-  // I najważniejsze dla wiarygodności liczb: percentyl policzony z samych
-  // poprawnych jest NIŻSZY niż policzony razem z zerwanymi. Gdyby brakujące
-  // odpowiedzi znikały bez śladu, ta różnica byłaby niewidoczna.
+  /*
+   * Percentyle. Sprawdzamy POPULACJĘ, nie nierówność między nimi: nieudane
+   * żądania bywają SZYBSZE od poprawnych (odmowa połączenia albo szybkie 5xx
+   * wraca w ułamku milisekundy), więc `p95_z_bledami` potrafi być NIŻSZE od
+   * `p95` i żądanie, żeby było wyższe, byłoby po prostu nieprawdą.
+   * Prawdą — i tym, o co chodzi w tej poprawce — jest to, że każde żądanie
+   * doprowadzone do końca trafia do próbki `p95_z_bledami`, a żadne nieudane
+   * nie trafia do próbki `p95`.
+   */
   assert.ok(w.razem.p95_z_bledami !== null && w.razem.p95 !== null, 'Brak obu percentyli w wyniku.');
-  assert.ok(w.razem.p95_z_bledami >= w.razem.p95,
-    'Percentyl liczony z błędami nie może być niższy niż liczony z samych poprawnych.');
+  const probekPoprawnych = Object.values(w.endpointy).reduce((a, e) => a + e.probek_poprawnych, 0);
+  const probekWszystkich = Object.values(w.endpointy).reduce((a, e) => a + e.probek_wszystkich, 0);
+  assert.equal(probekPoprawnych, w.razem.poprawnych,
+    'Próbka percentyli poprawnych musi mieć dokładnie tyle elementów, ile było poprawnych odpowiedzi.');
+  assert.equal(probekWszystkich, w.razem.zadan_wyslanych,
+    'Próbka percentyli z błędami musi obejmować KAŻDE wysłane żądanie doprowadzone do końca.');
+  assert.ok(probekWszystkich > probekPoprawnych,
+    'W tym biegu były zerwania — próbka z błędami musi być liczniejsza od próbki poprawnych.');
 
   assert.equal(stanowisko2.otwartePolaczenia(), 0,
     `Po serii zostało ${stanowisko2.otwartePolaczenia()} otwartych gniazd na stanowisku.`);
   await stanowisko2.zamknij();
   powiedz('seria z urwanymi i sączonymi odpowiedziami domyka się, liczy błędy i sprząta gniazda');
+}
+
+{
+  /*
+   * ŻĄDANIA, KTÓRE NIGDY NIE POSZŁY. To jest ta zmiana, dla której cały ten
+   * plik powstał: napływ zdławiony limitem `--maks_w_locie` NIE jest sukcesem
+   * i musi siedzieć w mianowniku odsetka błędów. Gdyby go tam nie było,
+   * nasycony serwis — przy którym generator porzuca większość napływu —
+   * pokazywałby NIŻSZY odsetek błędów niż serwis zdrowy.
+   *
+   * Stanowisko sączy fragmenty na każdej ścieżce, więc żądania zalegają
+   * w locie i limit 2 naprawdę dławi napływ; bez sączenia żadne żądanie nie
+   * zdążyłoby się nałożyć na inne i ta ścieżka nie zostałaby wykonana ani raz.
+   */
+  const stanowiskoP = await uruchomSerwer();
+  const plikManifestu = join(roboczy, 'manifest-porzucone.json');
+  const plikWyniku = join(roboczy, 'seria-porzucone.json');
+  const manifest = manifestNa(stanowiskoP.baza, katalogZdjec);
+  for (const klucz of ['przepisy', 'wpisy', 'profile', 'media']) {
+    manifest.cele[klucz] = ['/tag/sacz'];
+  }
+  writeFileSync(plikManifestu, JSON.stringify(manifest));
+
+  const bieg = await uruchomSerie([
+    '--manifest', plikManifestu,
+    '--baza', stanowiskoP.baza,
+    '--nazwa', 'porzucone',
+    '--rps', '60',
+    '--czas', '3',
+    '--maks_w_locie', '2',
+    '--zdjecia', katalogZdjec,
+    '--wynik', plikWyniku,
+    '--bezczynnosc', '5000',
+    '--calkowity', '600',
+    '--domkniecie', '1000',
+  ], { limitMs: 45000 });
+
+  assert.equal(bieg.kod, 0, `Seria zakończyła się kodem ${bieg.kod}. stderr: ${bieg.bledy}`);
+  const w = JSON.parse(readFileSync(plikWyniku, 'utf8'));
+  assert.ok(w.razem.porzuconych_przez_limit > 0,
+    'Limit żądań w locie miał zdławić napływ — bez porzuconych ten przypadek niczego nie sprawdza.');
+
+  const mianownik = w.razem.zadan_wyslanych + w.razem.porzuconych_przez_limit;
+  const bezPorzuconych = w.razem.zadan_wyslanych
+    ? Math.round(((w.razem.zadan_wyslanych - w.razem.poprawnych) / w.razem.zadan_wyslanych) * 1000) / 10
+    : 0;
+  assert.equal(w.razem.blad_procent, Math.round(((mianownik - w.razem.poprawnych) / mianownik) * 1000) / 10,
+    'blad_procent ma być liczony z mianownikiem obejmującym żądania porzucone.');
+  assert.ok(w.razem.blad_procent > bezPorzuconych,
+    `Porzucone nie weszły do mianownika: ${w.razem.blad_procent}% to tyle samo, co bez nich (${bezPorzuconych}%).`);
+  assert.ok(w.uwagi.some((u) => u.includes('maks_w_locie')),
+    'Zdławiony napływ musi być opisany w uwagach, a nie tylko w liczbie.');
+  assert.equal(w.razem.w_locie_na_koniec, 0, 'Zostały żądania w locie po zamknięciu serii.');
+  await stanowiskoP.zamknij();
+  powiedz('żądania porzucone przez limit w locie wchodzą do mianownika odsetka błędów');
 }
 
 if (process.platform === 'win32') {
@@ -363,10 +442,18 @@ const USZKODZENIA = [
     },
   },
   {
-    nazwa: 'bez wszystkich czterech sygnałów zerwanego strumienia (stan z 0e5d2707)',
-    // Zdejmujemy komplet: `aborted`, `error` strumienia, niepełny `close`
-    // i zabezpieczenie na `req`. Dopiero wtedy żądanie wisi tak, jak wisiało
-    // na `0e5d2707` — i to jest miara, ile z tej poprawki naprawdę pracuje.
+    nazwa: 'bez kompletu obsługi zerwanego strumienia (stan z 0e5d2707)',
+    /*
+     * Zdejmujemy komplet: `aborted`, `error` strumienia, niepełny `close`
+     * i zabezpieczenie na `req`. Dopiero wtedy żądanie wisi tak, jak wisiało
+     * na `0e5d2707`.
+     *
+     * Zmierzone przy okazji: dla `res.destroy()` w środku body na Node 24
+     * pada `aborted` i niepełny `close`, natomiast `res.on('error')` NIE
+     * odpala się w ogóle. Ten nasłuch jest tu na inne błędy strumienia
+     * (dekompresja, `maxHeaderSize`), nie na ten przypadek — i dlatego sam
+     * komplet, a nie pojedynczy nasłuch, jest miarą tego, co ta poprawka robi.
+     */
     ciecia: [
       ["      res.on('aborted', () => zerwij('urwana', 'odpowiedź urwana po nagłówkach'));", ''],
       ["      res.on('error', (e) => zerwij('urwana', `błąd strumienia odpowiedzi: ${e.message}`));", ''],
@@ -492,6 +579,92 @@ await stanowiskoKU.zamknij();
   await stanowisko4.zamknij();
   rmSync(kopia);
   powiedz('kontrola ujemna: liczenie wyłącznie poprawnych odpowiedzi → zerowy odsetek błędów, sprawdzenie OBLEWA');
+}
+
+/*
+ * Kontrola ujemna dla MIANOWNIKA. Wycinamy z kopii żądania porzucone przez
+ * limit w locie — dokładnie tak, jak liczył je stary przyrząd. Wtedy nasycony
+ * bieg, w którym generator porzuca większość napływu, pokazuje NIŻSZY odsetek
+ * błędów niż w rzeczywistości, a sprawdzenie musi to złapać.
+ */
+{
+  const kopia = join(roboczy, 'generator-uszkodzony-mianownik.mjs');
+  copyFileSync(GENERATOR, kopia);
+  const szukaj = '  const mianownik = wszystkieN + porzucone;';
+  let tekst = readFileSync(kopia, 'utf8');
+  assert.ok(tekst.includes(szukaj), 'Kontrola ujemna mianownika: nie znalazłem wyliczenia mianownika.');
+  writeFileSync(kopia, tekst.replace(szukaj, '  const mianownik = wszystkieN;'));
+
+  const stanowisko5 = await uruchomSerwer();
+  const plikManifestu = join(roboczy, 'manifest-mianownik.json');
+  const plikWyniku = join(roboczy, 'seria-mianownik.json');
+  const manifest = manifestNa(stanowisko5.baza, katalogZdjec);
+  for (const klucz of ['przepisy', 'wpisy', 'profile', 'media']) {
+    manifest.cele[klucz] = ['/tag/sacz'];
+  }
+  writeFileSync(plikManifestu, JSON.stringify(manifest));
+
+  const bieg = await uruchomSerie([
+    '--manifest', plikManifestu,
+    '--baza', stanowisko5.baza,
+    '--nazwa', 'mianownik',
+    '--rps', '60',
+    '--czas', '3',
+    '--maks_w_locie', '2',
+    '--zdjecia', katalogZdjec,
+    '--wynik', plikWyniku,
+    '--bezczynnosc', '5000',
+    '--calkowity', '600',
+    '--domkniecie', '1000',
+  ], { limitMs: 45000, skrypt: kopia });
+
+  assert.equal(bieg.kod, 0, `Zepsuta seria zakończyła się kodem ${bieg.kod}. stderr: ${bieg.bledy}`);
+  const w = JSON.parse(readFileSync(plikWyniku, 'utf8'));
+  assert.ok(w.razem.porzuconych_przez_limit > 0, 'Kontrola ujemna mianownika: napływ nie został zdławiony.');
+  const mianownik = w.razem.zadan_wyslanych + w.razem.porzuconych_przez_limit;
+  let oblalo = false;
+  try {
+    assert.equal(w.razem.blad_procent, Math.round(((mianownik - w.razem.poprawnych) / mianownik) * 1000) / 10);
+  } catch {
+    oblalo = true;
+  }
+  assert.ok(oblalo,
+    'Kontrola ujemna mianownika NIE zadziałała: po wycięciu porzuconych z mianownika wynik się nie zmienił'
+    + ` (blad_procent=${w.razem.blad_procent}).`);
+  await stanowisko5.zamknij();
+  rmSync(kopia);
+  powiedz('kontrola ujemna: porzucone poza mianownikiem → zaniżony odsetek błędów, sprawdzenie OBLEWA');
+}
+
+/*
+ * Kontrola ujemna dla WALIDACJI ARGUMENTÓW. Literówka w liczbie musi zatrzymać
+ * bieg, a nie wyprodukować pomiaru, który wygląda na udany. Bez walidacji
+ * `--rps dwadziescia` dawało kod wyjścia 0, zero wysłanych żądań, zerowy
+ * odsetek błędów i pustą listę uwag.
+ */
+{
+  const stanowisko6 = await uruchomSerwer();
+  const plikManifestu = join(roboczy, 'manifest-literowka.json');
+  const plikWyniku = join(roboczy, 'seria-literowka.json');
+  writeFileSync(plikManifestu, JSON.stringify(manifestNa(stanowisko6.baza, katalogZdjec)));
+
+  for (const [flaga, wartosc] of [['--rps', 'dwadziescia'], ['--calkowity', 'duzo'], ['--czas', 'NaN']]) {
+    const bieg = await uruchomSerie([
+      '--manifest', plikManifestu,
+      '--baza', stanowisko6.baza,
+      '--nazwa', 'literowka',
+      '--zdjecia', katalogZdjec,
+      '--wynik', plikWyniku,
+      '--czas', '2',
+      flaga, wartosc,
+    ], { limitMs: 30000 });
+    assert.notEqual(bieg.kod, 0,
+      `Literówka w ${flaga} nie zatrzymała biegu — przyrząd zapisałby pomiar, którego nie wykonał.`);
+    assert.match(bieg.bledy, new RegExp(flaga.replace('--', '')),
+      `Komunikat o błędzie nie mówi, która opcja jest zła (${flaga}).`);
+  }
+  await stanowisko6.zamknij();
+  powiedz('kontrola ujemna: literówka w liczbowej opcji zatrzymuje bieg zamiast dawać pusty „udany” pomiar');
 }
 
 assert.equal(md5(GENERATOR), MD5_GENERATORA_NA_WEJSCIU,

@@ -36,6 +36,20 @@ import { fileURLToPath } from 'node:url';
 
 const ZWLOKA_URWANIA_MS = 20;
 
+/*
+ * Parametry z query stringa przechodzą przez walidację, bo stanowisko musi być
+ * przewidywalne nawet przy błędnym wywołaniu. `Number('abc')` daje NaN, a NaN
+ * w `setInterval` Node skraca do 1 ms (zalew danych), zaś `wyslane >= NaN`
+ * nigdy nie zachodzi — trasa udokumentowana jako skończona nadawałaby bez końca.
+ */
+function parametr(url, nazwa, domyslny, { min, max }) {
+  const surowy = url.searchParams.get(nazwa);
+  if (surowy === null) return domyslny;
+  const w = Number(surowy);
+  if (!Number.isFinite(w) || w < min || w > max) return domyslny;
+  return w;
+}
+
 export function uruchomSerwer({ co = 75, bajty = 12 } = {}) {
   const otwarte = new Set();
   const liczniki = { polaczen: 0, zadan: 0 };
@@ -57,7 +71,11 @@ export function uruchomSerwer({ co = 75, bajty = 12 } = {}) {
     if (urwana) {
       res.writeHead(200, { 'content-type': 'text/plain', 'content-length': '100' });
       res.write('xxxxx');
-      setTimeout(() => res.destroy(), ZWLOKA_URWANIA_MS);
+      // Zegar jest rejestrowany i czyszczony jak każdy inny — inaczej
+      // `zamknij()` zostawiałby po sobie jedyny niesprzątnięty uchwyt
+      // stanowiska i wołał `destroy()` na zniszczonej już odpowiedzi.
+      const zegar = setTimeout(() => res.destroy(), ZWLOKA_URWANIA_MS);
+      res.on('close', () => clearTimeout(zegar));
       return;
     }
 
@@ -68,9 +86,9 @@ export function uruchomSerwer({ co = 75, bajty = 12 } = {}) {
     }
 
     if (powolne) {
-      const odstep = Number(url.searchParams.get('co') ?? co);
-      const paczka = Number(url.searchParams.get('bajty') ?? bajty);
-      const ile = bezKonca ? Infinity : Number(url.searchParams.get('ile') ?? 12);
+      const odstep = parametr(url, 'co', co, { min: 1, max: 60000 });
+      const paczka = parametr(url, 'bajty', bajty, { min: 1, max: 1_000_000 });
+      const ile = bezKonca ? Infinity : parametr(url, 'ile', 12, { min: 1, max: 1_000_000 });
       res.writeHead(200, { 'content-type': 'text/plain' }); // chunked
       let wyslane = 0;
       const zegar = setInterval(() => {

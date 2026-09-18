@@ -277,7 +277,18 @@ Dlatego wynik serii podaje jedno i drugie i mówi to wprost:
 
 - `p50`/`p95`/`p99` — z odpowiedzi poprawnych,
 - `p95_z_bledami`/`p99_z_bledami` — razem z nieudanymi i zerwanymi,
+- `probek_poprawnych`/`probek_wszystkich` — liczność obu próbek, bo przy
+  kilku żądaniach „p95" jest po prostu maksimum,
 - `razem.uwagi[]` — jawne ostrzeżenie, gdy `blad_procent > 0`.
+
+**`p95_z_bledami` NIE jest z definicji wyższe od `p95`** i nie wolno czytać
+jego spadku jako poprawy. Odmowa połączenia albo szybkie 5xx wracają w ułamku
+milisekundy, więc dołożenie ich do próbki potrafi ten percentyl OBNIŻYĆ. Obie
+liczby czyta się razem z `blad_procent` i rozkładem `powody`, nigdy osobno.
+
+Percentyle liczone są rangą najbliższą (`ceil(p/100 · n) − 1`). Wcześniejsza
+wersja brała `floor(p/100 · n)`, czyli o jedną rangę za wysoko — przy n = 20
+„p95" było zwyczajnie maksimum.
 
 Mianownik odsetka błędów obejmuje **także żądania, które nigdy nie poszły**:
 
@@ -289,13 +300,24 @@ Mianownik odsetka błędów obejmuje **także żądania, które nigdy nie poszł
 | `anulowanych_przy_domykaniu` | zerwane po `--domkniecie`, liczone jako błędy |
 | `w_locie_na_koniec` | musi być **0**; cokolwiek innego znaczy usterkę przyrządu |
 
+W rozbiciu na scenariusze `blad_procent` jest **`null`**, gdy ten scenariusz ma
+niezerowe `pominietych_brak_celu`: jednej uczciwej liczby wtedy nie ma, bo część
+żądań nie powstała z winy manifestu, nie serwisu. Obok stoi wtedy
+`blad_procent_wyslanych`, liczone z samych wysłanych.
+
+Każda liczbowa opcja wiersza poleceń jest sprawdzana przy starcie i literówka
+**zatrzymuje bieg**. Bez tego `--rps dwadziescia` dawało zero wysłanych żądań,
+zerowy odsetek błędów i kod wyjścia 0 — pomiar, którego nie było, wyglądający
+na udany — a `--calkowity duzo` trafiało w `setTimeout(fn, NaN)`, które Node
+skraca do 1 ms, produkując kilkadziesiąt procent nieistniejących „błędów".
+
 ### 4.6 Sprawdzenie samego przyrządu przed serią
 
 ```bash
 node scripts/przyrzad-605.test.mjs
 ```
 
-Osiemnaście sprawdzeń (na Windows siedemnaście — system nie dostarcza SIGINT
+Dwadzieścia jeden sprawdzeń (na Windows dwadzieścia — system nie dostarcza SIGINT
 do procesu potomnego, więc przerwanie serii jest tam jawnie POMINIĘTE, nie
 zaliczone) na `scripts/serwer-scenariuszy-605.mjs` — małym serwerze
 na porcie przydzielanym dynamicznie, który udaje odpowiedź poprawną, brak

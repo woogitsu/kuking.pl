@@ -90,6 +90,16 @@ odpowiedzi w fałszywe błędy — to jest kontrola przeciwna do wiersza F.
 - **Koniec z `process.exit(0)`.** Proces zamyka agenta i kończy się sam;
   gdyby po dwóch sekundach nadal żył, mówi to na stderr. Sprawdzone: po
   zamknięciu stanowiska i agenta proces wychodzi w 0 ms, kodem 0.
+- **Literówka w liczbie zatrzymuje bieg.** Wcześniej `--rps dwadziescia` dawało
+  zero wysłanych żądań, `blad_procent: 0`, puste `uwagi` i kod wyjścia 0,
+  a `--calkowity duzo` — `setTimeout(fn, NaN)`, czyli 1 ms i kilkadziesiąt
+  procent nieistniejących błędów.
+- **Czas mierzony przed sklejeniem treści**, a seria w ogóle jej nie zbiera.
+  Wcześniej `Buffer.concat().toString()` wpadało do zmierzonego czasu
+  odpowiedzi; na ciałach rzędu megabajta (trasa `/zdjecia/*` to 25 % mieszanki)
+  zawyżało to raportowane p95 blisko dwukrotnie.
+- **Percentyl rangą najbliższą** zamiast `floor`, który przy n = 20 podawał
+  maksimum jako „p95"; obok percentyli stoi teraz liczność próbki.
 
 ## 5. Regresje i kontrole ujemne
 
@@ -97,18 +107,25 @@ odpowiedzi w fałszywe błędy — to jest kontrola przeciwna do wiersza F.
 node scripts/przyrzad-605.test.mjs
 ```
 
-18 sprawdzeń, ok. 16 s, bez bazy i bez aplikacji (na Windows 17: przerwania
-serii sygnałem system nie wykonuje, więc to sprawdzenie jest jawnie POMINIĘTE). W tym pięć **fizycznych
-kontroli ujemnych** — każda wycina fragment poprawki z kopii generatora
-i wymaga, żeby odpowiadające jej sprawdzenie OBLAŁO:
+21 sprawdzeń, ok. 40 s, bez bazy i bez aplikacji (na Windows 20: przerwania
+serii sygnałem system nie wykonuje, więc to sprawdzenie jest jawnie POMINIĘTE).
+W tym siedem **fizycznych kontroli ujemnych** — każda wycina fragment poprawki
+z kopii generatora i wymaga, żeby odpowiadające jej sprawdzenie OBLAŁO:
 
 | wycięte z kopii | skutek |
 |---|---|
 | rozpoznanie odpowiedzi urwanej (`aborted` + niepełny `close`) | zerwanie traci powód `urwana` |
-| wszystkie cztery sygnały zerwanego strumienia (stan z `0e5d2707`) | **żądanie wisi** |
+| komplet obsługi zerwanego strumienia (stan z `0e5d2707`) | **żądanie wisi** |
 | całkowity deadline | strumień bez końca wisi |
 | anulowanie sygnałem | żądanie wisi mimo `abort()` |
 | liczenie także nieudanych odpowiedzi | `blad_procent` spada do zera mimo zrywanych odpowiedzi |
+| porzucone przez limit w locie w mianowniku | zdławiony napływ zaniża odsetek błędów |
+| walidacja liczb z wiersza poleceń | `--rps dwadziescia` daje pusty „udany" pomiar, kod wyjścia 0 |
+
+Przy okazji zmierzone: dla `res.destroy()` w środku body na Node 24 padają
+`aborted` i niepełny `close`, a `res.on('error')` nie odpala się wcale. Ten
+nasłuch zostaje na inne błędy strumienia, ale kontrola ujemna mierzy KOMPLET,
+nie pojedynczy nasłuch — i tylko komplet daje zawieszenie z `0e5d2707`.
 
 Po kontrolach test porównuje sumę MD5 oryginału generatora z sumą sprzed
 uruchomienia — żeby psucie kopii nie mogło po cichu dotknąć pliku w repozytorium.

@@ -54,6 +54,25 @@ for (let i = 0; i < reszta.length; i += 2) {
   opcje[reszta[i].replace(/^--/, '')] = reszta[i + 1];
 }
 
+/*
+ * KAŻDA LICZBA Z WIERSZA POLECEŃ PRZECHODZI PRZEZ TĘ FUNKCJĘ — i to nie jest
+ * pedanteria. `Number('dwadziescia')` daje NaN, a NaN po cichu psuje pomiar
+ * w sposób wyglądający na sukces: `--rps` z literówką daje zero wysłanych
+ * żądań, zerowy odsetek błędów i kod wyjścia 0, a `--calkowity` z literówką
+ * trafia w `setTimeout(fn, NaN)`, które Node skraca do 1 ms — czyli produkuje
+ * trzydzieści kilka procent „błędów serwisu", których nie było.
+ * To samo dotyczy wartości spoza zakresu 32-bitowego zegara.
+ */
+function liczba(nazwa, domyslna, { min = 0, max = 2_147_483_647 } = {}) {
+  const surowa = opcje[nazwa];
+  if (surowa === undefined) return domyslna;
+  const w = Number(surowa);
+  if (!Number.isFinite(w) || w < min || w > max) {
+    throw new Error(`--${nazwa}: oczekiwano liczby z zakresu ${min}–${max}, dostałem „${surowa}".`);
+  }
+  return w;
+}
+
 const BAZA = opcje.baza ?? 'http://127.0.0.1:8605';
 const MANIFEST = opcje.manifest ?? '/home/mateusz/kuking-b605-run/manifest.json';
 
@@ -114,6 +133,7 @@ export function zadanie({
   calkowityMs = 30000,
   sygnal = null,
   cel = CEL_DOMYSLNY,
+  zbierajTresc = true,
 }) {
   if (!['127.0.0.1', 'localhost'].includes(cel.hostname)) {
     throw new Error('Generator #605 działa wyłącznie przeciwko lokalnemu http://127.0.0.1');
@@ -186,10 +206,12 @@ export function zadanie({
     req = http.request(konfiguracja, (res) => {
       res.on('data', (c) => {
         bajty += c.length;
-        // Treść zbieramy tylko do 2 MB i tylko po to, żeby wyłuskać token
-        // albo adresy; przy zdjęciach trzymanie całości byłoby kosztem
-        // generatora dopisanym do wyniku aplikacji.
-        if (bajty <= 2_000_000) kawalki.push(c);
+        // Treść zbieramy tylko do 2 MB i tylko wtedy, gdy wołający jej chce
+        // (`przygotuj` i `zbierz-media` szukają w niej tokenu i adresów).
+        // Seria jej NIE czyta, więc jej nie zbiera: przy trasie `/zdjecia/*`
+        // sklejanie i dekodowanie megabajtów było czasem generatora dopisanym
+        // do czasu aplikacji.
+        if (zbierajTresc && bajty <= 2_000_000) kawalki.push(c);
       });
       res.on('aborted', () => zerwij('urwana', 'odpowiedź urwana po nagłówkach'));
       res.on('error', (e) => zerwij('urwana', `błąd strumienia odpowiedzi: ${e.message}`));
@@ -198,13 +220,20 @@ export function zadanie({
       res.on('close', () => {
         if (!res.complete) zerwij('urwana', 'połączenie zamknięte przed końcem odpowiedzi');
       });
-      res.on('end', () => skoncz({
-        status: res.statusCode,
-        tresc: Buffer.concat(kawalki).toString('utf8'),
-        setCookie: res.headers['set-cookie'] ?? [],
-        location: res.headers.location ?? null,
-        powod: 'ok',
-      }));
+      res.on('end', () => {
+        // Czas odczytany PRZED sklejeniem i dekodowaniem treści — inaczej
+        // koszt `Buffer.concat().toString()` wpadałby do zmierzonego czasu
+        // odpowiedzi serwisu (na ciałach rzędu megabajta zawyżało to p95).
+        const ms = Number(process.hrtime.bigint() - start) / 1e6;
+        skoncz({
+          status: res.statusCode,
+          ms,
+          tresc: zbierajTresc ? Buffer.concat(kawalki).toString('utf8') : '',
+          setCookie: res.headers['set-cookie'] ?? [],
+          location: res.headers.location ?? null,
+          powod: 'ok',
+        });
+      });
     });
     req.setTimeout(bezczynnoscMs, () => zerwij('bezczynnosc', `brak ruchu na gnieździe przez ${bezczynnoscMs} ms`));
     req.on('error', (e) => zerwij('blad', e.message));
@@ -238,9 +267,16 @@ function mediana(tablica) {
   return Math.round(s[Math.floor(s.length / 2)] * 10) / 10;
 }
 
+/*
+ * Ranga najbliższa (nearest-rank): `ceil(p/100 * n) - 1`. Poprzednia wersja
+ * używała `floor(p/100 * n)`, co przy `p*n/100` całkowitym brało próbkę o jedną
+ * rangę za wysoko — dla n = 20 „p95" było po prostu maksimum. Przy małym n
+ * percentyl i tak niewiele znaczy; dlatego wynik serii podaje obok liczbę
+ * próbek, z których został policzony.
+ */
 function percentyl(posortowane, p) {
   if (!posortowane.length) return null;
-  const i = Math.min(posortowane.length - 1, Math.floor((p / 100) * posortowane.length));
+  const i = Math.min(posortowane.length - 1, Math.max(0, Math.ceil((p / 100) * posortowane.length) - 1));
   return Math.round(posortowane[i] * 10) / 10;
 }
 
@@ -251,7 +287,7 @@ function percentyl(posortowane, p) {
 async function przygotuj() {
   const haslo = opcje.haslo;
   if (!haslo) throw new Error('Podaj --haslo (wypisał je scripts/dane-obciazenia-605.php).');
-  const ilu = Number(opcje.widzowie ?? 60);
+  const ilu = liczba('widzowie', 60, { min: 1, max: 5000 });
   /*
    * ODSTĘP MIĘDZY LOGOWANIAMI — 13 sekund, i to nie jest ostrożność.
    * `POST /login` ma limit `5,1` z `config/kuking.php`, liczony PO ADRESIE
@@ -259,7 +295,7 @@ async function przygotuj() {
    * więc szybsze logowanie kończy się serią 429 i pustym manifestem.
    * Limitu NIE obchodzimy — płacimy go raz, w fazie przygotowania.
    */
-  const odstep = Number(opcje.odstep_logowania ?? 13000);
+  const odstep = liczba('odstep_logowania', 13000);
 
   const sesje = [];
   const czasyLogowania = [];
@@ -364,8 +400,8 @@ async function media() {
    */
   const rozmiary = (opcje.rozmiar && opcje.rozmiar !== 'wszystkie') ? [opcje.rozmiar] : ['12mpx', '24mpx', '48mpx'];
   const pliki = rozmiary.map((n) => `${katalog}/kuking-b605-${n}.jpg`);
-  const ile = Number(opcje.ile ?? 24);
-  const odstepMs = Number(opcje.odstep ?? 0);
+  const ile = liczba('ile', 24, { min: 1, max: 100000 });
+  const odstepMs = liczba('odstep', 0);
 
   const wyniki = [];
   for (let i = 0; i < ile; i++) {
@@ -467,21 +503,21 @@ function losujScenariusz(suma) {
 
 async function seria() {
   const manifest = JSON.parse(await readFile(MANIFEST, 'utf8'));
-  const rps = Number(opcje.rps ?? 10);
-  const sekundy = Number(opcje.czas ?? 60);
+  const rps = liczba('rps', 10, { min: 0.01, max: 100000 });
+  const sekundy = liczba('czas', 60, { min: 1, max: 86400 });
   const nazwa = opcje.nazwa ?? `r${rps}`;
   const wynikPlik = opcje.wynik ?? `/home/mateusz/kuking-b605-run/seria-${nazwa}.json`;
-  const maksWLocie = Number(opcje.maks_w_locie ?? 3000);
+  const maksWLocie = liczba('maks_w_locie', 3000, { min: 1, max: 1000000 });
   // Ile czekamy po zakończeniu napływu, zanim zerwiemy to, co zostało w locie.
-  const domkniecieMs = Number(opcje.domkniecie ?? 30000);
+  const domkniecieMs = liczba('domkniecie', 30000, { min: 0 });
   /*
    * Limity pojedynczego żądania w serii. `bezczynnosc` to brak ruchu na
    * gnieździe, `calkowity` to twardy deadline całego żądania. Obie liczby lądują
    * w wyniku, bo każde żądanie zerwane deadline'em jest błędem tego pomiaru
    * i czytający musi wiedzieć, od jakiego progu.
    */
-  const bezczynnoscSerii = Number(opcje.bezczynnosc ?? 20000);
-  const calkowitySerii = Number(opcje.calkowity ?? 30000);
+  const bezczynnoscSerii = liczba('bezczynnosc', 20000, { min: 1 });
+  const calkowitySerii = liczba('calkowity', 30000, { min: 1 });
   const katalog = opcje.zdjecia ?? '/home/mateusz/kuking-b605-run/zdjecia';
   // Do uploadu w serii świadomie najmniejszy plik: 48 Mpx przy każdym wgraniu
   // zamieniłby test mieszany w test jednego zadania w tle.
@@ -532,6 +568,7 @@ async function seria() {
   // Wyjątki samego przyrządu (np. brak pliku do wgrania) — osobno od błędów
   // serwisu, żeby usterki narzędzia nie wyglądały jak degradacja portalu.
   const bledyPrzyrzadu = [];
+  let bledyPrzyrzaduRazem = 0;
   const cpuStart = process.cpuUsage();
   const start = Date.now();
   const koniec = start + sekundy * 1000;
@@ -608,7 +645,9 @@ async function seria() {
     }
     // Limity serii są jawne i zapisane w wyniku. Scenariusz może je podnieść
     // (wgranie zdjęcia), ale żaden nie może zostać bez całkowitego deadline'u.
-    cfg = { bezczynnoscMs: bezczynnoscSerii, calkowityMs: calkowitySerii, ...cfg };
+    // `zbierajTresc: false` — seria nie czyta ciał odpowiedzi, a ich sklejanie
+    // byłoby kosztem generatora doliczonym do czasu aplikacji.
+    cfg = { bezczynnoscMs: bezczynnoscSerii, calkowityMs: calkowitySerii, zbierajTresc: false, ...cfg };
 
     wLocie += 1;
     if (wLocie > wLocieSzczyt) wLocieSzczyt = wLocie;
@@ -672,7 +711,10 @@ async function seria() {
         // Bez `catch` wyjątek z przygotowania żądania (np. brak pliku do
         // wgrania) byłby nieobsłużoną odrzuconą obietnicą i zabiłby serię.
         jedno().catch((e) => {
-          bledyPrzyrzadu.push(String(e?.message ?? e));
+          // Lista jest ograniczona: przy serii z brakującym plikiem do wgrania
+          // rosłaby o wpis na każde żądanie i sama zjadałaby pamięć.
+          if (bledyPrzyrzadu.length < 100) bledyPrzyrzadu.push(String(e?.message ?? e));
+          bledyPrzyrzaduRazem += 1;
         });
       }
       probkiWLocie.push(wLocie);
@@ -692,6 +734,9 @@ async function seria() {
   // pierwszego: domykanie potrafi trwać dziesiątki sekund i zaniżałoby wynik.
   const trwanieNaplywu = (domkniecie - start) / 1000;
   while (wLocie > 0 && !przerwanaRecznie && Date.now() - domkniecie < domkniecieMs) {
+    // Domykanie też jest próbkowane: to tu żądań w locie bywa najwięcej
+    // i najdłużej, a bez tych próbek mediana opisywałaby tylko napływ.
+    probkiWLocie.push(wLocie);
     await new Promise((r) => setTimeout(r, 50));
   }
   if (wLocie > 0) {
@@ -702,7 +747,6 @@ async function seria() {
       await new Promise((r) => setTimeout(r, 20));
     }
   }
-  odepnijSygnaly();
   const wLocieNaKoniec = wLocie;
 
   const trwanie = (Date.now() - start) / 1000;
@@ -726,14 +770,27 @@ async function seria() {
       zadan: s.n,
       poprawnych: s.ok,
       pominietych_brak_celu: pominietychTu,
-      blad_procent: Math.round(((s.n - s.ok) / s.n) * 1000) / 10,
+      /*
+       * Przy niezerowym `pominietych_brak_celu` jednej liczby „odsetek błędów"
+       * po prostu NIE MA: część żądań tego scenariusza nigdy nie powstała
+       * z winy manifestu, nie serwisu. Zamiast wybierać mianownik i tak czy
+       * owak kłamać, zostawiamy `null` i dwie liczby obok.
+       */
+      blad_procent: pominietychTu ? null : Math.round(((s.n - s.ok) / s.n) * 1000) / 10,
+      blad_procent_wyslanych: Math.round(((s.n - s.ok) / s.n) * 1000) / 10,
+      probek_poprawnych: posortowane.length,
       p50: percentyl(posortowane, 50),
       p95: percentyl(posortowane, 95),
       p99: percentyl(posortowane, 99),
-      // Ten sam percentyl policzony RAZEM z odpowiedziami nieudanymi. Gdy
-      // różni się od `p95`, znaczy, że najdłuższe żądania wypadły z próbki
-      // poprawnych — i samego `p95` nie wolno podawać jako czasu odpowiedzi.
+      /*
+       * Ten sam percentyl policzony na próbce WSZYSTKICH doprowadzonych do
+       * końca żądań, razem z nieudanymi. UWAGA: nie jest to liczba z definicji
+       * większa od `p95`. Odmowa połączenia albo szybkie 5xx wracają w ułamku
+       * milisekundy i potrafią OBNIŻYĆ ten percentyl. Obie liczby czyta się
+       * razem z `blad_procent` i `powody`, nigdy osobno.
+       */
       p95_z_bledami: percentyl(zBledami, 95),
+      probek_wszystkich: zBledami.length,
       max: posortowane.length ? Math.round(posortowane[posortowane.length - 1]) : null,
       statusy: s.statusy,
       powody: s.powody,
@@ -743,6 +800,7 @@ async function seria() {
     if (!endpointy[klucz]) {
       endpointy[klucz] = {
         zadan: 0, poprawnych: 0, pominietych_brak_celu: ile, blad_procent: null,
+        blad_procent_wyslanych: null, probek_poprawnych: 0, probek_wszystkich: 0,
         p50: null, p95: null, p99: null, p95_z_bledami: null, max: null, statusy: {}, powody: {},
       };
     }
@@ -765,7 +823,9 @@ async function seria() {
   const uwagi = [];
   if (wszystkieOk < mianownik) {
     uwagi.push('p50/p95/p99 liczone są z odpowiedzi POPRAWNYCH; przy niezerowym blad_procent'
-      + ' nie wolno ich cytować jako czasu odpowiedzi serwisu — porównaj z p95_z_bledami.');
+      + ' nie wolno ich cytować jako czasu odpowiedzi serwisu. p95_z_bledami liczone jest'
+      + ' na wszystkich doprowadzonych do końca żądaniach i BYWA NIŻSZE od p95, bo odmowy'
+      + ' połączenia i szybkie 5xx wracają w ułamku milisekundy — to nie jest poprawa.');
   }
   if (porzucone > 0) {
     uwagi.push(`Porzucono ${porzucone} żądań przez limit maks_w_locie=${maksWLocie}:`
@@ -783,8 +843,8 @@ async function seria() {
     uwagi.push(`UWAGA: ${wLocieNaKoniec} żądań nie zakończyło się nawet po anulowaniu —`
       + ' wynik jest niepełny, zgłoś to jako usterkę przyrządu.');
   }
-  if (bledyPrzyrzadu.length) {
-    uwagi.push(`Przyrząd zgłosił ${bledyPrzyrzadu.length} własnych wyjątków — patrz bledy_przyrzadu.`);
+  if (bledyPrzyrzaduRazem) {
+    uwagi.push(`Przyrząd zgłosił ${bledyPrzyrzaduRazem} własnych wyjątków — patrz bledy_przyrzadu.`);
   }
   if (przerwanaRecznie) {
     uwagi.push('Seria przerwana sygnałem — wynik jest fragmentem, nie pomiarem zadanego czasu.');
@@ -816,6 +876,7 @@ async function seria() {
       p99_z_bledami: percentyl(wszystkieMsZBledami, 99),
     },
     uwagi,
+    bledy_przyrzadu_razem: bledyPrzyrzaduRazem,
     bledy_przyrzadu: bledyPrzyrzadu.slice(0, 20),
     limity_ms: {
       bezczynnosc_zadania: bezczynnoscSerii,
@@ -839,6 +900,9 @@ async function seria() {
   };
 
   await writeFile(wynikPlik, JSON.stringify(wynik, null, 1));
+  // Dopiero TERAZ zdejmujemy obsługę sygnałów. Wcześniej Ctrl+C w trakcie
+  // zapisu wracał do domyślnej akcji i ubijał proces bez pliku wyniku.
+  odepnijSygnaly();
   console.log(JSON.stringify(wynik, null, 1));
 }
 
