@@ -107,8 +107,8 @@ odczyty z Alfy 0.64 (`production-http.json`, `production-browser.json`,
 `production-empty666.png`), a nie z `55877e2`. Wersję i SHA strony przepisu na
 `55877e2` potwierdza natomiast obcy plik z tego samego odbioru —
 `evidence/tags369/production-read-20260918.json`, wpis
-`/przepisy/bigos-z-cukinii`. Cytaty poniżej pozostają prozą przebiegu, nie
-zapisem maszynowym.
+dla strony przepisu o slugu bigos-z-cukinii. Cytaty poniżej pozostają prozą
+przebiegu, nie zapisem maszynowym.
 
 ### Ile publicznych przepisów znaleziono w sprawdzonych powierzchniach
 

@@ -231,7 +231,7 @@ UTC dotyczył `55877e2` (Alfa 0.65). Zapis:
 [`evidence/produkcja/odczyt-20260918T1854Z.json`](evidence/produkcja/odczyt-20260918T1854Z.json).
 
 Zmieniło się to, co przesądzało o wcześniejszym wniosku: **publiczne tagi już
-są**. `/tagi` wymienia dwa — `ciasto` i `sernik` — i oba mają stronę
+są**. Spis tagów wymienia dwa — `ciasto` i `sernik` — i oba mają stronę
 z HTTP 200. Zdanie „nie ma żadnego publicznego tagu” było prawdziwe o 13:24
 UTC i nieprawdziwe o 18:54 UTC; nie poprawiamy go wstecz, tylko datujemy.
 
@@ -239,9 +239,9 @@ Co z tego wynika dla #370, ściśle w granicach odczytu HTML:
 
 | Rzecz | Stan o 18:54 UTC | Czego to jeszcze nie domyka |
 |---|---|---|
-| strona tagu z danymi | `/tag/ciasto` → 200, kolaż obecny: `class="tag-collage tag-collage--1"`, kafel prowadzi na `/wpisy/01a0a6ae-…`, `aria-label="Zobacz wpis: Ewa Kapica"` | kolaż ma **jeden** kafel od **jednej** osoby |
-| pusty stan strony tagu | `/tag/sernik` → 200, „Tu jeszcze nikt nic nie ugotował” | — |
-| CTA przy istniejącym tagu | „Dodaj wpis z tym tagiem” obecne w HTML na `/tag/ciasto` | to obecność w HTML, **nie** kliknięcie ani pomiar wysokości |
+| strona tagu z danymi | tag o slugu ciasto → 200, kolaż obecny: `class="tag-collage tag-collage--1"`, kafel prowadzi na stronę wpisu o identyfikatorze 01a0a6ae, `aria-label="Zobacz wpis: Ewa Kapica"` | kolaż ma **jeden** kafel od **jednej** osoby |
+| pusty stan strony tagu | tag o slugu sernik → 200, „Tu jeszcze nikt nic nie ugotował” | — |
+| CTA przy istniejącym tagu | „Dodaj wpis z tym tagiem” obecne w HTML na stronie tagu ciasto | to obecność w HTML, **nie** kliknięcie ani pomiar wysokości |
 | reguła „jedno zdjęcie od osoby” | nierozstrzygnięta | przy jednej osobie z jednym zdjęciem obie reguły dają ten sam wynik |
 
 Pięć slugów sprawdzonych rano (`obiad`, `zupy`, `deser`, `cukinia`, `bigos`)

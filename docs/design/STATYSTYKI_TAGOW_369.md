@@ -139,8 +139,8 @@ sesji; produkcja stała na `3f315b3` (Alfa 0.67, wydanie 18 września 2026,
 | Powierzchnia | Co pokazuje o 18:54 UTC | Warstwa dowodu |
 |---|---|---|
 | `/tagi` | dwa tagi: `ciasto` z liczbą `(1 wpis)` i miniaturą „Zdjęcie: Ewa Kapica”, `sernik` z `(0 wpisów)` | odczyt HTML |
-| `/tag/ciasto` | `<span class="meta" data-tag-public-stats>Pokaż, co gotujesz — dodaj swój wpis.</span>` | odczyt HTML |
-| `/tag/sernik` | to samo zaproszenie | odczyt HTML |
+| strona tagu o slugu ciasto | `<span class="meta" data-tag-public-stats>Pokaż, co gotujesz — dodaj swój wpis.</span>` | odczyt HTML |
+| strona tagu o slugu sernik | to samo zaproszenie | odczyt HTML |
 
 To jest **produkcyjne potwierdzenie gałęzi PONIŻEJ progu** z
 `components/tag-public-stats.blade.php`: próg to `min_photos = 5`
