@@ -589,6 +589,7 @@ o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 | 9 IX 2026 | `docker/kopia/kopia-bazy.sh` na lokalnej bazie po migracjach, z podstawionym bucketem na dysku, prawdziwym `openssl cms` i prawdziwą parą kluczy RSA | Zrzut 125 592 B, 42 tabele z danymi, szyfrogram 126 147 B. Odszyfrowanie **samym kluczem prywatnym** dało plik o identycznym `sha256`; `pg_restore` wczytał go do pustej bazy bez błędu (42 tabele) | Serwera PostgreSQL **18** (lokalnie 16), prawdziwej rozmowy z R2 (podpis SigV4 sprawdzony wektorami AWS, nie wobec Cloudflare), zbudowania obrazu (brak Dockera w środowisku), harmonogramu Railway |
 | 11 IX 2026 | `scripts/kopia-lokalna.sh` + `scripts/proba-odtworzenia.sh` na lokalnej bazie po migracjach (PostgreSQL 16), z parą kluczy RSA generowaną w trakcie — pełny obieg: zrzut → weryfikacja → szyfrowanie kluczem publicznym → odszyfrowanie SAMYM kluczem prywatnym → `pg_restore` → sprawdzenie treści i zachowania | Zrzut 153 061 B, 49 tabel z danymi, szyfrogram 153 630 B. `pg_restore` bez błędu, **1-2 s**. Odtworzona baza: 49 tabel, 3 wyzwalacze (wszystkie włączone), 87 `CHECK`, 25 `UNIQUE`, 68 kluczy obcych. Cztery sondy zachowania odrzuciły zapis, a kontrola dodatnia go przyjęła. Kontrole ujemne oblały skrypt na: zrzucie 0 B, zrzucie pustej bazy, zrzucie bez wierszy, braku wyzwalacza, wyzwalaczu wyłączonym i **wyzwalaczu-atrapie** (obecnym, włączonym, z wypatroszoną funkcją) | Produkcyjnej bazy, serwera PostgreSQL **18**, prawdziwego R2 i prawdziwego zrzutu z bucketu. To jest pomiar MECHANIZMU, nie kopii: liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 | **17 IX 2026 — ĆWICZENIE LOKALNE** | `scripts/proba-odtworzenia.sh --petla-lokalna` na **odizolowanym klastrze PostgreSQL 18.6** (`127.0.0.1:55439`, `PGTZ=UTC`), na świeżej bazie po wszystkich migracjach z małym, kontrolowanym zestawem danych (5 kont, 15 wpisów, 30 komentarzy, 7 tagów, 10 przepisów, 10 ugotowań — **nie** `DemoSeeder`). Pełny obieg: kopia `scripts/kopia-lokalna.sh` → odtworzenie do **innej** bazy → porównanie każdej tabeli co do jednego wiersza → `migrate:status` → sondy zachowania | **Zrzut 164 897 B**, 50 tabel z danymi, `pg_dump`/`pg_restore` 18. Etapy: `CREATE DATABASE` 0,05 s, migracje ~7,5 s, dane ~2 s, zrzut <1 s, **`pg_restore` 2 s**, cała pętla 8 s. Odtworzona baza: 50 tabel, **192 wiersze = 192 w źródle**, 50/50 tabel zgodnych co do jednego wiersza, `migrate:status` 80 wykonanych / **0 czekających**, 3 wyzwalacze (włączone), 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Osobno sprawdzone poza skryptem: rozszerzenia `pg_trgm`, `unaccent`, `pgcrypto` obecne i działające (`%`, `unaccent()`), **25 indeksów częściowych** i 159 indeksów łącznie — tyle samo co w źródle; zapytania domenowe Eloquenta na odtworzonej bazie zwróciły to samo. Strefa sesji **UTC po obu stronach**; `md5` z `(id, created_at)` tabeli `users` identyczny w źródle i w celu | Produkcyjnej bazy, prawdziwego R2 i zrzutu pobranego z bucketu. **To NIE JEST produkcyjne RTO** — 2 s to czas odtworzenia 192 wierszy na pętli lokalnej, bez pobierania pliku i bez odszyfrowania. **RPO nie jest tu w ogóle mierzalne**: nie ma harmonogramu ani ani jednej udanej kopii produkcyjnej, z której dałoby się policzyć wiek danych. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+| **18 IX 2026 — PIERWSZY PRZEBIEG W KONTENERZE, NA PRAWDZIWYM API S3** | `docker build` obrazu `docker/kopia/Dockerfile`, a potem CAŁA ścieżka produkcyjna z tego kontenera: żywa baza PostgreSQL 18.6 → `pg_dump` → `openssl cms` kluczem publicznym → **PUT na prawdziwy serwer S3** (MinIO `RELEASE.2025-09-07` w kontenerze, w miejscu R2) → **GET tego obiektu z bucketu** → odszyfrowanie kluczem prywatnym → `pg_restore` → weryfikacja. Bucket założony **własnym `docker/kopia/s3.sh`**, czyli podpis SigV4 sprawdzony wobec działającej implementacji S3, nie tylko wobec wektorów AWS. Odtworzenie przez `scripts/proba-odtworzenia.sh --instancja <odcisk> --scisle` | Obraz **buduje się**; w środku `pg_dump`/`pg_restore`/`psql` **18.6** (Debian 13), `openssl` 3.5.7, `curl` 8.14.1, kontener chodzi jako `postgres` (uid 999). Cała kopia **0,55 s**: wersje 0,03 s · listowanie bucketu 0,04 s · `pg_dump` **0,06 s / 166 276 B** · `pg_restore --list` 0,02 s · szyfrowanie **0,01 s / 167 159 B** (+883 B narzutu CMS) · PUT szyfrogramu, PUT `.meta` i HEAD potwierdzający rozmiar razem **0,10 s** · retencja 0,04 s. Pobranie obiektu z bucketu **0,035 s**. Odszyfrowanie i `pg_restore` poniżej sekundy każde. Odtworzona baza: **50 tabel, 202 wiersze = 202 w źródle**, 50/50 tabel co do jednego wiersza, `migrate:status` **80 wykonanych / 0 czekających**, 3 wyzwalacze, 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Poza skryptem porównane ze źródłem i **zgodne co do jednego**: rozszerzenia (`pg_trgm` 1.6, `pgcrypto` 1.4, `unaccent` 1.1, `plpgsql` 1.0), 159 indeksów, **25 indeksów częściowych**, 92 indeksy unikalne, 111 kluczy głównych, 8 sekwencji, 75 funkcji, `md5` definicji wszystkich kolumn, `md5` treści `users` i `posts`, strefa sesji UTC po obu stronach | **Produkcji — ani bazy, ani R2.** MinIO stoi w miejscu R2 i mówi tym samym protokołem, ale to nie jest Cloudflare: nie sprawdzono ani jurysdykcji, ani polityk bucketu, ani tokenów R2. Baza źródłowa jest lokalna i ma 202 wiersze, więc **żadna z tych liczb nie jest produkcyjnym RTO**. Lokalny klaster stoi na `trust`, więc ten przebieg **nie dowodzi uwierzytelniania hasłem** — dowodzi, że hasło nie wychodzi w argumentach. **RPO nadal niemierzalne**: nie ma harmonogramu. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 
 ### 5.2 Co pozostaje do wykonania na produkcji — odczyt panelu 17 IX 2026
 
@@ -610,6 +611,56 @@ Odczyt przez zalogowane API Railway (**tylko odczyt**, projekt `ideal-exploratio
 czy w Cloudflare R2 istnieje bucket na zrzuty i czy istnieje para kluczy
 (panel Cloudflare wymaga logowania właściciela). Do odbioru produkcyjnego
 potrzebne są cztery czynności z §7.3 — kolejność i skutek każdej: §8.
+
+### 5.3 Railway Volume Backups i PITR — co mówi dokumentacja 18 IX 2026
+
+> **To jest sprostowanie do D-043 i do wiersza „Railway Backups / PITR"
+> w tabeli wyżej.** Tamten wiersz opiera się na jednym odczycie panelu
+> (17 IX: „only available for customers on the Pro plan"). Dzisiejszy odczyt
+> **dokumentacji** Railway nie potwierdza takiej bramki planu — i nie
+> zaprzecza jej też wprost. Dwa różne źródła, dwa różne zdania; dopóki nie ma
+> trzeciego, **żadne z nich nie jest ustaleniem**.
+
+Przeczytane 18 IX 2026 przez Railway MCP (`search-docs` / `fetch-docs`,
+**wyłącznie odczyt**) — strony `volumes/backups`, `volumes/point-in-time-recovery`,
+`pricing/plans`, `storage-buckets/billing`:
+
+| Ustalenie | Treść |
+|---|---|
+| Volume Backups — harmonogramy | Daily: co 24 h, trzymane **6 dni** · Weekly: co 7 dni, **27 dni** · Monthly: co 30 dni, **89 dni**. Wolno wybrać kilka naraz; da się też wyzwolić ręcznie |
+| Volume Backups — limit | Kopia ręczna **maks. 50 % rozmiaru wolumenu**. Tutejszy `postgres-volume` ma 500 MB, więc próg to **250 MB** |
+| Volume Backups — cena | Rozliczane jak Volume Storage: **0,15 USD / GB / miesiąc**, przyrostowo i Copy-on-Write (płaci się za dane wyłączne dla kopii) |
+| Volume Backups — haczyk | „Wiping a volume deletes all backups" oraz „Backups can only be restored into the same project + environment" — czyli **to nie jest kopia offsite** i D-043 pozostaje w mocy co do sensu warstwy z §7 |
+| PITR — czym jest | ciągłe archiwum WAL przez pgBackRest do **Railway Storage Bucket**; pełna kopia bazowa co tydzień, różnicowa co dobę; trzymane **4 ostatnie pełne**, czyli okno ok. **4 tygodni** |
+| PITR — wymaganie obrazu | tag **major**, nie minor. Tutejszy `ghcr.io/railwayapp-templates/postgres-ssl:18` **spełnia ten warunek** |
+| PITR — cena | brak osobnej opłaty. Płaci się za **bucket 0,015 USD / GB-miesiąc** (operacje S3 i egress z bucketu **darmowe**) oraz za **egress serwisu** przy wysyłce, **0,05 USD / GB**. Wszystko jest kompresowane (zstd) przed wysłaniem |
+| PITR — czego nie da | „The available restore window starts from the first post-enable base backup, not retroactively" — włączenie **nie cofa się wstecz** |
+| Subskrypcje | Free 0 USD · **Hobby 5 USD/mies. (w tym 5 USD zużycia)** · Pro 20 USD/mies. (w tym 20 USD zużycia) |
+| Czego dokumentacja **nie** mówi | na żadnej z tych czterech stron **nie ma zdania**, że Volume Backups albo PITR wymagają planu Pro. Plan różnicuje: liczbę replik, RAM/CPU, rozmiar wolumenu, retencję obrazów, współpracowników i samoobsługowe powiększanie wolumenu — nie kopie |
+
+**Szacunek kosztu dla TEGO projektu**, przy dzisiejszej wielkości bazy
+(zrzut jawny 166 KB przy 202 wierszach; produkcja jest większa, ale nie
+o rzędy wielkości) i wolumenie 500 MB:
+
+- **Volume Backups**: przyrost dobowy liczony w megabajtach ⇒ **poniżej 0,15 USD
+  miesięcznie**, w praktyce grosze. Mieści się w 5 USD zużycia planu Hobby.
+- **PITR**: archiwum rzędu pojedynczych GB ⇒ **poniżej 0,05 USD** za bucket
+  plus **poniżej 0,20 USD** egressu. Też w granicach zużycia Hobby.
+- **Jedyny realny koszt to ewentualna subskrypcja**: jeśli bramka planu
+  naprawdę istnieje, wejście na Pro to **+15 USD/mies.** wobec Hobby
+  (20 zamiast 5), przy czym limit zużycia rośnie z 5 do 20 USD.
+
+**`[DECYZJA WŁAŚCICIELA — nie wykonana z tej sesji]`** Kolejność jest taka:
+
+1. Otworzyć **panel Railway → serwis `Postgres` → zakładka Backups** i zapisać
+   z datą, co tam jest: harmonogramy do wyboru czy komunikat o planie Pro.
+   To rozstrzyga sprzeczność opisaną w ramce wyżej i jest **jednym kliknięciem**.
+2. Jeżeli zakładka działa na obecnym planie — włączyć **Daily** (koszt groszowy)
+   i dopiero potem rozważyć PITR.
+3. Jeżeli wymaga Pro — decyzja o **+15 USD/mies.** należy do właściciela.
+   Warstwa z §7 (zrzut do R2) jest od niej **niezależna** i ma pierwszeństwo,
+   bo tylko ona jest kopią **poza Railwayem**: Volume Backups i PITR żyją
+   w tym samym koncie i tym samym projekcie co baza.
 
 ---
 
@@ -983,6 +1034,49 @@ zrzut — numer stoi w `.meta` w polu `pg_dump`.
   a §6 dokłada przegląd raz na tydzień. **Trzeciego niezależnego świadka nie
   ma** — jeśli padnie i serwis kopii, i aplikacja, milczenie będzie zupełne.
 
+### 7.6 Co się dzieje, gdy coś pójdzie źle — zmierzone, nie założone
+
+**Zmierzone 18 IX 2026 na PRAWDZIWEJ ścieżce**: zbudowany obraz
+`docker/kopia/Dockerfile`, żywa baza PostgreSQL 18.6, prawdziwy serwer S3
+(MinIO w kontenerze, w miejscu R2), prawdziwy `openssl cms`, prawdziwy
+odbiornik webhooka. Żadne narzędzie nie było podstawione.
+
+Kolumna „śmieci" to zawartość katalogu roboczego **po** przebiegu — katalog
+był podmontowany z zewnątrz, więc dało się w niego zajrzeć po tym, jak
+kontener zniknął.
+
+| Co zepsuto | Kod wyjścia | Etap w alarmie | Śmieci | Zgodne z opisem |
+|---|---|---|---|---|
+| `KOPIA_KLUCZ_PUBLICZNY` zawiera klucz PRYWATNY | **64** | `szyfrowanie` | 0 | tak |
+| To samo, sklejone `cat`em z certyfikatem | **64** | `szyfrowanie` | 0 | tak |
+| W zmiennej klucza śmieć (ani PEM, ani base64) | **60** | `szyfrowanie` | 0 | tak |
+| Token bez prawa do bucketu (serwer odpowiada **403**) | **30** | `poprzednia-kopia` | 0 | tak |
+| Bucket nie istnieje (serwer odpowiada **404**) | **30** | `poprzednia-kopia` | 0 | tak |
+| Wysyłka urwana w połowie ciała żądania | **70** | `wysylka` | 0 | tak |
+| Dysk tymczasowy pełny (`tmpfs` 64 KiB) | **40** | `zrzut` | 0 | tak |
+| Odtworzenie **złym** kluczem prywatnym | **43** | — | baza próbna nie powstała | tak |
+| Obiekt w buckecie uszkodzony w środku | **44** | — | baza próbna nie powstała | tak |
+| Obiekt w buckecie obcięty | **43** | — | baza próbna nie powstała | tak |
+
+**Retencja**, sprawdzona osobno na prawdziwym buckecie w sześciu układach
+(12 kopii / 10 przeterminowanych, 10 przeterminowanych, 11 przeterminowanych,
+12 kopii z 2 przeterminowanymi, minimum obniżone do 1, dokładnie 7 przy
+minimum 7): **w każdym z nich najnowsza kopia została nietknięta**, liczba
+pozostałych nigdy nie spadła poniżej minimum, a plik `.meta` ginął razem ze
+swoim szyfrogramem. Przy dokładnie siedmiu kopiach i minimum siedem nie
+skasowała **ani jednej**. Gdy listowanie bucketu się nie udało — zaalarmowała
+i **zwróciła zero**, bo porażka retencji nie jest porażką kopii.
+
+> **Jedna usterka znaleziona i naprawiona tego dnia.** Do 18 IX komunikat
+> o nieudanym listowaniu bucketu **zawsze** brzmiał „HTTP brak", także wtedy,
+> gdy serwer odpowiedział 403 albo 404. Powód: `s3_lista_kluczy` wypisuje
+> klucze na standardowe wyjście, więc wołano ją przez `$(…)` — czyli
+> w podpowłoce, razem z którą ginęła zmienna `S3_KOD`. Skutek praktyczny:
+> „token nie ma uprawnień" i „bucketu nie ma pod tą nazwą" — dwie różne
+> awarie z dwiema różnymi naprawami — były w logu **nie do odróżnienia**.
+> Naprawione (`s3_lista_kluczy_do_pliku`); alarm celowo nadal niesie sam etap
+> i kod wyjścia, bo szczegóły z założenia zostają w logu serwisu.
+
 ---
 
 ## 8. Karta czynności właściciela — od zera kopii do jednej odtworzonej
@@ -996,8 +1090,12 @@ ma komendę albo przycisk i sposób sprawdzenia, że się udało.
 > trzecia w budowie”. **Zero.** Trzy niezależne powody, wszystkie sprawdzone,
 > nie przypuszczone:
 >
-> 1. Volume Backups i PITR to funkcje planu **Pro**, a Kuking jest na
->    Free/Hobby — panel nawet nie pokazuje tej zakładki (D-043).
+> 1. Volume Backups i PITR **nie są włączone** — odczyt Railway MCP z 18 IX
+>    potwierdza: serwis `Postgres` nie ma zmiennych `WAL_ARCHIVE_*`, a po
+>    stronie projektu nie ma ani jednego bucketu. (Czy w ogóle wolno je
+>    włączyć na obecnym planie, jest dziś **sporne** — patrz §5.3. Nawet gdy
+>    wolno, są to kopie **wewnątrz tego samego projektu Railway**, więc nie
+>    zastępują warstwy z §7.)
 > 2. Serwis `kopia-bazy` **ma kod** w `docker/kopia/` i **nie istnieje**
 >    w Railwayu: nie ma bucketu, tokenów, klucza ani samego serwisu (§7.3).
 > 3. Nikt nigdy nie zrobił ręcznego zrzutu — tabela w §5 jest pusta.

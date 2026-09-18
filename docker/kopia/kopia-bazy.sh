@@ -379,11 +379,29 @@ sprawdz_wersje() {
 #  przegląd z `KOPIE_I_ODTWORZENIE.md` §6.
 # =============================================================================
 sprawdz_poprzednia_kopie() {
-  local klucze
-  if ! klucze="$(s3_lista_kluczy "${PREFIKS}")"; then
-    log "BŁĄD: nie udało się wylistować bucketu (HTTP ${S3_KOD:-brak})."
+  # Klucze do PLIKU, nie przez `$( )`. Powód i pomiar: nagłówek
+  # `s3_lista_kluczy_do_pliku` w `docker/kopia/s3.sh`. W skrócie: podstawienie
+  # poleceń to podpowłoka, a `S3_KOD` ginie razem z nią — i wtedy „token bez
+  # uprawnień" (403) oraz „bucketu nie ma" (404) są w logu nie do odróżnienia.
+  local plik_kluczy="${KATALOG_ROBOCZY:-${KOPIA_KATALOG_ROBOCZY:-/tmp}}/klucze-bucketu.txt"
+  local kod_listowania=0
+  s3_lista_kluczy_do_pliku "${PREFIKS}" "${plik_kluczy}" || kod_listowania=$?
+
+  if ((kod_listowania == 2)); then
+    log 'BŁĄD: bucket oddał listę OBCIĘTĄ (IsTruncated) — nie widzę wszystkich kopii.'
+    log '  Nie zgaduję, która jest najnowsza: patrz stronicowanie w docker/kopia/s3.sh.'
     padnij poprzednia-kopia 30
   fi
+
+  if ((kod_listowania != 0)); then
+    log "BŁĄD: nie udało się wylistować bucketu (HTTP ${S3_KOD:-brak})."
+    log '  403 — token nie ma prawa do TEGO bucketu; 404 — bucketu nie ma pod tą nazwą;'
+    log '  brak kodu — nie doszło połączenie do endpointu.'
+    padnij poprzednia-kopia 30
+  fi
+
+  local klucze
+  klucze="$(cat "${plik_kluczy}")"
 
   local najnowszy
   najnowszy="$(grep -E '\.dump\.cms$' <<<"${klucze}" | sort | tail -1 || true)"
@@ -688,12 +706,27 @@ potwierdz() {
 #  przebieg mimo udanej kopii, a to uczy ignorowania czerwonego.
 # =============================================================================
 retencja() {
-  local klucze
-  if ! klucze="$(s3_lista_kluczy "${PREFIKS}")"; then
+  # Jak w `sprawdz_poprzednia_kopie`: przez plik, żeby kod HTTP nie zginął
+  # w podpowłoce. Tu ma to dodatkową wagę — retencja KASUJE, więc „nie wiem,
+  # co jest w buckecie" musi być powiedziane dokładnie.
+  local plik_kluczy="${KATALOG_ROBOCZY:-${KOPIA_KATALOG_ROBOCZY:-/tmp}}/klucze-retencji.txt"
+  local kod_listowania=0
+  s3_lista_kluczy_do_pliku "${PREFIKS}" "${plik_kluczy}" || kod_listowania=$?
+
+  if ((kod_listowania == 2)); then
+    log 'OSTRZEŻENIE: bucket oddał listę OBCIĘTĄ (IsTruncated) — nie kasuję niczego.'
+    alarm retencja 90
+    return 0
+  fi
+
+  if ((kod_listowania != 0)); then
     log "OSTRZEŻENIE: nie udało się wylistować bucketu do retencji (HTTP ${S3_KOD:-brak})."
     alarm retencja 90
     return 0
   fi
+
+  local klucze
+  klucze="$(cat "${plik_kluczy}")"
 
   # Same szyfrogramy, posortowane po nazwie — nasza nazwa zawiera znacznik
   # czasu w formacie sortowalnym leksykograficznie, więc `sort` = po dacie.

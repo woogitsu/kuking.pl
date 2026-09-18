@@ -164,17 +164,30 @@ Panel R2 → każdy bucket → zakładka **Settings**, karta z lokalizacją. Dla
 każdego z bucketów wypisać cztery rzeczy: **nazwę**, **typ lokalizacji**,
 **wartość** (region hintu albo kod jurysdykcji) i **datę odczytu**.
 
-Buckety do objęcia:
+**Tabela jest PUSTA i to jest cały jej sens.** Wiersz bez daty nie mówi nic
+o dzisiejszym stanie (ta sama zasada, co w `BRAMKA_R2.md` §3). Wypełnia ją
+**właściciel**, po zalogowaniu do panelu.
 
-1. oryginały zdjęć (`AWS_BUCKET`) — leży tam pełny EXIF, czyli GPS kuchni,
-2. warianty zdjęć (`AWS_PUBLIC_BUCKET`),
-3. paczki RODO (`AWS_EXPORTS_BUCKET`) — kopia całego konta człowieka,
-4. stary, jeden bucket (`AWS_LEGACY_BUCKET`), jeśli nadal istnieje,
-5. bucket kopii bazy z #193 (dziś na produkcji nieskonfigurowany),
-6. przyszła kwarantanna z #602.
+| # | Bucket | Co odczytać | Typ lokalizacji<br>(Automatic / Hint / Jurisdiction) | Wartość<br>(region hintu albo kod jurysdykcji) | Bucket Lock<br>(jest / nie ma / zakres) | `r2.dev` | Własna domena | Data odczytu | Kto |
+|---|---|---|---|---|---|---|---|---|---|
+| 1 | oryginały zdjęć (`AWS_BUCKET`) — leży tam pełny EXIF, czyli GPS kuchni | lokalizacja + publiczność | | | | | | | |
+| 2 | warianty zdjęć (`AWS_PUBLIC_BUCKET`) | lokalizacja + publiczność | | | | | | | |
+| 3 | paczki RODO (`AWS_EXPORTS_BUCKET`) — kopia całego konta człowieka | lokalizacja + publiczność | | | | | | | |
+| 4 | stary, jeden bucket (`AWS_LEGACY_BUCKET`), jeśli nadal istnieje | lokalizacja + publiczność | | | | | | | |
+| 5 | bucket kopii bazy z #193 — dziś na produkcji **nieskonfigurowany** | lokalizacja + publiczność | | | | | | | |
+| 6 | przyszła kwarantanna z #602 | lokalizacja + publiczność | | | | | | | |
+| 7 | bucket kopii zdjęć z #617 — **jeszcze nie istnieje**, §6a | lokalizacja + rygiel | | | | | | | |
 
-Plus jedna rzecz spoza panelu: **kształt `AWS_ENDPOINT`** — sam segment
-jurysdykcji albo jego brak, **bez identyfikatora konta**.
+Plus trzy rzeczy spoza tej tabeli, też z datą:
+
+| Co odczytać | Gdzie | Wartość | Data odczytu |
+|---|---|---|---|
+| **kształt `AWS_ENDPOINT`** — sam segment jurysdykcji albo jego brak, **BEZ identyfikatora konta** | Railway → `kuking.pl` → Variables (albo jeden przebieg `kuking:bramka-r2`) | | |
+| czy `KUKING_R2_PUBLICZNE_ADRESY` jest ustawione (bez niego bramka #120 daje `NIE WIEMY` w punktach 7 i 8) | Railway → `kuking.pl` → Variables | | |
+| zakładka **Backups** przy serwisie `Postgres`: harmonogramy do wyboru czy komunikat o planie Pro (`KOPIE_I_ODTWORZENIE.md` §5.3) | Railway → `Postgres` → Backups | | |
+
+**Nie wpisuj tu identyfikatora konta Cloudflare ani nazw tokenów.** Ten plik
+jest w repozytorium, a wiersze z tej tabeli trafiają do zgłoszeń na GitHubie.
 
 ---
 
@@ -202,6 +215,105 @@ faktycznie są i na jakiej podstawie, zamiast obiecywać UE.
 
 **Czego nie wolno w żadnym z wariantów:** poprawić polityki bez ustalenia
 faktów albo zostawić w niej „UE" z komentarzem, że pewnie tak jest.
+
+---
+
+## 6a. #617 — ochrona przed logicznym usunięciem. `[REKOMENDACJA — NIE WYKONANA]`
+
+**Stan na 18 IX 2026: nic nie zostało założone ani zmienione.** To jest
+procedura gotowa do wykonania, nie jej wykonanie. Panel Cloudflare jest poza
+zasięgiem tej sesji (§5), a nawet gdyby nie był — ta decyzja ma skutki prawne
+i należy do właściciela.
+
+### Dlaczego NIE WOLNO zaryglować żywego bucketu oryginałów
+
+Odczyt dokumentacji Cloudflare **„Bucket locks"** (18 IX 2026):
+
+- rygiel „prevent the deletion and overwriting of objects […] for a specified
+  period — or indefinitely";
+- regułę da się zawęzić **prefiksem**, a reguła bez prefiksu obejmuje cały
+  bucket; do 1000 reguł na bucket;
+- warunek: wiek w sekundach, konkretna data albo bezterminowo;
+- gdy kilka reguł dotyczy tego samego klucza, **wygrywa najostrzejsza**.
+
+I tu jest sedno problemu, które zamyka drogę „po prostu włączmy rygiel":
+**wszystkie oryginały leżą pod jednym prefiksem `incoming/`**, a prefiks nie
+niesie informacji o właścicielu zdjęcia. Rygiel na `incoming/` obejmie więc
+tak samo zdjęcia, których nikt nie zgłosił do usunięcia, jak i te, o których
+usunięcie ktoś **właśnie poprosił** — a `EraseAccountData` i procedura RODO
+muszą móc je skasować. Rygiel bezterminowy zamieniłby prawo do usunięcia
+danych w obietnicę bez pokrycia, i to w sposób **nieodwracalny**: reguły
+rygla z założenia nie dają się poluzować.
+
+> **Zasada, którą trzeba tu utrzymać (z samego #617):** retencja techniczna
+> to co innego niż aktywne dane użytkownika. Kopia wolno, żeby przeżyła
+> żądanie usunięcia o **ograniczony, zapisany** czas. Nie wolno, żeby
+> wracała do produktu i żeby trwała bezterminowo.
+
+### Co rekomendować zamiast tego — wariant B z #617, w trzech krokach
+
+**Krok 1. Osobny bucket kopii, nie rygiel na produkcyjnym.**
+
+- nowy bucket, np. `kuking-zdjecia-kopia`, **ta sama jurysdykcja** co
+  oryginały (inaczej kopia rozjeżdża się z polityką prywatności — §2),
+- **bez własnej domeny, `r2.dev` WYŁĄCZONE.** Ten bucket nie jest serwowany
+  nikomu, nigdy. To jest ta sama zasada, co przy buckecie kopii bazy
+  (`KOPIE_I_ODTWORZENIE.md` §7.3 krok 1),
+- **osobny token**, i to dwa: zapisu — wyłącznie dla procesu kopiującego,
+  odczytu — dla ewentualnego odtworzenia. **Aplikacja nie dostaje żadnego
+  z nich.** Gdyby dostała prawo zapisu, udany atak na nią kasowałby razem
+  z oryginałami także ich kopie, czyli dokładnie to, przed czym ta warstwa
+  ma chronić.
+
+**Krok 2. Rygiel — ale TYLKO na buckecie kopii i TYLKO na czas.**
+
+- jedna reguła, warunek **wieku**, `MaxAgeSeconds = 2592000` (30 dni),
+- **nigdy `indefinite`, nigdy data odległa.** Bezterminowy rygiel na danych
+  osobowych to zobowiązanie, którego nie da się cofnąć,
+- 30 dni to ta sama liczba, co retencja kopii bazy (`KOPIA_RETENCJA_DNI`),
+  i to jest celowe: jedno okno do zapamiętania, jedno do wytłumaczenia
+  w rejestrze czynności przetwarzania.
+
+**Krok 3. Pogodzenie z prawem do usunięcia — zapisane, zanim się włączy.**
+
+| Co się dzieje | Produkcja | Bucket kopii |
+|---|---|---|
+| użytkownik prosi o usunięcie konta | obiekty znikają **natychmiast**, dotychczasową drogą (`EraseAccountData`) | kopia zostaje, **maksymalnie 30 dni**, po czym wygasa sama |
+| ktoś odtwarza z kopii | — | odtwarza się **wyłącznie** obiekty, których nie objęło żądanie usunięcia; listę bierze się z bazy, nie z bucketu |
+| ktoś pyta, gdzie są jego dane | odpowiedź obejmuje kopię i jej okno 30 dni | — |
+
+Tego ostatniego wiersza nie da się załatwić kodem: **to jest zdanie do
+dopisania w polityce prywatności i rozstrzygnięcia razem z #8**, dokładnie
+tak jak wariant B z §6. Bez niego rygiel nie ma prawa powstać.
+
+### Koszt — wg cennika R2 z 18 IX 2026
+
+Standard storage **0,015 USD / GB-miesiąc**, egress **darmowy**, klasa A
+(zapis/lista) **4,50 USD / mln żądań**, klasa B (odczyt) **0,36 USD / mln**.
+Darmowy próg miesięczny: **10 GB-miesiąc**, 1 mln żądań klasy A, 10 mln klasy B.
+
+Dopóki komplet zdjęć mieści się w kilku GB, **kopia mieści się w darmowym
+progu** albo kosztuje grosze; kopiowanie raz na dobę to żądania klasy A liczone
+w tysiącach, nie milionach. **Koszt nie jest tu argumentem za odkładaniem
+decyzji** — czasem jest, tu nie jest.
+
+### Obowiązkowa próba odtworzenia (definicja gotowości #617)
+
+Na **koncie testowym albo na kilku kontrolnych obiektach własnych**, nigdy na
+cudzych zdjęciach: skasować obiekt finalny, odtworzyć go z bucketu kopii,
+porównać `sha256` i rozmiar, sprawdzić, że wariant i wpis znów się pokazują,
+zapisać RPO (odstęp kopiowania) i RTO (czas odtworzenia). Dopiero ten wiersz
+zamyka #617 — tak samo jak tabela w `KOPIE_I_ODTWORZENIE.md` §5 zamyka #193.
+
+### Czego świadomie NIE rekomendujemy
+
+- **Rygla na buckecie oryginałów** — powód wyżej;
+- **wersjonowania obiektów zamiast kopii** — R2 trzyma wtedy stare wersje
+  w TYM SAMYM buckecie i pod tymi samymi poświadczeniami, więc token z prawem
+  zapisu nadal je dosięga. To nie chroni przed scenariuszem z #617;
+- **nazywania trwałości R2 kopią zapasową.** Jedenaście dziewiątek dotyczy
+  awarii nośnika, a nie poprawnie wykonanego `DELETE` (wariant C z #617 wolno
+  wybrać, ale trzeba go wtedy **nazwać** akceptacją ryzyka, z datą powrotu).
 
 ---
 

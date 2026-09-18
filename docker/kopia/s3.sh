@@ -236,3 +236,36 @@ s3_lista_kluczy() {
   tr '<' '\n' <"${plik}" | sed -n 's/^Key>//p'
   rm -f "${plik}"
 }
+
+# -----------------------------------------------------------------------------
+#  s3_lista_kluczy_do_pliku — to samo listowanie, ale klucze lądują w PLIKU.
+#
+#    $1 prefiks   jak wyżej
+#    $2 plik      gdzie zapisać klucze (po jednym na linię)
+#
+#  Kod powrotu jak w `s3_lista_kluczy`: 0, 1 (błąd HTTP), 2 (lista obcięta).
+#
+#  PO CO TO ISTNIEJE — USTERKA ODTWORZONA 18.09.2026
+#  `s3_lista_kluczy` wypisuje klucze na standardowe wyjście, więc naturalne
+#  wywołanie brzmi `klucze="$(s3_lista_kluczy baza/)"`. I to jest pułapka:
+#  podstawienie poleceń uruchamia funkcję w PODPOWŁOCE, a `S3_KOD` ustawia
+#  się właśnie w niej — i ginie razem z nią. Wołający dostawał kod powrotu 1
+#  i PUSTĄ zmienną, więc komunikat „HTTP ${S3_KOD:-brak}" zawsze kończył się
+#  słowem „brak" — mimo że ta biblioteka obiecuje w nagłówku `s3_zadanie`,
+#  że przy błędzie kod HTTP USTAWIA.
+#
+#  Dlaczego to nie jest kosmetyka. Zmierzone wobec prawdziwego endpointu S3
+#  (MinIO w kontenerze, ta sama ścieżka co R2): token bez prawa do bucketu
+#  daje 403, a bucket o złej nazwie 404. To są dwie różne awarie
+#  z dwiema różnymi naprawami — jedna to uprawnienia tokenu, druga to
+#  literówka w nazwie albo bucket, którego nikt nie założył. W logu wyglądały
+#  identycznie, a alarm ma dla obu ten sam odcisk, bo liczy się go z etapu
+#  i kodu wyjścia. Człowiek o trzeciej nad ranem nie miał z czego zgadnąć,
+#  czego szukać.
+#
+#  Przekierowanie do pliku podpowłoki NIE TWORZY (w odróżnieniu od `$( )`),
+#  więc `S3_KOD` dożywa do komunikatu w `kopia-bazy.sh`.
+# -----------------------------------------------------------------------------
+s3_lista_kluczy_do_pliku() {
+  s3_lista_kluczy "$1" >"$2"
+}

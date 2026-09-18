@@ -337,6 +337,78 @@ wynik="$(
 sprawdz "razem z kopią ginie jej plik .meta" "1" "${wynik}"
 
 # =============================================================================
+echo "── Kod HTTP z listowania bucketu dożywa do komunikatu (#594) ──"
+# =============================================================================
+#
+#  USTERKA ODTWORZONA 18.09.2026 na PRAWDZIWYM endpoincie S3 (MinIO
+#  w kontenerze, ta sama ścieżka co R2). `s3_lista_kluczy` wypisuje klucze
+#  na standardowe wyjście, więc oba miejsca wołały ją przez `$( )` — czyli
+#  w PODPOWŁOCE. `S3_KOD` ustawia się w tej podpowłoce i ginie razem z nią,
+#  więc komunikat „HTTP ${S3_KOD:-brak}" kończył się słowem „brak" ZAWSZE.
+#
+#  Zmierzone: token bez prawa do bucketu → 403, bucket o złej nazwie → 404.
+#  Dwie różne awarie, dwie różne naprawy, jeden nieodróżnialny komunikat
+#  i — bo odcisk alarmu liczy się z etapu i kodu wyjścia — jeden
+#  nieodróżnialny alarm. Te asercje patrzą na TREŚĆ komunikatu, bo kod
+#  wyjścia był poprawny przez cały czas trwania usterki.
+
+# Podstawiamy samo `s3_lista_kluczy` — dokładnie tak, jak zachowuje się
+# prawdziwa biblioteka: ustawia `S3_KOD` i zwraca 1.
+listowanie_wynik() { # listowanie_wynik <funkcja> <kod HTTP> <kod powrotu>
+  local funkcja="$1" kod_http="$2" kod_powrotu="$3"
+  (
+    wczytaj
+    PREFIKS='baza/'
+    KATALOG_ROBOCZY="$(mktemp -d)"
+    s3_lista_kluczy() {
+      S3_KOD="${kod_http}"
+      return "${kod_powrotu}"
+    }
+    alarm() { :; }
+    ("${funkcja}" 2>&1 >/dev/null)
+    rm -rf "${KATALOG_ROBOCZY}"
+  )
+}
+
+wynik="$(listowanie_wynik sprawdz_poprzednia_kopie 403 1 | grep -c 'HTTP 403')"
+sprawdz "brak uprawnień tokenu mówi w logu HTTP 403, nie „brak\"" "1" "${wynik}"
+
+wynik="$(listowanie_wynik sprawdz_poprzednia_kopie 404 1 | grep -c 'HTTP 404')"
+sprawdz "nieistniejący bucket mówi w logu HTTP 404, nie „brak\"" "1" "${wynik}"
+
+# Kontrola ujemna wbudowana w zestaw: gdyby ktoś wrócił do `$( )`, ten test
+# zobaczyłby słowo „brak" i oblał. Asercja jest napisana wprost na tamten stan.
+wynik="$(listowanie_wynik sprawdz_poprzednia_kopie 403 1 | grep -c 'HTTP brak')"
+sprawdz "komunikat NIE mówi „HTTP brak\", gdy kod HTTP jest znany" "0" "${wynik}"
+
+wynik="$(listowanie_wynik retencja 403 1 | grep -c 'HTTP 403')"
+sprawdz "retencja też podaje kod HTTP listowania" "1" "${wynik}"
+
+# Lista obcięta (`IsTruncated`) to NIE jest błąd HTTP — `s3_lista_kluczy`
+# zwraca wtedy 2, `S3_KOD` jest 2xx i mówienie o „HTTP 200" wprowadzałoby
+# w błąd. To musi być osobne zdanie, bo i naprawa jest inna.
+wynik="$(listowanie_wynik sprawdz_poprzednia_kopie 200 2 | grep -c 'OBCIĘTĄ')"
+sprawdz "obcięta lista nazywa się obciętą, a nie błędem HTTP" "1" "${wynik}"
+
+wynik="$(listowanie_wynik retencja 200 2 | grep -c 'nie kasuję niczego')"
+sprawdz "retencja przy obciętej liście nie kasuje NICZEGO" "1" "${wynik}"
+
+# Porażka retencji nadal NIE jest porażką kopii — kopia już leży w buckecie.
+wynik="$(
+  wczytaj
+  PREFIKS='baza/'
+  KATALOG_ROBOCZY="$(mktemp -d)"
+  s3_lista_kluczy() {
+    S3_KOD='403'
+    return 1
+  }
+  alarm() { :; }
+  retencja >/dev/null 2>&1
+  printf 'kod=%s' "$?"
+)"
+sprawdz "nieudane listowanie w retencji nie przerywa przebiegu" "kod=0" "${wynik}"
+
+# =============================================================================
 echo "── Wysyłka i POTWIERDZENIE, że obiekt naprawdę tam jest ──"
 # =============================================================================
 #
