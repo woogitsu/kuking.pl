@@ -4,6 +4,31 @@ Status: **W TRAKCIE**, lokalna gałąź `feat/372-poradzcie`, baza kodu
 `55877e2b5c0aff04d93e6db75f079c7e61d4df5d`. Ten raport nie potwierdza
 wdrożenia funkcji ani zakończenia portu marki.
 
+## Aktualny stan odbioru — 18 września 2026
+
+Ten blok ma pierwszeństwo przed historycznymi zapisami sesji poniżej.
+Kod `3c93027488a6de6c8a16b38b122e1c5e29f2ca22` jest na GitHub w draft PR #680.
+Pełny port marki nadal **CZĘŚCIOWO**. Funkcja jest domyślnie wyłączona.
+
+| Zakres | Potwierdzone | Pozostało |
+|---|---|---|
+| Kod i kontrola wysyłki | Zwykły hook dla 3c93027 PASS; CI35344659078: wszystkie12zadań success, SHA zgodne z PR680 | Ponowne CI po ewentualnej zmianie źródeł |
+| Publikowanie | Prawdziwe POST, walidacja i old(), hashtagi, publikacja bez JS, zachowanie uploadu; typowe zdjęcie po pełnym workerze i odczyt czterech wariantów | Odbiór produkcyjny po wdrożeniu |
+| Odpowiedzi | Odpowiedź drugiej osoby, powiadomienie autora i przejście do pytania; walidacja rozmowy zagnieżdżonej | Całościowy ogląd pozostałych stanów i paginacji |
+| Gospodarz | Logowanie i włączenie 2FA przez formularze, odpowiedź usuwa pytanie z kolejki 2→1 | Pozostałe stany moderacji i uprawnień w przeglądarce |
+| Formularz przy powiększeniu | Rzeczywisty zoom 200%, tekst140%, szerokość treści320/720, oba motywy; błąd odsłonięty i opis zachowany | Pozostałe konfiguracje i kontrolki; nie tylko brak overflow |
+| Wspólny widget | Regresja zasłaniania błędów, fizyczny negatyw JS i przywrócenie MD5/mtime; niezależne review | Zwykłe teksty są nadal miejscowo przykrywane na zrzutach listy/szczegółu |
+| Szersze regresje | Część baza 335,67 s; rozszerzenia 1281,84 s PASS na kuking_port_372, w tym 88 wariantów rzeczywistego zoomu 200% | Wcześniejsze dwa błędy konfiguracji bazy zachowane w historii poniżej |
+| Uruchomienie | Brak potwierdzonego wdrożenia tego pakietu | Merge po bramkach, beta, odbiór SHA i kontrolowane publiczne włączenie |
+
+Przykład powiadomienia w #372 doprecyzowano na „Anna — odpowiedź na Twoje
+pytanie.” zgodnie z bezrodzajowym stylem wspólnych powiadomień po #38.
+Nie rozpoznajemy płci po nazwie konta. Zachowane są wymagania dotyczące autora,
+zdarzenia i właściwego odnośnika. Ta korekta nie stanowi odbioru wdrożenia.
+
+Poniższe sekcje są historią dowodów: dawne określenia „trwa” albo „brakuje”
+opisują moment danego zapisu, a nie stan wszystkich późniejszych poprawek.
+
 ## Przeprowadzone scenariusze
 
 18 września 2026, Chromium, lokalna aplikacja Laravel na porcie 8372,
@@ -228,3 +253,67 @@ wyłączeniu warunku w JS, zgodne przywrócenie MD5 i mtime jak wyżej, ponowny
 build i PASS. Nie jest to wynik całego port-projektu. Readonly review372 nie
 znalazło pewnego blokera w interakcjach z fokusowaniem, przewijaniem i
 otwieraniem panelu. Żaden test ani push nie trwa po zakończeniu tej próby.
+
+## Kolejka gospodarza — rzeczywisty odbiór lokalny
+
+Po zakończeniu hooka dla 3c93027 (PASS, zdalny SHA potwierdzony w PR680)
+przygotowano odrębne lokalne konto moderatora. Hasło i formularz włączenia
+2FA sprawdzono rzeczywistymi POST; kod TOTP obliczono z sekretu pokazanego
+przez aplikację, bez wyłączenia middleware i bez wpisania potwierdzenia do DB.
+Sesję zapisano wyłącznie poza repo, nie do dowodów.
+
+GET /admin/bez-odpowiedzi?typ=pytania zwrócił200, właściwy nagłówek i
+„Czeka na odpowiedź (2)”. Dwie karty, brak poziomego overflow przy390px.
+Pytanie wcześniej obsłużone przez drugą osobę nie występowało w kolejce.
+Kliknięcie „Otwórz i odpowiedz”, wpisanie odpowiedzi i rzeczywisty POST
+usunęły wybrane pytanie z kolejki; liczba kart spadła2→1.
+Dowód: host372-results.json oraz dwa obejrzane zrzuty host372-*.png.
+Scenariusz obejmuje jedno pytanie, nie paginację ani wszystkie stany moderacji.
+Zrzuty pełnej strony zawierają podpowiedź wyglądu oraz nawigację; nie są
+dowodem braku zasłaniania każdego fragmentu podczas przewijania.
+Nie dotykano kont ani danych produkcyjnych.
+
+## Korekta konfiguracji pełnego odbioru
+
+Drugi przebieg rozszerzeń potwierdził K509 (432 konfiguracje), K511 (96),
+K513 (96), NOTICE (24) i zwarte kolumny (24). Zatrzymał się na strażniku
+PWA: wymagany prefiks kuking_port_ z podkreśleniem. Nie jest to dowód
+usterki produktu ani wynik PASS całej grupy. Zabezpieczenia pozostawiono
+bez zmian. Runtime po zakończeniu miał pusty diff śledzonych źródeł.
+
+Helper lokalny poprawiono na kuking_port_372; ponowny przebieg rozpoczęty.
+Log poprzedniej próby: /home/mateusz/kuking-port372-attempt2.log.
+Wynik nowej próby pozostaje nieznany.
+
+Na poprawnej bazie kuking_port_372 scenariusz PWA przeszedł24/24, w tym
+HTTP/DB/reload i cleanup; samo API instalacji jest syntetyczne. Przeszły
+też24sceny paska (z reduced motion),48prób przycisku rejestracji oraz
+36geometrii ustawień wyglądu i ścieżka bez JS. Końcowy rzeczywisty zoom
+całej grupy nadal trwa — nie jest to jeszcze PASS całego port-projektu.
+
+
+Ogląd dwóch zrzutów bieżącej nawigacji492: blad-true-true oraz
+home-false-true. Podsumowanie błędu na pierwszym pozostaje czytelne, ale
+pływający Wygląd przykrywa część zwykłej treści sprawy niżej. Potwierdza to
+już wskazane ograniczenie widgetu, nie nową pełną akceptację zasłaniania.
+Na drugim zrzucie oba przyciski dodawania są czytelne; zrzut obejmuje
+jedną pozycję przewijania, nie całą ścieżkę. Kopie w lokalnym output/port372-*.
+
+
+### Odbiór zdjęcia i zakończenie rozszerzeń — 18.09.2026
+
+Na źródłach 3c93027 wykonano rzeczywistą publikację przez formularz na izolowanej bazie kuking_372_browser (55439). Zwykłe zdjęcie WEBP 1448×1086 zostało zachowane po odrzuceniu tytułu „Zupa”; formularz zachował jedno media_ids[] i poinformował o zachowaniu pliku. Po poprawieniu tytułu, bez ponownego wybierania zdjęcia, powstało pytanie 01a0b4a9-4fbd-70d6-abd6-82902cc05dec z medium 01a0b4a9-10c3-706f-a058-b1852710ac5f. Rzeczywisty worker kolejki media zakończył dwa zadania ProcessUploadedImage i zatrzymał się przy pustej kolejce. Po przewinięciu do lazy-loaded zdjęcia przeglądarka zdekodowała wariant feed: complete=true, naturalWidth=720, naturalHeight=540. Zrzut photo372-published.png obejrzany: fotografia jest widoczna. Pływająca nawigacja i podpowiedź wyglądu znajdują się na zrzucie całej strony po przewinięciu; nie jest to dowód pełnego odbioru zasłaniania. Nie sprawdzono jeszcze kompletu wariantów magazynu.
+
+Końcowy log /home/mateusz/kuking-port372.log potwierdza PORT_CZAS grupa=rozszerzenia sekundy=1281.84, ZOOM200_OK 88 wariantów oraz PORT_OK. Wcześniejsze nieudane uruchomienia z błędnym prefiksem bazy pozostają opisane powyżej; nie są ukrywane. Jest to dowód lokalny, nie odbiór produkcyjny.
+
+### Uzupełnienie odczytu magazynu i odpowiedzi 320 px
+
+photo372-storage.json: stan ready; pliki odczytano z faktycznego dysku i zdekodowano: feed960×720, large1448×1086, thumb320×240, podglad640×480. Rozmiary zgadzają się z metadanymi; exif_stripped=true jest zapisaną deklaracją procesu (nie osobnym skanem EXIF). Wcześniejszy odczyt naturalWidth720 w przeglądarce nie jest wymiarem pliku feed — powyższy odczyt dotyczy bajtów magazynu.
+
+Przy viewport320×780 opublikowano odpowiedź główną i odpowiedź zagnieżdżoną rzeczywistymi formularzami. Akcja summary „Odpowiedz” dała się nacisnąć, formularz wypełnić i wysłać; jeden zapisany akapit odpowiedzi potwierdzono po POST. Brak overflow poziomego. Obejrzany answer372-320.png pokazuje ciasny układ przy dużym tekście i obecność stałych pasków. Tekst głównej odpowiedzi odsłonięto przewijaniem (elementFromPoint w środku trafia w akapit). Nie stanowi to globalnego pomiaru wszystkich kontrolek. Dwa błędy pomocników były błędami lokalizatorów: summary nie występuje jako button w tym silniku, a getByText wskazał jednocześnie akapit i textarea edycji. Zawężenie lokalizatorów potwierdziło działanie; nie powtarzano udanego POST.
+
+### Paginacja i niezależny review końcowy
+
+18.09, rzeczywista przeglądarka, lokalne /pytania?filtr=bez-odpowiedzi: pierwsza strona15pytań, kliknięcie „Pokaż więcej pytań” prowadzi do4kolejnych. Brak wspólnych identyfikatorów między stronami; filtr i cursor zachowane. Scena zawiera18jawnie testowych pytań utworzonych wyłącznie w kuking_372_browser; nie dodawano treści na produkcji. Pierwszy pomocnik nie zapisał wyniku, ponieważ URL nie istnieje w jego sandboxie; ponowny odczyt przez zwykłe linki potwierdził rezultat.
+
+Niezależny agent review372_final odczytał diff55877e2..3c93027, testy i raport: nie znalazł nowego blokera merge w widoczności, blokadach, flagach, licznikach/QAPage, zachowaniu dzieci usuniętej odpowiedzi, strażniku rollbacku ani formularzach. Nie wykonywał testów ani przeglądarki. To review statyczne, nie niezależne powtórzenie moich wyników. Dalsze stany moderacji w przeglądarce i etapowe uruchomienie pozostają niepotwierdzone.
