@@ -3,9 +3,9 @@
 {{--
     Sekcja „Tagi" w formularzu wpisu (D-021) — podgląd, usuwanie i awaryjne
     dodawanie tagów.
-    DZIAŁA BEZ JAVASCRIPTU (AGENTS.md §5). Trzy osobne przyciski w TYM SAMYM
-    formularzu co „Opublikuj"/„Zapisz zmiany": „Znajdź tag", „Dodaj" przy
-    każdej podpowiedzi i „Usuń" przy każdym wybranym tagu. Każde kliknięcie
+    DZIAŁA BEZ JAVASCRIPTU (AGENTS.md §5). Główna ścieżka prowadzi przez
+    hashtag w opisie; awaryjny panel nadal ma zwykłe przyciski „Sprawdź tag",
+    „Dodaj" i „Usuń" w TYM SAMYM formularzu co publikacja. Każde kliknięcie
     to zwykły POST przeładowujący stronę — `PostController` rozpoznaje, że to
     krok pośredni, i NIE próbuje wtedy publikować wpisu.
 
