@@ -15,7 +15,7 @@
     <x-error-summary />
 
     @if($collections->isEmpty())
-        <x-empty-state title="Zeszyt jest jeszcze pusty" action="Poszukaj przepisów" :href="route('discover')">
+        <x-empty-state title="Zeszyt jest jeszcze pusty" action="Poszukaj przepisów" :href="route('search', ['sekcja' => 'przepisy'])">
             Kiedy znajdziesz przepis albo czyjeś danie, które chcesz zachować,
             kliknij przy nim „Zapisuję”. Zapisane rzeczy znajdziesz w swoim zeszycie.
         </x-empty-state>

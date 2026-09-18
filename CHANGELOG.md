@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.65 — odnośniki prowadzą tam, gdzie obiecują
+
+- „Poszukaj przepisów” w pustym zeszycie otwiera wyszukiwarkę przepisów. Odnośnik nad przepisem prowadzący do tablicy wpisów ma teraz zgodną z nią nazwę „Świeżo z Kuking”.
+
 ## Alfa 0.64 — wykonania i odpowiedzi liczone uczciwie
 
 - Przy przepisie liczba wykonań obejmuje także kolejne gotowania tej samej osoby. Podpisy mówią teraz o wykonaniach i odpowiedziach, zamiast przedstawiać je jako liczbę osób.
