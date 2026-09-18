@@ -1,5 +1,10 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
+
+- Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
+- Kafel pokazuje dostępne publiczne zdjęcie wpisu i jego autora. Gdy zdjęcia brakuje, pozostaje czytelna nazwa, licznik wpisów i znak Kuking.
+
 ## Alfa 0.66 — porządek w rozmowach i przygotowanie Poradźcie
 
 - Przy błędzie odpowiedzi lub poprawki komentarza formularz zachowuje tekst i wskazuje właściwe pole.

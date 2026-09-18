@@ -531,3 +531,12 @@ Zakres nie obejmuje nowych uploadów, maksymalnych danych, wszystkich pól
 fokusu, naturalnego wygaśnięcia sesji, 429 przy zoomie ani fizycznych urządzeń.
 Nie dowodzi samoczynnego odsłonięcia celu przez sam Tab. Historyczne ograniczenia
 pozostają ważne poza tym zakresem. Pełny port marki nadal CZĘŚCIOWO.
+
+## Fotograficzny katalog tagów — #681, roboczy odbiór lokalny
+
+A–Z otrzymał szerszą ramę i karty z publicznymi zdjęciami oraz podpisami.
+[Raport](FOTOGRAFICZNE_TAGI_681.md) rozdziela pomiar 36 konfiguracji,
+rzeczywisty zoom 200%, obsługę myszy/emulowanego dotyku/Tab i kontrole
+ujemne od ograniczeń. Lokalny axe nie znalazł naruszeń w siatce; kontrast
+fotografii wymagał osobnego obliczenia. CI i produkcja tego pakietu jeszcze
+niepotwierdzone. Nie zmienia to statusu pełnego portu: **CZĘŚCIOWO**.
