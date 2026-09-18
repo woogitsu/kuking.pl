@@ -188,9 +188,10 @@ class NieudanyDzwonekNieKupujeCiszyTest extends TestCase
         $zapis = Cache::get(self::KLUCZ_POLACZEN);
 
         $this->assertIsArray($zapis, 'Pamięć po nieudanym odwołaniu ma zostać — inaczej odwołanie przepada.');
-        $this->assertTrue($zapis['odwolanie_nieudane'] ?? false, 'Bez tego znacznika odwołanie ponawia się bez przerwy.');
+        $this->assertSame(StanPolaczenBazy::SPOKOJNY, $zapis['proba_stan'], 'Próba odwołania musi być odróżniona od próby alarmu.');
         $this->assertGreaterThan(0, (int) ($zapis['proba_o'] ?? 0), 'Próba ma zostać odnotowana.');
-        $this->assertTrue($zapis['epizod_zamkniety'] ?? false, 'Bez tego znacznika POWRÓT awarii dostanie ciszę należną zamkniętemu epizodowi.');
+        $this->assertSame(0, $zapis['cisza_do'], 'Zamknięty epizod nie daje ciszy nawrotowi.');
+        $this->assertSame(StanPolaczenBazy::KRYTYCZNY, $zapis['przyjety_stan'], 'Nieprzyjęte odwołanie nie kasuje przyjętego alarmu.');
     }
 
     /**

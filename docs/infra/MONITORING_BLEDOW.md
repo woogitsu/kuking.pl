@@ -633,6 +633,35 @@ wpaść w ciszę kupioną przez porażkę. Tak samo traktowane jest odwołanie
 „wróciło do normy”: nieprzyjęte nie kasuje pamięci alarmu, a alarm, który do
 nikogo nie doszedł, nie dostaje odwołania w ogóle.
 
+**Doprecyzowanie po odbiorze #687 — 18 września 2026.** Pamięć w wersji 2
+rozdziela obserwowany stan, ostatnią próbę (stan i czas), ostatni przyjęty
+alarm (stan i czas) oraz termin ciszy bieżącego epizodu. Odrzucona eskalacja
+nie usuwa wcześniejszego przyjętego ostrzeżenia: późniejsze odwołanie nazywa
+właśnie ten przyjęty stan. Zaobserwowany spokój kończy ciszę także przy
+wyłączonym kanale albo nieprzyjętym odwołaniu. Nawrót jest nową informacją;
+jego odrzucona próba nie przywraca ciszy poprzedniego epizodu. Po nieudanej
+próbie ponowienie tego samego stanu czeka pięć minut; po przyjęciu alarmu
+obowiązuje długa cisza. Zmiana stanu jest wysyłana od razu.
+
+Stare `o` oznacza tylko próbę, nigdy przyjęcie. Format z `dostarczony_o`
+zachowuje przyjęty alarm do odwołania i krótki odstęp między próbami, ale
+nie odtwarza długiej ciszy: historyczny zapis nie rozróżniał poprawnie
+nawrotu od trwającej awarii. Migracja pamięci może więc dać jedną dodatkową
+wiadomość. Czyszczenie lub wygaśnięcie cache nadal może zgubić odwołanie;
+równoczesne wysyłki nie są serializowane. Nie dodano trwałej kolejki doręczeń.
+
+Lokalny dowód tego uzupełnienia: `EpizodyAlarmowTest` sprawdza 12 scenariuszy
+dla obu klas (24 testy), a wraz z `NieudanyDzwonekNieKupujeCiszyTest`:
+**46 testów / 237 asercji**. Transport jest atrapą `Http::fake()`, cache
+działa w pamięci; przebieg nie używa bazy i nie wysyła prawdziwego webhooka.
+Osiem fizycznych kontroli ujemnych (cztery zmiany osobno w każdej klasie)
+obaliło właściwą asercję: utrata przyjętego alarmu, odtworzenie starej ciszy,
+uznanie starej próby za przyjęcie oraz pomijanie obserwacji przy wyłączonym
+kanale. Po każdej przywrócono bajty i mtime z kopii poza repo; po całej serii
+24 nowe testy przeszły ponownie. To nie jest odbiór infrastruktury ani dowód,
+że człowiek otrzymał alarm produkcyjny. Pełny hook i CI tego uzupełnienia
+pozostają do wykonania przez koordynatora.
+
 **I to nadal jest tylko przyjęcie.** Kod 2xx znaczy „usługa przyjęła
 wiadomość”, nie „człowiek ją zobaczył”. Tej drugiej rzeczy nie sprawdza ani ten
 mechanizm, ani żaden test — zależy od tego, na który kanał Discorda albo

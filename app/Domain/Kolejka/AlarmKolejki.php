@@ -76,84 +76,109 @@ final class AlarmKolejki
     public function zadzwonJesliTrzeba(array $wynik): bool
     {
         $stan = (string) ($wynik['stan'] ?? '');
+        $spokojny = $stan === StanKolejki::SPOKOJNA;
 
-        if (! in_array($stan, self::ALARMUJACE, true)) {
-            return $this->odwolajJesliTrzeba($stan);
-        }
-
-        if (! $this->kanalWlaczony() || ! $this->wolnoDzwonic($stan)) {
+        if (! $spokojny && ! in_array($stan, self::ALARMUJACE, true)) {
             return false;
         }
 
-        $przyjeto = $this->kanalPrzyjal($this->tresc($wynik));
-
-        // Pamięć zapisuje się ZAWSZE po próbie, ale zapisuje DWIE RÓŻNE
-        // rzeczy: „kanał to przyjął o tej godzinie" albo „próbowaliśmy
-        // o tej godzinie i się nie udało". Tylko pierwsza kupuje ciszę.
-        $this->zapamietajProbe($stan, $przyjeto);
-
-        return $przyjeto;
-    }
-
-    private function odwolajJesliTrzeba(string $stan): bool
-    {
-        if ($stan !== StanKolejki::SPOKOJNA || ! $this->kanalWlaczony()) {
+        $zapis = Cache::get(self::KLUCZ);
+        // Bez kanału i bez wcześniejszego alarmu nie tworzymy pamięci.
+        // Istniejący alarm nadal obserwujemy: spokój unieważnia jego ciszę
+        // także wtedy, gdy wysłanie odwołania jest chwilowo wyłączone.
+        if (! is_array($zapis) && ! $this->kanalWlaczony()) {
             return false;
         }
 
-        $poprzedni = Cache::get(self::KLUCZ);
-
-        if (! is_array($poprzedni)) {
-            return false;
+        $pamiec = $this->odczytajStan(is_array($zapis) ? $zapis : []);
+        $zmiana = $pamiec['stan'] !== $stan;
+        if ($zmiana) {
+            $pamiec['cisza_do'] = 0;
         }
+        $pamiec['stan'] = $stan;
 
-        // ALARMU, KTÓRY DO NIKOGO NIE DOSZEDŁ, NIE MA CZEGO ODWOŁYWAĆ.
-        // „Kolejka wróciła do normy (poprzedni stan: zaleglosc)" wysłane po
-        // awarii, o której właściciel nigdy się nie dowiedział, jest gorsze
-        // niż cisza: opisuje zdarzenie, którego nikt nie widział.
-        if ($this->dostarczoneO($poprzedni) === 0) {
+        if ($spokojny && $pamiec['dostarczony_o'] === 0) {
             Cache::forget(self::KLUCZ);
 
             return false;
         }
 
-        if (! $this->wolnoPonowicOdwolanie($poprzedni)) {
+        Cache::put(self::KLUCZ, $pamiec, $this->pamiec());
+        if (! $this->kanalWlaczony()) {
             return false;
         }
 
-        $przyjeto = $this->kanalPrzyjal(sprintf(
-            'kolejka wróciła do normy (poprzedni stan: %s).',
-            (string) ($poprzedni['stan'] ?? 'nieznany'),
-        ));
-
-        if (! $przyjeto) {
-            // Odwołanie, którego kanał nie potwierdził, NIE jest odwołaniem.
-            // Pamięć zostaje — skasowana znaczyłaby „odwołane" i człowiek
-            // zostałby z alarmem bez zakończenia.
-            //
-            // `epizod_zamkniety`: ten alarm już się skończył, więc
-            // POWRÓT tej samej awarii ma być nowym zdarzeniem, a nie
-            // powtórzeniem starego. Bez tego wracająca zaległość trafiała
-            // na pełne okno ciszy — zmierzone: cztery przebiegi czujki,
-            // kanał sprawny, zero żądań HTTP (zastrzeżenie recenzji #687).
-            $poprzedni['epizod_zamkniety'] = true;
-            $poprzedni['proba_o'] = $this->teraz();
-            $poprzedni['odwolanie_nieudane'] = true;
-            Cache::put(self::KLUCZ, $poprzedni, $this->pamiec());
-
+        // Zmiana obserwowanego stanu jest nową informacją. Dla tego samego
+        // stanu osobno sprawdzamy termin ciszy i krótką przerwę po próbie.
+        if (! $zmiana && $pamiec['proba_stan'] === $stan && $this->teraz() < max(
+            $pamiec['cisza_do'],
+            $pamiec['proba_o'] + self::PONOWIENIE_PO_NIEUDANEJ_MINUT * 60,
+        )) {
             return false;
         }
 
-        Cache::forget(self::KLUCZ);
+        $tresc = $spokojny
+            ? sprintf('kolejka wróciła do normy (poprzedni stan: %s).', $pamiec['przyjety_stan'])
+            : $this->tresc($wynik);
+        $przyjeto = $this->kanalPrzyjal($tresc);
 
-        return true;
+        if ($spokojny && $przyjeto) {
+            Cache::forget(self::KLUCZ);
+
+            return true;
+        }
+
+        $pamiec['proba_stan'] = $stan;
+        $pamiec['proba_o'] = $this->teraz();
+        if ($przyjeto) {
+            $pamiec['przyjety_stan'] = $stan;
+            $pamiec['dostarczony_o'] = $this->teraz();
+            $pamiec['cisza_do'] = $this->teraz() + max(1, (int) config('kuking.kolejka.cisza_godzin')) * 3600;
+        }
+        // Porażka nie nadpisuje przyjętego alarmu ani nie odtwarza ciszy
+        // zakończonego epizodu. Odwołujemy ostatni PRZYJĘTY stan.
+        Cache::put(self::KLUCZ, $pamiec, $this->pamiec());
+
+        return $przyjeto;
     }
 
     /**
-     * Metoda publiczna, bo to ONA jest przedmiotem testu „czego tu nie ma".
-     *
-     * @param  array<string, mixed>  $wynik
+     * @param  array<string, mixed>  $zapis
+     * @return array{wersja: int, stan: string, proba_stan: string, proba_o: int, przyjety_stan: string, dostarczony_o: int, cisza_do: int}
      */
+    private function odczytajStan(array $zapis): array
+    {
+        if (($zapis['wersja'] ?? null) === 2) {
+            return [
+                'wersja' => 2,
+                'stan' => (string) ($zapis['stan'] ?? ''),
+                'proba_stan' => (string) ($zapis['proba_stan'] ?? ''),
+                'proba_o' => (int) ($zapis['proba_o'] ?? 0),
+                'przyjety_stan' => (string) ($zapis['przyjety_stan'] ?? ''),
+                'dostarczony_o' => (int) ($zapis['dostarczony_o'] ?? 0),
+                'cisza_do' => (int) ($zapis['cisza_do'] ?? 0),
+            ];
+        }
+
+        // Stare „o” oznacza tylko próbę. Nowszy dostarczony_o zachowuje
+        // dowód przyjęcia, ale nie daje ciszy: wadliwy format nie pozwala
+        // odróżnić ponownej awarii od nadal trwającego epizodu.
+        $stan = (string) ($zapis['stan'] ?? '');
+        $obserwowany = ($zapis['epizod_zamkniety'] ?? false) === true ? StanKolejki::SPOKOJNA : $stan;
+        $przyjetoO = (int) ($zapis['dostarczony_o'] ?? 0);
+
+        return [
+            'wersja' => 2,
+            'stan' => $obserwowany,
+            'proba_stan' => ($zapis['odwolanie_nieudane'] ?? false) === true ? StanKolejki::SPOKOJNA : $stan,
+            'proba_o' => (int) ($zapis['proba_o'] ?? $zapis['o'] ?? 0),
+            'przyjety_stan' => $przyjetoO > 0 ? $stan : '',
+            'dostarczony_o' => $przyjetoO,
+            'cisza_do' => 0,
+        ];
+    }
+
+    /** @param array<string, mixed> $wynik */
     public function tresc(array $wynik): string
     {
         $stan = (string) ($wynik['stan'] ?? '');
@@ -187,105 +212,6 @@ final class AlarmKolejki
             '(niczego nie kasuje bez `--skasuj`). NIE ponawiaj zbiorczo starych zadań —',
             'żeton resetu hasła wygasa i ponowienie wysyła człowiekowi martwy link.',
         ]);
-    }
-
-    /**
-     * DWA RÓŻNE ZEGARY. Cisza liczy się od DOSTARCZENIA (`dostarczony_o`),
-     * a nie od próby — więc wiadomość, której kanał nie przyjął, nie kupuje
-     * ani sekundy ciszy. Przerwa między próbami liczy się od OSTATNIEJ
-     * PRÓBY (`proba_o`) i chroni wyłącznie przed pętlą żądań. Dzwonimy,
-     * gdy minęły OBIE. Zmiana stanu przechodzi bez czekania.
-     */
-    private function wolnoDzwonic(string $stan): bool
-    {
-        $poprzedni = Cache::get(self::KLUCZ);
-
-        if (! is_array($poprzedni) || ($poprzedni['stan'] ?? null) !== $stan) {
-            return true;
-        }
-
-        // Epizod zamknięty (awaria minęła, zostało tylko nieudane
-        // odwołanie) nie należy się już ciszą: jej POWRÓT jest nowym
-        // zdarzeniem. Bez tego cztery przebiegi czujki przy sprawnym
-        // kanale nie wysyłały ani jednego żądania.
-        $dostarczoneO = ($poprzedni['epizod_zamkniety'] ?? false) === true
-            ? 0
-            : $this->dostarczoneO($poprzedni);
-        $cisza = max(1, (int) config('kuking.kolejka.cisza_godzin')) * 3600;
-
-        $najwczesniej = max(
-            $dostarczoneO > 0 ? $dostarczoneO + $cisza : 0,
-            $this->probaO($poprzedni) + self::PONOWIENIE_PO_NIEUDANEJ_MINUT * 60,
-        );
-
-        return $this->teraz() >= $najwczesniej;
-    }
-
-    /**
-     * Odwołanie idzie natychmiast po dostarczonym alarmie — chyba że
-     * poprzednia próba odwołania sama nie doszła.
-     *
-     * @param  array<string, mixed>  $poprzedni
-     */
-    private function wolnoPonowicOdwolanie(array $poprzedni): bool
-    {
-        if (($poprzedni['odwolanie_nieudane'] ?? false) !== true) {
-            return true;
-        }
-
-        return ($this->teraz() - $this->probaO($poprzedni)) >= self::PONOWIENIE_PO_NIEUDANEJ_MINUT * 60;
-    }
-
-    private function zapamietajProbe(string $stan, bool $przyjeto): void
-    {
-        $teraz = $this->teraz();
-        $poprzedni = Cache::get(self::KLUCZ);
-
-        // Wcześniejsze DOSTARCZENIE tego samego stanu zostaje w pamięci,
-        // żeby nieudane ponowienie nie skasowało okna ciszy, które należy
-        // się wiadomości, która naprawdę doszła.
-        $dostarczoneO = is_array($poprzedni) && ($poprzedni['stan'] ?? null) === $stan
-            ? $this->dostarczoneO($poprzedni)
-            : 0;
-
-        Cache::put(self::KLUCZ, [
-            'stan' => $stan,
-            'proba_o' => $teraz,
-            'dostarczony_o' => $przyjeto ? $teraz : $dostarczoneO,
-        ], $this->pamiec());
-    }
-
-    /**
-     * Kiedy kanał POTWIERDZIŁ ostatnią wiadomość o tym stanie. `0` = nigdy.
-     *
-     * @param  array<string, mixed>  $zapis
-     */
-    private function dostarczoneO(array $zapis): int
-    {
-        // STAREGO KLUCZA `o` NIE WOLNO TU CZYTAĆ — i to jest cała nauka
-        // z tej usterki (zastrzeżenie recenzji do #687).
-        //
-        // Pierwsza wersja tej poprawki czytała `o` jako „dostarczone",
-        // z uzasadnieniem, że stare wpisy powstawały wyłącznie po udanej
-        // wysyłce. To nieprawda i przeczy powodowi, dla którego ta poprawka
-        // w ogóle istnieje: stary kod zapisywał `o` TAKŻE po wysyłce, której
-        // kanał nie przyjął. Zmierzone na wpisie `{"stan":"krytyczny",
-        // "o":…}` powstałym po HTTP 404: trwający alarm był wyciszany,
-        // a potem wychodziło odwołanie alarmu, którego nikt nie widział.
-        //
-        // Wpis w starym formacie znaczy więc „próbowaliśmy" — i tyle czyta
-        // z niego `probaO()`. Tutaj zero: nie mamy dowodu dostarczenia.
-        return (int) ($zapis['dostarczony_o'] ?? 0);
-    }
-
-    /**
-     * Kiedy PRÓBOWALIŚMY ostatni raz — niezależnie od wyniku.
-     *
-     * @param  array<string, mixed>  $zapis
-     */
-    private function probaO(array $zapis): int
-    {
-        return (int) ($zapis['proba_o'] ?? $zapis['o'] ?? 0);
     }
 
     /** Zegar przez Carbona, nie `time()` — inaczej okien czasowych nie da się zmierzyć testem. */
