@@ -1060,7 +1060,9 @@ jobs:
         env:
           DB_DATABASE: kuking_port_pomiar
           PGPORT: ${{ job.services.postgres.ports[5432] }}
-        run: node scripts/port-projektu.mjs
+        run: |
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          node scripts/port-projektu.mjs
 
       - name: Zrzuty portu marki
         if: always() && steps.zmiany.outputs.warto == '1'
@@ -1197,7 +1199,9 @@ jobs:
         env:
           DB_DATABASE: kuking_port_pomiar
           PGPORT: ${{ job.services.postgres.ports[5432] }}
-        run: node scripts/port-projektu.mjs
+        run: |
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          node scripts/port-projektu.mjs
 
       - name: Trzy kroki kreatora przy dużym tekście
         if: steps.zmiany.outputs.warto == '1'
