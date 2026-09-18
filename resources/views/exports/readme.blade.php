@@ -30,20 +30,58 @@ CO JEST W ŚRODKU
 index.html
     Spis treści. Od tego zaczynasz.
 
+{{--
+    Katalog opisujemy TYLKO wtedy, gdy naprawdę jest w paczce. `ZipArchive`
+    nie tworzy pustych katalogów, więc na koncie bez przepisów archiwum ma
+    cztery pliki (zmierzone `unzip -l`), a ten spis obiecywał katalogi
+    „przepisy" i „zdjecia". Ta sama usterka była już w `index.html`
+    (pilnuje jej `DataExportTest::test_paczka_bez_zdjec_nie_obiecuje_katalogu_ktorego_nie_ma`)
+    — tam naprawiona, tu została. Człowiek najświeższy w serwisie czytał
+    więc w pliku „CZYTAJ TO NAJPIERW", że ma w paczce katalogi, których
+    jego eksplorator plików nie pokaże.
+--}}
+@if($recipeCount > 0)
 przepisy/
     Każdy Twój przepis jako osobna strona do czytania i do wydruku.
     Otwierają się dwuklikiem, tak samo jak index.html.
     Przepisów w paczce: {{ $recipeCount }}
+@else
+przepisy/
+    Tego katalogu w tej paczce NIE MA — nie masz jeszcze w Kuking
+    żadnego przepisu. Pojawi się, gdy dodasz pierwszy i poprosisz
+    o paczkę ponownie.
+@endif
 
 wpisy.html
     Twoje wpisy z gotowania, zapisane wykonania przepisów
     i Twoje komentarze.
+@if($photoCount > 0)
 
+{{--
+    „Zdjęcia, które weszły do tej paczki", a nie „wszystkie Twoje zdjęcia".
+    Zmierzone na prawdziwym archiwum: do paczki wchodzą wyłącznie zdjęcia
+    ze statusem `ready` (`ExportPhotoPlan`), a konto potrafi mieć obok nich
+    zdjęcia odrzucone albo skasowane — z plikami w storage. Słowo
+    „wszystkie" było wtedy po prostu nieprawdziwe. Liczba niżej opisuje
+    paczkę i zostaje bez zmian, bo ona akurat była prawdziwa.
+--}}
 zdjecia/
-    Wszystkie Twoje zdjęcia, po jednym pliku.
+    Zdjęcia, które weszły do tej paczki — po jednym pliku.
     Nazwa każdego zaczyna się od daty, na przykład:
     2027-03-14-rosol.webp
     Zdjęć w paczce: {{ $photoCount }}
+@elseif($photosStillProcessing === 0)
+{{--
+    To zdanie jest prawdziwe TYLKO wtedy, gdy zdjęć naprawdę nie ma.
+    Przy zdjęciach w drodze mówiłoby „nie masz żadnego zdjęcia" komuś, kto
+    wgrał je pięć minut wcześniej (issue #113) — wtedy wchodzi UWAGA niżej.
+--}}
+
+zdjecia/
+    Tego katalogu w tej paczce NIE MA — nie masz jeszcze w Kuking
+    żadnego zdjęcia. Pojawi się, gdy dodasz pierwsze i poprosisz
+    o paczkę ponownie.
+@endif
 @if($photosStillProcessing > 0)
 @php
     // Liczebnik i czasownik odmieniają się tak samo (1 / 2-4 / 5+ i nastki),

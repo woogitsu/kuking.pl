@@ -43,10 +43,26 @@
         </p>
     </div>
 
+    {{--
+        Zdanie otwierające mówi, co w paczce JEST — nie „wszystko”.
+        Zmierzone na prawdziwym archiwum: cudzy przepis zapisany w zeszycie
+        wychodzi w `dane.json` jako tytuł, autor, moja notatka i data zapisania
+        (`CollectUserExportData::collections()`), bez składników, kroków
+        i zdjęć. „Kopia wszystkiego” obiecywała więc pełne cudze przepisy,
+        których tu nie ma — a to jest plik, który człowiek czyta przed
+        skasowaniem konta. Zamiast wyliczać, czego brakuje, nazywamy jedno
+        ograniczenie, które naprawdę może kogoś zaskoczyć.
+
+        Słowo „notatki” wypadło świadomie: w Kuking nie ma encji „notatka”
+        (są notatki przy wykonaniu, przy składniku i przy zapisie w zeszycie),
+        więc na tej liście udawało osobny rodzaj treści. „Komentarze” są
+        w paczce naprawdę i jako osobna sekcja (`moje_komentarze`).
+    --}}
     <div class="karta">
         <p style="margin-bottom:0;">
-            To jest kopia wszystkiego, co masz w Kuking: przepisy, wpisy,
-            zdjęcia i notatki. Możesz to trzymać na swoim komputerze i czytać
+            To jest kopia Twoich przepisów, wpisów, zdjęć i komentarzy.
+            Cudze przepisy zapisane w Twoim zeszycie są tu jako tytuł i autor,
+            bez składników i kroków. Możesz to trzymać na swoim komputerze i czytać
             <strong>bez internetu</strong> — także wtedy, gdyby Kuking kiedyś
             przestał istnieć. Nic tutaj nie wymaga zakładania konta.
         </p>
@@ -97,11 +113,19 @@
     --}}
     @if($photoCount > 0)
         <p>
-            Wszystkie Twoje zdjęcia leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
+            {{-- „Zdjęcia z tej paczki", nie „wszystkie Twoje zdjęcia”: do paczki
+                 wchodzą wyłącznie zdjęcia ze statusem `ready` (`ExportPhotoPlan`),
+                 a konto potrafi mieć obok nich odrzucone albo skasowane. Liczba
+                 w nagłówku wyżej opisuje paczkę i była prawdziwa — nieprawdziwe
+                 było samo słowo „wszystkie”. --}}
+            Zdjęcia z tej paczki leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
             Nazwa każdego pliku zaczyna się od daty, więc łatwo je posortować —
             na przykład <em>2027-03-14-rosol.webp</em>.
         </p>
-        <p><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
+        {{-- `akcja` — akapit, którego całą treścią jest jeden odnośnik.
+             Klasa niesie cel dotknięcia 48 px ze wspólnego `styles.blade.php`;
+             bez niej ten odnośnik miał zmierzone 22 px wysokości. --}}
+        <p class="akcja"><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
     @elseif($photosStillProcessing === 0)
         {{--
             Ten tekst jest prawdziwy TYLKO wtedy, gdy zdjęć naprawdę nie ma.

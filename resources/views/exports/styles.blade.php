@@ -73,7 +73,22 @@
     .naglowek .podpis { color: #CBD0C6; }
 
     a:focus-visible { outline: 3px solid #155EEF; outline-offset: 4px; }
-    .spis a, .powrot a { display: inline-block; min-height: 48px; padding-block: 8px; }
+
+    /* Cel dotknięcia 48 px dla odnośników, które SĄ osobną akcją, a nie
+       słowem w zdaniu. `.akcja` to akapit, którego całą treścią jest jeden
+       odnośnik — tak stoi „Otwórz katalog ze zdjęciami" w spisie treści.
+       Bez tej klasy tamten odnośnik miał zmierzone 22 px wysokości, czyli
+       mniej niż produktowe 48 px (AGENTS.md §5) i mniej niż 24 px z WCAG 2.2
+       AA 2.5.8 — a wyjątek „inline" tam nie działa, bo to nie jest odnośnik
+       wewnątrz zdania.
+
+       Dlaczego klasa na akapicie, a nie selektor `p > a:only-child`:
+       `:only-child` liczy RODZEŃSTWO ELEMENTÓW, a nie tekst. Zdanie
+       „Wróć do <a>spisu treści</a>." ma jedno dziecko-element, więc taki
+       selektor łapie też odnośnik w środku zdania — zmierzone: wysokość
+       tego odnośnika rosła z 20 px do 48 px i rozpychała wiersz stopki.
+       Odnośnik w zdaniu ma zostać słowem. */
+    .spis a, .powrot a, .akcja a { display: inline-block; min-height: 48px; padding-block: 8px; }
 
     .podpis {
         color: var(--tekst-jasny);
@@ -174,5 +189,32 @@
         .karta { border: none; padding: 0; }
         .naglowek { background: #FFFFFF; color: #151714; padding: 0 0 20px; }
         .naglowek .podpis { color: #555E53; }
+
+        /* Nagłówek nie zostaje sam na dole kartki.
+           Zmierzone na wydruku A4 przed tą regułą (pdftotext, strona po
+           stronie): w przepisie „Pierogi ruskie" nagłówek „Składniki"
+           kończył stronę 1, a pierwszy składnik zaczynał stronę 2; tak samo
+           „Jak to zrobić" kończyło stronę 2, a krok 1 zaczynał stronę 3. */
+        h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+
+        /* Krok nie rozpada się na dwie kartki.
+           Zmierzone przed tą regułą: w przepisie „Rosół z kury" tekst kroku 2
+           wychodził na stronie 2, a zdjęcie TEGO SAMEGO kroku na stronie 3 —
+           czyli przy garnku człowiek ma instrukcję na jednej kartce,
+           a obrazek do niej na drugiej. To samo dotyczy kart z komentarzem
+           i wpisem oraz pozycji listy składników. */
+        .kroki li, .skladniki li, .karta, .uwaga, img.zdjecie {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+
+        /* Zdjęcie nie zajmuje całej kartki.
+           Zmierzone: skan z zeszytu (1200 × 1600) schodził na wydruku do
+           około 24 cm wysokości, więc razem z nagłówkiem nie mieścił się
+           na stronie i spychał wszystko dalej — przepis rósł z 5 kartek do
+           6, a jedna z nich zostawała zapełniona w kilkunastu procentach.
+           16 cm to nadal duże zdjęcie, a na kartce zostaje miejsce na tekst.
+           Szerokość liczy się sama z proporcji (`height: auto` wyżej). */
+        img.zdjecie { max-height: 16cm; }
     }
 </style>
