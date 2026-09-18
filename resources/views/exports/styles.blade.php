@@ -13,7 +13,16 @@
     `/* … */` jedzie razem z nim. Zmierzone: trzy akapity uzasadnienia
     dokładały 2528 bajtów do każdego pliku, czyli ~17,7 KB tekstu o pułapkach
     testowych do paczki RODO, którą człowiek ma trzymać dziesięć lat.
-    Komentarz Blade `{{-- --}}` zostaje w repozytorium i nie trafia do paczki.
+    Komentarz Blade zostaje w repozytorium i nie trafia do paczki.
+
+    I DLATEGO NIE WOLNO TU ZACYTOWAĆ ZNACZNIKA ZAMYKAJĄCEGO KOMENTARZ.
+    Poprzednia wersja tego zdania pokazywała oba znaczniki jako przykład —
+    a Blade nie czyta tego jako cytatu, tylko jako KONIEC komentarza.
+    Zmierzone na paczce zbudowanej normalną drogą: wszystko poniżej tamtej
+    linijki szło do archiwum jako widoczny tekst strony, w KAŻDYM pliku HTML
+    paczki. Zmiana, która miała wynieść uzasadnienia z paczki, wnosiła je
+    tam z powrotem — i to jako treść dla czytelnika, nie jako komentarz.
+    Pilnuje tego teraz `PaczkaNieNiesieKomentarzyDeweloperskichTest`.
 
     `.akcja` — CEL DOTKNIĘCIA 48 PX DLA ODNOŚNIKA, KTÓRY JEST OSOBNĄ AKCJĄ.
     To akapit, którego całą treścią jest jeden odnośnik: tak stoi „Otwórz
@@ -38,6 +47,25 @@
     - `max-height: 16cm` na zdjęciu w druku — skan 1200 × 1600 schodził do
       około 24 cm i spychał resztę przepisu na kolejne kartki, zostawiając
       jedną prawie pustą. Szerokość liczy się sama z proporcji.
+    - `padding-bottom: 0` na `body` w druku — CZWARTA reguła, dołożona po
+      pomiarze pustej ostatniej kartki. `body` ma na ekranie 64 px dolnego
+      wypełnienia (żeby stopka nie kleiła się do krawędzi okna) i ten sam
+      pas jechał na papier. Gdy treść kończyła się blisko granicy kartki,
+      64 px pustego miejsca przepychało ją na następną — i z drukarki
+      wychodziła kartka CAŁKOWICIE pusta: zero znaków, zero obrazów.
+      Zmierzone na stronie przepisu z prawdziwej paczki, przy rosnącej
+      liczbie kroków (A4, margines 10 mm, `pdfinfo`/`pdftotext`/`pdfimages`
+      strona po stronie): przy 4 krokach 3 kartki, trzecia pusta; przy 14
+      krokach 4 kartki, czwarta pusta. Po poprawce odpowiednio 2 i 3
+      kartki, obie zapełnione, a pozostałe trzynaście długości wychodzi
+      bajt w bajt tak samo. Na papierze marginesy wyznacza arkusz
+      drukarki, nie okno przeglądarki, więc to wypełnienie nie ma tu
+      czego chronić.
+
+      Czego ta reguła NIE obiecuje: że pusta kartka nie wyjdzie NIGDY.
+      Treść wciąż może się skończyć dokładnie na granicy. Znika
+      systematyczny powód — pas pustego miejsca doklejany do każdego
+      wydruku niezależnie od jego długości.
 --}}
 <style>
     :root {
@@ -202,7 +230,7 @@
     }
 
     @media print {
-        body { background: #FFFFFF; font-size: 12pt; }
+        body { background: #FFFFFF; font-size: 12pt; padding-bottom: 0; }
         .karta { border: none; padding: 0; }
         .naglowek { background: #FFFFFF; color: #151714; padding: 0 0 20px; }
         .naglowek .podpis { color: #555E53; }

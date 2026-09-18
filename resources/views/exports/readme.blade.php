@@ -46,10 +46,18 @@ przepisy/
     Otwierają się dwuklikiem, tak samo jak index.html.
     Przepisów w paczce: {{ $recipeCount }}
 @else
+{{--
+    Ta gałąź podlega tej samej zasadzie co gałąź o zdjęciach niżej: zdanie
+    opisuje PACZKĘ. `index.html` mówił tak od początku („W tej paczce nie ma
+    jeszcze żadnego przepisu"), README orzekał o koncie. Dziś przepis nie ma
+    stanu „odrzucony", więc nie było to kłamstwo — ale na koncie, które swoje
+    przepisy skasowało, słowo „jeszcze" jest już fałszywe, a paczka nie ma
+    powodu mówić o koncie dwóch różnych rzeczy w dwóch swoich plikach.
+--}}
 przepisy/
-    Tego katalogu w tej paczce NIE MA — nie masz jeszcze w Kuking
-    żadnego przepisu. Pojawi się, gdy dodasz pierwszy i poprosisz
-    o paczkę ponownie.
+    Tego katalogu w tej paczce NIE MA — nie weszedł do niej żaden
+    przepis. Pojawi się, gdy dodasz przepis i poprosisz o paczkę
+    ponownie.
 @endif
 
 wpisy.html
@@ -72,15 +80,35 @@ zdjecia/
     Zdjęć w paczce: {{ $photoCount }}
 @elseif($photosStillProcessing === 0)
 {{--
-    To zdanie jest prawdziwe TYLKO wtedy, gdy zdjęć naprawdę nie ma.
-    Przy zdjęciach w drodze mówiłoby „nie masz żadnego zdjęcia" komuś, kto
-    wgrał je pięć minut wcześniej (issue #113) — wtedy wchodzi UWAGA niżej.
+    ZDANIE OPISUJE PACZKĘ, NIE KONTO — i to jest cała poprawka.
+
+    Ta gałąź nie znaczy „nie masz zdjęć". Znaczy: żadne zdjęcie nie weszło
+    do paczki i żadne nie jest w drodze. `ExportPhotoPlan` liczy tylko
+    `ready` (do paczki) oraz `pending`/`processing` (w drodze), więc konto
+    z SAMYMI zdjęciami odrzuconymi ma tu `photoCount = 0`
+    i `photosStillProcessing = 0` — i słyszało „nie masz jeszcze w Kuking
+    żadnego zdjęcia" o zdjęciach, które samo wgrało i widzi w serwisie
+    jako odrzucone. To samo dotyczy zdjęć skasowanych.
+
+    Nowe zdanie mówi wyłącznie to, co paczka naprawdę wie o sobie, i nie
+    orzeka o zawartości konta. Zakres danych eksportu ani uprawnienia
+    NIE zmieniają się o nic: paczka nadal nie wypisuje zdjęć odrzuconych
+    ani niczego o powodzie odrzucenia.
+
+    Warunek powrotu katalogu podany jest wprost („zdjęcie, które widać
+    w serwisie"), bo samo „dodaj zdjęcie" byłoby dla konta z odrzuconymi
+    nieprawdą: ono zdjęcia dodało. Piszemy o tym, co człowiek widzi
+    w serwisie, a nie o stanie `ready` — nazwa stanu nic mu nie mówi.
+
+    Przy zdjęciach w drodze to zdanie się NIE pojawia (issue #113) —
+    wtedy wchodzi UWAGA niżej. Pilnuje tego
+    `EksportMowiOZdjeciachWDrodzeTest`, z osobną asercją na każdą gałąź.
 --}}
 
 zdjecia/
-    Tego katalogu w tej paczce NIE MA — nie masz jeszcze w Kuking
-    żadnego zdjęcia. Pojawi się, gdy dodasz pierwsze i poprosisz
-    o paczkę ponownie.
+    Tego katalogu w tej paczce NIE MA — nie weszło do niej żadne
+    zdjęcie. Pojawi się, gdy będziesz mieć w Kuking zdjęcie, które
+    widać w serwisie, i poprosisz o paczkę ponownie.
 @endif
 @if($photosStillProcessing > 0)
 @php

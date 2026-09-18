@@ -277,9 +277,27 @@ zostały zrobione. Recenzja znalazła rzeczy, których pomiar autorów nie złap
    widzi `display: none`. Docblock mówi o tym teraz wprost i wskazuje, gdzie
    leży druga połowa dowodu.
 6. **Dowody przeglądarkowe były cytowane spoza repozytorium.** Kompaktowy
-   zestaw (`ekran.json`, `zoom.json`, `druk.json`, `klawiatura.json`,
-   `kontrola-ujemna.log`, dwa zrzuty) leży teraz w
-   `docs/design/evidence/eksport492/`.
+   zestaw (`ekran.json`, `zoom.json`, `druk.json`, `klawiatura.json`, dwa
+   zrzuty) leży teraz w `docs/design/evidence/eksport492/`.
+
+   **Sprostowanie po odbiorze integracyjnym.** Pierwsza wersja tego punktu
+   wymieniała w tym zestawie także `kontrola-ujemna.log` — i tego pliku
+   w drzewie commita **nie było**. Szesnaście kontrol ujemnych z pierwszej
+   tury naprawdę wykonano i ich przebieg opisuje §2, ale **nie zapisano ich
+   do pliku**; deklaracja wyprzedziła fakt. Fikcyjnego logu nie odtwarzamy.
+   Plik `kontrola-ujemna.log` w tym katalogu jest **maszynowym zapisem
+   kontrol ujemnych drugiej tury** (§8) i opisuje wyłącznie je: jedenaście
+   sabotaży, ich wynik, powód czerwieni oraz MD5 i mtime po każdym
+   przywróceniu.
+
+   **Dlaczego plik mógł zniknąć po cichu.** Pierwsza linijka `.gitignore`
+   to `*.log`, więc zwykłe `git add` na taki plik nie reaguje i nie mówi
+   o tym słowa — `git status` po prostu go nie pokazuje. Pozostałe dowody
+   `.log` w tym repozytorium (`evidence/search568/`, `evidence/kolumny560/`,
+   `infra/evidence/feed585/`) są w indeksie właśnie dlatego, że dodano je
+   przez `git add -f`; tak samo dodany jest ten. Jeśli następny odbiór
+   dokłada dowód `.log`, musi to zrobić tak samo — albo sprawdzić
+   `git status` przed commitem.
 7. **Trzy liczby w tym raporcie były nieprawdziwe** — sprostowane w tekście
    wyżej wraz z powodem: „zero adresów `http(s)://`", „27 KB", „81 znaków",
    „5 → 6 kartek" i podana jednostronnie wartość kontrastu odnośnika.
@@ -297,9 +315,222 @@ Firefox i rzeczywisty zoom 200 % recenzent przyjął z zapisanych dowodów
 (spójnych wewnętrznie), nie z własnego przebiegu — mierzył wyłącznie
 Chromium. Pozostałe granice z §5 potwierdził jako uczciwie zadeklarowane.
 
-### Co review zostawiło jako otwarte, świadomie nietknięte
+### Co review zostawiło jako otwarte — i co się z tym stało
 
-Puste konto dostaje w `index.html` zdanie o cudzych przepisach w zeszycie,
-choć zeszytu nie ma; zdanie „tytuł i autor" zaniża zakres (pól są cztery:
-tytuł, autor, notatka, data zapisania); wydruk przepisu kończy się pustą
-kartką — usterka starsza od tego pakietu i przez niego nietknięta.
+Pierwsza tura zostawiła trzy rzeczy świadomie nietknięte: zdanie o cudzych
+przepisach wychodzące na koncie z pustym zeszytem, zaniżone „tytuł i autor"
+(pól są cztery) i pustą ostatnią kartkę wydruku. **Wszystkie trzy są
+naprawione i zmierzone w drugiej turze — §8.**
+
+---
+
+## 8. Druga tura: odbiór integracyjny Codexa i to, co on odsłonił
+
+Odbiór integracyjny na `8537e42` wskazał trzy rzeczy do poprawy przed
+scaleniem. Ta tura je wykonuje, domyka trzy drobiazgi zostawione wyżej
+i dokłada jedną usterkę, której nie widział nikt.
+
+### 8.1. Komunikat o braku zdjęć orzekał o KONCIE, nie o paczce
+
+`ExportPhotoPlan` liczy do paczki `ready`, a jako „w drodze" wyłącznie
+`pending` i `processing`. Konto z **samymi zdjęciami odrzuconymi** ma więc
+`photoCount = 0` i `photosStillProcessing = 0` i wpadało w gałąź pisaną dla
+kogoś, kto nigdy nic nie wgrał: „nie masz jeszcze w Kuking żadnego zdjęcia".
+To samo dotyczy zdjęć skasowanych. Zdanie było wtedy po prostu nieprawdziwe —
+w pliku, który człowiek czyta przed rezygnacją z konta.
+
+Usterka stała w **obu** plikach paczki, nie tylko w README: `index.html`
+mówił dokładnie to samo innymi słowami. Naprawione są oba, **jedną regułą**:
+zdanie ma opisywać paczkę. Brzmienia zostają dwa, bo pliki mówią różnym
+językiem — i regresja stoi właśnie na tej różnicy, z osobną kotwicą na plik:
+
+- `CZYTAJ-TO-NAJPIERW.txt`: „Tego katalogu w tej paczce NIE MA — nie weszło
+  do niej żadne zdjęcie. Pojawi się, gdy będziesz mieć w Kuking zdjęcie
+  gotowe do pokazania i poprosisz o paczkę ponownie."
+- `index.html`: „W tej paczce nie ma żadnego zdjęcia, więc nie ma w niej
+  katalogu ze zdjęciami. Katalog pojawi się, gdy będziesz mieć w Kuking
+  zdjęcie gotowe do pokazania i poprosisz o paczkę ponownie."
+
+Warunek powrotu katalogu jest podany wprost („zdjęcie, które widać
+w serwisie"), bo samo „dodaj zdjęcie" byłoby dla konta z odrzuconymi
+nieprawdą — ono zdjęcia dodało. Piszemy o tym, co człowiek widzi w serwisie,
+a nie o stanie `ready`: nazwa stanu nic mu nie mówi.
+
+**Ta sama zasada objęła sąsiednią gałąź o przepisach.** README mówił „nie masz
+jeszcze w Kuking żadnego przepisu", a `index.html` od początku poprawnie
+„W tej paczce nie ma jeszcze żadnego przepisu". Dziś przepis nie ma stanu
+„odrzucony", więc README nie kłamał — ale na koncie, które swoje przepisy
+skasowało, słowo „jeszcze" jest już fałszywe, a paczka nie ma powodu mówić
+o jednej sytuacji dwóch różnych rzeczy w dwóch swoich plikach.
+
+**Zakres danych eksportu i uprawnienia bez jednej zmiany.** Paczka nadal nie
+wypisuje zdjęcia odrzuconego ani powodu odrzucenia; osobna asercja pilnuje,
+że w `dane.json` nie ma nawet jego identyfikatora.
+
+Regresja chodzi po **prawdziwej paczce** zbudowanej przez `GenerateUserExport`,
+na koncie z jednym zdjęciem odrzuconym mającym plik na dysku. Osobne testy
+mierzą konto **bez żadnego zdjęcia** i konto **ze zdjęciami w drodze** —
+każda gałąź ma własną kotwicę, żeby wypadnięcie jednej nie schowało się za
+drugą (pułapka 3b).
+
+### 8.2. Paczka niosła do człowieka komentarz dla programisty
+
+Znaleziona przy oglądzie wyrenderowanej strony, nie w kodzie. Commit
+`8537e42` przeniósł uzasadnienia reguł CSS z komentarzy `/* */` do komentarza
+Blade właśnie po to, żeby **nie** jechały do paczki. Jedno zdanie tego
+komentarza cytowało jednak znacznik **zamykający** komentarz Blade — a Blade
+nie odróżnia cytatu od znacznika i kończył komentarz w tym miejscu.
+
+Skutek był odwrotny od zamierzonego: cała reszta uzasadnień — cytat
+z `AGENTS.md`, numer wytycznej WCAG, selektor CSS w prozie i ścieżka do
+dowodów — wychodziła w archiwum jako **widoczny tekst strony, nad nagłówkiem
+„Twoje dane z Kuking"**, w każdym pliku HTML paczki. Pierwsze, co człowiek
+widział, to zdanie o `p > a:only-child`.
+
+**Sprostowanie po niezależnym review tej tury.** Pierwsza wersja tego akapitu
+wymieniała wśród wyciekłych rzeczy „nazwy pułapek testowych". To nieprawda:
+zdanie o pułapkach stoi w arkuszu **przed** zepsutym znacznikiem i nigdy nie
+wyszło. Kotwica `PULAPKI_TESTOW` w regresji była z tego powodu **pusta** —
+nie oblałaby się ani przed poprawką, ani po niej. Zastąpiona łańcuchem, który
+wyciekł naprawdę (`WCAG 2.2 AA 2.5.8`); powód doboru stoi w teście.
+
+Zmierzone na paczkach zbudowanych normalną drogą, `index.html` pustego konta:
+**8660 bajtów na `8537e42` → 7000 bajtów po poprawce**; sam wyciekły fragment
+to **1605 bajtów** w każdym pliku HTML paczki.
+
+Pilnuje tego `PaczkaNieNiesieKomentarzyDeweloperskichTest`: pyta o
+**nieobecność** pięciu śladów warsztatu w każdym pliku HTML paczki, z kontrolą
+dodatnią na to, że sam arkusz w paczce dalej jest.
+
+### 8.3. Pusta ostatnia kartka wydruku — zmierzona i naprawiona
+
+`body` ma na ekranie 64 px dolnego wypełnienia i ten sam pas jechał na papier.
+Gdy treść kończyła się blisko granicy kartki, przepychał ją na następną —
+i z drukarki wychodziła kartka **całkowicie pusta: zero znaków, zero obrazów**.
+
+Zmierzone na stronie przepisu z prawdziwej paczki, przy rosnącej liczbie
+kroków (A4, margines 10 mm, Chromium przez Playwright, `pdfinfo`/`pdftotext`/
+`pdfimages` strona po stronie), piętnaście długości treści:
+
+Mierzone były **dwie sceny** — dwie osobno wygenerowane paczki (tytuły
+i długości tekstu pochodzą z fabryk, więc granice kartek wypadają w innych
+miejscach). Liczby wolno porównywać tylko w obrębie jednej sceny:
+
+| scena | wariant reguły | pusta ostatnia kartka |
+|---|---|---|
+| A — paczka z **niezmienionej kopii na `8537e42`** | `padding-bottom` 64 px (stan arkusza na `8537e42`) | **przy 4 i przy 14 krokach** |
+| A | `padding-bottom: 0` w `@media print` | **żadna z piętnastu długości** |
+| B — paczka z **poprawionych źródeł** | `padding-bottom: 0`, stan gałęzi | **żadna z piętnastu długości** |
+| B | kontrola ujemna: `padding-bottom` cofnięty na 64 px | **wraca — przy 8 krokach** |
+
+Pełny pomiar strona po stronie, obie sceny, wszystkie sześćdziesiąt PDF-ów:
+`evidence/eksport492/druk-pusta-kartka.json`.
+
+Scena A to pomiar na stanie gałęzi sprzed tej tury; scena B to kontrola ujemna
+na archiwum zbudowanym już z poprawionego arkusza. W obu parach poprawka usuwa
+pustą kartkę, a jej cofnięcie ją przywraca — przy różnych długościach, bo
+sceny są różne. **Pierwsza wersja tej tabeli mieszała obie sceny w jednym
+zestawieniu i przez to przeczyła sama sobie.**
+
+Pozostałe długości w obrębie każdej sceny wychodzą identycznie; poprawka nie
+przesuwa niczego innego.
+Na papierze marginesy wyznacza arkusz drukarki, nie okno przeglądarki, więc to
+wypełnienie nie ma tam czego chronić.
+
+**Czego ta reguła NIE obiecuje:** że pusta kartka nie wyjdzie nigdy. Treść
+wciąż może skończyć się dokładnie na granicy. Znika systematyczny powód — pas
+pustego miejsca doklejany do każdego wydruku niezależnie od jego długości.
+
+### 8.4. Zdanie o cudzych przepisach: warunek i pełne wyliczenie pól
+
+- **Warunek.** Zdanie o ograniczeniu cudzych przepisów wychodziło także na
+  koncie z **pustym zeszytem** — opisywało coś, czego w paczce nie ma. Teraz
+  pojawia się tylko wtedy, gdy w zeszycie naprawdę leży cudzy przepis. Własny
+  przepis odłożony do własnego zeszytu **nie** liczy się do tego warunku: jego
+  pełną treść paczka niesie w katalogu `przepisy/`, więc ograniczenie go nie
+  dotyczy. Liczba idzie z bazy, nie z `dane.json` — tam autor jest nazwą
+  wyświetlaną, a dwie osoby mogą mieć tę samą. Licznik jawnie pomija przepisy
+  **skasowane**: `Recipe` ma `SoftDeletes`, a złączenie omija globalny zakres
+  modelu, więc bez tego warunku zdanie wychodziłoby na koncie, do którego
+  paczki nie wszedł ani jeden cudzy przepis. Ma osobną regresję i osobną
+  kontrolę ujemną.
+- **Dlaczego w `dane.json` to samo zdanie zostaje BEZWARUNKOWE.** Różnica jest
+  zamierzona, nie przeoczona. `index.html` czyta **człowiek** i ten plik
+  opisuje mu, co jest w TEJ paczce — więc zdanie o cudzych przepisach przy
+  pustym zeszycie opisuje nieobecne. `czego_nie_zawiera` czyta **program**
+  i jest opisem REGUŁY eksportu, nie zawartości jednego archiwum; działa tak
+  samo jak `zdjec_jeszcze_w_przygotowaniu`, które też jest zawsze, także gdy
+  wynosi zero. Klucz pojawiający się tylko czasem zmuszałby czytający program
+  do zgadywania, czy granicy nie ma, czy paczkę zbudowała starsza wersja
+  serwisu. Uzasadnienie stoi też przy samym polu w kodzie.
+- **Pola.** „tytuł i autor" zaniżało zakres: `collections()` daje **cztery**
+  pola (`tytul`, `autor`, `moja_notatka`, `zapisano`). Zdanie w `index.html`
+  i opis `czego_nie_zawiera` w `dane.json` wymieniają teraz wszystkie cztery.
+  Zakres danych się nie zmienia — zmienia się opis, w stronę prawdy.
+
+### 8.5. Kontrole ujemne tej tury
+
+**Jedenaście sabotaży, jedenaście czerwieni na właściwej asercji,
+jedenaście przywróceń bajt w bajt.** Dla każdego z nich log notuje, czy
+w komunikacie padła **fraza z tej konkretnej asercji** — jedenaście razy tak.
+Czerwień, której przyczyny się nie przeczytało, nie jest informacją
+(pułapka 8b), a harmonijka odrzuca też sabotaż, którego wzorzec nie trafia
+jednoznacznie (pułapka 3) — przy tej turze odrzuciła dwa i trzeba je było
+przepisać pod zmieniony tekst. Maszynowy zapis: `evidence/eksport492/kontrola-ujemna.log`
+— dla każdego sabotażu plik, test, wynik, powód czerwieni (asercja, nie błąd)
+oraz MD5 i mtime po przywróceniu. Kopie bajtów leżały **poza** repozytorium,
+przywracane `cp -p`; nigdy `git checkout --` ani `git stash` (pułapki 8 i 8c).
+Zestaw jest zielony przed pierwszym sabotażem i po ostatnim — obie kontrole
+dodatnie są w logu.
+
+Wśród nich są dwie kontrole „drugiego stopnia": skasowanie **całej** gałęzi
+o pustej paczce (żeby asercja „czegoś nie ma" nie przechodziła przez zniknięcie
+zdania) i zdjęcie wypełnienia `body` **z ekranu** (żeby poprawka wydruku nie
+okazała się cichą zmianą wyglądu).
+
+### 8.6. Ogląd
+
+Trzy paczki graniczne zbudowane normalną drogą — konto **tylko z odrzuconym
+zdjęciem**, konto **bez niczego**, konto **z cudzym przepisem w zeszycie** —
+obejrzane na `file://` przy 320 i 1440 px, w motywie jasnym i ciemnym:
+**12 przebiegów**, zero przewijania w poziomie, zero tekstu poniżej 18 px,
+**zero żądań poza `file://` i zero żądań nieudanych** (sieć odcięta:
+`offline: true`, `--host-resolver-rules=MAP * ~NOTFOUND`). Zrzuty i pomiar
+obejrzano; wyciek komentarza z 8.2 wyszedł właśnie z tego oglądu.
+
+### 8.7. Granice tej tury
+
+- Silnik **wyłącznie Chromium** (Playwright 1.63). Firefoksa i rzeczywistego
+  zoomu 200 % ta tura **nie powtarzała** — te dowody pochodzą z pierwszej.
+- Nadal **nie** jest to test fizycznej drukarki: mierzony jest PDF i tryb
+  `print`, bez sterowników, „dopasuj do strony", oszczędzania tuszu i druku
+  dwustronnego.
+- Piętnaście długości treści to **próbka**, nie dowód dla każdej możliwej
+  strony przepisu.
+- Pełny `php artisan test` **nie był uruchamiany w tej turze** — maszyna jest
+  współdzielona z innymi sesjami (`load average` około 5, cudze procesy PHP
+  i Chromium w tle). Uruchomiono zestaw eksportu i druku (§8.8).
+  Rozstrzyga CI.
+- Poprawki 8.1 i 8.4 **nie zamykają** rzeczy z §4: `ExportPhotoPlan` nadal
+  zapowiada w komentarzu osobną wiadomość o zdjęciu odrzuconym, a takiej
+  wiadomości w paczce nadal nie ma. Napisanie jej wymaga nowego pola
+  w eksporcie, czyli decyzji o zakresie danych — poza tym pakietem. Ta tura
+  przestaje jedynie mówić o koncie rzeczy nieprawdziwe.
+
+### 8.8. Kontrole tej tury
+
+| Co | Wynik |
+|---|---|
+| `vendor/bin/pint --test` | **PASS**, 1112 plików |
+| `vendor/bin/phpstan analyse --no-progress` | **`[OK] No errors`** |
+| `php artisan test --filter 'Eksport\|Paczka\|DataExport\|Wyscigi'` | **94 passed (641 assertions)** |
+| kontrole ujemne | **11/11** czerwonych na właściwej asercji, 11/11 przywróceń bajt w bajt |
+| `php artisan test` — sąsiedni zestaw marki i tekstów | **63 passed (1439 assertions)** |
+| ogląd HTML | 12 przebiegów (3 paczki × 320/1440 × jasny/ciemny), zero usterek, zero żądań poza `file://` — `evidence/eksport492/ogled-492d.json` |
+| wydruk | 2 sceny × 2 warianty reguły × 15 długości = **60 PDF-ów** — `evidence/eksport492/druk-pusta-kartka.json` |
+
+Środowisko: osobna kopia wykonawcza na dysku Linuksa, PostgreSQL wyłącznie
+`127.0.0.1:55439`, **własna baza `kuking_492d_tests`** założona na tę turę,
+poczta `array`, kolejka `sync`. Konta wyłącznie lokalne i demonstracyjne;
+żadnego eksportu prawdziwego użytkownika nie pobierano ani nie oglądano.
+Produkcji nie dotykano.

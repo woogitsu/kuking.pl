@@ -77,6 +77,24 @@ class EksportWygladObietnicePaczkiTest extends EksportWygladStylPaczki
     }
 
     /**
+     * Akapit otwierający `index.html` — ten, który mówi, co w paczce JEST.
+     *
+     * Bez tego wycinka asercje o polach cudzego przepisu chodzą po całym
+     * pliku i łapią te same słowa postawione gdziekolwiek indziej
+     * (pułapka 1).
+     */
+    private function akapitOtwierajacy(string $indeks): string
+    {
+        $od = mb_strpos($indeks, '<div class="karta">');
+        $this->assertNotFalse($od, 'W spisie treści nie ma akapitu otwierającego.');
+
+        $do = mb_strpos($indeks, '</div>', $od);
+        $this->assertNotFalse($do);
+
+        return mb_substr($indeks, $od, $do - $od);
+    }
+
+    /**
      * Opis JEDNEGO katalogu ze spisu „CO JEST W ŚRODKU".
      *
      * Bez tego wycinka asercja „ten katalog jest opisany jako nieobecny"
@@ -134,8 +152,126 @@ class EksportWygladObietnicePaczkiTest extends EksportWygladStylPaczki
 
         $this->assertStringNotContainsString('kopia wszystkiego', $indeks,
             'Paczka nie jest kopią wszystkiego — cudzych przepisów z zeszytu nie ma tu w całości.');
-        $this->assertStringContainsString('jako tytuł i autor', $indeks);
-        $this->assertStringContainsString('bez składników i kroków', $indeks);
+
+        /*
+         * ZDANIE MA WYMIENIĆ WSZYSTKIE CZTERY POLA, NIE DWA.
+         *
+         * Asercja wyżej na `array_keys` jest tu kontrolą dodatnią: paczka
+         * daje `tytul`, `autor`, `moja_notatka` i `zapisano`. Zdanie mówiło
+         * o „tytule i autorze", czyli zaniżało to, co człowiek naprawdę
+         * dostaje — i przy rezygnacji z konta to jest zaniżenie w złą
+         * stronę. Każde pole ma własną asercję, żeby wypadnięcie jednego
+         * nie schowało się za pozostałymi (pułapka 3b).
+         */
+        // Asercje idą po WYCINKU z akapitem otwierającym, nie po całym pliku.
+        // Dziś te słowa padają w `index.html` tylko tam, ale to unikalność
+        // przypadkowa: dopisanie autora przy pozycji spisu treści wyłączyłoby
+        // asercję bez jednego czerwonego przebiegu (pułapka 1).
+        $akapit = $this->akapitOtwierajacy($indeks);
+
+        foreach (['tytuł', 'autor', 'notatka', 'data zapisania'] as $pole) {
+            $this->assertStringContainsString($pole, $akapit,
+                'Zdanie o cudzych przepisach w zeszycie nie wymienia pola „'.$pole.'”, które paczka naprawdę niesie.');
+        }
+
+        $this->assertStringContainsString('bez składników, kroków i zdjęć', $akapit);
+    }
+
+    public function test_spis_tresci_pustego_zeszytu_nie_mowi_o_cudzych_przepisach(): void
+    {
+        /*
+         * Zdanie o ograniczeniu cudzych przepisów opisuje coś, czego na tym
+         * koncie w paczce NIE MA — zeszyt jest pusty. To ta sama klasa
+         * usterki co katalogi opisywane mimo nieobecności: świeże konto
+         * czytało o „cudzych przepisach zapisanych w Twoim zeszycie",
+         * nie mając w zeszycie ani jednego.
+         */
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        Recipe::factory()->for($basia, 'author')->create(['title' => 'Rosół z kury']);
+
+        $export = $this->zbudujPaczke($basia);
+
+        // Pomiar, na którym stoi asercja: zeszyt naprawdę jest pusty.
+        $dane = json_decode($this->zPaczki($export, 'dane.json'), true, 512, JSON_THROW_ON_ERROR);
+        $zapisane = array_merge(...array_map(
+            static fn (array $kolekcja): array => $kolekcja['przepisy'],
+            $dane['kolekcje'],
+        ) ?: [[]]);
+        $this->assertSame([], $zapisane, 'Scena miała mieć pusty zeszyt.');
+
+        $indeks = $this->zPaczki($export, 'index.html');
+
+        $this->assertStringNotContainsString('zapisane w Twoim zeszycie', $indeks,
+            'Paczka opisuje ograniczenie cudzych przepisów, choć w zeszycie nie ma ani jednego.');
+
+        // Kontrola dodatnia (pułapka 4): zdanie otwierające ma zostać —
+        // znika jedno zastrzeżenie, nie cały akapit.
+        $this->assertStringContainsString('To jest kopia Twoich przepisów', $indeks);
+    }
+
+    public function test_wlasny_przepis_w_wlasnym_zeszycie_nie_wywoluje_zdania_o_cudzych(): void
+    {
+        // Odłożenie WŁASNEGO przepisu do własnego zeszytu nie jest powodem
+        // do zastrzeżenia: pełną treść tego przepisu paczka niesie
+        // w katalogu „przepisy". Bez tego rozróżnienia warunek byłby
+        // spełniony przez rzecz, której ograniczenie nie dotyczy.
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $wlasny = Recipe::factory()->for($basia, 'author')->create(['title' => 'Rosół z kury']);
+        app(SaveRecipeToCollection::class)->handle($basia, $wlasny, null, 'Moja wersja.');
+
+        $export = $this->zbudujPaczke($basia);
+
+        $dane = json_decode($this->zPaczki($export, 'dane.json'), true, 512, JSON_THROW_ON_ERROR);
+        $this->assertNotEmpty($dane['kolekcje'][0]['przepisy'] ?? [],
+            'Scena miała mieć własny przepis w zeszycie.');
+
+        $this->assertStringNotContainsString(
+            'zapisane w Twoim zeszycie',
+            $this->zPaczki($export, 'index.html'),
+            'Paczka mówi o cudzych przepisach, choć w zeszycie leży wyłącznie własny.',
+        );
+    }
+
+    public function test_skasowany_cudzy_przepis_w_zeszycie_nie_wywoluje_zdania_o_ograniczeniu(): void
+    {
+        /*
+         * `Recipe` ma `SoftDeletes`, a licznik zeszytu idzie złączeniem —
+         * czyli z pominięciem globalnego zakresu modelu. Bez jawnego warunku
+         * o `deleted_at` przepis skasowany liczyłby się do warunku, choć
+         * `CollectUserExportData::collections()` już go do paczki nie wkłada.
+         * Zdanie o ograniczeniu wychodziłoby wtedy na koncie, w którego
+         * paczce nie ma ani jednego cudzego przepisu.
+         */
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $marek = $this->user('marek', ['display_name' => 'Marek']);
+
+        $cudzy = Recipe::factory()->for($marek, 'author')->create(['title' => 'Żurek na zakwasie']);
+        app(SaveRecipeToCollection::class)->handle($basia, $cudzy, null, 'Zrobić na Wielkanoc.');
+        $cudzy->delete();
+
+        $export = $this->zbudujPaczke($basia);
+
+        // POMIAR PRZED NAPISEM: zapis w zeszycie został, ale do paczki
+        // nie wchodzi już żaden cudzy przepis.
+        $this->assertSoftDeleted($cudzy);
+
+        // Wiersz w zeszycie ma PRZEŻYĆ miękkie skasowanie przepisu. Gdyby
+        // znikał, licznik byłby zerem z niewłaściwego powodu, a test
+        // przechodziłby pusto.
+        $this->assertDatabaseHas('collection_items', ['recipe_id' => $cudzy->getKey()]);
+
+        $dane = json_decode($this->zPaczki($export, 'dane.json'), true, 512, JSON_THROW_ON_ERROR);
+        $zapisane = array_merge([], ...array_map(
+            static fn (array $kolekcja): array => $kolekcja['przepisy'],
+            $dane['kolekcje'],
+        ));
+        $this->assertSame([], $zapisane, 'Skasowany przepis miał do paczki NIE wejść.');
+
+        $this->assertStringNotContainsString(
+            'zapisane w Twoim zeszycie',
+            $this->zPaczki($export, 'index.html'),
+            'Paczka opisuje ograniczenie cudzych przepisów, choć żaden do niej nie wszedł.',
+        );
     }
 
     public function test_paczka_nie_mowi_wszystkie_zdjecia_gdy_czesc_zostaje_poza_nia(): void

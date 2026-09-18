@@ -130,8 +130,15 @@ class PaczkaNieObiecujeCudzychPrzepisowTest extends TestCase
             'Zniknęła granica o danych kontaktowych innych osób.');
 
         // Czytelnik ma się z tego zdania dowiedzieć TRZECH rzeczy: że chodzi
-        // o cudze przepisy, że jest z nich tytuł i autor, i że nie ma reszty.
-        foreach (['przepis', 'tytuł', 'autor', 'składnik'] as $pojecie) {
+        // o cudze przepisy, KTÓRE POLA z nich są, i że nie ma reszty.
+        //
+        // Pola są cztery (`tytul`, `autor`, `moja_notatka`, `zapisano`) —
+        // asercja na klucze w `EksportWygladObietnicePaczkiTest` to mierzy.
+        // Zdanie wymieniało dwa, czyli ZANIŻAŁO to, co paczka niesie; przy
+        // rezygnacji z konta to jest zaniżenie w złą stronę. Każde pojęcie
+        // ma własną asercję, żeby wypadnięcie jednego nie schowało się
+        // za pozostałymi (pułapka 3b).
+        foreach (['przepis', 'tytuł', 'autor', 'notatka', 'data zapisania', 'składnik'] as $pojecie) {
             $this->assertMatchesRegularExpression(
                 '/'.preg_quote($pojecie, '/').'/ui',
                 $opis,

@@ -57,12 +57,29 @@
         (są notatki przy wykonaniu, przy składniku i przy zapisie w zeszycie),
         więc na tej liście udawało osobny rodzaj treści. „Komentarze” są
         w paczce naprawdę i jako osobna sekcja (`moje_komentarze`).
+
+        DWIE POPRAWKI PO NIEZALEŻNYM REVIEW.
+
+        1. Zdanie o zeszycie stoi pod warunkiem, bo na koncie BEZ ANI JEDNEGO
+           cudzego przepisu w zeszycie opisywało ograniczenie czegoś, czego
+           w paczce nie ma. Świeże konto dostawało zdanie o „cudzych
+           przepisach” przy pustym zeszycie — ta sama klasa usterki co
+           katalogi, których w paczce nie ma.
+        2. Wyliczenie pól było niepełne. `collections()` daje CZTERY pola
+           (`tytul`, `autor`, `moja_notatka`, `zapisano`), a zdanie mówiło
+           o dwóch — czyli zaniżało to, co człowiek w paczce naprawdę
+           dostaje. Zakres danych się nie zmienia; zmienia się opis.
+           Zgodność listy pól z rzeczywistością pilnuje asercja na klucze
+           w `EksportWygladObietnicePaczkiTest`.
     --}}
     <div class="karta">
         <p style="margin-bottom:0;">
             To jest kopia Twoich przepisów, wpisów, zdjęć i komentarzy.
-            Cudze przepisy zapisane w Twoim zeszycie są tu jako tytuł i autor,
-            bez składników i kroków. Możesz to trzymać na swoim komputerze i czytać
+            @if($savedOtherRecipeCount > 0)
+                Cudze przepisy zapisane w Twoim zeszycie są tu jako tytuł, autor,
+                Twoja notatka i data zapisania — bez składników, kroków i zdjęć.
+            @endif
+            Możesz to trzymać na swoim komputerze i czytać
             <strong>bez internetu</strong> — także wtedy, gdyby Kuking kiedyś
             przestał istnieć. Nic tutaj nie wymaga zakładania konta.
         </p>
@@ -128,15 +145,27 @@
         <p class="akcja"><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
     @elseif($photosStillProcessing === 0)
         {{--
-            Ten tekst jest prawdziwy TYLKO wtedy, gdy zdjęć naprawdę nie ma.
-            Przy zdjęciach w drodze mówiłby „nie masz żadnego zdjęcia" komuś,
-            kto wgrał je pięć minut wcześniej — czyli dokładnie odwrotnie,
-            niż jest (issue #113). Wtedy wchodzi ostrzeżenie niżej.
+            ZDANIE OPISUJE PACZKĘ, NIE KONTO.
+
+            Ta gałąź nie znaczy „nie masz zdjęć". Znaczy: żadne zdjęcie nie
+            weszło do paczki i żadne nie jest w drodze. `ExportPhotoPlan`
+            liczy tylko `ready` oraz `pending`/`processing`, więc konto
+            z SAMYMI zdjęciami odrzuconymi (albo skasowanymi) trafia tutaj —
+            i słyszało „nie masz jeszcze w Kuking żadnego zdjęcia" o zdjęciach,
+            które samo wgrało. Ta sama usterka była w `CZYTAJ-TO-NAJPIERW.txt`
+            i naprawiamy ją w obu plikach naraz, żeby paczka nie mówiła
+            dwóch rzeczy o jednej sytuacji.
+
+            Zakres danych eksportu się nie zmienia: paczka dalej nie wypisuje
+            zdjęć odrzuconych ani powodu odrzucenia.
+
+            Przy zdjęciach w drodze to zdanie się NIE pojawia (issue #113) —
+            wtedy wchodzi ostrzeżenie niżej.
         --}}
         <p>
-            Nie masz jeszcze w Kuking żadnego zdjęcia, więc w tej paczce nie ma
-            katalogu ze zdjęciami. Kiedy dodasz pierwsze i poprosisz o paczkę
-            ponownie, znajdziesz je tutaj.
+            W tej paczce nie ma żadnego zdjęcia, więc nie ma w niej katalogu
+            ze zdjęciami. Katalog pojawi się, gdy będziesz mieć w Kuking zdjęcie,
+            które widać w serwisie, i poprosisz o paczkę ponownie.
         </p>
     @endif
 

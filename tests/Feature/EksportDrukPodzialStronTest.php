@@ -100,6 +100,60 @@ class EksportDrukPodzialStronTest extends EksportWygladStylPaczki
             'Reguła zakazu dzielenia jest za szeroka: łapie zwykły akapit.');
     }
 
+    public function test_wydruk_nie_doklada_pustego_pasa_na_koncu(): void
+    {
+        /*
+         * PUSTA OSTATNIA KARTKA — zmierzona, nie wydedukowana.
+         *
+         * `body` ma na ekranie 64 px dolnego wypełnienia i ten sam pas
+         * jechał na papier. Gdy treść kończyła się blisko granicy kartki,
+         * przepychał ją na następną — i wychodziła kartka bez ani jednego
+         * znaku i bez ani jednego obrazu.
+         *
+         * Zmierzone na stronie przepisu z prawdziwej paczki (A4, margines
+         * 10 mm, Chromium, `pdfinfo`/`pdftotext`/`pdfimages` strona po
+         * stronie): przy 4 krokach 3 kartki, trzecia pusta; przy 14 krokach
+         * 4 kartki, czwarta pusta. Po poprawce 2 i 3 kartki, obie
+         * zapełnione; pozostałe trzynaście długości bez zmiany.
+         *
+         * Ten test NIE pagina i nie drukuje — pilnuje reguły, która o to
+         * dba, i tego, że dotyczy ona `body`. Sama paginacja jest
+         * w dowodach (`docs/design/evidence/eksport492/`).
+         */
+        [$arkusz, $xpath] = $this->stronaPrzepisu();
+
+        $body = $this->elementy($xpath, '//body');
+        $this->assertCount(1, $body, 'Strona przepisu nie ma `body` — nie ma czego mierzyć.');
+
+        $this->assertSame('0', $this->wartoscDla($arkusz, $body[0], 'padding-bottom'),
+            'Wydruk dokłada na końcu pas pustego miejsca, który potrafi urodzić pustą kartkę.');
+    }
+
+    public function test_dolne_wypelnienie_na_ekranie_zostaje(): void
+    {
+        /*
+         * Kontrola DODATNIA do testu wyżej, nie ujemna — kontrolą ujemną jest
+         * sabotaż z `evidence/eksport492/kontrola-ujemna.log`. Tu chodzi
+         * o granicę poprawki: ma działać WYŁĄCZNIE w druku, bo na ekranie
+         * te 64 px trzymają stopkę z dala od krawędzi okna.
+         *
+         * Asercja na literał skrótu `padding` jest świadomym kompromisem:
+         * oblałaby się także po rozpisaniu skrótu na `padding-top` i resztę,
+         * czyli przy niezmienionym zachowaniu. Pomocnik nie liczy kaskady
+         * ani nie rozwija skrótów (patrz docblock `EksportWygladStylPaczki`),
+         * a fałszywa czerwień jest tu tańsza od przeoczonej zmiany wyglądu.
+         */
+        [$html] = $this->stronaPrzepisuSurowa();
+
+        $podstawowe = $this->regulyPodstawowe($this->arkusz($html));
+        $body = $this->elementy($this->dokument($html), '//body');
+
+        $this->assertCount(1, $body, 'Strona przepisu nie ma `body` — nie ma czego mierzyć.');
+
+        $this->assertSame('24px 16px 64px', $this->wartoscDla($podstawowe, $body[0], 'padding'),
+            'Z ekranu zniknęło dolne wypełnienie strony — to nie było przedmiotem poprawki wydruku.');
+    }
+
     /**
      * Strona przepisu z prawdziwej paczki: arkusz `@media print` i DOM.
      *
@@ -148,5 +202,30 @@ class EksportDrukPodzialStronTest extends EksportWygladStylPaczki
         $html = $this->zPaczki($export, $pliki[0]);
 
         return [$this->regulyWydruku($this->arkusz($html)), $this->dokument($html)];
+    }
+
+    /**
+     * Ta sama scena, ale surowy HTML — dla asercji o regułach spoza `@media print`.
+     *
+     * @return array{0: string}
+     */
+    private function stronaPrzepisuSurowa(): array
+    {
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+
+        Recipe::factory()->for($basia, 'author')->create([
+            'title' => 'Rosół z kury na niedzielę',
+            'hero_media_id' => $this->zdjecieDla($basia, 'rosol')->getKey(),
+        ]);
+
+        $export = $this->zbudujPaczke($basia);
+
+        $pliki = array_values(array_filter(
+            $this->plikiPaczki($export),
+            static fn (string $plik): bool => str_starts_with($plik, 'przepisy/'),
+        ));
+        $this->assertCount(1, $pliki, 'Paczka nie zawiera strony przepisu.');
+
+        return [$this->zPaczki($export, $pliki[0])];
     }
 }

@@ -84,8 +84,20 @@ final class CollectUserExportData
                 // cudzy przepis jest daną osoby, która go napisała
                 // (patrz `collections()` niżej). Zmienia się wyłącznie to,
                 // czy paczka o niej mówi.
+                //
+                // TO POLE JEST BEZWARUNKOWE — i tu jest inaczej niż
+                // w `index.html`, gdzie to samo zdanie stoi pod warunkiem
+                // niepustego zeszytu. Różnica jest zamierzona. `index.html`
+                // czyta CZŁOWIEK i opisuje mu, co w TEJ paczce jest, więc
+                // zdanie o cudzych przepisach przy pustym zeszycie opisuje
+                // nieobecne. `czego_nie_zawiera` czyta PROGRAM i jest opisem
+                // REGUŁY eksportu, nie zawartości tego jednego archiwum —
+                // dokładnie jak `zdjec_jeszcze_w_przygotowaniu`, które też
+                // jest zawsze, także gdy wynosi zero. Klucz pojawiający się
+                // tylko czasem zmuszałby czytający program do zgadywania,
+                // czy granicy nie ma, czy paczkę zbudowała starsza wersja.
                 'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta. '
-                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł i autor, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały.',
+                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
                 // się tylko przy brakach zmusiłby program czytający paczkę do

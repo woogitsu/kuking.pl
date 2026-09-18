@@ -1,0 +1,110 @@
+KONTROLE UJEMNE — pakiet #492 (eksport i druk), dokończenie po review Codexa
+Data (UTC): 2026-09-18T19:28:49Z
+Kopia wykonawcza: /home/mateusz/kuking-492d-claude
+Baza: 127.0.0.1:55439 / kuking_492d_tests (wyłącznie lokalna, do wyrzucenia)
+Kopie bajtów poza repozytorium: /home/mateusz/kontrola-ujemna-492d/kopie
+Metoda: psujemy to, czego test pilnuje → test ma OBLAĆ → przywracamy
+        z kopii `cp -p`, po każdym przywróceniu MD5 i mtime.
+        Nigdy `git checkout --`, nigdy `git stash` (pułapki 8 i 8c).
+
+KOPIA  resources/views/exports/readme.blade.php  md5=78e50321d9404fda2c9ca7866a0a91c2
+KOPIA  resources/views/exports/index.blade.php  md5=d3d1120f1e8f7b85f596e7785034d3b4
+KOPIA  resources/views/exports/styles.blade.php  md5=850ec248284792b0ade2b3eb22cc4c2e
+KOPIA  app/Jobs/GenerateUserExport.php  md5=c6a7b453ecfe8d30e499abc7e7926d65
+KOPIA  app/Domain/Users/Exports/CollectUserExportData.php  md5=ae3ea0fd5bc92fab86e39e45de5605d6
+
+KONTROLA DODATNIA PRZED SABOTAŻAMI: ZIELONO
+    Tests:    24 passed (251 assertions)
+
+--- 1. README: wraca zdanie orzekające o KONCIE zamiast o paczce
+    plik: resources/views/exports/readme.blade.php
+    test: EksportMowiOZdjeciachWDrodzeTest::test_konto_wylacznie_z_odrzuconym_zdjeciem_nie_slyszy_ze_nie_ma_zadnego
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „orzeka o zawartości konta”: tak
+    Tests:    1 failed (13 assertions)
+    przywrócone: md5=78e50321d9404fda2c9ca7866a0a91c2 mtime_zgodny=True md5_zgodny=True
+
+--- 2. index.html: wraca zdanie orzekające o KONCIE zamiast o paczce
+    plik: resources/views/exports/index.blade.php
+    test: EksportMowiOZdjeciachWDrodzeTest::test_konto_wylacznie_z_odrzuconym_zdjeciem_nie_slyszy_ze_nie_ma_zadnego
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „orzeka o zawartości konta”: tak
+    Tests:    1 failed (8 assertions)
+    przywrócone: md5=d3d1120f1e8f7b85f596e7785034d3b4 mtime_zgodny=True md5_zgodny=True
+
+--- 3. index.html: znika CAŁA gałąź o pustej paczce zdjęć
+    plik: resources/views/exports/index.blade.php
+    test: EksportMowiOZdjeciachWDrodzeTest::test_konto_bez_zadnego_zdjecia_dalej_dostaje_zdanie_o_pustej_paczce
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „przestał mówić, że w paczce nie ma zdjęć”: tak
+    Tests:    1 failed (4 assertions)
+    przywrócone: md5=d3d1120f1e8f7b85f596e7785034d3b4 mtime_zgodny=True md5_zgodny=True
+
+--- 4. druk: znika `padding-bottom: 0` z `@media print`
+    plik: resources/views/exports/styles.blade.php
+    test: EksportDrukPodzialStronTest::test_wydruk_nie_doklada_pustego_pasa_na_koncu
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „pas pustego miejsca”: tak
+    Tests:    1 failed (9 assertions)
+    przywrócone: md5=850ec248284792b0ade2b3eb22cc4c2e mtime_zgodny=True md5_zgodny=True
+
+--- 5. ekran: znika dolne wypełnienie `body` (kontrola ujemna kontroli)
+    plik: resources/views/exports/styles.blade.php
+    test: EksportDrukPodzialStronTest::test_dolne_wypelnienie_na_ekranie_zostaje
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „zniknęło dolne wypełnienie”: tak
+    Tests:    1 failed (7 assertions)
+    przywrócone: md5=850ec248284792b0ade2b3eb22cc4c2e mtime_zgodny=True md5_zgodny=True
+
+--- 6. arkusz: wraca literał kończący komentarz Blade (wyciek do paczki)
+    plik: resources/views/exports/styles.blade.php
+    test: PaczkaNieNiesieKomentarzyDeweloperskichTest::test_zaden_plik_paczki_nie_niesie_komentarza_dla_programisty
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „niesie do człowieka”: tak
+    Tests:    1 failed (6 assertions)
+    przywrócone: md5=850ec248284792b0ade2b3eb22cc4c2e mtime_zgodny=True md5_zgodny=True
+
+--- 7. index.html: zdanie o zeszycie znów bezwarunkowe
+    plik: resources/views/exports/index.blade.php
+    test: EksportWygladObietnicePaczkiTest::test_spis_tresci_pustego_zeszytu_nie_mowi_o_cudzych_przepisach
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „choć w zeszycie nie ma ani jednego”: tak
+    Tests:    1 failed (6 assertions)
+    przywrócone: md5=d3d1120f1e8f7b85f596e7785034d3b4 mtime_zgodny=True md5_zgodny=True
+
+--- 8. job: licznik zeszytu przestaje odróżniać cudze przepisy od własnych
+    plik: app/Jobs/GenerateUserExport.php
+    test: EksportWygladObietnicePaczkiTest::test_wlasny_przepis_w_wlasnym_zeszycie_nie_wywoluje_zdania_o_cudzych
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „w zeszycie leży wyłącznie własny”: tak
+    Tests:    1 failed (6 assertions)
+    przywrócone: md5=c6a7b453ecfe8d30e499abc7e7926d65 mtime_zgodny=True md5_zgodny=True
+
+--- 9. job: licznik zeszytu przestaje widzieć skasowanie przepisu (SoftDeletes)
+    plik: app/Jobs/GenerateUserExport.php
+    test: EksportWygladObietnicePaczkiTest::test_skasowany_cudzy_przepis_w_zeszycie_nie_wywoluje_zdania_o_ograniczeniu
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „choć żaden do niej nie wszedł”: tak
+    Tests:    1 failed (8 assertions)
+    przywrócone: md5=c6a7b453ecfe8d30e499abc7e7926d65 mtime_zgodny=True md5_zgodny=True
+
+--- 10. index.html: wraca niepełne wyliczenie pól (dwa zamiast czterech)
+    plik: resources/views/exports/index.blade.php
+    test: EksportWygladObietnicePaczkiTest::test_spis_tresci_nie_obiecuje_pelnej_kopii_cudzych_przepisow
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „nie wymienia pola”: tak
+    Tests:    1 failed (13 assertions)
+    przywrócone: md5=d3d1120f1e8f7b85f596e7785034d3b4 mtime_zgodny=True md5_zgodny=True
+
+--- 11. dane.json: wraca niepełne wyliczenie pól w `czego_nie_zawiera`
+    plik: app/Domain/Users/Exports/CollectUserExportData.php
+    test: PaczkaNieObiecujeCudzychPrzepisowTest::test_paczka_mowi_wprost_czego_nie_niesie_z_cudzych_przepisow
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „okrojony po cichu”: tak
+    Tests:    1 failed (7 assertions)
+    przywrócone: md5=ae3ea0fd5bc92fab86e39e45de5605d6 mtime_zgodny=True md5_zgodny=True
+
+KONTROLA DODATNIA PO WSZYSTKICH SABOTAŻACH: ZIELONO
+    Tests:    24 passed (251 assertions)
+
+RAZEM: 11 z 11 kontrol ujemnych oblało na właściwej asercji i wróciło bajt w bajt.
