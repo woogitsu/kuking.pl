@@ -67,3 +67,19 @@ progu odpowiedzi. Dowody wybrane do repo: docs/design/evidence/counts666/.
 Pint wskazał CRLF w pięciu przeniesionych plikach; sformatowano je i
 przeniesiono same pliki do worktree, bez metadanych Git. Pozostają pełny hook,
 push, PR/CI, merge i rzeczywisty odbiór produkcji. Alfa 0.64 nadal lokalna.
+
+
+## Dostarczenie — 18 września 2026
+
+PR #671 scalony po12/12 zielonych kontrolach PR. Main
+`bdc56b8cf9b664eda104b628d85149b08d84d8d9`, Alfa0.64.
+CI main35319937744:12/12success. Railway6519736990:success.
+Końcowy Deploy35322112089:success. Strona główna i publiczny przepis
+`/przepisy/bigos-z-cukinii` zwracają HTTP200, Alfę0.64 orazbdc56b8.
+Dowody: evidence/counts666/main-ci.json oraz production-http.json.
+
+Publiczny przepis ma pustą listę wykonań. To poprawny pusty stan, ale nie
+produkcyjny dowód niezerowych podpisów. Issue666 pozostaje otwarte wyłącznie
+do reprezentatywnego odbioru niezerowych liczników na rzeczywistych danych.
+Nie tworzono produkcyjnego fixture. Wielokrotne wykonania, odmiany,
+odpowiedzi i prywatność mają zakres lokalny/CI opisany powyżej.
