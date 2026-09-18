@@ -1431,6 +1431,33 @@ repozytorium jest zdaniem o kodzie, nie o kopii.
 
 ---
 
+### Korekta parametrów retencji po review PR #689 (18 IX 2026)
+
+Parametry liczbowe panelu są dziesiętne: `010`, `08` i `09` oznaczają
+odpowiednio 10, 8 i 9. Walidacja usuwa zera wiodące przed arytmetyką Basha,
+który sam odczytałby `010` jako 8. Dopuszczamy najwyżej 19 znaków wejścia
+oraz 18 cyfr po normalizacji; odrzucamy zero, liczby ujemne i tekst przed
+konwersją. Te same reguły chronią bezpośrednie wywołanie retencji.
+Nieobliczalna data graniczna zatrzymuje kasowanie z alarmem; nie jest
+interpretowana jako pusty albo zerowy próg.
+
+Regresja porównuje faktyczne pary żądań DELETE do lokalnego serwera:
+12 starych potwierdzonych kopii przy minimum `010` pozwala usunąć dokładnie
+dwie najstarsze pary. Osobno sprawdza młode kopie, mieszane daty i zachowanie
+kopii z dnia granicznego. Oba serwery testowe dostają port od systemu
+(port 0), a test odczytuje gotowość własnego procesu zamiast sprawdzać,
+czy na stałym porcie odpowiada jakakolwiek usługa. To test mechanizmu;
+nie potwierdza kopii produkcyjnej bazy ani dostępu do R2.
+
+Pomiar lokalny tej korekty: **167/167 PASS** w izolowanej kopii, także
+przy obu dawnych portach zajętych własnymi listenerami. Pięć fizycznych
+kontroli ujemnych wykryło powrót zapisu ósemkowego, pominięcie wieku,
+usuwanie dnia granicznego, brak normalizacji i brak alarmu błędnej daty.
+Po każdej przywrócono MD5 i mtime. Nie wykonywano tutaj pełnego PHP,
+hooka ani odbioru produkcji; ShellCheck nie był dostępny.
+
+---
+
 ## Źródła i powiązane dokumenty
 
 - `docs/infra/DEPLOYMENT_RUNBOOK.md` — KROK 6.4 (włączenie backupów), KROK 13

@@ -321,11 +321,19 @@ else
   SERWER_RET_PY="$(mktemp)"
   cat >"${SERWER_RET_PY}" <<'PYTON'
 import socket, sys, threading
+from datetime import datetime, timezone, timedelta
 PORT = int(sys.argv[1]); TRYB = sys.argv[2]; DZIENNIK = sys.argv[3]
 BLOKADA = threading.Lock()
 
 # (znacznik, rozmiar w buckecie, rozmiar zapisany w .meta albo None = brak .meta)
+TERAZ = datetime.now(timezone.utc)
+def sprzed(dni):
+    return (TERAZ - timedelta(days=dni)).strftime('%Y%m%d-020000Z')
 SCENARIUSZE = {
+    'dwanascie-dobrych': [('202001%02d-020000Z' % d, 5000, 5000) for d in range(1, 13)],
+    'mlode': [(sprzed(d), 5000, 5000) for d in range(1, 13)],
+    'mieszane': [(sprzed(d), 5000, 5000) for d in [45, 40, 35, 20, 10, 5, 1]],
+    'granica': [(sprzed(d), 5000, 5000) for d in [31, 30, 29, 1]],
     # Jedyna niepusta kopia jest NAJSTARSZA, nad nia dziewiec obiektow 0 B.
     'puste-obok': [('20200101-020000Z', 172162, 172162)]
                   + [('202001%02d-020000Z' % d, 0, 0) for d in range(2, 11)],
@@ -409,31 +417,39 @@ def obsluz(c):
 
 s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(('127.0.0.1', PORT)); s.listen(16)
-print('gotowy', flush=True)
+print(s.getsockname()[1], flush=True)
 while True:
     k, _ = s.accept()
     threading.Thread(target=obsluz, args=(k,), daemon=True).start()
 PYTON
 
-  # Port z zakresu nieużywanego przez resztę projektu — inny niż w bloku
-  # o urwanej odpowiedzi, żeby oba dały się kiedyś puścić równolegle.
-  PORT_RETENCJI=59789
-
   # retencja_na_serwerze <tryb> <minimum> <potwierdzona> — wypisuje
   # „skasowane=<klucze po przecinku>|log=<jedna linia>".
   retencja_na_serwerze() {
-    local tryb="$1" minimum="$2" potwierdzona="${3:-1}"
+    local tryb="$1" minimum="$2" potwierdzona="${3:-1}" dni="${4:-30}"
     local dziennik; dziennik="$(mktemp)"
     : >"${dziennik}"
 
-    python3 "${SERWER_RET_PY}" "${PORT_RETENCJI}" "${tryb}" "${dziennik}" >/dev/null 2>&1 &
+    local gotowosc; gotowosc="$(mktemp)"
+    python3 "${SERWER_RET_PY}" 0 "${tryb}" "${dziennik}" >"${gotowosc}" 2>/dev/null &
     local pid=$!
     local i
     for i in 1 2 3 4 5 6 7 8 9 10; do
-      (exec 3<>"/dev/tcp/127.0.0.1/${PORT_RETENCJI}") 2>/dev/null && break
+      [[ -s "${gotowosc}" ]] && break
+      kill -0 "${pid}" 2>/dev/null || break
       sleep 0.2
     done
 
+    local PORT_RETENCJI
+    PORT_RETENCJI="$(cat "${gotowosc}")"
+    rm -f "${gotowosc}"
+    if [[ ! "${PORT_RETENCJI}" =~ ^[0-9]+$ ]] || ! kill -0 "${pid}" 2>/dev/null; then
+      kill "${pid}" 2>/dev/null || true
+      wait "${pid}" 2>/dev/null || true
+      rm -f "${dziennik}"
+      printf 'BLAD: serwer retencji nie wystartowal'
+      return 1
+    fi
     local log_retencji
     log_retencji="$(
       wczytaj
@@ -443,9 +459,9 @@ PYTON
       KATALOG_ROBOCZY="$(mktemp -d)"
       PREFIKS='baza/'
       MINIMUM_KOPII="${minimum}"
-      RETENCJA_DNI=30
+      RETENCJA_DNI="${dni}"
       KOPIA_POTWIERDZONA="${potwierdzona}"
-      alarm() { :; }
+      alarm() { printf 'ALARM:%s:%s\n' "$1" "$2" >&2; }
       retencja 2>&1 >/dev/null
       rm -rf "${KATALOG_ROBOCZY}"
     )"
@@ -564,6 +580,37 @@ PYTON
     sprawdz "…i nie jest doliczany do potwierdzonych" "tak" "nie: ${wynik_log}"
   fi
 
+  # Porownujemy faktyczne DELETE, nie liczbe kluczy ani log planu.
+  for minimum in 010 08 09; do
+    wynik="$(retencja_na_serwerze dwanascie-dobrych "${minimum}")"
+    ile_usunietych="$(printf '%s' "${wynik%%|*}" | grep -o '\.dump\.cms' | wc -l)"
+    sprawdz "minimum ${minimum} jest dziesietne" "$((12 - 10#${minimum}))" "${ile_usunietych}"
+    oczekiwane="$(for ((d=1; d<=12-10#${minimum}; d++)); do printf '202001%02d-020000Z.dump.cms,202001%02d-020000Z.meta,' "$d" "$d"; done)"
+    sprawdz "minimum ${minimum}: usuwa dokladnie najstarsze pary" "skasowane=${oczekiwane%,}" "${wynik%%|*}"
+  done
+  for minimum in -1 000 siedem 9999999999999999999 999999999999999999999999999999; do
+    wynik="$(retencja_na_serwerze dwanascie-dobrych "${minimum}")"
+    sprawdz "bledne minimum ${minimum} niczego nie kasuje" "skasowane=" "${wynik%%|*}"
+  done
+  for dni in 0 -1 tekst 999999999999999999 9999999999999999999 999999999999999999999999999999; do
+    wynik="$(retencja_na_serwerze dwanascie-dobrych 1 1 "${dni}")"
+    sprawdz "bledny wiek ${dni} niczego nie kasuje" "skasowane=" "${wynik%%|*}"
+  done
+  wynik="$(retencja_na_serwerze dwanascie-dobrych 1 1 999999999999999999)"
+  case "${wynik}" in
+    *'nie mozna obliczyc progu daty retencji'*'ALARM:retencja:93'*) wynik_alarmu=tak ;;
+    *) wynik_alarmu=nie ;;
+  esac
+  sprawdz "nieobliczalna data ma jawna odmowe i alarm" tak "${wynik_alarmu}"
+  wynik="$(retencja_na_serwerze mlode 1)"
+  sprawdz "mlode kopie pozostaja mimo nadwyzki" "skasowane=" "${wynik%%|*}"
+  wynik="$(retencja_na_serwerze mieszane 1)"
+  oczekiwane="$(for dni in 45 40 35; do znacznik="$(date -u -d "${dni} days ago" +%Y%m%d)-020000Z"; printf '%s.dump.cms,%s.meta,' "${znacznik}" "${znacznik}"; done)"
+  sprawdz "mieszane: usuwa dokladnie stare pary, zachowuje mlode" "skasowane=${oczekiwane%,}" "${wynik%%|*}"
+  wynik="$(retencja_na_serwerze granica 1 1 030)"
+  stara="$(date -u -d '31 days ago' +%Y%m%d)-020000Z"
+  sprawdz "dzien graniczny zostaje, starsza para znika" "skasowane=${stara}.dump.cms,${stara}.meta" "${wynik%%|*}"
+
   rm -f "${SERWER_RET_PY}"
 fi
 
@@ -594,6 +641,25 @@ sprawdz "KOPIA_RETENCJA_DNI=0 zatrzymuje przebieg na starcie" \
 # „odrzucaj wszystko" zdałoby trzy asercje wyżej.
 sprawdz "poprawna liczba przechodzi bramkę konfiguracji" \
   "kod=0" "$(konfiguracja_wynik KOPIA_MINIMUM_KOPII 7)"
+
+# Wszystkie parametry panelu korzystaja z tej samej normalizacji.
+for parametr in MINIMUM_KOPII RETENCJA_DNI MIN_TABEL MIN_BAJTOW MAX_BAJTOW ALARM_PO_GODZINACH; do
+  for wartosc in 010 08 09; do
+    wynik="$(
+      export DB_URL='postgresql://u:p@postgres.railway.internal:5432/railway'
+      export KOPIA_S3_ENDPOINT=x KOPIA_S3_BUCKET=y KOPIA_S3_KLUCZ=z KOPIA_S3_SEKRET=w KOPIA_KLUCZ_PUBLICZNY=c
+      export "KOPIA_${parametr}=${wartosc}"
+      wczytaj
+      trap sprzataj EXIT
+      sprawdz_srodowisko >/dev/null 2>&1
+      printf '%s' "${!parametr}"
+    )"
+    sprawdz "panel: ${parametr}=${wartosc} normalizuje dziesietnie" "$((10#${wartosc}))" "${wynik}"
+  done
+  for wartosc in 0 -1 tekst 9999999999999999999 999999999999999999999999999999; do
+    sprawdz "panel odrzuca ${parametr}=${wartosc}" "kod=13" "$(konfiguracja_wynik "KOPIA_${parametr}" "${wartosc}")"
+  done
+done
 
 # =============================================================================
 echo "── Kod HTTP z listowania bucketu dożywa do komunikatu (#594) ──"
@@ -743,25 +809,32 @@ def obsluz(c):
         except Exception: pass
 s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.bind(('127.0.0.1', PORT)); s.listen(8)
-print('gotowy', flush=True)
+print(s.getsockname()[1], flush=True)
 while True:
     k, _ = s.accept()
     threading.Thread(target=obsluz, args=(k,), daemon=True).start()
 PYTON
 
-  # Port z zakresu nieużywanego przez resztę projektu; gdyby był zajęty,
-  # `curl` nie dostanie oczekiwanej odpowiedzi i test OBLEJE — nie przejdzie.
-  PORT_PROBNY=59788
-
   z_serwerem() { # z_serwerem <tryb> <polecenia w podpowloce>
     local tryb="$1"; shift
-    python3 "${SERWER_PY}" "${PORT_PROBNY}" "${tryb}" >/dev/null 2>&1 &
+    local gotowosc; gotowosc="$(mktemp)"
+    python3 "${SERWER_PY}" 0 "${tryb}" >"${gotowosc}" 2>/dev/null &
     local pid=$!
     local i
     for i in 1 2 3 4 5 6 7 8 9 10; do
-      (exec 3<>"/dev/tcp/127.0.0.1/${PORT_PROBNY}") 2>/dev/null && break
+      [[ -s "${gotowosc}" ]] && break
+      kill -0 "${pid}" 2>/dev/null || break
       sleep 0.2
     done
+    local PORT_PROBNY
+    PORT_PROBNY="$(cat "${gotowosc}")"
+    rm -f "${gotowosc}"
+    if [[ ! "${PORT_PROBNY}" =~ ^[0-9]+$ ]] || ! kill -0 "${pid}" 2>/dev/null; then
+      kill "${pid}" 2>/dev/null || true
+      wait "${pid}" 2>/dev/null || true
+      printf 'BLAD: serwer listowania nie wystartowal'
+      return 1
+    fi
     ( "$@" )
     kill "${pid}" 2>/dev/null
     wait "${pid}" 2>/dev/null

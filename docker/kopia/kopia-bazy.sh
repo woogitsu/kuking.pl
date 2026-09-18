@@ -97,9 +97,20 @@ log() { printf '[kopia] %s\n' "$*" >&2; }
 #  Sprawdzamy to w KROKU 0, przed zrzutem, bo zły wpis w panelu ma zatrzymać
 #  przebieg zanim ten cokolwiek skasuje — a nie po.
 # -----------------------------------------------------------------------------
+# Bash odczytuje 010 jako zapis ósemkowy. Najpierw usuwamy zera
+# tekstowo; najwyżej 18 cyfr mieści się w podpisanej arytmetyce 64-bitowej.
+normalizuj_liczbe_dodatnia() {
+  local wartosc="$1" minimum="$2"
+  [[ "${wartosc}" =~ ^[0-9]{1,19}$ ]] || return 1
+  while [[ "${wartosc}" == 0* && ${#wartosc} -gt 1 ]]; do wartosc="${wartosc#0}"; done
+  ((${#wartosc} <= 18)) || return 1
+  ((10#${wartosc} >= minimum)) || return 1
+  printf '%s' "$((10#${wartosc}))"
+}
+
 liczba_dodatnia_albo_padnij() {
   local nazwa="$1" wartosc="$2" minimum="$3"
-  if [[ ! "${wartosc}" =~ ^[0-9]{1,19}$ ]] || ((10#${wartosc} < minimum)); then
+  if ! normalizuj_liczbe_dodatnia "${wartosc}" "${minimum}" >/dev/null; then
     log "BŁĄD: ${nazwa}=${wartosc} — oczekiwana liczba całkowita nie mniejsza niż ${minimum}."
     padnij srodowisko 13
   fi
@@ -311,6 +322,10 @@ sprawdz_srodowisko() {
   liczba_dodatnia_albo_padnij KOPIA_MIN_BAJTOW "${MIN_BAJTOW}" 1
   liczba_dodatnia_albo_padnij KOPIA_MAX_BAJTOW "${MAX_BAJTOW}" 1
   liczba_dodatnia_albo_padnij KOPIA_ALARM_PO_GODZINACH "${ALARM_PO_GODZINACH}" 1
+  local parametr
+  for parametr in MINIMUM_KOPII RETENCJA_DNI MIN_TABEL MIN_BAJTOW MAX_BAJTOW ALARM_PO_GODZINACH; do
+    printf -v "${parametr}" '%s' "$(normalizuj_liczbe_dodatnia "${!parametr}" 1)"
+  done
 
   local narzedzie
   for narzedzie in pg_dump pg_restore psql openssl curl; do
@@ -941,12 +956,13 @@ retencja() {
   # starcie, ale ta funkcja KASUJE, więc sprawdza je jeszcze raz u siebie —
   # gdyby kiedyś dało się ją wywołać inną drogą, ma odmówić, a nie paść na
   # `unbound variable` w środku pętli (tak właśnie kończyło się „siedem").
-  if [[ ! "${MINIMUM_KOPII}" =~ ^[0-9]{1,19}$ ]] || ((10#${MINIMUM_KOPII} < 1)); then
+  local minimum_dziesietne dni_dziesietne
+  if ! minimum_dziesietne="$(normalizuj_liczbe_dodatnia "${MINIMUM_KOPII}" 1)"; then
     log "OSTRZEŻENIE: KOPIA_MINIMUM_KOPII=${MINIMUM_KOPII} nie jest liczbą >= 1 — nie kasuję niczego."
     alarm retencja 93
     return 0
   fi
-  if [[ ! "${RETENCJA_DNI}" =~ ^[0-9]{1,19}$ ]] || ((10#${RETENCJA_DNI} < 1)); then
+  if ! dni_dziesietne="$(normalizuj_liczbe_dodatnia "${RETENCJA_DNI}" 1)"; then
     log "OSTRZEŻENIE: KOPIA_RETENCJA_DNI=${RETENCJA_DNI} nie jest liczbą >= 1 — nie kasuję niczego."
     alarm retencja 93
     return 0
@@ -1042,14 +1058,18 @@ retencja() {
     alarm retencja 92
   fi
 
-  if ((ile <= MINIMUM_KOPII)); then
+  if ((ile <= minimum_dziesietne)); then
     log "retencja pominięta: ${ile} potwierdzonych <= minimum ${MINIMUM_KOPII}"
     return 0
   fi
 
   local prog
-  prog="$(date -u -d "${RETENCJA_DNI} days ago" +%Y%m%d)"
-  local do_skasowania=$((ile - MINIMUM_KOPII))
+  if ! prog="$(date -u -d "${dni_dziesietne} days ago" +%Y%m%d 2>/dev/null)" || [[ ! "${prog}" =~ ^[0-9]{8}$ ]]; then
+    log 'OSTRZEZENIE: nie mozna obliczyc progu daty retencji - nie kasuje niczego.'
+    alarm retencja 93
+    return 0
+  fi
+  local do_skasowania=$((ile - minimum_dziesietne))
   local skasowane=0
 
   for klucz in "${potwierdzone[@]}"; do
