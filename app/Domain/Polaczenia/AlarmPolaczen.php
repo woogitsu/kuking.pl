@@ -52,11 +52,24 @@ use Throwable;
  *     ogranicza wyłącznie LICZBĘ ŻĄDAŃ do martwego kanału.
  *
  * Przerwa jest o dwa rzędy wielkości krótsza od ciszy i to jest cały sens:
- * przy czujce chodzącej co godzinę nie pomija ANI JEDNEGO przebiegu, więc
- * alarm o trwającej awarii dochodzi przy pierwszym przebiegu po powrocie
- * kanału do życia. Chroni natomiast przed pętlą tam, gdzie ta sama czujka
- * zostałaby zawołana kilka razy pod rząd w jednym procesie — a to się
- * zdarza (`/health` dzwoni po kilka razy w jednym żądaniu).
+ * czujka połączeń chodzi co godzinę, kolejki co kwadrans, więc pięć minut
+ * nie pomija ANI JEDNEGO ich przebiegu — alarm o trwającej awarii dochodzi
+ * przy pierwszym przebiegu po powrocie kanału do życia. Chroni natomiast
+ * przed wołaniem w pętli: ręcznym `php artisan` obok harmonogramu i każdą
+ * przyszłą pętlą ponowień.
+ *
+ * CZEGO TA PRZERWA NIE ROBI, żeby następna osoba nie liczyła na więcej:
+ * zmiana stanu (`ostrzezenie` → `krytyczny` i z powrotem) omija OBA zegary,
+ * bo eskalacja ma dochodzić natychmiast. Wartość migocząca wokół progu
+ * wyśle więc wiadomość przy każdym przebiegu — zmierzone. To jest świadomy
+ * wybór na rzecz eskalacji, nie przeoczenie.
+ *
+ * Wcześniejsza wersja tego komentarza uzasadniała pięć minut tym, że
+ * `/health` woła tę czujkę kilka razy w jednym żądaniu. To był FAŁSZ:
+ * `HealthController` ma własny, niezależny mechanizm (`powiadomWebhook()`
+ * z własnym odstępem), a `zadzwonJesliTrzeba()` woła wyłącznie
+ * `BudzetPolaczen` i `SprawdzKolejke` — w obu po dwa razy, ale na
+ * ROZŁĄCZNYCH gałęziach, więc w jednym przebiegu wykonuje się jedno.
  *
  * DLACZEGO PAMIĘĆ W CACHE, A NIE W TABELI
  * Bo zapomnienie tego stanu jest nieszkodliwe: najgorsze, co się stanie po
@@ -157,6 +170,16 @@ final class AlarmPolaczen
             // Pamięć zostaje — skasowana znaczyłaby „odwołane" i człowiek
             // zostałby z alarmem bez zakończenia. Następny przebieg czujki
             // spróbuje jeszcze raz, po krótkiej przerwie.
+            //
+            // `epizod_zamkniety` JEST TU NAJWAŻNIEJSZY
+            // (zastrzeżenie recenzji do #687). Ten alarm już się skończył —
+            // awaria minęła, próbujemy tylko dopowiedzieć, że minęła. Gdyby
+            // znacznik dostarczenia został, POWRÓT tej samej awarii trafiłby
+            // na pełne okno ciszy należne staremu, zamkniętemu epizodowi.
+            // Zmierzone przed tą zmianą: cztery przebiegi czujki kolejki,
+            // kanał sprawny, ZERO żądań HTTP i 3 h 15 min ciszy o stojącej
+            // kolejce. Nowy epizod ma się liczyć jako nowe zdarzenie.
+            $poprzedni['epizod_zamkniety'] = true;
             $poprzedni['proba_o'] = $this->teraz();
             $poprzedni['odwolanie_nieudane'] = true;
             Cache::put(self::KLUCZ, $poprzedni, $this->pamiec());
@@ -226,7 +249,13 @@ final class AlarmPolaczen
             return true;
         }
 
-        $dostarczoneO = $this->dostarczoneO($poprzedni);
+        // Epizod zamknięty (awaria minęła, zostało tylko nieudane
+        // odwołanie) nie należy się już ciszą: jej POWRÓT jest nowym
+        // zdarzeniem. Bez tego cztery przebiegi czujki przy sprawnym
+        // kanale nie wysyłały ani jednego żądania.
+        $dostarczoneO = ($poprzedni['epizod_zamkniety'] ?? false) === true
+            ? 0
+            : $this->dostarczoneO($poprzedni);
         $cisza = max(1, (int) config('kuking.polaczenia.cisza_godzin')) * 3600;
 
         $najwczesniej = max(
@@ -279,9 +308,20 @@ final class AlarmPolaczen
      */
     private function dostarczoneO(array $zapis): int
     {
-        // `o` czytamy dla zapisów sprzed tej poprawki: powstawały wyłącznie
-        // po (rzekomo) udanej wysyłce, więc ich znaczeniem było „dostarczone".
-        return (int) ($zapis['dostarczony_o'] ?? $zapis['o'] ?? 0);
+        // STAREGO KLUCZA `o` NIE WOLNO TU CZYTAĆ — i to jest cała nauka
+        // z tej usterki (zastrzeżenie recenzji do #687).
+        //
+        // Pierwsza wersja tej poprawki czytała `o` jako „dostarczone",
+        // z uzasadnieniem, że stare wpisy powstawały wyłącznie po udanej
+        // wysyłce. To nieprawda i przeczy powodowi, dla którego ta poprawka
+        // w ogóle istnieje: stary kod zapisywał `o` TAKŻE po wysyłce, której
+        // kanał nie przyjął. Zmierzone na wpisie `{"stan":"krytyczny",
+        // "o":…}` powstałym po HTTP 404: trwający alarm był wyciszany,
+        // a potem wychodziło odwołanie alarmu, którego nikt nie widział.
+        //
+        // Wpis w starym formacie znaczy więc „próbowaliśmy" — i tyle czyta
+        // z niego `probaO()`. Tutaj zero: nie mamy dowodu dostarczenia.
+        return (int) ($zapis['dostarczony_o'] ?? 0);
     }
 
     /**

@@ -130,6 +130,13 @@ final class AlarmKolejki
             // Odwołanie, którego kanał nie potwierdził, NIE jest odwołaniem.
             // Pamięć zostaje — skasowana znaczyłaby „odwołane" i człowiek
             // zostałby z alarmem bez zakończenia.
+            //
+            // `epizod_zamkniety`: ten alarm już się skończył, więc
+            // POWRÓT tej samej awarii ma być nowym zdarzeniem, a nie
+            // powtórzeniem starego. Bez tego wracająca zaległość trafiała
+            // na pełne okno ciszy — zmierzone: cztery przebiegi czujki,
+            // kanał sprawny, zero żądań HTTP (zastrzeżenie recenzji #687).
+            $poprzedni['epizod_zamkniety'] = true;
             $poprzedni['proba_o'] = $this->teraz();
             $poprzedni['odwolanie_nieudane'] = true;
             Cache::put(self::KLUCZ, $poprzedni, $this->pamiec());
@@ -197,7 +204,13 @@ final class AlarmKolejki
             return true;
         }
 
-        $dostarczoneO = $this->dostarczoneO($poprzedni);
+        // Epizod zamknięty (awaria minęła, zostało tylko nieudane
+        // odwołanie) nie należy się już ciszą: jej POWRÓT jest nowym
+        // zdarzeniem. Bez tego cztery przebiegi czujki przy sprawnym
+        // kanale nie wysyłały ani jednego żądania.
+        $dostarczoneO = ($poprzedni['epizod_zamkniety'] ?? false) === true
+            ? 0
+            : $this->dostarczoneO($poprzedni);
         $cisza = max(1, (int) config('kuking.kolejka.cisza_godzin')) * 3600;
 
         $najwczesniej = max(
@@ -249,9 +262,20 @@ final class AlarmKolejki
      */
     private function dostarczoneO(array $zapis): int
     {
-        // `o` czytamy dla zapisów sprzed tej poprawki: powstawały wyłącznie
-        // po (rzekomo) udanej wysyłce, więc ich znaczeniem było „dostarczone".
-        return (int) ($zapis['dostarczony_o'] ?? $zapis['o'] ?? 0);
+        // STAREGO KLUCZA `o` NIE WOLNO TU CZYTAĆ — i to jest cała nauka
+        // z tej usterki (zastrzeżenie recenzji do #687).
+        //
+        // Pierwsza wersja tej poprawki czytała `o` jako „dostarczone",
+        // z uzasadnieniem, że stare wpisy powstawały wyłącznie po udanej
+        // wysyłce. To nieprawda i przeczy powodowi, dla którego ta poprawka
+        // w ogóle istnieje: stary kod zapisywał `o` TAKŻE po wysyłce, której
+        // kanał nie przyjął. Zmierzone na wpisie `{"stan":"krytyczny",
+        // "o":…}` powstałym po HTTP 404: trwający alarm był wyciszany,
+        // a potem wychodziło odwołanie alarmu, którego nikt nie widział.
+        //
+        // Wpis w starym formacie znaczy więc „próbowaliśmy" — i tyle czyta
+        // z niego `probaO()`. Tutaj zero: nie mamy dowodu dostarczenia.
+        return (int) ($zapis['dostarczony_o'] ?? 0);
     }
 
     /**

@@ -94,6 +94,157 @@ class NieudanyDzwonekNieKupujeCiszyTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * POWRÓT AWARII PO NIEUDANYM ODWOŁANIU DZWONI OD RAZU.
+     *
+     * Zastrzeżenie recenzji do #687, i to najpoważniejsze: pierwsza wersja
+     * tej poprawki zostawiała w pamięci `dostarczony_o` sprzed awarii, żeby
+     * ponowić odwołanie. Gdy awaria wracała, ten sam stan i niezerowy
+     * znacznik dostarczenia nakładały PEŁNE okno ciszy — zmierzone: cztery
+     * przebiegi czujki, kanał sprawny, ZERO żądań HTTP.
+     *
+     * To jest dokładnie ta klasa błędu, którą cały ten plik ma wykluczyć:
+     * alarm o trwającej awarii nie dochodzi, choć kanał działa.
+     */
+    #[Test]
+    public function powrot_awarii_po_nieudanym_odwolaniu_dzwoni_od_razu(): void
+    {
+        $proby = 0;
+        Http::fake(function () use (&$proby) {
+            $proby++;
+
+            // 1. alarm przyjęty. 2. odwołanie odrzucone. 3. i dalej: przyjęte.
+            return $proby === 2 ? Http::response('nie ma kanalu', 404) : Http::response('ok', 200);
+        });
+
+        $alarm = app(AlarmPolaczen::class);
+
+        $this->assertTrue($alarm->zadzwonJesliTrzeba($this->krytyczne()), 'Pierwszy alarm ma dojść.');
+        Http::assertSentCount(1);
+
+        $this->assertFalse($alarm->zadzwonJesliTrzeba($this->spokojne()), 'Odwołania kanał nie przyjął.');
+        Http::assertSentCount(2);
+
+        // Awaria wraca zaraz po nieudanym odwołaniu. Przerwa między próbami
+        // obowiązuje, bo chroni martwy kanał — ale cisza NIE, bo ten epizod
+        // jest nowy, a poprzedni został zamknięty.
+        $this->travel(self::PONOWIENIE_MINUT + 1)->minutes();
+
+        $this->assertTrue(
+            $alarm->zadzwonJesliTrzeba($this->krytyczne()),
+            'Powracająca awaria dostała ciszę należną zamkniętemu epizodowi — alarm zginął.',
+        );
+        Http::assertSentCount(3);
+    }
+
+    /** Ten sam błąd i ta sama naprawa po stronie kolejki (pułapka 3b). */
+    #[Test]
+    public function powrot_zaleglosci_po_nieudanym_odwolaniu_dzwoni_od_razu(): void
+    {
+        $proby = 0;
+        Http::fake(function () use (&$proby) {
+            $proby++;
+
+            return $proby === 2 ? Http::response('nie ma kanalu', 404) : Http::response('ok', 200);
+        });
+
+        $alarm = app(AlarmKolejki::class);
+
+        $this->assertTrue($alarm->zadzwonJesliTrzeba($this->zaleglosc()));
+        $this->assertFalse($alarm->zadzwonJesliTrzeba($this->spokojnaKolejka()));
+        Http::assertSentCount(2);
+
+        $this->travel(self::PONOWIENIE_MINUT + 1)->minutes();
+
+        $this->assertTrue(
+            $alarm->zadzwonJesliTrzeba($this->zaleglosc()),
+            'Powracająca zaległość dostała ciszę należną zamkniętemu epizodowi.',
+        );
+        Http::assertSentCount(3);
+    }
+
+    /**
+     * NIEUDANE ODWOŁANIE ODTWARZA PAMIĘĆ — i ta gałąź ma własny pomiar.
+     *
+     * Recenzja pokazała, że poprzednia wersja tego pliku przechodziła także
+     * dla kodu, który w tej gałęzi nie zapisywał NIC: test podróżował
+     * o sześć minut do przodu, więc nie odróżniał „pamięć odtworzona"
+     * od „pamięci nigdy nie ruszono". Tutaj patrzymy na zapis wprost.
+     */
+    #[Test]
+    public function nieudane_odwolanie_zostawia_slad_w_pamieci(): void
+    {
+        $proby = 0;
+        Http::fake(function () use (&$proby) {
+            $proby++;
+
+            return $proby === 2 ? Http::response('nie ma kanalu', 404) : Http::response('ok', 200);
+        });
+
+        $alarm = app(AlarmPolaczen::class);
+        $alarm->zadzwonJesliTrzeba($this->krytyczne());
+        $alarm->zadzwonJesliTrzeba($this->spokojne());
+
+        $zapis = Cache::get(self::KLUCZ_POLACZEN);
+
+        $this->assertIsArray($zapis, 'Pamięć po nieudanym odwołaniu ma zostać — inaczej odwołanie przepada.');
+        $this->assertTrue($zapis['odwolanie_nieudane'] ?? false, 'Bez tego znacznika odwołanie ponawia się bez przerwy.');
+        $this->assertGreaterThan(0, (int) ($zapis['proba_o'] ?? 0), 'Próba ma zostać odnotowana.');
+        $this->assertTrue($zapis['epizod_zamkniety'] ?? false, 'Bez tego znacznika POWRÓT awarii dostanie ciszę należną zamkniętemu epizodowi.');
+    }
+
+    /**
+     * WPIS W STARYM FORMACIE NIE JEST DOWODEM DOSTARCZENIA.
+     *
+     * Klucz `o` zapisywał stary kod — TAKŻE po wysyłce, której kanał nie
+     * przyjął. Pierwsza wersja tej poprawki czytała go jako „dostarczone",
+     * więc wpis powstały po HTTP 404 wyciszał trwający alarm i produkował
+     * odwołanie alarmu, którego nikt nie widział (zastrzeżenie recenzji).
+     */
+    #[Test]
+    public function wpis_w_starym_formacie_nie_wycisza_trwajacego_alarmu(): void
+    {
+        Http::fake(['*' => Http::response('ok', 200)]);
+
+        // Wpis SPRZED przerwy miedzy probami — inaczej test mierzylby
+        // dzialanie tej przerwy, a nie brak dowodu dostarczenia.
+        Cache::put(self::KLUCZ_POLACZEN, ['stan' => StanPolaczenBazy::KRYTYCZNY, 'o' => now()->subHour()->getTimestamp()], 3600);
+
+        $this->assertTrue(
+            app(AlarmPolaczen::class)->zadzwonJesliTrzeba($this->krytyczne()),
+            'Stary wpis znaczy „próbowaliśmy", nie „doszło" — nie może kupować ciszy.',
+        );
+        Http::assertSentCount(1);
+    }
+
+    /** Stary wpis nie może też wyprodukować odwołania alarmu, którego nikt nie widział. */
+    #[Test]
+    public function stary_wpis_nie_produkuje_odwolania_alarmu_ktorego_nikt_nie_widzial(): void
+    {
+        Http::fake(['*' => Http::response('ok', 200)]);
+
+        Cache::put(self::KLUCZ_POLACZEN, ['stan' => StanPolaczenBazy::KRYTYCZNY, 'o' => now()->subHour()->getTimestamp()], 3600);
+
+        $this->assertFalse(
+            app(AlarmPolaczen::class)->zadzwonJesliTrzeba($this->spokojne()),
+            'Bez dowodu dostarczenia nie ma czego odwoływać.',
+        );
+        Http::assertNothingSent();
+        $this->assertNull(Cache::get(self::KLUCZ_POLACZEN), 'Pamięć bez dowodu dostarczenia ma się wyczyścić po cichu.');
+    }
+
+    /** @return array<string, mixed> */
+    private function spokojne(): array
+    {
+        return ['stan' => StanPolaczenBazy::SPOKOJNY, 'zajete_serwer' => 10, 'dostepne' => 97, 'prog_krytyczny' => 80, 'prog_ostrzegawczy' => 50, 'budzet_szczytowy' => 16];
+    }
+
+    /** @return array<string, mixed> */
+    private function spokojnaKolejka(): array
+    {
+        return ['stan' => StanKolejki::SPOKOJNA, 'zaleglosc_sekundy' => 1, 'prog_zaleglosci_sekundy' => 300, 'oczekujace' => 0, 'zawieszone' => 0];
+    }
+
     /** @return array<string, mixed> */
     private function krytyczne(): array
     {
