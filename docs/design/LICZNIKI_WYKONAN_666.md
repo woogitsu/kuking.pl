@@ -75,7 +75,7 @@ PR #671 scalony po12/12 zielonych kontrolach PR. Main
 `bdc56b8cf9b664eda104b628d85149b08d84d8d9`, Alfa0.64.
 CI main35319937744:12/12success. Railway6519736990:success.
 Końcowy Deploy35322112089:success. Strona główna i publiczny przepis
-`/przepisy/bigos-z-cukinii` zwracają HTTP200, Alfę0.64 orazbdc56b8.
+[Bigos z cukinii](https://kuking.pl/przepisy/bigos-z-cukinii) zwracają HTTP200, Alfę0.64 orazbdc56b8.
 Dowody: evidence/counts666/main-ci.json oraz production-http.json.
 
 Publiczny przepis ma pustą listę wykonań. To poprawny pusty stan, ale nie
