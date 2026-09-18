@@ -23,15 +23,7 @@ Odniesienie dla całej tej pracy: `main` na `bdc56b8cf9b664eda104b628d85149b08d8
 | Kopie i R2 (#193 #594 #120 #617 #619) | `infra/594-odbior-kopii` | `31a0b40b7601fefa0c37ed7a8efad124eb8eb34d` | **#674** | Draft, CI **12/12 pass**, bez automerge, **niescalony** |
 | Czujki i odbiór alarmów (#598 #599) | `infra/599-odbior-alarmow` | `7c300ccccc5a81f098e85667498e3afdaf89c89c` | **#676** | Draft, CI **12/12 pass**, bez automerge, **niescalony**; hook `pre-push` przeszedł w całości |
 | To przekazanie | `docs/przekazanie-2026-09-18` | `10f738f719…` | **#677** | Draft, CI **12/12 pass**, bez automerge, **niescalony** |
-| Obciążenie mieszane (#605) | `perf/605-obciazenie-mieszane` | `047460da…`, `ae6781a…`, `456df92…` | **wysyłany 18 IX na koniec sesji** | przyrząd, zbiór danych, bramka i metoda gotowe; **ani jednej serii pomiarowej nie zdjęto** — powód w punkcie 6 |
-
-> **Jeśli gałęzi `perf/605-obciazenie-mieszane` nie ma na GitHubie**, znaczy to,
-> że sesja skończyła się przed jej wysłaniem. Commity leżą wtedy w
-> `/home/mateusz/kuking-B-obciazenie` na tej maszynie i **to jedyne miejsce,
-> gdzie istnieją.** Odzyskanie: wejść do tego katalogu, uruchomić pełny zestaw
-> ze zmiennymi z punktu 2 (**bez `APP_URL`**), `git push -u origin
-> perf/605-obciazenie-mieszane`, otworzyć **Draft** PR i dopisać komentarz do
-> #605. Nic tam nie wymaga poprawek — pakiet był gotowy i zielony.
+| Obciążenie mieszane (#605) | `perf/605-obciazenie-mieszane` | `0e5d27079007195173c98768f8b474e315c1f44a` | **#679** | Draft, bez automerge, **niescalony**, 30 plików; **pakiet przyrządu, NIE wyników** — ani jednej serii nie zdjęto, powód w punktach 6 i 9a |
 
 **Wszystkie PR-y zostają do końcowego review i scalenia przez Codeksa.**
 Automerge nigdzie nie jest włączony. Żadnego issue nie zamknięto — sprawdzone:
@@ -77,6 +69,20 @@ zadziałał. Powiązane: #66.
 Powłoka Windows rozwija `$(pwd)` do repozytorium kanonicznego. Subagent A
 stracił na tym cały przebieg: sześć testów oblało bez żadnego związku ze zmianą.
 Po wpisaniu ścieżki dosłownie — zero oblanych.
+
+### 2.2a. `check.sh` robi `migrate:refresh` — `DB_DATABASE` musi być bazą do wyrzucenia
+
+Krok „Odwracalność migracji" w `scripts/check.sh` wykonuje **`migrate:refresh`**,
+czyli **czyści bazę wskazaną przez `DB_DATABASE`**. Przy pushu trzeba więc
+wskazać bazę roboczą, **nigdy pomiarową ani żadną, której zawartości szkoda**.
+Tu było to o włos: zbiór pomiarowy #605 buduje się **347 sekund** i wskazanie
+go w tej zmiennej skasowałoby go bez ostrzeżenia.
+
+Razem z pułapką z punktu 2.2 (`phpunit.xml` ma na sztywno port 5432) znaczy to,
+że **każde** uruchomienie hooka wymaga jawnego `DB_PORT=55439` **i** świadomie
+wybranego `DB_DATABASE`. Subagent B potwierdził to niezależnie: jego pierwszy
+push oblał nie na treści zmian, tylko dlatego, że bez eksportu `DB_PORT` hook
+poszedł na zakazany port.
 
 ### 2.3a. „Czy runner pracuje" — pytanie, które łatwo zadać źle
 
@@ -468,18 +474,32 @@ o sesji, których **nikt nie zmierzył**.
 
 ## 9b. Co zostaje do posprzątania na maszynie
 
-Jeśli sesja skończyła się przed sprzątaniem subagenta B:
+**Zrobione przed zamknięciem sesji:** `RESET log_min_duration_statement` na
+`kuking_b605_obciazenie`, kontener `kuking-b605-app` usunięty, **port 8605
+wolny**, żadnych procesów subagentów nie zostało. Porty subagenta A (9594,
+9595, 9596, 8591) też wolne.
 
-- kontener **`kuking-b605-app`** (port **8605**) — do zatrzymania i usunięcia;
-- `log_min_duration_statement` na bazie `kuking_b605_obciazenie` — do `RESET`;
-- bazy `kuking_b605_obciazenie`, `kuking_b605_proba`, `kuking_b605_testy`,
-  `kuking_b605_tests` — do skasowania, **gdy pomiar przestanie być potrzebny**
-  (odtworzenie zbioru trwa ok. 350 s);
-- `/home/mateusz/kuking-b605-run/` — artefakty poza repozytorium, **zawierają
-  ciasteczka sesji i `APP_KEY` stanowiska**, więc do skasowania, a nie do
-  zarchiwizowania gdziekolwiek indziej.
+**Zostaje na maszynie, świadomie:**
+
+- bazy na `127.0.0.1:55439`: **`kuking_b605_obciazenie` (331 MB)** — zbiór
+  pomiarowy, **wart zachowania**, bo odtworzenie trwa 347 s i bez niego rampy
+  z punktu 9a nie da się zdjąć; `kuking_b605_proba` (28 MB),
+  `kuking_b605_testy` (18 MB), `kuking_b605_tests` (7,6 MB);
+- `kuking_c599_tests` (koordynator), `kuking_a594_tests` (subagent A);
+- **`/home/mateusz/kuking-b605-run/`, 575 MB** — artefakty poza repozytorium.
+  **Zawierają ciasteczka 60 sesji i `APP_KEY` stanowiska**, więc gdy przestaną
+  być potrzebne, mają zostać **skasowane**, a nie zarchiwizowane gdziekolwiek
+  indziej. Nic z tego nie poszło do gita;
+- klony robocze `/home/mateusz/kuking-C-alarmy`, `kuking-A-kopie`,
+  `kuking-B-obciazenie` — wszystkie na wypchniętych gałęziach.
 
 Nic z tego nie jest pilne i nic z tego nie dotyka produkcji.
+
+**Jedna obserwacja, nie ustalenie:** `ProbaOdtworzeniaTest` (zakres subagenta A,
+PR #674) oblał raz przy `load average` 30+ i przeszedł dwa razy z rzędu przy
+22. **Wygląda na test wrażliwy na obciążenie, a nie na regresję** — ale trzy
+przebiegi to za mało, żeby to rozstrzygnąć, i nikt tego nie badał. Zapisane,
+żeby następna osoba, której ten test oblee, nie zaczynała od zera.
 
 ## 10. Jedna rzecz o metodzie, warta zapamiętania
 
