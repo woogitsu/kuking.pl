@@ -703,7 +703,7 @@ specyficzne dla kopii i odtwarzania.
 
   1. **Rozmiar 0 B** — to jest ślad po nieudanej wysyłce. Skasuj go
      ręcznie, nic w nim nie ma.
-  1a. **Brak `.meta`, ale rozmiar niezerowy — NIE KASUJ.** To jest
+  2. **Brak `.meta`, ale rozmiar niezerowy — NIE KASUJ.** To jest
      najprawdopodobniej **dobra, w pełni odzyskiwalna kopia**. `wyslij()`
      wysyła najpierw szyfrogram, potem `.meta`, więc gwarantowanym kształtem
      porażki w tym kroku (kod 71) jest kompletny szyfrogram bez papierka.
@@ -712,11 +712,11 @@ specyficzne dla kopii i odtwarzania.
      (`md5` jawnego zgodny) i czyta do końca — `.meta` nie bierze udziału
      w odszyfrowaniu. Najpierw §7.4 kroki 2 i 4b; kasuj dopiero, gdy się
      nie odszyfruje albo nie przeczyta.
-  2. **Rozmiar niezgodny z `.meta`** — obiekt jest niepełny albo nadpisany.
+  3. **Rozmiar niezgodny z `.meta`** — obiekt jest niepełny albo nadpisany.
      Zanim skasujesz, sprawdź, czy da się go odszyfrować i przeczytać (§7.4
      kroki 2 i 4b). Jeśli się da mimo niezgodności, zachowaj go i **zgłoś
      to jako usterkę** — znaczy, że rozmiar w `.meta` jest zły, a nie plik.
-  3. **Nie kasuj „dla porządku" obiektu, którego nie sprawdziłeś.** Jedyny
+  4. **Nie kasuj „dla porządku" obiektu, którego nie sprawdziłeś.** Jedyny
      powód, dla którego ten mechanizm ich nie rusza, jest taki, że kasowanie
      rzeczy, której się nie rozumie, jest dokładnie tym, przed czym stoi
      cały ten dokument.
