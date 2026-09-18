@@ -246,7 +246,14 @@ x-amz-date:${amz_data}
 #  retencję na „trzymaj wszystko", cisza byłaby najgorszym wyjściem —
 #  dlatego niedokończone listowanie kończy się błędem, nie obcięciem.
 # -----------------------------------------------------------------------------
-s3_lista_kluczy() {
+#  ROZMIAR JEST W TEJ SAMEJ ODPOWIEDZI — A DO 18.09.2026 GO WYRZUCALIŚMY.
+#  ListObjectsV2 oddaje dla każdego obiektu `<Key>` ORAZ `<Size>`, w jednym
+#  żądaniu i za tę samą cenę. Ten parser czytał wyłącznie klucze, więc wyżej
+#  „kopia" znaczyło „klucz o pasującej nazwie" — także obiekt ZEROWEJ
+#  długości po nieudanej wysyłce. Zmierzone na MinIO: dziewięć takich
+#  obiektów wypchnęło przez `MINIMUM_KOPII` jedyną niepustą kopię.
+#  Rozmiar bierzemy więc stąd, a nie osobnym `HEAD` na każdy obiekt.
+s3_lista_obiektow() {
   local prefiks="$1"
   local plik
   plik="$(mktemp)"
@@ -265,8 +272,29 @@ s3_lista_kluczy() {
     return 2
   fi
 
-  tr '<' '\n' <"${plik}" | sed -n 's/^Key>//p'
+  # `<Key>` i `<Size>` stoją w tym samym `<Contents>`, w tej kolejności.
+  # `^Key>` nie łapie `<KeyCount>`, a `^Size>` występuje wyłącznie
+  # wewnątrz `<Contents>`. Wyjście: „rozmiar<TAB>klucz".
+  tr '<' '\n' <"${plik}" | awk '
+    /^Key>/  { klucz = substr($0, 5); next }
+    /^Size>/ { if (klucz != "") { printf "%s\t%s\n", substr($0, 6), klucz; klucz = "" } }
+  '
   rm -f "${plik}"
+}
+
+# Same klucze, po jednym na linię — kontrakt sprzed rozmiarów, nietknięty.
+# Kod powrotu MUSI przeżyć obcięcie do drugiej kolumny, dlatego przez plik,
+# a nie przez potok: `cut` zwróciłby 0 nawet po nieudanym listowaniu,
+# a `pipefail` nie jest tu niczym zagwarantowanym (biblioteka bywa wczytana
+# do powłoki, która go nie ma).
+s3_lista_kluczy() {
+  local kod=0
+  local plik
+  plik="$(mktemp)"
+  s3_lista_obiektow "$1" >"${plik}" || kod=$?
+  ((kod == 0)) && cut -f2- <"${plik}"
+  rm -f "${plik}"
+  return "${kod}"
 }
 
 # -----------------------------------------------------------------------------
@@ -300,4 +328,11 @@ s3_lista_kluczy() {
 # -----------------------------------------------------------------------------
 s3_lista_kluczy_do_pliku() {
   s3_lista_kluczy "$1" >"$2"
+}
+
+# To samo, ale z rozmiarami: linie „rozmiar<TAB>klucz". Retencja potrzebuje
+# obu kolumn, żeby odróżnić kopię od obiektu zerowej długości — patrz
+# `retencja()` w `kopia-bazy.sh`. Kod powrotu i `S3_KOD` jak wyżej.
+s3_lista_obiektow_do_pliku() {
+  s3_lista_obiektow "$1" >"$2"
 }

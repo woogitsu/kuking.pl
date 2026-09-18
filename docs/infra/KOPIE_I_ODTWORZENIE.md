@@ -584,6 +584,17 @@ dowodzą, że **mechanizm** działa: zrzut → weryfikacja → szyfrowanie → w
 → odszyfrowanie samym kluczem prywatnym → `pg_restore`. Nie dowodzą niczego
 o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 
+> **Co znaczy tu „weryfikacja" — doprecyzowane 18 IX 2026.** Do tego dnia był
+> to sam `pg_restore --list`, czyli odczytanie SPISU TREŚCI archiwum. Spis
+> leży na początku pliku, więc taka weryfikacja przechodziła z kodem 0 także
+> na archiwum obciętym o 20% i na archiwum uszkodzonym w środku — a taki plik
+> szedł dalej: był szyfrowany, wysyłany, potwierdzany i meldowany jako
+> GOTOWE. Od tej poprawki `weryfikuj_zrzut()` czyta **całe** archiwum
+> (`pg_restore --file=/dev/null`, kod wyjścia 53 przy porażce). To dowodzi,
+> że każdy blok danych jest obecny i rozpakowuje się bez błędu. **Nadal NIE
+> dowodzi**, że ten SQL wykona się na świeżym serwerze ani ile to potrwa —
+> to jest §4, ćwiczenie człowieka.
+
 | Data | Co uruchomiono | Wynik | Czego to NIE sprawdziło |
 |---|---|---|---|
 | 9 IX 2026 | `docker/kopia/kopia-bazy.sh` na lokalnej bazie po migracjach, z podstawionym bucketem na dysku, prawdziwym `openssl cms` i prawdziwą parą kluczy RSA | Zrzut 125 592 B, 42 tabele z danymi, szyfrogram 126 147 B. Odszyfrowanie **samym kluczem prywatnym** dało plik o identycznym `sha256`; `pg_restore` wczytał go do pustej bazy bez błędu (42 tabele) | Serwera PostgreSQL **18** (lokalnie 16), prawdziwej rozmowy z R2 (podpis SigV4 sprawdzony wektorami AWS, nie wobec Cloudflare), zbudowania obrazu (brak Dockera w środowisku), harmonogramu Railway |
@@ -683,6 +694,23 @@ specyficzne dla kopii i odtwarzania.
 - ~~Backups włączone w panelu Railway~~ — **nie ma czego sprawdzać.**
   Volume Backups i PITR to funkcje planu Pro (D-043). Ta pozycja stała tu
   do 9 września 2026 i była nieprawdą, którą dawało się odhaczyć.
+- **Czy przyszedł alarm `retencja` z kodem 92 — czyli „obiekt bez
+  potwierdzenia".** Retencja nie kasuje obiektów, o których nie potrafi
+  udowodnić, że są kopiami (szyfrogram ze zgodnym `.meta` — §7.2), i nie
+  liczy ich do `KOPIA_MINIMUM_KOPII`. Wypisuje je natomiast w logu serwisu
+  i alarmuje. Co z takim obiektem zrobić — **decyzja jest twoja, nie
+  automatu**:
+
+  1. **Rozmiar 0 B albo brak `.meta`** — to jest ślad po nieudanej wysyłce.
+     Skasuj go ręcznie, nic w nim nie ma.
+  2. **Rozmiar niezgodny z `.meta`** — obiekt jest niepełny albo nadpisany.
+     Zanim skasujesz, sprawdź, czy da się go odszyfrować i przeczytać (§7.4
+     kroki 2 i 4b). Jeśli się da mimo niezgodności, zachowaj go i **zgłoś
+     to jako usterkę** — znaczy, że rozmiar w `.meta` jest zły, a nie plik.
+  3. **Nie kasuj „dla porządku" obiektu, którego nie sprawdziłeś.** Jedyny
+     powód, dla którego ten mechanizm ich nie rusza, jest taki, że kasowanie
+     rzeczy, której się nie rozumie, jest dokładnie tym, przed czym stoi
+     cały ten dokument.
 
 **Co miesiąc:**
 - Rozmiar bazy i R2 vs trend — rosnąca baza zmienia RTO restore'u, warto to
@@ -760,7 +788,8 @@ Dopóki ta warstwa nie chodzi na produkcji, liczba kopii bazy wynosi **zero**.
 | `.railway/railway.ts` → serwis `kopia-bazy` | harmonogram (Railway Cron, 02:17 UTC), limity, zmienne |
 | `app/Domain/Kopie/StanKopiiBazy.php` | czujka po stronie aplikacji: czy kopie NADAL powstają |
 | `app/Console/Commands/SprawdzKopieBazy.php` | `kuking:sprawdz-kopie` — ta czujka z ręki i z harmonogramu |
-| `tests/skrypty/kopia-bazy.sh` | testy skryptu: wektory AWS, treść alarmu, retencja, szyfrowanie w obie strony |
+| `tests/skrypty/kopia-bazy.sh` | testy skryptu: wektory AWS, treść alarmu, weryfikacja na PRAWDZIWYM archiwum `pg_dump` (obciętym i uszkodzonym), retencja wobec PRAWDZIWEGO serwera mówiącego ListObjectsV2, szyfrowanie w obie strony |
+| `tests/skrypty/dane/archiwum-pg18.dump.base64` | prawdziwe archiwum `pg_dump --format=custom` do testu wyżej; jak je odtworzyć, pisze jego własny nagłówek |
 | `scripts/kopia-lokalna.sh` | kopia na dysk właściciela, bez R2 i bez Railwaya — kopia numer jeden do zrobienia DZIŚ (§8.1) |
 | `scripts/proba-odtworzenia.sh` | próba odtworzenia: wlanie zrzutu do czystej bazy `proba_odtworzenia*` i **sprawdzenie wyniku** — tabele, wiersze, wyzwalacze, ograniczenia, zachowanie barier (§8.2) |
 | `tests/skrypty/proba-odtworzenia.sh` | testy obu skryptów na prawdziwym `pg_dump`/`pg_restore`, z fiksturami łamiącymi każdą kontrolę osobno |
@@ -844,6 +873,19 @@ certyfikat.
 
 Nazwa pliku jest źródłem prawdy o wieku kopii (nie `LastModified` obiektu):
 mówi, **kiedy zrobiono zrzut**, a nie kiedy plik trafił do bucketu.
+
+**Co znaczy „kopia potwierdzona" (od 18 IX 2026).** Para powyżej jest kopią
+wtedy i tylko wtedy, gdy oba pliki są w buckecie, szyfrogram ma rozmiar
+większy od zera i ten rozmiar **zgadza się** z polem
+`rozmiar_szyfrogramu_bajty` z jego własnego `.meta`. Tylko takie obiekty
+liczą się do `KOPIA_MINIMUM_KOPII` i tylko takie retencja kasuje. Powód
+jest zmierzony i opisany przy tabeli w §7.6: wcześniej „kopia" znaczyła
+„klucz o pasującej nazwie", więc dziewięć obiektów zerowej długości
+wypchnęło przez minimum jedyną kopię, która cokolwiek zawierała.
+
+To sprawdzenie **nie porównuje bajtów** — na to trzeba by codziennie ściągać
+całą historię kopii przez kontener. Bajty sprawdza dopiero odtworzenie
+z §7.4, robione przez człowieka.
 
 ### 7.3 `[DO WYKONANIA PRZEZ WŁAŚCICIELA]` — czego kod nie mógł zrobić sam
 
@@ -991,6 +1033,18 @@ grep '^sha256_jawnego:' kuking-20260910-021700Z.meta
 # 4. Przeczytaj spis treści archiwum, ZANIM je gdziekolwiek wczytasz.
 pg_restore --list kuking.dump | grep -c 'TABLE DATA'
 
+# 4b. I PRZECZYTAJ CAŁE ARCHIWUM — krok 4 tego NIE robi.
+#     `--list` czyta wyłącznie spis treści, a ten leży na POCZĄTKU pliku;
+#     bloków danych nie dotyka w ogóle. Archiwum obcięte — nawet o jeden
+#     bajt — przechodzi krok 4 z kodem 0 i pełną listą tabel. Zmierzone
+#     18 IX 2026 na prawdziwym zrzucie tej bazy (331 974 B, 50 tabel),
+#     obcinanym do 99, 98, 95, 92, 90 i 80 procent oraz uszkadzanym
+#     w środku: za każdym razem `--list` mówił „50 tabel", a odtworzenie
+#     padało na „could not read from input file: end of file".
+#     Komenda niżej rozpakowuje KAŻDY blok danych i wyrzuca wynik do
+#     /dev/null, więc nie zostawia jawnego SQL-a na dysku:
+pg_restore --file=/dev/null kuking.dump && echo 'archiwum czyta się do końca'
+
 # 5. Odtwórz do PUSTEJ bazy. --no-owner: role z tamtego projektu nie istnieją.
 createdb kuking_odtworzona
 pg_restore --dbname=kuking_odtworzona --no-owner --exit-on-error kuking.dump
@@ -1066,6 +1120,36 @@ pozostałych nigdy nie spadła poniżej minimum, a plik `.meta` ginął razem ze
 swoim szyfrogramem. Przy dokładnie siedmiu kopiach i minimum siedem nie
 skasowała **ani jednej**. Gdy listowanie bucketu się nie udało — zaalarmowała
 i **zwróciła zero**, bo porażka retencji nie jest porażką kopii.
+
+> **CO TAMTEN POMIAR PRZEOCZYŁ — I CO SIĘ PRZEZ TO ZMIENIŁO (18 IX 2026).**
+> We wszystkich sześciu układach każdy obiekt w buckecie był poprawną kopią,
+> więc mierzyły one **arytmetykę wieku i minimum**, a nie to, czy retencja
+> w ogóle wie, co jest kopią. Nie wiedziała: `MINIMUM_KOPII` chroniło
+> **liczbę kluczy**. Odtworzone na tym samym MinIO — jedna poprawna kopia
+> (najstarsza, 172 162 B) i nad nią dziewięć obiektów **zerowej długości** po
+> nieudanych wysyłkach: retencja naliczyła dziesięć „kopii", skasowała trzy
+> najstarsze, czyli razem z jedyną, która cokolwiek zawierała, i zameldowała
+> „retencja: skasowano 3". W buckecie zostało siedem pustych plików i zero
+> kopii. Naprawione — od tej pory liczą się wyłącznie **kopie potwierdzone**:
+> szyfrogram, który ma obok siebie swój `.meta` i którego rozmiar w buckecie
+> **zgadza się** z polem `rozmiar_szyfrogramu_bajty` z tego `.meta`.
+>
+> **Obiekty bez takiego potwierdzenia nie są ani liczone, ani kasowane.**
+> Retencja wypisuje je w logu i alarmuje (etap `retencja`, kod 92), a decyzja
+> należy do człowieka — §6 niżej. Dotyczy to tak samo obiektów sprzed tej
+> zmiany: **nie ma tu daty granicznej ani taryfy ulgowej**, bo `.meta`
+> powstawało od pierwszego dnia tego serwisu, więc ten sam dowód da się
+> przeprowadzić dla starego obiektu i dla dzisiejszego. Praktyczny skutek:
+> pierwszy przebieg po tej zmianie może zaalarmować o obiektach, których
+> wcześniej nikt nie liczył — i to jest właśnie ta informacja, której nie było.
+>
+> Przy okazji naprawione dwie rzeczy z tego samego pomiaru: `potwierdz()`
+> przy niezgodności rozmiaru **usuwa teraz obiekt tego przebiegu razem z jego
+> `.meta`** (zostawał w buckecie i przy następnym przebiegu wyglądał jak
+> kopia), a wartości `KOPIA_MINIMUM_KOPII` i `KOPIA_RETENCJA_DNI` są
+> sprawdzane w KROKU 0: `0` czyściło bucket do zera, a wartość wpisana słowem
+> kończyła przebieg na `unbound variable` **po** udanej kopii i bez alarmu.
+> Obie są teraz odrzucane, zanim powstanie zrzut.
 
 > **Jedna usterka znaleziona i naprawiona tego dnia.** Do 18 IX komunikat
 > o nieudanym listowaniu bucketu **zawsze** brzmiał „HTTP brak", także wtedy,

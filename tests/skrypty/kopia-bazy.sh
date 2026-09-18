@@ -12,13 +12,22 @@
 #  CO TU JEST SPRAWDZANE, A CZEGO SPRAWDZIĆ NIE DA SIĘ
 #  Sprawdzane: podpis SigV4 wobec URZĘDOWYCH wektorów AWS, treść alarmu
 #  (najważniejsze — alarm wychodzi do usługi, nad którą nie mamy kontroli),
-#  bramka zgodności wersji `pg_dump`, arytmetyka retencji, maskowanie hasła
-#  w logu.
+#  bramka zgodności wersji `pg_dump`, weryfikacja zrzutu na PRAWDZIWYM
+#  archiwum `pg_dump --format=custom`, retencja wobec PRAWDZIWEGO serwera
+#  HTTP mówiącego ListObjectsV2, maskowanie hasła w logu.
+#
+#  CO JEST TU PRAWDZIWE, A CO PODSTAWIONE — i to jest ważne rozróżnienie
+#  Prawdziwe: `pg_restore` i archiwum, które czyta (`tests/skrypty/dane/`);
+#  `curl` po prawdziwym gnieździe TCP do serwera próbnego z tego pliku
+#  (urwane ciało odpowiedzi, `IsTruncated`, listowanie z rozmiarami,
+#  pliki `.meta`, żądania `DELETE`); `openssl` i prawdziwa para kluczy.
+#  Podstawione: `pg_dump` (nie ma tu serwera, do którego miałby się
+#  połączyć) i pojedyncze wywołania `s3_zadanie` tam, gdzie mierzymy
+#  REAKCJĘ wołającego na umówiony kod, a nie sam kod.
 #
 #  NIEsprawdzane, bo wymaga prawdziwych usług: rozmowa z R2, prawdziwy
-#  `pg_dump` na PostgreSQL 18 (lokalnie stoi 16), zbudowanie obrazu.
-#  To jest wypisane wprost, żeby zielony wynik tego pliku nie był czytany
-#  jako „kopia działa".
+#  `pg_dump` na PostgreSQL 18, zbudowanie obrazu. To jest wypisane wprost,
+#  żeby zielony wynik tego pliku nie był czytany jako „kopia działa".
 #
 #  Uruchomienie:  bash tests/skrypty/kopia-bazy.sh
 # =============================================================================
@@ -278,63 +287,277 @@ wynik="$(
 sprawdz "niezgodność wersji wysyła alarm etapu „wersja\"" "ALARM-wersja" "${wynik}"
 
 # =============================================================================
-echo "── Retencja: nigdy poniżej minimum ──"
+echo "── Retencja: chroni POTWIERDZONE kopie, nie pasujące nazwy (#193) ──"
 # =============================================================================
 #
 #  Bez dolnej granicy wystarczyłaby jedna przerwa w działaniu serwisu dłuższa
 #  niż okno retencji, żeby przebieg wznowiony po niej skasował WSZYSTKIE
 #  kopie, jakie jeszcze były — bo każda byłaby „za stara". Kasowanie
 #  ostatniej kopii to nie porządki, to utrata danych.
+#
+#  USTERKA ODTWORZONA 18.09.2026 NA PRAWDZIWYM ENDPOINCIE S3 (MinIO)
+#  -----------------------------------------------------------------
+#  `MINIMUM_KOPII` chroniło LICZBĘ KLUCZY. W buckecie leżała jedna poprawna
+#  kopia (najstarsza, 172 162 B) i nad nią dziewięć obiektów ZEROWEJ długości
+#  po nieudanych wysyłkach. Retencja naliczyła dziesięć „kopii", uznała, że
+#  trzy najstarsze wolno skasować — i skasowała jedyną, która cokolwiek
+#  zawierała. W logu stało „retencja: skasowano 3", a w buckecie zostało
+#  siedem pustych plików i zero kopii.
+#
+#  DLACZEGO PRAWDZIWY SERWER, A NIE ATRAPA `s3_lista_kluczy`
+#  --------------------------------------------------------
+#  Bo poprzednia wersja tego bloku podstawiała `s3_lista_kluczy` funkcją
+#  wypisującą same nazwy — czyli fikstura NIE MIAŁA JAK mieć rozmiaru, a
+#  rozmiar jest tu całą treścią usterki. Test przechodził przez cały czas
+#  trwania błędu i przeszedłby nadal, gdyby nikt go nie przepisał. Poniżej
+#  leci prawdziwy `curl` po prawdziwym gnieździe, po prawdziwą odpowiedź
+#  ListObjectsV2 z elementami `<Size>` i po prawdziwe pliki `.meta`,
+#  a `DELETE`, które retencja wyśle, serwer zapisuje do pliku — więc asercja
+#  patrzy na to, co NAPRAWDĘ poszło na drut.
 
-retencja_wynik() {
-  local dni_wstecz_najstarszej="$1" ile_kopii="$2" minimum="$3" retencja_dni="$4"
+if ! command -v python3 >/dev/null 2>&1; then
+  sprawdz "serwer próbny do testów retencji" "python3 jest" "python3 BRAK"
+else
+  SERWER_RET_PY="$(mktemp)"
+  cat >"${SERWER_RET_PY}" <<'PYTON'
+import socket, sys, threading
+PORT = int(sys.argv[1]); TRYB = sys.argv[2]; DZIENNIK = sys.argv[3]
+BLOKADA = threading.Lock()
+
+# (znacznik, rozmiar w buckecie, rozmiar zapisany w .meta albo None = brak .meta)
+SCENARIUSZE = {
+    # Jedyna niepusta kopia jest NAJSTARSZA, nad nia dziewiec obiektow 0 B.
+    'puste-obok': [('20200101-020000Z', 172162, 172162)]
+                  + [('202001%02d-020000Z' % d, 0, 0) for d in range(2, 11)],
+    # Dziesiec kopii, kazda potwierdzona — kontrola DODATNIA.
+    'dziesiec-dobrych': [('202001%02d-020000Z' % d, 5000, 5000) for d in range(1, 11)],
+    # Obiekt, ktorego rozmiar kloci sie z jego wlasnym .meta (zostawialo
+    # po sobie `potwierdz()` przy kodzie 81).
+    'niezgodny': [('20200101-020000Z', 5000, 5000), ('20200102-020000Z', 900, 250000)],
+    # Szyfrogram bez zadnych papierow.
+    'bez-meta': [('20200101-020000Z', 5000, None), ('20200102-020000Z', 5000, 5000)],
+}
+
+def lista():
+    w = [b'<?xml version="1.0" encoding="UTF-8"?><ListBucketResult>'
+         b'<Name>k</Name><Prefix>baza/</Prefix><MaxKeys>1000</MaxKeys>'
+         b'<IsTruncated>false</IsTruncated>']
+    for znacznik, rozmiar, meta in SCENARIUSZE[TRYB]:
+        w.append(b'<Contents><Key>baza/kuking-%s.dump.cms</Key><Size>%d</Size>'
+                 b'<StorageClass>STANDARD</StorageClass></Contents>'
+                 % (znacznik.encode(), rozmiar))
+        if meta is not None:
+            tresc = tresc_meta(znacznik, meta)
+            w.append(b'<Contents><Key>baza/kuking-%s.meta</Key><Size>%d</Size>'
+                     b'<StorageClass>STANDARD</StorageClass></Contents>'
+                     % (znacznik.encode(), len(tresc)))
+    w.append(b'</ListBucketResult>')
+    return b''.join(w)
+
+def tresc_meta(znacznik, rozmiar):
+    return (b'# Kuking.pl - metadane zrzutu bazy. Bez danych osobowych.\n'
+            b'znacznik: %s\nrozmiar_szyfrogramu_bajty: %d\n'
+            % (znacznik.encode(), rozmiar))
+
+def meta_dla(klucz):
+    for znacznik, _rozmiar, meta in SCENARIUSZE[TRYB]:
+        if meta is not None and klucz == 'baza/kuking-%s.meta' % znacznik:
+            return tresc_meta(znacznik, meta)
+    return None
+
+def odpowiedz(c, kod, cialo=b''):
+    c.sendall(b'HTTP/1.1 %d X\r\nContent-Length: %d\r\nConnection: close\r\n\r\n'
+              % (kod, len(cialo)) + cialo)
+
+def obsluz(c):
+    try:
+        dane = b''
+        while b'\r\n\r\n' not in dane:
+            kawalek = c.recv(65536)
+            if not kawalek:
+                return
+            dane += kawalek
+        metoda, sciezka = dane.split(b' ')[0].decode(), dane.split(b' ')[1].decode()
+        klucz = sciezka.split('?')[0]
+        klucz = klucz[3:] if klucz.startswith('/k/') else ''
+        if metoda == 'GET' and 'list-type=2' in sciezka:
+            odpowiedz(c, 200, lista())
+        elif metoda == 'GET' and klucz.endswith('.meta'):
+            tresc = meta_dla(klucz)
+            odpowiedz(c, 200, tresc) if tresc else odpowiedz(c, 404)
+        elif metoda == 'DELETE':
+            with BLOKADA:
+                with open(DZIENNIK, 'a') as f:
+                    f.write(klucz + '\n')
+            odpowiedz(c, 204)
+        else:
+            odpowiedz(c, 404)
+    except Exception:
+        pass
+    finally:
+        try: c.close()
+        except Exception: pass
+
+s = socket.socket(); s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s.bind(('127.0.0.1', PORT)); s.listen(16)
+print('gotowy', flush=True)
+while True:
+    k, _ = s.accept()
+    threading.Thread(target=obsluz, args=(k,), daemon=True).start()
+PYTON
+
+  # Port z zakresu nieużywanego przez resztę projektu — inny niż w bloku
+  # o urwanej odpowiedzi, żeby oba dały się kiedyś puścić równolegle.
+  PORT_RETENCJI=59789
+
+  # retencja_na_serwerze <tryb> <minimum> <potwierdzona> — wypisuje
+  # „skasowane=<klucze po przecinku>|log=<jedna linia>".
+  retencja_na_serwerze() {
+    local tryb="$1" minimum="$2" potwierdzona="${3:-1}"
+    local dziennik; dziennik="$(mktemp)"
+    : >"${dziennik}"
+
+    python3 "${SERWER_RET_PY}" "${PORT_RETENCJI}" "${tryb}" "${dziennik}" >/dev/null 2>&1 &
+    local pid=$!
+    local i
+    for i in 1 2 3 4 5 6 7 8 9 10; do
+      (exec 3<>"/dev/tcp/127.0.0.1/${PORT_RETENCJI}") 2>/dev/null && break
+      sleep 0.2
+    done
+
+    local log_retencji
+    log_retencji="$(
+      wczytaj
+      export KOPIA_S3_ENDPOINT="http://127.0.0.1:${PORT_RETENCJI}"
+      export KOPIA_S3_BUCKET=k KOPIA_S3_KLUCZ=x KOPIA_S3_SEKRET=y
+      export KOPIA_S3_REGION=us-east-1 KOPIA_S3_TIMEOUT=10
+      KATALOG_ROBOCZY="$(mktemp -d)"
+      PREFIKS='baza/'
+      MINIMUM_KOPII="${minimum}"
+      RETENCJA_DNI=30
+      KOPIA_POTWIERDZONA="${potwierdzona}"
+      alarm() { :; }
+      retencja 2>&1 >/dev/null
+      rm -rf "${KATALOG_ROBOCZY}"
+    )"
+
+    kill "${pid}" 2>/dev/null
+    wait "${pid}" 2>/dev/null
+
+    printf 'skasowane=%s|log=%s' \
+      "$(sort "${dziennik}" | sed 's#baza/kuking-##' | tr '\n' ',' | sed 's/,$//')" \
+      "$(printf '%s' "${log_retencji}" | tr '\n' ' ')"
+    rm -f "${dziennik}"
+  }
+
+  # 1. SEDNO REGRESJI. Dziesięć kluczy, ale kopia jest JEDNA — i jest
+  #    najstarsza. Przed poprawką retencja kasowała trzy najstarsze, czyli
+  #    ją. Teraz nie kasuje niczego, bo potwierdzona jest jedna, a minimum
+  #    wynosi siedem.
+  wynik="$(retencja_na_serwerze puste-obok 7)"
+  sprawdz "dziewięć obiektów 0 B nie wypiera jedynej potwierdzonej kopii" \
+    "skasowane=" "${wynik%%|*}"
+
+  wynik_log="${wynik#*|log=}"
+  if [[ "${wynik_log}" == *'kopii POTWIERDZONYCH w buckecie: 1'* ]]; then
+    sprawdz "…i log mówi, że potwierdzona jest JEDNA, nie dziesięć" "tak" "tak"
+  else
+    sprawdz "…i log mówi, że potwierdzona jest JEDNA, nie dziesięć" "tak" "nie: ${wynik_log}"
+  fi
+
+  if [[ "${wynik_log}" == *'BEZ POTWIERDZENIA: 9'* && "${wynik_log}" == *'nie kasuję'* ]]; then
+    sprawdz "…a o dziewięciu bez potwierdzenia mówi wprost, że ich NIE kasuje" "tak" "tak"
+  else
+    sprawdz "…a o dziewięciu bez potwierdzenia mówi wprost, że ich NIE kasuje" \
+      "tak" "nie: ${wynik_log}"
+  fi
+
+  # 2. KONTROLA DODATNIA — bez niej „nigdy nic nie kasuj" przechodziłoby
+  #    wszystkie asercje wyżej (pułapka 4 z docs/PULAPKI_TESTOW.md).
+  #    Dziesięć POTWIERDZONYCH kopii z 2020 roku, minimum 7 → giną trzy
+  #    najstarsze, każda razem ze swoim `.meta`.
+  wynik="$(retencja_na_serwerze dziesiec-dobrych 7)"
+  sprawdz "dziesięć potwierdzonych kopii przy minimum 7 — giną trzy najstarsze" \
+    "skasowane=20200101-020000Z.dump.cms,20200101-020000Z.meta,20200102-020000Z.dump.cms,20200102-020000Z.meta,20200103-020000Z.dump.cms,20200103-020000Z.meta" \
+    "${wynik%%|*}"
+
+  # 3. Obiekt, którego rozmiar kłóci się z jego własnym `.meta`, nie jest
+  #    kopią — i nie wolno mu wypchnąć tej jednej, która jest.
+  wynik="$(retencja_na_serwerze niezgodny 1)"
+  sprawdz "obiekt niezgodny z własnym .meta nie liczy się jako kopia" \
+    "skasowane=" "${wynik%%|*}"
+  wynik_log="${wynik#*|log=}"
+  if [[ "${wynik_log}" == *'w buckecie 900 B, .meta mówi 250000 B'* ]]; then
+    sprawdz "…a log nazywa dokładnie, co się nie zgadza" "tak" "tak"
+  else
+    sprawdz "…a log nazywa dokładnie, co się nie zgadza" "tak" "nie: ${wynik_log}"
+  fi
+
+  # 4. Szyfrogram bez `.meta` to obiekt bez dowodu — ani dobry, ani do
+  #    skasowania. Dotyczy to tak samo obiektów sprzed tej zmiany: nie ma
+  #    tu żadnej daty granicznej ani taryfy ulgowej.
+  wynik="$(retencja_na_serwerze bez-meta 1)"
+  sprawdz "szyfrogram bez .meta nie jest kasowany po cichu" "skasowane=" "${wynik%%|*}"
+  wynik_log="${wynik#*|log=}"
+  if [[ "${wynik_log}" == *'brak pliku .meta'* ]]; then
+    sprawdz "…tylko wypisany jako obiekt bez potwierdzenia" "tak" "tak"
+  else
+    sprawdz "…tylko wypisany jako obiekt bez potwierdzenia" "tak" "nie: ${wynik_log}"
+  fi
+
+  # 5. Retencja bez potwierdzonej kopii z TEGO przebiegu nie rusza w ogóle.
+  #    Inaczej nieudany przebieg zabierałby stare kopie, nie dokładając
+  #    żadnej nowej.
+  wynik="$(retencja_na_serwerze dziesiec-dobrych 7 0)"
+  sprawdz "bez potwierdzonej kopii tego przebiegu retencja nie kasuje NICZEGO" \
+    "skasowane=" "${wynik%%|*}"
+
+  # 6. Dwa footguny z konfiguracji, oba zmierzone 18.09.2026 na MinIO:
+  #    `KOPIA_MINIMUM_KOPII=0` czyściło bucket DO ZERA, a wartość niebędąca
+  #    liczbą wywalała przebieg na `unbound variable` PO udanej kopii.
+  wynik="$(retencja_na_serwerze dziesiec-dobrych 0)"
+  sprawdz "KOPIA_MINIMUM_KOPII=0 nie czyści bucketu" "skasowane=" "${wynik%%|*}"
+
+  wynik="$(retencja_na_serwerze dziesiec-dobrych siedem)"
+  sprawdz "KOPIA_MINIMUM_KOPII=„siedem\" nie kasuje niczego" "skasowane=" "${wynik%%|*}"
+  wynik_log="${wynik#*|log=}"
+  if [[ "${wynik_log}" == *'nie jest liczbą'* && "${wynik_log}" != *'unbound variable'* ]]; then
+    sprawdz "…tylko mówi, że to nie jest liczba (a nie „unbound variable\")" "tak" "tak"
+  else
+    sprawdz "…tylko mówi, że to nie jest liczba (a nie „unbound variable\")" \
+      "tak" "nie: ${wynik_log}"
+  fi
+
+  rm -f "${SERWER_RET_PY}"
+fi
+
+# Ta sama bramka od strony KROKU 0: zła liczba w panelu ma zatrzymać przebieg
+# ZANIM powstanie zrzut, a nie dopiero w retencji.
+konfiguracja_wynik() { # konfiguracja_wynik <zmienna> <wartość>
   (
+    # Wartości domyślne (`MINIMUM_KOPII="${KOPIA_MINIMUM_KOPII:-7}"`) czyta
+    # nagłówek skryptu przy wczytaniu, więc zmienna MUSI stać przed nim.
+    export DB_URL='postgresql://u:p@postgres.railway.internal:5432/railway'
+    export KOPIA_S3_ENDPOINT=x KOPIA_S3_BUCKET=y KOPIA_S3_KLUCZ=z
+    export KOPIA_S3_SEKRET=w KOPIA_KLUCZ_PUBLICZNY=c
+    export "$1=$2"
     wczytaj
-    export KOPIA_MINIMUM_KOPII="${minimum}" KOPIA_RETENCJA_DNI="${retencja_dni}"
-    MINIMUM_KOPII="${minimum}"
-    RETENCJA_DNI="${retencja_dni}"
-    PREFIKS='baza/'
-
-    # Klucze udające zawartość bucketu: co dobę jedna kopia, najstarsza
-    # `dni_wstecz_najstarszej` dni temu.
-    s3_lista_kluczy() {
-      local i
-      for ((i = 0; i < ile_kopii; i++)); do
-        printf 'baza/kuking-%sZ.dump.cms\n' \
-          "$(date -u -d "$((dni_wstecz_najstarszej - i)) days ago" +%Y%m%d-%H%M%S)"
-      done
-    }
-    s3_zadanie() {
-      [[ "$1" == 'DELETE' ]] && printf 'DELETE %s\n' "$2"
-      return 0
-    }
-    retencja 2>/dev/null | grep -c '^DELETE .*\.dump\.cms$'
+    alarm() { :; }
+    (sprawdz_srodowisko >/dev/null 2>&1)
+    printf 'kod=%s' "$?"
   )
 }
 
-# 10 kopii, wszystkie starsze niż 30 dni, minimum 7 → kasujemy 3, nie 10.
-sprawdz "10 starych kopii przy minimum 7 kasuje 3" "3" "$(retencja_wynik 60 10 7 30)"
-# 5 kopii, wszystkie stare, minimum 7 → nie kasujemy nic.
-sprawdz "5 starych kopii przy minimum 7 nie kasuje nic" "0" "$(retencja_wynik 60 5 7 30)"
-# 20 kopii z ostatnich 20 dni, retencja 30 dni → nic nie jest za stare.
-sprawdz "kopie młodsze od progu zostają" "0" "$(retencja_wynik 19 20 7 30)"
-# 40 kopii dziennych, najstarsza 39 dni temu. Starszych NIŻ 30 dni jest
-# dziewięć (39…31 dni temu; kopia dokładnie 30-dniowa jeszcze zostaje),
-# minimum 7 nie jest zagrożone → kasujemy dziewięć.
-sprawdz "kasujemy dokładnie to, co przekroczyło retencję" "9" "$(retencja_wynik 39 40 7 30)"
-
-# Skasowanie szyfrogramu bez jego `.meta` zostawiałoby w buckecie sieroty,
-# które z czasem przestają dać się z czymkolwiek powiązać.
-wynik="$(
-  wczytaj
-  MINIMUM_KOPII=0
-  RETENCJA_DNI=1
-  PREFIKS='baza/'
-  s3_lista_kluczy() { printf 'baza/kuking-20200101-000000Z.dump.cms\n'; }
-  s3_zadanie() { [[ "$1" == 'DELETE' ]] && printf '%s\n' "$2"; return 0; }
-  retencja 2>/dev/null | grep -c '\.meta$'
-)"
-sprawdz "razem z kopią ginie jej plik .meta" "1" "${wynik}"
+sprawdz "KOPIA_MINIMUM_KOPII=0 zatrzymuje przebieg na starcie" \
+  "kod=13" "$(konfiguracja_wynik KOPIA_MINIMUM_KOPII 0)"
+sprawdz "KOPIA_MINIMUM_KOPII=„siedem\" zatrzymuje przebieg na starcie" \
+  "kod=13" "$(konfiguracja_wynik KOPIA_MINIMUM_KOPII siedem)"
+sprawdz "KOPIA_RETENCJA_DNI=0 zatrzymuje przebieg na starcie" \
+  "kod=13" "$(konfiguracja_wynik KOPIA_RETENCJA_DNI 0)"
+# Kontrola dodatnia: poprawna wartość ma PRZEJŚĆ tę bramkę. Bez niej
+# „odrzucaj wszystko" zdałoby trzy asercje wyżej.
+sprawdz "poprawna liczba przechodzi bramkę konfiguracji" \
+  "kod=0" "$(konfiguracja_wynik KOPIA_MINIMUM_KOPII 7)"
 
 # =============================================================================
 echo "── Kod HTTP z listowania bucketu dożywa do komunikatu (#594) ──"
@@ -360,7 +583,16 @@ listowanie_wynik() { # listowanie_wynik <funkcja> <kod HTTP> <kod powrotu>
     wczytaj
     PREFIKS='baza/'
     KATALOG_ROBOCZY="$(mktemp -d)"
+    KOPIA_POTWIERDZONA=1
+    MINIMUM_KOPII=7
+    RETENCJA_DNI=30
+    # Dwie funkcje, bo `sprawdz_poprzednia_kopie` pyta o same klucze,
+    # a `retencja` o klucze RAZEM z rozmiarami.
     s3_lista_kluczy() {
+      S3_KOD="${kod_http}"
+      return "${kod_powrotu}"
+    }
+    s3_lista_obiektow() {
       S3_KOD="${kod_http}"
       return "${kod_powrotu}"
     }
@@ -398,7 +630,10 @@ wynik="$(
   wczytaj
   PREFIKS='baza/'
   KATALOG_ROBOCZY="$(mktemp -d)"
-  s3_lista_kluczy() {
+  KOPIA_POTWIERDZONA=1
+  MINIMUM_KOPII=7
+  RETENCJA_DNI=30
+  s3_lista_obiektow() {
     S3_KOD='403'
     return 1
   }
@@ -598,6 +833,57 @@ sprawdz "udana wysyłka z potwierdzonym rozmiarem przechodzi" "kod=0" "$(wysylka
 sprawdz "odrzucona wysyłka przerywa przebieg" "kod=70" "$(wysylka_wynik 403 200 1000)"
 sprawdz "brak obiektu po wysyłce przerywa przebieg" "kod=80" "$(wysylka_wynik 200 404 0)"
 sprawdz "inny rozmiar w buckecie niż wysłany przerywa przebieg" "kod=81" "$(wysylka_wynik 200 200 512)"
+
+# -----------------------------------------------------------------------------
+#  NIEUDANE POTWIERDZENIE SPRZĄTA PO SOBIE — USTERKA ODTWORZONA 18.09.2026
+#  NA PRAWDZIWYM ENDPOINCIE S3 (MinIO).
+#
+#  Przy niezgodności rozmiaru skrypt alarmował i wychodził, ZOSTAWIAJĄC zły
+#  obiekt w buckecie razem z jego `.meta` — czyli razem z papierami mówiącymi,
+#  że to porządna kopia. Zmierzone: obiekt 1234 B przy wysłanych 999 999 B
+#  zostawał na miejscu, a następny przebieg liczył go jako jedną z kopii
+#  chronionych przez `MINIMUM_KOPII`.
+#
+#  Kod wyjścia 81 był poprawny przez cały czas trwania usterki, więc asercja
+#  wyżej niczego by tu nie złapała. Ta patrzy na to, co poszło na drut.
+# -----------------------------------------------------------------------------
+sprzatanie_po_potwierdzeniu() { # sprzatanie_po_potwierdzeniu <kod HEAD> <rozmiar>
+  local kod_head="$1" rozmiar_w_buckecie="$2"
+  (
+    wczytaj
+    katalog="$(mktemp -d)"
+    trap 'rm -rf "${katalog}"' EXIT
+    KATALOG_ROBOCZY="${katalog}"
+    PREFIKS='baza/'
+    ZNACZNIK='20260909-021700Z'
+    PLIK_SZYFROGRAMU="${katalog}/s"; printf 'x' >"${PLIK_SZYFROGRAMU}"
+    PLIK_META="${katalog}/m"; printf 'y' >"${PLIK_META}"
+    ROZMIAR_SZYFROGRAMU=1000
+    alarm() { :; }
+    s3_zadanie() {
+      case "$1" in
+        PUT) S3_KOD=200; return 0 ;;
+        HEAD)
+          S3_KOD="${kod_head}"
+          printf 'Content-Length: %s\r\n' "${rozmiar_w_buckecie}" >"${5}"
+          [[ "${kod_head}" == 2* ]] && return 0
+          return 1
+          ;;
+        DELETE) S3_KOD=204; printf 'DELETE %s\n' "$2" >&3; return 0 ;;
+      esac
+      return 0
+    }
+    ( wyslij && potwierdz ) 3>&1 >/dev/null 2>/dev/null | tr '\n' ' '
+  )
+}
+
+sprawdz "zły rozmiar w buckecie — obiekt TEGO przebiegu znika razem z .meta" \
+  "DELETE baza/kuking-20260909-021700Z.dump.cms DELETE baza/kuking-20260909-021700Z.meta " \
+  "$(sprzatanie_po_potwierdzeniu 200 512)"
+
+# Kontrola dodatnia do tej samej rzeczy: UDANE potwierdzenie nie kasuje nic.
+sprawdz "udane potwierdzenie nie kasuje niczego" \
+  "" "$(sprzatanie_po_potwierdzeniu 200 1000)"
 
 # Nazwa obiektu musi nieść znacznik czasu w formacie SORTOWALNYM — na tym
 # stoi i wybór najnowszej kopii, i cała arytmetyka retencji, i czujka
@@ -855,6 +1141,123 @@ elif grep -q -- '--file="${PLIK_ZRZUTU}"' <<<"${cialo_zrzutu}" \
   sprawdz "zrzut idzie do pliku, nie potokiem" "tak" "tak"
 else
   sprawdz "zrzut idzie do pliku, nie potokiem" "tak" "nie"
+fi
+
+# =============================================================================
+echo "── Archiwum OBCIĘTE: na PRAWDZIWYM pliku i PRAWDZIWYM pg_restore ──"
+# =============================================================================
+#
+#  USTERKA ODTWORZONA 18.09.2026 NA PRAWDZIWYM ZRZUCIE PRAWDZIWEJ BAZY
+#  -------------------------------------------------------------------
+#  `pg_restore --list` czyta z archiwum WYŁĄCZNIE spis treści, a ten leży na
+#  jego POCZĄTKU — bloków danych nie dotyka w ogóle. Zmierzone na zrzucie
+#  bazy Kukinga (PostgreSQL 18.6, 331 974 B, 50 tabel) obcinanym do 99, 98,
+#  95, 92, 90 i 80 procent ORAZ o jeden bajt: `--list` za każdym razem
+#  kończył się kodem 0 i pięćdziesięcioma tabelami, a prawdziwe
+#  `pg_restore -d` — komunikatem „could not read from input file: end of
+#  file". Taki plik przechodził `MIN_BAJTOW`, był szyfrowany, wysyłany,
+#  potwierdzany i meldowany jako GOTOWE; pełny przebieg na zrzucie obciętym
+#  do 95% odtworzył się potem do bazy, w której `recipes` miało 41 wierszy,
+#  a `users` ZERO.
+#
+#  DLACZEGO PRAWDZIWY PLIK, A NIE PODSTAWIONY `pg_restore`
+#  ------------------------------------------------------
+#  Bo cała usterka siedzi w tym, CO ROBI prawdziwy `pg_restore` z prawdziwym
+#  archiwum. Podstawiona funkcja dowiodłaby wyłącznie, że test umie
+#  podstawić funkcję: blok wyżej („pg_dump z kodem 0 to jeszcze nie kopia")
+#  robi dokładnie to i przechodził przez cały czas trwania błędu.
+#  Archiwum leży w `tests/skrypty/dane/archiwum-pg18.dump.base64` — zrobił
+#  je prawdziwy `pg_dump --format=custom` z jednorazowej bazy; jak je
+#  odtworzyć, pisze nagłówek tamtego pliku. Tu tylko odkodowujemy je na dysk
+#  i podajemy PRODUKCYJNEJ funkcji `weryfikuj_zrzut`.
+
+ARCHIWUM_B64="${KATALOG}/tests/skrypty/dane/archiwum-pg18.dump.base64"
+
+if [[ ! -f "${ARCHIWUM_B64}" ]]; then
+  sprawdz "fikstura prawdziwego archiwum" "jest" "BRAK ${ARCHIWUM_B64#"${KATALOG}"/}"
+else
+  KATALOG_ARCHIWUM="$(mktemp -d)"
+  ARCHIWUM="${KATALOG_ARCHIWUM}/pelne.dump"
+  grep -v '^#' "${ARCHIWUM_B64}" | base64 -d >"${ARCHIWUM}" 2>/dev/null
+
+  # weryfikacja_wynik <plik> — wypisuje „kod=<n>" z PRODUKCYJNEJ funkcji.
+  # Progi rozmiaru i liczby tabel schodzą tu w dół, bo fikstura jest maleńka
+  # i ma jedną tabelę; pilnują one czego innego (pusta baza, zła baza)
+  # i mają własne testy w bloku wyżej.
+  weryfikacja_wynik() {
+    (
+      wczytaj
+      PLIK_ZRZUTU="$1"
+      PLIK_BLEDU="${KATALOG_ARCHIWUM}/blad.txt"
+      ROZMIAR_JAWNY="$(stat -c %s "${PLIK_ZRZUTU}")"
+      MIN_BAJTOW=100
+      MIN_TABEL=1
+      alarm() { :; }
+      (weryfikuj_zrzut >/dev/null 2>&1)
+      printf 'kod=%s' "$?"
+    )
+  }
+
+  # Ile wynikowi wierzyć: najpierw sprawdzamy, że fikstura NIE JEST pusta
+  # i że czyta ją tutejszy `pg_restore`. Bez tego cały blok niżej mierzyłby
+  # pustkę (pułapka 2 z docs/PULAPKI_TESTOW.md).
+  if [[ ! -s "${ARCHIWUM}" ]]; then
+    sprawdz "fikstura odkodowuje się do niepustego pliku" "tak" "nie"
+  else
+    sprawdz "fikstura odkodowuje się do niepustego pliku" "tak" "tak"
+  fi
+
+  # KONTROLA DODATNIA. Gdyby `weryfikuj_zrzut` odrzucało wszystko, asercje
+  # niżej byłyby zielone przy zepsutym kodzie (pułapka 4).
+  sprawdz "pełne, zdrowe archiwum PRZECHODZI weryfikację" \
+    "kod=0" "$(weryfikacja_wynik "${ARCHIWUM}")"
+
+  PELNE_BAJTY="$(stat -c %s "${ARCHIWUM}")"
+
+  # SEDNO REGRESJI. Każda z tych pozycji obcięcia przechodziła
+  # `pg_restore --list` z kodem 0 — sprawdzone na tej samej fiksturze.
+  for PROCENT in 99 95 90 80 60; do
+    OBCIETE="${KATALOG_ARCHIWUM}/obciete-${PROCENT}.dump"
+    head -c "$((PELNE_BAJTY * PROCENT / 100))" "${ARCHIWUM}" >"${OBCIETE}"
+    sprawdz "archiwum obcięte do ${PROCENT}% zostaje ODRZUCONE" \
+      "kod=53" "$(weryfikacja_wynik "${OBCIETE}")"
+  done
+
+  # Najtrudniejszy przypadek obcięcia: brakuje JEDNEGO bajtu.
+  head -c "$((PELNE_BAJTY - 1))" "${ARCHIWUM}" >"${KATALOG_ARCHIWUM}/bez-bajtu.dump"
+  sprawdz "archiwum krótsze o JEDEN bajt zostaje odrzucone" \
+    "kod=53" "$(weryfikacja_wynik "${KATALOG_ARCHIWUM}/bez-bajtu.dump")"
+
+  # I to, czego samo obcięcie nie obejmuje: uszkodzenie danych W ŚRODKU.
+  # Plik ma pełną długość i poprawny spis treści; psuje się blok danych.
+  cp "${ARCHIWUM}" "${KATALOG_ARCHIWUM}/zepsute-w-srodku.dump"
+  printf '\xff\xff\xff\xff' | dd of="${KATALOG_ARCHIWUM}/zepsute-w-srodku.dump" \
+    bs=1 seek="$((PELNE_BAJTY * 75 / 100))" count=4 conv=notrunc status=none
+  sprawdz "archiwum pełnej długości, uszkodzone w środku, zostaje odrzucone" \
+    "kod=53" "$(weryfikacja_wynik "${KATALOG_ARCHIWUM}/zepsute-w-srodku.dump")"
+
+  # KONTROLA UJEMNA WBUDOWANA W ZESTAW: gdyby ktoś wyjął z `weryfikuj_zrzut`
+  # pełne odczytanie i zostawił sam `--list`, przypadki wyżej kończyłyby się
+  # kodem 0. Ta asercja mówi wprost, że sam `--list` tego NIE łapie — czyli
+  # dlaczego tamta linia musi tam być.
+  wynik="$(pg_restore --list "${KATALOG_ARCHIWUM}/obciete-80.dump" >/dev/null 2>&1; printf '%s' "$?")"
+  sprawdz "sam pg_restore --list PRZEPUSZCZA obcięte archiwum (po to jest pełny odczyt)" \
+    "0" "${wynik}"
+
+  # I strona kosztu: pełny odczyt NIE zapisuje SQL-a na dysk. Gdyby
+  # `--file` wskazywało plik roboczy, w kontenerze lądowałby jawny SQL
+  # z kompletem danych osobowych — dokładnie to, czego `szyfruj()` pozbywa
+  # się linijkę dalej.
+  cialo_weryfikacji="$(bez_komentarzy "${SKRYPT}" | awk '/^weryfikuj_zrzut\(\) \{/,/^\}/')"
+  if [[ -z "${cialo_weryfikacji}" ]]; then
+    sprawdz "umiem znaleźć ciało funkcji weryfikuj_zrzut()" "znalazłem" "nie znalazłem"
+  elif grep -q -- '--file=/dev/null' <<<"${cialo_weryfikacji}"; then
+    sprawdz "pełny odczyt nie zostawia jawnego SQL-a na dysku" "tak" "tak"
+  else
+    sprawdz "pełny odczyt nie zostawia jawnego SQL-a na dysku" "tak" "nie"
+  fi
+
+  rm -rf "${KATALOG_ARCHIWUM}"
 fi
 
 # =============================================================================
