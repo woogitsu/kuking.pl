@@ -103,3 +103,11 @@ Usunięcie parametru tag z rzeczywistego Blade wykrył pomiar przeglądarkowy.
 MD5/mtime przywrócone; po wyczyszczeniu skompilowanych widoków wynik dodatni PASS.
 Gość po kliknięciu trafia do /login. W pierwszej wersji harness błędnie
 oczekiwał /logowanie; poprawiono oczekiwanie według routes/web.php.
+
+## Korekta regresji historycznego spisu
+
+Pełny hook wykrył jedną porażkę SpisTematowTest: selektor .chip nie obejmował
+nowych kart promowanych. Test sprawdza teraz osobno kolejność href, nazwę
+i licznik na każdej karcie. Bezpośredni PHPUnit: 10 testów / 52 asercje PASS.
+Fizyczne odwrócenie foreach w Blade wykryte, MD5/mtime przywrócone, wynik
+dodatni PASS. Artefakty negative-order.json i targeted.py w katalogu dowodów.
