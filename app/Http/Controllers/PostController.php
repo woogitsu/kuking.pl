@@ -45,10 +45,23 @@ class PostController extends Controller
         private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
     ) {}
 
-    public function create(): View
+    public function create(Request $request): View
     {
+        $tagNames = (array) old('tag_names', []);
+        // Puste stare wejście też jest decyzją: po usunięciu ostatniego
+        // tagu lub błędzie walidacji nie przywracamy wyboru z adresu.
+        if (! $request->session()->hasOldInput()) {
+            $slug = $request->query('tag');
+            if (is_string($slug) && $slug !== '' && mb_strlen($slug) <= 200) {
+                $tag = Tag::query()->where('slug', $slug)->first()?->tagKanoniczny();
+                if ($tag?->isActive()) {
+                    $tagNames = [$tag->name];
+                }
+            }
+        }
+
         return view('pages.posts.create', [
-            'tagNames' => (array) old('tag_names', []),
+            'tagNames' => $tagNames,
             'sugestieTagow' => $this->sugestieDlaZapytania(),
             'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
