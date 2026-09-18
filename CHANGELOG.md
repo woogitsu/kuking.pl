@@ -1,5 +1,9 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.64 — wykonania i odpowiedzi liczone uczciwie
+
+- Przy przepisie liczba wykonań obejmuje także kolejne gotowania tej samej osoby. Podpisy mówią teraz o wykonaniach i odpowiedziach, zamiast przedstawiać je jako liczbę osób.
+
 ## Alfa 0.63 — zobacz, co gotują inni pod tym tagiem
 
 - Strony tagów pokazują kolaż najnowszych publicznych zdjęć od różnych osób. Zdjęcie prowadzi do wpisu, a przycisk dodawania otwiera formularz z wybranym tagiem.
