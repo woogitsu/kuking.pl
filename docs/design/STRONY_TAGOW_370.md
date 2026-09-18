@@ -1,8 +1,10 @@
 # Strony tagów — #370
 
-Stan: implementacja i lokalne pomiary przeglądarkowe; końcowe review i CI w toku przygotowania.
-Robocza wersja: Alfa 0.63 — jeszcze niewdrożona.
-Baza: `e22b79de7d1d37f449cf2e69b204421ad2226457` (statystyki #369).
+Stan: **scalone i wdrożone**, odbiór produkcji niedomknięty.
+PR #669 scalony 18.09.2026 jako `397a742` (Alfa 0.63); produkcja stoi dziś na
+`55877e2` (Alfa 0.65), CI main 35331870558 i Deploy 35333641106: success.
+Zdanie o „jeszcze niewdrożonej Alfie 0.63” i baza `e22b79d` poniżej to snapshot
+sprzed scalenia; zostawiamy go jako zapis przebiegu prac.
 
 ## Zachowanie
 
@@ -119,3 +121,80 @@ aby kolejność gospodarza różniła się od alfabetu i obu sortowań liczby wp
 wywołał właściwą porażkę href: oczekiwano Zupy, otrzymano Salatki.
 Przywrócono MD5/mtime i potwierdzono wynik dodatni. Osobna baza form-tests;
 nie zmieniano źródeł działającego pełnego hooka f26f727.
+
+
+## Granica dowodu produkcji — 18 września 2026
+
+Odbiór wyłącznie odczytowy, GET-y HTTP bez sesji, bez zapisu i bez danych
+demonstracyjnych na produkcji. **Odczyt HTML, nie interakcja w przeglądarce.**
+
+Publicznej strony tagu z danymi na produkcji nie ma, bo nie ma **żadnego**
+publicznego tagu. Potwierdzone czterema drogami, nie samą listą: `/tagi` → 200
+z `Tagi jeszcze się nie pojawiły`; `/szukaj?sekcja=przepisy` → 200 z
+`Nie ma jeszcze polecanych tagów.`; pięć prób bezpośrednich adresów strony
+pojedynczego tagu (`/tag/{tag}`) → 404; zero odnośników do strony pojedynczego
+tagu na stronie głównej, `/odkryj`, trzech stronach wpisów
+i trzech profilach publicznych. Szczegóły i cytaty: `STATYSTYKI_TAGOW_369.md`.
+
+Nie są zatem potwierdzone na produkcji: kolaż z prawdziwymi zdjęciami, reguła
+jednego zdjęcia od osoby na żywych danych, CTA „Dodaj wpis z tym tagiem” przy
+istniejącym tagu ani bogate karty tagów promowanych. Potwierdzony jest wyłącznie
+pusty stan obu powierzchni. Nie dodawaliśmy tagów ani wpisów, żeby to obejść.
+
+## Mysz i dotyk na kolażu — pomiar lokalny 18 września 2026
+
+Dotychczasowe dowody osiągalności kolażu były **klawiaturowe** (`actions.mjs`:
+Tab, obrys, `elementFromPoint` w środku elementu, Enter). Brakowało wskaźnika,
+a to on jest scenariuszem podstawowym. Uzupełniamy ten pomiar.
+
+Runtime: własny klon natywny WSL `kuking-DA-tagi`, serwer `127.0.0.1:8074`,
+osobna baza `kuking_d_a_tests` na `127.0.0.1:55439` (kopia fixture kolażu
+z odbioru #370), poczta `array`. Bez dotykania produkcji.
+
+48 konfiguracji: 6 szerokości (320/360/390/414/768/1440) × oba motywy ×
+tekst 100/140% × dwa sposoby wskazywania (**mysz** i **dotyk**, osobne konteksty
+przeglądarki, dotyk z `hasTouch`). Trzy stany strony:
+
+| Stan | Co mierzy | Wynik |
+|---|---|---|
+| A — stały bywalec, podpowiedź wyglądu zamknięta, kafel przewinięty do środka okna | scenariusz podstawowy | **0 zasłoniętych środków, 0 nieosiągalnych, 0 poziomego przewijania** |
+| B — kolaż doprowadzony dolną krawędzią do dolnej krawędzi okna | skrajne przewinięcie | 4 konfiguracje z jednym kaflem nieosiągalnym |
+| C — pierwsza wizyta, widoczna podpowiedź „Dopasuj rozmiar tekstu i wygląd strony” | stan powitalny | 4 konfiguracje z jednym kaflem nieosiągalnym |
+
+W stanie A wykonano **80 rzeczywistych interakcji** — realne kliknięcie myszą
+i realne dotknięcie każdego z pięciu kafli, przy 320 i 1440 px, obu motywach
+i obu skalach. Wszystkie 80 otworzyły dokładnie przypisany wpis (`80/80 OK`).
+CTA „Dodaj wpis z tym tagiem” otwiera dla gościa `/login` myszą i dotykiem,
+a jego wysokość nie schodzi poniżej 48 px.
+
+Wyniki: `evidence/tags370/pointer-results.json`, skrypt `evidence/tags370/pointer.mjs`.
+Obejrzano `pointer/A-light-100-1440.png` (układ prawidłowy: nagłówek, zdanie
+`Publicznie: 5 zdjęć od 5 osób.`, CTA, kolaż 5 kafli, podpis), `pointer/B-light-140-320.png`
+oraz `pointer/C-dark-140-390.png`. Ilustracje w kolażu są oznaczone jako dane
+testowe, nie są zdjęciami użytkowników. To nie jest test na fizycznym telefonie
+ani rzeczywisty zoom 200% — te zakresy pokrywają wcześniejsze sekcje tego raportu.
+
+### Dwa zasłonięcia pochodzące ze wspólnego widgetu „Wygląd”
+
+Oba przypadki B i C pochodzą z globalnego widgetu `szybki-wyglad`, nie z kodu
+tagów, dlatego **nie ruszamy tu ani CSS, ani JS tego widgetu** — sprawa jest
+zgłoszona osobno.
+
+- **B.** Przy 320 px i tekście 140%, gdy kolaż zostanie przewinięty dolną
+  krawędzią do dołu okna, pływający przycisk `Wygląd` przykrywa piąty kafel
+  w całości: wszystkie dziewięć punktów próbnych trafia w przycisk, pole
+  wspólne 8351 px² przy kaflu 144×69 px. Dotyczy obu motywów, myszy i dotyku.
+  Doprzewinięcie o 120 px w górę przywraca dostęp we wszystkich przypadkach
+  (`Bpo`: 0 nieosiągalnych), więc kafel nie jest trwale utracony.
+- **C.** Przy 360 i 390 px oraz tekście 100%, na pierwszej wizycie stała
+  podpowiedź `aside.szybki-wyglad-podpowiedz` (szerokość `min(360px, 100vw−24px)`,
+  `position: fixed`, `z-index: 26`) przykrywa jeden kafel w całości — pole
+  wspólne 25 862 px² przy 336×79 px oraz 27 709 px² przy 366×86 px. Znika po
+  „Rozumiem” albo po dowolnej zmianie wyglądu.
+
+Przyczyna jest wspólna i widoczna w źródle: cała logika odsłaniania w
+`resources/js/szybki-wyglad.js` wisi na `focusin` (atrybut
+`data-wyglad-w-przeplywie`, `window.scrollBy`). Klawiatura ma więc mitygację,
+wskaźnik nie ma żadnej. Nie jest to regresja wprowadzona przez #370 — widget
+zachowuje się tak nad każdą treścią — ale przy kolażu skutek jest widoczny,
+bo kafel bywa jedynym wejściem do wpisu w tym miejscu strony.

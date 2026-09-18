@@ -1,6 +1,10 @@
 # Publiczne statystyki tagów — #369
 
-Stan: **WIP, niewdrożone**. Baza `27df931`, gałąź `feat/369-statystyki-publiczne`, przygotowana Alfa 0.62.
+Stan: **scalone i wdrożone**, odbiór produkcji niedomknięty.
+PR #665 scalony 18.09.2026 jako `e22b79d`. Produkcja stoi na `55877e2` (Alfa 0.65),
+CI main 35331870558 oraz Deploy 35333641106: success. Nagłówek poniżej opisujący
+pracę na `27df931` / `feat/369-statystyki-publiczne` był snapshotem sprzed scalenia.
+Blokuje wyłącznie punkt „Granica dowodu produkcji — 18 września 2026”.
 
 ## Zachowanie
 
@@ -73,3 +77,41 @@ Pełny port marki nadal **CZĘŚCIOWO**.
 Codex niezależnie obejrzał `dark-320-eligible.png` i `dark-1440-index.png`
 z lokalnego odbioru: licznik i długa nazwa zawijają się, a statystyka w spisie
 ma osobny wiersz. Ten ogląd dwóch obrazów nie zastępuje pełnej macierzy agenta.
+
+
+## Granica dowodu produkcji — 18 września 2026
+
+Odbiór wyłącznie odczytowy: GET-y HTTP bez sesji, bez żadnego zapisu, bez zakładania
+konta i bez danych demonstracyjnych na produkcji. To **odczyt HTML**, nie interakcja
+w przeglądarce; miejsca oznaczone niżej jako obejrzane pochodzą z runtime lokalnego.
+
+Publicznych tagów na produkcji **nie ma żadnego**, więc niezerowych statystyk
+i zachowania progu nie było na czym pokazać. Stan sprawdzony czterema niezależnymi
+drogami, nie samą listą:
+
+| Powierzchnia | Kod | Co zwróciła |
+|---|---:|---|
+| `https://kuking.pl/tagi` | 200 | `<p class="empty-state-title">Tagi jeszcze się nie pojawiły</p>` |
+| `https://kuking.pl/szukaj?sekcja=przepisy` | 200 | `<h2 id="polecane-tagi-title">Polecane tagi</h2>` + `<p>Nie ma jeszcze polecanych tagów.</p>` |
+| strona pojedynczego tagu (`/tag/{tag}`) dla pięciu slugów: obiad, zupy, deser, cukinia, bigos | 404 | brak jakiejkolwiek strony tagu |
+| `/`, `/odkryj`, trzy wpisy z `/odkryj`, `/@izazpodlasia`, `/@on_the_plate`, `/@ulalala` | 200 | zero odnośników `href` prowadzących na stronę pojedynczego tagu |
+
+Stopka każdej z tych stron podaje `Alfa 0.65` i `55877e2`, czyli ten sam commit,
+na którym stoi wdrożenie. Pusty stan `/tagi` jest poprawny i zgodny z zamierzeniem,
+ale **pusty stan nie jest dowodem działania licznika**.
+
+Pozostaje więc jeden warunek: zobaczyć na produkcji tag, który ma co najmniej
+pięć publicznych gotowych zdjęć od co najmniej trzech osób, i potwierdzić na nim
+zarówno zdanie ze statystyką, jak i to, że poniżej progu pojawia się zaproszenie.
+Warunek ten spełni się dopiero po redakcyjnym dodaniu tagów (#18) albo po
+pierwszych wpisach z własnym tagiem. Nie tworzymy w tym celu treści na produkcji.
+
+Lokalnie, na izolowanym runtime opisanym w raporcie #370 (`kuking_d_a_tests`,
+127.0.0.1:55439, serwer 8074), strona tagu powyżej progu renderuje
+`Publicznie: 5 zdjęć od 5 osób.` — zrzut `evidence/tags370/pointer/A-light-100-1440.png`
+obejrzany. To potwierdzenie lokalne, nie produkcyjne.
+
+Konkretnych adresów z próbami 404 nie zapisujemy tu jako literałów ścieżek:
+`DokumentyMdNieMajaMartwychOdnosnikowTest` pilnuje, żeby dokumenty nie cytowały
+martwych tras, a te akurat są martwe celowo. Pełna lista prób wraz z kodami
+odpowiedzi jest w `evidence/tags369/production-read-20260918.json`.

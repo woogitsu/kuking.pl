@@ -1,7 +1,10 @@
 # Liczniki wykonań — #666
 
-Stan: lokalna poprawka w toku, Alfa 0.64 nie została wysłana ani wdrożona.
-Baza: 397a742a56da0233d19ccf0c6ec1c20e199718a5 (Alfa 0.63).
+Stan: **scalone i wdrożone**, odbiór produkcji niedomknięty.
+PR #671 scalony 18.09.2026 jako `bdc56b8` (Alfa 0.64); produkcja stoi dziś na
+`55877e2` (Alfa 0.65), CI main 35331870558 i Deploy 35333641106: success.
+Zdanie o niewysłanej Alfie 0.64 i baza `397a742` poniżej to snapshot sprzed
+scalenia. Blokuje wyłącznie sekcja „Granica dowodu produkcji — 18 września 2026”.
 
 ## Problem i zmiana
 
@@ -88,3 +91,58 @@ Produkcję obejrzano także w rzeczywistym Chromium jako gość,1440×1000,
 jasny motyw: przepis Bigos z cukinii, sekcja Komu wyszło i pusty stan.
 Zrzut production-empty666.png obejrzany, production-browser.json potwierdza
 wersję i SHA. Bez zmiany danych. Nie rozszerza to odbioru na niezerowe liczniki.
+
+
+## Granica dowodu produkcji — 18 września 2026
+
+Odbiór wyłącznie odczytowy: GET-y HTTP bez sesji, bez tworzenia wykonań,
+odpowiedzi i kont. **Odczyt HTML, nie interakcja w przeglądarce.**
+
+### Ile w ogóle jest publicznych przepisów
+
+Jeden. Sprawdzone trzema drogami zamiast przyjęcia założenia:
+
+- `/szukaj?sekcja=przepisy` z realnymi zapytaniami: `bigos` → `Znaleziono 1 przepis.`
+  i jedyny odnośnik `https://kuking.pl/przepisy/bigos-z-cukinii`; `rolada`, `kawowa`,
+  `ciasto`, `zupa`, `placki`, `obiad` → `Nic nie znaleźliśmy` (HTTP 200 w każdym przypadku),
+- zakładki `?zakladka=przepisy` profili `/@izazpodlasia`, `/@on_the_plate`, `/@ulalala`:
+  tylko `@ulalala` ma przepis i jest to ten sam Bigos z cukinii,
+- `/`, `/odkryj` i trzy strony wpisów: jedyne odnośniki `/przepisy/…` prowadzą do bigosu.
+
+**Korekta wcześniejszego założenia:** „Rolada kawowa” Ewy Kapicy **nie jest przepisem**,
+tylko wpisem — `https://kuking.pl/wpisy/01a0a6af-4aea-7230-9b41-8c6d4b694eee`.
+`https://kuking.pl/przepisy/rolada-kawowa` zwraca **404**. Nie ma więc drugiego
+przepisu, na którym można by szukać niezerowych liczników.
+
+### Co pokazuje jedyny publiczny przepis
+
+`https://kuking.pl/przepisy/bigos-z-cukinii` → HTTP 200, stopka `Alfa 0.65` / `55877e2`.
+Sekcja wykonań w HTML, cytat dosłowny:
+
+```html
+<h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
+...
+<p class="empty-state-title">Jeszcze nikt tego nie gotował</p>
+<p class="empty-state-opis"><p class="mb-0">Twoje wykonanie będzie pierwsze.</p></p>
+```
+
+Zero wykonań. Zakładki `?zakladka=ugotowane` wszystkich trzech profili publicznych
+zwracają `Brak wykonań`. W całym pobranym HTML produkcji (strona główna, `/odkryj`,
+trzy wpisy, trzy profile z zakładkami, sześć stron wyszukiwania, strona przepisu)
+**nie występuje ani jedna etykieta z niezerową liczbą** — ani `N wykonań`,
+ani `N osób`, ani `N z M odpowiedzi`, ani `Ugotowane N ×`.
+
+### Co to znaczy dla odbioru
+
+Pozytywnie: oba publicznie widoczne puste stany nazywają **zdarzenie**, nie osobę —
+`Twoje wykonanie będzie pierwsze.` oraz `Brak wykonań`. Zgodnie z zakresem #666.
+
+Granica: **zero wykonań na całej produkcji** oznacza, że niezerowych podpisów
+(`4 wykonania`, `2 z 4 odpowiedzi`, `50% odpowiedzi`, odmiana 0/1/2/5/12/22)
+nie da się dziś obejrzeć na rzeczywistych danych. Brak danych **nie jest wynikiem
+pozytywnym** — to granica dowodu, a nie potwierdzenie. Nie tworzyliśmy wykonań
+ani fixture na produkcji, żeby ją obejść.
+
+Warunek domknięcia pozostaje jeden: gdy na produkcji pojawi się przepis z co
+najmniej jednym wykonaniem, potwierdzić na nim etykietę liczby wykonań, a przy
+co najmniej trzech odpowiedziach również podpis odpowiedzi i procent.
