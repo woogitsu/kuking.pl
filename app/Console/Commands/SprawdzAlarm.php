@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Logging\WebhookBleduHandler;
 use Illuminate\Console\Command;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Log;
@@ -82,6 +83,10 @@ class SprawdzAlarm extends Command
 
         $znacznik = Carbon::now()->toIso8601String();
 
+        // Pytamy o WYNIK NASZEJ wysyłki, nie o cudzą sprzed chwili w tym
+        // samym procesie (pamięć handlera jest statyczna).
+        WebhookBleduHandler::zapomnijOstatniaWysylke();
+
         try {
             Log::channel('blad_webhook')->error($this->tresc($znacznik));
         } catch (Throwable) {
@@ -93,17 +98,37 @@ class SprawdzAlarm extends Command
             return self::FAILURE;
         }
 
+        // BRAK WYJĄTKU NIE JEST DOWODEM DOSTARCZENIA. Klient HTTP Laravela
+        // bez `throw()` oddaje 404 z odwołanego webhooka i 500 z zepsutego
+        // jako ZWYKŁĄ odpowiedź, a `WebhookBleduHandler::write()` z zasady
+        // nigdy nie rzuca dalej — więc `catch` wyżej nie złapie ani jednego
+        // z tych przypadków. Komenda, która pyta „czy alarm DOCHODZI", nie
+        // ma prawa meldować sukcesu na podstawie samego braku wyjątku.
+        // Handler zna kod odpowiedzi i trzeba go o niego zapytać — dokładnie
+        // tak samo robi `HealthController::powiadomWebhook()`.
+        if (WebhookBleduHandler::ostatniaWysylkaSieUdala() !== true) {
+            $this->error('Wiadomość próbna NIE ZOSTAŁA PRZYJĘTA przez kanał alarmowy.');
+            $this->newLine();
+            $this->line('Żądanie wyszło, ale kanał go nie potwierdził — czyli prawdziwy alarm');
+            $this->line('też NIE DOJDZIE. Powód, czyli kod HTTP albo nazwa klasy wyjątku, stoi');
+            $this->line('w dzienniku serwera pod wpisem „Nie udało się zadzwonić na webhook błędów".');
+            $this->newLine();
+            $this->line('Najczęstsze przyczyny: literówka w `LOG_BLAD_WEBHOOK_URL`, kanał skasowany');
+            $this->line('po stronie Discorda albo Slacka (401/404), brak wyjścia do sieci z kontenera.');
+
+            return self::FAILURE;
+        }
+
         $this->newLine();
-        $this->line("Wysłano jedną wiadomość próbną ze znacznikiem: <options=bold>{$znacznik}</>");
+        $this->line("Kanał PRZYJĄŁ wiadomość próbną (odpowiedź 2xx), znacznik: <options=bold>{$znacznik}</>");
         $this->newLine();
         $this->line('Teraz sprawdź kanał. To jest jedyny moment, w którym rozstrzyga się,');
         $this->line('czy alarm DOCHODZI — kod czujki, harmonogram i wyciszanie duplikatów');
         $this->line('są osobnymi warstwami i żadna z nich tego nie dowodzi.');
         $this->newLine();
-        $this->line('Jeśli wiadomość nie dotarła, a komenda nie zgłosiła błędu: najczęstszą');
-        $this->line('przyczyną jest adres webhooka z literówką albo skasowany kanał po stronie');
-        $this->line('Discorda/Slacka — jedno i drugie oddaje kod HTTP, który zapisuje się');
-        $this->line('w dzienniku serwera, nie tutaj.');
+        $this->line('Kod 2xx mówi, że kanał wiadomość PRZYJĄŁ. Czego nadal NIE mówi: czy');
+        $this->line('zobaczy ją człowiek — to zależy od tego, na który kanał Discorda albo');
+        $this->line('Slacka wskazuje webhook i kto go obserwuje. Tego stąd sprawdzić się nie da.');
 
         return self::SUCCESS;
     }

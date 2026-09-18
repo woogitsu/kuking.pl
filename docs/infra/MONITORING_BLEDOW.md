@@ -603,14 +603,14 @@ osobno**:
 | 1 | kod czujki | działa | testy + kontrole ujemne |
 | 2 | konfiguracja produkcji | **brak** | w usłudze nie ma `LOG_BLAD_WEBHOOK_URL` |
 | 3 | faktyczne wywołanie | działa | log produkcji: `Running [kuking:budzet-polaczen] … DONE`, 17.09 23:25:20 UTC |
-| 4 | **odebranie wiadomości** | **niesprawdzone na produkcji** | lokalnie: prawdziwy odbiornik HTTP |
-| 5 | wyciszanie duplikatów i powrót do normy | działa | testy + prawdziwy odbiornik |
+| 4 | **odebranie wiadomości** | **niesprawdzone na produkcji** | lokalnie: `Http::fake()` oraz lokalny odbiornik HTTP na 127.0.0.1 — kanał PRZYJĄŁ (2xx), co nie dowodzi, że człowiek to zobaczył |
+| 5 | wyciszanie duplikatów i powrót do normy | **działa warunkowo** | testy. UWAGA: `AlarmPolaczen::wyslij()` i `AlarmKolejki` zwracają sukces na sam brak wyjątku, więc alarm, który NIE doszedł (np. HTTP 404), zapisuje pamięć wyciszania i zagłusza następny, sprawny dzwonek. Zmierzone; poprawka poza zakresem tego pakietu |
 
 Zielona warstwa 1 i 3 przy pustej 2 daje dokładnie to, co produkcja ma dziś:
 czujkę, która sumiennie chodzi co godzinę i **nie ma dokąd zadzwonić**.
 Najłatwiejszy błąd w tym miejscu to uznać wdrożenie kodu za wdrożenie alarmu.
 
-**Warstwę 4 zamyka jedno polecenie:**
+**Warstwę 4 domyka jedno polecenie — o tyle, o ile kanał potwierdzi przyjęcie:**
 
 ```bash
 php artisan kuking:sprawdz-alarm
