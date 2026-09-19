@@ -234,6 +234,57 @@ więc blokada uniemożliwiłaby wykonanie żądania usunięcia danych. Dziś RPO
 obiektów jest faktycznie nieskończone, a jedno poświadczenie `AWS_*` ma prawo
 kasowania we wszystkich czterech bucketach ze zdjęciami i paczkami RODO.
 
+> **SPROSTOWANIE Z 19 IX 2026 (#691). RYGIEL NIE KASUJE I NIE JEST
+> NIEODWRACALNY.** Akapitu wyżej **nie zmieniam** — to datowany zapis
+> przekazania i ma pokazywać, co twierdzono w nocy 17/18 września. Poniżej
+> jest to, co wiadomo dziś.
+>
+> **Co twierdzono wtedy:** „Bucket Lock **wyłącznie na buckecie kopii**,
+> retencja 30 dni, propagacja usunięcia konta po tym okresie" — bez ani
+> jednego słowa o regule lifecycle. Zdanie czyta się tak, jakby sam rygiel
+> po 30 dniach kasował kopie i tym samym domykał żądanie usunięcia konta.
+>
+> **Co jest prawdą.** Dokumentacja Cloudflare „Bucket locks" (odczyt
+> 19 IX 2026) mówi o ryglu jedno zdanie i nie ma w nim słowa o kasowaniu:
+> *„Bucket locks prevent the deletion and overwriting of objects in an R2
+> bucket for a specified period — or indefinitely."* Rygiel jest **zakazem
+> usuwania i nadpisywania**, nie zegarem retencji. Po 30 dniach obiekt nadal
+> leży w buckecie; zmienia się tylko tyle, że **wolno** go wtedy skasować.
+> Kasuje dopiero **osobna reguła lifecycle** („Object lifecycles", akcja
+> delete), która musi mieć okres **dłuższy** niż rygiel, bo *„Bucket lock
+> rules take precedence over lifecycle rules"*, a jej skutek jest
+> asynchroniczny: *„Objects will typically be removed from a bucket within
+> 24 hours of the `x-amz-expiration` value."* Rygiel jest też **odwracalny** —
+> dokumentacja ma rozdział „Remove bucket lock rules from your R2 bucket"
+> i trzy drogi zdjęcia reguły (panel, Wrangler `r2 bucket lock remove`, API);
+> warunek jest jeden — token z prawem do edycji konfiguracji bucketu. To
+> **nie** jest tryb compliance S3 Object Lock z innego produktu i nie wolno
+> ich utożsamiać. Stąd poprawka do modelu zagrożeń: rygiel broni przed
+> tokenem aplikacji i tokenem procesu kopiującego (mają prawo do obiektów,
+> nie do konfiguracji bucketu), a **nie** broni przed właścicielem konta ani
+> żadnym tokenem z prawem do konfiguracji. Wniosek brzmi więc nie „rygiel =
+> ochrona przed skasowaniem", tylko „rygiel = wyprowadzenie skasowania poza
+> automat, do ręcznej czynności uprzywilejowanej".
+>
+> **Trzy rzeczy, które tamten akapit zlepiał w jedną:**
+>
+> | | Co to jest | Czym się to robi | Gdzie to stoi |
+> |---|---|---|---|
+> | **(a) ochrona przed usunięciem** | „przez 30 dni nikt tego nie skasuje" | Bucket Lock, `MaxAgeSeconds` | rozstrzygnięte — [`LOKALIZACJA_DANYCH_R2.md`](LOKALIZACJA_DANYCH_R2.md), kroki 1–2 |
+> | **(b) koniec retencji** | „po 30 dniach tego ma nie być" | **osobna reguła lifecycle**, okres dłuższy niż rygiel | rozstrzygnięte — tamże, krok 2a |
+> | **(c) rzeczywisty odbiór na prawdziwym buckecie** | „sprawdziliśmy, że naprawdę zniknęło" | własny obiekt kontrolny + `HEAD` po terminie | **otwarte** — należy do #120 / #617 / #619 |
+>
+> **Skąd to wiadomo:** odczyt dokumentacji dostawcy, nie pomiar na koncie
+> Cloudflare. Do żadnego bucketu ani obiektu R2 nikt przy tym sprostowaniu
+> nie sięgał. Źródła:
+> <https://developers.cloudflare.com/r2/buckets/bucket-locks/> oraz
+> <https://developers.cloudflare.com/r2/buckets/object-lifecycles/>.
+> Pełna, sprostowana wersja zaleceń dla #617 jest
+> w [`LOKALIZACJA_DANYCH_R2.md`](LOKALIZACJA_DANYCH_R2.md) (sekcja „Dlaczego
+> NIE WOLNO zaryglować żywego bucketu oryginałów" i kroki 1–3 wraz z 2a).
+> **To sprostowanie nie zamyka #120, #617 ani #619** — punkt (c) nadal
+> nie ma dowodu.
+
 ---
 
 ## 4b. Pakiet #193 / #594 — kopie i odtworzenie (podagent A)
