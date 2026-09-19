@@ -135,3 +135,119 @@ Niezależny przegląd diffu nie wykazał blokera; nie zastępuje pomiaru geometr
 Zmiana wymaga ponownego hooka, wysyłki i CI; pierwszy przebieg CI nie jest sukcesem.
 
 Po zmianie rodzica popupu: 24/24 konfiguracje geometrii, wybór myszą i klawiaturą oraz 4/4 rzeczywistego zoomu 200% przeszły. Obejrzano mobilny zrzut 320 px w ciemnym motywie przy 140%. Dowody macierzy, zoomu i negatywów zachowano w evidence/tagi647/aria*.json.
+
+## Odbiór PR #701 na produkcji 8a2ecb2a (19.09.2026)
+
+Ten rozdział jest ODBIOREM, nie implementacją: kod #647 był już scalony.
+Sprawdzono, co z kryteriów zgłoszenia naprawdę stoi na produkcji, czym to
+udowodniono i czego udowodnić się nie dało.
+
+### Co scalił #701
+
+Dwa pliki, `5ecbcce`, scalony 18.09.2026 22:50 UTC, jest przodkiem
+produkcyjnego `8a2ecb2a` (sprawdzone `git merge-base --is-ancestor`).
+
+1. `resources/views/components/tagi-formularz.blade.php` (+15/−8) — dolna
+   wyszukiwarka tagów schowana w `<details>` z podsumowaniem „Dodaj tag
+   bezpośrednio…”, „Znajdź tag” przemianowane na „Sprawdź tag”, tekst
+   pomocniczy kieruje do hashtagu w opisie.
+2. `.github/workflows/ci.yml` (+12/−0) — trzy joby utrwalają `APP_KEY`
+   w `.env` przed `php artisan serve`, bo proces `php -S` czyta `.env`,
+   a nie środowisko joba.
+
+Produkcyjne potwierdzenia: `meta kuking-service-worker` →
+`/sw.js?v=8a2ecb2a91bec7f7fef0f40e9d1c59b8c4735257`, deployment GitHuba
+z 19.09 10:28 UTC na tym samym SHA, CI main run `35437520171` = success,
+stopka „Alfa 0.67”. `/health` zgłasza `degraded`, ale jedyny nieudany
+podsystem to `kolejka: zadania_nieudane` — z tagami nie ma związku.
+
+### Usterka znaleziona i naprawiona: wynik „Sprawdź tag” był niewidoczny bez JS
+
+`<details>` z #701 nie ma `open` i nie miał żadnego warunku, a WYNIK
+wyszukiwania renderuje się w jego środku. Bez JavaScriptu (AGENTS.md §5)
+przebieg wyglądał tak: człowiek wpisuje frazę, klika „Sprawdź tag”, strona
+się przeładowuje — i nie widzi NICZEGO. Podpowiedzi, komunikat „Ten tag jest
+już dodany.”, „Nic nie znaleźliśmy…” i przycisk „Dodaj … jako nowy tag”
+wszystkie są w HTML, ale w zwiniętej sekcji.
+
+Zmierzone na `8a2ecb2a` sondą renderującą prawdziwą odpowiedź
+`GET /dodaj/zdjecie` po kroku `szukaj_tagu`:
+`PODPOWIEDZI_W_HTML=1`, `WEWNATRZ_DETAILS=1`, `DETAILS_MA_OPEN=false`,
+`PRZYCISKI_DODAJ=2`.
+
+Dlaczego nie złapały tego istniejące testy: cała sekcja „bez JavaScriptu”
+w `TagiWpisowTest` sprawdza `assertSessionHasInput` i `assertRedirect`,
+czyli STAN SESJI. Żaden test nie patrzył na wyrenderowany formularz, więc
+schowanie wyniku przed człowiekiem przeszło bokiem — 19/19 było zielone
+i przed poprawką, i po wprowadzeniu usterki.
+
+Poprawka jest jednolinijkowa: `<details class="mt-3" @if($zapytanie !== '')
+open @endif>`. Wszystkie cztery bloki w środku są warunkowane frazą, więc
+jeden warunek wystarcza, a pusty formularz nadal pokazuje sekcję zwiniętą —
+czyli intencja #701 (jedna główna droga, bez drugiego interfejsu) zostaje.
+
+### Dowody
+
+- `tests/Feature/TagiWpisowTest.php`: +3 testy patrzące na RENDER
+  (`DOMXPath`, `ancestor::details[not(@open)]`). Plik: **22 testy /
+  70 asercji**, zielony. Przed poprawką: 19/60.
+- Rodzina tagów i formularzy (`--filter "Tag|Tagi|QuestionForm|PostForm|Podpowiedzi"`):
+  **275 testów / 50 075 asercji**, zielone.
+- Pełna suita na PostgreSQL 127.0.0.1:55439, osobna baza
+  `kuking_647_odbior_claude`: **4283 testy / 82 783 asercje**, zero porażek,
+  3 notice'y PHPUnit, 5 min 09 s.
+- `node --test resources/js/tagi-w-opisie.test.mjs`: 3/3.
+- Pint na zmienionym teście: PASS. PHPStan na zmienionym teście: No errors.
+
+**Fizyczna kontrola ujemna** (`evidence/tagi647/odbior701-kontrola-ujemna.txt`):
+cofnięcie `open` w blade. MD5 `781aaea9357a2533f2aa9526d12d2c2c` →
+`1e5c009bb9737e9e4b141b7851b9f85f`, grep potwierdził `open @endif` = 0
+wystąpień i `<details class="mt-3">` = 1 wystąpienie, linia 68 wypisana.
+Testy oblały 2 z 22 (te dwa nowe, asercje 68 zamiast 70), dokładnie z
+komunikatem o zwiniętej sekcji. Po przywróceniu z kopii spoza repo MD5
+i mtime zgodne, przebieg dodatni 22/70.
+
+Pierwsze podejście do tej kontroli było NO-OPEM (wzorzec `perl -pe` się nie
+dopasował, MD5 się nie zmienił). Skrypt ma wbudowaną bramkę „MD5 bez zmian →
+błąd” i sam to zatrzymał, zanim testy zdążyły dać fałszywy zielony wynik.
+
+### Tabela kryteriów
+
+| Kryterium z #647 | Stan | Warstwa dowodu |
+|---|---|---|
+| Autocomplete po `#` przy kursorze; mysz/dotyk, strzałki, Enter, Escape; Enter nie publikuje | spełnione | kod (`tagi-w-opisie.js`: `preventDefault` na Escape/strzałkach/Enter), 3 testy JS, wcześniejszy odbiór przeglądarkowy (17.09, 24/24 konfiguracje), bundle obecny na produkcji |
+| Uczciwy licznik: tylko publiczne wpisy dostępne widzowi, blokady, dostępność przepisu | spełnione lokalnie | kod (`PodpowiedziTagow`: `publiclyVisible`+`tylkoOdAktywnychAutorow`+`widoczneDla`+`zWidocznymPrzepisem`), 7 testów `PodpowiedziTagowEndpointTest` w zielonej suicie, CI main success |
+| Dodawanie i edycja; polskie znaki, wklejanie, kursor w środku, usuwanie, brak wyników, powtórki, limit 5 | spełnione lokalnie | testy `TagiWpisowTest`/`TagiInlinePochodzenieTest` w suicie 4283, wcześniejszy odbiór przeglądarkowy |
+| Sprzeczność ze zrzutu: „już dodany” równocześnie z ofertą nowego | spełnione | kod: `$pasujeDokladnie = $juzWybrany \|\| …` (linie 23–28 komponentu) |
+| Zachowanie opisu, zdjęć i tagów po walidacji | spełnione lokalnie | testy ratowania danych w `TagiWpisowTest` |
+| **Bez JS nadal da się oznaczyć wpis** | **było ZŁAMANE przez #701, naprawione lokalnie, NIE JEST na produkcji** | sonda renderu na `8a2ecb2a` + kontrola ujemna (wyżej) |
+| Podstawowa ścieżka z JS bez osobnego szukania przyciskiem | spełnione | `<details>` z #701, test `test_sekcja_awaryjna_jest_zwinieta_gdy_nie_ma_czego_pokazac` |
+| Mobile/desktop, oba motywy, skala 100/140, zoom 200, brak zasłaniania | spełnione lokalnie | 24/24 konfiguracje i 4/4 zoom 200% z wcześniejszego odbioru; NIE powtórzone na `8a2ecb2a` |
+| Testy działań i autoryzacji liczników, kontrola ujemna źródła, review | spełnione | liczby wyżej |
+| Podpowiedzi po `#` i licznik DZIAŁAJĄ NA PRODUKCJI | **nieudowodnione** | formularz i `/tagi/podpowiedzi` są za `auth` (anon: 302 → `/login`); logowanie na cudze konto zabronione |
+| Krótka lista przypisanych tagów **przy opisie** (wymaganie z 18.09) | częściowo | dolna wyszukiwarka schowana ✔, ale lista tagów nadal stoi PO sekcji widoczności, nie przy opisie (`pages/posts/create.blade.php:154`) |
+
+### Dwie uwagi, których świadomie nie naprawiono
+
+1. Teksty wskazują na nieistniejący już widoczny element: pod opisem stoi
+   „Tagi możesz też znaleźć poniżej.”, a JS mówi „…znajdź tag poniżej”
+   i „…skorzystać z wyszukiwania tagów poniżej”. Po #701 „poniżej” jest
+   zwiniętą sekcją o zupełnie innej etykiecie. To zmiana copy — należy do
+   właściciela i `docs/brand/COPY_STYLE.md`, nie do wąskiej poprawki odbioru.
+   Obecne na produkcji: oba zwroty są w `/build/assets/app-Tz-bEy9s.js`.
+2. Lista przypisanych tagów nie została przeniesiona „przy opis”. To zmiana
+   układu formularza, nie usterka scalonego kodu.
+
+### Czego ten odbiór NIE dowodzi
+
+- Niczego o zachowaniu popupu NA PRODUKCJI — cała ścieżka autora jest za
+  logowaniem, a konto jest cudze. Produkcyjnie potwierdzono wyłącznie: SHA,
+  CI, obecność skryptu w bundlu i publiczne liczniki `/tagi` (`ciasto` — 1,
+  `sernik` — 0), które pochodzą z #369/#370, nie z popupu #647.
+- Licznika DODATNIEGO w samym popupie. Dane do tego na produkcji JUŻ SĄ
+  (tag `ciasto` ma 1 publiczny wpis, czego 18.09 jeszcze nie było), ale
+  odczytać go może tylko zalogowany.
+- Fizycznej klawiatury ekranowej i IME — ograniczenie znane od 17.09,
+  nie zmienione.
+- Macierzy 24/24 i zoomu 200% NA `8a2ecb2a` — te liczby pochodzą
+  ze snapshotu sprzed #701, a #701 zmienił układ tej sekcji.
