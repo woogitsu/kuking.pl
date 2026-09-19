@@ -1,0 +1,8 @@
+{
+ "seria": "r030-p1",
+ "zadany_rps": 30,
+ "werdykt": "NIEWYKONANY",
+ "powod": "Bramka nie doczekała: obce obciążenie nie zeszło pod 18.0 rdzeni przy PSI <= 25.0 na 60s w ciągu 300s. Szczegóły w otoczenie-r030-p1.txt.",
+ "prog_rdzeni": 18.0,
+ "prog_psi": 25.0
+}
