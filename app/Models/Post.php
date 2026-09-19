@@ -16,6 +16,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Wpis: zdjęcie + kilka słów. Główna jednostka treści w Kuking.
+ *
+ * Kolumny z migracji SQL add_kind_and_title_to_posts (Larastan nie odczytuje ALTER TABLE).
+ *
+ * @property string $kind
+ * @property string|null $title
  */
 class Post extends Model
 {
@@ -144,6 +149,18 @@ class Post extends Model
     // Zakresy
     // ---------------------------------------------------------------------
 
+    /** Licznik kart: ślad usunięcia zachowuje rozmowę, ale nie jest odpowiedzią.
+     * @param  Builder<Post>  $query
+     */
+    public function scopeWithVisibleCommentCount(Builder $query, ?User $viewer): void
+    {
+        $query->withCount(['comments' => fn (Builder $comments) => $comments
+            ->widoczneDla($viewer)
+            ->where(fn (Builder $counted) => $counted
+                ->whereNull('comments.body_removed_at')
+                ->orWhere('posts.kind', self::KIND_DISH))]);
+    }
+
     /** @param  Builder<Post>  $query */
     public function scopePublished(Builder $query): void
     {
@@ -153,7 +170,17 @@ class Post extends Model
     /** @param  Builder<Post>  $query */
     public function scopePubliclyVisible(Builder $query): void
     {
-        $query->published()->where('visibility', self::VISIBILITY_PUBLIC);
+        $query->enabledKinds()->published()->where('visibility', self::VISIBILITY_PUBLIC);
+    }
+
+    /** Flaga publikacji działu nie usuwa danych ani nie filtruje operacji utrzymaniowych.
+     * @param  Builder<Post>  $query
+     */
+    public function scopeEnabledKinds(Builder $query): void
+    {
+        if (! config('kuking.questions.enabled', false)) {
+            $query->where('posts.kind', self::KIND_DISH);
+        }
     }
 
     /**
@@ -271,6 +298,8 @@ class Post extends Model
      */
     public function scopeWidoczneDla(Builder $query, ?User $widz): void
     {
+        $query->enabledKinds();
+
         if ($widz === null) {
             $query->published()->where('visibility', self::VISIBILITY_PUBLIC);
 
@@ -358,7 +387,7 @@ class Post extends Model
 
     public function url(): string
     {
-        return route('posts.show', ['post' => $this->getKey()]);
+        return route($this->kind === self::KIND_QUESTION ? 'questions.show' : 'posts.show', ['post' => $this->getKey()]);
     }
 
     /**

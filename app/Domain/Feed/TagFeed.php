@@ -91,7 +91,7 @@ final class TagFeed
                 'recipe.heroMedia',
                 'tags:id,slug,name,status',
             ])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
             // (kto się liczy, od ilu osób widać liczbę) siedzą w

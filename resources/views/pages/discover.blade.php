@@ -30,6 +30,10 @@
         <h1>Świeżo z <x-kuking-word /></h1>
         <p class="mb-6">
             Wszystko, co ludzie pokazali w ostatnich dniach — po kolei, od najnowszego.
+            @if(config('kuking.questions.enabled'))
+                <br><a href="{{ route('questions.index') }}">Poradźcie — pytania do innych</a>.
+                Ktoś to już robił i chętnie powie, jak.
+            @endif
         </p>
 
         {{-- Tablica dnia jest bezpośrednim dzieckiem siatki — inaczej

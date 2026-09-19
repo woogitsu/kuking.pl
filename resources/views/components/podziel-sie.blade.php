@@ -43,6 +43,7 @@
             $opis = $udostepnianie->opis($tresc);
             $drogi = $udostepnianie->drogi($tresc);
             $rzecz = $tresc instanceof \App\Models\Recipe ? 'przepis' : 'wpis';
+            $pytanie = $tresc instanceof \App\Models\Post && $tresc->kind === \App\Models\Post::KIND_QUESTION;
             // Identyfikator z klucza treści, nie stały — na jednej stronie
             // może kiedyś stanąć więcej niż jeden taki blok, a zduplikowany
             // `id` przenosi fokus w złe miejsce (IdentyfikatoryNaStronieSaUnikalneTest).
@@ -61,7 +62,7 @@
 
             <div class="podziel-sie-tresc">
                 <p class="podziel-sie-wstep">
-                    Wyślij ten {{ $rzecz }} komuś bliskiemu. Osoba, która dostanie adres,
+                    Wyślij {{ $pytanie ? 'to pytanie' : 'ten '.$rzecz }} komuś bliskiemu. Osoba, która dostanie adres,
                     otworzy go w przeglądarce — konto na Kuking nie jest jej do tego potrzebne.
                 </p>
 

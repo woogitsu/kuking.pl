@@ -81,6 +81,45 @@ publiczny. **Tego z PHP nie widać.** Testy nie mają dostępu do panelu
 Cloudflare, a to on stawia granicę: własna domena bucketu, `r2.dev`, klucze API.
 Stąd §2 i §3.
 
+### 1a. Czy ta bramka w ogóle MIERZY — sprawdzone na prawdziwym serwerze S3 (18 IX 2026)
+
+> **To nie jest odbiór R2 i nie zastępuje ani jednego wiersza z §3.** To jest
+> odpowiedź na inne pytanie: czy werdykty tej komendy biorą się z odpowiedzi
+> prawdziwego serwera S3, czy z konfiguracji i atrap. Narzędzie, które nigdy
+> nie powiedziało „NIE", nie jest bramką — jest ozdobą.
+
+Komendę uruchomiono na **MinIO w kontenerze** (wydanie `2025-09-07`), postawionym
+w miejsce R2: dwa osobne buckety (oryginały i warianty), prawdziwy obiekt
+z blokiem EXIF pod kluczem `incoming/`, trzy warianty bez EXIF-u, adresowanie
+przez host (`use_path_style_endpoint = false`), sterownik `r2` z repozytorium.
+
+**Werdykty wyszły z serwera, nie z konfiguracji.** Sprawdzenia 1, 2, 3, 4, 5,
+9, 10 i 11 odpowiedziały `TAK` na podstawie prawdziwych odpowiedzi HTTP
+(m.in. **403** na adres wariantu bez sygnatury). Sprawdzenie 11 zapisało
+i skasowało prawdziwy obiekt bez `x-amz-acl`. Przebieg zakończył się
+**kodem 1** — `NIEPRZEJŚCIONA, 0 oblanych, 4 niesprawdzone` — i to też jest
+prawidłowe zachowanie, bo:
+
+| Punkt | Werdykt | Dlaczego tak, i czy to wada narzędzia |
+|---|---|---|
+| 7, 8 | `NIE WIEMY` | nie zadeklarowano `KUKING_R2_PUBLICZNE_ADRESY`. Adres niezapytany nie jest dowodem — **zachowanie poprawne** |
+| 12 | `NIE WIEMY` | endpoint MinIO nie ma kształtu `<konto>[.<jurysdykcja>].r2.cloudflarestorage.com`. Komenda **nie orzekła** o jurysdykcji mimo udanego odczytu prawdziwego obiektu — dokładnie tak, jak opisuje `LOKALIZACJA_DANYCH_R2.md` §3. **Zachowanie poprawne**; sprawdzenia 12 **nie da się** wykonać na czymkolwiek innym niż R2 |
+| 6 | `NIE WIEMY` | droga „wirtualny host" jest w kodzie zapisana na stałe jako `https://`, a MinIO w tej próbie stał na `http`. **Na R2 endpoint jest zawsze `https`, więc produkcji to nie dotyczy** — to artefakt zastępnika, nie usterka. Droga „ścieżkowy" odpowiedziała **HTTP 403** |
+
+**Cztery kontrole ujemne — każda psuła jedną rzecz PO STRONIE SERWERA, nie
+w kodzie, i każda zaczerwieniła dokładnie ten punkt, który miała:**
+
+| Sabotaż na buckecie | Punkt | Przed | Po | Po przywróceniu |
+|---|---|---|---|---|
+| bucket wariantów udostępniony anonimowo | **5** | TAK | **NIE** („ALARM: bucket wariantów oddaje pliki BEZ podpisu") | TAK |
+| plik z prefiksu `incoming/` podrzucony do bucketu wariantów | **9** | TAK | **NIE** („leży tam 1 plik(ów) z prefiksu oryginałów") | TAK |
+| wariant podmieniony na plik z blokiem EXIF | **10** | TAK | **NIE** („w wariancie siedzi blok EXIF") | TAK |
+| oryginał przeniesiony spod klucza z bazy | **1** | TAK | **NIE** („Pliku nie ma pod kluczem z bazy") | TAK |
+
+Czego to **nie** dowodzi: niczego o Cloudflare. MinIO mówi tym samym
+protokołem S3, ale nie ma ani jurysdykcji, ani `r2.dev`, ani Bucket Locks.
+Tabela w §3 pozostaje pusta i tylko jej wypełnienie zamyka #120.
+
 ---
 
 ## 2. Część serwerowa: jedna komenda

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';import {mkdirSync,writeFileSync} from 'n
 export async function sprawdzSzybkiWyglad({browser:b,adres,out='output/wyglad574'}) {
 mkdirSync(out,{recursive:true});
 try{
+await sprawdzBladPodWygladem({browser:b,adres});
 const p=await b.newPage({viewport:{width:390,height:850},serviceWorkers:'block'});await p.goto(adres);await p.locator('[data-wyglad-podpowiedz]').waitFor({state:'visible'});await p.locator('[data-wyglad-pomin]').click();await p.reload();assert(await p.locator('[data-wyglad-podpowiedz]').isHidden());
 await p.locator('[data-szybki-wyglad] summary').click();await p.selectOption('#szybka-skala','80');await p.locator('[data-wyglad-status]').filter({hasText:'Wygląd zapisany.'}).waitFor();assert.equal(await p.locator('html').getAttribute('data-text-scale'),'80');await p.reload();assert.equal(await p.locator('html').getAttribute('data-text-scale'),'80');
 await p.locator('[data-szybki-wyglad] summary').click();await p.selectOption('#szybki-motyw','dark');await p.locator('[data-wyglad-status]').filter({hasText:'Wygląd zapisany.'}).waitFor();await p.reload();assert.equal(await p.locator('html').getAttribute('data-theme'),'dark');
@@ -211,5 +212,36 @@ export async function sprawdzWygladBezJs({browser,adres,storageState}) {
   await Promise.all([page.waitForNavigation(),page.locator('[data-szybki-wyglad] button[type=submit]').first().click()]);
   await page.reload();assert.equal((await page.locator('html').getAttribute('data-text-scale'))??'100',original.scale);
   console.log('NoJS: Tab, panel w przepływie, POST 70%, odczyt i przywrócenie PASS');
+ } finally {await page.close();}
+}
+
+// Prawdziwa odpowiedź walidacji, przewijana bez fokusowania komunikatu.
+export async function sprawdzBladPodWygladem({browser,adres}) {
+ const page=await browser.newPage({viewport:{width:720,height:456}});
+ try {
+  await page.goto(adres+'/login');
+  await page.locator('input[name=login]').fill('nieistniejacy-odbior-wygladu@example.test');
+  await page.locator('input[name=password]').fill('nieprawidlowe-haslo');
+  await page.getByRole('button',{name:'Zaloguj się',exact:true}).click();
+  await page.locator('.field-error').first().waitFor();
+  await page.waitForFunction(()=>document.querySelector('[data-szybki-wyglad]')?.dataset.wygladGotowy==='1');
+  await page.evaluate(()=>{
+   document.documentElement.dataset.textScale='140';
+   document.querySelector('[data-wyglad-podpowiedz]').hidden=true;
+  });
+  await page.locator('input[name=login]').focus();
+  await page.evaluate(()=>{
+   const error=document.querySelector('.field-error').getBoundingClientRect();
+   const widget=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
+   window.scrollBy(0,error.top-widget.top);
+  });
+  await page.waitForFunction(()=>document.querySelector('[data-szybki-wyglad]').hasAttribute('data-wyglad-w-przeplywie'));
+  const overlaps=await page.evaluate(()=>{
+   const w=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
+   return [...document.querySelectorAll('.field-error')].some(e=>[...e.getClientRects()].some(r=>r.right>w.left&&r.left<w.right&&r.bottom>w.top&&r.top<w.bottom));
+  });
+  assert(!overlaps,'WYGLAD_ZASLANIA_BLAD');
+  await page.locator('[data-szybki-wyglad] summary').click();
+  assert(await page.locator('[data-szybki-wyglad]').evaluate(e=>e.open),'WYGLAD_PO_BLEDZIE_OTWIERA_SIE');
  } finally {await page.close();}
 }

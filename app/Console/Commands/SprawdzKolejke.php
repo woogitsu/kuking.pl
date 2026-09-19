@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Domain\Kolejka\AlarmKolejki;
 use App\Domain\Kolejka\StanKolejki;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Czujka: czy kolejka jeszcze pracuje i czy coś padło niedawno (issue #599).
@@ -78,10 +79,46 @@ class SprawdzKolejke extends Command
             default => $this->error('Nieznany stan kolejki.'),
         };
 
+        $this->zapiszWDzienniku($wynik);
+
         if (! $this->option('bez-alarmu')) {
             $alarm->zadzwonJesliTrzeba($wynik);
         }
 
         return $wynik['stan'] === StanKolejki::SPOKOJNA ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Jedna linia pomiaru do dziennika serwera — z tego samego powodu, co
+     * w `BudzetPolaczen`: `Schedule::call()` woła komendę przez
+     * `Artisan::call()`, które przechwytuje wyjście konsoli, więc bez tego
+     * wpisu harmonogram mierzy i natychmiast zapomina.
+     *
+     * Tutaj waży to nawet więcej niż przy połączeniach. Alarm mówi dopiero
+     * wtedy, gdy zaległość PRZEKROCZY próg — a pytanie, na które nikt dziś
+     * nie umie odpowiedzieć, brzmi „ile ta kolejka zwykle ma zaległości".
+     * Bez szeregu czasowego próg 600 s jest liczbą wziętą z rozumowania,
+     * nie z obserwacji, i nie da się go uczciwie poprawić.
+     *
+     * Co 15 minut daje 96 linii na dobę. To jest cena, którą świadomie
+     * płacimy za jedyny dostępny szereg czasowy kolejki: do produkcyjnego
+     * Postgresa nie ma dostępu z zewnątrz.
+     *
+     * CZEGO W TEJ LINII NIE MA: `payload`, `exception`, adresów odbiorców
+     * ani nazw klas zadań. Same liczby i nazwa stanu.
+     *
+     * @param  array<string, mixed>  $wynik
+     */
+    private function zapiszWDzienniku(array $wynik): void
+    {
+        Log::info('kuking:sprawdz-kolejke', [
+            'stan' => $wynik['stan'],
+            'oczekujace' => $wynik['oczekujace'],
+            'zaleglosc_sekundy' => $wynik['zaleglosc_sekundy'],
+            'zawieszone' => $wynik['zawieszone'],
+            'nieudane_w_oknie' => $wynik['nieudane_w_oknie'],
+            'nieudane_razem' => $wynik['nieudane_razem'],
+            'prog_zaleglosci_sekundy' => $wynik['prog_zaleglosci_sekundy'],
+        ]);
     }
 }

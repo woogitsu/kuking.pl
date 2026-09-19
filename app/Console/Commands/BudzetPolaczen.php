@@ -7,6 +7,7 @@ namespace App\Console\Commands;
 use App\Domain\Polaczenia\AlarmPolaczen;
 use App\Domain\Polaczenia\StanPolaczenBazy;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Czujka: czy pula połączeń PostgreSQL ma jeszcze zapas (issue #598).
@@ -93,10 +94,59 @@ class BudzetPolaczen extends Command
             default => $this->error('Nieznany stan połączeń.'),
         };
 
+        $this->zapiszWDzienniku($wynik);
+
         if (! $this->option('bez-alarmu')) {
             $alarm->zadzwonJesliTrzeba($wynik);
         }
 
         return $wynik['stan'] === StanPolaczenBazy::SPOKOJNY ? self::SUCCESS : self::FAILURE;
+    }
+
+    /**
+     * Jedna linia pomiaru do dziennika serwera — bez tego harmonogram mierzy
+     * w próżnię.
+     *
+     * SKĄD TO SIĘ WZIĘŁO. Zmierzone na produkcji 17.09.2026 23:25:20 UTC:
+     * harmonogram uruchamia tę komendę i melduje „DONE", ale ZMIERZONYCH
+     * LICZB nie widać nigdzie. `Schedule::call()` woła ją przez
+     * `Artisan::call()`, a to przechwytuje wyjście konsoli do bufora — więc
+     * tabela wyżej nie trafia do dziennika i po godzinie przestaje istnieć.
+     *
+     * Skutek był taki, że definicji gotowości #598 („znany peak active
+     * connections przy obecnej topologii") nie dało się spełnić mimo
+     * działającej czujki: każdy przebieg mierzył i natychmiast zapominał.
+     * Do produkcyjnego Postgresa nie ma dziś dostępu z zewnątrz (brak proxy
+     * TCP, brak zalogowanego CLI), więc TO JEST jedyna droga, którą szereg
+     * czasowy w ogóle może powstać.
+     *
+     * DLACZEGO `info`, A NIE `warning`. Zdrowy pomiar nie jest ostrzeżeniem.
+     * Podniesienie poziomu tylko po to, żeby przebić się przez `LOG_LEVEL`,
+     * zamieniłoby dziennik w ciąg fałszywych ostrzeżeń — a od alarmowania
+     * jest `AlarmPolaczen` i osobny kanał. Konsekwencja jest jawna i stoi
+     * w `docs/DATABASE.md`: przy `LOG_LEVEL` powyżej `info` szereg czasowy
+     * nie powstanie i trzeba to zmienić w panelu.
+     *
+     * CZEGO W TEJ LINII NIE MA: nazwy bazy, hosta, użytkownika i treści
+     * zapytań. Dziennik produkcyjny jest czytany także przez dostawcę
+     * hostingu — to ta sama zasada, którą `AlarmPolaczen` stosuje do
+     * webhooka (audyt A6-01). Same liczby i nazwa stanu.
+     *
+     * @param  array<string, mixed>  $wynik
+     */
+    private function zapiszWDzienniku(array $wynik): void
+    {
+        Log::info('kuking:budzet-polaczen', [
+            'stan' => $wynik['stan'],
+            'zajete_serwer' => $wynik['zajete_serwer'],
+            'zajete_baza' => $wynik['zajete_baza'],
+            'aktywne' => $wynik['aktywne_baza'],
+            'bezczynne' => $wynik['bezczynne_baza'],
+            'w_transakcji' => $wynik['w_transakcji_baza'],
+            'dostepne' => $wynik['dostepne'],
+            'max_connections' => $wynik['max_connections'],
+            'budzet_szczytowy' => $wynik['budzet_szczytowy'],
+            'prog_ostrzegawczy' => $wynik['prog_ostrzegawczy'],
+        ]);
     }
 }

@@ -23,13 +23,16 @@
     pod treścią, która ma ich sto. Domyślnie `null`, więc ekrany bez
     paginacji nie muszą nic przekazywać i liczą jak dotąd.
 --}}
-@props(['comments', 'action', 'ile' => null])
+@props(['comments', 'action', 'ile' => null, 'answers' => false])
 @php($wszystkich = $ile ?? $comments->count())
 <section class="stack" aria-labelledby="komentarze">
-    <h2 id="komentarze">Komentarze @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
+    <h2 id="komentarze">{{ $answers ? 'Odpowiedzi' : 'Komentarze' }} @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
+    @if($errors->has('body') || $errors->has('reason'))
+        <x-error-summary />
+    @endif
 
     @forelse($comments as $comment)
-        <article class="card">
+        <article class="card" id="komentarz-{{ $comment->id }}">
             <div class="flex gap-3 items-center mb-2">
                 <x-avatar :user="$comment->author" :size="40" />
                 <div>
@@ -89,7 +92,7 @@
                             <div class="akcje-komentarza">
                                 @can('update', $reply)
                                     @if($replyRemainingMinutes > 0)
-                                        <details>
+                                        <details @if(\App\Support\WierszFormularza::jestAktywny('popraw-'.$reply->id) && $errors->any()) open @endif>
                                             <summary class="btn btn-quiet inline-flex">Popraw</summary>
                                             {{-- `Odmiana::rzeczownik`, nie `Str::plural` (issue #38): drugi jest
                                                  inflektorem ANGIELSKIM i przy „minutę" dokładał „s" — „Możesz
@@ -100,7 +103,8 @@
                                             <form class="mt-2" method="POST" action="{{ route('comments.update', $reply) }}">
                                                 @csrf
                                                 @method('PUT')
-                                                <x-field name="body" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" required />
+                                                <input type="hidden" name="_wiersz" value="popraw-{{ $reply->id }}">
+                                                <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" required />
                                                 <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                             </form>
                                         </details>
@@ -122,12 +126,13 @@
                             @can('delete', $reply)
                                 <div class="danger-zone">
                                     @if($replyContentOwnerRemovingOthers)
-                                        <details>
+                                        <details @if(\App\Support\WierszFormularza::jestAktywny('usun-'.$reply->id) && $errors->any()) open @endif>
                                             <summary class="btn btn-quiet inline-flex">Usuń</summary>
                                             <form class="mt-2" method="POST" action="{{ route('comments.destroy', $reply) }}">
                                                 @csrf
                                                 @method('DELETE')
-                                                <x-field name="reason" label="Dlaczego usuwasz tę odpowiedź?" type="textarea" :rows="2"
+                                                <input type="hidden" name="_wiersz" value="usun-{{ $reply->id }}">
+                                                <x-field name="reason" :wiersz="'usun-'.$reply->id" label="Dlaczego usuwasz tę odpowiedź?" type="textarea" :rows="2"
                                                          help="Osoba, która to napisała, zobaczy ten powód." required />
                                                 <button class="btn btn-danger" type="submit">Usuń odpowiedź</button>
                                             </form>
@@ -167,12 +172,13 @@
                      akcji, i blok „Usuń" niżej, a liczenie ich w dwóch miejscach
                      byłoby dwoma miejscami do poprawienia. --}}
                 <div class="akcje-komentarza">
-                    <details>
+                    <details @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
                         <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
                         <form class="mt-3" method="POST" action="{{ $action }}">
                             @csrf
                             <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
-                            <x-field name="body" label="Twoja odpowiedź" type="textarea" :rows="3" required />
+                            <input type="hidden" name="_wiersz" value="odpowiedz-{{ $comment->id }}">
+                            <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" required />
                             <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
                         </form>
                     </details>
@@ -180,7 +186,7 @@
                     @unless($commentIsRemoved)
                         @can('update', $comment)
                             @if($commentRemainingMinutes > 0)
-                                <details>
+                                <details @if(\App\Support\WierszFormularza::jestAktywny('popraw-'.$comment->id) && $errors->any()) open @endif>
                                     <summary class="btn btn-quiet inline-flex">Popraw</summary>
                                     {{-- Ten sam błąd co przy odpowiedzi wyżej: `Str::plural` to inflektor
                                          angielski, więc pisał „3 minutęs". --}}
@@ -188,7 +194,8 @@
                                     <form class="mt-2" method="POST" action="{{ route('comments.update', $comment) }}">
                                         @csrf
                                         @method('PUT')
-                                        <x-field name="body" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" required />
+                                        <input type="hidden" name="_wiersz" value="popraw-{{ $comment->id }}">
+                                        <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" required />
                                         <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                     </form>
                                 </details>
@@ -209,12 +216,13 @@
                     @can('delete', $comment)
                         <div class="danger-zone">
                             @if($commentContentOwnerRemovingOthers)
-                                <details>
+                                <details @if(\App\Support\WierszFormularza::jestAktywny('usun-'.$comment->id) && $errors->any()) open @endif>
                                     <summary class="btn btn-quiet inline-flex">Usuń</summary>
                                     <form class="mt-2" method="POST" action="{{ route('comments.destroy', $comment) }}">
                                         @csrf
                                         @method('DELETE')
-                                        <x-field name="reason" label="Dlaczego usuwasz ten komentarz?" type="textarea" :rows="2"
+                                        <input type="hidden" name="_wiersz" value="usun-{{ $comment->id }}">
+                                        <x-field name="reason" :wiersz="'usun-'.$comment->id" label="Dlaczego usuwasz ten komentarz?" type="textarea" :rows="2"
                                                  help="Osoba, która to napisała, zobaczy ten powód." required />
                                         <button class="btn btn-danger" type="submit">Usuń komentarz</button>
                                     </form>
@@ -231,12 +239,13 @@
             @endunless
         </article>
     @empty
-        <p class="meta">Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.</p>
+        <p class="meta">{{ $answers ? 'To pytanie czeka na odpowiedź. Podziel się swoim doświadczeniem.' : 'Jeszcze nikt tu nic nie napisał. Napisz pierwszy komentarz.' }}</p>
     @endforelse
 
     @auth
         <form class="panel-formularza" method="POST" action="{{ $action }}">
             @csrf
+            <input type="hidden" name="_wiersz" value="nowy-komentarz">
             {{-- `bez-oznaczenia`: to jedyne pole w tym formularzu, więc dopisek
                  „(wymagane)" nie miałby czego odróżniać — pełne uzasadnienie
                  przy tym parametrze w `components/field.blade.php`.
@@ -253,10 +262,10 @@
                  mądrego do powiedzenia o daniu, a chciałby zapytać o zamiennik
                  mąki. Razem mówią „tyle wystarczy", a nie „pisz tak".
                  Uzasadnienie: `docs/brand/GLOS_MARKI.md` §5. --}}
-            <x-field name="body" label="Napisz komentarz" type="textarea" :rows="4"
-                     help="Choćby jedno zdanie. Pytanie do autora też jest w porządku."
+            <x-field name="body" :wiersz="old('_wiersz') !== null ? 'nowy-komentarz' : null" :label="$answers ? 'Napisz odpowiedź' : 'Napisz komentarz'" type="textarea" :rows="4"
+                     :help="$answers ? 'Napisz, co sprawdziło się w Twojej kuchni.' : 'Choćby jedno zdanie. Pytanie do autora też jest w porządku.'"
                      required bez-oznaczenia />
-            <button class="btn btn-primary" type="submit">Wyślij komentarz</button>
+            <button class="btn btn-primary" type="submit">{{ $answers ? 'Wyślij odpowiedź' : 'Wyślij komentarz' }}</button>
         </form>
     @else
         {{-- BEZ „Zajmuje to minutę": obietnica z miarą, której nie mierzymy,
@@ -264,7 +273,7 @@
              (logowanie istniejącym kontem i zakładanie nowego), więc nie było
              wiadomo, o której mówi. Zostaje samo to, co jest do zrobienia. --}}
         <p class="notice">
-            Żeby dodać komentarz, <a href="{{ route('login') }}">zaloguj się</a>
+            {{ $answers ? 'Żeby odpowiedzieć,' : 'Żeby dodać komentarz,' }} <a href="{{ route('login') }}">zaloguj się</a>
             albo <a href="{{ route('register') }}">załóż konto</a>.
         </p>
     @endauth
