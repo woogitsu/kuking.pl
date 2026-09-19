@@ -787,6 +787,17 @@
                                      się z pytaniem („kim jest ta osoba"), a nie kolejka, którą
                                      trzeba dziś opróżnić — kolejki zostają na górze. --}}
                                 <li><a class="side-nav-item" href="{{ route('admin.users') }}" @if(request()->routeIs('admin.users*')) aria-current="page" @endif><x-ikona nazwa="users" /> <span class="marka-panel-nav-etykieta">Użytkownicy</span></a></li>
+                                {{-- Kolejka zadań — DLACZEGO `/health` mówi `degraded`.
+                                     WIDOCZNE TYLKO DLA ADMINA i to jest ta sama bramka,
+                                     co w kontrolerze (`UserPolicy::diagnozujKolejke`).
+                                     Pozycja w menu, która prowadzi do 403, jest gorsza
+                                     niż jej brak — ale ukrycie jej NIE JEST zabezpieczeniem
+                                     i nie wolno go tak czytać: chroni Policy, nie `@can`.
+                                     Na samym końcu, bo to nie jest kolejka do opróżnienia,
+                                     tylko miejsce, do którego wchodzi się z pytaniem. --}}
+                                @can('diagnozujKolejke', \App\Models\User::class)
+                                <li><a class="side-nav-item" href="{{ route('admin.kolejka') }}" @if(request()->routeIs('admin.kolejka')) aria-current="page" @endif><x-ikona nazwa="clock" /> <span class="marka-panel-nav-etykieta">Kolejka zadań</span></a></li>
+                                @endcan
                             </ul>
 
                             {{--
