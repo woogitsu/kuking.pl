@@ -183,7 +183,105 @@ filtra" dawał czerwień, ale z komunikatem o brakującym skrypcie, bo
 
 ---
 
-## 5. Czego NIE zrobiłem i dlaczego
+## 5. Wspólna akcja środowiska PHP — przyrostowo
+
+Ten rozdział powstał po zdjęciu ograniczenia, przez które praca była wcześniej
+świadomie odłożona.
+
+### 5.1. Narzędzia, których wcześniej nie było
+
+Zainstalowane do `/home/mateusz/narzedzia-611/bin` (pojedyncze binarki,
+sumy kontrolne w logu sesji):
+
+- **actionlint 1.7.7** — sprawdza pliki workflow,
+- **act 0.2.89** — uruchamia joby lokalnie w kontenerze.
+
+Pierwsza pobrana wersja `act` (0.2.82) **sama zgłosiła podatność
+CVE-2026-34041 i CVE-2026-34042**. Zaktualizowana do 0.2.89 przed
+jakimkolwiek użyciem.
+
+### 5.2. Co act złapał, a czego actionlint nie mógł
+
+W opisie wejścia akcji stało `${{ env.PHP_VERSION }}`. Wyrażenia są tam
+**niedozwolone** — GitHub odrzuca taką akcję. actionlint tego nie widzi, bo
+sprawdza *workflow*, nie pliki akcji. `act` pokazał to od razu:
+
+    ❌ Failure - Main Środowisko PHP [2.760932ms]
+    Line: 38 Column 18: expressions are not allowed here
+
+Akcja padała po 2,7 ms, zanim wykonała pierwszy krok. **Bez `act` ten błąd
+trafiłby na prawdziwy runner** — czyli dokładnie to, czego ta praca miała
+uniknąć.
+
+### 5.3. Najważniejszy dowód
+
+Po poprawce pełny przebieg joba `audit` w `act` jest zielony, a w logu stoi:
+
+    ::set-env:: SETUP_PHP_TOOLS_DIR=/tmp/kuking-narzedzia/1-1-audit/bin
+
+`1-1-audit` to `GITHUB_RUN_ID`-`GITHUB_RUN_ATTEMPT`-**`GITHUB_JOB`**. Nazwa
+joba **naprawdę** podstawia się wewnątrz composite action, więc katalog
+narzędzi zostaje prywatny dla każdego joba osobno. To była kluczowa
+niepewność całej zmiany: od niej zależy niepowtórzenie awarii „Text file
+busy" z 10 września (issue #262).
+
+### 5.4. Kolejność: od joba, którego porażka boli najmniej
+
+| # | Job | Dlaczego ten | Stan |
+|---|---|---|---|
+| 1 | `audit` | najszybszy (21 s), niczego nie blokuje | **potwierdzony na runnerze** |
+| 2 | `dwa-polaczenia` | `continue-on-error: true`, w nazwie „nie blokuje" | wysłany, runner w toku |
+| — | `lint`, `static-analysis`, `assets` | porażka blokuje, ale są szybkie | do zrobienia |
+| — | `test` | najdroższa porażka spośród niebrowserowych | do zrobienia |
+| — | `port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc` | najdłuższe i najbardziej wrażliwe | **na samym końcu** |
+
+Jeden job na przyrost, każdy z własnym przebiegiem na runnerze. To jest ta
+zasada, której brak kosztował cztery dni przestoju wdrożeń.
+
+### 5.5. Gwarancja „żaden job nie jest zielony bez pomiaru"
+
+**Utrzymana, nie tylko niezepsuta.** Wspólna akcja zawiera wyłącznie kroki
+PRZYGOTOWANIA — żaden pomiar do niej nie wchodzi i żaden warunek pomijania
+nie przenosi się na kroki. `test_job_przegladarkowy_nie_moze_byc_zielony_bez_pomiaru`
+działa bez zmian.
+
+Osobno wzmocniony został skaner katalogów narzędzi
+(`CiDajeKazdemuJobowiWlasneNarzedziaTest`): **podstawia kroki akcji w miejsce
+jej wywołania**, więc sprawdza dokładnie tę samą regułę, bez drugiej
+implementacji, i obejmuje automatycznie każdy kolejny przeniesiony job.
+Bramka liczby przeskanowanych jobów zmieniona z luźnej (`>= 6`) na twardą
+(`= 9`) — przy migracji job po jobie luźna bramka przepuściłaby utratę
+pokrycia aż do zera.
+
+### 5.6. Co pozostaje wpisane wprost i dlaczego
+
+`Cache Composera` (4 joby) i `Instalacja zależności` (**3 różne warianty**:
+sam Composer, sam npm, oba naraz) **zostają w jobach**. Wciągnięcie ich do
+wspólnej akcji wymagałoby warunków wewnątrz niej — czyli odtworzenia tej
+samej złożoności sterowania, którą ten pakiet likwiduje. Zysk byłby
+pozorny: mniej linii, więcej miejsc, w których logika może się rozjechać.
+
+### 5.7. Potwierdzenie na prawdziwym runnerze
+
+Przebieg **35448989459** (`workflow_dispatch` na `3277a812`): **12 z 12
+jobów `success`**.
+
+- `Audyt zależności` — **21 s**, czyli tyle co przed zmianą (mediana
+  historyczna 20 s). Job na wspólnej akcji zachowuje się identycznie.
+- Ten sam przebieg potwierdził **pierwszą** zmianę z tej gałęzi: przy
+  `workflow_dispatch` nie ma punktu odniesienia, więc `zakres` wchodzi
+  w ścieżkę „mierz wszystko" i ustawia `widok=true`. Trzy joby
+  przeglądarkowe wykonały pełne pomiary — **481 s, 1495 s i 842 s**, czyli
+  wartości z przedziału „z pomiarem" (462–506, 1456–1638, 745–955), a nie
+  z przedziału „zielony bez pomiaru" (18–22 s).
+
+CI nie chodzi na push gałęzi roboczej (wyzwalacze to `push` do
+`main`/`staging` i `pull_request` do nich), więc runner uruchamiany jest
+przez `workflow_dispatch` — bez zakładania PR-a.
+
+---
+
+## 6. Czego NIE zrobiłem i dlaczego
 
 Trzy kandydaci z issue zostały zmierzone i **świadomie nietknięte**:
 
@@ -214,7 +312,7 @@ tura ich nie obejmuje.
 
 ---
 
-## 6. Czego ten pakiet NIE dowodzi
+## 7. Czego ten pakiet NIE dowodzi
 
 - **Nie uruchomiono GitHub Actions.** Zgodnie z poleceniem nie ma pusha ani
   PR-a, a lokalnie nie ma `actionlint` ani `act`. Dowody są trzy: YAML się
@@ -233,7 +331,7 @@ tura ich nie obejmuje.
 
 ---
 
-## 7. Środowisko
+## 8. Środowisko
 
 Kopia wykonawcza `/home/mateusz/kuking-611d` z **fizycznym** `vendor`
 (nie dowiązaniem) i `composer dump-autoload --optimize`. PostgreSQL wyłącznie
