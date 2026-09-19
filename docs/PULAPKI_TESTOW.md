@@ -170,6 +170,50 @@ wiemy".
 Ta sama zasada rządzi bramkami w `docs/OTWARCIE.md`: **`NIE WIEMY` liczy się
 jako nieprzejście, nie jako sukces.**
 
+### 5b. …a najdroższą odmianą tego jest KONTROLA UJEMNA, która niczego nie zepsuła
+
+19 września 2026 ten sam wzorzec trafił **cztery razy w czterech niezależnych
+pakietach**, zawsze tak samo: ktoś mutował źródło, wzorzec `sed` nie trafiał,
+plik zostawał nietknięty, test przechodził — i przebieg wyglądał na poprawnie
+wykonaną kontrolę ujemną. **Dowód był wart zero, a raport twierdził coś
+przeciwnego.** To jest gorsze niż brak kontroli: brak widać, a no-op wygląda
+jak robota.
+
+Trzy odmiany tej jednej choroby, wszystkie zaobserwowane:
+
+1. **Mutacja nie trafiła.** Wzorzec przestał pasować po niewinnym
+   przeformatowaniu kodu albo po zmianie nazwy zmiennej.
+2. **Test był czerwony JUŻ PRZED mutacją.** Czerwień po mutacji niczego nie
+   dowodzi, a wygląda identycznie.
+3. **Czerwień z niewłaściwego powodu.** Test padł na braku bazy, timeoucie
+   albo literówce w samej mutacji — nie na tym, czego pilnuje.
+
+**Co robić: nie pisz kontroli ujemnej ręcznie.** Przepuść ją przez
+`scripts/kontrola-ujemna.sh`, który wszystkie trzy odmiany odcina
+konstrukcyjnie:
+
+```bash
+scripts/kontrola-ujemna.sh   --nazwa 'docięcie numeru strony drugiej listy — #646'   --plik app/Support/PaginationLinks.php   --zamien 'min($other->currentPage(), $other->lastPage())'   --na '$other->currentPage()'   --oczekuj 'page.*999'   --json storage/kontrola-646.json   -- vendor/bin/phpunit tests/Feature/ZeszytPaginacjaObuListTest.php
+```
+
+Przyrząd liczy podmiany (PHP `str_replace`, zwykły łańcuch, nie wyrażenie
+regularne) i **odmawia uruchomienia testu**, gdy podmian było zero — komunikat
+`ODMOWA_NO_OP`, kod wyjścia 2. Wymaga też kontroli dodatniej przed mutacją
+(kod 5, gdy test był już czerwony) i wzorca `--oczekuj`, bez którego nie
+odróżnia dowodu od awarii środowiska (kod 4 przy czerwieni z innej przyczyny).
+Źródło wraca w `trap` na EXIT, INT i TERM, ze sprawdzeniem MD5 i mtime —
+także wtedy, gdy test zginie w połowie.
+
+Sam przyrząd ma własną kontrolę ujemną: `tests/skrypty/kontrola-ujemna.sh`
+podaje mu m.in. mutację, która **nie trafia**, i sprawdza, że odmawia zamiast
+zameldować sukces. Bez tego byłby kolejnym narzędziem z dokładnie tą wadą,
+którą naprawia. Przebieg jest w `scripts/check.sh` — nie wymaga bazy i trwa
+poniżej sekundy.
+
+**Dlaczego łańcuch, a nie wyrażenie regularne.** Łańcuch albo jest w pliku,
+albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
+innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
+
 ---
 
 ## 6. Test na jednym połączeniu nie dowodzi zachowania przy dwóch

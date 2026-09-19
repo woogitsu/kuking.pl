@@ -97,6 +97,13 @@ elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
     # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
     # kopia bazy — Railway na Free/Hobby nie robi żadnych.
     zle "Testy kopii bazy oblewają — uruchom: bash tests/skrypty/kopia-bazy.sh"
+elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
+    # Przyrząd do kontroli ujemnych (`scripts/kontrola-ujemna.sh`) pilnuje,
+    # żeby mutacja, która nie trafiła, nie udawała wykonanej kontroli. Sam bez
+    # kontroli ujemnej byłby tym, co naprawia: narzędziem meldującym sukces bez
+    # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
+    # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
+    zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi
