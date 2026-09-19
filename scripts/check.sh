@@ -182,9 +182,13 @@ fi
 
 # --- 5. Testy -------------------------------------------------------------
 krok "Testy"
-if php artisan test >/dev/null 2>&1; then
+_test_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-tests.XXXXXX")
+if php artisan test >"$_test_log" 2>&1; then
+    rm -f "$_test_log"
     ok "Testy przechodzą"
 else
+    cat "$_test_log"
+    rm -f "$_test_log"
     zle "Testy nie przechodzą — uruchom: php artisan test"
 fi
 
