@@ -1,5 +1,34 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Co zostało — stan zweryfikowany 19 września 2026
+
+Pełny raport: [`POZOSTALE_LUKI_492.md`](POZOSTALE_LUKI_492.md).
+Przegląd `main` `e306842c` i odczyt produkcji tego samego dnia.
+**Pełny port marki nadal CZĘŚCIOWO.**
+
+**Produkcja jest o dwa scalenia za `main`**: Alfa 0.67 = `ab91185`, więc PR #717
+i PR #716 (martwa klasa `lead`) czekają na wdrożenie. Żadnego odbioru
+produkcyjnego tych zmian nie da się dziś zapisać.
+
+Trzy pozycje długu weryfikacyjnego (#713) zostały domknięte odczytem i pomiarem,
+bez pisania kodu:
+
+| Pozycja | Wynik |
+|---|---|
+| D1 — job `Panel marki` gubi przyczynę porażki | **Już naprawione** w `e1ac577e`, z własnym testem `scripts/panel-komunikat.test.mjs`. Wpis w #713 był nieaktualny w dniu powstania |
+| D7 — trzecie miejsce z dwiema listami na jednym adresie | **Nie istnieje.** Wszystkie widoki i akcje z ≥2 paginatorami mają rozłączne nazwy stron albo wykluczają się zakładkami |
+| D4 — `lead → text-lead` bez oglądu | **Zmierzone i obejrzane lokalnie**: `questions/index` i `settings/tags`, 36 konfiguracji, wstęp 22 px przy zwykłym 18 px. Zostaje odbiór produkcyjny po wdrożeniu |
+
+Nie do domknięcia bez dostępu, realnych danych, urządzenia albo decyzji
+produktowej — wyliczone w §2 raportu: A1–A3, B1–B4, C1–C4 z #713, odbiór
+#581, oraz ekrany „Poradźcie" (#371/#372), które na produkcji odpowiadają
+**404** za wyłączoną flagą `KUKING_QUESTIONS_ENABLED`.
+
+Do sprawdzenia w cudzych, otwartych PR-ach, nie tutaj: pasek górny po
+zalogowaniu w trybie gotowania i panelu (PR #711 — na `main` pasek chowa się
+wyłącznie gościom) oraz regresja #707.
+
+
 ## Pośrednie stany logowania w ciemnym motywie — 18 września 2026
 
 [Dodatkowy odbiór logowania](LOGOWANIE_CIEMNE_STANY_492.md) uzupełnia

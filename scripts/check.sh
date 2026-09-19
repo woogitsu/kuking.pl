@@ -97,6 +97,13 @@ elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
     # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
     # kopia bazy — Railway na Free/Hobby nie robi żadnych.
     zle "Testy kopii bazy oblewają — uruchom: bash tests/skrypty/kopia-bazy.sh"
+elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
+    # Przyrząd do kontroli ujemnych (`scripts/kontrola-ujemna.sh`) pilnuje,
+    # żeby mutacja, która nie trafiła, nie udawała wykonanej kontroli. Sam bez
+    # kontroli ujemnej byłby tym, co naprawia: narzędziem meldującym sukces bez
+    # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
+    # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
+    zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi
@@ -174,17 +181,28 @@ if [ ! -x vendor/bin/phpstan ]; then
     zle "Brak vendor/bin/phpstan — uruchom: composer install"
 elif ! { [ -f phpstan.neon ] || [ -f phpstan.neon.dist ] || [ -f phpstan.dist.neon ]; }; then
     zle "Brak konfiguracji PHPStana (phpstan.neon) — patrz issue #32"
-elif vendor/bin/phpstan analyse --no-progress --error-format=raw >/dev/null 2>&1; then
-    ok "PHPStan bez zastrzeżeń"
 else
-    zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    _phpstan_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-phpstan.XXXXXX")
+    if vendor/bin/phpstan analyse --no-progress --error-format=raw >"$_phpstan_log" 2>&1; then
+        rm -f "$_phpstan_log"
+        ok "PHPStan bez zastrzeżeń"
+    else
+        printf 'Wynik PHPStana zapisano w: %s\n' "$_phpstan_log"
+        tail -n 80 "$_phpstan_log"
+        zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    fi
 fi
 
 # --- 5. Testy -------------------------------------------------------------
 krok "Testy"
-if php artisan test >/dev/null 2>&1; then
+_test_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-tests.XXXXXX")
+if php artisan test >"$_test_log" 2>&1; then
+    rm -f "$_test_log"
     ok "Testy przechodzą"
 else
+    printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
+    printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
+    tail -n 160 "$_test_log"
     zle "Testy nie przechodzą — uruchom: php artisan test"
 fi
 
@@ -209,9 +227,13 @@ fi
 
 # --- 6. Odwracalność migracji --------------------------------------------
 krok "Odwracalność migracji"
-if php artisan migrate:refresh --force --env=testing --no-interaction >/dev/null 2>&1; then
+_migrate_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-migrate.XXXXXX")
+if php artisan migrate:refresh --force --env=testing --no-interaction >"$_migrate_log" 2>&1; then
+    rm -f "$_migrate_log"
     ok "Migracje cofają się i wracają"
 else
+    printf 'Wynik migracji zapisano w: %s\n' "$_migrate_log"
+    tail -n 80 "$_migrate_log"
     zle "Migracja nie ma działającego down() — nie da się jej wycofać podczas awarii"
 fi
 
