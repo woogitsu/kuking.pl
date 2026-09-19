@@ -16,6 +16,7 @@ import { sprawdzZoomDetails } from './panel-details-zoom.mjs';
 import { sprawdzNegatywyDetails } from './panel-details-negative.mjs';
 import { runCandidate as sprawdzWalidacjePanelu } from './panel-validation.mjs';
 import { createSnapshotCallback } from './panel-validation-snapshot.mjs';
+import { komunikatBledu } from './panel-komunikat.mjs';
 
 const repo = realpathSync(process.cwd());
 const ci = process.env.GITHUB_ACTIONS === 'true';
@@ -158,8 +159,10 @@ try {
     console.log(`P581 MENU PASS: ${menu.length} dodatkowych scenariuszy. Nie jest to pełny odbiór panelu.`);
   }
 } catch (error) {
-  // Błąd Playwright może zawierać tekst wpisywanych poświadczeń.
-  console.error(/^P581_[A-Z_]+(?::|$)/.test(error.message) ? error.message : 'P581_RUN_FAIL: sprawdź bezpieczny raport miernika, logowanie lub start serwera.');
+  // Komunikat cudzego wyjątku NIE idzie do dziennika — błąd Playwrighta
+  // potrafi nieść w sobie tekst wpisywany do pola, czyli także hasło
+  // moderatora. Pełne uzasadnienie i granica w `scripts/panel-komunikat.mjs`.
+  console.error(komunikatBledu(error));
   process.exitCode = 1;
 } finally {
   try { await browser?.close(); } finally { stop(); rmSync(prywatne, { recursive: true, force: true }); }

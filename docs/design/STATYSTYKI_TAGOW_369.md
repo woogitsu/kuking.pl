@@ -1,6 +1,12 @@
 # Publiczne statystyki tagów — #369
 
-Stan: **WIP, niewdrożone**. Baza `27df931`, gałąź `feat/369-statystyki-publiczne`, przygotowana Alfa 0.62.
+Stan: **scalone i wdrożone**, odbiór produkcji niedomknięty.
+PR #665 scalony 18.09.2026 jako `e22b79d`. Produkcja **w chwili pomiaru
+opisanego niżej** (18.09.2026, 13:10–13:24 UTC) stała na `55877e2` (Alfa 0.65),
+CI main 35331870558 oraz Deploy 35333641106: success. Wieczorem tego samego dnia
+produkcja stała już na `3f315b3` (Alfa 0.67) — patrz sekcja z 18:54 UTC. Nagłówek poniżej opisujący
+pracę na `27df931` / `feat/369-statystyki-publiczne` był snapshotem sprzed scalenia.
+Blokuje wyłącznie punkt „Granica dowodu produkcji — 18 września 2026”.
 
 ## Zachowanie
 
@@ -73,3 +79,89 @@ Pełny port marki nadal **CZĘŚCIOWO**.
 Codex niezależnie obejrzał `dark-320-eligible.png` i `dark-1440-index.png`
 z lokalnego odbioru: licznik i długa nazwa zawijają się, a statystyka w spisie
 ma osobny wiersz. Ten ogląd dwóch obrazów nie zastępuje pełnej macierzy agenta.
+
+
+## Granica dowodu produkcji — 18 września 2026
+
+Odbiór wyłącznie odczytowy: GET-y HTTP bez sesji, bez żadnego zapisu, bez zakładania
+konta i bez danych demonstracyjnych na produkcji. To **odczyt HTML**, nie interakcja
+w przeglądarce; miejsca oznaczone niżej jako obejrzane pochodzą z runtime lokalnego.
+
+**W sprawdzonych powierzchniach nie znaleziono ani jednego publicznego tagu**,
+więc niezerowych statystyk i zachowania progu nie było na czym pokazać. Zakres
+jest dosłownie taki, jak niżej — jedenaście stron zapisanych w
+`production-read-20260918.json` i pięć prób bezpośrednich. **To nie jest pełny
+spis tagów z bazy** i nie zastępuje go; zdanie „nie ma żadnego publicznego tagu”
+zostało 18.09.2026 wieczorem zawężone do sprawdzonych powierzchni, bo wieczorny
+odczyt tego samego dnia znalazł dwa publiczne tagi. Stan sprawdzony czterema
+niezależnymi drogami, nie samą listą:
+
+| Powierzchnia | Kod | Co zwróciła |
+|---|---:|---|
+| `https://kuking.pl/tagi` | 200 | `<p class="empty-state-title">Tagi jeszcze się nie pojawiły</p>` |
+| `https://kuking.pl/szukaj?sekcja=przepisy` | 200 | `<h2 id="polecane-tagi-title">Polecane tagi</h2>` + `<p>Nie ma jeszcze polecanych tagów.</p>` |
+| strona pojedynczego tagu (`/tag/{tag}`) dla pięciu slugów: obiad, zupy, deser, cukinia, bigos | 404 | brak jakiejkolwiek strony tagu |
+| jedenaście stron zapisanych w dowodzie: `/`, `/odkryj`, trzy wpisy z `/odkryj`, `/@izazpodlasia`, `/@on_the_plate`, `/@ulalala`, a także `/tagi`, `/szukaj?sekcja=przepisy` i strona przepisu | 200 | zero odnośników `href` prowadzących na stronę pojedynczego tagu |
+
+Stopka każdej z tych stron podaje `Alfa 0.65` i `55877e2`, czyli ten sam commit,
+na którym stoi wdrożenie. Pusty stan `/tagi` jest poprawny i zgodny z zamierzeniem,
+ale **pusty stan nie jest dowodem działania licznika**.
+
+Pozostaje więc jeden warunek: zobaczyć na produkcji tag, który ma co najmniej
+pięć publicznych gotowych zdjęć od co najmniej trzech osób, i potwierdzić na nim
+zarówno zdanie ze statystyką, jak i to, że poniżej progu pojawia się zaproszenie.
+Warunek ten spełni się dopiero po redakcyjnym dodaniu tagów (#18) albo po
+pierwszych wpisach z własnym tagiem. Nie tworzymy w tym celu treści na produkcji.
+
+Lokalnie, na izolowanym runtime opisanym w raporcie #370 (`kuking_d_a_tests`,
+127.0.0.1:55439, serwer 8074), strona tagu powyżej progu renderuje
+`Publicznie: 5 zdjęć od 5 osób.` — zrzut `evidence/tags370/pointer/A-light-100-1440.png`
+obejrzany. To potwierdzenie lokalne, nie produkcyjne, i **pochodzi wyłącznie
+z oglądu obrazu**: `pointer-results.json` nie zapisuje tekstu strony, więc tej
+frazy nie da się odczytać z pliku wynikowego. Numery CI i Deploy z nagłówka też
+nie mają odpowiednika w dowodzie w repozytorium — są przepisane z GitHuba.
+
+Konkretnych adresów z próbami 404 nie zapisujemy tu jako literałów ścieżek:
+`DokumentyMdNieMajaMartwychOdnosnikowTest` pilnuje, żeby dokumenty nie cytowały
+martwych tras, a te akurat są martwe celowo. Pełna lista prób wraz z kodami
+odpowiedzi jest w `evidence/tags369/production-read-20260918.json`.
+
+## Ponowny odczyt produkcji — 18 września 2026, 18:54 UTC
+
+Poprzednia sekcja zostaje jako wynik historyczny z 13:10–13:24 UTC na
+`55877e2` (Alfa 0.65). Ten odczyt wykonano wieczorem, wyłącznie GET-ami bez
+sesji; produkcja stała na `3f315b3` (Alfa 0.67, wydanie 18 września 2026,
+20:53). Zapis:
+[`evidence/produkcja/odczyt-20260918T1854Z.json`](evidence/produkcja/odczyt-20260918T1854Z.json).
+
+**Publiczne tagi już są i część #369 daje się dziś odebrać na produkcji.**
+
+| Powierzchnia | Co pokazuje o 18:54 UTC | Warstwa dowodu |
+|---|---|---|
+| `/tagi` | dwa tagi: `ciasto` z liczbą `(1 wpis)` i miniaturą „Zdjęcie: Ewa Kapica”, `sernik` z `(0 wpisów)` | odczyt HTML |
+| strona tagu o slugu ciasto | `<span class="meta" data-tag-public-stats>Pokaż, co gotujesz — dodaj swój wpis.</span>` | odczyt HTML |
+| strona tagu o slugu sernik | to samo zaproszenie | odczyt HTML |
+
+To jest **produkcyjne potwierdzenie gałęzi PONIŻEJ progu** z
+`components/tag-public-stats.blade.php`: próg to `min_photos = 5`
+i `min_contributors = 3` (`config/kuking.php`, `tag_public_stats`), a tag
+`ciasto` ma jednego autora, więc komponent słusznie renderuje `@elseif` —
+zaproszenie zamiast zdania ze statystyką. Zerowa liczba w spisie
+(`sernik (0 wpisów)`) też jest widoczna publicznie, zgodnie z opisem na
+`/tagi`.
+
+**Czego to nadal nie domyka.** Gałąź POWYŻEJ progu — zdanie
+`Publicznie: N zdjęć od M osób.` — pozostaje niepotwierdzona na produkcji,
+bo żaden publiczny tag nie ma dziś pięciu gotowych zdjęć od trzech osób.
+
+### Brakujący dowód #369 — jeden, z kryterium
+
+- **Scenariusz:** odczytać `/tag/{slug}` tagu, który ma na produkcji co
+  najmniej **5 publicznych zdjęć w stanie `ready` od co najmniej 3 różnych
+  autorów**.
+- **Potrzebne dane:** taki tag. Powstanie sam z wpisów użytkowników albo
+  z redakcyjnego dodania tagów (#18). **Nie tworzymy go w tym celu.**
+- **Kryterium zaliczenia:** w HTML strony tagu stoi
+  `<span class="meta" data-tag-public-stats>Publicznie: N zdjęć od M osób.</span>`
+  z `N ≥ 5` i `M ≥ 3` oraz z poprawną odmianą rzeczownika, a na `/tagi`
+  liczba przy tym tagu zgadza się z liczbą publicznie widocznych wpisów.
