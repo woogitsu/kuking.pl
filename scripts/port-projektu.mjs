@@ -166,7 +166,30 @@ async function podniesSerwer() {
     const adres = `http://127.0.0.1:${port}`;
     const dziennik = [];
 
-    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    /* `--no-reload` NIE JEST TU OPTYMALIZACJĄ — ono ratuje całe środowisko.
+       `ServeCommand::startProcess()` mapuje `$_ENV` i każdej zmiennej spoza
+       swojej krótkiej listy przepustek (APP_ENV, PATH, XDEBUG_*, kilka HERD_*)
+       podstawia `false`, czyli WYCINA JĄ procesowi `php -S`. Wyjątek robi
+       dokładnie dla `--no-reload`.
+
+       Bez tej flagi zachowanie zależy od `variables_order` w php.ini: przy
+       `GPCS` tablica `$_ENV` jest pusta, mapa wychodzi pusta i dziecko
+       dziedziczy wszystko, więc wszystko działa. Przy `EGPCS` — a tak bywa na
+       runnerze — wycinanie wchodzi w życie i serwowana aplikacja spada na
+       wartości z `.env`, czyli `DB_PORT=5432`, `DB_DATABASE=kuking`
+       i `SESSION_DRIVER=database`. Na maszynie z CI na porcie 5432 naprawdę
+       stoi współdzielony klaster (AGENTS.md §6 zabrania go używać), więc
+       zapytanie o sesję kończyło się `password authentication failed`,
+       nieobsłużonym wyjątkiem i HTTP 500 na KAŻDYM żądaniu — także na
+       `/health`. Stąd „brak odpowiedzi z /health" przy serwerze, który stał
+       i grzecznie odpowiadał (issue #684 nie ma z tym nic wspólnego; to był
+       ten sam objaw w jobach `Port marki` i `Dostępność`).
+
+       Zmierzone na trzech wariantach tego samego żądania `/health`:
+       `GPCS` bez flagi → 200, `EGPCS` bez flagi → 500, `EGPCS` z flagą → 200.
+       `scripts/panel-marki-run.mjs` miał tę flagę od początku i jako jedyny
+       job przeglądarkowy nie padał. */
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       // Ochrona przekierowań porównuje host z app.url, także w lokalnym pomiarze.
       env: { ...env(), APP_URL: adres },
