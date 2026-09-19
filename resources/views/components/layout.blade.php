@@ -359,7 +359,30 @@
 <body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
-    <header class="topbar marka-topbar" @guest data-pasek-przewijany @endguest>
+    {{--
+        PASEK CHOWA SIĘ PRZY PRZEWIJANIU W DÓŁ — TAKŻE PO ZALOGOWANIU.
+
+        Do 19 września 2026 atrybut stał pod `@guest`, bo prośba z 15 września
+        mówiła o pasku „z logo, logowaniem i rejestracją", czyli o widoku
+        gościa (`docs/design/PASEK_PRZEWIJANIE.md`). Zalogowana osoba miała
+        więc pasek przypięty na stałe i zgłosiła to jako rozjazd: ten sam
+        serwis zachowywał się inaczej po zalogowaniu, bez żadnego powodu
+        widocznego dla człowieka.
+
+        Po zalogowaniu pasek niesie WIĘCEJ niż u gościa — wyszukiwarkę,
+        licznik powiadomień i menu konta — więc na telefonie zabiera
+        odpowiednio więcej ekranu i tym bardziej warto go oddać treści.
+        Nic z tego nie znika bezpowrotnie: ruch w górę przywraca pasek, a
+        `scripts/pasek-przewijany.mjs` pilnuje tego pomiarem, teraz w obu
+        stanach zalogowania.
+
+        Trzy zabezpieczenia w `resources/js/pasek-przewijany.js` działają bez
+        zmian i to one sprawiają, że rozszerzenie zakresu jest bezpieczne:
+        pasek nie chowa się przy początku strony, przy fokusie wewnątrz
+        (czyli podczas nawigacji Tabem) ani przy otwartym menu — a menu konta
+        to właśnie `details[open]`.
+    --}}
+    <header class="topbar marka-topbar" data-pasek-przewijany>
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
                 {{-- Znak wklejony wprost, nie przez <img> — inaczej nie

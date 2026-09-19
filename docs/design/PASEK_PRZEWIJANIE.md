@@ -50,3 +50,85 @@ Alfa0.38/0e1bdbe potwierdzona na produkcji: mainCI34986762320
 11/11success, Railway6462041446 i Deploy34989544692 success.
 [Szczegóły, zakres i ograniczenia odbioru](ODBIOR_PRODUKCJI_ALFA_038.md).
 Powyższe oczekiwanie na main/produkcję jest stanem historycznym.
+
+## Rozszerzenie na osoby zalogowane — 19 września 2026
+
+Zgłoszenie właściciela: na telefonie pasek chował się przy przewijaniu,
+a potem przestał. Odczyt kodu: nic się nie zepsuło — atrybut
+`data-pasek-przewijany` stał w `layout.blade.php` pod `@guest` **od
+pierwszego commita tej funkcji** (`bbfe5658`) i nikt go potem nie ruszał.
+Potwierdzone `git log -S`. Chowanie działało więc wyłącznie przed
+zalogowaniem, zgodnie z zakresem zapisanym wyżej, a zgłaszający patrzył
+wcześniej na serwis jako gość.
+
+Potwierdzone także na żywej produkcji: w HTML-u dla niezalogowanego
+nagłówek nadal ma ten atrybut.
+
+**Decyzja właściciela: pasek ma chować się także po zalogowaniu.**
+Warunek `@guest` usunięty.
+
+Po zalogowaniu pasek niesie WIĘCEJ niż u gościa — wyszukiwarkę, licznik
+powiadomień i menu konta — więc na telefonie zabiera odpowiednio więcej
+ekranu i tym bardziej warto go oddać treści. Nic nie znika bezpowrotnie:
+ruch w górę przywraca pasek.
+
+Trzy zabezpieczenia w `resources/js/pasek-przewijany.js` działają bez
+zmian i to one czynią rozszerzenie bezpiecznym: pasek nie chowa się przy
+początku strony, przy fokusie wewnątrz (czyli podczas nawigacji Tabem)
+ani przy otwartym menu — a menu konta to właśnie `details[open]`.
+
+### Co zmierzone
+
+- `PasekChowaSieTakzePoZalogowaniuTest`: 3 testy, 6 asercji, PASS.
+  Pilnuje tego, czego pomiar przeglądarkowy przegapi, jeśli ktoś
+  przywróci warunek: **czy atrybut w ogóle dochodzi do obu widoków**.
+  Pomiar bez atrybutu nie oblewa — on po prostu nie ma czego mierzyć.
+- **Fizyczna kontrola ujemna**: przywrócenie `@guest` → dwa testy
+  oblewają, w tym asercja, że atrybut siedzi na `header.topbar`.
+  Plik przywrócony, MD5 zgodne (`adc76b46dbf83d59727dfe7913a71701`).
+- Testy sąsiednie (layout, pasek, topbar, nawigacja): 35 PASS.
+- `scripts/pasek-przewijany.mjs` mierzy teraz DWA stany zalogowania.
+  Stan zalogowany idzie na trzech szerokościach (320/390/768) w dwóch
+  skalach pisma zamiast pełnych 24 konfiguracji: mechanizm CSS i JS jest
+  wspólny, a pełna macierz kupowałaby minuty CI za tę samą wiedzę.
+- Dołożony przypadek, którego u gościa NIE MA: **otwarte menu konta**.
+  Skrypt nie ma prawa schować paska, gdy człowiek ma w nim otwarte menu.
+  Pilnował tego `details[open]` w JS, ale nikt tego dotąd nie mierzył,
+  bo gość menu konta nie ma.
+
+### Czego NIE zmierzono
+
+Fizycznego telefonu ani czytnika ekranu. Produkcji po tej zmianie —
+odbiór dopiero po wdrożeniu. Nie sprawdzono też, czy chowanie paska nie
+przeszkadza w trybie gotowania ani w panelu moderacji: oba mają własne
+układy i nie były przedmiotem tego pomiaru.
+
+### Skutek uboczny wykryty przez CI i naprawiony w sondzie
+
+Job `Dostępność (axe-core)` oblał na kontroli ujemnej ramy marki:
+`Kontrola ujemna ramy nie wykryła: wyśrodkowanie belki`
+(`scripts/dostepnosc.mjs:3270`).
+
+Przyczyna leży w **sondzie**, nie w produkcie. Kontrola wstrzykuje
+`transform: translateX(20px) !important` i mierzy belkę dwoma osobnymi
+wywołaniami przez CDP, czyli kilka milisekund po sobie. Pasek ma
+`transition: transform 180ms`, więc odczyt trafia w połowę animacji.
+
+Zmierzone na prawdziwej stronie:
+
+| odczyt | przesunięcie belki |
+|---|---|
+| natychmiast po wstrzyknięciu | **2 px** |
+| po 400 ms | **20 px** |
+
+Przy tolerancji liczonej w pikselach pierwszy odczyt nie wykrywa niczego.
+
+Do tej zmiany nie było tego widać, bo `data-pasek-przewijany` stał pod
+`@guest`, a te pomiary chodzą po stronach zalogowanej osoby — tam belka
+nie miała żadnej tranzycji i mutacja wchodziła natychmiast. Rozszerzenie
+chowania paska odsłoniło założenie, które sonda robiła po cichu.
+
+Poprawka: każda z czterech mutacji kontroli ujemnej dokłada
+`transition: none !important`. Wyłącza to **tylko animację**, nie mierzoną
+własność — kontrola sprawdza geometrię, a nie to, jak szybko ta geometria
+dojeżdża.
