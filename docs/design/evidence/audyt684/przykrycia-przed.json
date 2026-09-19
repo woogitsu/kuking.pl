@@ -1,0 +1,2669 @@
+{
+  "data": "2026-09-19T07:41:55.406Z",
+  "konfiguracji": 160,
+  "nieosiagalnych": 50,
+  "overflowow": 0,
+  "szerokosci": [
+    "320",
+    "390",
+    "768",
+    "1440"
+  ],
+  "motywy": [
+    "light",
+    "dark"
+  ],
+  "warianty_pisma": [
+    "100",
+    "140",
+    "zoom200"
+  ],
+  "wyniki": [
+    {
+      "konfiguracja": "strona-glowna/light/100/320",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/100/320",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/100/320",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/100/320",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/100/320",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/100/320",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 19,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/100/320",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/100/320",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/100/390",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/100/390",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/100/390",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/100/390",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/100/390",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/100/390",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 22,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/100/390",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 18,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/100/390",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 18,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/100/768",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/100/768",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/100/768",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/100/768",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/100/768",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 9,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/100/768",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 26,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/100/768",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 22,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/100/768",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 20,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/100/1440",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/100/1440",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/100/1440",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/100/1440",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/100/1440",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 9,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/100/1440",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "textarea",
+          "cel": null,
+          "rect": {
+            "x": 291,
+            "y": 560,
+            "w": 858,
+            "h": 176
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5565,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 26,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/100/1440",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 24,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/100/1440",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 23,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/140/320",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/140/320",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/140/320",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/140/320",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/140/320",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/140/320",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 49,
+            "y": 228,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5054,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 49,
+            "y": 280,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 49,
+            "y": 332,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 14,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/140/320",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 49,
+            "y": 228,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5054,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 49,
+            "y": 280,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 49,
+            "y": 332,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/140/320",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 49,
+            "y": 228,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5054,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 49,
+            "y": 280,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 49,
+            "y": 332,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/140/390",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/140/390",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/140/390",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/140/390",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/140/390",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/140/390",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/140/390",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 14,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/140/390",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 14,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/140/768",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/140/768",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/140/768",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/140/768",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/140/768",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/140/768",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 24,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/140/768",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 20,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/140/768",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 20,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/140/1440",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/140/1440",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/140/1440",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/140/1440",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/140/1440",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/140/1440",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "textarea",
+          "cel": null,
+          "rect": {
+            "x": 291,
+            "y": 533,
+            "w": 858,
+            "h": 176
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5898,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 26,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/140/1440",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 24,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/140/1440",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 21,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/zoom200/768",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/zoom200/768",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/zoom200/768",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/zoom200/768",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/zoom200/768",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 329,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/zoom200/768",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/zoom200/768",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/zoom200/768",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/light/zoom200/1440",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/light/zoom200/1440",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/light/zoom200/1440",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/light/zoom200/1440",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/light/zoom200/1440",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/light/zoom200/1440",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 345,
+            "y": 87,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 7535,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 345,
+            "y": 139,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 345,
+            "y": 191,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 12,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/light/zoom200/1440",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 345,
+            "y": 87,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 7535,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 345,
+            "y": 139,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 345,
+            "y": 191,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/light/zoom200/1440",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "light",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 345,
+            "y": 87,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 7535,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 345,
+            "y": 139,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 345,
+            "y": 191,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/100/320",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/100/320",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/100/320",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/100/320",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/100/320",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 5,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/100/320",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 19,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/100/320",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/100/320",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/100/390",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/100/390",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/100/390",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/100/390",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/100/390",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/100/390",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 22,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/100/390",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 18,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/100/390",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 18,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/100/768",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/100/768",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/100/768",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/100/768",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/100/768",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 9,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/100/768",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 26,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/100/768",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 22,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/100/768",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 20,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/100/1440",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/100/1440",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/100/1440",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/100/1440",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/100/1440",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 9,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/100/1440",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "textarea",
+          "cel": null,
+          "rect": {
+            "x": 291,
+            "y": 560,
+            "w": 858,
+            "h": 176
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5565,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 26,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/100/1440",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 24,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/100/1440",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "100",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 23,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/140/320",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/140/320",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/140/320",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/140/320",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/140/320",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 2,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/140/320",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 49,
+            "y": 228,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5054,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 49,
+            "y": 280,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 49,
+            "y": 332,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 14,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/140/320",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 49,
+            "y": 228,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5054,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 49,
+            "y": 280,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 49,
+            "y": 332,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/140/320",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "320",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 49,
+            "y": 228,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5054,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 49,
+            "y": 280,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 49,
+            "y": 332,
+            "w": 238,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 11424,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/140/390",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/140/390",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/140/390",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/140/390",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/140/390",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 4,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/140/390",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 16,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/140/390",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 14,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/140/390",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "390",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 14,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/140/768",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/140/768",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/140/768",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/140/768",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/140/768",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/140/768",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 24,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/140/768",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 20,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/140/768",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 20,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/140/1440",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/140/1440",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/140/1440",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/140/1440",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/140/1440",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 8,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/140/1440",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "textarea",
+          "cel": null,
+          "rect": {
+            "x": 291,
+            "y": 533,
+            "w": 858,
+            "h": 176
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 5898,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 26,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/140/1440",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 24,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/140/1440",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "140",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 21,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/zoom200/768",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/zoom200/768",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/zoom200/768",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/zoom200/768",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 328,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/zoom200/768",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "Włącz ciemny wygląd",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 32,
+            "y": 329,
+            "w": 68,
+            "h": 52
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 3536,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 7,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/zoom200/768",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 13,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/zoom200/768",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/zoom200/768",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "768",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 10,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "strona-glowna/dark/zoom200/1440",
+      "sciezka": "strona-glowna",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "swiezo/dark/zoom200/1440",
+      "sciezka": "swiezo",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "logowanie/dark/zoom200/1440",
+      "sciezka": "logowanie",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "tagi/dark/zoom200/1440",
+      "sciezka": "tagi",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "szukaj/dark/zoom200/1440",
+      "sciezka": "szukaj",
+      "konto": false,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [],
+      "sprawdzonych": 0,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "zeszyt/dark/zoom200/1440",
+      "sciezka": "zeszyt",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 345,
+            "y": 87,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 7535,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 345,
+            "y": 139,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 345,
+            "y": 191,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 12,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-wpis/dark/zoom200/1440",
+      "sciezka": "dodaj-wpis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 345,
+            "y": 87,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 7535,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 345,
+            "y": 139,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 345,
+            "y": 191,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    },
+    {
+      "konfiguracja": "dodaj-przepis/dark/zoom200/1440",
+      "sciezka": "dodaj-przepis",
+      "konto": true,
+      "motyw": "dark",
+      "pismo": "zoom200",
+      "szerokosc": "1440",
+      "overflowPoziomy": false,
+      "nieosiagalne": [
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/@ania",
+          "rect": {
+            "x": 345,
+            "y": 87,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 7535,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "a",
+          "cel": "http://127.0.0.1:37341/ustawienia",
+          "rect": {
+            "x": 345,
+            "y": 139,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        },
+        {
+          "tekst": "",
+          "znacznik": "button",
+          "cel": null,
+          "rect": {
+            "x": 345,
+            "y": 191,
+            "w": 334,
+            "h": 48
+          },
+          "zPrzyciskiem": 0,
+          "zPodpowiedzia": 15888,
+          "punktow": 9
+        }
+      ],
+      "sprawdzonych": 11,
+      "wPrzeplywie": false
+    }
+  ]
+}
