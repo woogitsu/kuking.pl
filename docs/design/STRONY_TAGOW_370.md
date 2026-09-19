@@ -272,3 +272,89 @@ kryterium zaliczenia:
    **100%** (360 i 390 px). Zrzuty nie ilustrują więc konfiguracji, o których
    mówi tabela. Kryterium: zrzut `C` dla `light-100-360` i `dark-100-390`
    pokazujący przykrycie kafla przez `aside.szybki-wyglad-podpowiedz`.
+
+## Domknięcie braków nr 2 i nr 3 — 19 września 2026
+
+Z trzech braków wymienionych wyżej **dwa są zamknięte, jeden zostaje**.
+Wszystko poniżej wykonano na **lokalnym** runtime — na produkcji nie
+wykonano w tej sesji ani jednej operacji poza odczytem.
+
+Runtime: `/home/mateusz/kuking-odbior-pasek/app`, serwer `127.0.0.1:8091`
+(`artisan serve --no-reload`), jednorazowa baza `kuking_pasek_370` na
+`127.0.0.1:55439`, poczta `array`. Fixture: tag `odbior-kolaz-5`,
+**pięć publicznych wpisów od pięciu różnych autorek**, każdy z jednym
+zdjęciem `ready` z kompletem wariantów. Ilustracje są rysowane na miejscu
+i mają wpisany w obraz napis `DANE TESTOWE` — **nie są zdjęciami
+użytkowników**. Skrypt fixture: [`evidence/tags370/fixture-kolaz5.php`](evidence/tags370/fixture-kolaz5.php).
+
+### Brak nr 2 — CTA „Dodaj wpis z tym tagiem" jako interakcja: ZAMKNIĘTY
+
+24 rzeczywiste interakcje: 12 kombinacji (320/390/1440 px × oba motywy ×
+tekst 100/140%) × dwa wejścia (`page.mouse.click` i `page.touchscreen.tap`).
+Scenariusz A — stały bywalec, podpowiedź wyglądu zamknięta.
+
+| Co mierzone | Wynik |
+|---|---|
+| konfiguracji | 24 / 24 PASS |
+| wysokość przycisku | **50,5 – 91 px**, nigdzie poniżej 48 px |
+| gdzie ląduje gość | `/login` we **wszystkich 24** przypadkach |
+| środek przycisku zasłonięty | nigdzie (`elementFromPoint` = sam przycisk) |
+| poziomy overflow | nigdzie |
+
+`href` przycisku niesie wybrany tag (`/dodaj/zdjecie?tag=odbior-kolaz-5`),
+więc po zalogowaniu formularz dostaje ten tag — ale **tego kroku ta sekcja
+nie mierzy**, kończy się na `/login`. Pokrywa go
+`Dowody lokalne` wyżej (25 testów / 100 asercji na formularzu).
+
+Motyw i skalę tekstu ustawiono **prawdziwym formularzem aplikacji**
+(`#szybki-motyw`, `#szybka-skala`, „Zapisz wygląd"), nie podrobionym
+ciasteczkiem — ciasteczka Laravela są szyfrowane. Po zapisie odczytano
+z `<html>` atrybuty `data-theme` i `data-text-scale` i to one, a nie
+intencja skryptu, są w dowodzie.
+
+Wyniki: [`evidence/tags370/cta-results.json`](evidence/tags370/cta-results.json),
+skrypt [`evidence/tags370/cta-stanC.mjs`](evidence/tags370/cta-stanC.mjs).
+
+### Brak nr 3 — zgodność zrzutów ze stanem C: ZAMKNIĘTY
+
+Brakowało zrzutów w **tej samej skali**, co sporne konfiguracje: osiem
+wpisów `C_PODPOWIEDZ_NIEOSIAGALNY` w `pointer-results.json` dotyczy skali
+**100%** przy 360 i 390 px, a w repozytorium leżały wyłącznie zrzuty 140%.
+Dorobiono brakujące dwa:
+
+| Zrzut | Podpowiedź widoczna | Prostokąt podpowiedzi | Kafli nieosiągalnych | Pole wspólne |
+|---|---|---|---:|---:|
+| [`pointer/C-light-100-360.png`](evidence/tags370/pointer/C-light-100-360.png) | tak | 336 × 156 px przy (12, 508) | 2 | 12 902 px² |
+| [`pointer/C-dark-100-390.png`](evidence/tags370/pointer/C-dark-100-390.png) | tak | 360 × 156 px przy (18, 508) | 2 | 15 425 px² |
+
+Oba zrzuty **obejrzano**. Widać na nich dokładnie to, o czym mówi tabela
+stanu C: stała podpowiedź „Dopasuj rozmiar tekstu i wygląd strony."
+z przyciskiem „Rozumiem" leży na kolażu i przykrywa kafle.
+
+**Liczby nie są tożsame z `pointer-results.json` i nie udajemy, że są.**
+Tamten pomiar chodził na innym runtime i innym fixture (`kuking_d_a_tests`,
+port 8074) i dawał 1 kafel nieosiągalny oraz pole 25 862 / 27 709 px².
+Tu wychodzą 2 kafle i mniejsze pole wspólne, bo nagłówek tagu ma inną
+długość tekstu, więc kolaż stoi w innym miejscu. **Zjawisko jest to samo
+i jest odtwarzalne**; sama liczba zależy od treści nad kolażem. Zrzuty
+ilustrują teraz właściwą skalę — i tylko to było kryterium.
+
+Przyczyna pozostaje ta, co wyżej: widget `szybki-wyglad` jest globalny,
+nie należy do #370 i jest zgłoszony osobno. Nie ruszano tu jego CSS ani JS.
+
+### Brak nr 1 — kolaż na żywych danych: ZOSTAJE OTWARTY
+
+Wymaga tagu, który ma na **produkcji** publiczne gotowe zdjęcia od co
+najmniej trzech różnych osób. Odczyt produkcji z 18.09 znalazł dwa
+publiczne tagi, z czego `ciasto` ma **jednego** autora z jednym zdjęciem,
+a `sernik` jest pusty. Przy jednym autorze reguła „jedno zdjęcie od osoby"
+i reguła „jedno zdjęcie na wpis" dają ten sam wynik, więc nadal nie ma na
+czym ich rozróżnić. **Nie tworzymy w tym celu treści na produkcji.**
+
+Reguła jest natomiast potwierdzona lokalnie i to potwierdzenie jest
+mocniejsze niż odczyt HTML: fixture ma pięciu autorów i pięć zdjęć,
+a kolaż renderuje `tag-collage--5` z pięcioma kaflami o pięciu różnych
+`aria-label="Zobacz wpis: …"`. Dowód domenowy (dedupilkacja autorów,
+publiczność, blokady) to 9 testów / 262 asercje z trzema fizycznymi
+negatywami — sekcja `Dowody lokalne`. Brakuje wyłącznie warstwy
+produkcyjnej, i to jest cała treść tego braku.
