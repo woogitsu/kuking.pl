@@ -118,6 +118,23 @@ test('kod własny sklejony z danymi oddaje sam kod, bez danych', () => {
   }
 });
 
+/* KOTWICA POCZĄTKU jest częścią gwarancji, nie ozdobą. Bez niej dowolny
+   komunikat ZAWIERAJĄCY gdzieś `P581_KOD ` zostałby zameldowany jako ta
+   przyczyna — a to gorsze niż brak przyczyny, bo myli przy diagnozie.
+   Wykryte przyrządem kontroli ujemnych: zdjęcie `^` nie psuło żadnego
+   testu, czyli gwarancja nie była strzeżona. */
+test('kod w środku komunikatu nie udaje przyczyny', () => {
+  for (const tresc of [
+    'Nie udało się: P581_DOMAIN_CHANGED {"a":1}',
+    'at wymagaj — P581_CASE_COUNT 7',
+    ' P581_ZOOM_GEOMETRIA {"width":320}',
+  ]) {
+    const wynik = komunikatBledu(new Error(tresc));
+    assert.ok(wynik.startsWith('P581_RUN_FAIL: '),
+      `Kod ze środka udał przyczynę: ${tresc} -> ${wynik}`);
+  }
+});
+
 /* KONTROLA ODWROTNA: sama spacja nie wystarczy — bez przedrostka `P581_`
    napis idzie przez osłonę, bo wtedy nie wiadomo, czy to nasz kod. */
 test('spacja bez przedrostka P581_ nie otwiera furtki', () => {
