@@ -34,6 +34,72 @@ obiecuje więcej albo mniej, niż kod wykonuje**.
 
 ---
 
+## 1a. Co z tego zostało zamknięte — 19 września 2026, wieczorem
+
+Poprawki wykonane **po** audycie, na tej samej gałęzi. R1 i R6 czekają
+na decyzję właściciela i nie były ruszane.
+
+| Rozjazd | Co zmieniono | Strażnik, żeby nie odrosło |
+|---|---|---|
+| **R2** | `resources/views/pages/settings/data.blade.php` — zdanie nie obiecuje już „wszystkich" zdjęć i mówi to samo, co pole `czego_nie_zawiera` w samej paczce | `RozjazdyAudytuZgodnosciTest::test_ekran_paczki_nie_obiecuje_wszystkich_zdjec` czyta REGUŁĘ z `CollectUserExportData`, nie zapamiętane brzmienie zdania; osobna kontrola dodatnia sprawdza, że zalogowana osoba naprawdę to widzi |
+| **R3** | polityka wymienia siódmy formularz za Turnstile („wysłaniu linku do zalogowania") | `test_polityka_wymienia_kazdy_formularz_za_turnstile` porównuje politykę z `config('kuking.turnstile.miejsca')`. Ósme miejsce w konfiguracji **zapali czerwone światło**, bo test nie będzie znał jego nazwy |
+| **R5** | polityka mówi „przepisy wraz z ich wcześniejszymi wersjami" zamiast „komentarze i ich historia edycji" | `test_polityka_nie_obiecuje_historii_edycji_ktorej_nie_ma` pyta SCHEMAT: dopóki nie ma `post_versions` ani `comment_versions`, polityka nie ma prawa ich obiecywać. Gdy taka tabela powstanie, sprawdzenie samo się wyłączy |
+| **R4** | `COMPLIANCE.md` — lista gotowości: realni podprocesorzy zamiast Sentry i PostHog, kanał błędów zamiast scrubbingu Sentry, baner cookies odniesiony do bezciasteczkowej statystyki; cztery martwe odsyłacze do plików `*_DRAFT.md` wskazują teraz `resources/legal/` | **rozszerzony `DokumentyPrawneNieKlamiaTest`** — patrz niżej |
+
+### Dlaczego rozszerzenie testu było ważniejsze od samych poprawek
+
+R4 przeżył nie dlatego, że strażnika nie było, tylko dlatego, że **patrzył
+obok**: data provider `DokumentyPrawneNieKlamiaTest` wymieniał trzy
+opublikowane dokumenty, a `docs/legal/` było poza zasięgiem.
+
+Rozszerzenie **skanuje katalog**, nie wylicza plików. Gdyby wyliczało,
+następny dokument dołożony do `docs/legal/` znowu wypadłby spod nadzoru.
+
+Zakres strażnika jest świadomie **wąski — tylko wiersze listy kontrolnej**
+(`| P0 |`, `| P1 |`, `| P2 |`). W `docs/legal/` słowo „PostHog" pada
+szesnaście razy, ale prawie zawsze w PROZIE opisującej, że PostHog był
+kandydatem i został odrzucony — razem z pomiarem, na podstawie którego go
+odrzucono. Test zakazujący tego kazałby skasować powód, dla którego czegoś
+**nie** zrobiliśmy. Groźna jest lista, bo to ona jest bramką „czy można
+startować" dla #29.
+
+Z tego samego powodu **nie ma** tam kontroli na `[do ustalenia]`.
+W dokumencie publikowanym taki ślad jest usterką, bo widzi go użytkownik;
+w wewnętrznej analizie prawnej to uczciwe oznaczenie pytania czekającego na
+prawnika. Cisza w liście gotowości jest groźniejsza niż jawne „do ustalenia".
+
+### Co przy okazji znalazł sam strażnik
+
+Odsyłacz `ADR_RETENCJE.md` w `BRAMKA_BETY.md` wyglądał na martwy przy
+pierwszej wersji sprawdzenia — plik **istnieje** (`docs/decyzje/`), a mój
+test pilnował formy zapisu zamiast istnienia pliku. Poprawione: goła nazwa
+jest szukana w całym drzewie `docs/`. To jest dokładnie ta klasa błędu,
+przed którą ten dokument ostrzega, tyle że popełniona w teście.
+
+### Dowody
+
+- `RozjazdyAudytuZgodnosciTest`: 4 testy / 26 asercji **PASS**
+- `DokumentyPrawneNieKlamiaTest` po rozszerzeniu: 39 testów / 436 asercji **PASS**
+  (przed rozszerzeniem: 30 testów)
+- **Pięć fizycznych kontroli ujemnych** na prawdziwych plikach — cofnięcie
+  każdej poprawki (R2, R3, R5 oraz oba rozjazdy R4) daje czerwień; po
+  przywróceniu zgodność `cmp` bajt w bajt i komplet zielony
+- Pint: 1140 plików PASS. PHPStan: bez błędów
+- Pełny przebieg: **4312 testów PASS, 1 porażka** — `ProbaOdtworzeniaTest`,
+  która uruchomiona osobno przechodzi (1 test / 7 asercji). To znana kolizja
+  izolacji tego testu przy równoległych przebiegach na wspólnej maszynie,
+  nie skutek tych zmian
+
+### Czego te poprawki NIE rozstrzygają
+
+Wiersz o umowach powierzenia wymienia teraz **realnych** odbiorców danych,
+ale **czy i jakie umowy są z nimi podpisane — to pytanie do prawnika i do
+właściciela**, nie do audytu kodu. Zmiana poprawia listę, nie stan prawny.
+Brzmienie obu poprawionych zdań polityki (R3, R5) także należy pokazać
+prawnikowi — tekst prawny nie jest rzeczą do redagowania przez automat.
+
+---
+
 ## 2. Rozjazdy w kolejności ryzyka
 
 ### R1 — Polityka obiecuje „pełną kopię" danych; paczka świadomie nie jest pełna

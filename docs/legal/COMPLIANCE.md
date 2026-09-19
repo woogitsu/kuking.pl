@@ -17,7 +17,7 @@ Kuking.pl to **hosting service** świadczący usługę **online platform** (umo�
 | Art. 11 | Punkt kontaktowy dla organów (państw członkowskich, Komisji, Rady ds. Usług Cyfrowych) | Adres e-mail + wskazany język komunikacji (polski, ewentualnie angielski) publikowany łatwo dostępnie |
 | Art. 12 | Punkt kontaktowy dla użytkowników (odbiorców usługi) | Ten sam lub osobny e-mail; **nie może to być wyłącznie bot/formularz bez możliwości bezpośredniego kontaktu** — musi umożliwiać szybką, bezpośrednią komunikację |
 | Art. 13 | Przedstawiciel prawny w UE | Nie dotyczy — operator jest w Polsce, czyli w UE. Istotne tylko, gdyby operator przeniósł się poza UE |
-| Art. 14 | Regulamin (terms and conditions) — jasny, zrozumiały, w prostym języku, informacje o polityce moderacji, wykorzystaniu narzędzi automatycznych, prawach użytkownika | Regulamin musi jasno opisać zasady moderacji treści (patrz `REGULAMIN_DRAFT.md`); dla serwisu z użytkownikami 50+ obowiązek "plain language" jest tu wyjątkowo ważny merytorycznie, nie tylko formalnie |
+| Art. 14 | Regulamin (terms and conditions) — jasny, zrozumiały, w prostym języku, informacje o polityce moderacji, wykorzystaniu narzędzi automatycznych, prawach użytkownika | Regulamin musi jasno opisać zasady moderacji treści (patrz `resources/legal/regulamin.md`); dla serwisu z użytkownikami 50+ obowiązek "plain language" jest tu wyjątkowo ważny merytorycznie, nie tylko formalnie |
 | Art. 15 | Sprawozdawczość przejrzystości dla dostawców usług pośrednich (co najmniej raz w roku) | **Mikro/małe przedsiębiorstwa są zwolnione** (Art. 19) — patrz niżej |
 | Art. 16 | Mechanizm zgłaszania i działania (notice and action) dla nielegalnych treści | **Obowiązkowy niezależnie od wielkości.** Musi być: elektroniczny, łatwo dostępny, przyjazny użytkownikowi, umożliwiać wskazanie dokładnej lokalizacji treści i wyjaśnienie dlaczego treść jest nielegalna. Formularz "Zgłoś" w Kuking musi to spełniać |
 | Art. 17 | Uzasadnienie decyzji (statement of reasons) | **Obowiązkowy niezależnie od wielkości**, dla usług hostingu. Przy każdym usunięciu/ukryciu/ograniczeniu treści lub zawieszeniu konta z powodu nielegalności lub naruszenia regulaminu → użytkownik musi dostać jasne uzasadnienie (podstawa, fakty, czy decyzja była zautomatyzowana, informacja o możliwości odwołania). Musi też trafiać do unijnej bazy DSA Transparency Database, jeśli dotyczy platformy online (nie tylko czystego hostingu) — [do weryfikacji, czy przy zwolnieniu z Art. 19 ten obowiązek zgłaszania do bazy nadal obowiązuje w pełnym zakresie; praktyka wskazuje, że tak, bo Art. 17 jest w Sekcji 2, nie 3] |
@@ -191,7 +191,7 @@ Regulamin musi jasno określić, na jakiej podstawie Kuking może:
 **Rekomendacja minimalnej licencji:**
 > "Publikując treść, udzielasz Kuking niewyłącznej, nieodpłatnej licencji na jej przechowywanie, przetwarzanie techniczne (np. zmniejszanie zdjęć, generowanie miniatur) oraz publiczne udostępnianie w ramach funkcji serwisu i tak długo, jak długo treść jest opublikowana lub jak wymaga tego prawo (np. kopie zapasowe). Licencja wygasa z chwilą usunięcia treści, z zastrzeżeniem kopii technicznych/zapasowych usuwanych zgodnie z Polityką Prywatności. Zachowujesz pełnię praw autorskich do swoich treści."
 
-Ten fragment trafi do `REGULAMIN_DRAFT.md` — ale **finalne brzmienie licencji musi zatwierdzić prawnik**, to jeden z najczęściej kwestionowanych zapisów regulaminów UGC.
+Ten fragment trafi do `resources/legal/regulamin.md` — ale **finalne brzmienie licencji musi zatwierdzić prawnik**, to jeden z najczęściej kwestionowanych zapisów regulaminów UGC.
 
 ### 3.4 Wizerunek (Art. 81 ustawy o prawie autorskim i prawach pokrewnych)
 
@@ -288,17 +288,17 @@ Priorytety: **P0 = blokujące start**, **P1 = zrobić w pierwszych tygodniach**,
 
 | Priorytet | Zadanie | Wymaga prawnika? |
 |---|---|---|
-| P0 | Regulamin opublikowany na `/regulamin` (patrz `REGULAMIN_DRAFT.md`) z licencją treści, zasadami moderacji, punktami kontaktowymi (Art. 11, 12, 14 DSA) | **Tak — finalna wersja** |
-| P0 | Polityka prywatności opublikowana na `/prywatnosc` (patrz `POLITYKA_PRYWATNOSCI_DRAFT.md`) z pełną tabelą celów/podstaw/retencji | **Tak — finalna wersja** |
+| P0 | Regulamin opublikowany na `/regulamin` (patrz `resources/legal/regulamin.md`) z licencją treści, zasadami moderacji, punktami kontaktowymi (Art. 11, 12, 14 DSA) | **Tak — finalna wersja** |
+| P0 | Polityka prywatności opublikowana na `/prywatnosc` (patrz `resources/legal/polityka-prywatnosci.md`) z pełną tabelą celów/podstaw/retencji | **Tak — finalna wersja** |
 | P0 | Formularz "Zgłoś" spełniający Art. 16 DSA (elektroniczny, jasny, wskazanie lokalizacji i powodu) | Nie, ale warto konsultacyjnie |
 | P0 | Szablon uzasadnienia decyzji moderacyjnej (Art. 17 DSA) wdrożony w produkcie | Nie |
 | P0 | Procedura zgłaszania do organów ścigania przy CSAM/zagrożeniu życia (Art. 18 DSA) — kontakt do odpowiedniej jednostki (Policja / Dyżurnet.pl) | **Tak — potwierdzić ścieżkę zgłoszeniową** |
 | P0 | Wiek minimalny 16 lat wymagany oświadczeniem przy rejestracji | Nie |
-| P0 | DPA/umowy powierzenia z Railway, Cloudflare R2, Sentry, PostHog, dostawcą e-mail — podpisane, region UE wybrany wszędzie gdzie możliwe | **Tak — przegląd umów** |
+| P0 | DPA/umowy powierzenia z **realnymi** odbiorcami danych: Railway, Cloudflare (R2, Turnstile, Web Analytics), OpenAI, dostawca poczty, a przy logowaniu zewnętrznym Google i Meta — podpisane, region UE wybrany wszędzie gdzie możliwe | **Tak — przegląd umów** |
 | P0 | Rejestr czynności przetwarzania (Art. 30 RODO) sporządzony | **Tak — przegląd** |
 | P0 | Mechanizm eksportu i usunięcia konta działający end-to-end (w tym backupy uwzględnione w polityce retencji) | Nie |
-| P0 | Sentry: reguły scrubbingu PII skonfigurowane przed pierwszym prawdziwym użytkownikiem | Nie |
-| P1 | Baner cookies (jeśli PostHog w standardowej konfiguracji z identyfikatorami) LUB potwierdzona prawnie konfiguracja bez-zgodowa | **Tak, jeśli wariant bez banera** |
+| P0 | Kanał błędów (`app/Logging/WebhookBleduHandler.php`) sprawdzony pod kątem danych osobowych w treści zgłoszenia — przed pierwszym prawdziwym użytkownikiem | Nie |
+| P1 | Baner cookies — niepotrzebny, dopóki statystyka jest bezciasteczkowa (Cloudflare Web Analytics, D-092); wrócić do tematu przy zmianie dostawcy albo dołożeniu identyfikatorów | **Tak, przy zmianie dostawcy** |
 | P1 | Szablon zgłoszenia naruszenia do UODO + szablon powiadomienia użytkowników przygotowany z wyprzedzeniem | Zalecane |
 | P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | Nie |
 | P1 | Weryfikacja aktualnego statusu ustawy krajowej wdrażającej DSA i roli UKE jako koordynatora (może się zmienić między wrześniem a datą startu) | **Tak** |
