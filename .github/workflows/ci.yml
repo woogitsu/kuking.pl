@@ -495,25 +495,12 @@ jobs:
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
-      # Własny katalog narzędzi tego joba — pełne uzasadnienie i pomiary
-      # przy tym samym kroku w jobie `lint` wyżej (issue #262).
-      - name: Własny katalog narzędzi PHP (issue #262)
-        run: |
-          set -euo pipefail
-          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
-          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
-          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
-          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
-
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+      # Prywatny katalog narzędzi joba i konfiguracja PHP — pełne
+      # uzasadnienie stoi przy kodzie, w `.github/actions/php`.
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          # Ten zestaw MUSI odpowiadać rozszerzeniom z Dockerfile,
-          # inaczej CI przepuści kod, który nie wystartuje na produkcji.
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
         uses: actions/cache@v6
