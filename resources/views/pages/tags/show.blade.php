@@ -63,7 +63,7 @@
     <div class="tag-welcome-copy">
     <h1 class="mt-0" id="tag-title">{{ $tag->name }}</h1>
 
-    <p class="lead">{{ $tagNote ?: 'Zobacz, co gotują inni. Dodaj zdjęcie ze swojej kuchni i kilka słów.' }}</p>
+    <p class="text-lead">{{ $tagNote ?: 'Zobacz, co gotują inni. Dodaj zdjęcie ze swojej kuchni i kilka słów.' }}</p>
 
     <p><x-tag-public-stats :stats="$publicStats" /></p>
 
