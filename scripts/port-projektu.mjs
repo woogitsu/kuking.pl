@@ -462,7 +462,7 @@ try {
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
   await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
   await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
-  await sprawdzPasek({ browser: przegladarka, adres });
+  await sprawdzPasek({ browser: przegladarka, adres, sesja });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });
