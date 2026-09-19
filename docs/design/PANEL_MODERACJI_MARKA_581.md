@@ -6,6 +6,55 @@ PR #587 został scalony. [Odbiór produkcyjny dziewięciu sekcji na Alfa 0.45 / 
 potwierdził nową oprawę i wskazał długą nawigację mobilną jako pozostałe tarcie.
 Nie był odbiorem wszystkich operacji, walidacji ani stanów 2FA.
 
+## Bramki dostępu na produkcji — 18 września 2026
+
+Odczyt `https://kuking.pl`, 13:12 UTC, wyłącznie HTTP GET bez sesji.
+Stopka **w chwili pomiaru**: `Alfa 0.65 · wydanie 18 września 2026, 12:12 ·
+55877e2`. Kontrola powtórzona o 19:01 UTC na `3f315b3` (Alfa 0.67) — patrz
+koniec tej sekcji; tamten przebieg ma zapis maszynowy, ten jest prozą.
+**Nie logowano się, nie wykonano żadnej decyzji moderacyjnej, nie zmieniano
+ustawień konta ani 2FA.**
+
+Wszystkie dziewięć pozycji nawigacji panelu odpowiada gościowi
+przekierowaniem 302 na `https://kuking.pl/login` — bez różnicowania
+odpowiedzi, czyli bez wycieku informacji o istnieniu rekordów:
+
+| trasa | odpowiedź |
+| --- | --- |
+| `/admin/zgloszenia` | 302 → `/login` |
+| `/admin/sygnaly` | 302 → `/login` |
+| `/admin/wiadomosci` | 302 → `/login` |
+| `/admin/odwolania` | 302 → `/login` |
+| `/admin/bez-odpowiedzi` | 302 → `/login` |
+| `/admin/kolaz-powitalny` | 302 → `/login` |
+| `/admin/kuking-na-dzis` | 302 → `/login` |
+| `/admin/tagi-promowane` | 302 → `/login` |
+| `/admin/uzytkownicy` | 302 → `/login` |
+
+Trasy szczegółowe i z parametrami zachowują się tak samo, również dla
+zmyślonego UUID — `/admin/uzytkownicy/{uuid}`, `/admin/wiadomosci/{uuid}`,
+`/admin/zgloszenia?strona=2`, `/admin/odwolania?stan=rozpatrzone`:
+wszystkie 302 → `/login`. Ustawienia `/ustawienia/2fa` również: 302 →
+`/login`.
+
+Adresy „admin" bez dalszego członu oraz „admin/tagi" zwracają 404 — i to
+jest poprawne, bo takich tras nie ma (`routes/web.php`: spis tagów stoi
+publicznie pod `/tagi`, a panel ma wyłącznie `/admin/tagi-promowane`).
+Nie jest to niespójność bramki.
+
+### Czego ta kontrola NIE pokazuje
+
+- **Odmowy dla osoby zalogowanej bez uprawnień** — do tego trzeba konta bez
+  roli moderatora. Nie było takiej sesji i nie zakładano konta.
+- **Bramki 2FA w działaniu** — `moderator.2fa` stoi za `moderator`, więc
+  gość nigdy do niej nie dociera. Bez uprawnionej sesji nie da się jej
+  zobaczyć.
+- **Szczegółów zgłoszeń i odwołań z decyzjami** — wymagają uprawnionej
+  sesji, a treści decyzji nie wolno wytwarzać na produkcji.
+
+Brak sesji jest **granicą dowodu, nie wynikiem pozytywnym**. Pozostałe
+warunki odbioru #581 z opisu issue są w tej części nadal niespełnione.
+
 ## Kontynuacja mobilnej nawigacji — 17 września 2026
 
 Na gałęzi `fix/581-menu-mobilne`, na podstawie `89c45e69b895c4a65defda938da6e855d8a6371e`,
@@ -218,3 +267,46 @@ Pomiar czeka teraz maksymalnie 2 s na trzy kolejne poprawne klatki, bez ponawian
 Fizyczne wymuszenie fontu 18 px w prawdziwym marka-panel.css zostało wykryte jako P581_ZOOM_FONT_NIEUSTALONY. Kopia poza repo, MD5 i mtime potwierdzają dokładne przywrócenie. Po przywróceniu: 8/8 dodatkowych scenariuszy i 4/4 rzeczywistych zoomów PASS. Dowody: evidence/menu581/zoom-font-negative.json, zoom-stable-200.json, menu-stable-extra.json. Pierwsza próba negatywu oblała prawidłowo, lecz miała kod NIEZNANY; nie zaliczono jej jako pełnego dowodu diagnostyki.
 
 To poprawka narzędzia pomiarowego; świeży CI i wdrożenie PR #637 pozostają do potwierdzenia.
+
+## Powtórzenie kontroli bramek — 18 września 2026, 19:01 UTC
+
+Pierwsza kontrola (13:12 UTC) była prozą bez pliku wynikowego. Ta jest
+zapisana maszynowo:
+[`evidence/panel581/bramki-20260918T1901Z.json`](evidence/panel581/bramki-20260918T1901Z.json).
+Produkcja stała wtedy na `3f315b3` (Alfa 0.67, wydanie 18 września 2026,
+20:53), czyli na innym wdrożeniu niż rano. **Wyłącznie HTTP GET bez sesji —
+nie logowano się, nie podjęto żadnej decyzji moderacyjnej, nie zmieniono
+ustawień konta ani 2FA.**
+
+Wynik identyczny co do jednej odpowiedzi: dziewięć tras panelu, dwie trasy
+szczegółowe ze zmyślonym UUID, dwie z parametrami zapytania i `/ustawienia/2fa`
+odpowiadają gościowi **302 na `/login`**, bez różnicowania. Adres panelu bez
+dalszego członu oraz `admin/tagi` zwracają **404** — tych tras po prostu nie
+ma (`routes/web.php`: grupa `auth` + `moderator` + `moderator.2fa` w l. 1010,
+spis tagów stoi publicznie poza panelem).
+
+To potwierdza trwałość bramki przez zmianę wdrożenia, ale **nie poszerza
+zakresu**: wszystko, czego ta kontrola nie pokazuje, wypisane jest wyżej
+i pozostaje aktualne.
+
+### Brakujące dowody #581 — scenariusze i kryteria
+
+1. **Odmowa dla zalogowanej osoby bez uprawnień.**
+   Scenariusz: wejść na trasę panelu jako zalogowany użytkownik bez roli
+   moderatora. Potrzebne uprawnienie: zwykłe konto testowe — **lokalne**,
+   nie produkcyjne; na produkcji kont nie zakładamy. Kryterium: odpowiedź
+   403 (albo 404 bez różnicowania), identyczna dla rekordu istniejącego
+   i nieistniejącego.
+2. **Bramka 2FA w działaniu.**
+   Scenariusz: wejść na trasę panelu jako moderator bez potwierdzonego 2FA.
+   Potrzebne uprawnienie: konto moderatora z włączonym 2FA — lokalnie.
+   Kryterium: przekierowanie na ekran potwierdzenia 2FA, a nie na treść
+   panelu, i brak obejścia przez trasę szczegółową.
+3. **Port marki na ekranach z danymi.**
+   Scenariusz: ogląd dziewięciu ekranów panelu z realnymi zgłoszeniami
+   i odwołaniami. Potrzebne dane: scena moderacyjna — **lokalna**; treści
+   decyzji nie wytwarzamy na produkcji. Kryterium: pełna macierz szerokości
+   i motywów, tekst ≥ 18 px, przyciski ≥ 48 px, zero poziomego przewijania
+   przy 320 px.
+
+**Nie zamykamy #581 na tej podstawie.**
