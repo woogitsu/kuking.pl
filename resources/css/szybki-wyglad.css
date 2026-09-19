@@ -64,3 +64,12 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
 .szybki-wyglad[data-wyglad-w-przeplywie] {
   position: relative; inset: auto; margin: 12px; max-width: 360px;
 }
+/* Podpowiedź ustępuje RAZEM Z NIM — i to nie jest kosmetyka. Podpowiedź jest
+   szeroka na `min(360px, 100vw − 24px)` i to ona, a nie przycisk, przykrywała
+   kontrolki w całości: w pomiarze do #684 wszystkie 49 nieosiągalnych
+   odnośników i przycisków siedziało pod nią, ani jeden pod samym przyciskiem.
+   Gdyby została na `position: fixed` po zejściu widgetu do przepływu, cała
+   poprawka nie dotknęłaby jedynej rzeczy, która naprawdę odbierała dostęp. */
+.szybki-wyglad[data-wyglad-w-przeplywie] + .szybki-wyglad-podpowiedz {
+  position: static; inset: auto; margin: 0 12px 12px; width: auto; max-width: 360px;
+}

@@ -32,6 +32,9 @@ function initialize() {
     const forgetHint = () => {
         hint.hidden = true;
         try { localStorage.setItem('kuking-wyglad-poznany', '1'); } catch { /* Brak pamięci nie blokuje ustawień. */ }
+        // Podpowiedź była najszerszą z pływających warstw — po jej zniknięciu
+        // widget zwykle może wrócić do pływania (issue #684).
+        zaplanujPomiar();
     };
     const geometry = () => {
         if (pointerOnFlowSummary) return;
@@ -70,6 +73,92 @@ function initialize() {
             const floating = summary.getBoundingClientRect();
             if ([...target.getClientRects()].some(r => r.right + 8 > floating.left && r.left - 8 < floating.right && r.bottom + 8 > floating.top && r.top - 8 < floating.bottom)) widget.setAttribute('data-wyglad-w-przeplywie', '');
         }
+        // Wszystko wyżej pilnuje FOKUSU, czyli klawiatury. Mysz i dotyk nie
+        // dają żadnego zdarzenia, w którym dałoby się to zauważyć — a przykryta
+        // kontrolka jest dla nich tak samo nieosiągalna (issue #684). Sam
+        // pomiar jest niżej i chodzi rzadziej niż ta funkcja; tutaj tylko
+        // czytamy jego ostatni wynik.
+        if (zaslaniaWskaznikowi) widget.setAttribute('data-wyglad-w-przeplywie', '');
+    };
+    // ────────────────────────────────────────────────────────────────────
+    //  CZY PŁYWAJĄCA WARSTWA ODBIERA DOSTĘP — issue #684
+    // ────────────────────────────────────────────────────────────────────
+    //
+    // Pytanie brzmi „czy odbiera dostęp", a NIE „czy na coś zachodzi".
+    // Zachodzi z definicji: przycisk jest `position: fixed`, więc przy
+    // przewijaniu przechodzi nad każdym fragmentem strony po kolei — to jest
+    // zamierzone i samo w sobie nikomu nie przeszkadza. Dostęp znika dopiero
+    // wtedy, gdy kontrolka jest przykryta W CAŁOŚCI: nie zostaje wtedy ani
+    // jeden piksel, w który da się kliknąć albo trafić palcem.
+    //
+    // Sprawdzamy dziewięć punktów NA KONTROLCE (rogi, środki boków, środek) —
+    // tak samo, jak mierzy to `scripts/wyglad-nie-zaslania.mjs`. Pierwsza
+    // wersja tej poprawki próbkowała punkty na WARSTWIE i przepuszczała
+    // wszystko, co się między nie zmieściło: odnośnik stopki „Regulamin"
+    // ma 78 × 20 px, a podpowiedź 296 × 227 px, więc dziewięć punktów po
+    // warstwie mijało go bez trudu. Pomiar spadł wtedy z 31 naruszeń na 25
+    // i to była jedyna różnica, jaką zrobił.
+    //
+    // DLACZEGO PRZEGLĄD WSZYSTKICH KONTROLEK, A NIE `elementsFromPoint`
+    // Bo tylko on odpowiada na to pytanie pewnie. Cenę płacimy nie
+    // oszczędzaniem na dokładności, tylko CZĘSTOTLIWOŚCIĄ: pomiar chodzi po
+    // uspokojeniu się przewijania (`ODSTEP_POMIARU`), a nie przy każdym
+    // zdarzeniu `scroll`. Podczas samego przesuwania palcem nie liczymy nic.
+    const KONTROLKI = 'a[href], button, summary, select, input:not([type="hidden"]), textarea, [role="button"]';
+    const ODSTEP_POMIARU = 150;
+    let zaslaniaWskaznikowi = false;
+    let pomiarZaplanowany = null;
+    const wWarstwie = (x, y, w) => x >= w.left && x <= w.right && y >= w.top && y <= w.bottom;
+    const odbieraDostep = () => {
+        const warstwy = [summary.getBoundingClientRect()];
+        // `!== 'static'` zamiast `=== 'fixed'`: po zejściu do przepływu arkusz
+        // stawia podpowiedź na `static` i wtedy nie leży już nad niczym.
+        if (hint && !hint.hidden && getComputedStyle(hint).position !== 'static') warstwy.push(hint.getBoundingClientRect());
+
+        const nad = warstwy.filter(w => w.width > 0 && w.height > 0);
+        if (nad.length === 0) return false;
+
+        for (const el of document.querySelectorAll(KONTROLKI)) {
+            if (widget.contains(el) || (hint && hint.contains(el))) continue;
+            const r = el.getBoundingClientRect();
+            if (r.width <= 0 || r.height <= 0) continue;
+            if (r.bottom <= 0 || r.top >= innerHeight || r.right <= 0 || r.left >= innerWidth) continue;
+            // Tanie odsianie: nie dotyka żadnej warstwy, więc nie ma sprawy.
+            if (!nad.some(w => r.right > w.left && r.left < w.right && r.bottom > w.top && r.top < w.bottom)) continue;
+
+            let wolny = false;
+            for (const x of [r.left + 2, r.left + r.width / 2, r.right - 2]) {
+                for (const y of [r.top + 2, r.top + r.height / 2, r.bottom - 2]) {
+                    // Punkt poza oknem też jest nie do trafienia — nie liczy się jako wolny.
+                    if (x < 0 || y < 0 || x >= innerWidth || y >= innerHeight) continue;
+                    if (!nad.some(w => wWarstwie(x, y, w))) { wolny = true; break; }
+                }
+                if (wolny) break;
+            }
+
+            if (!wolny) return true;
+        }
+
+        return false;
+    };
+    // Pomiar MUSI widzieć geometrię pływającą. Gdyby liczył przy widgecie już
+    // zepchniętym do przepływu, nie zobaczyłby żadnej warstwy nad stroną,
+    // orzekłby „nie zasłania", widget wróciłby do pływania i zasłonił znowu —
+    // i tak w kółko przy każdym przewinięciu.
+    const zmierzZaslanianie = () => {
+        pomiarZaplanowany = null;
+        const wPrzeplywie = widget.hasAttribute('data-wyglad-w-przeplywie');
+        if (wPrzeplywie) widget.removeAttribute('data-wyglad-w-przeplywie');
+        const teraz = odbieraDostep();
+        if (wPrzeplywie) widget.setAttribute('data-wyglad-w-przeplywie', '');
+        if (teraz === zaslaniaWskaznikowi) return;
+        zaslaniaWskaznikowi = teraz;
+        if (!teraz) widget.removeAttribute('data-wyglad-w-przeplywie');
+        geometry();
+    };
+    const zaplanujPomiar = () => {
+        if (pomiarZaplanowany !== null) clearTimeout(pomiarZaplanowany);
+        pomiarZaplanowany = setTimeout(zmierzZaslanianie, ODSTEP_POMIARU);
     };
     const save = async () => {
         if (running || !pending) return;
@@ -196,14 +285,23 @@ function initialize() {
     });
     listen(hint.querySelector('button'), 'click', forgetHint);
     try { hint.hidden = localStorage.getItem('kuking-wyglad-poznany') === '1'; } catch { hint.hidden = true; }
-    const observer = new ResizeObserver(geometry);
+    const odswiez = () => { geometry(); zaplanujPomiar(); };
+    const observer = new ResizeObserver(odswiez);
     const nav = document.querySelector('.bottom-nav');
     if (nav) observer.observe(nav);
-    listen(window, 'resize', geometry);
-    listen(window, 'scroll', geometry);
+    listen(window, 'resize', odswiez);
+    listen(window, 'scroll', odswiez);
     widget.dataset.wygladGotowy = '1';
     geometry();
-    cleanup = () => { events.abort(); observer.disconnect(); hint.hidden = true; };
+    // Pierwszy pomiar od razu, bez odstępu: podpowiedź pokazuje się przy
+    // pierwszej wizycie i potrafi przykryć treść, zanim ktokolwiek przewinie.
+    zmierzZaslanianie();
+    cleanup = () => {
+        events.abort();
+        observer.disconnect();
+        if (pomiarZaplanowany !== null) clearTimeout(pomiarZaplanowany);
+        hint.hidden = true;
+    };
 }
 initialize();
 document.addEventListener('livewire:navigating', () => cleanup());

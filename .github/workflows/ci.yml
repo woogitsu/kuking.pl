@@ -1000,7 +1000,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|wyglad-nie-zaslania)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1141,7 +1141,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|wyglad-nie-zaslania)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
@@ -1206,6 +1206,17 @@ jobs:
           DB_DATABASE: kuking_port_pomiar
           PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/port-projektu.mjs
+
+      # Widget „Wygląd" leży NAD stroną, więc jedyne pytanie, które ma tu sens,
+      # brzmi „czy da się dosięgnąć tego, co przykrywa" — a na to nie odpowie
+      # żaden test PHPUnit ani axe. Trzeba ułożyć stronę i popytać
+      # `elementFromPoint` (issue #684).
+      - name: Widget Wygląd nie odbiera dostępu do treści
+        if: steps.zmiany.outputs.warto == '1'
+        env:
+          DB_DATABASE: kuking_wyglad_pomiar
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/wyglad-nie-zaslania.mjs
 
       - name: Trzy kroki kreatora przy dużym tekście
         if: steps.zmiany.outputs.warto == '1'
@@ -1319,7 +1330,7 @@ jobs:
           zmienione="$(git diff --name-only "$baza" HEAD)"
           echo "Zmienione pliki:"; echo "$zmienione"
 
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|wyglad-nie-zaslania)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "warto=1" >> "$GITHUB_OUTPUT"
           else
             echo "warto=0" >> "$GITHUB_OUTPUT"
