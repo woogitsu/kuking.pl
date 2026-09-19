@@ -12,7 +12,7 @@
 <x-layout title="Twoje tagi" :noindex="true">
     <h1>Twoje tagi</h1>
 
-    <p class="lead">
+    <p class="text-lead">
         Z tych tagów budujemy Twoją stronę główną, dopóki nikogo nie
         obserwujesz. Kiedy zaczniesz obserwować ludzi, ich wpisy będą
         ważniejsze niż tagi — i to one pojawią się na górze.

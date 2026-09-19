@@ -1,6 +1,6 @@
 <x-layout title="Poradźcie" description="Zapytaj innych o codzienne gotowanie. Ktoś to już robił i chętnie powie, jak.">
     <h1>Poradźcie</h1>
-    <p class="lead">Ktoś to już robił i chętnie powie, jak.</p>
+    <p class="text-lead">Ktoś to już robił i chętnie powie, jak.</p>
     <p>Pytanie do innych jest w porządku.</p>
     <p><a class="btn btn-primary" href="{{ route('questions.create') }}">Zadaj pytanie</a></p>
 

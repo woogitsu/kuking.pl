@@ -45,7 +45,7 @@
 
     <h1 class="mt-0">Wszystkie tagi</h1>
 
-    <p class="lead tag-directory-intro">
+    <p class="text-lead tag-directory-intro">
         Tagi to sposób na przeglądanie bez konieczności znajomości nikogo —
         dania, składniki, okazje i sposoby przygotowania, tak jak ktoś je
         opisał przy swoim wpisie. Liczba obok nazwy to liczba wpisów
