@@ -50,7 +50,8 @@
         dania, składniki, okazje i sposoby przygotowania, tak jak ktoś je
         opisał przy swoim wpisie. Liczba obok nazwy to liczba wpisów
         widocznych dla wszystkich, także zero — pusty tag czeka na
-        pierwszy wpis.
+        pierwszy wpis. Wpis prywatny albo tylko dla obserwujących do tej
+        liczby nie wchodzi, nawet gdy jest Twój.
     </p>
 
     @if($polecane->isNotEmpty())
