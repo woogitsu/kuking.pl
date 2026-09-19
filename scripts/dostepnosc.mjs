@@ -3249,11 +3249,31 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     if (marka) {
       pomiar = marka;
       if (!sprawdzonoUjemnieRameMarki) {
+        /* `transition: none` W KAŻDEJ MUTACJI — bez tego kontrola ujemna
+           mierzy belkę W POŁOWIE ANIMACJI i sama sobie zaprzecza.
+
+           Pasek ma `transition: transform 180ms` (`pasek-przewijany.css`),
+           a te cztery mutacje są wstrzykiwane i mierzone dwoma osobnymi
+           wywołaniami przez CDP, czyli kilka milisekund po sobie. Zmierzone
+           na prawdziwej stronie: po wstrzyknięciu `translateX(20px)` odczyt
+           natychmiastowy pokazuje przesunięcie **2 px**, a po 400 ms pełne
+           **20 px**. Przy tolerancji wyśrodkowania liczonej w pikselach
+           pierwszy odczyt nie wykrywa niczego i kontrola ujemna oblewa
+           z komunikatem „nie wykryła: wyśrodkowanie belki".
+
+           Do 19 września 2026 nie było tego widać, bo `data-pasek-przewijany`
+           stał pod `@guest`, a te pomiary chodzą po stronach zalogowanej
+           osoby — tam belka nie miała żadnej tranzycji i mutacja wchodziła
+           natychmiast. Rozszerzenie chowania paska na zalogowanych odsłoniło
+           założenie, które sonda robiła po cichu.
+
+           Wyłączamy TYLKO animację, nie mierzoną własność: kontrola ujemna
+           sprawdza geometrię, a nie to, jak szybko ta geometria dojeżdża. */
         for (const [css, oczekiwanyBlad] of [
-          ['[data-marka] .marka-topbar { width: 80px !important; }', 'szerokość belki'],
-          ['[data-marka] .marka-topbar { transform: translateX(20px) !important; }', 'wyśrodkowanie belki'],
-          ['[data-marka] .topbar-inner { padding-left: 0 !important; }', 'padding belki lewy'],
-          ['[data-marka] .site-footer-inner { width: 80px !important; }', 'szerokość stopki'],
+          ['[data-marka] .marka-topbar { width: 80px !important; transition: none !important; }', 'szerokość belki'],
+          ['[data-marka] .marka-topbar { transform: translateX(20px) !important; transition: none !important; }', 'wyśrodkowanie belki'],
+          ['[data-marka] .topbar-inner { padding-left: 0 !important; transition: none !important; }', 'padding belki lewy'],
+          ['[data-marka] .site-footer-inner { width: 80px !important; transition: none !important; }', 'szerokość stopki'],
         ]) {
           const styl = await strona.evaluateHandle((tresc) => {
             const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;

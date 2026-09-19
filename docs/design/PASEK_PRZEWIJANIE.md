@@ -102,3 +102,33 @@ Fizycznego telefonu ani czytnika ekranu. Produkcji po tej zmianie —
 odbiór dopiero po wdrożeniu. Nie sprawdzono też, czy chowanie paska nie
 przeszkadza w trybie gotowania ani w panelu moderacji: oba mają własne
 układy i nie były przedmiotem tego pomiaru.
+
+### Skutek uboczny wykryty przez CI i naprawiony w sondzie
+
+Job `Dostępność (axe-core)` oblał na kontroli ujemnej ramy marki:
+`Kontrola ujemna ramy nie wykryła: wyśrodkowanie belki`
+(`scripts/dostepnosc.mjs:3270`).
+
+Przyczyna leży w **sondzie**, nie w produkcie. Kontrola wstrzykuje
+`transform: translateX(20px) !important` i mierzy belkę dwoma osobnymi
+wywołaniami przez CDP, czyli kilka milisekund po sobie. Pasek ma
+`transition: transform 180ms`, więc odczyt trafia w połowę animacji.
+
+Zmierzone na prawdziwej stronie:
+
+| odczyt | przesunięcie belki |
+|---|---|
+| natychmiast po wstrzyknięciu | **2 px** |
+| po 400 ms | **20 px** |
+
+Przy tolerancji liczonej w pikselach pierwszy odczyt nie wykrywa niczego.
+
+Do tej zmiany nie było tego widać, bo `data-pasek-przewijany` stał pod
+`@guest`, a te pomiary chodzą po stronach zalogowanej osoby — tam belka
+nie miała żadnej tranzycji i mutacja wchodziła natychmiast. Rozszerzenie
+chowania paska odsłoniło założenie, które sonda robiła po cichu.
+
+Poprawka: każda z czterech mutacji kontroli ujemnej dokłada
+`transition: none !important`. Wyłącza to **tylko animację**, nie mierzoną
+własność — kontrola sprawdza geometrię, a nie to, jak szybko ta geometria
+dojeżdża.
