@@ -429,6 +429,20 @@ Kolejność jest ułożona według skutku, nie według wygody.
 | 7 | **Zewnętrzny monitoring dostępności** | Wskazać usługę i adres | #599 — czynność właściciela, nie kodu. Dziś nie ma trzeciego niezależnego świadka |
 | 8 | **Historyczne `failed_jobs`** | Rozpoznać rodzaj i skutki **przed** jakimkolwiek ponowieniem | Zbiorcze ponowienie może wysłać **wygasłe linki albo nieaktualne wiadomości** do prawdziwych ludzi. Nie kasować ich po to, żeby health stał się zielony |
 
+> **SPROSTOWANIE Z 19 IX 2026 (#691) do wiersza 6 („#617 — rygiel na
+> zdjęcia").** Wiersza nie zmieniam — to datowany zapis. Ale kto go wykona
+> dosłownie, dostanie bucket, **z którego nic się nie usuwa**: sam rygiel
+> tylko zakazuje usuwania i nadpisywania (*„Bucket locks prevent the deletion
+> and overwriting of objects…"*), a końca retencji **nie daje**. Kasuje
+> dopiero **osobna reguła lifecycle** z okresem **dłuższym** niż rygiel, bo
+> *„Bucket lock rules take precedence over lifecycle rules"*. Przed
+> wykonaniem przeczytać sprostowaną wersję kroków 1–3 wraz z 2a
+> w [`LOKALIZACJA_DANYCH_R2.md`](LOKALIZACJA_DANYCH_R2.md) i notę przy §4a
+> w [`PRZEKAZANIE_PRAC_OPERACYJNYCH_2026_09_17.md`](PRZEKAZANIE_PRAC_OPERACYJNYCH_2026_09_17.md).
+> Źródła: <https://developers.cloudflare.com/r2/buckets/bucket-locks/>,
+> <https://developers.cloudflare.com/r2/buckets/object-lifecycles/>.
+> Rzeczywisty odbiór na prawdziwym buckecie nadal otwarty — #120 / #617 / #619.
+
 ---
 
 ## 9. Czego ta sesja nie rozstrzygnęła
