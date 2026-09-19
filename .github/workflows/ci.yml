@@ -917,6 +917,7 @@ jobs:
       - name: Nowa baza bez danych demonstracyjnych i rzeczywiste assety
         run: |
           cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           php artisan migrate --force --no-interaction
           npm run build
@@ -1050,14 +1051,11 @@ jobs:
         if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           npm run build
 
           php artisan migrate:fresh --seed --force --no-interaction
-
-      - name: Utrwalenie klucza aplikacji dla pomiaru portu
-        if: steps.zmiany.outputs.warto == '1'
-        run: sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
 
       - name: Port projektu — układ i kontrola ujemna
         if: steps.zmiany.outputs.warto == '1'
@@ -1191,14 +1189,11 @@ jobs:
         if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           npm run build
 
           php artisan migrate:fresh --seed --force --no-interaction
-
-      - name: Utrwalenie klucza aplikacji dla pomiaru portu
-        if: steps.zmiany.outputs.warto == '1'
-        run: sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
 
       - name: Port projektu — układ i kontrola ujemna
         if: steps.zmiany.outputs.warto == '1'
@@ -1405,6 +1400,7 @@ jobs:
         if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           npm run build
 
@@ -1415,9 +1411,6 @@ jobs:
           # pustej bazie i padało na healthchecku (issue #215).
           php artisan migrate:fresh --seed --force --no-interaction
 
-          # Laravel ładuje .env dla procesu `artisan serve`; utrwalamy klucz
-          # przekazany jobowi, aby runner nie użył pustej wartości z przykładu.
-          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
 
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
