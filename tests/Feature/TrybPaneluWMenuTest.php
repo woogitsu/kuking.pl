@@ -111,7 +111,16 @@ class TrybPaneluWMenuTest extends TestCase
      */
     public function test_kazdy_ekran_panelu_ma_menu_bez_pozycji_uzytkownika(): void
     {
-        $moderator = $this->moderator();
+        // ADMIN, NIE MODERATOR — i to jest o jeden ekran WIĘCEJ, nie o jeden
+        // mniej. Ta pętla przemiata WSZYSTKIE bezparametrowe trasy `/admin/**`,
+        // a od issue #717 jedna z nich (`/admin/kolejka`) ma bramkę na rolę
+        // `admin` (`UserPolicy::diagnozujKolejke`) i moderatorowi oddaje 403.
+        // `User::isModerator()` jest prawdziwe także dla roli `admin`, więc
+        // konto stąd wchodzi na każdy ekran panelu — czyli ten test pilnuje
+        // paska i menu na PEŁNEJ liście, zamiast po cichu minąć ekran, którego
+        // moderator nie widzi. Tu nie chodzi o role, tylko o układ strony;
+        // różnicę między rolami mierzy `PanelKolejkiZadanTest`.
+        $moderator = $this->admin();
 
         $trasy = collect(Route::getRoutes()->getRoutes())
             ->filter(fn ($trasa): bool => in_array('GET', $trasa->methods(), true))
