@@ -168,12 +168,18 @@ async function podniesSerwer() {
     proces.on('exit', (kod) => { umarl = kod; });
 
     let wstal = false;
+    /* OSTATNIA ODPOWIEDŹ, NIE SAM FAKT PORAŻKI — powód przy tej samej pętli
+       w `scripts/port-projektu.mjs`. Krótko: `/health` oddaje 503, kiedy padnie
+       `database` albo `migrations`, a dotąd treść tej odpowiedzi szła do kosza
+       i w dzienniku CI zostawało samo „brak odpowiedzi". */
+    let ostatnia = null;
 
     for (let i = 0; i < 60 && umarl === null; i++) {
       try {
         const odp = await fetch(`${adres}/health`);
         if (odp.ok) { wstal = true; break; }
-      } catch { /* jeszcze nie wstał */ }
+        ostatnia = `HTTP ${odp.status}: ${(await odp.text()).slice(0, 600)}`;
+      } catch (blad) { ostatnia = `połączenie nieudane: ${blad.message}`; }
       await new Promise((r) => setTimeout(r, 500));
     }
 
@@ -182,6 +188,7 @@ async function podniesSerwer() {
     proces.kill('SIGKILL');
     bledy.push(`  podejście ${podejscie}, port ${port}: `
       + (umarl !== null ? `proces zakończył się kodem ${umarl}` : 'brak odpowiedzi z /health')
+      + (ostatnia !== null ? `\n  ostatnia odpowiedź — ${ostatnia}` : '')
       + (dziennik.length > 0 ? `\n${dziennik.join('').trimEnd()}` : ''));
   }
 

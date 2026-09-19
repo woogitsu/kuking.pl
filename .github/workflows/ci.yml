@@ -1051,6 +1051,7 @@ jobs:
         if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           npm run build
 
