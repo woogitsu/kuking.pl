@@ -57,7 +57,15 @@
     @if($limitOsiagniety)
         <p class="field-help">Masz już maksymalną liczbę tagów. Usuń jeden, żeby dodać inny.</p>
     @else
-        <details class="mt-3">
+        {{--
+            `open`, gdy w środku JEST CO POKAZAĆ. Bez tego kliknięcie
+            „Sprawdź tag" (ścieżka bez JavaScriptu) przeładowuje stronę,
+            a podpowiedzi, komunikat „już dodany" i przycisk „Dodaj … jako
+            nowy tag" lądują w ZWINIĘTEJ sekcji — czyli wyszukiwanie bez JS
+            wygląda, jakby nic nie zrobiło. Wszystkie cztery bloki niżej są
+            warunkowane frazą, więc jeden warunek wystarcza.
+        --}}
+        <details class="mt-3" @if($zapytanie !== '') open @endif>
             <summary class="btn btn-quiet inline-flex">Dodaj tag bezpośrednio, jeśli nie używasz podpowiedzi w opisie</summary>
             <div class="mt-3">
         <label for="f-tag-query">Nazwa tagu</label>
