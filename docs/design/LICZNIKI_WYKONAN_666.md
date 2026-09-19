@@ -222,3 +222,52 @@ w sprawdzonych powierzchniach.
    Cała ta sekcja to `curl`, nie render. Kryterium: zrzut strony przepisu
    z widocznym `1 wykonanie` przy 320 i 1440 px w obu motywach, wykonany
    odczytowo, bez logowania i bez zapisu.
+
+## Domknięcie braku nr 3 — ogląd w przeglądarce, 19 września 2026
+
+**Brak nr 3 z listy wyżej jest zamknięty.** Punkty 1 i 2 (odmiana liczby
+mnogiej, podpis odpowiedzi i procent) pozostają otwarte i nie da się ich
+domknąć bez realnych wykonań na produkcji — patrz uzasadnienie przy nich.
+
+Wykonano rzeczywisty render w Chromium (Playwright, headless), wyłącznie
+odczytowo: GET-y bez sesji, bez logowania, bez POST-ów, bez kliknięcia
+w cokolwiek, co zapisuje. Produkcja stała na **Alfa 0.67 / `ab91185`**
+(stopka odczytana z każdej ze stron, nie przepisana z GitHuba).
+
+| Konfiguracja | `p.pasek-liczb` | licznik widoczny | przykryty | poziomy overflow |
+|---|---|---|---|---|
+| light / 320 px | `1 wykonanie` | tak | nie | nie |
+| light / 1440 px | `1 wykonanie` | tak | nie | nie |
+| dark / 320 px | `1 wykonanie` | tak | nie | nie |
+| dark / 1440 px | `1 wykonanie` | tak | nie | nie |
+
+Wszystkie cztery zrzuty **obejrzano** — nie są to tylko pliki w katalogu.
+Widać na nich nagłówek „Komu wyszło", podpis `1 wykonanie` w tym samym
+wierszu, zdanie „Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie."
+oraz jedną kartę wykonania („Mateusz · ugotowane 18 września 2026").
+Podpis nazywa **zdarzenie** i ma poprawną formę liczby pojedynczej.
+
+Dowody: [`evidence/counts666/przegladarka-produkcja/`](evidence/counts666/przegladarka-produkcja/)
+— cztery PNG, `wyniki.json` i skrypt `przegladarka-produkcja.mjs`.
+
+### Dwie rzeczy, które trzeba przy tym powiedzieć wprost
+
+1. **Podpowiedź widgetu „Wygląd" została wyłączona przed zrzutem.** Przy
+   pierwszej wizycie stała podpowiedź przykrywa treść. Ustawiono
+   `localStorage['kuking-wyglad-poznany'] = '1'` przed wczytaniem strony —
+   dokładnie ten klucz czyta `resources/js/szybki-wyglad.js` (l. 198).
+   W każdej z czterech konfiguracji potwierdzono pomiarem, że podpowiedź
+   jest niewidoczna, a środek licznika nie jest przez nic zasłonięty.
+2. **Ciemny motyw ustawiono atrybutem w DOM, nie preferencją na serwerze.**
+   Jedyne wejście w ciemny motyw to `data-theme="dark"` na `<html>`
+   (`resources/css/tokens.css`, D-019), a serwer bierze go z ciasteczka
+   `motyw`, które Laravel szyfruje. Podrobić go nie można, a `POST /motyw`
+   byłby zapisem, więc atrybut ustawiono po stronie klienta po wczytaniu
+   strony. `getComputedStyle(body).backgroundColor` zwrócił wtedy
+   `rgb(21, 23, 20)`, czyli produkcyjny token `--color-surface` trybu
+   ciemnego. Arkusz i HTML są produkcyjne; przełączony jest sam atrybut.
+   **To nie jest odbiór ścieżki zapisu preferencji motywu** — ta ścieżka
+   ma własne pokrycie w `WyborMotywuTest` i nie należy do zakresu #666.
+
+Nadal **nie jest to** test na fizycznym telefonie, czytnikiem ekranu ani
+rzeczywisty zoom 200% — te zakresy pokrywają wcześniejsze sekcje lokalne.

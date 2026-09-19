@@ -186,3 +186,27 @@ odczyt wykonano wieczorem, GET-ami bez sesji, gdy produkcja stała na
   i zeszyt bez zapisanych wpisów) `href` przycisku kończy się na
   `sekcja=przepisy`, a kliknięcie ląduje na stronie wyszukiwarki z zachowanym
   zakresem — nie na 404.
+
+## Przegląd braku — 19 września 2026
+
+Jedyny brak wymieniony wyżej przejrzano pod kątem wykonalności bez
+tworzenia treści i bez logowania na produkcji.
+
+**Nie da się go domknąć w tej sesji i nie jest to kwestia nakładu pracy.**
+Oba puste stany zeszytu są za logowaniem (`/zeszyt` → 302 na `/login`),
+a zasady odbioru zabraniają zakładania konta na produkcji i logowania się
+na cudze. Kryterium z tego braku mówi zresztą to samo: scenariusz należy
+wykonać lokalnie, a produkcyjnie **dopiero gdy właściciel udostępni sesję
+do odczytu**. Konkretnie brakuje więc jednej rzeczy: **zgody właściciela
+i sesji tylko do odczytu na koncie produkcyjnym z pustym zeszytem.**
+
+Warstwa lokalna tego scenariusza jest już zamknięta wcześniejszymi
+sekcjami tego raportu i nie wymaga powtórzenia: 48 konfiguracji z pustym
+zeszytem oraz 24 konfiguracje pustej listy zeszytów, z rzeczywistym
+kliknięciem obu CTA i wysłaniem wyszukiwania
+([`evidence/links667/`](evidence/links667/)). Dokładanie kolejnego
+lokalnego przebiegu nie przybliżyłoby odbioru produkcji ani o krok.
+
+Reszta ustaleń #667 — okruszek, `BreadcrumbList`, cel `/odkryj`, zakres
+wyszukiwarki, brak ukrytego katalogu `/przepisy` — jest potwierdzona na
+produkcji i utrzymała się po zmianie wdrożenia (sekcja z 18:54 UTC).

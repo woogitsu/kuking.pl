@@ -165,3 +165,28 @@ bo żaden publiczny tag nie ma dziś pięciu gotowych zdjęć od trzech osób.
   `<span class="meta" data-tag-public-stats>Publicznie: N zdjęć od M osób.</span>`
   z `N ≥ 5` i `M ≥ 3` oraz z poprawną odmianą rzeczownika, a na `/tagi`
   liczba przy tym tagu zgadza się z liczbą publicznie widocznych wpisów.
+
+## Przegląd braków — 19 września 2026
+
+Listę „Brakujący dowód #369" przejrzano pod kątem tego, co da się wykonać
+**bez tworzenia treści na produkcji**. Odpowiedź: nic. Jedyny brak wymaga
+tagu, który ma na produkcji **5 gotowych publicznych zdjęć od 3 różnych
+osób**, a takiego tagu nie ma — `ciasto` ma jednego autora, `sernik` jest
+pusty. Warunek spełni się po #18 albo po pierwszych wpisach użytkowników.
+**Nie zakładaliśmy kont i nie dodawaliśmy wpisów, żeby go obejść.**
+
+Przybyło natomiast jedno potwierdzenie **lokalne**, przy okazji odbioru
+#370: na runtime `127.0.0.1:8091` z bazą `kuking_pasek_370` i tagiem
+`odbior-kolaz-5` (5 publicznych wpisów, 5 autorek, po jednym zdjęciu
+`ready`) strona tagu renderuje w prawdziwej przeglądarce gałąź **powyżej
+progu**: `Publicznie: 5 zdjęć od 5 osób.` Widać to na obu obejrzanych
+zrzutach [`evidence/tags370/pointer/C-light-100-360.png`](evidence/tags370/pointer/C-light-100-360.png)
+i [`evidence/tags370/pointer/C-dark-100-390.png`](evidence/tags370/pointer/C-dark-100-390.png),
+w obu motywach, przy 360 i 390 px.
+
+Co to zmienia, a czego nie. Dotąd gałąź powyżej progu miała w tym raporcie
+potwierdzenie wizualne z **jednego** obrazu (`A-light-100-1440.png`) i to
+odczytane okiem, bo `pointer-results.json` nie zapisuje tekstu strony. Teraz
+są dwa kolejne obrazy, w drugim motywie i na małych szerokościach.
+**To nadal jest warstwa lokalna.** Produkcyjne potwierdzenie tej gałęzi
+pozostaje jedynym otwartym brakiem #369 i nie ruszyło się ani o krok.
