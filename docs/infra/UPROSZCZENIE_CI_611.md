@@ -227,13 +227,20 @@ busy" z 10 września (issue #262).
 
 ### 5.4. Kolejność: od joba, którego porażka boli najmniej
 
-| # | Job | Dlaczego ten | Stan |
+| # | Job | Dlaczego ten | Potwierdzenie na runnerze |
 |---|---|---|---|
-| 1 | `audit` | najszybszy (21 s), niczego nie blokuje | **potwierdzony na runnerze** |
-| 2 | `dwa-polaczenia` | `continue-on-error: true`, w nazwie „nie blokuje" | wysłany, runner w toku |
-| — | `lint`, `static-analysis`, `assets` | porażka blokuje, ale są szybkie | do zrobienia |
-| — | `test` | najdroższa porażka spośród niebrowserowych | do zrobienia |
-| — | `port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc` | najdłuższe i najbardziej wrażliwe | **na samym końcu** |
+| 1 | `audit` | najszybszy, niczego nie blokuje | **20 s** (mediana przed zmianą 20 s) |
+| 2 | `dwa-polaczenia` | `continue-on-error: true`, w nazwie „nie blokuje" | **31 s** (przed zmianą 30 s) |
+| 3 | `lint` | porażka blokuje, ale jest szybka; stąd wyjęto kanoniczne uzasadnienie | **43 s** (przed zmianą 41 s) |
+| 4 | `static-analysis` | j.w. | **45 s** (przed zmianą 44 s) |
+| 5 | `test` | najdroższa porażka spośród niebrowserowych | **504 s** (mediana przed zmianą 594 s) |
+| 6 | `port_marki` | najkrótszy z czterech przeglądarkowych | **czeka na runnera** |
+| — | `dostepnosc`, `port_panelu`, `port_funkcje` | najdłuższe i najbardziej wrażliwe | nietknięte |
+| — | `assets` | jedyny job bez PHP — wspólna akcja go nie dotyczy | nie dotyczy |
+
+Żaden przeniesiony job nie wyszedł poza swoje pasmo „z pomiarem". `test`
+wypadł nawet poniżej mediany, co jest zwykłym rozrzutem, a nie dowodem
+przyspieszenia — tego ten pakiet nie twierdzi.
 
 Jeden job na przyrost, każdy z własnym przebiegiem na runnerze. To jest ta
 zasada, której brak kosztował cztery dni przestoju wdrożeń.
@@ -279,23 +286,54 @@ CI nie chodzi na push gałęzi roboczej (wyzwalacze to `push` do
 `main`/`staging` i `pull_request` do nich), więc runner uruchamiany jest
 przez `workflow_dispatch` — bez zakładania PR-a.
 
+#### Czego te przebiegi NIE dowodzą
+
+Przy przyrostach trzecim i czwartym padł job `Port marki — rodziny ekranów`,
+**którego wtedy ta gałąź jeszcze nie dotykała**. Oba przerzuty na
+identycznym kodzie przeszły (1448 s i 1477 s), wracając do pasma
+„z pomiarem".
+
+Nie nazywam tego flakiem na podstawie samego przerzutu — to za słaby dowód.
+Mocniejszy jest taki: `main` na commicie bazowym tego pakietu
+(`e306842c6`) ma ten sam job na czerwono, w tym samym kroku. Objaw jest tam
+inny (`net::ERR_CONNECTION_REFUSED`) niż na gałęzi (`waitForFunction`
+po 30 s w `szybki-wyglad.mjs:238`), więc **nie twierdzę, że to jedna
+przyczyna**. Twierdzę tylko, że niestabilność jest wcześniejsza niż ten
+pakiet.
+
+Hipoteza, której **nie udowodniłem**: `workflow_dispatch` nie ma punktu
+odniesienia, więc `zakres` wchodzi w ścieżkę „mierz wszystko" i odpala
+wszystkie cztery joby przeglądarkowe naraz na trzech runnerach jednej
+maszyny. Czyli sam sposób weryfikacji tworzy najgorszy przypadek
+współbieżności — taki, jakiego zwykły przebieg na `main` nie tworzy.
+Sprawdzenie tego wymagałoby przebiegów bez równoległości; nie zrobiłem ich.
+
 ---
 
 ## 6. Czego NIE zrobiłem i dlaczego
 
-Trzy kandydaci z issue zostały zmierzone i **świadomie nietknięte**:
+Kandydaci z issue zostały zmierzone. **Pierwszy z nich został odłożony,
+a potem wykonany** — opisuję to tu zamiast wycierać, bo powód odłożenia był
+prawdziwy i jego usunięcie jest częścią wyniku.
 
-1. **Wspólny blok przygotowania środowiska w composite action.**
+1. **Wspólny blok przygotowania środowiska w composite action.** ✅ *zrobione
+   w drugim podejściu, sekcja 5.*
    Powtórzeń jest dużo: „Konfiguracja PHP" 9×, „Instalacja zależności" 9×,
    „Własny katalog narzędzi PHP" 8×, „Konfiguracja Node" 6×, „Cache
-   Composera" 4× — razem 47 nadmiarowych wystąpień kroków. Zysk byłby realny.
-   **Powodu, żeby tego nie robić teraz, jest jeden i jest twardy:** w tym
-   środowisku nie ma `actionlint` ani `act`, a ja nie mogę pushować. Nie mam
-   więc **żadnego** sposobu, żeby sprawdzić, czy composite action zachowa się
-   tak samo — a przebudowa przygotowania środowiska we wszystkich jobach naraz
-   to dokładnie ta klasa zmiany, która w tym repozytorium kosztowała cztery
-   dni przestoju wdrożeń. Zmiana bez możliwości weryfikacji nie jest
-   uproszczeniem, tylko przesunięciem ryzyka.
+   Composera" 4× — razem 47 nadmiarowych wystąpień kroków.
+
+   **Pierwotny powód odłożenia:** w tym środowisku nie było `actionlint` ani
+   `act`, a ja nie mogłem pushować — nie miałem więc **żadnego** sposobu,
+   żeby sprawdzić, czy composite action zachowa się tak samo. Przebudowa
+   przygotowania środowiska we wszystkich jobach naraz to dokładnie ta klasa
+   zmiany, która w tym repozytorium kosztowała cztery dni przestoju wdrożeń.
+
+   **Co się zmieniło:** oba narzędzia zostały zainstalowane (5.1), a praca
+   poszła job po jobie zamiast hurtem, każdy z własnym przebiegiem na
+   runnerze (5.4). `act` od razu zwrócił zysk — złapał błąd, którego
+   `actionlint` złapać nie mógł (5.2). Blokadą nie była więc sama zmiana,
+   tylko brak sposobu jej sprawdzenia; to był właściwy powód, żeby poczekać,
+   i właściwy moment, żeby ruszyć.
 2. **`APP_KEY` wpisany w 6 jobach → jedno `env:` na poziomie workflow.**
    Zysk: 6 linii. Koszt: klucz przestaje być widoczny przy jobie, który go
    potrzebuje, a `env` workflow obejmuje też joby, które go nie używają.
