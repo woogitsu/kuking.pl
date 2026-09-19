@@ -174,10 +174,16 @@ if [ ! -x vendor/bin/phpstan ]; then
     zle "Brak vendor/bin/phpstan — uruchom: composer install"
 elif ! { [ -f phpstan.neon ] || [ -f phpstan.neon.dist ] || [ -f phpstan.dist.neon ]; }; then
     zle "Brak konfiguracji PHPStana (phpstan.neon) — patrz issue #32"
-elif vendor/bin/phpstan analyse --no-progress --error-format=raw >/dev/null 2>&1; then
-    ok "PHPStan bez zastrzeżeń"
 else
-    zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    _phpstan_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-phpstan.XXXXXX")
+    if vendor/bin/phpstan analyse --no-progress --error-format=raw >"$_phpstan_log" 2>&1; then
+        rm -f "$_phpstan_log"
+        ok "PHPStan bez zastrzeżeń"
+    else
+        printf 'Wynik PHPStana zapisano w: %s\n' "$_phpstan_log"
+        tail -n 80 "$_phpstan_log"
+        zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    fi
 fi
 
 # --- 5. Testy -------------------------------------------------------------
