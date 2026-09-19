@@ -15,12 +15,29 @@
    * wtedy, gdy ten tag jest naprawdę przypięty do wpisu (o tym decyduje
    * `App\Support\LinkiWTekscie`, nie CSS).
    *
-   * POLE KLIKNIĘCIA. Nazwa tagu bywa krótka (`#zupa` to pięć znaków), a grupa
-   * odbiorcza trafia w nią palcem. Wcięcie pionowe w `em` rośnie razem
-   * z tekstem (D-082/D-107) i dokłada wysokości polu dotknięcia, nie ruszaąc
-   * układu wierszy: pionowe wcięcie elementu liniowego nie podbija wysokości
-   * wiersza. Wcięcie poziome jest zdjęte ujemnym marginesem, żeby odstępy
-   * między wyrazami zostały takie, jak je napisał człowiek.
+   * POLE KLIKNIĘCIA — I CZEGO TU ŚWIADOMIE NIE MA. Nazwa tagu bywa krótka
+   * (`#zupa` to pięć znaków), a grupa odbiorcza trafia w nią palcem. Wcięcie
+   * pionowe w `em` rośnie razem z tekstem (D-082/D-107) i dokłada wysokości
+   * polu dotknięcia, nie ruszaąc układu wierszy — pionowe wcięcie elementu
+   * liniowego nie podbija wysokości wiersza. Wcięcie poziome jest zdjęte
+   * ujemnym marginesem, żeby odstępy między wyrazami zostały takie, jak je
+   * napisał człowiek.
+   *
+   * NIE MA TU 48 px z AGENTS.md §5 i to jest decyzja, nie przeoczenie. Ta
+   * reguła mówi o WAŻNYCH PRZYCISKACH, a to jest odnośnik wewnątrz zdania —
+   * ten sam kształt, co `.link-w-tresci` i „Czytaj dalej". Dla takiego
+   * odnośnika WCAG 2.2 AA 2.5.8 wymaga 24 px i ma od tego kryterium wyjątek.
+   * Dałoby się dojść do 48 px przez `display: inline-block`, ale wtedy tag
+   * dostałby własny wiersz i rozepchał akapit tylko tam, gdzie stoi — czyli
+   * popsuł rytm czytania całej treści, żeby poprawić jedno słowo.
+   *
+   * 0.6em, A NIE WIĘCEJ, BO RESZTA I TAK NIE DZIAŁA. Wystająca część wcięcia
+   * bywa przykryta przez następny wiersz i kliknięcie w nią nie trafia
+   * w odnośnik. Zmierzone `scripts/tag-w-tresci.mjs`: pole NOMINALNE 45,8 px,
+   * pole SKUTECZNE 38–46 px (w zależności od tego, co stoi w wierszu niżej),
+   * przy skali tekstu 140% — 44–64 px, przy czcionce przeglądarki 200% —
+   * 62–77 px. Sam wiersz tekstu ma 31,4 px, więc to wcięcie dokłada realnych
+   * 7–15 px. Dowod: docs/design/evidence/tagi737/ogled-dostepnosci.txt.
    *
    * FOKUS. Ten sam wzór co `.photo-zoom-link` — pierścień w `--color-focus`
    * z odsunięciem, plus osobna reguła dla trybu wymuszonych kolorów.
@@ -29,7 +46,7 @@
     text-decoration: underline;
     text-underline-offset: 0.15em;
     font-weight: 600;
-    padding-block: 0.4em;
+    padding-block: 0.6em;
     padding-inline: 0.15em;
     margin-inline: -0.15em;
     border-radius: var(--radius-sm);
