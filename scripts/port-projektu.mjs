@@ -2,7 +2,10 @@
 import { wybierzGrupe, wykonajGrupe } from './port-grupy.mjs';
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+/* `readFileSync` pod własną nazwą: kilkaset linii niżej ten sam plik wciąga
+   `node:fs` drugi raz przez `await import(...)` i rozpakowuje z niego
+   `readFileSync` do stałej modułu. Zwykły import kolidowałby z tamtą stałą. */
+import { existsSync, readFileSync as czytajPlik } from 'node:fs';
 import { sprawdzKompozycje } from './kompozycje-marki.mjs';
 import { sprawdzZoomMarki } from './zoom-marki.mjs';
 import { sprawdzKompozycje513 } from './zainteresowania-powiadomienia-marki.mjs';
@@ -87,6 +90,46 @@ async function wolnyPort() {
   });
 }
 
+/* Ogon dziennika aplikacji — dokładany do komunikatu, kiedy serwer nie wstał.
+   Powód jest taki sam jak przy zapisywaniu ostatniej odpowiedzi, tylko o krok
+   dalej: przy `APP_DEBUG=false` (a tak chodzi CI) strona błędu 500 NIE NIESIE
+   ani nazwy wyjątku, ani komunikatu — samo „Coś poszło nie tak". Wyjątek jest
+   w `storage/logs/laravel.log`, a ten plik na runnerze znika przy następnym
+   `actions/checkout` (`git clean -ffdx` kasuje pliki pominięte przez gita).
+   Czyli po nieudanym przebiegu nie da się go już odzyskać — trzeba go
+   przepisać OD RAZU, w tym samym procesie, który zauważył porażkę.
+
+   OSTATNI WPIS, A NIE OSTATNIE N WIERSZY. Wyjątek Laravela zajmuje w tym
+   pliku kilkadziesiąt wierszy, z czego pierwszy niesie nazwę i komunikat,
+   a cała reszta to ramki stosu z `vendor/`. Ogon liczony wierszami pokazywał
+   więc wyłącznie `#38 … Pipeline->handle()` — prawdę o niczym. Bierzemy
+   NAGŁÓWEK ostatniego wpisu i kilka pierwszych ramek pod nim. */
+function ogonDziennika(ileRamek = 5) {
+  const sciezka = 'storage/logs/laravel.log';
+
+  try {
+    if (!existsSync(sciezka)) return 'dziennik aplikacji nie powstał';
+
+    const wiersze = czytajPlik(sciezka, 'utf8').split('\n').filter((w) => w.trim() !== '');
+
+    if (wiersze.length === 0) return 'dziennik aplikacji jest pusty';
+
+    /* Nagłówek wpisu zaczyna się od daty w nawiasie kwadratowym; wszystko
+       inne to kontynuacja poprzedniego wpisu. */
+    const naglowki = wiersze
+      .map((wiersz, i) => (/^\[\d{4}-\d{2}-\d{2}/.test(wiersz) ? i : -1))
+      .filter((i) => i !== -1);
+
+    if (naglowki.length === 0) return wiersze.slice(-ileRamek).join('\n');
+
+    const od = naglowki[naglowki.length - 1];
+
+    return wiersze.slice(od, od + 1 + ileRamek).map((w) => w.slice(0, 500)).join('\n');
+  } catch (blad) {
+    return `dziennika nie dało się odczytać: ${blad.message}`;
+  }
+}
+
 async function podniesSerwer() {
   if (process.env.ADRES) return { adres: process.env.ADRES, zamknij: () => {} };
 
@@ -159,6 +202,7 @@ async function podniesSerwer() {
     bledy.push(`  podejście ${podejscie}, port ${port}: `
       + (umarl !== null ? `proces zakończył się kodem ${umarl}` : 'brak odpowiedzi z /health')
       + (ostatnia !== null ? `\n  ostatnia odpowiedź — ${ostatnia}` : '')
+      + `\n  ogon storage/logs/laravel.log:\n${ogonDziennika()}`
       + (dziennik.length > 0 ? `\n${dziennik.join('').trimEnd()}` : ''));
   }
 

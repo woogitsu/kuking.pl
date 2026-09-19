@@ -50,7 +50,7 @@
  */
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, readFileSync as czytajPlik } from 'node:fs';
 
 const KONTO = 'ania';
 const HASLO = 'haslo-testowe-123';
@@ -118,6 +118,37 @@ async function wolnyPort() {
       gniazdo.close(() => resolve(port));
     });
   });
+}
+
+/* Ogon dziennika aplikacji — pełne uzasadnienie przy tej samej funkcji
+   w `scripts/port-projektu.mjs`. Krótko: przy `APP_DEBUG=false` strona błędu
+   500 nie niesie nazwy wyjątku, `storage/logs/laravel.log` znika z runnera
+   przy następnym `actions/checkout`, a ogon liczony wierszami pokazywałby
+   same ramki stosu — więc bierzemy nagłówek OSTATNIEGO wpisu. */
+function ogonDziennika(ileRamek = 5) {
+  const sciezka = 'storage/logs/laravel.log';
+
+  try {
+    if (!existsSync(sciezka)) return 'dziennik aplikacji nie powstał';
+
+    const wiersze = czytajPlik(sciezka, 'utf8').split('\n').filter((w) => w.trim() !== '');
+
+    if (wiersze.length === 0) return 'dziennik aplikacji jest pusty';
+
+    /* Nagłówek wpisu zaczyna się od daty w nawiasie kwadratowym; wszystko
+       inne to kontynuacja poprzedniego wpisu. */
+    const naglowki = wiersze
+      .map((wiersz, i) => (/^\[\d{4}-\d{2}-\d{2}/.test(wiersz) ? i : -1))
+      .filter((i) => i !== -1);
+
+    if (naglowki.length === 0) return wiersze.slice(-ileRamek).join('\n');
+
+    const od = naglowki[naglowki.length - 1];
+
+    return wiersze.slice(od, od + 1 + ileRamek).map((w) => w.slice(0, 500)).join('\n');
+  } catch (blad) {
+    return `dziennika nie dało się odczytać: ${blad.message}`;
+  }
 }
 
 async function podniesSerwer() {
@@ -189,6 +220,7 @@ async function podniesSerwer() {
     bledy.push(`  podejście ${podejscie}, port ${port}: `
       + (umarl !== null ? `proces zakończył się kodem ${umarl}` : 'brak odpowiedzi z /health')
       + (ostatnia !== null ? `\n  ostatnia odpowiedź — ${ostatnia}` : '')
+      + `\n  ogon storage/logs/laravel.log:\n${ogonDziennika()}`
       + (dziennik.length > 0 ? `\n${dziennik.join('').trimEnd()}` : ''));
   }
 
