@@ -220,9 +220,13 @@ fi
 
 # --- 6. Odwracalność migracji --------------------------------------------
 krok "Odwracalność migracji"
-if php artisan migrate:refresh --force --env=testing --no-interaction >/dev/null 2>&1; then
+_migrate_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-migrate.XXXXXX")
+if php artisan migrate:refresh --force --env=testing --no-interaction >"$_migrate_log" 2>&1; then
+    rm -f "$_migrate_log"
     ok "Migracje cofają się i wracają"
 else
+    printf 'Wynik migracji zapisano w: %s\n' "$_migrate_log"
+    tail -n 80 "$_migrate_log"
     zle "Migracja nie ma działającego down() — nie da się jej wycofać podczas awarii"
 fi
 
