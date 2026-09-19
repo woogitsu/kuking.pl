@@ -50,6 +50,10 @@ class SamodzielneEkranyMarkiTest extends TestCase
             'generatedAt' => now(), 'displayName' => 'Próba eksportu',
             'recipes' => [], 'postCount' => 0, 'cookedCount' => 0,
             'photoCount' => 0, 'photosStillProcessing' => 0,
+            // Zeszyt bez cudzych przepisów — zdanie o ich ograniczeniu wtedy
+            // nie wychodzi. Ten test pyta o markę arkusza, nie o treść zdania;
+            // obie gałęzie warunku mierzy `EksportWygladObietnicePaczkiTest`.
+            'savedOtherRecipeCount' => 0,
         ])->render();
         $dom = $this->document($html);
         $this->assertSame('Twoje dane z Kuking', trim($dom->query('//h1')->item(0)->textContent));
