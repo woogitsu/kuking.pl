@@ -96,14 +96,38 @@ final class CollectUserExportData
                 // jest zawsze, także gdy wynosi zero. Klucz pojawiający się
                 // tylko czasem zmuszałby czytający program do zgadywania,
                 // czy granicy nie ma, czy paczkę zbudowała starsza wersja.
+                // Trzecia granica dołożona po #692, po TEJ SAMEJ stronie
+                // opisanej niżej linii co dwie poprzednie — i z tego samego
+                // powodu. To jest REGUŁA eksportu, nie cecha tego jednego
+                // archiwum: zdjęcie odrzucone albo skasowane nie wejdzie do
+                // ŻADNEJ paczki, także przyszłej, niezależnie od tego, czy
+                // akurat to konto ma dziś takie zdjęcie. Ile ich jest w TEJ
+                // paczce, mówią dwa liczniki niżej; czego paczka nie niesie
+                // NIGDY, mówi to zdanie. Gdyby stało pod warunkiem, program
+                // czytający paczkę konta bez odrzuconych musiałby zgadywać,
+                // czy reguły nie ma, czy tylko nie było czego liczyć.
+                //
+                // Zakresu danych to nie rusza: nie dokładamy ani jednego
+                // zdjęcia, ani powodu odrzucenia, ani identyfikatora.
                 'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta. '
-                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały.',
+                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
+                    .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
                 // się tylko przy brakach zmusiłby program czytający paczkę do
                 // zgadywania, czy zera nie ma, bo braków nie było, czy dlatego,
                 // że paczkę zbudowała starsza wersja serwisu (issue #113).
                 'zdjec_jeszcze_w_przygotowaniu' => $photos->stillProcessingCount(),
+                // Oba pola ZAWSZE, także gdy wynoszą zero — ta sama reguła
+                // i to samo uzasadnienie co wiersz wyżej (issue #113).
+                //
+                // Osobno, a nie w jednej sumie, bo to są dwa różne fakty
+                // o koncie i dwa różne zdania dla człowieka: odrzucone
+                // wolno wgrać jeszcze raz, skasowane są skasowane.
+                // Program, który chce tylko „ile brakuje", doda je sobie;
+                // program, który dostałby sumę, nie rozdzieli jej nigdy.
+                'zdjec_odrzuconych_przy_przygotowaniu' => $photos->rejectedCount(),
+                'zdjec_skasowanych' => $photos->deletedCount(),
             ],
             'konto' => $this->account($user),
             'profil' => $this->profile($user, $photos),

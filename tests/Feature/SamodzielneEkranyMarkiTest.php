@@ -50,6 +50,9 @@ class SamodzielneEkranyMarkiTest extends TestCase
             'generatedAt' => now(), 'displayName' => 'Próba eksportu',
             'recipes' => [], 'postCount' => 0, 'cookedCount' => 0,
             'photoCount' => 0, 'photosStillProcessing' => 0,
+            // Ten test pyta o markę arkusza, nie o treść ostrzeżeń — komplet
+            // zer, żeby render miał wszystkie dane (#692).
+            'photosRejected' => 0, 'photosDeleted' => 0,
             // Zeszyt bez cudzych przepisów — zdanie o ich ograniczeniu wtedy
             // nie wychodzi. Ten test pyta o markę arkusza, nie o treść zdania;
             // obie gałęzie warunku mierzy `EksportWygladObietnicePaczkiTest`.

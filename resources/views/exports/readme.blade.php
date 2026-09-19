@@ -125,6 +125,49 @@ zdjecia/
     W chwili jej budowania {{ $sie }} się jeszcze do pokazania w serwisie.
     Poproś o nową paczkę, gdy przygotowywanie zdjęć się zakończy. Przed usunięciem konta sprawdź, czy zawiera wszystkie Twoje zdjęcia.
 @endif
+{{--
+    ZDJĘCIA, KTÓRE DO PACZKI NIE WEJDĄ NIGDY (issue #692).
+
+    Ten sam komunikat co w `index.html` i z tego samego powodu — paczka
+    nie ma prawa mówić dwóch różnych rzeczy o jednej sytuacji w dwóch
+    swoich plikach. Pełne uzasadnienie (dlaczego DWA bloki, dlaczego
+    różny ton i dlaczego oba pod warunkiem `> 0`, skoro reguła
+    w `dane.json` stoi bezwarunkowo) jest przy tym samym bloku
+    w `index.blade.php`; nie przepisujemy go tu drugi raz.
+
+    Tu jest wyłącznie LICZBA. Zakres danych paczki nie zmienia się o nic.
+--}}
+@if($photosRejected > 0)
+@php
+    // Liczebnik i oba czasowniki odmieniają się tak samo (1 / 2-4 / 5+
+    // i nastki) — wszystkie formy z tej samej funkcji.
+    $ileOdrzuconych = $photosRejected;
+    $zdjeciaOdrzucone = \App\Support\Odmiana::rzeczownik($ileOdrzuconych, 'zdjęcie', 'zdjęcia', 'zdjęć');
+    $weszloOdrzucone = \App\Support\Odmiana::rzeczownik($ileOdrzuconych, 'weszło', 'weszły', 'weszło');
+    $wejdzieOdrzucone = \App\Support\Odmiana::rzeczownik($ileOdrzuconych, 'wejdzie', 'wejdą', 'wejdzie');
+    $ichOdrzuconych = \App\Support\Odmiana::rzeczownik($ileOdrzuconych, 'go', 'ich', 'ich');
+@endphp
+
+    UWAGA: {{ $ileOdrzuconych }} {{ $zdjeciaOdrzucone }} nie {{ $weszloOdrzucone }} do tej paczki
+    i nie {{ $wejdzieOdrzucone }} do żadnej następnej.
+    Nie udało się {{ $ichOdrzuconych }} przygotować do pokazania w serwisie, a tego już
+    się nie cofnie — nowa paczka nic tu nie zmieni.
+    Oryginały, które masz u siebie na komputerze albo w telefonie,
+    możesz wgrać do Kuking jeszcze raz.
+@endif
+@if($photosDeleted > 0)
+@php
+    $ileSkasowanych = $photosDeleted;
+    $zdjeciaSkasowane = \App\Support\Odmiana::rzeczownik($ileSkasowanych, 'zdjęcie', 'zdjęcia', 'zdjęć');
+    $weszloSkasowane = \App\Support\Odmiana::rzeczownik($ileSkasowanych, 'weszło', 'weszły', 'weszło');
+    $wejdzieSkasowane = \App\Support\Odmiana::rzeczownik($ileSkasowanych, 'wejdzie', 'wejdą', 'wejdzie');
+@endphp
+
+    {{ $ileSkasowanych }} {{ $zdjeciaSkasowane }}, które skasowano z Kuking,
+    nie {{ $weszloSkasowane }} do tej paczki i nie {{ $wejdzieSkasowane }} do żadnej następnej.
+    Skasowane zdjęcie znika z serwisu razem ze swoimi plikami,
+    więc nie ma już czego do paczki włożyć.
+@endif
 
 dane.json
     Ten sam zestaw danych w formacie dla programów. Przydaje się,

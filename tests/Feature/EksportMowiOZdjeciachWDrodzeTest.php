@@ -292,14 +292,44 @@ class EksportMowiOZdjeciachWDrodzeTest extends TestCase
         // `rejected` też nie ma w paczce, ale to jest INNA wiadomość: takie
         // zdjęcie nie pojawi się w niej NIGDY, więc „poproś o nową paczkę
         // za kilka minut" byłoby zwykłą nieprawdą.
+        //
+        // TEN TEST PILNUJE ROZDZIAŁU GAŁĘZI, NIE MILCZENIA (issue #692).
+        //
+        // Do #692 stała tu druga asercja — `assertStringNotContainsString(
+        // 'class="uwaga"', $index)` — i ustanawiała CAŁKOWITE milczenie
+        // o zdjęciu odrzuconym jako stan docelowy. Tego nikt nigdy nie
+        // postanowił: komentarz w `ExportPhotoPlan` mówił tylko, że to jest
+        // INNA wiadomość, a nie że jej nie ma. Paczka mówi o niej dziś
+        // w osobnym bloku i pilnuje tego
+        // `EksportMowiOZdjeciachKtoreNieWejdaNigdyTest`.
+        //
+        // Zostaje to, co ten test naprawdę miał chronić: gałąź „w drodze"
+        // nie ma prawa wejść na scenę, w której żadne zdjęcie w drodze nie
+        // istnieje. Asercja na zdanie, nie na klasę CSS — klasa nic nie
+        // mówi o tym, KTÓRA wiadomość padła.
         $basia = $this->user('basia');
         $this->zdjecie($basia, 'sernik', Media::STATUS_READY);
         $this->zdjecie($basia, 'spalony', Media::STATUS_REJECTED);
 
-        $index = $this->zArchiwum($this->zbudujPaczke($basia), 'index.html');
+        $index = $this->jednymWierszem(
+            $this->zArchiwum($this->zbudujPaczke($basia), 'index.html'),
+        );
 
         $this->assertStringNotContainsString(self::ZDANIE_O_BRAKU, $index);
-        $this->assertStringNotContainsString('class="uwaga"', $index);
+        $this->assertStringNotContainsString(
+            'Poproś o nową paczkę',
+            $index,
+            'Paczka obiecuje, że zdjęcie odrzucone dojdzie w następnej — a ono nie dojdzie nigdy.',
+        );
+
+        // Kontrola dodatnia dla asercji wyżej: sama negacja przeszłaby też
+        // wtedy, gdyby widok przestał mówić o odrzuconym cokolwiek
+        // (pułapka 4 z `docs/PULAPKI_TESTOW.md`).
+        $this->assertStringContainsString(
+            '1 zdjęcie nie weszło do tej paczki i nie wejdzie do żadnej następnej',
+            $index,
+            'Paczka znów milczy o zdjęciu odrzuconym (issue #692).',
+        );
     }
 
     public function test_liczebnik_w_ostrzezeniu_jest_odmieniony_po_polsku(): void

@@ -195,6 +195,77 @@
         </div>
     @endif
 
+    {{--
+        ZDJĘCIA, KTÓRE DO PACZKI NIE WEJDĄ NIGDY (issue #692).
+
+        To jest ta „inna wiadomość", którą `ExportPhotoPlan` zapowiadał
+        od #113 w komentarzu przy `stillProcessing`, a której nikt nie
+        napisał. Blok wyżej mówi „jeszcze się przetwarzają, poproś o nową
+        paczkę". Tutaj taka rada byłaby nieprawdą: `rejected` i `deleted`
+        są stanami końcowymi i kolejna paczka też ich nie przyniesie.
+
+        DWA BLOKI, NIE JEDEN, I RÓŻNY TON.
+        Odrzucone to STRATA, której człowiek nie wybierał — przygotowanie
+        pliku padło (`ProcessUploadedImage`), a on o tym mógł nigdy nie
+        usłyszeć. Stąd `uwaga` i rada, co da się zrobić: wgrać oryginał
+        jeszcze raz. Skasowane to jego WŁASNA decyzja — krzyczenie na
+        kogoś „UWAGA!" za to, że sam coś skasował, byłoby hałasem, a nie
+        informacją. Stąd zwykły akapit: potwierdzenie, nie alarm.
+        To jest odpowiedź na pytanie z issue, czy te dwa stany zasługują
+        na jedno zdanie, czy na dwa — na dwa, bo różnią się i przyczyną,
+        i tym, co człowiekowi zostaje do zrobienia.
+
+        OBIE GAŁĘZIE STOJĄ POD WARUNKIEM `> 0` — i to jest ta sama strona
+        granicy, co zdanie o cudzych przepisach w zeszycie. `index.html`
+        czyta CZŁOWIEK i opisuje mu TĘ paczkę, więc zdanie o brakach,
+        których w niej nie ma, opisywałoby nieobecne. Reguła — że takie
+        zdjęcia nie wchodzą do żadnej paczki — stoi BEZWARUNKOWO po
+        drugiej stronie, w `czego_nie_zawiera` w `dane.json`, razem
+        z licznikami, które są tam zawsze, także przy zerze.
+
+        Bloki są niezależne od ostrzeżenia o zdjęciach w drodze i od
+        siebie nawzajem: konto może mieć wszystkie trzy rzeczy naraz.
+
+        Zakres danych paczki nie zmienia się o nic — tu jest wyłącznie
+        LICZBA. Żadnego zdjęcia, żadnego powodu odrzucenia, żadnego
+        identyfikatora.
+    --}}
+    @if($photosRejected > 0)
+        @php
+            // Liczebnik, czasownik w przeszłości i w przyszłości odmieniają
+            // się tak samo (1 / 2-4 / 5+ i nastki) — wszystkie z tej samej
+            // funkcji, inaczej wyszłoby „3 zdjęć nie weszły".
+            $zdjeciaOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'zdjęcie', 'zdjęcia', 'zdjęć');
+            $weszloOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'weszło', 'weszły', 'weszło');
+            $wejdzieOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'wejdzie', 'wejdą', 'wejdzie');
+            $ichOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'go', 'ich', 'ich');
+        @endphp
+        <div class="uwaga">
+            <p>
+                <strong>UWAGA: {{ $photosRejected }} {{ $zdjeciaOdrzucone }} nie {{ $weszloOdrzucone }} do tej paczki i nie {{ $wejdzieOdrzucone }} do żadnej następnej.</strong>
+                Nie udało się {{ $ichOdrzucone }} przygotować do pokazania w serwisie, a tego już się nie cofnie —
+                nowa paczka nic tu nie zmieni.
+                Oryginały, które masz u siebie na komputerze albo w telefonie, możesz wgrać do Kuking jeszcze raz.
+            </p>
+        </div>
+    @endif
+
+    @if($photosDeleted > 0)
+        @php
+            // „które skasowano" jest tu nieodmienne (1: „zdjęcie, które
+            // skasowano", 5: „zdjęć, które skasowano"), więc form jest trzy,
+            // nie pięć.
+            $zdjeciaSkasowane = \App\Support\Odmiana::rzeczownik($photosDeleted, 'zdjęcie', 'zdjęcia', 'zdjęć');
+            $weszloSkasowane = \App\Support\Odmiana::rzeczownik($photosDeleted, 'weszło', 'weszły', 'weszło');
+            $wejdzieSkasowane = \App\Support\Odmiana::rzeczownik($photosDeleted, 'wejdzie', 'wejdą', 'wejdzie');
+        @endphp
+        <p>
+            {{ $photosDeleted }} {{ $zdjeciaSkasowane }}, które skasowano z Kuking, nie {{ $weszloSkasowane }}
+            do tej paczki i nie {{ $wejdzieSkasowane }} do żadnej następnej.
+            Skasowane zdjęcie znika z serwisu razem ze swoimi plikami, więc nie ma już czego do paczki włożyć.
+        </p>
+    @endif
+
     <h2>Pliki techniczne</h2>
     <ul class="spis">
         <li>
