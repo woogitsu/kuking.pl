@@ -1,7 +1,13 @@
 # Liczniki wykonań — #666
 
-Stan: lokalna poprawka w toku, Alfa 0.64 nie została wysłana ani wdrożona.
-Baza: 397a742a56da0233d19ccf0c6ec1c20e199718a5 (Alfa 0.63).
+Stan: **scalone i wdrożone**, odbiór produkcji niedomknięty.
+PR #671 scalony 18.09.2026 jako `bdc56b8` (Alfa 0.64). Produkcja **w chwili
+pomiaru opisanego niżej** (18.09.2026, przed południem UTC) stała na `55877e2`
+(Alfa 0.65), CI main 35331870558 i Deploy 35333641106: success. Wieczorem tego
+samego dnia produkcja stała już na `3f315b3` (Alfa 0.67) i pokazywała inne
+dane — patrz sekcja z 18:54 UTC.
+Zdanie o niewysłanej Alfie 0.64 i baza `397a742` poniżej to snapshot sprzed
+scalenia. Blokuje wyłącznie sekcja „Granica dowodu produkcji — 18 września 2026”.
 
 ## Problem i zmiana
 
@@ -88,3 +94,131 @@ Produkcję obejrzano także w rzeczywistym Chromium jako gość,1440×1000,
 jasny motyw: przepis Bigos z cukinii, sekcja Komu wyszło i pusty stan.
 Zrzut production-empty666.png obejrzany, production-browser.json potwierdza
 wersję i SHA. Bez zmiany danych. Nie rozszerza to odbioru na niezerowe liczniki.
+
+
+## Granica dowodu produkcji — 18 września 2026
+
+Odbiór wyłącznie odczytowy: GET-y HTTP bez sesji, bez tworzenia wykonań,
+odpowiedzi i kont. **Odczyt HTML, nie interakcja w przeglądarce.**
+
+**Warstwa dowodu.** Adresy, frazy wyszukiwania i cytaty HTML z tej sekcji nie
+mają własnego pliku wynikowego w repozytorium: `evidence/counts666/` zawiera
+odczyty z Alfy 0.64 (`production-http.json`, `production-browser.json`,
+`production-empty666.png`), a nie z `55877e2`. Wersję i SHA strony przepisu na
+`55877e2` potwierdza natomiast obcy plik z tego samego odbioru —
+`evidence/tags369/production-read-20260918.json`, wpis
+dla strony przepisu o slugu bigos-z-cukinii. Cytaty poniżej pozostają prozą
+przebiegu, nie zapisem maszynowym.
+
+### Ile publicznych przepisów znaleziono w sprawdzonych powierzchniach
+
+**Jeden — w powierzchniach wymienionych niżej.** To nie jest pełny spis bazy
+i nie zastępuje go; zdanie „publiczny przepis jest dokładnie jeden” zostało
+18.09.2026 wieczorem zawężone do sprawdzonego zakresu. Sprawdzone trzema
+drogami zamiast przyjęcia założenia:
+
+- `/szukaj?sekcja=przepisy` z realnymi zapytaniami: `bigos` → `Znaleziono 1 przepis.`
+  i jedyny odnośnik `https://kuking.pl/przepisy/bigos-z-cukinii`; `rolada`, `kawowa`,
+  `ciasto`, `zupa`, `placki`, `obiad` → `Nic nie znaleźliśmy` (HTTP 200 w każdym przypadku),
+- zakładki `?zakladka=przepisy` profili `/@izazpodlasia`, `/@on_the_plate`, `/@ulalala`:
+  tylko `@ulalala` ma przepis i jest to ten sam Bigos z cukinii,
+- `/`, `/odkryj` i trzy strony wpisów: jedyne odnośniki `/przepisy/…` prowadzą do bigosu.
+
+**Korekta wcześniejszego założenia:** „Rolada kawowa” Ewy Kapicy **nie jest przepisem**,
+tylko wpisem — `https://kuking.pl/wpisy/01a0a6af-4aea-7230-9b41-8c6d4b694eee`.
+`https://kuking.pl/przepisy/rolada-kawowa` zwraca **404**. W sprawdzonych
+powierzchniach nie znaleziono więc drugiego przepisu, na którym można by
+szukać niezerowych liczników.
+
+### Co pokazuje jedyny publiczny przepis
+
+`https://kuking.pl/przepisy/bigos-z-cukinii` → HTTP 200, stopka `Alfa 0.65` / `55877e2`.
+Sekcja wykonań w HTML, cytat dosłowny:
+
+```html
+<h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
+...
+<p class="empty-state-title">Jeszcze nikt tego nie gotował</p>
+<p class="empty-state-opis"><p class="mb-0">Twoje wykonanie będzie pierwsze.</p></p>
+```
+
+Zero wykonań. Zakładki `?zakladka=ugotowane` wszystkich trzech profili publicznych
+zwracają `Brak wykonań`. W całym pobranym HTML produkcji (strona główna, `/odkryj`,
+trzy wpisy, trzy profile z zakładkami, sześć stron wyszukiwania, strona przepisu)
+**nie występuje ani jedna etykieta z niezerową liczbą** — ani `N wykonań`,
+ani `N osób`, ani `N z M odpowiedzi`, ani `Ugotowane N ×`.
+
+### Co to znaczy dla odbioru
+
+Pozytywnie: oba publicznie widoczne puste stany nazywają **zdarzenie**, nie osobę —
+`Twoje wykonanie będzie pierwsze.` oraz `Brak wykonań`. Zgodnie z zakresem #666.
+
+Granica: **w sprawdzonych powierzchniach nie znaleziono żadnego wykonania**
+(sformułowanie zawężone 18.09.2026 wieczorem — wcześniej stało tu „zero wykonań
+na całej produkcji”, co wykraczało poza wyliczony wyżej zakres). Oznacza to, że
+niezerowych podpisów
+(`4 wykonania`, `2 z 4 odpowiedzi`, `50% odpowiedzi`, odmiana 0/1/2/5/12/22)
+nie da się dziś obejrzeć na rzeczywistych danych. Brak danych **nie jest wynikiem
+pozytywnym** — to granica dowodu, a nie potwierdzenie. Nie tworzyliśmy wykonań
+ani fixture na produkcji, żeby ją obejść.
+
+Warunek domknięcia pozostaje jeden: gdy na produkcji pojawi się przepis z co
+najmniej jednym wykonaniem, potwierdzić na nim etykietę liczby wykonań, a przy
+co najmniej trzech odpowiedziach również podpis odpowiedzi i procent.
+
+## Ponowny odczyt produkcji — 18 września 2026, 18:54 UTC
+
+Poprzednia sekcja zostaje jako wynik historyczny na `55877e2` (Alfa 0.65).
+Ten odczyt wykonano wieczorem, wyłącznie GET-em bez sesji, gdy produkcja
+stała na `3f315b3` (Alfa 0.67, wydanie 18 września 2026, 20:53). Zapis
+kodów odpowiedzi:
+[`evidence/produkcja/odczyt-20260918T1854Z.json`](evidence/produkcja/odczyt-20260918T1854Z.json).
+
+**Niezerowy licznik wykonań jest już widoczny na produkcji.** Na
+`https://kuking.pl/przepisy/bigos-z-cukinii` (HTTP 200) w nagłówku sekcji
+„Komu wyszło” stoi dosłownie:
+
+```html
+<h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
+<p class="pasek-liczb meta m-0">
+    1 wykonanie
+</p>
+```
+
+Pusty stan „Jeszcze nikt tego nie gotował” zniknął z tej strony. Etykieta
+nazywa **zdarzenie**, nie osobę, i ma poprawną formę liczby pojedynczej
+(`1 wykonanie`, nie `1 wykonań`) — czyli dokładnie to, o co chodziło w #666.
+Komentarze na tym przepisie nadal mają pusty stan
+(`Jeszcze nikt tu nic nie napisał`).
+
+Zakładki `?zakladka=ugotowane` trzech znanych profili publicznych
+(`/@izazpodlasia`, `/@on_the_plate`, `/@ulalala`) wciąż zwracają
+`Brak wykonań` — to wykonanie nie jest przypisane do żadnego z nich
+w sprawdzonych powierzchniach.
+
+### Co zostało udowodnione, a co nie
+
+| Etykieta z #666 | Stan | Warstwa |
+|---|---|---|
+| pusty stan wykonań nazywa zdarzenie | udowodnione | produkcja, odczyt HTML, 13:xx UTC |
+| pusty stan komentarzy nazywa zdarzenie | udowodnione | produkcja, odczyt HTML, 18:54 UTC |
+| niezerowa liczba wykonań, forma pojedyncza | **udowodnione** | produkcja, odczyt HTML, 18:54 UTC |
+| odmiana 2/5/12/22 wykonań | nieudowodnione na produkcji | lokalnie: 33/180, 96 konfiguracji |
+| podpis odpowiedzi `N z M odpowiedzi` i procent | nieudowodnione na produkcji | lokalnie |
+
+### Brakujące dowody #666 — scenariusze i kryteria
+
+1. **Odmiana przy liczbie mnogiej.**
+   Scenariusz: odczytać stronę przepisu, który ma na produkcji 2, 5 i 22
+   wykonania. Potrzebne dane: przepis z taką liczbą wykonań — powstaje
+   wyłącznie z realnego gotowania użytkowników. **Nie tworzymy wykonań na
+   produkcji.** Kryterium: w `p.pasek-liczb` stoi kolejno `2 wykonania`,
+   `5 wykonań`, `22 wykonania`.
+2. **Podpis odpowiedzi i procent.**
+   Scenariusz: odczytać przepis z co najmniej trzema odpowiedziami na
+   wykonania. Kryterium: widoczny podpis `N z M odpowiedzi` oraz procent
+   liczony z tych samych N i M, bez zaokrąglenia w górę do 100% przy N < M.
+3. **Ogląd w przeglądarce zamiast odczytu HTML.**
+   Cała ta sekcja to `curl`, nie render. Kryterium: zrzut strony przepisu
+   z widocznym `1 wykonanie` przy 320 i 1440 px w obu motywach, wykonany
+   odczytowo, bez logowania i bez zapisu.

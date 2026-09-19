@@ -1,8 +1,13 @@
 # Strony tagów — #370
 
-Stan: implementacja i lokalne pomiary przeglądarkowe; końcowe review i CI w toku przygotowania.
-Robocza wersja: Alfa 0.63 — jeszcze niewdrożona.
-Baza: `e22b79de7d1d37f449cf2e69b204421ad2226457` (statystyki #369).
+Stan: **scalone i wdrożone**, odbiór produkcji niedomknięty.
+PR #669 scalony 18.09.2026 jako `397a742` (Alfa 0.63). Produkcja **w chwili
+pomiaru opisanego niżej** (18.09.2026, 13:10–13:24 UTC) stała na `55877e2`
+(Alfa 0.65), CI main 35331870558 i Deploy 35333641106: success. To nie jest
+deklaracja o zawsze aktualnym SHA — produkcja rusza dalej, a każdy wynik
+w tym pliku ma przy sobie datę i SHA, na którym powstał.
+Zdanie o „jeszcze niewdrożonej Alfie 0.63” i baza `e22b79d` poniżej to snapshot
+sprzed scalenia; zostawiamy go jako zapis przebiegu prac.
 
 ## Zachowanie
 
@@ -119,3 +124,151 @@ aby kolejność gospodarza różniła się od alfabetu i obu sortowań liczby wp
 wywołał właściwą porażkę href: oczekiwano Zupy, otrzymano Salatki.
 Przywrócono MD5/mtime i potwierdzono wynik dodatni. Osobna baza form-tests;
 nie zmieniano źródeł działającego pełnego hooka f26f727.
+
+
+## Granica dowodu produkcji — 18 września 2026
+
+Odbiór wyłącznie odczytowy, GET-y HTTP bez sesji, bez zapisu i bez danych
+demonstracyjnych na produkcji. **Odczyt HTML, nie interakcja w przeglądarce.**
+
+Publicznej strony tagu z danymi na produkcji nie ma, bo nie ma **żadnego**
+publicznego tagu. Potwierdzone czterema drogami, nie samą listą: `/tagi` → 200
+z `Tagi jeszcze się nie pojawiły`; `/szukaj?sekcja=przepisy` → 200 z
+`Nie ma jeszcze polecanych tagów.`; pięć prób bezpośrednich adresów strony
+pojedynczego tagu (`/tag/{tag}`) → 404; zero odnośników do strony pojedynczego
+tagu na stronie głównej, `/odkryj`, trzech stronach wpisów
+i trzech profilach publicznych. Szczegóły i cytaty: `STATYSTYKI_TAGOW_369.md`.
+
+Nie są zatem potwierdzone na produkcji: kolaż z prawdziwymi zdjęciami, reguła
+jednego zdjęcia od osoby na żywych danych, CTA „Dodaj wpis z tym tagiem” przy
+istniejącym tagu ani bogate karty tagów promowanych. Potwierdzony jest wyłącznie
+pusty stan obu powierzchni. Nie dodawaliśmy tagów ani wpisów, żeby to obejść.
+
+## Mysz i dotyk na kolażu — pomiar lokalny 18 września 2026
+
+Dotychczasowe dowody osiągalności kolażu były **klawiaturowe** (`actions.mjs`:
+Tab, obrys, `elementFromPoint` w środku elementu, Enter). Brakowało wskaźnika,
+a to on jest scenariuszem podstawowym. Uzupełniamy ten pomiar.
+
+Runtime: własny klon natywny WSL `kuking-DA-tagi`, serwer `127.0.0.1:8074`,
+osobna baza `kuking_d_a_tests` na `127.0.0.1:55439` (kopia fixture kolażu
+z odbioru #370), poczta `array`. Bez dotykania produkcji.
+
+48 konfiguracji: 6 szerokości (320/360/390/414/768/1440) × oba motywy ×
+tekst 100/140% × dwa sposoby wskazywania (**mysz** i **dotyk**, osobne konteksty
+przeglądarki, dotyk z `hasTouch`). Trzy stany strony:
+
+| Stan | Co mierzy | Wynik |
+|---|---|---|
+| A — stały bywalec, podpowiedź wyglądu zamknięta, kafel przewinięty do środka okna | scenariusz podstawowy | **0 zasłoniętych środków, 0 nieosiągalnych, 0 poziomego przewijania** |
+| B — kolaż doprowadzony dolną krawędzią do dolnej krawędzi okna | skrajne przewinięcie | 4 konfiguracje z jednym kaflem nieosiągalnym |
+| C — pierwsza wizyta, widoczna podpowiedź „Dopasuj rozmiar tekstu i wygląd strony” | stan powitalny | **8 konfiguracji** z jednym kaflem nieosiągalnym |
+
+W stanie A wykonano **80 rzeczywistych interakcji** — realne kliknięcie myszą
+i realne dotknięcie każdego z pięciu kafli, przy 320 i 1440 px, obu motywach
+i obu skalach. Wszystkie 80 otworzyły dokładnie przypisany wpis (`80/80 OK`).
+
+**Skreślone 18.09.2026 wieczorem:** stało tu zdanie, że CTA „Dodaj wpis z tym
+tagiem” otwiera dla gościa `/login` myszą i dotykiem, a jego wysokość nie
+schodzi poniżej 48 px. `pointer-results.json` nie zawiera ani jednego pola
+o CTA, o celu `/login` ani o wysokości przycisku, a `pointer.mjs` w ogóle tego
+nie mierzy. Twierdzenie nie miało pokrycia w załączonym dowodzie i zostaje
+wycofane, a nie przeniesione gdzie indziej. Czego brakuje, żeby je postawić —
+patrz „Brakujące dowody” na końcu tego pliku.
+
+Wyniki: `evidence/tags370/pointer-results.json`, skrypt `evidence/tags370/pointer.mjs`.
+Obejrzano `pointer/A-light-100-1440.png` (układ prawidłowy: nagłówek, zdanie
+`Publicznie: 5 zdjęć od 5 osób.`, CTA, kolaż 5 kafli, podpis), `pointer/B-light-140-320.png`
+oraz `pointer/C-dark-140-390.png`. Ilustracje w kolażu są oznaczone jako dane
+testowe, nie są zdjęciami użytkowników. To nie jest test na fizycznym telefonie
+ani rzeczywisty zoom 200% — te zakresy pokrywają wcześniejsze sekcje tego raportu.
+
+### Dwa zasłonięcia pochodzące ze wspólnego widgetu „Wygląd”
+
+Oba przypadki B i C pochodzą z globalnego widgetu `szybki-wyglad`, nie z kodu
+tagów, dlatego **nie ruszamy tu ani CSS, ani JS tego widgetu** — sprawa jest
+zgłoszona osobno.
+
+- **B.** Przy 320 px i tekście 140%, gdy kolaż zostanie przewinięty dolną
+  krawędzią do dołu okna, pływający przycisk `Wygląd` przykrywa piąty kafel
+  w całości: wszystkie dziewięć punktów próbnych trafia w przycisk, pole
+  wspólne 8351 px² przy kaflu 144×69 px. Dotyczy obu motywów, myszy i dotyku.
+  Doprzewinięcie o 120 px w górę przywraca dostęp we wszystkich przypadkach
+  (`Bpo`: 0 nieosiągalnych), więc kafel nie jest trwale utracony.
+- **C.** Przy 360 i 390 px oraz tekście 100%, na pierwszej wizycie stała
+  podpowiedź `aside.szybki-wyglad-podpowiedz` (szerokość `min(360px, 100vw−24px)`,
+  `position: fixed`, `z-index: 26`) przykrywa jeden kafel w całości — pole
+  wspólne 25 862 px² przy 336×79 px oraz 27 709 px² przy 366×86 px. Znika po
+  „Rozumiem” albo po dowolnej zmianie wyglądu.
+
+Przyczyna jest wspólna i widoczna w źródle, ale węziej, niż stało tu
+pierwotnie. **Nie jest prawdą, że „cała logika odsłaniania wisi na
+`focusin`”** — to zdanie zostało 18.09.2026 wieczorem sprostowane po uwadze
+z przeglądu. W `resources/js/szybki-wyglad.js` (stan `origin/main`, `3f315b3`):
+
+- `geometry()` (l. 36) chodzi też poza fokusem — `ResizeObserver` (l. 199),
+  `resize` (l. 202), `scroll` (l. 203), start (l. 205) i `toggle` (l. 156);
+- `geometry()` sprawdza `.field-error` (l. 59–62) i ustawia
+  `data-wyglad-w-przeplywie` (l. 63–66), więc tryb przepływu działa również
+  bez zdarzenia fokusu;
+- **jedyne, co faktycznie wisi wyłącznie na `focusin`, to doprzewinięcie**:
+  `window.scrollBy(0, shift)` występuje w tym pliku raz, w handlerze `focusin`
+  (l. 186).
+
+Wniosek ograniczamy więc do tego, co pokazuje pomiar: **kafle kolażu
+obsługiwane wskaźnikiem nie są odsłaniane** — mysz i dotyk nie dostają
+doprzewinięcia, które dostaje klawiatura. Nie jest to regresja wprowadzona przez #370 — widget
+zachowuje się tak nad każdą treścią — ale przy kolażu skutek jest widoczny,
+bo kafel bywa jedynym wejściem do wpisu w tym miejscu strony.
+
+## Ponowny odczyt produkcji — 18 września 2026, 18:54 UTC
+
+**Poprzednia sekcja przestała opisywać dzisiejszą produkcję i zostaje jako
+wynik historyczny z własną datą i SHA.** Ten odczyt wykonano wieczorem tego
+samego dnia, wyłącznie GET-ami bez sesji. Produkcja stała wtedy na
+`3f315b3` (Alfa 0.67, wydanie 18 września 2026, 20:53); pomiar z 13:10–13:24
+UTC dotyczył `55877e2` (Alfa 0.65). Zapis:
+[`evidence/produkcja/odczyt-20260918T1854Z.json`](evidence/produkcja/odczyt-20260918T1854Z.json).
+
+Zmieniło się to, co przesądzało o wcześniejszym wniosku: **publiczne tagi już
+są**. Spis tagów wymienia dwa — `ciasto` i `sernik` — i oba mają stronę
+z HTTP 200. Zdanie „nie ma żadnego publicznego tagu” było prawdziwe o 13:24
+UTC i nieprawdziwe o 18:54 UTC; nie poprawiamy go wstecz, tylko datujemy.
+
+Co z tego wynika dla #370, ściśle w granicach odczytu HTML:
+
+| Rzecz | Stan o 18:54 UTC | Czego to jeszcze nie domyka |
+|---|---|---|
+| strona tagu z danymi | tag o slugu ciasto → 200, kolaż obecny: `class="tag-collage tag-collage--1"`, kafel prowadzi na stronę wpisu o identyfikatorze 01a0a6ae, `aria-label="Zobacz wpis: Ewa Kapica"` | kolaż ma **jeden** kafel od **jednej** osoby |
+| pusty stan strony tagu | tag o slugu sernik → 200, „Tu jeszcze nikt nic nie ugotował” | — |
+| CTA przy istniejącym tagu | „Dodaj wpis z tym tagiem” obecne w HTML na stronie tagu ciasto | to obecność w HTML, **nie** kliknięcie ani pomiar wysokości |
+| reguła „jedno zdjęcie od osoby” | nierozstrzygnięta | przy jednej osobie z jednym zdjęciem obie reguły dają ten sam wynik |
+
+Pięć slugów sprawdzonych rano (`obiad`, `zupy`, `deser`, `cukinia`, `bigos`)
+nadal zwraca 404 — nie powstały nowe tagi poza tymi dwoma na liście.
+
+## Brakujące dowody #370 — co dokładnie trzeba wykonać
+
+Nie zamykamy #370 na tym odbiorze. Brakuje trzech rzeczy i każda ma
+kryterium zaliczenia:
+
+1. **Kolaż na żywych danych z regułą „jedno zdjęcie od osoby”.**
+   Scenariusz: wejść odczytowo na stronę tagu, który ma publiczne, gotowe
+   zdjęcia od **co najmniej trzech różnych osób**. Potrzebne dane: taki tag
+   na produkcji — dziś go nie ma (`ciasto` ma jednego autora). Kryterium
+   zaliczenia: w `div[data-tag-collage]` liczba kafli równa liczbie
+   **różnych** autorów, nie liczbie zdjęć, i żaden autor nie występuje dwa
+   razy (`aria-label="Zobacz wpis: …"`).
+2. **CTA „Dodaj wpis z tym tagiem” jako interakcja.**
+   Scenariusz: rzeczywiste kliknięcie myszą i dotknięcie CTA na
+   `/tag/{istniejący}` w przeglądarce oraz pomiar wysokości przycisku.
+   Potrzebne: przeglądarka sterowana przez agenta na lokalnym runtime
+   z fixture kolażu (na produkcji robimy wyłącznie odczyt). Kryterium:
+   gość ląduje na `/login`, wysokość przycisku ≥ 48 px w każdej
+   z 12 kombinacji 320/390/1440 px × oba motywy × tekst 100/140%.
+3. **Zgodność zrzutów ze stanem C.** W repozytorium są
+   `pointer/C-dark-140-320.png` i `pointer/C-dark-140-390.png`, obie ze skalą
+   **140%**, podczas gdy osiem spornych konfiguracji stanu C ma skalę
+   **100%** (360 i 390 px). Zrzuty nie ilustrują więc konfiguracji, o których
+   mówi tabela. Kryterium: zrzut `C` dla `light-100-360` i `dark-100-390`
+   pokazujący przykrycie kafla przez `aside.szybki-wyglad-podpowiedz`.
