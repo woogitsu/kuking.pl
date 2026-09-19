@@ -1,0 +1,46 @@
+# Odczyt produkcji https://kuking.pl — odbior #568, 19 wrzesnia 2026
+
+## Wersja wdrozona
+<strong class="site-version-etap">Alfa 0.67</strong>
+<span class="site-version-wydanie">wydanie 19 września 2026, 12:30 · 8a2ecb2</span>
+
+## Rozmiar zbioru publicznego (sitemap.xml)
+wpisow w sitemap: 49
+     41 wpisy
+      1 zasady
+      1 przepisy
+      1 pomoc
+      1 odkryj
+      1 @ulalala
+      1 @on_the_plate
+      1 @izazpodlasia
+      1 <loc>https:
+
+## Najwieksze zbiory wynikow wyszukiwarki (ile=200, GET, bez logowania)
+q=bigos    przepisy=[Znaleziono 1 przepis.] ludzie=[] odnosnikow-dalej=0
+q=pierogi  przepisy=[] ludzie=[] odnosnikow-dalej=0
+q=zupa     przepisy=[] ludzie=[] odnosnikow-dalej=0
+q=ciasto   przepisy=[] ludzie=[] odnosnikow-dalej=0
+q=sos      przepisy=[Znaleziono 1 przepis.] ludzie=[] odnosnikow-dalej=0
+q=kurczak  przepisy=[] ludzie=[] odnosnikow-dalej=0
+q=jajko    przepisy=[] ludzie=[] odnosnikow-dalej=0
+q=sernik   przepisy=[] ludzie=[] odnosnikow-dalej=0
+q=ka       przepisy=[Znaleziono 1 przepis.] ludzie=[Znaleziono 2 osoby.] odnosnikow-dalej=0
+q=ie       przepisy=[Znaleziono 1 przepis.] ludzie=[] odnosnikow-dalej=0
+q=ni       przepisy=[Znaleziono 1 przepis.] ludzie=[] odnosnikow-dalej=0
+q=za       przepisy=[Znaleziono 1 przepis.] ludzie=[Znaleziono 1 osobę.] odnosnikow-dalej=0
+q=pi       przepisy=[Znaleziono 1 przepis.] ludzie=[Znaleziono 2 osoby.] odnosnikow-dalej=0
+q=ma       przepisy=[Znaleziono 1 przepis.] ludzie=[Znaleziono 2 osoby.] odnosnikow-dalej=0
+
+## Dowod, ze kod z PR #592 jest wdrozony (bez tworzenia tresci)
+GET /szukaj?q=ka&sekcja=przepisy&ile=200&od_przepisu=200 -> HTTP 200
+    W tym zakresie nie ma już przepisów
+    Wróć do początku przepisów
+GET /szukaj?q=ka&sekcja=ludzie&ile=200&od_osoby=200 -> HTTP 200
+    W tym zakresie nie ma już osób
+    Wróć do początku osób
+GET /szukaj?q=ka&sekcja=przepisy&ile=200&od_przepisu=0&od_osoby=0 -> HTTP 200
+    Znaleziono 1 przepis
+GET /szukaj?q=ka&sekcja=wszystko&ile=40 -> HTTP 200
+    Znaleziono 1 przepis
+    Znaleziono 2 osoby
