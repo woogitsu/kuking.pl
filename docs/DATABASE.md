@@ -17,14 +17,17 @@ za mało — rollback trzeba URUCHOMIĆ, i robią to dwie różne rzeczy:
 
 | Narzędzie | Co mierzy | Ile trwa |
 |---|---|---|
-| `./scripts/proba-wycofania.sh` | podnosi 76 migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej z 76 głębokości z osobna | kilka minut |
+| `./scripts/proba-wycofania.sh` | podnosi KOMPLET migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej głębokości z osobna | kilka minut |
 | `tests/Feature/KazdaMigracjaMaWycofanieTest.php` | że każda migracja MA własny, niepusty `down()`; świadoma pustka musi być zadeklarowana stałą `WYCOFANIE_NIC_NIE_ROBI` z uzasadnieniem | ułamek sekundy, w każdym `php artisan test` |
 
 Skrypt schodzi do zera na PUSTEJ bazie, więc nie mierzy zachowania `down()`
 przy danych — tego pilnują osobne testy odmowy (`CofniecieMigracji*Test`),
 po jednym na strażnika z D-088. Stan zmierzony 12 września 2026: 76 z 76
-migracji wycofuje się i wraca, a schemat po cyklu jest identyczny ze wzorcem
-na każdej głębokości.
+migracji wycofuje się i wraca. **Zmierzone ponownie 19 września 2026 na
+`b34c2973`: 82 z 82**, schemat po cyklu identyczny ze wzorcem na każdej
+z 82 głębokości. Liczba migracji rośnie przy każdej zmianie schematu, więc
+nie ma jej ani w progu skryptu, ani w progu
+`KazdaMigracjaMaWycofanieTest` — obydwa są celowo niższe od stanu dnia.
 
 ## Tabele MVP
 
@@ -35,9 +38,18 @@ Konto:
 - password;
 - status;
 - `role varchar(20) NOT NULL DEFAULT 'user'` — `user` \| `moderator` \|
-  `admin`. **Bez CHECK-a w bazie**: wartości pilnuje `App\Models\User`
-  (stałe `ROLE_*`) i jedyna droga nadania roli, komenda `kuking:nadaj-role`,
-  która zapisuje zmianę do `audit_log` (`user.role_changed`, D-039).
+  `admin`. **CHECK jest w bazie**: `users_role_check`
+  (`CHECK (role IN ('user','moderator','admin'))`), założony razem z tabelą
+  w migracji `0001_01_01_000001_create_users_table`, obok
+  `users_status_check` i `users_text_scale_check`. Do 19 września 2026 stało
+  tu zdanie „**Bez CHECK-a w bazie**" — nieprawdziwe od pierwszego dnia
+  projektu i groźne właśnie dlatego, że nikt go nie sprawdzał: czytelnik
+  planujący czwartą rolę wychodził z założenia, że wystarczy dopisać stałą
+  w PHP, a baza odrzuci mu `INSERT` bez migracji. Wartości pilnuje więc baza,
+  a warstwa PHP dokłada nazwy i drogę: stałe `ROLE_*` w `App\Models\User`
+  i jedyna droga nadania roli, komenda `kuking:nadaj-role`, która zapisuje
+  zmianę do `audit_log` (`user.role_changed`, D-039). Dołożenie roli to
+  **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
@@ -1310,6 +1322,23 @@ Dozwolone są `dish` (tytuł zawsze NULL) oraz `question` (tytuł nie-NULL,
 To zestaw PHP trim poza NUL, którego PostgreSQL nie dopuszcza w tekście.
 Długość liczymy w znakach, także polskich, nie w bajtach; varchar(180)
 ogranicza również surowy tytuł przed trim. Nie normalizujemy środka tytułu.
+
+**`kind` i `title` SĄ w `Post::$fillable`** — i to `posts_kind_title_check`
+jest powodem, dla którego wolno je tam trzymać. Zakaz z AGENTS.md §7 dotyczy
+kolumn niosących STAN KONTA albo uprawnienie (`users.status`, `users.role`,
+`users.email`); `kind` i `title` niosą treść wpisu, a jedyny sposób, w jaki
+hurtowe przypisanie mogłoby tu zaszkodzić — pytanie bez tytułu albo danie
+z tytułem — baza odrzuca sama, na każdej drodze zapisu. To jest ogólna
+zasada, nie wyjątek dla tej jednej tabeli: **kolumna wolno-przypisywalna
+hurtem to taka, której wszystkie dopuszczalne kombinacje z innymi kolumnami
+pilnuje ograniczenie w bazie.** Powiązania między kolumnami, które o tym
+decydują, są w tym dokumencie wypisane przy każdej tabeli z osobna —
+`comments_single_target_check`, `collection_items_single_target_check`,
+`appeals_appellant_identity_check`, `users_data_erased_at_check`,
+`users_status_expires_at_check`, `recipe_ingredients_no_amount_check`,
+`tags_merged_consistency_check`, trzy CHECK-i celu w `reports` i komplety
+„rozpatrzone/obsłużone" w `appeals`, `contact_messages`
+i `contact_message_replies`.
 
 Dotychczasowe wpisy otrzymują `dish` i NULL bez zmiany treści, widoczności,
 relacji ani `recipe_id`. Nie ma wariantu `kind=recipe` ani drugiej tabeli.
