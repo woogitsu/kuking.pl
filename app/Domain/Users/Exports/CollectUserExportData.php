@@ -57,8 +57,47 @@ final class CollectUserExportData
                 'serwis' => 'Kuking.pl',
                 'wygenerowano' => $generatedAt->toIso8601String(),
                 'format' => 'JSON, kodowanie UTF-8, daty w formacie ISO 8601',
-                'co_zawiera' => 'Wszystkie treści tego konta — także wpisy prywatne i szkice przepisów.',
-                'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta.',
+                // „WSZYSTKIE" BYŁO O JEDNO SŁOWO ZA DUŻO (#492).
+                //
+                // Zdanie obiecywało komplet, a paczka kompletem nie jest i nie
+                // udaje nim być w żadnym innym miejscu: poza nią zostają m.in.
+                // wcześniejsze wersje własnych przepisów (`recipe_versions`,
+                // zapisywane przez `SnapshotRecipeVersion` przy każdej
+                // publikacji), obserwowane tagi, dziennik zgód i tożsamości
+                // zewnętrzne. Żadnej z tych rzeczy nie dokładamy tu do paczki —
+                // zakres danych zostaje bez zmian. Zmienia się tylko zdanie,
+                // żeby nie obiecywało więcej, niż paczka niesie. Granicę
+                // dotyczącą cudzych treści nazywa `czego_nie_zawiera` niżej.
+                'co_zawiera' => 'Treści tego konta — także wpisy prywatne i szkice przepisów.',
+                // Dwie granice, obie mierzone, obie nazwane wprost. Druga
+                // dołączyła po pomiarze do #492: paczka stosowała ją od
+                // początku, ale nie mówiła o niej w żadnym swoim pliku.
+                // Człowiek, który odłożył czterdzieści cudzych przepisów
+                // „na kiedyś", dostawał plik wyglądający na kompletny —
+                // a dowiadywał się o brakach dopiero wtedy, gdy Kuking już
+                // nie istnieje i nie ma dokąd po nie wrócić. To jest
+                // dokładnie ta sama zasada co przy zdjęciach w drodze
+                // (issue #113): paczka, która WYGLĄDA na kompletną, a nie
+                // jest, jest gorsza od paczki mówiącej o swoich brakach.
+                //
+                // Samej granicy tu NIE zmieniamy i zmieniać nie wolno:
+                // cudzy przepis jest daną osoby, która go napisała
+                // (patrz `collections()` niżej). Zmienia się wyłącznie to,
+                // czy paczka o niej mówi.
+                //
+                // TO POLE JEST BEZWARUNKOWE — i tu jest inaczej niż
+                // w `index.html`, gdzie to samo zdanie stoi pod warunkiem
+                // niepustego zeszytu. Różnica jest zamierzona. `index.html`
+                // czyta CZŁOWIEK i opisuje mu, co w TEJ paczce jest, więc
+                // zdanie o cudzych przepisach przy pustym zeszycie opisuje
+                // nieobecne. `czego_nie_zawiera` czyta PROGRAM i jest opisem
+                // REGUŁY eksportu, nie zawartości tego jednego archiwum —
+                // dokładnie jak `zdjec_jeszcze_w_przygotowaniu`, które też
+                // jest zawsze, także gdy wynosi zero. Klucz pojawiający się
+                // tylko czasem zmuszałby czytający program do zgadywania,
+                // czy granicy nie ma, czy paczkę zbudowała starsza wersja.
+                'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta. '
+                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
                 // się tylko przy brakach zmusiłby program czytający paczkę do

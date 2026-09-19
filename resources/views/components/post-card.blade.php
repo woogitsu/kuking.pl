@@ -18,7 +18,7 @@
     ani po przesunięciu palcem — dla części naszych użytkowników to jedyna
     droga do funkcji (AGENTS.md §5).
 --}}
-@props(['post'])
+@props(['post', 'showQuestionTitle' => true])
 @php $author = $post->author; @endphp
 <article class="card post-card">
     <div class="post-card-head">
@@ -241,10 +241,13 @@
         o trasę, a nie o dodatkowy parametr komponentu, bo dzięki temu
         żaden z ośmiu widoków używających karty nie musi o niczym pamiętać.
     --}}
+    @if($showQuestionTitle && $post->kind === \App\Models\Post::KIND_QUESTION)
+        <h2 class="post-card-body"><a href="{{ $post->url() }}">{{ $post->title }}</a></h2>
+    @endif
     @if($post->body)
         @php
             $wpisZTrasy = request()->route('post');
-            $naStronieTegoWpisu = request()->routeIs('posts.show')
+            $naStronieTegoWpisu = request()->routeIs('posts.show', 'questions.show')
                 && $wpisZTrasy instanceof \App\Models\Post
                 && $wpisZTrasy->is($post);
 
@@ -406,12 +409,12 @@
         {{-- Ten sam powód co przy dacie: komentarze wpisu, który jest samym
              przepisem, stoją na stronie przepisu (`recipes.comment`), a nie
              pod pustym wpisem. --}}
-        <a class="btn btn-secondary" href="{{ $post->adresTresci() }}">
+        <a class="btn btn-secondary" href="{{ $post->adresTresci().($post->kind === \App\Models\Post::KIND_QUESTION ? '#komentarze' : '') }}">
             <x-ikona nazwa="chat" :rozmiar="22" />
             @if(($post->comments_count ?? 0) > 0)
-                Komentarze ({{ $post->comments_count }})
+                {{ $post->kind === \App\Models\Post::KIND_QUESTION ? 'Odpowiedzi' : 'Komentarze' }} ({{ $post->comments_count }})
             @else
-                Napisz komentarz
+                {{ $post->kind === \App\Models\Post::KIND_QUESTION ? 'Napisz odpowiedź' : 'Napisz komentarz' }}
             @endif
         </a>
 

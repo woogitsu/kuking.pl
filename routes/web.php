@@ -41,6 +41,7 @@ use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\PwaInstallController;
+use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
@@ -90,6 +91,9 @@ $limits = config('kuking.limits');
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
 Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
 Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+Route::get('/pytania', [QuestionController::class, 'index'])
+    ->middleware("throttle:{$limits['search']},search")
+    ->name('questions.index');
 Route::get('/szukaj', [SearchController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('search');
@@ -194,6 +198,10 @@ Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'
     ->name('cooking.zaznacz');
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
+Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');
+Route::post('/pytania', [PostController::class, 'store'])
+    ->middleware(['auth', "throttle:{$limits['post']},post"])->name('questions.store');
+Route::get('/pytania/{post}', [PostController::class, 'show'])->whereUuid('post')->name('questions.show');
 Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->name('cooked.show');
 
 /*

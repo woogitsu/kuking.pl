@@ -50,7 +50,15 @@ class BezOdpowiedziController extends Controller
         $this->authorize('moderate', User::class);
 
         $type = $request->query('typ', 'wpisy');
-        abort_unless(in_array($type, ['wpisy', 'przepisy', 'ugotowane'], true), 404);
+        abort_unless(in_array($type, ['wpisy', 'przepisy', 'ugotowane', 'pytania'], true), 404);
+        abort_if($type === 'pytania' && ! config('kuking.questions.enabled'), 404);
+
+        if ($type === 'pytania') {
+            $items = $this->queue->questions($request->user())->with('author.profile')
+                ->orderBy('published_at')->orderBy('id')->paginate(25)->withQueryString();
+
+            return view('pages.admin.bez-odpowiedzi-pytania', ['items' => $items, 'type' => $type]);
+        }
 
         if ($type !== 'wpisy') {
             $items = $type === 'przepisy'

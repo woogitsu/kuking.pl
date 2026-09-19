@@ -63,6 +63,7 @@
   padding: 0;
 }
 [data-marka] .marka-rama.app-body-powitalny > .app-main,
+[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main:has(> .tag-directory-intro),
 [data-marka] .marka-rama.app-body-tresc-z-szyna > .app-main { max-width: none; }
 [data-marka] .app-main > h1,
 [data-marka] .marka-onboarding > h1,

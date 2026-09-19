@@ -548,6 +548,19 @@ na `127.0.0.1:55439`, 17.09.2026:
 | połączenia w normie | cisza | nadal 2 wiadomości |
 | połączenia powyżej progu | jedna wiadomość | 3 wiadomości, kod wyjścia 1 |
 
+Dwa wiersze dopisane 18.09.2026, na tym samym rodzaju odbiornika
+(`127.0.0.1`), po poprawce wyciszania z warstwy 5 (§7.4):
+
+| Próba | Oczekiwane | Wynik |
+|---|---|---|
+| odbiornik oddaje HTTP 404 | żadnego wyciszenia | 1 żądanie, czujka mówi „nie doszło”, pamięć bez dostarczenia |
+| ten sam stan minutę później | bez ponawiania w pętli | nadal 1 żądanie |
+| ten sam stan 6 minut później, odbiornik już oddaje 200 | wiadomość dochodzi | 2 żądania, czujka mówi „przyjęte” |
+| ten sam stan zaraz po przyjęciu | cisza (okno 6 h) | nadal 2 żądania |
+
+Ten sam pomiar na kodzie sprzed poprawki: **jedno żądanie, HTTP 404,
+czujka zamilkła** — sprawny dzwonek trzy przebiegi później już nie wyszedł.
+
 Kontrola ujemna treści na tych samych dostarczonych wiadomościach: nie ma
 w nich nazwy klasy zadania z `payload`, adresu e-mail z `payload`, treści
 `exception` ani nazwy bazy.
@@ -583,15 +596,94 @@ Kolejność zamykania tej bramki:
 1. właściciel zakłada webhook (§1 tego dokumentu) i wpisuje
    `LOG_BLAD_WEBHOOK_URL` w panelu Railway — **z restartem usługi**,
    bo konfiguracja jest zapiekana przy starcie kontenera;
-2. `railway ssh -- php artisan kuking:budzet-polaczen` i
-   `railway ssh -- php artisan kuking:sprawdz-kolejke` — obie mają wtedy
-   wypisać stan i **nie** zadzwonić, bo produkcja jest w normie;
-3. kontrolowana próba awarii uzgodniona z właścicielem (np. jednorazowe
-   uruchomienie z zaniżonym progiem przez zmienną) — i dopiero wiadomość,
-   która **dojdzie na kanał**, zamyka wiersz 18 w `docs/OTWARCIE.md`;
-4. rozliczenie czterech zadań z 9 września, żeby `/health` wyszedł
+2. `railway ssh -- php artisan kuking:sprawdz-alarm` — jedno polecenie,
+   jedna wiadomość próbna, jasna odpowiedź na pytanie „czy DOCHODZI";
+3. rozliczenie czterech zadań z 9 września, żeby `/health` wyszedł
    z `degraded` i znowu coś znaczył;
-5. zewnętrzny monitor `/health` z §6.
+4. zewnętrzny monitor `/health` z §6.
 
 Do wykonania kroku 1 **nie ogłaszamy działającego alarmu produkcyjnego** —
 ani tutaj, ani w `docs/OTWARCIE.md`, ani w opisie Pull Requesta.
+
+### 7.4. Pięć warstw, które łatwo pomylić ze sobą
+
+To jest jedyny powód, dla którego ten rozdział ma tyle zastrzeżeń. Monitoring
+tego serwisu składa się z pięciu rzeczy i **każda działa albo nie działa
+osobno**:
+
+| # | Warstwa | Stan na 18.09.2026 | Czym udowodniona |
+|---|---|---|---|
+| 1 | kod czujki | działa | testy + kontrole ujemne |
+| 2 | konfiguracja produkcji | **brak** | w usłudze nie ma `LOG_BLAD_WEBHOOK_URL` |
+| 3 | faktyczne wywołanie | działa | log produkcji: `Running [kuking:budzet-polaczen] … DONE`, 17.09 23:25:20 UTC |
+| 4 | **odebranie wiadomości** | **niesprawdzone na produkcji** | lokalnie: `Http::fake()` oraz lokalny odbiornik HTTP na 127.0.0.1 — kanał PRZYJĄŁ (2xx), co nie dowodzi, że człowiek to zobaczył |
+| 5 | wyciszanie duplikatów i powrót do normy | **poprawione, zmierzone lokalnie** | testy + kontrole ujemne. Cisza (`cisza_godzin`) należy się WYŁĄCZNIE wiadomości, którą kanał potwierdził odpowiedzią 2xx. Do 18.09.2026 było inaczej: `AlarmPolaczen` i `AlarmKolejki` uznawały wysyłkę za udaną na sam brak wyjątku, więc jedna odpowiedź 404 zapisywała pamięć wyciszania i zagłuszała następny, SPRAWNY dzwonek o wciąż trwającej awarii. Poprawione i zmierzone na odbiorniku na 127.0.0.1 (§7.2) — na produkcji nie zmienia to nic, dopóki warstwa 2 jest pusta |
+
+Zielona warstwa 1 i 3 przy pustej 2 daje dokładnie to, co produkcja ma dziś:
+czujkę, która sumiennie chodzi co godzinę i **nie ma dokąd zadzwonić**.
+Najłatwiejszy błąd w tym miejscu to uznać wdrożenie kodu za wdrożenie alarmu.
+
+**Co po poprawce znaczy „cisza” w warstwie 5.** Okno ciszy (`cisza_godzin`)
+liczy się od chwili, w której kanał POTWIERDZIŁ przyjęcie wiadomości — nie od
+chwili, w której próbowaliśmy ją wysłać. Próba, której kanał nie potwierdził,
+daje wyłącznie kilkuminutową przerwę między żądaniami: tyle, żeby martwy webhook
+nie dostawał żądania w pętli, i za mało, żeby pominąć choć jeden przebieg czujki.
+Dzięki temu pierwszy dzwonek po powrocie kanału do życia dochodzi, zamiast
+wpaść w ciszę kupioną przez porażkę. Tak samo traktowane jest odwołanie
+„wróciło do normy”: nieprzyjęte nie kasuje pamięci alarmu, a alarm, który do
+nikogo nie doszedł, nie dostaje odwołania w ogóle.
+
+**Doprecyzowanie po odbiorze #687 — 18 września 2026.** Pamięć w wersji 2
+rozdziela obserwowany stan, ostatnią próbę (stan i czas), ostatni przyjęty
+alarm (stan i czas) oraz termin ciszy bieżącego epizodu. Odrzucona eskalacja
+nie usuwa wcześniejszego przyjętego ostrzeżenia: późniejsze odwołanie nazywa
+właśnie ten przyjęty stan. Zaobserwowany spokój kończy ciszę także przy
+wyłączonym kanale albo nieprzyjętym odwołaniu. Nawrót jest nową informacją;
+jego odrzucona próba nie przywraca ciszy poprzedniego epizodu. Po nieudanej
+próbie ponowienie tego samego stanu czeka pięć minut; po przyjęciu alarmu
+obowiązuje długa cisza. Zmiana stanu jest wysyłana od razu.
+
+Stare `o` oznacza tylko próbę, nigdy przyjęcie. Format z `dostarczony_o`
+zachowuje przyjęty alarm do odwołania i krótki odstęp między próbami, ale
+nie odtwarza długiej ciszy: historyczny zapis nie rozróżniał poprawnie
+nawrotu od trwającej awarii. Migracja pamięci może więc dać jedną dodatkową
+wiadomość. Czyszczenie lub wygaśnięcie cache nadal może zgubić odwołanie;
+równoczesne wysyłki nie są serializowane. Nie dodano trwałej kolejki doręczeń.
+
+Lokalny dowód tego uzupełnienia: `EpizodyAlarmowTest` sprawdza 12 scenariuszy
+dla obu klas (24 testy), a wraz z `NieudanyDzwonekNieKupujeCiszyTest`:
+**46 testów / 237 asercji**. Transport jest atrapą `Http::fake()`, cache
+działa w pamięci; przebieg nie używa bazy i nie wysyła prawdziwego webhooka.
+Osiem fizycznych kontroli ujemnych (cztery zmiany osobno w każdej klasie)
+obaliło właściwą asercję: utrata przyjętego alarmu, odtworzenie starej ciszy,
+uznanie starej próby za przyjęcie oraz pomijanie obserwacji przy wyłączonym
+kanale. Po każdej przywrócono bajty i mtime z kopii poza repo; po całej serii
+24 nowe testy przeszły ponownie. To nie jest odbiór infrastruktury ani dowód,
+że człowiek otrzymał alarm produkcyjny. Pełny hook i CI tego uzupełnienia
+pozostają do wykonania przez koordynatora.
+
+**I to nadal jest tylko przyjęcie.** Kod 2xx znaczy „usługa przyjęła
+wiadomość”, nie „człowiek ją zobaczył”. Tej drugiej rzeczy nie sprawdza ani ten
+mechanizm, ani żaden test — zależy od tego, na który kanał Discorda albo
+Slacka wskazuje webhook i kto go obserwuje.
+
+**Warstwę 4 domyka jedno polecenie — o tyle, o ile kanał potwierdzi przyjęcie:**
+
+```bash
+php artisan kuking:sprawdz-alarm
+```
+
+Wysyła JEDNĄ wiadomość, jawnie oznaczoną jako próba, ze znacznikiem czasu —
+tym samym kanałem, którym poszedłby prawdziwy alarm. Nie dotyka bazy, nie
+czyta kolejki i **nie zapisuje pamięci wyciszania**, więc nie zagłusza
+prawdziwego alarmu, który mógłby przyjść zaraz po niej. Przy pustej zmiennej
+kończy się błędem i mówi wprost, czego brakuje, zamiast milczeć.
+
+Wcześniejsza wersja tej listy kazała w kroku 3 „wywołać kontrolowaną awarię
+przez zaniżenie progu na produkcji". To był zły pomysł: zaniżony próg zostaje
+w zmiennych, a prawdziwy alarm ginie potem w szumie. Osobna komenda robi
+dokładnie jedną rzecz i nie zostawia po sobie stanu.
+
+`--bez-wysylki` odpowiada wyłącznie na pytanie, czy kanał jest skonfigurowany.
+**Sama konfiguracja nie jest dowodem dostarczenia** — to jest właśnie różnica
+między warstwą 2 a 4.

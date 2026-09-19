@@ -1,0 +1,63 @@
+{
+  "id": "01a0b4a9-10c3-706f-a058-b1852710ac5f",
+  "status": "ready",
+  "metadata": {
+    "variants": {
+      "feed": {
+        "key": "media/01a0b419-1c1e-70cc-8936-5bcc62618b84/2026/09/f7c76053-81c5-4eac-b2a3-9c80032cbe90_feed.webp",
+        "bytes": 93358,
+        "width": 960,
+        "height": 720
+      },
+      "large": {
+        "key": "media/01a0b419-1c1e-70cc-8936-5bcc62618b84/2026/09/f7c76053-81c5-4eac-b2a3-9c80032cbe90_large.webp",
+        "bytes": 159222,
+        "width": 1448,
+        "height": 1086
+      },
+      "thumb": {
+        "key": "media/01a0b419-1c1e-70cc-8936-5bcc62618b84/2026/09/f7c76053-81c5-4eac-b2a3-9c80032cbe90_thumb.webp",
+        "bytes": 17932,
+        "width": 320,
+        "height": 240
+      },
+      "podglad": {
+        "key": "media/01a0b419-1c1e-70cc-8936-5bcc62618b84/2026/09/f7c76053-81c5-4eac-b2a3-9c80032cbe90_podglad.webp",
+        "bytes": 51366,
+        "width": 640,
+        "height": 480
+      }
+    },
+    "processed_at": "2026-09-18T13:16:34+00:00",
+    "exif_stripped": true,
+    "exif_orientation": null,
+    "orientation_applied": false,
+    "original_name_length": 24
+  },
+  "files": {
+    "feed": {
+      "exists": true,
+      "width": 960,
+      "height": 720,
+      "bytes": 93358
+    },
+    "large": {
+      "exists": true,
+      "width": 1448,
+      "height": 1086,
+      "bytes": 159222
+    },
+    "thumb": {
+      "exists": true,
+      "width": 320,
+      "height": 240,
+      "bytes": 17932
+    },
+    "podglad": {
+      "exists": true,
+      "width": 640,
+      "height": 480,
+      "bytes": 51366
+    }
+  }
+}

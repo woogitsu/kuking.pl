@@ -194,6 +194,7 @@ const EKRANY = [
   { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
+  { nazwa: 'Poradźcie — lista pytań', adres: '/pytania' },
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },
@@ -952,11 +953,16 @@ async function podnies_serwer() {
     const adres = `http://127.0.0.1:${port}`;
     const dziennik = [];
 
-    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    /* `--no-reload` — patrz `scripts/port-projektu.mjs`: bez niego `artisan serve`
+       wycina procesowi `php -S` zmienne środowiska joba i aplikacja spada na
+       `.env`, czyli na współdzielony port 5432. */
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
         DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
+        // Mierzymy również dział przed publicznym włączeniem (#372).
+        KUKING_QUESTIONS_ENABLED: 'true',
         // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
         MAIL_MAILER: STEROWNIK_POCZTY_DO_POMIARU,
         // Uzasadnienie i kontrola — przy `KLUCZE_DOSTAWCOW_DO_POMIARU` wyżej.
