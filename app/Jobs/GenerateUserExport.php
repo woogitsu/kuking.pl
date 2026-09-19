@@ -324,9 +324,45 @@ class GenerateUserExport implements ShouldQueue
             'cookedCount' => count($data['ugotowalem']),
             'photoCount' => $photos->count(),
             'photosStillProcessing' => $photos->stillProcessingCount(),
+            'savedOtherRecipeCount' => $this->savedOtherRecipeCount($user),
             'displayName' => $user->profile?->display_name,
             'generatedAt' => $generatedAt,
         ])->render());
+    }
+
+    /**
+     * Ile CUDZYCH przepisów leży w zeszycie tej osoby.
+     *
+     * Spis treści mówi o ograniczeniu, które dotyczy wyłącznie cudzych
+     * przepisów w zeszycie (tytuł, autor, notatka i data zapisania, bez
+     * składników i kroków). Bez tej liczby zdanie o ograniczeniu wychodziło
+     * także na koncie z pustym zeszytem — a wtedy opisuje coś, czego
+     * w paczce nie ma. To ta sama zasada, co przy katalogach: paczka mówi
+     * o tym, co w niej JEST.
+     *
+     * Własny przepis odłożony do własnego zeszytu NIE liczy się tutaj:
+     * jego pełną treść paczka niesie w katalogu `przepisy/`, więc żadne
+     * ograniczenie go nie dotyczy.
+     *
+     * Liczymy z bazy, a nie z `dane.json`: tam autor jest nazwą wyświetlaną,
+     * a dwie osoby mogą mieć tę samą nazwę.
+     *
+     * `whereNull('recipes.deleted_at')` jest tu KONIECZNE, nie ostrożnościowe.
+     * `Recipe` ma `SoftDeletes`, a złączenie omija globalny zakres modelu —
+     * bez tego warunku przepis skasowany liczyłby się tutaj, choć
+     * `CollectUserExportData::collections()` (zwykły Eloquent) już go do
+     * paczki nie wkłada. Zdanie o ograniczeniu wychodziłoby wtedy na koncie,
+     * w którego paczce nie ma ani jednego cudzego przepisu — czyli dokładnie
+     * ta usterka, którą ten warunek miał usunąć.
+     */
+    private function savedOtherRecipeCount(User $user): int
+    {
+        return (int) $user->collections()
+            ->join('collection_items', 'collection_items.collection_id', '=', 'collections.id')
+            ->join('recipes', 'recipes.id', '=', 'collection_items.recipe_id')
+            ->where('recipes.author_id', '!=', $user->getKey())
+            ->whereNull('recipes.deleted_at')
+            ->count();
     }
 
     private function addReadme(ZipArchive $zip, User $user, ExportPhotoPlan $photos, Carbon $generatedAt): void

@@ -817,7 +817,11 @@ class DataExportTest extends TestCase
 
         // I mówi wprost, dlaczego go nie ma — pusta sekcja bez wyjaśnienia
         // wygląda jak brakująca część paczki.
-        $this->assertStringContainsString('Nie masz jeszcze w Kuking żadnego zdjęcia', $index);
+        //
+        // Zdanie opisuje PACZKĘ, nie konto: ta sama gałąź obsługuje konto
+        // z samymi zdjęciami odrzuconymi, któremu „nie masz żadnego zdjęcia"
+        // mówiłoby nieprawdę (`EksportMowiOZdjeciachWDrodzeTest`).
+        $this->assertStringContainsString('W tej paczce nie ma żadnego zdjęcia', $index);
 
         $zip->close();
     }

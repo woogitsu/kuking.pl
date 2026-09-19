@@ -24,7 +24,7 @@
         niczym. Przy fali nowych kont ta różnica decyduje o tym, jak człowiek
         po drugiej stronie ekranu traktuje sto pozycji dziennie.
     --}}
-    <p class="lead">
+    <p class="text-lead">
         Treści, przy których automat podniósł rękę. <strong>Nikt ich nie zgłosił</strong>, nic się
         z nimi nie stało i ich autorzy o niczym nie wiedzą — są widoczne w serwisie tak samo jak
         wszystko inne. Automat niczego nie ukrywa i nie blokuje; to Ty decydujesz, czy jest tu coś do zrobienia.

@@ -19,6 +19,11 @@ class EksportNieObiecujeTerminuTest extends TestCase
                     'recipes' => [], 'postCount' => 0, 'cookedCount' => 0,
                     'photoCount' => 0, 'photosStillProcessing' => $pending,
                     'recipeCount' => 0, 'contactEmail' => 'test@example.test',
+                    // Zeszyt bez cudzych przepisów — zdanie o ich ograniczeniu
+                    // ma wtedy nie wychodzić. Obie gałęzie tego warunku mierzy
+                    // `EksportWygladObietnicePaczkiTest` na prawdziwej paczce;
+                    // tu chodzi wyłącznie o to, żeby render miał komplet danych.
+                    'savedOtherRecipeCount' => 0,
                 ])->render();
                 $this->assertStringNotContainsString('za kilka minut', $html);
                 $this->assertStringNotContainsString('będzie w niej komplet', $html);

@@ -43,10 +43,43 @@
         </p>
     </div>
 
+    {{--
+        Zdanie otwierające mówi, co w paczce JEST — nie „wszystko”.
+        Zmierzone na prawdziwym archiwum: cudzy przepis zapisany w zeszycie
+        wychodzi w `dane.json` jako tytuł, autor, moja notatka i data zapisania
+        (`CollectUserExportData::collections()`), bez składników, kroków
+        i zdjęć. „Kopia wszystkiego” obiecywała więc pełne cudze przepisy,
+        których tu nie ma — a to jest plik, który człowiek czyta przed
+        skasowaniem konta. Zamiast wyliczać, czego brakuje, nazywamy jedno
+        ograniczenie, które naprawdę może kogoś zaskoczyć.
+
+        Słowo „notatki” wypadło świadomie: w Kuking nie ma encji „notatka”
+        (są notatki przy wykonaniu, przy składniku i przy zapisie w zeszycie),
+        więc na tej liście udawało osobny rodzaj treści. „Komentarze” są
+        w paczce naprawdę i jako osobna sekcja (`moje_komentarze`).
+
+        DWIE POPRAWKI PO NIEZALEŻNYM REVIEW.
+
+        1. Zdanie o zeszycie stoi pod warunkiem, bo na koncie BEZ ANI JEDNEGO
+           cudzego przepisu w zeszycie opisywało ograniczenie czegoś, czego
+           w paczce nie ma. Świeże konto dostawało zdanie o „cudzych
+           przepisach” przy pustym zeszycie — ta sama klasa usterki co
+           katalogi, których w paczce nie ma.
+        2. Wyliczenie pól było niepełne. `collections()` daje CZTERY pola
+           (`tytul`, `autor`, `moja_notatka`, `zapisano`), a zdanie mówiło
+           o dwóch — czyli zaniżało to, co człowiek w paczce naprawdę
+           dostaje. Zakres danych się nie zmienia; zmienia się opis.
+           Zgodność listy pól z rzeczywistością pilnuje asercja na klucze
+           w `EksportWygladObietnicePaczkiTest`.
+    --}}
     <div class="karta">
         <p style="margin-bottom:0;">
-            To jest kopia wszystkiego, co masz w Kuking: przepisy, wpisy,
-            zdjęcia i notatki. Możesz to trzymać na swoim komputerze i czytać
+            To jest kopia Twoich przepisów, wpisów, zdjęć i komentarzy.
+            @if($savedOtherRecipeCount > 0)
+                Cudze przepisy zapisane w Twoim zeszycie są tu jako tytuł, autor,
+                Twoja notatka i data zapisania — bez składników, kroków i zdjęć.
+            @endif
+            Możesz to trzymać na swoim komputerze i czytać
             <strong>bez internetu</strong> — także wtedy, gdyby Kuking kiedyś
             przestał istnieć. Nic tutaj nie wymaga zakładania konta.
         </p>
@@ -97,22 +130,42 @@
     --}}
     @if($photoCount > 0)
         <p>
-            Wszystkie Twoje zdjęcia leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
+            {{-- „Zdjęcia z tej paczki", nie „wszystkie Twoje zdjęcia”: do paczki
+                 wchodzą wyłącznie zdjęcia ze statusem `ready` (`ExportPhotoPlan`),
+                 a konto potrafi mieć obok nich odrzucone albo skasowane. Liczba
+                 w nagłówku wyżej opisuje paczkę i była prawdziwa — nieprawdziwe
+                 było samo słowo „wszystkie”. --}}
+            Zdjęcia z tej paczki leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
             Nazwa każdego pliku zaczyna się od daty, więc łatwo je posortować —
             na przykład <em>2027-03-14-rosol.webp</em>.
         </p>
-        <p><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
+        {{-- `akcja` — akapit, którego całą treścią jest jeden odnośnik.
+             Klasa niesie cel dotknięcia 48 px ze wspólnego `styles.blade.php`;
+             bez niej ten odnośnik miał zmierzone 22 px wysokości. --}}
+        <p class="akcja"><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
     @elseif($photosStillProcessing === 0)
         {{--
-            Ten tekst jest prawdziwy TYLKO wtedy, gdy zdjęć naprawdę nie ma.
-            Przy zdjęciach w drodze mówiłby „nie masz żadnego zdjęcia" komuś,
-            kto wgrał je pięć minut wcześniej — czyli dokładnie odwrotnie,
-            niż jest (issue #113). Wtedy wchodzi ostrzeżenie niżej.
+            ZDANIE OPISUJE PACZKĘ, NIE KONTO.
+
+            Ta gałąź nie znaczy „nie masz zdjęć". Znaczy: żadne zdjęcie nie
+            weszło do paczki i żadne nie jest w drodze. `ExportPhotoPlan`
+            liczy tylko `ready` oraz `pending`/`processing`, więc konto
+            z SAMYMI zdjęciami odrzuconymi (albo skasowanymi) trafia tutaj —
+            i słyszało „nie masz jeszcze w Kuking żadnego zdjęcia" o zdjęciach,
+            które samo wgrało. Ta sama usterka była w `CZYTAJ-TO-NAJPIERW.txt`
+            i naprawiamy ją w obu plikach naraz, żeby paczka nie mówiła
+            dwóch rzeczy o jednej sytuacji.
+
+            Zakres danych eksportu się nie zmienia: paczka dalej nie wypisuje
+            zdjęć odrzuconych ani powodu odrzucenia.
+
+            Przy zdjęciach w drodze to zdanie się NIE pojawia (issue #113) —
+            wtedy wchodzi ostrzeżenie niżej.
         --}}
         <p>
-            Nie masz jeszcze w Kuking żadnego zdjęcia, więc w tej paczce nie ma
-            katalogu ze zdjęciami. Kiedy dodasz pierwsze i poprosisz o paczkę
-            ponownie, znajdziesz je tutaj.
+            W tej paczce nie ma żadnego zdjęcia, więc nie ma w niej katalogu
+            ze zdjęciami. Katalog pojawi się, gdy będziesz mieć w Kuking zdjęcie,
+            które widać w serwisie, i poprosisz o paczkę ponownie.
         </p>
     @endif
 
@@ -146,7 +199,11 @@
     <ul class="spis">
         <li>
             <a href="dane.json">dane.json</a>
-            <br><span class="podpis">Wszystkie dane w formacie, który zrozumie inny serwis albo program.
+            {{-- „Te same dane", nie „wszystkie": ten opis stoi dwa ekrany pod
+                 zdaniem otwierającym, które przestało obiecywać komplet,
+                 i opisuje plik, którego własne `co_zawiera` też przestało.
+                 Paczka nie ma prawa przeczyć samej sobie o dwa akapity. --}}
+            <br><span class="podpis">Te same dane w formacie, który zrozumie inny serwis albo program.
             To jest plik na przeniesienie danych, nie do czytania.</span>
         </li>
         <li>

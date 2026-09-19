@@ -1,0 +1,589 @@
+{
+  "co": "Pusta ostatnia kartka wydruku strony przepisu z paczki (#492, druga tura)",
+  "jak": "Strona przepisu z PRAWDZIWEJ paczki, renderowana z file:// w Chromium (Playwright 1.63), emulateMedia print, PDF A4, margines 10 mm. Zmieniana jest wyłącznie DŁUGOŚĆ TREŚCI — ile <li> zostaje w liście kroków w PLIKU na dysku. Pusta kartka = ostatnia strona bez ani jednego znaku (pdftotext) i bez ani jednego obrazu (pdfimages).",
+  "uwaga": "Sceny A i B to DWIE różnie wygenerowane paczki — tytuły i długości tekstu pochodzą z fabryk, więc granice kartek wypadają gdzie indziej. Liczby wolno porównywać wyłącznie w obrębie jednej sceny.",
+  "kiedy_utc": "2026-09-18T19:27:04Z",
+  "przebiegi": [
+    {
+      "scena": "A",
+      "wariant_reguly": "padding-bottom 64 px — stan arkusza na 8537e42",
+      "opis_sceny": "paczka zbudowana normalną drogą z NIEZMIENIONEJ kopii na 8537e42",
+      "dlugosci": 15,
+      "puste_ostatnie_kartki_przy_krokach": [
+        4,
+        14
+      ],
+      "pomiary": [
+        {
+          "kroki": 1,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 394,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 2,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 583,
+            "obrazow": 4
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 3,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 767,
+            "obrazow": 4
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 4,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 0,
+            "obrazow": 0
+          },
+          "pusta": true
+        },
+        {
+          "kroki": 5,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 67,
+            "obrazow": 0
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 6,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 99,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 7,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 8,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 9,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 360,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 10,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 546,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 11,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 732,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 12,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 918,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 13,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 1104,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 14,
+          "kartek": 4,
+          "ostatnia_kartka": {
+            "znakow": 0,
+            "obrazow": 0
+          },
+          "pusta": true
+        },
+        {
+          "kroki": 15,
+          "kartek": 4,
+          "ostatnia_kartka": {
+            "znakow": 67,
+            "obrazow": 0
+          },
+          "pusta": false
+        }
+      ]
+    },
+    {
+      "scena": "A",
+      "wariant_reguly": "padding-bottom: 0 w @media print",
+      "opis_sceny": "ten sam plik HTML co wyżej, z badaną regułą dołożoną na końcu <style>",
+      "dlugosci": 15,
+      "puste_ostatnie_kartki_przy_krokach": [],
+      "pomiary": [
+        {
+          "kroki": 1,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 394,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 2,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 583,
+            "obrazow": 4
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 3,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 767,
+            "obrazow": 4
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 4,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 951,
+            "obrazow": 4
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 5,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 67,
+            "obrazow": 0
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 6,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 99,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 7,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 8,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 9,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 360,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 10,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 546,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 11,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 732,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 12,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 918,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 13,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 1104,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 14,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 1290,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 15,
+          "kartek": 4,
+          "ostatnia_kartka": {
+            "znakow": 67,
+            "obrazow": 0
+          },
+          "pusta": false
+        }
+      ]
+    },
+    {
+      "scena": "B",
+      "wariant_reguly": "padding-bottom: 0 w @media print — stan gałęzi",
+      "opis_sceny": "paczka zbudowana normalną drogą z poprawionych źródeł",
+      "dlugosci": 15,
+      "puste_ostatnie_kartki_przy_krokach": [],
+      "pomiary": [
+        {
+          "kroki": 1,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 2,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 3,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 360,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 4,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 544,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 5,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 728,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 6,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 912,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 7,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 1096,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 8,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 1280,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 9,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 67,
+            "obrazow": 0
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 10,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 99,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 11,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 12,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 13,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 362,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 14,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 548,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 15,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 734,
+            "obrazow": 2
+          },
+          "pusta": false
+        }
+      ]
+    },
+    {
+      "scena": "B",
+      "wariant_reguly": "padding-bottom cofnięty na 64 px",
+      "opis_sceny": "kontrola ujemna: ten sam plik HTML, reguła cofnięta",
+      "dlugosci": 15,
+      "puste_ostatnie_kartki_przy_krokach": [
+        8
+      ],
+      "pomiary": [
+        {
+          "kroki": 1,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 2,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 3,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 360,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 4,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 544,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 5,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 728,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 6,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 912,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 7,
+          "kartek": 2,
+          "ostatnia_kartka": {
+            "znakow": 1096,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 8,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 0,
+            "obrazow": 0
+          },
+          "pusta": true
+        },
+        {
+          "kroki": 9,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 67,
+            "obrazow": 0
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 10,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 99,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 11,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 12,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 176,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 13,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 362,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 14,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 548,
+            "obrazow": 2
+          },
+          "pusta": false
+        },
+        {
+          "kroki": 15,
+          "kartek": 3,
+          "ostatnia_kartka": {
+            "znakow": 734,
+            "obrazow": 2
+          },
+          "pusta": false
+        }
+      ]
+    }
+  ]
+}

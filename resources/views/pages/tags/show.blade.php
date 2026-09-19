@@ -28,6 +28,30 @@
     $opisTagu = $liczbaWpisow > 0
         ? "{$liczbaWpisow} {$formaWpis} z tagiem „{$tag->name}” w Kuking — zobacz, co ugotowali inni."
         : "Tag „{$tag->name}” w Kuking czeka na pierwszy wpis — dodaj go i bądź pierwszą osobą.";
+
+    /*
+     * DLACZEGO SPIS TAGÓW MOŻE MÓWIĆ „0 WPISÓW", GDY WIDZĘ TU SWÓJ WPIS (#681).
+     *
+     * Właściciel zgłosił: dodał wpis z tagiem, a `/tagi` pokazało „0 wpisów".
+     * Liczba jest PRAWIDŁOWA i celowa — D-087 liczy tylko wpisy widoczne dla
+     * wszystkich, żeby ta sama liczba znaczyła to samo dla każdego i dała się
+     * policzyć jednym zapytaniem dla całej strony. Ale wpis prywatny albo
+     * „tylko dla obserwujących" widzi na tej stronie jego autor, więc bez
+     * jednego zdania liczba wygląda jak usterka.
+     *
+     * Liczymy TYLKO wpisy zalogowanej osoby z tej strony wyników i TYLKO te,
+     * które nie wchodzą do liczby publicznej. Bez dodatkowego zapytania:
+     * `$posts` jest już wczytane, a `visibility` i `status` są w kolumnach.
+     * Nie mówimy niczego o cudzych wpisach — o tym, czego nie widać, nie
+     * informujemy nawet półsłówkiem.
+     */
+    $wlasneNiepubliczne = auth()->check()
+        ? $posts->getCollection()
+            ->filter(fn ($post) => $post->author_id === auth()->id()
+                && ($post->visibility !== \App\Models\Post::VISIBILITY_PUBLIC
+                    || $post->status !== \App\Models\Post::STATUS_PUBLISHED))
+            ->count()
+        : 0;
 @endphp
 <x-layout :title="$tag->name" :description="\Illuminate\Support\Str::limit($opisTagu, 155)">
     <p class="meta mb-2">
@@ -42,6 +66,23 @@
     <p class="lead">{{ $tagNote ?: 'Zobacz, co gotują inni. Dodaj zdjęcie ze swojej kuchni i kilka słów.' }}</p>
 
     <p><x-tag-public-stats :stats="$publicStats" /></p>
+
+    @if($wlasneNiepubliczne > 0)
+        {{-- Tekst PODSTAWOWY, nie pomocniczy: to jest odpowiedź na pytanie
+             „dlaczego w spisie jest zero", a nie ozdobnik. `.meta` ma 16 px,
+             a twardy standard UX 50+ z AGENTS.md §7 to minimum 18 px.
+             Ten sam wniosek padł w review #681 przy podpisie autora zdjęcia. --}}
+        <p data-wlasne-niepubliczne>
+            @if($wlasneNiepubliczne === 1)
+                Jeden Twój wpis z tym tagiem widzisz tylko Ty.
+            @else
+                {{ $wlasneNiepubliczne }} Twoje wpisy z tym tagiem widzisz tylko Ty.
+            @endif
+            W spisie tagów liczymy wpisy widoczne dla wszystkich, więc ten
+            {{ $wlasneNiepubliczne === 1 ? 'wpis' : 'wpisy' }} się tam nie liczy{{ $wlasneNiepubliczne === 1 ? '' : 'ą' }}.
+            Możesz to zmienić w ustawieniach widoczności wpisu.
+        </p>
+    @endif
 
     @auth
         {{-- Zwykły formularz, nie przycisk sterowany skryptem: bez JavaScriptu
