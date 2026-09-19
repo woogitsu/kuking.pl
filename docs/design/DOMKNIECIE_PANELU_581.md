@@ -113,6 +113,7 @@ Poprawka: jedna zmienna `$nazwaEkranu` zasila wszystkie trzy miejsca.
 | Testy panelu i moderacji (`--filter 'Panel\|Moderac\|BezOdpowiedzi\|Sygnal\|Kolejk\|Wiadomosc\|Bramk\|Decyzje'`) | **507 passed (2955 assertions)** |
 | Nowe regresje | **7 passed (39 assertions)** |
 | Kontrole ujemne | **5/5** czerwonych na właściwej asercji, 5/5 przywróceń bajt w bajt |
+| Ogląd w przeglądarce | **36 przebiegów**, zero przewijania w poziomie, zero niezgodnych nazw (§5) |
 
 Dowód kontrol ujemnych: `docs/design/evidence/panel581d/kontrola-ujemna.log`
 — dla każdego sabotażu plik, test, wynik, powód czerwieni (asercja, nie błąd),
@@ -134,27 +135,87 @@ Odnotowane, bo czerwień bez przeczytanej przyczyny nie jest informacją.
 
 ---
 
-## 5. Czego ten odbiór NIE dowodzi
+## 5. Ogląd w przeglądarce
 
-- **Oglądu w przeglądarce jeszcze nie wykonano.** Wymagane szerokości
-  320/390/768/1440 px, oba motywy i rzeczywisty zoom 200 % pozostają do
-  zrobienia. Powód jest jawny: przez całą tę turę maszyna była wysycona
-  (`load average` 12–14, do trzech runnerów CI i cudzy pomiar
-  `chrome-headless` na 815 % CPU). Uruchomienie własnej matrycy
-  przeglądarkowej konkurowałoby z cudzym pomiarem i mogło zafałszować oba.
-  **Bez tego oglądu pakiet nie jest gotowy do scalenia.**
-- Pomiary liczbowe z §1 są **statyczne** (odczyt źródeł i zbudowanego
-  arkusza). Dowodzą, że panel korzysta z tokenów i wspólnych komponentów —
-  nie zastępują obejrzenia wyrenderowanej strony.
-- Poprawka 2.1 zmienia rozmiar tekstu z 18 px na 22 px. Tego, **jak ten
-  większy akapit układa się przy 320 px i przy tekście 140 %**, nie
-  zmierzono — to pierwsza rzecz do sprawdzenia w oglądzie.
-- Nie dotykano produkcji ani danych użytkowników. Nie wykonywano żadnej
-  decyzji moderacyjnej.
+Wykonany. Prawdziwe logowanie **formularzem i kodem TOTP** — bez tworzenia
+sesji z pominięciem autoryzacji. Własna baza `kuking_581d_browser` na
+`127.0.0.1:55439`, własny build assetów, `php artisan serve` na porcie 8137.
+
+**36 przebiegów:** cztery ekrany × 320/390/768/1440 px × motyw jasny i ciemny
+(32), oraz cztery przebiegi **rzeczywistego zoomu 200 %** przez Chrome
+DevTools Protocol (`pageScaleFactor: 2` + `deviceMetrics` 320 CSS px,
+potwierdzone `devicePixelRatio = 2` i `innerWidth = 320`).
+
+| Co mierzone | Wynik |
+|---|---|
+| Przewijanie w poziomie | **0 na 36 przebiegów** |
+| Nazwa ekranu niezgodna między nagłówkiem, tytułem a paskiem | **0 na 36** |
+| Rozmiar akapitu wprowadzającego | **22 px w każdym z 18 przebiegów**, gdzie akapit występuje (przed poprawką: 18 px) |
+| Zoom 200 %: 320 CSS px, `dpr` 2, brak przewijania, nazwy zgodne | 4 na 4 |
+
+Dowody: `evidence/panel581d/oglad.json` oraz trzy obejrzane kadry
+(320 jasny, 1440 ciemny, zoom 200 %).
+
+### 5.1. Tekst poniżej 18 px — sprawdzone, nie jest usterką panelu
+
+Sonda zgłosiła po dwa elementy na ekran: `p.meta`, `span.meta` i odnośnik
+wewnątrz nich. To klasa `.meta` z `font-size: var(--text-help)` — **16 px**,
+zdefiniowana raz, globalnie.
+
+Kontrola porównawcza tą samą sondą na stronach **spoza panelu**:
+
+| Strona | Elementów poniżej 18 px |
+|---|---|
+| `/` (powitalna) | 21 (19 × 16 px, 2 × 8 px) |
+| `/o-kuking` | 23 (21 × 16 px, 2 × 8 px) |
+| ekran panelu | **1–2** |
+
+Panel ma takiego tekstu **mniej** niż strony publiczne. To decyzja systemu
+projektowego (`--text-help`), nie pozostałość starego stylu panelu.
+
+### 5.2. Pływający „Wygląd" zasłania fragment akapitu — i moja poprawka to POGŁĘBIA
+
+To jedyny niewygodny wynik oglądu i podaję go wprost. Sterowanie wyglądem
+(`components/szybki-wyglad`, `position: fixed`, `z-index: 25`) stoi w prawym
+dolnym rogu **na każdej stronie serwisu**. Przy 320 px nachodzi na akapit
+wprowadzający. Zmierzone na tym samym ekranie, w dwóch wariantach klasy:
+
+| Wariant | Rozmiar tekstu | Akapit (top–bottom) | Nakładanie z przyciskiem |
+|---|---|---|---|
+| `lead` — stan **przed** poprawką | 18 px | 529–780 | **40 px w pionie** |
+| `text-lead` — stan **po** poprawce | 22 px | 529–870 | **54 px w pionie** |
+
+Wniosek uczciwy: **zasłanianie istniało przed tą zmianą** i bierze się
+z pływającego sterowania, nie z typografii. Moja poprawka **powiększa je
+o 14 px**, bo poprawnie sformatowany akapit jest wyższy.
+
+Czego to **nie** znaczy: nic nie jest ukryte trwale — element jest `fixed`,
+więc przewinięcie odsłania tekst, a samo pływające sterowanie jest świadomym
+elementem układu obecnym na całym serwisie. Nie nazywam tego więc usterką
+wprowadzoną przez ten pakiet ani nie naprawiam globalnego układu przy okazji
+portu panelu. **Zostawiam to do decyzji recenzenta** wraz z pomiarem
+(`evidence/panel581d/zaslanianie-wyglad.json`); gdyby rezerwa pod pływającym
+sterowaniem miała powstać, jest to zmiana wspólnego układu, a nie panelu.
 
 ---
 
-## 6. Znalezione poza zakresem — do osobnych zgłoszeń
+## 6. Czego ten odbiór NIE dowodzi
+
+- Ogląd objął **cztery ekrany, których dotyczy zmiana**, nie wszystkie
+  czternaście powierzchni panelu. Pozostałych ekranów ta tura nie zmieniała
+  i nie mierzyła na nowo — ich odbiór pochodzi z pakietów #587/#637/#640–643.
+- Zmierzono **tekst 100 %**. Wariantu 140 % w tej turze nie przebiegano;
+  wcześniejsze pakiety mają go w swoich raportach.
+- Jeden silnik: **Chromium** (Playwright). Bez Firefoksa i bez WebKita.
+- Dane lokalne i demonstracyjne. Nie dotykano produkcji ani danych
+  użytkowników. Nie wykonywano żadnej decyzji moderacyjnej.
+- Pomiary z §1 są **statyczne** (odczyt źródeł i zbudowanego arkusza).
+  Dowodzą, że panel korzysta z tokenów i wspólnych komponentów — nie
+  zastępują obejrzenia każdej powierzchni.
+
+---
+
+## 7. Znalezione poza zakresem — do osobnych zgłoszeń
 
 1. **Ta sama martwa klasa `lead` żyje w dwóch widokach spoza panelu:**
    `pages/questions/index.blade.php:3` i `pages/settings/tags.blade.php:15`.
@@ -166,7 +227,7 @@ Odnotowane, bo czerwień bez przeczytanej przyczyny nie jest informacją.
 
 ---
 
-## 7. Środowisko
+## 8. Środowisko
 
 Kopia wykonawcza `/home/mateusz/kuking-581d` na dysku Linuksa, z własnym
 `vendor`. PostgreSQL wyłącznie `127.0.0.1:55439`, **własna baza

@@ -1,0 +1,86 @@
+[
+  {
+    "ekran": "sygnaly",
+    "wariant": "text-lead",
+    "rozmiarTekstu": "22px",
+    "akapit": {
+      "top": 529,
+      "bottom": 870,
+      "height": 341
+    },
+    "fab": {
+      "top": 740,
+      "bottom": 794,
+      "left": 207,
+      "right": 308
+    },
+    "nakladanie": {
+      "pionowo": 54,
+      "poziomo": 101
+    },
+    "zasloniete": true
+  },
+  {
+    "ekran": "sygnaly",
+    "wariant": "lead",
+    "rozmiarTekstu": "18px",
+    "akapit": {
+      "top": 529,
+      "bottom": 780,
+      "height": 251
+    },
+    "fab": {
+      "top": 740,
+      "bottom": 794,
+      "left": 207,
+      "right": 308
+    },
+    "nakladanie": {
+      "pionowo": 40,
+      "poziomo": 101
+    },
+    "zasloniete": true
+  },
+  {
+    "ekran": "tagi-promowane",
+    "wariant": "text-lead",
+    "rozmiarTekstu": "22px",
+    "akapit": {
+      "top": 529,
+      "bottom": 870,
+      "height": 341
+    },
+    "fab": {
+      "top": 740,
+      "bottom": 794,
+      "left": 207,
+      "right": 308
+    },
+    "nakladanie": {
+      "pionowo": 54,
+      "poziomo": 101
+    },
+    "zasloniete": true
+  },
+  {
+    "ekran": "tagi-promowane",
+    "wariant": "lead",
+    "rozmiarTekstu": "18px",
+    "akapit": {
+      "top": 529,
+      "bottom": 780,
+      "height": 251
+    },
+    "fab": {
+      "top": 740,
+      "bottom": 794,
+      "left": 207,
+      "right": 308
+    },
+    "nakladanie": {
+      "pionowo": 40,
+      "poziomo": 101
+    },
+    "zasloniete": true
+  }
+]
