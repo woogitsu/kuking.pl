@@ -1,0 +1,62 @@
+# Środowisko PHP dla joba CI — dwa kroki, które muszą iść RAZEM.
+#
+# PO CO TO ISTNIEJE
+# `shivammathur/setup-php` nadpisuje binarki narzędzi w miejscu, z którego się
+# je potem wykonuje, a domyślnie jest to ścieżka wspólna dla całej maszyny
+# (`/usr/local/bin`). Trzy runnery tego repozytorium to trzy rejestracje na
+# JEDNEJ maszynie, więc dzielą ten katalog. 10 września 2026 o 11:53:47 UTC
+# job „Testy (PostgreSQL 18)" padł przez to z kodem 126 na `composer install`,
+# nie uruchomiwszy ani jednego testu: „composer: bad interpreter: Text file
+# busy". Piszącym był sąsiedni job z tego samego przebiegu (issue #262).
+#
+# Lekarstwo to własny katalog narzędzi per job — ale działa TYLKO wtedy, gdy
+# zmienne są wyeksportowane PRZED `setup-php`: akcja czyta je w chwili
+# uruchomienia. Dopóki oba kroki stały osobno w dziewięciu jobach, kolejność
+# dało się odwrócić przy nieuwadze, a lista rozszerzeń PHP była przepisana
+# dziewięć razy.
+#
+# Tutaj są nierozłączne i stoją raz. Job nie może już wziąć jednego bez
+# drugiego ani w złej kolejności.
+#
+# DLACZEGO `GITHUB_JOB` DZIAŁA W COMPOSITE
+# Kroki composite action wykonują się w kontekście joba, który ich używa —
+# `RUNNER_TEMP`, `GITHUB_RUN_ID` i `GITHUB_JOB` mają więc wartości TEGO joba,
+# czyli ścieżka zostaje prywatna dla każdego joba osobno. Pilnuje tego
+# `CiDajeKazdemuJobowiWlasneNarzedziaTest`, który czyta ten plik razem
+# z `ci.yml`.
+#
+# DLACZEGO WERSJA JEST WEJŚCIEM, A NIE `env.PHP_VERSION`
+# Wewnątrz composite action kontekst `env` to środowisko akcji, nie workflow.
+# Poleganie na `${{ env.PHP_VERSION }}` tutaj byłoby zgadywaniem — wersja
+# wchodzi więc jawnie, a job podaje ją ze swojego `env`.
+
+name: Środowisko PHP
+description: Prywatny katalog narzędzi joba i konfiguracja PHP — w tej kolejności.
+
+inputs:
+  wersja:
+    # W opisie wejścia NIE WOLNO użyć wyrażenia `${{ … }}` — GitHub
+    # odrzuca akcję z „expressions are not allowed here". Zmierzone
+    # przez `act`: akcja padała po 2,7 ms, zanim wykonała pierwszy krok.
+    description: Wersja PHP; job podaje ją ze swojego env.PHP_VERSION.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Własny katalog narzędzi PHP (issue #262)
+      shell: bash
+      run: |
+        set -euo pipefail
+        KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+        mkdir -p "$KATALOG/bin" "$KATALOG/cache"
+        echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
+        echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
+
+    - name: Konfiguracja PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: ${{ inputs.wersja }}
+        extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+        coverage: none
+        tools: composer:v2
