@@ -242,6 +242,38 @@ final class KasujZdjecie
             }
         }
 
+        // WARIANTY ZADANIA, KTÓRE NIE DOBIEGŁO KOŃCA (#601).
+        //
+        // `metadata.variants` powstaje dopiero po ostatnim wariancie, razem
+        // ze statusem `ready`. Zadanie przerwane w połowie — wyjątkiem albo
+        // `$timeout`, który ubija proces bez żadnego `catch` — zostawia
+        // w publicznym buckecie pliki, których nie ma w tamtej tablicy.
+        // `ProcessUploadedImage` zapisuje więc ich klucze OSOBNO, jeszcze
+        // przed pętlą, a tu je sprzątamy. Klucz, pod którym plik nigdy nie
+        // powstał, jest no-opem: `skasujZDysku()` pyta `exists()`.
+        //
+        // Pomijamy klucze obsłużone wyżej — po sukcesie lista jest pusta,
+        // ale wiersz sprzed tej zmiany może mieć obie.
+        $juzSkasowane = [];
+
+        foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $wariant) {
+            if (is_array($wariant) && isset($wariant['key'])) {
+                $juzSkasowane[] = (string) $wariant['key'];
+            }
+        }
+
+        foreach ((array) ($zdjecie->metadata[Media::METADANE_WARIANTY_W_TRAKCIE] ?? []) as $klucz) {
+            if (! is_string($klucz) || $klucz === '' || in_array($klucz, $juzSkasowane, true)) {
+                continue;
+            }
+
+            $doWyczyszczenia[] = $this->publicznyAdres($dyskWariantow, $klucz);
+
+            if (! $this->skasujZKazdegoDysku($zdjecie, $klucz, $dyski)) {
+                $wszystkoSieUdalo = false;
+            }
+        }
+
         if ($zdjecie->object_key !== null
             && ! $this->skasujZKazdegoDysku($zdjecie, $zdjecie->object_key, $dyski)) {
             $wszystkoSieUdalo = false;
