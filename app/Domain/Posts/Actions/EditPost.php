@@ -55,7 +55,11 @@ final class EditPost
                 if (mb_strlen($title) < 10 || mb_strlen($title) > 180) {
                     throw new BladDlaCzlowieka('Napisz pytanie w tytule — od 10 do 180 znaków.');
                 }
-                $locked->title = $title;
+                // Ta sama nazwana metoda co przy publikacji: tytuł pytania
+                // i `kind` to dla bazy jedna wartość (CHECK
+                // `posts_kind_title_check`), więc ustawiamy je razem —
+                // także wtedy, gdy `kind` już jest właściwy.
+                $locked->oznaczJakoPytanie($title);
             }
             $tags = $this->resolveTags->handle($body, $tagNames, $locked);
             if ($locked->kind === Post::KIND_QUESTION && count($tags) > 3) {

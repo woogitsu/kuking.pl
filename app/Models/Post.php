@@ -62,8 +62,17 @@ class Post extends Model
     /** Siatka: wszystkie zdjęcia na jednym ekranie. */
     public const DISPLAY_COLLAGE = 'collage';
 
+    /**
+     * `kind` NIE JEST TU CELOWO — patrz `oznaczJakoPytanie()` niżej.
+     *
+     * `title` ZOSTAJE, i to też jest decyzja, a nie przeoczenie: tytuł jest
+     * TREŚCIĄ, którą pisze autor, a nie polem sterującym. Sam z siebie nie
+     * otwiera żadnej furtki, bo CHECK `posts_kind_title_check` nie przyjmie
+     * tytułu przy daniu — a `kind = 'question'` nie da się już podrzucić
+     * hurtem. Tytuł podstawiony do `Post::create()` daniu odbija się więc
+     * o bazę, zamiast po cichu wejść.
+     */
     protected $fillable = [
-        'kind',
         'title',
         'author_id',
         'body',
@@ -378,6 +387,47 @@ class Post extends Model
         return in_array($this->display_mode, self::dozwoloneTrybyWyswietlania(), true)
             ? (string) $this->display_mode
             : self::DISPLAY_NORMAL;
+    }
+
+    /**
+     * Uczyń z tego wpisu PYTANIE do działu „Poradźcie".
+     *
+     * DLACZEGO TA METODA ISTNIEJE (a `kind` nie ma go w `$fillable`)
+     * `kind` nie jest treścią — jest polem STERUJĄCYM. Rozstrzyga, do
+     * których strumieni wpis w ogóle trafia (`scopeEnabledKinds`), pod jakim
+     * adresem stoi (`url()`) i czy `PostPolicy` dziś go przepuści. To ta sama
+     * rodzina co `users.status` i `users.role`, których AGENTS.md §7 zabrania
+     * w `$fillable`, i ten sam wzorzec co `ContactMessage::oznaczJako()`:
+     * stan ustawia jawna, nazwana metoda, nigdy pole z żądania.
+     *
+     * Walidacja w `PostController` już dziś odrzuca podrzucone `kind` i ma
+     * tak zostać — ale walidacja broni JEDNEJ drogi i trzyma się wyłącznie
+     * na dyscyplinie: pierwsze `Post::create($request->all())` napisane
+     * kiedykolwiek w przyszłości przewraca ją bez śladu. Dział „Poradźcie"
+     * jest od 19 września włączony na produkcji
+     * (`KUKING_QUESTIONS_ENABLED`), więc „danie zamienione w pytanie" to nie
+     * jest już hipoteza o martwym kodzie: taki wpis wypada z feedu dań,
+     * wchodzi do kolejki nieodpowiedzianych pytań i zmienia swój adres.
+     *
+     * `title` USTAWIA SIĘ TU RAZEM Z `kind`, bo baza nie przyjmuje ich
+     * osobno: CHECK `posts_kind_title_check` wiąże je w jedną wartość
+     * (danie bez tytułu, pytanie z tytułem 10–180 znaków po obcięciu).
+     * Rozdzielenie na dwa kroki dałoby stan pośredni, którego wiersz i tak
+     * nie umie mieć.
+     *
+     * NIE ZAPISUJE — inaczej niż `ContactMessage::oznaczJako()`, bo tam stan
+     * zmienia się na wierszu, który już istnieje. Tutaj `kind` jest
+     * ustawiany przy NARODZINACH wpisu: `PublishPost` robi jeden `save()`
+     * wewnątrz transakcji i na tym jednym zapisie stoi idempotencja
+     * wysłania formularza (`posts_one_per_klucz_wyslania`). Zapis w tej
+     * metodzie byłby drugim, wcześniejszym `INSERT`-em.
+     */
+    public function oznaczJakoPytanie(string $title): static
+    {
+        return $this->forceFill([
+            'kind' => self::KIND_QUESTION,
+            'title' => $title,
+        ]);
     }
 
     public function isPublished(): bool
