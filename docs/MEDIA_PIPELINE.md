@@ -147,6 +147,18 @@ Po przetworzeniu podgląd zostaje w `srcset` jako kandydat między `thumb`
 (320) a `feed` (960) — zmierzone: telefon 320 px pobiera dzięki temu 66,8 kB
 zamiast 178,6 kB.
 
+Ten sam uchwyt jest potrzebny wariantom, które **dopiero powstają** (#601).
+`metadata.variants` zapisuje się dopiero z ostatnim wariantem, razem ze
+statusem `ready`, a `put()` idą do bucketu jeden po drugim — więc zadanie
+przerwane w połowie (wyjątek albo `$timeout`, który ubija proces sygnałem,
+bez `catch`) zostawiało pliki, których `KasujZdjecie` nie umiało nazwać.
+Dlatego job zapisuje policzone z góry klucze wariantów **przed pętlą**, pod
+`Media::METADANE_WARIANTY_W_TRAKCIE`, i `KasujZdjecie` sprząta także tę
+listę; po sukcesie lista znika. Lista jest osobna od `variants`, bo
+`wariantDoSerwowania()` pokazałaby po niej zdjęcie pod nazwą wariantu,
+którego plik może jeszcze nie istnieć. Pilnuje tego
+`tests/Feature/PrzerwanePrzetwarzanieNieZostawiaSierotyTest.php`.
+
 ### Co wolno pokazać
 
 Bramką widoków **nie jest status wiersza**, tylko istnienie wariantu:

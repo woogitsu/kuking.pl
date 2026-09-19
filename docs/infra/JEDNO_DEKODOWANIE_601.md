@@ -1,6 +1,16 @@
 # Jedno dekodowanie oryginału — #601
 
-Status: draft PR #625, commit 47cbdebf24b1e0451f7f2f2311e55469e2206174 wysłany zwykłym pushem. Pełny obowiązkowy hook przeszedł; CI 35100722575 dla tego commita zakończyło się sukcesem (12/12 zadań). Brak scalenia i wdrożenia tego pakietu.
+Status: **scalone i wdrożone** — merge `8b4528a049e9100ccfb9c45877c58f8843c2eedd`
+(PR #625) z 16 września 2026. Odbiór stanu na produkcji, z tabelą kryteriów
+i tym, co pozostaje nieudowodnione: [ODBIOR_JEDNEGO_DEKODOWANIA_601.md](ODBIOR_JEDNEGO_DEKODOWANIA_601.md).
+**#601 pozostaje otwarte**: nowa ścieżka nie przetworzyła jeszcze na produkcji
+ani jednego zdjęcia.
+
+Poniższy zapis powstał PRZED scaleniem i opisuje stan draftu — zdania o braku
+scalenia i o blokadzie wdrożenia (ostatnia sekcja) są już historyczne.
+Historia: commit 47cbdebf24b1e0451f7f2f2311e55469e2206174 wysłany zwykłym
+pushem; pełny obowiązkowy hook przeszedł, CI 35100722575 dla tego commita
+zakończyło się sukcesem (12/12 zadań).
 Baza: main `f77bd4d7f16e93469b9a731f80c41e6b151e7faf`.
 
 ## Zmiana
