@@ -80,7 +80,6 @@ test('kod pomiaru bez przedrostka P581_ idzie w całości', () => {
 test('kod sklejony z czymkolwiek NIE idzie w całości', () => {
   const sklejone = [
     'DETAILS_TAB_UNREACHABLE #zakladka-2',                 // panel-details.mjs:28
-    'P581_ZOOM_GEOMETRIA {"width":320}',                   // panel-menu-zoom.mjs:73
     'DOMAIN_CHANGED: haslo-testowe-123',
     'KOD I DRUGI',
     'KOD.Z.KROPKA',
@@ -95,6 +94,36 @@ test('kod sklejony z czymkolwiek NIE idzie w całości', () => {
     const wynik = komunikatBledu(new Error(tresc));
     assert.ok(wynik.startsWith('P581_RUN_FAIL: '), `Przeszło bez osłony: ${tresc} -> ${wynik}`);
     assert.ok(!wynik.includes(tresc), `Treść cudzego komunikatu wyszła: ${wynik}`);
+  }
+});
+
+
+/* Kod WŁASNY sklejony z danymi: przechodzi SAMA NAZWA PRZYCZYNY, ani jeden
+   znak danych. To jest różnica między „kształt kontra treść" a „wszystko albo
+   nic": do 19 września 2026 taka wiadomość szła przez ogólne `P581_RUN_FAIL`,
+   więc job „Panel marki" chodził kilkanaście minut i zostawiał jeden wiersz
+   bez przyczyny. Dane nadal nie wychodzą — sprawdza to druga asercja. */
+test('kod własny sklejony z danymi oddaje sam kod, bez danych', () => {
+  const przypadki = [
+    ['P581_ZOOM_GEOMETRIA {"width":320}', 'P581_ZOOM_GEOMETRIA'],
+    ['P581_DOMAIN_CHANGED {"adres":"https://przyklad/tajne?token=abc"}', 'P581_DOMAIN_CHANGED'],
+    ['P581_CASE_COUNT 7 z 9', 'P581_CASE_COUNT'],
+  ];
+
+  for (const [tresc, oczekiwany] of przypadki) {
+    const wynik = komunikatBledu(new Error(tresc));
+    assert.equal(wynik, oczekiwany, `Kod przyczyny nie wyszedł: ${tresc} -> ${wynik}`);
+    const dane = tresc.slice(oczekiwany.length).trim();
+    assert.ok(dane !== '' && !wynik.includes(dane), `Dane wyszły do dziennika: ${wynik}`);
+  }
+});
+
+/* KONTROLA ODWROTNA: sama spacja nie wystarczy — bez przedrostka `P581_`
+   napis idzie przez osłonę, bo wtedy nie wiadomo, czy to nasz kod. */
+test('spacja bez przedrostka P581_ nie otwiera furtki', () => {
+  for (const tresc of ['DOMAIN_CHANGED haslo-123', 'KOD I DRUGI', 'P581 COS']) {
+    const wynik = komunikatBledu(new Error(tresc));
+    assert.ok(wynik.startsWith('P581_RUN_FAIL: '), `Przeszło bez osłony: ${tresc} -> ${wynik}`);
   }
 });
 

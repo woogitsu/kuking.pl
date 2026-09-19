@@ -51,11 +51,25 @@ const WLASNY = /^P581_[A-Z_]+(?::|$)/;
    więc taka wiadomość dalej idzie przez ogólne `P581_RUN_FAIL`. */
 const KOD_POMIARU = /^[A-Z_]+$/;
 
+/* Kod WŁASNY sklejony z danymi pomiaru: `P581_${kod} ${JSON.stringify(dane)}`
+   z `panel-marki.mjs:10`. Do 19 września 2026 taka wiadomość wychodziła stąd
+   jako gołe `P581_RUN_FAIL: Error` — job „Panel marki" chodził kilkanaście
+   minut i zostawiał jeden wiersz bez przyczyny.
+
+   Zwracamy WYŁĄCZNIE dopasowany kod, bez reszty wiadomości. Granica z nagłówka
+   pliku zostaje nienaruszona: `JSON.stringify(dane)` może nieść treść strony,
+   więc nie przechodzi ani jeden jego znak. Przechodzi sama nazwa przyczyny,
+   która danymi nie jest. */
+const WLASNY_Z_DANYMI = /^(P581_[A-Z_]+)\s/;
+
 export function komunikatBledu(error) {
   const tresc = String(error?.message ?? '');
 
   if (WLASNY.test(tresc)) return tresc;
   if (KOD_POMIARU.test(tresc)) return tresc;
+
+  const zDanymi = WLASNY_Z_DANYMI.exec(tresc);
+  if (zDanymi) return zDanymi[1];
 
   /* Bierzemy pierwszą ramkę wskazującą NASZ plik, a nie szczyt stosu:
      szczyt siedzi zwykle w `node_modules/playwright`, co nie mówi nic
