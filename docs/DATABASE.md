@@ -1317,6 +1317,16 @@ Konfiguracja `kuking.questions.enabled` (`KUKING_QUESTIONS_ENABLED`, domyślnie
 false) przygotowuje kolejny etap #372; sama nie filtruje istniejących feedów
 ani ręcznie zapisanych pytań. Ten etap nie dodaje ścieżki HTTP tworzenia pytań.
 
+**`kind` NIE JEST W `$fillable` MODELU `Post`.** To pole STERUJĄCE — decyduje
+o strumieniach (`scopeEnabledKinds`), o adresie wpisu (`url()`) i o tym, co
+przepuści `PostPolicy` — czyli ta sama rodzina co `users.status` i `users.role`
+z AGENTS.md §7. Jedyna droga to nazwana metoda `Post::oznaczJakoPytanie()`,
+tak jak `ContactMessage::oznaczJako()` dla stanu obsługi wiadomości. `title`
+w `$fillable` ZOSTAJE: to treść pisana przez autora, a sam z siebie nie otwiera
+furtki, bo `posts_kind_title_check` nie przyjmie tytułu przy daniu. Pilnuje
+tego `tests/Feature/RodzajWpisuPozaMasowymPrzypisaniemTest.php` — sprawdzając
+zawartość wiersza, a nie zawartość tablicy `$fillable`.
+
 **Rollback:** przy braku pytań `down()` usuwa oba CHECK-i i nowe kolumny,
 zachowując stare wpisy. Jeśli istnieje choć jedno pytanie, również ukryte
 lub miękko usunięte, odmawia przed DDL. Wtedy wycofujemy kod, pozostawiając

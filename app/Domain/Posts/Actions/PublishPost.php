@@ -154,9 +154,10 @@ final class PublishPost
                     ? Post::DISPLAY_NORMAL
                     : $trybZadany;
 
-                $post = Post::create([
-                    'kind' => $kind,
-                    'title' => $questionTitle,
+                // `kind` i `title` NIE IDĄ przez tablicę: pole sterujące
+                // ustawia nazwana metoda (`Post::oznaczJakoPytanie()`),
+                // a tytuł jest z nim związany CHECK-iem w bazie.
+                $post = new Post([
                     'author_id' => $author->getKey(),
                     'body' => $body,
                     'visibility' => $visibility,
@@ -166,6 +167,12 @@ final class PublishPost
                     'klucz_wyslania' => $klucz,
                     'published_at' => now(),
                 ]);
+
+                if ($kind === Post::KIND_QUESTION) {
+                    $post->oznaczJakoPytanie((string) $questionTitle);
+                }
+
+                $post->save();
 
                 foreach ($orderedMedia as $position => $mediaId) {
                     $post->media()->attach($mediaId, ['position' => $position]);
