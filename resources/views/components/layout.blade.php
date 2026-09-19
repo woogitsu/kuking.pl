@@ -339,7 +339,11 @@
         rozwija encje w wartościach atrybutów, więc beacon widzi poprawny
         JSON, a my nie renderujemy niczego surowego.
     --}}
-    @if(\App\Support\AnalitykaCloudflare::wlaczona())
+    {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
+         adres e-mail (`/nowe-haslo/{token}?email=…`). Beacon melduje pełny
+         adres strony, więc bez tego warunku żywy żeton resetu hasła trafiałby
+         do cudzego panelu — uzasadnienie w komentarzu tamtej metody. --}}
+    @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
                 data-cf-beacon='{{ \App\Support\AnalitykaCloudflare::konfiguracjaBeacona() }}'></script>
