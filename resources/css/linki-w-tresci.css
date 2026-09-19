@@ -7,4 +7,43 @@
     text-decoration: underline;
     text-underline-offset: 0.15em;
   }
+
+  /*
+   * TAG W TREŚCI WPISU (issue #737)
+   *
+   * `#rolada` napisane w treści jest odnośnikiem do strony tagu — ale tylko
+   * wtedy, gdy ten tag jest naprawdę przypięty do wpisu (o tym decyduje
+   * `App\Support\LinkiWTekscie`, nie CSS).
+   *
+   * POLE KLIKNIĘCIA. Nazwa tagu bywa krótka (`#zupa` to pięć znaków), a grupa
+   * odbiorcza trafia w nią palcem. Wcięcie pionowe w `em` rośnie razem
+   * z tekstem (D-082/D-107) i dokłada wysokości polu dotknięcia, nie ruszaąc
+   * układu wierszy: pionowe wcięcie elementu liniowego nie podbija wysokości
+   * wiersza. Wcięcie poziome jest zdjęte ujemnym marginesem, żeby odstępy
+   * między wyrazami zostały takie, jak je napisał człowiek.
+   *
+   * FOKUS. Ten sam wzór co `.photo-zoom-link` — pierścień w `--color-focus`
+   * z odsunięciem, plus osobna reguła dla trybu wymuszonych kolorów.
+   */
+  a.tag-w-tresci {
+    text-decoration: underline;
+    text-underline-offset: 0.15em;
+    font-weight: 600;
+    padding-block: 0.4em;
+    padding-inline: 0.15em;
+    margin-inline: -0.15em;
+    border-radius: var(--radius-sm);
+    overflow-wrap: anywhere;
+  }
+
+  a.tag-w-tresci:focus-visible {
+    outline: 3px solid var(--color-focus);
+    outline-offset: 2px;
+  }
+
+  @media (forced-colors: active) {
+    a.tag-w-tresci:focus-visible {
+      outline-color: Highlight;
+    }
+  }
 }
