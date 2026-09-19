@@ -18,6 +18,11 @@ class EksportNieObiecujeTerminuTest extends TestCase
                     'generatedAt' => now(), 'displayName' => 'Próba eksportu',
                     'recipes' => [], 'postCount' => 0, 'cookedCount' => 0,
                     'photoCount' => 0, 'photosStillProcessing' => $pending,
+                    // Zero odrzuconych i zero skasowanych: ten test pyta
+                    // WYŁĄCZNIE o gałąź „zdjęcia w drodze" i o to, czego ona
+                    // obiecuje. Gałąź „nigdy" ma tu milczeć, a mierzy ją
+                    // `EksportMowiOZdjeciachKtoreNieWejdaNigdyTest` (#692).
+                    'photosRejected' => 0, 'photosDeleted' => 0,
                     'recipeCount' => 0, 'contactEmail' => 'test@example.test',
                     // Zeszyt bez cudzych przepisów — zdanie o ich ograniczeniu
                     // ma wtedy nie wychodzić. Obie gałęzie tego warunku mierzy

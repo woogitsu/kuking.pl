@@ -324,6 +324,11 @@ class GenerateUserExport implements ShouldQueue
             'cookedCount' => count($data['ugotowalem']),
             'photoCount' => $photos->count(),
             'photosStillProcessing' => $photos->stillProcessingCount(),
+            // Zdjęcia, które do paczki NIE WEJDĄ NIGDY (issue #692) — inna
+            // wiadomość niż „jeszcze się przetwarzają", więc osobne zmienne,
+            // a nie jedna suma: widok pisze o nich dwa różne zdania.
+            'photosRejected' => $photos->rejectedCount(),
+            'photosDeleted' => $photos->deletedCount(),
             'savedOtherRecipeCount' => $this->savedOtherRecipeCount($user),
             'displayName' => $user->profile?->display_name,
             'generatedAt' => $generatedAt,
@@ -373,6 +378,10 @@ class GenerateUserExport implements ShouldQueue
             'recipeCount' => $user->recipes()->count(),
             'photoCount' => $photos->count(),
             'photosStillProcessing' => $photos->stillProcessingCount(),
+            // Patrz komentarz przy `addIndex()` wyżej — oba pliki paczki
+            // mówią o brakach to samo i biorą to z tego samego miejsca.
+            'photosRejected' => $photos->rejectedCount(),
+            'photosDeleted' => $photos->deletedCount(),
             'contactEmail' => config('kuking.community.contact_email'),
         ])->render();
 
