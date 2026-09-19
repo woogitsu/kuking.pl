@@ -18,6 +18,8 @@ for(const width of [320,360,390,414,768,1440])for(const theme of ['light','dark'
 }
 await p.keyboard.press('Escape');assert(!await p.locator('[data-szybki-wyglad]').evaluate(e=>e.open));assert(await p.locator('[data-szybki-wyglad] summary').evaluate(e=>e===document.activeElement));
 
+await sprawdzPodpowiedzUstepujeWskaznikowi({browser:b,adres,out});
+
 const account = await b.newPage({viewport:{width:1440,height:900},serviceWorkers:'block'});
 await account.goto(adres+'/login');
 await account.fill('input[name=login]','ania');
@@ -244,4 +246,82 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
   await page.locator('[data-szybki-wyglad] summary').click();
   assert(await page.locator('[data-szybki-wyglad]').evaluate(e=>e.open),'WYGLAD_PO_BLEDZIE_OTWIERA_SIE');
  } finally {await page.close();}
+}
+
+/*
+ * REGRESJA #684 — podpowiedź „Wygląd" nie może zablokować sterowania wskaźnikowi.
+ *
+ * CO SIĘ PSUŁO
+ * `aside.szybki-wyglad-podpowiedz` stoi `position: fixed` nad treścią. Przy
+ * NISKIM oknie (np. 320×512, 390×520 — telefon w poziomie, małe okno na
+ * pulpicie) siadała po przewinięciu na dół dokładnie na przełączniku motywu
+ * w stopce: przykrycie 3536 px², wszystkie DZIEWIĘĆ punktów próbnych trafiało
+ * w podpowiedź, nie w przycisk. Ani kliknięcie, ani dotknięcie nie dochodziło.
+ *
+ * DLACZEGO KLAWIATURA TEGO NIE MIAŁA
+ * Uchwyt `focusin` w `resources/js/szybki-wyglad.js` chowa podpowiedź, gdy
+ * fokus trafi poza widget. Tab więc działał. Mysz i dotyk nie wywołują
+ * `focusin` na przykrytym elemencie, więc nie dostawały niczego.
+ *
+ * CZEGO TEN TEST PILNUJE
+ * Że `wheel` (kółko) oraz `touchstart`/`pointerdown` poza samą podpowiedzią
+ * chowają ją tak samo, jak robi to `focusin`. To jest cała poprawka — nie
+ * sprawdzamy tu geometrii ani motywu, bo te mają własne przebiegi wyżej.
+ *
+ * PUŁAPKA POMIARU, KTÓRA KOSZTOWAŁA GODZINĘ (docs/PULAPKI_TESTOW.md)
+ * Przy 320×512 podpowiedź zajmuje ~296×156 px w dolnej części okna. Gest
+ * rozpoczęty od 75% wysokości startuje NA NIEJ, więc `hint.contains(target)`
+ * jest prawdziwe i podpowiedź słusznie zostaje. Wygląda to jak niedziałająca
+ * poprawka, a jest źle wycelowanym palcem. Gest musi omijać podpowiedź.
+ */
+export async function sprawdzPodpowiedzUstepujeWskaznikowi({browser:b,adres,out}) {
+  const OKNA = [{w:320,h:512},{w:320,h:420},{w:384,h:512},{w:390,h:520}];
+  const wiersze = [];
+  for (const o of OKNA) {
+    for (const sposob of ['kolko','dotyk']) {
+      const ctx = await b.newContext({viewport:{width:o.w,height:o.h},hasTouch:sposob==='dotyk',serviceWorkers:'block'});
+      const p = await ctx.newPage();
+      await p.goto(adres+'/');
+      await p.locator('[data-wyglad-podpowiedz]').waitFor({state:'visible'});
+      assert(!await p.evaluate(()=>document.querySelector('[data-wyglad-podpowiedz]').hidden),'PODPOWIEDZ_MA_BYC_WIDOCZNA');
+
+      if (sposob === 'kolko') {
+        await p.mouse.wheel(0,600);
+      } else {
+        // Prawdziwe przeciągnięcie palcem, celowo w GÓRNEJ połowie okna,
+        // żeby nie dotknąć samej podpowiedzi — patrz pułapka w nagłówku.
+        const cdp = await ctx.newCDPSession(p);
+        const x = Math.round(o.w/2), gora = Math.round(o.h*0.45), dol = Math.round(o.h*0.05);
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y:gora}]});
+        for (let k=1;k<=5;k++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:Math.round(gora-(gora-dol)*k/5)}]});
+        await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});
+      }
+      await p.waitForTimeout(150);
+      const ukryta = await p.evaluate(()=>document.querySelector('[data-wyglad-podpowiedz]').hidden);
+      assert(ukryta,`PODPOWIEDZ_NIE_USTAPILA ${o.w}x${o.h} ${sposob}`);
+
+      // Kontrola granicy: to NIE jest „Rozumiem". Po odświeżeniu podpowiedź
+      // ma wrócić, bo nie zapisaliśmy niczego w localStorage.
+      await p.reload();
+      await p.locator('[data-wyglad-podpowiedz]').waitFor({state:'visible'});
+      assert(!await p.evaluate(()=>document.querySelector('[data-wyglad-podpowiedz]').hidden),`PODPOWIEDZ_MIALA_WROCIC ${o.w}x${o.h} ${sposob}`);
+
+      wiersze.push({okno:`${o.w}x${o.h}`,sposob,ustapila:true,wrocilaPoOdswiezeniu:true});
+      await ctx.close();
+    }
+  }
+  // Kontrola dodatnia dla samej podpowiedzi: dotknięcie JEJ nie chowa jej
+  // po cichu — od tego jest przycisk „Rozumiem".
+  const ctx = await b.newContext({viewport:{width:320,height:512},hasTouch:true,serviceWorkers:'block'});
+  const p = await ctx.newPage();
+  await p.goto(adres+'/');
+  await p.locator('[data-wyglad-podpowiedz]').waitFor({state:'visible'});
+  const box = await p.locator('[data-wyglad-podpowiedz] p').boundingBox();
+  await p.touchscreen.tap(Math.round(box.x+box.width/2),Math.round(box.y+box.height/2));
+  await p.waitForTimeout(150);
+  assert(!await p.evaluate(()=>document.querySelector('[data-wyglad-podpowiedz]').hidden),'DOTKNIECIE_PODPOWIEDZI_NIE_CHOWA_JEJ');
+  await ctx.close();
+
+  writeFileSync(out+'/podpowiedz-ustepuje-684.json',JSON.stringify(wiersze,null,2));
+  console.log(`#684: podpowiedź ustępuje wskaźnikowi w ${wiersze.length}/${wiersze.length} konfiguracjach`);
 }
