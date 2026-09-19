@@ -187,8 +187,9 @@ if php artisan test >"$_test_log" 2>&1; then
     rm -f "$_test_log"
     ok "Testy przechodzą"
 else
-    cat "$_test_log"
-    rm -f "$_test_log"
+    printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
+    printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
+    tail -n 160 "$_test_log"
     zle "Testy nie przechodzą — uruchom: php artisan test"
 fi
 
