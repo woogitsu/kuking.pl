@@ -4020,13 +4020,29 @@ ani zalogowanego CLI. W tej implementacji historia dziennika Railway jest
 magazynem szeregu czasowego; nie zakładamy tabeli ani zewnętrznej bazy metryk.
 Pojedynczy odczyt w konsoli produkcji nie zastępuje historii pomiarów.
 
-**Co go blokuje, i trzeba to sprawdzić w panelu:** wpisy idą poziomem `info`,
-bo zdrowy pomiar nie jest ostrzeżeniem, a podnoszenie poziomu tylko po to,
-żeby przebić się przez próg, zamieniłoby dziennik w ciąg fałszywych ostrzeżeń.
-Jeżeli produkcyjne `LOG_LEVEL` stoi powyżej `info`, **szereg nie powstanie
-mimo działającej czujki** — dokładnie ten sam kształt pomyłki, który ten
-rozdział opisuje wyżej. Wartości tej zmiennej nie dało się odczytać z tej
-sesji (API oddaje same nazwy), więc pozostaje to do sprawdzenia.
+**Co go blokowało — ustalone 19.09.2026, blokada była realna.** Wpisy idą
+poziomem `info`, bo zdrowy pomiar nie jest ostrzeżeniem. Szły jednak kanałem
+`stderr`, a ten bierze poziom z `env('LOG_LEVEL', 'debug')` — i
+`.railway/railway.ts` ustawia `LOG_LEVEL: isProduction ? "warning" : "debug"`.
+Na produkcji stało więc `warning`, `info` jest niżej i **Monolog odrzucał
+pomiar, zanim cokolwiek dotarło do strumienia**. Zmierzone: dwa przebiegi
+harmonogramu 19.09.2026 (11:25:02 i 12:25:11 UTC) zameldowały „DONE" i nie
+zostawiły ani jednej linii z liczbami, przy obecnych w tej samej sekundzie
+innych wpisach poziomu `info`.
+
+Uwaga „trzeba to sprawdzić w panelu", która stała tu wcześniej, była złym
+tropem: wartość pochodzi z manifestu wdrożenia w repozytorium, więc zmiana
+w panelu i tak rozjechałaby się z `.railway/railway.ts`.
+
+**Poprawka:** pomiar idzie teraz osobnym kanałem `pomiary`
+(`config/logging.php`) z poziomem `info` wpisanym **na sztywno** — tak samo jak
+`blad_webhook` ma na sztywno `error`. `LOG_LEVEL` produkcji zostaje bez zmian,
+bo jego obniżenie wpuściłoby do dziennika każde `info` w serwisie, żeby
+przepchnąć dwie linie na godzinę. Pełny opis: [`docs/infra/WERYFIKACJA_BUDZETU_POLACZEN_598.md`](infra/WERYFIKACJA_BUDZETU_POLACZEN_598.md) §2.
+
+**Czego to nadal nie dowodzi:** że szereg powstanie. Dowiedzie tego dopiero
+odczyt dziennika Railway po najbliższym wdrożeniu — linia
+`kuking:budzet-polaczen {...}` o minucie :25.
 
 Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu

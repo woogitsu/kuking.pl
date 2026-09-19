@@ -123,9 +123,16 @@ class BudzetPolaczen extends Command
      * DLACZEGO `info`, A NIE `warning`. Zdrowy pomiar nie jest ostrzeżeniem.
      * Podniesienie poziomu tylko po to, żeby przebić się przez `LOG_LEVEL`,
      * zamieniłoby dziennik w ciąg fałszywych ostrzeżeń — a od alarmowania
-     * jest `AlarmPolaczen` i osobny kanał. Konsekwencja jest jawna i stoi
-     * w `docs/DATABASE.md`: przy `LOG_LEVEL` powyżej `info` szereg czasowy
-     * nie powstanie i trzeba to zmienić w panelu.
+     * jest `AlarmPolaczen` i osobny kanał.
+     *
+     * DLACZEGO OSOBNY KANAŁ `pomiary`, A NIE ZWYKŁE `Log::info()`.
+     * Bo zwykłe `Log::info()` szło kanałem `stderr`, a ten bierze poziom
+     * z `LOG_LEVEL` — i `.railway/railway.ts` ustawia na produkcji `warning`.
+     * Pomiar był więc odrzucany, zanim dotarł do strumienia: zmierzone
+     * 19.09.2026, dwa przebiegi harmonogramu (11:25:02 i 12:25:11 UTC)
+     * zameldowały „DONE" i nie zostawiły ani jednej linii z liczbami.
+     * Kanał `pomiary` ma poziom `info` NA SZTYWNO, tak jak `blad_webhook`
+     * ma na sztywno `error` — uzasadnienie w `config/logging.php`.
      *
      * CZEGO W TEJ LINII NIE MA: nazwy bazy, hosta, użytkownika i treści
      * zapytań. Dziennik produkcyjny jest czytany także przez dostawcę
@@ -136,7 +143,7 @@ class BudzetPolaczen extends Command
      */
     private function zapiszWDzienniku(array $wynik): void
     {
-        Log::info('kuking:budzet-polaczen', [
+        Log::channel('pomiary')->info('kuking:budzet-polaczen', [
             'stan' => $wynik['stan'],
             'zajete_serwer' => $wynik['zajete_serwer'],
             'zajete_baza' => $wynik['zajete_baza'],

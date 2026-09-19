@@ -107,11 +107,18 @@ class SprawdzKolejke extends Command
      * CZEGO W TEJ LINII NIE MA: `payload`, `exception`, adresów odbiorców
      * ani nazw klas zadań. Same liczby i nazwa stanu.
      *
+     * KANAŁ `pomiary`, A NIE ZWYKŁE `Log::info()` — ta sama poprawka, co
+     * w `BudzetPolaczen`: zwykłe `info` szło kanałem `stderr`, a ten bierze
+     * poziom z `LOG_LEVEL`, ustawionego na produkcji na `warning`
+     * (`.railway/railway.ts`). Cena „96 linii na dobę" była więc płacona
+     * za szereg, który w ogóle nie powstawał. Uzasadnienie kanału stoi
+     * w `config/logging.php`.
+     *
      * @param  array<string, mixed>  $wynik
      */
     private function zapiszWDzienniku(array $wynik): void
     {
-        Log::info('kuking:sprawdz-kolejke', [
+        Log::channel('pomiary')->info('kuking:sprawdz-kolejke', [
             'stan' => $wynik['stan'],
             'oczekujace' => $wynik['oczekujace'],
             'zaleglosc_sekundy' => $wynik['zaleglosc_sekundy'],
