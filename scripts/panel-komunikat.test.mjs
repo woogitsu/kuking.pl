@@ -56,6 +56,65 @@ test('wiadomości własne skryptu idą w całości — one nic cudzego nie nios�
   }
 });
 
+/* #713 D1: kod z warstwy pomiaru idzie w całości.
+   Do 19 września 2026 `panel-validation.mjs` rzucał `DOMAIN_CHANGED`, a do
+   dziennika CI wychodziło `P581_RUN_FAIL: Error` — job `Panel marki` padał
+   przerywanie i nie było wiadomo, CO padło. */
+test('kod pomiaru bez przedrostka P581_ idzie w całości', () => {
+  for (const kod of [
+    'DOMAIN_CHANGED',
+    'CASE_COUNT',
+    'OUTCOME_ERROR_ASSOCIATION',
+    'CANDIDATE_FAILED',
+    'VALIDATION_ISOLATION',
+    'DETAILS_FULL_TEXT_CLIPPED',
+  ]) {
+    assert.equal(komunikatBledu(new Error(kod)), kod);
+  }
+});
+
+/* Druga połowa tej samej granicy: przepuszczamy KSZTAŁT, nie treść. Wszystko,
+   co w tym repozytorium skleja kod z czymkolwiek z zewnątrz, dokłada spację
+   albo dwukropek — i wtedy ma iść przez ogólne `P581_RUN_FAIL`, bo za spacją
+   może stać selektor, URL albo tekst strony. */
+test('kod sklejony z czymkolwiek NIE idzie w całości', () => {
+  const sklejone = [
+    'DETAILS_TAB_UNREACHABLE #zakladka-2',                 // panel-details.mjs:28
+    'P581_ZOOM_GEOMETRIA {"width":320}',                   // panel-menu-zoom.mjs:73
+    'DOMAIN_CHANGED: haslo-testowe-123',
+    'KOD I DRUGI',
+    'KOD.Z.KROPKA',
+    'KOD-Z-MYSLNIKIEM',
+    'KOD123',
+    'kod_maly',
+    'Kod_Mieszany',
+    'DOMAIN_CHANGED ',
+  ];
+
+  for (const tresc of sklejone) {
+    const wynik = komunikatBledu(new Error(tresc));
+    assert.ok(wynik.startsWith('P581_RUN_FAIL: '), `Przeszło bez osłony: ${tresc} -> ${wynik}`);
+    assert.ok(!wynik.includes(tresc), `Treść cudzego komunikatu wyszła: ${wynik}`);
+  }
+});
+
+/* Pusty komunikat nie jest kodem — inaczej `new Error()` dałby pustą linię
+   w dzienniku zamiast wskazówki. */
+test('pusty komunikat nie przechodzi jako kod', () => {
+  const wynik = komunikatBledu(new Error(''));
+  assert.ok(wynik.startsWith('P581_RUN_FAIL: '), wynik);
+});
+
+/* Kształt, który przechodzi, nie ma jak unieść poświadczenia: wzorzec nie
+   dopuszcza ani cyfry, ani znaku spoza A–Z i `_`. Błąd Playwrighta z hasłem
+   dalej się przez niego nie przeciśnie. */
+test('błąd Playwrighta z hasłem nie przechodzi nową furtką', () => {
+  const wynik = komunikatBledu(bladZHaslem());
+
+  assert.ok(!wynik.includes(HASLO), `Hasło wyszło do dziennika: ${wynik}`);
+  assert.ok(wynik.startsWith('P581_RUN_FAIL: '), wynik);
+});
+
 test('brak stosu nie wywraca komunikatu', () => {
   const goly = new Error('cokolwiek');
   goly.stack = undefined;
