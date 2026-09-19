@@ -140,6 +140,30 @@ class StopkaOkruszkiIFiltrTrzymajaMinimaUxTest extends TestCase
         );
     }
 
+    public function test_zobacz_wszystko_w_szynie_ma_18_px_i_48_px_celu(): void
+    {
+        $css = $this->css('app.css');
+
+        $this->assertSame(
+            1,
+            preg_match('/(?:^|[},])\s*\.szyna-wiecej\s*\{([^{}]*)\}/m', $css, $trafienie),
+            'Nie znalazłem reguły `.szyna-wiecej`.',
+        );
+
+        $this->assertDoesNotMatchRegularExpression(
+            '/font-size\s*:\s*var\(--text-help\)/',
+            $trafienie[1],
+            '„Zobacz wszystko" to jedyne wyjście z bloku szyny do pełnej listy, '.
+            'a nie dopisek przy większym tekście. Zmierzone przed poprawką: 16 px.',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/min-height\s*:\s*var\(--control-height-min\)/',
+            $trafienie[1],
+            'Zmierzone przed poprawką: 135 × 24,8 px. Cel dotknięcia ma mieć 48 px.',
+        );
+    }
+
     public function test_filtr_pytan_jest_polem_formularza_a_nie_golym_selectem(): void
     {
         $widok = (string) file_get_contents(

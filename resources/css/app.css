@@ -5568,8 +5568,26 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * „Zobacz wszystko" w nagłówku bloku szyny — 18 px i 48 px celu.
+ *
+ * ZMIERZONE PRZED POPRAWKĄ (`/@ania`, 390 px): 135 × 24,8 px, pismo 16 px.
+ * To jest jedyne wyjście z bloku szyny do pełnej listy, a nie dopisek przy
+ * większym tekście: stoi w osobnej kolumnie nagłówka, po przeciwnej stronie
+ * tytułu, i nic ≥ 18 px obok niego nie ma. Warunek z
+ * `docs/design/DESIGN_SYSTEM.md` na użycie `--text-help` nie jest spełniony,
+ * a AGENTS.md §5 żąda 48 px dla celu dotknięcia.
+ *
+ * `inline-flex`, nie `block` z paddingiem: odnośnik jest elementem `flex`
+ * w `.szyna-naglowek` i ma zostać w swoim wierszu — `min-height` bez trybu
+ * flex nie przesunęłoby napisu na środek powiększonego pudełka.
+ * Rozmiar zdejmujemy do domyślnego (18 px z `body`), waga 600 zostaje:
+ * odróżnienie idzie wagą, nie zmniejszeniem.
+ */
 .szyna-wiecej {
-  font-size: var(--text-help);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-min);
   font-weight: 600;
 }
 
