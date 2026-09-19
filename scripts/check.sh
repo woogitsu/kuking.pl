@@ -181,10 +181,16 @@ if [ ! -x vendor/bin/phpstan ]; then
     zle "Brak vendor/bin/phpstan — uruchom: composer install"
 elif ! { [ -f phpstan.neon ] || [ -f phpstan.neon.dist ] || [ -f phpstan.dist.neon ]; }; then
     zle "Brak konfiguracji PHPStana (phpstan.neon) — patrz issue #32"
-elif vendor/bin/phpstan analyse --no-progress --error-format=raw >/dev/null 2>&1; then
-    ok "PHPStan bez zastrzeżeń"
 else
-    zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    _phpstan_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-phpstan.XXXXXX")
+    if vendor/bin/phpstan analyse --no-progress --error-format=raw >"$_phpstan_log" 2>&1; then
+        rm -f "$_phpstan_log"
+        ok "PHPStan bez zastrzeżeń"
+    else
+        printf 'Wynik PHPStana zapisano w: %s\n' "$_phpstan_log"
+        tail -n 80 "$_phpstan_log"
+        zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    fi
 fi
 
 # --- 5. Testy -------------------------------------------------------------
@@ -194,8 +200,9 @@ if php artisan test >"$_test_log" 2>&1; then
     rm -f "$_test_log"
     ok "Testy przechodzą"
 else
-    cat "$_test_log"
-    rm -f "$_test_log"
+    printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
+    printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
+    tail -n 160 "$_test_log"
     zle "Testy nie przechodzą — uruchom: php artisan test"
 fi
 
@@ -220,9 +227,13 @@ fi
 
 # --- 6. Odwracalność migracji --------------------------------------------
 krok "Odwracalność migracji"
-if php artisan migrate:refresh --force --env=testing --no-interaction >/dev/null 2>&1; then
+_migrate_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-migrate.XXXXXX")
+if php artisan migrate:refresh --force --env=testing --no-interaction >"$_migrate_log" 2>&1; then
+    rm -f "$_migrate_log"
     ok "Migracje cofają się i wracają"
 else
+    printf 'Wynik migracji zapisano w: %s\n' "$_migrate_log"
+    tail -n 80 "$_migrate_log"
     zle "Migracja nie ma działającego down() — nie da się jej wycofać podczas awarii"
 fi
 
