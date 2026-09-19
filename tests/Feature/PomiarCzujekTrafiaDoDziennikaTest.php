@@ -11,7 +11,10 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use Mockery;
+use Mockery\MockInterface;
+use Monolog\Level as MonologLevel;
 use PHPUnit\Framework\Attributes\Test;
+use Psr\Log\LoggerInterface;
 use Tests\TestCase;
 
 /**
@@ -31,9 +34,18 @@ use Tests\TestCase;
  * zalogowanego CLI — więc wpis w dzienniku serwera jest JEDYNĄ drogą, którą
  * szereg czasowy może w ogóle powstać.
  *
- * CZEGO TEN PLIK NIE DOWODZI: że szereg czasowy powstanie na produkcji.
- * Zależy to od `LOG_LEVEL` w panelu, którego ta sesja nie może odczytać.
- * Napisane wprost w `docs/DATABASE.md`.
+ * DRUGA RZECZ, ZŁAPANA 19.09.2026: SAM ZAPIS TO ZA MAŁO.
+ * Pierwsza wersja tego pliku sprawdzała `Log::spy()`, czyli że komenda WOŁA
+ * `info()`. Wołała — i mimo to na produkcji nie powstawała ani jedna linia,
+ * bo `Log::spy()` przechwytuje wywołanie ZANIM Monolog odfiltruje rekord po
+ * poziomie. Zwykłe `Log::info()` szło kanałem `stderr`, ten bierze poziom
+ * z `LOG_LEVEL`, a `.railway/railway.ts` ustawia na produkcji `warning`.
+ * Test przechodził, czujka chodziła, szeregu nie było.
+ *
+ * Dlatego pomiar idzie teraz kanałem `pomiary` z poziomem `info` NA SZTYWNO,
+ * a ten plik sprawdza OBIE rzeczy osobno: że komenda pisze w ten kanał
+ * (`*_zapisuje_pomiar_do_dziennika`) i że rekord `info` PRZEŻYWA w tym kanale
+ * przy `LOG_LEVEL=warning` (`kanal_pomiarow_przepuszcza_info_*`).
  */
 class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
 {
@@ -54,6 +66,22 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
         parent::tearDown();
     }
 
+    /**
+     * Szpieg na KANALE `pomiary`, nie na całym `Log`.
+     *
+     * Szpiegowanie `Log` samego w sobie przepuściłoby powrót do zwykłego
+     * `Log::info()` — a to jest dokładnie ta zmiana, która na produkcji
+     * kasowała szereg czasowy w ciszy.
+     */
+    private function szpiegKanaluPomiarow(): MockInterface
+    {
+        $kanal = Mockery::spy(LoggerInterface::class);
+
+        Log::shouldReceive('channel')->with('pomiary')->andReturn($kanal);
+
+        return $kanal;
+    }
+
     // -----------------------------------------------------------------
     //  Budżet połączeń
     // -----------------------------------------------------------------
@@ -61,7 +89,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
     #[Test]
     public function budzet_polaczen_zapisuje_pomiar_do_dziennika(): void
     {
-        $dziennik = Log::spy();
+        $dziennik = $this->szpiegKanaluPomiarow();
 
         $this->artisan('kuking:budzet-polaczen', ['--bez-alarmu' => true])->assertExitCode(0);
 
@@ -86,7 +114,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
     #[Test]
     public function wpis_w_dzienniku_nie_wynosi_nazwy_bazy_ani_hosta(): void
     {
-        $dziennik = Log::spy();
+        $dziennik = $this->szpiegKanaluPomiarow();
 
         $this->artisan('kuking:budzet-polaczen', ['--bez-alarmu' => true])->assertExitCode(0);
 
@@ -120,7 +148,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
 
         DB::shouldReceive('connection')->andReturn($polaczenie);
 
-        $dziennik = Log::spy();
+        $dziennik = $this->szpiegKanaluPomiarow();
 
         $this->artisan('kuking:budzet-polaczen', ['--bez-alarmu' => true])->assertExitCode(1);
 
@@ -134,7 +162,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
     #[Test]
     public function czujka_kolejki_zapisuje_pomiar_do_dziennika(): void
     {
-        $dziennik = Log::spy();
+        $dziennik = $this->szpiegKanaluPomiarow();
 
         $this->artisan('kuking:sprawdz-kolejke', ['--bez-alarmu' => true])->assertExitCode(0);
 
@@ -165,7 +193,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
             'created_at' => Carbon::now()->getTimestamp() - 900,
         ]);
 
-        $dziennik = Log::spy();
+        $dziennik = $this->szpiegKanaluPomiarow();
 
         $this->artisan('kuking:sprawdz-kolejke', ['--bez-alarmu' => true])->assertExitCode(1);
 
@@ -201,7 +229,7 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
             ]);
         }
 
-        $dziennik = Log::spy();
+        $dziennik = $this->szpiegKanaluPomiarow();
 
         $this->artisan('kuking:sprawdz-kolejke', ['--bez-alarmu' => true])->assertExitCode(0);
 
@@ -214,5 +242,60 @@ class PomiarCzujekTrafiaDoDziennikaTest extends TestCase
                 return true;
             })
             ->once();
+    }
+
+    // -----------------------------------------------------------------
+    //  Czy rekord PRZEŻYWA filtr poziomu — sedno regresji z 19.09.2026
+    // -----------------------------------------------------------------
+
+    #[Test]
+    public function kanal_pomiarow_przepuszcza_info_mimo_log_level_warning(): void
+    {
+        // `LOG_LEVEL=warning` to STAN PRODUKCJI, nie hipoteza:
+        // `.railway/railway.ts` → `LOG_LEVEL: isProduction ? "warning" : "debug"`.
+        config()->set('logging.channels.stderr.level', 'warning');
+
+        $this->assertTrue(
+            Log::channel('pomiary')->getLogger()->isHandling(MonologLevel::Info),
+            'Kanał `pomiary` przestał przepuszczać `info` — szereg czasowy '
+            .'czujek znowu przepada po cichu, dokładnie jak przed 19.09.2026.',
+        );
+    }
+
+    #[Test]
+    public function kontrola_ujemna_kanal_stderr_przy_warning_odrzuca_info(): void
+    {
+        // Bez tej kontroli poprzedni test nie znaczy nic: gdyby `isHandling`
+        // zwracało `true` dla wszystkiego, przeszedłby tak samo. Tu ten sam
+        // mechanizm MUSI powiedzieć „nie" — i to jest dowód, że powyższe
+        // „tak" jest własnością kanału `pomiary`, a nie własnością asercji.
+        config()->set('logging.channels.stderr.level', 'warning');
+
+        $this->assertFalse(
+            Log::channel('stderr')->getLogger()->isHandling(MonologLevel::Info),
+            'Kanał `stderr` przy LOG_LEVEL=warning przepuścił `info` — '
+            .'kontrola ujemna nie odróżnia już kanałów i nic nie pilnuje.',
+        );
+
+        $this->assertTrue(
+            Log::channel('stderr')->getLogger()->isHandling(MonologLevel::Warning),
+            'Kanał `stderr` przestał przepuszczać `warning` — to już nie jest '
+            .'ten sam mechanizm i kontrola ujemna mierzy coś innego.',
+        );
+    }
+
+    #[Test]
+    public function poziomu_kanalu_pomiarow_nie_bierze_sie_z_log_level(): void
+    {
+        // Gdyby ktoś „uprościł" konfigurację z powrotem do
+        // `env('LOG_LEVEL', ...)`, poprzednie testy dalej by przechodziły
+        // lokalnie (tam LOG_LEVEL=debug) i oblałyby dopiero na produkcji,
+        // czyli tam, gdzie nikt nie patrzy. Ten test czyta konfigurację wprost.
+        $this->assertSame(
+            'info',
+            config('logging.channels.pomiary.level'),
+            'Poziom kanału `pomiary` ma być wpisany na sztywno jako `info` — '
+            .'tak jak `blad_webhook` ma na sztywno `error`.',
+        );
     }
 }

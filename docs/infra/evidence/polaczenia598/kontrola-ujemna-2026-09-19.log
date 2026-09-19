@@ -1,0 +1,59 @@
+=== KONTROLA UJEMNA — 2026-09-19 13:03:59 UTC ===
+MD5 przed:  config/logging.php = 5eba1a204c3e91ed71c55f975760bd17
+MD5 przed:  app/Console/Commands/BudzetPolaczen.php = 023d8314e4d2790c21eef783fc00c3ad
+
+--- stan wyjsciowy: testy musza PRZECHODZIC ---
+Time: 00:00.900, Memory: 63.00 MB
+
+[30;42mOK (9 tests, 66 assertions)[0m
+
+=== NEGATYW 1: poziom kanalu  z powrotem z LOG_LEVEL ===
+grep — czy mutacja weszla (oczekiwane: linia z env('LOG_LEVEL'...) w bloku pomiary):
+        'pomiary' => [
+            'driver' => 'monolog',
+            'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+>>> MUTACJA POTWIERDZONA grep-em
+MD5 po mutacji: e27e44bcc5beeed9766fc824cde9f4fb  (przed: 5eba1a204c3e91ed71c55f975760bd17)
+--- testy musza OBLAC ---
+Poziom kanału `pomiary` ma być wpisany na sztywno jako `info` — tak jak `blad_webhook` ma na sztywno `error`.
+Failed asserting that two strings are identical.
+--- Expected
++++ Actual
+@@ @@
+-'info'
++'debug'
+
+/home/mateusz/kuking-598-pomiar/tests/Feature/PomiarCzujekTrafiaDoDziennikaTest.php:292
+
+[37;41mFAILURES![0m
+[37;41mTests: 9[0m[37;41m, Assertions: 66[0m[37;41m, Failures: 1[0m[37;41m.[0m
+przywrocono; MD5 po przywroceniu: 5eba1a204c3e91ed71c55f975760bd17
+
+=== NEGATYW 2: BudzetPolaczen wraca do golego Log::info() ===
+grep — czy mutacja weszla (oczekiwane: Log::info bez channel):
+146:        Log::info('kuking:budzet-polaczen', [
+>>> MUTACJA POTWIERDZONA grep-em
+MD5 po mutacji: 515ff96d5915681314ba98b384e2c931  (przed: 023d8314e4d2790c21eef783fc00c3ad)
+--- testy musza OBLAC ---
+/home/mateusz/kuking-598-pomiar/vendor/laravel/framework/src/Illuminate/Console/Command.php:261
+/home/mateusz/kuking-598-pomiar/vendor/symfony/console/Application.php:1121
+/home/mateusz/kuking-598-pomiar/vendor/symfony/console/Application.php:379
+/home/mateusz/kuking-598-pomiar/vendor/symfony/console/Application.php:218
+/home/mateusz/kuking-598-pomiar/vendor/laravel/framework/src/Illuminate/Console/Application.php:165
+/home/mateusz/kuking-598-pomiar/vendor/laravel/framework/src/Illuminate/Foundation/Console/Kernel.php:447
+/home/mateusz/kuking-598-pomiar/vendor/laravel/framework/src/Illuminate/Testing/PendingCommand.php:452
+/home/mateusz/kuking-598-pomiar/vendor/laravel/framework/src/Illuminate/Testing/PendingCommand.php:676
+/home/mateusz/kuking-598-pomiar/tests/Feature/PomiarCzujekTrafiaDoDziennikaTest.php:117
+
+[37;41mERRORS![0m
+[37;41mTests: 9[0m[37;41m, Assertions: 38[0m[37;41m, Errors: 2[0m[37;41m.[0m
+
+=== PRZYWROCENIE I PORZADEK ===
+config/logging.php : przed=5eba1a204c3e91ed71c55f975760bd17 po=5eba1a204c3e91ed71c55f975760bd17 ZGODNE
+app/Console/Commands/BudzetPolaczen.php : przed=023d8314e4d2790c21eef783fc00c3ad po=023d8314e4d2790c21eef783fc00c3ad ZGODNE
+--- testy musza znowu PRZECHODZIC ---
+
+Time: 00:00.827, Memory: 63.00 MB
+
+[30;42mOK (9 tests, 66 assertions)[0m
