@@ -65,6 +65,22 @@ test('bez zdarzenia oraz w standalone panel nie składa propozycji', async () =>
     assert.deepEqual(installed.actions, []);
 });
 
+// D-053: bez propozycji przeglądarki nie wolno pokazać panelu, bo przycisk
+// „Zainstaluj aplikację" nie miałby czego uruchomić. Powrót do karty jest
+// właśnie tym momentem, w którym panel próbuje się odsłonić.
+test('powrót do karty bez beforeinstallprompt nie odsłania martwego przycisku', async () => {
+    const f = fixture();
+    await settle();
+    f.document.dispatchEvent(new Event('visibilitychange'));
+    await settle();
+    assert.equal(f.panel.hidden, true, 'panel bez zdarzenia instalacji ma zostać ukryty');
+    assert.deepEqual(f.actions, [], 'bez zdarzenia instalacji nie rezerwujemy propozycji');
+    f.accept.dispatchEvent(new Event('click'));
+    await settle();
+    assert.equal(f.prompts(), 0);
+    assert.deepEqual(f.actions, [], 'kliknięcie w niedostępny panel nie zapisuje decyzji');
+});
+
 test('odmowa rezerwacji albo awaria HTTP nie ujawnia panelu', async () => {
     for (const options of [{allowed: false}, {fail: true}]) {
         const f = fixture(options);
