@@ -149,7 +149,7 @@
                 '@type' => 'BreadcrumbList',
                 'itemListElement' => [
                     ['@type' => 'ListItem', 'position' => 1, 'name' => 'Kuking', 'item' => route('landing')],
-                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Przepisy', 'item' => route('discover')],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Świeżo z Kuking', 'item' => route('discover')],
                     ['@type' => 'ListItem', 'position' => 3, 'name' => $recipe->title],
                 ],
             ];
@@ -172,7 +172,7 @@
             --}}
             <ol class="okruchy">
                 <li><a href="{{ auth()->check() ? route('home') : route('landing') }}">Start</a></li>
-                <li><a href="{{ route('discover') }}">Przepisy</a></li>
+                <li><a href="{{ route('discover') }}">Świeżo z Kuking</a></li>
             </ol>
 
             {{-- Odstępy w nagłówku przepisu robi CSS (`.przepis-uklad > header`

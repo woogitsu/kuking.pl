@@ -1,0 +1,7464 @@
+{
+  "wersje": {
+    "chromium": "151.0.7922.34",
+    "firefox": "155.0"
+  },
+  "wyniki": [
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.8,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.8,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.8,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "index",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.8,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 249,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "rosol",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pierogi",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "szkic",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "dlugi-adres",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "wpisy",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-index",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "chromium",
+      "wersja": "151.0.7922.34",
+      "strona": "pusta-wpisy",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.3,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 20,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.7,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.7,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.9,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.7,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.9,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.7,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 320,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 390,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 768,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 1440,
+      "motyw": "light",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(243, 244, 241)",
+      "kolorTekstu": "rgb(21, 23, 20)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.7,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.7,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 119.9,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 85.3,
+          "w": 330,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.9,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.7,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "index",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 30,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Rosół z kury na niedzielę",
+          "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+          "h": 50.6,
+          "w": 233.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Pierogi ruskie mojej mamy — porcja na st",
+          "href": "przepisy/pierogi-ruskie-na-sto-sztuk-01a0b4.html",
+          "h": 85.3,
+          "w": 676,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Zupa z dyni piżmowej z prażonymi pestkam",
+          "href": "przepisy/zupa-z-dyni-pizmowej-01a0b4.html",
+          "h": 50.6,
+          "w": 410.9,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Szarlotka babci — do dokończenia",
+          "href": "przepisy/szarlotka-babci-do-dokonczenia-01a0b4.html",
+          "h": 50.6,
+          "w": 323.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.7,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "Otwórz katalog ze zdjęciami",
+          "href": "zdjecia/",
+          "h": 49,
+          "w": 248.9,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.6,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "rosol",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 maja 2026.\n             "
+      },
+      "liczbaTekstow": 49,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-krok-2.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-rosol-z-kury-na-niedziele-skan.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pierogi",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 18 lipca 2026.\n            "
+      },
+      "liczbaTekstow": 45,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        },
+        {
+          "src": "../zdjecia/2026-09-18-pierogi-ruskie-mojej-mamy-porcja-na-sto-sztuk-z-zapasem-do-z.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "szkic",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "span",
+        "klasa": "plakietka",
+        "px": 18,
+        "tekst": "To był szkic — nigdy nie został opubliko"
+      },
+      "liczbaTekstow": 6,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "dlugi-adres",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Opublikowany 28 sierpnia 2026.\n         "
+      },
+      "liczbaTekstow": 14,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "../index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "../index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "wpisy",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 29,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [
+        {
+          "src": "zdjecia/2026-09-18-dzis-rosol-kuchnia-pachnie-jak-u.webp",
+          "ok": true
+        }
+      ],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 85.3,
+          "w": 260,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.6,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-index",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Paczka przygotowana 18 września 2026, 12"
+      },
+      "liczbaTekstow": 17,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "Twoje wpisy i notatki z gotowania",
+          "href": "wpisy.html",
+          "h": 50.6,
+          "w": 309.4,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "dane.json",
+          "href": "dane.json",
+          "h": 50.7,
+          "w": 91.1,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "CZYTAJ-TO-NAJPIERW.txt",
+          "href": "CZYTAJ-TO-NAJPIERW.txt",
+          "h": 50.7,
+          "w": 255.5,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 320,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 320,
+      "scrollWidth": 320,
+      "bodyScroll": 320,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 390,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 390,
+      "scrollWidth": 390,
+      "bodyScroll": 390,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 768,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 768,
+      "scrollWidth": 768,
+      "bodyScroll": 768,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    },
+    {
+      "silnik": "firefox",
+      "wersja": "155.0",
+      "strona": "pusta-wpisy",
+      "szerokosc": 1440,
+      "motyw": "dark",
+      "zoom": 1,
+      "innerWidth": 1440,
+      "scrollWidth": 1440,
+      "bodyScroll": 1440,
+      "poziomePrzewijanie": false,
+      "tlo": "rgb(21, 23, 20)",
+      "kolorTekstu": "rgb(244, 245, 241)",
+      "bodyPx": 20,
+      "najmniejszaCzcionka": {
+        "tag": "p",
+        "klasa": "podpis",
+        "px": 18,
+        "tekst": "Wszystko po kolei, od najstarszego. Takż"
+      },
+      "liczbaTekstow": 9,
+      "ponizej18": [],
+      "linki": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "href": "index.html",
+          "h": 49,
+          "w": 205.2,
+          "wliscie": true,
+          "wakapicie": false,
+          "poza": false
+        },
+        {
+          "tekst": "spisu treści",
+          "href": "index.html",
+          "h": 21,
+          "w": 90.1,
+          "wliscie": false,
+          "wakapicie": true,
+          "poza": false
+        }
+      ],
+      "przekroczenia": [],
+      "obrazkiPoza": 0,
+      "obrazkiZaladowane": [],
+      "siec": []
+    }
+  ]
+}

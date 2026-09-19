@@ -126,9 +126,13 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
 
     public function test_kazda_indeksowalna_strona_publiczna_ma_niepusty_meta_description(): void
     {
+        config(['kuking.questions.enabled' => true]);
+        $question = Post::factory()->question()->create();
         [$autor, $tag, $recipe, $post] = $this->zbudujTresc();
 
         $adresyDlaTras = [
+            'questions.index' => route('questions.index'),
+            'questions.show' => route('questions.show', $question),
             'landing' => route('landing'),
             'discover' => route('discover'),
             'about' => route('about'),

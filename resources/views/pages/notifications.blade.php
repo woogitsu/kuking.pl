@@ -133,7 +133,7 @@
                                 @if($data['has_photo'] ?? false) Jest zdjęcie. @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_COMMENT)
-                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — nowy komentarz.</strong>
+                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} — {{ ($data['question_answer'] ?? false) ? 'odpowiedź na Twoje pytanie.' : 'nowy komentarz.' }}</strong>
                                 @if(isset($data['excerpt'])) „{{ $data['excerpt'] }}” @endif
                                 @break
                             @case(\App\Models\Notification::TYPE_REPLY)

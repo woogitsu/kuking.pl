@@ -1300,6 +1300,30 @@ w bazie. Nic nie trzeba backfillować.
 ### posts + post_media
 Najprostszy content społecznościowy.
 
+
+**Rodzaj wpisu i tytuł pytania (#371).** Migracja
+`2026_09_18_100000_add_kind_and_title_to_posts` dodaje `kind varchar(20)
+NOT NULL DEFAULT 'dish'` i `title varchar(180) NULL` razem z ograniczeniami
+`posts_kind_check` i `posts_kind_title_check` w jednym poleceniu ALTER.
+Dozwolone są `dish` (tytuł zawsze NULL) oraz `question` (tytuł nie-NULL,
+10–180 znaków po usunięciu brzegowych spacji, tabulatorów, LF, CR i VT).
+To zestaw PHP trim poza NUL, którego PostgreSQL nie dopuszcza w tekście.
+Długość liczymy w znakach, także polskich, nie w bajtach; varchar(180)
+ogranicza również surowy tytuł przed trim. Nie normalizujemy środka tytułu.
+
+Dotychczasowe wpisy otrzymują `dish` i NULL bez zmiany treści, widoczności,
+relacji ani `recipe_id`. Nie ma wariantu `kind=recipe` ani drugiej tabeli.
+Konfiguracja `kuking.questions.enabled` (`KUKING_QUESTIONS_ENABLED`, domyślnie
+false) przygotowuje kolejny etap #372; sama nie filtruje istniejących feedów
+ani ręcznie zapisanych pytań. Ten etap nie dodaje ścieżki HTTP tworzenia pytań.
+
+**Rollback:** przy braku pytań `down()` usuwa oba CHECK-i i nowe kolumny,
+zachowując stare wpisy. Jeśli istnieje choć jedno pytanie, również ukryte
+lub miękko usunięte, odmawia przed DDL. Wtedy wycofujemy kod, pozostawiając
+rozszerzony schemat; nie usuwamy pytań w celu przepchnięcia rollbacku.
+Sprawdzenie i DDL są objęte transakcją oraz blokadą tabeli, aby równoległy
+zapis nie wszedł pomiędzy sprawdzenie a usunięcie kolumn.
+
 **`posts.recipe_id` — wpis WSKAZUJĄCY przepis** (issue #368). Kolumna istnieje
 od pierwszej migracji (`2026_09_05_000500_create_posts_tables`, `nullable`,
 `nullOnDelete`) i **nie zmienia się tą pracą ani o jeden bajt** — zmienia się
@@ -1946,6 +1970,16 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 `NULL` znaczy „komentarz pierwszego poziomu". Kasowanie jest miękkie
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
+
+`body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
+wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
+„Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
+rozmowę, ale nie jest odpowiedzią na pytanie: nie trafia do licznika odpowiedzi,
+QAPage ani nie usuwa pytania z kolejki gospodarza. Nie można go ponownie edytować.
+Migracja nie odgaduje historycznych usunięć z samego tekstu. Cofnięcie kolumny
+jest dozwolone tylko, gdy wszystkie wartości są NULL; sprawdzenie i DDL są
+objęte jedną blokadą tabeli. Przy istniejących znacznikach wycofuje się kod
+bez cofania tej migracji.
 
 **Podwójne kliknięcie „Wyślij" NIE jest tu pilnowane przez schemat —
 i to jest świadome.** Zmierzone przed poprawką (audyt podwójnego wysłania,
@@ -3960,3 +3994,41 @@ dokładnie jedną wiadomość odwołującą.
 - **Ilu użytkowników serwis obsłuży.** Liczba osób online nie przekłada się
   1:1 na połączenia. Decyzja o PgBouncerze (#600) ma wynikać z tych liczb,
   a nie z progu „ilu jest online" — i na dziś te liczby jej **nie uzasadniają**.
+
+### F. Skąd weźmie się szereg czasowy — i co go może zablokować
+
+**Zmierzone 17.09.2026 23:25:20 UTC:** harmonogram produkcji uruchomił
+`kuking:budzet-polaczen` i zameldował „DONE" w 21 ms — po czym zmierzone
+liczby przepadły. `Schedule::call()` woła komendę przez `Artisan::call()`,
+a to przechwytuje wyjście konsoli do bufora, który kończy się razem
+z przebiegiem. Czujka mierzyła co godzinę i za każdym razem zapominała, więc
+definicji gotowości „znany peak active connections" nie dało się spełnić
+**mimo działającego kodu**.
+
+Od 18.09.2026 obie czujki zapisują jedną linię pomiaru do dziennika serwera:
+
+```text
+kuking:budzet-polaczen  {"stan":…,"zajete_serwer":…,"zajete_baza":…,"aktywne":…,
+                         "bezczynne":…,"w_transakcji":…,"dostepne":…,
+                         "max_connections":…,"budzet_szczytowy":…,"prog_ostrzegawczy":…}
+kuking:sprawdz-kolejke  {"stan":…,"oczekujace":…,"zaleglosc_sekundy":…,"zawieszone":…,
+                         "nieudane_w_oknie":…,"nieudane_razem":…,…}
+```
+
+W sesji pomiarowej nie było dostępu do produkcyjnego Postgresa z zewnątrz
+ani zalogowanego CLI. W tej implementacji historia dziennika Railway jest
+magazynem szeregu czasowego; nie zakładamy tabeli ani zewnętrznej bazy metryk.
+Pojedynczy odczyt w konsoli produkcji nie zastępuje historii pomiarów.
+
+**Co go blokuje, i trzeba to sprawdzić w panelu:** wpisy idą poziomem `info`,
+bo zdrowy pomiar nie jest ostrzeżeniem, a podnoszenie poziomu tylko po to,
+żeby przebić się przez próg, zamieniłoby dziennik w ciąg fałszywych ostrzeżeń.
+Jeżeli produkcyjne `LOG_LEVEL` stoi powyżej `info`, **szereg nie powstanie
+mimo działającej czujki** — dokładnie ten sam kształt pomyłki, który ten
+rozdział opisuje wyżej. Wartości tej zmiennej nie dało się odczytać z tej
+sesji (API oddaje same nazwy), więc pozostaje to do sprawdzenia.
+
+Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
+`payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
+— to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
+`PomiarCzujekTrafiaDoDziennikaTest`.

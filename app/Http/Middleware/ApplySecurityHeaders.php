@@ -114,10 +114,27 @@ class ApplySecurityHeaders
         // gałęzi nie ma — `public/hot` powstaje wyłącznie lokalnie.
         $vite = $this->zrodlaSerweraVite();
 
-        // Cloudflare Turnstile (D-050). Widget dociąga własne skrypty
-        // i rysuje się w RAMCE, więc potrzebuje dwóch dyrektyw naraz:
-        // `script-src` i `frame-src`. Sam podpis (`nonce`) nie wystarczy —
-        // nonce nie przechodzi na skrypty, które api.js wstawia sam.
+        // Cloudflare Turnstile (D-050). Widget dociąga własne skrypty, rysuje
+        // się w RAMCE i ODZYWA SIĘ Z POWROTEM do Cloudflare, więc potrzebuje
+        // TRZECH dyrektyw naraz: `script-src`, `frame-src` i `connect-src`.
+        // Sam podpis (`nonce`) nie wystarczy — nonce nie przechodzi na
+        // skrypty, które api.js wstawia sam.
+        //
+        // TRZECIA DYREKTYWA KOSZTOWAŁA MARTWE LOGOWANIE HASŁEM (issue #697).
+        // Do 19 września 2026 host szedł tylko do `script-src` i `frame-src`.
+        // Widget rysował się poprawnie, po czym przechodził w „Weryfikacja
+        // negatywna", bo jego wywołanie do
+        // `challenges.cloudflare.com/cdn-cgi/challenge-platform/…` ginęło na
+        // `connect-src`, a w konsoli stawał `TurnstileError 600010`. Formularz
+        // hasła nie dawał się wysłać NIKOMU — polityka idzie z każdą
+        // odpowiedzią. Serwis nie był zamknięty tylko dlatego, że Google,
+        // Facebook i list z odnośnikiem nie przechodzą przez Turnstile.
+        //
+        // To jest DOKŁADNIE ta sama pułapka, którą opisuje akapit o analityce
+        // kilkadziesiąt linii niżej — ten sam plik, drugi host, przeoczona.
+        // Dlatego pilnuje jej teraz test
+        // `tests/Feature/PolitykaCspDopuszczaPowrotTurnstileTest.php`, a nie
+        // komentarz: komentarz stał tu już wtedy i nie zatrzymał niczego.
         //
         // DOKŁADAMY TO TYLKO WTEDY, GDY TURNSTILE MA KLUCZE. Bez nich widget
         // się nie renderuje, więc rozluźnianie polityki nie miałoby czego
@@ -175,7 +192,7 @@ class ApplySecurityHeaders
             "img-src 'self' data: blob: https:",
             "font-src 'self' data:",
             "worker-src 'self'",
-            'connect-src '.implode(' ', ["'self'", ...$vite['connect'], ...$analitykaZdarzenia]),
+            'connect-src '.implode(' ', ["'self'", ...$vite['connect'], ...$turnstile, ...$analitykaZdarzenia]),
             'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host'], ...$turnstile, ...$analitykaSkrypt]),
         ];
 

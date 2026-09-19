@@ -15,7 +15,7 @@
 
     <h1>Tagi promowane</h1>
 
-    <p class="lead">
+    <p class="text-lead">
         Ta lista zastępuje dawne Tematy. Nowe konto widzi ją zaraz po
         założeniu, a strona główna układa z niej pierwsze wpisy dla osoby,
         która jeszcze nikogo nie obserwuje. „Temat tygodnia" i sezonowe okazje (Wigilia,

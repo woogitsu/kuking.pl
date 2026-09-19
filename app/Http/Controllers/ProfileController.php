@@ -219,7 +219,7 @@ class ProfileController extends Controller
             // gdy relacja jest już doładowana, więc bez tego archiwum
             // profilu nie miałoby żadnych chipów tematów.
             ->with(['media', 'author.profile.avatar', 'tags:id,slug,name,status'])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
             // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
@@ -271,6 +271,10 @@ class ProfileController extends Controller
      */
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
+        if ($query->getModel() instanceof Post) {
+            $query->enabledKinds();
+        }
+
         if ($isOwner) {
             return;
         }

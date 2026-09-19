@@ -75,8 +75,20 @@ class SpisTematowTest extends TestCase
         $this->assertNotNull($sekcja, "Nie znalazłem sekcji „{$ariaLabel}” (nav[aria-label]) w dokumencie.");
 
         $linki = [];
-        foreach ($xpath->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' chip ')]", $sekcja) as $a) {
-            $linki[] = trim(preg_replace('/\s+/u', ' ', $a->textContent));
+        foreach ($xpath->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' chip ') or contains(concat(' ', normalize-space(@class), ' '), ' tag-directory-card ')]", $sekcja) as $a) {
+            $copy = $xpath->query(".//span[@class='tag-directory-copy']", $a)->item(0);
+            if ($copy) {
+                // Karta ma też podpis zdjęcia i akcję. Liczymy nadal nazwę
+                // oraz rzeczywisty licznik, bez osłabiania asercji treści.
+                $name = $xpath->query('./strong', $copy)->item(0);
+                $count = $xpath->query('./span[1]', $copy)->item(0);
+                $this->assertNotNull($name);
+                $this->assertNotNull($count);
+                $text = $name->textContent.' '.$count->textContent;
+            } else {
+                $text = $a->textContent;
+            }
+            $linki[] = trim(preg_replace('/\s+/u', ' ', $text));
         }
 
         return $linki;

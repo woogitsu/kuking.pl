@@ -18,6 +18,8 @@ class PostFactory extends Factory
     public function definition(): array
     {
         return [
+            'kind' => Post::KIND_DISH,
+            'title' => null,
             'author_id' => User::factory(),
             'body' => fake()->sentence(8),
             'visibility' => Post::VISIBILITY_PUBLIC,
@@ -31,6 +33,14 @@ class PostFactory extends Factory
         return $this->state(fn () => [
             'status' => Post::STATUS_DRAFT,
             'published_at' => null,
+        ]);
+    }
+
+    public function question(): static
+    {
+        return $this->state(fn () => [
+            'kind' => Post::KIND_QUESTION,
+            'title' => 'Jak upiec chrupiący chleb?',
         ]);
     }
 

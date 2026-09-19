@@ -45,12 +45,13 @@
 
     <h1 class="mt-0">Wszystkie tagi</h1>
 
-    <p class="lead">
+    <p class="lead tag-directory-intro">
         Tagi to sposób na przeglądanie bez konieczności znajomości nikogo —
         dania, składniki, okazje i sposoby przygotowania, tak jak ktoś je
         opisał przy swoim wpisie. Liczba obok nazwy to liczba wpisów
         widocznych dla wszystkich, także zero — pusty tag czeka na
-        pierwszy wpis.
+        pierwszy wpis. Wpis prywatny albo tylko dla obserwujących do tej
+        liczby nie wchodzi, nawet gdy jest Twój.
     </p>
 
     @if($polecane->isNotEmpty())
@@ -87,14 +88,9 @@
             </p>
         </x-empty-state>
     @else
-        <nav class="chipsy" aria-label="Wszystkie tagi, alfabetycznie">
+        <nav class="tag-directory-grid" aria-label="Wszystkie tagi, alfabetycznie">
             @foreach($tagi as $tag)
-                <a class="chip tag-directory-link" href="{{ route('tags.show', $tag) }}">
-                    {{ $tag->name }}
-                    ({{ $tag->posts_count }}
-                    {{ \App\Support\Odmiana::rzeczownik($tag->posts_count, 'wpis', 'wpisy', 'wpisów') }})
-                    <x-tag-public-stats :stats="$publicStats[$tag->getKey()]" :invitation="false" />
-                </a>
+                <x-tag-directory-card :tag="$tag" :photo="$collages[$tag->getKey()]->first()" :stats="$publicStats[$tag->getKey()]" />
             @endforeach
         </nav>
 

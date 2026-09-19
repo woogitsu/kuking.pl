@@ -44,7 +44,10 @@ try {
   if (!adres) {
     const port = await wolnyPort();
     adres = `http://127.0.0.1:${port}`;
-    serwer = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], { env, stdio: 'ignore' });
+    /* `--no-reload` — patrz `scripts/port-projektu.mjs`: bez niego `artisan serve`
+       wycina procesowi `php -S` zmienne środowiska joba i aplikacja spada na
+       `.env`, czyli na współdzielony port 5432. */
+    serwer = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], { env, stdio: 'ignore' });
     let gotowy = false;
     for (let proba = 0; proba < 60; proba++) {
       try { if ((await fetch(adres + '/health')).ok) { gotowy = true; break; } } catch { /* start serwera */ }

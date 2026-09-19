@@ -83,7 +83,10 @@ class TagController extends Controller
         return view('pages.tags.index', [
             'polecane' => $polecane,
             'tagi' => $tagi,
-            'collages' => $this->collage->forTags($polecane->modelKeys(), $request->user()),
+            'collages' => $this->collage->forTags(
+                array_unique(array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys())),
+                $request->user(),
+            ),
             'publicStats' => $this->publicStats->forTags(
                 array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
             ),
@@ -121,7 +124,7 @@ class TagController extends Controller
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
             ->tylkoOdAktywnychAutorow()
             ->with(['author.profile.avatar', 'media', 'tags:id,slug,name,status'])
-            ->withCount(['comments' => fn ($query) => $query->widoczneDla($widz)])
+            ->withVisibleCommentCount($widz)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
             // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.

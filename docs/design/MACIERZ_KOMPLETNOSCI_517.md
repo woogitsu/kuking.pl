@@ -516,3 +516,158 @@ Szczegóły i zakres dowodów: [linki](LINKI_634.md) oraz
 [instalacja PWA](INSTALACJA_PWA_278.md). Uzupełnienie PWA dotyczy propozycji
 instalacji, nie zastępuje całego historycznego wiersza offline/service worker.
 Pełny port marki pozostaje **CZĘŚCIOWO**.
+
+
+## Odzyskanie PUT po 419 przy rzeczywistym zoomie — 18 września 2026
+
+[Wąski odbiór](ODBIOR_PUT_ZOOM_492.md) na źródłach6fb497c uzupełnia wcześniejszy
+PUT: oba motywy ustawione przez UI, rzeczywisty zoom200%, CSS320×900, tekst140.
+Payload i snapshot badanego przepisu zachowane przy odmowie; Tab dociera do
+ponowienia, które po dodatkowym przewinięciu jest widoczne i niezasłonięte.
+Enter wykonuje prawdziwy PUT, z potwierdzeniem opisu, kroków, przypisań mediów,
+minutników kroków i prywatności. Oba PNG obejrzane również przez reviewera.
+
+Zakres nie obejmuje nowych uploadów, maksymalnych danych, wszystkich pól
+fokusu, naturalnego wygaśnięcia sesji, 429 przy zoomie ani fizycznych urządzeń.
+Nie dowodzi samoczynnego odsłonięcia celu przez sam Tab. Historyczne ograniczenia
+pozostają ważne poza tym zakresem. Pełny port marki nadal CZĘŚCIOWO.
+
+## Fotograficzny katalog tagów — #681, roboczy odbiór lokalny
+
+A–Z otrzymał szerszą ramę i karty z publicznymi zdjęciami oraz podpisami.
+[Raport](FOTOGRAFICZNE_TAGI_681.md) rozdziela pomiar 36 konfiguracji,
+rzeczywisty zoom 200%, obsługę myszy/emulowanego dotyku/Tab i kontrole
+ujemne od ograniczeń. Lokalny axe nie znalazł naruszeń w siatce; kontrast
+fotografii wymagał osobnego obliczenia. CI i produkcja tego pakietu jeszcze
+niepotwierdzone. Nie zmienia to statusu pełnego portu: **CZĘŚCIOWO**.
+
+## Odbiór wdrożonych funkcji — 18 września 2026
+
+Ten rozdział ma **pierwszeństwo** przed historycznymi statusami czterech
+pakietów wymienionych niżej. Nie rozszerza zakresu oglądu żadnego ekranu
+i nie powtarza implementacji — cały ten kod jest scalony i wdrożony.
+
+Powstał 18 września 2026 po południu na podstawie pomiaru na `55877e2`
+i został **uzupełniony tego samego dnia wieczorem**, kiedy produkcja stała
+już na `3f315b3`. Obie warstwy są niżej rozdzielone i obie są ważne —
+każda z własną datą, SHA i zakresem.
+
+### Punkt wyjścia: SHA w chwili każdego pomiaru
+
+| Pomiar | Produkcja w tej chwili | Co z niej odczytano |
+|---|---|---|
+| 18.09.2026, ok. 13:10–13:24 UTC | `55877e2` — Alfa 0.65, assety `app-4x8Pd5Wp.js` i `app-BN8XjHof.css`, wdrożenie Railway 09:53 UTC SUCCESS, `/health` 200 | brak publicznych tagów, brak wykonań |
+| 18.09.2026, 18:54–19:02 UTC | `3f315b3` — Alfa 0.67, wydanie 20:53 czasu lokalnego | dwa publiczne tagi, jedno wykonanie |
+
+**Żaden z tych dwóch stanów nie jest „stanem produkcji" bez daty.** Odcisk
+assetów przy pierwszym pomiarze jest istotny z tego samego powodu: numer Alfy
+bywa podnoszony w kodzie wcześniej, niż nastąpi wdrożenie, a nazwa pliku
+z hashem dowodzi, że serwowany jest **ten** build.
+
+Jedyne `degraded` to znane historyczne `kolejka: zadania_nieudane` — poza
+zakresem tego odbioru i **nie wolno** kasować tych zadań po to, żeby stan
+stał się zielony.
+
+**Co z tego wynika:** żaden z poniższych braków nie bierze się z niewdrożenia.
+
+### Popołudnie: w sprawdzonych powierzchniach nie było danych
+
+To jedno ustalenie przesądzało po południu o czterech pakietach naraz.
+**Zakres jest dosłownie taki, jak w tabeli** — jedenaście stron publicznych
+i kilka prób bezpośrednich. To nie jest spis bazy i nie zastępuje go.
+
+| Co sprawdzono | Wynik, 18.09.2026 ok. 13:20 UTC, `55877e2` |
+|---|---|
+| spis tagów | HTTP 200, **stan pusty**: „Tagi jeszcze się nie pojawiły" |
+| wyszukiwarka, zakres przepisów | HTTP 200, „Nie ma jeszcze polecanych tagów." |
+| strona pojedynczego tagu dla slugów obiad, zupy, deser, cukinia, bigos i ciasto | **404** |
+| jedenaście stron publicznych zapisanych w dowodzie | **zero** odnośników do strony pojedynczego tagu |
+| publiczne przepisy znalezione w sprawdzonych powierzchniach | **jeden**: przepis o slugu bigos-z-cukinii (200) |
+| ten przepis: wykonania | „Jeszcze nikt tego nie gotował. Twoje wykonanie będzie pierwsze." |
+| ten przepis: komentarze | „Jeszcze nikt tu nic nie napisał." |
+| trzy profile, zakładka ugotowanych | „Brak wykonań" |
+
+**Sprostowanie do wcześniejszego zapisu tej sesji:** „Rolada kawowa" **nie
+jest przepisem, tylko wpisem** (identyfikator 01a0a6af). Adres przepisu
+o slugu rolada-kawowa zwraca **404**.
+
+Uwaga, która zapobiega fałszywemu tropowi: w treści wpisów pojawiają się
+ciągi w rodzaju `#ciasto`, ale w sprawdzonych wtedy stronach nie było ani
+jednego odnośnika do strony tagu. Pusta lista tagów **nie była usterką
+renderowania**.
+
+**Brak danych nie jest wynikiem pozytywnym.** Wytworzenie tagów, wykonań albo
+komentarzy na produkcji zamknęłoby cztery zgłoszenia i **zafałszowało odbiór**;
+dlatego tego nie zrobiono i nie należy tego robić.
+
+### Wieczór: dane się pojawiły i dwa braki są już częściowo domknięte
+
+Ponowny odczyt 18:54–19:02 UTC, wyłącznie GET bez sesji, na `3f315b3`
+(Alfa 0.67). **Popołudniowy wynik nie staje się przez to nieprawdziwy — staje
+się historyczny.**
+
+- **Publiczne tagi są.** Spis wymienia `ciasto` (1 wpis, z miniaturą) oraz
+  `sernik` (0 wpisów); obie strony tagów odpowiadają 200. Strona `ciasto`
+  renderuje kolaż `tag-collage--1` z kaflem prowadzącym do wpisu oraz
+  gałąź **poniżej progu** komponentu statystyk: „Pokaż, co gotujesz — dodaj
+  swój wpis." Próg to 5 zdjęć i 3 osoby (`tag_public_stats`), a tag ma
+  jednego autora — zachowanie jest więc poprawne i **odebrane na produkcji**.
+- **Niezerowy licznik wykonań jest.** Strona przepisu bigos-z-cukinii ma
+  w nagłówku „Komu wyszło" akapit `pasek-liczb` z treścią `1 wykonanie` —
+  poprawna forma pojedyncza, etykieta nazywa zdarzenie, nie osobę.
+- **Okruszek i cele odnośników trzymają się po zmianie wdrożenia:** widoczna
+  lista `okruchy` zgadza się z `BreadcrumbList` co do pozycji, „Świeżo
+  z Kuking" prowadzi na `/odkryj` (200), wyszukiwarka zachowuje zakres
+  w ukrytym polu, a zbiorczy katalog przepisów nadal **nie powstał** (404).
+- **Zeszyt dalej wymaga sesji** — 302 na logowanie. To granica dowodu.
+
+**Uwaga do rozdziału o fotograficznym katalogu tagów (#681) powyżej.** Stoi
+w nim, że produkcja tego pakietu jest jeszcze niepotwierdzona. Wieczorny
+odczyt to **posuwa do przodu, nie cofa**: spis tagów na `3f315b3` ma już
+kartę z publicznym zdjęciem i podpisem („Zdjęcie: Ewa Kapica”) przy tagu
+`ciasto`. To odczyt HTML jednej karty, nie odbiór macierzy 36 konfiguracji
+ani kontrastu fotografii — reszta ograniczeń tamtego rozdziału zostaje
+w mocy.
+
+### Stan czterech pakietów po obu pomiarach
+
+| Pakiet | Implementacja | Dowód lokalny | CI | Dowód produkcji | Czego dokładnie brakuje |
+|---|---|---|---|---|---|
+| **#369** statystyki tagów | `app/Domain/Tags/TagPublicStats.php`, próg w `config/kuking.php`; PR #665 → `e22b79d` | pełny: 13/147 i 55/315, sześć fizycznych negatywów, benchmark 2/30 tagów, 48 układów, zoom 200% | success na `55877e2` | **częściowy** — gałąź poniżej progu potwierdzona na żywym tagu 18.09 wieczorem | zdanie `Publicznie: N zdjęć od M osób.`; potrzebny tag z co najmniej 5 zdjęciami od co najmniej 3 osób |
+| **#370** bogatsze strony tagów | `app/Domain/Tags/TagCollage.php`; PR #669 → `397a742` | pełny; uzupełniony o kontrole **wskaźnikiem**, nie tylko klawiaturą | success | **częściowy** — kolaż i CTA obecne w HTML na żywym tagu | reguła „jedno zdjęcie od osoby" (potrzeba co najmniej 3 autorów) oraz CTA jako rzeczywista interakcja |
+| **#666** etykiety liczników | `recipes/show.blade.php` z `Odmiana::rzeczownik(...)`; PR #671 → `bdc56b8` | pełny: 33/180, cztery fizyczne negatywy, 96 konfiguracji, zoom 200% w 8 scenach | success | **częściowy** — puste stany oraz `1 wykonanie` potwierdzone | odmiana dla 2, 5 i 22 wykonań, podpis odpowiedzi i procent |
+| **#667** etykiety i cele odnośników | okruszek → `route('discover')`; CTA zeszytu → `route('search', ['sekcja' => 'przepisy'])`; PR #672 → `71549eb` | pełny: 4/17, 25/127, 72 konfiguracje, zoom 200% | success | **prawie pełny**, potwierdzony ponownie na `3f315b3` | render obu CTA zeszytu — wymaga zalogowanej sesji |
+
+### Znaleziony przy okazji błąd — przekazany, nie naprawiony
+
+**#684** — widget „Wygląd" potrafi zasłonić treść. Sformułowanie z pierwszej
+wersji tego rozdziału („całe odsłanianie wisi na `focusin`") było za szerokie
+i zostaje sprostowane: `geometry()` w `resources/js/szybki-wyglad.js` chodzi
+także na `resize`, `scroll`, przez `ResizeObserver` i przy starcie, oraz
+sprawdza `.field-error`. **Wyłącznie na `focusin` wisi doprzewinięcie**
+(`window.scrollBy`, l. 186). Skutek dla użytkownika jest ten sam i to on jest
+treścią zgłoszenia: klawiatura dostaje odsłonięcie, mysz i dotyk nie dostają
+żadnego — a to są scenariusze podstawowe.
+
+Globalny CSS, widget „Wygląd" i nawigacja były **wyłączone z zakresu** tego
+odbioru, więc problem odtworzono i zgłoszono zamiast naprawiać. To **nie jest
+regresja #370**. Doprzewinięcie o 120 px przywraca dostęp we wszystkich
+sprawdzonych przypadkach.
+
+### Rozróżnienia, bez których te wyniki znaczyłyby co innego
+
+- **Odczyt HTML a interakcja w przeglądarce.** Produkcję czytano odczytowo
+  (HTTP oraz ogląd strony przepisu w przeglądarce); prawdziwe kliknięcia
+  i dotknięcia wykonywano **lokalnie**, nie na produkcji.
+- **Emulacja szerokości a fizyczny telefon.** Wszystkie wąskie układy to
+  emulacja. **Fizycznego telefonu nie badano.**
+- **Skala tekstu a rzeczywisty zoom 200%.** Raporty rozróżniają jedno od
+  drugiego; tam, gdzie jest zoom, jest to zoom przeglądarki.
+- **Wynik lokalny, wynik CI i wynik produkcyjny to trzy różne rzeczy.** Żaden
+  lokalny dowód w tym rozdziale nie jest liczony jako produkcyjny, a zielone
+  CI nie jest oglądem wdrożenia.
+- **SHA bez daty nie znaczy nic.** Dwa pomiary w tym rozdziale dzieli sześć
+  godzin i dwie wersje produkcji.
+
+Pełny port marki pozostaje **CZĘŚCIOWO**. Rozdział niczego nie zamyka:
+#369, #370, #666 i #667 zostają otwarte, a #492 pozostaje meta-issue.

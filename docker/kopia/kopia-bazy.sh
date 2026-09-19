@@ -81,6 +81,42 @@ SRODOWISKO="${KOPIA_SRODOWISKO:-production}"
 log() { printf '[kopia] %s\n' "$*" >&2; }
 
 # -----------------------------------------------------------------------------
+#  LICZBY Z PANELU SPRAWDZAMY NA STARCIE — DWA FOOTGUNY ZMIERZONE 18.09.2026
+#
+#  `KOPIA_MINIMUM_KOPII=siedem` (ktoś wpisał słowem) kończyło się
+#  `kopia-bazy.sh: line 742: siedem: unbound variable` W ŚRODKU RETENCJI,
+#  czyli PO udanej kopii i BEZ alarmu: `set -u` przerywa powłokę, a `padnij`
+#  nigdy nie dochodzi do głosu. W panelu Railway zostaje czerwony przebieg
+#  bez wiadomości, mimo że kopia leży w buckecie.
+#
+#  `KOPIA_MINIMUM_KOPII=0` przechodziło bez słowa i przy pierwszym przebiegu
+#  po oknie retencji czyściło bucket DO ZERA — zmierzone na MinIO: dziewięć
+#  kopii weszło, zero zostało. Zero nie jest polityką retencji, tylko utratą
+#  danych, więc minimum minimum wynosi 1.
+#
+#  Sprawdzamy to w KROKU 0, przed zrzutem, bo zły wpis w panelu ma zatrzymać
+#  przebieg zanim ten cokolwiek skasuje — a nie po.
+# -----------------------------------------------------------------------------
+# Bash odczytuje 010 jako zapis ósemkowy. Najpierw usuwamy zera
+# tekstowo; najwyżej 18 cyfr mieści się w podpisanej arytmetyce 64-bitowej.
+normalizuj_liczbe_dodatnia() {
+  local wartosc="$1" minimum="$2"
+  [[ "${wartosc}" =~ ^[0-9]{1,19}$ ]] || return 1
+  while [[ "${wartosc}" == 0* && ${#wartosc} -gt 1 ]]; do wartosc="${wartosc#0}"; done
+  ((${#wartosc} <= 18)) || return 1
+  ((10#${wartosc} >= minimum)) || return 1
+  printf '%s' "$((10#${wartosc}))"
+}
+
+liczba_dodatnia_albo_padnij() {
+  local nazwa="$1" wartosc="$2" minimum="$3"
+  if ! normalizuj_liczbe_dodatnia "${wartosc}" "${minimum}" >/dev/null; then
+    log "BŁĄD: ${nazwa}=${wartosc} — oczekiwana liczba całkowita nie mniejsza niż ${minimum}."
+    padnij srodowisko 13
+  fi
+}
+
+# -----------------------------------------------------------------------------
 #  ALARM — to jest najważniejsza funkcja w tym pliku.
 #
 #  Kopia, która po cichu przestała się robić, jest GORSZA niż jej brak: daje
@@ -278,6 +314,19 @@ sprawdz_srodowisko() {
     padnij srodowisko 10
   fi
 
+  # Liczby z panelu — zanim cokolwiek zrobimy, a przede wszystkim zanim
+  # retencja cokolwiek skasuje. Powód i pomiar: `liczba_dodatnia_albo_padnij`.
+  liczba_dodatnia_albo_padnij KOPIA_MINIMUM_KOPII "${MINIMUM_KOPII}" 1
+  liczba_dodatnia_albo_padnij KOPIA_RETENCJA_DNI "${RETENCJA_DNI}" 1
+  liczba_dodatnia_albo_padnij KOPIA_MIN_TABEL "${MIN_TABEL}" 1
+  liczba_dodatnia_albo_padnij KOPIA_MIN_BAJTOW "${MIN_BAJTOW}" 1
+  liczba_dodatnia_albo_padnij KOPIA_MAX_BAJTOW "${MAX_BAJTOW}" 1
+  liczba_dodatnia_albo_padnij KOPIA_ALARM_PO_GODZINACH "${ALARM_PO_GODZINACH}" 1
+  local parametr
+  for parametr in MINIMUM_KOPII RETENCJA_DNI MIN_TABEL MIN_BAJTOW MAX_BAJTOW ALARM_PO_GODZINACH; do
+    printf -v "${parametr}" '%s' "$(normalizuj_liczbe_dodatnia "${!parametr}" 1)"
+  done
+
   local narzedzie
   for narzedzie in pg_dump pg_restore psql openssl curl; do
     command -v "${narzedzie}" >/dev/null 2>&1 || {
@@ -379,11 +428,29 @@ sprawdz_wersje() {
 #  przegląd z `KOPIE_I_ODTWORZENIE.md` §6.
 # =============================================================================
 sprawdz_poprzednia_kopie() {
-  local klucze
-  if ! klucze="$(s3_lista_kluczy "${PREFIKS}")"; then
-    log "BŁĄD: nie udało się wylistować bucketu (HTTP ${S3_KOD:-brak})."
+  # Klucze do PLIKU, nie przez `$( )`. Powód i pomiar: nagłówek
+  # `s3_lista_kluczy_do_pliku` w `docker/kopia/s3.sh`. W skrócie: podstawienie
+  # poleceń to podpowłoka, a `S3_KOD` ginie razem z nią — i wtedy „token bez
+  # uprawnień" (403) oraz „bucketu nie ma" (404) są w logu nie do odróżnienia.
+  local plik_kluczy="${KATALOG_ROBOCZY:-${KOPIA_KATALOG_ROBOCZY:-/tmp}}/klucze-bucketu.txt"
+  local kod_listowania=0
+  s3_lista_kluczy_do_pliku "${PREFIKS}" "${plik_kluczy}" || kod_listowania=$?
+
+  if ((kod_listowania == 2)); then
+    log 'BŁĄD: bucket oddał listę OBCIĘTĄ (IsTruncated) — nie widzę wszystkich kopii.'
+    log '  Nie zgaduję, która jest najnowsza: patrz stronicowanie w docker/kopia/s3.sh.'
     padnij poprzednia-kopia 30
   fi
+
+  if ((kod_listowania != 0)); then
+    log "BŁĄD: nie udało się wylistować bucketu (HTTP ${S3_KOD:-brak})."
+    log '  403 — token nie ma prawa do TEGO bucketu; 404 — bucketu nie ma pod tą nazwą;'
+    log '  brak kodu — nie doszło połączenie do endpointu.'
+    padnij poprzednia-kopia 30
+  fi
+
+  local klucze
+  klucze="$(cat "${plik_kluczy}")"
 
   local najnowszy
   najnowszy="$(grep -E '\.dump\.cms$' <<<"${klucze}" | sort | tail -1 || true)"
@@ -459,10 +526,77 @@ zrzut() {
 #      waży kilka kilobajtów, wygląda poprawnie i nie ma w nim niczyich danych;
 #    * archiwum OBCIĘTE (padło łącze na 80%) — czasem daje kod 0.
 #
-#  Dlatego czytamy zrzut z powrotem `pg_restore --list`. To jest jedyna
-#  weryfikacja możliwa w tym kontenerze: klucza prywatnego tu nie ma, więc
-#  szyfrogramu odszyfrować nie potrafimy. Prawdziwe odtworzenie jest
-#  ćwiczeniem człowieka — `KOPIE_I_ODTWORZENIE.md` §4.
+#  Dlatego czytamy zrzut z powrotem. Najpierw `pg_restore --list` (spis
+#  treści: czy to w ogóle nasze archiwum i czy tabel jest tyle, ile ma być),
+#  a POTEM — i to jest poprawka z 18.09.2026 — całe archiwum, blok po bloku.
+#
+#  DLACZEGO SAM `--list` TO ZA MAŁO — USTERKA ODTWORZONA 18.09.2026
+#  ---------------------------------------------------------------
+#  `--list` czyta z archiwum WYŁĄCZNIE spis treści, a ten leży na jego
+#  POCZĄTKU. Bloki danych — czyli 95% pliku i całość danych osobowych — nie
+#  są przy tym w ogóle dotykane. Zmierzone na prawdziwym zrzucie tej bazy
+#  (PostgreSQL 18.6, 331 974 B, 50 tabel), obcinanym w kilku miejscach:
+#
+#    obcięcie do 99 / 98 / 95 / 92 / 90 / 80 %  oraz o JEDEN bajt
+#       `pg_restore --list` → rc=0 i 50 tabel, za każdym razem
+#       `pg_restore -d`     → rc=1, „could not read from input file: end of file"
+#    uszkodzenie W ŚRODKU (4 KiB zer w połowie pliku, jeden bajt 0xFF w 60%)
+#       `pg_restore --list` → rc=0 i 50 tabel
+#       `pg_restore -d`     → rc=1, „could not uncompress data"
+#
+#  Taki plik przechodził też `MIN_BAJTOW`, był szyfrowany, wysyłany,
+#  potwierdzany i meldowany jako GOTOWE. Pełny przebieg na zrzucie obciętym
+#  do 95% skończył się linią „GOTOWE", a obiekt ściągnięty z bucketu
+#  i odszyfrowany odtworzył się do bazy, w której `recipes` miało 41 wierszy,
+#  a `users` — ZERO.
+#
+#  DLACZEGO `pg_restore --file=/dev/null`, A NIE COŚ WIĘKSZEGO
+#  ----------------------------------------------------------
+#  Ten przełącznik każe `pg_restore` przejść przez KAŻDY blok danych,
+#  rozpakować go i wypisać SQL — tyle że wypisuje go do `/dev/null`. Czyli:
+#  bez bazy, bez połączenia, bez ani jednego dodatkowego uprawnienia, bez
+#  jednego bajtu na dysku, tym samym `pg_restore`, który i tak jest w tym
+#  obrazie i i tak jest sprawdzany w `sprawdz_srodowisko`.
+#  Odrzucone alternatywy:
+#    * odtworzenie do tymczasowej bazy — wymagałoby prawa CREATE DATABASE
+#      na serwerze PRODUKCYJNYM i zapisu do niego. To rozszerzenie uprawnień
+#      kontenera, który ma ich mieć jak najmniej;
+#    * suma kontrolna zrzutu — dowodzi tylko, że plik nie zmienił się między
+#      zrzutem a wysyłką. Tutaj `pg_dump` zapisał niepełne archiwum SAM,
+#      więc suma zgadzałaby się z niepełnym plikiem;
+#    * porównanie rozmiaru z poprzednim przebiegiem — nie ma progu, który
+#      odróżnia „baza urosła" od „łącze padło pod koniec".
+#
+#  CZEGO NIE ŁAPIE, A WYGLĄDA, JAKBY ŁAPAŁO: przekręconego bajtu w SPISIE
+#  TREŚCI. Spis w formacie `custom` nie ma sumy kontrolnej, więc zmiana
+#  litery w nazwie tabeli przechodzi i `--list`, i pełny odczyt — zmierzone
+#  w recenzji: `zdjecia` → `xdjecia`, oba `rc=0`. Bloki danych są wtedy całe,
+#  psuje się tylko etykieta. Przed tym broni dopiero prawdziwe odtworzenie.
+#
+#  CO TO SPRAWDZENIE DOWODZI: że archiwum daje się przeczytać do końca, że
+#  każdy blok danych jest obecny i rozpakowuje się bez błędu i że plik ma
+#  poprawne zakończenie.
+#  CZEGO NIE DOWODZI: że ten SQL wykona się na świeżym serwerze (kolejność
+#  ograniczeń, rozszerzenia, role), że dane są semantycznie tym, czego
+#  oczekujemy, ani ILE POTRWA odtworzenie produkcji. Prawdziwe odtworzenie
+#  zostaje ćwiczeniem człowieka — `KOPIE_I_ODTWORZENIE.md` §4.
+#
+#  KOSZT, ZMIERZONY. Na zrzucie 331 974 B pełny odczyt trwa 19–20 ms wobec
+#  ~10 ms samego `--list`, czyli około dwa razy dłużej — na tle całej kopii
+#  (zrzut, szyfrowanie, wysyłka) to jest niemierzalne. Czas rośnie liniowo
+#  z rozmiarem archiwum, bo to zwykłe rozpakowanie zlib.
+#
+#  Miejsca na dysku nie zajmuje w ogóle: `File system outputs` wynosi 0,
+#  bo SQL (tu 765 416 B) idzie do `/dev/null` i nigdy nie ląduje w pliku.
+#
+#  Pamięć jest STAŁA i nie zależy od rozmiaru archiwum. Niezależny pomiar
+#  w recenzji dał ten sam `Maximum resident set size` dla `--list` i dla
+#  pełnego odczytu, także przy archiwum 116 MB. Wcześniejsze „+264 KiB"
+#  było szumem pojedynczego pomiaru i zostaje tu odwołane.
+#
+#  Klucza prywatnego w tym kontenerze nie ma, więc wszystko powyżej dzieje
+#  się na zrzucie JAWNYM, przed szyfrowaniem. Integralności szyfrogramu
+#  w buckecie pilnują osobno `potwierdz()` i plik `.meta`.
 # =============================================================================
 weryfikuj_zrzut() {
   if ((ROZMIAR_JAWNY < MIN_BAJTOW)); then
@@ -472,7 +606,7 @@ weryfikuj_zrzut() {
 
   local spis
   if ! spis="$(pg_restore --list "${PLIK_ZRZUTU}" 2>"${PLIK_BLEDU}")"; then
-    log 'BŁĄD: pg_restore nie potrafi odczytać własnego zrzutu — archiwum jest uszkodzone.'
+    log 'BŁĄD: pg_restore nie potrafi odczytać spisu treści zrzutu — archiwum jest uszkodzone.'
     sed 's/^/  pg_restore: /' "${PLIK_BLEDU}" >&2
     padnij weryfikacja 51
   fi
@@ -485,6 +619,16 @@ weryfikuj_zrzut() {
     log '  Najczęstsza przyczyna: DB_URL wskazuje inną bazę niż produkcyjna.'
     padnij weryfikacja 52
   fi
+
+  # Dopiero TO czyta dane. Powód, pomiar i granice — w nagłówku wyżej.
+  if ! pg_restore --file=/dev/null "${PLIK_ZRZUTU}" 2>"${PLIK_BLEDU}"; then
+    log 'BŁĄD: archiwum nie daje się przeczytać DO KOŃCA — jest niepełne albo uszkodzone w środku.'
+    log '  Spis treści się zgadzał, bloki danych nie. Ten plik nie odtworzy bazy.'
+    sed 's/^/  pg_restore: /' "${PLIK_BLEDU}" >&2
+    padnij weryfikacja 53
+  fi
+
+  log "archiwum przeczytane do końca (${ROZMIAR_JAWNY} B, wszystkie bloki danych)"
 }
 
 # =============================================================================
@@ -650,12 +794,56 @@ wyslij() {
   fi
 }
 
+#
+#  NIEUDANE POTWIERDZENIE SPRZĄTA PO SOBIE — USTERKA ODTWORZONA 18.09.2026
+#  Przy niezgodności rozmiaru skrypt alarmował i wychodził, ZOSTAWIAJĄC zły
+#  obiekt w buckecie — razem z jego plikiem `.meta`, czyli z papierami
+#  mówiącymi, że to porządna kopia. Zmierzone na MinIO: obiekt 1234 B przy
+#  wysłanych 999 999 B zostawał na miejscu, a następny przebieg liczył go
+#  jako jedną z kopii chronionych przez `MINIMUM_KOPII`.
+#
+#  Kasujemy WYŁĄCZNIE klucz z TEGO przebiegu — jego nazwa niesie znacznik
+#  czasu co do sekundy, więc nie da się nim trafić w cudzą kopię.
+#
+#  SZYFROGRAM KASUJE SIĘ TYLKO WTEDY, GDY NAPRAWDĘ WIEMY, ŻE JEST ZŁY.
+#  Pierwsza wersja tej poprawki kasowała go przy KAŻDEJ porażce `HEAD` —
+#  także przy 500, 503, 403 i przy zerwanej sieci. Zmierzone w recenzji:
+#  jeden blip po udanym `PUT` niszczył jedyną kopię tej doby, a przed
+#  poprawką obiekt zostawał i widział go następny przebieg. Sprzeczne też
+#  z zasadą, którą ten sam plik pisze przy retencji: automat kasujący to,
+#  czego nie potrafi opisać, jest gorszy od automatu zostawiającego bałagan.
+#
+#  Dlatego dwie różne czynności:
+#    * `usun_meta_tego_przebiegu` — gdy nie wiemy, co z szyfrogramem. Bierze
+#      tylko `.meta`, bo osierocone `.meta` jest papierem bez kopii, a sam
+#      szyfrogram zostaje i trafi do klasyfikacji jako „bez potwierdzenia";
+#    * `usun_obiekt_tego_przebiegu` — gdy rozmiar w buckecie NIE ZGADZA SIĘ
+#      z wysłanym, czyli mamy dowód, że ten obiekt nie jest naszą kopią.
+usun_meta_tego_przebiegu() {
+  log 'Usuwam .meta tego przebiegu — bez potwierdzenia jest papierem bez kopii.'
+  log '  Szyfrogram ZOSTAJE: nie wiemy, czy jest zły, a kasowanie go byłoby zgadywaniem.'
+  s3_zadanie DELETE "${KLUCZ_OBIEKTU%.dump.cms}.meta" \
+    || log "OSTRZEŻENIE: nie udało się usunąć .meta (HTTP ${S3_KOD:-brak})."
+}
+
+usun_obiekt_tego_przebiegu() {
+  log 'Usuwam z bucketu obiekt tego przebiegu — nie jest tym, co wysłaliśmy.'
+  s3_zadanie DELETE "${KLUCZ_OBIEKTU}" \
+    || log "OSTRZEŻENIE: nie udało się usunąć szyfrogramu (HTTP ${S3_KOD:-brak})."
+  s3_zadanie DELETE "${KLUCZ_OBIEKTU%.dump.cms}.meta" \
+    || log "OSTRZEŻENIE: nie udało się usunąć .meta (HTTP ${S3_KOD:-brak})."
+}
+
 potwierdz() {
   local naglowki
   naglowki="$(mktemp -p "${KATALOG_ROBOCZY}")"
 
   if ! s3_zadanie HEAD "${KLUCZ_OBIEKTU}" '' '' "${naglowki}"; then
-    log "BŁĄD: obiektu nie ma w buckecie po wysyłce (HTTP ${S3_KOD:-brak})."
+    log "BŁĄD: nie udało się potwierdzić obiektu w buckecie (HTTP ${S3_KOD:-brak})."
+    log '  To NIE znaczy, że szyfrogram jest zły — 404 znaczy „nie doszedł", ale 500,'
+    log '  503, 403 i zerwana sieć znaczą tylko „nie wiemy". Zostawiamy go i niech'
+    log '  rozstrzygnie następny przebieg albo człowiek.'
+    usun_meta_tego_przebiegu
     padnij potwierdzenie 80
   fi
 
@@ -665,10 +853,15 @@ potwierdz() {
 
   if [[ "${rozmiar_w_buckecie}" != "${ROZMIAR_SZYFROGRAMU}" ]]; then
     log "BŁĄD: w buckecie leży ${rozmiar_w_buckecie:-?} B, wysłano ${ROZMIAR_SZYFROGRAMU} B."
+    usun_obiekt_tego_przebiegu
     padnij potwierdzenie 81
   fi
 
   log "potwierdzone: ${rozmiar_w_buckecie} B w buckecie"
+
+  # JEDYNE miejsce, w którym ta zmienna dostaje 1. Retencja bez niej nie
+  # rusza — patrz nagłówek `retencja()`.
+  KOPIA_POTWIERDZONA=1
 }
 
 # =============================================================================
@@ -683,41 +876,203 @@ potwierdz() {
 #  skasowała WSZYSTKO, co jeszcze było. Kasowanie ostatniej kopii to nie
 #  porządki, to utrata danych — dlatego minimum wygrywa z wiekiem.
 #
+#  „KOPIA" TO NIE JEST „KLUCZ O PASUJĄCEJ NAZWIE" — USTERKA ODTWORZONA
+#  18.09.2026 NA PRAWDZIWYM ENDPOINCIE S3 (MinIO)
+#  -------------------------------------------------------------------
+#  Ta funkcja liczyła KLUCZE. Zmierzone: w buckecie leżała jedna poprawna
+#  kopia (najstarsza, 172 162 B) i nad nią dziewięć obiektów ZEROWEJ
+#  długości po nieudanych wysyłkach. `MINIMUM_KOPII=7` uznało, że kopii jest
+#  dziesięć, więc wolno skasować trzy najstarsze — i skasowało, razem
+#  z jedyną, która cokolwiek zawierała. W buckecie zostało siedem pustych
+#  plików i zero kopii, a przebieg zameldował „retencja: skasowano 3".
+#
+#  CO TERAZ ZNACZY „POTWIERDZONA KOPIA" — I DLACZEGO AKURAT TYLE
+#  ------------------------------------------------------------
+#  Obiekt `*.dump.cms` jest POTWIERDZONY wtedy i tylko wtedy, gdy:
+#    1. w tym samym listowaniu jest jego plik `.meta`,
+#    2. jego rozmiar w buckecie jest większy od zera,
+#    3. ten rozmiar ZGADZA SIĘ z polem `rozmiar_szyfrogramu_bajty` z jego
+#       własnego `.meta`.
+#
+#  Punkt 3 jest tu całą treścią. Punkty 1 i 2 mówią tylko „coś tu leży
+#  i ktoś obok położył notatkę"; dopiero porównanie notatki z obiektem jest
+#  DOWODEM, że w buckecie leży ten plik, który wysyłaliśmy, w całości.
+#  Rozmiar bierzemy z `<Size>` w ListObjectsV2, czyli z żądania, które i tak
+#  wykonujemy; `.meta` (ok. 2 KiB) ściągamy osobno, po jednym na kandydata.
+#  Przy retencji liczonej w tygodniach to kilkadziesiąt maleńkich GET-ów raz
+#  na dobę.
+#
+#  CZEGO TO NIE DOWODZI: że BAJTY szyfrogramu są te same. Na to trzeba by
+#  ściągnąć cały obiekt i policzyć `sha256_szyfrogramu` z `.meta` — przy
+#  bazie rosnącej do gigabajtów to codzienne przepompowanie całej historii
+#  kopii przez kontener, który ma robić jedną rzecz. Sprawdzeniem bajtów
+#  jest próba odtworzenia z `KOPIE_I_ODTWORZENIE.md` §4, robiona przez
+#  człowieka.
+#
+#  OBIEKTY HISTORYCZNE — ROZSTRZYGNIĘTE JAWNIE, BEZ TARYFY ULGOWEJ
+#  --------------------------------------------------------------
+#  Nie ma tu żadnego „wszystko sprzed tej zmiany uznajemy za dobre" ani
+#  żadnej daty granicznej. Plik `.meta` powstawał od pierwszego dnia tego
+#  serwisu i zawsze niósł `rozmiar_szyfrogramu_bajty`, więc TEN SAM dowód
+#  da się przeprowadzić dla obiektu sprzed tej poprawki i dla dzisiejszego.
+#  Obiekt, który tego nie przechodzi, nie jest ani „dobry", ani „do
+#  skasowania":
+#
+#    * NIE liczy się do `MINIMUM_KOPII` — bo nie wiadomo, czy cokolwiek
+#      chroni, a minimum ma chronić przed utratą danych, nie przed pustymi
+#      plikami;
+#    * NIE jest kasowany przez retencję — bo retencja kasuje rzeczy, które
+#      rozumie, a o tym obiekcie wiemy właśnie tyle, że go nie rozumiemy.
+#      Automat kasujący to, czego nie potrafi opisać, jest gorszy od
+#      automatu, który zostawia bałagan;
+#    * JEST wypisany w logu i JEST powodem alarmu (kod 92), czyli trafia do
+#      człowieka. Decyzja „usunąć / zostawić / odtworzyć i sprawdzić" należy
+#      do niego, a procedura jest w `KOPIE_I_ODTWORZENIE.md` §6.
+#
+#  Praktyczny skutek dla bucketu, który już istnieje: pierwszy przebieg po
+#  tej zmianie może zaalarmować o obiektach, których wcześniej nikt nie
+#  liczył. To jest zamierzone — to jest ta informacja, której do tej pory
+#  nie było.
+#
 #  Porażka retencji NIE jest porażką kopii: kopia już leży w buckecie.
 #  Dlatego alarm tak, ale bez `exit` — inaczej Railway pokazałby nieudany
 #  przebieg mimo udanej kopii, a to uczy ignorowania czerwonego.
 # =============================================================================
 retencja() {
-  local klucze
-  if ! klucze="$(s3_lista_kluczy "${PREFIKS}")"; then
+  # -------------------------------------------------------------------------
+  #  BRAMKA PIERWSZA: retencja rusza WYŁĄCZNIE po własnej, potwierdzonej
+  #  kopii z tego przebiegu. `potwierdz()` jest jedynym miejscem, które
+  #  ustawia tę zmienną. Bez tej bramki wystarczy wywołać ten krok w innej
+  #  kolejności (albo dołożyć wyżej gałąź, która nie przerywa przebiegu),
+  #  żeby kasowanie ruszyło po nieudanej kopii — a wtedy retencja zabiera
+  #  stare kopie, nie dokładając żadnej nowej.
+  # -------------------------------------------------------------------------
+  if [[ "${KOPIA_POTWIERDZONA:-0}" != '1' ]]; then
+    log 'Retencja pominięta: ten przebieg nie potwierdził własnej kopii — nie kasuję niczego.'
+    return 0
+  fi
+
+  # BRAMKA DRUGA: liczby. `sprawdz_srodowisko` odrzuca złe wartości już na
+  # starcie, ale ta funkcja KASUJE, więc sprawdza je jeszcze raz u siebie —
+  # gdyby kiedyś dało się ją wywołać inną drogą, ma odmówić, a nie paść na
+  # `unbound variable` w środku pętli (tak właśnie kończyło się „siedem").
+  local minimum_dziesietne dni_dziesietne
+  if ! minimum_dziesietne="$(normalizuj_liczbe_dodatnia "${MINIMUM_KOPII}" 1)"; then
+    log "OSTRZEŻENIE: KOPIA_MINIMUM_KOPII=${MINIMUM_KOPII} nie jest liczbą >= 1 — nie kasuję niczego."
+    alarm retencja 93
+    return 0
+  fi
+  if ! dni_dziesietne="$(normalizuj_liczbe_dodatnia "${RETENCJA_DNI}" 1)"; then
+    log "OSTRZEŻENIE: KOPIA_RETENCJA_DNI=${RETENCJA_DNI} nie jest liczbą >= 1 — nie kasuję niczego."
+    alarm retencja 93
+    return 0
+  fi
+
+  # Jak w `sprawdz_poprzednia_kopie`: przez plik, żeby kod HTTP nie zginął
+  # w podpowłoce. Tu ma to dodatkową wagę — retencja KASUJE, więc „nie wiem,
+  # co jest w buckecie" musi być powiedziane dokładnie.
+  local katalog="${KATALOG_ROBOCZY:-${KOPIA_KATALOG_ROBOCZY:-/tmp}}"
+  local plik_obiektow="${katalog}/obiekty-retencji.txt"
+  local kod_listowania=0
+  s3_lista_obiektow_do_pliku "${PREFIKS}" "${plik_obiektow}" || kod_listowania=$?
+
+  if ((kod_listowania == 2)); then
+    log 'OSTRZEŻENIE: bucket oddał listę OBCIĘTĄ (IsTruncated) — nie kasuję niczego.'
+    alarm retencja 90
+    return 0
+  fi
+
+  if ((kod_listowania != 0)); then
     log "OSTRZEŻENIE: nie udało się wylistować bucketu do retencji (HTTP ${S3_KOD:-brak})."
     alarm retencja 90
     return 0
   fi
 
-  # Same szyfrogramy, posortowane po nazwie — nasza nazwa zawiera znacznik
-  # czasu w formacie sortowalnym leksykograficznie, więc `sort` = po dacie.
-  local -a szyfrogramy=()
-  local linia
-  while IFS= read -r linia; do
-    [[ -n "${linia}" ]] && szyfrogramy+=("${linia}")
-  done < <(grep -E '\.dump\.cms$' <<<"${klucze}" | sort)
+  # ---------------------------------------------------------------------
+  #  Klasyfikacja. Kolejność jak w nagłówku: `.meta` obok, rozmiar > 0,
+  #  rozmiar zgodny z `.meta`. Sortujemy po kluczu — nasza nazwa niesie
+  #  znacznik czasu sortowalny leksykograficznie, więc to sortowanie po
+  #  dacie zrzutu.
+  # ---------------------------------------------------------------------
+  local -a potwierdzone=() niepotwierdzone=()
+  local plik_meta="${katalog}/meta-sprawdzana.txt"
+  local tab=$'\t'
+  local rozmiar klucz klucz_meta zapowiedziany
 
-  local ile="${#szyfrogramy[@]}"
-  log "kopii w buckecie: ${ile}"
+  while IFS="${tab}" read -r rozmiar klucz; do
+    [[ "${klucz}" == *.dump.cms ]] || continue
+    klucz_meta="${klucz%.dump.cms}.meta"
 
-  if ((ile <= MINIMUM_KOPII)); then
-    log "retencja pominięta: ${ile} <= minimum ${MINIMUM_KOPII}"
+    if ! grep -qF -- "${tab}${klucz_meta}" "${plik_obiektow}"; then
+      niepotwierdzone+=("${klucz##*/} — brak pliku .meta")
+      continue
+    fi
+
+    if [[ ! "${rozmiar}" =~ ^[0-9]+$ ]] || ((rozmiar == 0)); then
+      niepotwierdzone+=("${klucz##*/} — obiekt ma ${rozmiar:-?} B")
+      continue
+    fi
+
+    # `s3_zadanie` wołamy WPROST, nie przez `$( )` — inaczej `S3_KOD`
+    # zginąłby w podpowłoce (nagłówek `s3_lista_kluczy_do_pliku`).
+    if ! s3_zadanie GET "${klucz_meta}" '' '' "${plik_meta}"; then
+      niepotwierdzone+=("${klucz##*/} — nie dało się odczytać .meta (HTTP ${S3_KOD:-brak})")
+      continue
+    fi
+
+    zapowiedziany="$(sed -n 's/^rozmiar_szyfrogramu_bajty:[[:space:]]*\([0-9][0-9]*\).*$/\1/p' \
+      "${plik_meta}" | head -1)"
+
+    if [[ -z "${zapowiedziany}" ]]; then
+      niepotwierdzone+=("${klucz##*/} — .meta nie podaje rozmiaru szyfrogramu")
+      continue
+    fi
+
+    if ((10#${zapowiedziany} != rozmiar)); then
+      niepotwierdzone+=("${klucz##*/} — w buckecie ${rozmiar} B, .meta mówi ${zapowiedziany} B")
+      continue
+    fi
+
+    potwierdzone+=("${klucz}")
+  done < <(sort -t"${tab}" -k2,2 "${plik_obiektow}")
+
+  local ile="${#potwierdzone[@]}"
+  local ile_bez_dowodu="${#niepotwierdzone[@]}"
+  log "kopii POTWIERDZONYCH w buckecie: ${ile}"
+
+  # ZERO POTWIERDZONYCH TO NIEMOŻLIWOŚĆ, NIE STAN SPOKOJNY.
+  # Retencja biegnie DOPIERO po udanym `potwierdz()`, więc w buckecie stoi
+  # co najmniej jedna potwierdzona kopia — nasza własna, sprzed chwili.
+  # Zero znaczy, że listowanie nie mówi prawdy: gubi rozmiary, oddaje pustą
+  # stronę albo `.meta` jest nie do odczytania. Bez tego alarmu pełen bucket
+  # wyglądałby jak pusty i nikt by się nie dowiedział.
+  if ((ile == 0)); then
+    alarm retencja 94 'Retencja nie widzi ANI JEDNEJ potwierdzonej kopii tuż po udanym potwierdzeniu własnej — listowanie albo odczyt .meta nie mówi prawdy.'
+  fi
+
+  if ((ile_bez_dowodu > 0)); then
+    log "obiektów BEZ POTWIERDZENIA: ${ile_bez_dowodu} — nie liczę ich i nie kasuję:"
+    local wpis
+    for wpis in "${niepotwierdzone[@]}"; do log "  ${wpis}"; done
+    log '  Co z nimi zrobić, rozstrzyga człowiek — docs/infra/KOPIE_I_ODTWORZENIE.md §6.'
+    alarm retencja 92
+  fi
+
+  if ((ile <= minimum_dziesietne)); then
+    log "retencja pominięta: ${ile} potwierdzonych <= minimum ${MINIMUM_KOPII}"
     return 0
   fi
 
   local prog
-  prog="$(date -u -d "${RETENCJA_DNI} days ago" +%Y%m%d)"
-  local do_skasowania=$((ile - MINIMUM_KOPII))
+  if ! prog="$(date -u -d "${dni_dziesietne} days ago" +%Y%m%d 2>/dev/null)" || [[ ! "${prog}" =~ ^[0-9]{8}$ ]]; then
+    log 'OSTRZEZENIE: nie mozna obliczyc progu daty retencji - nie kasuje niczego.'
+    alarm retencja 93
+    return 0
+  fi
+  local do_skasowania=$((ile - minimum_dziesietne))
   local skasowane=0
 
-  local klucz
-  for klucz in "${szyfrogramy[@]}"; do
+  for klucz in "${potwierdzone[@]}"; do
     ((do_skasowania > 0)) || break
 
     local data
@@ -737,7 +1092,7 @@ retencja() {
     fi
   done
 
-  log "retencja: skasowano ${skasowane}, zostaje $((ile - skasowane))"
+  log "retencja: skasowano ${skasowane}, potwierdzonych zostaje $((ile - skasowane))"
 }
 
 # =============================================================================
@@ -746,6 +1101,8 @@ retencja() {
 KATALOG_ROBOCZY=''
 KATALOG_POSWIADCZEN=''
 SCIEZKA_PGPASS=''
+# Ustawia ją WYŁĄCZNIE `potwierdz()`, czyta ją WYŁĄCZNIE `retencja()`.
+KOPIA_POTWIERDZONA=0
 DSN_BEZ_HASLA=''
 HASLO_Z_DSN=''
 HOST_Z_DSN='*'

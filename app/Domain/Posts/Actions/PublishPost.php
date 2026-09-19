@@ -69,10 +69,27 @@ final class PublishPost
         ?string $ip = null,
         string $displayMode = Post::DISPLAY_NORMAL,
         ?string $kluczWyslania = null,
+        ?string $questionTitle = null,
     ): Post {
         $body = $this->cleanBody($body);
+        $kind = $questionTitle === null ? Post::KIND_DISH : Post::KIND_QUESTION;
+        if ($kind === Post::KIND_QUESTION) {
+            if (! config('kuking.questions.enabled')) {
+                throw new BladDlaCzlowieka('Dodawanie pytań jest teraz niedostępne.');
+            }
+            $questionTitle = trim($questionTitle);
+            if (mb_strlen($questionTitle) < 10 || mb_strlen($questionTitle) > 180) {
+                throw new BladDlaCzlowieka('Napisz pytanie w tytule — od 10 do 180 znaków.');
+            }
+            if (count(array_unique($mediaIds)) > 1) {
+                throw new BladDlaCzlowieka('Do pytania możesz dodać jedno zdjęcie.');
+            }
+            if ($recipeId !== null || $visibility !== Post::VISIBILITY_PUBLIC) {
+                throw new BladDlaCzlowieka('Pytanie publikujemy w dziale Poradźcie, dla wszystkich.');
+            }
+        }
 
-        if ($body === null && $mediaIds === []) {
+        if ($kind === Post::KIND_DISH && $body === null && $mediaIds === []) {
             throw new BladDlaCzlowieka('Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.');
         }
 
@@ -86,9 +103,12 @@ final class PublishPost
         $orderedMedia = [];
         $displayMode = Post::DISPLAY_NORMAL;
 
-        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, &$tags, &$orderedMedia, &$displayMode): Post {
-            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $klucz, &$tags, &$orderedMedia, &$displayMode): Post {
+        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $kind, $questionTitle, &$tags, &$orderedMedia, &$displayMode): Post {
+            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $klucz, $kind, $questionTitle, &$tags, &$orderedMedia, &$displayMode): Post {
                 $tags = $this->resolveTags->handle($body, $tagNames);
+                if ($kind === Post::KIND_QUESTION && count($tags) > 3) {
+                    throw new BladDlaCzlowieka('Do pytania dodaj najwyżej 3 tagi, także te wpisane w opisie.');
+                }
                 /*
                  * WYBÓR ZDJĘĆ STOI W TEJ SAMEJ TRANSAKCJI CO PRZYPIĘCIE
                  * (issue #285, D-083).
@@ -135,6 +155,8 @@ final class PublishPost
                     : $trybZadany;
 
                 $post = Post::create([
+                    'kind' => $kind,
+                    'title' => $questionTitle,
                     'author_id' => $author->getKey(),
                     'body' => $body,
                     'visibility' => $visibility,
