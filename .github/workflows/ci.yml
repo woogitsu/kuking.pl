@@ -168,6 +168,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       kod: ${{ steps.sprawdz.outputs.kod }}
+      widok: ${{ steps.sprawdz.outputs.widok }}
 
     steps:
       - uses: actions/checkout@v7
@@ -187,12 +188,14 @@ jobs:
           if [ -z "${BAZA}" ] || [ "${BAZA}" = "0000000000000000000000000000000000000000" ]; then
             echo "Brak punktu odniesienia — pełny zestaw."
             echo "kod=true" >> "$GITHUB_OUTPUT"
+            echo "widok=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if ! git cat-file -e "${BAZA}^{commit}" 2>/dev/null; then
             echo "Baza ${BAZA} nieosiągalna — pełny zestaw."
             echo "kod=true" >> "$GITHUB_OUTPUT"
+            echo "widok=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -212,6 +215,37 @@ jobs:
             echo "kod=false" >> "$GITHUB_OUTPUT"
           else
             echo "kod=true" >> "$GITHUB_OUTPUT"
+          fi
+
+          # -------------------------------------------------------------
+          # WARSTWA WIDOKU — jedno miejsce dla trzech jobów przeglądarkowych.
+          #
+          # Do 19 września 2026 ten sam filtr stał TRZY RAZY, osobno w
+          # `port_marki`, `port_funkcje` i `dostepnosc`, i pilnował KROKÓW,
+          # a nie jobów. Skutek był taki, że przy zmianie kodu poza warstwą
+          # widoku job się URUCHAMIAŁ, wszystkie jego kroki pomiarowe były
+          # pomijane, a job kończył się na ZIELONO — nie do odróżnienia na
+          # liście kontrolnej od joba, który naprawdę wszystko zmierzył.
+          # Zmierzone na 25 przebiegach: „Port marki (kompozycje…)" miał
+          # 15 sukcesów, z czego 4 trwały 19–22 s wobec 462–506 s przy
+          # rzeczywistym pomiarze. Tak samo „Port marki — rodziny ekranów"
+          # (4 × 19–21 s wobec 1456–1638 s) i „Dostępność" (4 × 18–22 s
+          # wobec 745–955 s). Razem dwanaście zielonych bez ani jednego
+          # pomiaru.
+          #
+          # Teraz warunek stoi na JOBIE. Gdy warstwa widoku jest nietknięta,
+          # cały job jest `skipped` — czyli widać, że nic nie zmierzono.
+          # Zielony wynik znowu znaczy „zmierzone".
+          #
+          # Wzorzec obejmuje TAKŻE SAME SKRYPTY POMIAROWE i `ci.yml`: zmiana
+          # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
+          # miernik bez jednego czerwonego przebiegu. Pilnuje tego
+          # `PortMarkiMaWlasnaBramkeCiTest`.
+          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+            echo "widok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
+            echo "widok=false" >> "$GITHUB_OUTPUT"
           fi
 
   # ===========================================================================
@@ -940,7 +974,7 @@ jobs:
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
@@ -986,30 +1020,8 @@ jobs:
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
-      - name: Czy zmieniła się warstwa widoku
-        id: zmiany
-        run: |
-          set -euo pipefail
-          baza='${{ github.event.pull_request.base.sha || github.event.before }}'
-
-          if [ -z "$baza" ] || [ "$baza" = "0000000000000000000000000000000000000000" ]; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-            echo "Brak punktu odniesienia — sprawdzam."
-            exit 0
-          fi
-
-          zmienione="$(git diff --name-only "$baza" HEAD)"
-          echo "Zmienione pliki:"; echo "$zmienione"
-
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "warto=0" >> "$GITHUB_OUTPUT"
-            echo "Warstwa widoku nietknięta — pomijam."
-          fi
 
       - name: Własny katalog narzędzi PHP (issue #262)
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           set -euo pipefail
           KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
@@ -1018,7 +1030,6 @@ jobs:
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        if: steps.zmiany.outputs.warto == '1'
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
@@ -1027,28 +1038,23 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        if: steps.zmiany.outputs.warto == '1'
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Instalacja zależności
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
 
       - name: Regresja wyboru grup portu
-        if: steps.zmiany.outputs.warto == '1'
         run: node --test scripts/port-grupy.test.mjs
 
       - name: Przeglądarka
-        if: steps.zmiany.outputs.warto == '1'
         run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
 
       - name: Przygotowanie
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
@@ -1058,14 +1064,13 @@ jobs:
           php artisan migrate:fresh --seed --force --no-interaction
 
       - name: Port projektu — układ i kontrola ujemna
-        if: steps.zmiany.outputs.warto == '1'
         env:
           DB_DATABASE: kuking_port_pomiar
           PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/port-projektu.mjs
 
       - name: Zrzuty portu marki
-        if: always() && steps.zmiany.outputs.warto == '1'
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: port-marki-${{ github.sha }}
@@ -1077,7 +1082,7 @@ jobs:
   port_funkcje:
     name: Port marki — rodziny ekranów, zoom i kreator
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     # CI 35241344523: pełne pomiary i upload trwały ponad 25 min; zachowujemy wszystkie kontrole.
     timeout-minutes: 35
@@ -1124,30 +1129,8 @@ jobs:
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
-      - name: Czy zmieniła się warstwa widoku
-        id: zmiany
-        run: |
-          set -euo pipefail
-          baza='${{ github.event.pull_request.base.sha || github.event.before }}'
-
-          if [ -z "$baza" ] || [ "$baza" = "0000000000000000000000000000000000000000" ]; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-            echo "Brak punktu odniesienia — sprawdzam."
-            exit 0
-          fi
-
-          zmienione="$(git diff --name-only "$baza" HEAD)"
-          echo "Zmienione pliki:"; echo "$zmienione"
-
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "warto=0" >> "$GITHUB_OUTPUT"
-            echo "Warstwa widoku nietknięta — pomijam."
-          fi
 
       - name: Własny katalog narzędzi PHP (issue #262)
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           set -euo pipefail
           KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
@@ -1156,7 +1139,6 @@ jobs:
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        if: steps.zmiany.outputs.warto == '1'
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
@@ -1165,28 +1147,23 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        if: steps.zmiany.outputs.warto == '1'
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Instalacja zależności
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
 
       - name: Regresja wyboru grup portu
-        if: steps.zmiany.outputs.warto == '1'
         run: node --test scripts/port-grupy.test.mjs
 
       - name: Przeglądarka
-        if: steps.zmiany.outputs.warto == '1'
         run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
 
       - name: Przygotowanie
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
@@ -1196,26 +1173,23 @@ jobs:
           php artisan migrate:fresh --seed --force --no-interaction
 
       - name: Port projektu — układ i kontrola ujemna
-        if: steps.zmiany.outputs.warto == '1'
         env:
           DB_DATABASE: kuking_port_pomiar
           PGPORT: ${{ job.services.postgres.ports[5432] }}
         run: node scripts/port-projektu.mjs
 
       - name: Trzy kroki kreatora przy dużym tekście
-        if: steps.zmiany.outputs.warto == '1'
         env:
           DB_DATABASE: kuking_port_pomiar
         run: node scripts/kroki-kreatora.mjs
 
       - name: Minutnik — opóźnione wywołania i dostępny czas
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           node scripts/minutnik-regresja.mjs
           node scripts/minutnik-fokus.mjs
 
       - name: Zrzuty portu marki
-        if: always() && steps.zmiany.outputs.warto == '1'
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: port-funkcje-${{ github.sha }}
@@ -1227,7 +1201,7 @@ jobs:
   dostepnosc:
     name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
 
@@ -1296,35 +1270,7 @@ jobs:
       # więc robimy to sami. Wszystkie kolejne kroki są za tym warunkiem —
       # przy zmianie w kontrolerze albo w migracji job kończy się w kilka
       # sekund, zamiast pobierać przeglądarkę i podnosić bazę.
-      - name: Czy zmieniła się warstwa widoku
-        id: zmiany
-        run: |
-          set -euo pipefail
-          baza='${{ github.event.pull_request.base.sha || github.event.before }}'
-
-          # Przy pierwszym pushu na gałąź `before` to same zera — nie ma
-          # z czym porównywać, więc sprawdzamy wszystko. Lepiej raz zapłacić
-          # za niepotrzebny przebieg niż przepuścić regresję.
-          if [ -z "$baza" ] || [ "$baza" = "0000000000000000000000000000000000000000" ]; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-            echo "Brak punktu odniesienia — sprawdzam."
-            exit 0
-          fi
-
-          zmienione="$(git diff --name-only "$baza" HEAD)"
-          echo "Zmienione pliki:"; echo "$zmienione"
-
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "warto=0" >> "$GITHUB_OUTPUT"
-            echo "Warstwa widoku nietknięta — pomijam."
-          fi
-
-      # Własny katalog narzędzi tego joba — pełne uzasadnienie i pomiary
-      # przy tym samym kroku w jobie `lint` wyżej (issue #262).
       - name: Własny katalog narzędzi PHP (issue #262)
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           set -euo pipefail
           KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
@@ -1333,7 +1279,6 @@ jobs:
           echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        if: steps.zmiany.outputs.warto == '1'
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
@@ -1342,14 +1287,12 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        if: steps.zmiany.outputs.warto == '1'
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Instalacja zależności
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
@@ -1393,11 +1336,9 @@ jobs:
       #  job wiszący do limitu. Blokada leży w `/tmp`, więc znika z restartem
       #  maszyny i nie potrafi zostać zatrzaśnięta na stałe.
       - name: Przeglądarka
-        if: steps.zmiany.outputs.warto == '1'
         run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
 
       - name: Przygotowanie
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
           sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
@@ -1416,7 +1357,6 @@ jobs:
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
       - name: Kontrola ujemna wiadomości marki
-        if: steps.zmiany.outputs.warto == '1'
         shell: bash
         run: |
           set -euo pipefail
@@ -1469,33 +1409,27 @@ jobs:
           php artisan test --compact --filter=SpojnoscWiadomosciMarkiTest
 
       - name: Aktualizacja aplikacji ze starym workerem
-        if: steps.zmiany.outputs.warto == '1'
         run: node scripts/service-worker-aktualizacja.mjs
 
       - name: Regresja bramki kafla dodawania (#484)
-        if: steps.zmiany.outputs.warto == '1'
         run: node scripts/kafel-dodawania-bramka.test.mjs
 
       - name: Pomiar kafla dodawania (15 wariantów)
-        if: steps.zmiany.outputs.warto == '1'
         run: node scripts/kafel-dodawania.mjs
 
       - name: Fokus i kliknięcia kart dania (#485)
-        if: steps.zmiany.outputs.warto == '1'
         run: node scripts/fokus-karty-dania.mjs
 
       - name: Fokus, kliknięcia i dialog zdjęć (#561)
-        if: steps.zmiany.outputs.warto == '1'
         run: node scripts/fokus-zdjec.mjs
 
       - name: axe-core (aktualna macierz ekranów i wariantów)
-        if: steps.zmiany.outputs.warto == '1'
         run: node scripts/dostepnosc.mjs
 
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
       - name: Zapis wyniku (dostępność)
-        if: always() && steps.zmiany.outputs.warto == '1'
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: dostepnosc-${{ github.sha }}
@@ -1535,13 +1469,12 @@ jobs:
         # własny, niezwiązany błąd („brak odpowiedzi z /health"). Krok, który
         # uruchamia się po awarii i melduje coś innego niż jej przyczynę, jest
         # gorszy niż krok pominięty. Issue #215.
-        if: steps.zmiany.outputs.warto == '1'
         env:
           POMIN_MIGRACJE: '1'
         run: node scripts/wydajnosc.mjs
 
       - name: Zapis wyniku (wydajność)
-        if: always() && steps.zmiany.outputs.warto == '1'
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: wydajnosc-${{ github.sha }}
