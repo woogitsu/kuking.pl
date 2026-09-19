@@ -3249,31 +3249,49 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     if (marka) {
       pomiar = marka;
       if (!sprawdzonoUjemnieRameMarki) {
-        /* `transition: none` W KAŻDEJ MUTACJI — bez tego kontrola ujemna
-           mierzy belkę W POŁOWIE ANIMACJI i sama sobie zaprzecza.
+        /* ANIMACJA WYŁĄCZONA NA CAŁY CZAS KONTROLI UJEMNEJ — i to musi objąć
+           także POWRÓT po zdjęciu mutacji, nie samo jej wstrzyknięcie.
 
            Pasek ma `transition: transform 180ms` (`pasek-przewijany.css`),
-           a te cztery mutacje są wstrzykiwane i mierzone dwoma osobnymi
-           wywołaniami przez CDP, czyli kilka milisekund po sobie. Zmierzone
-           na prawdziwej stronie: po wstrzyknięciu `translateX(20px)` odczyt
+           a mutacje są wstrzykiwane, mierzone i zdejmowane osobnymi
+           wywołaniami przez CDP — kilka milisekund po sobie. Zmierzone na
+           prawdziwej stronie: po wstrzyknięciu `translateX(20px)` odczyt
            natychmiastowy pokazuje przesunięcie **2 px**, a po 400 ms pełne
-           **20 px**. Przy tolerancji wyśrodkowania liczonej w pikselach
-           pierwszy odczyt nie wykrywa niczego i kontrola ujemna oblewa
-           z komunikatem „nie wykryła: wyśrodkowanie belki".
+           **20 px**.
+
+           To daje DWA osobne fałszywe wyniki i oba wystąpiły w CI:
+           przy wstrzyknięciu kontrola ujemna nie wykrywa mutacji („nie
+           wykryła: wyśrodkowanie belki"), a po jej zdjęciu belka wraca
+           animacją i pomiar KOŃCOWY — ten kilka linijek niżej — łapie ją
+           w drodze, meldując rozjazd „wyśrodkowanie belki: 532 zamiast 512",
+           czyli dokładnie te 20 px z mutacji, której już nie ma.
+
+           Dlatego styl wyłączający animację stoi OBOK mutacji i żyje aż do
+           końcowego pomiaru, zamiast być dopisywany do każdej z nich.
 
            Do 19 września 2026 nie było tego widać, bo `data-pasek-przewijany`
            stał pod `@guest`, a te pomiary chodzą po stronach zalogowanej
-           osoby — tam belka nie miała żadnej tranzycji i mutacja wchodziła
+           osoby — tam belka nie miała żadnej tranzycji i zmiany wchodziły
            natychmiast. Rozszerzenie chowania paska na zalogowanych odsłoniło
            założenie, które sonda robiła po cichu.
 
            Wyłączamy TYLKO animację, nie mierzoną własność: kontrola ujemna
            sprawdza geometrię, a nie to, jak szybko ta geometria dojeżdża. */
+        const bezAnimacji = await strona.evaluateHandle(() => {
+          const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
+          if (!nonce) throw new Error('Brak nonce do wyłączenia animacji w kontroli ujemnej');
+          const element = document.createElement('style');
+          element.nonce = nonce;
+          element.textContent = '[data-marka] .marka-topbar, [data-marka] .topbar-inner, [data-marka] .site-footer-inner { transition: none !important; }';
+          document.head.append(element);
+          return element;
+        });
+        try {
         for (const [css, oczekiwanyBlad] of [
-          ['[data-marka] .marka-topbar { width: 80px !important; transition: none !important; }', 'szerokość belki'],
-          ['[data-marka] .marka-topbar { transform: translateX(20px) !important; transition: none !important; }', 'wyśrodkowanie belki'],
-          ['[data-marka] .topbar-inner { padding-left: 0 !important; transition: none !important; }', 'padding belki lewy'],
-          ['[data-marka] .site-footer-inner { width: 80px !important; transition: none !important; }', 'szerokość stopki'],
+          ['[data-marka] .marka-topbar { width: 80px !important; }', 'szerokość belki'],
+          ['[data-marka] .marka-topbar { transform: translateX(20px) !important; }', 'wyśrodkowanie belki'],
+          ['[data-marka] .topbar-inner { padding-left: 0 !important; }', 'padding belki lewy'],
+          ['[data-marka] .site-footer-inner { width: 80px !important; }', 'szerokość stopki'],
         ]) {
           const styl = await strona.evaluateHandle((tresc) => {
             const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
@@ -3296,6 +3314,9 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
         }
         sprawdzonoUjemnieRameMarki = true;
         pomiar = await strona.evaluate(zmierzRameMarki);
+        } finally {
+          await bezAnimacji.evaluate((element) => element.remove());
+        }
       }
     }
     await strona.close();
