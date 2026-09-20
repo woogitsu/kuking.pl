@@ -104,7 +104,8 @@ final class KlientOpenAI
 
         try {
             $odpowiedz = Http::withToken((string) config('kuking.moderation.model.klucz'))
-                ->timeout((int) config('kuking.moderation.model.limit_czasu'))
+                ->connectTimeout(3)
+                ->timeout(max(1, min(8, (int) config('kuking.moderation.model.limit_czasu'))))
                 ->acceptJson()
                 ->post((string) config('kuking.moderation.model.endpoint'), [
                     'model' => (string) config('kuking.moderation.model.nazwa'),
@@ -115,7 +116,7 @@ final class KlientOpenAI
             // a dziennik błędów nie jest miejscem na treści użytkowników.
             Log::warning('Ocena treści modelem nie doszła do skutku.', [
                 'czego' => $czego,
-                'blad' => $blad->getMessage(),
+                'blad' => $blad::class,
             ]);
 
             return null;
@@ -148,7 +149,7 @@ final class KlientOpenAI
     {
         $wyniki = $dane['results'][0]['category_scores'] ?? null;
 
-        if (! is_array($wyniki)) {
+        if (! $this->validScores($wyniki)) {
             Log::warning('Model moderacji oddał odpowiedź w nieznanym kształcie.', ['czego' => $czego]);
 
             return null;
@@ -179,5 +180,25 @@ final class KlientOpenAI
         }
 
         return new WynikOceny($ponadProg, $pilne, $czego);
+    }
+
+    /** Uszkodzone pole unieważnia ocenę; nowe kategorie nie unieważniają znanych. */
+    private function validScores(mixed $scores): bool
+    {
+        if (! is_array($scores) || $scores === []) {
+            return false;
+        }
+
+        $known = false;
+        foreach ($scores as $category => $score) {
+            if (! is_string($category) || trim($category) === ''
+                || (! is_int($score) && ! is_float($score))
+                || ! is_finite((float) $score) || $score < 0 || $score > 1) {
+                return false;
+            }
+            $known = $known || KategorieModeracji::isKnown($category);
+        }
+
+        return $known;
     }
 }

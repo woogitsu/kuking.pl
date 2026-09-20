@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Domain\Media\OrientacjaZdjecia;
 use App\Domain\Media\PodgladOdRazu;
+use App\Domain\Moderation\PostImageAnalysis;
 use App\Models\Media;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -248,6 +249,14 @@ class ProcessUploadedImage implements ShouldQueue
             ]);
 
             throw $e;
+        }
+
+        // Ocena następuje dopiero po gotowości miniatur. Jej awaria nie może
+        // zmienić poprawnie przetworzonego zdjęcia na odrzucone (#830).
+        try {
+            app(PostImageAnalysis::class)->imageReady($media);
+        } catch (\Throwable $error) {
+            Log::warning('Nie udało się zlecić oceny gotowego zdjęcia.', ['blad' => $error::class]);
         }
     }
 

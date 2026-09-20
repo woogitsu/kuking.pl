@@ -3492,13 +3492,19 @@ Drugi, niezależny powód tego ograniczenia: EmailLabs na planie darmowym daje
 moderacyjne nie mogą zjeść limitu potrzebnego na to, żeby ktoś w ogóle mógł
 założyć konto.
 
-### JEDNO ZADANIE, NIE DWA
+### Jedno oznaczenie, ocena etapami — uzupełnienie 20 września 2026 (#829, #830)
 
-Ocena modelem dolicza się do sygnałów lokalnych w tym samym
-`PrzeanalizujTresc`. Dwa osobne zadania próbowałyby postawić dwa oznaczenia
-tej samej treści, a indeks `reports_jeden_automat_na_tresc` (D-052)
-przepuściłby tylko to, które wygrało wyścig — ocena modelu potrafiłaby wtedy
-przepaść dlatego, że wpis zawierał numer telefonu.
+Właściciel zatwierdził: „Tak — uzupełniaj otwarte zgłoszenie, zamknięte zostaw”.
+Lokalne sygnały zapisujemy przed kontaktem z modelem. Tekst i każde wybrane
+zdjęcie mają oddzielny budżet wykonania; późniejszy wynik uzupełnia ten sam
+wiersz, wyłącznie gdy `Report::isOpen()`. Odrzucone i rozstrzygnięte oznaczenie
+nie zmienia się i nie otwiera ponownie. Powtórzony powód nie jest dopisywany.
+Łączenie odbywa się pod blokadą wiersza, a indeks jednego oznaczenia zostaje.
+
+To zastępuje wcześniejszy wymóg jednego zadania: bez łączenia wyników dwa
+zadania gubiłyby drugi sygnał; z łączeniem zapis lokalny przetrwa awarię HTTP
+albo przerwanie zadania zdjęcia. Nie zmienia to progów ani zakresu danych.
+Szczegóły i ograniczenia: `docs/legal/MODERACJA_AI_826_830.md`.
 
 ### WYCOFANIE
 

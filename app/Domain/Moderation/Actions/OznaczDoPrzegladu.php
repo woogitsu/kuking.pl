@@ -48,7 +48,7 @@ final class OznaczDoPrzegladu
      *                 oglądana przez automat (także wtedy, gdy moderator
      *                 wcześniej powiedział „to nic takiego")
      */
-    public function handle(Post|Comment|Media $tresc, array $sygnaly): ?Report
+    public function handle(Post|Comment|Media $tresc, array $sygnaly, bool $uzupelnij = false): ?Report
     {
         if ($sygnaly === []) {
             return null;
@@ -74,7 +74,7 @@ final class OznaczDoPrzegladu
         $najciezszy = $sygnaly[0];
 
         if ($this->juzOgladane($typ, (string) $tresc->getKey())) {
-            return null;
+            return $uzupelnij ? $this->mergeOpen($typ, (string) $tresc->getKey(), $sygnaly) : null;
         }
 
         try {
@@ -95,7 +95,7 @@ final class OznaczDoPrzegladu
         } catch (UniqueConstraintViolationException) {
             // Drugie zadanie z kolejki zdążyło pierwsze. Dla kolejki
             // moderatora to jest ta sama, jedna pozycja.
-            return null;
+            return $uzupelnij ? $this->mergeOpen($typ, (string) $tresc->getKey(), $sygnaly) : null;
         }
 
         AuditLogEntry::record(
@@ -109,6 +109,38 @@ final class OznaczDoPrzegladu
         );
 
         return $zgloszenie;
+    }
+
+    /** @param list<Sygnal> $signals */
+    private function mergeOpen(string $type, string $id, array $signals): ?Report
+    {
+        return DB::transaction(function () use ($type, $id, $signals): ?Report {
+            $report = Report::where('source', Report::SOURCE_AUTOMAT)
+                ->where('target_type', $type)->where('target_id', $id)->lockForUpdate()->first();
+            if ($report === null || ! $report->isOpen()) {
+                return null;
+            }
+
+            $lines = explode("\n", (string) $report->details);
+            foreach ($signals as $signal) {
+                $line = '— '.$signal->powod;
+                if (! in_array($line, $lines, true)) {
+                    $lines[] = $line;
+                }
+                if ($signal->waga() > (Report::WAGA[$report->reason] ?? 0)) {
+                    $report->reason = $signal->kod;
+                }
+            }
+            $report->details = mb_substr(implode("\n", $lines), 0, 2000);
+            if (! $report->isDirty()) {
+                return null;
+            }
+            $report->save();
+            AuditLogEntry::record(action: 'content.automat_supplemented', actor: null, subject: $report,
+                metadata: ['target_type' => $type, 'sygnaly' => array_map(fn (Sygnal $s): string => $s->kod, $signals)]);
+
+            return $report;
+        });
     }
 
     /**
@@ -141,7 +173,8 @@ final class OznaczDoPrzegladu
      */
     private function opis(array $sygnaly): string
     {
-        $linie = ['Automat oznaczył tę treść do przeglądu. Nikt jej nie zgłosił, treść jest widoczna normalnie, autor o niczym nie wie.'];
+        $linie = ['Automat oznaczył tę treść do przeglądu. Nikt jej nie zgłosił, treść jest widoczna normalnie, autor o niczym nie wie.',
+            'To zebrane dotąd sygnały. Ocena modelu może być niepełna — przejrzyj także tekst i zdjęcia.'];
 
         foreach ($sygnaly as $sygnal) {
             $linie[] = '— '.$sygnal->powod;

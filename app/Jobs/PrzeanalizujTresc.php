@@ -6,6 +6,8 @@ namespace App\Jobs;
 
 use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
+use App\Domain\Moderation\AutomaticAnalysisAccess;
+use App\Domain\Moderation\PostImageAnalysis;
 use App\Domain\Moderation\Sygnaly\WykrywaczSygnalow;
 use App\Models\Comment;
 use App\Models\Post;
@@ -93,11 +95,9 @@ class PrzeanalizujTresc implements ShouldQueue
      * i samookaleczenie — i robi to także na ZDJĘCIACH. To są rozłączne
      * klasy treści i żadne z nich nie zastępuje drugiego.
      *
-     * SKLEJAMY JE W JEDNYM ZADANIU, a nie w dwóch. Dwa zadania próbowałyby
-     * postawić dwa oznaczenia tej samej treści, a indeks
-     * `reports_jeden_automat_na_tresc` przepuściłby tylko pierwsze — czyli
-     * to, które akurat wygrało wyścig. Ocena modelu potrafiłaby wtedy
-     * przepaść dlatego, że wpis zawierał numer telefonu.
+     * Lokalny sygnał zapisujemy przed HTTP. Model uzupełnia tylko otwarte
+     * oznaczenie, pod blokadą wiersza (#829/#830, decyzja właściciela
+     * z 20.09.2026). Każde zdjęcie ma osobne, ograniczone zadanie.
      */
     public function handle(
         WykrywaczSygnalow $wykrywacz,
@@ -112,13 +112,25 @@ class PrzeanalizujTresc implements ShouldQueue
         try {
             $tresc = $this->tresc();
 
-            if ($tresc === null) {
+            if ($tresc === null || ! app(AutomaticAnalysisAccess::class)->allows($tresc)) {
                 return;
             }
 
-            $sygnaly = array_merge($wykrywacz->dla($tresc), $model->dla($tresc));
+            // Zapis przed HTTP przetrwa także zabicie workera (#829).
+            $localSignals = $wykrywacz->dla($tresc);
+            $oznacz->handle($tresc, $localSignals, uzupelnij: true);
 
-            $oznaczenie = $oznacz->handle($tresc, $sygnaly);
+            if ($tresc instanceof Post) {
+                app(PostImageAnalysis::class)->dispatchReady($tresc);
+            }
+
+            $sygnaly = $model->dla($tresc);
+
+            if (! app(AutomaticAnalysisAccess::class)->allows($tresc)) {
+                return;
+            }
+
+            $oznaczenie = $oznacz->handle($tresc, $sygnaly, uzupelnij: true);
 
             if ($oznaczenie !== null) {
                 $alarm->handle($oznaczenie, $sygnaly);
@@ -130,7 +142,7 @@ class PrzeanalizujTresc implements ShouldQueue
             Log::warning('Analiza treści pod kątem sygnałów nie powiodła się.', [
                 'typ' => $this->typ,
                 'id' => $this->id,
-                'blad' => $blad->getMessage(),
+                'blad' => $blad::class,
             ]);
         }
     }

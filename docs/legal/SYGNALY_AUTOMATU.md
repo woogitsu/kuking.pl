@@ -327,11 +327,10 @@ kategorii.
 - klucz przez `env()` (`OPENAI_MODERATION_KEY`); **brak klucza = funkcja
   wyłączona** — `KlientOpenAI::oceniamy()` oddaje `false`, żadne żądanie nie
   wychodzi, nic nie pada. Tak jest lokalnie, w CI i w testach;
-- wywołanie w kolejce, w TYM SAMYM zadaniu co sygnały lokalne
-  (`PrzeanalizujTresc`). Dwa zadania próbowałyby postawić dwa oznaczenia tej
-  samej treści, a `reports_jeden_automat_na_tresc` przepuściłby tylko to,
-  które wygrało wyścig — ocena modelu potrafiłaby wtedy przepaść dlatego, że
-  wpis zawierał numer telefonu;
+- sygnały lokalne zapisujemy przed HTTP; tekst ocenia `PrzeanalizujTresc`, a
+  każde wybrane zdjęcie — osobne `PrzeanalizujZdjecieWpisu`. Wynik dopisuje się
+  pod blokadą do tego samego otwartego zgłoszenia. Zamknięte nie zmienia się
+  (uzupełnienie D-055 z 20.09.2026, #829/#830);
 - limit czasu 8 s; **awaria OpenAI nie wstrzymuje publikacji wpisu** —
   publikacja dzieje się w innym żądaniu, a każdy błąd kończy się brakiem
   jednej pozycji w kolejce (sprawdza to

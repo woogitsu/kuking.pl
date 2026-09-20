@@ -63,6 +63,11 @@ final class KategorieModeracji
         return in_array($kategoria, self::PILNE, true);
     }
 
+    public static function isKnown(string $category): bool
+    {
+        return array_key_exists($category, self::OPISY);
+    }
+
     /**
      * Zdanie dla moderatora.
      *

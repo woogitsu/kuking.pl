@@ -1,0 +1,200 @@
+
+── Kontrola ujemna: 827 ──
+  plik:     app/Domain/Moderation/AutomaticAnalysisAccess.php
+  MD5 przed: 1985d5ccbdaa712778c06d65705563de
+  oczekuję:  Requests were recorded
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 1985d5ccbdaa712778c06d65705563de → 7f2b72d67a5299db777d25b0ab7a1051.
+  różnica:
+             if ($current instanceof Comment) {
+                 return $current->status === Comment::STATUS_PUBLISHED
+                     && $current->author?->jestDostepnyJakoAutor()
+    -                && $this->subjectAllows($current->subject());
+    +                && true;
+             }
+     
+             return $this->subjectAllows($current);
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Requests were recorded” wystąpił w wyjściu.
+    Requests were recorded.
+    Requests were recorded.
+    Requests were recorded.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 827
+  zapis: output/moderacja-ai/827.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 828-http ──
+  plik:     app/Moderacja/KlientOpenAI.php
+  MD5 przed: e25d6e2e5787230d3da86cfb93070652
+  oczekuję:  TAJNY_TEKST
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 e25d6e2e5787230d3da86cfb93070652 → 6ba94fce5d11a3a832638f87daa100f8.
+  różnica:
+                 // a dziennik błędów nie jest miejscem na treści użytkowników.
+                 Log::warning('Ocena treści modelem nie doszła do skutku.', [
+                     'czego' => $czego,
+    -                'blad' => $blad::class,
+    +                'blad' => $blad->getMessage(),
+                 ]);
+     
+                 return null;
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „TAJNY_TEKST” wystąpił w wyjściu.
+    Failed asserting that '[["Ocena tre\u015bci modelem nie dosz\u0142a do skutku.",{"czego":"tekst","blad":"TAJNY_TEKST user@example.invalid SECRET_TOKEN https:\/\/example.invalid\/?token=SECRET_TOKEN"}]]' [ASCII](length: 178) does not contain "TAJNY_TEKST" [ASCII](length: 11).
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 828-http
+  zapis: output/moderacja-ai/828-http.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 828-image ──
+  plik:     app/Moderacja/OcenaModelem.php
+  MD5 przed: da7767386b2b79753ea83e1d354768e2
+  oczekuję:  TAJNY_TEKST
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 da7767386b2b79753ea83e1d354768e2 → 6093168457db35ea1c0c3ca374e28512.
+  różnica:
+                 // bajtów — to jest cudza fotografia, a dziennik błędów nie jest
+                 // miejscem na treści użytkowników.
+                 Log::warning('Nie udało się przygotować zdjęcia do oceny modelem.', [
+    -                'blad' => $blad::class,
+    +                'blad' => $blad->getMessage(),
+                 ]);
+     
+                 return null;
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „TAJNY_TEKST” wystąpił w wyjściu.
+    Failed asserting that '[["Nie uda\u0142o si\u0119 przygotowa\u0107 zdj\u0119cia do oceny modelem.",{"blad":"TAJNY_TEKST user@example.invalid SECRET_TOKEN https:\/\/example.invalid\/?token=SECRET_TOKEN"}]]' [ASCII](length: 181) does not contain "TAJNY_TEKST" [ASCII](length: 11).
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 828-image
+  zapis: output/moderacja-ai/828-image.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 828-job ──
+  plik:     app/Jobs/PrzeanalizujTresc.php
+  MD5 przed: 7e49cdb445697e8e07953354b0ce3474
+  oczekuję:  TAJNY_TEKST
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 7e49cdb445697e8e07953354b0ce3474 → b4f28fa6d9153908806d1fbf3995b770.
+  różnica:
+                 Log::warning('Analiza treści pod kątem sygnałów nie powiodła się.', [
+                     'typ' => $this->typ,
+                     'id' => $this->id,
+    -                'blad' => $blad::class,
+    +                'blad' => $blad->getMessage(),
+                 ]);
+             }
+         }
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „TAJNY_TEKST” wystąpił w wyjściu.
+    Failed asserting that '[["Analiza tre\u015bci pod k\u0105tem sygna\u0142\u00f3w nie powiod\u0142a si\u0119.",{"typ":"post","id":"01a0bfb3-778b-71e5-b5dd-bc5eef1c5f0d","blad":"TAJNY_TEKST user@example.invalid SECRET_TOKEN https:\/\/example.invalid\/?token=SECRET_TOKEN"}]]' [ASCII](length: 248) does not contain "TAJNY_TEKST" [ASCII](length: 11).
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 828-job
+  zapis: output/moderacja-ai/828-job.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 826 ──
+  plik:     app/Moderacja/KlientOpenAI.php
+  MD5 przed: e25d6e2e5787230d3da86cfb93070652
+  oczekuję:  is null
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 e25d6e2e5787230d3da86cfb93070652 → e67787b7cde68525db5c389548626b73.
+  różnica:
+         {
+             $wyniki = $dane['results'][0]['category_scores'] ?? null;
+     
+    -        if (! $this->validScores($wyniki)) {
+    +        if (! is_array($wyniki)) {
+                 Log::warning('Model moderacji oddał odpowiedź w nieznanym kształcie.', ['czego' => $czego]);
+     
+                 return null;
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „is null” wystąpił w wyjściu.
+    ) is null.
+    ) is null.
+    ) is null.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 826
+  zapis: output/moderacja-ai/826.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 829 ──
+  plik:     app/Jobs/PrzeanalizujTresc.php
+  MD5 przed: 7e49cdb445697e8e07953354b0ce3474
+  oczekuję:  Lokalny sygnał przepadłby
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 7e49cdb445697e8e07953354b0ce3474 → 69a5ec97d61959277ecc2dc454cf0a79.
+  różnica:
+     
+                 // Zapis przed HTTP przetrwa także zabicie workera (#829).
+                 $localSignals = $wykrywacz->dla($tresc);
+    -            $oznacz->handle($tresc, $localSignals, uzupelnij: true);
+    +            
+     
+                 if ($tresc instanceof Post) {
+                     app(PostImageAnalysis::class)->dispatchReady($tresc);
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Lokalny sygnał przepadłby” wystąpił w wyjściu.
+    Lokalny sygnał przepadłby przy zabiciu workera podczas HTTP.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 829
+  zapis: output/moderacja-ai/829.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 830 ──
+  plik:     app/Jobs/ProcessUploadedImage.php
+  MD5 przed: 6b94e5d90695222a5abd5c07b22a2e56
+  oczekuję:  job was not pushed
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 6b94e5d90695222a5abd5c07b22a2e56 → 02dce34106a90a56683334e5312b6839.
+  różnica:
+             // Ocena następuje dopiero po gotowości miniatur. Jej awaria nie może
+             // zmienić poprawnie przetworzonego zdjęcia na odrzucone (#830).
+             try {
+    -            app(PostImageAnalysis::class)->imageReady($media);
+    +            
+             } catch (\Throwable $error) {
+                 Log::warning('Nie udało się zlecić oceny gotowego zdjęcia.', ['blad' => $error::class]);
+             }
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „job was not pushed” wystąpił w wyjściu.
+    The expected [App\Jobs\PrzeanalizujZdjecieWpisu] job was not pushed.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 830
+  zapis: output/moderacja-ai/830.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
