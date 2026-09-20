@@ -91,6 +91,10 @@
                     <input type="radio" name="would_make_again" value="0" @checked(old('would_make_again') === '0')>
                     <span class="choice-label">Raczej nie powtórzę</span>
                 </label>
+                <label class="choice">
+                    <input type="radio" name="would_make_again" value="" @checked(old('would_make_again') === '' || old('would_make_again') === null)>
+                    <span class="choice-label">Nie podaję</span>
+                </label>
             </div>
             <x-blad-grupy name="would_make_again" />
         </fieldset>
@@ -107,6 +111,10 @@
                         <span class="choice-label">{{ $label }}</span>
                     </label>
                 @endforeach
+                <label class="choice">
+                    <input type="radio" name="perceived_difficulty" value="" @checked(empty(old('perceived_difficulty')))>
+                    <span class="choice-label">Nie podaję</span>
+                </label>
             </div>
             <x-blad-grupy name="perceived_difficulty" />
         </fieldset>

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Models\User;
 use App\Support\Czas;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -45,6 +48,7 @@ class ProfileController extends Controller
             ->firstOrFail();
 
         $owner = $profile->user;
+        $owner->setRelation('profile', $profile);
 
         $this->authorize('viewProfile', $owner);
 
@@ -103,11 +107,7 @@ class ProfileController extends Controller
                     ->withQueryString()
                 : null,
             'cookedEvents' => $tab === 'ugotowane'
-                ? $owner->cookedEvents()
-                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
-                    ->with(['recipe.author.profile', 'media'])
-                    ->paginate(12)
-                    ->withQueryString()
+                ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
                 : null,
             'stats' => [
                 'posts' => $owner->posts()->published()
@@ -331,6 +331,31 @@ class ProfileController extends Controller
             $sub->widoczneDla($viewer)
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
         });
+    }
+
+    /**
+     * Wykonania kucharza w zakładce profilu (issue #735, #736).
+     *
+     * 1. Jawny porządek `cooked_at DESC, id DESC` gwarantuje stabilną paginację
+     *    bez gubienia i dublowania wierszy przy remisach czasu (#735).
+     * 2. Związanie znanego $owner z każdym wierszem wykonania eliminuje
+     *    powtarzane zapytania o kucharza i jego profil/awatar na każdej karcie (#736).
+     */
+    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner): LengthAwarePaginator
+    {
+        $paginator = $owner->cookedEvents()
+            ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
+            ->latest('cooked_at')
+            ->latest('id')
+            ->with(['recipe.author.profile', 'media'])
+            ->paginate(12)
+            ->withQueryString();
+
+        $paginator->getCollection()->each(function (CookedEvent $event) use ($owner): void {
+            $event->setRelation('user', $owner);
+        });
+
+        return $paginator;
     }
 
     /**

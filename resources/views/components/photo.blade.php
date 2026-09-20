@@ -140,11 +140,14 @@
             </div>
         {{-- Jeden krótki przystanek Tab; pseudo-element tego samego linku
              zachowuje kliknięcie całej fotografii bez powiększania fokusu. --}}
+        @php
+            $altDlaPowiekszenia = $alt ?: ($media->alt_text ?? '');
+        @endphp
         <a class="photo-zoom-link"
            href="{{ $media->url('large') }}"
            data-powieksz
-           data-alt="{{ $media->alt_text ?? '' }}"
-           aria-label="Powiększ zdjęcie{{ $media->alt_text ? ': '.$media->alt_text : '' }}">
+           data-alt="{{ $altDlaPowiekszenia }}"
+           aria-label="Powiększ zdjęcie{{ $altDlaPowiekszenia ? ': '.$altDlaPowiekszenia : '' }}">
             Powiększ zdjęcie
         </a>
         </div>
