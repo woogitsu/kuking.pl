@@ -61,9 +61,11 @@
             <p class="whitespace-pre-line">{{ $odwolanie->body }}</p>
 
             @if($odwolanie->isOpen())
-                <p><strong>Czekamy na rozpatrzenie.</strong>
-                    Odpowiadamy w ciągu {{ config('kuking.moderation.appeal_response_working_days') }} dni roboczych,
-                    na adres e-mail, z którego przyszło Twoje zgłoszenie.</p>
+                {{-- Stan oczekiwania rozróżnia dziś sprawę przed terminem
+                     od spóźnionej (issue #799) — wspólnie z drogą autora
+                     treści, w jednym komponencie. --}}
+                <x-odwolanie-czeka :odwolanie="$odwolanie"
+                                   kanal="Odpowiedź wyślemy na adres e-mail, z którego przyszło Twoje zgłoszenie." />
             @else
                 <h3 class="text-title-sm">Nasza odpowiedź</h3>
                 <p class="meta">{{ \App\Support\Czas::data($odwolanie->decided_at, 'j F Y') }}</p>
