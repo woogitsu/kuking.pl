@@ -28,6 +28,35 @@ na każdej głębokości.
 
 ## Tabele MVP
 
+### push_daily_reservations
+
+Fundament limitu Web Push (#35), **bez czynnego kanału wysyłki**.
+Migracja `2026_09_20_220000_create_push_daily_reservations`:
+
+- `user_id uuid` — FK do `users`, `ON DELETE CASCADE`;
+- `local_date date` — dzień kalendarzowy w jawnie przekazanej strefie odbiorcy;
+- `reserved_at timestamptz` — moment rezerwacji w UTC;
+- klucz główny `(user_id, local_date)` — najwyżej jedna rezerwacja na dobę;
+- indeks `(user_id, reserved_at)` — kontrola limitu również po zmianie strefy.
+
+`PushDailyBudget` serializuje rezerwacje istniejącym `ZamekKonta`, czyta
+ponownie stan konta i czas po uzyskaniu blokady. Cisza 21:00–08:00 nie
+zużywa rezerwacji. `PushDeliveryWindow` wyznacza najbliższy dozwolony moment
+w UTC, uwzględniając zmianę czasu. Nie stosuje domyślnej Warszawy przy braku
+strefy: miejsce zamieszkania odbiorcy nie jest dziś zapisane na koncie.
+
+To bariera jednej **próby**, nie potwierdzenie dostarczenia i nie zgoda.
+Przed uruchomieniem kanału wymagane są jeszcze kolejka zbiorcza, preferencje,
+zgoda, wybór strefy i obsługa transportu. Nie ma joba ani kontrolera, który
+rezerwuje lub wysyła push na produkcji. Opis etapów: [Web Push #35](product/WEB_PUSH_35.md).
+
+**Rollback:** na pustej tabeli `down()` usuwa ją, a ponowne `up()` odtwarza
+schemat. Przy istniejących rezerwacjach odmawia w jednej transakcji z blokadą
+tabeli — ponowne wdrożenie nie może odnowić wykorzystanego limitu.
+Wycofać kod z zachowaniem tabeli; nie usuwać rezerwacji w celu wymuszenia
+rollbacku. Przed aktywacją kanału trzeba wdrożyć retencję rezerwacji oraz
+eksport i usuwanie danych tego kanału razem z kontem.
+
 ### users
 Konto:
 - id;

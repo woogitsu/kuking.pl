@@ -171,6 +171,12 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 
 ### 3.2 Limity częstotliwości (twarde)
 
+**Uzupełnienie #35, decyzja właściciela z 20.09.2026:** Web Push ma limit
+**jednego zbiorczego powiadomienia na osobę na lokalną dobę**, z ciszą
+21:00–08:00 w strefie odbiorcy. Fundament obliczania ciszy i rezerwacji
+limitu jest przygotowany; kanał pozostaje nieaktywny. To nie jest jeszcze
+wdrożenie kolejki ani wszystkich preferencji: [stan i warunki uruchomienia](WEB_PUSH_35.md).
+
 | Reguła | Wartość |
 |---|---|
 | E-maile transakcyjne (odzew na moje treści) | maks. **1 dziennie**, zbiorczo; przy 3 zdarzeniach jeden mail: „Dziś w Kuking: Marek ugotował Twój przepis i 2 osoby coś napisały” |

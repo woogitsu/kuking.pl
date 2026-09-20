@@ -1,5 +1,11 @@
 # Propozycja instalacji PWA — #278
 
+**Ponowny pomiar lokalny, 20.09.2026:** istniejący kod przeszedł własne
+testy PHP i JS oraz ogląd prawdziwego sygnału instalacji w Chromium:
+pierwsza wizyta, powrót, incognito bez API, 24 kombinacje układu i trwała
+odmowa. [Dokładne wyniki i ograniczenia](POMIAR_PWA_PUSH_2026_09_20.md).
+Nie jest to potwierdzenie natywnej instalacji na telefonach.
+
 Status: **wdrożone; natywna instalacja na telefonach niezweryfikowana**. Aktualizacja 17 września 2026.
 PR #631 scalono normalnie do main jako
 `7c15301418e51c0bfe10624d1cd73f109cbe5ce9`, wersja **Alfa 0.49**.
