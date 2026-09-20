@@ -293,3 +293,56 @@ bo przy `checkSuites: true` czerwień w chwili scalenia kasuje wdrożenie bezpow
 - Dokument **nie rozstrzyga** żadnej z decyzji, które dokumentacja floty rezerwuje dla
   właściciela: losu #786 wobec #920, numeracji 0.68 (Q2), obsługi zaległych zadań #888 (Q3)
   ani treści polityki prywatności (Q12).
+
+---
+
+## 8. Cicha kolizja `build` w PR #913 (`flota/gotowanie`) i PR #924 (`flota/komentarze`)
+
+Obie gałęzie zmieniają **dokładnie tę samą linię `build`** w `package.json`, dopisując do niej
+własne pliki `node --test`. Git zaświeci konflikt, ale odruch „biorę swoją wersję" **po cichu
+wypisze z buildu testy drugiej gałęzi** — nic nie zaświeci na czerwono, bo usunięty plik testowy
+po prostu przestaje się uruchamiać. Sprawdzone na `origin/main` z 2026-09-20:
+
+- **`main`:**
+  `node scripts/kontrast-marki.mjs && node --test scripts/pwa-install.test.mjs scripts/panel-komunikat.test.mjs resources/js/tagi-w-opisie.test.mjs && vite build`
+- **`flota/gotowanie` dokłada:** `resources/js/minutnik-krok.test.mjs resources/js/wake-lock-gotowania.test.mjs`
+- **`flota/komentarze` dokłada:** `resources/js/licznik-znakow.test.mjs`
+- **Inne gałęzie:** sprawdzono wszystkie `origin/flota/*`, `origin/robota/*`, `origin/gpt/*`,
+  `origin/codex/*` istniejące 2026-09-20 — żadna inna nie dotyka linii `build`. Kolizja jest
+  wyłącznie między tymi dwoma PR-ami.
+
+**Docelowa treść linii `build` (suma obu, nic nie ginie):**
+
+```
+"build": "node scripts/kontrast-marki.mjs && node --test scripts/pwa-install.test.mjs scripts/panel-komunikat.test.mjs resources/js/tagi-w-opisie.test.mjs resources/js/licznik-znakow.test.mjs resources/js/minutnik-krok.test.mjs resources/js/wake-lock-gotowania.test.mjs && vite build",
+```
+
+**Konflikt w `resources/js/app.js` (hunk `@@ -21`):** to również kolizja czysto addytywna, nie
+semantyczna. `flota/gotowanie` dopisuje po `import './tagi-w-opisie.js';` dwie linie:
+```
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
+import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
+```
+a `flota/komentarze` w tym samym miejscu dopisuje jedną:
+```
+import './licznik-znakow.js';
+```
+Reszta zmian `flota/gotowanie` w tym pliku (przebudowa minutnika kroku, kontroler wake locka) leży
+dalej w pliku i nie nachodzi na nic z `flota/komentarze`. Rozstrzygnięcie: zachować wszystkie trzy
+importy, w dowolnej kolejności między sobą, zaraz po `tagi-w-opisie.js`.
+
+**Dowód (próbne scalenie w odłączonym worktree, 2026-09-20):** `git worktree add --detach` z
+`origin/flota/gotowanie`, `git merge origin/flota/komentarze`, ręczne rozstrzygnięcie dwóch
+konfliktów jak wyżej, `npm run build` w przygotowanym środowisku WSL. Wynik: **33/33 testów JS
+przeszło**, w tym wszystkie z obu gałęzi:
+- `resources/js/minutnik-krok.test.mjs` (5 testów, `flota/gotowanie`, issue #751/#740)
+- `resources/js/wake-lock-gotowania.test.mjs` (4 testy, `flota/gotowanie`, issue #739)
+- `resources/js/licznik-znakow.test.mjs` (4 testy, `flota/komentarze`)
+- `resources/js/tagi-w-opisie.test.mjs` (3 testy, wspólny plik z `main`)
+- plus 17 testów z `panel-komunikat.test.mjs` i `pwa-install.test.mjs` (niezmienione przez żadną
+  z dwóch gałęzi). `vite build` zakończył się poprawnie.
+
+**Co się stanie, jeśli ktoś rozwiąże to odruchowo „swoją wersją":** build przejdzie zielono, ale
+cicho przestaną się uruchamiać testy drugiej gałęzi (`minutnik-krok`+`wake-lock-gotowania` albo
+`licznik-znakow`, zależnie który PR scalano jako drugi) — regresja w tym module nie zablokuje już
+żadnego joba, dopóki ktoś ręcznie nie zauważy brakującego pliku w linii `build`.
