@@ -134,61 +134,138 @@
 
   /* --- Kolaż zdjęć w hero -----------------------------------------------
 
-     PONIŻEJ 64REM KOLAŻU NIE MA W OGÓLE — I TO JEST CAŁE ZABEZPIECZENIE
-     PRZYCISKU „Zostań kuKINGiem".
+     UWAGA: REGUŁY PONIŻEJ NIE OBOWIĄZUJĄ W PRZEGLĄDARCE. Kolaż jest
+     widoczny na KAŻDEJ szerokości, także na telefonie 320 px.
 
-     Wymaganie brzmiało: kolaż nie może zepchnąć tego przycisku poniżej
-     pierwszego ekranu telefonu. Układ, w którym kolaż schodzi POD tekst,
-     też by ten wymóg spełnił (przycisk stoi nad nim w kolejności dokumentu),
-     ale `display: none` spełnia go w sposób, którego nie da się zepsuć
-     późniejszą zmianą kolejności w Blade — i przy okazji załatwia drugą
-     rzecz: obrazki z `loading="lazy"` w kontenerze `display: none` nigdy nie
-     przecinają się z oknem, więc przeglądarka NIE POBIERA ich wcale. Telefon
-     nie płaci za cztery pliki, których nie zobaczy.
+     Kto przeczyta sam ten arkusz, wyciągnie wniosek nieprawdziwy — i tak się
+     już stało. Dlatego stan rzeczywisty stoi tu PRZED uzasadnieniem
+     historycznym, a nie po nim.
 
-     ZMIERZONE (Chromium 153, te same szerokości, które mierzy
-     `scripts/dostepnosc.mjs`; „dół przycisku" to odległość dolnej krawędzi
-     przycisku „Zostań kuKINGiem" od góry dokumentu):
+     CO SIĘ STAŁO I KIEDY
 
-       okno       skala tekstu   z kolażem   z kolażem wyłączonym
-       320×568    100%             677 px      677 px
-       320×568    140%             956 px      956 px
-       360×640    100%             563 px      563 px
-       360×640    140%             908 px      908 px
-       414×896    100%             537 px      537 px
-       414×896    140%             806 px      806 px
+     11 września 2026 (#351) stało tu zdanie wersalikami: „PONIŻEJ 64REM
+     KOLAŻU NIE MA W OGÓLE — I TO JEST CAŁE ZABEZPIECZENIE PRZYCISKU
+     «Zostań kuKINGiem»", a pod nim tabela pomiarów i zdanie, że telefon nie
+     pobiera czterech plików kolażu. W dniu napisania oba te zdania były
+     prawdziwe.
 
-     Różnica wynosi zero na każdej z tych szerokości — kolaż nie dokłada
-     ani jednego piksela nad przyciskiem ani pod nim. (Że przy skali 140%
-     przycisk i tak wychodzi poniżej 640 px, a przy 320×568 poniżej ekranu
-     także bez kolażu, to stan zastany tej strony i osobna sprawa; kolaż go
-     nie pogarsza.)
+     13 września 2026 (#488, „Alfa 0.9: pełny port układu i marki") doszedł
+     `resources/css/marka-ekrany.css` z bezwarunkowym
+     `.hero-kolaz-blok { display: block }`. To jest warstwa `marka`,
+     a kolejność warstw z `resources/css/app.css` brzmi:
 
-     Telefon nie zostaje przy tym bez zdjęć: dwie sekcje niżej stoi tablica
-     „kuKINGi na dziś", a pod nią „Świeżo z Kuking". Kolaż wypełnia szerokość,
-     której telefon po prostu nie ma.
+         @layer theme, base, components, marka, utilities;
 
-     O CZCIONCE PRZEGLĄDARKI 200% — ROZUMOWANIE, NIE POMIAR, I TAK TO TU
-     STOI. `64rem` w zapytaniu medialnym liczy się od czcionki bazowej
-     przeglądarki, więc przy jej podwojeniu próg wynosi 2048 px i typowy
-     laptop go nie przekracza: kolaż powinien wtedy zniknąć sam. NIE UDAŁO
-     SIĘ TEGO ZMIERZYĆ w kontenerze — podmiana `font-size` korzenia przez
-     CSSOM (jedyna droga, jaką ma tu Playwright, i ta sama, której używa
-     `scripts/dostepnosc.mjs`) podwaja tekst, ale progów zapytań medialnych
-     NIE RUSZA. Zmierzone jest natomiast to, co z tej drogi wychodzi: przy
-     podwojonym korzeniu i widocznym kolażu strona NIE przewija się w bok na
-     1024, 1280 ani 1512 px. Czyli nawet gdyby próg się nie przesunął, kolaż
-     tego nie psuje.
+     Warstwa późniejsza bije wcześniejszą NIEZALEŻNIE od szczegółowości
+     selektora i NIEZALEŻNIE od zapytania medialnego. `display: none` niżej
+     i `@media (min-width: 64rem)` obok niego przestały więc cokolwiek
+     znaczyć tego samego dnia — dwa dni po tym, jak ktoś je opisał jako
+     „całe zabezpieczenie". Żaden test tego nie złapał, bo żaden test nie
+     czyta WYNIKU KASKADY dla tego elementu; czytanie samego tekstu arkusza
+     pokazuje regułę, która w przeglądarce nie obowiązuje ani przez jeden
+     piksel.
 
-     Nasze własne ustawienie czytelności (`data-text-scale`) działa inaczej:
-     skaluje tokeny tekstu, nie korzeń dokumentu, więc progu nie rusza
-     i kolaż przy 140% zostaje. To jest różnica zamierzona — tam rośnie sam
-     tekst, tu rośnie wszystko. */
+     17 września 2026 rozjazd nazwał audyt UX/UI, pozycja F-03
+     (`docs/design/AUDYT_UX_UI_PLAN_USPRAWNIEN_2026_09_17.md`).
+     20 września 2026 właściciel rozstrzygnął: KOLAŻ ZOSTAJE, komentarz idzie
+     do poprawki. Układ strony powitalnej nie jest tu przestawiany.
+
+     DLACZEGO REGUŁY ZOSTAJĄ, SKORO NIE DZIAŁAJĄ
+
+     Bo ich usunięcie byłoby zmianą zachowania w jedynym przypadku, w którym
+     dziś mają znaczenie: gdyby `marka-ekrany.css` przestał być ładowany albo
+     gdyby ten selektor z niego zniknął, kolaż wróciłby do chowania się
+     poniżej 64rem — cicho i bez śladu. Zostawione tutaj i opisane są
+     widocznym ostrzeżeniem dla następnej osoby. Ich skasowanie to osobna
+     decyzja, nie skutek uboczny poprawki komentarza.
+
+     ZMIERZONE 20 września 2026 (Playwright/Chromium, produkcja kuking.pl,
+     GET jako gość, `deviceScaleFactor: 2`, `isMobile`; „dół przycisku" to
+     odległość dolnej krawędzi przycisku „Zostań kuKINGiem" od góry
+     dokumentu; pozycja i pole z `getBoundingClientRect`, osiągalność
+     z `document.elementFromPoint`, nie z klas CSS):
+
+       okno      skala  kolaż        dół przycisku    widoczny bez  pole przycisku
+                        (szer.×wys.) z kolażem / bez  przewijania   nominalne / skuteczne
+       320×568   100%   264×440 px     776 /  776 px  NIE           264×78  / 264×78  px
+       320×568   140%   264×501 px    1229 / 1229 px  NIE           264×168 / 264×168 px
+       360×640   100%   304×440 px     654 /  654 px  NIE           304×78  / 304×78  px
+       360×640   140%   304×462 px    1012 / 1012 px  NIE           304×133 / 304×133 px
+       375×667   100%   319×440 px     656 /  656 px  TAK           319×78  / 319×78  px
+       375×667   140%   319×462 px    1012 / 1012 px  NIE           319×133 / 319×133 px
+       414×896   100%   358×440 px     628 /  628 px  TAK           358×78  / 358×78  px
+       414×896   140%   358×462 px     977 /  977 px  NIE           358×98  / 358×98  px
+
+     CO Z TEJ TABELI WYNIKA — I CO NIE
+
+     1. Kolumna „z kolażem / bez" jest w każdym wierszu identyczna. Kolaż NIE
+        dokłada ani jednego piksela nad przyciskiem. Powód jest jednak inny
+        niż ten, który tu kiedyś stał: poniżej 64rem hero ma JEDNĄ kolumnę,
+        a `<figure class="hero-kolaz-blok">` stoi w `landing.blade.php` PO
+        bloku z przyciskiem. Zmierzona góra kolażu to 891 px przy 320×568
+        i 743 px przy 414×896, czyli zawsze poniżej dolnej krawędzi
+        przycisku. Chroni więc dokładnie ta KOLEJNOŚĆ W BLADE, którą stary
+        komentarz odrzucał jako „dającą się zepsuć późniejszą zmianą
+        kolejności". Ona jest dziś całym zabezpieczeniem — i nic jej nie
+        pilnuje.
+
+     2. Kolaż dokłada za to 471–533 px WYSOKOŚCI STRONY (17 130 px zamiast
+        16 659 px przy 320×568 / 100%). To jest pod przyciskiem, nie nad nim.
+
+     3. PRZYCISK NIE JEST WIDOCZNY BEZ PRZEWIJANIA przy 320 px w żadnej
+        skali, przy 360 px w żadnej skali, a przy 375 i 414 px tylko przy
+        skali 100%. Przy 320×568 i skali 140% jego dolna krawędź jest na
+        1229 px, czyli ponad dwa ekrany w dół. To jest STAN ZASTANY TEJ
+        STRONY, nie skutek kolażu — kolumna „bez" ma tę samą wartość — i jest
+        zgłoszony osobno, bo przestawienie strony powitalnej należy do
+        właściciela.
+
+     4. Pole SKUTECZNE przycisku równa się nominalnemu na każdej z tych
+        ośmiu kombinacji: po doprzewinięciu w widok `elementFromPoint`
+        trafia w przycisk na całej jego wysokości i szerokości (poza samymi
+        rogami, które zaokrągla `border-radius` — to jest zamierzone).
+        JEDEN WYJĄTEK, i nie pochodzi z tego arkusza: u gościa na pierwszej
+        wizycie pływająca podpowiedź `aside.szybki-wyglad-podpowiedz`
+        przykrywa przy 320×568 / 140% DOLNE 104 px przycisku (pole skuteczne
+        264×65 px zamiast 264×168 px), a przy 360 i 375 px — 12–14 px.
+        To jest obszar #684, nie kolażu; po zamknięciu podpowiedzi pole
+        wraca do nominalnego.
+
+     DRUGIE ZDANIE STAREGO KOMENTARZA TEŻ BYŁO NIEPRAWDZIWE. Brzmiało:
+     obrazki z `loading="lazy"` w kontenerze `display: none` nigdy nie
+     przecinają się z oknem, więc przeglądarka NIE POBIERA ich wcale —
+     „telefon nie płaci za cztery pliki, których nie zobaczy". Zmierzone przy
+     320×568 na liście żądań sieciowych, nie z założenia:
+
+       wariant                                     odpowiedzi  obrazów  kafli pobranych
+       jak jest (kolaż widoczny)                       17        10        4 z 4
+       kontrola ujemna: ten sam arkusz z regułą        11         4        0 z 4
+       ukrywającą kolaż dopisaną na końcu
+
+     Telefon pobiera więc wszystkie cztery kafle (wariant `thumb`;
+     `naturalWidth` 320/320/320/256) i sześć odpowiedzi HTTP więcej, niż
+     pobierałby przy działającym ukryciu. Kontrola ujemna jest tu po to, żeby
+     „4 z 4" znaczyło coś więcej niż „sonda w ogóle działa": ta sama sonda na
+     stronie z DZIAŁAJĄCYM ukryciem pokazuje 0 z 4.
+
+     CZEGO NIE ZMIERZONO: czcionki przeglądarki 200%. Stary komentarz miał tu
+     akapit rozumowania o progu 2048 px. Rozumowanie było poprawne, ale
+     dotyczyło progu, który dziś nie ma znaczenia — kolaż jest widoczny na
+     każdej szerokości niezależnie od tego, gdzie ten próg wypada.
+
+     Telefon nie zostaje przy tym bez zdjęć także poza kolażem: dwie sekcje
+     niżej stoi tablica „kuKINGi na dziś", a pod nią „Świeżo z Kuking". */
   .hero-kolaz-blok {
+    /* NIE OBOWIĄZUJE — patrz komentarz wyżej. Przykryte przez
+       `marka-ekrany.css` (`@layer marka`), które ustawia `display: block`
+       bezwarunkowo. Zostawione świadomie: jako ostrzeżenie i jako zachowanie
+       awaryjne, gdyby tamta warstwa zniknęła. */
     display: none;
     margin: 0;
   }
 
+  /* NIE OBOWIĄZUJE z tego samego powodu: bezwarunkowa reguła z warstwy
+     `marka` bije to zapytanie medialne niezależnie od szerokości okna. */
   @media (min-width: 64rem) {
     .hero-kolaz-blok {
       display: block;
