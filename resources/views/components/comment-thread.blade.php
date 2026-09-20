@@ -118,7 +118,7 @@
                                                 @csrf
                                                 @method('PUT')
                                                 <input type="hidden" name="_wiersz" value="popraw-{{ $reply->id }}">
-                                                <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" required />
+                                                <x-field name="body" :wiersz="'popraw-'.$reply->id" label="Popraw swoją odpowiedź" type="textarea" :rows="3" :value="$reply->body" :licznik-znakow="4000" required />
                                                 <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                             </form>
                                         </details>
@@ -192,7 +192,7 @@
                             @csrf
                             <input type="hidden" name="parent_id" value="{{ $comment->getKey() }}">
                             <input type="hidden" name="_wiersz" value="odpowiedz-{{ $comment->id }}">
-                            <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" required />
+                            <x-field name="body" :wiersz="'odpowiedz-'.$comment->id" label="Twoja odpowiedź" type="textarea" :rows="3" :licznik-znakow="4000" required />
                             <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
                         </form>
                     </details>
@@ -209,7 +209,7 @@
                                         @csrf
                                         @method('PUT')
                                         <input type="hidden" name="_wiersz" value="popraw-{{ $comment->id }}">
-                                        <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" required />
+                                        <x-field name="body" :wiersz="'popraw-'.$comment->id" label="Popraw swój komentarz" type="textarea" :rows="4" :value="$comment->body" :licznik-znakow="4000" required />
                                         <button class="btn btn-primary" type="submit">Zapisz poprawkę</button>
                                     </form>
                                 </details>
@@ -278,6 +278,7 @@
                  Uzasadnienie: `docs/brand/GLOS_MARKI.md` §5. --}}
             <x-field name="body" :wiersz="old('_wiersz') !== null ? 'nowy-komentarz' : null" :label="$answers ? 'Napisz odpowiedź' : 'Napisz komentarz'" type="textarea" :rows="4"
                      :help="$answers ? 'Napisz, co sprawdziło się w Twojej kuchni.' : 'Choćby jedno zdanie. Pytanie do autora też jest w porządku.'"
+                     :licznik-znakow="4000"
                      required bez-oznaczenia />
             <button class="btn btn-primary" type="submit">{{ $answers ? 'Wyślij odpowiedź' : 'Wyślij komentarz' }}</button>
         </form>
