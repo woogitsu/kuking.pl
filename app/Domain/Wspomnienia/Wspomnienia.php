@@ -61,6 +61,7 @@ final class Wspomnienia
         return Post::query()
             ->where('author_id', $user->getKey())
             ->published()
+            ->enabledKinds()
             // WŁASNE ARCHIWUM, WIĘC TAKŻE WPISY PRYWATNE. Widzi je wyłącznie
             // ta jedna osoba — to samo, co widzi na swoim profilu.
             ->where('hide_as_memory', false)
