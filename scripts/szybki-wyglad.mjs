@@ -1,4 +1,5 @@
 import assert from 'node:assert/strict';import {mkdirSync,writeFileSync} from 'node:fs';
+import {komunikatPomiaru} from './wyglad-komunikat.mjs';
 export async function sprawdzSzybkiWyglad({browser:b,adres,out='output/wyglad574'}) {
 mkdirSync(out,{recursive:true});
 try{
@@ -217,6 +218,35 @@ export async function sprawdzWygladBezJs({browser,adres,storageState}) {
  } finally {await page.close();}
 }
 
+/* Strona sama przewija do podsumowania błędów i 400 ms później ustawia na nim
+   fokus (`resources/js/app.js`, blok „BŁĄD FORMULARZA MA BYĆ WIDOCZNY OD
+   RAZU"). Dopóki to nie zajdzie, KAŻDY pomiar na tej stronie ściga się
+   z timerem aplikacji: pod obciążeniem fokus podsumowania przychodził PO
+   naszym fokusie w polu i zdejmował stan, na który pomiar czekał. Czekamy
+   więc na fokus podsumowania i na zatrzymanie płynnego przewijania. */
+async function czekajNaPodsumowanieBledow(page) {
+ const liczby=async()=>page.evaluate(()=>({scrollY:Math.round(scrollY),wysokoscDokumentu:document.documentElement.scrollHeight,okno:innerHeight,podsumowanie:!!document.querySelector('.error-summary'),aktywnyTag:document.activeElement?.tagName??null,aktywneToPodsumowanie:document.activeElement===document.querySelector('.error-summary')}));
+ try {await page.waitForFunction(()=>document.activeElement===document.querySelector('.error-summary'),null,{timeout:15000});}
+ catch {throw new Error(komunikatPomiaru('P581_PODSUMOWANIE_BEZ_FOKUSU',await liczby()));}
+ try {await page.waitForFunction(()=>{const y=Math.round(scrollY),stalo=window.__wygladPoprzedniY===y;window.__wygladPoprzedniY=y;return stalo;},null,{timeout:15000});}
+ catch {throw new Error(komunikatPomiaru('P581_PRZEWIJANIE_NIE_STANELO',await liczby()));}
+}
+
+/* Jeden krok przewijania: same LICZBY. Prostokąty, `scrollY` i wysokość
+   dokumentu nie są treścią strony, więc wolno im pójść do komunikatu porażki
+   w całości (granica z `scripts/panel-komunikat.mjs`). Tekst błędu ani
+   cokolwiek wpisanego w pole NIE WYCHODZI stąd nigdy. */
+const KROK_PRZEWIJANIA=()=>{
+ const widget=document.querySelector('[data-szybki-wyglad]');
+ const w=widget.querySelector('summary').getBoundingClientRect();
+ const bledy=[...document.querySelectorAll('.field-error')].flatMap(e=>[...e.getClientRects()]).filter(r=>r.width>0&&r.height>0);
+ const zaslaniany=bledy.find(r=>r.right>w.left&&r.left<w.right&&r.bottom>w.top&&r.top<w.bottom);
+ const ramka=r=>r?{x:Math.round(r.x),y:Math.round(r.y),szerokosc:Math.round(r.width),wysokosc:Math.round(r.height)}:null;
+ return {scrollY:Math.round(scrollY),wysokoscDokumentu:document.documentElement.scrollHeight,okno:innerHeight,
+  wPrzeplywie:widget.hasAttribute('data-wyglad-w-przeplywie'),widget:ramka(w),blad:ramka(zaslaniany??bledy[0]),
+  bledow:bledy.length,zaslania:!!zaslaniany};
+};
+
 // Prawdziwa odpowiedź walidacji, przewijana bez fokusowania komunikatu.
 export async function sprawdzBladPodWygladem({browser,adres}) {
  const page=await browser.newPage({viewport:{width:720,height:456}});
@@ -231,20 +261,34 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
    document.documentElement.dataset.textScale='140';
    document.querySelector('[data-wyglad-podpowiedz]').hidden=true;
   });
+  await czekajNaPodsumowanieBledow(page);
   await page.locator('input[name=login]').focus();
-  await page.evaluate(()=>{
-   const error=document.querySelector('.field-error').getBoundingClientRect();
-   const widget=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
-   window.scrollBy(0,error.top-widget.top);
-  });
-  await page.waitForFunction(()=>document.querySelector('[data-szybki-wyglad]').hasAttribute('data-wyglad-w-przeplywie'));
-  const overlaps=await page.evaluate(()=>{
-   const w=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
-   return [...document.querySelectorAll('.field-error')].some(e=>[...e.getClientRects()].some(r=>r.right>w.left&&r.left<w.right&&r.bottom>w.top&&r.top<w.bottom));
-  });
-  assert(!overlaps,'WYGLAD_ZASLANIA_BLAD');
+  /* CAŁE przewijanie, nie jeden skok. Do 20 września 2026 stał tu skok
+     wyliczony z prostokąta przycisku wyglądu — a ten prostokąt w tym
+     momencie opisuje widget JUŻ USTĄPIONY do przepływu, czyli leżący
+     ~1780 px niżej w dokumencie. Skok wynosił więc tyle, żeby przewinąć
+     stronę na sam początek: zabierał błąd sprzed pływającego przycisku,
+     `geometry()` słusznie zdejmowało `data-wyglad-w-przeplywie`, a stojące
+     niżej `waitForFunction` czekało na stan, który ten sam skok przed
+     chwilą zburzył. Warunek nie był powolny — był NIESPEŁNIALNY: 30 s
+     i `TimeoutError` bez jednej liczby w komunikacie (rejestr migotania,
+     pozycja M-4). Zmierzone: przy zwolnionym procesorze 0/6 przebiegów
+     spełniało go w 10 s, przy szybkim 15/15 spełniało go w 0–3 ms. */
+  const kroki=[];let ustapil=0;
+  const zakres=await page.evaluate(()=>document.documentElement.scrollHeight-innerHeight);
+  for(let y=0;y<=zakres;y+=40) {
+   await page.evaluate(y=>window.scrollTo(0,y),y);await page.waitForTimeout(30);
+   const krok=await page.evaluate(KROK_PRZEWIJANIA);
+   kroki.push(krok);if(krok.wPrzeplywie)ustapil++;
+   assert(!krok.zaslania,komunikatPomiaru('P581_WYGLAD_ZASLANIA_BLAD',krok));
+  }
+  /* Samo „nie zasłania" spełniłby też widget, który zniknął. Pilnujemy więc,
+     że ustąpienie NAPRAWDĘ zaszło przynajmniej raz, i że przycisk dalej się
+     otwiera. */
+  assert(ustapil>0,komunikatPomiaru('P581_WYGLAD_NIE_USTAPIL',{krokow:kroki.length,zakres,ustapil,pierwszy:kroki[0]??null,ostatni:kroki.at(-1)??null}));
   await page.locator('[data-szybki-wyglad] summary').click();
-  assert(await page.locator('[data-szybki-wyglad]').evaluate(e=>e.open),'WYGLAD_PO_BLEDZIE_OTWIERA_SIE');
+  assert(await page.locator('[data-szybki-wyglad]').evaluate(e=>e.open),'P581_WYGLAD_PO_BLEDZIE_OTWIERA_SIE');
+  console.log(`Błąd pod wyglądem: ${kroki.length} położeń przewijania, ustąpienie w ${ustapil}, zasłonięć 0`);
  } finally {await page.close();}
 }
 
