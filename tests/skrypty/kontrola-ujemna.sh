@@ -86,6 +86,20 @@ if grep -q 'BRAMKA=wlaczona' "$1"; then exit 0; fi
 kill -TERM $$
 EOF
 
+# Atrapa z DUZYM wyjsciem. Wzorzec pada na POCZATKU, potem leci ~200 kB szumu.
+# To jest odtworzenie pulapki `printf | grep -q` przy `set -o pipefail`:
+# grep wychodzi na pierwszym trafieniu, printf dostaje SIGPIPE (141) i status
+# calego potoku to 141, mimo ze wzorzec ZOSTAL znaleziony. Krotkie atrapy
+# tego nie ujawnialy, bo printf zdazal zapisac calosc przed wyjsciem grepa —
+# i wlasnie dlatego defekt przezyl 25 zielonych sprawdzen.
+cat > "$PRACA/test-duze-wyjscie.sh" <<'EOF'
+#!/usr/bin/env bash
+if grep -q 'BRAMKA=wlaczona' "$1"; then exit 0; fi
+echo "BRAMKA_ZDJETA: wartownik nie znalazl wlaczonej bramki"
+for i in $(seq 1 4000); do echo "szum $i ................................................"; done
+exit 1
+EOF
+
 chmod +x "$PRACA"/test-*.sh
 
 # Atrapa CELOWO BEZ bitu wykonywalności — odtwarza to, co w worktree na
@@ -267,6 +281,13 @@ else
     printf '  %s
 ' 'x mutacja pliku nie-Blade skasowala kompilaty — nadmiar'; oblane=$((oblane + 1))
 fi
+
+# --- 12. Wzorzec na poczatku DUZEGO wyjscia ---------------------------------
+# Bez poprawki (`printf | grep -q` pod pipefail) ta proba dostaje
+# ZLA_PRZYCZYNA (4) zamiast POTWIERDZONA (0) — przyrzad odmawia uznania
+# poprawnej kontroli ujemnej, bo SIGPIPE przykrywa trafienie grepa.
+kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./test-duze-wyjscie.sh zrodlo.txt)"
+sprawdz 'wzorzec na poczatku duzego wyjscia -> POTWIERDZONA (0), nie ZLA_PRZYCZYNA' 0 "$kod"
 
 printf '\n'
 if [ "$oblane" -eq 0 ]; then

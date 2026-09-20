@@ -24,7 +24,7 @@ zamien: if (! $recipe->isPublished()) {
 na: if ($recipe->isPublished() && false) {
 oczekuj: Failed asserting|moderacje|szkic
 polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php
-ocena: DZIURA W POKRYCIU (waski przypadek: autor i moderator) — nie luka w autoryzacji
+ocena: DZIURA W POKRYCIU (autor i moderator) — nie luka w autoryzacji. DO DECYZJI WLASCICIELA: moderator gotujacy przepis schowany przez moderacje wyzwala powiadomienie do autora, ktore mowi mu, ze ktos ugotowal z przepisu niewidocznego dla nikogo poza moderacja. Eskalowane przez sesje prowadzaca 20.09.2026. Nie naprawiam tu — to jest pytanie produktowe, nie usterka przyrzadu.
 ---
 # ROZSTRZYGNIETE 20.09.2026. Przezyla CALY pakiet i to jest poprawny wynik.
 # `wykonanieZTegoWyslania()` jest wolane WYLACZNIE w galezi

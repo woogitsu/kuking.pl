@@ -39,3 +39,16 @@ w kopii roboczej zniknął `.env`. Bez kontroli dodatniej wynik brzmiałby
 żeby przyspieszyć** — to jedyna rzecz, która odróżnia pomiar od liczby.
 
 `WADLIWE PRÓBY > 0` znaczy: nie masz wyniku. Napraw i powtórz.
+
+## A jeśli `ZLA_PRZYCZYNA` wygląda na pomyłkę przyrządu — sprawdź to, zanim rozluźnisz wzorzec
+
+Zdarzyło się raz i kosztowało cztery fałszywe pozycje w rejestrze. Przyrząd
+sprawdzał wzorzec przez `printf … | grep -q` pod `set -o pipefail`; `grep -q`
+wychodził na pierwszym trafieniu, `printf` dostawał SIGPIPE (141) i status
+całego potoku był niezerowy **mimo trafienia**. Objawiało się wyłącznie przy
+dużym wyjściu, więc krótkie atrapy tego nie łapały. Naprawione (`<<<` zamiast
+potoku), z atrapą wypisującą ~200 kB — szczegóły w `docs/PULAPKI_TESTOW.md` §5c.
+
+Morał na przyszłość: **nigdy nie rozluźniaj `--oczekuj`, żeby „w końcu
+trafił"**. Jeśli widzisz wzorzec w wyjściu gołym okiem, a przyrząd twierdzi
+inaczej, to jest usterka przyrządu i należy ją zgłosić, a nie obejść.

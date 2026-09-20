@@ -214,6 +214,47 @@ poniżej sekundy.
 albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
 innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
 
+### 5c. …a `printf | grep -q` pod `set -o pipefail` kłamie przy dużym wyjściu
+
+**Złapało: sprawdzenie „czy test oblał z WŁAŚCIWEGO powodu" w samym przyrządzie
+kontroli ujemnych.**
+
+```bash
+if printf '%s' "$WYJSCIE" | grep -qE "$WZORZEC"; then   # ŹLE
+```
+
+`grep -q` kończy się na **pierwszym** trafieniu i zamyka potok. `printf` dostaje
+wtedy SIGPIPE i wychodzi z kodem **141**, a `set -o pipefail` bierze status
+z ostatniego niezerowego elementu potoku — czyli z `printf`. Warunek jest
+fałszywy, **mimo że wzorzec został znaleziony**.
+
+**Dlaczego to przeżyło 25 zielonych sprawdzeń.** Objawia się wyłącznie przy
+dużym wyjściu. Gdy `printf` zdąży zapisać całość, zanim `grep` wyjdzie, SIGPIPE
+nie ma i wynik jest poprawny. Atrapy w kontroli ujemnej pisały po kilka linijek
+— zielono. Prawdziwy PHPUnit napisał 158 kB i przyrząd zaczął meldować
+`ZLA_PRZYCZYNA` dla kontroli ujemnych, które były **poprawne**: cztery z pięciu
+„wadliwych prób" w rejestrze mutacji były w rzeczywistości zabitymi mutacjami.
+
+**Dlaczego to jest gorsze, niż wygląda.** Kierunek błędu jest łagodniejszy niż
+fałszywa zieleń — narzędzie odmawia uznania dobrego dowodu. Ale skutek uboczny
+jest paskudny: człowiek widzi „wzorca nie ma w wyjściu", więc **rozluźnia
+wzorzec**, aż w końcu trafi. I własnoręcznie kasuje rozróżnienie między „oblał
+z tego powodu" a „oblał z jakiegokolwiek", dla którego to pole istnieje.
+
+**Co robić:**
+
+```bash
+if grep -qE "$WZORZEC" <<< "$WYJSCIE"; then             # DOBRZE
+```
+
+`<<<` nie tworzy potoku, więc nie ma SIGPIPE i nie ma czego psuć. Ta sama
+zasada dotyczy każdego `… | head -n`, `… | grep -m1` i `… | sed q` pod
+`pipefail`: konsument, który wychodzi wcześniej, wywraca status producenta.
+
+**A test tego pilnujący musi mieć DUŻE wyjście.** W `tests/skrypty/kontrola-ujemna.sh`
+stoi atrapa, która wypisuje wzorzec na początku, a potem ~200 kB szumu.
+Bez niej ta pułapka wraca przy pierwszym refaktorze.
+
 ---
 
 ## 6. Test na jednym połączeniu nie dowodzi zachowania przy dwóch
