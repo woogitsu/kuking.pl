@@ -142,10 +142,20 @@ class SearchController extends Controller
         // analitycznych), a `product_signals` ma nawet CHECK w bazie, który
         // odrzuci wiersz, gdyby ten kod kiedyś zaczął ją tam wysyłać. Zamiast
         // niej idzie wyłącznie DŁUGOŚĆ frazy i to, czy dała wynik.
-        $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
-            'query_length' => mb_strlen($phrase),
-            'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
-        ]);
+        //
+        // ZAPISUJEMY WYŁĄCZNIE, GDY FRAZA NAPRAWDĘ SZUKAŁA (issue #737).
+        // Pusty ekran „Szukaj" (brak `q`) i fraza krótsza niż dwa znaki nie
+        // odpytują bazy w ogóle — `SearchQuery::recipes()`/`::people()`
+        // zwracają pustą kolekcję PRZED zapytaniem (ten sam próg co
+        // `$zaKrotka` wyżej). Zapisanie tu sygnału policzyłoby otwarcie
+        // pustego ekranu i „a" jako wyszukiwanie bez wyników, mimo że baza
+        // w ogóle nie została odpytana — zatruwając miarę `has_results=false`.
+        if ($phrase !== '' && ! $zaKrotka) {
+            $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
+                'query_length' => mb_strlen($phrase),
+                'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
+            ]);
+        }
 
         return view('pages.search', [
             'board' => $this->dailyBoard->forViewer($request->user()),
