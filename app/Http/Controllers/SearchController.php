@@ -47,7 +47,15 @@ class SearchController extends Controller
 
     public function index(Request $request): View
     {
-        $phrase = trim((string) $request->query('q', ''));
+        // `q` MUSI być tekstem, zanim cokolwiek go rzutuje (issue #738).
+        // `/szukaj?q[]=...` daje tablicę — bez tej straży `(string) $tablica`
+        // wywala ostrzeżenie „Array to string conversion", które w tym
+        // repo staje się wyjątkiem (błędy → wyjątki) i kończy się 500 na
+        // publicznym, niezalogowanym endpoincie zamiast zwykłego pustego
+        // ekranu wyszukiwania. Nie-tekstowe `q` jest więc traktowane
+        // dokładnie tak samo jak brak `q`.
+        $qSurowe = $request->query('q', '');
+        $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
 
         // ZAKRESY WEDŁUG KITU (ekran 03): Wszystko / Przepisy / Ludzie / Do 30 minut.
         //
