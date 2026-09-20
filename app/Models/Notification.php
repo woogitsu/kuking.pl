@@ -411,6 +411,16 @@ class Notification extends Model
                         ->whereRaw("pc.id = (notifications.data->>'comment_id')::uuid")
                         ->where('pc.status', Comment::STATUS_PUBLISHED)
                         ->whereNull('pc.deleted_at')
+                        // ISSUE #757: usunięcie komentarza Z ODPOWIEDZIAMI nie robi
+                        // soft delete (zostaje `status=published`, `deleted_at=null`),
+                        // żeby dzieci nie zawisły bez rodzica — `CommentController::destroy()`
+                        // zostawia zamiast tego placeholder i ustawia `body_removed_at`.
+                        // Bez tego warunku ta gałąź NIE łapała tej jedynej innej drogi
+                        // usunięcia, więc zamrożony `excerpt` z chwili publikacji (do
+                        // 120 znaków oryginalnej treści) dalej wychodził w powiadomieniu
+                        // i w eksporcie danych (`CollectUserExportData` używa tego samego
+                        // `visibleTo()`), mimo że treść w wątku jest już zastąpiona.
+                        ->whereNull('pc.body_removed_at')
                         ->where(function (QueryBuilder $tresc) use ($viewer): void {
                             $tresc
                                 ->where(fn (QueryBuilder $q) => $q->whereExists(
