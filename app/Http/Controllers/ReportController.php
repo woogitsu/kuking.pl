@@ -160,8 +160,12 @@ class ReportController extends Controller
             );
         }
 
-        $komunikat = 'Tę treść już nam zgłosiłeś i sprawa '.$zgloszenie->numer_sprawy
-            .' czeka w kolejce — nic jej nie ubyło. Nowego opisu NIE dopisaliśmy '
+        // BEZ RODZAJU GRAMATYCZNEGO (`COPY_STYLE.md` §2, pilnuje
+        // `TekstyNiePrzypisujaPlciTest`): „już nam to zgłosiłeś" przypisuje
+        // czytelnikowi płeć. Zdanie przebudowane na rzeczownik, nie na drugą
+        // formę osobową — i wyszło krótsze.
+        $komunikat = 'Zgłoszenie tej treści już u nas jest — sprawa '.$zgloszenie->numer_sprawy
+            .' czeka w kolejce i nic jej nie ubyło. Nowego opisu NIE dopisaliśmy '
             .'do tej sprawy. Twój tekst został w polu niżej: skopiuj go i wyślij '
             .'na '.config('kuking.community.contact_email').', podając numer sprawy '
             .$zgloszenie->numer_sprawy.'.';
