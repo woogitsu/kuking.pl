@@ -241,6 +241,35 @@
         o trasę, a nie o dodatkowy parametr komponentu, bo dzięki temu
         żaden z ośmiu widoków używających karty nie musi o niczym pamiętać.
     --}}
+    {{--
+        TAGI WPISU LICZYMY RAZ, PRZED TREŚCIĄ (issue #737)
+
+        Tej samej listy potrzebują dwie rzeczy: `#tag` w treści, który ma być
+        odnośnikiem, i chipsy pod zdjęciem. Gdyby każda liczyła ją u siebie,
+        rozjechałyby się przy pierwszej zmianie reguły „co pokazujemy".
+
+        ŹRÓDŁEM ADRESU JEST RELACJA WPISU, NIE TEKST. Adres złożony z tego, co
+        ktoś napisał, prowadziłby przy literówce albo przy `#2024` na stronę,
+        której nie ma — a odnośnik do pustki jest gorszy niż jego brak.
+        Kluczem mapy jest znormalizowana nazwa (`Tag::kluczTokenu()`) ORAZ
+        slug: dokładnie te dwie drogi, którymi `ResolveTagsForPost::resolve()`
+        dopasowuje token do istniejącego tagu przy ZAPISIE. Ukryte relacje
+        pozostają w modelu; publiczna karta nie linkuje do nich.
+    --}}
+    @php
+        $tagiDoPokazania = $post->relationLoaded('tags')
+            ? $post->tags->where('status', \App\Models\Tag::STATUS_ACTIVE)
+            : collect();
+
+        $adresyTagow = [];
+        foreach ($tagiDoPokazania as $tagWpisu) {
+            $adresyTagow[$tagWpisu->kluczTokenu()] = route('tags.show', $tagWpisu);
+        }
+        foreach ($tagiDoPokazania as $tagWpisu) {
+            $adresyTagow[$tagWpisu->slug] ??= route('tags.show', $tagWpisu);
+        }
+    @endphp
+
     @if($showQuestionTitle && $post->kind === \App\Models\Post::KIND_QUESTION)
         <h2 class="post-card-body"><a href="{{ $post->url() }}">{{ $post->title }}</a></h2>
     @endif
@@ -254,7 +283,7 @@
             $skracamy = ! $naStronieTegoWpisu && \App\Support\ZapowiedzWpisu::czyZaDluga($post->body);
         @endphp
 
-        <div class="post-card-body">{{ \App\Support\LinkiWTekscie::render($skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body) }}</div>
+        <div class="post-card-body">{{ \App\Support\LinkiWTekscie::render($skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body, $adresyTagow) }}</div>
 
         @if($skracamy)
             {{-- Odnośnik, nie przycisk: czytnik ekranu ogłasza go jako
@@ -353,12 +382,6 @@
         żadnego nowego CSS, więc rozmiar dotyku i kontrast mają policzone
         pokrycie od pierwszego dnia.
     --}}
-    @php
-        // Ukryte relacje pozostają w modelu; publiczna karta nie linkuje do nich.
-        $tagiDoPokazania = $post->relationLoaded('tags')
-            ? $post->tags->where('status', \App\Models\Tag::STATUS_ACTIVE)
-            : collect();
-    @endphp
     @if($tagiDoPokazania->isNotEmpty())
         <nav class="chipsy post-card-tagi" aria-label="Tagi tego wpisu">
             @foreach($tagiDoPokazania as $tag)

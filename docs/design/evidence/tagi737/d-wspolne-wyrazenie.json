@@ -1,0 +1,16 @@
+{
+  "nazwa": "renderowanie przestaje uzywac tego samego dopasowania co zapis",
+  "plik": "app/Support/LinkiWTekscie.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "57c16ba16495ad9e44977e353a069515",
+  "md5_po_mutacji": "b6e42fab482738b828ccd4fc72420e14",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "tag/naslodko",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-19T22:13:32Z"
+}
