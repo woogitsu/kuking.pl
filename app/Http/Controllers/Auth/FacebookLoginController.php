@@ -16,6 +16,7 @@ use App\Models\User;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
+use App\Support\ExternalRegistrationDraft;
 use App\Support\Facebook;
 use App\Support\NazwaUzytkownika;
 use Illuminate\Http\RedirectResponse;
@@ -399,11 +400,13 @@ class FacebookLoginController extends Controller
             return $this->trzebaZaczacOdNowa();
         }
 
+        $draft = ExternalRegistrationDraft::restore($request, 'facebook', $tozsamosc->identyfikator);
+
         return view('auth.facebook-finish', [
             'email' => $tozsamosc->email,
             // PODPOWIEDŹ, NIE NADANIE — ten sam wywód co przy Google.
-            'proponowanaNazwa' => $this->proponowanaNazwa($tozsamosc),
-            'proponowaneImie' => $tozsamosc->imie,
+            'proponowanaNazwa' => $draft['username'] ?? $this->proponowanaNazwa($tozsamosc),
+            'proponowaneImie' => $draft['display_name'] ?? $tozsamosc->imie,
         ]);
     }
 
@@ -421,9 +424,12 @@ class FacebookLoginController extends Controller
         // skutku — czyli nie zamykałoby jej wcale.
         abort_unless(config('kuking.account.registration_open'), 503);
 
+        $previousIdentity = $request->session()->get(self::KLUCZ_TOZSAMOSC.'.identyfikator');
         $tozsamosc = $this->tozsamoscZSesji($request);
 
         if ($tozsamosc === null || $tozsamosc->email === null) {
+            ExternalRegistrationDraft::remember($request, 'facebook', $previousIdentity);
+
             return $this->trzebaZaczacOdNowa();
         }
 
@@ -478,6 +484,7 @@ class FacebookLoginController extends Controller
          */
         if (User::findByFacebookId($tozsamosc->identyfikator) !== null
             || User::where('email', $tozsamosc->email)->exists()) {
+            ExternalRegistrationDraft::forget($request, 'facebook');
             $this->zapomnijTozsamosc($request);
 
             return redirect()->route('login')->with('status',
@@ -516,6 +523,7 @@ class FacebookLoginController extends Controller
             dziennik: ['droga' => 'facebook'],
         );
 
+        ExternalRegistrationDraft::forget($request, 'facebook');
         $this->zapomnijTozsamosc($request);
 
         Auth::login($user, remember: true);
@@ -850,7 +858,7 @@ class FacebookLoginController extends Controller
     private function trzebaZaczacOdNowa(): RedirectResponse
     {
         return redirect()->route('login')->with('status',
-            'Wejście kontem Facebooka trwało zbyt długo i musimy zacząć od nowa — nic się nie stało. '
+            'Wejście kontem Facebooka wymaga ponownego potwierdzenia. '
             .'Kliknij „Wejdź kontem Facebooka" jeszcze raz. Możesz też zalogować się hasłem albo poprosić '
             .'o wiadomość z przyciskiem do zalogowania.',
         );

@@ -12,6 +12,7 @@ use App\Models\Profile;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Str;
 use Illuminate\View\View;
 
 /**
@@ -115,14 +116,30 @@ class OnboardingController extends Controller
      * cofnięciu się przeglądarką — zgodnie z AGENTS.md §5 (ważne rzeczy
      * bez JavaScriptu).
      *
-     * NIC Z TEGO NIE ZAPISUJEMY. W przeciwieństwie do `/szukaj`, ten krok
+     * NIE ZAPISUJEMY SYGNAŁU ANALITYCZNEGO. W przeciwieństwie do `/szukaj`, ten krok
      * świadomie NIE woła `ZapiszSygnal` — nie ma dziś decyzji produktowej,
      * że warto mierzyć to osobno, a `docs/research/MIGRACJA_Z_GARNKA.md`
      * §3.1 wprost preferuje rozwiązanie bez nowego zapisu.
      */
     public function people(Request $request): View
     {
-        $phrase = trim((string) $request->query('q', ''));
+        $phrase = $request->boolean('clear') ? '' : trim((string) $request->query('q', ''));
+        $context = $request->session()->get('onboarding.selection');
+        $contextValid = is_array($context)
+            && ($context['user'] ?? null) === $request->user()->getKey()
+            && ($context['expires'] ?? 0) > now()->getTimestamp();
+        $selectionValid = $contextValid && old('selection', $request->input('selection')) === $context['token'];
+        if (! $contextValid) {
+            $context = ['user' => $request->user()->getKey(), 'token' => (string) Str::uuid(), 'expires' => now()->addMinutes(30)->getTimestamp()];
+            $request->session()->put('onboarding.selection', $context);
+        }
+        $input = old('follow', $request->input('follow', []));
+        $selected = $selectionValid && is_array($input)
+            ? array_values(array_unique(array_filter($input, fn ($name) => is_string($name) && strlen($name) <= 40)))
+            : [];
+        // Nadmiar pozostaje widoczny po błędzie POST, aby można go odznaczyć.
+        // GET również ma granicę kosztu, niezależną od walidacji zapisu.
+        $selected = array_slice($selected, 0, 50);
 
         // Ten sam próg co `SearchController` — MUSI się zgadzać z tym,
         // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
@@ -144,11 +161,23 @@ class OnboardingController extends Controller
                 ->values();
         }
 
+        $results = $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA);
+        $people = $this->board->peopleToFollow($request->user(), 8)
+            ->reject(fn ($person) => $results?->contains('user_id', $person->getKey()));
+        $visibleNames = $people->pluck('profile.username')->merge($results?->pluck('username') ?? []);
+        $selectedProfiles = Profile::query()->whereIn('username', $selected)->with('user')->get()
+            ->filter(fn (Profile $profile) => $profile->user !== null && $request->user()->can('follow', $profile->user));
+        $selected = $selectedProfiles->pluck('username')->all();
+
         return view('pages.onboarding.people', [
-            'people' => $this->board->peopleToFollow($request->user(), 8),
+            'people' => $people,
+            'selectedFollows' => $selected,
+            'selectionContext' => $context['token'],
+            'selectedProfiles' => $selectedProfiles->reject(fn ($profile) => $visibleNames->contains($profile->username)),
+            'selectionExpired' => ! $selectionValid && $request->has('selection'),
             'phrase' => $phrase,
             'zaKrotka' => $zaKrotka,
-            'wynikiWyszukiwania' => $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA),
+            'wynikiWyszukiwania' => $results,
             'jestWiecejWynikow' => ($wynikiWyszukiwania?->count() ?? 0) > self::WYNIKI_WYSZUKIWANIA,
         ]);
     }
@@ -165,24 +194,33 @@ class OnboardingController extends Controller
         //
         // Ekran proponuje osiem osób (`people()` niżej). Dwadzieścia daje
         // zapas na zmianę tej liczby i nadal odcina nadużycie.
-        $request->validate([
+        $data = $request->validate([
             'follow' => ['nullable', 'array', 'max:20'],
             'follow.*' => ['string'],
+        ], [
+            'follow.max' => 'Zaznacz najwyżej :max osób. Odznacz pozostałe i kliknij „Dalej”.',
         ]);
 
         $user = $request->user();
+        $selected = array_unique(array_map('mb_strtolower', $data['follow'] ?? []));
+        $completed = 0;
+        $skipped = 0;
 
-        foreach ($request->input('follow', []) as $username) {
+        foreach ($selected as $username) {
             // Bez rozróżniania wielkości liter, tak samo jak profil
             // i listy obserwujących — patrz `Profile::poNazwie()`.
             $target = Profile::poNazwie($username)?->user;
 
             if ($target === null) {
+                $skipped++;
+
                 continue;
             }
 
             try {
                 $this->followUser->handle($user, $target);
+                // Już istniejąca relacja także spełnia wybór człowieka.
+                $completed++;
             } catch (BladDlaCzlowieka) {
                 // Pojedyncza nieudana próba (np. konto w międzyczasie
                 // zablokowane) nie może przerwać całego onboardingu.
@@ -192,8 +230,17 @@ class OnboardingController extends Controller
                 // `PDOException`), więc awaria bazy udawała „konto
                 // niedostępne" i onboarding kończył się bez ani jednego
                 // obserwowania, nie mówiąc o tym nikomu.
+                $skipped++;
+
                 continue;
             }
+        }
+
+        if ($skipped > 0) {
+            return redirect()->route('onboarding.done')->with('status',
+                ($completed > 0 ? 'Nie udało się dodać wszystkich wybranych osób. ' : 'Nie udało się dodać wybranych osób. ')
+                .'Możesz teraz wejść do serwisu i wybrać inne później.',
+            );
         }
 
         return redirect()->route('onboarding.done');
@@ -201,6 +248,8 @@ class OnboardingController extends Controller
 
     public function done(Request $request): View
     {
+        $request->session()->forget('onboarding.selection');
+
         return view('pages.onboarding.done', [
             'name' => $request->user()->displayName(),
         ]);
