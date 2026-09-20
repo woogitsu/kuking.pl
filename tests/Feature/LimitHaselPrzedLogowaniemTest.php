@@ -7,10 +7,12 @@ namespace Tests\Feature;
 use App\Models\ModerationAction;
 use App\Models\User;
 use App\Notifications\UstawienieNowegoHasla;
+use App\Support\KluczeLimitow;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Password;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\MessageBag;
 use Illuminate\Support\ViewErrorBag;
 use Illuminate\Testing\TestResponse;
@@ -449,6 +451,15 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
      * KOSZYK ADRESU RESET PRZEŻYWA — inaczej wystarczyłoby zresetować hasło
      * własnego, jednorazowego konta, żeby wyzerować licznik adresowy przed
      * powrotem do rozpylania po cudzych kontach.
+     *
+     * TEN JEDEN TEST PYTA LICZNIK WPROST, A NIE PRZEZ `/login` — i to jest
+     * decyzja, nie skrót. Pierwsza wersja wypalała koszyk adresu setką
+     * żądań na `/login`, ale ta trasa ma własny `throttle:5,1` po adresie
+     * IP: od szóstego żądania odpowiadał middleware, kontroler nie był
+     * wołany i koszyk adresu w ogóle nie rósł. Test świecił się na zielono,
+     * mierząc CAŁKIEM INNY limiter niż ten, o który pytał — pokazała to
+     * dopiero kontrola ujemna (`scripts/kontrola-ujemna.sh`), która
+     * zgłosiła `STRAZNIK_NIE_STRZEZE`.
      */
     public function test_reset_nie_czysci_koszyka_adresu(): void
     {
@@ -459,16 +470,16 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
             'password' => Hash::make('haslo-napastnika-123'),
         ]);
 
-        $adresProby = (int) config('kuking.login_limits.adres.proby');
-        $adres = ['X-Forwarded-For' => '198.51.100.99'];
+        $klucze = app(KluczeLimitow::class);
+        $adres = '198.51.100.99';
+        $kluczAdresu = $klucze->adres($adres);
+        $kluczKonta = $klucze->konto('napastnik@example.com');
 
-        // Wypalamy koszyk ADRESU, rozkładając próby na tyle różnych loginów,
-        // żeby nie trafić najpierw w koszyk konta ani pary.
-        for ($i = 1; $i <= $adresProby; $i++) {
-            $this->post('/login', [
-                'login' => 'konto-'.$i.'@example.com',
-                'password' => 'zgaduje',
-            ], $adres);
+        // Tyle nieudanych prób, ile zostawiłoby rozpylanie po cudzych
+        // kontach z tego jednego miejsca.
+        for ($i = 1; $i <= 7; $i++) {
+            RateLimiter::hit($kluczAdresu, 300);
+            RateLimiter::hit($kluczKonta, 900);
         }
 
         $token = Password::broker()->createToken($napastnik);
@@ -478,15 +489,23 @@ class LimitHaselPrzedLogowaniemTest extends TestCase
             'email' => 'napastnik@example.com',
             'password' => 'wtorek-parasol-cebula-2026',
             'password_confirmation' => 'wtorek-parasol-cebula-2026',
-        ]);
+        ], ['X-Forwarded-For' => $adres])->assertRedirect(route('login'));
 
-        $this->assertTrue(
-            $this->zatrzymany($this->post('/login', [
-                'login' => 'kolejna-ofiara@example.com',
-                'password' => 'zgaduje',
-            ], $adres)),
-            'Reset hasła wyczyścił koszyk ADRESU. Wystarczy wtedy zresetować hasło własnego, '
-            .'jednorazowego konta, żeby wrócić do rozpylania z czystym licznikiem.',
+        // KONTROLA DODATNIA: koszyk KONTA ma zniknąć. Bez tej asercji test
+        // niżej przechodziłby także wtedy, gdyby reset przestał czyścić
+        // cokolwiek — czyli gdyby droga wyjścia w ogóle nie działała.
+        $this->assertSame(
+            0,
+            RateLimiter::attempts($kluczKonta),
+            'Kontrola: reset hasła miał wyczyścić koszyk KONTA, a go nie wyczyścił.',
+        );
+
+        $this->assertSame(
+            7,
+            RateLimiter::attempts($kluczAdresu),
+            'Reset hasła ruszył koszyk ADRESU. Wystarczy wtedy zresetować hasło własnego, '
+            .'jednorazowego konta, żeby wrócić do rozpylania po cudzych kontach z czystym '
+            .'licznikiem adresowym.',
         );
     }
 
