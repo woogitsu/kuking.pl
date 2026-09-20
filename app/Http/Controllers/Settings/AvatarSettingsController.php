@@ -145,14 +145,22 @@ class AvatarSettingsController extends Controller
             return redirect()->route('settings.avatar');
         }
 
+        // Identyfikator jest warunkiem zgodności formularza, nie uprawnieniem
+        // do dowolnego zdjęcia. Brak pola w starej karcie również oznacza odmowę.
+        if ($request->input('avatar_media_id') !== (string) $zdjecie->getKey()) {
+            return redirect()->route('settings.avatar')
+                ->with('status', 'Zdjęcie profilowe zmieniło się lub formularz jest nieaktualny. '
+                    .'Sprawdź aktualne zdjęcie i ponownie wybierz „Usuń zdjęcie”, jeśli chcesz je usunąć. Nic nie usunęliśmy.');
+        }
+
         // Odpięcie PRZED kasowaniem — inaczej `KasujZdjecie::jestUzywane()`
         // zobaczy własny wiersz `profiles.avatar_media_id` i słusznie odmówi.
         //
         // ODPIĘCIE JEST WARUNKOWE (D-103). Przedtem kolumna zerowała się
         // bezwarunkowo, na podstawie `$profile->avatar` odczytanego wyżej —
         // czyli akcja ufała modelowi podanemu z zewnątrz (D-079 §3). Kto
-        // miał tę stronę otwartą w drugiej karcie i w międzyczasie wgrał
-        // NOWE zdjęcie, tracił je przez kliknięcie „Usuń zdjęcie": zerowała
+        // wgrał NOWE zdjęcie między odczytem w tym żądaniu a odpięciem,
+        // tracił je przez kliknięcie „Usuń zdjęcie”: zerowała
         // się kolumna wskazująca już na nowe zdjęcie, więc po dobie karencji
         // zabierał je sprzątacz osieroconych zdjęć razem z plikami.
         if (! $this->przypnijAwatar->odepnij($request->user(), $zdjecie)) {

@@ -37,6 +37,7 @@
         <form method="POST" action="{{ $action }}">
             @csrf
             @method($method)
+            {{ $slot }}
             <button class="btn btn-danger" type="submit">Tak, {{ mb_strtolower($label) }}</button>
         </form>
     </div>

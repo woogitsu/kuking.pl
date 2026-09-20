@@ -572,7 +572,7 @@ for (const blok of document.querySelectorAll('[data-podziel-sie]')) {
             if (echo) {
                 echo.textContent = skopiowane
                     ? 'Skopiowano adres.'
-                    : 'Adres jest zaznaczony. Skopiuj go teraz: Ctrl+C, a na Macu Cmd+C.';
+                    : 'Na telefonie przytrzymaj palcem adres w polu i wybierz „Kopiuj” z menu zaznaczenia. Na komputerze naciśnij Ctrl+C, a na Macu Cmd+C.';
             }
         });
     }
