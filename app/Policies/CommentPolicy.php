@@ -89,6 +89,19 @@ class CommentPolicy
             && $comment->created_at?->diffInMinutes(now()) < 15;
     }
 
+    /** Odzyskanie własnego tekstu nie otwiera ponownie okna edycji. */
+    public function recoverExpiredEdit(User $user, Comment $comment): bool
+    {
+        return $user->isActive()
+            && $user->getKey() === $comment->author_id
+            && $comment->body_removed_at === null
+            && $comment->status === Comment::STATUS_PUBLISHED
+            && ! $comment->trashed()
+            && $this->view($user, $comment)
+            && $comment->created_at !== null
+            && $comment->created_at->diffInMinutes(now()) >= 15;
+    }
+
     public function delete(User $user, Comment $comment): bool
     {
         if ($user->isModerator()) {

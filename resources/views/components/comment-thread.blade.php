@@ -27,6 +27,14 @@
 @php($wszystkich = $ile ?? $comments->count())
 <section class="stack" aria-labelledby="komentarze">
     <h2 id="komentarze">{{ $answers ? 'Odpowiedzi' : 'Komentarze' }} @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
+    @if(session('comment_edit_recovery') && is_string(old('body')))
+        @php($expiredEdit = \App\Models\Comment::find(session('comment_edit_recovery')))
+        @if($expiredEdit)
+            @can('recoverExpiredEdit', $expiredEdit)
+                <x-expired-comment-edit :body="old('body')" />
+            @endcan
+        @endif
+    @endif
     @if($errors->has('body') || $errors->has('reason'))
         <x-error-summary />
     @endif
