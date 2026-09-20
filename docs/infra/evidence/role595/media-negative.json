@@ -1,0 +1,16 @@
+{
+  "nazwa": "Kolejka media #600",
+  "plik": ".railway/railway.ts",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "a77cde9d0a012d07e965d1e8edf22312",
+  "md5_po_mutacji": "93b6c5fe78b39c2ecefe177bd58255e8",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "high,default",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:50:53Z"
+}

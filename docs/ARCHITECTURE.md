@@ -176,3 +176,15 @@ Na podstawie telemetryki:
 - image CDN/transforms.
 
 Nie zgadujemy problemów, których jeszcze nie ma.
+
+## Przygotowanie podziału ról (#595 / #600)
+
+Konfiguracja `web` / `worker` / `scheduler` oraz opcjonalnego workera `media`
+pozostaje konfiguracją do wdrożenia, nie potwierdzeniem stanu Railway.
+Procedura, budżet połączeń, punkty kontrolne i wycofanie do `all`:
+[ROZDZIELENIE_ROL_595_600.md](infra/ROZDZIELENIE_ROL_595_600.md).
+
+Każde zadanie harmonogramu ma `onOneServer()` oraz `withoutOverlapping()`.
+Wspólny cache PostgreSQL rozstrzyga, który scheduler obsłuży dany termin;
+chroni to także nakładanie starego i nowego kontenera podczas wdrożenia.
+Nie zastępuje idempotencji operacji domenowych ani jobów kolejki.
