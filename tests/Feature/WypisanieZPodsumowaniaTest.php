@@ -190,6 +190,9 @@ class WypisanieZPodsumowaniaTest extends TestCase
         $osoba = $this->user('chce_wrocic', ['wants_weekly_digest' => false]);
 
         $this->actingAs($osoba)->put(route('settings.privacy'), [
+            'original_digest' => (int) $osoba->fresh()->wants_weekly_digest,
+            'original_memories' => (int) $osoba->fresh()->memories_enabled,
+
             'wants_weekly_digest' => '1',
         ])->assertRedirect();
 
