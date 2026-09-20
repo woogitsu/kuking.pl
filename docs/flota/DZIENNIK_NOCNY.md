@@ -196,3 +196,28 @@ i w katalogu `zeszyty-ODZYSK`, nic nie skasowane.
 `gpt-n1-powiadomienia` i `notyfikacja-zywa` (niemal identyczny zestaw
 plików). Możliwe, że to samo zadanie zrobione dwa razy.
 `docs/DECISIONS.md` rusza **dziesięć** gałęzi — to będzie bolało przy scalaniu.
+
+### 21.09, 00:0x — #918 domknięte pomiarem po obu stronach
+
+Agent dokończył i podał brakujące porównanie:
+- `codex/audyt-ux50plus` przed poprawką: `/login` 320 px → **scroll 329**, plus `NAV638_DUZY_FONT_OVERFLOW`.
+- `origin/main` tym samym kodem pomiaru, osobny worktree: **scroll 320, overflow=false, NAV638 OK**.
+
+Werdykt „PR wprowadził" jest więc potwierdzony pomiarem po obu stronach,
+nie samym rozumowaniem. Po poprawce cała macierz czysta: 320–1440 px,
+oba motywy, skale 100/140/font-200/font-200+140. Pełny `sprawdzKompozycje`
+(432 warianty z mutacjami ujemnymi) → `K509_OK`.
+
+Pełny przebieg: **4335 zaliczonych, 0 porażek**, w tym `ProbaOdtworzeniaTest`
+— przeszedł, bo stanowisko ma WŁASNĄ izolowaną bazę. To zgadza się
+z diagnozą `pg_isready`: na własnej bazie i własnym porcie test działa,
+psuje się tam, gdzie sprawdzenie gotowości celuje w zły port.
+
+**ZNALEZISKO ŚRODOWISKOWE, dotyczy CAŁEJ FLOTY, nie tej gałęzi:**
+`przygotuj-runtime.sh` wyklucza `.git` z rsynca do runtime, więc
+`git ls-files` w `zeszyty-marki.mjs` pada przy pełnym
+`node scripts/port-projektu.mjs` w środowisku floty. Uderzy każdego, kto
+spróbuje pełnego przebiegu portu marki w runtime. Do naprawy osobno.
+
+To ta sama rodzina problemów co P7: skrypty zakładają obecność `.git`,
+którego rsync runtime'u nie kopiuje.
