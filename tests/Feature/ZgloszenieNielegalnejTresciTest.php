@@ -58,7 +58,7 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
 
         $this->post(route('zglos.nielegalna.store'), $this->poprawneZgloszenie())
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+            ->assertRedirectContains(route('zglos.nielegalna.potwierdzenie').'?potwierdzenie=');
 
         $this->assertDatabaseHas('reports', [
             'source' => Report::SOURCE_LEGAL_NOTICE,
@@ -180,7 +180,7 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
             'target_url' => 'gdzieś na waszej stronie, widziałam to wczoraj',
         ]))
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+            ->assertRedirectContains(route('zglos.nielegalna.potwierdzenie').'?potwierdzenie=');
 
         $zgloszenie = Report::where('source', Report::SOURCE_LEGAL_NOTICE)->firstOrFail();
 

@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Contact\Actions\PrzyjmijWiadomosc;
+use App\Domain\Contact\PageContext;
 use App\Models\ContactMessage;
 use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\FormConfirmation;
 use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -46,7 +49,7 @@ use Illuminate\View\View;
  */
 class NapiszDoNasController extends Controller
 {
-    public function __construct(private readonly PrzyjmijWiadomosc $przyjmij) {}
+    public function __construct(private readonly PrzyjmijWiadomosc $przyjmij, private readonly FormConfirmation $receipts) {}
 
     public function create(Request $request): View
     {
@@ -59,6 +62,9 @@ class NapiszDoNasController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        // Przed walidacją: jej błąd odkłada dane żądania do sesji.
+        $path = $request->input('page_path');
+        $request->merge(['page_path' => PageContext::clean(is_string($path) ? $path : null)]);
         $zalogowany = $request->user();
 
         $dane = $request->validate([
@@ -110,20 +116,19 @@ class NapiszDoNasController extends Controller
             kluczWyslania: $this->kluczZZadania($request),
         );
 
-        return redirect()
-            ->route('kontakt.potwierdzenie')
-            ->with('kontakt_odpowiedz_na', $wiadomosc->adresDoOdpowiedzi());
+        $receipt = $this->receipts->issue($request, 'kontakt', ['email' => $wiadomosc->adresDoOdpowiedzi()]);
+
+        return redirect()->route('kontakt.potwierdzenie', ['potwierdzenie' => $receipt]);
     }
 
-    public function confirmation(Request $request): View
+    public function confirmation(Request $request): Response
     {
-        return view('pages.napisz-do-nas-potwierdzenie', [
-            // Adres, na który odpiszemy — żeby człowiek od razu zobaczył,
-            // czy podał ten, który czyta. Sesja, nie parametr adresu: to jest
-            // jego dana osobowa i nie ma czego szukać w pasku przeglądarki
-            // ani w logu serwera.
-            'odpowiedzNa' => $request->session()->get('kontakt_odpowiedz_na'),
-        ]);
+        $receipt = $this->receipts->read($request, 'kontakt');
+
+        return response()->view('pages.napisz-do-nas-potwierdzenie', [
+            'przyjeta' => $receipt !== null,
+            'odpowiedzNa' => $receipt['email'] ?? null,
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     /**
@@ -162,32 +167,7 @@ class NapiszDoNasController extends Controller
      */
     private function oczyscSciezke(?string $adres): ?string
     {
-        if (! is_string($adres) || trim($adres) === '') {
-            return null;
-        }
-
-        $adres = trim($adres);
-
-        // Wartość z ukrytego pola przychodzi już jako sama ścieżka.
-        // Wartość z `Referer` — jako pełny adres. Obsługujemy oba, ale
-        // pełny adres musi być NASZ.
-        if (str_starts_with($adres, '/')) {
-            $sciezka = parse_url($adres, PHP_URL_PATH);
-        } else {
-            $host = parse_url($adres, PHP_URL_HOST);
-
-            if ($host === null || $host !== parse_url((string) config('app.url'), PHP_URL_HOST)) {
-                return null;
-            }
-
-            $sciezka = parse_url($adres, PHP_URL_PATH);
-        }
-
-        if (! is_string($sciezka) || $sciezka === '') {
-            return null;
-        }
-
-        return Str::limit($sciezka, 297, '…');
+        return PageContext::clean($adres);
     }
 
     /**
