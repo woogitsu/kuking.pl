@@ -171,7 +171,25 @@ return [
     |
     */
 
-    'secure' => env('SESSION_SECURE_COOKIE'),
+    /*
+     * DOMYŚLNIE `true` NA PRODUKCJI. Laravel zostawia tu gołe
+     * `env('SESSION_SECURE_COOKIE')`, czyli `null` — a `null` znaczy
+     * „ciasteczko poleci także po HTTP". Wtedy jedyną rzeczą, która
+     * trzyma sesję na HTTPS, jest zmienna ustawiona ręcznie w panelu
+     * dostawcy: coś, czego nie widać z repozytorium i co da się skasować
+     * jednym kliknięciem, nie oblewając żadnego testu.
+     *
+     * Pomiar produkcji z 20 września 2026 (`https://kuking.pl/login`)
+     * pokazał `Set-Cookie: kuking-session=…; secure; httponly; samesite=lax`,
+     * więc zmienna JEST tam dziś ustawiona. Ten domyślnik niczego nie
+     * zmienia w tym stanie — zabezpiecza stan, w którym ktoś tę zmienną
+     * usunie albo postawi nową usługę bez niej.
+     *
+     * Jawne `SESSION_SECURE_COOKIE=false` nadal wygrywa i to jest celowe:
+     * konfiguracja ma być do zmiany, ale nie po cichu, przez pominięcie.
+     * Pilnuje tego `CiasteczkoSesjiJestSecureNaProdukcjiTest`.
+     */
+    'secure' => env('SESSION_SECURE_COOKIE', env('APP_ENV') === 'production'),
 
     /*
     |--------------------------------------------------------------------------
