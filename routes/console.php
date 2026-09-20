@@ -348,3 +348,30 @@ Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
     ->name('kuking:wyslij-podsumowania')
     ->dailyAt('08:30')
     ->withoutOverlapping();
+
+// Retencja `recipe_versions` — migawki przepisu (decyzja właściciela
+// z 2026-09-20): `config('kuking.przepisy.version_retention_months')`
+// miesięcy (24) od `created_at`, Z WYJĄTKIEM PIERWSZEJ WERSJI KAŻDEGO
+// PRZEPISU, której ten automat nie rusza nigdy
+// (`App\Domain\Compliance\PrzedawnioneWersjePrzepisow` — tam uzasadnienie).
+//
+// Do dziś ta tabela nie miała ŻADNEGO sprzątania, a rośnie o jeden wiersz
+// przy KAŻDYM zapisie opublikowanego przepisu (`PublishRecipe`, gałąź
+// `if ($publish)`) — czyli przy każdym kliknięciu „Zapisz" na przepisie,
+// który jest już publiczny, nie tylko przy pierwszej publikacji.
+//
+// 05:10, czyli dziesięć minut po sprzątaniu zaproszeń i wciąż w nocnym
+// paśmie sprzątania (03:20–05:10) — cała ta lista jest świadomie
+// porozsuwana o dziesięć minut, bo w roli `all` harmonogram chodzi
+// w JEDNYM procesie PHP i dwa `DELETE` z tej samej minuty blokowałyby
+// pętlę jeden po drugim. Uzasadnienie odstępów przy sprzątaniu zmian
+// adresu wyżej.
+//
+// Dobowa dokładność wystarcza i jest tu właściwa: to nie jest termin
+// z konkretną godziną wygaśnięcia jak zawieszenie, tylko wiek treści
+// liczony w miesiącach.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-wersje-przepisow'))
+    ->name('kuking:sprzataj-wersje-przepisow')
+    ->dailyAt('05:10')
+    ->withoutOverlapping();

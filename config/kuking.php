@@ -2337,6 +2337,36 @@ return [
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
     ],
 
+    'przepisy' => [
+        // RETENCJA `recipe_versions` — DECYZJA WŁAŚCICIELA, 2026-09-20:
+        // 24 MIESIĄCE od `created_at` migawki.
+        //
+        // DLACZEGO CZAS, A NIE SUFIT NA PRZEPIS. Rozważany był drugi wariant:
+        // „trzymaj N ostatnich wersji każdego przepisu". Odpadł, bo kasuje po
+        // cichu wersję, do której człowiek chciał wrócić — przepis poprawiany
+        // co tydzień straciłby zeszłoroczną wersję po kilku miesiącach, a
+        // sygnałem do skasowania byłaby AKTYWNOŚĆ autora, nie wiek danych.
+        // Retencja czasowa jest też spójna z resztą serwisu: 36 miesięcy
+        // (sprawy moderacyjne), 12 (`audit_log`, `contact_messages`),
+        // 3 (`notifications`), 90 dni (`product_signals`).
+        //
+        // DWADZIEŚCIA CZTERY, A NIE DWANAŚCIE. Migawka nie jest telemetrią
+        // ani dziennikiem zdarzeń — jest TREŚCIĄ NAPISANĄ PRZEZ CZŁOWIEKA
+        // (tytuł, opis, składniki, kroki, notatka o zmianie). Powód jej
+        // istnienia stoi w `App\Models\RecipeVersion`: komentarz „wyszło
+        // idealnie" zostawiony przy wersji sprzed lat ma zostać czytelny.
+        // Rok to za mało, żeby przeżył jeden sezon świąteczny i jego powtórkę.
+        //
+        // PIERWSZEJ WERSJI PRZEPISU TA RETENCJA NIE RUSZA NIGDY — i tego
+        // wyjątku TU NIE MA, celowo, dokładnie z tego samego powodu co przy
+        // `AuditLogEntry::NIGDY_NIE_KASUJ`: to jest reguła kodu
+        // (`App\Domain\Compliance\PrzedawnioneWersjePrzepisow`), a nie liczba
+        // do przestawienia zmienną środowiskową bez recenzji kodu.
+        //
+        // Egzekwuje `kuking:sprzataj-wersje-przepisow`.
+        'version_retention_months' => (int) env('KUKING_RECIPE_VERSION_RETENTION_MONTHS', 24),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
