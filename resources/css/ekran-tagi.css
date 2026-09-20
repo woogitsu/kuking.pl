@@ -1,0 +1,70 @@
+/*
+ * ekran-tagi.css — arkusz ekranu „Twoje tagi” (#858).
+ *
+ * PO CO OSOBNY PLIK, A NIE KOLEJNA SEKCJA W app.css
+ * Ten sam powód co przy `ekran-wyszukiwania.css`: jeden obszar, jeden plik.
+ * Doszedł drugi, zmierzony: `GlosMarkiOpisujeArkuszPrawdziwieTest` czyta
+ * `app.css` wyrażeniem regularnym, które dopasowuje reguły NA PRZEMIAN
+ * (każda potrzebuje `}` poprzedniej, a poprzednia ten `}` już zjadła).
+ * Dołożenie NIEPARZYSTEJ liczby reguł nad `.kuking-word` przestawia parzystość
+ * i test wywala się na regule, której nikt nie ruszał. Strażnik jest kruchy
+ * — ale to nie jest powód, żeby o niego zahaczać przy okazji innej pracy.
+ *
+ * Zasada z app.css obowiązuje bez zmian: żadnej wartości koloru, rozmiaru
+ * tekstu ani odstępu na sztywno — wszystko przez var(--...).
+ */
+
+@layer components {
+  /* ---------------------------------------------------------------------
+     Ekran „Twoje tagi": filtr, licznik i doładowanie (#858)
+
+     Wszystko tu jest zwykłym formularzem bez skryptu — uzasadnienie wyboru
+     stoi w `pages/settings/tags.blade.php`. CSS dokłada wyłącznie układ.
+     --------------------------------------------------------------------- */
+
+  .tagi-filtr-wiersz {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: stretch;
+    gap: var(--spacing-3);
+  }
+
+  /* Pole i przycisk stoją obok siebie, dopóki jest na to miejsce, a przy
+     320 px i przy powiększonym tekście schodzą pod siebie — `flex-wrap`
+     plus `min-width` na polu. Bez `min-width` pole kurczy się do zera
+     wcześniej, niż przycisk zejdzie do następnego wiersza. */
+  .tagi-filtr-wiersz .field-input {
+    flex: 1 1 14rem;
+    min-width: 10rem;
+  }
+
+  .tagi-filtr-wiersz .btn {
+    flex: 0 1 auto;
+  }
+
+  /* Licznik jest zdaniem, nie etykietą — czyta go także czytnik ekranu
+     (`role="status"`), więc nie wolno mu zejść poniżej tekstu bieżącego. */
+  .tagi-licznik {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
+
+  .tagi-pusto {
+    margin: 0 0 var(--spacing-4);
+    font-size: var(--text-body);
+  }
+
+  .tagi-doladuj {
+    margin: var(--spacing-5) 0 0;
+  }
+
+  /* Przycisk doładowania jest szeroki — to jest główna akcja przeglądania
+     długiej listy, a nie dopisek pod nią. Bez zapytania medialnego: `width`
+     plus `max-width` daje pełną szerokość na telefonie i rozsądny pasek na
+     szerokim ekranie, a nie dokłada progu, który trzeba pamiętać osobno. */
+  .tagi-doladuj .btn {
+    width: 100%;
+    max-width: 30rem;
+  }
+}

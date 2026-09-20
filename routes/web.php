@@ -868,6 +868,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.tags.update');
+    // Filtr i „Pokaż kolejne…" — PRZEGLĄDANIE, nie zapis (#858, decyzja
+    // właściciela z 20.09.2026, punkt 1). Osobna trasa i osobny koszyk
+    // limitera, żeby szukanie tagu nie zjadało budżetu zapisu (`ustawienia`,
+    // 30/10) i odwrotnie. Przyciski trafiają tu przez `formaction` w widoku
+    // — bez tego wciąż jeden `<form>`, bez jednej linii JavaScriptu.
+    Route::put('/ustawienia/tagi/przegladaj', [TagFollowController::class, 'przegladaj'])
+        ->middleware("throttle:{$limits['tagi_przegladanie']},tagi_przegladanie")
+        ->name('settings.tags.przegladaj');
 
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update'])
