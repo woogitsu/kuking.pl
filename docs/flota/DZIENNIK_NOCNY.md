@@ -563,3 +563,175 @@ Gałęzie, które nie przejdą do rana, zostają na dysku bezpiecznie — ale to
 właśnie ten stan doprowadził wczoraj do utraty pracy przy awarii repozytorium.
 **Dlatego przepustowość kolejki jest sprawą do decyzji właściciela, nie
 drobiazgiem technicznym.**
+
+## 00:15 — Z13 audytora zamknięte: wszystkie trzy prace są w kolejce
+
+Audytor zgłosił (waga WYSOKA), że praca dwóch stanowisk jest odzyskana, ale
+„czeka w klonach, o których kolejka nie wie", a trzeciego (`naprawa-847`) nie
+widzi nigdzie. Sprawdzone wobec `kolejka11-lista.txt`:
+
+| gałąź | w kolejce | commit |
+|---|---|---|
+| `naprawa-858` | tak | `390e7640` |
+| `gpt-testy-50plus` | tak | `ad76d56c` |
+| `naprawa/847-termin` | tak | `8de0cf60` w `naprawa-847-ODZYSK` |
+
+`naprawa-847` **nie przepadła** — ma katalog odzysku z commitem
+„Pokaz termin usuniecia i droge powrotu przy zamknietej korespondencji (#847)".
+Audytor napisał wprost, że nie orzeka o jej utracie, tylko o braku śladu tam,
+gdzie patrzył. Miał rację co do tego, co widział; katalog istnieje pod nazwą,
+której nie sprawdzał.
+
+Powód, dla którego nowa lista je widzi, a stara nie: buduję ją z **każdego**
+katalogu floty o żywym `gitdir`, więc klony `-ODZYSK` wchodzą na równi ze
+stanowiskami. Stara lista brała tylko nazwy kanoniczne.
+
+## 00:20 — #918 rozstrzygnięte obustronnym pomiarem: regresję wprowadził PR
+
+Agent zmierzył obie strony, nie jedną:
+
+- na `codex/audyt-ux50plus` przed poprawką: `K509_OVERFLOW /login
+  {"width":320,"scroll":329,"rootFont":32,"bodyFont":50.4}` — liczby identyczne
+  ze zgłoszeniem CI; osobno `NAV638_DUZY_FONT_OVERFLOW`,
+- na `origin/main` (`4c811cc7`, worktree `main-porownanie`): pełne
+  `sprawdzKompozycje`, 432 warianty, **bez** `K509_OVERFLOW`; `NAV638_OK`.
+
+Werdykt: **regresję wprowadził PR**, nie zastane drzewo.
+
+Przyczyna: reguła `.site-footer-grupa ul a` dostała `display: flex` z
+`min-height: 48px` (cel dotyku 50+). Element flex bez `min-width: 0` ma
+domyślne `min-width: auto`, więc nie skurczy się poniżej najdłuższego
+nierozdzielnego słowa. Przy przeglądarce na 200% i skali tekstu 140%
+(`rootFont=32px`, `bodyFont=50,4px`) słowo „nielegalną" w „Zgłoś nielegalną
+treść" przekraczało kolumnę stopki — 9 px przewinięcia w poziomie.
+
+Poprawka `640198cc`: `min-width: 0` i `overflow-wrap: anywhere` w tej samej
+regule. **Nie ruszono `min-height` ani rozmiaru tekstu** — 48 px celu dotyku
+i 18 px tekstu zostają, bo to zasady produktu, a nie szczegół implementacji.
+
+Kontrola dodatnia: mutacja ujemna dla `K509_OVERFLOW` na `/login` przeszła,
+czyli miernik nadal potrafi zapalić. Pełny zestaw: **4335 PASS, 83 236 asercji,
+zero porażek**, w tym `ProbaOdtworzeniaTest`. Pint: PASS, 1147 plików.
+
+Gałąź stoi w kolejce jako pozycja druga.
+
+## 00:45 — NAJWAŻNIEJSZE USTALENIE NOCY: kolejka9 żyła cały czas, a jej raport zawyża trzykrotnie
+
+Najpierw moja pomyłka, bo ona tłumaczy resztę: uznałem kolejkę za martwą, bo
+`ps -ef | grep kolejka` **po stronie Windows** nic nie pokazało. Kolejka9 chodzi
+**wewnątrz WSL** — działa od 17:00, w chwili pisania 1 h 38 min bez przerwy.
+Zbudowałem obok niej drugą (kolejka10, potem 11), która biła się z nią o ten sam
+katalog roboczy `push-run`. Moją zatrzymałem; kolejka9 pracuje dalej.
+
+### Rachunek, który trzeba zobaczyć
+
+| źródło | liczba |
+|---|---|
+| pozycji na liście kolejki9 | **117** |
+| `pchniete.txt` twierdzi, że pchnięte | **61** |
+| gałęzi z tej listy **naprawdę obecnych na GitHubie** | **20** |
+| brakujących | **97** |
+
+Sprawdzone wobec `gh api repos/woogitsu/kuking.pl/branches --paginate`, nie
+wobec pliku. Wykluczyłem też pułapkę pisowni: lista ma nazwy z myślnikiem
+(`gpt-ai-piloty`), a na GitHubie mogłyby stać z ukośnikiem — **nie stoją**.
+Na zdalnym jest **cztery** gałęzie `gpt/*` i **zero** `gpt-*`. Różnica jest
+prawdziwa, nie jest artefaktem porównania.
+
+To potwierdza twardą liczbą znalezisko Z12 audytora: `pchniete.txt` dopisuje
+wpis także przy porażce fetcha i checkoutu, więc **flota uważa za bezpieczne
+61 gałęzi, a bezpiecznych jest 20**. Reszta pracy leży wyłącznie na dysku —
+w tym samym stanie, który wczoraj przy awarii repozytorium kosztował utratę
+lokalnych commitów.
+
+### Dlaczego to idzie tak wolno — i to nie jest wina kolejki
+
+Na tej maszynie stoi **osiem self-hosted runnerów GitHub Actions**, i w tej
+chwili pracują na rzecz **innych projektów**: `lockstate` (Playwright, pełna
+suita przeglądarkowa), `metro` (`vehicle_clearance.sh`, testy w Pythonie),
+`osadale`. Kolejka9 ma świadomy próg obciążenia — czeka, aż load spadnie,
+bo przy zajętej maszynie bateria daje deadlocki i **38 fałszywych porażek**
+(zmierzone dziś). Czeka więc słusznie, tylko czeka długo.
+
+Efekt: około **20 minut na gałąź**. 97 pozostałych to ~32 godziny. Nie przejdzie
+do rana i nie da się tego przyspieszyć bez jednej z dwóch decyzji właściciela:
+
+1. **Zatrzymać na czas nocy runnery obcych projektów** (`lockstate`, `metro`,
+   `osadale`) — maszyna jest wtedy tylko dla Kukinga i próg obciążenia przestaje
+   blokować. To decyzja o cudzych projektach, więc nie podejmuję jej sam.
+2. Pogodzić się z tym, że praca schodzi z dysku przez kilka dni.
+
+### Co zrobiłem w międzyczasie
+
+- Zatrzymałem swoją zdublowaną kolejkę, żeby nie psuła wyników kolejki9.
+- Zostawiam listę 74 gałęzi (`kolejka11-lista.txt`), zbudowaną **poprawnie** —
+  widzi katalogi `-ODZYSK`, rozróżnia dwa repozytoria i nie daje się nabrać
+  na `git rev-parse`. Kolejka9 czyta swoją listę przed każdą turą, więc
+  brakujące pozycje da się do niej dopisać bez restartu.
+
+## 01:00 — Kolejka naprawiona i uzupełniona, bez jej zatrzymywania
+
+Przeczytałem pętlę kolejki9 i mechanizm zawyżania jest w niej wprost:
+
+```
+if ! git fetch -q "$KAN" "$br" 2>/dev/null; then
+  echo "  FETCH FAIL — brak galezi w repozytorium kanonicznym, pomijam"
+  echo "$br" >> "$ZROBIONE"; continue
+fi
+...
+if ! git checkout -q -B "$br" "$pobrany"; then
+  echo "  CHECKOUT FAIL"; echo "$br" >> "$ZROBIONE"; ...
+```
+
+**Pominięcie zapisuje się tak samo jak sukces.** Stąd 61 wobec 20 realnych.
+To nie jest złośliwość skryptu — pozycja bez pokrycia musiała odpadać, żeby
+nie paraliżowała kolejki. Zabrakło tylko osobnego pliku na „pominięte".
+
+### Co zrobiłem, nie przerywając pracującej kolejki
+
+1. **Sprowadziłem 7 gałęzi z drugiego repozytorium** do kanonicznego
+   (`git fetch /c/.../Codex refs/heads/X:refs/heads/X`). Kolejka9 fetchuje
+   wyłącznie z kanonicznego, więc wcześniej dostałyby FETCH FAIL i zostały
+   uznane za „pchnięte", nigdy nie wyjeżdżając na GitHuba.
+2. **Dopisałem 8 brakujących pozycji** do jej listy (czyta ją przed każdą turą,
+   więc restart nie był potrzebny): `flota/stan-sesji-2`,
+   `gpt/odbior-czy-przygotowanie`, `gpt/pomiar-feedu-i-budzetu`,
+   `gpt/widmo-zamkniec`, `naprawa/119-obietnica-konwersji`,
+   `naprawa/906-zbiorcze-zapisy`, `naprawa/kontrola-dodatnia-do-przodu`,
+   `naprawa/kruchy-pomiar-wygladu`. Lista ma teraz **125** pozycji.
+3. **Wpuściłem z powrotem `naprawa/klient-pg18-w-ci`** i postawiłem ją jako
+   pozycję pierwszą. Na GitHubie leży tam `fa06f5cd`, a odblokowujący commit
+   `021264c6` (sonda `pg_isready`) **jeszcze nie dojechał** — a to on zdejmuje
+   czerwień z dziesięciu PR-ów. Kopie obu plików stanu zrobione przed edycją.
+
+### Dwie gałęzie bez pracy — i to nie jest zguba
+
+`gpt/decyzja-205-i-motyw-370` i `gpt/zamkniecia-607-608-i-inwentarz-ci` stoją
+dokładnie na `4c811cc7`, a ich katalogi mają **zero zmienionych plików**.
+Sprawdzone, zanim uznałem to za utratę. Meldunki obu stanowisk leżą w skrzynce
+z 21:48 — to były zadania analityczne, nie kodowe. Nie ma czego pchać i nie
+dopisuję ich do kolejki.
+
+## 01:10 — Plan wydawania minut Actions (2189 zostało)
+
+Zasada: **nie otwieram nowych PR-ów, dopóki #929 nie jest zielone i scalone.**
+Każdy PR to ~65 minut, a dziś każdy skończyłby się tą samą, znaną czerwienią.
+Otwieranie ich teraz byłoby kupowaniem tej samej odpowiedzi dziesięć razy.
+
+Kolejność wydatków, od najtańszego do najdroższego:
+
+1. **#929** — commit `021264c6` dojedzie kolejką, GitHub sam odpali przebieg
+   z wyzwalacza `synchronize`. Koszt: 1 przebieg.
+2. **Scalenie #929 do `main`** — `ci.yml` odpala się na push do `main`.
+   Koszt: 1 przebieg. Dopiero to daje lekarstwo pozostałym.
+3. **Odświeżenie dziesięciu czerwonych PR-ów przez `gh run rerun --failed`**,
+   a nie pełnym przebiegiem. Pada po dwa joby na PR, nie trzynaście — to
+   różnica rzędu **kilkuset minut** na całej paczce. Pełny przebieg zamawiam
+   tylko tam, gdzie `--failed` nie wystarczy.
+4. Dopiero potem PR-y dla gałęzi świeżo pchniętych, partiami, z oglądaniem
+   licznika po każdej partii.
+
+Czego świadomie nie robię: nie przestawiam `CI_RUNS_ON` na własną pulę, choć
+to zdjęłoby koszt do zera. Powód stoi w zapisie z 23:20 — najpierw scalenie
+rozdziału hybrydowego, inaczej cztery joby przeglądarkowe pojadą na maszyny,
+których jeszcze nie sprawdzono pod tym kątem, i dostaniemy czerwień bez pokrycia.
