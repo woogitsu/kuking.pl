@@ -8,6 +8,26 @@ use Tests\TestCase;
 
 class PortMarkiMaWlasnaBramkeCiTest extends TestCase
 {
+    public function test_pomiary_nie_pobieraja_historii_ktora_czyta_tylko_zakres(): void
+    {
+        foreach (['port_marki', 'port_funkcje', 'dostepnosc'] as $name) {
+            $job = $this->job($name);
+            // Kontrola dodatnia: brak całego checkoutu nie jest oszczędnością.
+            $this->assertSame(1, preg_match('/uses: actions\/checkout@[^\s]+(?<opcje>.*?)(?=^      - |\z)/ms', $job, $checkout), $name.': brak checkoutu.');
+            $this->assertDoesNotMatchRegularExpression('/fetch-depth:\s*0\b/', $checkout['opcje'],
+                $name.': pełną historię pobiera już zakres; pomiar potrzebuje drzewa i indeksu.');
+            $this->assertStringContainsString('needs: zakres', $job);
+            $this->assertStringContainsString('needs.zakres.outputs.widok', $job);
+        }
+    }
+
+    public function test_zakres_zachowuje_historie_do_porownania_z_baza(): void
+    {
+        $job = $this->job('zakres');
+        $this->assertStringContainsString('fetch-depth: 0', $job);
+        $this->assertStringContainsString('git diff --name-only "${BAZA}" HEAD', $job);
+    }
+
     private function workflow(): string
     {
         return (string) file_get_contents(base_path('.github/workflows/ci.yml'));
