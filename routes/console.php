@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use App\Support\ScheduledArtisanCommand;
 use Illuminate\Foundation\Inspiring;
 use Illuminate\Support\Facades\Artisan;
-use Illuminate\Support\Facades\Schedule;
 
 Artisan::command('inspire', function () {
     $this->comment(Inspiring::quote());
@@ -34,8 +34,8 @@ Artisan::command('inspire', function () {
 // losowymi 502 w trakcie zwykłej pracy.
 //
 // `Schedule::call()` wykonuje domknięcie w TYM SAMYM procesie PHP, więc
-// `proc_open` nie jest potrzebny. `Artisan::call()` uruchamia tę samą komendę
-// co wcześniej i zwraca jej kod wyjścia.
+// `proc_open` nie jest potrzebny. ScheduledArtisanCommand::artisan() tłumaczy kod 0 na true,
+// a każdy niezerowy na false: CallbackEvent nie rozpoznaje liczby 1 jako błędu (#835).
 //
 // Kosztem jest utrata `runInBackground()`: sprzątanie eksportów blokuje pętlę
 // harmonogramu na czas swojego działania. Przy jednym uruchomieniu na dobę
@@ -44,12 +44,12 @@ Artisan::command('inspire', function () {
 // Zdjęcia wgrane, ale do niczego nieprzypięte (audyt C1). Powstają, gdy ktoś
 // wybierze zdjęcia, dostanie błąd walidacji i zamknie kartę zamiast poprawić.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy zadaniu niżej.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-osierocone-zdjecia'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-osierocone-zdjecia')
     ->dailyAt('03:40')
     ->name('sprzataj-osierocone-zdjecia')
     ->withoutOverlapping();
 
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-eksporty')
     ->name('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')
     ->withoutOverlapping();
@@ -76,7 +76,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
 // Gdyby liczba replik serwisu kiedykolwiek przekroczyła 1 (dziś jest jedna),
 // KAŻDE zadanie w tym pliku musiałoby dostać `->onOneServer()` — nie z powodu
 // tej pary, tylko dlatego, że każda replika ma własny harmonogram.
-Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
+ScheduledArtisanCommand::artisan('kuking:zdejmij-wygasle-kary')
     ->name('kuking:zdejmij-wygasle-kary')
     ->hourly()
     ->withoutOverlapping();
@@ -90,7 +90,7 @@ Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
 // godziną wygaśnięcia jak zawieszenie, tylko okno na zmianę zdania liczone
 // w dniach — dobowa dokładność wystarcza.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:usun-wygasle-konta'))
+ScheduledArtisanCommand::artisan('kuking:usun-wygasle-konta')
     ->name('kuking:usun-wygasle-konta')
     ->dailyAt('03:50')
     ->withoutOverlapping();
@@ -101,7 +101,7 @@ Schedule::call(fn () => Artisan::call('kuking:usun-wygasle-konta'))
 // §7) jest zasadą domyślną. Codziennie w nocy, nie co godzinę — to nie jest
 // termin z konkretną godziną jak zawieszenie, dobowa dokładność wystarcza.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-sygnaly'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-sygnaly')
     ->name('kuking:sprzataj-sygnaly')
     ->dailyAt('04:00')
     ->withoutOverlapping();
@@ -113,7 +113,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sygnaly'))
 // Codziennie w nocy, po sygnałach produktowych — dobowa dokładność
 // wystarcza, liczymy w miesiącach, nie w konkretnej godzinie wygaśnięcia.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-audyt'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-audyt')
     ->name('kuking:sprzataj-audyt')
     ->dailyAt('04:10')
     ->withoutOverlapping();
@@ -122,7 +122,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-audyt'))
 // `config('kuking.notifications.retention_months')` miesięcy od
 // `created_at`, niezależnie od `read_at`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-powiadomienia'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-powiadomienia')
     ->name('kuking:sprzataj-powiadomienia')
     ->dailyAt('04:20')
     ->withoutOverlapping();
@@ -135,7 +135,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-powiadomienia'))
 // zabrałoby odwołanie kaskadą, zanim minął jego własny czas — patrz
 // `App\Domain\Compliance\PrzedawnioneSprawyModeracyjne`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-sprawy-moderacyjne')
     ->name('kuking:sprzataj-sprawy-moderacyjne')
     ->dailyAt('04:30')
     ->withoutOverlapping();
@@ -147,7 +147,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
 // jest sprawa: nie ma tu decyzji, od której da się odwołać, ani sporu, do
 // którego można by wrócić — uzasadnienie przy kluczu w `config/kuking.php`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-wiadomosci'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-wiadomosci')
     ->name('kuking:sprzataj-wiadomosci')
     ->dailyAt('04:40')
     ->withoutOverlapping();
@@ -169,7 +169,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-wiadomosci'))
 // jeden po drugim, w tej samej minucie. Rozsuwamy je o dziesięć minut, tak jak
 // rozsunięta jest cała reszta tej listy.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-zmiany-adresu')
     ->name('kuking:sprzataj-zmiany-adresu')
     ->dailyAt('04:50')
     ->withoutOverlapping();
@@ -181,7 +181,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
 // okazji każdej prośby, więc to jest siatka bezpieczeństwa na dni bez ruchu —
 // i to ona daje polityce prywatności prawo napisać „najwyżej dobę".
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-zaproszenia')
     ->name('kuking:sprzataj-zaproszenia')
     ->dailyAt('05:00')
     ->withoutOverlapping();
@@ -230,7 +230,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sesje'))
 // nigdzie — umowa „brak zmiennej = zero efektu", ta sama co przy
 // `LOG_BLAD_WEBHOOK_URL`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
+ScheduledArtisanCommand::artisan('kuking:sprawdz-kopie')
     ->name('kuking:sprawdz-kopie')
     ->dailyAt('06:15')
     ->withoutOverlapping();
@@ -250,7 +250,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
 // i zdejmowanie kar. Pomiar liczby połączeń wykonany dokładnie wtedy, gdy
 // harmonogram sam otwiera swoje, mierzyłby po części własny hałas.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
+ScheduledArtisanCommand::artisan('kuking:budzet-polaczen')
     ->name('kuking:budzet-polaczen')
     ->hourlyAt(25)
     ->withoutOverlapping();
@@ -266,7 +266,7 @@ Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
 // i przetwarzanie zdjęć. Godzina ciszy przy rejestracji nowej osoby jest
 // różnicą między „wolno" a „nie działa". Powtórzeń pilnuje `AlarmKolejki`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprawdz-kolejke'))
+ScheduledArtisanCommand::artisan('kuking:sprawdz-kolejke')
     ->name('kuking:sprawdz-kolejke')
     ->everyFifteenMinutes()
     ->withoutOverlapping();
@@ -276,7 +276,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprawdz-kolejke'))
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
 // Uzasadnienie pełne w `App\Domain\Analytics\LiczbaKukingow`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
+ScheduledArtisanCommand::artisan('kuking:policz-kukingow')
     ->name('kuking:policz-kukingow')
     ->hourly()
     ->withoutOverlapping();
@@ -291,7 +291,7 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
 // to zadanie jest siatką bezpieczeństwa na świeże wdrożenie z pustym cache
 // i na kolejkę „Bez odpowiedzi", która haka przy zapisie świadomie nie ma.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
+ScheduledArtisanCommand::artisan('kuking:policz-kolejki')
     ->name('kuking:policz-kolejki')
     ->everyFiveMinutes()
     ->withoutOverlapping();
@@ -307,7 +307,7 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
 // alarm. Poza tym trzyma się z dala od pasma 03:20–04:50, w którym chodzi
 // całe sprzątanie — w roli `all` harmonogram jest jednym procesem.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
+ScheduledArtisanCommand::artisan('kuking:podsumowanie-automatu')
     ->name('kuking:podsumowanie-automatu')
     ->dailyAt('07:00')
     ->withoutOverlapping();
@@ -323,7 +323,7 @@ Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
 // O nowych odwołaniach mówi powiadomienie w panelu i licznik przy pozycji
 // „Odwołania" — pełne uzasadnienie w `PowiadomOOdwolaniu` i D-060.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
+ScheduledArtisanCommand::artisan('kuking:pilnuj-terminow-odwolan')
     ->name('kuking:pilnuj-terminow-odwolan')
     ->dailyAt('07:10')
     ->withoutOverlapping();
@@ -366,7 +366,7 @@ Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
 // harmonogramu oszczędza tu więc pracę i zapytania, nie listy.
 //
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
+ScheduledArtisanCommand::artisan('kuking:wyslij-podsumowania')
     ->name('kuking:wyslij-podsumowania')
     ->dailyAt('08:30')
     ->withoutOverlapping();
