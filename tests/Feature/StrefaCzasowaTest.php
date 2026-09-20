@@ -32,6 +32,88 @@ use Tests\TestCase;
  */
 class StrefaCzasowaTest extends TestCase
 {
+    /**
+     * WIDOKI, KTÓRYM WOLNO WOŁAĆ `->format()` POZA `Czas::`.
+     *
+     * Rejestr istnieje, bo `->format()` ma DWA różne zastosowania, a skan
+     * ich nie odróżnia: format dla człowieka (wtedy musi iść przez `Czas::`,
+     * inaczej pokaże UTC) i format dla maszyny — `datetime` w `<time>`,
+     * ISO 8601 w danych strukturalnych, nazwa pliku w eksporcie. Ten drugi
+     * MA być niezależny od strefy czytelnika i przepuszczanie go przez
+     * `Czas::` byłoby usterką, nie poprawką.
+     *
+     * Rejestr jest PUSTY i to jest stan zmierzony, nie założony: 20.09.2026
+     * w `resources/views` nie było ani jednego wywołania `->format()`.
+     * Wpis wolno dopisać tylko z powodem mówiącym, DLA KOGO jest ten format.
+     * „Tak było" nie jest powodem.
+     *
+     * Pilnuje tego `test_rejestr_formatowania_nie_ma_martwych_wpisow` —
+     * wpis wskazujący plik, który nie woła `->format()`, jest usuwany,
+     * zanim zdąży kogoś przekonać, że coś sprawdzono.
+     *
+     * @var array<string, string>
+     */
+    private const WYJATKI_FORMATOWANIA = [];
+
+    /**
+     * REJESTR NIE MA MARTWYCH WPISÓW.
+     *
+     * Wpis, który przestał być potrzebny, jest gorszy niż jego brak: wygląda
+     * na świadomą decyzję i cicho wyłącza spod skanu plik, który od dawna
+     * niczego nie łamie. Następny czytelnik zobaczy wyjątek i uzna, że ktoś
+     * to przemyślał.
+     */
+    public function test_rejestr_formatowania_nie_ma_martwych_wpisow(): void
+    {
+        /*
+         * ASERCJA, KTÓRA DZIAŁA TAKŻE PRZY PUSTYM REJESTRZE.
+         *
+         * Sama pętla niżej nie wykonuje się, dopóki rejestr jest pusty —
+         * a test bez ani jednej asercji jest zielony i nic nie znaczy
+         * (PHPUnit nazywa go „risky" i ma rację). Dlatego najpierw
+         * potwierdzamy stan, który ten pusty rejestr opisuje: w widokach
+         * nie ma dziś ani jednego gołego `->format()`. Gdy ktoś takie
+         * wywołanie doda i wpisze je do rejestru, ta liczba przestanie być
+         * zerem i pętla zacznie mieć co sprawdzać.
+         */
+        $zFormatem = [];
+
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(resource_path('views')),
+        );
+
+        foreach ($iterator as $plik) {
+            if (! str_ends_with((string) $plik, '.blade.php')) {
+                continue;
+            }
+
+            if (str_contains((string) file_get_contents((string) $plik), '->format(')) {
+                $zFormatem[] = str_replace(resource_path('views').'/', '', (string) $plik);
+            }
+        }
+
+        sort($zFormatem);
+
+        $this->assertSame(
+            array_keys(self::WYJATKI_FORMATOWANIA),
+            $zFormatem,
+            'Widoki wołające `->format()` muszą zgadzać się co do jednego z rejestrem wyjątków. '
+            .'Nowe wywołanie bez wpisu to przeoczenie; wpis bez wywołania to martwy wyjątek.',
+        );
+
+        foreach (self::WYJATKI_FORMATOWANIA as $wzgledna => $powod) {
+            $sciezka = resource_path('views').'/'.$wzgledna;
+
+            $this->assertFileExists($sciezka, "Rejestr wskazuje nieistniejący widok: {$wzgledna}");
+            $this->assertNotSame('', trim($powod), "Wpis rejestru bez powodu: {$wzgledna}");
+            $this->assertStringContainsString(
+                '->format(',
+                (string) file_get_contents($sciezka),
+                "Martwy wpis rejestru: {$wzgledna} nie woła już ->format(), więc wyjątek jest niepotrzebny.",
+            );
+        }
+    }
+
     use RefreshDatabase;
 
     protected function tearDown(): void
@@ -138,10 +220,16 @@ class StrefaCzasowaTest extends TestCase
             // z doklejonym `->diffForHumans()` jest poprawne, więc szukanie
             // samego „->diffForHumans(" w pliku dawałoby fałszywy alarm,
             // a szukanie „czy plik gdziekolwiek używa Czas::" — fałszywą zieleń.
+            $wzgledna = str_replace(resource_path('views').'/', '', (string) $plik);
+
+            if (array_key_exists($wzgledna, self::WYJATKI_FORMATOWANIA)) {
+                continue;
+            }
+
             foreach (explode("\n", $tresc) as $linia) {
-                foreach (['translatedFormat', 'diffForHumans'] as $metoda) {
+                foreach (['translatedFormat', 'diffForHumans', 'format'] as $metoda) {
                     if (str_contains($linia, '->'.$metoda.'(') && ! str_contains($linia, 'Czas::')) {
-                        $winne[] = str_replace(resource_path('views').'/', '', (string) $plik);
+                        $winne[] = $wzgledna;
                     }
                 }
             }
