@@ -23,7 +23,7 @@ Konfiguracja przez middleware (np. pakiet `spatie/laravel-csp` lub własny middl
 > bez `new Function`).
 >
 > **Jedyna niedomknięta dyrektywa:** `style-src` ma jeszcze `unsafe-inline`,
-> bo w widokach zostało 355 atrybutów `style="…"` w 57 plikach. Nonce ich nie
+> bo w widokach zostało 198 atrybutów `style="…"` w 14 plikach. Nonce ich nie
 > ratuje — działa na elementy `<style>`, a nie na atrybut `style`. Nagłówek
 > `Report-Only` jest ustawiony ostrzej (`style-src` z samym nonce), żeby
 > mierzyć dokładnie tę pozostałość, a nie coś, co jest już w porządku.
