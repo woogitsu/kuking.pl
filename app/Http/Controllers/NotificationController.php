@@ -198,13 +198,65 @@ class NotificationController extends Controller
         // `notifications()`, czyli `WHERE user_id = <ta osoba>` — cudzy wiersz
         // nie wejdzie do `UPDATE`, nawet gdyby ktoś kiedyś rozluźnił `firstOrFail()`
         // wyżej. AGENTS.md §7: UUID w adresie to nie autoryzacja.
-        $request->user()
-            ->notifications()
-            ->whereKey($powiadomienie->getKey())
-            ->whereNull('read_at')
-            ->update(['read_at' => now()]);
-
+        //
+        // WYJĄTEK: TYPE_COOKED Z ISTNIEJĄCYM CELEM CZEKA Z OZNACZENIEM NA
+        // `CookedEventController::celebrate()` — patrz uzasadnienie niżej,
+        // przy liczeniu `$oznaczTutaj`. Rdzeń zapisu (jedno zdanie SQL,
+        // `WHERE read_at IS NULL`, bez sprawdzenia w PHP) jest identyczny
+        // w obu miejscach.
         $cel = $powiadomienie->adresDocelowy();
+
+        // WYŚCIG MIĘDZY WYŚWIETLENIEM LISTY A TYM KLIKNIĘCIEM (issue #771).
+        //
+        // `Notification::scopeVisibleTo()` już ukrywa z LISTY powiadomienia
+        // o ugotowaniu/zapisie, których cel zniknął — ale to filtr przy
+        // ODCZYCIE strony, sprzed chwili. Cel mógł zniknąć MIĘDZY tamtym
+        // odczytem a tym POST-em (usunięcie wykonania albo przepisu w tym
+        // oknie, druga karta przeglądarki, stary link z powiadomienia
+        // e-mail). Bez tej kontroli `redirect()->to($cel)` niżej prowadziłby
+        // do route model bindingu, który i tak skończyłby 404 — tyle że
+        // brzydko, zamiast tym samym grzecznym „zostań na miejscu", co
+        // powiadomienie bez celu ma od issue #276.
+        //
+        // JEDNO zapytanie na TĘ JEDNĄ notatkę, nie na całą stronę — inaczej
+        // niż `scopeVisibleTo()`, to nie jest N+1: `open()` obsługuje zawsze
+        // dokładnie jeden wiersz.
+        if ($cel !== null && ! $powiadomienie->celIstniejeNadal()) {
+            $cel = null;
+        }
+
+        /*
+         * ISSUE #770 — PIERWSZE „ZOBACZ" NIE MA PRAWA OMINĄĆ CELEBRACJI.
+         *
+         * `CookedEventController::celebrate()` traktuje `read_at` jako dowód
+         * „ekran już był pokazany" (patrz jego własny komentarz) i na tej
+         * podstawie odsyła DALEJ, do zwykłego `cooked.show`, zamiast pokazać
+         * „Komuś wyszło". Ten kontroler, oznaczając powiadomienie jako
+         * przeczytane TU, ZANIM celebracja w ogóle się wyświetliła,
+         * podsuwał `celebrate()` fałszywy dowód — pierwsze kliknięcie
+         * „Zobacz" z listy powiadomień lądowało od razu na zwykłym wpisie.
+         *
+         * DLA TYPE_COOKED Z ISTNIEJĄCYM CELEM znacznik zostaje więc
+         * NIEUSTAWIONY tutaj — ustawi go `celebrate()` w chwili, gdy
+         * ekran NAPRAWDĘ się pokaże, dokładnie tak jak przy bezpośrednim
+         * wejściu z e-maila czy zakładki. To nie łamie D-079 („nie
+         * przesuwaj `read_at` w przód przy powtórce"): tu nic jeszcze nie
+         * jest ustawione, więc nie ma czego przesuwać — a `celebrate()` ma
+         * własną, atomową wersję tego samego zapisu.
+         *
+         * POZOSTAŁE PRZYPADKI (cel zniknął, inny typ powiadomienia) NIE
+         * mają żadnego drugiego ekranu, który mógłby to później oznaczyć —
+         * dla nich znacznik stoi TUTAJ, jak dotychczas.
+         */
+        $oznaczTutaj = ! ($powiadomienie->type === Notification::TYPE_COOKED && $cel !== null);
+
+        if ($oznaczTutaj) {
+            $request->user()
+                ->notifications()
+                ->whereKey($powiadomienie->getKey())
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        }
 
         // ODESŁANIE TYLKO W OBRĘBIE SERWISU. Adres dla typów spoza `match`
         // bierze się z `data['url']`, czyli z wiersza w bazie. Dziś wpisuje
@@ -218,17 +270,56 @@ class NotificationController extends Controller
         return redirect()->to($cel);
     }
 
-    /** Czy adres prowadzi do tego serwisu, a nie na zewnątrz. */
+    /**
+     * Czy adres prowadzi do tego serwisu, a nie na zewnątrz (issue #733).
+     *
+     * CO BYŁO ZA SŁABE. Pierwsza gałąź przyjmowała każdy napis zaczynający
+     * się od pojedynczego `/` — w tym `/\example.invalid/proba`. Przeglądarki
+     * (i parser WHATWG URL) traktują odwrócony ukośnik w adresie
+     * względnym jak zwykły `/`, więc taki napis w nagłówku `Location`
+     * wychodzi jako adres DO INNEGO HOSTA, nie ścieżka w tym serwisie.
+     * Druga gałąź porównywała wyłącznie `PHP_URL_HOST`, pomijając schemat
+     * i port — `https://kuking.pl:444/x` albo `http://kuking.pl/x` przy
+     * HTTPS w `app.url` przechodziły, choć mają inne origin.
+     *
+     * KRYTERIUM PO POPRAWCE: znormalizowana ścieżka względna (pojedynczy
+     * `/`, bez odwróconego ukośnika i bez znaków sterujących) ALBO adres
+     * HTTP(S) o dokładnie tym samym schemacie, hoście i efektywnym porcie
+     * co `config('app.url')` — ten sam pomysł co
+     * `App\Support\LinkiWTekscie::wewnetrzny()`, tylko dopuszczający też
+     * adresy względne, bo `data['url']` w tej tabeli bywa jednym i drugim.
+     * `userinfo` (`user:pass@host`) jest zawsze odrzucane — taki adres nie
+     * jest ani ścieżką, ani czystym adresem do naszego hosta.
+     */
     private function wlasnyAdres(string $adres): bool
     {
-        if (str_starts_with($adres, '/') && ! str_starts_with($adres, '//')) {
-            return true;
+        if ($adres === '' || str_contains($adres, '\\') || preg_match('/[\x00-\x1F\x7F]/', $adres) === 1) {
+            return false;
         }
 
-        $gospodarz = parse_url($adres, PHP_URL_HOST);
+        $cel = parse_url($adres);
 
-        return $gospodarz !== false
-            && $gospodarz !== null
-            && $gospodarz === parse_url((string) config('app.url'), PHP_URL_HOST);
+        if ($cel === false || isset($cel['user']) || isset($cel['pass'])) {
+            return false;
+        }
+
+        if (! isset($cel['scheme']) && ! isset($cel['host'])) {
+            return isset($cel['path'])
+                && str_starts_with($cel['path'], '/')
+                && ! str_starts_with($cel['path'], '//');
+        }
+
+        $aplikacja = parse_url((string) config('app.url'));
+
+        if ($aplikacja === false || ! isset($cel['scheme'], $cel['host'], $aplikacja['scheme'], $aplikacja['host'])) {
+            return false;
+        }
+
+        $port = static fn (array $url): int => $url['port'] ?? (strtolower($url['scheme']) === 'https' ? 443 : 80);
+
+        return in_array(strtolower($cel['scheme']), ['http', 'https'], true)
+            && strtolower($cel['scheme']) === strtolower($aplikacja['scheme'])
+            && strtolower($cel['host']) === strtolower($aplikacja['host'])
+            && $port($cel) === $port($aplikacja);
     }
 }

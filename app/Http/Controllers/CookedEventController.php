@@ -255,7 +255,21 @@ class CookedEventController extends Controller
             ->where('data->cooked_event_id', $cookedEvent->getKey())
             ->first();
 
-        if ($notification !== null && $notification->isUnread() === false) {
+        // POWRÓT PO ODRZUCONYM „PODZIĘKUJ" NIE JEST „PONOWNYM WEJŚCIEM"
+        // (dopisek do issue #770). `thank()` przy błędzie walidacji wraca
+        // przez `back()->withInput()->withErrors(...)` — czyli na TĘ SAMĄ
+        // trasę, GET-em, z sesją niosącą stary tekst i błąd. Bez tego
+        // wyjątku `read_at` (ustawione już przy PIERWSZYM wyświetleniu
+        // ekranu, chwilę wcześniej w tym samym odwiedzinach) wyglądałoby
+        // jak „ekran już był", a człowiek zamiast poprawić za długi tekst
+        // trafiałby prosto na `cooked.show` — z utraconą treścią i bez
+        // żadnego komunikatu o błędzie.
+        //
+        // `hasOldInput()` jest prawdziwe WYŁĄCZNIE bezpośrednio po takim
+        // odbiciu (Laravel czyści `old` z sesji po jednym odczytaniu przy
+        // kolejnym żądaniu), więc nie otwiera to na nowo celebracji przy
+        // zwykłym, niepowiązanym „ponownym wejściu" tydzień później.
+        if ($notification !== null && $notification->isUnread() === false && ! $request->session()->hasOldInput()) {
             return redirect()->route('cooked.show', $cookedEvent);
         }
 
@@ -265,7 +279,13 @@ class CookedEventController extends Controller
         // by je zgubił, zamiast rzucić błąd, i ten ekran nigdy by się nie
         // "zapamiętywał". `forceFill()` to ten sam wzorzec co przy zmianie
         // `status`/`role` w User (tam z tego samego powodu).
-        $notification?->forceFill(['read_at' => now()])->save();
+        // `isUnread()` GUARD: przy odbiciu po odrzuconym „Podziękuj" (wyżej)
+        // powiadomienie MOŻE być już przeczytane — bez tego warunku ten
+        // zapis przesuwałby `read_at` w przód przy KAŻDYM takim odbiciu,
+        // dokładnie to, czego D-079 zabrania.
+        if ($notification?->isUnread() === true) {
+            $notification->forceFill(['read_at' => now()])->save();
+        }
 
         $cookedEvent->load(['user.profile.avatar', 'recipe', 'media']);
 

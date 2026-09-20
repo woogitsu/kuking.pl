@@ -224,7 +224,20 @@ class Notification extends Model
             // kiedy ekran już był raz pokazany.
             self::TYPE_COOKED => isset($data['cooked_event_id']) ? route('cooked.celebrate', $data['cooked_event_id']) : null,
             self::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
-            self::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
+            // CEL LICZONY ZE SPRAWCY, NIE Z NAPISU ZAPISANEGO W CHWILI
+            // OBSERWOWANIA (issue #734). `data['username']` był tylko
+            // migawką z dnia zdarzenia — po zmianie nazwy profilu przez
+            // `ProfileSettingsController` prowadził do 404 (nazwa już
+            // niczyja) albo, gorzej, do KOGOŚ INNEGO, kto tę zwolnioną
+            // nazwę zdążył zająć. `actor_id` jest stabilnym kluczem obcym
+            // do konta, które naprawdę zaczęło obserwować — to on ma
+            // rozstrzygać, dokąd prowadzi „Zobacz", z aktualnym profilem.
+            // Relacja `actor.profile` jest już wczytywana w liście
+            // (`NotificationController::index()`, `with('actor.profile.avatar')`),
+            // więc to nie dokłada N+1 tam, gdzie się liczy.
+            self::TYPE_FOLLOW => $this->actor?->profile?->username !== null
+                ? route('profile.show', $this->actor->profile->username)
+                : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),
             // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
             // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
@@ -241,6 +254,32 @@ class Notification extends Model
                 ? route('reports.mine.show', $data['report_id'])
                 : null,
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
+        };
+    }
+
+    /**
+     * Czy cel `adresDocelowy()` NADAL istnieje — kontrola wyścigu z issue
+     * #771, wołana wyłącznie z `NotificationController::open()` przy
+     * KLIKNIĘCIU, na jednym konkretnym wierszu (nie na liście — tam
+     * istnienie celu pilnuje `scopeVisibleTo()`, żeby nie dokładać N+1 do
+     * strony z trzydziestoma powiadomieniami).
+     *
+     * Pozostałe typy zwracają `true` bez zapytania: ich cel jest trasą bez
+     * identyfikatora treści (`admin.unanswered`, `posts.create`, …) albo ma
+     * już własną kontrolę autoryzacji/istnienia w kontrolerze docelowym
+     * (zgłoszenia, profil).
+     */
+    public function celIstniejeNadal(): bool
+    {
+        $data = $this->data ?? [];
+
+        return match ($this->type) {
+            self::TYPE_COOKED => ! isset($data['cooked_event_id']) || CookedEvent::whereKey($data['cooked_event_id'])->exists(),
+            // `Recipe` ma `SoftDeletes` — `whereKey()->exists()` domyślnie
+            // pomija wiersze z ustawionym `deleted_at`, więc jedna kontrola
+            // obsługuje zarówno twarde, jak i miękkie zniknięcie przepisu.
+            self::TYPE_SAVED => ! isset($data['recipe_id']) || Recipe::whereKey($data['recipe_id'])->exists(),
+            default => true,
         };
     }
 
@@ -423,6 +462,63 @@ class Notification extends Model
                                     fn (QueryBuilder $s) => $this->wierszWykonaniaWidoczny($s, $viewer),
                                 ));
                         });
+                });
+        });
+
+        /*
+         * POWIADOMIENIE O UGOTOWANIU ALBO O ZAPISIE DO ZESZYTU, KTÓREGO CEL
+         * ZNIKNĄŁ (issue #771).
+         *
+         * `TYPE_COOKED` niesie `cooked_event_id`, `TYPE_SAVED` niesie
+         * `recipe_id` — oba są zwykłymi kolumnami w bazie, BEZ klucza obcego
+         * z kaskadą (w odróżnieniu od zdjęć i komentarzy pod tymi tabelami).
+         * Usunięcie wykonania (`CookedEventController::destroy()`) albo
+         * przepisu (`RecipeController::destroy()`, soft delete) nie rusza
+         * więc samego wiersza powiadomienia — zostawało ono z obietnicą
+         * „Jest zdjęcie" i przyciskiem „Zobacz" prowadzącym do 404.
+         *
+         * ODBIORCĄ JEST ZAWSZE WŁAŚCICIEL TREŚCI (autor przepisu), więc — tak
+         * jak w komentarzu wyżej dla pozostałych typów — nie potrzeba tu
+         * pełnej reguły `wierszTresciWidoczny()` (status/widoczność/blokada):
+         * właściciel widzi własne rzeczy niezależnie od ich stanu. Liczy się
+         * WYŁĄCZNIE istnienie wiersza. Usunięty PRZEPIS (soft delete) różni
+         * się od usuniętego WYKONANIA (twardy `delete()`, brak `deleted_at`
+         * w `cooked_events`) — stąd osobny warunek `deleted_at` tylko przy
+         * `recipes`.
+         *
+         * WYŚCIG MIĘDZY WYŚWIETLENIEM LISTY A KLIKNIĘCIEM (kryterium odbioru
+         * #771) nie jest tu naprawiony filtrem — filtr działa tylko przy
+         * ODCZYCIE listy. Naprawia go `adresDocelowy()` niżej, wołany PONOWNIE
+         * w `NotificationController::open()` w chwili kliknięcia: gdy cel
+         * zniknął w międzyczasie, zwraca `null`, a kontroler od issue #276
+         * już umie grzecznie zostać na miejscu zamiast prowadzić w 404.
+         */
+        // BRAK IDENTYFIKATORA W DANYCH NIE JEST TYM SAMYM CO „ZNIKNĄŁ".
+        // Starsze albo ręcznie zbudowane w testach powiadomienia czasem
+        // w ogóle nie niosą `cooked_event_id`/`recipe_id` — `adresDocelowy()`
+        // i tak nie zbuduje dla nich linku (`isset()` wyżej), więc chowanie
+        // ich TU dodatkowo nie naprawia niczego, a tylko zabrałoby z listy
+        // powiadomienie, które nigdy nie obiecywało „Zobacz".
+        $query->where(function (Builder $tylkoIstniejaceCele): void {
+            $tylkoIstniejaceCele
+                ->where('notifications.type', '!=', self::TYPE_COOKED)
+                ->orWhereRaw("notifications.data->>'cooked_event_id' IS NULL")
+                ->orWhereExists(function (QueryBuilder $sub): void {
+                    $sub->selectRaw('1')
+                        ->from('cooked_events as istniejace_wykonanie')
+                        ->whereRaw("istniejace_wykonanie.id = (notifications.data->>'cooked_event_id')::uuid");
+                });
+        });
+
+        $query->where(function (Builder $tylkoIstniejaceCele): void {
+            $tylkoIstniejaceCele
+                ->where('notifications.type', '!=', self::TYPE_SAVED)
+                ->orWhereRaw("notifications.data->>'recipe_id' IS NULL")
+                ->orWhereExists(function (QueryBuilder $sub): void {
+                    $sub->selectRaw('1')
+                        ->from('recipes as istniejacy_przepis')
+                        ->whereRaw("istniejacy_przepis.id = (notifications.data->>'recipe_id')::uuid")
+                        ->whereNull('istniejacy_przepis.deleted_at');
                 });
         });
 
