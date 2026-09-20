@@ -336,7 +336,13 @@ class WyslijPodsumowaniaTygodnia extends Command
      */
     private function budzet(DziennyBudzetListow $budzetDnia): int
     {
-        $zostalo = $budzetDnia->zostalo();
+        // `zostaloLacznie()`, nie `zostalo()`: od 20 września 2026 sufit
+        // podsumowań leży WEWNĄTRZ wspólnej puli całej poczty, a wąskim
+        // gardłem bywa raz jeden, raz drugi. Liczba stąd służy do tego, żeby
+        // nie pobierać z bazy sześćdziesięciu odbiorców w dniu, w którym
+        // reszta serwisu wysłała już 250 listów i wspólny próg tej klasy
+        // (240) i tak odmówi przy pierwszym.
+        $zostalo = $budzetDnia->zostaloLacznie();
 
         if ($this->option('limit') === null) {
             return $zostalo;

@@ -39,11 +39,17 @@ use Illuminate\Support\Facades\Log;
  * i po tygodniu byłby przesunięty względem licznika, którego naprawdę
  * pilnujemy. Klucz niesie więc datę i wygasa sam.
  *
- * CZEGO TA KLASA NIE WIE: ile listów wysłały INNE części serwisu. Nie ma
- * jednego licznika całej poczty i celowo go tu nie budujemy — to byłby drugi
- * pomiar tej samej rzeczy, obok tego, który prowadzi dostawca. Ten licznik
- * pilnuje wyłącznie WŁASNEGO sufitu tej jednej funkcji, żeby nie zjadła
- * cudzego kawałka wiadra. Prawdziwy stan puli pokazuje panel EmailLabs.
+ * OD 20 WRZEŚNIA 2026 TA KLASA WIE TAKŻE, ILE LISTÓW WYSŁAŁ CAŁY SERWIS.
+ * Wcześniej stało tu, że wspólnego licznika całej poczty „celowo nie
+ * budujemy". Pomiar to przewrócił: `/nie-pamietam-hasla` nie miał ani sufitu
+ * na adres, ani budżetu poczty, więc jeden sprawca z jednego adresu IP
+ * (`limits.password_reset` = 5 na 10 minut, czyli 720 próśb na dobę) wysyłał
+ * listy na 300 RÓŻNYCH adresów i opróżniał całą pulę 300/dobę w około
+ * 70 minut. Ponawianie potwierdzenia adresu (`verification_resend` = 6 na
+ * minutę, bez sufitu dobowego) robiło to samo z jednego niepotwierdzonego
+ * konta w około 50 minut. Pierwszą rzeczą, która wtedy przestawała działać,
+ * było POTWIERDZENIE REJESTRACJI i LOGOWANIE LINKIEM — czyli wejście dla
+ * nowych ludzi. Patrz `wspolny()` niżej.
  *
  * CACHE, NIE BAZA: to jest licznik, nie dowód. Jego zgubienie (restart
  * kontenera z pamięciowym sterownikiem cache) kosztuje najwyżej tyle, że
@@ -131,21 +137,163 @@ final class DziennyBudzetListow
      */
     private const CZEKANIE_SEKUND = 2;
 
-    public function __construct(
-        private readonly string $funkcja = 'link-logowania',
-        private readonly string $kluczKonfiguracji = 'kuking.login_link.dzienny_budzet',
+    /**
+     * KLASY PILNOŚCI — czyli KOLEJNOŚĆ WYGASZANIA, gdy pula się kończy.
+     *
+     * Nazwa klasy wskazuje próg w `kuking.poczta.progi_wygaszania`: ile
+     * listów z całej puli ta klasa ma zostawić NIETKNIĘTYCH. Wyższy próg =
+     * gaśnie wcześniej. Pełne wyprowadzenie liczb stoi w `config/kuking.php`,
+     * sekcja `poczta` — tutaj są tylko nazwy, żeby literówka w łańcuchu nie
+     * tworzyła po cichu czwartej klasy z progiem zero (czyli klasy, która
+     * gasłaby OSTATNIA, bo nieznany klucz czyta się jako 0).
+     */
+    public const KLASA_PODSUMOWANIE = 'podsumowanie';
+
+    public const KLASA_ZWYKLA = 'zwykla';
+
+    public const KLASA_WEJSCIE = 'wejscie';
+
+    /** @var list<string> */
+    public const KLASY = [self::KLASA_PODSUMOWANIE, self::KLASA_ZWYKLA, self::KLASA_WEJSCIE];
+
+    /** Nazwa funkcji wspólnego licznika — JEDEN klucz w cache na cały serwis. */
+    private const FUNKCJA_WSPOLNA = 'cala-poczta';
+
+    /**
+     * KONSTRUKTOR JEST PRYWATNY, A WEJŚCIE PROWADZI PRZEZ WYTWÓRNIE.
+     *
+     * Do 20 września 2026 był publiczny i miał wartości domyślne z logowania
+     * linkiem, więc `app(DziennyBudzetListow::class)` dawało licznik tej
+     * funkcji — i tak właśnie brał go `LoginLinkController`. Po dołożeniu
+     * licznika WSPÓLNEGO to przestało być bezpieczne: kontener wstrzyknąłby
+     * obiekt BEZ nadrzędnego licznika, czyli sufit własny działałby dalej,
+     * a wspólnej puli ten list by nie zajął. Byłby to najgorszy rodzaj
+     * usterki — niewidoczny, bo wszystko wygląda na policzone.
+     */
+    private function __construct(
+        private readonly string $funkcja,
+        private readonly string $kluczKonfiguracji,
+        private readonly ?self $nadrzedny = null,
+        private readonly ?string $klasa = null,
     ) {}
 
-    /** Logowanie linkiem e-mail (issue #25) — domyślne zachowanie tej klasy. */
-    public static function dlaLinkuLogowania(): self
+    /**
+     * WSPÓLNY LICZNIK CAŁEJ POCZTY — jedno miejsce decyzji „komu gasimy
+     * pierwszemu" (decyzja właściciela z 20 września 2026).
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  DLACZEGO ROZSZERZENIE TEJ KLASY, A NIE WARSTWA NAD NIĄ
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Bo licznik zagnieżdżony w drugim liczniku jest tu już od D-085:
+     * zaproszenie do rejestracji zajmuje miejsce w DWÓCH sufitach naraz —
+     * najpierw w budżecie logowania linkiem, potem we własnym. Wspólny
+     * licznik jest tą samą konstrukcją o jedno piętro wyżej, a nie nowym
+     * mechanizmem. Osobna warstwa oznaczałaby drugą implementację atomowej
+     * rezerwacji (blokada, okno czekania, oddawanie nieużytego miejsca,
+     * ostrzeganie zawczasu) — czyli drugą kopię reguły, która w tym
+     * repozytorium jest usterką, nie niedogodnością.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  CO ROBI PRÓG, SKORO SUFITEM JEST LIMIT DOSTAWCY
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Sam wspólny licznik NIE dokłada ochrony przed przekroczeniem 300 —
+     * tego pilnuje dostawca i tak. Dokłada coś innego i o to chodziło:
+     * KOLEJNOŚĆ. Bez niego pulę zjada ten, kto był pierwszy, a odrzucony
+     * list PRZEPADA (worker ma trzy próby w sześć minut). Z nim o tym, co
+     * gaśnie jako pierwsze, decydujemy my, a nie przypadek — i klasa
+     * `wejscie` (potwierdzenie rejestracji, logowanie linkiem) sięga po
+     * OSTATNI list doby, bo bez niej nikt tu nie wejdzie.
+     *
+     * KAŻDA KLASA MA WŁASNY PRÓG, ALE WSZYSTKIE JEDEN LICZNIK. Nazwa
+     * funkcji jest dla wszystkich ta sama (`cala-poczta`), więc klucz
+     * w cache i klucz blokady są jedne — inaczej trzy klasy liczyłyby trzy
+     * różne „całe poczty" i żadna nie widziałaby pozostałych.
+     */
+    public static function wspolny(string $klasa): self
     {
-        return new self;
+        return new self(
+            self::FUNKCJA_WSPOLNA,
+            'kuking.poczta.limit_dostawcy_dobowy',
+            klasa: in_array($klasa, self::KLASY, true) ? $klasa : self::KLASA_ZWYKLA,
+        );
     }
 
-    /** Tygodniowe podsumowanie od gospodarza (issue #11, D-057). */
+    /**
+     * Logowanie linkiem e-mail (issue #25).
+     *
+     * Klasa `wejscie`: dla części osób jest to JEDYNA droga na konto, więc
+     * gaśnie jako ostatnia — razem z potwierdzeniem rejestracji.
+     */
+    public static function dlaLinkuLogowania(): self
+    {
+        return new self(
+            'link-logowania',
+            'kuking.login_link.dzienny_budzet',
+            self::wspolny(self::KLASA_WEJSCIE),
+        );
+    }
+
+    /**
+     * Potwierdzenie adresu e-mail — przy rejestracji i przy ponowieniu
+     * (`App\Domain\Security\WyslijPotwierdzenieAdresu`).
+     *
+     * WŁASNEGO SUFITU NIE MA I MIEĆ NIE BĘDZIE: to jest list, bez którego
+     * nowe konto nie potwierdzi adresu, więc jego jedynym ograniczeniem jest
+     * wspólna pula — i w niej stoi na samym końcu kolejki do wygaszenia.
+     * Przed zalewaniem tej drogi broni `limits.verification_resend` i to, że
+     * trzeba mieć konto; wspólny licznik pilnuje tylko tego, żeby jedno
+     * niepotwierdzone konto nie wypaliło puli całemu serwisowi.
+     */
+    public static function dlaPotwierdzeniaAdresu(): self
+    {
+        return self::wspolny(self::KLASA_WEJSCIE);
+    }
+
+    /**
+     * Przypomnienie hasła (`/nie-pamietam-hasla`).
+     *
+     * KLASA `zwykla`, NIE `wejscie`, I TO JEST CAŁA TREŚĆ TEJ WYTWÓRNI.
+     * Przypomnienie hasła też jest drogą powrotu na konto, więc odruch każe
+     * postawić je obok potwierdzenia rejestracji. Pomiar mówi co innego:
+     * prośbę o ten list składa KTOKOLWIEK Z ZEWNĄTRZ, na CUDZY adres, bez
+     * konta i bez dowodu, że ten adres do niego należy — czyli jest to
+     * dokładnie ta droga, którą zmierzony sprawca opróżniał pulę. Gdyby
+     * dostała próg zero, dzieliłaby ostatnie listy doby z listem, który ma
+     * chronić, i oba gasłyby razem. Zostaje więc nad rezerwą transakcyjną:
+     * gaśnie wcześniej i tych ostatnich listów nie dotyka.
+     */
+    public static function dlaOdzyskaniaHasla(): self
+    {
+        return self::wspolny(self::KLASA_ZWYKLA);
+    }
+
+    /**
+     * Listy wysyłane ręcznie przez moderatora albo przez zadanie w tle
+     * (odpowiedź z „Napisz do nas", decyzje moderacyjne, eksport danych).
+     *
+     * Klasa `zwykla` — zostawia nietkniętą rezerwę transakcyjną.
+     */
+    public static function dlaListuObslugi(): self
+    {
+        return self::wspolny(self::KLASA_ZWYKLA);
+    }
+
+    /**
+     * Tygodniowe podsumowanie od gospodarza (issue #11, D-057).
+     *
+     * Klasa `podsumowanie`: gaśnie PIERWSZE. Podsumowanie, które nie doszło,
+     * jest niczym; potwierdzenie rejestracji, które nie doszło, kończy komuś
+     * przygodę z serwisem, zanim się zaczęła.
+     */
     public static function dlaPodsumowania(): self
     {
-        return new self('podsumowanie-tygodnia', 'kuking.digest.dzienny_limit');
+        return new self(
+            'podsumowanie-tygodnia',
+            'kuking.digest.dzienny_limit',
+            self::wspolny(self::KLASA_PODSUMOWANIE),
+        );
     }
 
     /**
@@ -168,6 +316,13 @@ final class DziennyBudzetListow
      */
     public static function dlaZaproszenDoRejestracji(): self
     {
+        // NADRZĘDNEGO LICZNIKA TU NIE MA I TO NIE JEST PRZEOCZENIE.
+        // Ta droga wychodzi WYŁĄCZNIE spod rezerwacji logowania linkiem
+        // (`LoginLinkController::send` rezerwuje pierwsze, `WyslijLinkDoLogowania`
+        // schodzi tutaj dopiero wtedy, gdy na adresie nie ma konta), a tamta
+        // rezerwacja zajęła już miejsce we WSPÓLNEJ puli. Drugi rodzic
+        // liczyłby JEDEN list DWA razy — czyli pula kończyłaby się o połowę
+        // za wcześnie i to dokładnie na drodze wejścia dla nowych ludzi.
         return new self('zaproszenie-do-rejestracji', 'kuking.login_link.zaproszenia.dzienny_sufit');
     }
 
@@ -200,7 +355,59 @@ final class DziennyBudzetListow
     /** Odczyt do pokazania i do diagnostyki — obostrzenia jak w `zostalo()`. */
     public function jestMiejsce(): bool
     {
-        return $this->zostalo() > 0;
+        return $this->zostaloLacznie() > 0;
+    }
+
+    /**
+     * Ile z tego, co zostało, wolno ruszyć TEJ KLASIE listów.
+     *
+     * Różnica wobec `zostalo()` jest cała w progu wygaszania: przy pulI 300,
+     * zużyciu 80 i progu klasy `podsumowanie` (240) `zostalo()` mówi 220,
+     * a ta metoda — zero. Obie liczby są prawdziwe i obie są potrzebne:
+     * pierwsza opisuje wiadro, druga mówi, czy TEN list z niego wyjdzie.
+     */
+    public function zostaloWTejKlasie(): int
+    {
+        return max(0, $this->zostalo() - $this->prog());
+    }
+
+    /**
+     * Ile listów wolno jeszcze wysłać tą drogą, licząc RAZEM z nadrzędnym
+     * licznikiem — odczyt, obostrzenia jak w `zostalo()`.
+     *
+     * Bierze mniejszą z dwóch liczb, bo wąskim gardłem bywa raz sufit własny
+     * (tygodniowe podsumowanie: 60), a raz wspólna pula (dzień, w którym
+     * reszta serwisu wysłała już 250 listów). Do oszacowania ROZMIARU PACZKI
+     * potrzebna jest ta mniejsza — inaczej `kuking:wyslij-podsumowania`
+     * pobrałoby z bazy sześćdziesięciu odbiorców, żeby na piątym odbić się
+     * od wspólnego progu.
+     */
+    public function zostaloLacznie(): int
+    {
+        $wlasne = $this->zostaloWTejKlasie();
+
+        return $this->nadrzedny === null ? $wlasne : min($wlasne, $this->nadrzedny->zostaloLacznie());
+    }
+
+    /** Czy miejsce jest w TYM liczniku — bez pytania nadrzędnego. */
+    private function jestWlasneMiejsce(): bool
+    {
+        return $this->zostaloWTejKlasie() > 0;
+    }
+
+    /**
+     * Próg wygaszania TEJ klasy listów: ile z puli ma zostać nietknięte.
+     *
+     * Licznik bez klasy (sufit własny funkcji) ma próg zero — czyli zachowuje
+     * się dokładnie tak jak przed 20 września 2026.
+     */
+    private function prog(): int
+    {
+        if ($this->klasa === null) {
+            return 0;
+        }
+
+        return max(0, (int) config('kuking.poczta.progi_wygaszania.'.$this->klasa, 0));
     }
 
     /**
@@ -257,10 +464,24 @@ final class DziennyBudzetListow
      */
     public function sprobujZarezerwowac(): bool
     {
+        // NAJPIERW LICZNIK NADRZĘDNY, POTEM WŁASNY — i nigdy odwrotnie.
+        // Odwrotna kolejność zajmowałaby miejsce w suficie funkcji także
+        // wtedy, gdy wspólna pula i tak odmówi, więc dzień z wyczerpaną pulą
+        // wypalałby dodatkowo sufity wszystkich funkcji po kolei. Miejsce
+        // zajęte u rodzica wraca niżej, gdy własna rezerwacja się nie uda.
+        if ($this->nadrzedny !== null && ! $this->nadrzedny->sprobujZarezerwowac()) {
+            return false;
+        }
+
         try {
             $zajete = (bool) Cache::lock($this->kluczBlokady(), self::BLOKADA_SEKUND)
                 ->block(self::CZEKANIE_SEKUND, function (): bool {
-                    if (! $this->jestMiejsce()) {
+                    // WŁASNE miejsce, nie łączne: o miejsce u rodzica
+                    // spytaliśmy wyżej i już je zajęliśmy. Pytanie o nie
+                    // drugi raz — pod cudzą blokadą — byłoby braniem dwóch
+                    // blokad naraz w ustalonej kolejności bez żadnej
+                    // potrzeby.
+                    if (! $this->jestWlasneMiejsce()) {
                         return false;
                     }
 
@@ -290,11 +511,19 @@ final class DziennyBudzetListow
         // listów" sam zabierałby listy. Dokładnie ta klasa pomyłki, którą
         // opisuje komentarz przy `BLOKADA_SEKUND`: pod blokadą mają być
         // dwie operacje na cache i nic więcej.
-        if ($zajete) {
-            $this->ostrzezZawczasu();
+        if (! $zajete) {
+            // WŁASNY SUFIT ODMÓWIŁ, WIĘC LIST NIE WYJDZIE — a miejsce zajęte
+            // u rodzica musi wrócić do wspólnej puli. Bez tego wyczerpany
+            // sufit jednej funkcji (albo ścisk na jej blokadzie) zjadałby
+            // listy wszystkim pozostałym, nie wysławszy ani jednego.
+            $this->nadrzedny?->zwolnij();
+
+            return false;
         }
 
-        return $zajete;
+        $this->ostrzezZawczasu();
+
+        return true;
     }
 
     /**
@@ -333,6 +562,11 @@ final class DziennyBudzetListow
         } catch (LockTimeoutException) {
             // Świadomie pusto — patrz ostatni akapit opisu metody.
         }
+
+        // ...I TO SAMO U RODZICA. Rezerwacja szła z góry na dół, oddawanie
+        // idzie z dołu do góry — inaczej list, który nie wyszedł, zostawałby
+        // policzony we wspólnej puli na zawsze.
+        $this->nadrzedny?->zwolnij();
     }
 
     /**
