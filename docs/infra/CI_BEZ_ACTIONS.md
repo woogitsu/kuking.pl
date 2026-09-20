@@ -79,6 +79,15 @@ zanim ten trafi na GitHuba — czyli zanim zje minuty z puli.
 
 ### 1. Kontrola lokalna — dokładnie to samo, co robi CI
 
+Przed `check.sh` wyeksportuj jawne `DB_HOST=127.0.0.1`, `DB_PORT=55439`,
+`DB_DATABASE` (własna izolowana baza), `DB_USERNAME` i dane uwierzytelnienia.
+Usuń `DB_URL` z otoczenia kontroli. Skrypt odmawia przy brakujących parametrach
+lub innym lokalnym endpoincie; nie uruchamia klastra systemowego (#732).
+Sonda `pg_isready` potwierdza tylko gotowość serwera. Uwierzytelnienie,
+istnienie bazy i schemat weryfikują dopiero testy i migracje.
+Port usługi PostgreSQL w GitHub Actions pozostaje przydzielany dynamicznie.
+Regresja sondy bez dostępu do bazy: `bash tests/skrypty/check-postgres.sh`.
+
 ```bash
 ./scripts/check.sh          # pełna kontrola
 ./scripts/check.sh --szybko # bez budowania assetów

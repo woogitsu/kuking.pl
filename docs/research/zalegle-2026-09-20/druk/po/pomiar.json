@@ -1,0 +1,41 @@
+{
+  "chromium": "153.0.8010.12",
+  "results": [
+    {
+      "name": "krotki",
+      "theme": "light",
+      "pages": 2,
+      "controls": 0,
+      "background": "rgb(255, 255, 255)",
+      "colorScheme": "light",
+      "steps": 3
+    },
+    {
+      "name": "krotki",
+      "theme": "dark",
+      "pages": 2,
+      "controls": 0,
+      "background": "rgb(255, 255, 255)",
+      "colorScheme": "light",
+      "steps": 3
+    },
+    {
+      "name": "dlugi",
+      "theme": "light",
+      "pages": 4,
+      "controls": 0,
+      "background": "rgb(255, 255, 255)",
+      "colorScheme": "light",
+      "steps": 14
+    },
+    {
+      "name": "dlugi",
+      "theme": "dark",
+      "pages": 4,
+      "controls": 0,
+      "background": "rgb(255, 255, 255)",
+      "colorScheme": "light",
+      "steps": 14
+    }
+  ]
+}

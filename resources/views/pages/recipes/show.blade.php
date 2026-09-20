@@ -183,6 +183,7 @@
                  trzech osobnych miejsc w szablonie. --}}
             <p class="meta">{{ $recipe->attributionLine() }}</p>
             <h1>{{ $recipe->title }}</h1>
+            <p class="przepis-adres-druk">Adres przepisu: {{ route('recipes.show', $recipe->slug) }}</p>
 
             @if($recipe->status === \App\Models\Recipe::STATUS_HIDDEN)
                 {{--
@@ -287,7 +288,7 @@
             </div>
             @if($recipe->heroMedia)
                 <div class="przepis-hero-zdjecie marka-przepis-zdjecie">
-                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
+                    <x-photo :recipe="$recipe" :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
                 </div>
             @endif
         </header>
@@ -383,7 +384,7 @@
                     @endif
                     @if($recipe->sourceScan)
                         <div class="mt-4">
-                            <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
+                            <x-photo :recipe="$recipe" :media="$recipe->sourceScan" variant="feed" class="post-photo" />
                             <p class="meta">Kartka, z której jest ten przepis.</p>
                         </div>
                     @endif
@@ -505,7 +506,7 @@
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
-                                            <x-photo :media="$step->media" variant="feed" class="post-photo" />
+                                            <x-photo :recipe="$recipe" :media="$step->media" variant="feed" class="post-photo" />
                                         </div>
                                     @endif
                                 </div>
@@ -589,7 +590,7 @@
             osobny od `komentarze` obok), więc kliknięcie pokazuje kolejne
             PRAWDZIWE wykonania, nie placeholder.
         --}}
-        <section class="stack" aria-labelledby="komu-wyszlo">
+        <section class="stack przepis-bez-druku" aria-labelledby="komu-wyszlo">
             <div class="komu-wyszlo-naglowek">
                 <h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
                 @if($cookedCount > 0)
@@ -627,7 +628,7 @@
             </div>
         @endif
 
-        <div class="kolumna-czytania">
+        <div class="kolumna-czytania przepis-bez-druku">
             <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('recipes.comment', $recipe->slug)" />
         </div>
     </article>

@@ -1,0 +1,16 @@
+{
+  "nazwa": "lista748",
+  "plik": "app/Http/Controllers/SocialController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "aa2013b8022d79fe3a1fc676909a661c",
+  "md5_po_mutacji": "f86e384ab0f597d444907ece3db1869d",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Jeszcze nikogo nie obserwuje",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:37:51Z"
+}

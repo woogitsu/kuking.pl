@@ -43,6 +43,7 @@
     'class' => 'post-photo',
     'zoom' => true,
     'alt' => null,
+    'recipe' => null,
     'sizes' => '(min-width: 64rem) 720px, 100vw',
 ])
 @if($media && $media->maWariantDoPokazania($variant))
@@ -208,7 +209,13 @@
                     Tego zdjęcia nie udało się przygotować.
                 @endif
             </p>
-            @if($jestWlascicielem)
+            @if($recipe)
+                @if(auth()->user()?->isActive())
+                    @can('update', $recipe)
+                        <p class="photo-placeholder-zdanie"><a class="btn btn-secondary" href="{{ route('recipes.edit', $recipe->slug) }}">Zmień zdjęcie w przepisie</a></p>
+                    @endcan
+                @endif
+            @elseif($jestWlascicielem)
                 <p class="photo-placeholder-zdanie">Wpis możesz usunąć i dodać ponownie z innym zdjęciem.</p>
             @endif
         @else

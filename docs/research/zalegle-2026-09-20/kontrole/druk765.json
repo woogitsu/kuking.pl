@@ -1,0 +1,16 @@
+{
+  "nazwa": "druk765",
+  "plik": "resources/css/app.css",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "c67ebbf4f62e33864318e2cd3b8f34a2",
+  "md5_po_mutacji": "f1167c7f57529d43492964118c52225a",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Na papierze zostały",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:38:10Z"
+}

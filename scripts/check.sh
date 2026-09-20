@@ -45,19 +45,28 @@ zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; BLEDY=$((BLEDY + 1)); }
 
 # --- 1. Baza danych -------------------------------------------------------
 krok "PostgreSQL"
-if ! pg_isready -q 2>/dev/null; then
-    printf "Baza nie odpowiada — próbuję ją uruchomić…\n"
-    for wersja in 18 17 16 15; do
-        [ -d "/usr/lib/postgresql/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
-    done
-    sleep 2
+# Parametry muszą być eksportowane: ten sam endpoint dostaną też PHPUnit
+# i migracje. Nie wczytujemy .env jako kodu powłoki ani nie zarządzamy klastrem.
+for parametr in DB_HOST DB_PORT DB_DATABASE DB_USERNAME; do
+    if [ -z "${!parametr:-}" ]; then
+        zle "Ustaw i wyeksportuj $parametr dla własnej bazy testowej przed kontrolą."
+        exit 1
+    fi
+done
+if [ "$DB_HOST" != 127.0.0.1 ] || [ "$DB_PORT" != 55439 ]; then
+    zle "Ustaw DB_HOST=127.0.0.1 i DB_PORT=55439 dla lokalnego odbioru."
+    exit 1
 fi
-
-if pg_isready -q 2>/dev/null; then
-    ok "PostgreSQL działa"
+if [ -n "${DB_URL:-}" ]; then
+    zle "Usuń DB_URL z otoczenia kontroli i podaj osobne parametry własnej bazy testowej."
+    exit 1
+fi
+export DB_HOST DB_PORT DB_DATABASE DB_USERNAME
+if pg_isready -q -h "$DB_HOST" -p "$DB_PORT" -d "$DB_DATABASE" -U "$DB_USERNAME" 2>/dev/null; then
+    ok "Serwer PostgreSQL odpowiada na $DB_HOST:$DB_PORT (sonda nie sprawdza hasła ani istnienia bazy)"
 else
-    zle "PostgreSQL nie działa — testy Kuking nie chodzą na SQLite"
-    printf "  Uruchom: pg_ctlcluster 16 main start\n"
+    zle "PostgreSQL nie odpowiada na $DB_HOST:$DB_PORT. Sprawdź uruchomienie własnej instancji testowej i ponów kontrolę."
+    exit 1
 fi
 
 # --- 2. Formatowanie ------------------------------------------------------
@@ -104,6 +113,8 @@ elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
     # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
     # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
     zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
+elif ! bash tests/skrypty/check-postgres.sh >/dev/null 2>&1; then
+    zle "Izolacja sondy PostgreSQL oblewa — uruchom: bash tests/skrypty/check-postgres.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
 fi
