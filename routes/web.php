@@ -680,6 +680,7 @@ Route::middleware('auth')->group(function () use ($limits): void {
      *                                 nic już do niego nie linkuje.
      */
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
+    Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     Route::post('/dodaj/przepis', [RecipeController::class, 'store'])
         ->middleware("throttle:{$limits['post']},post")

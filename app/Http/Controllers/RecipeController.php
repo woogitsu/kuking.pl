@@ -139,9 +139,14 @@ class RecipeController extends Controller
      * UUID w adresie to nie autoryzacja: wejście idzie przez Policy, tak samo
      * jak edycja na jednej stronie.
      */
-    public function details(Request $request, Recipe $recipe): View
+    public function details(Request $request, Recipe $recipe): View|RedirectResponse
     {
         $this->authorize('update', $recipe);
+
+        // Nazwa szkicu zmienia slug. Kolejne żądania Livewire potrzebują stałego adresu.
+        if ($recipe->status === Recipe::STATUS_DRAFT) {
+            return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()]);
+        }
 
         return $this->wizard($request, $recipe);
     }
@@ -161,6 +166,21 @@ class RecipeController extends Controller
             'recipe' => null,
             'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
+    }
+
+    /** Prywatna lista autora; skróty na „Dodaj” nie zastępują dostępu do starszych szkiców. */
+    public function drafts(Request $request): View
+    {
+        $drafts = $request->user()->recipes()
+            ->where('status', Recipe::STATUS_DRAFT)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->cursorPaginate(20);
+        foreach ($drafts as $draft) {
+            $this->authorize('view', $draft);
+        }
+
+        return view('pages.recipes.drafts', ['drafts' => $drafts]);
     }
 
     private function wizard(Request $request, Recipe $recipe): View
