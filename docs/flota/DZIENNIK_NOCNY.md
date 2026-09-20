@@ -752,3 +752,423 @@ stał przed zapisami wcześniejszymi i psuł kolejność czytania.
 
 Godziny w zapisach kolejki9 są niezależne od moich: jej log stempluje UTC
 (`21:48:54Z` = 23:48:54 czasu lokalnego), więc te są wiarygodne.
+
+## 23:55 — `021264c6` jest na GitHubie, zweryfikowane SHA
+
+Kolejka9 zgłosiła `push exit=0` o `21:55:19Z`. Nie poprzestaję na kodzie wyjścia
+— sprawdzone wprost:
+
+```
+na GitHubie: 021264c694170b200594fdc6ab532e8f8bd2588c
+oczekiwane:  021264c694170b200594fdc6ab532e8f8bd2588c
+```
+
+PR #929 ma teraz głowicę `021264c6`. Czekam na przebieg z wyzwalacza
+`synchronize`. To jest rozstrzygnięcie nocy: jeżeli #929 zzielenieje, jedna
+gałąź zdejmuje czerwień z dziesięciu PR-ów; jeżeli nie — przyczyna jest szersza,
+niż ustaliłem, i trzeba ją szukać od nowa.
+
+Wcześniej w tej samej turze poszła `bramka-startowa` (`push exit=0`, `21:48:54Z`),
+a kolejka przeszła do `gemini-794`.
+
+## 00:05 (21.09) — Jak czytać postęp kolejki, żeby nie dać się okłamać
+
+Trzy liczby z tej samej chwili:
+
+| źródło | liczba | wiarygodne? |
+|---|---|---|
+| `pchniete.txt` | 61 | **nie** — dopisuje też FETCH FAIL i CHECKOUT FAIL |
+| `grep -c "push exit=0" kolejka9.log` | **19** | tak |
+| gałęzie z listy obecne na GitHubie | **20** | tak (to jest prawda ostateczna) |
+
+Dwie niezależne miary zgadzają się co do jednego, trzecia odstaje trzykrotnie.
+**Do oceny postępu używać logu i GitHuba, nigdy `pchniete.txt`.** Różnica 19 vs 20
+bierze się stąd, że jedna gałąź była już na zdalnym przed startem tej kolejki.
+
+Zalecenie do wykonania na spokojnie (nie ruszam teraz działającej kolejki):
+rozdzielić `pchniete.txt` na dwa pliki — `pchniete` i `pominiete`. Pominięcie
+musi zostawiać ślad, bo dziś wygląda identycznie jak sukces, a znaczy coś
+przeciwnego: praca została na dysku.
+
+## 00:05 (21.09) — Tempo wzrosło: rachunek z 23:41 był z godziny szczytu
+
+Ostatnie trzy pozycje szły po **5–7 minut**, nie po 20:
+
+```
+push exit=0  21:48:54Z   (bramka-startowa)
+push exit=0  21:55:19Z   (naprawa/klient-pg18-w-ci)
+push exit=0  22:00:58Z   (gemini-794)
+```
+
+Maszyna ucichła — obce runnery skończyły swoje przebiegi, więc próg obciążenia
+przestał blokować. Przy tym tempie **około stu pozostałych pozycji mieści się
+w nocy**, a nie w 32 godzinach, jak szacowałem o 23:41.
+
+Poprzedni rachunek nie był błędem pomiaru, tylko **wnioskiem z godziny szczytu
+podanym bez tego zastrzeżenia**. Tak się robi liczbę bez mianownika. Właściwe
+zdanie brzmi: „20 minut na gałąź przy maszynie obciążonej obcym CI, 5–7 minut
+przy wolnej" — i dopiero wtedy widać, że decyzja o obcych runnerach dotyczy
+godzin szczytu, a nie całej doby.
+
+## 00:12 (21.09) — Reszta kolejki jest zdrowa: 61 pozycji, wszystkie z pracą
+
+Przeszedłem listę pozycja po pozycji, odejmując zrobione:
+
+| | |
+|---|---|
+| pozostało do zrobienia | **61** |
+| z prawdziwą pracą (SHA ≠ `main`) | **61** |
+| pustych (stoją dokładnie na `main`) | **0** |
+| brakujących w repozytorium kanonicznym | **0** |
+
+To ważne z dwóch powodów.
+
+Po pierwsze: **żadna pozycja nie dostanie już FETCH FAIL**, więc od tej chwili
+`pchniete.txt` przestaje się zawyżać — mechanizm fałszywego wpisu nie ma czego
+uruchomić. Sprowadzenie siedmiu gałęzi z drugiego repozytorium o 23:48 właśnie
+to załatwiło.
+
+Po drugie: kolejka nie zmarnuje ani jednego przebiegu baterii na gałąź bez
+zmian. Komentarz w samym skrypcie wspomina dzień, w którym **44 z 54 pozycji
+było martwych** i paraliżowały kolejkę. Teraz martwych jest zero.
+
+Rachunek na noc: 61 × 6 minut ≈ **6 godzin**, przy maszynie wolnej od obcego CI.
+Jest szansa, że kolejka dojdzie do końca przed rankiem.
+
+## 00:25 (21.09) — DECYZJE CZEKAJĄCE NA WŁAŚCICIELA (zebrane w jednym miejscu)
+
+### Infrastruktura
+
+1. **Osiem runnerów GitHub Actions obcych projektów** (`lockstate`, `metro`,
+   `osadale`) dzieli maszynę z bramką pchania. W szczycie spowalnia ją
+   czterokrotnie (20 min na gałąź zamiast 5–7). Zatrzymanie ich na czas
+   nocnych przebiegów to decyzja o cudzych projektach — nie podejmuję jej sam.
+2. **`CI_RUNS_ON="ubuntu-latest"`** przy siedmiu bezczynnych własnych runnerach.
+   Po scaleniu rozdziału hybrydowego ustawić
+   `CI_RUNS_ON=["self-hosted","kuking-linux"]` oraz `CI_RUNS_ON_PRZEGLADARKA`.
+   Zostało ~2189 minut płatnej puli.
+3. **Rozdzielić `pchniete.txt` na `pchniete` i `pominiete`.** Dziś pominięcie
+   zapisuje się identycznie jak sukces i to dało raport 61 zamiast 20.
+
+### Produkt i zakres
+
+4. **#758** (komentarze) — stanowisko zostawiło **dwa warianty do wyboru**,
+   świadomie nie rozstrzygając. Opis w raporcie gałęzi `flota/komentarze`.
+5. **Gałąź `zeszyty`** cofa #789. Wyjęta z kolejki i **nie pchnięta** —
+   czeka na Twoje rozstrzygnięcie, bo to cofnięcie scalonej już zmiany.
+6. **Z15** — commit `2c561ce0` na `gpt/zawieszone-konto` dopisuje wpis do
+   `docs/DECISIONS.md` bez możliwości ustalenia, czyja to decyzja.
+7. **Z17** — `ExceptionContext::forStage()` na `gpt/dziennik-wyjatkow` ma
+   granicę zakresu bez nazwy.
+8. **Pary zdublowanej pracy**: `naprawa-858` / `tagi-filtr` oraz
+   `gpt-n1-powiadomienia` / `notyfikacja-zywa` — dwa stanowiska robiły to samo.
+
+### Nazewnictwo
+
+9. Na GitHubie stoją teraz gałęzie w dwóch konwencjach: `gpt/nazwa` (4 sztuki)
+   i `gpt-nazwa` (reszta, właśnie dojeżdża). Nie ujednolicam tego w nocy —
+   zmiana nazwy gałęzi zrywa powiązanie z otwartym PR-em.
+
+## 00:30 (21.09) — POTWIERDZONE: jedna gałąź zdejmuje obie czerwienie
+
+PR #929 po wjechaniu `021264c6`:
+
+```
+pass  Testy (PostgreSQL 18)     ← wcześniej FAILED (ProbaOdtworzeniaTest)
+pass  Pint (styl kodu)          ← wcześniej FAILED (9 × kod=51)
+```
+
+Bilans sprawdzeń: **11 zielonych, 0 czerwonych, 1 w biegu** (port marki).
+Poprzednio: `FAILURE:1, SKIPPED:3, SUCCESS:12`.
+
+To jest werdykt dla całej nocy. Hipoteza z 23:40 — że wszystkie czerwienie
+floty PR-ów mają jedno źródło w kliencie PostgreSQL i sondzie gotowości —
+**potwierdziła się pomiarem na żywym CI**, a nie rozumowaniem z logów.
+Dwie wcześniejsze hipotezy tej samej nocy upadły; ta się obroniła, bo jako
+jedyna miała po swojej stronie zmianę, którą dało się wykonać i zmierzyć.
+
+Co z tego wynika po kolei:
+1. Scalić #929 do `main` — właściciel włączył scalanie automatyczne.
+2. Pozostałe dziesięć PR-ów odświeżyć przez `gh run rerun --failed`
+   (dwa joby zamiast trzynastu — oszczędność rzędu kilkuset minut).
+3. Dopiero potem otwierać nowe PR-y dla gałęzi, które dojeżdżają kolejką.
+
+## 00:40 (21.09) — Bramka odrzuciła `gpt-ai-piloty` i miała rację; usterka jest realna
+
+Pierwsza porażka bramki tej nocy: `push exit=1`, PHPStan z 21 zastrzeżeniami:
+
+```
+Instantiated class Kuking\AiPilots\Transport not found.
+Call to static method reserve() on an unknown class Kuking\AiPilots\Budget.
+```
+
+**Klasy istnieją.** `scripts/ai-pilots/{Pilot,Transport,Budget}.php`, z poprawną
+przestrzenią nazw `Kuking\AiPilots`. Brakowało odwzorowania w `composer.json` —
+test wciągał je przez `require_once` w swoim `setUp`, a analiza statyczna takiej
+drogi nie prześledzi.
+
+Skutek był gorszy niż sama czerwień u bramki: w tym samym przebiegu stoi
+**„✓ Testy przechodzą"**. Czyli 231 linii testu kontraktowego meldowało
+pokrycie, a jednocześnie **żadne narzędzie nie pilnowało sygnatur tych klas** —
+zmiana nazwy metody w `Pilot` nie zapaliłaby nigdzie. Kontrakt wyglądał na
+pokryty i pokryty nie był. To jest ten sam kształt co „obietnica bez pokrycia",
+tylko po stronie narzędzi.
+
+Poprawka `84bcb0f1`: wpis `Kuking\AiPilots\` w **`autoload-dev`** (to
+narzędzia badawcze i ich testy, nie kod produkcyjny). `require_once` zostaje,
+bo `run.php` uruchamia te klasy także poza composerem.
+
+**Nie ogłaszam, że naprawione.** Nie uruchomiłem własnego PHPStana — rozstrzygnie
+trzecie podejście bramki, które i tak nastąpi. Mechanizm trzech prób działa
+poprawnie (poprawiony po pułapce `grep -c`), więc gałąź albo przejdzie, albo
+odpadnie z jawnym wpisem do ręcznego obejrzenia. Żadna z tych dróg nie blokuje
+kolejki.
+
+Uwaga warsztatowa: ta jedna linia w `composer.json` kosztowała sześć prób —
+powłoka na tej maszynie konsekwentnie zjadała ukośnik w `Kuking\AiPilots`,
+niezależnie od cudzysłowów, surowych napisów i heredoców. Przeszedłem na
+narzędzie edycji plików i weszła za pierwszym razem. Zapisuję, bo następnym
+razem nie warto na to tracić czasu.
+
+## 00:30Z (21.09) — #929 SCALONE do `main`
+
+```
+stan=MERGED  commit=71424852
+main: "Doinstaluj klienta PostgreSQL 18 i skieruj sonde gotowosci na port CI (#929)"
+```
+
+Komplet przed scaleniem: **13 sprawdzeń zielonych, zero czerwonych**, w tym obie
+bramki, które blokowały całą flotę — `Testy (PostgreSQL 18)` 11m25s i
+`Pint (styl kodu)` 1m44s. Scalenie przez squash, gałąź zostawiona.
+
+### Ważna poprawka do mojego planu z 23:49
+
+Zapisałem wcześniej, że pozostałe PR-y odświeżę przez `gh run rerun --failed`
+i że to oszczędzi kilkaset minut. **To był błąd i wycofuję go.** `rerun`
+powtarza przebieg na TYM SAMYM commicie scalenia, a ten nie zawiera jeszcze
+lekarstwa z `main` — dostałbym dokładnie tę samą czerwień, tylko drożej,
+bo dwa razy.
+
+Żeby lekarstwo weszło do PR-a, trzeba go **zaktualizować wobec `main`**
+(`gh pr update-branch`), co wyzwala `synchronize` i pełny przebieg.
+Koszt realny: ~65 minut na PR, czyli ~650 na dziesięć, z 2189 dostępnych.
+
+Dlatego **nie aktualizuję wszystkich naraz**. Zaktualizowałem **jeden** —
+#914 `flota/dsa-odwolania`, ten sam, na którym rozpisałem diagnozę o 23:30
+(`head=8ac651f3`). Jeżeli zzielenieje, teoria jest potwierdzona na drugim,
+niezależnym PR-rze i dopiero wtedy wydaję resztę minut. Jeżeli nie —
+zaoszczędziłem 585 minut na odpowiedzi, której już nie musiałem kupować.
+
+## 00:40Z (21.09) — `gpt-ai-piloty`: moja pierwsza poprawka nie działała, druga tak
+
+Dobrze, że nie ogłosiłem naprawy. Trzecie podejście bramki **miało już mój
+commit** (`HEAD: 84bcb0f1`) i zgłosiło **dokładnie te same 21 błędów**. Zero
+różnicy.
+
+Przyczyna: wpis w `autoload-dev` działa tam, gdzie leci `composer install` —
+czyli w CI. Bramka pchania dostaje `vendor/` **kopiowany z pamięci podręcznej,
+bez `dump-autoload`**, więc mapa autoloadu jest stara i composer.json nic nie
+zmienia. Naprawiłem jedną stronę i nie zauważyłbym tego, gdyby nie pomiar.
+
+Właściwa poprawka `fb4d4b2e`: `scanDirectories: - scripts/ai-pilots`
+w `phpstan.neon`. Działa po obu stronach i niczego nie trzeba przebudowywać.
+Wybrane zamiast `paths`, bo te skrypty nie są kodem produktu — mają być
+rozpoznawane, nie analizowane na poziomie projektu. Commit `84bcb0f1`
+wycofany, żeby jedna usterka miała jedno lekarstwo.
+
+**Zweryfikowane własnym przebiegiem**, a nie kolejnym cyklem kolejki:
+runtime `gpt-ai-piloty-ODZYSK-run`, `vendor/bin/phpstan analyse` →
+**`[OK] No errors`, kod wyjścia 0**. Czerwień 21 błędów na tym samym drzewie
+bez `scanDirectories` widziałem trzykrotnie w logu bramki, więc kontrola
+dodatnia jest z pomiaru.
+
+To nie jest wyciszenie. `phpstan.neon` odrzuca baseline'y wprost i ta zasada
+zostaje — po tej zmianie sygnatury `Pilot`, `Transport` i `Budget` **zaczynają
+być sprawdzane**, a nie przestają.
+
+Gałąź wypadła z kolejki po trzech próbach (mechanizm zadziałał poprawnie).
+Wpuszczona z powrotem, liczniki wyzerowane, kopie plików stanu zrobione.
+
+## 00:45Z (21.09) — `gpt-ci-architektura` wstrzymana: strażnik bez swojej zmiany
+
+Bramka odrzuciła gałąź na jej **własnym, nowym** teście:
+
+```
+FAILED  PortMarkiMaWlasnaBramkeCiTest > pomiary nie pobieraja historii…
+Tests: 1 failed, 4395 passed (83705 assertions)
+```
+
+Sprawdzone, czego ten strażnik wymaga i co jest w drzewie:
+
+| job | `fetch-depth: 0` | `needs: zakres` | `outputs.widok` |
+|---|---|---|---|
+| `port_marki` | **JEST** (ma nie być) | tak | tak |
+| `port_funkcje` | **JEST** (ma nie być) | tak | tak |
+| `dostepnosc` | **JEST** (ma nie być) | tak | tak |
+| `zakres` | jest (ma być) | — | — |
+
+Gałąź dokłada 20 linii strażnika do `PortMarkiMaWlasnaBramkeCiTest`, ale
+**nie rusza `ci.yml` ani jednym znakiem**. Czyli opisuje stan docelowy,
+którego nie wprowadza. Połowiczna robota podana jako skończona — punkt 4
+karty audytu.
+
+Ślad, że praca istniała: gałąź niesie `docs/infra/evidence/ci611-20260920/`
+z plikami `test-przed.txt` i `test-po.txt`. Commit nazywa się „Odzyskaj pracę
+stanowiska gpt-ci-architektura po awarii repozytorium" — odzysk był więc
+częściowy i zmiana w `ci.yml` najpewniej przepadła razem z lokalnymi commitami.
+
+### Dlaczego NIE dokończyłem tego sam
+
+Usunięcie `fetch-depth: 0` z trzech jobów to zmiana, którą **już raz
+wycofano** — revert `abef3c94`. Wchodzenie w tę samą zmianę drugi raz, o
+pierwszej w nocy, bez znajomości powodu tamtego wycofania, to dokładnie ten
+rodzaj decyzji, który ma podjąć właściciel, a nie ja.
+
+Gałąź **wyjęta z kolejki** (nie „pchnięta", nie „pominięta") i zapisana
+w nowym pliku `/home/mateusz/flota/wstrzymane.txt` z powodem. Oszczędza to
+dwa jałowe cykle bramki po ~6 minut i — co ważniejsze — nie udaje, że gałąź
+została obsłużona.
+
+**To jest ten brakujący trzeci stan, o którym pisałem o 23:48:** pozycja
+nie jest ani pchnięta, ani pominięta z powodu awarii. Czeka na człowieka.
+
+## 00:50Z (21.09) — Obie naprawy potwierdzone na zdalnym
+
+**`gpt-ai-piloty` przeszła bramkę.** Na GitHubie `fb4d4b2e` — dokładnie ten
+commit ze `scanDirectories`. Zweryfikowane SHA, nie kodem wyjścia. Gałąź,
+która o 22:30 odpadła z kolejki po trzech próbach, jest na zdalnym
+20 minut później, razem z 12 971 liniami pracy stanowiska.
+
+Warto zapisać, ile podejść to kosztowało i dlaczego:
+1. `autoload-dev` w composer.json — **nie zadziałało**, bramka nie przebudowuje
+   autoloadu. Wykryte pomiarem, nie przewidziane.
+2. `scanDirectories` w phpstan.neon — zadziałało, sprawdzone najpierw własnym
+   przebiegiem (`[OK] No errors`), potem przez bramkę, potem po SHA na zdalnym.
+
+Trzy niezależne potwierdzenia tej samej rzeczy. Po tym, jak dziś dwukrotnie
+pomyliłem wzór z przyczyną, uznaję to za właściwą cenę.
+
+**#914 po aktualizacji wobec `main`: 10 zielonych, 0 czerwonych**, 3 w biegu.
+To jest drugi, niezależny dowód na to, że #929 był lekarstwem dla całej floty
+— pierwszym było samo #929. Gdy komplet się domknie, aktualizuję pozostałe
+PR-y; do tej chwili nie wydaję ani minuty więcej.
+
+Gałęzi na GitHubie: **81** (o 23:46 było 77).
+
+## 00:55Z (21.09) — `gpt-cloudflare-cache` wstrzymana; jedno zdanie z niej wymaga osobnego sprawdzenia
+
+Bramka: **10 testów oblanych, 4459 zdanych.** Padają własne testy gałęzi,
+nie cudze:
+
+```
+FAILED  CloudflareCachePrivacyTest > publiczne zdjecie nie wydaje ciasteczek…
+        Publiczny cache nie może rozdawać sesji.
+        Failed asserting that actual size 2 matches expected size 0.
+FAILED  CloudflareCachePrivacyTest > sesja w html i bledy…
+FAILED  CloudflareCachePrivacyTest > ochrona nadpisuje bled…
+FAILED  SondaWdrozeniaTest > usuwanie preview nie ukrywa bledu…
+```
+
+Sprawdziłem, czy to usterka wspólna: `SondaWdrozeniaTest` pada **wyłącznie na
+tej jednej gałęzi**, nigdzie indziej w całym logu kolejki. To nie jest problem
+floty.
+
+Ten sam kształt co przy `gpt-ci-architektura`: gałąź wnosi 1423 linie —
+strażników, skrypty, reguły CDN w JSON-ie i dowody — ale **ani jednej linii
+kodu aplikacji**. Strażnicy opisują stan, którego kod nie zapewnia.
+
+### Czego NIE twierdzę
+
+Nie twierdzę, że produkcja rozdaje ciasteczka sesji przy publicznych zdjęciach.
+Twierdzę tylko tyle, ile zmierzyłem: **na tej gałęzi, w runtime bramki,
+odpowiedź na publiczne zdjęcie niosła 2 ciasteczka, a strażnik wymagał zera.**
+Czy to usterka produktu, czy brak implementacji, której strażnik pilnuje —
+rozstrzyga autor gałęzi. Gdyby to była usterka produktu, jest poważna:
+publiczny cache mógłby podać ciasteczko jednej osoby drugiej.
+
+**To jest pozycja numer jeden wśród wstrzymanych** i pierwsza rzecz do
+obejrzenia rano.
+
+Gałąź wyjęta z kolejki do `wstrzymane.txt` (druga pozycja). Zostało 123.
+
+## 01:05Z (21.09) — #914 zielone i scalone; dziesięć PR-ów odświeżonych
+
+**#914 „Odwołania i potwierdzenia zgłoszeń przestają obiecywać nieprawdę"**:
+13 sprawdzeń zielonych, zero czerwonych. Scalone, `e65f297f`.
+
+To był drugi niezależny dowód, na który czekałem — i dopiero po nim wydałem
+minuty. Rachunek zamierzony: ~65 min na PR × 10 = ~650 z 2189 dostępnych.
+
+Zaktualizowane wobec nowego `main` (wszystkie „PR branch updated"):
+**#913, #916, #917, #918, #919, #920, #921, #922, #923, #924.**
+
+Kolejność miała znaczenie: najpierw scalenie #914, dopiero potem aktualizacja
+reszty — dzięki temu każdy z tych dziesięciu bierze **oba** lekarstwa naraz
+(#929 i #914) i płaci za przebieg raz, a nie dwa razy.
+
+Poza tą dziesiątką zostają dwa PR-y, których ta naprawa nie dotyczy i których
+nie ruszam:
+- **#725** — pada wyłącznie na „Panel marki — puste i pełne widoki", czyli
+  inna przyczyna. Do osobnego obejrzenia.
+- **#786 i #915** — `CONFLICTING`. Konflikt rozstrzyga człowiek, nie nocna pętla.
+
+## 01:05Z (21.09) — AWARIA I NAPRAWA: indeks paczek znowu skłamał, kolejka zaliczała wszystko jako zrobione
+
+O 22:59 kolejka zaczęła w tempie sekundowym wypisywać
+`FETCH FAIL — brak galezi w repozytorium kanonicznym, pomijam` i — zgodnie ze
+swoją pętlą — **dopisywać każdą taką pozycję do `pchniete.txt`**. W kilka minut
+uznała za obsłużone gałęzie, których nawet nie dotknęła.
+
+### Co się stało naprawdę
+
+Odtworzone jednym poleceniem z WSL:
+
+```
+remote: fatal: bad tree object 5637f5a594a42a11d7a782e593da4037ee5e645b
+error: git upload-pack: git-pack-objects died with error.
+fatal: protocol error: bad pack header
+```
+
+Ale:
+- `git fsck --no-progress` na repozytorium kanonicznym: **zero błędów**
+  (poza wiszącymi obiektami),
+- `git cat-file -t 5637f5a5…` → **`tree`**. Obiekt jest zdrowy.
+
+Czyli **repozytorium nie było uszkodzone — kłamał `multi-pack-index`.**
+Ten sam plik, który usunąłem o 23:18. Git odtworzył go sam o 00:58 przy
+automatycznym przepakowaniu i znowu wyszedł zepsuty.
+
+### Naprawa
+
+1. Kolejka **zatrzymana natychmiast**, zanim zdążyła przejechać całą listę.
+2. `multi-pack-index` usunięty (kopia w `C:\Temp`), a jego odtwarzanie
+   wyłączone, żeby nie wrócił po raz trzeci:
+   `core.multiPackIndex=false`, `maintenance.auto=false`, `gc.auto=0`.
+3. Fetch sprawdzony po naprawie — przechodzi.
+
+### Stan kolejki przebudowany od zera, wobec GitHuba
+
+Nie łatałem `pchniete.txt`. Porównałem SHA **każdej** pozycji z listy z tym, co
+naprawdę leży na GitHubie, i rozdzieliłem cztery różne rzeczy, które dotąd
+mieszały się w jednym pliku:
+
+| plik | ile | znaczenie |
+|---|---|---|
+| `pchniete.txt` | **11** | SHA lokalne = SHA na GitHubie |
+| `do-pchniecia.txt` | **61** | jest lokalnie, nie ma na zdalnym (albo różni się) |
+| `nieodzyskane.txt` | **51** | nie ma nawet lokalnie — nie przetrwały awarii z wieczora |
+| `wstrzymane.txt` | **2** | czekają na decyzję człowieka |
+
+11 + 61 + 51 = 123, czyli cała lista. Liczniki nieudanych prób wyzerowane:
+dotyczyły awarii indeksu, a nie jakości kodu — byłoby nieuczciwe karać nimi
+gałęzie. Kopie wszystkich plików przed przebudową zachowane.
+
+Kolejka wznowiona (PID 4084225).
+
+### Czego się nauczyłem
+
+Ta awaria wyglądała **dokładnie tak samo** jak wieczorna utrata repozytorium:
+git krzyczy o uszkodzeniu, wszystko się sypie. A repozytorium było całe.
+Różnicę pokazały dwa tanie polecenia — `git fsck` i `git cat-file -t`.
+Gdybym uwierzył pierwszemu komunikatowi, zacząłbym odtwarzać repozytorium
+z GitHuba po raz drugi tej doby i **naprawdę** stracił 61 gałęzi pracy.
