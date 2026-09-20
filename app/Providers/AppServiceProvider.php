@@ -11,6 +11,7 @@ use App\Models\Report;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\OdmianaWalidacji;
 use App\Support\Storage\DyskR2;
+use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
@@ -92,7 +93,68 @@ class AppServiceProvider extends ServiceProvider
             fn (string $message, string $attribute, string $rule, array $parameters): string => OdmianaWalidacji::podstaw($message, (int) ($parameters[0] ?? 0)),
         );
 
+        $this->zdejmijAdresZLinkuResetu();
+
         $this->odswiezajLicznikiKolejek();
+    }
+
+    /**
+     * ADRES E-MAIL WYCHODZI Z ADRESU LINKU DO USTAWIENIA HASŁA.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  CO TO NAPRAWIA
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * `Illuminate\Auth\Notifications\ResetPassword::resetUrl()` buduje
+     * domyślnie adres z DWOMA wartościami:
+     *
+     *     https://kuking.pl/nowe-haslo/<ŻETON>?email=basia@wp.pl
+     *
+     * Czyli żywy żeton resetu i adres, na który ten żeton pasuje — razem,
+     * w jednym łańcuchu, w miejscu, które NIE JEST treścią żądania i które
+     * po drodze zapisuje każdy: historia przeglądarki na wspólnym komputerze,
+     * dziennik dostępu hostingu, proxy i (dopóki nie zdjęła go poprawka
+     * w `AnalitykaCloudflare::wolnoNaTejStronie()`) beacon analityki.
+     * Człowiek, który zobaczyłby ten jeden wiersz, ma komplet do wejścia na
+     * cudze konto i wie, czyje ono jest.
+     *
+     * Żeton musi zostać — bez niego link nie działa. Adres NIE musi:
+     * ekran `auth/reset-password.blade.php` ma własne, widoczne pole
+     * „Twój adres e-mail" z `autocomplete="email"`, a `Password::reset()`
+     * i tak czyta adres z ciała formularza, nie z adresu strony. Parametr
+     * w adresie był wyłącznie wypełniaczem tego pola.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  DLACZEGO TUTAJ, A NIE PRZEZ NADPISANIE `resetUrl()` W POWIADOMIENIU
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Bo adres budują DWA powiadomienia — `UstawienieNowegoHasla`
+     * (odzyskiwanie hasła) i `UstawienieHaslaZamiastLinku` (wejście na konto
+     * z niepotwierdzonym adresem, issue #317) — i oba wołają `resetUrl()`
+     * z klasy nadrzędnej, obie z komentarzem mówiącym wprost, że robią to po
+     * to, żeby hak `createUrlUsing()` działał. Dwie kopie jednej reguły
+     * rozjeżdżają się przy pierwszej poprawce (ta sama lekcja co przy
+     * `BezpiecznyKomunikat` i `DziennyBudzetListow`), a trzecie powiadomienie
+     * dopisane kiedyś w przyszłości dostałoby poprawkę ZA DARMO tylko stąd.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  CO ZE STARYMI LINKAMI, KTÓRE JUŻ LEŻĄ W CZYICHŚ SKRZYNKACH
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Działają bez zmian. `PasswordResetController::resetForm()` dalej czyta
+     * `?email=` z adresu i wypełnia nim pole, więc link wysłany przed tą
+     * poprawką zachowuje się dokładnie tak jak wcześniej. Zmienia się tylko
+     * to, co od teraz WYCHODZI z serwera.
+     */
+    private function zdejmijAdresZLinkuResetu(): void
+    {
+        ResetPassword::createUrlUsing(
+            // `url(route(..., absolute: false))` — dokładnie tak, jak robi to
+            // klasa nadrzędna; różnica jest jedna: bez pola `email`.
+            static fn (object $odbiorca, string $zeton): string => url(
+                route('password.reset', ['token' => $zeton], false),
+            ),
+        );
     }
 
     /**

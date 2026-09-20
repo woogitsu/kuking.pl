@@ -46,7 +46,7 @@ Krótka, ludzka wersja — pisana tak, żeby 65-latek zrozumiał ją bez czytani
 | Niebezpieczna porada zdrowotna/żywieniowa | "Soda oczyszcza z raka", niebezpieczne przetwory bez zasad bezpieczeństwa | Ukrycie treści; wyjaśnienie wpisujesz w pole „Wiadomość do użytkownika” przy decyzji — rzeczowo, bez oskarżania | Przy uporczywym powtarzaniu → blokada czasowa | Ukryć. Serwis nie umie dopiąć „kontekstu” do treści: pod treścią, która zostaje widoczna, moderator może najwyżej napisać zwykły komentarz, jak każdy inny użytkownik | Tak, rzeczowo, bez oceniania |
 | Nieletni na koncie | Wpis/profil sugerujący wiek poniżej 16 lat | Zawieszenie konta do wyjaśnienia — **profil zostaje widoczny** | Potwierdzone → trwałe zamknięcie konta (blokada), z informacją | Ukryć pojedyncze treści; profilu nie da się ukryć osobno | Tak, z wyjaśnieniem zasad wieku |
 | Reklama alkoholu | Post promujący markę alkoholu (nie: przepis zawierający alkohol jako składnik) | Usunięcie posta reklamowego | Powtórka → ostrzeżenie, potem blokada | Usunąć | Tak |
-| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 6** | Natychmiastowe zgłoszenie do organów | Usunąć — usunięcie jest miękkie, wiersz i zdjęcie zostają w bazie jako dowód | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. Poza tym nie kontaktuj się — patrz sekcja 6 |
+| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 6** | Natychmiastowe zgłoszenie do organów | Usunąć — usunięcie jest miękkie, wiersz i zdjęcie zostają w bazie jako dowód | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Wybierz podstawę **„Krzywdzenie dzieci — usuwamy natychmiast”** i zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. **Nie wybieraj „Treść niezgodna z prawem”**: przy tej podstawie formularz NIE PRZYJMIE pustej wiadomości (`required_if`), a to jest ostatnia chwila, w której chcesz walczyć z walidacją. Poza tym nie kontaktuj się — patrz sekcja 6 |
 | Groźby / zagrożenie życia | Wypowiedź wskazująca na realne zagrożenie życia (własnego lub cudzego) | **Zgłoszenie do organów — patrz sekcja 6** | — | Ukryć treść. Kopia robi się sama: ukrycie zmienia tylko status, wiersz zostaje w bazie i nic go nie kasuje | Ostrożnie, priorytet to bezpieczeństwo, nie moderacja. Powiadomienie do autora i tak wyjdzie automatycznie |
 
 ### Czego panel moderacji NIE potrafi — czytaj razem z tabelą wyżej
@@ -354,6 +354,29 @@ Pełna lista techniczna: `SECURITY_BASELINE.md`.
 | **Przemoc na zdjęciach** | Ocena kontekstu — zdjęcie polowania/uboju w kontekście kulinarnym nie jest automatycznie zakazane, ale drastyczne, celowo szokujące treści usuwamy. Brak automatyzmu — to wymaga oceny człowieka. |
 | **Cudze zdjęcie podpisane jako własne** | Usunięcie + wiadomość do autora (szablon 4.1). Właściciela oryginału serwis powiadomi sam tylko wtedy, gdy zgłosił rzecz formularzem „Zgłoś treść niezgodną z prawem" i podał adres e-mail; po zwykłym „Zgłoś" pod zdjęciem nie dostanie nic i trzeba napisać do niego ręcznie. |
 | **CSAM (treści przedstawiające seksualne wykorzystywanie dzieci)** | **Procedura zero-tolerancji — patrz niżej, osobno.** |
+
+### 7.0 Podstawa decyzji — pole, którego ten dokument długo nie opisywał
+
+Od wdrożenia Art. 17 DSA **każda** decyzja moderacyjna wymaga wybrania
+**podstawy z zamkniętej listy**; panel nie przyjmie decyzji bez niej
+(`Wybierz podstawę decyzji — autor treści zobaczy ją w powiadomieniu`).
+Lista i odwzorowanie na punkty `resources/legal/zasady.md` stoją w jednym
+miejscu: `app/Domain/Moderation/PodstawaDecyzji.php`. Nie wpisuj własnych
+kodów — kod spoza listy nie dostanie numeru punktu i autor treści dowie się
+tylko ogólnika.
+
+Dwie podstawy zachowują się inaczej niż reszta i warto to wiedzieć ZANIM
+zaczniesz wypełniać formularz:
+
+| Podstawa | Kiedy | Co robi z formularzem |
+|---|---|---|
+| **Treść niezgodna z prawem** | gdy powołujesz się na przepis, nie na punkt zasad | **wymusza wiadomość do autora** — pusta nie przejdzie (`ModerationController::decide()`, `required_if`) |
+| **Krzywdzenie dzieci — usuwamy natychmiast** | ścieżka zero-tolerancji z §7.1 | wiadomość może zostać pusta; wychodzi neutralne zdanie domyślne |
+
+Pozostałe podstawy wskazują konkretny punkt zasad (1–9) i same wstawiają go
+do powiadomienia. Że każdy z tych punktów naprawdę istnieje w `zasady.md`
+i tak samo się nazywa, pilnuje
+`UzasadnienieDecyzjiTest::test_kazdy_punkt_z_listy_istnieje_w_zasadach`.
 
 ### 7.1 Procedura zero-tolerancji — CSAM i zagrożenie życia
 

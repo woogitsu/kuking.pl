@@ -148,6 +148,17 @@ sprawdz 'źródło wraca, choć test zginął w połowie (MD5)' "$MD5_WZORCOWY" 
 sprawdz 'brak --oczekuj → BLAD_UZYCIA (9), a nie domyślne „byle czerwień”' 9 "$?"
 
 printf '\n'
+# --- 8. mtime wraca CO DO UŁAMKA SEKUNDY ------------------------------------
+# Do 20 września 2026 przyrząd twierdził „MD5 i mtime zgodne", nie porównując
+# mtime w ogóle, a `touch -d` dodatkowo UCINAŁ część podsekundową, którą
+# `cp -p` już poprawnie przywróciło. Ten przypadek by to złapał: przed
+# poprawką mtime po przebiegu różnił się od mtime sprzed ułamkiem sekundy.
+mtime_przed="$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
+uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+        --oczekuj 'BRAMKA' -- ./test-dobry.sh zrodlo.txt >/dev/null
+sprawdz 'mtime wraca co do ułamka sekundy, nie tylko co do sekundy' \
+        "$mtime_przed" "$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
+
 if [ "$oblane" -eq 0 ]; then
     printf "${ZIELONY}Przyrząd do kontroli ujemnych: %s/%s prób zdanych.${RESET}\n" "$zdane" "$zdane"
     exit 0

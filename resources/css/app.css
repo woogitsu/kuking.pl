@@ -1805,6 +1805,23 @@
     border: 2px solid var(--color-success);
   }
 
+  /* Droga powrotu pod komunikatem — przycisk „Zapisz ponownie" po wyjęciu
+     wpisu z zeszytu (audyt L1, `components/layout.blade.php`).
+
+     Przycisk stoi POD plakietką, nie w niej: `.flash` jest `<p>` z jednym
+     zdaniem i kilka testów czyta go dokładnie w tym kształcie. Żeby mimo to
+     czytało się jako jedna całość, plakietka oddaje część swojego dolnego
+     odstępu, gdy przycisk za nią stoi. `:has` w przeglądarce bez obsługi po
+     prostu nic nie zmienia — zostaje zwykły, większy odstęp, czyli stan
+     sprzed tej zmiany. */
+  .flash:has(+ .flash-powrot) {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .flash-powrot {
+    margin-bottom: var(--spacing-5);
+  }
+
   .notice {
     border-radius: var(--radius-md);
     padding: var(--spacing-4);
