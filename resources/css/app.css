@@ -4427,10 +4427,26 @@
    * „Zgłoś nielegalną treść" łamie się na dwa wiersze i musi móc urosnąć.
    * Wysokość sztywna ucinałaby wtedy drugi wiersz.
    */
+  /* `min-width: 0` + `overflow-wrap: anywhere` (#918 naprawa): odkąd ten
+     odnośnik jest `display: flex` (cel dotknięcia 48 px, patrz wyżej), stał
+     się elementem flex we WŁASNEJ kolumnie `ul` — a flex item domyślnie ma
+     `min-width: auto`, czyli nie kurczy się poniżej szerokości najdłuższego
+     nierozdzielnego słowa. Przy powiększonej czcionce przeglądarki (rootFont
+     32 px) i skali tekstu 140% (`bodyFont` 50,4 px) pojedyncze słowo, np.
+     „nielegalną” w „Zgłoś nielegalną treść”, jest szersze niż kolumna
+     stopki nawet przy `min(11rem, 100%)` z `.site-footer-grupy` wyżej —
+     WYNIK: 9 px poziomego przewinięcia całej strony przy 320 px
+     (`K509_OVERFLOW /login {"width":320,"scroll":329}`) i to samo na każdej
+     stronie ze stopką, w tym `/home` (`NAV638_DUZY_FONT_OVERFLOW` mierzy
+     `scrollWidth` całego dokumentu, nie samej belki). ZMIERZONE PRZED
+     POPRAWKĄ i PO NIEJ na obu stronach, oba motywy, font-200+140 — patrz
+     meldunek naprawy #918. */
   .site-footer-grupa ul a {
     display: flex;
     align-items: center;
     min-height: var(--control-height-min);
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   /* Nagłówek kolumny jest WIZUALNY, nie semantyczny — `aria-hidden` w Blade,
