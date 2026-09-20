@@ -45,7 +45,20 @@
                 </div>
             </div>
 
-            @php($commentIsRemoved = $comment->body === 'Komentarz usunięty.')
+            {{--
+                ISSUE #760: stan usunięcia wynika z ZNACZNIKA, nie z treści.
+
+                Stało tu porównanie `$comment->body === 'Komentarz usunięty.'`.
+                `CommentPolicy::update()`/`delete()` już wtedy patrzyły na
+                `body_removed_at`, więc żywy komentarz o TAKIM DOSŁOWNIE
+                brzmieniu (człowiek mógł go po prostu napisać) miał zgodę
+                Policy na poprawienie, a ten widok i tak chował przycisk —
+                autor tracił akcję, do której miał prawo.
+
+                Placeholder to WYŁĄCZNIE prezentacja tego samego znacznika,
+                którego już pilnuje Policy — nie osobne źródło prawdy.
+            --}}
+            @php($commentIsRemoved = $comment->body_removed_at !== null)
 
             @if($commentIsRemoved)
                 <p class="meta italic">{{ $comment->body }}</p>
@@ -67,7 +80,8 @@
                         </span>
                     </div>
 
-                    @php($replyIsRemoved = $reply->body === 'Komentarz usunięty.')
+                    {{-- ISSUE #760: ta sama poprawka co przy komentarzu głównym wyżej. --}}
+                    @php($replyIsRemoved = $reply->body_removed_at !== null)
 
                     @if($replyIsRemoved)
                         <p class="meta italic">{{ $reply->body }}</p>
