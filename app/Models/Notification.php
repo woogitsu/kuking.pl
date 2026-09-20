@@ -245,6 +245,198 @@ class Notification extends Model
     }
 
     /**
+     * Treść zbiorczego powiadomienia „X oraz Y innych osób zapisało Twój
+     * przepis" — DECYZJA WŁAŚCICIELA z 20.09.2026 (issue #906).
+     *
+     * JEDNO ŹRÓDŁO, DWÓCH ODBIORCÓW (jak `adresDocelowy()` wyżej): treść
+     * potrzebują i widok listy powiadomień, i testy, które sprawdzają
+     * dokładną polską odmianę liczebnika — dwie kopie tego samego `match`
+     * rozjechałyby się przy pierwszej poprawce.
+     *
+     * ODMIANA LICZEBNIKA JEST TU OBOWIĄZKOWA, NIE KOSMETYKĄ. „Jan oraz
+     * 1 innych osób” jest błędem językowym, którego nie wolno wysłać komuś
+     * w grupie 50+ — dokładnie ta grupa najdotkliwiej odczuwa niedbały
+     * polski (patrz `docs/brand/COPY_STYLE.md`). Polska liczba mnoga
+     * rzeczownika po liczebniku ma TRZY formy (1 / 2–4 / 5+), więc trzy
+     * formy tu stoją wprost, żadna nie jest domyślna:
+     *   1 → „1 inna osoba” + czasownik w liczbie pojedynczej,
+     *   2–4 → „N inne osoby” + czasownik w mianowniku liczby mnogiej,
+     *   5+ → „N innych osób” + czasownik zgadza się z dopełniaczem liczby
+     *        mnogiej (stąd „zapisało”, nie „zapisali” — dokładnie forma,
+     *        którą właściciel podał w decyzji, i ZARAZEM jedyna, która nie
+     *        zdradza płci żadnej z wymienionych osób — patrz „ZDANIA BEZ
+     *        ZAŁOŻENIA RODZAJU”, issue #38, w widoku listy powiadomień).
+     * Czasownik zgadza się z NAJBLIŻSZYM członem („N inne(ych) osób”), nie
+     * z pierwszą, wymienioną z nazwy osobą — to samo zjawisko widać
+     * w podanym przez właściciela wzorcu „Jan oraz 3 innych osób ZAPISAŁO”,
+     * gdzie forma nie zależy od rodzaju „Jana”.
+     *
+     * PIERWSZA OSOBA MOŻE ZNIKNĄĆ Z WIDOKU (pytanie właściciela, #906):
+     * jeśli jest zablokowana przez autora (w obie strony, jak
+     * `scopeVisibleTo()` wyżej) albo ma status z `User::STATUSY_UKRYWAJACE_TRESC`
+     * (zbanowana / czeka na usunięcie), NIE pokazujemy jej imienia — mija się
+     * to z resztą serwisu, gdzie taka osoba jest niedostępna jako autor.
+     * Miejsce przejmuje pierwsza WIDOCZNA osoba z tej samej partii. Konto
+     * USUNIĘTE (`erased`) NIE jest tu wyjątkiem — D-022 mówi wprost: tekst
+     * zostaje, choć osoby nie ma, więc pokazujemy to, co zostało po
+     * anonimizacji profilu (tak samo jak przy autorstwie treści). Gdy
+     * WSZYSCY z partii są niewidoczni, wracamy do ogólnej liczby bez
+     * wymieniania nikogo z nazwy — licznik, nie imię, jest tu bezpieczny
+     * (D-081: „liczba, nie imiona”).
+     */
+    public function tresc(): string
+    {
+        if ($this->type !== self::TYPE_SAVED) {
+            return '';
+        }
+
+        [$naglowek, $koniec] = $this->czesciZapisu();
+
+        return trim("{$naglowek} {$koniec}");
+    }
+
+    /**
+     * Sam nagłówek — to, co widok pokazuje pogrubione (`<strong>`), BEZ
+     * tytułu przepisu ani końcówki zdania. Ten podział istnieje od dawna
+     * dla każdego typu powiadomienia (patrz `resources/views/pages/notifications.blade.php`:
+     * „X — ugotowane z Twojego przepisu” w `<strong>`, cytat pod spodem) —
+     * zbiorcze powiadomienie o zapisie trzyma się tego samego wzorca, żeby
+     * nie robić z siebie wyjątku w jednym miejscu w serwisie.
+     */
+    public function naglowekZapisu(): string
+    {
+        if ($this->type !== self::TYPE_SAVED) {
+            return '';
+        }
+
+        return $this->czesciZapisu()[0];
+    }
+
+    /**
+     * Reszta zdania POZA pogrubionym nagłówkiem — cytat tytułu przepisu
+     * i końcówka. Osobna metoda, a nie sklejanie w widoku, z tego samego
+     * powodu co `naglowekZapisu()`: jedno miejsce liczy, czy to pojedynczy
+     * zapis („w swoim zeszycie.”) czy zbiorcza partia (kropka po tytule,
+     * bez „w swoim zeszycie” — dokładnie kształt z decyzji właściciela).
+     */
+    public function resztaZapisu(): string
+    {
+        if ($this->type !== self::TYPE_SAVED) {
+            return '';
+        }
+
+        return $this->czesciZapisu()[1];
+    }
+
+    /**
+     * @return array{0: string, 1: string} [nagłówek pogrubiony, reszta zdania]
+     */
+    private function czesciZapisu(): array
+    {
+        $data = $this->data ?? [];
+        $tytul = $data['recipe_title'] ?? 'przepis';
+        $savers = array_values($data['savers'] ?? array_filter([$this->actor_id]));
+
+        $widoczni = $this->widoczniZapisujacy($savers);
+        $liczbaCalkowita = count($savers);
+
+        // NIKT Z PARTII NIE JEST DO WYMIENIENIA Z NAZWY (blokada/ban objęły
+        // wszystkich, do jednego zapisu włącznie) — zostaje sama liczba,
+        // bez „inne”/„innych", bo nie ma względem kogo liczyć.
+        if ($widoczni === []) {
+            if ($liczbaCalkowita <= 1) {
+                return ['Ktoś ma Twój przepis', "„{$tytul}” w swoim zeszycie."];
+            }
+
+            $naglowek = ucfirst($this->fraza($liczbaCalkowita, liczoneWzglemInnych: false))
+                .' zapisał'.$this->koncowkaCzasownika($liczbaCalkowita)
+                .' Twój przepis';
+
+            return [$naglowek, "„{$tytul}”."];
+        }
+
+        $pierwszy = $widoczni[0];
+        $reszta = $liczbaCalkowita - 1;
+
+        if ($reszta <= 0) {
+            return ["{$pierwszy->displayName()} ma Twój przepis", "„{$tytul}” w swoim zeszycie."];
+        }
+
+        $naglowek = "{$pierwszy->displayName()} oraz ".$this->fraza($reszta, liczoneWzglemInnych: true)
+            .' zapisał'.$this->koncowkaCzasownika($reszta)
+            .' Twój przepis';
+
+        return [$naglowek, "„{$tytul}”."];
+    }
+
+    /**
+     * @param  list<string>  $savers
+     * @return list<User>
+     */
+    private function widoczniZapisujacy(array $savers): array
+    {
+        return User::query()
+            ->whereIn('id', $savers)
+            ->whereNotIn('status', User::STATUSY_UKRYWAJACE_TRESC)
+            ->get()
+            ->sortBy(fn (User $u) => array_search($u->getKey(), $savers, true))
+            ->filter(fn (User $u) => $this->user === null || ! $this->user->hasBlockRelationWith($u))
+            ->values()
+            ->all();
+    }
+
+    /**
+     * „1 inna osoba” / „N inne osoby” / „N innych osób” — trzy formy
+     * polskiego liczebnika, patrz `tresc()` wyżej.
+     */
+    private function fraza(int $n, bool $liczoneWzglemInnych): string
+    {
+        if (! $liczoneWzglemInnych) {
+            return match (true) {
+                $n === 1 => '1 osoba',
+                $this->wymagaFormyRzeczownikaKrotkiej($n) => "{$n} osoby",
+                default => "{$n} osób",
+            };
+        }
+
+        return match (true) {
+            $n === 1 => '1 inna osoba',
+            $this->wymagaFormyRzeczownikaKrotkiej($n) => "{$n} inne osoby",
+            default => "{$n} innych osób",
+        };
+    }
+
+    /**
+     * Czasownik po liczebniku 1 jest w liczbie pojedynczej („zapisała”),
+     * po 2–4 w mianowniku liczby mnogiej („zapisały”), a od 5 w górę
+     * zgadza się z dopełniaczem liczby mnogiej — stąd „zapisało”
+     * (nijaki, bezrodzajowy — patrz `tresc()` wyżej).
+     */
+    private function koncowkaCzasownika(int $inni): string
+    {
+        return match (true) {
+            $inni === 1 => 'a',
+            $this->wymagaFormyRzeczownikaKrotkiej($inni) => 'y',
+            default => 'o',
+        };
+    }
+
+    /**
+     * Forma "2–4" polskiego liczebnika: liczby kończące się na 2, 3 lub 4,
+     * Z WYJĄTKIEM 12–14 (te zawsze biorą formę "5+" — "12 osób", nie
+     * "12 osoby"). Reguła jest ogólna, nie tylko dla małych liczb z
+     * przykładów właściciela — partia zapisów może urosnąć znacznie
+     * powyżej czterech osób.
+     */
+    private function wymagaFormyRzeczownikaKrotkiej(int $n): bool
+    {
+        $ostatnia = $n % 10;
+        $dwieOstatnie = $n % 100;
+
+        return in_array($ostatnia, [2, 3, 4], true) && ! in_array($dwieOstatnie, [12, 13, 14], true);
+    }
+
+    /**
      * Termin, do którego retencja (issue #19, ADR §5.2/§5.6) NIE MOŻE
      * skasować tego powiadomienia — wyłącznie dla typów z
      * `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`. `null` dla pozostałych

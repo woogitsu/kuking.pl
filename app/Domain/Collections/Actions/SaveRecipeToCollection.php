@@ -4,9 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Collections\Actions;
 
-use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Notifications\Actions\NotifyRecipeSaved;
 use App\Models\Collection;
-use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
@@ -20,7 +19,7 @@ use Illuminate\Database\UniqueConstraintViolationException;
  */
 final class SaveRecipeToCollection
 {
-    public function __construct(private readonly NotifyUser $notify) {}
+    public function __construct(private readonly NotifyRecipeSaved $notify) {}
 
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
     {
@@ -66,18 +65,29 @@ final class SaveRecipeToCollection
             return $collection;
         }
 
+        // JEDNA OSOBA, KILKA SWOICH ZESZYTÓW = JEDEN ZAPIS (issue #906,
+        // decyzja właściciela z 20.09.2026). Klucz główny na
+        // `collection_items` broni tylko PARY (zeszyt, przepis) — ta sama
+        // osoba, ten sam przepis, ale DRUGI jej zeszyt, przechodzi przez
+        // niego bez przeszkód, więc dopiero tutaj liczymy, ile WŁASNYCH
+        // zeszytów tej osoby ma już ten przepis. Więcej niż jeden (ten,
+        // do którego dopiero co dopisaliśmy) znaczy, że powiadomienie za tę
+        // osobę już poszło przy jej pierwszym zeszycie — nowe by je
+        // zdublowało.
+        $wlasneZeszytyZTymPrzepisem = $user->collections()
+            ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+            ->count();
+
+        if ($wlasneZeszytyZTymPrzepisem > 1) {
+            return $collection;
+        }
+
         // Autor dowiaduje się, że ktoś odłożył jego przepis "na potem".
-        // To jedno z najprzyjemniejszych powiadomień w serwisie.
-        $this->notify->handle(
-            recipient: $recipe->author,
-            type: Notification::TYPE_SAVED,
-            actor: $user,
-            data: [
-                'recipe_id' => $recipe->getKey(),
-                'recipe_title' => $recipe->title,
-                'recipe_slug' => $recipe->slug,
-            ],
-        );
+        // To jedno z najprzyjemniejszych powiadomień w serwisie — pierwsza
+        // osoba dostaje je natychmiast, kolejne różne osoby dokładają się
+        // do tej samej, jeszcze nieprzeczytanej wiadomości
+        // (`NotifyRecipeSaved`, issue #906).
+        $this->notify->handle($user, $recipe);
 
         return $collection;
     }
@@ -87,5 +97,9 @@ final class SaveRecipeToCollection
         $user->collections()->each(
             fn (Collection $collection) => $collection->recipes()->detach($recipe->getKey()),
         );
+
+        // Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
+        // zbiorczego powiadomienia — patrz `NotifyRecipeSaved::cofnij()`.
+        $this->notify->cofnij($user, $recipe);
     }
 }

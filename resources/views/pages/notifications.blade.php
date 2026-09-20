@@ -144,8 +144,22 @@
                                 <strong>{{ $actor?->displayName() ?? 'Ktoś' }} zaczyna Cię obserwować.</strong>
                                 @break
                             @case(\App\Models\Notification::TYPE_SAVED)
-                                <strong>{{ $actor?->displayName() ?? 'Ktoś' }} ma Twój przepis</strong>
-                                „{{ $data['recipe_title'] ?? '' }}” w swoim zeszycie.
+                                {{--
+                                    ZBIORCZE POWIADOMIENIE (issue #906, decyzja
+                                    właściciela z 20.09.2026). Nagłówek —
+                                    łącznie z polską odmianą liczebnika i
+                                    ukrywaniem zablokowanych/zbanowanych osób
+                                    z partii — stoi w JEDNYM miejscu,
+                                    `Notification::naglowekZapisu()`, żeby
+                                    widok i testy nie trzymały dwóch kopii tej
+                                    samej odmiany, które prędzej czy później
+                                    się rozjadą. Tytuł przepisu zostaje POZA
+                                    `<strong>`, tak jak przy pozostałych typach
+                                    wyżej (cytat/szczegół pod pogrubionym
+                                    podmiotem zdania).
+                                --}}
+                                <strong>{{ $notification->naglowekZapisu() }}</strong>
+                                {{ $notification->resztaZapisu() }}
                                 @break
                             @case(\App\Models\Notification::TYPE_FIRST_POST)
                                 {{-- Powiadomienie dla GOSPODARZA, nie dla autora
