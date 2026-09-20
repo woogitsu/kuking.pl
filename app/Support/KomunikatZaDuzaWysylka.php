@@ -83,7 +83,12 @@ final class KomunikatZaDuzaWysylka
                  przeglądarki ta strona zostawała przy 18 px, podczas gdy
                  `errors/_prosty.blade.php` (500 i 503) rósł poprawnie, bo
                  od początku używa `rem`. 1.125rem = 18 px przy domyślnych 16. */
-              body { font: 1.125rem/1.5 system-ui, -apple-system, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1.25rem; color: #1a1a1a; background: #fff; }
+              /* MARGINES I WCIĘCIE W `px`, ODWROTNIE NIŻ PISMO. Przy czcionce
+                 przeglądarki 32 px `padding: 0 1.25rem` daje 40 px z każdej
+                 strony, więc na ekranie 320 px zostaje 240 px na treść —
+                 i przycisk wypychał stronę w bok (zmierzone: scrollWidth 333
+                 przy oknie 320). Odstęp ma być stały, pismo ma rosnąć. */
+              body { font: 1.125rem/1.5 system-ui, -apple-system, sans-serif; max-width: 40rem; margin: 48px auto; padding: 0 16px; color: #1a1a1a; background: #fff; }
               h1 { font-size: 1.75rem; line-height: 1.3; }
               a.btn { display: inline-block; margin-top: 1.5rem; padding: 0.85rem 1.5rem; min-height: 48px; box-sizing: border-box; line-height: 1.3; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 0.5rem; font-weight: 700; font-size: 1.125rem; }
               a.btn:focus-visible { outline: 3px solid #155EEF; outline-offset: 4px; }
