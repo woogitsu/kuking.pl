@@ -1,0 +1,14 @@
+full:
+System.Object[]
+
+pint:
+System.Object[]
+
+phpstan:
+System.Object[]
+
+build:
+System.Object[]
+
+targeted:
+System.Object[]

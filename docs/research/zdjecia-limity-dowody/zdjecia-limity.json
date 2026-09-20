@@ -1,0 +1,37 @@
+[
+  {
+    "form": "post",
+    "size": {
+      "height": 50.5,
+      "font": 18
+    },
+    "multipart": [
+      "A.png",
+      "C.png"
+    ],
+    "noJavaScript": "POST z trzema plikami",
+    "fallback": "oba warianty zachowują pliki",
+    "emptyAndReset": "PASS",
+    "savedAndNewLimit": "PASS"
+  },
+  {
+    "form": "cooked",
+    "size": {
+      "height": 50.5,
+      "font": 18
+    },
+    "multipart": [
+      "A.png",
+      "C.png"
+    ],
+    "noJavaScript": "POST z trzema plikami",
+    "fallback": "oba warianty zachowują pliki",
+    "emptyAndReset": "PASS",
+    "savedAndNewLimit": "PASS"
+  },
+  {
+    "urls": "error, ponowny wybór przed load i pagehide: PASS",
+    "zoom": "CSS 200%, szerokość efektywna 320 px: PASS",
+    "scope": "pole bez opt-in: brak usuwania"
+  }
+]

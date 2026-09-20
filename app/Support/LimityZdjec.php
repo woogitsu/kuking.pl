@@ -56,6 +56,15 @@ final class LimityZdjec
         return (int) config('kuking.media.max_per_post');
     }
 
+    public static function pomocPrzedWyslaniem(): string
+    {
+        $limit = self::maksZdjecNaWysylke();
+
+        return 'Łącznie najwyżej '.$limit.' '.Odmiana::rzeczownik($limit, 'zdjęcie', 'zdjęcia', 'zdjęć')
+            .', wliczając zdjęcia zachowane po poprzednim wysłaniu. Każdy plik do '
+            .self::maksMegabajtowDoKomunikatu().' MB.';
+    }
+
     /**
      * Ile pól plikowych ma formularz przepisu POZA krokami: zdjęcie gotowego
      * dania i zdjęcie starej kartki z zeszytu.

@@ -123,21 +123,20 @@ class Profile extends Model
     }
 
     /**
-     * Czy człowiek ma zdjęcie, którego jeszcze nie da się pokazać.
-     *
-     * Ekran `/ustawienia/zdjecie` mówi trzy różne zdania i musi je rozróżnić:
-     * „to jest Twoje zdjęcie", „Twoje zdjęcie się przygotowuje" i „nie masz
-     * jeszcze zdjęcia". Ta metoda stoi obok `zdjecieDoPokazania()`, żeby obie
-     * odpowiedzi brały `deleted` pod uwagę w ten sam sposób — wiersz przejęty
-     * do skasowania nie przygotowuje się do niczego i człowiek nie ma na co
-     * czekać.
+     * Czekanie ma sens tylko podczas pracy, zanim istnieje bezpieczny wariant.
      */
     public function zdjecieSieJeszczePrzygotowuje(): bool
     {
         $zdjecie = $this->avatar;
 
         return $zdjecie !== null
-            && $zdjecie->status !== Media::STATUS_DELETED
+            && in_array($zdjecie->status, [Media::STATUS_PENDING, Media::STATUS_PROCESSING], true)
+            && $this->zdjecieDoPokazania() === null;
+    }
+
+    public function photoPreparationFailed(): bool
+    {
+        return $this->avatar?->status === Media::STATUS_REJECTED
             && $this->zdjecieDoPokazania() === null;
     }
 }

@@ -47,71 +47,129 @@ function kotwicaPodPolem(input) {
         : input;
 }
 
-/*
- * Po wybraniu pliku pokazujemy miniaturę i nazwę. Bez tego użytkownik nie ma
- * żadnego potwierdzenia, że zdjęcie zostało wybrane — a to jest najczęstszy
- * moment porzucenia formularza „dodaj zdjęcie”.
- */
-document.addEventListener('change', (event) => {
-    const input = event.target;
+// Adresy zwalniamy również przy zmianie wyboru, zanim obraz zdąży się wczytać.
+const previewUrls = new Map();
+function releasePreview(input) {
+    for (const url of previewUrls.get(input) ?? []) URL.revokeObjectURL(url);
+    previewUrls.delete(input);
+}
 
-    if (! (input instanceof HTMLInputElement) || input.type !== 'file') {
-        return;
-    }
+function selectedFiles(files) {
+    const transfer = new DataTransfer();
+    for (const file of files) transfer.items.add(file);
+    return transfer.files;
+}
 
+function renderPhotoPreview(input, focusIndex = null) {
     const pojemnikId = `${input.id}-podglad`;
     let pojemnik = document.getElementById(pojemnikId);
-
-    if (! pojemnik) {
+    if (!pojemnik) {
         pojemnik = document.createElement('div');
         pojemnik.id = pojemnikId;
         pojemnik.className = 'podglad-wyboru';
-        pojemnik.setAttribute('aria-live', 'polite');
         kotwicaPodPolem(input).insertAdjacentElement('afterend', pojemnik);
     }
-
+    releasePreview(input);
     pojemnik.replaceChildren();
-
     const pliki = Array.from(input.files ?? []);
-
-    if (pliki.length === 0) {
-        return;
-    }
-
-    /*
-     * LICZBA ZDJĘĆ STERUJE UKŁADEM Z ARKUSZA, nie stylami wpisywanymi tutaj.
-     *
-     * Dopóki siatka była ustawiana w skrypcie na `repeat(auto-fill,
-     * minmax(120px, 1fr))`, JEDNO wybrane zdjęcie dostawało jedną kolumnę
-     * z dwóch — ZMIERZONE: 150 px z 390 px okna. Człowiek, który właśnie
-     * wybrał zdjęcie swojego obiadu, widział znaczek mniejszy niż połowa
-     * ekranu. To ta sama usterka, którą właściciel zgłosił przy bloku
-     * zastępczym w kolażu (#432), tylko o jeden ekran wcześniej.
-     *
-     * Wartości idą teraz z `ekran-dodawania.css`, przez `[data-ile]` — czyli
-     * z jednego miejsca, w którym odstępy i promienie są tokenami.
-     */
     pojemnik.dataset.ile = String(pliki.length);
 
-    const info = document.createElement('p');
-    info.className = 'podglad-wyboru-info';
-    info.textContent = pliki.length === 1
-        ? 'Wybrano 1 zdjęcie.'
-        : `Wybrano ${pliki.length} zdjęcia.`;
-    pojemnik.appendChild(info);
-
-    for (const plik of pliki) {
-        if (! plik.type.startsWith('image/')) {
-            continue;
-        }
-
-        const img = document.createElement('img');
-        img.alt = '';
-        img.className = 'podglad-wyboru-zdjecie';
-        img.src = URL.createObjectURL(plik);
-        img.addEventListener('load', () => URL.revokeObjectURL(img.src), { once: true });
-        pojemnik.appendChild(img);
+    // Osobny, trwały region ogłasza zmianę, a nie całą listę przycisków.
+    let status = document.getElementById(`${input.id}-wybor-status`);
+    if (!status) {
+        status = document.createElement('p');
+        status.id = `${input.id}-wybor-status`;
+        status.className = 'podglad-wyboru-info';
+        status.setAttribute('role', 'status');
+        pojemnik.insertAdjacentElement('beforebegin', status);
     }
+    status.textContent = pliki.length ? `Wybrane zdjęcia: ${pliki.length}.` : 'Nie wybrano nowych zdjęć.';
+    const limit = Number(input.dataset.photoLimit);
+    const saved = input.form?.querySelectorAll('input[name="media_ids[]"]').length ?? 0;
+    if (limit && saved + pliki.length > limit) {
+        status.textContent += ` Łącznie ze zdjęciami zachowanymi: ${saved + pliki.length}. Limit: ${limit}. Usuń nadmiarowe zdjęcia lub wybierz je ponownie.`;
+    }
+
+    let removable = input.hasAttribute('data-remove-photos');
+    if (removable && pliki.length) {
+        try {
+            // Próba na odłączonym polu nie zmienia prawdziwego wyboru.
+            const probe = document.createElement('input');
+            probe.type = 'file';
+            probe.files = selectedFiles(pliki);
+            removable = probe.files.length === pliki.length;
+        } catch {
+            removable = false;
+        }
+        if (!removable) status.textContent += ' Aby zmienić zestaw, kliknij „Dodaj zdjęcie” i wybierz zdjęcia ponownie.';
+    }
+    const urls = new Set();
+    if (pliki.length) previewUrls.set(input, urls);
+    pliki.forEach((file, index) => {
+        const card = document.createElement('div');
+        card.className = 'podglad-wyboru-plik';
+        if (file.type.startsWith('image/')) {
+            const img = document.createElement('img');
+            img.alt = '';
+            img.className = 'podglad-wyboru-zdjecie';
+            const url = URL.createObjectURL(file);
+            urls.add(url);
+            const release = () => {
+                URL.revokeObjectURL(url);
+                urls.delete(url);
+                if (!urls.size && previewUrls.get(input) === urls) previewUrls.delete(input);
+            };
+            img.addEventListener('load', release, {once: true});
+            img.addEventListener('error', release, {once: true});
+            img.src = url;
+            card.appendChild(img);
+        }
+        if (input.hasAttribute('data-remove-photos')) {
+            const name = document.createElement('p');
+            name.className = 'podglad-wyboru-nazwa';
+            name.textContent = file.name;
+            card.appendChild(name);
+        }
+        if (removable) {
+            const button = document.createElement('button');
+            button.type = 'button';
+            button.className = 'btn btn-secondary';
+            button.textContent = 'Usuń zdjęcie';
+            button.setAttribute('aria-label', `Usuń zdjęcie ${index + 1}: ${file.name}`);
+            button.addEventListener('click', () => {
+                const remaining = pliki.filter((_, position) => position !== index);
+                try {
+                    input.files = selectedFiles(remaining);
+                    if (input.files.length !== remaining.length || remaining.some((file, position) => input.files[position] !== file)) throw new Error('FileList');
+                } catch {
+                    status.textContent = 'Nie udało się usunąć zdjęcia z wyboru. Kliknij „Dodaj zdjęcie” i wybierz zdjęcia ponownie.';
+                    return;
+                }
+                renderPhotoPreview(input, index);
+            });
+            card.appendChild(button);
+        }
+        pojemnik.appendChild(card);
+    });
+    if (focusIndex !== null) {
+        const buttons = pojemnik.querySelectorAll('button');
+        (buttons[Math.min(focusIndex, buttons.length - 1)] ?? input).focus();
+    }
+}
+
+document.addEventListener('change', (event) => {
+    const input = event.target;
+    if (input instanceof HTMLInputElement && input.type === 'file') renderPhotoPreview(input);
+});
+document.addEventListener('reset', (event) => {
+    queueMicrotask(() => {
+        for (const input of event.target.querySelectorAll('input[type="file"]')) {
+            if (document.getElementById(`${input.id}-podglad`)) renderPhotoPreview(input);
+        }
+    });
+});
+window.addEventListener('pagehide', () => {
+    for (const input of previewUrls.keys()) releasePreview(input);
 });
 
 // --- Nieudana wysyłka zdjęcia w kreatorze (Livewire) ----------------------
@@ -158,7 +216,9 @@ window.addEventListener('livewire-upload-error', (zdarzenie) => {
 
     // Podgląd miniatury dorysowany przy wyborze pliku kłamałby: zdjęcia
     // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu.
+    releasePreview(input);
     document.getElementById(`${input.id}-podglad`)?.replaceChildren();
+    document.getElementById(`${input.id}-wybor-status`)?.remove();
 });
 
 // Kolejna udana wysyłka sprząta po poprzednim błędzie — inaczej czerwony

@@ -9,7 +9,7 @@
         <strong>Nie musisz wypełniać żadnego pola</strong> — wystarczy, że klikniesz „Wyślij”.
     </p>
 
-    <x-error-summary />
+    <x-error-summary :targets="['photos.*' => 'photos', 'media_ids' => 'photos', 'media_ids.*' => 'photos']" />
 
     <form class="panel-formularza" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
         @csrf
@@ -36,26 +36,37 @@
              oka, ale zostaje pod klawiaturą i w drzewie dostępności, a klikalna
              jest etykieta. `<input>` MUSI stać bezpośrednio przed `<label>` —
              obwódkę fokusu rysuje reguła sąsiedztwa. --}}
+        @foreach($zachowane as $zdjecie)
+            <div class="notice">
+                <p>Zdjęcie jest zachowane. Nie musisz wybierać go ponownie.</p>
+                <input type="hidden" name="media_ids[]" value="{{ $zdjecie->id }}">
+                <x-photo :media="$zdjecie" variant="thumb" :zoom="false" />
+                <button class="btn btn-quiet" type="submit" name="usun_zdjecie" value="{{ $zdjecie->id }}" formnovalidate>Usuń zdjęcie z wykonania</button>
+            </div>
+        @endforeach
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
             <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie tego, co Ci wyszło</span>
-            <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
+            <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file"
+                   @if($errors->hasAny(['photos', 'photos.*', 'media_ids', 'media_ids.*'])) aria-invalid="true" @endif name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                   multiple
+                   multiple data-remove-photos data-photo-limit="{{ \App\Support\LimityZdjec::maksZdjecNaWysylke() }}"
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
-                   aria-describedby="f-photos-help">
+                   aria-describedby="f-photos-help{{ $errors->hasAny(['photos', 'photos.*', 'media_ids', 'media_ids.*']) ? ' f-photos-error' : '' }}">
             <label class="pole-zdjecia" for="f-photos">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-photos-help">
                     To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne.
+                    {{ \App\Support\LimityZdjec::pomocPrzedWyslaniem() }}
                 </span>
             </label>
-            @error('photos')<span class="field-error">{{ $message }}</span>@enderror
-            @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
+            @if($errors->hasAny(['photos', 'photos.*', 'media_ids', 'media_ids.*']))
+                <span class="field-error" id="f-photos-error">{{ $errors->first('photos') ?: $errors->first('photos.*') ?: $errors->first('media_ids') ?: $errors->first('media_ids.*') }}</span>
+            @endif
         </div>
 
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
-                 help="Na przykład: „Wyszło pięknie, tylko soli mniej.”" />
+                 help="Na przykład: „Wyszło pięknie, tylko soli mniej.” Najwyżej 2000 znaków." />
 
         {{-- POMOC MÓWI, CO TU WPISAĆ I GDZIE TO TRAFI, A NIE JAK CZĘSTO
              KTOŚ TO CZYTA.
@@ -72,7 +83,7 @@
              kartę wykonania (`components/cooked-card.blade.php`), podpisana
              dokładnie tak. --}}
         <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3"
-                 help="Zamiana składnika, inny czas, inna forma. Pokażemy to przy Twoim wykonaniu, podpisane „Po swojemu”." />
+                 help="Zamiana składnika, inny czas, inna forma. Pokażemy to przy Twoim wykonaniu, podpisane „Po swojemu”. Najwyżej 1000 znaków." />
 
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"
                  inputmode="numeric" :min="0" :max="10080" />

@@ -32,6 +32,8 @@
                 @elseif($wPrzygotowaniu)
                     Twoje nowe zdjęcie się przygotowuje. Odśwież tę stronę za chwilę —
                     do tego czasu wszędzie stoi pierwsza litera Twojego imienia.
+                @elseif($profile->photoPreparationFailed())
+                    Nie udało się przygotować zdjęcia. Wybierz zdjęcie ponownie i kliknij „Zapisz zdjęcie”.
                 @else
                     Nie masz jeszcze swojego zdjęcia. Zamiast niego wszędzie pokazujemy
                     pierwszą literę Twojego imienia.

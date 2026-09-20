@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Media\RecoveredFormPhotos;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
 use App\Domain\Posts\SasiedniWpisAutora;
@@ -63,6 +64,7 @@ class PostController extends Controller
         }
 
         return view($question ? 'pages.questions.create' : 'pages.posts.create', [
+            'zachowane' => RecoveredFormPhotos::forUser($request->user(), old('media_ids')),
             'tagNames' => $tagNames,
             'sugestieTagow' => $this->sugestieDlaZapytania(),
             'kluczWyslania' => $this->kluczDlaFormularza(),
@@ -123,6 +125,19 @@ class PostController extends Controller
         abort_if($question && ! config('kuking.questions.enabled'), 404);
         $user = $request->user();
 
+        // Zakończone wysłanie nie wymaga ponownego dekodowania i zapisu plików.
+        // UNIQUE w akcji domenowej nadal rozstrzyga równoczesne wysłania.
+        $existing = $this->publishPost->wpisZTegoWyslania($user, $this->kluczZZadania($request));
+        if ($existing !== null) {
+            $this->authorize('view', $existing);
+
+            return redirect()->route($existing->kind === Post::KIND_QUESTION ? 'questions.show' : 'posts.show', $existing)
+                ->with('status', $existing->kind === Post::KIND_QUESTION
+                    ? 'To pytanie jest już opublikowane. Drugie kliknięcie nie dodało go ponownie.'
+                    : 'Ten wpis jest już opublikowany. Kliknięcie drugi raz nic nie zepsuło — wpis jest jeden. '
+                        .'Chcesz dodać osobny wpis? Otwórz „Dodaj zdjęcie” jeszcze raz — wtedy powstanie nowy.');
+        }
+
         // ZDJECIA WGRYWAMY PRZED WALIDACJA RESZTY — I TO JEST CALY SENS C1.
         //
         // Wczesniej walidacja szla najpierw, a przy bledzie leciało
@@ -152,6 +167,9 @@ class PostController extends Controller
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
             'photos.*.max' => $bladRozmiaruZdjecia,
+            'media_ids.array' => 'Wybierz zdjęcia ponownie.',
+            'media_ids.*.uuid' => 'Wybierz to zdjęcie ponownie.',
+            'media_ids.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'photos.max' => $question ? 'Do pytania wybierz jedno zdjęcie.' : LimityZdjec::komunikatZaDuzoZdjec(),
         ]);
 

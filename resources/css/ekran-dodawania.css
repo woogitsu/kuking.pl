@@ -221,4 +221,21 @@
     height: auto;
     border-radius: var(--radius-md);
   }
+
+  .podglad-wyboru-plik {
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: var(--spacing-2);
+  }
+
+  .podglad-wyboru-nazwa {
+    margin: 0;
+    overflow-wrap: anywhere;
+  }
+
+  .podglad-wyboru-plik .btn {
+    white-space: normal;
+    min-height: 48px;
+  }
 }
