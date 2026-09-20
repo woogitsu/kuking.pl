@@ -8,6 +8,7 @@ use App\Models\Collection;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * „Zapisz" na karcie wpisu (UI kit v2, ekran 01) — decyzja właściciela.
@@ -35,6 +36,7 @@ final class SavePostToCollection
     public function handle(User $user, Post $post, ?Collection $collection = null, ?string $note = null): Collection
     {
         $collection ??= $user->defaultCollection();
+        Gate::forUser($user)->authorize('update', $collection);
 
         if ($collection->posts()->whereKey($post->getKey())->exists()) {
             if ($note !== null) {

@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * "Zapisuję" — dodanie przepisu do zeszytu.
@@ -25,6 +26,7 @@ final class SaveRecipeToCollection
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
     {
         $collection ??= $user->defaultCollection();
+        Gate::forUser($user)->authorize('update', $collection);
 
         // DRUGIE KLIKNIĘCIE „ZAPISUJĘ” NIE JEST NOWYM ZAPISEM (issue #43).
         //
@@ -68,16 +70,18 @@ final class SaveRecipeToCollection
 
         // Autor dowiaduje się, że ktoś odłożył jego przepis "na potem".
         // To jedno z najprzyjemniejszych powiadomień w serwisie.
-        $this->notify->handle(
-            recipient: $recipe->author,
-            type: Notification::TYPE_SAVED,
-            actor: $user,
-            data: [
-                'recipe_id' => $recipe->getKey(),
-                'recipe_title' => $recipe->title,
-                'recipe_slug' => $recipe->slug,
-            ],
-        );
+        if ($user->isActive()) {
+            $this->notify->handle(
+                recipient: $recipe->author,
+                type: Notification::TYPE_SAVED,
+                actor: $user,
+                data: [
+                    'recipe_id' => $recipe->getKey(),
+                    'recipe_title' => $recipe->title,
+                    'recipe_slug' => $recipe->slug,
+                ],
+            );
+        }
 
         return $collection;
     }

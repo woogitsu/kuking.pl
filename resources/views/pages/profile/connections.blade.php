@@ -54,12 +54,12 @@
                     @if($isSelf)
                         <span class="badge">To Ty</span>
                     @elseif($viewer !== null)
-                        @if($isFollowingPerson)
+                        @if($isFollowingPerson && $viewer->can('unfollow', $person))
                             <form method="POST" action="{{ route('social.unfollow', $personUsername) }}">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
-                        @else
+                        @elseif(! $isFollowingPerson && $viewer->can('follow', $person))
                             <form method="POST" action="{{ route('social.follow', $personUsername) }}">
                                 @csrf
                                 <button class="btn btn-primary" type="submit">Obserwuj</button>

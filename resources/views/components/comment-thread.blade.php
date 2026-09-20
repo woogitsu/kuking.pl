@@ -23,7 +23,7 @@
     pod treścią, która ma ich sto. Domyślnie `null`, więc ekrany bez
     paginacji nie muszą nic przekazywać i liczą jak dotąd.
 --}}
-@props(['comments', 'action', 'ile' => null, 'answers' => false])
+@props(['comments', 'action', 'ile' => null, 'answers' => false, 'canComment' => auth()->user()?->isActive() ?? false])
 @php($wszystkich = $ile ?? $comments->count())
 <section class="stack" aria-labelledby="komentarze">
     <h2 id="komentarze">{{ $answers ? 'Odpowiedzi' : 'Komentarze' }} @if($wszystkich) ({{ $wszystkich }}) @endif</h2>
@@ -172,6 +172,7 @@
                      akcji, i blok „Usuń" niżej, a liczenie ich w dwóch miejscach
                      byłoby dwoma miejscami do poprawienia. --}}
                 <div class="akcje-komentarza">
+                    @if($canComment)
                     <details @if(\App\Support\WierszFormularza::jestAktywny('odpowiedz-'.$comment->id) && $errors->any()) open @endif>
                         <summary class="btn btn-quiet inline-flex">Odpowiedz</summary>
                         <form class="mt-3" method="POST" action="{{ $action }}">
@@ -182,6 +183,7 @@
                             <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
                         </form>
                     </details>
+                    @endif
 
                     @unless($commentIsRemoved)
                         @can('update', $comment)
@@ -243,6 +245,7 @@
     @endforelse
 
     @auth
+        @if($canComment)
         <form class="panel-formularza" method="POST" action="{{ $action }}">
             @csrf
             <input type="hidden" name="_wiersz" value="nowy-komentarz">
@@ -267,6 +270,9 @@
                      required bez-oznaczenia />
             <button class="btn btn-primary" type="submit">{{ $answers ? 'Wyślij odpowiedź' : 'Wyślij komentarz' }}</button>
         </form>
+        @else
+            <p class="notice">Możesz czytać komentarze. Wróć do rozmowy po zakończeniu zawieszenia konta.</p>
+        @endif
     @else
         {{-- BEZ „Zajmuje to minutę": obietnica z miarą, której nie mierzymy,
              a przy tym niejasna — stała po dwóch różnych drogach naraz

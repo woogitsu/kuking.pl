@@ -707,6 +707,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('cooking.show', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooking.zaznacz', 'odhaczenie kroku w prywatnym przepisie', 'post',
             route('cooking.zaznacz', $przepisPrywatny), ['krok' => 1, 'stan' => '1'], [$W, $O, $O, $O, $O]);
+        $dodaj('cooking.reset', 'reset postępu prywatnego przepisu', 'post',
+            route('cooking.reset', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.create', 'formularz „Ugotowałem" przy prywatnym przepisie', 'get',
             route('cooked.create', $przepisPrywatny), [], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.store', 'zapis „Ugotowałem" przy prywatnym przepisie', 'post',

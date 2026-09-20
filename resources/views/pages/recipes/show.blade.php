@@ -240,7 +240,7 @@
                             warunku: kto zaczął obserwować przed wymazaniem
                             konta, musi mieć jak przestać.
                         --}}
-                        @if($obserwuje ?? false)
+                        @if(($obserwuje ?? false) && auth()->user()->can('unfollow', $recipe->author))
                             <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
                                 @csrf @method('DELETE')
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>

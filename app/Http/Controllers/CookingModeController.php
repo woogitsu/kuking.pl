@@ -134,6 +134,15 @@ class CookingModeController extends Controller
         return redirect()->route('cooking.show', [$model->slug, 'krok' => $krok]);
     }
 
+    public function reset(Request $request, string $recipe): RedirectResponse
+    {
+        $model = Recipe::where('slug', $recipe)->firstOrFail();
+        $this->authorize('view', $model);
+        $request->session()->forget($this->sessionKey($model));
+
+        return redirect()->route('cooking.show', $model->slug);
+    }
+
     /**
      * Numer kroku z adresu bywa czymkolwiek — pusty, ujemny, tekst, liczba
      * większa niż liczba kroków (ktoś ręcznie zmienił `?krok=`). Zamiast 404

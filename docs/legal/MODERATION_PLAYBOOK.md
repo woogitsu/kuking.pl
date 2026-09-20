@@ -110,7 +110,7 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    i przyciskiem „Odwołanie od tej decyzji".
 2. Odwołanie składa się **formularzem w produkcie**:
    - osoba aktywna albo zawieszona — z powiadomienia (`/odwolanie/{decyzja}`);
-     zawieszenie nie blokuje wysłania odwołania, choć blokuje wszystko inne;
+     zawieszenie nie blokuje wysłania odwołania. Dostępne są też nazwane czynności prywatne: zeszyt i postęp gotowania (decyzja #926, `docs/product/ZAWIESZENIE_926.md`);
    - osoba **zablokowana** — `/odwolanie`, formularz przed logowaniem,
      zamknięty loginem i hasłem (nie loguje i nie zdejmuje blokady). Link jest
      na ekranie logowania, bo to jedyny ekran, który taka osoba zobaczy;

@@ -84,11 +84,13 @@
                                @checked(old('visibility', 'private') === 'private')>
                         <span class="choice-label">Tylko ja</span>
                     </label>
+                    @can('create', [\App\Models\Collection::class, 'public'])
                     <label class="choice">
                         <input type="radio" name="visibility" value="public"
                                @checked(old('visibility') === 'public')>
                         <span class="choice-label">Wszyscy</span>
                     </label>
+                    @endcan
                 </div>
                 <x-blad-grupy name="visibility" />
             </fieldset>

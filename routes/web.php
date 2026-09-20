@@ -196,6 +196,9 @@ Route::get('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'show'])->
 Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'])
     ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
     ->name('cooking.zaznacz');
+Route::post('/przepisy/{recipe}/gotuj/od-nowa', [CookingModeController::class, 'reset'])
+    ->middleware("throttle:{$limits['cooking_krok']},cooking_krok")
+    ->name('cooking.reset');
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
 Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');

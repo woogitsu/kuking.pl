@@ -28,8 +28,8 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * PODZIAŁ ODPOWIEDZIALNOŚCI
  * - `banned`, `pending_delete` → wylogowanie natychmiast, przy pierwszym żądaniu.
- * - `suspended` → dostęp tylko do ODCZYTU. Konto żyje, treści są widoczne,
- *   ale nie da się nic opublikować. Wylogowanie musi działać, inaczej osoba
+ * - `suspended` → odczyt oraz nazwane czynności prywatne (#926).
+ *   Konto żyje, ale nie da się nic opublikować. Wylogowanie musi działać, inaczej osoba
  *   zostaje uwięziona w serwisie bez wyjścia.
  * - kara z minionym terminem → konto wraca do `active` OD RAZU, bez czekania
  *   na zadanie w harmonogramie (issue #40).
@@ -74,6 +74,16 @@ class EnsureAccountIsActive
         'settings.email.request',
         'settings.email.cancel',
         'appeals.store',
+        // #926: prywatny zeszyt i postęp gotowania zostają dostępne.
+        // Widoczności zeszytu i treści nadal pilnują ich polityki.
+        'collections.store',
+        'collections.destroy',
+        'collections.save',
+        'collections.unsave',
+        'collections.save-post',
+        'collections.unsave-post',
+        'cooking.zaznacz',
+        'cooking.reset',
     ];
 
     public function handle(Request $request, Closure $next): Response

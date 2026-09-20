@@ -310,6 +310,8 @@ class CollectionController extends Controller
             'visibility.required' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
         ]);
 
+        $this->authorize('create', [Collection::class, $data['visibility']]);
+
         try {
             $collection = $user->collections()->create($data);
         } catch (UniqueConstraintViolationException) {

@@ -69,10 +69,12 @@
                             @if(! $naPowitalnej || auth()->check())
                             <div class="kuking-board-akcja">
                                 @auth
+                                    @can('follow', $person)
                                     <form method="POST" action="{{ route('social.follow', $person->profile->username) }}">
                                         @csrf
                                         <button class="btn btn-secondary" type="submit">Obserwuj</button>
                                     </form>
+                                    @endcan
                                 @else
                                     {{-- ETYKIETA MÓWI, CO SIĘ STANIE PO KLIKNIĘCIU.
 

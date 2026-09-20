@@ -122,6 +122,13 @@
                     @endif
                 </button>
             </form>
+            <div class="danger-zone">
+            <x-confirm-button
+                :action="route('cooking.reset', $recipe->slug)"
+                method="POST"
+                label="Zacznij od nowa"
+                question="Usunąć oznaczenia zrobionych kroków tego przepisu?" />
+            </div>
         </section>
 
         {{--

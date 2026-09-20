@@ -223,12 +223,12 @@
                     <p class="mb-0">To konto jest zablokowane albo zgłoszone do usunięcia. Widzisz je, bo jesteś moderatorem.</p>
                 @endif
             @elseif(auth()->check())
-                @if($isFollowing)
+                @if($isFollowing && auth()->user()->can('unfollow', $owner))
                     <form method="POST" action="{{ route('social.unfollow', $p->username) }}">
                         @csrf @method('DELETE')
                         <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                     </form>
-                @else
+                @elseif(! $isFollowing && auth()->user()->can('follow', $owner))
                     <form method="POST" action="{{ route('social.follow', $p->username) }}">
                         @csrf
                         <button class="btn btn-primary" type="submit">Obserwuj</button>

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Policies;
 
+use App\Models\Block;
 use App\Models\User;
 
 class UserPolicy
@@ -41,12 +42,41 @@ class UserPolicy
         return $viewer->getKey() !== $target->getKey()
             && $viewer->isActive()
             && $target->isActive()
-            && ! $viewer->hasBlockRelationWith($target);
+            && ! $this->hasBlockRelation($viewer, $target);
+    }
+
+    private function hasBlockRelation(User $viewer, User $target): bool
+    {
+        // Zapis zawsze sprawdza bazę na nowo. Przy renderowaniu listy jedno
+        // pobranie blokad wystarcza wszystkim kartom, wyłącznie w tym GET.
+        $request = request();
+        if (! $request->isMethod('GET')) {
+            return $viewer->hasBlockRelationWith($target);
+        }
+
+        $key = self::class.'.blocks.'.$viewer->getKey();
+        if (! $request->attributes->has($key)) {
+            $ids = Block::query()
+                ->where('blocker_id', $viewer->getKey())
+                ->orWhere('blocked_id', $viewer->getKey())
+                ->get(['blocker_id', 'blocked_id'])
+                ->map(fn (Block $block) => $block->blocker_id === $viewer->getKey() ? $block->blocked_id : $block->blocker_id)
+                ->flip();
+            $request->attributes->set($key, $ids);
+        }
+
+        return $request->attributes->get($key)->has($target->getKey());
     }
 
     public function moderate(User $viewer): bool
     {
         return $viewer->isModerator();
+    }
+
+    public function unfollow(User $viewer, User $target): bool
+    {
+        // Można wycofać relację także z osobą, której konto przestało być aktywne.
+        return $viewer->isActive() && $viewer->getKey() !== $target->getKey();
     }
 
     /**
