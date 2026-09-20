@@ -35,10 +35,19 @@
         {{-- „sam wybierasz" przypisywało czytelnikowi rodzaj męski
              (issue #38, COPY_STYLE.md §2) — „sam" nie wnosi tu informacji. --}}
         <p>
-            Przy każdym wpisie i przepisie wybierasz: <strong>wszyscy</strong>,
+            Przy zwykłym wpisie i przepisie wybierasz: <strong>wszyscy</strong>,
             <strong>tylko osoby, które Cię obserwują</strong>, albo <strong>tylko Ty</strong>.
             Możesz to zmienić w każdej chwili.
         </p>
+
+        @if(config('kuking.questions.enabled', false))
+            <p>
+                Pytanie w Poradźcie publikujesz dla wszystkich — razem z opisem i zdjęciem.
+                Po publikacji możesz zmienić jego widoczność w edycji.
+                Jeśli od początku chcesz ograniczyć grono odbiorców, wybierz
+                <a href="{{ route('posts.create') }}">zwykły wpis</a> i ustaw, kto ma go widzieć.
+            </p>
+        @endif
 
         <h2>Nie pamiętam hasła</h2>
         <p>

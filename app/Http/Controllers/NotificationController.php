@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Notifications\QuestionNotificationContext;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use Illuminate\Http\RedirectResponse;
@@ -13,7 +14,7 @@ use Illuminate\View\View;
 
 class NotificationController extends Controller
 {
-    public function index(Request $request): View
+    public function index(Request $request, QuestionNotificationContext $questionContext): View
     {
         $user = $request->user();
 
@@ -29,6 +30,7 @@ class NotificationController extends Controller
 
         return view('pages.notifications', [
             'notifications' => $notifications,
+            'questionTitles' => $questionContext->titles($notifications->items(), $user),
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
         ]);
     }
