@@ -154,7 +154,7 @@ for narzedzie in pg_dump pg_restore psql openssl php; do
   fi
 done
 
-if ! pg_isready -q 2>/dev/null; then
+if ! pg_isready -q -h "${BAZA_HOST}" -p "${BAZA_PORT}" 2>/dev/null; then
   printf '\033[0;31mPostgreSQL nie odpowiada — nie ma czego dowodzić.\033[0m\n' >&2
   exit 1
 fi
