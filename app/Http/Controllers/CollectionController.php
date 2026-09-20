@@ -392,9 +392,34 @@ class CollectionController extends Controller
         // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
         // wolno oglądać, tym bardziej musi dać się stamtąd wyjąć — inaczej
         // zostawałby w zeszycie na zawsze.
+        //
+        // TO NIE JEST OBEJŚCIE REGUŁY „UUID W ADRESIE TO NIE AUTORYZACJA"
+        // (AGENTS.md §7), tylko granica OSTRZEJSZA niż Policy. Policy
+        // odpowiada na pytanie „czy wolno Ci ruszyć TEN wpis"; tutaj pytanie
+        // brzmi inaczej: „z czyjego zeszytu wyjmujemy". Zakres akcji jest
+        // przypięty do `$request->user()`, więc identyfikator w adresie nie
+        // daje dostępu do niczyjego cudzego zeszytu — obca osoba, która
+        // wyśle tu UUID wpisu leżącego w zeszycie kogoś innego, nie ruszy
+        // tamtego wiersza (`ZeszytPrzyjmujeWpisyTest`:
+        // „obca osoba nie wyjmie wpisu z cudzego zeszytu"). Gość nie dochodzi
+        // tu wcale — trasa stoi za `auth` (`routes/web.php`).
         $this->savePost->remove($request->user(), $post);
 
-        return back()->with('status', 'Usunięte z zeszytu.');
+        // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
+        //
+        // „Usunięte z zeszytu." nie mówiło, CO zostało usunięte ani czy
+        // zniknęło z jednego zeszytu, czy ze wszystkich — a wyjmujemy ze
+        // wszystkich zeszytów tej osoby, więc trzeba to napisać wprost.
+        // Zamiast pytania „czy na pewno" PRZED akcją (wyjęcie jest
+        // odwracalne) idzie przycisk powrotu PO niej; rysuje go
+        // `components/layout.blade.php` w tym samym obszarze `aria-live`,
+        // co komunikat.
+        return back()
+            ->with('status', 'Wpis wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.')
+            ->with('status_powrot', [
+                'akcja' => route('collections.save-post', $post),
+                'etykieta' => 'Zapisz ponownie',
+            ]);
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse
