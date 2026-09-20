@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Support;
 
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Vite;
 use Symfony\Component\HttpFoundation\Response;
 
 /**
@@ -51,17 +52,41 @@ final class KomunikatZaDuzaWysylka
         $limitMb = LimityZdjec::maksMegabajtowDoKomunikatu();
         $powrot = htmlspecialchars(self::urlPowrotu($request), ENT_QUOTES, 'UTF-8');
 
+        // PODPIS DO BLOKU `<style>` — ten sam mechanizm co w
+        // `errors/_prosty.blade.php`. Od 20 września 2026 ta odpowiedź NIE
+        // wychodzi już bez polityki bezpieczeństwa: `ApplySecurityHeaders`
+        // stoi drugi w stosie globalnym, czyli na zewnątrz `ValidatePostSize`
+        // (patrz bootstrap/app.php). `style-src` nie ma `unsafe-inline`, więc
+        // blok bez podpisu przeglądarka odrzuci i strona zostanie szara.
+        //
+        // Gdyby podpisu z jakiegoś powodu nie było, atrybut się nie pojawia,
+        // a strona renderuje się bez stylów — nagłówek, akapit i odnośnik są
+        // zwykłym HTML-em. To jest gorszy wygląd, nie utrata treści.
+        $nonce = Vite::cspNonce();
+        $atrybutNonce = is_string($nonce) && $nonce !== ''
+            ? ' nonce="'.htmlspecialchars($nonce, ENT_QUOTES, 'UTF-8').'"'
+            : '';
+
         $html = <<<HTML
             <!doctype html>
             <html lang="pl">
             <head>
             <meta charset="utf-8">
             <meta name="viewport" content="width=device-width, initial-scale=1">
+            <meta name="robots" content="noindex, nofollow">
             <title>Zdjęcie jest za duże — Kuking</title>
-            <style>
-              body { font: 18px/1.5 system-ui, -apple-system, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1.25rem; color: #1a1a1a; background: #fff; }
-              h1 { font-size: 28px; line-height: 1.3; }
-              a.btn { display: inline-block; margin-top: 1.5rem; padding: 0.85rem 1.5rem; min-height: 48px; box-sizing: border-box; line-height: 1.3; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 0.5rem; font-weight: 700; font-size: 18px; }
+            <style{$atrybutNonce}>
+              /* `rem`, NIE `px`. Rozmiar podany w `px` nie zmienia się, gdy
+                 człowiek powiększy czcionkę w ustawieniach przeglądarki — a to
+                 jest druga, całkiem niezależna od naszej, droga do większego
+                 tekstu (WCAG 1.4.4). Zmierzone: przy podwojonej czcionce
+                 przeglądarki ta strona zostawała przy 18 px, podczas gdy
+                 `errors/_prosty.blade.php` (500 i 503) rósł poprawnie, bo
+                 od początku używa `rem`. 1.125rem = 18 px przy domyślnych 16. */
+              body { font: 1.125rem/1.5 system-ui, -apple-system, sans-serif; max-width: 40rem; margin: 3rem auto; padding: 0 1.25rem; color: #1a1a1a; background: #fff; }
+              h1 { font-size: 1.75rem; line-height: 1.3; }
+              a.btn { display: inline-block; margin-top: 1.5rem; padding: 0.85rem 1.5rem; min-height: 48px; box-sizing: border-box; line-height: 1.3; background: #1a1a1a; color: #fff; text-decoration: none; border-radius: 0.5rem; font-weight: 700; font-size: 1.125rem; }
+              a.btn:focus-visible { outline: 3px solid #155EEF; outline-offset: 4px; }
             </style>
             </head>
             <body>
