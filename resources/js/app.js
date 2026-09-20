@@ -428,7 +428,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
                     navigator.vibrate([300, 150, 300, 150, 300]);
                 }
 
-                komunikat.textContent = 'Czas minal!';
+                komunikat.textContent = 'Czas minął!';
                 przycisk.textContent = 'Uruchom minutnik jeszcze raz';
                 przycisk.hidden = false;
                 przycisk.disabled = false;
