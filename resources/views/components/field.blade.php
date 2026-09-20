@@ -115,6 +115,31 @@
      * przez kwadrans jak przepis.
      */
     $current = $type === 'password' ? null : ($wire === null ? ($tenWiersz ? old($name, $value) : $value) : $value);
+
+    /*
+     * OCHRONA TYPU PRZED WYPISANIEM (issue #745).
+     *
+     * `old($name, $value)` bierze wprost to, co przyszło w żądaniu HTTP —
+     * a HTML pozwala przesłać `name[]=coś` tam, gdzie pole jest zwykłym
+     * `<input type="text">`. Walidator (`string`) taki wpis odrzuca, ale
+     * ODRZUCA GO PO tym, jak trafił do sesji przez `withInput()`: `old()`
+     * po redirect nadal zwraca tablicę. `{{ $current }}` w Blade wywołuje
+     * `e()`, a `htmlspecialchars()` na tablicy rzuca `TypeError` — więc
+     * zamiast błędu przy POLU wywalał się render CAŁEJ reszty formularza
+     * (500), a poprawnie wypełnione pola znikały razem z nim.
+     *
+     * To pole (`x-field`) reprezentuje jedną wartość skalarną, więc każdy
+     * typ inny niż skalar/`null` jest tu z definicji niepoprawnym wejściem
+     * — wypisujemy pustą wartość i zostawiamy istniejący błąd walidacji
+     * ($error, policzony wyżej z $errors->first(), którego to nie dotyczy)
+     * żeby było widać, co poprawić. Grupy tablicowe (składniki, tagi,
+     * kroki) NIE wchodzą przez ten komponent — mają własne pętle nad
+     * old() — więc to zawężenie ich nie dotyka.
+     */
+    if ($current !== null && ! is_scalar($current)) {
+        $current = '';
+    }
+
     $describedBy = collect([
         $help ? $id.'-help' : null,
         $error ? $id.'-error' : null,
