@@ -251,4 +251,38 @@ class CookingModeTest extends TestCase
             ->assertSee('cook-timer-anuluj', false)
             ->assertSee('Anuluj minutnik');
     }
+
+    /**
+     * Regresja issue #764: tryb gotowania pokazywał składniki jedną płaską
+     * listą — bez grup autora (`App\Domain\Recipes\GrupySkladnikow`, ten
+     * sam mechanizm co na stronie przepisu) i bez „do smaku” dla składników
+     * oznaczonych `no_amount`. Efekt: przepis z grupami „Ciasto”/„Farsz”
+     * gubił tę strukturę wyłącznie w trybie gotowania, a „sól” zaznaczona
+     * jako „bez ilości” wyglądała jak składnik bez żadnej informacji
+     * o ilości, zamiast jak świadome „do smaku”.
+     */
+    public function test_skladniki_pokazuja_grupy_i_do_smaku(): void
+    {
+        $autor = $this->user('autorka14');
+        $recipe = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(),
+            'group_name' => 'Ciasto',
+            'ingredient_text' => 'mąka',
+            'position' => 0,
+        ]);
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(),
+            'group_name' => 'Farsz',
+            'ingredient_text' => 'sól',
+            'no_amount' => true,
+            'position' => 1,
+        ]);
+        RecipeStep::create(['recipe_id' => $recipe->getKey(), 'position' => 0, 'instruction' => 'Krok.']);
+
+        $odpowiedz = $this->get(route('cooking.show', $recipe->slug))->assertOk();
+
+        $odpowiedz->assertSeeInOrder(['Ciasto', 'mąka', 'Farsz', 'sól', 'do smaku']);
+    }
 }

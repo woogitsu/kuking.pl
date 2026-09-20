@@ -48,14 +48,41 @@
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
             @else
-                <ul class="ingredient-list">
-                    @foreach($recipe->ingredients as $ingredient)
-                        <li>
-                            {{ $ingredient->ingredient_text }}
-                            @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
-                        </li>
-                    @endforeach
-                </ul>
+                {{--
+                    GRUPY SKŁADNIKÓW I „DO SMAKU" (issue #764).
+                    Ta lista pokazywała składniki płaską, jedną pętlą po
+                    `$recipe->ingredients` — bez `App\Domain\Recipes\GrupySkladnikow`
+                    (patrz `resources/views/pages/recipes/show.blade.php`)
+                    i bez odczytania `no_amount`. Efekt: przepis z grupami
+                    „Ciasto"/„Farsz" pokazywał w trybie gotowania jedną
+                    listę bez nagłówków — nie usterkę widoczną na pierwszy
+                    rzut oka, tylko po cichu zgubioną strukturę, którą autor
+                    świadomie wpisał — a „sól do smaku" w trybie gotowania
+                    wyglądało jak składnik bez żadnej ilości, bez słowa
+                    wyjaśnienia, czy to pominięcie autora, czy zamierzone.
+                    Naprawa czyta ten sam układ co strona przepisu, tym
+                    samym wywołaniem `GrupySkladnikow::ulozyc()` — jedno
+                    miejsce liczące grupy, nie dwie kopie tej samej reguły.
+                --}}
+                @foreach(\App\Domain\Recipes\GrupySkladnikow::ulozyc($recipe->ingredients) as $grupaSkladnikow)
+                    @if($grupaSkladnikow['nazwa'] !== null)
+                        <h3 class="naglowek-grupy">{{ $grupaSkladnikow['nazwa'] }}</h3>
+                    @endif
+                    <ul class="ingredient-list">
+                        @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                            <li>
+                                {{ $ingredient->ingredient_text }}
+                                {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
+                                     tego sam w tekście składnika (issue #44),
+                                     ten sam warunek co na stronie przepisu. --}}
+                                @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
+                                    <span class="meta"> — do smaku</span>
+                                @endif
+                                @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endforeach
             @endif
         </details>
 
