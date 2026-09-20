@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Zgody\PrzestawZgodeNaDigest;
 use App\Jobs\GenerateUserExport;
+use App\Jobs\NotifyUserExportReady;
 use App\Models\DataExport;
 use App\Models\User;
 use App\Models\WpisZgody;
@@ -100,6 +101,13 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
 
         (new GenerateUserExport((string) $export->getKey()))->handle();
 
+        try {
+            (new NotifyUserExportReady((string) $export->getKey()))->handle();
+            $this->fail('Awaria transportu musi dotrzeć do kolejki.');
+        } catch (RuntimeException $exception) {
+            $this->assertStringNotContainsString($basia->email, (string) $exception);
+        }
+
         // KONTROLA DODATNIA: paczka ma być gotowa mimo nieudanego listu,
         // a wpis w dzienniku ma w ogóle powstać. Bez tego dwa `not contains`
         // niżej przechodziłyby także wtedy, gdyby nic się nie wydarzyło.
@@ -118,7 +126,7 @@ final class KomunikatWyjatkuNieWchodziSurowyDoDziennikaTest extends TestCase
 
                 // …a jednocześnie wpis dalej mówi, CO się stało — inaczej
                 // byłaby to cisza, nie redakcja.
-                $this->assertStringContainsString('550 5.1.1', $caly);
+                $this->assertStringContainsString(RuntimeException::class, $caly);
 
                 return true;
             })->once();
