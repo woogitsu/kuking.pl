@@ -1,0 +1,16 @@
+{
+  "nazwa": "896-bez-ilosci",
+  "plik": "app/Domain/Recipes/Actions/SnapshotRecipeVersion.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "712b0b35d83c1fd516688790adb1a1bd",
+  "md5_po_mutacji": "e3342a644e1af312ee1f7b84b99163a1",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "no_amount",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:25:11Z"
+}

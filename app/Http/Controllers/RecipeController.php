@@ -270,7 +270,7 @@ class RecipeController extends Controller
     {
         $this->authorize('update', $recipe);
 
-        $data = $this->validated($request);
+        $data = $this->validated($request, $recipe);
         $user = $request->user();
 
         try {
@@ -517,7 +517,7 @@ class RecipeController extends Controller
     /**
      * @return array{recipe: array<string, mixed>, ingredients: list<array<string, mixed>>, steps: array<array-key, array<string, mixed>>}
      */
-    private function validated(Request $request): array
+    private function validated(Request $request, ?Recipe $existing = null): array
     {
         $data = $request->validate([
             'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
@@ -537,7 +537,8 @@ class RecipeController extends Controller
             'source_type' => ['nullable', 'in:own,family,adaptation,external'],
             'source_person' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_person']],
             'source_note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_note']],
-            'source_url' => ['nullable', 'url', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
+            // Decyzja właściciela (#900): niezmieniony dawny adres nie blokuje edycji.
+            'source_url' => ['nullable', $existing !== null && $request->input('source_url') === $existing->source_url ? 'url' : 'url:http,https', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
             'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
@@ -612,7 +613,7 @@ class RecipeController extends Controller
             'source_type.in' => 'Zaznacz, skąd jest ten przepis: Twój własny, rodzinny, adaptacja czy z zewnątrz.',
             'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
             'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
-            'source_url.url' => 'Ten adres strony wygląda na niepełny. Wklej go jeszcze raz z paska przeglądarki — powinien zaczynać się od https://',
+            'source_url.url' => 'Wklej adres strony zaczynający się od http:// lub https://.',
             // Te trzy komunikaty są celowo IDENTYCZNE jak w komponencie
             // `recipe-wizard` (droga z JavaScriptem) — to jest ten sam
             // formularz na jednej stronie, więc ma mówić to samo (issue #86,

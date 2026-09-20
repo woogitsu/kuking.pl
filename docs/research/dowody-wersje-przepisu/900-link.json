@@ -1,0 +1,16 @@
+{
+  "nazwa": "900-link",
+  "plik": "resources/views/pages/recipes/show.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "9656e4d835fe94b966edac711908e97e",
+  "md5_po_mutacji": "69404ffd9b21da3b644b06c8e211d6d8",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "href=\"ftp:",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:25:24Z"
+}

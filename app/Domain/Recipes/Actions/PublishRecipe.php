@@ -176,7 +176,7 @@ final class PublishRecipe
         $klucz = $existing === null ? $kluczWyslania : null;
 
         $zapisz = fn (?string $klucz): Recipe => DB::transaction(function () use (
-            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz
+            $author, $attributes, $title, $cleanIngredients, $cleanSteps, $publish, $existing, $klucz, $ip
         ): Recipe {
             /*
              * KROKI, KTÓRE PRZEPIS MA DZIŚ — czytane RAZ, na wejściu do
@@ -301,13 +301,29 @@ final class PublishRecipe
              */
             WpisWskazujacyPrzepis::dopisz($recipe);
 
-            return $recipe->refresh();
+            // UPDATE przepisu (a przy tworzeniu INSERT) trzyma blokadę do commitu.
+            // Migawka i audyt muszą powstać przed jej zwolnieniem (#895).
+            $recipe->refresh();
+
+            if ($publish) {
+                $this->snapshots->handle($recipe, $author, $existing === null ? 'Pierwsza publikacja' : 'Aktualizacja przepisu');
+
+                AuditLogEntry::record(
+                    action: 'recipe.published',
+                    actor: $author,
+                    subject: $recipe,
+                    metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
+                    ip: $ip,
+                );
+            }
+
+            return $recipe;
         });
 
         try {
             $recipe = $zapisz($klucz);
         } catch (UniqueConstraintViolationException $e) {
-            if ($klucz === null) {
+            if ($klucz === null || ! str_contains($e->getMessage(), 'recipes_one_per_klucz_wyslania')) {
                 // Bez klucza nie ma jak odbić się o
                 // `recipes_one_per_klucz_wyslania` — to inne ograniczenie
                 // (np. `recipes.slug`) i nie wolno go tu wyciszyć.
@@ -317,8 +333,8 @@ final class PublishRecipe
             // Indeks `recipes_one_per_klucz_wyslania` odbił wiersz: to
             // wysłanie już raz założyło przepis. Oddajemy TEN przepis i nie
             // robimy drugiej wersji w `recipe_versions` ani drugiego wpisu
-            // w dzienniku audytowym — jedno i drugie stoi PO transakcji,
-            // więc pierwsze wysłanie zdążyło je już zapisać.
+            // w dzienniku audytowym — oba zapisy zatwierdza ta sama
+            // transakcja, która zarezerwowała klucz wysłania.
             $istniejacy = $this->przepisZTegoWyslania($author, $klucz);
 
             if ($istniejacy !== null) {
@@ -329,18 +345,6 @@ final class PublishRecipe
             // usunięty). Nie odmawiamy — zapisujemy bez klucza, z ryzykiem
             // duplikatu (ADR §4.3).
             $recipe = $zapisz(null);
-        }
-
-        if ($publish) {
-            $this->snapshots->handle($recipe, $author, $existing === null ? 'Pierwsza publikacja' : 'Aktualizacja przepisu');
-
-            AuditLogEntry::record(
-                action: 'recipe.published',
-                actor: $author,
-                subject: $recipe,
-                metadata: ['ingredients' => count($cleanIngredients), 'steps' => count($cleanSteps)],
-                ip: $ip,
-            );
         }
 
         return $recipe;

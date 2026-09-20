@@ -391,7 +391,13 @@
             @endif
 
             @if($recipe->source_type === 'external' && $recipe->source_url)
-                <p class="meta m-0">Przepis pochodzi ze strony: <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a></p>
+                <p class="meta m-0">Źródło przepisu:
+                    @if(\Illuminate\Support\Str::isUrl($recipe->source_url, ['http', 'https']))
+                        <a href="{{ $recipe->source_url }}" rel="nofollow noopener">{{ $recipe->source_url }}</a>
+                    @else
+                        {{ $recipe->source_url }}
+                    @endif
+                </p>
             @endif
         </div>
 

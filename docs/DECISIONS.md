@@ -15048,3 +15048,15 @@ Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
 osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
 się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
 i `scripts/wyjecie-z-zeszytu.mjs`.
+
+## Adres źródła przepisu — decyzja właściciela #900 (20 września 2026)
+
+Nowy lub zmieniony adres źródła wymaga HTTP/HTTPS. Niezmieniony dawny adres
+FTP/SSH może zostać podczas edycji; nie zmuszamy autora do poprawiania go
+przy zapisie innego pola. Nie migrujemy cudzych adresów automatycznie.
+Widok linkuje wyłącznie HTTP/HTTPS, inne zachowane wartości pokazuje tekstem.
+
+Zakres wdrożony na stanowisku wersji: formularz jednostronicowy i widok
+przepisu. Kreator i autozapis należą do innego stanowiska i wymagają osobnego
+ujednolicenia. Nie wolno traktować FTP dopiero zapisanego przez autozapis jako
+historycznego wyjątku. Pomiar i granice: [raport #895–900](research/2026-09-20-wersje-przepisu-895-900.md).

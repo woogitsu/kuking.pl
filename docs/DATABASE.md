@@ -1527,7 +1527,7 @@ deklaracją pochodzenia (`docs/MODERATION.md`).
 | `source_type` | `varchar(20) NOT NULL DEFAULT 'own'` | Zamknięta lista, CHECK `recipes_source_type_check`: `own` \| `family` \| `adaptation` \| `external`. Etykiety dla człowieka trzyma `Recipe::SOURCE_LABELS`. |
 | `source_person` | `varchar(120) NULL` | **Wolny tekst od człowieka.** Patrz niżej — to nie jest osoba. |
 | `source_note` | `varchar(2000) NULL` | Historia przepisu, wspomnienie. Pokazywane pod nagłówkiem „Skąd ten przepis", PRZED składnikami, z zachowaniem łamań wierszy (`whitespace-pre-line`). |
-| `source_url` | `text NULL` | Adres strony, z której przepis pochodzi. Widok pokazuje go **tylko przy `source_type = 'external'`**, jako `rel="nofollow noopener"`. W bazie bez limitu długości; formularz przyjmuje najwyżej 2000 znaków i wymaga poprawnego adresu (`'url'` w regułach `RecipeController`). |
+| `source_url` | `text NULL` | Adres źródła. Widok pokazuje go **tylko przy `source_type = 'external'`**; link z `rel="nofollow noopener"` powstaje tylko dla HTTP/HTTPS, inne adresy są zwykłym tekstem. W bazie bez limitu długości; formularz jednostronicowy przyjmuje najwyżej 2000 znaków. Nowy lub zmieniony adres wymaga HTTP/HTTPS, niezmieniony dawny adres może zostać (#900, decyzja właściciela z 20.09.2026). Kreator wymaga osobnego ujednolicenia reguły — patrz raport poniżej. |
 
 Puste i złożone z samych spacji wartości `PublishRecipe` zamienia na `NULL`
 **przed** zapisem (`nullIfBlank`), więc „pole wyczyszczone" i „pole nigdy nie
@@ -1582,6 +1582,21 @@ SMS-em nie może umrzeć, bo autor poprawił literówkę
 
 ### recipe_versions
 Snapshot po istotnych zmianach.
+
+Publikacja (`PublishRecipe`, `publish=true`) zapisuje treść, składniki,
+kroki, wpis wskazujący przepis, migawkę i audyt w jednej transakcji (#895).
+Blokada przepisu pozostaje zajęta aż do zatwierdzenia historii. Numer jest
+liczony pod tą blokadą; samodzielne `SnapshotRecipeVersion` również otwiera
+transakcję i blokuje przepis przed odczytem MAX. Kolejność publikacji
+pozostaje: zdjęcia przed zapisem przepisu, potem historia i audyt.
+Istniejący UNIQUE pozostaje bez zmian; nie ma nowej migracji.
+
+Nowe migawki zachowują `source_url` (także jawne `null`) i logiczne
+`ingredients[].no_amount` (#896). W starych migawkach brak tych kluczy
+oznacza **wartość nieznaną**. Nie uzupełniamy ich z dzisiejszego przepisu.
+Migawka nie archiwizuje plików zdjęć ani widoczności. Zapis z `publish=false`
+nie otrzymuje nowej historii w ramach tej poprawki.
+Pomiar, ograniczenia i wycofanie: [raport #895–900](research/2026-09-20-wersje-przepisu-895-900.md).
 
 - `recipe_id`, `editor_id` (`ON DELETE RESTRICT` — wersji nie wolno osierocić
   przez skasowanie konta edytora);

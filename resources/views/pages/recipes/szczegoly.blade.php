@@ -345,6 +345,15 @@
                            @if($i === 0) placeholder="Ciasto" @endif>
                     @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
 
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-note">
+                        Uwaga do składnika <span class="meta">(nieobowiązkowe)</span>
+                    </label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-note"
+                           name="ingredients[{{ $i }}][note]" type="text" maxlength="300"
+                           value="{{ $oldIngredients[$i]['note'] ?? '' }}"
+                           @error("ingredients.$i.note") aria-invalid="true" aria-describedby="error-ingredients-{{ $i }}-note" @enderror>
+                    @error("ingredients.$i.note")<span class="field-error" id="error-ingredients-{{ $i }}-note">{{ $message }}</span>@enderror
+
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
                          i domyślnie wyłączony: ma znaczenie dopiero przy
