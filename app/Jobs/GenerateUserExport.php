@@ -7,18 +7,17 @@ namespace App\Jobs;
 use App\Domain\Users\Exports\CollectUserExportData;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Exports\ExportPhotoPlan;
+use App\Domain\Users\Exports\ExportQueue;
 use App\Exceptions\DataExportStorageFailure;
-use App\Mail\DataExportReady;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
-use App\Poczta\BezpiecznyKomunikat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Throwable;
@@ -52,10 +51,9 @@ use ZipArchive;
  *  - `dane.json` — format do przeniesienia danych (art. 20).
  *  - `CZYTAJ-TO-NAJPIERW.txt` — po polsku, prostym językiem.
  *
- * Przy błędzie: status `failed`, `failure_reason`, ostrzeżenie w logu.
- * Rekord NIGDY nie zostaje w `processing` — pilnuje tego zarówno `catch`
- * w `handle()`, jak i hook `failed()` (ten łapie także timeout, po którym
- * nie ma już wyjątku do przechwycenia).
+ * Przy błędzie przejściowym kolejka ponawia tę samą prośbę w `processing`.
+ * Dopiero hook `failed()` kończy ją stanem `failed` i bezpiecznym powodem
+ * (obejmuje także timeout). Bez kolejki nie ma retry — błąd kończy od razu.
  *
  * `failure_reason` to KOD z `DataExport::REASONS`, nie zdanie (audyt W7-07)
  * — patrz `reasonFor()`. Pełny `$e->getMessage()` (bywa nim SQLSTATE albo
@@ -154,8 +152,16 @@ class GenerateUserExport implements ShouldQueue
             }
 
             try {
-                Storage::disk($disk)->writeStream($objectKey, $stream);
+                $saved = Storage::disk($disk)->writeStream($objectKey, $stream);
+
+                if ($saved === false) {
+                    throw new DataExportStorageFailure('Nie udało się zapisać paczki w magazynie plików.');
+                }
             } catch (Throwable $e) {
+                if ($e instanceof DataExportStorageFailure) {
+                    throw $e;
+                }
+
                 // Zawinięte w typ, który `reasonFor()` rozpozna nawet po tym,
                 // jak `failed()` odtworzy joba od nowa z ładunku kolejki —
                 // patrz komentarz w App\Exceptions\DataExportStorageFailure.
@@ -168,17 +174,19 @@ class GenerateUserExport implements ShouldQueue
 
             $bytes = (int) filesize($this->tempZip);
 
-            $export->update([
-                'status' => DataExport::STATUS_READY,
-                'disk' => $disk,
-                'object_key' => $objectKey,
-                'bytes' => $bytes,
-                'completed_at' => $generatedAt,
-                'expires_at' => $generatedAt->copy()->addDays((int) config('kuking.exports.ttl_days')),
-                'failure_reason' => null,
-            ]);
+            DB::transaction(function () use ($export, $disk, $objectKey, $bytes, $generatedAt): void {
+                $export->update([
+                    'status' => DataExport::STATUS_READY,
+                    'disk' => $disk,
+                    'object_key' => $objectKey,
+                    'bytes' => $bytes,
+                    'completed_at' => $generatedAt,
+                    'expires_at' => $generatedAt->copy()->addDays((int) config('kuking.exports.ttl_days')),
+                    'failure_reason' => null,
+                ]);
 
-            $this->notifyOwner($export->refresh());
+                app(ExportQueue::class)->dispatch(new NotifyUserExportReady((string) $export->getKey()));
+            });
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
                 'data_export_id' => $export->getKey(),
@@ -190,7 +198,12 @@ class GenerateUserExport implements ShouldQueue
                 'error' => $e->getPrevious()?->getMessage() ?? $e->getMessage(),
             ]);
 
-            $this->markFailed($export, $this->reasonFor($e));
+            // Worker zachowuje processing przez backoff; dopiero failed()
+            // po ostatniej próbie zwalnia miejsce na nowe zamówienie.
+            // Wywołanie bez kolejki nie ma automatycznego ponowienia.
+            if ($this->job === null) {
+                $this->markFailed($export, $this->reasonFor($e));
+            }
 
             throw $e;
         } finally {
@@ -513,37 +526,6 @@ class GenerateUserExport implements ShouldQueue
             }
 
             unset($this->tempFiles[$index]);
-        }
-    }
-
-    private function notifyOwner(DataExport $export): void
-    {
-        $email = $export->user?->email;
-
-        if ($email === null) {
-            return;
-        }
-
-        try {
-            Mail::to($email)->send(new DataExportReady($export));
-        } catch (Throwable $e) {
-            // Paczka JEST gotowa i widać ją w ustawieniach — nie cofamy statusu
-            // tylko dlatego, że poczta chwilowo nie działa.
-            // KOMUNIKAT PRZECHODZI PRZEZ REDAKCJĘ, NIE SUROWY.
-            //
-            // To jest wyjątek z WYSYŁKI LISTU, więc jego komunikat buduje
-            // transport, a nie my — a transport przy odrzuconym odbiorcy
-            // wkleja w tekst JEGO ADRES („550 5.1.1 <basia@wp.pl>: Recipient
-            // address rejected"). Dziennik aplikacji nie jest miejscem na
-            // adresy (AGENTS.md §7); ta sama redakcja, którą robi
-            // `ZapiszNieudanyList` na tym samym rodzaju tekstu, a `Wyslij…`
-            // z `App\Domain\Security` rozwiązuje jeszcze ostrzej — samą
-            // nazwą klasy.
-            Log::warning('Paczka z danymi gotowa, ale e-mail nie wyszedł', [
-                'data_export_id' => $export->getKey(),
-                'wyjatek' => $e::class,
-                'error' => BezpiecznyKomunikat::z($e->getMessage()),
-            ]);
         }
     }
 

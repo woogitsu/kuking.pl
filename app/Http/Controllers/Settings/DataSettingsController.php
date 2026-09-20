@@ -5,16 +5,16 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Settings;
 
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Domain\Users\Exports\RequestDataExport;
 use App\Http\Controllers\Controller;
-use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use App\Models\User;
+use App\Support\Poczta;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -51,7 +51,7 @@ class DataSettingsController extends Controller
      * trafił, więc zdanie musi być JEDNO; dwie kopie tego samego komunikatu
      * rozjechałyby się przy pierwszej korekcie tekstu.
      */
-    private const JUZ_TRWA = 'Przygotowanie paczki z Twoimi danymi już trwa. Napiszemy, gdy będzie gotowa.';
+    private const JUZ_TRWA = 'Przygotowanie paczki z Twoimi danymi już trwa. Gotowość sprawdzisz w sekcji „Twoje paczki”.';
 
     public function show(Request $request): View
     {
@@ -115,7 +115,8 @@ class DataSettingsController extends Controller
         }
 
         try {
-            // `DB::transaction()` WOKÓŁ JEDNEGO `INSERT` — nie z ostrożności
+            // Transakcja obejmuje zapis prośby ORAZ zadania (#824).
+            // Savepoint pozostaje potrzebny — nie z ostrożności
             // na zapas, tylko dlatego, że na PostgreSQL samo try/catch nie
             // wystarcza. Gdy to żądanie biegnie wewnątrz SZERSZEJ transakcji
             // (a w testach `RefreshDatabase` opakowuje w nią cały test),
@@ -127,10 +128,7 @@ class DataSettingsController extends Controller
             // Ta sama pułapka i to samo lekarstwo co w
             // `App\Domain\Analytics\ZapiszSygnal` i
             // `App\Domain\Contact\Actions\PrzyjmijWiadomosc`.
-            $export = DB::transaction(fn (): DataExport => DataExport::create([
-                'user_id' => $user->getKey(),
-                'status' => DataExport::STATUS_QUEUED,
-            ]));
+            app(RequestDataExport::class)->handle($user);
         } catch (UniqueConstraintViolationException $e) {
             // TU WCHODZI DRUGIE, RÓWNOLEGŁE ŻĄDANIE (audyt QUEUE-04/RACE-05,
             // D-078). `exists()` wyżej jest dobre na komunikat, ale nie jest
@@ -158,12 +156,11 @@ class DataSettingsController extends Controller
             return back()->with('status', self::JUZ_TRWA);
         }
 
-        GenerateUserExport::dispatch((string) $export->getKey());
-
         AuditLogEntry::record('data.export_requested', $user, $user, ip: $request->ip());
 
         return back()->with('status',
-            'Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut — napiszemy na Twój adres e-mail, gdy będzie gotowa.',
+            'Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut. Gotowość sprawdzisz w Ustawienia → Twoje dane → Twoje paczki.'
+            .(Poczta::dziala() ? ' Wyślemy też powiadomienie e-mailem.' : ''),
         );
     }
 
