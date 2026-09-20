@@ -165,7 +165,7 @@ class LoginLinkController extends Controller
         // nieistniejące adresy — miejsce, z którego nic nie wyszło, wraca
         // niżej przez `zwolnij()`.
         if (! $budzet->sprobujZarezerwowac()) {
-            return back()->with('status',
+            return back()->withInput($request->only('email'))->with('status',
                 // DWA POWODY ODMOWY, DWA RÓŻNE ZDANIA. Rezerwacja mówi
                 // tylko „nie", a te dwa „nie" znaczą dla człowieka coś
                 // zupełnie innego: przy wyczerpanym budżecie czekanie na

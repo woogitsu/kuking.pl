@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\LoginLinkToken;
 use App\Models\Profile;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
@@ -339,7 +340,7 @@ class MartweZadaniaTest extends TestCase
     public function test_zeton_nie_pojawia_sie_na_ekranie_w_zadnej_galezi(): void
     {
         $zetonHasla = 'ZETON-RESETU-DO-TESTU-9f3a1c';
-        $zetonLinku = 'ZETON-LOGOWANIA-DO-TESTU-4b7e';
+        $zetonLinku = str_repeat('L', 64);
         $zetonWNieczytelnym = 'ZETON-W-NIECZYTELNYM-WIERSZU-77b2';
 
         $maria = $this->konto('maria@przyklad.pl', 'Maria');
@@ -529,9 +530,18 @@ class MartweZadaniaTest extends TestCase
     }
 
     /** Prawdziwy nieudany list z linkiem do zalogowania (żeton ważny 30 min). */
-    private function nieudanyLinkDoLogowania(User $uzytkownik, string $zeton = 'zeton-linku-do-testu'): void
+    private function nieudanyLinkDoLogowania(User $uzytkownik, ?string $zeton = null): void
     {
-        $uzytkownik->notify(new LinkDoLogowania($zeton));
+        // Worker pomija nieaktualny token (#889). Awaria transportu wymaga
+        // prawdziwego, ważnego wiersza, nie tylko dowolnego tekstu w liście.
+        $zeton ??= LoginLinkToken::nowyToken();
+        $row = new LoginLinkToken;
+        $row->user_id = $uzytkownik->getKey();
+        $row->token_hash = LoginLinkToken::skrot($zeton);
+        $row->created_at = now();
+        $row->expires_at = now()->addMinutes(30);
+        $row->save();
+        $uzytkownik->notify(new LinkDoLogowania($zeton, $row->expires_at));
 
         $this->przepracujJedno();
     }
