@@ -6673,6 +6673,13 @@ tak jak ekran przepisu robi to od dawna (`$isSaved`). Stanem jest zdanie
 co ktoś właśnie do niego włożył (podwójne kliknięcie w tej grupie to norma,
 issue #43). Wyjąć z zeszytu można nadal w samym zeszycie.
 
+> **Poprawione 20 września 2026 — patrz D-224.** Ostatnie zdanie było
+> nieprawdziwe: ekran zeszytu renderuje TĘ SAMĄ kartę, więc przycisku
+> wyjęcia nie było tam, gdzie to zdanie obiecywało (audyt L1). Przycisk
+> „Usuń z zeszytu" stoi teraz na karcie, OBOK odnośnika „Masz to
+> w zeszycie" — a nie zamiast niego, więc opisana wyżej obawa o podwójne
+> kliknięcie zostaje zaadresowana układem.
+
 Wszystko działa **bez JavaScriptu**: formularz `POST`, przekierowanie, `GET`.
 
 ### Gdzie liczba stoi, a gdzie CELOWO nie
@@ -15009,3 +15016,35 @@ Pobieranie zdjęć obejmuje jednym batchem tagi promowane i bieżącą stronę
 katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
+
+## D-224 — Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest (audyt L1, 20 września 2026)
+
+Trasa `DELETE /wpisy/{post}/zapisz` (`collections.unsave-post`) istniała,
+była otestowana i bezpieczna, ale żaden widok jej nie wołał. Zdanie z D-081
+„wyjąć z zeszytu można nadal w samym zeszycie" było nieprawdziwe: ekran
+zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
+stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
+Trasy nie kasujemy.
+
+Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
+w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
+więc drugie kliknięcie (norma w tej grupie, issue #43) niczego nie zabiera.
+Zmierzone: przycisk 207 × 50,5 px przy 320 px i 260 × 59,5 px przy tekście
+140%, pismo 18 i 25,2 px, 10 px przerwy od odnośnika, bez przewijania w bok.
+
+Bez potwierdzenia i bez JavaScriptu. Wyjęcie nie kasuje treści i cofa się
+jednym kliknięciem, więc pytanie „czy na pewno" zostaje dla rzeczy
+nieodwracalnych — kasowania wpisu i kasowania zeszytu. Zamiast pytania PRZED
+akcją jest droga powrotu PO niej: komunikat „Wpis wyjęty z zeszytu. Nie
+usunęliśmy go z serwisu — możesz go zapisać ponownie." i przycisk „Zapisz
+ponownie" w tym samym obszarze `aria-live` (`status_powrot` w sesji).
+
+Nazwa jest ta sama co przy przepisie — „Usuń z zeszytu" (`BRAND_EXTENDED.md`
+§3: jedna czynność, jedna nazwa). Audyt proponował „Wyjmij"; to byłby drugi
+synonim na tę samą rzecz.
+
+Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
+(`SavePostToCollection::remove()`), czyli jest ostrzejszy niż Policy: obca
+osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
+się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
+i `scripts/wyjecie-z-zeszytu.mjs`.
