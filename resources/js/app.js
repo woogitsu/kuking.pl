@@ -48,6 +48,29 @@ function kotwicaPodPolem(input) {
 }
 
 /*
+ * ZWALNIANIE `object URL` PODGLĄDU (issue #742).
+ *
+ * `URL.createObjectURL(plik)` rezerwuje adres, który żyje aż do
+ * `URL.revokeObjectURL()` albo zamknięcia dokumentu — cokolwiek nastąpi
+ * pierwsze. Miniatura zwalniała go WYŁĄCZNIE po zdarzeniu `load`: obraz
+ * z poprawnym nagłówkiem MIME, którego przeglądarka nie potrafi
+ * zdekodować, kończy się `error`, dla którego nie było sprzątania —
+ * i kolejny wybór albo wyczyszczenie pola (`pojemnik.replaceChildren()`
+ * niżej) usuwał dzieci z DOM-u, ale nie zwalniał ich adresów.
+ *
+ * Jedna funkcja, wywoływana PRZED każdym `replaceChildren()`, żeby żaden
+ * z dwóch miejsc czyszczących ten kontener nie mógł o tym zapomnieć osobno.
+ * Revoke na już zwolnionym albo nieistniejącym blobie jest w przeglądarce
+ * bezpiecznym no-opem — nie trzeba pilnować, czy `load`/`error` już się
+ * zdążyło odpalić.
+ */
+function zwolnijPodgladObjectUrls(pojemnik) {
+    for (const img of pojemnik.querySelectorAll('img.podglad-wyboru-zdjecie')) {
+        URL.revokeObjectURL(img.src);
+    }
+}
+
+/*
  * Po wybraniu pliku pokazujemy miniaturę i nazwę. Bez tego użytkownik nie ma
  * żadnego potwierdzenia, że zdjęcie zostało wybrane — a to jest najczęstszy
  * moment porzucenia formularza „dodaj zdjęcie”.
@@ -70,6 +93,7 @@ document.addEventListener('change', (event) => {
         kotwicaPodPolem(input).insertAdjacentElement('afterend', pojemnik);
     }
 
+    zwolnijPodgladObjectUrls(pojemnik);
     pojemnik.replaceChildren();
 
     const pliki = Array.from(input.files ?? []);
@@ -109,7 +133,11 @@ document.addEventListener('change', (event) => {
         img.alt = '';
         img.className = 'podglad-wyboru-zdjecie';
         img.src = URL.createObjectURL(plik);
+        // `error`, NIE TYLKO `load` — plik z nagłówkiem image/jpeg, którego
+        // treść jest uszkodzona, nie ładuje się nigdy, a adres bez tego
+        // zostawałby zarezerwowany aż do zamknięcia dokumentu.
         img.addEventListener('load', () => URL.revokeObjectURL(img.src), { once: true });
+        img.addEventListener('error', () => URL.revokeObjectURL(img.src), { once: true });
         pojemnik.appendChild(img);
     }
 });
@@ -157,8 +185,16 @@ window.addEventListener('livewire-upload-error', (zdarzenie) => {
     pole.textContent = komunikat;
 
     // Podgląd miniatury dorysowany przy wyborze pliku kłamałby: zdjęcia
-    // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu.
-    document.getElementById(`${input.id}-podglad`)?.replaceChildren();
+    // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu — i zwalniamy
+    // jego object URL, z tego samego powodu co przy zwykłym polu plików
+    // wyżej (issue #742): usunięcie z DOM-u samo z siebie niczego nie
+    // zwalnia.
+    const pojemnikBladu = document.getElementById(`${input.id}-podglad`);
+
+    if (pojemnikBladu) {
+        zwolnijPodgladObjectUrls(pojemnikBladu);
+        pojemnikBladu.replaceChildren();
+    }
 });
 
 // Kolejna udana wysyłka sprząta po poprzednim błędzie — inaczej czerwony
