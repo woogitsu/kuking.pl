@@ -124,3 +124,32 @@ KATALOG, a funkcja liczy sufiks tylko z `.git` będącego PLIKIEM. Sufiks
 wychodzi pusty i skrypt celuje w `kuking_zrodlo_proby_glowny`. W CI to
 dziś nieszkodliwe (każdy job ma własny, efemeryczny kontener), ale to ta
 sama luka nazewnicza co P7.
+
+### 20.09, 23:4x — #918: przepełnienie WPROWADZIŁ ten PR, naprawione
+
+Werdykt jednoznaczny: to nie było przepełnienie odsłonięte, tylko
+**wprowadzone przez sam audyt UX 50+**. Mechanizm opisany dokładnie:
+`.site-footer-grupa ul a` dostał w tym audycie `display: flex` i
+`min-height: var(--control-height-min)`, żeby spełnić cel dotknięcia 48 px.
+Skutek uboczny: odnośnik stał się elementem flex w kolumnie stopki
+**bez `min-width: 0`**, więc przy czcionce przeglądarki 32 px i skali
+tekstu 140% (pismo 50,4 px) najdłuższe nierozdzielne słowo — „nielegalną"
+w „Zgłoś nielegalną treść" — było szersze niż kolumna `min(11rem, 100%)`
+i nie mogło się złamać. Stąd 9 px poziomego przewinięcia CAŁEJ strony.
+
+Poprawka: commit `640198cc`, wyłącznie `resources/css/app.css`, +16 linii.
+Minima 18 px i 48 px **zachowane** — nie obniżono ich, żeby zmieścić się
+w 320 px, co odwróciłoby sens całego PR-a.
+
+**Kontrola z mojej strony:** agent zostawił niezacommitowaną zmianę
+w `scripts/kompozycje-marki.mjs`, czyli w SKRYPCIE POMIAROWYM — dokładnie
+tam, gdzie zabraniałem ruszać. Sprawdziłem diff: zmiana jest **czysto
+diagnostyczna** (wypis elementów wystających przed rzuceniem tego samego
+błędu), asercja `throw` nietknięta. Miernik nie został osłabiony.
+Przywróciłem plik i usunąłem trzy tymczasowe skrypty `_tmp_*`.
+Gałąź czysta, wstawiona do kolejki.
+
+**Uwaga o tym agencie:** dwukrotnie zameldował zapowiedź zamiast wyniku
+(„uruchomiłem w tle", „waiting for completion") przy 196 tys. tokenów
+i 95 wywołaniach. Pracę wykonał dobrze, ale meldunki były bezwartościowe —
+stan ustaliłem sam, oglądając gałąź.
