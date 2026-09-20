@@ -238,6 +238,10 @@
                 @if($hasBlocked)
                     <form method="POST" action="{{ route('social.unblock', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- #793: nazwa użytkownika w adresie mogła między
+                             wyrenderowaniem strony a kliknięciem trafić do
+                             kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
@@ -245,7 +249,8 @@
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'" />
+                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
                 <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
