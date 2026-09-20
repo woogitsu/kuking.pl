@@ -22,6 +22,7 @@ import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
+import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
@@ -277,54 +278,69 @@ document.addEventListener('DOMContentLoaded', () => {
 
     kontener.hidden = false;
 
-    let blokada = null;
+    // Stan blokady (issue #739: zerowanie po automatycznym zwolnieniu)
+    // mieszka w ./wake-lock-gotowania.js, osobno testowalnym module bez
+    // DOM-u i bez prawdziwego navigator.wakeLock. Tu zostaje wyłącznie
+    // okablowanie DOM-u i treść komunikatów.
+    const kontroler = utworzKontrolerWakeLock(
+        () => navigator.wakeLock.request('screen'),
+        (aktywna) => {
+            if (aktywna) {
+                // Jawny komunikat, że tak się dzieje — issue wymaga tego
+                // wprost, nie samego działającego przełącznika bez
+                // wyjaśnienia.
+                status.textContent = 'Ekran nie zgaśnie, dopóki jesteś na tej stronie.';
 
-    const wlacz = async () => {
-        try {
-            blokada = await navigator.wakeLock.request('screen');
+                return;
+            }
 
-            // Jawny komunikat, że tak się dzieje — issue wymaga tego wprost,
-            // nie samego działającego przełącznika bez wyjaśnienia.
-            status.textContent = 'Ekran nie zgaśnie, dopóki jesteś na tej stronie.';
+            // Zdarzenie „nieaktywna” ma dwa różne powody, więc dwa różne
+            // teksty: zwykłe wyłączenie przełącznikiem milczy (checkbox
+            // sam pokazuje swój stan), a zwolnienie, którego człowiek NIE
+            // zażądał (automatyczne albo odmowa API), mówi prawdę
+            // o TERAŹNIEJSZYM stanie ekranu, żeby nikt nie wrócił do
+            // kuchni ufając zgaszonemu ekranowi mimo zaznaczonego
+            // przełącznika.
+            status.textContent = checkbox.checked
+                ? 'Ekran może teraz zgasnąć — ta karta była przez chwilę w tle.'
+                : '';
 
-            blokada.addEventListener('release', () => {
-                // Przeglądarka sama zwalnia blokadę (np. zmiana karty) —
-                // komunikat ma mówić prawdę o TERAZNIEJSZYM stanie, żeby
-                // nikt nie wrócił do kuchni ufając zgaszonemu ekranowi.
-                status.textContent = checkbox.checked
-                    ? 'Ekran może teraz zgasnąć — ta karta była przez chwilę w tle.'
-                    : '';
-            });
-        } catch {
-            // Np. system oszczędza baterię i odmawia blokady. Cicho
-            // odznaczamy checkbox zamiast straszyć komunikatem o czymś,
-            // na co nie ma wpływu z tego miejsca.
+            if (!checkbox.checked) {
+                return;
+            }
+
+            // Awaria `request()` (np. oszczędzanie baterii): przełącznik
+            // wygląda na zaznaczony, ale blokady nie ma — odznaczamy go,
+            // żeby stan na ekranie mówił prawdę.
             checkbox.checked = false;
             status.textContent = 'Nie udało się wyłączyć usypiania ekranu w tej przeglądarce.';
-        }
-    };
-
-    const wylacz = () => {
-        blokada?.release();
-        blokada = null;
-        status.textContent = '';
-    };
+        },
+    );
 
     // Możliwość wyłączenia (issue) — ten sam checkbox włącza i wyłącza.
     checkbox.addEventListener('change', () => {
         if (checkbox.checked) {
-            wlacz();
+            kontroler.wlacz();
         } else {
-            wylacz();
+            kontroler.wylacz();
         }
     });
 
-    // Powrót z tła: przeglądarka zdążyła zwolnić blokadę, ale checkbox
-    // wciąż jest zaznaczony — odzyskujemy ją automatycznie, żeby nie trzeba
-    // było odznaczać i zaznaczać ręcznie po każdym zerknięciu w inną kartę.
+    /*
+     * POWRÓT Z TŁA (issue #739). Przeglądarka zdążyła zwolnić blokadę
+     * automatycznie (np. zmiana karty), ale checkbox wciąż jest
+     * zaznaczony — odzyskujemy ją, żeby nie trzeba było odznaczać
+     * i zaznaczać ręcznie po każdym zerknięciu w inną kartę.
+     *
+     * `kontroler.jestAktywna()` MUSI wrócić do `false` po automatycznym
+     * zwolnieniu, żeby ten warunek kiedykolwiek był prawdziwy — to
+     * dokładnie ta własność, której brakowało przed poprawką (stara
+     * zmienna nigdy nie wracała do `null` po zdarzeniu `release`, więc to
+     * odzyskanie nigdy się nie uruchamiało).
+     */
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && checkbox.checked && blokada === null) {
-            wlacz();
+        if (document.visibilityState === 'visible' && checkbox.checked && !kontroler.jestAktywna()) {
+            kontroler.wlacz();
         }
     });
 })();
