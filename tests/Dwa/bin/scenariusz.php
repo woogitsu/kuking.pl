@@ -21,6 +21,7 @@ declare(strict_types=1);
  */
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Moderation\Actions\ReportContent;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
@@ -28,6 +29,7 @@ use App\Models\Post;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
+use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
 
 require __DIR__.'/../../bootstrap.php';
@@ -104,6 +106,23 @@ try {
             author: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             subject: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
             body: $argumenty['tresc'],
+        )->getKey(),
+
+        // Komenda obchodząca zaległe potwierdzenia zgłoszeń (issue #797).
+        // Wołamy PRAWDZIWĄ komendę przez Artisana, nie jej wnętrzności —
+        // razem z jej kodem wyjścia, bo to na nim stoi wpięcie
+        // w harmonogram.
+        'dosylka-potwierdzen' => Artisan::call('kuking:dosylaj-potwierdzenia-zgloszen'),
+
+        // Człowiek wracający do tej samej sprawy: ponowne kliknięcie „Zgłoś"
+        // na tej samej treści. `ReportContent` oddaje istniejące zgłoszenie
+        // i po drodze dokańcza zaległe potwierdzenie — to jest DRUGA droga
+        // do tego samego znacznika i to z nią ma się ścigać dosyłka.
+        'powrot-do-sprawy' => (string) app(ReportContent::class)->handle(
+            reporter: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            target: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
+            reason: 'spam',
+            details: 'To jest reklama.',
         )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),

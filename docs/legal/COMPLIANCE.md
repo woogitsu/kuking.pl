@@ -57,6 +57,19 @@ Zwolnione (dopóki Kuking spełnia progi mikro/małego przedsiębiorstwa i nie z
 5. Monitorowanie liczby aktywnych użytkowników miesięcznie i gotowość do jej publikacji (Art. 24 ust. 3) — nawet będąc zwolnionym z reszty raportowania.
 6. Zapisywanie decyzji moderacyjnych (baza danych — kolumna `status`, `reason` w tabeli zgłoszeń) na wypadek utraty statusu małego przedsiębiorstwa lub kontroli koordynatora.
 
+**Potwierdzenie przyjęcia (ust. 4) nie zależy od tego, czy człowiek wróci do
+sprawy** (issue #797, decyzja właściciela z 20 września 2026). Potwierdzenie
+powstaje POZA transakcją zapisu zgłoszenia — celowo, żeby awaria powiadomienia
+nie zabrała człowiekowi przyjętej sprawy. Awaria zostawia wtedy sprawę
+z pustym `reports.receipt_sent_at`; dokańcza ją pierwsze wejście na to samo
+zgłoszenie, a sprawy, do których nikt nie wraca, obchodzi komenda
+`kuking:dosylaj-potwierdzenia-zgloszen` (harmonogram, co godzinę). Komenda
+woła tę samą akcję co formularz, więc zbieg dosyłki z powrotem człowieka
+rozstrzyga zamek w bazie — jedna sprawa, jedno potwierdzenie. **Zgłoszenie bez
+konta** (ust. 2 lit. c) ma własne, mailowe potwierdzenie i NIE jest dla tej
+komendy zaległością: pusty znacznik znaczy tam brak adresata w serwisie, a nie
+niedokończony obowiązek.
+
 ### 1.4 Nadzór w Polsce
 
 Prezes UKE (Urząd Komunikacji Elektronicznej) został wyznaczony na **Koordynatora ds. Usług Cyfrowych** dla Polski. Ustawa wdrażająca DSA do polskiego porządku prawnego (nowelizacja ustawy o świadczeniu usług drogą elektroniczną) była w toku legislacyjnym jeszcze w 2025 r. — Sejm procedował ją pod koniec 2025 r. [do weryfikacji: aktualny status wejścia w życie na wrzesień 2026 — sprawdzić na stronie Sejmu/UKE przed startem, bo od tego zależą krajowe sankcje i tryb skarg]. Niezależnie od statusu ustawy krajowej, DSA jako rozporządzenie UE **obowiązuje bezpośrednio** od 17 lutego 2024 r.

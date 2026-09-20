@@ -348,3 +348,38 @@ Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
     ->name('kuking:wyslij-podsumowania')
     ->dailyAt('08:30')
     ->withoutOverlapping();
+
+// Dosyłka zaległych potwierdzeń przyjęcia zgłoszenia (issue #797, decyzja
+// właściciela z 20.09.2026, DSA art. 16 ust. 4).
+//
+// Potwierdzenie stoi poza transakcją zapisu sprawy — celowo, żeby awaria
+// powiadomienia nie zabrała człowiekowi zgłoszenia. Sprawa, do której ktoś
+// wróci, dokańcza potwierdzenie sama (`ReportContent::dokonczPotwierdzenie()`).
+// Sprawa, do której NIKT nie wróci, zostawała bez potwierdzenia na zawsze —
+// i to obchodzi to zadanie. Przy DSA art. 16 ust. 4 potwierdzenie przyjęcia
+// jest obowiązkiem, nie uprzejmością.
+//
+// CO GODZINĘ, nie raz na dobę: przepis mówi „bez zbędnej zwłoki", a zaległość
+// powstaje po awarii, czyli w chwili, której nikt nie planuje. Minuta 25,
+// żeby nie wpaść na `hourly()` innych zadań (minuta 00) ani na nocne pasmo
+// sprzątania — cała ta lista jest świadomie porozsuwana.
+//
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+//
+// ── DLACZEGO TO DOMKNIĘCIE WYGLĄDA INACZEJ NIŻ DZIEWIĘTNAŚCIE POWYŻEJ ──
+//
+// Bo tamte mają wadę zgłoszoną jako #835 i naprawianą osobno:
+// `CallbackEvent::execute()` liczy wynik domknięcia WYŁĄCZNIE przez
+// `$this->result === false ? 1 : 0`, a liczbowe `1` nie jest `false`. Zwrot
+// `Artisan::call(...)` wprost daje więc sukces zdarzenia także po nieudanym
+// przebiegu komendy. Tutaj porównujemy kod z zerem i oddajemy `bool`, więc
+// nieudany przebieg jest w harmonogramie widoczny jako porażka.
+//
+// `(bool) Artisan::call(...)` BYŁOBY ODWRÓCENIEM SEMANTYKI (kod 0 to sukces,
+// a `(bool) 0` to `false`) — stąd jawne porównanie, a nie rzutowanie.
+// Pilnują tego dwa testy w `DosylkaZaleglychPotwierdzenTest`: jeden na
+// nieudanym przebiegu, drugi (kontrola dodatnia) na udanym.
+Schedule::call(fn (): bool => Artisan::call('kuking:dosylaj-potwierdzenia-zgloszen') === 0)
+    ->name('kuking:dosylaj-potwierdzenia-zgloszen')
+    ->hourlyAt(25)
+    ->withoutOverlapping();
