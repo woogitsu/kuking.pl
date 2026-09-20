@@ -251,6 +251,22 @@ if grep -qE "$WZORZEC" <<< "$WYJSCIE"; then             # DOBRZE
 zasada dotyczy każdego `… | head -n`, `… | grep -m1` i `… | sed q` pod
 `pipefail`: konsument, który wychodzi wcześniej, wywraca status producenta.
 
+**KIERUNEK TEGO BŁĘDU — i dlaczego nie trzeba było niczego odwoływać.** Ta
+pułapka daje **wyłącznie fałszywe negatywy**. Zmierzone w czterech wariantach:
+
+| wyjście | wzorzec | stary potok | prawda |
+|---|---|---|---|
+| duże | jest | **NIE TRAFIA** | TRAFIA |
+| duże | brak | NIE TRAFIA | NIE TRAFIA |
+| małe | jest | TRAFIA | TRAFIA |
+| małe | brak | NIE TRAFIA | NIE TRAFIA |
+
+Gdy wzorca nie ma, `grep` czyta całe wejście, `printf` kończy się normalnie
+i status wynosi 1 — więc **fałszywa `POTWIERDZONA` była niemożliwa**. Każdy
+werdykt „potwierdzona" wydany przed naprawą pozostaje ważny; odwołania
+wymagałyby tylko werdykty `ZLA_PRZYCZYNA`. Gdyby kierunek był odwrotny,
+trzeba by unieważnić wszystkie kontrole ujemne wykonane tym przyrządem.
+
 **A test tego pilnujący musi mieć DUŻE wyjście.** W `tests/skrypty/kontrola-ujemna.sh`
 stoi atrapa, która wypisuje wzorzec na początku, a potem ~200 kB szumu.
 Bez niej ta pułapka wraca przy pierwszym refaktorze.
