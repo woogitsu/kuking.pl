@@ -240,8 +240,129 @@ class Notification extends Model
             self::TYPE_REPORT_RECEIVED, self::TYPE_REPORT_DECIDED => is_string($data['report_id'] ?? null) && $data['report_id'] !== ''
                 ? route('reports.mine.show', $data['report_id'])
                 : null,
+            // ISSUE #759: komentarz/odpowiedź, nie tylko "gdzieś na tej treści".
+            // Patrz `urlDoKomentarza()` niżej.
+            self::TYPE_COMMENT, self::TYPE_REPLY => $this->urlDoKomentarza($data),
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
+    }
+
+    /**
+     * Adres KONKRETNEGO komentarza/odpowiedzi, nie tylko pierwszej strony
+     * treści, pod którą stoi.
+     *
+     * CO BYŁO ZEPSUTE
+     * `data.url` (`PublishComment::urlFor()`) niesie WYŁĄCZNIE
+     * `$subject->url()` — bez numeru strony i bez kotwicy. Wątek pod
+     * popularnym wpisem/przepisem jest stronicowany
+     * (`config('kuking.comments.page_size')`, `PostController::show()`,
+     * `RecipeController::show()`), więc przy odpowiedzi w korzeniu leżącym
+     * poza pierwszą stroną „Zobacz" otwierał stronę bez tego wątku w ogóle —
+     * a powiadomienie było już oznaczone jako przeczytane.
+     *
+     * DLACZEGO LICZYMY STRONĘ TERAZ, A NIE ZAPISUJEMY JEJ PRZY PUBLIKACJI
+     * Numer strony zależy od tego, ILE wątków przed tym konkretnym jest
+     * WIDOCZNYCH DLA ODBIORCY w chwili kliknięcia — a widoczność (blokady,
+     * moderacja, inne komentarze skasowane w międzyczasie) zmienia się po
+     * drodze. Zapisanie strony przy publikacji zamroziłoby ją na zawsze
+     * błędną, gdy coś nad tym wątkiem zniknie albo się pojawi.
+     *
+     * KOTWICA WSKAZUJE SAM KOMENTARZ, NIE TYLKO KORZEŃ WĄTKU
+     * `comment-thread.blade.php` ma `id="komentarz-{uuid}"` na artykule
+     * korzenia — dla odpowiedzi (`TYPE_REPLY`) wskazujemy więc stronę
+     * korzenia, ale kotwicę samej odpowiedzi, żeby przeglądarka przewinęła
+     * dokładnie do niej, a nie tylko do góry wątku.
+     *
+     * NIEDOSTĘPNY/USUNIĘTY KOMENTARZ: BEZ UJAWNIANIA FRAGMENTU
+     * Gdy komentarza już nie ma, nie jest widoczny dla tego odbiorcy albo
+     * treść nadrzędna zniknęła spod niego, wracamy do zwykłego adresu treści
+     * (`data.url`) zamiast błędu albo strony bez kontekstu — dokładnie tak,
+     * jak przed tą poprawką dla WSZYSTKICH powiadomień o komentarzu. Sam
+     * fakt niedostępności nie jest tu ujawniany bardziej, niż był wcześniej.
+     */
+    private function urlDoKomentarza(array $data): ?string
+    {
+        $fallback = is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
+
+        $commentId = $data['comment_id'] ?? null;
+
+        if (! is_string($commentId) || $commentId === '') {
+            return $fallback;
+        }
+
+        $viewer = $this->user;
+
+        if ($viewer === null) {
+            return $fallback;
+        }
+
+        $comment = Comment::query()->find($commentId);
+
+        if ($comment === null) {
+            return $fallback;
+        }
+
+        $subject = $comment->subject();
+
+        if ($subject === null) {
+            return $fallback;
+        }
+
+        $rootId = $comment->parent_id ?? $comment->getKey();
+        $root = $rootId === $comment->getKey() ? $comment : Comment::query()->find($rootId);
+
+        if ($root === null) {
+            return $fallback;
+        }
+
+        // Kolejność i filtr IDENTYCZNE jak w kontrolerach (`Post::comments()`,
+        // `Recipe::comments()`, `CookedEvent::comments()`: `whereNull('parent_id')`,
+        // `status=published`, `oldest()->orderBy('id')`) plus `widoczneDla($viewer)`
+        // — inna kolejność albo inny filtr policzyłaby INNĄ stronę niż ta,
+        // na którą trafi kontroler przy renderowaniu.
+        $widoczneKorzenie = $subject->comments()->widoczneDla($viewer);
+
+        if (! $widoczneKorzenie->clone()->whereKey($root->getKey())->exists()) {
+            // Rodzic niewidoczny dla TEGO odbiorcy — nie zdradzamy, gdzie
+            // jest, tylko wracamy do zwykłego adresu treści.
+            return $fallback;
+        }
+
+        $bazowy = $subject->url();
+        $kotwica = '#komentarz-'.$comment->getKey();
+
+        if (! ($subject instanceof Post || $subject instanceof Recipe)) {
+            // "Ugotowałem" nie stronicuje komentarzy (`CookedEventController::show()`
+            // ładuje je wszystkie naraz) — sama kotwica wystarczy.
+            return $bazowy.$kotwica;
+        }
+
+        $pageSize = (int) config('kuking.comments.page_size');
+
+        if ($pageSize < 1) {
+            return $fallback;
+        }
+
+        $pozycja = $widoczneKorzenie->clone()
+            ->where(function (Builder $wczesniejsze) use ($root): void {
+                $wczesniejsze
+                    ->where('comments.created_at', '<', $root->created_at)
+                    ->orWhere(function (Builder $remis) use ($root): void {
+                        $remis->where('comments.created_at', $root->created_at)
+                            ->where('comments.id', '<', $root->getKey());
+                    });
+            })
+            ->count();
+
+        $strona = intdiv($pozycja, $pageSize) + 1;
+
+        if ($strona <= 1) {
+            return $bazowy.$kotwica;
+        }
+
+        $laczek = str_contains($bazowy, '?') ? '&' : '?';
+
+        return $bazowy.$laczek.'komentarze='.$strona.$kotwica;
     }
 
     /**
