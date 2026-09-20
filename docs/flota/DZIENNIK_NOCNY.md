@@ -83,3 +83,44 @@ nazwany test, a strażnik tras został **rozszerzony**, nie osłabiony);
 zmiana konstruktora `UstawienieNowegoHasla` NIE wywróci workera na starych
 ładunkach (`?? null` plus test z prawdziwym `serialize`/`unserialize`);
 429 nie było atrapowane.
+
+### 20.09, 23:3x — druga przyczyna czerwieni znaleziona i naprawiona
+
+`ProbaOdtworzeniaTest` padał komunikatem „PostgreSQL nie odpowiada".
+Przyczyna w `tests/skrypty/proba-odtworzenia.sh:147`:
+
+    if ! pg_isready -q 2>/dev/null; then
+
+**Wywołane bez ŻADNYCH parametrów połączenia** — bez `-h`, `-p`, `-U`,
+bez wyeksportowanego `PGHOST`/`PGPORT` — mimo że skrypt dwa wiersze wyżej
+liczy `BAZA_HOST`/`BAZA_PORT` z `DB_HOST`/`DB_PORT` i używa ich wszędzie
+indziej. Usługa `postgres:18-alpine` w CI wystawia **port dynamiczny**
+(w logach 32768, 33111), a `pg_isready` bez argumentów sprawdza własny
+domyślny `localhost:5432` — czyli zupełnie inny cel.
+
+**NAJWAŻNIEJSZE — to działało na self-hosted przez PRZYPADEK.**
+Na runnerach WSL stoi własny PostgreSQL 16 na porcie 5432, więc
+`pg_isready` znajdował *jakiś* serwer i meldował gotowość, a reszta skryptu
+i tak używała `DB_PORT`. **Fałszywa zieleń.** Na `ubuntu-latest` nic nie
+nasłuchuje na 5432, więc ten sam błąd świeci uczciwie na czerwono.
+
+To ma bezpośredni skutek dla hybrydy runnerów (D-225): po zejściu jobów
+z powrotem na self-hosted ten test znów zacząłby „przechodzić" bez powodu.
+Poprawka jest więc warunkiem sensowności hybrydy, nie dodatkiem.
+
+Poprawka jednowierszowa, gałąź `naprawa/proba-odtworzenia-w-ci`,
+commit **`f2c7b74c`**, wstawiona na CZOŁO kolejki:
+
+    + if ! pg_isready -q -h "${BAZA_HOST}" -p "${BAZA_PORT}" 2>/dev/null; then
+
+**Ten sam błąd był już raz naprawiony** — commit `8a8b61a6` na gałęzi
+`praca/izolacja-bazy-klon` (PR #786, OPEN, CONFLICTING). Poprawka nigdy
+nie trafiła na `main`, bo PR ma konflikt. Ten sam commit niesie też
+rozłączenie baz testowych dla zwykłych klonów (P7).
+
+**Znalezisko poboczne, ta sama rodzina:** `kuking_nazwa_testowej_bazy()`
+w CI zwraca gołe `kuking_test`, bo `actions/checkout` daje `.git` jako
+KATALOG, a funkcja liczy sufiks tylko z `.git` będącego PLIKIEM. Sufiks
+wychodzi pusty i skrypt celuje w `kuking_zrodlo_proby_glowny`. W CI to
+dziś nieszkodliwe (każdy job ma własny, efemeryczny kontener), ale to ta
+sama luka nazewnicza co P7.
