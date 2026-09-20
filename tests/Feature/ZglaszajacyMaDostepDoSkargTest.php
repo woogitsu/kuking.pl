@@ -222,7 +222,18 @@ class ZglaszajacyMaDostepDoSkargTest extends TestCase
         $this->get($zepsuty)->assertForbidden();
     }
 
-    public function test_link_przestaje_dzialac_po_uplywie_terminu(): void
+    /**
+     * PO TERMINIE LINK NIE UMIERA, TYLKO PRZESTAJE PRZYJMOWAĆ ODWOŁANIE
+     * (issue #798, decyzja właściciela 20.09.2026).
+     *
+     * Ten test asercjonował przedtem `assertForbidden()` po upływie terminu —
+     * czyli dokładnie to zachowanie, które właściciel nazwał usterką: 403 na
+     * własnej, wciąż otwartej sprawie. Strona ma służyć ŚLEDZENIU sprawy,
+     * a nie wygasać razem z terminem na złożenie pisma. Pełne pokrycie
+     * nowej reguły (sprawa otwarta, rozstrzygnięta, link po rozstrzygnięciu)
+     * stoi w `LinkDoSprawyZyjeDopokiSprawaOtwartaTest`.
+     */
+    public function test_po_uplywie_terminu_link_zyje_ale_odwolania_juz_nie_przyjmie(): void
     {
         Notification::fake();
 
@@ -233,7 +244,14 @@ class ZglaszajacyMaDostepDoSkargTest extends TestCase
 
         $this->travelTo(now()->addMonths(6)->addDay());
 
-        $this->get($link)->assertForbidden();
+        $this->get($link)
+            ->assertOk()
+            ->assertDontSee('Wyślij odwołanie');
+
+        $this->post($link, ['body' => 'Spóźnione odwołanie, które nie ma prawa przejść.'])
+            ->assertSessionHasErrors('body');
+
+        $this->assertDatabaseCount('appeals', 0);
 
         $this->travelBack();
     }
