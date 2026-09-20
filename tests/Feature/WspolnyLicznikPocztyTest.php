@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\WyslijPotwierdzenieAdresu;
+use App\Models\ContactMessage;
+use App\Models\ContactMessageReply;
 use App\Notifications\PotwierdzenieAdresu;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Notification;
 use Tests\TestCase;
 
@@ -236,6 +240,37 @@ class WspolnyLicznikPocztyTest extends TestCase
         );
         $this->assertStringContainsString('nie czekaj na nią', $status);
         $this->assertStringContainsString((string) config('kuking.community.contact_email'), $status);
+    }
+
+    /**
+     * ODPOWIEDŹ MODERATORA NIE PRZEPADA, GDY PULA ODMÓWI.
+     *
+     * Wpis przy `limits.kontakt_odpowiedz` zapowiadał, że gdyby powstał
+     * wspólny licznik poczty, to ON ma być jednym miejscem tej decyzji.
+     * Odpowiedź przechodzi więc przez licznik, ale treść napisana ręką
+     * człowieka ZOSTAJE zapisana i panel mówi, co z nią zrobić — inaczej
+     * sufit zjadałby pracę moderatora, a nie tylko list.
+     */
+    public function test_odpowiedz_moderatora_przy_pustej_puli_nie_przepada(): void
+    {
+        Mail::fake();
+        $this->malaPula();
+        $this->zajmijWspolne(6); // zostało 4 — dokładnie próg klasy `zwykla`
+
+        $wiadomosc = ContactMessage::factory()->create(['contact_email' => 'basia@wp.pl']);
+
+        $odpowiedz = app(WyslijOdpowiedz::class)->handle(
+            $wiadomosc,
+            $this->user('moderatorka'),
+            'Przycisk poprawiliśmy dziś rano.',
+        );
+
+        Mail::assertNothingSent();
+
+        $this->assertSame(ContactMessageReply::STATUS_NIEUDANA, $odpowiedz->status);
+        $this->assertSame('Przycisk poprawiliśmy dziś rano.', $odpowiedz->body,
+            'Treść napisana przez człowieka przepadła razem z listem.');
+        $this->assertStringContainsString('wyślij ją jutro', (string) $odpowiedz->error);
     }
 
     public function test_udane_ponowienie_nadal_mowi_ze_wyslalo(): void
