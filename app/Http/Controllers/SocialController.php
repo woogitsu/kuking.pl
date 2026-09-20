@@ -77,7 +77,15 @@ class SocialController extends Controller
             return back()->withErrors(['block' => $e->getMessage()]);
         }
 
-        return back()->with('status', 'Blokada zdjęta.');
+        // #791: `UnblockUser` świadomie NIE przywraca obserwowania (patrz
+        // komentarz w tej klasie) — automatyczny powrót do obserwowania
+        // byłby niespodzianką w prywatności. Ale bez słowa o tym w komunikacie
+        // człowiek klika „Zdejmij blokadę”, oczekuje powrotu do stanu sprzed
+        // konfliktu i dowiaduje się o różnicy dopiero wtedy, gdy zauważy,
+        // że w swoim feedzie znów nie widzi tej osoby.
+        return back()->with('status',
+            'Blokada zdjęta. Możecie znów widzieć swoje treści, ale obserwowanie się nie wznawia samo — jeśli chcesz znów obserwować tę osobę, wejdź na jej profil i kliknij „Obserwuj”.',
+        );
     }
 
     /**
