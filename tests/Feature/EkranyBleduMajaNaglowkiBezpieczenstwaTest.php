@@ -167,7 +167,12 @@ class EkranyBleduMajaNaglowkiBezpieczenstwaTest extends TestCase
         $odpowiedz = $this->put('/dodaj/zdjecie');
 
         $odpowiedz->assertStatus(405);
-        $odpowiedz->assertSee('Nie udało się otworzyć tej strony', escape: false);
+        // NAGŁÓWEK STRONY, nie „gdziekolwiek w HTML-u": ten sam napis stoi
+        // też w `<title>`, więc `assertSee` przechodziło nawet wtedy, gdy
+        // treść ekranu była już zmieniona (kontrola ujemna, 20 września
+        // 2026: STRAZNIK_NIE_STRZEZE).
+        $odpowiedz->assertSee('<h1>Nie udało się otworzyć tej strony</h1>', escape: false);
+        $odpowiedz->assertSee('Strona główna', escape: false);
         $odpowiedz->assertDontSee('Oops! An Error Occurred', escape: false);
 
         foreach (self::WYMAGANE as $naglowek) {
