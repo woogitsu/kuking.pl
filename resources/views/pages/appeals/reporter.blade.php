@@ -19,7 +19,39 @@
             Numer sprawy {{ $zgloszenie->numer_sprawy }} ·
             {{ \App\Support\Czas::data($decyzja->created_at, 'j F Y') }}
         </p>
-        <p>{{ $decyzja->label() }}.</p>
+        {{-- SKUTEK DLA ZGŁASZAJĄCEGO, NIE ETYKIETA Z PANELU (issue #800).
+
+             Stało tu `$decyzja->label()` — czyli dokładnie ta sama etykieta,
+             którą widzi moderator w kolejce: „Ostrzeżenie dla autora",
+             „Zawieś konto autora", „Zablokuj konto autora na stałe".
+             `OdpowiedzDlaZglaszajacego` celowo tych słów zgłaszającemu NIE
+             mówi (Luka 3 z `docs/research/DSA-LUKI.md`): rodzaj kary
+             wymierzonej osobie trzeciej to jej dane osobowe, a mechanizm
+             zgłoszeń nie jest narzędziem do ustalania, kogo ukarano.
+
+             Ten sam tekst dostaje zgłaszający w liście
+             `DecyzjaWSprawieZgloszenia` i na karcie sprawy
+             `pages/zgloszenia/szczegoly.blade.php` — trzy kanały, jedno
+             zdanie, bo to jest treść wymagana przez DSA art. 16 ust. 5,
+             a nie kwestia stylu.
+
+             WAŻNY PODPIS NIE JEST ZGODĄ NA UJAWNIENIE WSZYSTKICH PÓL MODELU.
+             Podpisany link potwierdza tylko, że to ten zgłaszający i jego
+             własna sprawa — nie zmienia tego, ile mu o cudzym koncie wolno
+             powiedzieć.
+
+             UZASADNIENIA POTRZEBNEGO DO ODWOŁANIA TO NIE ZABIERA: przy
+             `no_action` zgłaszający nadal czyta, że treść zostaje i dlaczego,
+             a przy `hide`/`remove` — że jej już nie ma. Znika wyłącznie to,
+             czego dowiedzieć się nie miał prawa.
+
+             AUTORA TREŚCI to nie dotyczy: on ma prawo wiedzieć, jaką karę
+             dostał, i `appeals/create.blade.php` nadal pokazuje mu
+             `label()`. --}}
+        @php
+            $skutek = \App\Domain\Moderation\OdpowiedzDlaZglaszajacego::skutek($decyzja);
+        @endphp
+        <p><strong>{{ $skutek['naglowek'] }}</strong> {{ $skutek['reszta'] }}</p>
     </article>
 
     @if($odwolanie !== null)
