@@ -11,6 +11,7 @@ use App\Models\RecipeVersion;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -265,5 +266,68 @@ final class RetencjaWersjiPrzepisuTest extends TestCase
         // Zdjęć migawka NIE zapisuje — i dlatego retencja nie dotyka storage
         // ani jednym bajtem (uzasadnienie masowego `DELETE` w klasie domenowej).
         $this->assertArrayNotHasKey('hero_media_id', $wersja->snapshot);
+    }
+
+    /**
+     * Komenda mówi po polsku także wtedy, gdy liczba jest 1 albo 2.
+     *
+     * To jedyne zdanie, jakie ta komenda o sobie mówi, i na jego podstawie
+     * człowiek decyduje, czy po dry-runie puścić przebieg na ostro — ta sama
+     * zasada co w `KomendyOdmieniajaLiczebnikTest`.
+     *
+     * @param  int  $ileDoSkasowania  ile migawek POZA pierwszą ma przekroczyć próg
+     */
+    #[DataProvider('liczbyWersjiProvider')]
+    public function test_komenda_odmienia_liczebnik(int $ileDoSkasowania, string $oczekiwane): void
+    {
+        $autor = User::factory()->create();
+        $przepis = $this->przepis($autor);
+
+        $this->wersja($przepis, $autor, now()->subYears(6), 'Pierwsza publikacja');
+
+        for ($i = 0; $i < $ileDoSkasowania; $i++) {
+            $this->wersja($przepis, $autor, now()->subYears(5));
+        }
+
+        $this->artisan('kuking:sprzataj-wersje-przepisow', ['--na-sucho' => true])
+            ->expectsOutputToContain('Do skasowania: '.$oczekiwane)
+            ->assertSuccessful();
+
+        $this->artisan('kuking:sprzataj-wersje-przepisow')
+            ->expectsOutputToContain('Skasowano '.$oczekiwane)
+            ->assertSuccessful();
+    }
+
+    /**
+     * Cztery liczby pokrywające wszystkie trzy formy ORAZ wyjątek na nastki:
+     * 12 kończy się dwójką, a mimo to bierze formę „wiele".
+     *
+     * @return array<string, array{int, string}>
+     */
+    public static function liczbyWersjiProvider(): array
+    {
+        return [
+            'jedna' => [1, '1 wersję przepisów'],
+            'kilka (2)' => [2, '2 wersje przepisów'],
+            'wiele (5)' => [5, '5 wersji przepisów'],
+            'nastka (12) bierze formę „wiele”' => [12, '12 wersji przepisów'],
+        ];
+    }
+
+    public function test_komenda_odmienia_takze_miesiace_i_pominiete_pierwsze_wersje(): void
+    {
+        $autor = User::factory()->create();
+        $przepis = $this->przepis($autor);
+
+        $this->wersja($przepis, $autor, now()->subYears(6), 'Pierwsza publikacja');
+
+        $this->artisan('kuking:sprzataj-wersje-przepisow', ['--miesiace' => 1])
+            ->expectsOutputToContain('starszych niż 1 miesiąc.')
+            ->expectsOutputToContain('Została 1 pierwsza wersja przepisu')
+            ->assertSuccessful();
+
+        $this->artisan('kuking:sprzataj-wersje-przepisow', ['--miesiace' => 24])
+            ->expectsOutputToContain('starszych niż 24 miesiące.')
+            ->assertSuccessful();
     }
 }

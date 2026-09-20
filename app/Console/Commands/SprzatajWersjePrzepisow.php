@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Domain\Compliance\PrzedawnioneWersjePrzepisow;
+use App\Support\Odmiana;
 use Illuminate\Console\Command;
 
 /**
@@ -19,7 +20,12 @@ use Illuminate\Console\Command;
  * przekroczyło próg przez cały ten czas — i to jest moment, w którym pomyłka
  * w liczbie miesięcy jest nieodwracalna. Dlatego pierwszy przebieg robi się
  * na sucho, a dopiero potem naprawdę: obie drogi liczą dokładnie ten sam
- * predykat, więc liczba z dry-runu jest obietnicą, a nie szacunkiem.
+ * predykat, więc liczba z dry-runu jest obietnicą, a nie szacunkiem
+ * (mierzy to `RetencjaWersjiPrzepisuTest`).
+ *
+ * Liczebniki idą przez `Odmiana` — to jest jedyne zdanie, jakie ta komenda
+ * o sobie mówi, i na jego podstawie człowiek decyduje, czy puścić przebieg
+ * na ostro (test `KomendyOdmieniajaLiczebnikTest`).
  */
 class SprzatajWersjePrzepisow extends Command
 {
@@ -39,11 +45,21 @@ class SprzatajWersjePrzepisow extends Command
 
         $wynik = $sprzataj->posprzataj($miesiace, $naSucho);
 
-        $this->info($naSucho
-            ? "Do skasowania: {$wynik['skasowano']} wersji przepisów starszych niż {$miesiace} miesięcy."
-            : "Skasowano {$wynik['skasowano']} wersji przepisów starszych niż {$miesiace} miesięcy.");
+        $ile = $wynik['skasowano'];
+        $wersje = Odmiana::rzeczownik($ile, 'wersję', 'wersje', 'wersji');
+        $okres = Odmiana::rzeczownik($miesiace, 'miesiąc', 'miesiące', 'miesięcy');
 
-        $this->line("Pominięto jako niekasowalne (pierwsza wersja przepisu — punkt odniesienia dla całej historii): {$wynik['niekasowalne']}.");
+        $this->info($naSucho
+            ? "Do skasowania: {$ile} {$wersje} przepisów starszych niż {$miesiace} {$okres}."
+            : "Skasowano {$ile} {$wersje} przepisów starszych niż {$miesiace} {$okres}.");
+
+        $zostalo = Odmiana::rzeczownik($wynik['niekasowalne'], 'Została', 'Zostały', 'Zostało');
+        $pierwsze = Odmiana::rzeczownik($wynik['niekasowalne'], 'pierwsza wersja', 'pierwsze wersje', 'pierwszych wersji');
+
+        $this->line(
+            "{$zostalo} {$wynik['niekasowalne']} {$pierwsze} przepisu mimo przekroczenia progu "
+            .'— pierwsza wersja jest punktem odniesienia dla całej historii i nie jest kasowana nigdy.',
+        );
 
         return self::SUCCESS;
     }

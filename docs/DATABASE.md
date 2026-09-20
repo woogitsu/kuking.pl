@@ -1595,6 +1595,42 @@ Snapshot po istotnych zmianach.
   stanem normalnym;
 - `created_at`.
 
+**Kiedy powstaje wiersz.** Przy KAŻDYM zapisie, po którym przepis jest
+publiczny — nie tylko przy pierwszej publikacji. `PublishRecipe` woła
+`SnapshotRecipeVersion` w gałęzi `if ($publish)`, a `PUT /przepisy/{recipe}`
+wysyła `publish = true` zawsze, gdy człowiek nie kliknął „Zapisz szkic".
+Jedno kliknięcie „Zapisz" na opublikowanym przepisie = jeden nowy wiersz.
+Zmierzone na danych `DemoSeeder` (20 września 2026): migawka pełnego przepisu
+z dziesięcioma składnikami i sześcioma krokami waży **średnio 1768 B**
+(maksymalnie 1880 B) w kolumnie `snapshot`.
+
+**Retencja: 24 miesiące od `created_at`, Z WYJĄTKIEM PIERWSZEJ WERSJI
+KAŻDEGO PRZEPISU** (decyzja właściciela, 2026-09-20). Egzekwuje
+`kuking:sprzataj-wersje-przepisow`
+(`App\Domain\Compliance\PrzedawnioneWersjePrzepisow`), codziennie o 05:10
+(`routes/console.php`). Próg stoi w
+`config('kuking.przepisy.version_retention_months')`
+(`KUKING_RECIPE_VERSION_RETENTION_MONTHS`).
+
+Wyjątek dla pierwszej wersji jest REGUŁĄ KODU, nie wartością w configu —
+tak samo jak `AuditLogEntry::NIGDY_NIE_KASUJ`. Migawka o najniższym
+`version_number` w obrębie przepisu mówi, jak ten przepis wyglądał, gdy
+powstał; cała reszta historii jest wobec niej różnicą. Bez tego wyjątku
+przepis opublikowany raz i poprawiony po trzech latach zostałby z jedną
+migawką z tej poprawki — czyli z historią, która zaczyna się od zmiany.
+Koszt: dokładnie jeden nieusuwalny wiersz na przepis.
+
+Predykat jest idempotentny: chroniona jest wersja o NAJNIŻSZYM numerze,
+a nie „najstarsza, która została". Drugie uruchomienie z rzędu kasuje zero.
+
+**Zmiany schematu ta retencja nie wymaga** — kasuje wyłącznie wiersze, po
+predykacie zbudowanym z kolumn, które już są (`created_at`, `version_number`,
+`recipe_id`). Nic nie wskazuje na `recipe_versions` kluczem obcym i nic nie
+kaskaduje z niej dalej, a migawka nie trzyma zdjęć, więc kasowanie nie
+dotyka storage ani jednym bajtem.
+
+Dowody zachowania: `tests/Feature/RetencjaWersjiPrzepisuTest.php`.
+
 ### ingredients + units
 Podstawa search i późniejszego planera.
 
