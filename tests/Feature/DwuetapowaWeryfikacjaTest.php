@@ -330,7 +330,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('settings.two_factor.disable'), ['password' => 'zle-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('disable', ['password']);
 
         $this->assertTrue($basia->refresh()->hasTwoFactorConfirmed());
     }
@@ -442,7 +442,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('settings.two_factor.regenerate'), ['password' => 'nie-to-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('regenerate', ['password']);
 
         // Stary kod dalej działa — nic się nie zmieniło.
         $this->post(route('logout'));

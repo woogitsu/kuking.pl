@@ -70,6 +70,7 @@
     'wireModifier' => 'live.debounce.3000ms',
     'id' => null,
     'wiersz' => null,
+    'errorBag' => 'default',
 ])
 @php
     /*
@@ -97,7 +98,7 @@
     // jest w pętli (`wiersz` nie podane), i tylko dla wiersza, którego
     // formularz naprawdę wrócił z błędem, jeśli jest.
     $tenWiersz = $wiersz === null || \App\Support\WierszFormularza::jestAktywny($wiersz);
-    $error = $tenWiersz ? $errors->first($name) : null;
+    $error = $tenWiersz ? $errors->getBag($errorBag)->first($name) : null;
     $binding = $wire === null ? null : 'wire:model.'.$wireModifier;
 
     /*

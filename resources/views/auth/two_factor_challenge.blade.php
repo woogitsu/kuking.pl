@@ -66,7 +66,7 @@
             </p>
             <form method="POST" action="{{ route('login.two_factor.store') }}">
                 @csrf
-                <x-field name="backup_code" label="Kod zapasowy" autocomplete="off" placeholder="XXXX-XXXX" />
+                <x-field name="backup_code" label="Kod zapasowy" autocomplete="off" placeholder="XXXXX-XXXXX" />
                 <div class="form-actions">
                     <button class="btn btn-secondary" type="submit">Zaloguj się kodem zapasowym</button>
                 </div>
