@@ -1,0 +1,16 @@
+{
+  "nazwa": "Brak retencji pozwala skasować kopię",
+  "plik": "scripts/proba-dr-zdjec.py",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "c69618cbe1f8a884dfcf5bc2583434a8",
+  "md5_po_mutacji": "38ad6adba6de2cd7b5d8b94d799de8c2",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "BRAK_ODMOWY: pisarz kasuje",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:42:13Z"
+}

@@ -1,5 +1,10 @@
 # Kopie zapasowe i odtworzenie
 
+**Zdjęcia (#617):** kopia PostgreSQL nie odtwarza obiektów R2. Lokalna próba
+odmowy kasowania, odtworzenia przez S3 oraz propozycja konfiguracji dostawcy:
+[DR_ZDJEC_617_602.md](DR_ZDJEC_617_602.md). Wynik lokalny nie oznacza włączenia
+kopii produkcyjnych; historyczne twierdzenia poniżej wymagają aktualnego odbioru.
+
 **Dla kogo:** właściciel, w chwili gdy coś już poszło źle (albo raz, na sucho,
 zanim cokolwiek pójdzie źle).
 **Cel:** dać komendy i decyzje, nie lekturę. Kontekst i uzasadnienia

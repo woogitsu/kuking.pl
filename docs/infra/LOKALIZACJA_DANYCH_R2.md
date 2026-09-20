@@ -220,6 +220,12 @@ faktów albo zostawić w niej „UE" z komentarzem, że pewnie tak jest.
 
 ## 6a. #617 — ochrona przed logicznym usunięciem. `[REKOMENDACJA — NIE WYKONANA]`
 
+**Uzupełnienie 20.09.2026:** [DR_ZDJEC_617_602.md](DR_ZDJEC_617_602.md)
+zawiera lokalny pomiar odmowy kasowania, pełną macierz poświadczeń i koszt
+konkretnego modelu snapshotów. Poniższa cena jednego egzemplarza nie jest
+wyceną codziennych pełnych snapshotów z miesięczną retencją. Wdrożenie
+i odbiór na Cloudflare nadal nie zostały wykonane w tym zadaniu.
+
 **Stan na 18 IX 2026: nic nie zostało założone ani zmienione.** To jest
 procedura gotowa do wykonania, nie jej wykonanie. Panel Cloudflare jest poza
 zasięgiem tej sesji (§5), a nawet gdyby nie był — ta decyzja ma skutki prawne
@@ -411,9 +417,12 @@ kroki 2 i 2a są zamiarem, a nie stanem:
 ### Czego świadomie NIE rekomendujemy
 
 - **Rygla na buckecie oryginałów** — powód wyżej;
-- **wersjonowania obiektów zamiast kopii** — R2 trzyma wtedy stare wersje
-  w TYM SAMYM buckecie i pod tymi samymi poświadczeniami, więc token z prawem
-  zapisu nadal je dosięga. To nie chroni przed scenariuszem z #617;
+- **samego wersjonowania zamiast niezależnej kopii** — R2 nie implementuje
+  wersjonowania S3 (sprawdzono w dokumentacji dostawcy 20.09.2026). W S3 stare
+  wersje może usunąć tożsamość z prawem `DeleteObjectVersion`, jeśli nie chroni
+  ich dodatkowa retencja. Samo prawo zapisu nie oznacza prawa usuwania wersji.
+  Konfigurację dostawcy i lokalną próbę opisuje
+  [DR_ZDJEC_617_602.md](DR_ZDJEC_617_602.md);
 - **nazywania trwałości R2 kopią zapasową.** Jedenaście dziewiątek dotyczy
   awarii nośnika, a nie poprawnie wykonanego `DELETE` (wariant C z #617 wolno
   wybrać, ale trzeba go wtedy **nazwać** akceptacją ryzyka, z datą powrotu);

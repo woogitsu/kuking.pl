@@ -1,0 +1,16 @@
+{
+  "nazwa": "GPS omija sanitator przed zapisem do storage",
+  "plik": "app/Domain/Media/Actions/StoreUploadedImage.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "a1828e85d61e3bca9ff7f34b2d9850f4",
+  "md5_po_mutacji": "5b6c3fc83dc323ce610b251bdf11204f",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "GPSLatitude",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:43:59Z"
+}

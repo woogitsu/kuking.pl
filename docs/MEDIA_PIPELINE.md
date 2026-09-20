@@ -2,22 +2,22 @@
 
 Zdjęcia są kluczową częścią Kuking i jednym z głównych kosztów.
 
-## Flow
+## Obecna droga wgrywania
 
 ```text
-client
-→ backend: prepare upload
-→ signed URL
-→ object storage
-→ complete
-→ background job
-→ validation
-→ EXIF/GPS strip
-→ resize
-→ variants
-→ moderation
+przeglądarka → Laravel: walidacja obrazu
+→ UsunGps: usunięcie GPS przed zapisem (pozostały EXIF oryginału zostaje)
+→ prywatny bucket oryginałów
+→ synchroniczny podgląd WebP, jeśli pozwala limit megapikseli
+→ ProcessUploadedImage: kodowanie wariantów WebP bez EXIF
 → ready
 ```
+
+Wcześniejszy schemat z `signed URL → object storage → validation` opisywał
+propozycję, nie działający upload. Direct upload do kwarantanny (#602) wymaga
+decyzji: surowy plik leżałby w R2 przed czyszczeniem przez workera. Ocena,
+granice usuwania metadanych z D-023 i lokalny pomiar:
+[DR zdjęć i droga wgrywania](infra/DR_ZDJEC_617_602.md).
 
 ## Walidacja
 

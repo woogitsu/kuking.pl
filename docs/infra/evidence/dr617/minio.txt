@@ -1,0 +1,31 @@
+
+ODMOWA aplikacja czyta kopię: 403 AccessDenied Access Denied.
+
+ODMOWA aplikacja kasuje kopię: 403 AccessDenied Access Denied.
+
+ODMOWA aplikacja zapisuje kopię: 403 AccessDenied Access Denied.
+
+ODMOWA czytelnik kasuje kopię: 403 AccessDenied Access Denied.
+
+ODMOWA czytelnik zapisuje kopię: 403 AccessDenied Access Denied.
+
+ODMOWA pisarz kasuje źródło: 403 AccessDenied Access Denied.
+
+ODMOWA pisarz kasuje chronioną wersję: 400 InvalidRequest Object is WORM protected and cannot be overwritten
+
+ODMOWA administrator kasuje wersję COMPLIANCE: 400 InvalidRequest Object is WORM protected and cannot be overwritten
+
+ODMOWA pisarz zmienia retencję: 403 AccessDenied Access Denied.
+
+DR_WYNIK {"obiekty":15,"wpisy":3,"bajty":33223,"przygotowanie_i_kopia_s":0.466,"wiek_kopii_przy_awarii_s":0.033,"odtworzenie_i_weryfikacja_http_s":0.324,"odmowy_403":7,"odmowy_400_worm":2,"produkcja":"niebadana"}
+
+GPS_WYNIK: obecna droga usuwa GPS przed MinIO; surowy PUT zachowuje GPS.
+
+   PASS  Tests\Dr\DrZdjecMinioTest
+  ✓ kopia przezywa delete a wpis odzyskuje prawdziwe zdjecia             1.53s
+  ✓ pomiar gps przed zapisem i surowego put do kwarantanny               0.05s
+
+  Tests:    2 passed (195 assertions)
+  Duration: 1.80s
+
+SPRZATANIE: własny kontener usunięty; brak wolumenów i zmian produkcji.
