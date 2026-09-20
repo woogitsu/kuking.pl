@@ -821,7 +821,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
-        $this->notify(new UstawienieNowegoHasla($token));
+        $this->notify(new UstawienieNowegoHasla($token, now()->addMinutes((int) config(
+            'auth.passwords.'.config('auth.defaults.passwords').'.expire', 60,
+        ))));
     }
 
     public function sendEmailVerificationNotification(): void

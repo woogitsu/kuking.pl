@@ -12,6 +12,7 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Symfony\Component\Mailer\Envelope;
@@ -516,6 +517,12 @@ class MartweZadaniaTest extends TestCase
     /** Prawdziwy nieudany list „Ustaw nowe hasło" — przez kolejkę i workera. */
     private function nieudanyListHasla(User $uzytkownik, string $zeton = 'zeton-do-testu'): void
     {
+        // Token ma istnieć, żeby awaria dotyczyła transportu, a nie strażnika ważności.
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $uzytkownik->email],
+            ['token' => Hash::make($zeton), 'created_at' => now()],
+        );
+
         $uzytkownik->notify(new UstawienieNowegoHasla($zeton));
 
         $this->przepracujJedno();
