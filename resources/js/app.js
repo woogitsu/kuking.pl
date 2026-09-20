@@ -744,3 +744,49 @@ for (const menu of document.querySelectorAll('details.topbar-konto')) {
         }
     });
 }
+
+/* ==========================================================================
+   KREATOR PRZEPISU: FOKUS PO SKOKU DO INNEGO KROKU (issue #747)
+   ==========================================================================
+
+   Podsumowanie błędów w kreatorze potrafi wskazywać pole z kroku, którego
+   aktualny render w ogóle nie zawiera — `wire:click="jumpToError(...)"`
+   w `recipe-wizard.blade.php` przełącza `$step` po stronie serwera i prosi
+   o fokus na właściwym polu zdarzeniem `kreator-fokus-pole`. Sam przełącznik
+   kroku nie wystarczy: w chwili, w której PHP o tym decyduje, przeglądarka
+   jeszcze nie ma nowego DOM-u — element pojawia się dopiero po tym, jak
+   Livewire przerenderuje komponent i zdarzenie faktycznie dotrze tutaj.
+
+   `Livewire.on` rejestrujemy dopiero po `livewire:init`, żeby nie zależeć
+   od kolejności `@vite` kontra `@livewireScripts` w layoucie — a jeśli
+   Livewire zdążył już wystartować (bo ten skrypt wczytał się później),
+   `window.Livewire` istnieje i można podłączyć się od razu.
+   ========================================================================== */
+(function fokusPoSkokuKreatora() {
+    const podlacz = () => {
+        window.Livewire.on('kreator-fokus-pole', ({ pole }) => {
+            // Livewire kończy morph DOM-u przed doręczeniem zdarzenia
+            // słuchaczom zarejestrowanym przez `Livewire.on`, ale
+            // `requestAnimationFrame` daje przeglądarce jedną klatkę na
+            // domalowanie układu — bez tego `scrollIntoView` na elemencie
+            // z `display: none` przed przemalowaniem czasem nic nie robi.
+            requestAnimationFrame(() => {
+                const cel = document.getElementById(pole);
+
+                if (!cel) {
+                    return;
+                }
+
+                const bezRuchu = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                cel.scrollIntoView({ behavior: bezRuchu ? 'auto' : 'smooth', block: 'center' });
+                cel.focus({ preventScroll: true });
+            });
+        });
+    };
+
+    if (window.Livewire) {
+        podlacz();
+    } else {
+        document.addEventListener('livewire:init', podlacz);
+    }
+})();
