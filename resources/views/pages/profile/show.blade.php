@@ -254,7 +254,7 @@
     </header>
 
     <div class="marka-profil-statystyki">
-        <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
+        <x-liczby-profilu :stats="$stats" :username="$p->username" />
     </div>
 
     @php $maSzyneProfilu = $isOwner || $zeszytySzyny->isNotEmpty() || $tagiSzyny->isNotEmpty() || $zdjeciaSzyny->isNotEmpty(); @endphp
