@@ -214,4 +214,24 @@ class CookingModeTest extends TestCase
         $this->get(route('recipes.show', $zKrokami->slug))->assertSee('Gotuję');
         $this->get(route('recipes.show', $bezKrokow->slug))->assertDontSee('Gotuję');
     }
+
+    /**
+     * Regresja issue #740: nawigacja krokami i oznaczenie kroku jako
+     * zrobiony przeładowują stronę, co zeruje cały stan JavaScriptu
+     * (patrz `resources/js/app.js` — `performance.now()` liczy od nowa od
+     * każdego przeładowania). Skrypt odtwarza aktywny minutnik z
+     * `sessionStorage`, ale żeby w ogóle wiedzieć, KTÓREGO kroku KTÓREGO
+     * przepisu dotyczy zapis, znacznik musi nieść obie te wartości — sama
+     * arytmetyka zapisu/odczytu jest jednostkowo przetestowana w
+     * `resources/js/minutnik-krok.test.mjs`, tu pilnujemy tylko, że
+     * znacznik faktycznie je niesie.
+     */
+    public function test_minutnik_niesie_tozsamosc_przepisu_i_kroku_dla_js(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka12'), 2, minutnikNaPierwszym: 90);
+
+        $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
+            ->assertSee('data-timer-recipe="'.$recipe->slug.'"', false)
+            ->assertSee('data-timer-krok="1"', false);
+    }
 }

@@ -21,7 +21,7 @@ import './szybki-wyglad.js';
 import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
-import {pozostaloSekund, formatMinutySekundy} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
@@ -329,12 +329,17 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 })();
 
-// --- Tryb gotowania: minutniki przy krokach (issue #24) --------------------
+// --- Tryb gotowania: minutniki przy krokach (issue #24, #751, #740) --------
 
 /*
- * Baza bez JS to samo zdanie w Blade („ustaw sobie kuchenny minutnik na…”).
- * To tutaj jest DOKŁADKA: licznik w tej samej karcie, z dźwiękiem i wibracją
- * na koniec, żeby nie trzeba było sięgać po osobny minutnik.
+ * Baza bez JS to samo zdanie w Blade (ustaw sobie kuchenny minutnik na...).
+ * To tutaj jest DOKLADKA: licznik w tej samej karcie, z dzwiekiem i wibracja
+ * na koniec, zeby nie trzeba bylo siegac po osobny minutnik.
+ *
+ * Cala arytmetyka (zegar monotoniczny -- issue #751; zapis/odczyt stanu
+ * w sessionStorage na przetrwanie przeladowania -- issue #740) mieszka
+ * w ./minutnik-krok.js, osobno testowalnym module bez DOM-u. Tu zostaje
+ * wylacznie okablowanie DOM-u.
  */
 document.querySelectorAll('.cook-timer').forEach((blok) => {
     const przycisk = blok.querySelector('.cook-timer-start');
@@ -342,16 +347,18 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const komunikat = blok.querySelector('.cook-timer-komunikat');
     const etykieta = blok.dataset.timerEtykieta ?? '';
     const sekundyCalkiem = parseInt(blok.dataset.timerSekundy ?? '', 10);
+    const recipeSlug = blok.dataset.timerRecipe ?? '';
+    const krok = blok.dataset.timerKrok ?? '';
 
     if (!przycisk || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
         return;
     }
 
-    przycisk.hidden = false;
+    const klucz = kluczStanu(recipeSlug, krok);
 
-    // Callback może wrócić z opóźnieniem po uśpieniu karty. Liczymy czas do
-    // terminu, zamiast zakładać, że każde wywołanie oznacza jedną sekundę.
-    let termin = null;
+    // Callback moze wrocic z opoznieniem po usnieciu karty. Liczymy czas do
+    // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
+    // wywolanie setInterval oznacza dokladnie jedna sekunde.
     let interwal = null;
 
     const pokaz = (sekundy) => {
@@ -359,9 +366,9 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     };
 
     /*
-     * Krótki sygnał przez Web Audio API zamiast pliku dźwiękowego — ten
-     * artefakt musi działać bez dodatkowego zasobu do pobrania, a „beep”
-     * z oscylatora kosztuje zero bajtów transferu.
+     * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
+     * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
+     * z oscylatora kosztuje zero bajtow transferu.
      */
     const zagraj = () => {
         try {
@@ -378,9 +385,34 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             oscylator.stop(kontekst.currentTime + 0.6);
             oscylator.addEventListener('ended', () => kontekst.close());
         } catch {
-            // Brak dźwięku nie może wywalić reszty minutnika — wibracja
-            // i komunikat tekstowy niżej działają od niego niezależnie.
+            // Brak dzwieku nie moze wywalic reszty minutnika -- wibracja
+            // i komunikat tekstowy nizej dzialaja od niego niezaleznie.
         }
+    };
+
+    const uruchomOdliczanie = (terminMonotoniczny) => {
+        pokaz(pozostaloSekund(terminMonotoniczny, performance.now()));
+
+        interwal = window.setInterval(() => {
+            const pozostalo = pozostaloSekund(terminMonotoniczny, performance.now());
+            pokaz(pozostalo);
+
+            if (pozostalo <= 0) {
+                window.clearInterval(interwal);
+                interwal = null;
+                sessionStorage.removeItem(klucz);
+                zagraj();
+
+                if ('vibrate' in navigator) {
+                    navigator.vibrate([300, 150, 300, 150, 300]);
+                }
+
+                komunikat.textContent = 'Czas minal!';
+                przycisk.textContent = 'Uruchom minutnik jeszcze raz';
+                przycisk.hidden = false;
+                przycisk.disabled = false;
+            }
+        }, 1000);
     };
 
     przycisk.addEventListener('click', () => {
@@ -390,33 +422,36 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
         przycisk.disabled = true;
         odliczanie.hidden = false;
-        // Zegar MONOTONICZNY, nie scienny (issue #751) -- patrz
-        // ./minutnik-krok.js. `performance.now()` nie przeskakuje, gdy
-        // system koryguje zegar w trakcie odliczania.
-        termin = performance.now() + sekundyCalkiem * 1000;
-        pokaz(sekundyCalkiem);
         komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
 
-        interwal = window.setInterval(() => {
-            const pozostalo = pozostaloSekund(termin, performance.now());
-            pokaz(pozostalo);
-
-            if (pozostalo <= 0) {
-                window.clearInterval(interwal);
-                interwal = null;
-                zagraj();
-
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([300, 150, 300, 150, 300]);
-                }
-
-                komunikat.textContent = 'Czas minął!';
-                przycisk.textContent = 'Uruchom minutnik jeszcze raz';
-                przycisk.disabled = false;
-                termin = null;
-            }
-        }, 1000);
+        const terminMonotoniczny = performance.now() + sekundyCalkiem * 1000;
+        // Zapis PRZED startem -- zeby nawigacja albo oznaczenie kroku
+        // (oba przeladowuja strone -- issue #740) mialy co odczytac,
+        // nawet jesli czlowiek kliknął "Nastepny krok" sekunde po starcie.
+        sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000));
+        uruchomOdliczanie(terminMonotoniczny);
     });
+
+    /*
+     * PRZETRWANIE PRZELADOWANIA (issue #740). Nawigacja "Poprzedni/
+     * Nastepny krok" i oznaczenie kroku jako zrobiony to pelne
+     * przeladowania strony (patrz CookingModeController -- pierwsze to
+     * GET, drugie to POST z przekierowaniem). Oba zeruja caly stan
+     * JavaScriptu, laczenie z performance.now(). Jesli w sessionStorage
+     * czeka nieprzeterminowany termin TEGO kroku, wracamy do odliczania
+     * od razu, zamiast pokazywac przycisk startowy, jakby minutnik
+     * nigdy nie ruszyl.
+     */
+    const zapisanyStan = odczytajStan(sessionStorage.getItem(klucz), Date.now(), performance.now());
+
+    if (zapisanyStan) {
+        przycisk.hidden = true;
+        odliczanie.hidden = false;
+        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+        uruchomOdliczanie(zapisanyStan.terminMonotoniczny);
+    } else {
+        przycisk.hidden = false;
+    }
 });
 // --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------
 

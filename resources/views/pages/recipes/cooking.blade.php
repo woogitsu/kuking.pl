@@ -86,7 +86,7 @@
             @endif
 
             @if($timerLabel)
-                <div class="cook-timer" data-timer-sekundy="{{ $aktualnyKrok->timer_seconds }}" data-timer-etykieta="{{ $timerLabel }}">
+                <div class="cook-timer" data-timer-recipe="{{ $recipe->slug }}" data-timer-krok="{{ $krok }}" data-timer-sekundy="{{ $aktualnyKrok->timer_seconds }}" data-timer-etykieta="{{ $timerLabel }}">
                     {{-- Baza, bez JS: samo zdanie mówi, co zrobić z minutnikiem
                          w kuchni, na piecyku albo telefonie. --}}
                     <p>Ustaw sobie kuchenny minutnik na {{ $timerLabel }}.</p>
