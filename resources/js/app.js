@@ -21,6 +21,7 @@ import './szybki-wyglad.js';
 import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
+import './licznik-znakow.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 

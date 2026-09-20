@@ -17,9 +17,20 @@ use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
 /**
- * Powiadomienie jest migawką zdarzenia z przeszłości — a treść, której
+ * Powiadomienie jest wierszem o zdarzeniu z przeszłości — a treść, której
  * dotyczy, mogła w międzyczasie zniknąć, zostać ukryta albo zmienić
- * właściciela statusu konta. `Notification::scopeVisibleTo()` filtrował
+ * właściciela statusu konta.
+ *
+ * UWAGA NA DAWNE ZDANIE W TYM MIEJSCU. Stało tu „powiadomienie jest MIGAWKĄ
+ * zdarzenia z przeszłości" i od 20 września 2026 (#758, D-223) nie jest to
+ * już prawda o WYCINKU TREŚCI: wycinek liczy się przy wyświetlaniu,
+ * z aktualnego komentarza (`Notification::zyweWycinkiKomentarzy()`), bo
+ * powiadomienie ma cytować to, co w wątku stoi dziś, a nie zdanie sprzed
+ * poprawki autora. Migawką pozostaje reszta wiersza: typ, sprawca, data
+ * i `read_at`. Granice sprawdzane w tej klasie tamta decyzja uchyla
+ * w ŻADNYM stopniu — usunięty, ukryty i niedostępny komentarz nadal nie
+ * pokazuje treści, tylko teraz pilnują tego DWA miejsca (`scopeVisibleTo()`
+ * i samo dociągnięcie wycinków). `Notification::scopeVisibleTo()` filtrował
  * dotąd WYŁĄCZNIE blokadę; ta klasa testów sprawdza, czy filtruje też
  * resztę granic, które w innych warstwach (Policy, `scopeWidoczneDla`)
  * już obowiązują.
@@ -213,8 +224,8 @@ class PowiadomieniaWidocznoscTest extends TestCase
     /**
      * Scenariusz 4: komentarz, o którym mówi powiadomienie, zostaje
      * skasowany (soft delete) albo ukryty przez moderację PO utworzeniu
-     * powiadomienia. `data.excerpt` jest własną kopią treści, więc sam
-     * z siebie nie zauważa zniknięcia oryginału.
+     * powiadomienia. Wiersz powiadomienia istnieje niezależnie od komentarza,
+     * więc sam z siebie nie zauważa zniknięcia oryginału.
      */
     public function test_powiadomienie_o_skasowanym_komentarzu_nie_pokazuje_juz_fragmentu(): void
     {
@@ -288,5 +299,57 @@ class PowiadomieniaWidocznoscTest extends TestCase
         $odpowiedz->assertDontSee('FRAGMENT-UKRYTY-PRZEZ-MODERACJE');
         $odpowiedz->assertSee('FRAGMENT-KTORY-ZOSTAJE-WIDOCZNY');
         $this->assertSame(1, $w->fresh()->unreadNotificationsCount());
+    }
+
+    /**
+     * Issue #757: komentarz Z ODPOWIEDZIAMI nie dostaje soft delete —
+     * `CommentController::destroy()` zostawia wiersz (bo dziecko-odpowiedź
+     * by "zawisło" bez rodzica), zamienia `body` na placeholder i ustawia
+     * `body_removed_at`. Status zostaje `published`, `deleted_at` zostaje
+     * `null` — czyli DOKŁADNIE te dwa pola, które scenariusz 4 wyżej sprawdza
+     * jako "komentarz nadal istnieje". `scopeVisibleTo()` o `body_removed_at`
+     * nie wiedział, więc wycinek sprzed usunięcia (do 120 znaków oryginalnej
+     * treści) dalej wychodził w powiadomieniu, mimo że w samym wątku widać
+     * już tylko "Komentarz usunięty.".
+     *
+     * Kontrola dodatnia: komentarz B z odpowiedziami, którego NIKT nie
+     * usunął, nadal pokazuje swój fragment — a odpowiedź C zostaje.
+     */
+    public function test_powiadomienie_o_komentarzu_usunietym_mimo_odpowiedzi_nie_pokazuje_juz_fragmentu(): void
+    {
+        $a = $this->user('autorwpisu757');
+        $b = $this->user('komentujacyb757');
+        $c = $this->user('odpowiadajacyc757');
+
+        $wpis = Post::factory()->for($a, 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subHour(),
+        ]);
+
+        // Komentarz B, który zaraz zniknie — z odpowiedzią C, żeby wymusić
+        // gałąź "zostaw wiersz, zamień treść" zamiast zwykłego soft delete.
+        $komentarzB = app(PublishComment::class)->handle($b, $wpis, 'FRAGMENT-KTORY-MA-ZNIKNAC-757');
+        app(PublishComment::class)->handle($c, $wpis, 'Odpowiedz C, ktora ma zostac.', $komentarzB);
+
+        // KONTROLA: identyczny układ (komentarz z odpowiedzią), ale bez usunięcia.
+        $komentarzKontrolny = app(PublishComment::class)->handle($b, $wpis, 'FRAGMENT-KONTROLNY-MA-ZOSTAC-757');
+        app(PublishComment::class)->handle($c, $wpis, 'Odpowiedz kontrolna C.', $komentarzKontrolny);
+
+        // A (autor wpisu) usuwa komentarz B przez rzeczywisty endpoint.
+        $this->actingAs($a)
+            ->delete(route('comments.destroy', $komentarzB), ['reason' => 'Nie na temat.'])
+            ->assertRedirect();
+
+        $komentarzB->refresh();
+        $this->assertNotNull($komentarzB->body_removed_at, 'Test zakłada, że komentarz z odpowiedziami dostał znacznik, a nie soft delete.');
+        $this->assertNull($komentarzB->deleted_at);
+        $this->assertSame(Comment::STATUS_PUBLISHED, $komentarzB->status);
+        $this->assertTrue($komentarzB->replies()->exists(), 'Odpowiedź C ma zostać zachowana.');
+
+        $odpowiedz = $this->actingAs($a)->get(route('notifications.index'));
+
+        $odpowiedz->assertDontSee('FRAGMENT-KTORY-MA-ZNIKNAC-757');
+        $odpowiedz->assertSee('FRAGMENT-KONTROLNY-MA-ZOSTAC-757');
     }
 }

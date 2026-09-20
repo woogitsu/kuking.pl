@@ -31,6 +31,12 @@ class Notification extends Model
 
     public const TYPE_REPLY = 'comment.replied';
 
+    /** Ile znaków komentarza niesie powiadomienie (issue #758, D-223). */
+    public const DLUGOSC_WYCINKA_KOMENTARZA = 120;
+
+    /** Typy, których wycinek JEST treścią komentarza — i tylko te. */
+    public const TYPY_Z_WYCINKIEM_KOMENTARZA = [self::TYPE_COMMENT, self::TYPE_REPLY];
+
     public const TYPE_FOLLOW = 'follow.created';
 
     public const TYPE_SAVED = 'recipe.saved';
@@ -202,6 +208,86 @@ class Notification extends Model
     }
 
     /**
+     * AKTUALNE wycinki komentarzy dla podanych powiadomień — JEDNYM zapytaniem.
+     *
+     * DECYZJA WŁAŚCICIELA Z 20 WRZEŚNIA 2026 (issue #758, D-223): wycinek
+     * treści komentarza liczy się PRZY WYŚWIETLANIU, z aktualnej treści.
+     * Jedno źródło prawdy — nie zamrożona kopia w `notifications.data`.
+     * Do tej zmiany `PublishComment` wpisywał do `data.excerpt` 120 znaków
+     * z chwili publikacji i nikt tego nigdy nie odświeżał: ktoś pisał
+     * „dodaję dwie łyżki masła", poprawiał w oknie 15 minut na „łyżeczki",
+     * a powiadomienie — i paczka RODO na zawsze — dalej mówiło „łyżki".
+     *
+     * TA METODA NIE JEST FURTKĄ DOOKOŁA `scopeVisibleTo()`.
+     * Warunki `status`/`deleted_at`/`body_removed_at` stoją tu drugi raz
+     * ŚWIADOMIE, choć bramka z #757 odcina takie powiadomienia już przy
+     * odczycie listy. Żywy wycinek czyta `comments` bezpośrednio, więc gdyby
+     * kiedykolwiek zawołał go ekran BEZ `visibleTo()`, brak tych trzech
+     * warunków przywróciłby do widoku treść, którą usunięcie ukryło —
+     * na ekranie i w paczce RODO naraz. To jest najgroźniejsza regresja tej
+     * zmiany i dlatego ma własny test
+     * (`PowiadomienieSledziTrescKomentarzaTest`).
+     *
+     * WIDOCZNOŚCI TRESCI NADRZĘDNEJ tu NIE liczymy — to robi `visibleTo()`
+     * dla konkretnego odbiorcy i to jest jedyne miejsce, które zna odbiorcę.
+     * Brak wiersza w wyniku znaczy „bez wycinka", NIGDY „weź stary z `data`":
+     * sięgnięcie po zamrożoną kopię jako zapasowy plan byłoby dokładnie tym
+     * wyciekiem, przed którym broni warunek wyżej.
+     *
+     * KOSZT (D-196). Strona mieści 30 powiadomień, a eksport nie ma górnej
+     * granicy — wycinek liczony po jednym komentarzu na wiersz dokładałby
+     * jedno zapytanie na wiersz. Wzór jest ten sam co
+     * `NotificationController::decyzje()`: zbieramy identyfikatory z całej
+     * strony i pytamy raz.
+     *
+     * @param  iterable<Notification>  $powiadomienia
+     * @return array<string, string> identyfikator powiadomienia → wycinek
+     */
+    public static function zyweWycinkiKomentarzy(iterable $powiadomienia): array
+    {
+        /** @var array<string, list<string>> $poKomentarzu */
+        $poKomentarzu = [];
+
+        foreach ($powiadomienia as $powiadomienie) {
+            if (! in_array($powiadomienie->type, self::TYPY_Z_WYCINKIEM_KOMENTARZA, true)) {
+                continue;
+            }
+
+            $komentarzId = ($powiadomienie->data ?? [])['comment_id'] ?? null;
+
+            if (is_string($komentarzId) && $komentarzId !== '') {
+                // Jeden komentarz potrafi mieć DWA powiadomienia (odpowiedź
+                // w cudzym wątku idzie i do autora treści, i do autora
+                // komentarza-rodzica), więc mapa jest jeden-do-wielu.
+                $poKomentarzu[$komentarzId][] = (string) $powiadomienie->getKey();
+            }
+        }
+
+        if ($poKomentarzu === []) {
+            return [];
+        }
+
+        $wiersze = Comment::query()
+            ->whereIn('id', array_keys($poKomentarzu))
+            ->where('status', Comment::STATUS_PUBLISHED)
+            ->whereNull('deleted_at')
+            ->whereNull('body_removed_at')
+            ->get(['id', 'body']);
+
+        $wycinki = [];
+
+        foreach ($wiersze as $komentarz) {
+            $wycinek = mb_substr((string) $komentarz->body, 0, self::DLUGOSC_WYCINKA_KOMENTARZA);
+
+            foreach ($poKomentarzu[(string) $komentarz->getKey()] ?? [] as $idPowiadomienia) {
+                $wycinki[$idPowiadomienia] = $wycinek;
+            }
+        }
+
+        return $wycinki;
+    }
+
+    /**
      * Dokąd prowadzi przycisk „Zobacz" — albo `null`, gdy nie ma dokąd.
      *
      * DLACZEGO TO STOI W MODELU, A NIE W WIDOKU (bo tam stało do 8 września).
@@ -240,8 +326,129 @@ class Notification extends Model
             self::TYPE_REPORT_RECEIVED, self::TYPE_REPORT_DECIDED => is_string($data['report_id'] ?? null) && $data['report_id'] !== ''
                 ? route('reports.mine.show', $data['report_id'])
                 : null,
+            // ISSUE #759: komentarz/odpowiedź, nie tylko "gdzieś na tej treści".
+            // Patrz `urlDoKomentarza()` niżej.
+            self::TYPE_COMMENT, self::TYPE_REPLY => $this->urlDoKomentarza($data),
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
+    }
+
+    /**
+     * Adres KONKRETNEGO komentarza/odpowiedzi, nie tylko pierwszej strony
+     * treści, pod którą stoi.
+     *
+     * CO BYŁO ZEPSUTE
+     * `data.url` (`PublishComment::urlFor()`) niesie WYŁĄCZNIE
+     * `$subject->url()` — bez numeru strony i bez kotwicy. Wątek pod
+     * popularnym wpisem/przepisem jest stronicowany
+     * (`config('kuking.comments.page_size')`, `PostController::show()`,
+     * `RecipeController::show()`), więc przy odpowiedzi w korzeniu leżącym
+     * poza pierwszą stroną „Zobacz" otwierał stronę bez tego wątku w ogóle —
+     * a powiadomienie było już oznaczone jako przeczytane.
+     *
+     * DLACZEGO LICZYMY STRONĘ TERAZ, A NIE ZAPISUJEMY JEJ PRZY PUBLIKACJI
+     * Numer strony zależy od tego, ILE wątków przed tym konkretnym jest
+     * WIDOCZNYCH DLA ODBIORCY w chwili kliknięcia — a widoczność (blokady,
+     * moderacja, inne komentarze skasowane w międzyczasie) zmienia się po
+     * drodze. Zapisanie strony przy publikacji zamroziłoby ją na zawsze
+     * błędną, gdy coś nad tym wątkiem zniknie albo się pojawi.
+     *
+     * KOTWICA WSKAZUJE SAM KOMENTARZ, NIE TYLKO KORZEŃ WĄTKU
+     * `comment-thread.blade.php` ma `id="komentarz-{uuid}"` na artykule
+     * korzenia — dla odpowiedzi (`TYPE_REPLY`) wskazujemy więc stronę
+     * korzenia, ale kotwicę samej odpowiedzi, żeby przeglądarka przewinęła
+     * dokładnie do niej, a nie tylko do góry wątku.
+     *
+     * NIEDOSTĘPNY/USUNIĘTY KOMENTARZ: BEZ UJAWNIANIA FRAGMENTU
+     * Gdy komentarza już nie ma, nie jest widoczny dla tego odbiorcy albo
+     * treść nadrzędna zniknęła spod niego, wracamy do zwykłego adresu treści
+     * (`data.url`) zamiast błędu albo strony bez kontekstu — dokładnie tak,
+     * jak przed tą poprawką dla WSZYSTKICH powiadomień o komentarzu. Sam
+     * fakt niedostępności nie jest tu ujawniany bardziej, niż był wcześniej.
+     */
+    private function urlDoKomentarza(array $data): ?string
+    {
+        $fallback = is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
+
+        $commentId = $data['comment_id'] ?? null;
+
+        if (! is_string($commentId) || $commentId === '') {
+            return $fallback;
+        }
+
+        $viewer = $this->user;
+
+        if ($viewer === null) {
+            return $fallback;
+        }
+
+        $comment = Comment::query()->find($commentId);
+
+        if ($comment === null) {
+            return $fallback;
+        }
+
+        $subject = $comment->subject();
+
+        if ($subject === null) {
+            return $fallback;
+        }
+
+        $rootId = $comment->parent_id ?? $comment->getKey();
+        $root = $rootId === $comment->getKey() ? $comment : Comment::query()->find($rootId);
+
+        if ($root === null) {
+            return $fallback;
+        }
+
+        // Kolejność i filtr IDENTYCZNE jak w kontrolerach (`Post::comments()`,
+        // `Recipe::comments()`, `CookedEvent::comments()`: `whereNull('parent_id')`,
+        // `status=published`, `oldest()->orderBy('id')`) plus `widoczneDla($viewer)`
+        // — inna kolejność albo inny filtr policzyłaby INNĄ stronę niż ta,
+        // na którą trafi kontroler przy renderowaniu.
+        $widoczneKorzenie = $subject->comments()->widoczneDla($viewer);
+
+        if (! $widoczneKorzenie->clone()->whereKey($root->getKey())->exists()) {
+            // Rodzic niewidoczny dla TEGO odbiorcy — nie zdradzamy, gdzie
+            // jest, tylko wracamy do zwykłego adresu treści.
+            return $fallback;
+        }
+
+        $bazowy = $subject->url();
+        $kotwica = '#komentarz-'.$comment->getKey();
+
+        if (! ($subject instanceof Post || $subject instanceof Recipe)) {
+            // "Ugotowałem" nie stronicuje komentarzy (`CookedEventController::show()`
+            // ładuje je wszystkie naraz) — sama kotwica wystarczy.
+            return $bazowy.$kotwica;
+        }
+
+        $pageSize = (int) config('kuking.comments.page_size');
+
+        if ($pageSize < 1) {
+            return $fallback;
+        }
+
+        $pozycja = $widoczneKorzenie->clone()
+            ->where(function (Builder $wczesniejsze) use ($root): void {
+                $wczesniejsze
+                    ->where('comments.created_at', '<', $root->created_at)
+                    ->orWhere(function (Builder $remis) use ($root): void {
+                        $remis->where('comments.created_at', $root->created_at)
+                            ->where('comments.id', '<', $root->getKey());
+                    });
+            })
+            ->count();
+
+        $strona = intdiv($pozycja, $pageSize) + 1;
+
+        if ($strona <= 1) {
+            return $bazowy.$kotwica;
+        }
+
+        $laczek = str_contains($bazowy, '?') ? '&' : '?';
+
+        return $bazowy.$laczek.'komentarze='.$strona.$kotwica;
     }
 
     /**
@@ -369,8 +576,8 @@ class Notification extends Model
          * POWIADOMIENIE O KOMENTARZU, KTÓREGO TREŚĆ ZNIKŁA ALBO DO KTÓREJ
          * ODBIORCA STRACIŁ DOSTĘP.
          *
-         * `comment.created`/`comment.replied` niosą własną kopię fragmentu
-         * (`data.excerpt`) — dlatego SAME W SOBIE nie znikają, kiedy znika
+         * `comment.created`/`comment.replied` istnieją jako wiersze niezależne
+         * od komentarza — dlatego SAME W SOBIE nie znikają, kiedy znika
          * komentarz albo treść, pod którą stał: autor mógł go skasować,
          * moderacja mogła go ukryć, a wpis/przepis mógł w międzyczasie zmienić
          * widoczność na węższą (audyt: dokładnie ta usterka, co wpis
@@ -411,6 +618,18 @@ class Notification extends Model
                         ->whereRaw("pc.id = (notifications.data->>'comment_id')::uuid")
                         ->where('pc.status', Comment::STATUS_PUBLISHED)
                         ->whereNull('pc.deleted_at')
+                        // ISSUE #757: usunięcie komentarza Z ODPOWIEDZIAMI nie robi
+                        // soft delete (zostaje `status=published`, `deleted_at=null`),
+                        // żeby dzieci nie zawisły bez rodzica — `CommentController::destroy()`
+                        // zostawia zamiast tego placeholder i ustawia `body_removed_at`.
+                        // Bez tego warunku ta gałąź NIE łapała tej jedynej innej drogi
+                        // usunięcia, więc wycinek treści (do 120 znaków) dalej wychodził
+                        // w powiadomieniu i w eksporcie danych (`CollectUserExportData`
+                        // używa tego samego `visibleTo()`), mimo że treść w wątku jest
+                        // już zastąpiona. Od #758 wycinek jest ŻYWY, więc ten sam warunek
+                        // stoi drugi raz w `zyweWycinkiKomentarzy()` — patrz komentarz
+                        // tamtej metody: to nie jest powtórka przez przeoczenie.
+                        ->whereNull('pc.body_removed_at')
                         ->where(function (QueryBuilder $tresc) use ($viewer): void {
                             $tresc
                                 ->where(fn (QueryBuilder $q) => $q->whereExists(

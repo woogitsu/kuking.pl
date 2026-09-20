@@ -7,6 +7,7 @@ namespace App\Domain\Users\Exports;
 use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
+use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
@@ -38,6 +39,11 @@ final class CollectUserExportData
      *
      * Świadomie NIE ma tu `username` ani żadnego `*_id` — to identyfikatory
      * (cudze albo wewnętrzne), a paczka ma być czytelna, nie technicznie pełna.
+     *
+     * `excerpt` jest na tej liście dla typów, które niosą własny tekst
+     * (np. wiadomość od moderacji). Dla `comment.created`/`comment.replied`
+     * NIE bierze się z `data` — tam wycinek liczy się z AKTUALNEJ treści
+     * komentarza przy budowaniu paczki (#758, D-223, `notifications()` niżej).
      */
     private const NOTIFICATION_DATA_KEYS = [
         'excerpt',
@@ -496,15 +502,38 @@ final class CollectUserExportData
             ->reorder('created_at')
             ->get();
 
-        return $notifications->map(function ($notification): array {
+        // WYCINEK KOMENTARZA JEST ZYWY - ISSUE #758, decyzja wlasciciela
+        // z 20 wrzesnia 2026 (D-223). Paczka ma pokazywac dane, ktore DZIS
+        // o kims trzymamy, a nie ich historyczna wersje: zamrozony wycinek
+        // opisywalby stan, ktorego w bazie juz nie ma. Jedno zapytanie na
+        // CALY eksport, nie jedno na powiadomienie - pozycji bywa tu wiecej
+        // niz trzydziesci mieszczace sie na ekranie (D-196).
+        $wycinki = Notification::zyweWycinkiKomentarzy($notifications);
+
+        return $notifications->map(function ($notification) use ($wycinki): array {
             $data = is_array($notification->data) ? $notification->data : [];
+            $szczegoly = array_intersect_key($data, array_flip(self::NOTIFICATION_DATA_KEYS));
+
+            if (in_array($notification->type, Notification::TYPY_Z_WYCINKIEM_KOMENTARZA, true)) {
+                // Zamrozony `excerpt` ze starych wierszy NIE wychodzi
+                // z paczki nawet jako plan zapasowy: brak wycinka w mapie
+                // znaczy "komentarz usuniety albo ukryty", czyli dokladnie
+                // ten przypadek, w ktorym tresci pokazac nie wolno (#757).
+                unset($szczegoly['excerpt']);
+
+                $zywy = $wycinki[(string) $notification->getKey()] ?? null;
+
+                if ($zywy !== null) {
+                    $szczegoly['excerpt'] = $zywy;
+                }
+            }
 
             return [
                 'rodzaj' => $notification->type,
                 'kiedy' => $this->date($notification->created_at),
                 'przeczytane' => $notification->read_at !== null,
                 'od_kogo' => $notification->actor?->displayName(),
-                'szczegoly' => array_intersect_key($data, array_flip(self::NOTIFICATION_DATA_KEYS)),
+                'szczegoly' => $szczegoly,
             ];
         })->all();
     }

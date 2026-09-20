@@ -30,6 +30,10 @@ class NotificationController extends Controller
         return view('pages.notifications', [
             'notifications' => $notifications,
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
+            // ISSUE #758 / D-223: wycinek komentarza liczy się z AKTUALNEJ
+            // treści, przy wyświetlaniu — i tak samo jak decyzje wyżej idzie
+            // JEDNYM zapytaniem na całą stronę, a nie jednym na wiersz.
+            'wycinkiKomentarzy' => Notification::zyweWycinkiKomentarzy($notifications->items()),
         ]);
     }
 
