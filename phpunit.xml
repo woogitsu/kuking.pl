@@ -67,16 +67,38 @@
         -->
         <env name="DB_CONNECTION" value="pgsql"/>
         <env name="DB_HOST" value="127.0.0.1"/>
-        <env name="DB_PORT" value="5432"/>
+        <!--
+            DB_PORT celowo NIE stoi już tutaj (issue #736).
+
+            Stało: `<env name="DB_PORT" value="5432"/>`. `<env>` bez `force`
+            nie nadpisuje zmiennej z otoczenia, ale BIJE `.env` — Dotenv
+            Laravela jest niemutowalny. Kopia robocza z `DB_PORT=55439`
+            w `.env` i tak szła więc na 5432, czyli na klaster innego
+            projektu: jedna sesja dostała 3737 porażek
+            `password authentication failed … Port: 5432` i wyglądało to
+            na regresję kodu. Jedynym ratunkiem było pamiętanie o
+            `export DB_PORT=…` przy każdym poleceniu — czyli izolacja
+            zależna od pamięci człowieka.
+
+            Bez tej linii port bierze się tak, jak wszędzie indziej:
+            zmienna środowiskowa → `.env` tej kopii → 5432 z
+            `config/database.php`. CI nic nie traci — każdy job zapisuje
+            `DB_PORT` do `$GITHUB_ENV` (`.github/workflows/ci.yml`), a
+            zmienna z otoczenia ma pierwszeństwo nad wszystkim.
+
+            Tę samą kolejność odtwarza `scripts/port-bazy.sh` dla skryptów
+            powłoki, żeby `check.sh` pytał `pg_isready` o TEN port, na
+            którym naprawdę pojadą testy.
+        -->
         <!--
             DB_DATABASE celowo NIE jest tu ustawiane na sztywno (issue #66).
 
-            Nazwę wylicza `tests/bootstrap.php` — "kuking_test" w głównym
-            katalogu, "kuking_test_<worktree>" w każdym `git worktree` — żeby
-            dwa równoległe przebiegi `php artisan test` w różnych katalogach
-            nie zrzucały sobie nawzajem schematu w trakcie działania. Pełne
-            uzasadnienie i alternatywy, których nie wybrano: komentarz na
-            górze tests/bootstrap.php.
+            Nazwę wylicza `tests/nazwa-bazy.php` z KATALOGU kopii roboczej
+            ("kuking_test_<katalog>_<skrót-ścieżki>"), żeby dwa równoległe
+            przebiegi `php artisan test` w różnych katalogach nie zrzucały
+            sobie nawzajem schematu. Reguła rozróżnia zwykłe klony, nie
+            tylko `git worktree` — to była usterka #736. Pełne uzasadnienie
+            i alternatywy, których nie wybrano: nagłówek tests/nazwa-bazy.php.
         -->
         <env name="DB_USERNAME" value="kuking"/>
         <env name="DB_PASSWORD" value="kuking"/>

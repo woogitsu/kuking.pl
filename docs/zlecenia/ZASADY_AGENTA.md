@@ -143,7 +143,10 @@ a każda strona osobno wyglądała kompletnie.
 - **Nie uruchamiaj dwóch `php artisan test` na tej samej bazie testowej.**
   Objaw: `relation … does not exist` albo zakleszczenie na `ALTER TABLE`. To
   kolizja, nie usterka repozytorium — powtórz przebieg pojedynczo. Baza jest
-  per-worktree (`tests/bootstrap.php`), więc pracuj we własnym worktree.
+  per-KATALOG (`tests/nazwa-bazy.php` liczy ją ze ścieżki kopii roboczej),
+  więc wystarczy pracować we własnym katalogu — worktree albo zwykły klon,
+  obojętne. Nazwę swojej bazy zobaczysz poleceniem:
+  `php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);'`
 - **Nie kończ tury, czekając na polecenie w tle.** Kilku agentów zatrzymało
   się na „czekam na wynik testów" i tura się skończyła, więc nic nie czekało.
   Uruchamiaj pełny zestaw w pierwszym planie, z długim timeoutem.

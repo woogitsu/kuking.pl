@@ -14666,3 +14666,50 @@ Pobieranie zdjęć obejmuje jednym batchem tagi promowane i bieżącą stronę
 katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
+
+## D-223 — Nazwa bazy testowej wynika ze ścieżki katalogu, nie z Gita (#736, 19 września 2026)
+
+Naprawa issue #66 dała każdemu `git worktree` własną bazę `kuking_test_<worktree>`,
+czytając `.git` jako plik ze wskaźnikiem `gitdir:`. Kopie robocze zakładane
+przez `git clone` mają `.git` jako KATALOG, więc wszystkie wpadały w gałąź
+domyślną i dostawały jedno wspólne `kuking_test`. Trzy równoległe sesje
+19 września zrzuciły sobie nawzajem schemat: 963 porażki `QueryException`,
+`relation "contact_messages" does not exist` i 3737 porażek. Wyglądało to na
+trzy niepowiązane regresje kodu.
+
+Nazwę liczy odtąd `tests/nazwa-bazy.php` ze ścieżki katalogu kopii roboczej:
+`kuking_test_<nazwa-katalogu>_<8 znaków SHA-1 pełnej ścieżki>`. Ścieżka jest
+jedyną rzeczą różną dla dwóch kopii i stałą dla wielu przebiegów w jednej —
+losowość (PID, UUID) usuwa kolizję kosztem baz mnożących się bez końca, a sama
+nazwa katalogu nie rozróżnia dwóch kopii o tej samej nazwie w różnych
+katalogach. Skrót jest z przodu poprzedzony czytelną nazwą katalogu, żeby
+`psql -l` dalej mówił, czyja to baza. **Gołego `kuking_test` nie dostaje już
+żaden katalog**: zwykły klon jest nieodróżnialny od kanonicznego checkoutu,
+więc „ten jeden bez sufiksu" znaczyłoby „wszystkie klony razem". CI ustawia
+`DB_DATABASE` jawnie w jobie, a jawna zmienna ma pierwszeństwo.
+
+Reguła mieszka w osobnym pliku wolnym od Composera, bo czytają ją także
+skrypty powłoki działające przed `composer install` — `.claude/hooks/session-start.sh`
+miał do dziś DRUGĄ kopię tej reguły napisaną w bashu i to ona rozjechała się
+z pierwszą.
+
+Ceną jest sprzątanie: ze skrótu nie da się odtworzyć ścieżki, więc
+`scripts/cleanup-test-dbs.sh` nie umie już zgadnąć, czyja jest baza. Każdy
+przebieg zostawia wpis w `~/.kuking-bazy-testowe/<nazwa-bazy>` ze ścieżką
+swojej kopii, a sprzątacz kasuje WYŁĄCZNIE bazy, dla których taki wpis
+istnieje i wskazuje katalog nieobecny na dysku. Baza bez wpisu zostaje na
+zawsze. To jest świadomy wybór kierunku pomyłki: niesprzątnięta baza kosztuje
+kilkaset megabajtów, skasowana baza trwającego przebiegu kosztuje cudzy dzień
+i jest nieodwracalna. Drugim, niezależnym bezpiecznikiem jest
+`pg_stat_activity` — baza z otwartym połączeniem nie jest kasowana, choćby
+rejestr mówił co innego.
+
+Przy okazji zniknęło `DB_PORT=5432` z `phpunit.xml`: `<env>` bez `force` bije
+`.env`, więc kopia z portem 55439 w `.env` i tak szła na klaster innego
+projektu. `scripts/port-bazy.sh` odtwarza tę samą kolejność (otoczenie →
+`.env` → 5432) dla skryptów powłoki, żeby `check.sh` pytał `pg_isready` o ten
+port, na którym naprawdę pojadą testy, i wypisywał go w komunikacie.
+
+Dowody: `tests/Unit/NazwaTestowejBazyTest.php`,
+`tests/skrypty/sprzatanie-baz-testowych.sh` (+ `SprzatanieBazTestowychTest`),
+`tests/Feature/SkryptyPytajaOWlasciwyPortTest.php`.

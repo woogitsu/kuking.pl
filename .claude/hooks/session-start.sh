@@ -16,7 +16,15 @@ echo "── Kuking: przygotowanie środowiska ──"
 # 1. PostgreSQL. Testy Kuking NIE działają na SQLite (indeksy częściowe,
 #    num_nonnulls, pg_trgm, unaccent), więc baza musi żyć.
 if command -v pg_isready >/dev/null 2>&1; then
-    if ! pg_isready -q 2>/dev/null; then
+    # Port z `DB_PORT`/`.env`, nie domyślny 5432 — na maszynie dewelopera
+    # klaster 5432 należy do innego projektu. Patrz `scripts/port-bazy.sh`.
+    # shellcheck source=scripts/port-bazy.sh
+    . ./scripts/port-bazy.sh
+    kuking_ustal_dostep_do_bazy . || true
+    PORT_BAZY="${KUKING_DB_PORT:-5432}"
+    HOST_BAZY="${KUKING_DB_HOST:-127.0.0.1}"
+
+    if ! pg_isready -q -h "$HOST_BAZY" -p "$PORT_BAZY" 2>/dev/null; then
         for wersja in 18 17 16 15; do
             if [ -d "/usr/lib/postgresql/$wersja" ]; then
                 pg_ctlcluster "$wersja" main start >/dev/null 2>&1 || true
@@ -26,32 +34,33 @@ if command -v pg_isready >/dev/null 2>&1; then
         sleep 2
     fi
 
-    if pg_isready -q 2>/dev/null; then
-        echo "PostgreSQL: działa"
+    if pg_isready -q -h "$HOST_BAZY" -p "$PORT_BAZY" 2>/dev/null; then
+        echo "PostgreSQL: działa na ${HOST_BAZY}:${PORT_BAZY}"
         su postgres -c "psql -tAc \"SELECT 1 FROM pg_roles WHERE rolname='kuking'\"" 2>/dev/null | grep -q 1 \
             || su postgres -c "psql -c \"CREATE ROLE kuking LOGIN PASSWORD 'kuking' SUPERUSER\"" >/dev/null 2>&1 || true
 
-        # Baza testowa TEJ sesji (issue #66): "kuking_test" w głównym
-        # katalogu, "kuking_test_<worktree>" w każdym `git worktree`. Nazwa
-        # MUSI dokładnie odpowiadać temu, co liczy tests/bootstrap.php —
-        # inaczej ten skrypt utworzyłby bazę, na którą testy i tak nie trafią.
-        baza_testowa="kuking_test"
-        if [ -f .git ]; then
-            wskaznik="$(sed -n 's/^gitdir:[[:space:]]*//p' .git)"
-            if printf '%s' "$wskaznik" | grep -q '/\.git/worktrees/'; then
-                nazwa_worktree="$(basename "$wskaznik")"
-                sufiks="$(printf '%s' "$nazwa_worktree" | tr -c 'a-zA-Z0-9_' '_' | cut -c1-50)"
-                baza_testowa="kuking_test_${sufiks}"
-            fi
-        fi
+        # Baza testowa TEJ kopii roboczej. Nazwę liczy `tests/nazwa-bazy.php` —
+        # TA SAMA funkcja, co w `tests/bootstrap.php`, a nie przepisana tu
+        # drugi raz w bashu. Do 19 września stała tu bashowa kopia reguły
+        # i to ona się rozjechała: znała tylko `git worktree`, więc w zwykłym
+        # klonie zakładała `kuking_test`, czyli bazę wspólną dla wszystkich
+        # kopii roboczych naraz. `tests/nazwa-bazy.php` jest świadomie wolny
+        # od Composera, więc działa także tutaj — przed `composer install`.
+        baza_testowa="$(php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);' 2>/dev/null)"
 
-        for db in kuking "$baza_testowa"; do
-            su postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='$db'\"" 2>/dev/null | grep -q 1 \
-                || su postgres -c "createdb -O kuking $db" >/dev/null 2>&1 || true
-        done
-        echo "Bazy: kuking, $baza_testowa"
+        if [ -z "$baza_testowa" ]; then
+            echo "Bazy: nie umiem wyliczyć nazwy bazy testowej (brak php?) — pomijam"
+        else
+            for db in kuking "$baza_testowa"; do
+                su postgres -c "psql -tAc \"SELECT 1 FROM pg_database WHERE datname='$db'\"" 2>/dev/null | grep -q 1 \
+                    || su postgres -c "createdb -O kuking $db" >/dev/null 2>&1 || true
+            done
+            php -r 'require "tests/nazwa-bazy.php"; kuking_zapisz_rejestr_bazy($argv[1], __DIR__);' \
+                "$baza_testowa" >/dev/null 2>&1 || true
+            echo "Bazy: kuking, $baza_testowa"
+        fi
     else
-        echo "PostgreSQL: NIE DZIAŁA — testy nie przejdą. Uruchom: pg_ctlcluster 16 main start"
+        echo "PostgreSQL: NIE DZIAŁA na ${HOST_BAZY}:${PORT_BAZY} — testy nie przejdą."
     fi
 fi
 

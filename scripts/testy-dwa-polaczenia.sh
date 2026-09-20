@@ -16,7 +16,7 @@
 # zatwierdzają naprawdę — więc równoległy zwykły przebieg zrzuciłby im schemat
 # w trakcie działania. To jest issue #66 widziane z drugiej strony i zdarzyło
 # się naprawdę, więc baza jest tu warunkiem, nie zaleceniem. Nazwę liczy
-# `kuking_nazwa_bazy_wyscigow()` z `tests/bootstrap.php` — tą samą metodą, co
+# `kuking_nazwa_bazy_wyscigow()` z `tests/nazwa-bazy.php` — tą samą metodą, co
 # nazwę bazy testowej, żeby nie było w repozytorium dwóch reguł nazywania baz.
 #
 # Klasa bazowa `Tests\Dwa\TestDwochPolaczen` i tak odmawia startu, gdy
@@ -25,6 +25,9 @@
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
+
+# shellcheck source=scripts/port-bazy.sh
+. "$(dirname "$0")/port-bazy.sh"
 
 PRZEBIEGI="${1:-1}"
 
@@ -38,7 +41,7 @@ CZERWONY='\033[0;31m'; ZIELONY='\033[0;32m'; ZOLTY='\033[0;33m'; RESET='\033[0m'
 # Nazwa bazy liczona TĄ SAMĄ funkcją co w testach — nie przepisana tutaj
 # drugi raz, bo dwie kopie tej samej reguły rozjeżdżają się przy pierwszej
 # zmianie.
-BAZA="$(php -r 'require "tests/bootstrap.php"; echo kuking_nazwa_bazy_wyscigow(__DIR__);')"
+BAZA="$(php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_bazy_wyscigow(__DIR__);')"
 
 if [[ "$BAZA" != kuking_race* ]]; then
     printf "${CZERWONY}Nazwa bazy wyścigów wyszła jako \"%s\", a musi zaczynać się od kuking_race.${RESET}\n" "$BAZA" >&2
@@ -47,8 +50,13 @@ fi
 
 printf "${ZOLTY}── Baza wyścigów: %s ──${RESET}\n" "$BAZA"
 
-if ! pg_isready -q 2>/dev/null; then
-    printf "Baza nie odpowiada — próbuję ją uruchomić…\n"
+# Port taki sam, jak ten, na którym pojedzie sam przebieg — uzasadnienie
+# w nagłówku `scripts/port-bazy.sh`. Gołe `pg_isready` pytało o cudzy
+# klaster na 5432 i meldowało „działa", gdy bazy Kukinga wcale nie było.
+kuking_ustal_dostep_do_bazy . || exit 1
+
+if ! pg_isready -q -h "$KUKING_DB_HOST" -p "$KUKING_DB_PORT" 2>/dev/null; then
+    printf "Baza na %s nie odpowiada — próbuję ją uruchomić…\n" "$(kuking_opis_bazy)"
     for wersja in 18 17 16 15; do
         [ -d "/usr/lib/postgresql/$wersja" ] && { pg_ctlcluster "$wersja" main start >/dev/null 2>&1; break; }
     done
