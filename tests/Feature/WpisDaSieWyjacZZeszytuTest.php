@@ -49,47 +49,107 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
 
     /**
      * Oba ekrany, na których stan „mam to w zeszycie” jest policzony
-     * (`ZapisyWpisu::dolicz()` / `doliczDoWpisu()`), czyli oba, na których
-     * karta pokazuje „Masz to w zeszycie”.
+     * (`ZapisyWpisu::dolicz()` / `doliczDoWpisu()`), wraz z nazwą przycisku,
+     * która ma na nich stać.
      *
-     * @return array<string, array{0: string}>
+     * NAZWA ZALEŻY OD EKRANU, BO ZALEŻY OD ZAKRESU (D-225). W środku
+     * konkretnego zeszytu wyjmujemy z TEGO zeszytu, więc przycisk nazywa się
+     * „Usuń z tego zeszytu". Poza zeszytem nie ma „tego zeszytu", do którego
+     * dałoby się odnieść, więc zakres jest globalny i przycisk nazywa się
+     * „Usuń z zeszytu" — tak samo jak na stronie przepisu.
+     *
+     * @return array<string, array{0: string, 1: string}>
      */
     public static function ekrany(): array
     {
         return [
-            'zeszyt' => ['zeszyt'],
-            'karta wpisu' => ['wpis'],
+            'zeszyt' => ['zeszyt', 'Usuń z tego zeszytu'],
+            'karta wpisu' => ['wpis', 'Usuń z zeszytu'],
         ];
     }
 
     #[DataProvider('ekrany')]
-    public function test_na_ekranie_ze_stanem_zapisu_stoi_przycisk_wyjecia(string $ekran): void
+    public function test_na_ekranie_ze_stanem_zapisu_stoi_przycisk_wyjecia(string $ekran, string $nazwaPrzycisku): void
     {
-        [$basia, $wpis] = $this->zapisanyWpis();
+        [$basia, $wpis] = $this->zapisanyWpis(['body' => 'Rosół na niedzielę.']);
 
         $html = $this->otworz($ekran, $basia, $wpis)->getContent();
 
-        $this->assertStringContainsString(
-            'Masz to w zeszycie',
-            $html,
-            "Ekran „{$ekran}” nie pokazuje nawet stanu zapisu — scena mierzy nie to, co trzeba.",
-        );
+        // Scena ma mierzyć kartę W STANIE „zapisany" — inaczej mierzyłaby
+        // sama siebie. Wpis musi więc najpierw BYĆ na ekranie...
+        $this->assertStringContainsString('Rosół na niedzielę.', $html, "Ekran „{$ekran}” nie pokazuje wcale tego wpisu.");
+
+        // ...a poza zeszytem ten stan widać dodatkowo jako zdanie „Masz to
+        // w zeszycie". W samym zeszycie tego zdania CELOWO nie ma (D-225):
+        // prowadzi do listy zeszytów, a człowiek stojący W zeszycie już wie,
+        // że wpis tam leży.
+        if ($ekran === 'zeszyt') {
+            $this->assertStringNotContainsString('Masz to w zeszycie', $html, 'W zeszycie odnośnik stanu nie ma już stać (D-225).');
+        } else {
+            $this->assertStringContainsString('Masz to w zeszycie', $html, "Ekran „{$ekran}” nie pokazuje stanu zapisu.");
+        }
 
         $formularz = $this->formularzWyjecia($html, $wpis);
 
         $this->assertNotNull(
             $formularz,
-            "Ekran „{$ekran}” pokazuje „Masz to w zeszycie”, ale nie daje żadnej drogi wyjęcia wpisu z zeszytu (audyt L1).",
+            "Ekran „{$ekran}” pokazuje zapisany wpis, ale nie daje żadnej drogi wyjęcia go z zeszytu (audyt L1).",
         );
 
         $przycisk = (new DOMXPath($formularz->ownerDocument))->query('.//button', $formularz)?->item(0);
 
         $this->assertInstanceOf(DOMElement::class, $przycisk, 'Formularz wyjęcia nie ma przycisku.');
-        $this->assertStringContainsString('Usuń z zeszytu', $przycisk->textContent);
+        $this->assertStringContainsString($nazwaPrzycisku, $przycisk->textContent);
+    }
+
+    /**
+     * DOKŁADNIE JEDNA DROGA WYJĘCIA NA EKRAN — TO JEST SEDNO D-225.
+     *
+     * #789 (przycisk globalny wszędzie) i #776 (przycisk lokalny w zeszycie)
+     * powstały równolegle i nie wiedziały o sobie. Złożone wprost dawały na
+     * ekranie zeszytu DWA przyciski o prawie identycznych nazwach i różnym
+     * zasięgu — „Usuń z zeszytu" i „Usuń z tego zeszytu" jeden pod drugim.
+     * Ta scena jest jedynym dowodem, że to się nie wróci: liczy formularze
+     * wyjęcia i czyta nazwę tego jedynego.
+     */
+    #[DataProvider('ekrany')]
+    public function test_na_ekranie_jest_dokladnie_jedna_droga_wyjecia(string $ekran, string $nazwaPrzycisku): void
+    {
+        [$basia, $wpis] = $this->zapisanyWpis();
+
+        $html = $this->otworz($ekran, $basia, $wpis)->getContent();
+
+        $formularze = $this->formularzeWyjecia($html, $wpis);
+
+        $this->assertCount(
+            1,
+            $formularze,
+            sprintf(
+                'Ekran „%s” pokazuje %d dróg wyjęcia wpisu z zeszytu zamiast jednej. Dwie prawie identyczne nazwy o różnym zasięgu są dla tej grupy gorsze niż brak którejkolwiek (D-225).',
+                $ekran,
+                count($formularze),
+            ),
+        );
+
+        $przycisk = (new DOMXPath($formularze[0]->ownerDocument))->query('.//button', $formularze[0])?->item(0);
+        $this->assertInstanceOf(DOMElement::class, $przycisk);
+        $this->assertStringContainsString($nazwaPrzycisku, $przycisk->textContent);
+
+        // I nazwa TEJ DRUGIEJ drogi nie pada nigdzie na tym ekranie — także
+        // poza formularzem (nagłówek, podpowiedź, menu „…").
+        // (Jedna nazwa nie jest podciągiem drugiej — po „Usuń z " stoi
+        // w wariancie lokalnym słowo „tego" — więc zwykłe szukanie wystarcza.)
+        $druga = $nazwaPrzycisku === 'Usuń z zeszytu' ? 'Usuń z tego zeszytu' : 'Usuń z zeszytu';
+
+        $this->assertStringNotContainsString(
+            $druga,
+            $html,
+            "Na ekranie „{$ekran}” pada też nazwa drugiej drogi wyjęcia („{$druga}”) — a ma być wyłącznie „{$nazwaPrzycisku}”.",
+        );
     }
 
     #[DataProvider('ekrany')]
-    public function test_droga_wyjecia_dziala_bez_javascriptu(string $ekran): void
+    public function test_droga_wyjecia_dziala_bez_javascriptu(string $ekran, string $nazwaPrzycisku): void
     {
         // Martwy przycisk jest gorszy niż brak przycisku (AGENTS.md §5, D-053).
         // Tu nie ma powodu na skrypt: to jest zwykły formularz, więc sprawdzamy
@@ -100,7 +160,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         $html = $this->otworz($ekran, $basia, $wpis)->getContent();
         $formularz = $this->formularzWyjecia($html, $wpis);
 
-        $this->assertNotNull($formularz, "Brak formularza wyjęcia na ekranie „{$ekran}”.");
+        $this->assertNotNull($formularz, "Brak formularza wyjęcia na ekranie „{$ekran}” (przycisk „{$nazwaPrzycisku}”).");
 
         $this->assertSame('POST', strtoupper($formularz->getAttribute('method')));
 
@@ -123,10 +183,18 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
             $this->assertStringStartsNotWith('x-on:', $nazwa, 'Formularz wyjęcia wisi na Alpine — bez skryptu przycisk milczy.');
         }
 
-        // I to, co ten formularz wysyła, naprawdę wyjmuje wpis.
+        // I to, co ten formularz wysyła, naprawdę wyjmuje wpis — RAZEM
+        // z ukrytymi polami, bo to one niosą zakres (`collection_id`).
+        $pola = [];
+        foreach ($xpath->query('.//input[@type="hidden"]', $formularz) as $ukryte) {
+            $pola[$ukryte->getAttribute('name')] = $ukryte->getAttribute('value');
+        }
+
+        unset($pola['_method'], $pola['_token']);
+
         $this->actingAs($basia)
             ->from($formularz->getAttribute('action'))
-            ->delete($formularz->getAttribute('action'))
+            ->delete($formularz->getAttribute('action'), $pola)
             ->assertRedirect();
 
         $this->assertSame(0, $basia->defaultCollection()->posts()->count());
@@ -295,9 +363,21 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
      */
     private function formularzWyjecia(string $html, Post $wpis): ?DOMElement
     {
+        return $this->formularzeWyjecia($html, $wpis)[0] ?? null;
+    }
+
+    /**
+     * WSZYSTKIE formularze wyjęcia tego wpisu — bo sednem D-225 jest ICH
+     * LICZBA, a metoda oddająca „pierwszy trafiony" zielenieje tak samo przy
+     * jednym przycisku, jak przy dwóch.
+     *
+     * @return list<DOMElement>
+     */
+    private function formularzeWyjecia(string $html, Post $wpis): array
+    {
         $adres = route('collections.unsave-post', $wpis);
 
-        return $this->element($html, sprintf(
+        return $this->elementy($html, sprintf(
             '//form[@action=%s][.//input[@name="_method"][translate(@value, "delete", "DELETE")="DELETE"]]',
             $this->cytat($adres),
         ));
@@ -305,15 +385,28 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
 
     private function element(string $html, string $wyrazenie): ?DOMElement
     {
+        return $this->elementy($html, $wyrazenie)[0] ?? null;
+    }
+
+    /** @return list<DOMElement> */
+    /** @return list<DOMElement> */
+    private function elementy(string $html, string $wyrazenie): array
+    {
         $dokument = new DOMDocument;
         $poprzednie = libxml_use_internal_errors(true);
         $dokument->loadHTML('<?xml encoding="utf-8" ?>'.$html);
         libxml_clear_errors();
         libxml_use_internal_errors($poprzednie);
 
-        $trafienie = (new DOMXPath($dokument))->query($wyrazenie)?->item(0);
+        $trafienia = [];
 
-        return $trafienie instanceof DOMElement ? $trafienie : null;
+        foreach ((new DOMXPath($dokument))->query($wyrazenie) ?: [] as $trafienie) {
+            if ($trafienie instanceof DOMElement) {
+                $trafienia[] = $trafienie;
+            }
+        }
+
+        return $trafienia;
     }
 
     /** XPath 1.0 nie ma znaku ucieczki w łańcuchu — apostrof trzeba obejść. */
