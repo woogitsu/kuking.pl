@@ -208,6 +208,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const obraz = okno.querySelector('.lightbox-obraz');
+    const status = okno.querySelector('.lightbox-status');
+    const ponowPrzycisk = okno.querySelector('.lightbox-ponow');
+
+    /*
+     * ADRES, O KTÓRY WŁAŚNIE „WALCZYMY" (issue #743).
+     *
+     * Zawsze wartość PO przypisaniu do `obraz.src` — przeglądarka rozwija ją
+     * do pełnego adresu, więc porównanie `obraz.src === biezacyAdres` w
+     * handlerach `load`/`error` działa niezależnie od tego, czy link miał
+     * adres względny czy bezwzględny.
+     *
+     * PO CO TO W OGÓLE: jedno `<img>` obsługuje KAŻDE kolejne otwarte
+     * zdjęcie. Błąd albo dokończone wczytanie poprzedniego żądania, które
+     * dojdzie z opóźnieniem PO otwarciu następnego zdjęcia (albo po
+     * zamknięciu i ponownym otwarciu tego samego), nie może nadpisać stanu
+     * zdjęcia, które człowiek widzi teraz — dlatego każdy handler sprawdza
+     * `obraz.src === biezacyAdres`, zanim cokolwiek zmieni.
+     */
+    let biezacyAdres = null;
+
+    function pokazWczytywanie() {
+        obraz.hidden = true;
+        ponowPrzycisk.hidden = true;
+        status.hidden = false;
+        status.textContent = 'Wczytywanie zdjęcia…';
+    }
+
+    function pokazBlad() {
+        obraz.hidden = true;
+        status.hidden = false;
+        status.textContent = 'Nie udało się wczytać zdjęcia. Spróbuj ponownie.';
+        ponowPrzycisk.hidden = false;
+    }
+
+    function pokazGotowe() {
+        obraz.hidden = false;
+        ponowPrzycisk.hidden = true;
+        status.hidden = true;
+        status.textContent = '';
+    }
 
     document.addEventListener('click', (zdarzenie) => {
         const link = zdarzenie.target.closest('a[data-powieksz]');
@@ -226,10 +266,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
         zdarzenie.preventDefault();
 
-        obraz.src = link.getAttribute('href');
+        pokazWczytywanie();
         obraz.alt = link.dataset.alt || '';
+        obraz.src = link.getAttribute('href');
+        biezacyAdres = obraz.src;
 
         okno.showModal();
+    });
+
+    obraz.addEventListener('load', () => {
+        if (obraz.src !== biezacyAdres) {
+            return;
+        }
+
+        pokazGotowe();
+    });
+
+    obraz.addEventListener('error', () => {
+        // `obraz.src` startuje pusty w HTML źródłowym — samo usunięcie
+        // atrybutu przy zamknięciu (niżej) też potrafi odpalić `error`
+        // w niektórych przeglądarkach. Bez `biezacyAdres` nie ma czego
+        // pokazywać: dialog jest wtedy i tak zamknięty.
+        if (!biezacyAdres || obraz.src !== biezacyAdres) {
+            return;
+        }
+
+        pokazBlad();
+    });
+
+    ponowPrzycisk.addEventListener('click', () => {
+        if (!biezacyAdres) {
+            return;
+        }
+
+        // Ponowienie ma WYKONAĆ PRÓBĘ FAKTYCZNIE, nie tylko pokazać
+        // wczytywanie: samo przypisanie tego samego `src` przeglądarka
+        // czasem traktuje jako no-op i nie wysyła nowego żądania. Doklejony
+        // znacznik czasu wymusza prawdziwe kolejne pobranie za każdym razem.
+        const bazowyAdres = biezacyAdres.split('#')[0].split('?')[0];
+        const laczik = bazowyAdres.includes('?') ? '&' : '?';
+
+        pokazWczytywanie();
+        obraz.src = bazowyAdres + laczik + '_ponow=' + Date.now();
+        biezacyAdres = obraz.src;
     });
 
     // Kliknięcie w tło zamyka. To jest DODATEK do przycisku „Zamknij”,
@@ -250,8 +329,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        biezacyAdres = null;
         obraz.removeAttribute('src');
         obraz.alt = '';
+        pokazGotowe();
     });
 })();
 

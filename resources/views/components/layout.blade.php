@@ -1273,8 +1273,22 @@
         <dialog id="powiekszenie" class="lightbox" aria-label="Powiększone zdjęcie">
             <img class="lightbox-obraz" src="" alt="">
 
-            {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
+            {{--
+                Stan wczytywania/błędu dużego wariantu (issue #743).
+
+                Dialog otwiera się PRZED zakończeniem pobierania — jeśli duży
+                plik nie dojdzie albo się nie zdekoduje, ten region (nie samo
+                zepsute `<img>` przeglądarki) mówi po polsku co się stało
+                i daje działającą akcję. `role="status"` + `aria-live="polite"`,
+                żeby czytnik ekranu ogłosił zmianę bez przenoszenia fokusu —
+                fokus zostaje w dialogu, gdzie już jest (pułapka focusu
+                `showModal()`).
+            --}}
+            <p class="lightbox-status" role="status" aria-live="polite" hidden></p>
+
             <form method="dialog" class="lightbox-akcje">
+                <button type="button" class="btn btn-secondary lightbox-ponow" hidden>Spróbuj ponownie</button>
+                {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
                 <button class="btn btn-secondary" type="submit">Zamknij</button>
             </form>
         </dialog>
