@@ -234,13 +234,24 @@ busy" z 10 września (issue #262).
 | 3 | `lint` | porażka blokuje, ale jest szybka; stąd wyjęto kanoniczne uzasadnienie | **43 s** (przed zmianą 41 s) |
 | 4 | `static-analysis` | j.w. | **45 s** (przed zmianą 44 s) |
 | 5 | `test` | najdroższa porażka spośród niebrowserowych | **504 s** (mediana przed zmianą 594 s) |
-| 6 | `port_marki` | najkrótszy z czterech przeglądarkowych | **czeka na runnera** |
+| 6 | `port_marki` | najkrótszy z czterech przeglądarkowych | **506 s** (pasmo 439–492 s) |
 | — | `dostepnosc`, `port_panelu`, `port_funkcje` | najdłuższe i najbardziej wrażliwe | nietknięte |
 | — | `assets` | jedyny job bez PHP — wspólna akcja go nie dotyczy | nie dotyczy |
 
 Żaden przeniesiony job nie wyszedł poza swoje pasmo „z pomiarem". `test`
-wypadł nawet poniżej mediany, co jest zwykłym rozrzutem, a nie dowodem
+wypadł poniżej mediany, co jest zwykłym rozrzutem, a nie dowodem
 przyspieszenia — tego ten pakiet nie twierdzi.
+
+Przyrost szósty zmierzony w przebiegu **35495316307** (draft PR #783), razem
+z powtórzeniem pięciu wcześniejszych na jednym commicie: `audit` 23 s,
+`dwa-polaczenia` 33 s, `lint` 33 s, `static-analysis` 41 s, `test` 505 s.
+Wszystkie zgodne z pomiarami z osobnych przebiegów — `test` co do sekundy
+(505 wobec 504).
+
+W tym samym przebiegu padł `port_funkcje` — job, którego ten pakiet NIE
+dotyka — na `szybki-wyglad.mjs:240`, czyli na znanej pozycji M-4 rejestru
+migotania. To jest dokładnie ten powód, dla którego trzy joby przeglądarkowe
+zostają nietknięte: gdyby pakiet je ruszał, ta czerwień byłaby nieodczytywalna.
 
 Jeden job na przyrost, każdy z własnym przebiegiem na runnerze. To jest ta
 zasada, której brak kosztował cztery dni przestoju wdrożeń.
