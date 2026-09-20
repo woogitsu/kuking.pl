@@ -221,3 +221,345 @@ spróbuje pełnego przebiegu portu marki w runtime. Do naprawy osobno.
 
 To ta sama rodzina problemów co P7: skrypty zakładają obecność `.git`,
 którego rsync runtime'u nie kopiuje.
+
+---
+
+## 23:10 — Bramka pchania nie istniała od 21:14 (najważniejsze ustalenie nocy)
+
+`.git/hooks/` w repozytorium kanonicznym zawierało **wyłącznie pliki `.sample`**,
+z datą 21:14 — czyli z godziny odbudowy repozytorium po awarii. Hook `pre-push`,
+na którym opierała się cała kolejka szeregowa, przepadł razem z katalogiem `.git`
+i **nikt tego nie zauważył**, bo jego brak nie daje żadnego komunikatu: push po
+prostu jest szybki.
+
+Objaw, który to zdradził: `gpt/moja-wersja` padła na baterii o 20:59 (hook żył),
+a późniejsze pchnięcia szły w sekundy.
+
+Pchnięte bez bramki (z `.git/logs/refs/remotes/origin`, po 21:14):
+- `naprawa/klient-pg18-w-ci` — 22:16
+- `flota/dsa-odwolania` — 22:25
+- `gpt/dziennik-wyjatkow` — 22:44
+
+Hook przywrócony o 23:08 przez `scripts/install-hooks.sh`; `.git/hooks/pre-push`
+istnieje (224 B). Te trzy gałęzie wymagają nadrobienia baterii — nie zakładam,
+że są dobre tylko dlatego, że wyszły.
+
+## 23:05 — Lista „do pchnięcia" była fałszywa i prawie na niej zbudowałem kolejkę
+
+Pierwszy przebieg dał 79 pozycji, z czego 77 jako „PRZED:?" — czyli wyprzedzają
+`origin`. **Nieprawda.** `git rev-parse origin/nieistniejaca-galaz` wypisuje
+nazwę refa **na stdout** i dopiero `fatal:` na stderr. Podstawienie `$(...)`
+łapało tę nazwę jako poprawne SHA, więc gałąź nieistniejąca na zdalnym wyglądała
+na istniejącą i wyprzedzoną, a `rev-list` padał dając znak zapytania zamiast
+liczby.
+
+Poprawnie: `git rev-parse --verify --quiet refs/remotes/origin/<b>`.
+
+Po poprawce: **77 gałęzi NOWYCH** (nie ma ich na GitHubie w ogóle) + 2 wyprzedzone
+o 1 commit (`codex/audyt-ux50plus`, `flota/gotowanie`). Pominięto **107 martwych
+stanowisk** — ich `.git` wskazuje na `worktrees/<nazwa>`, który nie przetrwał
+odbudowy. To nie są kandydaci do pchania, tylko katalogi z plikami.
+
+Zgodność z GitHubem: zdalnych gałęzi 72, z czego `origin/gpt/*` tylko **jedna** —
+co potwierdza, że te 77 naprawdę nigdy tam nie było.
+
+## 23:07 — Budżet minut: push jest darmowy, PR nie
+
+Odczytane z bloków `on:` czterema plikami workflow:
+
+| workflow | wyzwalacz |
+|---|---|
+| `ci.yml` | `push` **tylko do `main`/`staging`**, `pull_request` do `main`/`staging` |
+| `preview.yml` | `pull_request` (opened, synchronize, reopened) |
+| `railway-iac.yml` | `pull_request`, ale tylko przy zmianie `.railway/**` |
+| `deploy.yml` | `deployment_status` + ręcznie |
+
+Wniosek: **pchnięcie 77 gałęzi roboczych kosztuje zero minut Actions.**
+Minuty zjada dopiero otwarcie PR-a (~65 min na przebieg). Przy ~2189 minutach
+zapasu to sufit rzędu **30 PR-ów**, i to bez rezerwy na scalenia do `main`
+(każde scalenie to kolejny przebieg `ci.yml` z wyzwalacza `push`).
+
+Plan wynikający z tych liczb, nie z chęci:
+1. Pchnąć wszystko — darmowe, zdejmuje pracę z dysku, gdzie tylko czeka na
+   kolejną awarię.
+2. PR-y otwierać partiami, w kolejności z `KOLEJNOSC_SCALANIA.md`, licząc minuty.
+3. Gałęzie czysto dokumentacyjne trzymać na koniec — ich wartość nie zależy od CI.
+
+## 23:02 — #23: strażnik martwych odnośników miał rację
+
+`gpt/moja-wersja` cyklicznie padała na `DokumentyMdNieMajaMartwychOdnosnikowTest`.
+Dokument projektowy #23 zapisywał dwa ekrany V2 — `przepisy/{fork}/oryginal`
+i `przepisy/{oryginal}/moja-wersja` — w backtickach, notacją nieodróżnialną od
+tras, które naprawdę są w `routes/web.php`. To obietnica bez pokrycia: czytelnik
+dostaje adres, pod który nikt nie wejdzie.
+
+Poprawiony dokument, nie strażnik. Commit `65ca5b19`.
+Czerwień przed: 1 failed, obie trasy wymienione. Zieleń po: 3 passed, 49 asercji.
+Kontrola dodatnia jest z pomiaru — czerwień widziałem, zanim tknąłem plik.
+
+## 23:20 — Płacimy minuty, mając siedem własnych runnerów na biegu jałowym
+
+`gh api .../actions/variables`: **`CI_RUNS_ON="ubuntu-latest"`** — zmienna JEST
+ustawiona i kieruje wszystkie dziewięć jobów na płatną pulę GitHuba.
+
+Jednocześnie `gh api .../actions/runners` pokazuje **siedem runnerów online**
+(`kuking-wsl-DOM-NEW-01..03`, `kuking-wsl-NEW-01..03`, jeden offline),
+wszystkie `busy=false`. W WSL widać działający `Runner.Worker` i `headless_shell`
+na 335% CPU, więc maszyna umie ciągnąć także joby przeglądarkowe.
+
+Czego NIE zrobiłem i dlaczego: nie przestawiłem `CI_RUNS_ON` na własną pulę.
+Plan z `KOLEJNOSC_SCALANIA.md` mówi wprost, że zmienne ustawiamy **po** scaleniu
+rozdziału hybrydowego, bo dopiero on wprowadza osobną `CI_RUNS_ON_PRZEGLADARKA`
+dla czterech jobów przeglądarkowych. Przestawienie teraz wysłałoby na własne
+runnery także je — a gdyby tam czegoś brakowało, zapaliłoby na czerwono PR-y,
+które są zdrowe. To dokładnie ta klasa fałszywego sygnału, którą tropimy.
+
+Kolejność została więc odwrócona pod ten cel: `naprawa/ci-hybryda-runnerow`
+stoi jako **pozycja pierwsza** w kolejce pchania.
+
+Do decyzji właściciela rano: po scaleniu hybrydy ustawić
+`CI_RUNS_ON=["self-hosted","kuking-linux"]` (składnia z cudzysłowami wynika
+z `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')` w `ci.yml`).
+
+## 23:16 — #929 odblokowane; przyczyna potwierdzona z logu, nie z domysłu
+
+Job „Testy (PostgreSQL 18)" PR-a #929:
+`Expected: PostgreSQL nie odpowiada — nie ma czego dowodzić.` `KOD=1`,
+przy 4393 pozostałych testach zielonych.
+
+To ta sama sonda `pg_isready -q` bez argumentów: pyta localhost:5432. Lokalnie
+przechodzi **przypadkiem**, bo na 5432 stoi cudzy klaster; w CI baza słucha na
+`DB_PORT`, więc sonda kłamie i cały skrypt kopii wychodzi jedynką.
+
+Poprawka przeniesiona na gałąź pg18 jako commit `021264c6` (sonda pyta
+`BAZA_HOST`/`BAZA_PORT` z linii 71-72). Commitu `f2c7b74c` nie dało się
+cherry-pickować: siostrzane stanowisko wisi na **innym repozytorium**
+(`Codex/.git`, remote nazwany `gh707`), więc obiekty nie są wspólne.
+
+Skutek uboczny: gałąź `naprawa/proba-odtworzenia-w-ci` niesie teraz tę samą
+jedną linię co `naprawa/klient-pg18-w-ci`. Przy scalaniu wystarczy jedna z nich.
+
+## 23:14 — Kolejka trafiła w pułapkę dwóch repozytoriów
+
+8 z 74 stanowisk wisi na `Codex/.git`, którego remote nazywa się **`gh707`**,
+a nie `origin`. `git push origin` u nich po prostu nie istnieje. Kolejka
+zaraportuje to uczciwie jako PADŁO (porównuje SHA, nie kod wyjścia), a drugie
+przejście obsłuży je pod właściwą nazwą remote'a. Sprawdzone: wszystkie osiem
+jest naprawdę nowych także wobec `gh707`.
+
+## 23:30 — #914 nie jest zepsute; czeka na #929
+
+Job „Pint (styl kodu)" PR-a #914 (`flota/dsa-odwolania`) oblewa **9 z 167**
+przypadków w kroku „Testy skryptu kopii bazy". Wszystkie dziewięć ma ten sam
+podpis:
+
+```
+✗ pełne, zdrowe archiwum PRZECHODZI weryfikację
+   oczekiwano: kod=0      otrzymano: kod=51
+✗ archiwum obcięte do 99% zostaje ODRZUCONE
+   oczekiwano: kod=53     otrzymano: kod=51
+```
+
+`kod=51` to niezgodność wersji `pg_restore`, nie uszkodzenie archiwum — zdrowe
+archiwum i archiwum obcięte dostają **ten sam** kod, więc test nie odróżnia już
+dobrego od złego. Fałszywa czerwień: gałąź jest niewinna.
+
+Lekarstwem jest krok doinstalowania klienta PostgreSQL 18, który niesie
+`naprawa/klient-pg18-w-ci` (#929). **Kolejność scalania jest więc wymuszona:
+#929 przed #914.** Po scaleniu #914 wystarczy odświeżyć — bez zmian w treści.
+
+Oszczędność: nie tknąłem #914. Gdybym „naprawiał" ją u niej, zamaskowałbym
+przyczynę i zostawił test, który nie odróżnia archiwum zdrowego od obciętego.
+
+## 23:22 — Moja własna kolejka dała FAŁSZYWE „OK". Opisuję to, bo to najważniejsza lekcja tej nocy
+
+Napisałem kolejkę tak, żeby „nie mogła skłamać": wpis do `pchniete` miał
+powstawać wyłącznie po porównaniu SHA lokalnego ze zdalnym, nigdy z kodu
+wyjścia. I mimo to skłamała.
+
+W klonie `push-run` remote o nazwie **`origin` to lokalne repozytorium
+kanoniczne**, a nie GitHub (GitHub siedzi pod nazwami `github9`/`github10`).
+Kolejka pchała do `origin`, push padał — i weryfikacja porównywała SHA
+z `refs/remotes/origin/<gałąź>`, czyli z **lokalnym klonem**, który tę gałąź
+miał po świeżym fetchu. Zgadzało się co do bajtu. Log powiedział:
+
+```
+error: failed to push some refs to '/mnt/c/.../Codex/kuking.pl'
+23:21:30 OK naprawa/klient-pg18-w-ci -> 021264c6…
+```
+
+Porażka i „OK" w dwóch kolejnych wierszach.
+
+Nauka nie brzmi „porównuj SHA" tylko **„sprawdź, czy porównujesz z tym samym
+miejscem, do którego pchasz"**. Poprawka: pchanie i weryfikacja jawnie przez
+`$ZDALNY=github9`.
+
+## 23:19 — Hook pchał baterię w katalogu bez `vendor/`
+
+Pierwsza wersja kolejki pchała wprost ze stanowisk windowsowych. Hook odpala
+`./scripts/check.sh`, a tam nie ma `vendor/`:
+
+```
+Failed opening required 'C:\...\ci-hybryda/vendor/autoload.php'
+✗ Migracja nie ma działającego down() — nie da się jej wycofać podczas awarii
+Problemów do naprawienia: 7
+```
+
+Siedem „problemów" było artefaktem braku katalogu, nie oceną kodu. To gorsze
+niż brak bramki, bo wygląda na werdykt. Właściwa droga (odtworzona z
+`nowe-stanowisko-pchania.sh`): pchać z klonu w WSL `/home/mateusz/flota/push-run`,
+gdzie `vendor` i `node_modules` są skopiowane, a hook ma czym pracować.
+
+Druga pułapka w tym samym miejscu: `.env` klonu niesie `DB_PORT=5432`, czyli
+port współdzielony, którego zasady zabraniają. Bateria wywalała się na
+`password authentication failed for user "kuking"`. Kolejka nadpisuje teraz
+środowisko na własny klaster `127.0.0.1:55439` i własną bazę
+`kuking_flota_push`, tak samo jak `testuj.sh`.
+
+## 23:18 — Uszkodzony `multi-pack-index` blokował każdy fetch
+
+```
+fatal: bad pack-int-id: 70102040 (2 total packs)
+```
+
+`git fsck --connectivity-only` pokazał wyłącznie wiszące obiekty — historia
+cała. Uszkodzony był sam plik `multi-pack-index` (pamięć podręczna, odtwarzalna),
+najpewniej niedokończony zapis przy odbudowie repozytorium. Usunięty (kopia
+w `C:\Temp`), fetch działa. Repozytorium nietknięte poza tym plikiem.
+
+## 23:35 — Cała flota PR-ów zaczerwieniła się naraz około 17:30
+
+14 otwartych PR-ów, **ani jednego zielonego**. 10 z 11 sprawdzonych pada
+w dokładnie tych samych dwóch jobach: „Pint (styl kodu)" i „Testy (PostgreSQL 18)".
+Dwie niezależne przyczyny, obie wspólne, żadna nie dotyczy treści gałęzi:
+
+1. `kod=51` w testach kopii bazy — niezgodność wersji `pg_restore`. Zdrowe
+   archiwum i obcięte dostają ten sam kod, więc test przestał odróżniać dobre
+   od złego. Lekarstwo: #929.
+2. `WyborZeszytuMaWalidacjeTest`: `invalid input syntax for type uuid:
+   "to-nie-jest-uuid"` → HTTP 500 zamiast polskiego komunikatu; w jednym
+   przypadku 404.
+
+Przy czym `ci.yml` na `main` (4c811cc7) jest **zielony**, a kontroler ma regułę
+`'bail', 'nullable', 'uuid'` przed `exists` od #483 — więc kod na `main` jest
+poprawny. Żadna z trzech sprawdzonych gałęzi (`flota/wyszukiwarka`,
+`robota/bazy-stanowisk`, `flota/dsa-odwolania`) **nie zawiera 4c811cc7**.
+
+Robocza hipoteza, jeszcze NIE potwierdzona pomiarem: gałęzie są przestarzałe
+wobec `main`, a przebiegi z 17:39-17:58 liczono na starszym scaleniu. Rozstrzyga
+to jedno uruchomienie `WyborZeszytuMaWalidacjeTest` na aktualnym `main` —
+i dopóki go nie zrobię, nie ogłaszam werdyktu. Pisownia „prawdopodobnie" jest
+tu celowa: dwa razy dziś myliłem wzór z przyczyną.
+
+## 23:40 — Hipoteza „przestarzałe gałęzie" OBALONA (moja, sprawdzona i odrzucona)
+
+Pobrałem rzeczywiste scalenia, na których liczono czerwone przebiegi
+(`refs/pull/<n>/merge`), i sprawdziłem je wprost:
+
+| PR | scalenie | reguła `bail`+`uuid` | zawiera 4c811cc7 |
+|---|---|---|---|
+| #916 | `f550c6b7` | **jest** | tak |
+| #920 | `2444c068` | **jest** | tak |
+
+Czyli kod w scaleniu jest poprawny i zawiera aktualny `main`. Moja hipoteza
+z 23:35 była błędna i tu ją odwołuję.
+
+Ustalone dalej: `4c811cc7` ma datę **17:11 CEST = 15:11 UTC**, a zielony przebieg
+`ci.yml` o `15:11:17Z` to dokładnie przebieg z tego scalenia. Więc ten sam test
+jest **zielony na `main`** i **czerwony na scaleniu `main` + gałąź**, dla co
+najmniej dwóch niezwiązanych ze sobą gałęzi. Test pochodzi z #483 (12 września),
+nie z #789.
+
+Czego NIE wiem i nie zgaduję: dlaczego. Zostały dwa tropy, obydwa wymagają
+uruchomienia, nie odczytu:
+- kolejność/izolacja testów — coś zostawia stan, przez co `exists` dostaje
+  wejście, którego `bail` już nie zatrzymał,
+- różnica środowiska między przebiegiem `push` a `pull_request`.
+
+Rozstrzyga jedno uruchomienie `WyborZeszytuMaWalidacjeTest` na scaleniu
+`f550c6b7` w runtime lokalnym. Czeka na wolny runtime — `push-run` mieli
+w tej chwili baterię gałęzi pg18.
+
+**To jest teraz największa pojedyncza przeszkoda w nocy:** blokuje 10 PR-ów
+i żadna z tych dziesięciu gałęzi nie jest za to odpowiedzialna.
+
+## 23:50 — ROZSTRZYGNIĘTE: jedna rodzina przyczyn, nie dwie. I moja pomyłka po drodze
+
+Uruchomiłem `WyborZeszytuMaWalidacjeTest` na **dokładnie tym scaleniu**, które
+CI pokazało na czerwono (`f550c6b7`), w runtime `diagnoza-uuid-run`, własna baza
+`kuking_flota_diagnoza-uuid`, port 55439:
+
+```
+PASS  Tests\Feature\WyborZeszytuMaWalidacjeTest
+Tests: 14 passed (102 assertions)   Duration: 2.09s
+```
+
+Zielony. Więc kod był niewinny — a ja czytałem czerwień, której nie było.
+
+**Skąd wzięła się moja pomyłka.** Job „Testy (PostgreSQL 18)" ma krok
+`python3 scripts/kontrole-negatywne-alfa08.py` — mutacyjny: psuje źródło
+i **wymaga**, żeby test zapalił na czerwono. Wpisy
+`FAILED … WyborZeszytuMaWalidacjeTest` w logu to **zamierzony sygnał sukcesu**
+tego kroku, a nie usterka. Krok zakończył się zdaniem
+„Pięć kontroli negatywnych wykryły regresje; źródła przywrócone."
+
+Wziąłem oczekiwaną czerwień za awarię i zbudowałem na niej hipotezę o błędzie
+produktu (500 zamiast komunikatu po polsku). Hipoteza była nieprawdziwa;
+odwołuję ją w całości.
+
+**Prawdziwa porażka tego joba**, po odfiltrowaniu kroku kontroli negatywnych,
+jest jedna:
+
+```
+FAILED  Tests\Feature\ProbaOdtworzeniaTest > skrypty kopii i proby odtworzenia
+##[error]Process completed with exit code 1.
+```
+
+Czyli **ta sama rodzina przyczyn co w jobie Pint** (`kod=51`) i co na #929:
+klient PostgreSQL i sonda gotowości.
+
+### Wniosek dla nocy
+
+Wszystkie czerwienie floty PR-ów sprowadzają się do **jednego źródła**:
+`naprawa/klient-pg18-w-ci` (#929) z doinstalowaniem klienta PG18 i poprawioną
+sondą `pg_isready` (`021264c6`). Ta jedna gałąź odblokowuje około dziesięciu
+PR-ów. Nic innego nie ma dziś takiej dźwigni i dlatego stoi na początku kolejki.
+
+### Lekcja metodologiczna, warta zapisania
+
+Log kontroli mutacyjnej wygląda identycznie jak log awarii. Różni je wyłącznie
+**krok, w którym stoi**, i zdanie podsumowujące. Czytając czerwień w CI trzeba
+najpierw zapytać: *czy ktoś tej czerwieni nie zamówił?* Dziś kosztowało mnie to
+dwie obalone hipotezy — ale obie obaliłem pomiarem, zanim cokolwiek „naprawiłem".
+Gdybym poszedł za pierwszą, dopisałbym walidację do kontrolera, który ma ją od #483.
+
+## 00:05 — Rachunek przepustowości: 74 gałęzi nie przejdzie przez bramkę do rana
+
+Pomiar z pierwszej pozycji: od startu pozycji do wejścia `check.sh` mija kilka
+minut (fetch z `/mnt/c` przez drvfs jest wolny), a sama bateria to kolejne
+kilkanaście przy obecnym obciążeniu maszyny — równolegle chodzą runtime'y
+innych zadań i self-hosted runner. Realnie **kilkanaście minut na gałąź**.
+
+74 × 15 min ≈ **18 godzin**. Noc ma osiem. Nie zdążę i nie będę udawał, że zdążę.
+
+### Czego świadomie NIE robię, żeby przyspieszyć
+
+Jednym `git push` można wysłać wiele refów naraz — hook uruchomiłby się wtedy
+**raz**. Kusi, bo skróciłoby to noc do kilku przebiegów. Odrzucam: bateria
+sprawdza drzewo robocze, a nie każdą gałąź z osobna, więc partia przepuściłaby
+np. martwy odnośnik w dokumencie jednej z nich. Dokładnie tak dziś padła
+`gpt/moja-wersja` — i dobrze, że padła. Osłabienie bramki po to, żeby zdążyć,
+jest gorsze niż niedokończona kolejka.
+
+### Kolejność, która z tego wynika
+
+1. `naprawa/klient-pg18-w-ci` — w toku; odblokowuje ~10 PR-ów.
+2. Pozostałe `naprawa/*` — poprawki z dowodem czerwieni.
+3. `codex/*`, `flota/*` — praca nad kodem.
+4. `gpt/*` — w większości dokumentacja i projekty; ich wartość nie zależy
+   od CI i mogą poczekać na dzień.
+
+Gałęzie, które nie przejdą do rana, zostają na dysku bezpiecznie — ale to
+właśnie ten stan doprowadził wczoraj do utraty pracy przy awarii repozytorium.
+**Dlatego przepustowość kolejki jest sprawą do decyzji właściciela, nie
+drobiazgiem technicznym.**

@@ -1,3 +1,17 @@
+## WYMUSZONA KOLEJNOSC (ustalona z logow CI 20.09, godz. 23:30)
+
+1. **#929 `naprawa/klient-pg18-w-ci`** — musi isc PIERWSZE.
+   Niesie krok instalacji klienta PostgreSQL 18 oraz (commit `021264c6`)
+   sonde `pg_isready` pytajaca wlasciwy port. Bez niego:
+   - #914 oblewa 9 przypadkow kopii bazy kodem `51` (niezgodnosc wersji),
+   - `ProbaOdtworzeniaTest` pada z `PostgreSQL nie odpowiada`.
+2. **#914 `flota/dsa-odwolania`** — po #929, bez zmian w tresci, samo odswiezenie.
+3. **`naprawa/ci-hybryda-runnerow`** — dopiero po niej wolno ustawic zmienne
+   `CI_RUNS_ON` i `CI_RUNS_ON_PRZEGLADARKA`. Dzis `CI_RUNS_ON="ubuntu-latest"`,
+   a siedem wlasnych runnerow stoi bezczynnie.
+4. `naprawa/proba-odtworzenia-w-ci` — po scaleniu #929 jest **zbedna**:
+   niesie te sama jedna linie.
+
 # Kolejność scalania otwartych PR-ów
 
 Stan na **20 września 2026, ok. 20:30Z**. Dokument analityczny — **niczego nie scalono,
@@ -410,3 +424,27 @@ czy jego czerwień pochodzi wyłącznie z kodu 51 (wtedy retry po scaleniu #929 
 tego rozstrzygnąć bez sprawdzenia logów każdego z tych PR-ów z osobna — tego zadania nie wykonywano w ramach
 tej weryfikacji (zakaz ponawiania CI na innych PR-ach).
 
+
+---
+
+## OSTRZEŻENIE — gałęzie cofające cudzą pracę (weryfikacja odzysku, 20 września 2026)
+
+Pełna weryfikacja 56 gałęzi-ODZYSK (`_wspolne/WERYFIKACJA_ODZYSKU.md`) wykryła, że poniższe gałęzie
+**nie powinny być scalane bez ręcznego przeglądu** — obie sprawy dotyczą decyzji **D-224**
+(„Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest”, commit #789 w origin/main):
+
+1. **`gpt-n1-powiadomienia`** i **`notyfikacja-zywa`** — obie kasują cały wpis **D-224**
+   w `docs/DECISIONS.md` i wstawiają w tym samym miejscu swój własny wpis D-223. Jeśli automat scali
+   którąkolwiek z nich wprost na `main`, wpis D-224 zniknie z dokumentacji decyzji. Obie gałęzie mają
+   też niemal identyczny zestaw dotkniętych plików (prawdopodobnie to samo zadanie wykonane dwa razy)
+   — scalić najwyżej jedną, po weryfikacji która wersja jest kompletna.
+
+2. **`zeszyty`** — w `resources/views/components/post-card.blade.php` cofa faktyczny skutek D-224/#789:
+   zamienia bezwarunkowy przycisk „Usuń z zeszytu” (widoczny wszędzie, gdzie widać „Masz to w zeszycie”)
+   na wariant widoczny wyłącznie wewnątrz konkretnego zeszytu, przywracając w feedzie stan sprzed #789
+   (sam odnośnik, bez drogi wyjścia). Przed scaleniem trzeba połączyć to z pracą `jedna-droga` (ten sam
+   plik, zachowuje globalny przycisk i tylko dokłada wariant lokalny) — **nie scalać `zeszyty` osobno
+   i przed `jedna-droga`**, bo pierwsza scalona zabierze funkcję D-224 z feedu.
+
+Szczegóły, dowody (`git diff`, `git merge-base`) i pełna lista sprawdzonych plików współdzielonych —
+patrz `_wspolne/WERYFIKACJA_ODZYSKU.md`.
