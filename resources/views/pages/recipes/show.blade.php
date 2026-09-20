@@ -473,13 +473,8 @@
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
                                 <li>
                                     {{ $ingredient->ingredient_text }}
-                                    {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                         tego sam w tekście składnika (issue #44).
-                                         „Sól do smaku — do smaku” wygląda jak usterka,
-                                         a nie jak informacja. --}}
-                                    @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
-                                        <span class="meta"> — do smaku</span>
-                                    @endif
+                                    {{-- „Bez ilości” nie określa sposobu dozowania.
+                                         Pokazujemy tekst autora bez dopisków (#878). --}}
                                     @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
                                 </li>
                             @endforeach

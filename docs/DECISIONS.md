@@ -1673,6 +1673,12 @@ w wierszu metadanych bywa przeoczona. Nie „wrażenia, że jest za mała".
 
 ## D-033 · Składniki dostają grupy, a przepis przeliczanie porcji
 
+> **Doprecyzowanie właściciela, 20 września 2026, #878:** „Bez ilości” nie
+> oznacza „do smaku”. Pokazujemy wyłącznie tekst autora i jego uwagę, bez
+> automatycznego dopisku. Zmiana dotyczy prezentacji z #44; flaga i CHECK
+> zostają. W zadaniu #741 właściciel polecił poprawić opisy, bez budowania
+> skalowania porcji: jest ono nadal niewdrożonym planem V2 (`FEATURES.md`).
+
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
 niezbudowana** · **poprawia D-017**
 
