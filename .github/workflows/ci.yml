@@ -302,6 +302,57 @@ jobs:
       #  znajdzie plików do testowania, więc przeniesienie `docker/kopia/`
       #  zapali CI, a nie wyłączy testu po cichu.
       # =====================================================================
+      # =====================================================================
+      #  KLIENT POSTGRESA MUSI MIEĆ WERSJĘ 18 — inaczej `pg_restore` ODMAWIA
+      #
+      #  Skrypty kopii i próby odtworzenia wołają PRAWDZIWY `pg_restore` na
+      #  runnerze, a serwer w usłudze to `postgres:18-alpine`. Klient starszy
+      #  niż serwer nie ostrzega — odmawia odczytu archiwum, i to ZDROWEGO
+      #  archiwum tak samo jak uszkodzonego. Zmierzone 20.09.2026 po
+      #  przełączeniu `CI_RUNS_ON` na `ubuntu-latest`: każdy przypadek dostawał
+      #  kod 51 („pg_restore nie czyta") zamiast 0 dla zdrowego i 53 dla
+      #  obciętego, więc test obcięcia przestawał cokolwiek mierzyć, meldując
+      #  przy tym czerwień wyglądającą na winę gałęzi. Na `self-hosted`, gdzie
+      #  klient 18 stoi od dawna, ten sam job był zielony.
+      #
+      #  ŚWIADOMY KOSZT: to jest `apt-get`, czyli przebieg CI zależy od
+      #  dostępności repozytorium PGDG. W tym repozytorium taka zależność raz
+      #  już zabiła joba na czterech PR-ach naraz i dlatego istnieje strażnik
+      #  `JobDostepnosciNieWolaAptaTest` — ale pilnuje on WYŁĄCZNIE joba
+      #  dostępności i nie dotyczy tego kroku. Decyzja właściciela z 20.09.2026:
+      #  zostajemy na `ubuntu-latest` i doinstalowujemy klienta.
+      #
+      #  Krok NIE JEST cichy: gdy klient 18 jest już obecny, nie rusza apta
+      #  w ogóle; gdy instalacja się nie uda, job pada TUTAJ z nazwaną
+      #  przyczyną, zamiast później udawać awarię kopii bazy.
+      # =====================================================================
+      - name: Klient PostgreSQL 18 (wymagany przez skrypty kopii)
+        run: |
+          set -euo pipefail
+          # `case`, nie `grep -qE` — straznik PortMarkiMaWlasnaBramkeCiTest
+          # wymaga, by `grep -qE` z apostrofem bylo w tym pliku DOKLADNIE RAZ.
+          case "$(pg_restore --version 2>/dev/null)" in
+            *" 18."*|*" 18") echo "Klient 18 juz jest - apt nietkniety."; exit 0 ;;
+          esac
+          echo "Obecny klient: $(pg_restore --version 2>/dev/null || echo brak)"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL --retry 3 --retry-delay 5 \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          # Bez tego `pg_restore` dalej wskazywalby starszego klienta z PATH.
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/18/bin:$PATH"
+          wersja=$(pg_restore --version)
+          echo "Po instalacji: ${wersja}"
+          # Kontrola dodatnia: krok ma pasc TU, a nie dopiero na kopii bazy.
+          case "${wersja}" in
+            *" 18."*|*" 18") ;;
+            *) echo "::error::Klient PostgreSQL 18 NIE zostal zainstalowany (${wersja}). Skrypty kopii bazy odmowilyby odczytu ZDROWEGO archiwum, meldujac to jako uszkodzenie."; exit 1 ;;
+          esac
       - name: Testy skryptu kopii bazy
         run: bash tests/skrypty/kopia-bazy.sh
 
@@ -545,6 +596,58 @@ jobs:
 
       - name: Przygotowanie .env
         run: cp .env.example .env
+
+      # =====================================================================
+      #  KLIENT POSTGRESA MUSI MIEĆ WERSJĘ 18 — inaczej `pg_restore` ODMAWIA
+      #
+      #  Skrypty kopii i próby odtworzenia wołają PRAWDZIWY `pg_restore` na
+      #  runnerze, a serwer w usłudze to `postgres:18-alpine`. Klient starszy
+      #  niż serwer nie ostrzega — odmawia odczytu archiwum, i to ZDROWEGO
+      #  archiwum tak samo jak uszkodzonego. Zmierzone 20.09.2026 po
+      #  przełączeniu `CI_RUNS_ON` na `ubuntu-latest`: każdy przypadek dostawał
+      #  kod 51 („pg_restore nie czyta") zamiast 0 dla zdrowego i 53 dla
+      #  obciętego, więc test obcięcia przestawał cokolwiek mierzyć, meldując
+      #  przy tym czerwień wyglądającą na winę gałęzi. Na `self-hosted`, gdzie
+      #  klient 18 stoi od dawna, ten sam job był zielony.
+      #
+      #  ŚWIADOMY KOSZT: to jest `apt-get`, czyli przebieg CI zależy od
+      #  dostępności repozytorium PGDG. W tym repozytorium taka zależność raz
+      #  już zabiła joba na czterech PR-ach naraz i dlatego istnieje strażnik
+      #  `JobDostepnosciNieWolaAptaTest` — ale pilnuje on WYŁĄCZNIE joba
+      #  dostępności i nie dotyczy tego kroku. Decyzja właściciela z 20.09.2026:
+      #  zostajemy na `ubuntu-latest` i doinstalowujemy klienta.
+      #
+      #  Krok NIE JEST cichy: gdy klient 18 jest już obecny, nie rusza apta
+      #  w ogóle; gdy instalacja się nie uda, job pada TUTAJ z nazwaną
+      #  przyczyną, zamiast później udawać awarię kopii bazy.
+      # =====================================================================
+      - name: Klient PostgreSQL 18 (wymagany przez skrypty kopii)
+        run: |
+          set -euo pipefail
+          # `case`, nie `grep -qE` — straznik PortMarkiMaWlasnaBramkeCiTest
+          # wymaga, by `grep -qE` z apostrofem bylo w tym pliku DOKLADNIE RAZ.
+          case "$(pg_restore --version 2>/dev/null)" in
+            *" 18."*|*" 18") echo "Klient 18 juz jest - apt nietkniety."; exit 0 ;;
+          esac
+          echo "Obecny klient: $(pg_restore --version 2>/dev/null || echo brak)"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL --retry 3 --retry-delay 5 \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          # Bez tego `pg_restore` dalej wskazywalby starszego klienta z PATH.
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/18/bin:$PATH"
+          wersja=$(pg_restore --version)
+          echo "Po instalacji: ${wersja}"
+          # Kontrola dodatnia: krok ma pasc TU, a nie dopiero na kopii bazy.
+          case "${wersja}" in
+            *" 18."*|*" 18") ;;
+            *) echo "::error::Klient PostgreSQL 18 NIE zostal zainstalowany (${wersja}). Skrypty kopii bazy odmowilyby odczytu ZDROWEGO archiwum, meldujac to jako uszkodzenie."; exit 1 ;;
+          esac
 
       # Migracje osobnym krokiem, nie w ramach testów: jeśli padnie migracja,
       # chcemy zobaczyć w raporcie "migracje", a nie 300 padniętych testów.
