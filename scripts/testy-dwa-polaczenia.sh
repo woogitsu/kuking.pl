@@ -24,10 +24,18 @@
 # zabezpieczeniem.
 
 set -uo pipefail
-cd "$(dirname "$0")/.." || exit 1
+# Katalog skryptu liczymy PRZED `cd`. Po zmianie katalogu `dirname "$0"`
+# wskazuje juz co innego, gdy skrypt uruchomiono sciezka wzgledna spoza
+# katalogu glownego (np. `bash ../scripts/check.sh` z podkatalogu).
+KATALOG_SKRYPTOW="$(cd "$(dirname "$0")" && pwd)"
+# Pusta zmienna zrobilaby z `cd "${KATALOG_SKRYPTOW}/.."` skok do `/` — czyli
+# skrypt operowalby na korzeniu systemu plikow zamiast na repozytorium.
+[ -n "$KATALOG_SKRYPTOW" ] || { printf "Nie umiem ustalic katalogu skryptu.
+" >&2; exit 1; }
+cd "${KATALOG_SKRYPTOW}/.." || exit 1
 
 # shellcheck source=scripts/port-bazy.sh
-. "$(dirname "$0")/port-bazy.sh"
+. "${KATALOG_SKRYPTOW}/port-bazy.sh"
 
 PRZEBIEGI="${1:-1}"
 
