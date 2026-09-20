@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Wspomnienia;
 
+use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Post;
 use App\Models\User;
 use App\Support\Czas;
@@ -38,6 +39,14 @@ final class Wspomnienia
 {
     /** Dalej niż tyle lat wstecz nie szukamy — serwis jest młodszy. */
     private const MAKS_LAT_WSTECZ = 10;
+
+    /**
+     * `new ZapisyWpisu` jako wartość domyślna — dokładnie tak samo jak
+     * `FollowingFeed` i `DiscoverFeed` biorą tę samą klasę. Kontener i tak
+     * ją wstrzyknie (nie ma zależności), a domyślna wartość sprawia, że test
+     * wołający `new Wspomnienia` wprost nie musi o niej wiedzieć.
+     */
+    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
 
     /**
      * Jeden wpis sprzed roku (albo więcej lat) z TEGO SAMEGO DNIA.
@@ -95,6 +104,27 @@ final class Wspomnienia
             ->where('published_at', '<', $dzis->copy()->startOfDay()->utc())
             ->where('published_at', '>=', $dzis->copy()->subYears(self::MAKS_LAT_WSTECZ)->utc())
             ->with(['media', 'author.profile.avatar'])
+            // STAN „MASZ TO W ZESZYCIE” — TYM SAMYM ZAPYTANIEM (issue #275, D-081).
+            //
+            // Bez tego karta wspomnienia pokazywała przycisk „Zapisuję” także
+            // wtedy, gdy wpis leżał już w zeszycie oglądającego — bo
+            // `post-card.blade.php` czyta `czy_zapisany` i bez tej kolumny
+            // dostaje `null`, czyli „nie zapisane”. Feed obserwowanych,
+            // „Odkryj” i strona tagu dokładały tę kolumnę od początku; ten
+            // jeden ekran — nie, i nikt tego nie pilnował testem zachowania.
+            //
+            // Wspomnienie jest ZAWSZE własnym wpisem oglądającego, więc liczby
+            // `zapisow_count` to zwykle nie ruszy (własny zapis autora się nie
+            // liczy — patrz `ZapisyWpisu`), ale pytanie „czy JA to mam
+            // u siebie” ma tu pełny sens: do własnego zeszytu odkłada się
+            // także własne dania.
+            //
+            // KOSZT: ZERO DODATKOWYCH ZAPYTAŃ. `dolicz()` dokłada kolumny do
+            // SELECT-a, który i tak się wykonuje — to jest jedno `first()`
+            // wyżej, nie drugie zapytanie. Zmierzone na renderze `/home`:
+            // 29 zapytań przy 2 wierszach feedu i 32 przy 12 — tyle samo przed
+            // tą zmianą i po niej.
+            ->tap(fn ($q) => $this->zapisy->dolicz($q, $user))
             ->orderBy('published_at')
             ->first();
     }
