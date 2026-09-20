@@ -220,7 +220,7 @@ LICZBA_PODMIAN="$(ZAMIEN="$ZAMIEN" NA="$NA" php -r '
     echo $ile;
 ' "$KOPIA" "$PLIK" 2>/dev/null)"
 
-if ! printf '%s' "$LICZBA_PODMIAN" | grep -qE '^[0-9]+$'; then
+if ! grep -qE '^[0-9]+$' <<< "$LICZBA_PODMIAN"; then
     zle "Nie udało się wykonać podmiany (PHP nie zwrócił liczby). Nic nie zmieniono."
     WERDYKT="BLAD_UZYCIA"
     zapisz_json "$WERDYKT"
@@ -263,10 +263,10 @@ if [ $KOD_PO -eq 0 ]; then
 fi
 WYNIK_PO="FAIL (kod $KOD_PO)"
 
-if printf '%s' "$WYJSCIE_PO" | grep -qE "$OCZEKUJ"; then
+if grep -qE "$OCZEKUJ" <<< "$WYJSCIE_PO"; then
     PRZYCZYNA_OK=true
     ok "Test oblał Z OCZEKIWANEGO POWODU — wzorzec „$OCZEKUJ” wystąpił w wyjściu."
-    printf '%s\n' "$WYJSCIE_PO" | grep -E "$OCZEKUJ" | head -3 | sed 's/^/    /'
+    grep -E "$OCZEKUJ" <<< "$WYJSCIE_PO" | sed -n '1,3s/^/    /p'
 else
     PRZYCZYNA_OK=false
     zle "Test oblał, ale NIE z oczekiwanego powodu — wzorca „$OCZEKUJ” nie ma w wyjściu."

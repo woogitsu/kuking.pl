@@ -159,6 +159,18 @@ uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
 sprawdz 'mtime wraca co do ułamka sekundy, nie tylko co do sekundy' \
         "$mtime_przed" "$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
 
+# --- 9. Trafienie przed dużym wyjściem nie może zginąć przez SIGPIPE ----------
+cat > "$PRACA/test-duze-wyjscie.sh" <<'EOF'
+#!/usr/bin/env bash
+if grep -q 'BRAMKA=wlaczona' "$1"; then exit 0; fi
+echo 'BRAMKA_ZDJETA'
+head -c 1048576 /dev/zero | tr '\0' x
+exit 1
+EOF
+kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+        --oczekuj 'BRAMKA_ZDJETA' -- bash test-duze-wyjscie.sh zrodlo.txt)"
+sprawdz 'trafienie przed 1 MiB wyjścia → POTWIERDZONA, bez fałszywego SIGPIPE' 0 "$kod"
+
 if [ "$oblane" -eq 0 ]; then
     printf "${ZIELONY}Przyrząd do kontroli ujemnych: %s/%s prób zdanych.${RESET}\n" "$zdane" "$zdane"
     exit 0

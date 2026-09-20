@@ -1,25 +1,6 @@
-{{--
-    Jedna wiadomość z „Napisz do nas" — podgląd, ODPOWIEDŹ i obsługa.
-
-    WEJŚCIE PRZECHODZI PRZEZ `ContactMessagePolicy::view()`, nie przez to,
-    że adres z UUID-em jest trudny do zgadnięcia (AGENTS.md §7). Wysłanie
-    odpowiedzi pyta osobno o `ContactMessagePolicy::reply()`.
-
-    Adres do odpowiedzi jest tu pokazany OTWARTYM TEKSTEM i to jest celowe:
-    ten ekran istnieje po to, żeby dało się komuś odpisać, a kopiowanie
-    adresu z bazy przez konsolę byłoby gorsze pod każdym względem, także
-    pod względem ochrony danych.
-
-    DWA FORMULARZE, W TEJ KOLEJNOŚCI, I TO NIE JEST PRZYPADEK (D-058):
-    najpierw „Odpowiedz tej osobie" (list wychodzi na zewnątrz i jest
-    nieodwracalny), potem „Stan wiadomości" z notatką dla siebie (do
-    poprawienia w każdej chwili). Odwrotna kolejność znaczyłaby, że
-    najważniejsza rzecz na tym ekranie jest pod polem, którego nikt poza
-    obsługą nigdy nie zobaczy.
-
-    TEN EKRAN DZIAŁA BEZ JAVASCRIPTU. Oba formularze to zwykły POST, więc
-    nie ma tu ani `<noscript>`, ani martwego przycisku (AGENTS.md §5 pkt 3).
---}}
+{{-- Dwie osobne operacje we wspólnym formularzu zachowującym roboczy tekst.
+     Każda trasa pyta Policy. Bez JavaScriptu przycisk wybiera endpoint,
+     a kontroler zachowuje pola drugiej operacji wyłącznie na przekierowanie. --}}
 <x-layout title="Wiadomość do nas — Panel moderacji" :noindex="true">
     <x-panel-moderacji ekran="Wiadomości do nas" />
 
@@ -34,6 +15,9 @@
         {{ $wiadomosc->statusLabel() }}
         @if($wiadomosc->handler && $wiadomosc->handled_at)
             · {{ $wiadomosc->handler->displayName() }},
+            {{ \App\Support\Czas::data($wiadomosc->handled_at, 'j F Y, H:i') }}
+        @elseif($wiadomosc->handled_at)
+            · obsługa Kuking,
             {{ \App\Support\Czas::data($wiadomosc->handled_at, 'j F Y, H:i') }}
         @endif
     </p>
@@ -76,6 +60,21 @@
     </div>
 
     <x-error-summary />
+
+    {{-- Obie sekcje przesyłają robocze pola; dopiero przycisk wybiera operację.
+         Zapis stanu nigdy nie wysyła listu, a odpowiedź nie zapisuje notatki. --}}
+    <form method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
+        @csrf
+        <input type="hidden" name="version" value="{{ $errors->has('version') ? $wiadomosc->version : old('version', $wiadomosc->version) }}">
+        <div id="f-version" tabindex="-1">
+            @error('version')
+                <p class="notice" role="alert">{{ $message }}</p>
+                <p>Bieżący stan: <strong>{{ $wiadomosc->statusLabel() }}</strong>.</p>
+                <p>Bieżąca notatka:</p>
+                <p class="whitespace-pre-line">{{ $wiadomosc->handler_note ?? 'Brak notatki.' }}</p>
+                <p>Twój tekst pozostał w polu „Notatka dla siebie”.</p>
+            @enderror
+        </div>
 
     {{--
         ═══════════════════════════════════════════════════════════════════
@@ -153,8 +152,10 @@
         @endif
 
         @if($wiadomosc->adresDoOdpowiedzi())
-            <form method="POST" action="{{ route('admin.contact.reply', $wiadomosc) }}">
-                @csrf
+            <div>
+                @php($attempt = $wiadomosc->odpowiedzi->firstWhere('reply_key', old('reply_key', '')))
+                <input type="hidden" name="reply_key" value="{{ old('reply_key', (string) \Illuminate\Support\Str::uuid()) }}">
+                @error('reply_key')<p class="field-error" id="f-reply_key" tabindex="-1">{{ $message }}</p>@enderror
 
                 <x-field name="odpowiedz" label="Treść odpowiedzi" type="textarea" :rows="8"
                          :required="true"
@@ -166,9 +167,14 @@
                      a przy powiększonym tekście łatwo go trafić palcem, celując
                      w koniec pisania. --}}
                 <div class="form-actions">
-                    <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
+                    @if($attempt)
+                        <p>To będzie osobny list. Przy nieustalonym wyniku najpierw sprawdź u dostawcy, czy poprzedni został przyjęty.</p>
+                        <button class="btn btn-primary" type="submit" name="reply_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}" formaction="{{ route('admin.contact.reply', $wiadomosc) }}">Wyślij jako nową odpowiedź</button>
+                    @else
+                    <button class="btn btn-primary" type="submit" formaction="{{ route('admin.contact.reply', $wiadomosc) }}">Wyślij odpowiedź</button>
+                    @endif
                 </div>
-            </form>
+            </div>
 
             <p class="meta">
                 Wiadomość wyjdzie od serwisu (<strong>{{ config('mail.from.address') }}</strong>),
@@ -210,8 +216,7 @@
         @endif
     </section>
 
-    <form class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
-        @csrf
+    <section class="panel-formularza mt-5">
 
         <fieldset class="border-0 p-0">
             <legend class="font-bold mb-3">Stan wiadomości</legend>
@@ -246,8 +251,9 @@
                  help="Widzi ją tylko obsługa. Na przykład: numer issue. Wysłanych odpowiedzi nie musisz tu przepisywać — są zapisane wyżej." />
 
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit">Zapisz</button>
+            <button class="btn btn-primary" type="submit" formnovalidate>Zapisz</button>
         </div>
+    </section>
     </form>
 
     <p class="meta mt-5">
