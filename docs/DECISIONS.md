@@ -3536,6 +3536,14 @@ i wyłącznie tego.
 
 **Data:** 10 września 2026 · Issue #25 · Status: **obowiązuje**
 
+**Doprecyzowanie właściciela, 20 września 2026 (#889):** jeśli przed
+wykonaniem kolejki link wygasł albo został zastąpiony, pomijamy list.
+Nie wysyłamy dodatkowej wiadomości i nie tworzymy nowego tokenu przy
+ponowieniu zadania. Starsze zadania bez zapisanego terminu sprawdzają
+aktualność tokenu w bazie. Czas w liście odnosimy do chwili zamówienia,
+nie do doręczenia. Kontrola przy kliknięciu pozostaje rozstrzygająca:
+ważny przy wysyłce link może utracić ważność przed przeczytaniem listu.
+
 Kuking wpuszcza na konto **linkiem wysłanym pocztą**. Droga jest równorzędna
 z hasłem i widoczna wprost na ekranie logowania, a nie schowana pod „innymi
 opcjami". Adres: `/logowanie/link`.

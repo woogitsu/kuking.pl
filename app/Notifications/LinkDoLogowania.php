@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Models\LoginLinkToken;
 use App\Models\User;
 use App\Support\AdresKanoniczny;
 use Illuminate\Bus\Queueable;
@@ -59,6 +60,18 @@ final class LinkDoLogowania extends Notification implements ShouldQueue
         return ['mail'];
     }
 
+    /** Starsze zadania bez daty także sprawdzają aktualny token w bazie. */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        $row = LoginLinkToken::znajdzPoTokenie($this->token);
+
+        return $notifiable instanceof User
+            && $row !== null
+            && $row->user_id === $notifiable->getKey()
+            && $row->jestWazny()
+            && (($this->wygasa ?? null) === null || $this->wygasa->isFuture());
+    }
+
     /**
      * @param  User  $notifiable
      */
@@ -74,7 +87,7 @@ final class LinkDoLogowania extends Notification implements ShouldQueue
                 'linkUrl' => AdresKanoniczny::zbuduj(
                     fn (): string => route('login.link.confirm', ['token' => $this->token]),
                 ),
-                'waznoscTekst' => self::waznosc(),
+                'waznoscTekst' => $this->waznosc(),
                 'displayName' => $notifiable->profile?->display_name,
             ]);
     }
@@ -88,14 +101,22 @@ final class LinkDoLogowania extends Notification implements ShouldQueue
      * przesunięty o dwie godziny względem zegara w polskiej kuchni. Czas
      * TRWANIA jest na tę pomyłkę odporny.
      */
-    private static function waznosc(): string
+    private function waznosc(): string
     {
-        $minut = max(1, (int) config('kuking.login_link.waznosc_minut'));
+        $row = LoginLinkToken::znajdzPoTokenie($this->token);
+        if ($row === null) {
+            return 'tylko do terminu ustalonego przy zamówieniu';
+        }
 
-        return match (true) {
+        // Czas liczymy od zamówienia, nie od wykonania kolejki ani doręczenia.
+        // Bieżąca konfiguracja nie zmienia ważności już wystawionego tokenu.
+        $expiry = ($this->wygasa ?? $row->expires_at)->min($row->expires_at);
+        $minut = max(0, (int) $row->created_at->diffInMinutes($expiry));
+
+        return (match (true) {
             $minut === 60 => 'przez godzinę',
             $minut === 30 => 'przez pół godziny',
             default => "przez {$minut} min.",
-        };
+        }).' od chwili zamówienia';
     }
 }

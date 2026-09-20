@@ -8,8 +8,11 @@ use App\Http\Controllers\Controller;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
 use App\Support\NazwaUzytkownika;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -115,7 +118,22 @@ class ProfileSettingsController extends Controller
             'speciality.max' => 'To jest za długie. Napisz krócej, mieszcząc się w 120 znakach — wystarczy kilka słów.',
         ]);
 
-        $profile->update($data);
+        try {
+            DB::transaction(fn () => $profile->update($data));
+        } catch (UniqueConstraintViolationException $exception) {
+            // Walidacja nie rezerwuje nazwy. Rozpoznajemy wyłącznie dwa
+            // indeksy nazwy, z pierwszej linii diagnostyki PostgreSQL;
+            // treść pól w DETAIL nie może udawać nazwy ograniczenia (#887).
+            $diagnostic = (string) ($exception->errorInfo[2] ?? '');
+            $firstLine = trim(explode("\n", $diagnostic, 2)[0]);
+            if (preg_match('/"profiles_username_(?:lower_)?unique"$/', $firstLine) !== 1) {
+                throw $exception;
+            }
+
+            throw ValidationException::withMessages([
+                'username' => 'Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu.',
+            ]);
+        }
 
         return back()->with('status', 'Zapisane.');
     }
