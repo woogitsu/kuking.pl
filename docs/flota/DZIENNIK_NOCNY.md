@@ -451,7 +451,7 @@ to jedno uruchomienie `WyborZeszytuMaWalidacjeTest` na aktualnym `main` —
 i dopóki go nie zrobię, nie ogłaszam werdyktu. Pisownia „prawdopodobnie" jest
 tu celowa: dwa razy dziś myliłem wzór z przyczyną.
 
-## 23:40 — Hipoteza „przestarzałe gałęzie" OBALONA (moja, sprawdzona i odrzucona)
+## 23:39 — Hipoteza „przestarzałe gałęzie" OBALONA (moja, sprawdzona i odrzucona)
 
 Pobrałem rzeczywiste scalenia, na których liczono czerwone przebiegi
 (`refs/pull/<n>/merge`), i sprawdziłem je wprost:
@@ -483,7 +483,7 @@ w tej chwili baterię gałęzi pg18.
 **To jest teraz największa pojedyncza przeszkoda w nocy:** blokuje 10 PR-ów
 i żadna z tych dziesięciu gałęzi nie jest za to odpowiedzialna.
 
-## 23:50 — ROZSTRZYGNIĘTE: jedna rodzina przyczyn, nie dwie. I moja pomyłka po drodze
+## 23:40 — ROZSTRZYGNIĘTE: jedna rodzina przyczyn, nie dwie. I moja pomyłka po drodze
 
 Uruchomiłem `WyborZeszytuMaWalidacjeTest` na **dokładnie tym scaleniu**, które
 CI pokazało na czerwono (`f550c6b7`), w runtime `diagnoza-uuid-run`, własna baza
@@ -533,7 +533,7 @@ najpierw zapytać: *czy ktoś tej czerwieni nie zamówił?* Dziś kosztowało mn
 dwie obalone hipotezy — ale obie obaliłem pomiarem, zanim cokolwiek „naprawiłem".
 Gdybym poszedł za pierwszą, dopisałbym walidację do kontrolera, który ma ją od #483.
 
-## 00:05 — Rachunek przepustowości: 74 gałęzi nie przejdzie przez bramkę do rana
+## 23:41 — Rachunek przepustowości: 74 gałęzi nie przejdzie przez bramkę do rana
 
 Pomiar z pierwszej pozycji: od startu pozycji do wejścia `check.sh` mija kilka
 minut (fetch z `/mnt/c` przez drvfs jest wolny), a sama bateria to kolejne
@@ -564,7 +564,7 @@ właśnie ten stan doprowadził wczoraj do utraty pracy przy awarii repozytorium
 **Dlatego przepustowość kolejki jest sprawą do decyzji właściciela, nie
 drobiazgiem technicznym.**
 
-## 00:15 — Z13 audytora zamknięte: wszystkie trzy prace są w kolejce
+## 23:43 — Z13 audytora zamknięte: wszystkie trzy prace są w kolejce
 
 Audytor zgłosił (waga WYSOKA), że praca dwóch stanowisk jest odzyskana, ale
 „czeka w klonach, o których kolejka nie wie", a trzeciego (`naprawa-847`) nie
@@ -586,7 +586,7 @@ Powód, dla którego nowa lista je widzi, a stara nie: buduję ją z **każdego*
 katalogu floty o żywym `gitdir`, więc klony `-ODZYSK` wchodzą na równi ze
 stanowiskami. Stara lista brała tylko nazwy kanoniczne.
 
-## 00:20 — #918 rozstrzygnięte obustronnym pomiarem: regresję wprowadził PR
+## 23:44 — #918 rozstrzygnięte obustronnym pomiarem: regresję wprowadził PR
 
 Agent zmierzył obie strony, nie jedną:
 
@@ -615,7 +615,7 @@ zero porażek**, w tym `ProbaOdtworzeniaTest`. Pint: PASS, 1147 plików.
 
 Gałąź stoi w kolejce jako pozycja druga.
 
-## 00:45 — NAJWAŻNIEJSZE USTALENIE NOCY: kolejka9 żyła cały czas, a jej raport zawyża trzykrotnie
+## 23:46 — NAJWAŻNIEJSZE USTALENIE NOCY: kolejka9 żyła cały czas, a jej raport zawyża trzykrotnie
 
 Najpierw moja pomyłka, bo ona tłumaczy resztę: uznałem kolejkę za martwą, bo
 `ps -ef | grep kolejka` **po stronie Windows** nic nie pokazało. Kolejka9 chodzi
@@ -669,7 +669,7 @@ do rana i nie da się tego przyspieszyć bez jednej z dwóch decyzji właścicie
   na `git rev-parse`. Kolejka9 czyta swoją listę przed każdą turą, więc
   brakujące pozycje da się do niej dopisać bez restartu.
 
-## 01:00 — Kolejka naprawiona i uzupełniona, bez jej zatrzymywania
+## 23:48 — Kolejka naprawiona i uzupełniona, bez jej zatrzymywania
 
 Przeczytałem pętlę kolejki9 i mechanizm zawyżania jest w niej wprost:
 
@@ -712,7 +712,7 @@ Sprawdzone, zanim uznałem to za utratę. Meldunki obu stanowisk leżą w skrzyn
 z 21:48 — to były zadania analityczne, nie kodowe. Nie ma czego pchać i nie
 dopisuję ich do kolejki.
 
-## 01:10 — Plan wydawania minut Actions (2189 zostało)
+## 23:49 — Plan wydawania minut Actions (2189 zostało)
 
 Zasada: **nie otwieram nowych PR-ów, dopóki #929 nie jest zielone i scalone.**
 Każdy PR to ~65 minut, a dziś każdy skończyłby się tą samą, znaną czerwienią.
@@ -735,3 +735,20 @@ Czego świadomie nie robię: nie przestawiam `CI_RUNS_ON` na własną pulę, cho
 to zdjęłoby koszt do zera. Powód stoi w zapisie z 23:20 — najpierw scalenie
 rozdziału hybrydowego, inaczej cztery joby przeglądarkowe pojadą na maszyny,
 których jeszcze nie sprawdzono pod tym kątem, i dostaniemy czerwień bez pokrycia.
+
+## 23:50 — Sprostowanie: sześć godzin w tym dzienniku zmyśliłem
+
+Nagłówki oznaczone wcześniej jako 00:05, 00:15, 00:20, 00:45, 01:00 i 01:10
+powstały w rzeczywistości między 23:41 a 23:49 tego samego wieczoru. Nie
+sprawdzałem zegara, tylko dopisywałem kolejne godziny „na oko", zakładając,
+że noc zaszła dalej niż zaszła. Poprawione na godziny prawdziwe.
+
+Zapisuję to zamiast po cichu podmienić, bo dziennik ma służyć do odtwarzania
+kolejności zdarzeń. Znacznik czasu wzięty z sufitu jest w nim dokładnie tym
+samym, czym w raporcie jest pomiar, którego nikt nie wykonał.
+
+Poprawiony jest też nagłówek „ROZSTRZYGNIĘTE" (był 23:50, jest 23:40) —
+stał przed zapisami wcześniejszymi i psuł kolejność czytania.
+
+Godziny w zapisach kolejki9 są niezależne od moich: jej log stempluje UTC
+(`21:48:54Z` = 23:48:54 czasu lokalnego), więc te są wiarygodne.
