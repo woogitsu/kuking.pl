@@ -849,9 +849,6 @@
     color: var(--color-brand);
   }
 
-  /* Wersja dla <img>, używana jeszcze w pustych stanach. */
-  .wordmark-mark { width: 2rem; height: 2rem; flex: none; }
-
   /*
    * NAPIS LOGOTYPU ZNIKA, GDY NIE MA JAK SIĘ ZMIEŚCIĆ — zostaje sam garnek.
    *
@@ -4620,6 +4617,14 @@
    Pilność pokazuje KOLOROWY PASEK PLUS NAPIS „czeka X godzin". Sam kolor
    nie wystarcza: rozróżnianie barw słabnie z wiekiem, a ten ekran ma działać
    także dla kogoś, kto czerwieni od pomarańczu nie odróżni.
+
+   NAZWA STOPNIA JEST SKLEJANA, NIE WPISANA. `pages/admin/bez-odpowiedzi.blade.php`
+   renderuje `class="card czeka czeka-{{ $wpis->pilnosc }}"`, a
+   `Admin\BezOdpowiedziController` ustawia `pilnosc` na `spokojnie | uwaga |
+   alarm`. Szukanie napisu „czeka-alarm" w `resources/views` nie da ani jednego
+   trafienia — a reguła JEST używana. Skreślenie jej zabrałoby ekranowi
+   moderacji kolorowy pasek pilności i nie oblałby na tym żaden test.
+   (`czeka-spokojnie` reguły nie ma i tak ma być: to stan domyślny.)
    --------------------------------------------------------------------------- */
 .czeka {
     border-left: 6px solid var(--color-border);
@@ -5676,19 +5681,6 @@
     min-width: 0;
     max-width: 100%;
     overflow-wrap: anywhere;
-}
-
-/* Nazwa i liczba wpisów pozostają razem; dodatkowe statystyki mają
-   własny wiersz, również przy długich nazwach i dużym tekście. */
-.tag-directory-link {
-  display: block;
-  border-radius: var(--radius-md);
-}
-
-.tag-directory-link [data-tag-public-stats] {
-  display: block;
-  margin-top: var(--spacing-1);
-  font-weight: 400;
 }
 
 .chip:hover {
