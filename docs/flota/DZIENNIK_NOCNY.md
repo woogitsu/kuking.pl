@@ -153,3 +153,46 @@ Gałąź czysta, wstawiona do kolejki.
 („uruchomiłem w tle", „waiting for completion") przy 196 tys. tokenów
 i 95 wywołaniach. Pracę wykonał dobrze, ale meldunki były bezwartościowe —
 stan ustaliłem sam, oglądając gałąź.
+
+### 20.09, 23:5x — weryfikacja odzysku znalazła TRZY ciche szkody
+
+Odzysk 56 gałęzi był dobry, ale nie bezbłędny. Weryfikacja znalazła trzy
+przypadki cofania cudzej pracy — **żaden nie dałby czerwieni w testach**.
+
+**1 i 2. `gpt-n1-powiadomienia` i `notyfikacja-zywa` KASOWAŁY decyzję D-224.**
+Obie wstawiały w jej miejsce własny wpis D-223 w `docs/DECISIONS.md`.
+To nie był artefakt starej podstawy: baza scalenia obu to `origin/main`,
+które D-224 już miało. Cudza decyzja znikała z rejestru bez śladu.
+
+NAPRAWIONE przeze mnie: plik wraca do wersji z `origin/main` (D-224 jest),
+własny wpis D-223 doklejony na końcu. Commity `10f867eb` i `b54a53b6`.
+Obie gałęzie wracają do kolejki.
+
+**Warto zauważyć:** żaden test nie pilnuje kompletności rejestru decyzji.
+Znalazła to weryfikacja czytająca diffy, nie CI.
+
+**3. `zeszyty` cofa skutek D-224/#789** w `post-card.blade.php`: zamienia
+bezwarunkowy przycisk „Usuń z zeszytu" na wariant widoczny tylko wewnątrz
+zeszytu, czyli przywraca stan sprzed #789 w feedzie. `jedna-droga`
+i `gpt-zeszyt-droga` dotykają tego samego pliku i robią to POPRAWNIE.
+
+**WYJĘTA Z KOLEJKI — DO DECYZJI WŁAŚCICIELA.** Podejrzenie: to gałąź
+zastąpiona przez #789 (jest wcześniejsza notatka, że `jedna-droga`
+zastąpiła `zeszyty`). Nie zgaduję w nocy. Praca zachowana lokalnie
+i w katalogu `zeszyty-ODZYSK`, nic nie skasowane.
+
+**Cztery zmiany wcześniej zgłoszone jako wątpliwe — WSZYSTKIE czyste:**
+- `gpt-moderacja-ai` −50 linii: ocena zdjęć przeniesiona do nowego joba.
+- `zeszyty`/`jedna-droga` `CollectionController`: `catch` na kolizję
+  unikalności jest obecny dwukrotnie w każdej wersji, tyle co w `main` —
+  tylko przesunięty. **Obsługa wyścigu zachowana.**
+- `gpt-eksport` −31 linii: powiadomienie przeniesione do nowego joba.
+- `gpt-testy-50plus`: świadoma podmiana protokołu, plik URÓSŁ 222→344.
+
+**Blok `.flash-powrot` w `app.css` nietknięty w żadnej z 56 gałęzi.**
+
+**Do obejrzenia rano — prawdopodobne duplikaty tej samej pracy:**
+`naprawa-858` i `tagi-filtr` (niemal identyczne, #858) oraz
+`gpt-n1-powiadomienia` i `notyfikacja-zywa` (niemal identyczny zestaw
+plików). Możliwe, że to samo zadanie zrobione dwa razy.
+`docs/DECISIONS.md` rusza **dziesięć** gałęzi — to będzie bolało przy scalaniu.
