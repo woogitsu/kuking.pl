@@ -1413,3 +1413,79 @@ Wykluczono DWIE kolumny: `ostatnio_widziany_at` oraz `pwa_prompt_state`
 nieuruchomione źródło tej samej klasy fałszywych alarmów**).
 Odrzucono wariant z osobną sesją dla `runCandidate`: drugie konto przechodzi
 przez ten sam middleware i tylko przesunęłoby wyścig na inną parę.
+
+## 19. MELDUNKI ZE SKRZYNKI — pierwsza pełna runda (20.09, ~21:50)
+
+Skrzynka plikowa zwróciła się natychmiast: dziewięć meldunków, odczytanych
+jednym poleceniem zamiast jedenastoma zrzutami ekranu.
+
+### Zakończone, z SHA
+
+| Stanowisko | Zakres | SHA |
+|---|---|---|
+| `gpt/tokeny-zaproszen` | #889 | `9b9de13f`, `d01036c0` |
+| `gpt/dziennik-wyjatkow` | #828, #925 | `f0540493`, `37ba5607` |
+| `gpt/zawieszone-konto` | #926 | `2c561ce0`, `ac804b7f` |
+| `gpt/odbior-czy-przygotowanie` | zadanie 64 | `44438d58` |
+| `gpt/pomiar-feedu-i-budzetu` | zadanie 65 | `b05eb5f5` |
+| `gpt/ocr-import` | #28 (projekt) | `59970ec1` |
+| `gpt/moja-wersja` | #23 (projekt) | `5549c8ee` |
+
+### `#889` — pomiar, który warto naśladować
+
+Na kodzie bazowym **16 porażek / 52 asercje**; po poprawce **66 zaliczonych
+/ 419 asercji**. Dowód nie jest z atrapy: wykonano **serializację i odtworzenie
+`SendQueuedNotifications`** oraz rzeczywisty kanał pocztowy z `ArrayTransport`.
+Wygasłe, usunięte i zastąpione tokeny nie dochodzą do transportu.
+
+**Uczciwość, którą trzeba odnotować:** stanowisko NIE przedstawia pełnej suity
+jako zielonej. Przed awarią miała 4408 zaliczonych i 1 porażkę (fixture
+`NadawcaPocztyNieJestNoreplyTest`); fixture poprawiono, ale pełnego przebiegu
+po odtworzeniu **nie powtórzono** — i tak to zapisano.
+
+Świadomie NIE przeniosło poprawki `LinkDoLogowania` z `ce394d8c`: zakres
+obejmował reset i zaproszenie, a tamten commit służył wyłącznie **jako wzorzec
+odczytany z kodu, nie jako pomiar**.
+
+### `#23` — fork przepisu, rozstrzygnięcie autorstwa
+
+„Ugotowałem" na forku powiadamia **autora forka**, liczniki są osobne,
+a autor oryginału dostaje **osobną wiadomość o utworzeniu wersji**.
+Obowiązkowe pochodzenie zostaje po edycji. Warianty rozmywające autorstwo
+zostały **jawnie odrzucone** — to był warunek brzegowy zlecenia.
+Szacunek: **14–23 osobodni minimum**.
+
+### `#28` — import z cudzego bloga, propozycja polityki
+
+Dopuszczone źródło z prawami do pobrania, **prywatny szkic**, trwały widoczny
+link i pochodzenie, zakaz przedstawiania importu jako własnego, kontrola praw
+przed publikacją. Kluczowe zdanie: **sam link ani parafraza nie legalizują
+kopii.** Zgłoszenie uprawnionego idzie do istniejącej moderacji; proponowane
+24 h na przegląd i 72 h na prostą decyzję, z powiadomieniem obu stron
+i odwołaniem. Stanowisko zaznacza: **propozycja do decyzji, nie wdrożona
+polityka.**
+
+### Dwa stanowiska nadal ZATRZYMANE
+
+`gpt/decyzja-205-i-motyw-370` i `gpt/zamkniecia-607-608-i-inwentarz-ci` stoją
+na tej samej sprawie: `.git` wskazuje na `Codex/.git` zamiast na
+`Codex/kuking.pl/.git`. Odpowiedź czeka w ich plikach zleceń od 21:51 —
+w chwili pisania jeszcze jej nie odczytały.
+
+Zdążyły jednak zmierzyć rzeczy warte zapisania:
+- **#607 i #608 są CLOSED** według `gh` — potwierdzone odczytem źródła,
+  nie samym istnieniem commitów. `DyskTymczasowyLivewireTest` przechodzi.
+- **Siedem rejestracji runnerów, sześć online, `DOM-NEW-04` offline.**
+- Rozbieżność przy #370: raport i skrypt `cta-stanC.mjs` deklarują użycie
+  **formularza preferencji**, a komentarz właściciela mówi o ustawianiu
+  ciemnego motywu **przez DOM**. To rozbieżność do zweryfikowania, nie
+  wykazana usterka.
+
+### Mój błąd, zapisany świadomie
+
+`gpt/odbior-czy-przygotowanie` zgłosił ukończenie o 21:58, a ja rozdzielałem
+pracę o 21:51 — więc go pominąłem, a potem trącał go zbiorczy sygnał.
+Od 22:01 do 22:07 dopisał **trzynaście wpisów „brak nowego zlecenia"**, co
+pół minuty. Palił limit na czekanie na coś, czego tam nie umieściłem.
+Do `JAK-DZIALA-SKRZYNKA.md` dopisana zasada: po odczycie bez nowego wpisu
+jedno zdanie i koniec sprawdzania.
