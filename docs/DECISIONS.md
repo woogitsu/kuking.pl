@@ -15017,34 +15017,37 @@ katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
 
-## D-224 — Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest (audyt L1, 20 września 2026)
+## D-223 — Powiadomienie śledzi treść komentarza (#758, 20 września 2026)
 
-Trasa `DELETE /wpisy/{post}/zapisz` (`collections.unsave-post`) istniała,
-była otestowana i bezpieczna, ale żaden widok jej nie wołał. Zdanie z D-081
-„wyjąć z zeszytu można nadal w samym zeszycie" było nieprawdziwe: ekran
-zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
-stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
-Trasy nie kasujemy.
+Decyzja właściciela. Wycinek treści komentarza w powiadomieniu jest **liczony
+przy wyświetlaniu, z aktualnej treści** — jedno źródło prawdy, nie zamrożona
+kopia w `notifications.data`. Do tej zmiany `PublishComment` wpisywał do
+`data.excerpt` 120 znaków z chwili publikacji i nikt tego nigdy nie odświeżał:
+autor poprawiał „dodaję dwie łyżki masła" na „dwie łyżeczki" w dozwolonym
+oknie 15 minut, wątek pokazywał poprawkę, a powiadomienie dalej mówiło „łyżki".
 
-Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
-w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
-więc drugie kliknięcie (norma w tej grupie, issue #43) niczego nie zabiera.
-Zmierzone: przycisk 207 × 50,5 px przy 320 px i 260 × 59,5 px przy tekście
-140%, pismo 18 i 25,2 px, 10 px przerwy od odnośnika, bez przewijania w bok.
+**Eksport RODO zmienia się tak samo**, i to jest część decyzji, a nie jej
+skutek uboczny: paczka z danymi ma pokazywać, co o kimś trzymamy **dziś**,
+a nie historyczną wersję. Zamrożony wycinek opisywałby stan, którego w bazie
+już nie ma.
 
-Bez potwierdzenia i bez JavaScriptu. Wyjęcie nie kasuje treści i cofa się
-jednym kliknięciem, więc pytanie „czy na pewno" zostaje dla rzeczy
-nieodwracalnych — kasowania wpisu i kasowania zeszytu. Zamiast pytania PRZED
-akcją jest droga powrotu PO niej: komunikat „Wpis wyjęty z zeszytu. Nie
-usunęliśmy go z serwisu — możesz go zapisać ponownie." i przycisk „Zapisz
-ponownie" w tym samym obszarze `aria-live` (`status_powrot` w sesji).
+Ta decyzja **uchyla dawne zdanie o powiadomieniu jako migawce zdarzenia
+z przeszłości — ale wyłącznie dla wycinka treści**. D-052 w części
+o nieuruchamianiu skutków ubocznych przy edycji zostaje w mocy: edycja
+komentarza nadal nie zleca ponownej analizy moderacyjnej, nie tworzy nowego
+powiadomienia i nie przywraca `read_at` do `null`.
 
-Nazwa jest ta sama co przy przepisie — „Usuń z zeszytu" (`BRAND_EXTENDED.md`
-§3: jedna czynność, jedna nazwa). Audyt proponował „Wyjmij"; to byłby drugi
-synonim na tę samą rzecz.
+Granica z #757 obowiązuje niezależnie i jest ważniejsza od tej decyzji:
+komentarz usunięty (soft delete albo `body_removed_at` przy usunięciu
+komentarza z odpowiedziami), ukryty przez moderację albo niedostępny dla
+odbiorcy **nadal nie pokazuje treści** — ani na ekranie, ani w paczce.
+Brak żywego wycinka **nigdy** nie sięga po starą kopię z `data` jako plan
+zapasowy; dla tych typów powiadomień `data.excerpt` w ogóle nie jest już
+czytany, a nowe wiersze przestają go zapisywać.
 
-Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
-(`SavePostToCollection::remove()`), czyli jest ostrzejszy niż Policy: obca
-osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
-się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
-i `scripts/wyjecie-z-zeszytu.mjs`.
+Koszt liczymy zbiorczo (D-196): `Notification::zyweWycinkiKomentarzy()`
+dociąga wycinki **jednym zapytaniem** na całą stronę listy i jednym na cały
+eksport, wzorem `NotificationController::decyzje()`. Zmierzone:
+lista powiadomień 16 → 17 zapytań przy 2 wierszach i 66 → 67 przy 12
+(koszt wiersza bez zmiany, 5 zapytań — to oś #759, nie ta zmiana);
+eksport 25 → 26 zapytań, niezależnie od liczby powiadomień.

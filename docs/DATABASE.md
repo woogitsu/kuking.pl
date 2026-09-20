@@ -4058,3 +4058,35 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 `payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
 — to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
 `PomiarCzujekTrafiaDoDziennikaTest`.
+
+## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
+
+`2026_09_20_120000_usun_zamrozone_wycinki_komentarzy` — **migracja danych, nie
+schematu.** Nie dodaje, nie usuwa i nie zmienia ani jednej kolumny.
+
+**Co robi.** Zdejmuje klucz `excerpt` z `notifications.data` w wierszach typu
+`comment.created` i `comment.replied`. Operator `data - 'excerpt'` na `jsonb`
+zostawia resztę kluczy nietkniętą; warunek `jsonb_exists(data, 'excerpt')`
+zawęża zapis do wierszy, które ten klucz naprawdę mają.
+
+**Dlaczego.** Decyzja właściciela D-223: wycinek treści komentarza liczy się
+teraz z **aktualnej** treści, a eksport RODO zmienia się razem z ekranem.
+Uzasadnieniem było zdanie „paczka ma pokazywać, co o kimś trzymamy dziś" —
+a zamrożone kopie sprzed zmiany (do 120 znaków cudzego tekstu) leżały dalej
+w bazie, tyle że nikt ich nie czytał. Decyzja rozstrzyga tę różnicę na
+**„nie trzymamy"**, nie „nie czytamy".
+
+**Zakres jest wąski celowo.** `excerpt` zostaje w innych typach powiadomień,
+bo tam nie został zastąpiony niczym żywym — skasowanie zabrałoby treść,
+której nic nie odtworzy.
+
+**WYCOFANIE NIE PRZYWRACA DANYCH.** `down()` jest świadomie puste: kasujemy
+wartości, których nie ma skąd odczytać z powrotem, a `down()` wpisujące
+cokolwiek wpisałoby wartość zmyśloną. Migrację można cofnąć bez błędu, ale
+**to nie jest przywrócenie**. Jedynym źródłem tych wartości po uruchomieniu
+jest kopia zapasowa bazy sprzed migracji.
+
+Strażnik: `tests/Feature/MigracjaCzysciZamrozoneWycinkiTest.php` — sprawdza
+trzy kierunki naraz (wycinek znika, reszta kluczy zostaje, obce typy są
+nietknięte), powtórzone uruchomienie i kontrolę dodatnią na wypadek, gdyby
+warunek przestał trafiać w jakikolwiek wiersz.
