@@ -18,10 +18,21 @@
                      zapewniało o czymś, czego nie da się sprawdzić, drugie
                      uspokajało zamiast zapraszać. W ich miejsce stoi to, co
                      da się zrobić i co z tego wynika. --}}
+                {{-- Akapit skrócony do jednego zdania, żeby hasło i akcja mieściły
+                     się na pierwszym ekranie przy 320 px i skali tekstu 100%
+                     (wymóg: `STRONA-WWW.md:121`). Przy 320 px poprzednia wersja
+                     zajmowała 8 wierszy i 273 px — sama spychała przycisk poniżej
+                     krawędzi okna. Skrócenie było jedyną drogą, która nie zmniejsza
+                     pisma: 22 px akapitu i 48 px celu dotknięcia zostają nietknięte.
+
+                     Zostaje zdanie, które `docs/brand/GLOS_MARKI.md` §C1
+                     (wiersz 418) wymienia jako wzorcowe (✅) i które mówi,
+                     CO ZROBIĆ. Wypadł opis „to
+                     miejsce dla ludzi, którzy gotują codziennie — w swojej kuchni,
+                     z tego, co jest": tę samą rzecz mówi już nadtytuł „Gotujemy po
+                     swojemu." i opis strony w <head>. --}}
                 <p class="text-lead hero-lead miara">
-                    <x-kuking-word /> to miejsce dla ludzi, którzy gotują codziennie — w swojej
-                    kuchni, z tego, co jest. Wrzuć zdjęcie i kilka słów, a pokażesz je komuś,
-                    kto dziś też gotował.
+                    Wrzuć zdjęcie i kilka słów, a pokażesz je komuś, kto dziś też gotował.
                 </p>
                 <div class="hero-akcje">
                     {{-- `btn-napis` NIE JEST OZDOBNIKIEM — patrz issue #353 i komentarz
