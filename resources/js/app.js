@@ -21,6 +21,7 @@ import './szybki-wyglad.js';
 import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
+import {pozostaloSekund, formatMinutySekundy} from './minutnik-krok.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
@@ -354,9 +355,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     let interwal = null;
 
     const pokaz = (sekundy) => {
-        const minuty = Math.floor(sekundy / 60);
-        const reszta = sekundy % 60;
-        odliczanie.textContent = `${minuty}:${String(reszta).padStart(2, '0')}`;
+        odliczanie.textContent = formatMinutySekundy(sekundy);
     };
 
     /*
@@ -391,13 +390,16 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
         przycisk.disabled = true;
         odliczanie.hidden = false;
-        termin = Date.now() + sekundyCalkiem * 1000;
+        // Zegar MONOTONICZNY, nie scienny (issue #751) -- patrz
+        // ./minutnik-krok.js. `performance.now()` nie przeskakuje, gdy
+        // system koryguje zegar w trakcie odliczania.
+        termin = performance.now() + sekundyCalkiem * 1000;
         pokaz(sekundyCalkiem);
         komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
 
         interwal = window.setInterval(() => {
-            const pozostalo = Math.ceil((termin - Date.now()) / 1000);
-            pokaz(Math.max(pozostalo, 0));
+            const pozostalo = pozostaloSekund(termin, performance.now());
+            pokaz(pozostalo);
 
             if (pozostalo <= 0) {
                 window.clearInterval(interwal);
