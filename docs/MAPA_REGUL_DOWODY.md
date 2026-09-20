@@ -9,9 +9,16 @@ Lista reguł BEZ dowodu jest tu produktem głównym. Lista reguł z dowodem jest
 
 | stopień | co znaczy | ile reguł |
 |---|---|---|
-| **A. dowód z mutacji** | jest test, zepsuliśmy pilnowany kod i test oblał | **11 z 75** |
+| **A. dowód z mutacji** | jest test, zepsuliśmy pilnowany kod i test oblał | **11 z 75** + mierzalna część R47 |
 | **B. jest test, brak dowodu** | test istnieje i przechodzi; nikt nie sprawdził, czy oblewa | **48 z 75** |
 | **C. brak strażnika** | żaden test nie odnosi się do reguły | **16 z 75** |
+
+**R47 liczy się dalej w C, nie w A, i nie podbija liczby 11.** Reguła ma siedem
+składników; pięć dostało 20.09 strażnika z dowodem z mutacji, dwa zostały bez
+niego świadomie (rozpisane przy wierszu R47). Wiersz dziedziczy koszt najdroższego
+składnika, więc przeniesienie go do A byłoby dokładnie tym fałszywym wpisem w sekcji
+A, przed którym ostrzega akapit niżej. Liczba 11 zmieni się dopiero wtedy, gdy
+któraś reguła będzie zamknięta w CAŁOŚCI.
 
 Stopień B to nie jest „prawie A". Kampania mutacyjna pokazała dziewięć przypadków,
 w których test o właściwej nazwie przechodził także po zepsuciu kodu.
@@ -54,7 +61,7 @@ zaniedbaniem rozpoznania: `tailwind.config`, nazwy z zakazu overengineeringu,
 | R35 | 6 | UUID dla encji publicznych, `timestamptz` dla czasu | |
 | R36 | 6 | JSONB tylko dla danych półstrukturalnych | |
 | R41 | 6 | `theme` i `posts.display_mode` świadomie bez strażnika | brak testu pilnującego, że strażnika NIE dodano |
-| R47 | 7 | `.env` w repo, hardcoded hasło admina, wyłączanie CSRF | **bezpieczeństwo** — brak skanu repozytorium |
+| R47 | 7 | `.env` w repo, hardcoded hasło admina, wyłączanie CSRF | **siedem zakazów, nie trzy**; pięć ma dowód z mutacji od 20.09, w C zostają **dwa** — rozpisane niżej |
 | R59 | 9 | AI nie generuje masowo publicznych przepisów pod SEO | |
 | R60 | 10 | testy chodzą na PostgreSQL, nie na SQLite | nic nie oblewa na SQLite |
 | R63 | 11 | kod po angielsku | |
@@ -62,10 +69,65 @@ zaniedbaniem rozpoznania: `tailwind.config`, nazwy z zakazu overengineeringu,
 | R66 | 11 | zakaz „content", „explore", „engage", „creator", „tapnij" | |
 | R73 | 12 | anty-wzorce §12 — **sześć zakazów, nie jeden**; rozpisane niżej | **najszersza reguła produktowa bez strażnika** |
 
-Trzy z tej listy uważam za pilniejsze od reszty: **R47** (bo skutkiem jest wyciek),
+Trzy z tej listy uważam za pilniejsze od reszty: **R47** (bo skutkiem jest wyciek;
+pięć z siedmiu jej składników zamknięte 20.09, dwa zostają tutaj),
 **R73** (bo to jest obietnica tożsamości produktu i najłatwiej ją naruszyć przypadkiem)
 i **R60** (bo gdy ktoś przestawi testy na SQLite, cała reszta mapy przestaje znaczyć,
 co znaczy — a nic tego nie zauważy).
+
+### R47 rozpisane: siedem zakazów, pięć mierzalnych dziś
+
+Ten sam zabieg co przy R73 i ten sam powód: wiersz dziedziczył koszt najdroższego
+składnika, więc cała reguła wyglądała na niemierzalną („skan repozytorium" brzmi
+jak osobny projekt). Po rozdzieleniu pięć składników jest mierzalnych **i zmierzonych**.
+
+| zakaz z §7 | da się zmierzyć? | czym |
+|---|---|---|
+| plik poświadczeń widoczny dla gita (`.env`, `auth.json`, `*.pem`, `*.key`) | **tak, mocno** | skan drzewa + reguły `.gitignore`; git niepotrzebny, bo runtime WSL nie dostaje `.git` |
+| reguła `.gitignore` zdjęta po cichu | **tak, mocno** | zapadka po liście dzisiejszych reguł — bez niej skasowanie linii `.env` przechodzi na CI zawsze |
+| hasło wpisane tekstem (`Hash::make('…')`, `bcrypt('…')`, `assignPassword('…')`) | **tak, mocno** | kształt WYWOŁANIA, nie słowo — `Str::random(64)` trafieniem nie jest |
+| hasło tablicą w seederze, fabryce albo migracji | **tak** | tam R47 pęka najczęściej: „konto administratora do testów" |
+| niepusta wartość domyślna poświadczenia (`env('X_SECRET', '…')`, `.env.example`) | **tak** | pusty ciąg trafieniem nie jest, inaczej rejestr spuchłby o siedem martwych wpisów |
+| ochrona CSRF zdejmowana | **tak, mocno** | żywa lista `PreventRequestForgery::$neverVerify` równa rejestrowi, `allowSameSite`/`originOnly` na `false`, zero `withoutMiddleware` poza `bootstrap/app.php` |
+| **czy POWÓD wpisu w rejestrze jest uczciwy** | **nie** | „ten adres woła serwer Facebooka" sprawdza się czytając cudze API, nie automatem |
+| **poświadczenie pod nazwą, która na poświadczenie nie wygląda** | **nie** | kto zaszywa hasło omyłkowo, nazywa je jakkolwiek; grep po słowach da zielone o zerowej mocy |
+
+**Dwa dolne zostają w sekcji C** — z tego samego powodu, dla którego zostały tam trzy
+dolne zakazy R73. Asercja po samej obecności tekstu przesunęłaby wiersz z C do A,
+nie zmieniając niczego w rzeczywistości, a fałszywy wpis w sekcji A jest gorszy niż
+luka w C (patrz akapit o najgroźniejszym błędzie tej mapy).
+
+Strażnik: `tests/Feature/PoswiadczeniaPozaRepozytoriumTest.php`, idiom przejęty
+z `WrazliweKolumnyPozaMasowymPrzypisaniemTest` — skan odmawia domyślnie, rejestr
+otwiera z powodem, `test_rejestry_nie_maja_martwych_wpisow` pilnuje drugiej strony,
+a `test_skan_naprawde_czyta_kod_i_drzewo` jest kontrolą dodatnią wymaganą przez
+pułapkę 2 (skan bez trafień przechodzi).
+
+**Jeden powód jest ZMIERZONY, nie obiecany.** `DemoSeeder` zaszywa hasło konta
+moderatora demo, a wpis w rejestrze tłumaczy to zdaniem „bo seeder odmawia na
+produkcji". `test_seeder_z_zaszytym_haslem_odmawia_na_produkcji` odpala ten seeder
+ze środowiskiem `production` i liczy konta — czyli sprawdza sam powód, a nie to,
+że powód został napisany.
+
+#### Siedem mutacji, siedem zabitych (20.09.2026, runtime WSL, baza własna)
+
+| mutacja | co oblało |
+|---|---|
+| `.env.local` z sekretem w drzewie (nieobjęty `.gitignore`) | `zaden plik poswiadczen nie stoi w repozytorium` |
+| skasowana linia `.env` z `.gitignore` | trzy testy, w tym kontrola dodatnia |
+| `Hash::make(Str::random(64))` → `Hash::make('Admin123!')` w `TrescZalazkowaSeeder` | `zadne haslo nie jest zaszyte w kodzie` + kontrola dodatnia |
+| bramka `app()->environment('production')` w `DemoSeeder` → `false` | `seeder z zaszytym haslem odmawia na produkcji` |
+| dopisany czwarty adres do `validateCsrfTokens(except: …)` | `ochrona csrf nie jest wylaczana` |
+| `APP_KEY=base64:…` wpisany do `.env.example` | `zadne poswiadczenie nie ma wartosci domyslnej` + kontrola dodatnia |
+| `Route::post(…)->withoutMiddleware([ValidateCsrfToken::class])` w `routes/web.php` | `ochrona csrf nie jest wylaczana` |
+
+Każda mutacja cofnięta osobno i sprawdzona przez `cmp`/`md5sum` — drzewo wróciło
+bajt w bajt.
+
+**Czego ten strażnik NIE mierzy, choć nazwa mogłaby sugerować, że mierzy:** historii
+gita. Plik `.env` złożony do repozytorium i skasowany następnym commitem dalej siedzi
+w historii, a skan chodzi po drzewie roboczym. Do tego trzeba osobnego narzędzia
+i osobnej decyzji (rotacja sekretów, przepisanie historii) — to nie jest asercja.
 
 ### R73 rozpisane: sześć zakazów o sześciu różnych kosztach
 
@@ -176,6 +238,14 @@ czego NIE MA BYĆ. Dowód nieobecności jest droższy i dlatego go nie napisano.
 | R53 | widoki nie pokazują zdjęcia w stanie innym niż `ready` | `zdjecie niegotowe nie jest serwowane` | `KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest` |
 | R55 | feed obserwowanych chronologicznie, treści kont nieaktywnych nie wypływają | `odkrywanie pokazuje wylacznie wpisy publiczne`, `serwis nie promuje tresci kont nieaktywnych` | `FeedTest` |
 | R58 | moderacja pomocnicza — treść ukryta nie zdradza istnienia | `komentarz ukryty przez moderacje nie wraca zakresem` | `KomentarzePolicyZgadzaSieZListaTest` |
+| R47 **(pięć z siedmiu składników)** | poświadczenia poza repozytorium, brak zaszytych haseł, CSRF niezdejmowany | **siedem** mutacji: `.env.local` w drzewie, zdjęta reguła `.gitignore`, `Hash::make('Admin123!')`, bramka produkcyjna `DemoSeeder` → `false`, czwarty wyjątek CSRF, `APP_KEY` w `.env.example`, `withoutMiddleware` na trasie | `PoswiadczeniaPozaRepozytoriumTest` |
+
+**Zastrzeżenie do R47.** Ten wiersz opisuje PIĘĆ z siedmiu składników reguły i dlatego
+sam wiersz R47 zostaje w sekcji C. Dwa składniki — uczciwość powodu w rejestrze
+i poświadczenie pod nazwą, która na poświadczenie nie wygląda — nie mają strażnika
+i mieć go nie będą bez przeglądu człowieka. Osobno: skan chodzi po drzewie roboczym,
+więc **nie widzi historii gita** — sekret złożony i skasowany następnym commitem
+przechodzi.
 
 **Zastrzeżenie do R49.** Sześć zabitych mutacji dowodzi, że **ciała Policy** są pilnowane
 przez testy dziedzinowe. Nie dowodzą, że `KazdaTrasaZIdentyfikatoremPodPolicyTest` —
