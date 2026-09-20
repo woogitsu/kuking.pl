@@ -204,7 +204,11 @@ Budżet „dziś = 16" to 6 w spoczynku (4 web + 1 worker + 1 harmonogram),
 na administrację i diagnostykę — wyprowadzenie w `docs/DATABASE.md` §C.
 
 **Wniosek: połączenia nie są ograniczeniem dla #600.** Obie zmiany naraz zjadają
-~5 % puli; zapasu starczyłoby na ponad sto replik. Jeżeli #600 ma argument za
+~5 % puli. Korekta z 20.09: przy nakładaniu wdrożeń `8R+8` mieści najwyżej
+61 replik web w 497 miejscach, a poniżej ostrzeżenia 50 — tylko 5.
+To wyliczenie, nie zgoda na skalowanie; patrz
+[nowszy pomiar lokalny i ograniczenia](MONITORING_ODBIOR_2026_09_20.md).
+Jeżeli #600 ma argument za
 PgBouncerem, to **nie jest nim liczba połączeń** — i warto, żeby padło to w #600
 wprost, zanim ktoś dołoży komponent bez pomiaru (AGENTS.md §3, zakaz
 overengineeringu).
