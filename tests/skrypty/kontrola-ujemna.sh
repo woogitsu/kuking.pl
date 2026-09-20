@@ -88,13 +88,36 @@ EOF
 
 chmod +x "$PRACA"/test-*.sh
 
+# Atrapa CELOWO BEZ bitu wykonywalności — odtwarza to, co w worktree na
+# Windows dzieje się samo. Powłoka zwraca 126, a naiwny przyrząd czyta to
+# jako „test oblał" i melduje kontrolę wokół próby, która nigdy nie ruszyła.
+cp "$PRACA/test-dobry.sh" "$PRACA/test-bez-bitu.sh"
+chmod -x "$PRACA/test-bez-bitu.sh"
+
+# Kontrola dodatnia dla samych atrap: gdyby któraś straciła bit wykonywalności
+# (a w worktree na Windows to reguła, nie wyjątek), połowa prób niżej mierzyłaby
+# 126 zamiast tego, co miała mierzyć. Ta pętla jest tu po to, żeby taka utrata
+# była WIDOCZNA, a nie żeby cicho pozieleniła wynik.
+brak_bitu=0
+for atrapa in "$PRACA"/test-dobry.sh "$PRACA"/test-zawsze-zielony.sh "$PRACA"/test-zawsze-czerwony.sh "$PRACA"/test-czerwony-nie-z-tego-powodu.sh "$PRACA"/test-ginie-w-polowie.sh; do
+    [ -x "$atrapa" ] || { printf "  ${CZERWONY}x${RESET} atrapa bez bitu wykonywalnosci: %s
+" "$(basename "$atrapa")"; brak_bitu=$((brak_bitu + 1)); }
+done
+if [ "$brak_bitu" -eq 0 ]; then
+    printf "  ${ZIELONY}v${RESET} wszystkie atrapy testu sa wykonywalne (inaczej mierzylyby 126)
+"
+    zdane=$((zdane + 1))
+else
+    oblane=$((oblane + brak_bitu))
+fi
+
 uruchom() {
     local plik="$1"; shift
     ( cd "$PRACA" && "$PRZYRZAD" --plik "$plik" "$@" ) >"$PRACA/wyjscie.log" 2>&1
     echo $?
 }
 
-printf '\n── Przyrząd do kontroli ujemnych: sześć prób ──\n\n'
+printf '\n── Przyrząd do kontroli ujemnych: dziewięć prób ──\n\n'
 
 # --- 1. SEDNO: mutacja, która NIE TRAFIA ------------------------------------
 # Szukamy łańcucha, którego w pliku nie ma. Przyrząd ma ODMÓWIĆ (kod 2),
@@ -147,18 +170,105 @@ sprawdz 'źródło wraca, choć test zginął w połowie (MD5)' "$MD5_WZORCOWY" 
     -- ./test-dobry.sh zrodlo.txt ) >/dev/null 2>&1
 sprawdz 'brak --oczekuj → BLAD_UZYCIA (9), a nie domyślne „byle czerwień”' 9 "$?"
 
-printf '\n'
-# --- 8. mtime wraca CO DO UŁAMKA SEKUNDY ------------------------------------
-# Do 20 września 2026 przyrząd twierdził „MD5 i mtime zgodne", nie porównując
-# mtime w ogóle, a `touch -d` dodatkowo UCINAŁ część podsekundową, którą
-# `cp -p` już poprawnie przywróciło. Ten przypadek by to złapał: przed
-# poprawką mtime po przebiegu różnił się od mtime sprzed ułamkiem sekundy.
-mtime_przed="$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
-uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
-        --oczekuj 'BRAMKA' -- ./test-dobry.sh zrodlo.txt >/dev/null
-sprawdz 'mtime wraca co do ułamka sekundy, nie tylko co do sekundy' \
-        "$mtime_przed" "$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
+# --- 8. Polecenie bez bitu wykonywalnosci -> 126 -----------------------------
+# SEDNO: 126 jest niezerowe, wiec naiwny przyrzad przeczyta je jako oblany
+# test. Przy tym plik nietkniety tez bedzie prawda, bo nic sie nie wykonalo —
+# i wyjdzie komplet zielonych sprawdzen wokol proby, ktora nigdy nie ruszyla.
+# To jest falszywa zielen WEWNATRZ narzedzia budowanego przeciw falszywym.
+kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./test-bez-bitu.sh zrodlo.txt)"
+sprawdz 'polecenie bez bitu wykonywalnosci (126) -> BLAD_POLECENIA (7), nie wynik proby' 7 "$kod"
+if grep -q 'git update-index --chmod=+x' "$PRACA/wyjscie.log"; then
+    printf '  %s
+' 'v komunikat podaje, jak naprawic bit takze w repozytorium'; zdane=$((zdane + 1))
+else
+    printf '  %s
+' 'x komunikat nie mowi, jak naprawic bit w repozytorium'; oblane=$((oblane + 1))
+fi
 
+# --- 9. Polecenia w ogole nie ma -> 127 --------------------------------------
+kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./polecenia-nie-ma.sh)"
+sprawdz 'polecenia nie ma (127) -> BLAD_POLECENIA (7), nie BRAK_KONTROLI_DODATNIEJ' 7 "$kod"
+sprawdz 'przy niewykonanym poleceniu plik nietkniety (MD5)' "$MD5_WZORCOWY" "$(md5sum "$PRACA/zrodlo.txt" | cut -d' ' -f1)"
+
+# --- 10. Tryb wsadowy nie gubi wpisow po cichu -------------------------------
+# Runner wsadowy, ktory po cichu pominie wpis, policzy mniej mutacji i nazwie
+# to sukcesem. Katalog nizej ma TRZY bloki o znanych werdyktach: zabita,
+# przezyla, wadliwa (no-op). Sprawdzamy liczbe i kazdy werdykt z osobna.
+cat > "$PRACA/katalog.txt" <<'KAT'
+# komentarz ma byc pominiety, a pusta linia nizej tez
+
+nazwa: mutacja zabita przez wartownika
+plik: zrodlo.txt
+zamien: BRAMKA=wlaczona
+na: BRAMKA=wylaczona
+oczekuj: BRAMKA_ZDJETA
+polecenie: ./test-dobry.sh zrodlo.txt
+---
+nazwa: mutacja ktora przezyla
+plik: zrodlo.txt
+zamien: BRAMKA=wlaczona
+na: BRAMKA=wylaczona
+oczekuj: BRAMKA_ZDJETA
+polecenie: ./test-zawsze-zielony.sh zrodlo.txt
+---
+nazwa: mutacja ktora nie trafia
+plik: zrodlo.txt
+zamien: BRAMKA=NIE_MA_TAKIEJ
+na: x
+oczekuj: BRAMKA_ZDJETA
+polecenie: ./test-dobry.sh zrodlo.txt
+KAT
+( cd "$PRACA" && "$KORZEN/scripts/mutacje.sh" katalog.txt ) >"$PRACA/wsad.log" 2>&1
+kod=$?
+sprawdz 'tryb wsadowy konczy sie kodem 2, gdy jakas proba byla WADLIWA' 2 "$kod"
+sprawdz 'tryb wsadowy policzyl wszystkie trzy wpisy i zdal z nich sprawe' 'mutacji=3 zabite=1 przezyly=1 wadliwe=1' "$(grep -o 'mutacji=[0-9]* zabite=[0-9]* przezyly=[0-9]* wadliwe=[0-9]*' "$PRACA/wsad.log" | head -1)"
+# Numeracja prob. Defekt z 19.09: patch skasowal `numer=$((numer + 1))` razem
+# z sasiednimi liniami, tabela pokazywala 0 w kazdym wierszu, a liczniki
+# zbiorcze byly poprawne — wiec nic nie swiecilo na czerwono. W narzedziu,
+# ktorego jedynym produktem jest wiarygodny wydruk, to nie jest kosmetyka.
+sprawdz 'kazda proba ma wlasny numer w naglowku' '[01]' "$(grep -o '\[0[0-9]\]' "$PRACA/wsad.log" | head -1)"
+sprawdz 'trzecia proba ma numer 3, a nie 0' '[03]' "$(grep -o '\[0[0-9]\]' "$PRACA/wsad.log" | tail -1)"
+if grep -q 'dziura w teście' "$PRACA/wsad.log"; then
+    printf '  %s
+' 'v tabela zada ROZSTRZYGNIECIA dziura-czy-mutacja-bez-znaczenia'; zdane=$((zdane + 1))
+else
+    printf '  %s
+' 'x tabela nie zada rozstrzygniecia przy przezywajacej mutacji'; oblane=$((oblane + 1))
+fi
+
+# --- 11. Mutacja pliku Blade nie zostawia zmutowanego kompilatu -------------
+# Laravel rekompiluje szablon tylko gdy zrodlo jest NOWSZE od kompilatu
+# (Compiler::isExpired). Po przywroceniu mtime zrodlo jest STARSZE niz
+# kompilat zmutowanego widoku, wiec bez tej poprawki Laravel dalej serwowalby
+# mutacje — i to JUZ PO zakonczeniu przebiegu, w kazdym nastepnym tescie.
+mkdir -p "$PRACA/storage/framework/views" "$PRACA/resources/views"
+printf '<p>BRAMKA=wlaczona</p>' > "$PRACA/resources/views/probny.blade.php"
+MD5_BLADE="$(md5sum "$PRACA/resources/views/probny.blade.php" | cut -d' ' -f1)"
+# Udajemy kompilat: plik NOWSZY od zrodla, dokladnie jak po rekompilacji.
+printf '<?php /* skompilowany ZMUTOWANY widok */ ?>' > "$PRACA/storage/framework/views/abc123.php"
+touch -d '+1 hour' "$PRACA/storage/framework/views/abc123.php"
+uruchom resources/views/probny.blade.php --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./test-dobry.sh resources/views/probny.blade.php >/dev/null
+if [ -f "$PRACA/storage/framework/views/abc123.php" ]; then
+    printf '  %s
+' 'x zmutowany kompilat PRZEZYL przebieg — nastepny test dostanie mutacje'; oblane=$((oblane + 1))
+else
+    printf '  %s
+' 'v skompilowany widok uniewazniony po mutacji pliku Blade'; zdane=$((zdane + 1))
+fi
+sprawdz 'zrodlo Blade przywrocone bajt w bajt (MD5)' "$MD5_BLADE" "$(md5sum "$PRACA/resources/views/probny.blade.php" | cut -d' ' -f1)"
+
+# Kontrola dodatnia: plik NIE-Blade nie rusza kompilatow (zadnego nadmiaru).
+printf '<?php /* nietykalny */ ?>' > "$PRACA/storage/framework/views/zostaje.php"
+uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./test-dobry.sh zrodlo.txt >/dev/null
+if [ -f "$PRACA/storage/framework/views/zostaje.php" ]; then
+    printf '  %s
+' 'v mutacja pliku nie-Blade nie kasuje kompilatow'; zdane=$((zdane + 1))
+else
+    printf '  %s
+' 'x mutacja pliku nie-Blade skasowala kompilaty — nadmiar'; oblane=$((oblane + 1))
+fi
+
+printf '\n'
 if [ "$oblane" -eq 0 ]; then
     printf "${ZIELONY}Przyrząd do kontroli ujemnych: %s/%s prób zdanych.${RESET}\n" "$zdane" "$zdane"
     exit 0

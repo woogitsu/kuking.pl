@@ -1,0 +1,82 @@
+# „Ugotowalem" ZAWSZE powiadamia autora przepisu (AGENTS.md §1) — z trzema
+# nazwanymi granicami. Cena przeoczenia: cicha utrata najcenniejszego
+# powiadomienia w serwisie albo powiadomienie wbrew blokadzie.
+nazwa: akcja domenowa tez przechodzi przez Policy
+plik: app/Domain/Recipes/Actions/RecordCookedEvent.php
+zamien: if (Gate::forUser($cook)->denies('cook', $recipe)) {
+na: if (Gate::forUser($cook)->allows('cook', $recipe) && false) {
+oczekuj: Failed asserting|prywatn|Policy
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UgotowalemPrzezAkcjeTezPrzezPolicyTest.php
+ocena:
+---
+# ROZSTRZYGNIETE 20.09.2026. Przezyla takze CALY pakiet.
+# RecipePolicy::view (l. 15-17) juz odmawia nieopublikowanego przepisu
+# wszystkim procz AUTORA i MODERATORA, a RecordCookedEvent wola Gate przed
+# tym warunkiem. Straz `isPublished()` dokłada wiec tylko te dwa przypadki:
+#   - autor gotujacy WLASNY szkic,
+#   - moderator gotujacy przepis schowany przez moderacje (autor dostaje
+#     wtedy powiadomienie o swojej ukrytej tresci).
+# Zadnego z nich nie sprawdza zaden test. To jest luka w POKRYCIU waskiego
+# przypadku, a NIE dziura w autoryzacji — obcy nie przejdzie tedy nigdy.
+nazwa: nieopublikowany przepis nie przyjmuje wykonania
+plik: app/Domain/Recipes/Actions/RecordCookedEvent.php
+zamien: if (! $recipe->isPublished()) {
+na: if ($recipe->isPublished() && false) {
+oczekuj: Failed asserting|moderacje|szkic
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php
+ocena: DZIURA W POKRYCIU (waski przypadek: autor i moderator) — nie luka w autoryzacji
+---
+# ROZSTRZYGNIETE 20.09.2026. Przezyla CALY pakiet i to jest poprawny wynik.
+# `wykonanieZTegoWyslania()` jest wolane WYLACZNIE w galezi
+# `catch (UniqueConstraintViolationException)` (RecordCookedEvent l. 240),
+# czyli dopiero po tym, jak czesciowy indeks bazy odbil wstawienie. Indeks
+# brzmi: UNIQUE (user_id, klucz_wyslania) — jest WLASNIE per uzytkownik
+# (migracja 2026_09_07_900100, l. 74-77).
+#
+# Cudzy klucz nie wywoluje naruszenia, bo user_id jest inny — wiec ta metoda
+# nigdy nie zobaczy cudzego wiersza i zawezenie `where('user_id', ...)` nie
+# ma jak zmienic zachowania. Test test_klucz_z_cudzego_formularza_... NIE jest
+# atrapa: pilnuje prawdziwej gwarancji, ktorej dowozi indeks bazy, nie ta
+# linijka. Komentarz przy metodzie („UUID w zadaniu nie jest autoryzacja")
+# opisuje sluszna zasade, ale w TYM wywolaniu jest to druga linia obrony.
+nazwa: klucz wyslania jest zawezony do kucharza
+plik: app/Domain/Recipes/Actions/RecordCookedEvent.php
+zamien: ->where('user_id', $cook->getKey())
+na: ->whereNotNull('user_id')
+oczekuj: Failed asserting|klucz|cudz
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/IdempotencjaUgotowalemTest.php
+ocena: MUTACJA BEZ ZNACZENIA — kod nieosiagalny z cudzym kluczem
+---
+nazwa: nie powiadamiamy nikogo o jego wlasnej akcji
+plik: app/Domain/Notifications/Actions/NotifyUser.php
+zamien: if ($actor !== null && $actor->getKey() === $recipient->getKey()) {
+na: if ($actor !== null && $actor->getKey() !== $recipient->getKey()) {
+oczekuj: Failed asserting|wlasne
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php
+ocena:
+---
+nazwa: granica to czy moze CZYTAC, nie czy konto jest aktywne
+plik: app/Domain/Notifications/Actions/NotifyUser.php
+zamien: if (! $recipient->mozeCzytac()) {
+na: if (! $recipient->isActive()) {
+oczekuj: Failed asserting|zawieszon
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/GospodarzIPowiadomieniaTest.php
+ocena:
+---
+nazwa: wyciszanie w oknie dotyczy wylacznie powiadomien o STANIE
+plik: app/Domain/Notifications/Actions/NotifyUser.php
+zamien: if ($actor === null || ! in_array($type, self::TYPY_WYCISZANE_W_OKNIE, true)) {
+na: if ($actor === null) {
+oczekuj: Failed asserting|dwa powiadomienia|dwa_powiadomienia
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php
+ocena:
+---
+# Ta mutacja zostala ZGLOSZONA JAKO PRZEWIDYWANA LUKA jeszcze przed przebiegiem.
+# Jesli PRZEZYJE, potwierdza brak asercji na samo NIEPOWSTANIE wiersza.
+nazwa: NotifyUser nie tworzy wiersza, gdy miedzy osobami jest blokada
+plik: app/Domain/Notifications/Actions/NotifyUser.php
+zamien: if ($actor !== null && $recipient->hasBlockRelationWith($actor)) {
+na: if ($actor !== null && ! $recipient->hasBlockRelationWith($actor)) {
+oczekuj: Failed asserting|blokad
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowiadomieniaOdZablokowanychTest.php tests/Feature/PowiadomieniaWidocznoscTest.php
+ocena:
