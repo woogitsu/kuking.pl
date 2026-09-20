@@ -175,7 +175,7 @@ mimo że w ogóle nie wykonał nowego kodu.
 Dlatego **każda komenda artisana w worktree** idzie z jawną ścieżką bazową:
 
 ```bash
-APP_BASE_PATH=$(pwd) DB_DATABASE=kuking_test_b php artisan test
+APP_BASE_PATH=$(pwd) php artisan test   # nazwa bazy liczy sie sama, patrz wyzej
 APP_BASE_PATH=$(pwd) php artisan migrate --force
 APP_BASE_PATH=$(pwd) php artisan serve --port=8201
 ```

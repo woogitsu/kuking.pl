@@ -78,6 +78,7 @@
  * =============================================================================
  */
 import lighthouse from 'lighthouse';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { createServer } from 'node:net';
@@ -134,6 +135,16 @@ async function wolnyPort() {
 // a każdy robi `migrate:fresh` na SWOJEJ bazie.
 const BAZA_DOMYSLNA = 'kuking_wydajnosc';
 
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/wydajnosc.mjs',
+});
+
 async function podnies_serwer() {
   if (process.env.ADRES) {
     return { adres: process.env.ADRES, zamknij: () => {} };
@@ -146,7 +157,7 @@ async function podnies_serwer() {
     console.log('Przygotowuję dane demonstracyjne...');
     execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--seeder=DemoSeeder', '--force'], {
       stdio: 'ignore',
-      env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
+      env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA },
     });
   }
 
@@ -158,7 +169,7 @@ async function podnies_serwer() {
        `.env`, czyli na współdzielony port 5432. */
   const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
     stdio: ['ignore', 'pipe', 'pipe'],
-    env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA },
+    env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA },
   });
 
   const dziennik = [];
@@ -351,7 +362,7 @@ const { adres, zamknij } = await podnies_serwer();
 const adresPrzepisu = (() => {
   const slug = execFileSync('php', ['artisan', 'tinker', '--execute',
     "echo optional(App\\Models\\Recipe::where('status','published')->where('visibility','public')->first())->slug;",
-  ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } })
+  ], { env: { ...process.env, DB_DATABASE: BAZA_POMIAROWA } })
     .toString().trim();
 
   return slug === '' ? null : `/przepisy/${slug}`;

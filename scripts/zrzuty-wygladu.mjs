@@ -21,10 +21,21 @@
  */
 
 import { spawn, execFileSync } from 'node:child_process';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { chromium } from 'playwright';
 
 const BAZA_DOMYSLNA = 'kuking_zrzuty';
+
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/zrzuty-wygladu.mjs',
+});
 const KATALOG = process.env.KATALOG || 'storage/app/zrzuty-wygladu';
 
 const log = (...a) => console.log('[zrzuty]', ...a);
@@ -81,7 +92,7 @@ function znajdzChromium() {
 async function podniesSerwer() {
   if (process.env.ADRES) return { adres: process.env.ADRES, zabij: () => {} };
 
-  const baza = process.env.DB_DATABASE || BAZA_DOMYSLNA;
+  const baza = BAZA_POMIAROWA;
   log(`Przygotowuję dane demonstracyjne w bazie ${baza}...`);
   execFileSync('php', ['artisan', 'migrate:fresh', '--seed', '--force'], {
     stdio: 'inherit',
@@ -120,7 +131,7 @@ async function podniesSerwer() {
  * `/przepis/` — dlatego pytamy o jedno i drugie zamiast zgadywać.
  */
 function zBazy(wyrazenie, opis) {
-  const baza = process.env.DB_DATABASE || BAZA_DOMYSLNA;
+  const baza = BAZA_POMIAROWA;
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute', `echo ${wyrazenie};`],
     { env: { ...process.env, DB_DATABASE: baza } }).toString().trim();
 

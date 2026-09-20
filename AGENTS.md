@@ -498,6 +498,14 @@ Do 19 września reguła rozróżniała wyłącznie `git worktree`, więc wszystk
 zwykłe klony dostawały jedno wspólne `kuking_test` — stąd 963, 3737
 i kilkaset porażek `QueryException` w trzech sesjach tego samego dnia.
 
+**Przyrządy pomiarowe w `scripts/*.mjs` robią `migrate:fresh`**, czyli kasują
+całą zawartość bazy z `DB_DATABASE`. `scripts/bezpiecznik-bazy.mjs` wpuszcza
+wyłącznie jednorazową bazę pomiarową (własną bazę skryptu, jej wariant
+`_cos`, albo nazwę z rodziny `…_pomiar` / `kuking_qa_…`) i **odmawia startu
+przy nazwie, której nie rozpoznaje** — bo nie wie, czyja jest, a za chwilę
+miałby ją skasować. `kuking`, `kuking_test*`, `kuking_race*`,
+`proba_wycofania*` i `railway*` nie przejdą nigdy.
+
 **Port bierze się z `DB_PORT` albo z `.env` tej kopii**, nie z domyślnego 5432.
 `scripts/check.sh` pyta `pg_isready` dokładnie o ten port i wypisuje go
 w komunikacie; wspólną logikę trzyma `scripts/port-bazy.sh`. Porzucone bazy

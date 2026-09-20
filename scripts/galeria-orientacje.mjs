@@ -63,6 +63,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { deflateSync } from 'node:zlib';
@@ -77,6 +78,16 @@ const HASLO = 'haslo-testowe-123';
    którejkolwiek z nich kasowałoby czyjąś pracę (AGENTS.md: nigdy
    `migrate:fresh` bez jawnego `DB_DATABASE`). */
 const BAZA_DOMYSLNA = 'kuking_galeria';
+
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/galeria-orientacje.mjs',
+});
 
 /* Szerokości z warunku właściciela: minimum WCAG i trzy najczęstsze telefony. */
 const SZEROKOSCI = [320, 360, 390, 414];
@@ -109,7 +120,7 @@ function znajdzChromium() {
 }
 
 function env() {
-  return { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA };
+  return { ...process.env, DB_DATABASE: BAZA_POMIAROWA };
 }
 
 /* =============================================================================

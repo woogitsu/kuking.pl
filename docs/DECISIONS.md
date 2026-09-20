@@ -14713,3 +14713,46 @@ port, na którym naprawdę pojadą testy, i wypisywał go w komunikacie.
 Dowody: `tests/Unit/NazwaTestowejBazyTest.php`,
 `tests/skrypty/sprzatanie-baz-testowych.sh` (+ `SprzatanieBazTestowychTest`),
 `tests/Feature/SkryptyPytajaOWlasciwyPortTest.php`.
+
+## D-224 — Przyrządy pomiarowe rozpoznają rodzinę baz, nie pojedyncze nazwy (#736, 19 września 2026)
+
+Siedemnaście skryptów w `scripts/*.mjs` robi `php artisan migrate:fresh --seed`,
+czyli kasuje całą zawartość bazy z `DB_DATABASE`. Dwa z nich miały listę
+`BAZY_ZAKAZANE = ['kuking', 'kuking_test']`, pozostałych piętnaście nie miało
+żadnej kontroli. Lista była listą ZAKAZÓW: wszystko, czego na niej nie było,
+przechodziło.
+
+Po zmianie nazewnictwa baz testowych (D-223) żadna kopia robocza nie nazywa się
+już `kuking_test` — nazwa zawiera skrót ścieżki katalogu. Lista zakazów
+przestała więc trafiać kiedykolwiek i gdziekolwiek, zostając w kodzie jako
+zabezpieczenie, którego już nie ma. Zabezpieczenie, które przestaje działać we
+wszystkich przypadkach naraz, jest w praktyce usunięte, a wygląda na obecne —
+i to jest gorsze niż jego brak, bo człowiek na nie liczy.
+
+`scripts/bezpiecznik-bazy.mjs` rozpoznaje odtąd RODZINY nazw i odwraca
+domniemanie: wpuszcza wyłącznie jednorazową bazę pomiarową (bazę własną
+skryptu, jej wariant z sufiksem, albo nazwę z rodziny `…_pomiar` /
+`kuking_qa_…`), a nazwa nierozpoznana jest ODMOWĄ, nie zgodą. Rodziny chronione
+(`kuking`, `kuking_test*`, `kuking_race*`, `proba_wycofania*`,
+`proba_odtworzenia*`, `kuking_zrodlo_proby*`, `railway*`, bazy systemowe) biją
+regułę wpuszczającą, więc `kuking_test_pomiar` też się nie prześlizgnie.
+Porównanie idzie po małych literach, bo PostgreSQL składa identyfikator bez
+cudzysłowu i `KUKING_TEST_X` to ta sama baza. To jest ten sam kierunek pomyłki,
+co w `scripts/cleanup-test-dbs.sh`: nie wiem, czyja to baza, więc jej nie ruszam.
+
+Konsekwencja w CI: job `dostepnosc` ustawiał `DB_DATABASE: kuking_test` na
+poziomie całego joba, a kroki przeglądarkowe robiły na tej bazie
+`migrate:fresh` — czyli kasowały bazę, na której kroki wyżej chodził
+`php artisan test`. Działało, bo kroki idą po kolei, ale to dokładnie ten
+układ, który lokalnie kosztował trzy sesje. Każdy krok dostał własną bazę
+jawnie; `dostepnosc.mjs` zakłada swoją sam, tak jak robiły to już trzy inne
+przyrządy.
+
+Najważniejszy dowód nie sprawdza samej funkcji, tylko to, czy jest WŁĄCZONA:
+skan w `scripts/bezpiecznik-bazy.test.mjs` wymaga, żeby każdy plik z
+`migrate:fresh` wołał `ustalBazePomiarowa()`. Bezpiecznik bez zarzutu, którego
+nikt nie woła, to dokładnie stan sprzed tej decyzji.
+
+Dowody: `scripts/bezpiecznik-bazy.test.mjs` (10 przypadków) wciągane do
+`php artisan test` przez `tests/Feature/BezpiecznikBazyPomiarowejTest.php`
+oraz do `scripts/check.sh`.

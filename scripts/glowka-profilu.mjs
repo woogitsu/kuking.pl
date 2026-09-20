@@ -36,6 +36,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 
@@ -45,6 +46,16 @@ const HASLO = 'haslo-testowe-123';
 /* Osobna baza pomiarowa — ten skrypt robi `migrate:fresh`. Wskazanie
    `kuking` albo `kuking_test` kasowałoby czyjąś pracę (AGENTS.md §6). */
 const BAZA_DOMYSLNA = 'kuking_glowka_profilu';
+
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/glowka-profilu.mjs',
+});
 
 /* Domyślny rozmiar pisma przeglądarki; wariant 200% ustawia dwa razy tyle
    przez CDP `Page.setFontSizes` — tak samo jak `scripts/dostepnosc.mjs`. */
@@ -74,7 +85,7 @@ function znajdzChromium() {
 }
 
 function env() {
-  return { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA };
+  return { ...process.env, DB_DATABASE: BAZA_POMIAROWA };
 }
 
 function ustawNazwe(nazwa) {

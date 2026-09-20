@@ -58,7 +58,13 @@
  *
  *  URUCHOMIENIE (z katalogu projektu — inaczej `playwright` się nie znajdzie)
  *      node scripts/martwe-przyciski.mjs
- *      DB_DATABASE=kuking_dev_wt_e node scripts/martwe-przyciski.mjs
+ *      DB_DATABASE=kuking_martwe_przyciski_wt_e node scripts/martwe-przyciski.mjs
+ *
+ *  Nazwa bazy MUSI byc wariantem bazy wlasnej tego skryptu albo nalezec do
+ *  rodziny jednorazowych ("..._pomiar", "kuking_qa_..."). Stalo tu wczesniej
+ *  `kuking_dev_wt_e`, czyli dowolna nazwa spoza listy zakazow — dzis
+ *  `scripts/bezpiecznik-bazy.mjs` odmowi startu na nazwie, ktorej nie
+ *  rozpoznaje jako jednorazowej. Nie wiem, czyja to baza, wiec jej nie kasuje.
  *      ADRES=http://127.0.0.1:8105 node scripts/martwe-przyciski.mjs   # gotowy serwer
  *
  *  Bez `ADRES` skrypt sam zakłada i sieje własną bazę, buduje arkusz, podnosi
@@ -69,6 +75,7 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 
@@ -102,8 +109,15 @@ const KONTO_MODERATORA = 'moderacja';
  */
 const BAZA_DOMYSLNA = 'kuking_martwe_przyciski';
 
-/** GRANICA 3. Bazy, na których ten skrypt nie ma prawa się uruchomić. */
-const BAZY_ZAKAZANE = ['kuking', 'kuking_test'];
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/martwe-przyciski.mjs',
+});
 
 // --------------------------------------------------------------------------
 // Progi uczciwości (pułapka 2: skan bez trafień to dla skanu sukces)
@@ -275,7 +289,7 @@ const SLUSZNE_403 = [
 // --------------------------------------------------------------------------
 
 function nazwaBazy() {
-  return (process.env.DB_DATABASE || BAZA_DOMYSLNA).trim();
+  return (BAZA_POMIAROWA).trim();
 }
 
 /**
@@ -291,14 +305,12 @@ function sprawdzBaze(stawiamySerwer) {
     process.exit(1);
   }
 
-  if (BAZY_ZAKAZANE.includes(baza.toLowerCase())) {
-    console.error(`ODMAWIAM STARTU: baza „${baza}" jest na liście zakazanych `
-      + `(${BAZY_ZAKAZANE.join(', ')}). Ten skrypt robi na swojej bazie `
-      + '`migrate:fresh`, czyli kasuje wszystko, co w niej stoi — a to są bazy, '
-      + 'z których korzysta praca kogoś innego. Podaj własną: '
-      + 'DB_DATABASE=kuking_moja node scripts/martwe-przyciski.mjs');
-    process.exit(1);
-  }
+  // Rozpoznanie bazy siedzi w `ustalBazePomiarowa()` (patrz BAZA_POMIAROWA
+  // wyżej) i odmówiłoby startu jeszcze przed tą funkcją. Stała tu lista
+  // `BAZY_ZAKAZANE = ['kuking', 'kuking_test']` — lista ZAKAZÓW, więc wszystko
+  // spoza niej było dozwolone. Po #736 żadna kopia robocza nie nazywa już
+  // swojej bazy `kuking_test`, więc ta lista nie trafiłaby nigdy i nigdzie,
+  // zostając w kodzie jako zabezpieczenie, którego nie ma.
 
   if (baza === '') {
     console.error('ODMAWIAM STARTU: pusta nazwa bazy. Ustaw DB_DATABASE albo zostaw '

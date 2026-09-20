@@ -143,10 +143,16 @@ fi
 krok "Przyrząd obciążeniowy (#605)"
 if ! command -v node >/dev/null 2>&1; then
     zle "Brak node — nie sprawdzono przyrządu #605 (to jest brak kontroli, nie sukces)"
-elif node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
-    ok "Regresje i kontrole ujemne przyrządu przechodzą"
-else
+elif ! node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
     zle "Przyrząd #605 oblewa — uruchom: node scripts/przyrzad-605.test.mjs"
+# Bezpiecznik przed `migrate:fresh` na cudzej bazie (#736). Stoi tutaj, a nie
+# tylko w `php artisan test`, bo chroni przed wypadkiem, który zdarza się
+# PRZED testami: ktoś uruchamia przyrząd pomiarowy w powłoce z wyeksportowanym
+# `DB_DATABASE` i kasuje cudzą pracę. Bez bazy, poniżej sekundy.
+elif ! node --test scripts/bezpiecznik-bazy.test.mjs >/dev/null 2>&1; then
+    zle "Bezpiecznik baz pomiarowych oblewa — uruchom: node --test scripts/bezpiecznik-bazy.test.mjs"
+else
+    ok "Regresje i kontrole ujemne przyrządów przechodzą"
 fi
 
 # --- 3c. Dostępność (opcjonalna) -------------------------------------------
