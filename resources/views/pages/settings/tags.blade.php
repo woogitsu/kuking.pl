@@ -13,12 +13,13 @@
     <h1>Twoje tagi</h1>
 
     <p class="text-lead">
-        Z tych tagów budujemy Twoją stronę główną, dopóki nikogo nie
-        obserwujesz. Kiedy zaczniesz obserwować ludzi, ich wpisy będą
-        ważniejsze niż tagi — i to one pojawią się na górze.
+        Gdy nie ma wpisów od obserwowanych osób, pokazujemy wpisy z Twoich tagów. Jeśli i tam jest pusto, zobaczysz najnowsze publiczne wpisy.
     </p>
 
+    <x-error-summary />
+
     @if($tags->isEmpty())
+        <div id="f-tags" tabindex="-1"><x-blad-grupy name="tags" /></div>
         <x-empty-state
             title="Nie obserwujesz jeszcze żadnego tagu"
             action="Zobacz wszystkie tagi"
@@ -32,16 +33,23 @@
         <form method="POST" action="{{ route('settings.tags.update') }}">
             @csrf
             @method('PUT')
+            <input type="hidden" name="form_scope" value="{{ $formScope }}">
 
-            <div class="choice-grid">
-                @foreach($tags as $tag)
-                    <label class="choice">
-                        <input type="checkbox" name="tags[]" value="{{ $tag->getKey() }}"
-                               @checked(in_array($tag->getKey(), $followed, true))>
-                        <span class="choice-label">{{ $tag->name }}</span>
-                    </label>
-                @endforeach
-            </div>
+            <fieldset id="f-tags" class="choice-fieldset" @error('tags') aria-invalid="true" aria-describedby="f-tags-error" tabindex="-1" @enderror>
+                <legend class="sr-only">Wybierz tagi do obserwowania</legend>
+
+                <div class="choice-grid">
+                    @foreach($tags as $index => $tag)
+                        <label class="choice" id="f-tags-{{ $index }}">
+                            <input type="checkbox" name="tags[]" value="{{ $tag->getKey() }}"
+                                   @checked(in_array($tag->getKey(), $wybrane, true))>
+                            <span class="choice-label">{{ $tag->name }}</span>
+                        </label>
+                    @endforeach
+                </div>
+
+                <x-blad-grupy name="tags" />
+            </fieldset>
 
             <div class="form-actions">
                 <button class="btn btn-primary" type="submit">Zapisz</button>

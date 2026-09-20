@@ -4,116 +4,74 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Tags\Actions\UpdateTagFollows;
+use App\Domain\Tags\TagFollowForm;
+use App\Http\Requests\TagSelection;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
-/**
- * Obserwowanie tagów (D-021, zastępuje `TopicFollowController`).
- *
- * ZWYKŁE FORMULARZE, ŻADNEGO JAVASCRIPTU
- * „Obserwuj" i „Przestań obserwować" to `<form method="POST">` z tokenem
- * CSRF — ten sam wzorzec co przy Temacie (AGENTS.md §5).
- *
- * BEZ POWIADOMIENIA DLA KOGOKOLWIEK
- * Tag nie jest człowiekiem i nie ma komu tego zgłosić; licznik obserwujących
- * tag jest informacją redakcyjną, nie społeczną — ten sam powód co przy
- * Temacie.
- *
- * RÓŻNICA WZGLĘDEM `TopicFollowController`: WSZECHŚWIAT TAGÓW NIE JEST
- * ZAMKNIĘTY. Temat miał jedną, zamkniętą listę „do wyboru" — każdy formularz
- * (onboarding, ustawienia) czerpał z niej samej. Tagi nie mają takiej listy:
- * ktoś mógł zacząć obserwować tag ze strony `/tag/{slug}`, którego nie ma
- * na liście promowanej gospodarza. Dlatego ekran „Twoje tagi" pokazuje
- * SUMĘ tego, co obserwowane, i tego, co promowane — nie samą listę promowaną
- * (patrz `edit()`).
- */
+/** Obserwowanie tagów i ustawienia własnego konta (D-021). */
 class TagFollowController extends Controller
 {
-    public function follow(Request $request, Tag $tag): RedirectResponse
+    public function follow(Request $request, Tag $tag, UpdateTagFollows $follows): RedirectResponse
     {
-        // Tag scalony albo ukryty nie ma stać się nowym obserwowaniem —
-        // ten sam powód co wycofany Temat: nie budujemy komuś feedu z tagu,
-        // który przestał być kanonicznym miejscem na tę treść.
-        if ($tag->status !== Tag::STATUS_ACTIVE) {
-            return back()->with('status', 'Tego tagu nie da się już obserwować.');
+        try {
+            $follows->follow($request->user(), [$tag->getKey()]);
+        } catch (ValidationException) {
+            return back()->with('status', 'Tego tagu nie da się już obserwować. Wybierz inny tag.');
         }
-
-        // `syncWithoutDetaching` zamiast `attach`: „Obserwuj" bywa klikane
-        // dwa razy z niepewności, a klucz główny na parze zamieniłby drugie
-        // kliknięcie w błąd bazy danych zamiast w nic.
-        $request->user()->followedTags()->syncWithoutDetaching([
-            $tag->getKey() => ['created_at' => now()],
-        ]);
 
         return back()->with('status', "Obserwujesz tag „{$tag->name}”.");
     }
 
-    public function unfollow(Request $request, Tag $tag): RedirectResponse
+    public function unfollow(Request $request, Tag $tag, UpdateTagFollows $follows): RedirectResponse
     {
-        $request->user()->followedTags()->detach($tag->getKey());
+        $follows->unfollow($request->user(), $tag->getKey());
 
         return back()->with('status', "Nie obserwujesz już tagu „{$tag->name}”.");
     }
 
-    /**
-     * „Twoje tagi" w ustawieniach — jeden ekran z całą listą.
-     *
-     * Pokazuje SUMĘ tagów już obserwowanych i tagów promowanych (D-021,
-     * „tag promowany — lista gospodarza") — nie samą listę promowaną, bo
-     * ktoś mógł zacząć obserwować tag spoza niej (patrz komentarz klasy).
-     * Bez tej sumy odznaczenie takiego tagu byłoby niemożliwe z tego
-     * ekranu: nie byłoby go na liście checkboxów.
-     */
-    public function edit(Request $request): View
+    public function edit(Request $request, TagFollowForm $forms): View
     {
-        $obserwowane = $request->user()->followedTags()->get();
-        $promowane = Tag::promowane()->get();
-
-        $doPokazania = $obserwowane->concat($promowane)
-            ->unique(fn (Tag $tag): string => $tag->getKey())
-            ->sortBy('name')
-            ->values();
+        $user = $request->user();
+        $followed = $user->followedTags()->get();
+        $token = old('form_scope');
+        $scope = $forms->decode($user, $token);
+        if ($scope !== null) {
+            // Błąd walidacji nie przesuwa punktu odniesienia na stan z innej karty.
+            // Niedostępnego nowego wyboru nie rysujemy jako aktywnej opcji.
+            $tags = Tag::query()->whereIn('id', $scope['shown'])
+                ->where(fn ($query) => $query->where('status', Tag::STATUS_ACTIVE)
+                    ->orWhereIn('id', $followed->pluck('id')))->get();
+        } else {
+            // Każde już obserwowane hasło musi dać się zdjąć, także niepromowane.
+            $tags = $followed->concat(Tag::promowane()->get())->unique('id');
+            $token = $forms->encode($user, $tags->pluck('id')->all(),
+                $followed->mapWithKeys(fn (Tag $tag): array => [$tag->getKey() => (string) $tag->pivot->created_at])->all());
+        }
+        $selected = session()->hasOldInput() ? (array) old('tags', []) : $followed->pluck('id')->all();
 
         return view('pages.settings.tags', [
-            'tags' => $doPokazania,
-            'followed' => $obserwowane->pluck('id')->all(),
+            'tags' => $tags->sortBy('name')->values(),
+            'wybrane' => $selected,
+            'formScope' => $token,
         ]);
     }
 
-    public function update(Request $request): RedirectResponse
+    public function update(Request $request, TagFollowForm $forms, TagSelection $selection, UpdateTagFollows $follows): RedirectResponse
     {
-        $dane = $request->validate([
-            'tags' => ['nullable', 'array'],
-            'tags.*' => ['string', 'exists:tags,id'],
-        ]);
-
-        // Bez zawężania do „listy do wyboru" (w odróżnieniu od
-        // `TopicFollowController::update()`) — wszechświat tagów nie jest
-        // zamknięty, więc KAŻDY tag pokazany na tym ekranie (obserwowany
-        // LUB promowany, patrz `edit()`) jest ważny do zaznaczenia/odznaczenia.
-        $wybrane = $dane['tags'] ?? [];
-        $obserwowane = $request->user()->followedTags()->pluck('tags.id')->all();
-
-        // Świadomie NIE `sync()`: ten przepisałby `created_at` wszystkim
-        // tagom przy każdym zapisie formularza, także tym obserwowanym
-        // od miesięcy — ten sam powód co przy Temacie.
-        $doDodania = array_diff($wybrane, $obserwowane);
-        $doZdjecia = array_diff($obserwowane, $wybrane);
-
-        if ($doDodania !== []) {
-            $request->user()->followedTags()->attach(
-                array_fill_keys($doDodania, ['created_at' => now()]),
-            );
+        $scope = $forms->decode($request->user(), $request->input('form_scope'));
+        if ($scope === null) {
+            throw ValidationException::withMessages(['tags' => 'Sprawdź zaznaczenia w odświeżonym formularzu i zapisz ponownie.']);
         }
+        // Limit wynika z rzeczywiście pokazanej listy, nie ogranicza liczby
+        // obserwowań konta. Dopuszcza również pusty wybór.
+        $selected = $selection->validate($request, count($scope['shown']));
+        $follows->save($request->user(), $selected, $scope);
 
-        if ($doZdjecia !== []) {
-            $request->user()->followedTags()->detach(array_values($doZdjecia));
-        }
-
-        return redirect()
-            ->route('settings.tags')
-            ->with('status', 'Zapisaliśmy Twoje tagi.');
+        return redirect()->route('settings.tags')->with('status', 'Zapisaliśmy Twoje tagi.');
     }
 }
