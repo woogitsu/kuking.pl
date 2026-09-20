@@ -186,6 +186,9 @@ fi
 # więc ten sam test raz przechodzi, a raz nie. Kosztowało to pół godziny
 # szukania nieistniejącej regresji w entrypoincie, w trakcie awarii
 # produkcji. Dlatego niżej jest `grep ... >/dev/null`, a nie `grep -q`.
+#
+# Ta sama pulapka zlapala pozniej przyrzad kontroli ujemnej, bo lekcja siedziala
+# wylacznie tutaj. Pelny opis i kierunek bledu: docs/PULAPKI_TESTOW.md 5c.
 bez_komentarzy() { sed 's/[[:space:]]*#.*$//' "$1"; }
 
 if bez_komentarzy "${ENTRYPOINT}" | grep 'exec setpriv --reuid=www-data' >/dev/null; then
