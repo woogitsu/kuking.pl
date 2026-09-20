@@ -610,16 +610,93 @@ final class PublishRecipe
      */
     private function syncSteps(Recipe $recipe, User $author, array $steps, Collection $istniejace, array $doPrzypiecia): void
     {
-        $recipe->steps()->delete();
+        /*
+         * TOZSAMOSC KROKU PRZEZYWA ZAPIS (issue #756).
+         *
+         * Stalo tu `$recipe->steps()->delete()` przed petla, a petla zawsze
+         * wolala `RecipeStep::create()` -- czyli KAZDY zapis przepisu, nawet
+         * poprawka literowki w jednym kroku, kasowala wszystkie wiersze
+         * `recipe_steps` i zakladala je od nowa z nowymi UUID-ami
+         * (`HasUuids` losuje identyfikator przy `create()`).
+         *
+         * Tryb gotowania trzyma "zrobione kroki" w sesji jako liste TYCH
+         * identyfikatorow (`CookingModeController::sessionKey()`). Nowy UUID
+         * po zapisie znaczyl, ze sesja wskazywala na wiersz, ktorego juz nie
+         * ma -- postep znikal po cichu, bez bledu i bez ostrzezenia, mimo ze
+         * krok o tej samej tresci nadal tam stal. To jest dokladnie ten
+         * rodzaj utraty danych, ktorego AGENTS.md zakazuje wprost:
+         * "poprawne dane nigdy nie znikaja".
+         *
+         * Naprawa: krok o `id`, ktore PRZEPIS MA DZIS (czyli jest w mapie
+         * `$istniejace`, zbudowanej w `handle()` przed jakakolwiek zmiana),
+         * dostaje `update()` na TYM SAMYM wierszu -- identyfikator zostaje.
+         * Wiersz bez znanego `id` (nowy krok dopisany w tym zapisie) dostaje
+         * `create()`. Kroki, ktorych w tym zapisie juz nie ma (usuniete przez
+         * autora), sa kasowane NAJPIERW, przed przestawieniem pozycji --
+         * uzasadnienie kolejnosci nizej.
+         */
+        // Identyfikatory krokow, ktore ten zapis ZATRZYMUJE -- wyliczone
+        // z samego wejscia, bez dotykania bazy, wiec da sie ich uzyc, zeby
+        // NAJPIERW skasowac kroki usuniete przez autora. Kolejnosc ma
+        // znaczenie: unique(recipe_id, position) jest sprawdzany natychmiast
+        // (Postgres nie odklada go do konca transakcji), a skasowanie
+        // usunietych wierszy PRZED przestawieniem pozycji zwalnia miejsca,
+        // o ktore mogloby sie potkniec przypisanie nizej.
+        $trzymaneId = [];
+
+        foreach ($steps as $row) {
+            $id = $this->nullIfBlank($row['id'] ?? null);
+
+            if ($id !== null && $istniejace->has($id)) {
+                $trzymaneId[] = $id;
+            }
+        }
+
+        $recipe->steps()->whereNotIn('id', $trzymaneId)->delete();
+
+        /*
+         * PRZESTAWIENIE POZYCJI NA TYMCZASOWE, WYSOKIE WARTOSCI.
+         *
+         * Krok, ktory byl na pozycji 1, a po edycji ma byc na pozycji 0,
+         * probowalby wejsc na pozycje zajeta jeszcze przez INNY zatrzymany
+         * krok, ktory nie zdazyl jeszcze zejsc ze swojej starej pozycji --
+         * `UPDATE ... SET position = 0` na wiersz A, gdy wiersz B wciaz stoi
+         * na pozycji 0, konczy sie "duplicate key value violates unique
+         * constraint recipe_steps_recipe_id_position_unique" (zlapane
+         * testem regresyjnym). Ujemna wartosc odpada -- baza ma CHECK
+         * `position >= 0` (zlapane tym samym testem, drugim bledem).
+         * Zamiast tego przesuwamy tymczasowo o liczbe wieksza niz liczba
+         * krokow w tym zapisie, czyli poza kazdy docelowy zakres 0..N-1 --
+         * te wartosci sa zawsze wolne, bo zaden prawdziwy krok nigdy nie
+         * dochodzi do tylu pozycji.
+         */
+        $przesuniecie = count($steps) + count($trzymaneId) + 1;
+        $zachowaneKroki = $istniejace->only($trzymaneId)->values();
+
+        foreach ($zachowaneKroki as $i => $krok) {
+            $krok->forceFill(['position' => $przesuniecie + $i])->save();
+        }
+
+        $zachowane = [];
 
         foreach ($steps as $position => $row) {
-            RecipeStep::create([
+            $id = $this->nullIfBlank($row['id'] ?? null);
+            $istniejacyKrok = $id === null ? null : $istniejace->get($id);
+
+            $payload = [
                 'recipe_id' => $recipe->getKey(),
                 'position' => $position,
                 'instruction' => $row['instruction'],
                 'timer_seconds' => $row['timer_seconds'],
                 'media_id' => $this->stepMediaId($author, $istniejace, $row, $doPrzypiecia),
-            ]);
+            ];
+
+            if ($istniejacyKrok !== null) {
+                $istniejacyKrok->update($payload);
+                $zachowane[] = $istniejacyKrok->getKey();
+            } else {
+                $zachowane[] = RecipeStep::create($payload)->getKey();
+            }
         }
     }
 
