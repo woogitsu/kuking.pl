@@ -315,10 +315,22 @@
                     --}}
                     <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                     @if($isSaved)
-                        <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
-                        </form>
+                        {{--
+                            OPERACJA GLOBALNA, WIĘC NAZYWA ZAKRES I PYTA (issue #775).
+
+                            Ten przycisk nie wie, w którym zeszycie stoi
+                            człowiek — przepis mógł być zapisany w kilku
+                            naraz przez „Wybierz zeszyt" niżej. Bez tego
+                            zdania i bez drugiego kliknięcia usuwał ciszej,
+                            niż powinien: „Usunięte z zeszytu" po fakcie nie
+                            mówiło, że zniknęło z KAŻDEGO zeszytu, razem
+                            z notatkami. Usunięcie z JEDNEGO, wybranego
+                            zeszytu jest możliwe w widoku tego zeszytu.
+                        --}}
+                        <x-confirm-button
+                            :action="route('collections.unsave', $recipe->slug)"
+                            label="Usuń z zeszytu"
+                            question="Usunąć ten przepis ze wszystkich Twoich zeszytów, w których go zapisano? Notatki przy nim znikną razem z zapisem." />
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf

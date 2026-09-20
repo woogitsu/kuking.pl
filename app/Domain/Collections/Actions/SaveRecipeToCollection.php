@@ -82,8 +82,29 @@ final class SaveRecipeToCollection
         return $collection;
     }
 
-    public function remove(User $user, Recipe $recipe): void
+    /**
+     * Usuwa zapis — z JEDNEGO zeszytu, jeśli go podano, inaczej ze WSZYSTKICH
+     * własnych zeszytów tej osoby (issue #775).
+     *
+     * PRZED TĄ ZMIANĄ ten sam przepis zapisany w dwóch zeszytach dawał się
+     * wykasować obydwu naraz jednym przyciskiem „Usuń z zeszytu” na stronie
+     * przepisu — bez wyboru, bez potwierdzenia zakresu i z utratą notatki
+     * w zeszycie, o którym człowiek nawet nie myślał. „Poprawne dane nigdy
+     * nie znikają" (AGENTS.md §5) dotyczy też danych w INNYM zeszycie niż
+     * ten, z którego ktoś akurat usuwał.
+     *
+     * `$collection` jest tu zaufany przez wywołującego —
+     * `CollectionController::selectedCollection()` już sprawdził, że należy
+     * do tej samej osoby (`owner_id`), zanim dotarł tutaj.
+     */
+    public function remove(User $user, Recipe $recipe, ?Collection $collection = null): void
     {
+        if ($collection !== null) {
+            $collection->recipes()->detach($recipe->getKey());
+
+            return;
+        }
+
         $user->collections()->each(
             fn (Collection $collection) => $collection->recipes()->detach($recipe->getKey()),
         );

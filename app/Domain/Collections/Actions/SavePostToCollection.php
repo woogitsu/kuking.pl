@@ -59,8 +59,21 @@ final class SavePostToCollection
         return $collection;
     }
 
-    public function remove(User $user, Post $post): void
+    /**
+     * Usuwa zapis — z JEDNEGO zeszytu, jeśli go podano, inaczej ze WSZYSTKICH
+     * własnych zeszytów tej osoby. Bliźniak `SaveRecipeToCollection::remove()`
+     * (issue #775) i z tego samego powodu: `$collection` jest tu zaufany
+     * przez wywołującego, bo `CollectionController::selectedCollection()`
+     * już sprawdził własność.
+     */
+    public function remove(User $user, Post $post, ?Collection $collection = null): void
     {
+        if ($collection !== null) {
+            $collection->posts()->detach($post->getKey());
+
+            return;
+        }
+
         $user->collections()->each(
             fn (Collection $collection) => $collection->posts()->detach($post->getKey()),
         );

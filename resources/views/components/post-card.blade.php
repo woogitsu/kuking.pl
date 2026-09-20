@@ -18,7 +18,7 @@
     ani po przesunięciu palcem — dla części naszych użytkowników to jedyna
     droga do funkcji (AGENTS.md §5).
 --}}
-@props(['post', 'showQuestionTitle' => true])
+@props(['post', 'showQuestionTitle' => true, 'zeszyt' => null])
 @php $author = $post->author; @endphp
 <article class="card post-card">
     <div class="post-card-head">
@@ -477,67 +477,51 @@
                 w miejscu akcji, tak jak ekran przepisu robi to od dawna
                 (`recipes/show.blade.php`, `$isSaved`).
 
-                STAN JEST ZDANIEM **ORAZ** PRZYCISKIEM WYJŚCIA (audyt L1,
-                decyzja właściciela z 20 września 2026).
-
-                Stał tu wcześniej akapit „STAN JEST ZDANIEM, NIE DRUGIM
-                PRZYCISKIEM" — z odesłaniem „wyjąć z zeszytu można w samym
-                zeszycie". Tego zdania nie dało się wykonać: ekran zeszytu
-                renderuje TĘ SAMĄ kartę, więc nie było tam żadnego przycisku
-                wyjęcia (`docs/AUDYT_2026-09.md`, wiersz L1). Trasa
-                `collections.unsave-post` istniała, była otestowana i nie miała
-                ANI JEDNEGO wywołania w `resources/`. Człowiek, który odłożył
-                wpis przez pomyłkę, nie miał w całym serwisie drogi wyjścia.
-                Właściciel rozstrzygnął: przycisk stoi wszędzie tam, gdzie
-                widać „Masz to w zeszycie" — czyli i w zeszycie, i na karcie.
-
-                OBAWA O PODWÓJNE KLIKNIĘCIE ZOSTAJE ZAADRESOWANA UKŁADEM, NIE
-                BRAKIEM PRZYCISKU. Powód tamtej decyzji był prawdziwy (podwójne
-                kliknięcie w grupie 50+ to norma, nie pomyłka — issue #43), więc
-                pod palcem, który właśnie kliknął „Zapisuję", NIE MA przycisku
-                kasującego: w tym samym miejscu paska stoi dalej odnośnik „Masz
-                to w zeszycie", a „Usuń z zeszytu" jest dopiero NASTĘPNYM celem.
-                Drugie kliknięcie w to samo miejsce otwiera więc zeszyt, tak jak
-                przed tą zmianą, i niczego nie zabiera.
-
-                BEZ POTWIERDZENIA I BEZ JavaScriptu. To jest zwykły formularz
-                `DELETE` (zwykły `<form method="POST">` z podmianą metody), więc działa tak samo ze skryptem
-                i bez niego — żadnego martwego przycisku (AGENTS.md §5, D-053).
-                Potwierdzenia (`<x-confirm-button>`) świadomie NIE dokładamy:
-                wyjęcie z zeszytu nie kasuje żadnej treści i cofa się jednym
-                kliknięciem, a `.flash` po akcji podaje przycisk „Zapisz
-                ponownie" (`components/layout.blade.php`). Pytanie „czy na
-                pewno" trzymamy dla rzeczy nieodwracalnych — kasowania wpisu,
-                kasowania zeszytu — żeby nie straciło wagi. Ekran przepisu
-                wyjmuje z zeszytu tak samo, jednym przyciskiem bez pytania
-                (`recipes/show.blade.php`), i ta sama czynność ma się tu
-                zachowywać tak samo.
-
-                NAZWA JEST TA SAMA CO PRZY PRZEPISIE: „Usuń z zeszytu".
-                `BRAND_EXTENDED.md` §3 zabrania synonimów — jedna czynność,
-                jedna nazwa. Audyt proponował „Wyjmij z zeszytu"; drugie słowo
-                na tę samą rzecz byłoby dokładnie tym, przed czym tamta reguła
-                stoi.
+                STAN JEST ZDANIEM, NIE DRUGIM PRZYCISKIEM — I TO JEST CELOWE.
+                Ekran przepisu zamienia w tym miejscu przycisk na „Usuń
+                z zeszytu". Tutaj nie, bo karta stoi w feedzie: podwójne
+                kliknięcie w grupie 50+ to norma, nie pomyłka (issue #43),
+                a przycisk kasujący pod tym samym palcem zabierałby z zeszytu
+                to, co ktoś właśnie do niego włożył. Zostaje odnośnik do
+                zeszytu — bo „wyjąć z zeszytu można w samym zeszycie" i to się
+                nie zmieniło.
 
                 Ekran, który `czy_zapisany` nie dolicza, dostaje „Zapisuję" jak
                 dawniej. Zapis jest idempotentny, więc drugie kliknięcie daje
                 dokładnie ten sam skutek co pierwsze (`SavePostToCollection`).
-                Wyjęcie też: drugie `DELETE` na wpisie, którego już nie ma
-                w zeszycie, nie robi nic i nie jest błędem.
             --}}
             @if($zapisy->czyZapisany($post))
-                <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
-                    <x-ikona nazwa="book" :rozmiar="22" />
-                    Masz to w zeszycie
-                </a>
-                <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
-                    @csrf
-                    @method('DELETE')
-                    <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-zeszytu">
-                        <x-ikona nazwa="save" :rozmiar="22" />
-                        Usuń z zeszytu
-                    </button>
-                </form>
+                @if($zeszyt !== null && auth()->id() === $zeszyt->owner_id)
+                    {{--
+                        WYJĄTEK OD „ODNOŚNIK, NIE PRZYCISK KASUJĄCY" WYŻEJ —
+                        I TO CELOWO (issue #776).
+
+                        Zdanie „wyjąć z zeszytu można w samym zeszyku" stało
+                        w komentarzu obok od miesiąca, ale nie odpowiadał mu
+                        żaden przycisk: `collections.unsave-post` istniał,
+                        w tym widoku nie było jak go dotknąć bez ręcznego
+                        DELETE. Tu, w środku KONKRETNEGO zeszytu, nie ma już
+                        ryzyka „podwójne kliknięcie „Zapisuję” w feedzie samo
+                        się cofnie" — to inny ekran, w innym celu otwarty,
+                        więc przycisk usuwający jest bezpieczny.
+
+                        `collection_id` WSKAZUJE TEN JEDEN ZESZYT (issue #775):
+                        usuwa lokalnie, nie ze wszystkich własnych zeszytów.
+                    --}}
+                    <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
+                        @csrf @method('DELETE')
+                        <input type="hidden" name="collection_id" value="{{ $zeszyt->getKey() }}">
+                        <button class="btn btn-secondary" type="submit">
+                            <x-ikona nazwa="book" :rozmiar="22" />
+                            Usuń z tego zeszytu
+                        </button>
+                    </form>
+                @else
+                    <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
+                        <x-ikona nazwa="book" :rozmiar="22" />
+                        Masz to w zeszycie
+                    </a>
+                @endif
             @else
                 <form method="POST" action="{{ route('collections.save-post', $post) }}">
                     @csrf
