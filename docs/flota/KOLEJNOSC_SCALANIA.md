@@ -346,3 +346,67 @@ przeszło**, w tym wszystkie z obu gałęzi:
 cicho przestaną się uruchamiać testy drugiej gałęzi (`minutnik-krok`+`wake-lock-gotowania` albo
 `licznik-znakow`, zależnie który PR scalano jako drugi) — regresja w tym module nie zablokuje już
 żadnego joba, dopóki ktoś ręcznie nie zauważy brakującego pliku w linii `build`.
+
+---
+
+## Weryfikacja PR #929 (2026-09-20) — czy kod 51 faktycznie zniknął
+
+**Run CI:** https://github.com/woogitsu/kuking.pl/actions/runs/35535179533 (gałąź `naprawa/klient-pg18-w-ci`)
+
+### Zadanie 1 — job "Pint (styl kodu)" (bateria kontroli kopii bazy) — PASS, 1m36s
+
+- Krok instalacji klienta zadziałał: wykryto `pg_restore (PostgreSQL) 16.15 (Ubuntu 16.15-1.pgdg24.04+2)`,
+  doinstalowano `postgresql-client-18`, wersja po instalacji: **`pg_restore (PostgreSQL) 18.6 (Ubuntu 18.6-1.pgdg24.04+2)`**.
+- `✓ pełne, zdrowe archiwum PRZECHODZI weryfikację` — brak jakiegokolwiek `✗` w całym logu, brak linii
+  „oczekiwano: kod=0 / otrzymano: kod=51”. **Kod 51 na zdrowym archiwum zniknął.**
+- Test obcięcia znów rozróżnia przypadki: zdrowe archiwum przechodzi (✓), a obcięte do 99/95/90/80/60%,
+  skrócone o jeden bajt i uszkodzone w środku — każde zostaje **ODRZUCONE** (✓ w drugą stronę). Log nie
+  wypisuje surowych kodów wyjścia przy sukcesie (framework testowy pokazuje szczegóły tylko przy porażce),
+  więc dosłownej wartości „53” nie da się zacytować z tego logu — ale funkcjonalnie test obcięcia znów
+  **mierzy różnicę** między zdrowym a obciętym archiwum, czego wcześniej (przy kodzie 51 na obu) nie robił.
+
+### Zadanie 2 — job "Testy (PostgreSQL 18)" — **FAIL, 8m23s**
+
+`Tests\Feature\ProbaOdtworzeniaTest` nadal pada, i to z **dokładnie tym samym** komunikatem co przed
+poprawką z #929:
+
+```
+Expected: PostgreSQL nie odpowiada — nie ma czego dowodzić.
+KOD=1
+To contain: KOD=0
+at tests/Feature/ProbaOdtworzeniaTest.php:68
+```
+
+Wynik pełny: `Tests: 1 failed, 4393 passed (83694 assertions)`.
+
+**To jest inna przyczyna niż kod 51** — „PostgreSQL nie odpowiada” to problem gotowości/łączności z serwerem,
+nie odczytu archiwum przez `pg_restore`. Poprawka z #929 (instalacja klienta 18) na ten test nie ma wpływu
+i faktycznie go nie naprawiła.
+
+### Zadanie 3 — werdykt
+
+1. **Czy kod 51 zniknął?** TAK — na zdrowym, pełnym archiwum żadna kontrola w jobie „Pint (styl kodu)”
+   nie zwraca już kodu 51; klient `pg_restore` na runnerze to teraz 18.6 wobec serwera 18.
+2. **Czy obcięte archiwa dają znowu 53 (test obcięcia znów mierzy)?** CZĘŚCIOWO POTWIERDZONE — dosłownej
+   wartości kodu 53 log nie ujawnia (bo asercje przy sukcesie nie drukują kodów), ale zachowanie jest
+   poprawne: zdrowe przechodzi, obcięte w każdym wariancie zostaje odrzucone — czyli test znów odróżnia
+   te dwa przypadki, co było sednem obawy.
+3. **Czy `ProbaOdtworzeniaTest` przeszedł?** NIE. Nadal pada z `KOD=1` / „PostgreSQL nie odpowiada — nie ma
+   czego dowodzić” — to osobna, niezaadresowana przez #929 przyczyna (gotowość/łączność serwera PostgreSQL
+   w CI), nie kod 51.
+
+### Czy teza „sześć PR-ów przejdzie po samym ponowieniu” się broni?
+
+**NIE w pełni.** Poprawka z #929 usuwa jeden z dwóch znanych źródeł czerwieni (kod 51 z `pg_restore` na
+zdrowym archiwum) — to potwierdzone. Ale job „Testy (PostgreSQL 18)” w tym samym runie nadal jest czerwony,
+z **innej, nieadresowanej przyczyny** (`ProbaOdtworzeniaTest`, PostgreSQL nie odpowiada, KOD=1). Jeżeli
+którykolwiek z niżej wymienionych PR-ów opiera swoją czerwień na tym samym jobie/teście, samo ponowienie CI
+po scaleniu #929 **nie wystarczy** — dopóki przyczyna „PostgreSQL nie odpowiada” nie zostanie osobno
+zdiagnozowana i naprawiona.
+
+PR-y wymienione w tezie: **#919, #917, #920, #921, #923, #916** — każdy z nich wymaga odrębnego sprawdzenia,
+czy jego czerwień pochodzi wyłącznie z kodu 51 (wtedy retry po scaleniu #929 pomoże), czy też dotyka
+`ProbaOdtworzeniaTest`/gotowości PostgreSQL (wtedy retry nic nie da bez dodatkowej poprawki). Nie da się
+tego rozstrzygnąć bez sprawdzenia logów każdego z tych PR-ów z osobna — tego zadania nie wykonywano w ramach
+tej weryfikacji (zakaz ponawiania CI na innych PR-ach).
+
