@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Domain\Media\RecoveredFormPhotos;
 use App\Domain\Recipes\Actions\RecordCookedEvent;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\CookedEvent;
@@ -15,6 +16,7 @@ use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityZdjec;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -51,6 +53,7 @@ class CookedEventController extends Controller
         $this->authorize('cook', $model);
 
         return view('pages.cooked.create', [
+            'zachowane' => RecoveredFormPhotos::forUser($request->user(), old('media_ids')),
             'recipe' => $model->load(['author.profile', 'heroMedia']),
             'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
@@ -103,27 +106,61 @@ class CookedEventController extends Controller
         $model = Recipe::where('slug', $recipe)->firstOrFail();
         $this->authorize('cook', $model);
 
-        $data = $request->validate([
-            // BYŁO "max:4" wpisane tu na sztywno, niezależnie od
-            // `config('kuking.media.max_per_post')` — dokładnie ten rozjazd
-            // (ta sama liczba w dwóch miejscach) pozwolił na wysyłkę do
-            // 4 × 15 MB = 60 MB w jednym żądaniu, ponad dwa razy więcej,
-            // niż mieści `post_max_size` z `docker/php.ini` (audyt A31).
-            // Teraz obowiązuje TEN SAM budżet co w PostController.
+        // Autoryzacja przepisu powyżej obowiązuje także przy ponowieniu.
+        $existing = $this->record->wykonanieZTegoWyslania($request->user(), $this->kluczZZadania($request));
+        if ($existing !== null) {
+            $this->authorize('view', $existing);
+
+            return redirect()->route('cooked.show', $existing)->with('status',
+                'To wykonanie już zapisaliśmy. '
+                .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+            );
+        }
+
+        $request->validate([
             'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
+            'media_ids.*' => ['uuid'],
+        ], [
+            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'media_ids.array' => 'Wybierz zdjęcia ponownie.',
+            'media_ids.*.uuid' => 'Wybierz to zdjęcie ponownie.',
+            'media_ids.max' => LimityZdjec::komunikatZaDuzoZdjec(),
+            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
+        ]);
+
+        $user = $request->user();
+        $mediaIds = RecoveredFormPhotos::forUser($user, $request->input('media_ids'))->modelKeys();
+        if ($request->filled('usun_zdjecie')) {
+            $mediaIds = array_values(array_diff($mediaIds, [(string) $request->input('usun_zdjecie')]));
+
+            return back()->withInput(array_merge($request->except(['photos', 'usun_zdjecie']), ['media_ids' => $mediaIds]));
+        }
+
+        if (count($mediaIds) + count($request->file('photos', [])) > LimityZdjec::maksZdjecNaWysylke()) {
+            return back()->withInput(array_merge($request->except('photos'), ['media_ids' => $mediaIds]))
+                ->withErrors(['photos' => LimityZdjec::komunikatZaDuzoZdjec()]);
+        }
+
+        try {
+            foreach ($request->file('photos', []) as $photo) {
+                $mediaIds[] = $this->storeImage->handle($user, $photo)->getKey();
+            }
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withInput(array_merge($request->except('photos'), ['media_ids' => $mediaIds]))
+                ->withErrors(['photos' => $e->getMessage()]);
+        }
+
+        // Pliki przetrwają także drugi błąd: odsyłamy identyfikatory, nie file input.
+        $input = array_merge($request->except('photos'), ['media_ids' => $mediaIds]);
+        $validator = Validator::make($request->all(), [
             'note' => ['nullable', 'string', 'max:2000'],
             'changes_note' => ['nullable', 'string', 'max:1000'],
             'would_make_again' => ['nullable', 'boolean'],
             'perceived_difficulty' => ['nullable', 'in:easy,medium,hard'],
             'actual_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
         ], [
-            'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
-            // Wcześniej nie było tu komunikatu — przy przekroczeniu rozmiaru
-            // albo liczby zdjęć człowiek widziałby domyślny, angielski
-            // komunikat Laravela. To łamie "błędy po polsku" z AGENTS.md.
-            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
-            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
             'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
             // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest
@@ -151,7 +188,10 @@ class CookedEventController extends Controller
             'actual_minutes.max' => 'Ten czas jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
         ]);
 
-        $user = $request->user();
+        if ($validator->fails()) {
+            return back()->withInput($input)->withErrors($validator);
+        }
+        $data = $validator->validated();
 
         // „Zrobisz to jeszcze raz?" ma TRZY stany, nie dwa (audyt A22).
         //
@@ -169,12 +209,6 @@ class CookedEventController extends Controller
             : $request->boolean('would_make_again');
 
         try {
-            $mediaIds = [];
-
-            foreach ($request->file('photos', []) as $photo) {
-                $mediaIds[] = $this->storeImage->handle($user, $photo)->getKey();
-            }
-
             $event = $this->record->handle(
                 cook: $user,
                 recipe: $model,
@@ -182,13 +216,13 @@ class CookedEventController extends Controller
                 mediaIds: $mediaIds,
                 wouldMakeAgain: $wouldMakeAgain,
                 perceivedDifficulty: $data['perceived_difficulty'] ?? null,
-                actualMinutes: $data['actual_minutes'] ?? null,
+                actualMinutes: isset($data['actual_minutes']) ? (int) $data['actual_minutes'] : null,
                 changesNote: $data['changes_note'] ?? null,
                 ip: $request->ip(),
                 kluczWyslania: $this->kluczZZadania($request),
             );
         } catch (BladDlaCzlowieka $e) {
-            return back()->withInput()->withErrors(['note' => $e->getMessage()]);
+            return back()->withInput($input)->withErrors(['note' => $e->getMessage()]);
         }
 
         // DRUGIE KLIKNIĘCIE „WYŚLIJ" — wykonanie jest to samo, co przy

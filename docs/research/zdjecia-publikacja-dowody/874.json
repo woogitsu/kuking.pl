@@ -1,0 +1,16 @@
+{
+  "nazwa": "874-kotwice",
+  "plik": "resources/views/components/error-summary.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "b8bf87f68c3f6f0cd1993ed9ffe4af36",
+  "md5_po_mutacji": "92a14f43da7a0d423df9618914f6db20",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "nieistniejącego pola f-photos",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:51:29Z"
+}

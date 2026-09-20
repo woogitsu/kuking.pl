@@ -1,0 +1,5 @@
+  ✓ odtwarzanie pokazuje tylko wlasne nieprzypiete zywe zdjecie with da… 0.06s
+  ✓ mapa zdjec nie zmienia indeksowanego pola kroku                      0.02s
+
+  Tests:    45 passed (297 assertions)
+  Duration: 3.59s

@@ -1,0 +1,16 @@
+{
+  "nazwa": "872-zachowanie",
+  "plik": "app/Http/Controllers/CookedEventController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "0fc141fe32a1adf4e94bc7463b1d4bee",
+  "md5_po_mutacji": "7d6c7c0c7f9fab3df0b342694e866d6e",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "null is of type array",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:51:15Z"
+}

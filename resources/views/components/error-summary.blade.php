@@ -1,3 +1,4 @@
+@props(['targets' => []])
 {{--
     Podsumowanie błędów na górze formularza + link do każdego pola.
     Wzorzec z UX_50_PLUS.md: błąd przy polu ORAZ podsumowanie, nigdy tylko
@@ -27,7 +28,7 @@
         <ul>
             @foreach($errors->keys() as $key)
                 <li>
-                    <a href="#f-{{ str_replace(['[', ']', '.'], '-', $key) }}{{ $wierszSufiks }}">{{ $errors->first($key) }}</a>
+                    <a href="#f-{{ str_replace(['[', ']', '.'], '-', $targets[$key] ?? $targets[explode('.', $key)[0].'.*'] ?? $key) }}{{ $wierszSufiks }}">{{ $errors->first($key) }}</a>
                 </li>
             @endforeach
         </ul>

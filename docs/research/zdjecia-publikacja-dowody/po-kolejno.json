@@ -1,0 +1,62 @@
+{
+    "posts": {
+        "1": {
+            "status": 302,
+            "location": "http:\/\/localhost:8000\/wpisy\/01a0bfb9-2dad-7297-8073-0c9738844b08",
+            "jobs": 1,
+            "media": 1,
+            "files": 2,
+            "results": 1,
+            "notifications": 0
+        },
+        "2": {
+            "status": 302,
+            "location": "http:\/\/localhost:8000\/wpisy\/01a0bfb9-2dad-7297-8073-0c9738844b08",
+            "jobs": 1,
+            "media": 1,
+            "files": 2,
+            "results": 1,
+            "notifications": 0
+        }
+    },
+    "questions": {
+        "1": {
+            "status": 302,
+            "location": "http:\/\/localhost:8000\/pytania\/01a0bfb9-2f0f-7218-98ae-a795d887aaed",
+            "jobs": 1,
+            "media": 1,
+            "files": 2,
+            "results": 1,
+            "notifications": 0
+        },
+        "2": {
+            "status": 302,
+            "location": "http:\/\/localhost:8000\/pytania\/01a0bfb9-2f0f-7218-98ae-a795d887aaed",
+            "jobs": 1,
+            "media": 1,
+            "files": 2,
+            "results": 1,
+            "notifications": 0
+        }
+    },
+    "cooked": {
+        "1": {
+            "status": 302,
+            "location": "http:\/\/localhost:8000\/ugotowane\/01a0bfb9-3066-70aa-92f1-a93370303798",
+            "jobs": 1,
+            "media": 1,
+            "files": 2,
+            "results": 1,
+            "notifications": 1
+        },
+        "2": {
+            "status": 302,
+            "location": "http:\/\/localhost:8000\/ugotowane\/01a0bfb9-3066-70aa-92f1-a93370303798",
+            "jobs": 1,
+            "media": 1,
+            "files": 2,
+            "results": 1,
+            "notifications": 1
+        }
+    }
+}

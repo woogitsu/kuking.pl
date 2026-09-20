@@ -1,0 +1,149 @@
+
+── Kontrola ujemna: 873-wpis-pytanie ──
+  plik:     app/Http/Controllers/PostController.php
+  MD5 przed: afab8c33f036ba0195ca0264418f1401
+  oczekuję:  Ponowienie zapisało dodatkowe obiekty
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 afab8c33f036ba0195ca0264418f1401 → b306fc366cb447b98358c11509600fd6.
+  różnica:
+             // Zakończone wysłanie nie wymaga ponownego dekodowania i zapisu plików.
+             // UNIQUE w akcji domenowej nadal rozstrzyga równoczesne wysłania.
+             $existing = $this->publishPost->wpisZTegoWyslania($user, $this->kluczZZadania($request));
+    -        if ($existing !== null) {
+    +        if (false && $existing !== null) {
+                 $this->authorize('view', $existing);
+
+                 return redirect()->route($existing->kind === Post::KIND_QUESTION ? 'questions.show' : 'posts.show', $existing)
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Ponowienie zapisało dodatkowe obiekty” wystąpił w wyjściu.
+      Ponowienie zapisało dodatkowe obiekty.
+      ➜  48▕         $this->assertSame($files, Storage::disk('public')->allFiles(), 'Ponowienie zapisało dodatkowe obiekty.');
+      Ponowienie zapisało dodatkowe obiekty.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 873-wpis-pytanie
+  zapis: output/zdjecia-dowody/873-post.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 873-ugotowalem ──
+  plik:     app/Http/Controllers/CookedEventController.php
+  MD5 przed: 0fc141fe32a1adf4e94bc7463b1d4bee
+  oczekuję:  Ponowienie zapisało dodatkowe obiekty
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 0fc141fe32a1adf4e94bc7463b1d4bee → 20007ec3ab3b075663bd54190ce4f306.
+  różnica:
+
+             // Autoryzacja przepisu powyżej obowiązuje także przy ponowieniu.
+             $existing = $this->record->wykonanieZTegoWyslania($request->user(), $this->kluczZZadania($request));
+    -        if ($existing !== null) {
+    +        if (false && $existing !== null) {
+                 $this->authorize('view', $existing);
+
+                 return redirect()->route('cooked.show', $existing)->with('status',
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Ponowienie zapisało dodatkowe obiekty” wystąpił w wyjściu.
+      Ponowienie zapisało dodatkowe obiekty.
+      ➜  48▕         $this->assertSame($files, Storage::disk('public')->allFiles(), 'Ponowienie zapisało dodatkowe obiekty.');
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 873-ugotowalem
+  zapis: output/zdjecia-dowody/873-cooked.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 872-zachowanie ──
+  plik:     app/Http/Controllers/CookedEventController.php
+  MD5 przed: 0fc141fe32a1adf4e94bc7463b1d4bee
+  oczekuję:  null is of type array
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 0fc141fe32a1adf4e94bc7463b1d4bee → 7d6c7c0c7f9fab3df0b342694e866d6e.
+  różnica:
+             ]);
+
+             if ($validator->fails()) {
+    -            return back()->withInput($input)->withErrors($validator);
+    +            return back()->withInput($request->except("photos"))->withErrors($validator);
+             }
+             $data = $validator->validated();
+
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „null is of type array” wystąpił w wyjściu.
+      Failed asserting that null is of type array.
+      Failed asserting that null is of type array.
+      Failed asserting that null is of type array.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 872-zachowanie
+  zapis: output/zdjecia-dowody/872.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 871-uuid ──
+  plik:     app/Domain/Media/RecoveredFormPhotos.php
+  MD5 przed: 8e8e9677b9aebb4a72fbf695492db4dd
+  oczekuję:  invalid input syntax for type uuid|Nested arrays
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 8e8e9677b9aebb4a72fbf695492db4dd → 662038d2a2693a119ccda9ab52330bd4.
+  różnica:
+         {
+             // Stare wejście pochodzi od klienta, także po odrzuceniu walidacji.
+             $ids = is_array($input) ? array_slice($input, 0, LimityZdjec::maksZdjecNaWysylke()) : [];
+    -        $ids = array_values(array_filter($ids, fn ($id): bool => is_string($id) && Str::isUuid($id)));
+    +        // Mutacja: brak filtrowania UUID.
+             $query = Media::query()->whereIn('id', $ids)
+                 ->where('owner_id', $user->getKey())
+                 ->where('status', '!=', Media::STATUS_DELETED);
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „invalid input syntax for type uuid|Nested arrays” wystąpił w wyjściu.
+    PDOException: SQLSTATE[22P02]: Invalid text representation: 7 ERROR:  invalid input syntax for type uuid: "nie-uuid"
+    Next Illuminate\Database\QueryException: SQLSTATE[22P02]: Invalid text representation: 7 ERROR:  invalid input syntax for type uuid: "nie-uuid"
+    SQLSTATE[22P02]: Invalid text representation: 7 ERROR:  invalid input syntax for type uuid: "nie-uuid"
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 871-uuid
+  zapis: output/zdjecia-dowody/871.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: 874-kotwice ──
+  plik:     resources/views/components/error-summary.blade.php
+  MD5 przed: b8bf87f68c3f6f0cd1993ed9ffe4af36
+  oczekuję:  nieistniejącego pola f-photos
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 b8bf87f68c3f6f0cd1993ed9ffe4af36 → 92a14f43da7a0d423df9618914f6db20.
+  różnica:
+             <ul>
+                 @foreach($errors->keys() as $key)
+                     <li>
+    -                    <a href="#f-{{ str_replace(['[', ']', '.'], '-', $targets[$key] ?? $targets[explode('.', $key)[0].'.*'] ?? $key) }}{{ $wierszSufiks }}">{{ $errors->first($key) }}</a>
+    +                    <a href="#f-{{ str_replace(['[', ']', '.'], '-', $key) }}{{ $wierszSufiks }}">{{ $errors->first($key) }}</a>
+                     </li>
+                 @endforeach
+             </ul>
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „nieistniejącego pola f-photos” wystąpił w wyjściu.
+      Podsumowanie prowadzi do nieistniejącego pola f-photos-0
+      Podsumowanie prowadzi do nieistniejącego pola f-photos-0
+      Podsumowanie prowadzi do nieistniejącego pola f-photos-1
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 874-kotwice
+  zapis: output/zdjecia-dowody/874.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

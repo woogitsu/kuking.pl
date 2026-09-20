@@ -1,0 +1,39 @@
+{
+  "przed": {
+    "app/Http/Controllers/PostController.php": {
+      "md5": "afab8c33f036ba0195ca0264418f1401",
+      "mtime_ns": 1789922086029772700
+    },
+    "app/Http/Controllers/CookedEventController.php": {
+      "md5": "0fc141fe32a1adf4e94bc7463b1d4bee",
+      "mtime_ns": 1789922085911053700
+    },
+    "app/Domain/Media/RecoveredFormPhotos.php": {
+      "md5": "8e8e9677b9aebb4a72fbf695492db4dd",
+      "mtime_ns": 1789922085754717200
+    },
+    "resources/views/components/error-summary.blade.php": {
+      "md5": "b8bf87f68c3f6f0cd1993ed9ffe4af36",
+      "mtime_ns": 1789921566801143100
+    }
+  },
+  "po": {
+    "app/Http/Controllers/PostController.php": {
+      "md5": "afab8c33f036ba0195ca0264418f1401",
+      "mtime_ns": 1789922086029772700
+    },
+    "app/Http/Controllers/CookedEventController.php": {
+      "md5": "0fc141fe32a1adf4e94bc7463b1d4bee",
+      "mtime_ns": 1789922085911053700
+    },
+    "app/Domain/Media/RecoveredFormPhotos.php": {
+      "md5": "8e8e9677b9aebb4a72fbf695492db4dd",
+      "mtime_ns": 1789922085754717200
+    },
+    "resources/views/components/error-summary.blade.php": {
+      "md5": "b8bf87f68c3f6f0cd1993ed9ffe4af36",
+      "mtime_ns": 1789921566801143100
+    }
+  },
+  "identyczne": true
+}

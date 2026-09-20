@@ -252,7 +252,7 @@ final class PublishPost
      * nie może więc pokazać cudzego wpisu — indeks jest na parze
      * (autor, klucz), więc nawet nie zablokuje własnego wysłania.
      */
-    private function wpisZTegoWyslania(User $author, ?string $kluczWyslania): ?Post
+    public function wpisZTegoWyslania(User $author, ?string $kluczWyslania): ?Post
     {
         if ($kluczWyslania === null) {
             return null;

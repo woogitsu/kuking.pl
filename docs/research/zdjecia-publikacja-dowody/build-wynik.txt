@@ -1,0 +1,8 @@
+computing gzip size...
+public/build/manifest.json                                        0.83 kB │ gzip:  0.25 kB
+public/build/assets/inter-latin-wght-normal-Dx4kXJAl.woff2       48.25 kB
+public/build/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2   85.06 kB
+public/build/assets/app-CZweFZtk.css                            148.17 kB │ gzip: 25.83 kB
+public/build/assets/app-B4FFWDpj.js                              25.66 kB │ gzip:  8.85 kB
+
+✓ built in 408ms

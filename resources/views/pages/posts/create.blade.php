@@ -15,7 +15,7 @@
     <h1>Dodaj zdjęcie</h1>
     <p class="mb-5">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
 
-    <x-error-summary />
+    <x-error-summary :targets="['photos.*' => 'photos', 'media_ids' => 'photos', 'media_ids.*' => 'photos']" />
 
     <form class="panel-formularza" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
@@ -45,16 +45,6 @@
                  `aria-labelledby`, więc czytnik ekranu dalej ją czyta. --}}
             <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></span>
 
-            @php
-                // Zdjęcia, które przetrwały nieudaną walidację (audyt C1).
-                // Wracają jako identyfikatory, bo przeglądarka nie pozwala
-                // wypełnić pola pliku z serwera — i dobrze robi, inaczej strona
-                // mogłaby podkraść plik z dysku.
-                $zachowane = \App\Models\Media::query()
-                    ->whereIn('id', (array) old('media_ids', []))
-                    ->where('owner_id', auth()->id())
-                    ->get();
-            @endphp
 
             @if($zachowane->isNotEmpty())
                 <div class="notice">
@@ -87,11 +77,12 @@
                  KOLEJNOŚĆ JEST WYMUSZONA: `<input>` stoi BEZPOŚREDNIO PRZED
                  `<label>`, bo obwódkę fokusu rysuje reguła
                  `.pole-zdjecia-input:focus-visible + .pole-zdjecia`. --}}
-            <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
+            <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file"
+                   @if($errors->hasAny(['photos', 'photos.*', 'media_ids', 'media_ids.*'])) aria-invalid="true" @endif name="photos[]"
                    accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
                    multiple
                    aria-labelledby="f-photos-etykieta f-photos-tytul"
-                   aria-describedby="f-photos-help">
+                   aria-describedby="f-photos-help{{ $errors->hasAny(['photos', 'photos.*', 'media_ids', 'media_ids.*']) ? ' f-photos-error' : '' }}">
             <label class="pole-zdjecia" for="f-photos">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
                 <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
@@ -100,8 +91,9 @@
                     Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
             </label>
-            @error('photos')<span class="field-error">{{ $message }}</span>@enderror
-            @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
+            @if($errors->hasAny(['photos', 'photos.*', 'media_ids', 'media_ids.*']))
+                <span class="field-error" id="f-photos-error">{{ $errors->first('photos') ?: $errors->first('photos.*') ?: $errors->first('media_ids') ?: $errors->first('media_ids.*') }}</span>
+            @endif
         </div>
 
         <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"
