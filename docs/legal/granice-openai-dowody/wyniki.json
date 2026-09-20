@@ -1,0 +1,38 @@
+[
+  {
+    "name": "wymiar",
+    "exit": 0,
+    "restored_md5_mtime": true,
+    "md5": "325767b6a2f507247ea3445f5beac55a"
+  },
+  {
+    "name": "zamiennik",
+    "exit": 0,
+    "restored_md5_mtime": true,
+    "md5": "325767b6a2f507247ea3445f5beac55a"
+  },
+  {
+    "name": "edycja",
+    "exit": 0,
+    "restored_md5_mtime": true,
+    "md5": "71777c65fcbc0da74d2e7e5c8bfe24ff"
+  },
+  {
+    "name": "transakcja",
+    "exit": 0,
+    "restored_md5_mtime": true,
+    "md5": "7ee52419268fe8ce299955858550de4b"
+  },
+  {
+    "name": "znacznik",
+    "exit": 0,
+    "restored_md5_mtime": true,
+    "md5": "7ee52419268fe8ce299955858550de4b"
+  },
+  {
+    "name": "uzupelnienie",
+    "exit": 0,
+    "restored_md5_mtime": true,
+    "md5": "6b672408c3328bf1bfce4abf5d7543f2"
+  }
+]

@@ -1,0 +1,3 @@
+Note: Using configuration file /home/mateusz/flota/gpt-openai-granice-run/phpstan.neon.
+
+ [OK] No errors

@@ -437,3 +437,17 @@ filtering z poz. 3.16, odrzucony jako sprzeczny z art. 17 DSA.
 - **koszt w kolejce.** Endpoint jest bezpłatny, więc pieniędzy to nie kosztuje,
   ale pozycji w kolejce moderatora — tak. Progu nie ruszamy z góry: mierzymy
   na pierwszej setce kont (§6).
+
+## Granice po edycji i przed wysłaniem zdjęcia (#909, #912)
+
+Zmiana tekstu komentarza zleca nową analizę aktualnej treści; zapis bez zmiany
+nie dodaje zadania. Oczekujące zadanie pomija również komentarz zastąpiony
+śladem usunięcia (`body_removed_at`). Zgodnie z decyzją właściciela otwarte
+oznaczenie uzupełniamy nowymi sygnałami, zamknięte lub odrzucone zostawiamy.
+Nie powstaje druga sprawa do tego samego komentarza.
+
+Zdjęcia wpisów i awatary wychodzą tylko z dokładnego wariantu `thumb`,
+po kontroli rzeczywistych bajtów: każdy bok najwyżej 320 px. Brak miniatury
+nie uprawnia do podstawienia innego wariantu, nawet małego. Nieprawidłowy
+obraz jest pomijany, pozostała analiza działa dalej. Szczegóły pomiaru,
+ograniczenia i wycofanie: [raport #912/#909/#911](GRANICE_OPENAI_912_909_911.md).

@@ -1,0 +1,16 @@
+{
+  "nazwa": "edycja",
+  "plik": "app/Http/Controllers/CommentController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "71777c65fcbc0da74d2e7e5c8bfe24ff",
+  "md5_po_mutacji": "d4a07a083c0d9eba6bca6c4c431f3011",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "job was not dispatched",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:18:28Z"
+}

@@ -1,0 +1,119 @@
+
+   PASS  Tests\Feature\AwariaPowiadomieniaNieRozdzielaKomentarzaTest
+  ✓ kontrola bez awarii komentarz i powiadomienie powstaja               0.51s
+  ✓ awaria powiadomienia cofa takze komentarz                            0.02s
+  ✓ awaria drugiego powiadomienia takze cofa calosc                      0.04s
+
+   PASS  Tests\Feature\CommentEditTest
+  ✓ edycja po 16 minutach od publikacji jest zabroniona                  0.06s
+  ✓ edycja w oknie 15 minut dziala i zapisuje zmiane                     0.03s
+  ✓ pusty tekst poprawki jest odrzucany                                  0.02s
+  ✓ autor wpisu moze usunac cudzy komentarz pod swoim wpisem             0.03s
+  ✓ obca osoba nie moze usunac cudzego komentarza                        0.04s
+  ✓ usuniecie cudzego komentarza przez autora tresci tworzy powiadomien… 0.03s
+  ✓ usuniecie wlasnego komentarza nie wysyla powiadomienia               0.02s
+  ✓ usuniecie cudzego komentarza przez autora tresci bez powodu jest od… 0.02s
+  ✓ usuniety komentarz z odpowiedziami zostawia slad i nie rozsypuje wa… 0.03s
+  ✓ strona wpisu z komentarzem renderuje sie dla roznych widzow          0.14s
+  ✓ moderator moze usunac dowolny komentarz                              0.04s
+
+   PASS  Tests\Feature\CommentModerationBoundaryTest
+  ✓ edycja po analizie ocenia nowy tekst                                 0.06s
+  ✓ oczekujaca analiza i szybkie edycje czytaja ostatni tekst            0.03s
+  ✓ nowy sygnal uzupelnia otwarte oznaczenie                             0.04s
+  ✓ zamkniete oznaczenie nie wraca po edycji                             0.03s
+  ✓ wylaczony automat i usuniety lub ukryty komentarz nie wysylaja http  0.03s
+  ✓ stary model i retencja powiadomienia nie powtarzaja usuniecia        0.03s
+  ✓ awaria powiadomienia cofa usuniecie i pozwala ponowic with data set… 0.04s
+  ✓ awaria powiadomienia cofa usuniecie i pozwala ponowic with data set… 0.04s
+  ✓ ponowienie sukcesu nie powiadamia drugi raz                          0.03s
+
+   PASS  Tests\Feature\ModeracjaModelemTest
+  ✓ wynik modelu trafia do kolejki z powodem po polsku                   0.03s
+  ✓ ocena modelu wyprzedza w kolejce sygnal spamowy                      0.02s
+  ✓ wynik ponizej progu nie trafia do kolejki                            0.02s
+  ✓ awaria openai nie ma zadnego skutku                                  0.04s
+  ✓ bez klucza nie wychodzi ani jedno zadanie                            0.02s
+  ✓ prywatny wpis nie wychodzi do openai                                 0.02s
+  ✓ do openai nie wychodzi nic identyfikujacego autora                   0.03s
+  ✓ tresc wskazana przez model zostaje widoczna a autor nic nie wie      0.10s
+  ✓ zwykle oznaczenie nie wysyla listu                                   0.02s
+  ✓ tresc seksualna wysyla list natychmiast                              0.02s
+  ✓ bez adresu alarmowego poczta nie wychodzi i nic nie pada             0.02s
+  ✓ podsumowanie dobowe idzie jednym listem                              0.05s
+  ✓ podsumowanie nie wychodzi gdy nie ma o czym pisac                    0.01s
+
+   PASS  Tests\Feature\ModeracjaZdjeciaProfilowegoTest
+  ✓ zdjecie profilowe trafia do kolejki jako oznaczenie pliku            0.04s
+  ✓ awatar zostaje widoczny a autor niczego sie nie dowiaduje            0.03s
+  ✓ drugie zdjecie tego samego konta dostaje wlasne oznaczenie           0.04s
+  ✓ pilna kategoria alarmuje moderatora poczta                           0.03s
+  ✓ do modelu idzie przekodowana miniatura a nie oryginal                0.03s
+  ✓ zdjecie ktore przestalo byc awatarem nie jest oceniane               0.02s
+  ✓ zdjecie w przetwarzaniu wraca do kolejki zamiast cicho przepasc      0.02s
+  ✓ odrzucone zdjecie nie stawia oznaczenia                              0.02s
+  ✓ awaria modelu nie ma zadnego skutku                                  0.03s
+  ✓ wylaczony automat nie wysyla zdjecia nikomu                          0.02s
+  ✓ wylaczona ocena zdjec nie wysyla awatara                             0.02s
+  ✓ wgranie zdjecia zleca ocene modelem                                  0.05s
+  ✓ kolejka pokazuje miniature zdjecia i prowadzi na profil              0.07s
+  ✓ przy zdjeciu nie wolno ukryc ani usunac                              0.05s
+
+   PASS  Tests\Feature\OpenAiImageBoundaryTest
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-uszkodzony… 0.13s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-maly-zamie… 0.02s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-historyczn… 0.13s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-brak-klucz… 0.13s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-thumb-klam… 0.12s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-za-wysoki"  0.02s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-za-szeroki… 0.03s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-brak-pliku… 0.12s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "wpis-uszkodzone… 0.12s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-uszkodzo… 0.12s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-maly-zam… 0.03s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-historyc… 0.13s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-brak-klu… 0.12s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-thumb-kl… 0.12s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-za-wysok… 0.02s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-za-szero… 0.02s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-brak-pli… 0.13s
+  ✓ nieprawidlowa miniatura nie wychodzi with data set "awatar-uszkodzo… 0.13s
+  ✓ prawdziwe bajty miniatury przechodza na obu drogach                  0.03s
+
+   PASS  Tests\Feature\PowiadomienieOModeracjiTest
+  ✓ ostrzezenie dociera do autora z trescia od moderatora                0.09s
+  ✓ powiadomienie moderacyjne nie pokazuje ktory moderator decydowal     0.08s
+  ✓ ukrycie tresci tez powiadamia autora                                 0.08s
+  ✓ usuniecie tresci powiadamia mimo ze cel przestal istniec             0.09s
+  ✓ zawieszony widzi powiadomienie z terminem kary                       0.09s
+  ✓ pusta wiadomosc moderatora nie daje pustego powiadomienia            0.10s
+  ✓ odrzucone zgloszenie nie powiadamia zgloszonego                      0.06s
+  ✓ zablokowane konto ma zapisana wiadomosc mimo ze jej nie przeczyta    0.07s
+  ✓ zablokowany czyta wiadomosc moderatora przy logowaniu                0.06s
+  ✓ zawieszony moze sie zalogowac i przeczytac decyzje                   0.10s
+
+   PASS  Tests\Feature\SygnalyAutomatuTest
+  ✓ ta sama tresc drugi raz pod rzad trafia do kolejki                   0.03s
+  ✓ odnosnik w pierwszym wpisie swiezego konta trafia do kolejki         0.03s
+  ✓ zarobki z domu i numer telefonu trafiaja do kolejki                  0.03s
+  ✓ fala z garnka wklejone archiwum nie jest sygnalem                    0.03s
+  ✓ fala z garnka ten sam przepis u pieciu kont nie jest sygnalem        0.05s
+  ✓ fala z garnka odnosnik do starego profilu nie jest sygnalem          0.02s
+  ✓ uprzejmosc pod dwoma wpisami nie jest sygnalem                       0.03s
+  ✓ przepis z temperaturami nie jest numerem telefonu                    0.02s
+  ✓ odnosnik u konta z dluzszym stazem nie jest sygnalem                 0.02s
+  ✓ odnosnik w dalszej tresci swiezego konta nie jest sygnalem           0.03s
+  ✓ oznaczona tresc jest dalej widoczna dla autora i dla obcego          0.09s
+  ✓ autor nie dostaje zadnego powiadomienia o oznaczeniu                 0.03s
+  ✓ prywatny wpis nie jest analizowany                                   0.02s
+  ✓ publikacja nie czeka na analize                                      0.03s
+  ✓ odrzucenie przez moderatora nie wraca                                0.06s
+  ✓ jedno klikniecie zamyka cala grupe jednego konta                     0.11s
+  ✓ oznaczenia automatu nie zasypuja kolejki zgloszen od ludzi           0.12s
+  ✓ kolejka stawia najciezszy sygnal na gorze                            0.08s
+  ✓ jedna zmienna wylacza caly wykrywacz                                 0.02s
+  ✓ baza nie pozwala na dwa oznaczenia tej samej tresci                  0.03s
+  ✓ uzasadnienie nie mowi ze ktos zglosil gdy wskazal automat            0.06s
+
+  Tests:    100 passed (326 assertions)
+  Duration: 6.22s

@@ -42,6 +42,9 @@ final class OcenaModelem
 {
     public const KOD = 'automat_model';
 
+    /** Granica prywatności niezależna od konfiguracji wariantów zdjęć. */
+    private const MAX_IMAGE_DIMENSION = 320;
+
     public function __construct(private readonly KlientOpenAI $klient) {}
 
     /**
@@ -175,20 +178,35 @@ final class OcenaModelem
 
     private function jakoJpeg(Media $media): ?string
     {
-        $wariant = $media->wariantDoSerwowania('thumb');
-
-        if ($wariant === null) {
-            return null;
-        }
-
         try {
-            $bajty = Storage::disk($media->variantsDisk())->get($wariant['klucz']);
+            $wariant = $media->wariant('thumb');
+
+            if (! is_array($wariant) || ! is_string($wariant['key'] ?? null) || trim($wariant['key']) === '') {
+                Log::warning('Pominięto ocenę zdjęcia: brak miniatury.');
+
+                return null;
+            }
+
+            $bajty = Storage::disk($media->variantsDisk())->get($wariant['key']);
 
             if (! is_string($bajty) || $bajty === '') {
+                Log::warning('Pominięto ocenę zdjęcia: brak pliku miniatury.');
+
+                return null;
+            }
+
+            $size = @getimagesizefromstring($bajty);
+            if ($size === false || max($size[0], $size[1]) > self::MAX_IMAGE_DIMENSION) {
+                Log::warning('Pominięto ocenę zdjęcia: nieprawidłowe wymiary miniatury.');
+
                 return null;
             }
 
             $jpeg = (string) ImageManager::gd()->read($bajty)->toJpeg(quality: 80);
+            $encodedSize = @getimagesizefromstring($jpeg);
+            if ($encodedSize === false || max($encodedSize[0], $encodedSize[1]) > self::MAX_IMAGE_DIMENSION) {
+                return null;
+            }
         } catch (Throwable $blad) {
             // Bez identyfikatora zdjęcia w treści komunikatu i bez samych
             // bajtów — to jest cudza fotografia, a dziennik błędów nie jest

@@ -1,0 +1,29 @@
+
+── Kontrola ujemna: transakcja ──
+  plik:     app/Domain/Comments/Actions/DeleteComment.php
+  MD5 przed: 7ee52419268fe8ce299955858550de4b
+  oczekuję:  przetrwalo awarie
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 7ee52419268fe8ce299955858550de4b → 54c4806df629db496b2e321a6b3e4383.
+  różnica:
+
+         public function handle(User $actor, Comment $comment, ?string $reason): void
+         {
+    -        DB::transaction(function () use ($actor, $comment, $reason): void {
+    +        (static fn ($callback) => $callback())(function () use ($actor, $comment, $reason): void {
+                 $current = Comment::withTrashed()->lockForUpdate()->findOrFail($comment->getKey());
+                 Gate::forUser($actor)->authorize('delete', $current);
+
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „przetrwalo awarie” wystąpił w wyjściu.
+    Usuniecie przetrwalo awarie powiadomienia.
+    Zastapienie tresci przetrwalo awarie powiadomienia.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — transakcja
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/gpt-openai-granice/docs/legal/granice-openai-dowody/transakcja.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

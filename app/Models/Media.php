@@ -252,7 +252,9 @@ class Media extends Model
 
         // Wariant nieznany, ale jakieś istnieją — bierzemy pierwszy lepszy.
         // To znaczy, że ktoś dodał wariant do konfiguracji i nie przetworzył
-        // istniejących zdjęć; obraz będzie w złym rozmiarze, ale bezpieczny.
+        // istniejących zdjęć. To zastępstwo służy wyświetlaniu w serwisie.
+        // Przy wysyłce do dostawcy rozmiar jest granicą prywatności:
+        // użyj wariant() i sprawdź wymiary bajtów, zamiast podstawiać obraz.
         foreach ($variants as $nazwa => $dane) {
             if (isset($dane['key'])) {
                 return ['nazwa' => $nazwa, 'klucz' => $dane['key']];

@@ -1,0 +1,29 @@
+
+── Kontrola ujemna: zamiennik ──
+  plik:     app/Moderacja/OcenaModelem.php
+  MD5 przed: 325767b6a2f507247ea3445f5beac55a
+  oczekuję:  Do atrapy wyslano obraz
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 325767b6a2f507247ea3445f5beac55a → 435039b0fe57c2045900c14d2665295d.
+  różnica:
+         private function jakoJpeg(Media $media): ?string
+         {
+             try {
+    -            $wariant = $media->wariant('thumb');
+    +            $selected = $media->wariantDoSerwowania('thumb'); $wariant = $selected === null ? null : ['key' => $selected['klucz']];
+
+                 if (! is_array($wariant) || ! is_string($wariant['key'] ?? null) || trim($wariant['key']) === '') {
+                     Log::warning('Pominięto ocenę zdjęcia: brak miniatury.');
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Do atrapy wyslano obraz” wystąpił w wyjściu.
+    Do atrapy wyslano obraz: 320x240
+    Do atrapy wyslano obraz: 320x240
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — zamiennik
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/gpt-openai-granice/docs/legal/granice-openai-dowody/zamiennik.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

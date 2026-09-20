@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
-use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Comments\Actions\DeleteComment;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Comment;
-use App\Models\Notification;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 
@@ -15,19 +15,11 @@ use Illuminate\Http\Request;
  *
  * Reguły KTO MOŻE CO żyją w CommentPolicy (edycja — autor, 15 minut od
  * publikacji; usunięcie — autor komentarza, autor treści albo moderator).
- * Ten kontroler tylko woła Policy i pilnuje dwóch rzeczy, których Policy
- * świadomie nie robi:
- *  - wątek nie może się rozsypać, gdy usunięty komentarz ma odpowiedzi,
- *  - gdy autor treści usuwa CUDZY komentarz, autor komentarza dostaje
- *    powiadomienie z powodem — inaczej wygląda to na cichą cenzurę.
+ * Kontroler autoryzuje i waliduje żądanie. DeleteComment pilnuje spójności
+ * wątku oraz atomowego powiadomienia z powodem usunięcia.
  */
 class CommentController extends Controller
 {
-    /** Tekst zostawiany zamiast treści, żeby wątek odpowiedzi się nie rozsypał. */
-    private const DELETED_PLACEHOLDER = 'Komentarz usunięty.';
-
-    public function __construct(private readonly NotifyUser $notify) {}
-
     public function update(Request $request, Comment $comment): RedirectResponse
     {
         $this->authorize('update', $comment);
@@ -39,17 +31,20 @@ class CommentController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
-        $comment->update(['body' => trim($data['body'])]);
+        $comment->fill(['body' => trim($data['body'])]);
+        if ($comment->isDirty('body')) {
+            $comment->save();
+            PrzeanalizujTresc::dlaKomentarza($comment)->afterCommit();
+        }
 
         return back()->with('status', 'Komentarz poprawiony.');
     }
 
-    public function destroy(Request $request, Comment $comment): RedirectResponse
+    public function destroy(Request $request, Comment $comment, DeleteComment $delete): RedirectResponse
     {
         $this->authorize('delete', $comment);
 
         $actor = $request->user();
-        $author = $comment->author;
 
         $isSelfDelete = $actor->getKey() === $comment->author_id;
         $isContentOwnerRemovingOthers = ! $isSelfDelete
@@ -62,30 +57,7 @@ class CommentController extends Controller
             'reason.max' => 'Powód jest za długi. Zmieść się w 500 znakach.',
         ]);
 
-        $originalBody = $comment->body;
-        $hasReplies = $comment->replies()->exists();
-
-        if ($hasReplies) {
-            // Nie kasujemy wiersza — jego dzieci (odpowiedzi) by "zawisły"
-            // bez rodzica w widoku. Zostawiamy widoczny ślad zamiast tego.
-            $comment->forceFill(['body' => self::DELETED_PLACEHOLDER, 'body_removed_at' => now()])->save();
-        } else {
-            $comment->delete();
-        }
-
-        if ($isContentOwnerRemovingOthers) {
-            $subject = $comment->subject();
-
-            $this->notify->handle(
-                recipient: $author,
-                type: Notification::TYPE_MODERATION,
-                actor: $actor,
-                data: [
-                    'message' => 'Twój komentarz „'.mb_substr($originalBody, 0, 120).'” został usunięty przez autora treści. Powód: '.$data['reason'],
-                    'url' => $subject?->url(),
-                ],
-            );
-        }
+        $delete->handle($actor, $comment, $data['reason'] ?? null);
 
         return back()->with('status', 'Komentarz usunięty.');
     }

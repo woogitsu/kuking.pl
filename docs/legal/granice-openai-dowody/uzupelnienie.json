@@ -1,0 +1,16 @@
+{
+  "nazwa": "uzupelnienie",
+  "plik": "app/Jobs/PrzeanalizujTresc.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "6b672408c3328bf1bfce4abf5d7543f2",
+  "md5_po_mutacji": "5c097e6fde775fd6ab77cca5b68d1900",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "numer telefonu",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:18:45Z"
+}

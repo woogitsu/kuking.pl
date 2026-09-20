@@ -15048,3 +15048,18 @@ Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
 osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
 się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
 i `scripts/wyjecie-z-zeszytu.mjs`.
+
+### Uzupełnienie D-052/D-055 — edycja komentarza i granica zdjęcia (#909, #912)
+
+20.09.2026, decyzja właściciela w zadaniu `gpt/openai-granice`:
+„otwarte uzupełniaj, zamknięte zostaw”. Nowa treść komentarza jest oceniana
+ponownie, ale nie wznawia zamkniętej ani odrzuconej sprawy. Otwarte oznaczenie
+zbiera nowe sygnały istniejącym mechanizmem z `gpt/moderacja-ai`, bez duplikatu.
+Nie jest to zgoda na wersjonowanie lub ponowne otwieranie zgłoszeń.
+
+Właściciel zatwierdził również objęcie awatarów wspólną ochroną #912.
+Do modelu idzie wyłącznie istniejący `thumb` o rzeczywistych wymiarach
+najwyżej 320 × 320 px. Brak wariantu, uszkodzony plik lub przekroczenie
+któregokolwiek boku oznacza pominięcie zdjęcia. Nazwa wariantu i deklaracja
+w metadanych nie zastępują sprawdzenia bajtów. Pomiar i wycofanie:
+`docs/legal/GRANICE_OPENAI_912_909_911.md`.

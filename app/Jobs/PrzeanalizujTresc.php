@@ -118,7 +118,7 @@ class PrzeanalizujTresc implements ShouldQueue
 
             $sygnaly = array_merge($wykrywacz->dla($tresc), $model->dla($tresc));
 
-            $oznaczenie = $oznacz->handle($tresc, $sygnaly);
+            $oznaczenie = $oznacz->handle($tresc, $sygnaly, uzupelnij: $tresc instanceof Comment);
 
             if ($oznaczenie !== null) {
                 $alarm->handle($oznaczenie, $sygnaly);
@@ -154,6 +154,7 @@ class PrzeanalizujTresc implements ShouldQueue
     {
         if ($this->typ === self::TYP_KOMENTARZ) {
             return Comment::query()
+                ->whereNull('body_removed_at')
                 ->where('status', Comment::STATUS_PUBLISHED)
                 ->find($this->id);
         }
