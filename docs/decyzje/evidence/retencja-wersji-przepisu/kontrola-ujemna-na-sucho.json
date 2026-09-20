@@ -1,0 +1,16 @@
+{
+  "nazwa": "dry-run pierwszego uruchomienia naprawde niczego nie kasuje",
+  "plik": "app/Domain/Compliance/PrzedawnioneWersjePrzepisow.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "21d11158d306341bf60f1087cb9e0368",
+  "md5_po_mutacji": "199a9e93f2275295a31b620b527e574d",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "na sucho liczy dokladnie tyle ile skasuje",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T09:09:11Z"
+}

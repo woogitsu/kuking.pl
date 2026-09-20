@@ -1,0 +1,16 @@
+{
+  "nazwa": "pierwsza wersja przepisu nie jest kasowana nigdy",
+  "plik": "app/Domain/Compliance/PrzedawnioneWersjePrzepisow.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "21d11158d306341bf60f1087cb9e0368",
+  "md5_po_mutacji": "a94658db58dcbedb5f7a4044ab500a77",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "pierwsza wersja zostaje nawet gdy cala historia",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T09:09:04Z"
+}
