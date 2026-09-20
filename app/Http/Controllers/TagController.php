@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Tags\TagCollage;
+use App\Domain\Tags\TagPublicStats;
 use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
@@ -27,7 +29,11 @@ use Illuminate\View\View;
  */
 class TagController extends Controller
 {
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+    public function __construct(
+        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
+        private readonly TagPublicStats $publicStats = new TagPublicStats,
+        private readonly TagCollage $collage = new TagCollage,
+    ) {}
 
     /**
      * Spis wszystkich tagów (#273, druga połowa — D-026 dała słownik,
@@ -43,7 +49,7 @@ class TagController extends Controller
      * wpisów albo obserwujących — to byłby ranking, którego zakazuje
      * `AGENTS.md`.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         // JEDNO domknięcie, użyte w obu sekcjach, żeby liczba wpisów nigdy
         // nie rozjechała się między „Polecane" a „Wszystkie" — ten sam
@@ -77,6 +83,13 @@ class TagController extends Controller
         return view('pages.tags.index', [
             'polecane' => $polecane,
             'tagi' => $tagi,
+            'collages' => $this->collage->forTags(
+                array_unique(array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys())),
+                $request->user(),
+            ),
+            'publicStats' => $this->publicStats->forTags(
+                array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
+            ),
         ]);
     }
 
@@ -110,8 +123,8 @@ class TagController extends Controller
             // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
             ->tylkoOdAktywnychAutorow()
-            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
-            ->withCount(['comments' => fn ($query) => $query->widoczneDla($widz)])
+            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name,status'])
+            ->withVisibleCommentCount($widz)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
             // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
@@ -123,6 +136,9 @@ class TagController extends Controller
 
         return view('pages.tags.show', [
             'tag' => $tag,
+            'collage' => $this->collage->forTags([$tag->getKey()], $widz)[$tag->getKey()],
+            'tagNote' => $tag->promotion?->note,
+            'publicStats' => $this->publicStats->forTags([$tag->getKey()])[$tag->getKey()],
             'posts' => $wpisy,
             'obserwowany' => $widz !== null && $widz->isFollowingTag($tag),
         ]);

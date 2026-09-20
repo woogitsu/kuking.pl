@@ -1,0 +1,54 @@
+{
+  "co_dowodzi": "Ktory test regresyjny pilnuje dociecia numeru strony drugiej listy w zeszycie (#646).",
+  "data": "2026-09-18",
+  "warstwa": "test lokalny (nie CI, nie produkcja)",
+  "podstawa_kodu": {
+    "sha": "3f315b3d271839803dc083a517d85741702b2228",
+    "galaz": "origin/main",
+    "plik_reguly": "app/Support/PaginationLinks.php",
+    "md5_pliku_reguly": "e5535fc0c883095b6d19191600993779"
+  },
+  "srodowisko": {
+    "worktree": "osobny worktree gita, vendor skopiowany (nie dowiazany)",
+    "php": "8.4.24",
+    "phpunit": "12.5.34",
+    "baza": "127.0.0.1:55439, kuking_odbior_claude",
+    "baza_do_wyrzucenia": true,
+    "uwaga": "kuking_d_b_browser (scena odbiorowa #646) nie byla uzywana ani dotykana"
+  },
+  "przebieg_dodatni": {
+    "polecenie": "vendor/bin/phpunit tests/Feature/ZeszytPaginacjaObuListTest.php",
+    "wynik": "passed",
+    "testow": 9,
+    "asercji": 235
+  },
+  "kontrola_ujemna": {
+    "zmiana": "w PaginationLinks::preserveOtherPage() podmieniono min($other->currentPage(), $other->lastPage()) na samo $other->currentPage()",
+    "przywrocono": true,
+    "md5_po_przywroceniu": "e5535fc0c883095b6d19191600993779",
+    "mtime_po_przywroceniu": "2026-09-18 20:48:11.004379400 +0200",
+    "git_status_po_przywroceniu": "czysty",
+    "wyniki": [
+      {
+        "test": "test_numer_strony_spoza_zakresu_nie_jest_przenoszony_do_odnosnika",
+        "z_zepsutym_docinaniem": "FAILED",
+        "komunikat": "Parametr page=999. Odnosnik ma niesc ostatnia strone Z TRESCIA, nie numer wpisany w adres.",
+        "oczekiwano": {"page": "2", "wpisy": "2"},
+        "otrzymano": {"page": "999", "wpisy": "2"},
+        "wniosek": "TEN test jest dowodem dociecia"
+      },
+      {
+        "test": "test_nierowne_listy_docinaja_sie_do_wlasnej_ostatniej_strony",
+        "z_zepsutym_docinaniem": "PASSED",
+        "wniosek": "mimo nazwy NIE jest dowodem dociecia - jego scena ustawia numer w zakresie dluzszej listy"
+      }
+    ],
+    "przebieg": "PASS -> FAIL -> PASS"
+  },
+  "czego_to_nie_dowodzi": [
+    "nie jest wynikiem CI",
+    "nie jest ogladem produkcji",
+    "nie jest interakcja w przegladarce - to test HTTP w PHPUnit",
+    "nie dotyczy fizycznego telefonu ani rzeczywistego zoomu"
+  ]
+}

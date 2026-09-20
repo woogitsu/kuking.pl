@@ -1,0 +1,42 @@
+[
+  {
+    "width": 640,
+    "theme": "light",
+    "zoom": 2,
+    "innerWidth": 320,
+    "devicePixelRatio": 2,
+    "scrollWidth": 312,
+    "scale": "1.4",
+    "cardHit": true
+  },
+  {
+    "width": 640,
+    "theme": "dark",
+    "zoom": 2,
+    "innerWidth": 320,
+    "devicePixelRatio": 2,
+    "scrollWidth": 312,
+    "scale": "1.4",
+    "cardHit": true
+  },
+  {
+    "width": 1440,
+    "theme": "light",
+    "zoom": 2,
+    "innerWidth": 720,
+    "devicePixelRatio": 2,
+    "scrollWidth": 712,
+    "scale": "1.4",
+    "cardHit": true
+  },
+  {
+    "width": 1440,
+    "theme": "dark",
+    "zoom": 2,
+    "innerWidth": 720,
+    "devicePixelRatio": 2,
+    "scrollWidth": 712,
+    "scale": "1.4",
+    "cardHit": true
+  }
+]

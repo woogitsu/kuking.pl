@@ -1,0 +1,38 @@
+[
+  {
+    "follows": 10,
+    "scope": "local HTTP kernel and Blade; preauthenticated guard; no socket/TLS/assets",
+    "status": 200,
+    "kernel_ms": 81.589637,
+    "termination_ms": 0.217511,
+    "bytes": 95771,
+    "queries": 27
+  },
+  {
+    "follows": 100,
+    "scope": "local HTTP kernel and Blade; preauthenticated guard; no socket/TLS/assets",
+    "status": 200,
+    "kernel_ms": 96.751348,
+    "termination_ms": 0.228931,
+    "bytes": 95771,
+    "queries": 28
+  },
+  {
+    "follows": 500,
+    "scope": "local HTTP kernel and Blade; preauthenticated guard; no socket/TLS/assets",
+    "status": 200,
+    "kernel_ms": 94.320433,
+    "termination_ms": 0.217053,
+    "bytes": 95775,
+    "queries": 28
+  },
+  {
+    "follows": 2000,
+    "scope": "local HTTP kernel and Blade; preauthenticated guard; no socket/TLS/assets",
+    "status": 200,
+    "kernel_ms": 101.087038,
+    "termination_ms": 0.215052,
+    "bytes": 95783,
+    "queries": 28
+  }
+]

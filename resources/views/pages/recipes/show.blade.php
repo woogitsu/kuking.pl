@@ -149,7 +149,7 @@
                 '@type' => 'BreadcrumbList',
                 'itemListElement' => [
                     ['@type' => 'ListItem', 'position' => 1, 'name' => 'Kuking', 'item' => route('landing')],
-                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Przepisy', 'item' => route('discover')],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Świeżo z Kuking', 'item' => route('discover')],
                     ['@type' => 'ListItem', 'position' => 3, 'name' => $recipe->title],
                 ],
             ];
@@ -172,7 +172,7 @@
             --}}
             <ol class="okruchy">
                 <li><a href="{{ auth()->check() ? route('home') : route('landing') }}">Start</a></li>
-                <li><a href="{{ route('discover') }}">Przepisy</a></li>
+                <li><a href="{{ route('discover') }}">Świeżo z Kuking</a></li>
             </ol>
 
             {{-- Odstępy w nagłówku przepisu robi CSS (`.przepis-uklad > header`
@@ -325,6 +325,7 @@
                             <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -396,17 +397,17 @@
 
         {{--
             Plakietki, których kit nie ma, a które są tym, czym Kuking różni
-            się od bazy receptur: ile osób to naprawdę zrobiło i od kiedy
+            się od bazy receptur: ile razy ktoś to ugotował i od kiedy
             przepis jest w rodzinie. Zostają POD hero, żeby nie konkurowały
             z trzema liczbami, które mówią „czy zdążę i dla ilu osób".
         --}}
         <ul class="recipe-facts">
             @if($cookedCount > 0)<li><span class="badge badge-cooked">Ugotowane {{ $cookedCount }} ×</span></li>@endif
-            {{-- „X z Y osób zrobi to ponownie" — od trzech ocen (SOUL 4.2).
+            {{-- Odpowiedzi przy wykonaniach, nie unikalne osoby — od trzech ocen (#666).
                  Poniżej trzech jedna opinia waży za dużo, a zdanie brzmi jak
                  werdykt, którym nie jest. --}}
             @if($oceniloWykonanie >= 3)
-                <li><span class="badge badge-cooked">{{ $zrobiaPonownie }} z {{ $oceniloWykonanie }} {{ \App\Support\Odmiana::rzeczownik($oceniloWykonanie, 'osoby', 'osób', 'osób') }} zrobi to ponownie</span></li>
+                <li><span class="badge badge-cooked">Zrobię ponownie: {{ $zrobiaPonownie }} z {{ $oceniloWykonanie }} odpowiedzi</span></li>
             @endif
             @if($recipe->family_since_year)<li><span class="badge badge-cooked">W rodzinie od {{ $recipe->family_since_year }}</span></li>@endif
         </ul>
@@ -593,9 +594,9 @@
                 <h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
                 @if($cookedCount > 0)
                     <p class="pasek-liczb meta m-0">
-                        {{ $cookedCount }} {{ \App\Support\Odmiana::rzeczownik($cookedCount, 'osoba ugotowała', 'osoby ugotowały', 'osób ugotowało') }} to danie
+                        {{ $cookedCount }} {{ \App\Support\Odmiana::rzeczownik($cookedCount, 'wykonanie', 'wykonania', 'wykonań') }}
                         @if($oceniloWykonanie >= 3)
-                            · {{ (int) round($zrobiaPonownie / $oceniloWykonanie * 100) }}% zrobi to ponownie
+                            · {{ (int) round($zrobiaPonownie / $oceniloWykonanie * 100) }}% odpowiedzi: „Zrobię ponownie”
                         @endif
                     </p>
                 @endif

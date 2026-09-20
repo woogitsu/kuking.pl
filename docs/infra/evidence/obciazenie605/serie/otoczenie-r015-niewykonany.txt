@@ -1,0 +1,59 @@
+# Otoczenie serii r015-p1 — 2026-09-18T10:54:10Z
+# progi bramki: obce <= 18.0 rdzeni, PSI cpu some avg10 <= 25.0, spokój 60s
+
+## uptime przed bramką
+ 12:54:10 up 1 day, 14:38,  1 user,  load average: 24.72, 26.74, 26.58
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+1507370  236  1.2       03:44 headless_shell
+1504427  234  1.1       04:05 headless_shell
+1411891  222  1.2       15:21 headless_shell
+1526926 94.3  0.2       00:12 python3
+1527204 82.5  1.2       00:04 headless_shell
+1526866 58.4  1.6       00:13 headless_shell
+1508676 51.1  0.3       03:31 python3
+1526762 34.0  1.3       00:15 headless_shell
+1527082 32.2  0.4       00:06 Runner.Worker
+1411784 18.6  1.6       15:22 MainThread
+1507290 17.5  1.4       03:44 MainThread
+1504304 17.1  1.3       04:06 MainThread
+1527400 12.1  0.3       00:02 MainThread
+1411893  9.9  0.3       15:21 headless_shell
+1411872  8.9  0.3       15:21 headless_shell
+1507351  7.3  0.3       03:44 headless_shell
+1504409  7.1  0.3       04:05 headless_shell
+1507372  6.9  0.3       03:44 headless_shell
+1504429  6.4  0.3       04:05 headless_shell
+1506943  5.8  2.6       03:46 MainThread
+1351332  5.7  2.6       19:04 MainThread
+1503968  5.3  2.1       04:07 MainThread
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 14
+Runner.Worker (aktywne joby): 7
+
+## kontenery
+kuking-b605-app kuking:ci-bdc56b8cf9b664eda104b628d85149b08d84d8d9 Up 2 hours (healthy)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 39 hours
+bramka: cisza przerwana po 9s (obce 18.40 rdzeni, PSI 13.35, runnery kuking: brak)
+bramka: 30s/300s, obce 18.30 rdzeni z 24, PSI 30.76, runnery kuking: brak, cisza 0s/60s
+bramka: 60s/300s, obce 19.23 rdzeni z 24, PSI 29.58, runnery kuking: brak, cisza 0s/60s
+bramka: 90s/300s, obce 18.94 rdzeni z 24, PSI 31.80, runnery kuking: brak, cisza 0s/60s
+bramka: 120s/300s, obce 18.77 rdzeni z 24, PSI 37.44, runnery kuking: brak, cisza 0s/60s
+bramka: 150s/300s, obce 16.00 rdzeni z 24, PSI 35.04, runnery kuking: brak, cisza 0s/60s
+bramka: 180s/300s, obce 14.97 rdzeni z 24, PSI 15.12, runnery kuking: brak, cisza 24s/60s
+bramka: cisza przerwana po 31s (obce 18.57 rdzeni, PSI 13.62, runnery kuking: brak)
+bramka: 210s/300s, obce 17.74 rdzeni z 24, PSI 15.37, runnery kuking: brak, cisza 10s/60s
+bramka: cisza przerwana po 12s (obce 18.13 rdzeni, PSI 15.40, runnery kuking: brak)
+bramka: cisza przerwana po 8s (obce 18.07 rdzeni, PSI 18.16, runnery kuking: brak)
+bramka: 240s/300s, obce 18.03 rdzeni z 24, PSI 28.02, runnery kuking: brak, cisza 0s/60s
+bramka: cisza przerwana po 5s (obce 18.13 rdzeni, PSI 20.45, runnery kuking: brak)
+bramka: cisza przerwana po 7s (obce 18.01 rdzeni, PSI 18.91, runnery kuking: brak)
+bramka: 270s/300s, obce 17.27 rdzeni z 24, PSI 20.07, runnery kuking: brak, cisza 6s/60s
+bramka: cisza przerwana po 17s (obce 18.45 rdzeni, PSI 19.90, runnery kuking: brak)
+bramka: cisza przerwana po 4s (obce 18.52 rdzeni, PSI 20.57, runnery kuking: brak)
+bramka: cisza przerwana po 2s (obce 18.08 rdzeni, PSI 22.51, runnery kuking: brak)
+bramka: cisza przerwana po 2s (obce 18.66 rdzeni, PSI 25.78, runnery kuking: brak)
+bramka: 300s/300s, obce 18.66 rdzeni z 24, PSI 25.78, runnery kuking: brak, cisza 0s/60s
+bramka NIE DOCZEKAŁA: 300s przy progu 18.0 rdzeni / PSI 25.0; średnie obce obciążenie 17.74 rdzeni z 24

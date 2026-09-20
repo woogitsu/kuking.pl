@@ -270,6 +270,9 @@ export default defineRailway((ctx) => {
     //  Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
     //  to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
     FILESYSTEM_DISK: "r2",
+    // Surowe uploady kreatora muszą być dostępne między replikami.
+    // Prywatny bucket oryginałów: pliki tymczasowe mogą zawierać EXIF/GPS.
+    LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK: "r2",
     AWS_DEFAULT_REGION: "auto", // R2 wymaga literalnie "auto"
     AWS_USE_PATH_STYLE_ENDPOINT: "false",
     AWS_ACCESS_KEY_ID: ctx.shared.R2_ACCESS_KEY_ID,

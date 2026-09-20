@@ -1,0 +1,3195 @@
+{
+ "base": "http://127.0.0.1:8074",
+ "tag": "http://127.0.0.1:8074/tag/odbior-kolaz-5",
+ "konfiguracji": 48,
+ "opis": {
+  "A": "staly bywalec, podpowiedz wygladu zamknieta, kafel przewiniety do srodka okna",
+  "B": "skrajne przewiniecie: dolna krawedz kolazu przy dolnej krawedzi okna",
+  "Bpo": "to samo po doprzewinieciu o 120 px w gore",
+  "C": "pierwsza wizyta, widoczna podpowiedz Dopasuj rozmiar tekstu i wyglad strony"
+ },
+ "problemy": [
+  "C_PODPOWIEDZ_NIEOSIAGALNY light/100/360/mysz: 1",
+  "C_PODPOWIEDZ_NIEOSIAGALNY light/100/360/dotyk: 1",
+  "C_PODPOWIEDZ_NIEOSIAGALNY light/100/390/mysz: 1",
+  "C_PODPOWIEDZ_NIEOSIAGALNY light/100/390/dotyk: 1",
+  "B_NIEOSIAGALNY light/140/320/mysz: 1",
+  "B_NIEOSIAGALNY light/140/320/dotyk: 1",
+  "C_PODPOWIEDZ_NIEOSIAGALNY dark/100/360/mysz: 1",
+  "C_PODPOWIEDZ_NIEOSIAGALNY dark/100/360/dotyk: 1",
+  "C_PODPOWIEDZ_NIEOSIAGALNY dark/100/390/mysz: 1",
+  "C_PODPOWIEDZ_NIEOSIAGALNY dark/100/390/dotyk: 1",
+  "B_NIEOSIAGALNY dark/140/320/mysz: 1",
+  "B_NIEOSIAGALNY dark/140/320/dotyk: 1"
+ ],
+ "podsumowanie": {
+  "rzeczywistych_interakcji": 80,
+  "rzeczywistych_OK": 80,
+  "A_zaslonietych_srodkow": 0,
+  "A_nieosiagalnych": 0,
+  "B_nieosiagalnych": 4,
+  "Bpo_nieosiagalnych": 0,
+  "C_nieosiagalnych": 8,
+  "overflow_poziomy": 0
+ },
+ "konfiguracje": [
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 320,
+   "input": "mysz",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2511,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 320,
+   "input": "dotyk",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2511,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 360,
+   "input": "mysz",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 25862
+   },
+   "ratunek": {
+    "przesuniecie": 107
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 360,
+   "input": "dotyk",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 25862
+   },
+   "ratunek": {
+    "przesuniecie": 107
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 390,
+   "input": "mysz",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 390,
+   "input": "dotyk",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 414,
+   "input": "mysz",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 414,
+   "input": "dotyk",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 768,
+   "input": "mysz",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 29267
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 768,
+   "input": "dotyk",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 29267
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 1440,
+   "input": "mysz",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 1440,
+   "input": "dotyk",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 320,
+   "input": "mysz",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 8351,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4600,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 320,
+   "input": "dotyk",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 8351,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4600,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 360,
+   "input": "mysz",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5358,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 360,
+   "input": "dotyk",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5358,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 390,
+   "input": "mysz",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7256,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 390,
+   "input": "dotyk",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7256,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 414,
+   "input": "mysz",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 414,
+   "input": "dotyk",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 768,
+   "input": "mysz",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 10319,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 46339
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 768,
+   "input": "dotyk",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 10319,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 46339
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 1440,
+   "input": "mysz",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 2773
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 1440,
+   "input": "dotyk",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 2773
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 320,
+   "input": "mysz",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2511,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 320,
+   "input": "dotyk",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2511,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 2695,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 360,
+   "input": "mysz",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 25862
+   },
+   "ratunek": {
+    "przesuniecie": 107
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 360,
+   "input": "dotyk",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 25862
+   },
+   "ratunek": {
+    "przesuniecie": 107
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 390,
+   "input": "mysz",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 390,
+   "input": "dotyk",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5443,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 4728,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 414,
+   "input": "mysz",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 414,
+   "input": "dotyk",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5632,
+    "maxPodpowiedz": 27709
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 768,
+   "input": "mysz",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 29267
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 768,
+   "input": "dotyk",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7437,
+    "maxPodpowiedz": 29267
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 1440,
+   "input": "mysz",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 1440,
+   "input": "dotyk",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 320,
+   "input": "mysz",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 8351,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4600,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 320,
+   "input": "dotyk",
+   "innerWidth": 320,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 1,
+    "maxPrzycisk": 8351,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 4600,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "296x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "144x69",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 360,
+   "input": "mysz",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5358,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 360,
+   "input": "dotyk",
+   "innerWidth": 360,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 5358,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 390,
+   "input": "mysz",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7256,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 390,
+   "input": "dotyk",
+   "innerWidth": 390,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 8393,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 7256,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 414,
+   "input": "mysz",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 414,
+   "input": "dotyk",
+   "innerWidth": 414,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 1,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 0,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 768,
+   "input": "mysz",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 10319,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 46339
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 768,
+   "input": "dotyk",
+   "innerWidth": 768,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 11906,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 3,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 10319,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 1,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 9699,
+    "maxPodpowiedz": 46339
+   },
+   "ratunek": {
+    "przesuniecie": 120
+   },
+   "realizacje": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 1440,
+   "input": "mysz",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 2773
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 1440,
+   "input": "dotyk",
+   "innerWidth": 1440,
+   "overflowPoziomy": false,
+   "A": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "B": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "Bpo": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 0
+   },
+   "C": {
+    "wOknie": 5,
+    "zasloniontySrodek": 0,
+    "nieosiagalne": 0,
+    "maxPrzycisk": 0,
+    "maxPodpowiedz": 2773
+   },
+   "ratunek": {
+    "przesuniecie": 0
+   },
+   "realizacje": [
+    {
+     "i": 0,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "ok": true,
+     "celPx": "368x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 1,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 2,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 3,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    },
+    {
+     "i": 4,
+     "cel": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "trafiono": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "ok": true,
+     "celPx": "180x87",
+     "wOknie": true,
+     "srodek": "self",
+     "blad": null
+    }
+   ]
+  }
+ ],
+ "szczegoly_spornych": [
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 360,
+   "input": "mysz",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 336,
+      "h": 79
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 25862,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 360,
+   "input": "dotyk",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 336,
+      "h": 79
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 25862,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 390,
+   "input": "mysz",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 366,
+      "h": 86
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 27709,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "100",
+   "width": 390,
+   "input": "dotyk",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 366,
+      "h": 86
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 27709,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 320,
+   "input": "mysz",
+   "B": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "rect": {
+      "x": 164,
+      "y": 663,
+      "w": 144,
+      "h": 69
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 8351,
+     "zPodpowiedzia": 0,
+     "srodek": "wyglad-przycisk",
+     "trafienia": [
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ],
+   "C": []
+  },
+  {
+   "theme": "light",
+   "scale": "140",
+   "width": 320,
+   "input": "dotyk",
+   "B": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "rect": {
+      "x": 164,
+      "y": 663,
+      "w": 144,
+      "h": 69
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 8351,
+     "zPodpowiedzia": 0,
+     "srodek": "wyglad-przycisk",
+     "trafienia": [
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ],
+   "C": []
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 360,
+   "input": "mysz",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 336,
+      "h": 79
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 25862,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 360,
+   "input": "dotyk",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 336,
+      "h": 79
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 25862,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 390,
+   "input": "mysz",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 366,
+      "h": 86
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 27709,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "100",
+   "width": 390,
+   "input": "dotyk",
+   "B": [],
+   "C": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+     "rect": {
+      "x": 12,
+      "y": 587,
+      "w": 366,
+      "h": 86
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 0,
+     "zPodpowiedzia": 27709,
+     "srodek": "wyglad-podpowiedz",
+     "trafienia": [
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz",
+      "wyglad-podpowiedz"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ]
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 320,
+   "input": "mysz",
+   "B": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "rect": {
+      "x": 164,
+      "y": 663,
+      "w": 144,
+      "h": 69
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 8351,
+     "zPodpowiedzia": 0,
+     "srodek": "wyglad-przycisk",
+     "trafienia": [
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ],
+   "C": []
+  },
+  {
+   "theme": "dark",
+   "scale": "140",
+   "width": 320,
+   "input": "dotyk",
+   "B": [
+    {
+     "href": "http://127.0.0.1:8074/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+     "rect": {
+      "x": 164,
+      "y": 663,
+      "w": 144,
+      "h": 69
+     },
+     "wOknie": true,
+     "zPrzyciskiem": 8351,
+     "zPodpowiedzia": 0,
+     "srodek": "wyglad-przycisk",
+     "trafienia": [
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk",
+      "wyglad-przycisk"
+     ],
+     "czysty": false,
+     "osiagalny": false
+    }
+   ],
+   "C": []
+  }
+ ]
+}

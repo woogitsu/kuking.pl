@@ -1,0 +1,16 @@
+[
+  {
+    "theme": "light",
+    "text": "rgb(255, 255, 255)",
+    "background": "rgba(0, 0, 0, 0.82)",
+    "credit": "18px",
+    "worstWhitePhotoContrast": 13.598961027218929
+  },
+  {
+    "theme": "dark",
+    "text": "rgb(255, 255, 255)",
+    "background": "rgba(0, 0, 0, 0.82)",
+    "credit": "18px",
+    "worstWhitePhotoContrast": 13.598961027218929
+  }
+]

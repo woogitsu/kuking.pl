@@ -9,23 +9,33 @@
     trzy pola, te same komunikaty, żeby autor nie uczył się dwóch formularzy
     do tej samej rzeczy.
 --}}
-<x-layout title="Edytuj wpis" :noindex="true">
-    <h1>Edytuj wpis</h1>
+@php($question = $post->kind === \App\Models\Post::KIND_QUESTION)
+<x-layout :title="$question ? 'Edytuj pytanie' : 'Edytuj wpis'" :noindex="true">
+    <h1>{{ $question ? 'Edytuj pytanie' : 'Edytuj wpis' }}</h1>
 
     <x-error-summary />
 
     <form class="panel-formularza" method="POST" action="{{ route('posts.update', $post) }}">
         @csrf
         @method('PUT')
+        <input type="hidden" name="_tag_form_post_id" value="{{ $post->getKey() }}">
+        @if($question)
+            <x-field name="title" label="O co chcesz zapytać?" :value="$post->title" help="Od 10 do 180 znaków." required />
+        @endif
 
+        <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"
+             data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
+             data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
         <x-field
             name="body"
-            label="Napisz kilka słów"
+            :label="$question ? 'Napisz trochę więcej' : 'Napisz kilka słów'"
             type="textarea"
             :rows="5"
             :value="$post->body"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
+            <p class="field-help">Wpisz # i nazwę, na przykład #sernik. Tagi możesz też znaleźć poniżej.</p>
+        </div>
 
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
              wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
@@ -61,11 +71,11 @@
             <x-blad-grupy name="visibility" />
         </fieldset>
 
-        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
+        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="$question ? 3 : null" :pytanie="$question" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zapisz zmiany</button>
-            <a class="btn btn-quiet" href="{{ route('posts.show', $post) }}">Nie teraz</a>
+            <a class="btn btn-quiet" href="{{ $post->url() }}">Nie teraz</a>
         </div>
     </form>
 </x-layout>

@@ -1,0 +1,20 @@
+### Result
+[{"width":320,"theme":"light","scale":100,"count":0,"overflow":false,"columns":"264px","tiles":[]},{"width":320,"theme":"light","scale":140,"count":0,"overflow":false,"columns":"264px","tiles":[]},{"width":320,"theme":"dark","scale":100,"count":0,"overflow":false,"columns":"264px","tiles":[]},{"width":320,"theme":"dark","scale":140,"count":0,"overflow":false,"columns":"264px","tiles":[]},{"width":360,"theme":"light","scale":100,"count":0,"overflow":false,"columns":"304px","tiles":[]},{"width":360,"theme":"light","scale":140,"count":0,"overflow":false,"columns":"304px","tiles":[]},{"width":360,"theme":"dark","scale":100,"count":0,"overflow":false,"columns":"304px","tiles":[]},{"width":360,"theme":"dark","scale":140,"count":0,"overflow":false,"columns":"304px","tiles":[]},{"width":390,"theme":"light","scale":100,"count":0,"overflow":false,"columns":"334px","tiles":[]},{"width":390,"theme":"light","scale":140,"count":0,"overflow":false,"columns":"334px","tiles":[]},{"width":390,"theme":"dark","scale":100,"count":0,"overflow":false,"columns":"334px","tiles":[]},{"width":390,"theme":"dark","scale":140,"count":0,"overflow":false,"columns":"334px","tiles":[]},{"width":414,"theme":"light","scale":100,"count":0,"overflow":false,"columns":"358px","tiles":[]},{"width":414,"theme":"light","scale":140,"count":0,"overflow":false,"columns":"358px","tiles":[]},{"width":414,"theme":"dark","scale":100,"count":0,"overflow":false,"columns":"358px","tiles":[]},{"width":414,"theme":"dark","scale":140,"count":0,"overflow":false,"columns":"358px","tiles":[]},{"width":768,"theme":"light","scale":100,"count":0,"overflow":false,"columns":"696px","tiles":[]},{"width":768,"theme":"light","scale":140,"count":0,"overflow":false,"columns":"696px","tiles":[]},{"width":768,"theme":"dark","scale":100,"count":0,"overflow":false,"columns":"696px","tiles":[]},{"width":768,"theme":"dark","scale":140,"count":0,"overflow":false,"columns":"696px","tiles":[]},{"width":1440,"theme":"light","scale":100,"count":0,"overflow":false,"columns":"992px","tiles":[]},{"width":1440,"theme":"light","scale":140,"count":0,"overflow":false,"columns":"992px","tiles":[]},{"width":1440,"theme":"dark","scale":100,"count":0,"overflow":false,"columns":"992px","tiles":[]},{"width":1440,"theme":"dark","scale":140,"count":0,"overflow":false,"columns":"992px","tiles":[]}]
+### Ran Playwright code
+```js
+await (async (page) => {
+ const result=[];
+ for(const width of [320,360,390,414,768,1440])for(const theme of ['light','dark'])for(const scale of [100,140]){
+ await page.setViewportSize({width,height:1000});await page.reload();
+ await page.evaluate(({theme,scale})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.textScale=String(scale);}, {theme,scale});
+ await page.waitForTimeout(100);
+ const m=await page.evaluate(()=>{const hero=document.querySelector('.hero'),c=document.querySelector('.hero-kolaz');return {count:document.querySelectorAll('.hero-kolaz-kafel').length,overflow:document.documentElement.scrollWidth>innerWidth+1,columns:getComputedStyle(hero).gridTemplateColumns,collageWidth:c?.getBoundingClientRect().width,tiles:[...document.querySelectorAll('.hero-kolaz-kafel')].map(e=>{const r=e.getBoundingClientRect();return {w:r.width,h:r.height,left:r.left,right:r.right,loaded:e.complete&&e.naturalWidth>0};})};});
+ if(m.count!==0||m.overflow||m.tiles.some(t=>t.w<=0||t.h<=0||t.left<0||t.right>width+1))throw Error(JSON.stringify({width,theme,scale,m}));
+ if(0===1||0===3){if(Math.abs(m.tiles[0].w-m.collageWidth)>2)throw Error('PARTIAL_GAP');}
+ if(width===1440&&0===0&&m.columns.split(' ').length!==1)throw Error('EMPTY_TWO_COLUMNS');
+ if(width===1440&&theme==='light'&&scale===100 || width===320&&theme==='dark'&&scale===140)await page.locator('.hero').screenshot({path:'/mnt/c/Users/matma/Documents/Codex/kuking-kolaz632/docs/design/evidence/kolaz632/'+0+'-'+width+'-'+theme+'.png'});
+ result.push({width,theme,scale,...m});
+ }
+ return result;
+})(page);
+```

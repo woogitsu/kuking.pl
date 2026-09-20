@@ -1,0 +1,18 @@
+{
+  "mutations": [
+    {
+      "mutation": "arrow-up",
+      "exit": 1,
+      "detected": true
+    },
+    {
+      "mutation": "invalid-token",
+      "exit": 1,
+      "detected": true
+    }
+  ],
+  "backup": "C:\\Users\\matma\\AppData\\Local\\Temp\\kuking647-negative-el4fkeoq\\tagi-w-opisie.js",
+  "md5_restored": "3cea1a78363ca598e26fbe2d23c14124",
+  "mtime_restored": true,
+  "positive_exit": 0
+}

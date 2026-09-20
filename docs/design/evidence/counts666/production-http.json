@@ -1,0 +1,25 @@
+[
+  {
+    "path": "/",
+    "status": 200,
+    "alfa064": true,
+    "sha": true,
+    "emptyCooked": false,
+    "assets": [
+      "/build/assets/app-4x8Pd5Wp.js",
+      "/build/assets/app-BN8XjHof.css"
+    ]
+  },
+  {
+    "path": "/przepisy/bigos-z-cukinii",
+    "status": 200,
+    "alfa064": true,
+    "sha": true,
+    "emptyCooked": true,
+    "assets": [
+      "/build/assets/app-4x8Pd5Wp.js",
+      "/build/assets/app-BN8XjHof.css"
+    ],
+    "method": "HTML normalized text"
+  }
+]

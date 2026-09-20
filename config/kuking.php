@@ -16,6 +16,11 @@ use App\Support\Facebook;
 
 return [
 
+    // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
+    'questions' => [
+        'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Profil
@@ -337,6 +342,9 @@ return [
         'min_length' => (int) env('KUKING_TAG_MIN_LENGTH', 2),
 
         'max_length' => (int) env('KUKING_TAG_MAX_LENGTH', 30),
+        // Zapytanie może być istniejącym slugiem (kolumna do 40 znaków).
+        // Nie zwiększa limitu długości nowej nazwy taga.
+        'suggestions_query_max_length' => 40,
 
         // Ile RÓŻNYCH tagów (po unikalnych tag_id, patrz LimityTagow) wolno
         // przypiąć do jednego wpisu. Dość, żeby oznaczyć danie, okazję
@@ -354,6 +362,14 @@ return [
         // ~1250 nazw kanonicznych, więc jedna niestronicowana strona
         // renderowałaby naraz ponad tysiąc odnośników.
         'index_page_size' => (int) env('KUKING_TAGS_INDEX_PAGE_SIZE', 100),
+    ],
+
+    // #369: mały zbiór zaprasza do publikacji zamiast eksponować pustkę.
+    // Pięć zdjęć od trzech osób pokazuje kilka kuchni, nie pojedynczy album.
+    // To próg prezentacji, nie ranking ani próg dostępu do treści.
+    'tag_public_stats' => [
+        'min_photos' => 5,
+        'min_contributors' => 3,
     ],
 
     'text' => [
@@ -1191,6 +1207,7 @@ return [
     ],
 
     'limits' => [
+        'external_link' => '60,1',
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
         // `login` ZOSTAJE jako pierwsza, najtańsza bramka przed kontrolerem
@@ -1396,6 +1413,8 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+        // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
+        'tag_suggestions' => '120,1',
         // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd
         // wielkości co 'search' — to jest ten sam rodzaj zapytania
         // (trigramowe podobieństwo po kuking_normalize()), tylko na innej
@@ -1790,6 +1809,116 @@ return [
         // 36 h przy harmonogramie dobowym: jeden przebieg ma prawo wypaść
         // (restart, chwilowa niedostępność R2), dwa już nie.
         'maks_wiek_godzin' => (int) env('KUKING_KOPIE_MAKS_WIEK_GODZIN', 36),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Budżet połączeń PostgreSQL — issue #598
+    |--------------------------------------------------------------------------
+    |
+    | Wyczerpanie `max_connections` jest awarią SKOKOWĄ: dopóki zostaje jedno
+    | wolne miejsce, wszystko wygląda normalnie, a po jego zajęciu nie łączy
+    | się nikt — łącznie z administratorem, który przyszedł to naprawić.
+    | Dlatego próg alarmowy stoi daleko przed limitem, a nie tuż przed nim.
+    |
+    | SKĄD SIĘ BIORĄ TE LICZBY — PEŁNE WYPROWADZENIE W `docs/DATABASE.md` §
+    | „Budżet połączeń". W skrócie, i z rozdzieleniem pomiaru od obliczenia:
+    |
+    | ZMIERZONE 17.09.2026
+    |   * produkcja: `max_connections` = 500, `superuser_reserved_connections`
+    |     = 3, czyli 497 miejsc dla aplikacji;
+    |   * jeden kontener, `APP_ROLE=all`, `numReplicas` = 1;
+    |   * FrankenPHP przy starcie: `num_threads=4`, `max_threads=4`
+    |     (GOMAXPROCS=2 z limitu CPU kontenera) — to jest TWARDY sufit
+    |     równoległości HTTP na replikę;
+    |   * lokalnie: jeden równoległy cykl żądania = DOKŁADNIE jeden backend
+    |     PostgreSQL, także przy sesjach, cache i kolejce na bazie;
+    |     `queue:work` trzyma jeden, `schedule:run` i `migrate` po jednym.
+    |
+    | POLICZONE Z TYCH POMIARÓW
+    |   szczyt zwykły:  4 (web) + 1 (kolejka) + 1 (harmonogram)          =  6
+    |   szczyt wdrożeniowy: stary kontener 6 + nowy 6 + migracja 1       = 13
+    |   zapas na administrację i CLI                                     = +3
+    |   ----------------------------------------------------------------------
+    |   budżet szczytowy dzisiejszej topologii                           = 16
+    |
+    | PRÓG OSTRZEGAWCZY (50) nie pyta „czy blisko limitu", tylko „czy budżet
+    | nadal opisuje rzeczywistość". 50 to ponad trzykrotność policzonego
+    | szczytu: przy poprawnej topologii nie da się tego osiągnąć, więc
+    | przekroczenie znaczy wyciek połączeń albo procesy, o których nikt nie
+    | wie. To jest sygnał DIAGNOSTYCZNY, nie awaryjny.
+    |
+    | PRÓG KRYTYCZNY (125) to jedna czwarta z 497 dostępnych miejsc. Zostawia
+    | trzy czwarte puli na reakcję i mieści się grubo pod limitem nawet przy
+    | kilkunastu replikach. Nie jest to „90% i alarm", bo przy awarii skokowej
+    | alarm przy 90% przychodzi wtedy, gdy nie ma już czasu na nic.
+    |
+    | CZEGO TE LICZBY NIE ZNACZĄ
+    | Nie są przepustowością ani liczbą obsługiwanych osób. Ten sam portal
+    | może mieć tysiące ludzi przy kilku równoczesnych żądaniach i odwrotnie.
+    | Decyzja o PgBouncerze (#600) ma wynikać z tych liczb, nie z progu
+    | „ilu jest online".
+    */
+    'polaczenia' => [
+        // Ile połączeń MA PRAWO zająć dzisiejsza topologia. Liczba policzona,
+        // nie zmierzona — przy zmianie topologii (#595, kolejna replika)
+        // trzeba ją przeliczyć razem z `docs/DATABASE.md`.
+        'budzet_szczytowy' => (int) env('KUKING_POLACZENIA_BUDZET', 16),
+
+        'prog_ostrzegawczy' => (int) env('KUKING_POLACZENIA_PROG_OSTRZEGAWCZY', 50),
+
+        'prog_krytyczny' => (int) env('KUKING_POLACZENIA_PROG_KRYTYCZNY', 125),
+
+        // Czujka chodzi co godzinę, a stan „za dużo połączeń" trwa godzinami.
+        // Bez tej ciszy kanał dostawałby 24 identyczne wiadomości na dobę
+        // i nauczyłby ignorować siebie. Zmiana stanu dzwoni od razu.
+        'cisza_godzin' => (int) env('KUKING_POLACZENIA_CISZA_GODZIN', 6),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Czujka kolejki — issue #599
+    |--------------------------------------------------------------------------
+    |
+    | DLACZEGO TO NIE JEST TO SAMO, CO POLE `kolejka` W `/health`
+    | Tamto liczy WSZYSTKIE wiersze w `failed_jobs` i przy liczbie większej od
+    | zera stawia serwis w `degraded`. Na produkcji leżą cztery zadania
+    | z 9 września 2026 (wszystkie `UstawienieNowegoHasla`), więc `/health`
+    | jest w `degraded` NIEPRZERWANIE od tamtego dnia. Zmierzone w logu
+    | wdrożenia z 17.09.2026 19:58:19 UTC — ten sam komunikat, ta sama czwórka.
+    | Sygnał, który świeci zawsze, nie odróżni piątej awarii od czwartej.
+    |
+    | Dlatego czujka pyta o ZDARZENIE (co padło w oknie ostatnich godzin),
+    | a nie o stan tabeli — i mierzy drugą rzecz, której `/health` nie mierzy
+    | wcale: jak długo czeka najstarsze zadanie gotowe do wzięcia. To jedyny
+    | sygnał, który zauważa MARTWEGO WORKERA, bo proces, który nie chodzi,
+    | nie generuje żadnego błędu do zgłoszenia.
+    |
+    | BRAK KONFIGURACJI WEBHOOKA = ZERO EFEKTU, tak samo jak przy czujce kopii.
+    | Na produkcji nie ma dziś `LOG_BLAD_WEBHOOK_URL`, więc czujka liczy
+    | i zapisuje w dzienniku, ale nie dzwoni nigdzie. To jest stan do zamknięcia
+    | w #599, nie właściwość tej konfiguracji.
+    */
+    'kolejka' => [
+        // Okno „co padło niedawno". 3 h przy czujce co kwadrans: awaria nocna
+        // zostanie zgłoszona kilka razy w swoim oknie i nie zginie, a zadanie
+        // sprzed tygodnia nie będzie zgłaszane w kółko.
+        'okno_nieudanych_godzin' => (int) env('KUKING_KOLEJKA_OKNO_GODZIN', 3),
+
+        // Worker chodzi z `--sleep=1`, więc gotowe zadanie ma być wzięte
+        // w sekundy. 600 s to nie „trochę wolniej" — to znaczy, że przez
+        // dziesięć minut nikt po nie nie sięgnął.
+        'prog_zaleglosci_sekundy' => (int) env('KUKING_KOLEJKA_PROG_ZALEGLOSCI', 600),
+
+        // Dwukrotność `DB_QUEUE_RETRY_AFTER` (960 s, `config/queue.php`).
+        // Po `retry_after` kolejka sama zwalnia porzuconą rezerwację, więc
+        // rezerwacja starsza niż dwa takie okresy znaczy, że nie zwolnił jej
+        // nikt — czyli nie chodzi też proces, który miał to zrobić.
+        'prog_zawieszenia_sekundy' => (int) env('KUKING_KOLEJKA_PROG_ZAWIESZENIA', 1920),
+
+        // Martwy worker bywa martwy dobę, a czujka chodzi co kwadrans.
+        // Bez ciszy dałoby to 96 identycznych wiadomości na dobę.
+        'cisza_godzin' => (int) env('KUKING_KOLEJKA_CISZA_GODZIN', 3),
     ],
 
     /*
@@ -2629,7 +2758,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.38',
+        'etykieta' => 'Alfa 0.67',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //

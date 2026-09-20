@@ -52,6 +52,19 @@ function initialize() {
         widget.removeAttribute('data-wyglad-malo-miejsca');
         const panelOutside = widget.open && widget.querySelector('.szybki-wyglad-panel').getBoundingClientRect().top < 4;
         widget.toggleAttribute('data-wyglad-malo-miejsca', summary.getBoundingClientRect().top < 240 || panelOutside);
+        // Komunikat błędu musi być czytelny także podczas przewijania myszą,
+        // gdy fokus pozostaje w polu, a nie w samym komunikacie.
+        if (!widget.open) {
+            const floating = summary.getBoundingClientRect();
+            const obscuresError = [...document.querySelectorAll('.field-error')].some(error =>
+                [...error.getClientRects()].some(r => r.width > 0 && r.height > 0
+                    && r.right > floating.left && r.left < floating.right
+                    && r.bottom > floating.top && r.top < floating.bottom));
+            if (obscuresError) {
+                widget.setAttribute('data-wyglad-w-przeplywie', '');
+                return;
+            }
+        }
         if (wasInFlow && document.activeElement && !document.activeElement.matches('body, html') && !widget.contains(document.activeElement)) {
             const target = document.activeElement;
             const floating = summary.getBoundingClientRect();
@@ -142,6 +155,33 @@ function initialize() {
     listen(widget, 'keydown', event => { if (event.key === 'Escape') { event.preventDefault(); close(); } });
     listen(widget, 'toggle', () => { if (widget.open) { forgetHint(); geometry(); } });
     listen(document, 'pointerdown', event => { if (!widget.contains(event.target)) widget.open = false; });
+    // Podpowiedź pierwszej wizyty stoi `position: fixed` nad treścią i przy
+    // niskim oknie potrafi przykryć sterowanie w całości — zmierzone na
+    // przełączniku motywu w stopce: 3536 px² przykrycia, 9 z 9 punktów
+    // próbnych trafiało w podpowiedź, a nie w przycisk (#684).
+    //
+    // Klawiatura wychodziła z tego sama: uchwyt `focusin` niżej ustawia
+    // `hint.hidden = true`, gdy fokus trafi gdziekolwiek poza widget. Mysz
+    // i dotyk nie wywołują `focusin` na przykrytym elemencie, więc nie
+    // dostawały NICZEGO i podpowiedź zostawała nad celem na stałe.
+    //
+    // Te dwa zdarzenia to ten sam sygnał „czytam stronę, nie podpowiedź",
+    // co `focusin`, tylko dla wskaźnika: `wheel` to kółko myszy, `pointerdown`
+    // poza podpowiedzią to dotknięcie albo kliknięcie. Świadomie NIE słuchamy
+    // `scroll` — ten leci także po `window.scrollTo` z kodu i chowałby
+    // podpowiedź bez udziału człowieka.
+    //
+    // `hidden` bez `forgetHint()`: to nie jest „Rozumiem". Nie zapisujemy
+    // w localStorage, więc podpowiedź wróci przy następnej wizycie i nadal
+    // zrobi swoje. Zabieramy jej wyłącznie prawo do blokowania celu.
+    // `touchstart` obok `pointerdown`, bo przewijanie palcem nie zawsze
+    // przechodzi przez zdarzenia wskaźnika — zmierzone w Chromium: sam
+    // `pointerdown` nie wystarczył, podpowiedź zostawała nad celem.
+    const ustapWskaznikowi = () => { if (!hint.hidden) hint.hidden = true; };
+    const pozaPodpowiedzia = event => { if (!hint.contains(event.target)) ustapWskaznikowi(); };
+    listen(document, 'wheel', ustapWskaznikowi, {passive: true});
+    listen(document, 'pointerdown', pozaPodpowiedzia);
+    listen(document, 'touchstart', pozaPodpowiedzia, {passive: true});
     listen(document, 'focusin', event => {
         // Tab przewija stronę, zanim dotrze zdarzenie scroll. Aktualizujemy
         // położenie również dla fokusu wewnątrz samego przełącznika.

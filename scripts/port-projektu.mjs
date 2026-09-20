@@ -2,7 +2,10 @@
 import { wybierzGrupe, wykonajGrupe } from './port-grupy.mjs';
 import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+/* `readFileSync` pod własną nazwą: kilkaset linii niżej ten sam plik wciąga
+   `node:fs` drugi raz przez `await import(...)` i rozpakowuje z niego
+   `readFileSync` do stałej modułu. Zwykły import kolidowałby z tamtą stałą. */
+import { existsSync, readFileSync as czytajPlik } from 'node:fs';
 import { sprawdzKompozycje } from './kompozycje-marki.mjs';
 import { sprawdzZoomMarki } from './zoom-marki.mjs';
 import { sprawdzKompozycje513 } from './zainteresowania-powiadomienia-marki.mjs';
@@ -13,6 +16,10 @@ import { sprawdzTagi } from './tagi-marki.mjs';
 import { sprawdzSzybkiWyglad } from './szybki-wyglad.mjs';
 import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
+import { sprawdzPrzyciskRejestracji } from './przycisk-rejestracji.mjs';
+import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
+import { sprawdzMacierzNawigacji } from './nawigacja-etykiety.mjs';
+import { sprawdzZoomNawigacji } from './nawigacja-zoom.mjs';
 
 const grupa = wybierzGrupe(process.env.PORT_GRUPA);
 const KONTO = 'ania';
@@ -83,6 +90,46 @@ async function wolnyPort() {
   });
 }
 
+/* Ogon dziennika aplikacji — dokładany do komunikatu, kiedy serwer nie wstał.
+   Powód jest taki sam jak przy zapisywaniu ostatniej odpowiedzi, tylko o krok
+   dalej: przy `APP_DEBUG=false` (a tak chodzi CI) strona błędu 500 NIE NIESIE
+   ani nazwy wyjątku, ani komunikatu — samo „Coś poszło nie tak". Wyjątek jest
+   w `storage/logs/laravel.log`, a ten plik na runnerze znika przy następnym
+   `actions/checkout` (`git clean -ffdx` kasuje pliki pominięte przez gita).
+   Czyli po nieudanym przebiegu nie da się go już odzyskać — trzeba go
+   przepisać OD RAZU, w tym samym procesie, który zauważył porażkę.
+
+   OSTATNI WPIS, A NIE OSTATNIE N WIERSZY. Wyjątek Laravela zajmuje w tym
+   pliku kilkadziesiąt wierszy, z czego pierwszy niesie nazwę i komunikat,
+   a cała reszta to ramki stosu z `vendor/`. Ogon liczony wierszami pokazywał
+   więc wyłącznie `#38 … Pipeline->handle()` — prawdę o niczym. Bierzemy
+   NAGŁÓWEK ostatniego wpisu i kilka pierwszych ramek pod nim. */
+function ogonDziennika(ileRamek = 5) {
+  const sciezka = 'storage/logs/laravel.log';
+
+  try {
+    if (!existsSync(sciezka)) return 'dziennik aplikacji nie powstał';
+
+    const wiersze = czytajPlik(sciezka, 'utf8').split('\n').filter((w) => w.trim() !== '');
+
+    if (wiersze.length === 0) return 'dziennik aplikacji jest pusty';
+
+    /* Nagłówek wpisu zaczyna się od daty w nawiasie kwadratowym; wszystko
+       inne to kontynuacja poprzedniego wpisu. */
+    const naglowki = wiersze
+      .map((wiersz, i) => (/^\[\d{4}-\d{2}-\d{2}/.test(wiersz) ? i : -1))
+      .filter((i) => i !== -1);
+
+    if (naglowki.length === 0) return wiersze.slice(-ileRamek).join('\n');
+
+    const od = naglowki[naglowki.length - 1];
+
+    return wiersze.slice(od, od + 1 + ileRamek).map((w) => w.slice(0, 500)).join('\n');
+  } catch (blad) {
+    return `dziennika nie dało się odczytać: ${blad.message}`;
+  }
+}
+
 async function podniesSerwer() {
   if (process.env.ADRES) return { adres: process.env.ADRES, zamknij: () => {} };
 
@@ -119,7 +166,30 @@ async function podniesSerwer() {
     const adres = `http://127.0.0.1:${port}`;
     const dziennik = [];
 
-    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    /* `--no-reload` NIE JEST TU OPTYMALIZACJĄ — ono ratuje całe środowisko.
+       `ServeCommand::startProcess()` mapuje `$_ENV` i każdej zmiennej spoza
+       swojej krótkiej listy przepustek (APP_ENV, PATH, XDEBUG_*, kilka HERD_*)
+       podstawia `false`, czyli WYCINA JĄ procesowi `php -S`. Wyjątek robi
+       dokładnie dla `--no-reload`.
+
+       Bez tej flagi zachowanie zależy od `variables_order` w php.ini: przy
+       `GPCS` tablica `$_ENV` jest pusta, mapa wychodzi pusta i dziecko
+       dziedziczy wszystko, więc wszystko działa. Przy `EGPCS` — a tak bywa na
+       runnerze — wycinanie wchodzi w życie i serwowana aplikacja spada na
+       wartości z `.env`, czyli `DB_PORT=5432`, `DB_DATABASE=kuking`
+       i `SESSION_DRIVER=database`. Na maszynie z CI na porcie 5432 naprawdę
+       stoi współdzielony klaster (AGENTS.md §6 zabrania go używać), więc
+       zapytanie o sesję kończyło się `password authentication failed`,
+       nieobsłużonym wyjątkiem i HTTP 500 na KAŻDYM żądaniu — także na
+       `/health`. Stąd „brak odpowiedzi z /health" przy serwerze, który stał
+       i grzecznie odpowiadał (issue #684 nie ma z tym nic wspólnego; to był
+       ten sam objaw w jobach `Port marki` i `Dostępność`).
+
+       Zmierzone na trzech wariantach tego samego żądania `/health`:
+       `GPCS` bez flagi → 200, `EGPCS` bez flagi → 500, `EGPCS` z flagą → 200.
+       `scripts/panel-marki-run.mjs` miał tę flagę od początku i jako jedyny
+       job przeglądarkowy nie padał. */
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       // Ochrona przekierowań porównuje host z app.url, także w lokalnym pomiarze.
       env: { ...env(), APP_URL: adres },
@@ -132,12 +202,20 @@ async function podniesSerwer() {
     proces.on('exit', (kod) => { umarl = kod; });
 
     let wstal = false;
+    /* OSTATNIA ODPOWIEDŹ, NIE SAM FAKT PORAŻKI. Do 19 września 2026 pętla
+       wyrzucała odpowiedź w całości i komunikat mówił tylko „brak odpowiedzi
+       z /health". Serwer tymczasem ODPOWIADAŁ — `/health` oddaje 503, gdy
+       padnie `database` albo `migrations` — a przyczyna stała w treści, której
+       nikt nie zapisywał. Cztery przebiegi CI i kilka godzin poszły na
+       zgadywanie, co w tej odpowiedzi było. Teraz idzie do dziennika. */
+    let ostatnia = null;
 
     for (let i = 0; i < 60 && umarl === null; i++) {
       try {
         const odp = await fetch(`${adres}/health`);
         if (odp.ok) { wstal = true; break; }
-      } catch { /* jeszcze nie wstał */ }
+        ostatnia = `HTTP ${odp.status}: ${(await odp.text()).slice(0, 600)}`;
+      } catch (blad) { ostatnia = `połączenie nieudane: ${blad.message}`; }
       await new Promise((r) => setTimeout(r, 500));
     }
 
@@ -146,6 +224,8 @@ async function podniesSerwer() {
     proces.kill('SIGKILL');
     bledy.push(`  podejście ${podejscie}, port ${port}: `
       + (umarl !== null ? `proces zakończył się kodem ${umarl}` : 'brak odpowiedzi z /health')
+      + (ostatnia !== null ? `\n  ostatnia odpowiedź — ${ostatnia}` : '')
+      + `\n  ogon storage/logs/laravel.log:\n${ogonDziennika()}`
       + (dziennik.length > 0 ? `\n${dziennik.join('').trimEnd()}` : ''));
   }
 
@@ -367,6 +447,8 @@ try {
   }
   await context.close();
 
+  await sprawdzMacierzNawigacji({ browser: przegladarka, adres, sesja });
+  await sprawdzZoomNawigacji({ chromium, adres, sesja, outputDir: 'storage/port-projektu/nawigacja638' });
   });
   await wykonajGrupe(grupa, 'rozszerzenia', async () => {
   if (!['127.0.0.1', 'localhost'].includes(new URL(adres).hostname)) throw new Error('Fixture kompozycji wymaga lokalnego serwera.');
@@ -378,7 +460,9 @@ try {
   await sprawdzKompozycje513({ browser: przegladarka, adres, sesja, phpEnv: env(), ...paczka513 });
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
-  await sprawdzPasek({ browser: przegladarka, adres });
+  await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
+  await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
+  await sprawdzPasek({ browser: przegladarka, adres, sesja });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
   await sprawdzTagi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzNawigacje492({ adres, sesja, phpEnv: env() });

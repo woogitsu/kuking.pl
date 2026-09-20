@@ -1,0 +1,53 @@
+# Otoczenie serii r005-p1 — 2026-09-18T10:26:16Z
+# progi bramki: obce <= 18.0 rdzeni, PSI cpu some avg10 <= 25.0, spokój 60s
+
+## uptime przed bramką
+ 12:26:16 up 1 day, 14:10,  1 user,  load average: 35.59, 33.18, 27.24
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+1109685  438  1.3       00:29 chrome-headless
+ 952622  262  0.4       08:39 headless_shell
+ 948197  249  1.2       09:09 headless_shell
+1114083  111  1.0       00:00 headless_shell
+1114391  100  0.0       00:00 ps
+1113861 92.5  1.1       00:03 headless_shell
+1106662 89.8  0.2       00:49 python3
+1098981 89.5  1.2       01:45 headless_shell
+1107410 83.3  1.4       00:45 VBCSCompiler
+1113705 68.2  1.3       00:05 headless_shell
+1114075 59.0  0.4       00:00 chrome-headless
+ 952037 44.4  1.1       08:43 php
+1113328 41.4  1.3       00:09 chrome-headless
+1098709 34.5  1.5       01:45 MainThread
+1113967 28.0  0.5       00:02 Godot_v4.7.2-st
+1098985 21.7  0.3       01:45 headless_shell
+1113838 19.0  0.1       00:03 postgres
+1098947 17.0  0.3       01:45 headless_shell
+ 946931 15.5  0.3       09:18 chrome-headless
+ 946417 15.4  0.6       09:20 node
+1113554 14.3  0.1       00:07 postgres
+ 948123 12.3  1.3       09:10 MainThread
+ 952387 11.1  1.3       08:40 MainThread
+ 946466 11.0  0.1       09:19 php
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 14
+Runner.Worker (aktywne joby): 9
+
+## kontenery
+6101daed63c3448f83052d94c81e4cfc_postgres18alpine_cdf3b0 postgres:18-alpine Up 9 minutes (healthy)
+ec789425ccb248a988c8ac0897fdb389_postgres18alpine_d91873 postgres:18-alpine Up 9 minutes (healthy)
+kuking-b605-app kuking:ci-bdc56b8cf9b664eda104b628d85149b08d84d8d9 Up About an hour (healthy)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 38 hours
+bramka: 30s/300s, obce 18.46 rdzeni z 24, PSI 30.51, cisza 0s/60s
+bramka: 60s/300s, obce 19.07 rdzeni z 24, PSI 39.94, cisza 0s/60s
+bramka: 90s/300s, obce 6.40 rdzeni z 24, PSI 10.02, cisza 11s/60s
+bramka: 120s/300s, obce 13.69 rdzeni z 24, PSI 1.56, cisza 41s/60s
+bramka OTWARTA po 138s czekania: obce <= 18.0 rdzeni i PSI <= 25.0 przez 60s
+
+## uptime po otwarciu bramki, tuż przed serią
+ 12:28:39 up 1 day, 14:12,  1 user,  load average: 20.32, 29.31, 26.76
+
+## uptime po serii i po 60 s wybiegu
+ 12:31:41 up 1 day, 14:15,  1 user,  load average: 33.02, 31.33, 28.02

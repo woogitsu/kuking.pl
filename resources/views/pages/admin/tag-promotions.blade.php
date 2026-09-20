@@ -15,7 +15,7 @@
 
     <h1>Tagi promowane</h1>
 
-    <p class="lead">
+    <p class="text-lead">
         Ta lista zastępuje dawne Tematy. Nowe konto widzi ją zaraz po
         założeniu, a strona główna układa z niej pierwsze wpisy dla osoby,
         która jeszcze nikogo nie obserwuje. „Temat tygodnia" i sezonowe okazje (Wigilia,
@@ -60,10 +60,12 @@
                     <form method="POST" action="{{ route('admin.tag-promotions.update', $tag) }}" class="mt-3">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="_wiersz" value="{{ $tag->getKey() }}">
 
                         <x-field
                             name="note"
-                            label="Notatka (nieobowiązkowo)"
+                            :wiersz="$tag->getKey()"
+                            label="Notatka"
                             :value="$tag->promotion?->note"
                             help="Np. „Temat tygodnia: rozgrzewające zupy na jesień”."
                         />

@@ -1,0 +1,31 @@
+{
+  "kiedy_utc": "2026-09-19T11:07:40Z",
+  "sha_produkcji": "8a2ecb2a91bec7f7fef0f40e9d1c59b8c4735257",
+  "zrodlo_sha": [
+    "meta kuking-service-worker na https://kuking.pl/ -> /sw.js?v=8a2ecb2a91bec7f7fef0f40e9d1c59b8c4735257",
+    "GitHub deployments: ref 8a2ecb2a..., utworzony 2026-09-19T10:28:58Z, srodowisko production"
+  ],
+  "pr701_w_produkcji": {
+    "merge_commit": "5ecbcce684c3746d53914c28f3fd8f40669baa40",
+    "czy_przodek_8a2ecb2a": true
+  },
+  "ci_main_8a2ecb2a": {"run": 35437520171, "conclusion": "success"},
+  "wersja_w_stopce": "Alfa 0.67",
+  "health": {"status": "degraded", "jedyny_nieudany": "kolejka: zadania_nieudane"},
+  "odczyt_publiczny": {
+    "/tagi": ["ciasto (1 wpis)", "sernik (0 wpisow)"],
+    "/tag/ciasto": "publiczny wpis Ewy Kapicy z 15 wrzesnia zawiera w tresci '#ciasto' i jest powiazany z tagiem",
+    "uwaga": "to licznik strony tagow (#369/#370), NIE licznik z popupu podpowiedzi #647"
+  },
+  "bundle_produkcyjny": {
+    "plik": "/build/assets/app-Tz-bEy9s.js",
+    "bajtow": 25499,
+    "zawiera": ["publiczny wpis", "publicznych wpisow", "Podpowiedzi tagow", "jako nowy tag", "tagi-opis-popup", "aria-haspopup"],
+    "zawiera_tez": ["znajdz tag ponizej", "wyszukiwania tagow ponizej"]
+  },
+  "czego_NIE_sprawdzono_na_produkcji": [
+    "popup podpowiedzi po # i jego licznik — /tagi/podpowiedzi oraz /dodaj/zdjecie sa za middleware auth (anon: 302 -> /login), a logowanie na cudze konto jest zabronione",
+    "zwiniete <details> w formularzu — ten sam formularz jest za auth",
+    "fizyczna klawiatura ekranowa / IME"
+  ]
+}

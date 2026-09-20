@@ -4,6 +4,7 @@ import { mkdtempSync, readFileSync, appendFileSync, statSync, mkdirSync } from '
 import { tmpdir } from 'node:os';
 import { createHash } from 'node:crypto';
 import { sprawdzTab } from './zoom-marki.mjs';
+import { sprawdzKatalogTagow } from './katalog-tagow.mjs';
 
 export async function sprawdzTagi({ browser, adres, sesja, phpEnv = process.env, negatywy = true }) {
   const started = Date.now();
@@ -117,6 +118,8 @@ export async function sprawdzTagi({ browser, adres, sesja, phpEnv = process.env,
       }
     }
     data=JSON.parse(fixture('pelne').toString());
+    fixture('fotografia');
+    await sprawdzKatalogTagow({ browser, adres, expectedTag: 'Pomiar515 1' });
     if (negatywy) for (const [name,css,code,width,keyboard=false,dark=false] of [
       ['overflow','.marka-szukaj-siatka{grid-template-columns:900px!important}','K515_OVERFLOW',320],
       ['tekst','.marka-szukaj-tag h3{display:-webkit-box!important;-webkit-box-orient:vertical;-webkit-line-clamp:1!important;overflow:hidden!important}','K515_TEKST',320],

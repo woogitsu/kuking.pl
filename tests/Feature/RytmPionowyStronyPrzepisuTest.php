@@ -176,7 +176,7 @@ class RytmPionowyStronyPrzepisuTest extends TestCase
             // i prawdziwy powód ginie w kilkuset linijkach.
             $this->assertSame(
                 1,
-                preg_match('/'.preg_quote($token, '/').':\s*[\d.]+rem\s*;/', $tokeny),
+                preg_match('/'.preg_quote($token, '/').':\s*calc\(\s*[\d.]+rem\s*\*\s*var\(--user-layout-scale,\s*1\)\s*\)\s*;/', $tokeny),
                 "Token {$token} musi zostać w `rem`. W pikselach odstęp między akapitami ".
                 'przestaje rosnąć razem z powiększoną czcionką przeglądarki.',
             );

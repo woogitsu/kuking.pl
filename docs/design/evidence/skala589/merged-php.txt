@@ -1,0 +1,25 @@
+
+   PASS  Tests\Feature\BelkaPrzyDuzymTekscieTest
+  ✓ pozycja belki uklada sie poziomo przy bardzo duzym tekscie           0.51s  
+  ✓ minimum wysokosci pozycji nie podwaja sie z czcionka przegladarki    0.01s  
+  ✓ kolko glownej akcji nie rosnie z czcionka przegladarki               0.01s  
+  ✓ glowna akcja dostaje wlasny wiersz zamiast lamac slowo               0.01s  
+  ✓ zwykly telefon ma belke bez zmian                                    0.01s  
+  ✓ belka ma nadal piec pozycji z podpisem przy kazdej ikonie            0.07s  
+
+   PASS  Tests\Feature\KafelDodawaniaPrzyDuzymTekscieTest
+  ✓ tekst kafla dostaje wlasny wiersz przy bardzo duzym tekscie          0.01s  
+  ✓ ozdobna ikona schodzi z ukladu zamiast zajac trzeci wiersz           0.01s  
+  ✓ wciecie boczne kafla nie podwaja sie z czcionka przegladarki         0.01s  
+  ✓ zwykly telefon ma kafel bez zmian                                    0.01s  
+  ✓ poprawka nie zostala oplacona pismem                                 0.01s  
+  ✓ kafel nie stracil ani jednego slowa                                  0.04s  
+
+   PASS  Tests\Feature\PolaDoWpisywaniaSaWiekszeTest
+  ✓ wysokosc pola jest w pikselach a nie w jednostce pisma               0.01s  
+  ✓ pole jest wyzsze niz przycisk
+  ✓ pole bierze te liczby i pismo zostaje typograficzne
+
+  Tests:    15 passed (399 assertions)
+  Duration: 1.12s
+

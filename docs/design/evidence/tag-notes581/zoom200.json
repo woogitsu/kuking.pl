@@ -1,0 +1,349 @@
+{
+  "draft": true,
+  "results": [
+    {
+      "theme": "light",
+      "status": "executed",
+      "scope": "2 invalid PUT; server validation; native validation not tested",
+      "rows": [
+        {
+          "direction": 1,
+          "pass": true,
+          "httpStatus": 302,
+          "retryAfter": null
+        },
+        {
+          "direction": 2,
+          "pass": true,
+          "httpStatus": 302,
+          "retryAfter": null
+        }
+      ]
+    },
+    {
+      "theme": "dark",
+      "status": "executed",
+      "scope": "2 invalid PUT; server validation; native validation not tested",
+      "rows": [
+        {
+          "direction": 1,
+          "pass": true,
+          "httpStatus": 302,
+          "retryAfter": null
+        },
+        {
+          "direction": 2,
+          "pass": true,
+          "httpStatus": 302,
+          "retryAfter": null
+        }
+      ]
+    }
+  ],
+  "measurements": [
+    {
+      "theme": "light",
+      "direction": 1,
+      "geometry": {
+        "rect": {
+          "x": 29,
+          "y": 278.34375,
+          "width": 262,
+          "height": 75.0625,
+          "top": 278.34375,
+          "right": 291,
+          "bottom": 353.40625,
+          "left": 29
+        },
+        "pointHits": [
+          {
+            "x": 160,
+            "y": 280.34375,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 289,
+            "y": 315.875,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 351.40625,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 31,
+            "y": 315.875,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 315.875,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          }
+        ],
+        "radius": "12px",
+        "width": 320,
+        "height": 900,
+        "dpr": 2,
+        "scroll": 320,
+        "font": 25.2,
+        "theme": "light",
+        "scale": "140",
+        "focused": true,
+        "focusVisible": true,
+        "outline": "solid",
+        "outlineWidth": 3,
+        "shadow": "none",
+        "pointsClear": true,
+        "headers": [
+          {
+            "top": 8,
+            "bottom": 216.2578125,
+            "left": 12,
+            "right": 308
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "direction": 2,
+      "geometry": {
+        "rect": {
+          "x": 29,
+          "y": 278.3515625,
+          "width": 262,
+          "height": 75.0625,
+          "top": 278.3515625,
+          "right": 291,
+          "bottom": 353.4140625,
+          "left": 29
+        },
+        "pointHits": [
+          {
+            "x": 160,
+            "y": 280.3515625,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 289,
+            "y": 315.8828125,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 351.4140625,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 31,
+            "y": 315.8828125,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 315.8828125,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          }
+        ],
+        "radius": "12px",
+        "width": 320,
+        "height": 900,
+        "dpr": 2,
+        "scroll": 320,
+        "font": 25.2,
+        "theme": "light",
+        "scale": "140",
+        "focused": true,
+        "focusVisible": true,
+        "outline": "solid",
+        "outlineWidth": 3,
+        "shadow": "none",
+        "pointsClear": true,
+        "headers": [
+          {
+            "top": 8,
+            "bottom": 216.2578125,
+            "left": 12,
+            "right": 308
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "direction": 1,
+      "geometry": {
+        "rect": {
+          "x": 29,
+          "y": 278.34375,
+          "width": 262,
+          "height": 75.0625,
+          "top": 278.34375,
+          "right": 291,
+          "bottom": 353.40625,
+          "left": 29
+        },
+        "pointHits": [
+          {
+            "x": 160,
+            "y": 280.34375,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 289,
+            "y": 315.875,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 351.40625,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 31,
+            "y": 315.875,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 315.875,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          }
+        ],
+        "radius": "12px",
+        "width": 320,
+        "height": 900,
+        "dpr": 2,
+        "scroll": 320,
+        "font": 25.2,
+        "theme": "dark",
+        "scale": "140",
+        "focused": true,
+        "focusVisible": true,
+        "outline": "solid",
+        "outlineWidth": 3,
+        "shadow": "none",
+        "pointsClear": true,
+        "headers": [
+          {
+            "top": 8,
+            "bottom": 216.2578125,
+            "left": 12,
+            "right": 308
+          }
+        ]
+      },
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "direction": 2,
+      "geometry": {
+        "rect": {
+          "x": 29,
+          "y": 278.3515625,
+          "width": 262,
+          "height": 75.0625,
+          "top": 278.3515625,
+          "right": 291,
+          "bottom": 353.4140625,
+          "left": 29
+        },
+        "pointHits": [
+          {
+            "x": 160,
+            "y": 280.3515625,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 289,
+            "y": 315.8828125,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 351.4140625,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 31,
+            "y": 315.8828125,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          },
+          {
+            "x": 160,
+            "y": 315.8828125,
+            "self": true,
+            "tag": "INPUT",
+            "parent": false
+          }
+        ],
+        "radius": "12px",
+        "width": 320,
+        "height": 900,
+        "dpr": 2,
+        "scroll": 320,
+        "font": 25.2,
+        "theme": "dark",
+        "scale": "140",
+        "focused": true,
+        "focusVisible": true,
+        "outline": "solid",
+        "outlineWidth": 3,
+        "shadow": "none",
+        "pointsClear": true,
+        "headers": [
+          {
+            "top": 8,
+            "bottom": 216.2578125,
+            "left": 12,
+            "right": 308
+          }
+        ]
+      },
+      "pass": true
+    }
+  ]
+}

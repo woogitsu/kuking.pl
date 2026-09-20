@@ -167,7 +167,7 @@ class PanelModeracjiWMenuTest extends TestCase
         $moderator = $this->moderator();
 
         Cache::forever('panel:kolejki', [
-            'bez_odpowiedzi' => 6,
+            'bez_odpowiedzi_per_host' => [$moderator->getKey() => 6],
             'zgloszenia' => 2,
             'sygnaly' => 1,
             'odwolania' => 0,
@@ -190,7 +190,7 @@ class PanelModeracjiWMenuTest extends TestCase
         // Stan przeciwny: puste kolejki nie pokazują „0”. Zero to sam hałas,
         // a plakietka ma znaczyć „tu jest praca”.
         Cache::forever('panel:kolejki', [
-            'bez_odpowiedzi' => 0,
+            'bez_odpowiedzi_per_host' => [$moderator->getKey() => 0],
             'zgloszenia' => 0,
             'sygnaly' => 0,
             'odwolania' => 0,
@@ -262,7 +262,10 @@ class PanelModeracjiWMenuTest extends TestCase
 
         $html = $this->actingAs($moderator)->get(route('admin.reports'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('class="panel-pasek"', $html, 'Brak paska panelu na ekranie.');
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $this->assertCount(1, $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' panel-pasek ')]"), 'Brak paska panelu na ekranie.');
         $this->assertStringContainsString('Panel moderacji', $html);
         $this->assertStringContainsString(
             '<title>Zgłoszenia — Panel moderacji — Kuking</title>',
@@ -314,9 +317,12 @@ class PanelModeracjiWMenuTest extends TestCase
         foreach ($trasy as $uri) {
             $html = $this->actingAs($moderator)->get('/'.$uri)->assertOk()->getContent();
 
-            $this->assertStringContainsString(
-                'class="panel-pasek"',
-                (string) $html,
+            $dom = new DOMDocument;
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new DOMXPath($dom);
+            $this->assertCount(
+                1,
+                $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' panel-pasek ')]"),
                 'Ekran /'.$uri.' nie ma paska panelu. Dodaj `<x-panel-moderacji ekran="…" />` '
                 .'zaraz po otwarciu `<x-layout>` — po to ten komponent istnieje.',
             );

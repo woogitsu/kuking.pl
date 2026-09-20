@@ -59,14 +59,11 @@
             rosół w garnku”, a nie samo „rosół w garnku”.
 
             Przy `zoom => false` (np. miniatura w karcie przepisu, która jest
-            już linkiem do przepisu) nie owijamy niczym — zagnieżdżone `<a>`
+            już linkiem do przepisu) nie dodajemy linku — zagnieżdżone `<a>`
             to nieprawidłowy HTML i psuje obsługę klawiaturą.
         --}}
-        <a class="photo-zoom"
-           href="{{ $media->url('large') }}"
-           data-powieksz
-           data-alt="{{ $media->alt_text ?? '' }}"
-           aria-label="Powiększ zdjęcie{{ $media->alt_text ? ': '.$media->alt_text : '' }}">
+        <div class="photo-zoom">
+            <div class="photo-zoom-media">
     @endif
     @php
         /*
@@ -140,7 +137,17 @@
          height="{{ $media->height($variant) }}"
          @if($priority) fetchpriority="high" @else loading="lazy" decoding="async" @endif>
     @if($zoom)
+            </div>
+        {{-- Jeden krótki przystanek Tab; pseudo-element tego samego linku
+             zachowuje kliknięcie całej fotografii bez powiększania fokusu. --}}
+        <a class="photo-zoom-link"
+           href="{{ $media->url('large') }}"
+           data-powieksz
+           data-alt="{{ $media->alt_text ?? '' }}"
+           aria-label="Powiększ zdjęcie{{ $media->alt_text ? ': '.$media->alt_text : '' }}">
+            Powiększ zdjęcie
         </a>
+        </div>
     @endif
 @elseif($media)
     {{--

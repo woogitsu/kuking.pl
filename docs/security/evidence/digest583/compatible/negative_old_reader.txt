@@ -1,0 +1,65 @@
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-digest583-runtime/phpunit.xml
+
+E                                                                   1 / 1 (100%)
+
+Time: 00:00.895, Memory: 123.00 MB
+
+There was 1 error:
+
+1) Tests\Feature\DigestNieKolejkujeSekretowTest::test_stary_worker_odczytuje_nowy_payload_bez_pomocy_nowego_dto
+Symfony\Component\Process\Exception\ProcessFailedException: The command "'/opt/kuking-php-8.4-avif/bin/php' '-r' '$root = $argv[1];
+require $root.'\''/vendor/autoload.php'\'';
+if ($argv[2] === '\''old'\'') {
+    require $root.'\''/tests/Fixtures/digest583/TrescDigestu-ac5ff9d.php.fixture'\'';
+}
+$app = require $root.'\''/bootstrap/app.php'\'';
+$app->make(Illuminate\Contracts\Console\Kernel::class)->bootstrap();
+$queries = 0;
+Illuminate\Support\Facades\DB::listen(function () use (&$queries) { $queries++; });
+$job = unserialize(stream_get_contents(STDIN));
+$mail = $job->mailable;
+echo json_encode([
+    '\''html'\'' => $mail->render(),
+    '\''text'\'' => view('\''mail.podsumowanie-tygodnia-tekst'\'', $mail->content()->with)->render(),
+    '\''subject'\'' => $mail->envelope()->subject,
+    '\''headers'\'' => $mail->headers()->text,
+    '\''queries'\'' => $queries,
+], JSON_THROW_ON_ERROR);' '/home/mateusz/kuking-digest583-runtime' 'old'" failed.
+
+Exit Code: 255(Unknown error)
+
+Working directory: /home/mateusz/kuking-digest583-runtime
+
+Output:
+================
+
+In Command line code line 10:
+                                                                               
+  Uncaught TypeError: Cannot assign array to property App\Domain\Digest\Tresc  
+  Digestu::$odbiorca of type App\Models\User in Command line code:10           
+  Stack trace:                                                                 
+  #0 Command line code(10): unserialize()                                      
+  #1 {main}                                                                    
+    thrown                                                                     
+                                                                               
+
+
+
+Error Output:
+================
+PHP Fatal error:  Uncaught TypeError: Cannot assign array to property App\Domain\Digest\TrescDigestu::$odbiorca of type App\Models\User in Command line code:10
+Stack trace:
+#0 Command line code(10): unserialize()
+#1 {main}
+  thrown in Command line code on line 10
+
+
+/home/mateusz/kuking-digest583-runtime/vendor/symfony/process/Process.php:293
+/home/mateusz/kuking-digest583-runtime/tests/Feature/DigestNieKolejkujeSekretowTest.php:158
+/home/mateusz/kuking-digest583-runtime/tests/Feature/DigestNieKolejkujeSekretowTest.php:172
+
+ERRORS!
+Tests: 1, Assertions: 1, Errors: 1.

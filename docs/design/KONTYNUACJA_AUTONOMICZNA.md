@@ -1,5 +1,10 @@
 # Kontynuacja autonomiczna KuKing
 
+## Bieżąca praca — #579
+
+Użytkownik polecił wykonać po kolei kolejkę gospodarza, review gałęzi audytora FTS/ParaTest, lokalną próbę kopii i odtworzenia oraz weryfikację pozostałych tez audytu. #579 jest pierwszym pakietem na fix/579-kolejka-gospodarza, robocza Alfa0.39. [Raport](KOLEJKA_GOSPODARZA_579.md) zawiera dokładne testy i ograniczenia. Nie deklarować wdrożenia przed CI i Railway. Produkcja0.38/61360bf; #575/#578 zakończone. Gałęzi claude/nice-sagan-98x3qe nie nadpisywać. Kopie produkcji/R2 nadal wymagają dostępu Cloudflare i informacji o istniejącej kopii.
+
+
 ## Bieżący punkt — odbiór #575, 15 września 2026
 
 PR #575 scalono normalnie jako `0e1bdbe80ffe25d72accf2f773a3a533675ef458`

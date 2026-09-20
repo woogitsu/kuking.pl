@@ -441,6 +441,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         ];
 
         $wpis = $this->wpis = Post::factory()->private()->create(['author_id' => $wlasciciel->getKey()]);
+        config(['kuking.questions.enabled' => true]);
+        $pytanie = Post::factory()->question()->private()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisPubliczny = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisDoKasacji = Post::factory()->private()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisDoWspomnien = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
@@ -664,6 +666,8 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ─── WPISY ───────────────────────────────────────────────────────
         $dodaj('posts.show', 'wpis prywatny', 'get',
             route('posts.show', $wpis), [], [$W, $O, $O, $O, $O]);
+        $dodaj('questions.show', 'pytanie prywatne', 'get',
+            route('questions.show', $pytanie), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.edit', 'edycja wpisu', 'get',
             route('posts.edit', $wpis), [], [$W, $O, $O, $O, $O]);
         $dodaj('posts.update', 'zapis wpisu', 'put',

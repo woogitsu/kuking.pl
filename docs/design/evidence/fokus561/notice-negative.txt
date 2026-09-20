@@ -1,0 +1,11 @@
+ZOOM_TAB_OK zdjecia561-normal 10/10
+PASS normal 320 light
+file:///home/mateusz/kuking-photo561-runtime/scripts/zoom-marki.mjs:145
+    if (!r.ring || r.contrast < 3) throw new Error('ZOOM_FOCUS_CONTRAST ' + path + ' ' + JSON.stringify(r));
+                                         ^
+
+Error: ZOOM_FOCUS_CONTRAST zdjecia561-normal {"id":"8","name":"zaloguj się","hidden":false,"opacity":1,"fragments":[{"x":169.2734375,"y":380.984375,"width":85.7265625,"height":30.5},{"x":29,"y":420.046875,"width":34.09375,"height":30.5}],"visible":true,"centerVisible":true,"occluded":false,"contrast":1.239146164243923,"color":"rgb(110, 168, 255)","ring":"outline","paint":[110,168,255],"ambiguousPoints":[]}
+    at sprawdzTab (file:///home/mateusz/kuking-photo561-runtime/scripts/zoom-marki.mjs:145:42)
+    at async file:///home/mateusz/kuking-photo561-runtime/output/zoom561.mjs:25:3
+
+Node.js v24.19.0

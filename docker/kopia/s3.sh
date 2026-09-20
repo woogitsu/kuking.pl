@@ -192,8 +192,40 @@ x-amz-date:${amz_data}
   [[ -n "${plik_ciala}" ]] && polecenie+=(--upload-file "${plik_ciala}")
 
   # Kod HTTP zbieramy ZAWSZE, także gdy curl zwróci błąd — inaczej
-  # rozróżnienie „403 zły podpis" od „brak sieci" znika.
-  S3_KOD="$("${polecenie[@]}" "${adres}" 2>/dev/null || true)"
+  # rozróżnienie „403 zły podpis" od „brak sieci" znika. Ale kod WYJŚCIA
+  # curla zbieramy OSOBNO, zamiast wyrzucać go przez `|| true` — powód niżej.
+  local kod_curla=0
+  S3_KOD="$("${polecenie[@]}" "${adres}" 2>/dev/null)" || kod_curla=$?
+
+  # -------------------------------------------------------------------------
+  #  SAM KOD HTTP NIE WYSTARCZY — USTERKA ODTWORZONA 18.09.2026
+  #
+  #  Status odpowiedzi przychodzi PRZED ciałem. Gdy połączenie urwie się
+  #  w połowie ciała albo wyczerpie `--max-time`, curl trzyma już w ręku
+  #  „200", a plik jest NIEPEŁNY. Samo `case 2*` uznawało to za sukces.
+  #
+  #  Zmierzone wobec serwera oddającego 200 i połowę ciała ListObjectsV2:
+  #  `s3_lista_kluczy` zwracała 0 i CZTERY klucze zamiast dziewięciu, więc
+  #  `sprawdz_poprzednia_kopie` brała za najnowszą kopię sprzed czterech dni
+  #  i alarmowała o przestoju, którego nie było.
+  #
+  #  `IsTruncated` tego nie łapie: ten element stoi w odpowiedzi PRZED
+  #  `<Contents>` (sprawdzone na prawdziwej odpowiedzi), więc obcięcie ciała
+  #  zabiera klucze, a znacznik stronicowania zostawia nietknięty.
+  #  `--fail-with-body` też nie — on patrzy wyłącznie na status HTTP.
+  #  Łapie to dopiero kod wyjścia curla: 18 (ciało krótsze, niż obiecał
+  #  `Content-Length`), 28 (limit czasu), 55/56 (zerwany zapis/odczyt).
+  # -------------------------------------------------------------------------
+  if ((kod_curla != 0)); then
+    case "${S3_KOD}" in
+      2*)
+        # 2xx RAZEM z błędem curla znaczy dokładnie jedno: nagłówek doszedł,
+        # ciało nie. Mówimy to wprost, zamiast meldować sukces.
+        S3_KOD="${S3_KOD}/urwany-curl-${kod_curla}"
+        return 1
+        ;;
+    esac
+  fi
 
   case "${S3_KOD}" in
     2*) return 0 ;;
@@ -214,7 +246,14 @@ x-amz-date:${amz_data}
 #  retencję na „trzymaj wszystko", cisza byłaby najgorszym wyjściem —
 #  dlatego niedokończone listowanie kończy się błędem, nie obcięciem.
 # -----------------------------------------------------------------------------
-s3_lista_kluczy() {
+#  ROZMIAR JEST W TEJ SAMEJ ODPOWIEDZI — A DO 18.09.2026 GO WYRZUCALIŚMY.
+#  ListObjectsV2 oddaje dla każdego obiektu `<Key>` ORAZ `<Size>`, w jednym
+#  żądaniu i za tę samą cenę. Ten parser czytał wyłącznie klucze, więc wyżej
+#  „kopia" znaczyło „klucz o pasującej nazwie" — także obiekt ZEROWEJ
+#  długości po nieudanej wysyłce. Zmierzone na MinIO: dziewięć takich
+#  obiektów wypchnęło przez `MINIMUM_KOPII` jedyną niepustą kopię.
+#  Rozmiar bierzemy więc stąd, a nie osobnym `HEAD` na każdy obiekt.
+s3_lista_obiektow() {
   local prefiks="$1"
   local plik
   plik="$(mktemp)"
@@ -233,6 +272,90 @@ s3_lista_kluczy() {
     return 2
   fi
 
-  tr '<' '\n' <"${plik}" | sed -n 's/^Key>//p'
+  # `<Key>` i `<Size>` stoją w tym samym `<Contents>`, w tej kolejności.
+  # `^Key>` nie łapie `<KeyCount>`, a `^Size>` występuje wyłącznie
+  # wewnątrz `<Contents>`. Wyjście: „rozmiar<TAB>klucz".
+  #
+  # KLUCZ BEZ `<Size>` WYCHODZI Z PUSTYM ROZMIAREM, A NIE ZNIKA.
+  # Pierwsza wersja tego parsera drukowała linię dopiero przy `<Size>`, więc
+  # `<Contents>` bez rozmiaru gubiło klucz W CAŁOŚCI i cicho: lista wracała
+  # z kodem 0 i o jeden obiekt krótsza. To jest dokładnie ta klasa usterki,
+  # którą ten plik naprawia gdzie indziej — „nie wiem" udające „nie ma".
+  # Prawdziwy ListObjectsV2 oddaje `<Size>` zawsze, ale kod czytający cudzą
+  # odpowiedź nie ma prawa zakładać, że będzie.
+  #
+  # W kolumnie rozmiaru staje wtedy ZNAK ZAPYTANIA — nie pusty łańcuch i nie
+  # zero. Pusty odpadał po drodze i to jest zmierzone, nie przewidziane:
+  # `read -r rozmiar klucz` z `IFS=<TAB>` zjada WIODĄCY tabulator (tabulator
+  # jest białym znakiem IFS), więc linia „<TAB>klucz" wracała jako JEDNO pole
+  # i klucz ginął dokładnie tak samo jak przed poprawką. Zero byłoby
+  # zmyśleniem: nie wiemy, ile ten obiekt waży.
+  #
+  # `retencja()` odrzuca „?" jako obiekt BEZ POTWIERDZENIA (i alarmuje),
+  # a `s3_lista_kluczy` dalej widzi sam klucz.
+  tr '<' '\n' <"${plik}" | awk '
+    /^Key>/  { if (klucz != "") printf "?\t%s\n", klucz; klucz = substr($0, 5); next }
+    /^Size>/ { if (klucz != "") { printf "%s\t%s\n", substr($0, 6), klucz; klucz = "" } }
+    END      { if (klucz != "") printf "?\t%s\n", klucz }
+  '
   rm -f "${plik}"
+}
+
+# Same klucze, po jednym na linię. Kontrakt WOŁAJĄCEGO jest ten sam co przed
+# dołożeniem rozmiarów, ale droga już nie: klucze przechodzą teraz przez
+# parser dwukolumnowy i `cut`. Dlatego parser wyżej wypisuje także klucz bez
+# `<Size>` (z pustą pierwszą kolumną) — inaczej ta funkcja milcząco gubiłaby
+# obiekty, a `sprawdz_poprzednia_kopie` ogłaszałaby przestój, którego nie ma.
+# Kod powrotu MUSI przeżyć obcięcie do drugiej kolumny, dlatego przez plik,
+# a nie przez potok: `cut` zwróciłby 0 nawet po nieudanym listowaniu,
+# a `pipefail` nie jest tu niczym zagwarantowanym (biblioteka bywa wczytana
+# do powłoki, która go nie ma).
+s3_lista_kluczy() {
+  local kod=0
+  local plik
+  plik="$(mktemp)"
+  s3_lista_obiektow "$1" >"${plik}" || kod=$?
+  ((kod == 0)) && cut -f2- <"${plik}"
+  rm -f "${plik}"
+  return "${kod}"
+}
+
+# -----------------------------------------------------------------------------
+#  s3_lista_kluczy_do_pliku — to samo listowanie, ale klucze lądują w PLIKU.
+#
+#    $1 prefiks   jak wyżej
+#    $2 plik      gdzie zapisać klucze (po jednym na linię)
+#
+#  Kod powrotu jak w `s3_lista_kluczy`: 0, 1 (błąd HTTP), 2 (lista obcięta).
+#
+#  PO CO TO ISTNIEJE — USTERKA ODTWORZONA 18.09.2026
+#  `s3_lista_kluczy` wypisuje klucze na standardowe wyjście, więc naturalne
+#  wywołanie brzmi `klucze="$(s3_lista_kluczy baza/)"`. I to jest pułapka:
+#  podstawienie poleceń uruchamia funkcję w PODPOWŁOCE, a `S3_KOD` ustawia
+#  się właśnie w niej — i ginie razem z nią. Wołający dostawał kod powrotu 1
+#  i PUSTĄ zmienną, więc komunikat „HTTP ${S3_KOD:-brak}" zawsze kończył się
+#  słowem „brak" — mimo że ta biblioteka obiecuje w nagłówku `s3_zadanie`,
+#  że przy błędzie kod HTTP USTAWIA.
+#
+#  Dlaczego to nie jest kosmetyka. Zmierzone wobec prawdziwego endpointu S3
+#  (MinIO w kontenerze, ta sama ścieżka co R2): token bez prawa do bucketu
+#  daje 403, a bucket o złej nazwie 404. To są dwie różne awarie
+#  z dwiema różnymi naprawami — jedna to uprawnienia tokenu, druga to
+#  literówka w nazwie albo bucket, którego nikt nie założył. W logu wyglądały
+#  identycznie, a alarm ma dla obu ten sam odcisk, bo liczy się go z etapu
+#  i kodu wyjścia. Człowiek o trzeciej nad ranem nie miał z czego zgadnąć,
+#  czego szukać.
+#
+#  Przekierowanie do pliku podpowłoki NIE TWORZY (w odróżnieniu od `$( )`),
+#  więc `S3_KOD` dożywa do komunikatu w `kopia-bazy.sh`.
+# -----------------------------------------------------------------------------
+s3_lista_kluczy_do_pliku() {
+  s3_lista_kluczy "$1" >"$2"
+}
+
+# To samo, ale z rozmiarami: linie „rozmiar<TAB>klucz". Retencja potrzebuje
+# obu kolumn, żeby odróżnić kopię od obiektu zerowej długości — patrz
+# `retencja()` w `kopia-bazy.sh`. Kod powrotu i `S3_KOD` jak wyżej.
+s3_lista_obiektow_do_pliku() {
+  s3_lista_obiektow "$1" >"$2"
 }

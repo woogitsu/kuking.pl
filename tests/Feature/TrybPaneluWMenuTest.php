@@ -158,7 +158,7 @@ class TrybPaneluWMenuTest extends TestCase
         $boczna = $this->wytnijBoczna($html);
 
         $this->assertMatchesRegularExpression(
-            '~<a class="side-nav-item side-nav-powrot" href="[^"]*/home">\s*<svg.*?</svg>\s*Wróć do Kuking\s*</a>~s',
+            '~<a class="side-nav-item side-nav-powrot" href="[^"]*/home">\s*<svg.*?</svg>\s*(?:<span class="marka-panel-nav-etykieta">)?Wróć do Kuking(?:</span>)?\s*</a>~s',
             $boczna,
             'W menu panelu nie ma wyjścia „Wróć do Kuking” prowadzącego na Start.',
         );

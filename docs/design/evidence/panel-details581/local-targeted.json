@@ -1,0 +1,538 @@
+{
+  "scope": "Local targeted details only; not final full panel, CI or production",
+  "baseCommit": "ca438c8a5de48773cb05705f8f9b97adc9497944",
+  "sources": {
+    "resources/css/marka-panel.css": "07dc26489e34de1b8424efed171d55a1d283e314e967966941fc5e5fdafe0bbb",
+    "scripts/panel-details.mjs": "6b837df0cc0ba00276c7e76cc2379de57703eeffcb2a3373f70f81b2664481d6",
+    "scripts/panel-details-zoom.mjs": "395d1d244780edb44f43c16a7544d30981ff969de397a8db6badac3483da3105",
+    "scripts/panel-details-negative.mjs": "fbe39d884fa168f159e1f617f67ee10f04e8199187ae837b7c38a7690d78caf8"
+  },
+  "matrix": [
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "pass": true,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      }
+    }
+  ],
+  "zoom": [
+    {
+      "id": "kolaz",
+      "theme": "light",
+      "scale": 140,
+      "physicalWidth": 640,
+      "physicalHeight": 1800,
+      "zoom": 2,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 2,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "tablica",
+      "theme": "light",
+      "scale": 140,
+      "physicalWidth": 640,
+      "physicalHeight": 1800,
+      "zoom": 2,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 2,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "theme": "light",
+      "scale": 140,
+      "physicalWidth": 640,
+      "physicalHeight": 1800,
+      "zoom": 2,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 2,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      }
+    },
+    {
+      "id": "kolaz",
+      "theme": "dark",
+      "scale": 140,
+      "physicalWidth": 640,
+      "physicalHeight": 1800,
+      "zoom": 2,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 2,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "tablica",
+      "theme": "dark",
+      "scale": 140,
+      "physicalWidth": 640,
+      "physicalHeight": 1800,
+      "zoom": 2,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 2,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    },
+    {
+      "id": "wiadomosc",
+      "theme": "dark",
+      "scale": 140,
+      "physicalWidth": 640,
+      "physicalHeight": 1800,
+      "zoom": 2,
+      "pass": true,
+      "geometry": {
+        "width": 320,
+        "dpr": 2,
+        "height": 900,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      }
+    }
+  ],
+  "negative": [
+    {
+      "id": "scroll-reserve",
+      "source": "resources/css/marka-panel.css",
+      "expected": "DETAILS_FOCUS_CLIPPED",
+      "failure": "DETAILS_FOCUS_CLIPPED",
+      "restored": {
+        "md5": "dcd7e50300959771040da1e66d0497ff",
+        "mtime": "1789637786561895959",
+        "atime": "1789637787974208382"
+      },
+      "positive": true
+    },
+    {
+      "id": "target",
+      "source": "resources/css/marka-panel.css",
+      "expected": "DETAILS_TARGET_48",
+      "failure": "DETAILS_TARGET_48",
+      "restored": {
+        "md5": "dcd7e50300959771040da1e66d0497ff",
+        "mtime": "1789637786561895959",
+        "atime": "1789637841604424400"
+      },
+      "positive": true
+    },
+    {
+      "id": "retention",
+      "source": "resources/css/marka-panel.css",
+      "expected": "DETAILS_LAST_PARAGRAPH_OCCLUDED",
+      "failure": "DETAILS_LAST_PARAGRAPH_OCCLUDED",
+      "restored": {
+        "md5": "dcd7e50300959771040da1e66d0497ff",
+        "mtime": "1789637786561895959",
+        "atime": "1789637846966194630"
+      },
+      "positive": true
+    },
+    {
+      "id": "retention-missing",
+      "source": "resources/views/pages/admin/wiadomosc.blade.php",
+      "expected": "DETAILS_RETENTION_NOTICE_MISSING",
+      "failure": "DETAILS_RETENTION_NOTICE_MISSING",
+      "restored": {
+        "md5": "c0bb5b40e1fb526d411d525522b62787",
+        "mtime": "1789633973000000000",
+        "atime": "1789637788014208375"
+      },
+      "positive": true
+    },
+    {
+      "id": "focus",
+      "source": "resources/css/marka-panel.css",
+      "expected": "DETAILS_FOCUS_CLIPPED",
+      "failure": "DETAILS_FOCUS_CLIPPED",
+      "restored": {
+        "md5": "dcd7e50300959771040da1e66d0497ff",
+        "mtime": "1789637786561895959",
+        "atime": "1789637852870193286"
+      },
+      "positive": true
+    }
+  ]
+}

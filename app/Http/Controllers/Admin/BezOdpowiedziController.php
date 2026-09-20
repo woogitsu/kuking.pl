@@ -5,12 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Admin;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Moderation\UnansweredContent;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
-use Illuminate\Support\Facades\DB;
 use Illuminate\View\View;
 
 /**
@@ -42,23 +43,36 @@ class BezOdpowiedziController extends Controller
 
     private const ALARM_OD_GODZIN = 24;
 
-    public function __construct(private readonly PublishComment $publishComment) {}
+    public function __construct(private readonly PublishComment $publishComment, private readonly UnansweredContent $queue) {}
 
     public function index(Request $request): View
     {
         $this->authorize('moderate', User::class);
 
-        $wpisy = Post::query()
-            ->published()
-            // Wpisy prywatne nie czekają na odpowiedź gospodarza — nikt poza
-            // autorem ich nie widzi, więc brak komentarza nie jest problemem.
-            ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
-            ->whereDoesntHave('allComments', fn ($q) => $q->where('status', 'published'))
-            // Konto zamknięte nie czeka na powitanie — zbanowane, zgłoszone
-            // do usunięcia ani wymazane (D-022). Przy tym ostatnim nie ma już
-            // nawet do kogo napisać: adres e-mail jest anonimowy.
-            ->whereHas('author', fn ($q) => $q->widocznyJakoOsoba())
-            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
+        $type = $request->query('typ', 'wpisy');
+        abort_unless(in_array($type, ['wpisy', 'przepisy', 'ugotowane', 'pytania'], true), 404);
+        abort_if($type === 'pytania' && ! config('kuking.questions.enabled'), 404);
+
+        if ($type === 'pytania') {
+            $items = $this->queue->questions($request->user())->with('author.profile')
+                ->orderBy('published_at')->orderBy('id')->paginate(25)->withQueryString();
+
+            return view('pages.admin.bez-odpowiedzi-pytania', ['items' => $items, 'type' => $type]);
+        }
+
+        if ($type !== 'wpisy') {
+            $items = $type === 'przepisy'
+                ? $this->queue->recipes($request->user())->with('author.profile')->orderBy('published_at')->orderBy('id')->simplePaginate(25)
+                : $this->queue->cooked($request->user())->with(['user.profile', 'recipe'])->orderBy('created_at')->orderBy('id')->simplePaginate(25);
+
+            return view('pages.admin.bez-odpowiedzi-inne', [
+                'type' => $type,
+                'items' => $items->withQueryString(),
+            ]);
+        }
+
+        $wpisy = $this->queue->posts($request->user())
+            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name,status'])
             ->orderBy('published_at')
             ->limit(50)
             ->get();
@@ -88,7 +102,7 @@ class BezOdpowiedziController extends Controller
             'najstarszy' => $wpisy->max('godzinCzekania'),
             'progUwagi' => self::UWAGA_OD_GODZIN,
             'progAlarmu' => self::ALARM_OD_GODZIN,
-            'medianaReakcji' => $this->medianaCzasuDoPierwszejReakcji(),
+            'medianaReakcji' => $this->queue->medianPostResponseHours($request->user()),
         ]);
     }
 
@@ -96,19 +110,27 @@ class BezOdpowiedziController extends Controller
     {
         $this->authorize('moderate', User::class);
 
+        // Ponownie sprawdzamy dostęp po otwarciu listy; cudza odpowiedź
+        // nie odbiera prawa do dopisania własnej.
+        abort_unless($this->queue->eligiblePosts($request->user())->whereKey($post->getKey())->exists(), 404);
+
         $dane = $request->validate([
             'body' => ['required', 'string', 'max:4000'],
         ], [
             'body.required' => 'Napisz coś, zanim wyślesz odpowiedź.',
         ]);
 
-        $this->publishComment->handle(
-            author: $request->user(),
-            subject: $post,
-            body: $dane['body'],
-        );
+        try {
+            $this->publishComment->handle(
+                author: $request->user(),
+                subject: $post,
+                body: $dane['body'],
+            );
+        } catch (BladDlaCzlowieka $error) {
+            return back()->withInput()->withErrors(['body' => $error->getMessage()]);
+        }
 
-        return back()->with('status', 'Odpowiedź wysłana. Wpis znika z listy.');
+        return back()->with('status', 'Odpowiedź wysłana.');
     }
 
     /**
@@ -133,37 +155,5 @@ class BezOdpowiedziController extends Controller
             ->orderBy('id')
             ->pluck('id', 'author_id')
             ->all();
-    }
-
-    /**
-     * Mediana czasu od publikacji do pierwszego komentarza, z ostatnich
-     * trzydziestu dni.
-     *
-     * MEDIANA, NIE ŚREDNIA — i to nie jest szczegół statystyczny. Jeden wpis,
-     * na który ktoś odpowiedział po dwóch tygodniach, przesuwa średnią tak,
-     * że liczba przestaje cokolwiek znaczyć. Mediana mówi, ile czeka
-     * TYPOWA osoba, a to jest pytanie, które nas interesuje.
-     *
-     * @return float|null godziny; null, gdy nie ma jeszcze z czego liczyć
-     */
-    private function medianaCzasuDoPierwszejReakcji(): ?float
-    {
-        $wiersz = DB::selectOne(<<<'SQL'
-            SELECT percentile_cont(0.5) WITHIN GROUP (
-                ORDER BY EXTRACT(EPOCH FROM (pierwszy_komentarz - published_at)) / 3600
-            ) AS mediana
-            FROM (
-                SELECT p.published_at, MIN(c.created_at) AS pierwszy_komentarz
-                FROM posts p
-                JOIN comments c ON c.post_id = p.id
-                WHERE p.status = 'published'
-                  AND p.deleted_at IS NULL
-                  AND p.published_at >= now() - interval '30 days'
-                  AND c.status = 'published'
-                GROUP BY p.id, p.published_at
-            ) AS pierwsze
-        SQL);
-
-        return $wiersz?->mediana === null ? null : round((float) $wiersz->mediana, 1);
     }
 }

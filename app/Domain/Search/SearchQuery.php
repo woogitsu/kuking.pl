@@ -137,7 +137,7 @@ final class SearchQuery
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
 
@@ -216,6 +216,8 @@ final class SearchQuery
                 [$needle, $needle],
             )
             ->orderByDesc('published_at')
+            ->orderBy('recipes.id')
+            ->offset(max(0, $offset))
             ->limit($limit)
             ->get();
     }
@@ -239,7 +241,7 @@ final class SearchQuery
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Profile>
      */
-    public function people(string $phrase, ?User $widz = null, int $limit = 20): Collection
+    public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
 
@@ -297,6 +299,8 @@ final class SearchQuery
             // się tu na czym odbyć. Zmiana bez zmierzonego powodu byłaby
             // zmianą kolejności wyników za darmo.
             ->orderByRaw('similarity(profiles.display_name_search, ?) DESC', [$needle])
+            ->orderBy('profiles.user_id')
+            ->offset(max(0, $offset))
             ->limit($limit)
             ->get();
     }

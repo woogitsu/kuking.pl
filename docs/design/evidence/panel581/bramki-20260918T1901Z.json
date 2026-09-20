@@ -1,0 +1,24 @@
+{
+  "odczyt_utc": "2026-09-18T19:01:57Z",
+  "produkcja_etap": "Alfa 0.67",
+  "produkcja_wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3",
+  "metoda": "HTTP GET bez sesji; bez logowania, bez decyzji moderacyjnych, bez zmiany ustawien",
+  "trasy": [
+    {"trasa": "/admin/zgloszenia", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/sygnaly", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/wiadomosci", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/odwolania", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/bez-odpowiedzi", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/kolaz-powitalny", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/kuking-na-dzis", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/tagi-promowane", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/uzytkownicy", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/zgloszenia?strona=2", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/odwolania?stan=rozpatrzone", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/uzytkownicy/00000000-0000-7000-8000-000000000000", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin/wiadomosci/00000000-0000-7000-8000-000000000000", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/ustawienia/2fa", "http": 302, "redirect": "https://kuking.pl/login"},
+    {"trasa": "/admin", "http": 404, "redirect": ""},
+    {"trasa": "/admin/tagi", "http": 404, "redirect": ""}
+  ]
+}

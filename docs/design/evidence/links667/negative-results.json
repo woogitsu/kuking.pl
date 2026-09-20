@@ -1,0 +1,37 @@
+{
+  "backup": "/home/mateusz/kuking-667-negative-3pscvqbg",
+  "results": [
+    {
+      "mutation": "breadcrumb-html",
+      "file": "recipes/show.blade.php",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "d2f9207f0909d3c8d5f0544b39fc10f5",
+      "mtime_restored_ns": 1789716895948531387
+    },
+    {
+      "mutation": "breadcrumb-json",
+      "file": "recipes/show.blade.php",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "d2f9207f0909d3c8d5f0544b39fc10f5",
+      "mtime_restored_ns": 1789716895948531387
+    },
+    {
+      "mutation": "index-cta",
+      "file": "collections/index.blade.php",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "fdd0704b34b554ab94eaa2f623a45320",
+      "mtime_restored_ns": 1789716895946591069
+    },
+    {
+      "mutation": "show-cta",
+      "file": "collections/show.blade.php",
+      "negative_exit": 1,
+      "positive_exit": 0,
+      "md5_restored": "cb25b4500caa7a346357648454e867eb",
+      "mtime_restored_ns": 1789716895947517102
+    }
+  ]
+}

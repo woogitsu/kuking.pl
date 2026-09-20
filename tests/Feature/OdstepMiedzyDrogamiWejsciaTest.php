@@ -217,6 +217,14 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
                     continue;
                 }
 
+                // Nowa rama panelu ma własny slot; ta reguła nie może objąć logowania.
+                $czystySelektor = trim(preg_replace('/\s+/', ' ', preg_replace('~/\*.*?\*/~s', '', $selektor) ?? '') ?? '');
+                if ($czystySelektor === '[data-marka-panel] .marka-panel-tresc > '
+                    .':is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary) '
+                    .'+ :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)') {
+                    continue;
+                }
+
                 $winne[] = trim(preg_replace('/\s+/', ' ', $selektor) ?? '')
                     .' { '.trim(preg_replace('/\s+/', ' ', $tresc) ?? '').' } — '.basename($plik);
             }

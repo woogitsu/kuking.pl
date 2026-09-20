@@ -1,0 +1,4416 @@
+{
+  "scope": "320/1440 CSS, tekst100/140, oba motywy, reducedMotion reduce. Bez zoomu, submit i aktywowania mailto.",
+  "requests": [],
+  "rows": [
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 24,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 456.90625,
+              "width": 237.15625,
+              "height": 50.5,
+              "top": 456.90625,
+              "right": 249.15625,
+              "bottom": 507.40625,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 130.578125,
+                "y": 458.90625,
+                "ok": true
+              },
+              {
+                "x": 130.578125,
+                "y": 505.40625,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 482.15625,
+                "ok": true
+              },
+              {
+                "x": 247.15625,
+                "y": 482.15625,
+                "ok": true
+              },
+              {
+                "x": 130.578125,
+                "y": 482.15625,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 605.1875,
+                "width": 260,
+                "height": 73,
+                "top": 605.1875,
+                "right": 290,
+                "bottom": 678.1875,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 607.1875,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 676.1875,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 641.6875,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 641.6875,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 641.6875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 1
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 30,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 456.53125,
+              "width": 277.984375,
+              "height": 50.5,
+              "top": 456.53125,
+              "right": 289.984375,
+              "bottom": 507.03125,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 150.9921875,
+                "y": 458.53125,
+                "ok": true
+              },
+              {
+                "x": 150.9921875,
+                "y": 505.03125,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 481.78125,
+                "ok": true
+              },
+              {
+                "x": 287.984375,
+                "y": 481.78125,
+                "ok": true
+              },
+              {
+                "x": 150.9921875,
+                "y": 481.78125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 632.703125,
+                "width": 260,
+                "height": 73,
+                "top": 632.703125,
+                "right": 290,
+                "bottom": 705.703125,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 634.703125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 703.703125,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 669.203125,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 669.203125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 669.203125,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 22,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(21, 23, 20)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 445.5,
+              "width": 262,
+              "height": 73,
+              "top": 445.5,
+              "right": 291,
+              "bottom": 518.5,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 447.5,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 516.5,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 482,
+                "ok": true
+              },
+              {
+                "x": 289,
+                "y": 482,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 482,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(21, 94, 239)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 205.6875,
+                "y": 565.390625,
+                "width": 84.21875,
+                "height": 21,
+                "top": 565.390625,
+                "right": 289.90625,
+                "bottom": 586.390625,
+                "left": 205.6875
+              },
+              "points": [
+                {
+                  "x": 247.796875,
+                  "y": 567.390625,
+                  "ok": true
+                },
+                {
+                  "x": 247.796875,
+                  "y": 584.390625,
+                  "ok": true
+                },
+                {
+                  "x": 207.6875,
+                  "y": 575.890625,
+                  "ok": true
+                },
+                {
+                  "x": 287.90625,
+                  "y": 575.890625,
+                  "ok": true
+                },
+                {
+                  "x": 247.796875,
+                  "y": 575.890625,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 593.28125,
+                "width": 137.625,
+                "height": 21,
+                "top": 593.28125,
+                "right": 166.625,
+                "bottom": 614.28125,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 97.8125,
+                  "y": 595.28125,
+                  "ok": true
+                },
+                {
+                  "x": 97.8125,
+                  "y": 612.28125,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 603.78125,
+                  "ok": true
+                },
+                {
+                  "x": 164.625,
+                  "y": 603.78125,
+                  "ok": true
+                },
+                {
+                  "x": 97.8125,
+                  "y": 603.78125,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 621.171875,
+                "width": 169.875,
+                "height": 21,
+                "top": 621.171875,
+                "right": 198.875,
+                "bottom": 642.171875,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 113.9375,
+                  "y": 623.171875,
+                  "ok": true
+                },
+                {
+                  "x": 113.9375,
+                  "y": 640.171875,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 631.671875,
+                  "ok": true
+                },
+                {
+                  "x": 196.875,
+                  "y": 631.671875,
+                  "ok": true
+                },
+                {
+                  "x": 113.9375,
+                  "y": 631.671875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 658.484375,
+              "width": 103.03125,
+              "height": 50.5,
+              "top": 658.484375,
+              "right": 132.03125,
+              "bottom": 708.984375,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 80.515625,
+                "y": 660.484375,
+                "ok": true
+              },
+              {
+                "x": 80.515625,
+                "y": 706.984375,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 683.734375,
+                "ok": true
+              },
+              {
+                "x": 130.03125,
+                "y": 683.734375,
+                "ok": true
+              },
+              {
+                "x": 80.515625,
+                "y": 683.734375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 12,
+            "y": 433.984375,
+            "width": 292.1875,
+            "height": 20,
+            "top": 433.984375,
+            "right": 304.1875,
+            "bottom": 453.984375,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 458.78125,
+            "width": 216.71875,
+            "height": 20,
+            "top": 458.78125,
+            "right": 228.71875,
+            "bottom": 478.78125,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 483.578125,
+            "width": 268.8125,
+            "height": 20,
+            "top": 483.578125,
+            "right": 280.8125,
+            "bottom": 503.578125,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 508.375,
+            "width": 102.03125,
+            "height": 20,
+            "top": 508.375,
+            "right": 114.03125,
+            "bottom": 528.375,
+            "left": 12
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 4002,
+        "height": 5721,
+        "viewport": 900,
+        "max": 4821
+      },
+      "scrollAfter": {
+        "y": 4821,
+        "height": 5721,
+        "viewport": 900,
+        "max": 4821
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 12,
+            "y": -385.015625,
+            "width": 292.1875,
+            "height": 20,
+            "top": -385.015625,
+            "right": 304.1875,
+            "bottom": -365.015625,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -360.21875,
+            "width": 216.71875,
+            "height": 20,
+            "top": -360.21875,
+            "right": 228.71875,
+            "bottom": -340.21875,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -335.421875,
+            "width": 268.8125,
+            "height": 20,
+            "top": -335.421875,
+            "right": 280.8125,
+            "bottom": -315.421875,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -310.625,
+            "width": 102.03125,
+            "height": 20,
+            "top": -310.625,
+            "right": 114.03125,
+            "bottom": -290.625,
+            "left": 12
+          },
+          "readable": false
+        }
+      ],
+      "paragraphEvidence": "before",
+      "pass": true
+    },
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 24,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 420.59375,
+              "width": 296,
+              "height": 91,
+              "top": 420.59375,
+              "right": 308,
+              "bottom": 511.59375,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 422.59375,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 509.59375,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 466.09375,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 466.09375,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 466.09375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 420.78125,
+                "width": 260,
+                "height": 91,
+                "top": 420.78125,
+                "right": 290,
+                "bottom": 511.78125,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 422.78125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 509.78125,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 466.28125,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 466.28125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 466.28125,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 30,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 420.828125,
+              "width": 296,
+              "height": 91,
+              "top": 420.828125,
+              "right": 308,
+              "bottom": 511.828125,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 422.828125,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 509.828125,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 466.328125,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 466.328125,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 466.328125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 420.015625,
+                "width": 260,
+                "height": 91,
+                "top": 420.015625,
+                "right": 290,
+                "bottom": 511.015625,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 422.015625,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 509.015625,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 465.515625,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 465.515625,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 465.515625,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 22,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(21, 23, 20)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 404.671875,
+              "width": 262,
+              "height": 122.5,
+              "top": 404.671875,
+              "right": 291,
+              "bottom": 527.171875,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 406.671875,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 525.171875,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 465.921875,
+                "ok": true
+              },
+              {
+                "x": 289,
+                "y": 465.921875,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 465.921875,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(21, 94, 239)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 153.546875,
+                "y": 545.296875,
+                "width": 117.84375,
+                "height": 30,
+                "top": 545.296875,
+                "right": 271.390625,
+                "bottom": 575.296875,
+                "left": 153.546875
+              },
+              "points": [
+                {
+                  "x": 212.46875,
+                  "y": 547.296875,
+                  "ok": true
+                },
+                {
+                  "x": 212.46875,
+                  "y": 573.296875,
+                  "ok": true
+                },
+                {
+                  "x": 155.546875,
+                  "y": 560.296875,
+                  "ok": true
+                },
+                {
+                  "x": 269.390625,
+                  "y": 560.296875,
+                  "ok": true
+                },
+                {
+                  "x": 212.46875,
+                  "y": 560.296875,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 584.359375,
+                "width": 192.5625,
+                "height": 30,
+                "top": 584.359375,
+                "right": 221.5625,
+                "bottom": 614.359375,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 125.28125,
+                  "y": 586.359375,
+                  "ok": true
+                },
+                {
+                  "x": 125.28125,
+                  "y": 612.359375,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 599.359375,
+                  "ok": true
+                },
+                {
+                  "x": 219.5625,
+                  "y": 599.359375,
+                  "ok": true
+                },
+                {
+                  "x": 125.28125,
+                  "y": 599.359375,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 623.421875,
+                "width": 237.703125,
+                "height": 30,
+                "top": 623.421875,
+                "right": 266.703125,
+                "bottom": 653.421875,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 147.8515625,
+                  "y": 625.421875,
+                  "ok": true
+                },
+                {
+                  "x": 147.8515625,
+                  "y": 651.421875,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 638.421875,
+                  "ok": true
+                },
+                {
+                  "x": 264.703125,
+                  "y": 638.421875,
+                  "ok": true
+                },
+                {
+                  "x": 147.8515625,
+                  "y": 638.421875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 1
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 593.609375,
+              "width": 126.59375,
+              "height": 59.5,
+              "top": 593.609375,
+              "right": 155.59375,
+              "bottom": 653.109375,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 92.296875,
+                "y": 595.609375,
+                "ok": true
+              },
+              {
+                "x": 92.296875,
+                "y": 651.109375,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 623.359375,
+                "ok": true
+              },
+              {
+                "x": 153.59375,
+                "y": 623.359375,
+                "ok": true
+              },
+              {
+                "x": 92.296875,
+                "y": 623.359375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 12,
+            "y": 382.109375,
+            "width": 252.765625,
+            "height": 27,
+            "top": 382.109375,
+            "right": 264.765625,
+            "bottom": 409.109375,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 416.828125,
+            "width": 282.890625,
+            "height": 27,
+            "top": 416.828125,
+            "right": 294.890625,
+            "bottom": 443.828125,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 451.546875,
+            "width": 170.21875,
+            "height": 27,
+            "top": 451.546875,
+            "right": 182.21875,
+            "bottom": 478.546875,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 486.265625,
+            "width": 244.671875,
+            "height": 27,
+            "top": 486.265625,
+            "right": 256.671875,
+            "bottom": 513.265625,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 520.984375,
+            "width": 274.296875,
+            "height": 27,
+            "top": 520.984375,
+            "right": 286.296875,
+            "bottom": 547.984375,
+            "left": 12
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 6265,
+        "height": 8322,
+        "viewport": 900,
+        "max": 7422
+      },
+      "scrollAfter": {
+        "y": 7422,
+        "height": 8322,
+        "viewport": 900,
+        "max": 7422
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 12,
+            "y": -774.890625,
+            "width": 252.765625,
+            "height": 27,
+            "top": -774.890625,
+            "right": 264.765625,
+            "bottom": -747.890625,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -740.171875,
+            "width": 282.890625,
+            "height": 27,
+            "top": -740.171875,
+            "right": 294.890625,
+            "bottom": -713.171875,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -705.453125,
+            "width": 170.21875,
+            "height": 27,
+            "top": -705.453125,
+            "right": 182.21875,
+            "bottom": -678.453125,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -670.734375,
+            "width": 244.671875,
+            "height": 27,
+            "top": -670.734375,
+            "right": 256.671875,
+            "bottom": -643.734375,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -636.015625,
+            "width": 274.296875,
+            "height": 27,
+            "top": -636.015625,
+            "right": 286.296875,
+            "bottom": -609.015625,
+            "left": 12
+          },
+          "readable": false
+        }
+      ],
+      "paragraphEvidence": "before",
+      "pass": true
+    },
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 24,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 456.90625,
+              "width": 237.15625,
+              "height": 50.5,
+              "top": 456.90625,
+              "right": 249.15625,
+              "bottom": 507.40625,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 130.578125,
+                "y": 458.90625,
+                "ok": true
+              },
+              {
+                "x": 130.578125,
+                "y": 505.40625,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 482.15625,
+                "ok": true
+              },
+              {
+                "x": 247.15625,
+                "y": 482.15625,
+                "ok": true
+              },
+              {
+                "x": 130.578125,
+                "y": 482.15625,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 605.1875,
+                "width": 260,
+                "height": 73,
+                "top": 605.1875,
+                "right": 290,
+                "bottom": 678.1875,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 607.1875,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 676.1875,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 641.6875,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 641.6875,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 641.6875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 30,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 456.53125,
+              "width": 277.984375,
+              "height": 50.5,
+              "top": 456.53125,
+              "right": 289.984375,
+              "bottom": 507.03125,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 150.9921875,
+                "y": 458.53125,
+                "ok": true
+              },
+              {
+                "x": 150.9921875,
+                "y": 505.03125,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 481.78125,
+                "ok": true
+              },
+              {
+                "x": 287.984375,
+                "y": 481.78125,
+                "ok": true
+              },
+              {
+                "x": 150.9921875,
+                "y": 481.78125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 632.703125,
+                "width": 260,
+                "height": 73,
+                "top": 632.703125,
+                "right": 290,
+                "bottom": 705.703125,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 634.703125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 703.703125,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 669.203125,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 669.203125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 669.203125,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 22,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(244, 245, 241)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 445.5,
+              "width": 262,
+              "height": 73,
+              "top": 445.5,
+              "right": 291,
+              "bottom": 518.5,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 447.5,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 516.5,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 482,
+                "ok": true
+              },
+              {
+                "x": 289,
+                "y": 482,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 482,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(110, 168, 255)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 205.6875,
+                "y": 565.390625,
+                "width": 84.21875,
+                "height": 21,
+                "top": 565.390625,
+                "right": 289.90625,
+                "bottom": 586.390625,
+                "left": 205.6875
+              },
+              "points": [
+                {
+                  "x": 247.796875,
+                  "y": 567.390625,
+                  "ok": true
+                },
+                {
+                  "x": 247.796875,
+                  "y": 584.390625,
+                  "ok": true
+                },
+                {
+                  "x": 207.6875,
+                  "y": 575.890625,
+                  "ok": true
+                },
+                {
+                  "x": 287.90625,
+                  "y": 575.890625,
+                  "ok": true
+                },
+                {
+                  "x": 247.796875,
+                  "y": 575.890625,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 593.28125,
+                "width": 137.625,
+                "height": 21,
+                "top": 593.28125,
+                "right": 166.625,
+                "bottom": 614.28125,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 97.8125,
+                  "y": 595.28125,
+                  "ok": true
+                },
+                {
+                  "x": 97.8125,
+                  "y": 612.28125,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 603.78125,
+                  "ok": true
+                },
+                {
+                  "x": 164.625,
+                  "y": 603.78125,
+                  "ok": true
+                },
+                {
+                  "x": 97.8125,
+                  "y": 603.78125,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 621.171875,
+                "width": 169.875,
+                "height": 21,
+                "top": 621.171875,
+                "right": 198.875,
+                "bottom": 642.171875,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 113.9375,
+                  "y": 623.171875,
+                  "ok": true
+                },
+                {
+                  "x": 113.9375,
+                  "y": 640.171875,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 631.671875,
+                  "ok": true
+                },
+                {
+                  "x": 196.875,
+                  "y": 631.671875,
+                  "ok": true
+                },
+                {
+                  "x": 113.9375,
+                  "y": 631.671875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 1
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 658.484375,
+              "width": 103.03125,
+              "height": 50.5,
+              "top": 658.484375,
+              "right": 132.03125,
+              "bottom": 708.984375,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 80.515625,
+                "y": 660.484375,
+                "ok": true
+              },
+              {
+                "x": 80.515625,
+                "y": 706.984375,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 683.734375,
+                "ok": true
+              },
+              {
+                "x": 130.03125,
+                "y": 683.734375,
+                "ok": true
+              },
+              {
+                "x": 80.515625,
+                "y": 683.734375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 12,
+            "y": 433.984375,
+            "width": 292.1875,
+            "height": 20,
+            "top": 433.984375,
+            "right": 304.1875,
+            "bottom": 453.984375,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 458.78125,
+            "width": 216.71875,
+            "height": 20,
+            "top": 458.78125,
+            "right": 228.71875,
+            "bottom": 478.78125,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 483.578125,
+            "width": 268.8125,
+            "height": 20,
+            "top": 483.578125,
+            "right": 280.8125,
+            "bottom": 503.578125,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 508.375,
+            "width": 102.03125,
+            "height": 20,
+            "top": 508.375,
+            "right": 114.03125,
+            "bottom": 528.375,
+            "left": 12
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 4002,
+        "height": 5721,
+        "viewport": 900,
+        "max": 4821
+      },
+      "scrollAfter": {
+        "y": 4821,
+        "height": 5721,
+        "viewport": 900,
+        "max": 4821
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 12,
+            "y": -385.015625,
+            "width": 292.1875,
+            "height": 20,
+            "top": -385.015625,
+            "right": 304.1875,
+            "bottom": -365.015625,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -360.21875,
+            "width": 216.71875,
+            "height": 20,
+            "top": -360.21875,
+            "right": 228.71875,
+            "bottom": -340.21875,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -335.421875,
+            "width": 268.8125,
+            "height": 20,
+            "top": -335.421875,
+            "right": 280.8125,
+            "bottom": -315.421875,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -310.625,
+            "width": 102.03125,
+            "height": 20,
+            "top": -310.625,
+            "right": 114.03125,
+            "bottom": -290.625,
+            "left": 12
+          },
+          "readable": false
+        }
+      ],
+      "paragraphEvidence": "before",
+      "pass": true
+    },
+    {
+      "id": "kolaz",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 24,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 420.59375,
+              "width": 296,
+              "height": 91,
+              "top": 420.59375,
+              "right": 308,
+              "bottom": 511.59375,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 422.59375,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 509.59375,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 466.09375,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 466.09375,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 466.09375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 420.78125,
+                "width": 260,
+                "height": 91,
+                "top": 420.78125,
+                "right": 290,
+                "bottom": 511.78125,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 422.78125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 509.78125,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 466.28125,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 466.28125,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 466.28125,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 30,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 12,
+              "y": 420.828125,
+              "width": 296,
+              "height": 91,
+              "top": 420.828125,
+              "right": 308,
+              "bottom": 511.828125,
+              "left": 12
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 422.828125,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 509.828125,
+                "ok": true
+              },
+              {
+                "x": 14,
+                "y": 466.328125,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 466.328125,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 466.328125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 30,
+                "y": 420.015625,
+                "width": 260,
+                "height": 91,
+                "top": 420.015625,
+                "right": 290,
+                "bottom": 511.015625,
+                "left": 30
+              },
+              "points": [
+                {
+                  "x": 160,
+                  "y": 422.015625,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 509.015625,
+                  "ok": true
+                },
+                {
+                  "x": 32,
+                  "y": 465.515625,
+                  "ok": true
+                },
+                {
+                  "x": 288,
+                  "y": 465.515625,
+                  "ok": true
+                },
+                {
+                  "x": 160,
+                  "y": 465.515625,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 320,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 22,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(244, 245, 241)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 404.671875,
+              "width": 262,
+              "height": 122.5,
+              "top": 404.671875,
+              "right": 291,
+              "bottom": 527.171875,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 160,
+                "y": 406.671875,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 525.171875,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 465.921875,
+                "ok": true
+              },
+              {
+                "x": 289,
+                "y": 465.921875,
+                "ok": true
+              },
+              {
+                "x": 160,
+                "y": 465.921875,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(110, 168, 255)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 153.546875,
+                "y": 545.296875,
+                "width": 117.84375,
+                "height": 30,
+                "top": 545.296875,
+                "right": 271.390625,
+                "bottom": 575.296875,
+                "left": 153.546875
+              },
+              "points": [
+                {
+                  "x": 212.46875,
+                  "y": 547.296875,
+                  "ok": true
+                },
+                {
+                  "x": 212.46875,
+                  "y": 573.296875,
+                  "ok": true
+                },
+                {
+                  "x": 155.546875,
+                  "y": 560.296875,
+                  "ok": true
+                },
+                {
+                  "x": 269.390625,
+                  "y": 560.296875,
+                  "ok": true
+                },
+                {
+                  "x": 212.46875,
+                  "y": 560.296875,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 584.359375,
+                "width": 192.5625,
+                "height": 30,
+                "top": 584.359375,
+                "right": 221.5625,
+                "bottom": 614.359375,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 125.28125,
+                  "y": 586.359375,
+                  "ok": true
+                },
+                {
+                  "x": 125.28125,
+                  "y": 612.359375,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 599.359375,
+                  "ok": true
+                },
+                {
+                  "x": 219.5625,
+                  "y": 599.359375,
+                  "ok": true
+                },
+                {
+                  "x": 125.28125,
+                  "y": 599.359375,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 29,
+                "y": 623.421875,
+                "width": 237.703125,
+                "height": 30,
+                "top": 623.421875,
+                "right": 266.703125,
+                "bottom": 653.421875,
+                "left": 29
+              },
+              "points": [
+                {
+                  "x": 147.8515625,
+                  "y": 625.421875,
+                  "ok": true
+                },
+                {
+                  "x": 147.8515625,
+                  "y": 651.421875,
+                  "ok": true
+                },
+                {
+                  "x": 31,
+                  "y": 638.421875,
+                  "ok": true
+                },
+                {
+                  "x": 264.703125,
+                  "y": 638.421875,
+                  "ok": true
+                },
+                {
+                  "x": 147.8515625,
+                  "y": 638.421875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 29,
+              "y": 593.609375,
+              "width": 126.59375,
+              "height": 59.5,
+              "top": 593.609375,
+              "right": 155.59375,
+              "bottom": 653.109375,
+              "left": 29
+            },
+            "points": [
+              {
+                "x": 92.296875,
+                "y": 595.609375,
+                "ok": true
+              },
+              {
+                "x": 92.296875,
+                "y": 651.109375,
+                "ok": true
+              },
+              {
+                "x": 31,
+                "y": 623.359375,
+                "ok": true
+              },
+              {
+                "x": 153.59375,
+                "y": 623.359375,
+                "ok": true
+              },
+              {
+                "x": 92.296875,
+                "y": 623.359375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 12,
+            "y": 382.109375,
+            "width": 252.765625,
+            "height": 27,
+            "top": 382.109375,
+            "right": 264.765625,
+            "bottom": 409.109375,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 416.828125,
+            "width": 282.890625,
+            "height": 27,
+            "top": 416.828125,
+            "right": 294.890625,
+            "bottom": 443.828125,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 451.546875,
+            "width": 170.21875,
+            "height": 27,
+            "top": 451.546875,
+            "right": 182.21875,
+            "bottom": 478.546875,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 486.265625,
+            "width": 244.671875,
+            "height": 27,
+            "top": 486.265625,
+            "right": 256.671875,
+            "bottom": 513.265625,
+            "left": 12
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": 520.984375,
+            "width": 274.296875,
+            "height": 27,
+            "top": 520.984375,
+            "right": 286.296875,
+            "bottom": 547.984375,
+            "left": 12
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 6265,
+        "height": 8322,
+        "viewport": 900,
+        "max": 7422
+      },
+      "scrollAfter": {
+        "y": 7422,
+        "height": 8322,
+        "viewport": 900,
+        "max": 7422
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 12,
+            "y": -774.890625,
+            "width": 252.765625,
+            "height": 27,
+            "top": -774.890625,
+            "right": 264.765625,
+            "bottom": -747.890625,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -740.171875,
+            "width": 282.890625,
+            "height": 27,
+            "top": -740.171875,
+            "right": 294.890625,
+            "bottom": -713.171875,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -705.453125,
+            "width": 170.21875,
+            "height": 27,
+            "top": -705.453125,
+            "right": 182.21875,
+            "bottom": -678.453125,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -670.734375,
+            "width": 244.671875,
+            "height": 27,
+            "top": -670.734375,
+            "right": 256.671875,
+            "bottom": -643.734375,
+            "left": 12
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 12,
+            "y": -636.015625,
+            "width": 274.296875,
+            "height": 27,
+            "top": -636.015625,
+            "right": 286.296875,
+            "bottom": -609.015625,
+            "left": 12
+          },
+          "readable": false
+        }
+      ],
+      "paragraphEvidence": "before",
+      "pass": true
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 25,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 304,
+              "y": 489.1875,
+              "width": 237.15625,
+              "height": 50.5,
+              "top": 489.1875,
+              "right": 541.15625,
+              "bottom": 539.6875,
+              "left": 304
+            },
+            "points": [
+              {
+                "x": 422.578125,
+                "y": 491.1875,
+                "ok": true
+              },
+              {
+                "x": 422.578125,
+                "y": 537.6875,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 514.4375,
+                "ok": true
+              },
+              {
+                "x": 539.15625,
+                "y": 514.4375,
+                "ok": true
+              },
+              {
+                "x": 422.578125,
+                "y": 514.4375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 322,
+                "y": 609.578125,
+                "width": 275.09375,
+                "height": 50.5,
+                "top": 609.578125,
+                "right": 597.09375,
+                "bottom": 660.078125,
+                "left": 322
+              },
+              "points": [
+                {
+                  "x": 459.546875,
+                  "y": 611.578125,
+                  "ok": true
+                },
+                {
+                  "x": 459.546875,
+                  "y": 658.078125,
+                  "ok": true
+                },
+                {
+                  "x": 324,
+                  "y": 634.828125,
+                  "ok": true
+                },
+                {
+                  "x": 595.09375,
+                  "y": 634.828125,
+                  "ok": true
+                },
+                {
+                  "x": 459.546875,
+                  "y": 634.828125,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 1
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 31,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 304,
+              "y": 695.515625,
+              "width": 277.984375,
+              "height": 50.5,
+              "top": 695.515625,
+              "right": 581.984375,
+              "bottom": 746.015625,
+              "left": 304
+            },
+            "points": [
+              {
+                "x": 442.9921875,
+                "y": 697.515625,
+                "ok": true
+              },
+              {
+                "x": 442.9921875,
+                "y": 744.015625,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 720.765625,
+                "ok": true
+              },
+              {
+                "x": 579.984375,
+                "y": 720.765625,
+                "ok": true
+              },
+              {
+                "x": 442.9921875,
+                "y": 720.765625,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 322,
+                "y": 843.796875,
+                "width": 315.921875,
+                "height": 50.5,
+                "top": 843.796875,
+                "right": 637.921875,
+                "bottom": 894.296875,
+                "left": 322
+              },
+              "points": [
+                {
+                  "x": 479.9609375,
+                  "y": 845.796875,
+                  "ok": true
+                },
+                {
+                  "x": 479.9609375,
+                  "y": 892.296875,
+                  "ok": true
+                },
+                {
+                  "x": 324,
+                  "y": 869.046875,
+                  "ok": true
+                },
+                {
+                  "x": 635.921875,
+                  "y": 869.046875,
+                  "ok": true
+                },
+                {
+                  "x": 479.9609375,
+                  "y": 869.046875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 23,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(21, 23, 20)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 329,
+              "y": 488.921875,
+              "width": 448.5,
+              "height": 50.5,
+              "top": 488.921875,
+              "right": 777.5,
+              "bottom": 539.421875,
+              "left": 329
+            },
+            "points": [
+              {
+                "x": 553.25,
+                "y": 490.921875,
+                "ok": true
+              },
+              {
+                "x": 553.25,
+                "y": 537.421875,
+                "ok": true
+              },
+              {
+                "x": 331,
+                "y": 514.171875,
+                "ok": true
+              },
+              {
+                "x": 775.5,
+                "y": 514.171875,
+                "ok": true
+              },
+              {
+                "x": 553.25,
+                "y": 514.171875,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(21, 94, 239)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 729.3125,
+                "y": 558.421875,
+                "width": 391.6875,
+                "height": 21,
+                "top": 558.421875,
+                "right": 1121,
+                "bottom": 579.421875,
+                "left": 729.3125
+              },
+              "points": [
+                {
+                  "x": 925.15625,
+                  "y": 560.421875,
+                  "ok": true
+                },
+                {
+                  "x": 925.15625,
+                  "y": 577.421875,
+                  "ok": true
+                },
+                {
+                  "x": 731.3125,
+                  "y": 568.921875,
+                  "ok": true
+                },
+                {
+                  "x": 1119,
+                  "y": 568.921875,
+                  "ok": true
+                },
+                {
+                  "x": 925.15625,
+                  "y": 568.921875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 329,
+              "y": 488.78125,
+              "width": 103.03125,
+              "height": 50.5,
+              "top": 488.78125,
+              "right": 432.03125,
+              "bottom": 539.28125,
+              "left": 329
+            },
+            "points": [
+              {
+                "x": 380.515625,
+                "y": 490.78125,
+                "ok": true
+              },
+              {
+                "x": 380.515625,
+                "y": 537.28125,
+                "ok": true
+              },
+              {
+                "x": 331,
+                "y": 514.03125,
+                "ok": true
+              },
+              {
+                "x": 430.03125,
+                "y": 514.03125,
+                "ok": true
+              },
+              {
+                "x": 380.515625,
+                "y": 514.03125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 304,
+            "y": 586.28125,
+            "width": 692.734375,
+            "height": 20,
+            "top": 586.28125,
+            "right": 996.734375,
+            "bottom": 606.28125,
+            "left": 304
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 304,
+            "y": 611.078125,
+            "width": 196.015625,
+            "height": 20,
+            "top": 611.078125,
+            "right": 500.015625,
+            "bottom": 631.078125,
+            "left": 304
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 1597,
+        "height": 2757,
+        "viewport": 900,
+        "max": 1857
+      },
+      "scrollAfter": {
+        "y": 1857,
+        "height": 2757,
+        "viewport": 900,
+        "max": 1857
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 304,
+            "y": 326.28125,
+            "width": 692.734375,
+            "height": 20,
+            "top": 326.28125,
+            "right": 996.734375,
+            "bottom": 346.28125,
+            "left": 304
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 304,
+            "y": 351.078125,
+            "width": 196.015625,
+            "height": 20,
+            "top": 351.078125,
+            "right": 500.015625,
+            "bottom": 371.078125,
+            "left": 304
+          },
+          "readable": true
+        }
+      ],
+      "paragraphEvidence": "before",
+      "pass": true
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 25,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 406.390625,
+              "y": 767.96875,
+              "width": 314.28125,
+              "height": 59.5,
+              "top": 767.96875,
+              "right": 720.671875,
+              "bottom": 827.46875,
+              "left": 406.390625
+            },
+            "points": [
+              {
+                "x": 563.53125,
+                "y": 769.96875,
+                "ok": true
+              },
+              {
+                "x": 563.53125,
+                "y": 825.46875,
+                "ok": true
+              },
+              {
+                "x": 408.390625,
+                "y": 797.71875,
+                "ok": true
+              },
+              {
+                "x": 718.671875,
+                "y": 797.71875,
+                "ok": true
+              },
+              {
+                "x": 563.53125,
+                "y": 797.71875,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 424.390625,
+                "y": 490.59375,
+                "width": 367.375,
+                "height": 59.5,
+                "top": 490.59375,
+                "right": 791.765625,
+                "bottom": 550.09375,
+                "left": 424.390625
+              },
+              "points": [
+                {
+                  "x": 608.078125,
+                  "y": 492.59375,
+                  "ok": true
+                },
+                {
+                  "x": 608.078125,
+                  "y": 548.09375,
+                  "ok": true
+                },
+                {
+                  "x": 426.390625,
+                  "y": 520.34375,
+                  "ok": true
+                },
+                {
+                  "x": 789.765625,
+                  "y": 520.34375,
+                  "ok": true
+                },
+                {
+                  "x": 608.078125,
+                  "y": 520.34375,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 31,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 406.390625,
+              "y": 840.53125,
+              "width": 371.421875,
+              "height": 59.5,
+              "top": 840.53125,
+              "right": 777.8125,
+              "bottom": 900.03125,
+              "left": 406.390625
+            },
+            "points": [
+              {
+                "x": 592.1015625,
+                "y": 842.53125,
+                "ok": true
+              },
+              {
+                "x": 592.1015625,
+                "y": 898.03125,
+                "ok": true
+              },
+              {
+                "x": 408.390625,
+                "y": 870.28125,
+                "ok": true
+              },
+              {
+                "x": 775.8125,
+                "y": 870.28125,
+                "ok": true
+              },
+              {
+                "x": 592.1015625,
+                "y": 870.28125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(243, 244, 241) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 424.390625,
+                "y": 490.15625,
+                "width": 424.5,
+                "height": 59.5,
+                "top": 490.15625,
+                "right": 848.890625,
+                "bottom": 549.65625,
+                "left": 424.390625
+              },
+              "points": [
+                {
+                  "x": 636.640625,
+                  "y": 492.15625,
+                  "ok": true
+                },
+                {
+                  "x": 636.640625,
+                  "y": 547.65625,
+                  "ok": true
+                },
+                {
+                  "x": 426.390625,
+                  "y": 519.90625,
+                  "ok": true
+                },
+                {
+                  "x": 846.890625,
+                  "y": 519.90625,
+                  "ok": true
+                },
+                {
+                  "x": 636.640625,
+                  "y": 519.90625,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(21, 23, 20)"
+      },
+      "tabsToSummary": 23,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(21, 23, 20)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 431.390625,
+              "y": 490.59375,
+              "width": 610.015625,
+              "height": 59.5,
+              "top": 490.59375,
+              "right": 1041.40625,
+              "bottom": 550.09375,
+              "left": 431.390625
+            },
+            "points": [
+              {
+                "x": 736.3984375,
+                "y": 492.59375,
+                "ok": true
+              },
+              {
+                "x": 736.3984375,
+                "y": 548.09375,
+                "ok": true
+              },
+              {
+                "x": 433.390625,
+                "y": 520.34375,
+                "ok": true
+              },
+              {
+                "x": 1039.40625,
+                "y": 520.34375,
+                "ok": true
+              },
+              {
+                "x": 736.3984375,
+                "y": 520.34375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(21, 94, 239)",
+          "outlineColor": "rgb(21, 94, 239)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 991.53125,
+                "y": 570.09375,
+                "width": 310.40625,
+                "height": 30,
+                "top": 570.09375,
+                "right": 1301.9375,
+                "bottom": 600.09375,
+                "left": 991.53125
+              },
+              "points": [
+                {
+                  "x": 1146.734375,
+                  "y": 572.09375,
+                  "ok": true
+                },
+                {
+                  "x": 1146.734375,
+                  "y": 598.09375,
+                  "ok": true
+                },
+                {
+                  "x": 993.53125,
+                  "y": 585.09375,
+                  "ok": true
+                },
+                {
+                  "x": 1299.9375,
+                  "y": 585.09375,
+                  "ok": true
+                },
+                {
+                  "x": 1146.734375,
+                  "y": 585.09375,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 431.390625,
+                "y": 609.15625,
+                "width": 237.703125,
+                "height": 30,
+                "top": 609.15625,
+                "right": 669.09375,
+                "bottom": 639.15625,
+                "left": 431.390625
+              },
+              "points": [
+                {
+                  "x": 550.2421875,
+                  "y": 611.15625,
+                  "ok": true
+                },
+                {
+                  "x": 550.2421875,
+                  "y": 637.15625,
+                  "ok": true
+                },
+                {
+                  "x": 433.390625,
+                  "y": 624.15625,
+                  "ok": true
+                },
+                {
+                  "x": 667.09375,
+                  "y": 624.15625,
+                  "ok": true
+                },
+                {
+                  "x": 550.2421875,
+                  "y": 624.15625,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(21, 94, 239)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 431.390625,
+              "y": 708.09375,
+              "width": 126.59375,
+              "height": 59.5,
+              "top": 708.09375,
+              "right": 557.984375,
+              "bottom": 767.59375,
+              "left": 431.390625
+            },
+            "points": [
+              {
+                "x": 494.6875,
+                "y": 710.09375,
+                "ok": true
+              },
+              {
+                "x": 494.6875,
+                "y": 765.59375,
+                "ok": true
+              },
+              {
+                "x": 433.390625,
+                "y": 737.84375,
+                "ok": true
+              },
+              {
+                "x": 555.984375,
+                "y": 737.84375,
+                "ok": true
+              },
+              {
+                "x": 494.6875,
+                "y": 737.84375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 815.59375,
+            "width": 969.421875,
+            "height": 27,
+            "top": 815.59375,
+            "right": 1375.8125,
+            "bottom": 842.59375,
+            "left": 406.390625
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 850.3125,
+            "width": 274.296875,
+            "height": 27,
+            "top": 850.3125,
+            "right": 680.6875,
+            "bottom": 877.3125,
+            "left": 406.390625
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 1979,
+        "height": 3448,
+        "viewport": 900,
+        "max": 2548
+      },
+      "scrollAfter": {
+        "y": 2548,
+        "height": 3448,
+        "viewport": 900,
+        "max": 2548
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 246.59375,
+            "width": 969.421875,
+            "height": 27,
+            "top": 246.59375,
+            "right": 1375.8125,
+            "bottom": 273.59375,
+            "left": 406.390625
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 281.3125,
+            "width": 274.296875,
+            "height": 27,
+            "top": 281.3125,
+            "right": 680.6875,
+            "bottom": 308.3125,
+            "left": 406.390625
+          },
+          "readable": true
+        }
+      ],
+      "paragraphEvidence": "after",
+      "pass": true
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 25,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 304,
+              "y": 489.1875,
+              "width": 237.15625,
+              "height": 50.5,
+              "top": 489.1875,
+              "right": 541.15625,
+              "bottom": 539.6875,
+              "left": 304
+            },
+            "points": [
+              {
+                "x": 422.578125,
+                "y": 491.1875,
+                "ok": true
+              },
+              {
+                "x": 422.578125,
+                "y": 537.6875,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 514.4375,
+                "ok": true
+              },
+              {
+                "x": 539.15625,
+                "y": 514.4375,
+                "ok": true
+              },
+              {
+                "x": 422.578125,
+                "y": 514.4375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 322,
+                "y": 609.578125,
+                "width": 275.09375,
+                "height": 50.5,
+                "top": 609.578125,
+                "right": 597.09375,
+                "bottom": 660.078125,
+                "left": 322
+              },
+              "points": [
+                {
+                  "x": 459.546875,
+                  "y": 611.578125,
+                  "ok": true
+                },
+                {
+                  "x": 459.546875,
+                  "y": 658.078125,
+                  "ok": true
+                },
+                {
+                  "x": 324,
+                  "y": 634.828125,
+                  "ok": true
+                },
+                {
+                  "x": 595.09375,
+                  "y": 634.828125,
+                  "ok": true
+                },
+                {
+                  "x": 459.546875,
+                  "y": 634.828125,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 31,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 304,
+              "y": 695.515625,
+              "width": 277.984375,
+              "height": 50.5,
+              "top": 695.515625,
+              "right": 581.984375,
+              "bottom": 746.015625,
+              "left": 304
+            },
+            "points": [
+              {
+                "x": 442.9921875,
+                "y": 697.515625,
+                "ok": true
+              },
+              {
+                "x": 442.9921875,
+                "y": 744.015625,
+                "ok": true
+              },
+              {
+                "x": 306,
+                "y": 720.765625,
+                "ok": true
+              },
+              {
+                "x": 579.984375,
+                "y": 720.765625,
+                "ok": true
+              },
+              {
+                "x": 442.9921875,
+                "y": 720.765625,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 322,
+                "y": 843.796875,
+                "width": 315.921875,
+                "height": 50.5,
+                "top": 843.796875,
+                "right": 637.921875,
+                "bottom": 894.296875,
+                "left": 322
+              },
+              "points": [
+                {
+                  "x": 479.9609375,
+                  "y": 845.796875,
+                  "ok": true
+                },
+                {
+                  "x": 479.9609375,
+                  "y": 892.296875,
+                  "ok": true
+                },
+                {
+                  "x": 324,
+                  "y": 869.046875,
+                  "ok": true
+                },
+                {
+                  "x": 635.921875,
+                  "y": 869.046875,
+                  "ok": true
+                },
+                {
+                  "x": 479.9609375,
+                  "y": 869.046875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 18,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 23,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(244, 245, 241)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 329,
+              "y": 488.921875,
+              "width": 448.5,
+              "height": 50.5,
+              "top": 488.921875,
+              "right": 777.5,
+              "bottom": 539.421875,
+              "left": 329
+            },
+            "points": [
+              {
+                "x": 553.25,
+                "y": 490.921875,
+                "ok": true
+              },
+              {
+                "x": 553.25,
+                "y": 537.421875,
+                "ok": true
+              },
+              {
+                "x": 331,
+                "y": 514.171875,
+                "ok": true
+              },
+              {
+                "x": 775.5,
+                "y": 514.171875,
+                "ok": true
+              },
+              {
+                "x": 553.25,
+                "y": 514.171875,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(110, 168, 255)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 729.3125,
+                "y": 558.421875,
+                "width": 391.6875,
+                "height": 21,
+                "top": 558.421875,
+                "right": 1121,
+                "bottom": 579.421875,
+                "left": 729.3125
+              },
+              "points": [
+                {
+                  "x": 925.15625,
+                  "y": 560.421875,
+                  "ok": true
+                },
+                {
+                  "x": 925.15625,
+                  "y": 577.421875,
+                  "ok": true
+                },
+                {
+                  "x": 731.3125,
+                  "y": 568.921875,
+                  "ok": true
+                },
+                {
+                  "x": 1119,
+                  "y": 568.921875,
+                  "ok": true
+                },
+                {
+                  "x": 925.15625,
+                  "y": 568.921875,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 329,
+              "y": 488.78125,
+              "width": 103.03125,
+              "height": 50.5,
+              "top": 488.78125,
+              "right": 432.03125,
+              "bottom": 539.28125,
+              "left": 329
+            },
+            "points": [
+              {
+                "x": 380.515625,
+                "y": 490.78125,
+                "ok": true
+              },
+              {
+                "x": 380.515625,
+                "y": 537.28125,
+                "ok": true
+              },
+              {
+                "x": 331,
+                "y": 514.03125,
+                "ok": true
+              },
+              {
+                "x": 430.03125,
+                "y": 514.03125,
+                "ok": true
+              },
+              {
+                "x": 380.515625,
+                "y": 514.03125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 304,
+            "y": 586.28125,
+            "width": 692.734375,
+            "height": 20,
+            "top": 586.28125,
+            "right": 996.734375,
+            "bottom": 606.28125,
+            "left": 304
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 304,
+            "y": 611.078125,
+            "width": 196.015625,
+            "height": 20,
+            "top": 611.078125,
+            "right": 500.015625,
+            "bottom": 631.078125,
+            "left": 304
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 1597,
+        "height": 2757,
+        "viewport": 900,
+        "max": 1857
+      },
+      "scrollAfter": {
+        "y": 1857,
+        "height": 2757,
+        "viewport": 900,
+        "max": 1857
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 304,
+            "y": 326.28125,
+            "width": 692.734375,
+            "height": 20,
+            "top": 326.28125,
+            "right": 996.734375,
+            "bottom": 346.28125,
+            "left": 304
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 304,
+            "y": 351.078125,
+            "width": 196.015625,
+            "height": 20,
+            "top": 351.078125,
+            "right": 500.015625,
+            "bottom": 371.078125,
+            "left": 304
+          },
+          "readable": true
+        }
+      ],
+      "paragraphEvidence": "before",
+      "pass": true
+    },
+    {
+      "id": "kolaz",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 25,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 406.390625,
+              "y": 767.96875,
+              "width": 314.28125,
+              "height": 59.5,
+              "top": 767.96875,
+              "right": 720.671875,
+              "bottom": 827.46875,
+              "left": 406.390625
+            },
+            "points": [
+              {
+                "x": 563.53125,
+                "y": 769.96875,
+                "ok": true
+              },
+              {
+                "x": 563.53125,
+                "y": 825.46875,
+                "ok": true
+              },
+              {
+                "x": 408.390625,
+                "y": 797.71875,
+                "ok": true
+              },
+              {
+                "x": 718.671875,
+                "y": 797.71875,
+                "ok": true
+              },
+              {
+                "x": 563.53125,
+                "y": 797.71875,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 424.390625,
+                "y": 490.59375,
+                "width": 367.375,
+                "height": 59.5,
+                "top": 490.59375,
+                "right": 791.765625,
+                "bottom": 550.09375,
+                "left": 424.390625
+              },
+              "points": [
+                {
+                  "x": 608.078125,
+                  "y": 492.59375,
+                  "ok": true
+                },
+                {
+                  "x": 608.078125,
+                  "y": 548.09375,
+                  "ok": true
+                },
+                {
+                  "x": 426.390625,
+                  "y": 520.34375,
+                  "ok": true
+                },
+                {
+                  "x": 789.765625,
+                  "y": 520.34375,
+                  "ok": true
+                },
+                {
+                  "x": 608.078125,
+                  "y": 520.34375,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "tablica",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 31,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 406.390625,
+              "y": 840.53125,
+              "width": 371.421875,
+              "height": 59.5,
+              "top": 840.53125,
+              "right": 777.8125,
+              "bottom": 900.03125,
+              "left": 406.390625
+            },
+            "points": [
+              {
+                "x": 592.1015625,
+                "y": 842.53125,
+                "ok": true
+              },
+              {
+                "x": 592.1015625,
+                "y": 898.03125,
+                "ok": true
+              },
+              {
+                "x": 408.390625,
+                "y": 870.28125,
+                "ok": true
+              },
+              {
+                "x": 775.8125,
+                "y": 870.28125,
+                "ok": true
+              },
+              {
+                "x": 592.1015625,
+                "y": 870.28125,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": false,
+          "ring": true,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(255, 255, 255)",
+          "shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+          "fragments": [
+            {
+              "rect": {
+                "x": 424.390625,
+                "y": 490.15625,
+                "width": 424.5,
+                "height": 59.5,
+                "top": 490.15625,
+                "right": 848.890625,
+                "bottom": 549.65625,
+                "left": 424.390625
+              },
+              "points": [
+                {
+                  "x": 636.640625,
+                  "y": 492.15625,
+                  "ok": true
+                },
+                {
+                  "x": 636.640625,
+                  "y": 547.65625,
+                  "ok": true
+                },
+                {
+                  "x": 426.390625,
+                  "y": 519.90625,
+                  "ok": true
+                },
+                {
+                  "x": 846.890625,
+                  "y": 519.90625,
+                  "ok": true
+                },
+                {
+                  "x": 636.640625,
+                  "y": 519.90625,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "pass": true
+    },
+    {
+      "id": "wiadomosc",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "dpr": 1,
+        "font": 25.2,
+        "scroll": 1440,
+        "color": "rgb(244, 245, 241)"
+      },
+      "tabsToSummary": 23,
+      "summaryFocus": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(244, 245, 241)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 431.390625,
+              "y": 490.59375,
+              "width": 610.015625,
+              "height": 59.5,
+              "top": 490.59375,
+              "right": 1041.40625,
+              "bottom": 550.09375,
+              "left": 431.390625
+            },
+            "points": [
+              {
+                "x": 736.3984375,
+                "y": 492.59375,
+                "ok": true
+              },
+              {
+                "x": 736.3984375,
+                "y": 548.09375,
+                "ok": true
+              },
+              {
+                "x": 433.390625,
+                "y": 520.34375,
+                "ok": true
+              },
+              {
+                "x": 1039.40625,
+                "y": 520.34375,
+                "ok": true
+              },
+              {
+                "x": 736.3984375,
+                "y": 520.34375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 2
+      },
+      "controls": [
+        {
+          "visible": true,
+          "outline": true,
+          "ring": false,
+          "color": "rgb(110, 168, 255)",
+          "outlineColor": "rgb(110, 168, 255)",
+          "shadow": "none",
+          "fragments": [
+            {
+              "rect": {
+                "x": 991.53125,
+                "y": 570.09375,
+                "width": 310.40625,
+                "height": 30,
+                "top": 570.09375,
+                "right": 1301.9375,
+                "bottom": 600.09375,
+                "left": 991.53125
+              },
+              "points": [
+                {
+                  "x": 1146.734375,
+                  "y": 572.09375,
+                  "ok": true
+                },
+                {
+                  "x": 1146.734375,
+                  "y": 598.09375,
+                  "ok": true
+                },
+                {
+                  "x": 993.53125,
+                  "y": 585.09375,
+                  "ok": true
+                },
+                {
+                  "x": 1299.9375,
+                  "y": 585.09375,
+                  "ok": true
+                },
+                {
+                  "x": 1146.734375,
+                  "y": 585.09375,
+                  "ok": true
+                }
+              ]
+            },
+            {
+              "rect": {
+                "x": 431.390625,
+                "y": 609.15625,
+                "width": 237.703125,
+                "height": 30,
+                "top": 609.15625,
+                "right": 669.09375,
+                "bottom": 639.15625,
+                "left": 431.390625
+              },
+              "points": [
+                {
+                  "x": 550.2421875,
+                  "y": 611.15625,
+                  "ok": true
+                },
+                {
+                  "x": 550.2421875,
+                  "y": 637.15625,
+                  "ok": true
+                },
+                {
+                  "x": 433.390625,
+                  "y": 624.15625,
+                  "ok": true
+                },
+                {
+                  "x": 667.09375,
+                  "y": 624.15625,
+                  "ok": true
+                },
+                {
+                  "x": 550.2421875,
+                  "y": 624.15625,
+                  "ok": true
+                }
+              ]
+            }
+          ],
+          "frame": 2
+        }
+      ],
+      "lastButton": {
+        "visible": true,
+        "outline": false,
+        "ring": true,
+        "color": "rgb(110, 168, 255)",
+        "outlineColor": "rgb(255, 255, 255)",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "fragments": [
+          {
+            "rect": {
+              "x": 431.390625,
+              "y": 708.09375,
+              "width": 126.59375,
+              "height": 59.5,
+              "top": 708.09375,
+              "right": 557.984375,
+              "bottom": 767.59375,
+              "left": 431.390625
+            },
+            "points": [
+              {
+                "x": 494.6875,
+                "y": 710.09375,
+                "ok": true
+              },
+              {
+                "x": 494.6875,
+                "y": 765.59375,
+                "ok": true
+              },
+              {
+                "x": 433.390625,
+                "y": 737.84375,
+                "ok": true
+              },
+              {
+                "x": 555.984375,
+                "y": 737.84375,
+                "ok": true
+              },
+              {
+                "x": 494.6875,
+                "y": 737.84375,
+                "ok": true
+              }
+            ]
+          }
+        ],
+        "frame": 1
+      },
+      "lastParagraphBefore": [
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 815.59375,
+            "width": 969.421875,
+            "height": 27,
+            "top": 815.59375,
+            "right": 1375.8125,
+            "bottom": 842.59375,
+            "left": 406.390625
+          },
+          "readable": false
+        },
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 850.3125,
+            "width": 274.296875,
+            "height": 27,
+            "top": 850.3125,
+            "right": 680.6875,
+            "bottom": 877.3125,
+            "left": 406.390625
+          },
+          "readable": true
+        }
+      ],
+      "scrollBefore": {
+        "y": 1979,
+        "height": 3448,
+        "viewport": 900,
+        "max": 2548
+      },
+      "scrollAfter": {
+        "y": 2548,
+        "height": 3448,
+        "viewport": 900,
+        "max": 2548
+      },
+      "lastParagraph": [
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 246.59375,
+            "width": 969.421875,
+            "height": 27,
+            "top": 246.59375,
+            "right": 1375.8125,
+            "bottom": 273.59375,
+            "left": 406.390625
+          },
+          "readable": true
+        },
+        {
+          "rect": {
+            "x": 406.390625,
+            "y": 281.3125,
+            "width": 274.296875,
+            "height": 27,
+            "top": 281.3125,
+            "right": 680.6875,
+            "bottom": 308.3125,
+            "left": 406.390625
+          },
+          "readable": true
+        }
+      ],
+      "paragraphEvidence": "after",
+      "pass": true
+    }
+  ]
+}

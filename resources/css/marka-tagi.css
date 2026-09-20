@@ -1,0 +1,102 @@
+/* Zdjęcia tagu, kart promowanych i fotograficznego alfabetu (#681). */
+@layer marka {
+  .tag-directory-intro { max-width: 65ch; }
+  .tag-directory-intro ~ .tag-featured {
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+  }
+  .tag-directory-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr));
+    gap: var(--spacing-6);
+    align-items: start;
+  }
+  .tag-directory-card {
+    position: relative;
+    isolation: isolate;
+    display: flex;
+    flex-direction: column;
+    justify-content: end;
+    min-width: 0;
+    aspect-ratio: 1;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    text-decoration: none;
+    box-shadow: var(--shadow-card);
+    overflow-wrap: anywhere;
+  }
+  .tag-directory-photo {
+    position: absolute;
+    inset: 0;
+    z-index: -1;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: inherit;
+  }
+  .tag-directory-mark { padding: var(--spacing-6); color: var(--color-brand); }
+  .tag-directory-mark svg { width: 64px; height: 64px; }
+  .tag-directory-copy {
+    display: grid;
+    gap: var(--spacing-2);
+    padding: var(--spacing-5);
+    border-radius: 0 0 var(--radius-xl) var(--radius-xl);
+  }
+  /* Stały podkład obejmuje CAŁY tekst, także po zawinięciu przy 140%. */
+  .tag-directory-card--photo .tag-directory-copy {
+    background: rgb(0 0 0 / 82%);
+    color: var(--color-ink-inverse);
+  }
+  .tag-directory-copy strong { font-size: var(--text-title-sm); line-height: 1.2; }
+  .tag-directory-copy .meta { color: inherit; }
+  .tag-directory-credit { font-size: var(--text-body); }
+  .tag-directory-action { text-decoration: underline; text-underline-offset: .2em; }
+  .tag-directory-card:hover .tag-directory-action { text-decoration-thickness: 2px; }
+  .tag-welcome {
+    display: grid;
+    gap: var(--spacing-6);
+    margin-block: var(--spacing-6);
+    align-items: center;
+  }
+  .tag-welcome-copy, .tag-welcome-photos { min-width: 0; overflow-wrap: anywhere; }
+  .tag-welcome-copy form { display: grid; gap: var(--spacing-3); justify-items: start; }
+  .tag-welcome .btn { max-width: 100%; white-space: normal; min-height: 48px; }
+  .tag-featured {
+    display: grid;
+    align-items: start;
+    grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr));
+    gap: var(--spacing-5);
+  }
+  .tag-featured-card {
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+    min-height: 48px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-raised);
+    color: var(--color-ink);
+    text-decoration: none;
+    box-shadow: var(--shadow-card);
+  }
+  .tag-featured-copy { display: grid; gap: var(--spacing-3); padding: var(--spacing-5); overflow-wrap: anywhere; }
+  .tag-featured-copy strong { font-size: var(--text-title-sm); line-height: 1.2; }
+  .tag-featured-action { color: var(--color-brand); text-decoration: underline; text-underline-offset: .2em; }
+  .tag-featured-card:hover .tag-featured-action { text-decoration-thickness: 2px; }
+  .tag-collage {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-auto-rows: minmax(0, 1fr);
+    gap: var(--spacing-2);
+    aspect-ratio: 4 / 3;
+  }
+  .tag-collage > * { position: relative; display: block; min-width: 0; min-height: 48px; border-radius: var(--radius-md); }
+  .tag-collage img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  .tag-collage--1 { grid-template-columns: minmax(0, 1fr); }
+  .tag-collage--3 > :first-child, .tag-collage--5 > :first-child { grid-column: 1 / -1; }
+  .tag-featured-card > .tag-collage { margin: var(--spacing-3) var(--spacing-3) 0; }
+  @media (min-width: 64rem) {
+    .tag-welcome:has(.tag-welcome-photos) { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  }
+}

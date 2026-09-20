@@ -75,8 +75,20 @@ class SpisTematowTest extends TestCase
         $this->assertNotNull($sekcja, "Nie znalazłem sekcji „{$ariaLabel}” (nav[aria-label]) w dokumencie.");
 
         $linki = [];
-        foreach ($xpath->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' chip ')]", $sekcja) as $a) {
-            $linki[] = trim(preg_replace('/\s+/u', ' ', $a->textContent));
+        foreach ($xpath->query(".//a[contains(concat(' ', normalize-space(@class), ' '), ' chip ') or contains(concat(' ', normalize-space(@class), ' '), ' tag-directory-card ')]", $sekcja) as $a) {
+            $copy = $xpath->query(".//span[@class='tag-directory-copy']", $a)->item(0);
+            if ($copy) {
+                // Karta ma też podpis zdjęcia i akcję. Liczymy nadal nazwę
+                // oraz rzeczywisty licznik, bez osłabiania asercji treści.
+                $name = $xpath->query('./strong', $copy)->item(0);
+                $count = $xpath->query('./span[1]', $copy)->item(0);
+                $this->assertNotNull($name);
+                $this->assertNotNull($count);
+                $text = $name->textContent.' '.$count->textContent;
+            } else {
+                $text = $a->textContent;
+            }
+            $linki[] = trim(preg_replace('/\s+/u', ' ', $text));
         }
 
         return $linki;
@@ -138,25 +150,32 @@ class SpisTematowTest extends TestCase
 
     public function test_tematy_promowane_sa_w_osobnej_sekcji_w_kolejnosci_gospodarza(): void
     {
-        // "Zupy" ma WIĘCEJ wpisów niż "Barszcz", ale gospodarz ustawił
-        // "Zupy" na wcześniejszej pozycji — sekcja "Polecane" ma respektować
-        // TĘ kolejność, nie alfabet (Barszcz < Zupy) ani liczbę wpisów.
+        // Kolejność gospodarza: Zupy (5), Barszcz (1), Salatki (8).
+        // Różni się od alfabetu oraz obu kierunków sortowania po liczbie wpisów.
         $zupy = $this->promowany('zupy', 'Zupy', 0);
         $barszcz = $this->promowany('barszcz', 'Barszcz', 1);
+        $salatki = $this->promowany('salatki', 'Salatki', 2);
         $autor = $this->user('autor_promowane');
         for ($i = 0; $i < 5; $i++) {
             $this->wpis($zupy, $autor, ['published_at' => now()->subMinutes($i)]);
         }
         $this->wpis($barszcz, $autor);
+        for ($i = 0; $i < 8; $i++) {
+            $this->wpis($salatki, $autor);
+        }
 
         $html = (string) $this->get(route('tags.index'))->assertOk()->getContent();
-        $polecane = $this->chipyWSekcji($html, 'Polecane tagi');
-
-        $this->assertSame(
-            ['Zupy (5 wpisów)', 'Barszcz (1 wpis)'],
-            $polecane,
-            'Sekcja „Polecane tagi” ma iść w kolejności gospodarza (position), nie alfabetu ani liczby wpisów.',
-        );
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $karty = $xpath->query('//nav[@aria-label="Polecane tagi"]/a');
+        $this->assertSame(3, $karty->length);
+        foreach ([[$zupy, 'Zupy', '(5 wpisów)'], [$barszcz, 'Barszcz', '(1 wpis)'], [$salatki, 'Salatki', '(8 wpisów)']] as $i => [$tag, $nazwa, $licznik]) {
+            $karta = $karty->item($i);
+            $this->assertSame(route('tags.show', $tag), $karta->getAttribute('href'), 'Kolejność kart musi odpowiadać pozycji gospodarza.');
+            $this->assertSame($nazwa, trim($xpath->query('.//strong', $karta)->item(0)->textContent));
+            $this->assertStringContainsString($licznik, trim(preg_replace('/\s+/u', ' ', $karta->textContent)));
+        }
     }
 
     public function test_pusty_temat_pokazuje_prawdziwa_zerowa_liczbe_i_ten_sam_pusty_stan_co_strona_tagu(): void

@@ -14,9 +14,13 @@
 // --- Service worker (PWA) -------------------------------------------------
 
 import './service-worker.js';
+import './pwa-install.js';
 import './landing-wpisy.js';
 import './pasek-przewijany.js';
 import './szybki-wyglad.js';
+import './panel-tabela.js';
+import './panel-menu.js';
+import './tagi-w-opisie.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
@@ -240,6 +244,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Po zamknięciu zwalniamy zdjęcie z pamięci. Przy przeglądaniu feedu
     // z wieloma dużymi zdjęciami inaczej zostają wszystkie naraz.
     okno.addEventListener('close', () => {
+        // Zdarzenie close jest kolejkowane. Jeśli w tym czasie otwarto
+        // następne zdjęcie, poprzednie zamknięcie nie może go wyczyścić.
+        if (okno.open) {
+            return;
+        }
+
         obraz.removeAttribute('src');
         obraz.alt = '';
     });
@@ -338,7 +348,9 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
     przycisk.hidden = false;
 
-    let pozostalo = sekundyCalkiem;
+    // Callback może wrócić z opóźnieniem po uśpieniu karty. Liczymy czas do
+    // terminu, zamiast zakładać, że każde wywołanie oznacza jedną sekundę.
+    let termin = null;
     let interwal = null;
 
     const pokaz = (sekundy) => {
@@ -379,11 +391,12 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
         przycisk.disabled = true;
         odliczanie.hidden = false;
-        pokaz(pozostalo);
+        termin = Date.now() + sekundyCalkiem * 1000;
+        pokaz(sekundyCalkiem);
         komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
 
         interwal = window.setInterval(() => {
-            pozostalo -= 1;
+            const pozostalo = Math.ceil((termin - Date.now()) / 1000);
             pokaz(Math.max(pozostalo, 0));
 
             if (pozostalo <= 0) {
@@ -398,7 +411,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
                 komunikat.textContent = 'Czas minął!';
                 przycisk.textContent = 'Uruchom minutnik jeszcze raz';
                 przycisk.disabled = false;
-                pozostalo = sekundyCalkiem;
+                termin = null;
             }
         }, 1000);
     });

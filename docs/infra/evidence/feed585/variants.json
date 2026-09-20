@@ -1,0 +1,10 @@
+{
+  "exists": {
+    "baseline_sha256": "b389a03a9d850acf5999b1e25ba9c5e3af3dad06e12dae9e6a9127feeae68192",
+    "variant_sha256": "080b6b5f94800d0646c321ad9fb9cbd6fbc24dc5f95d9ad88a88acd96308d37c"
+  },
+  "join": {
+    "baseline_sha256": "b389a03a9d850acf5999b1e25ba9c5e3af3dad06e12dae9e6a9127feeae68192",
+    "variant_sha256": "3ba6c6fb7929feef7ebf5e455fa60eaf5c0483a3029b81aa4163e04c3efb53b6"
+  }
+}

@@ -1,0 +1,13 @@
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-digest583-runtime/phpunit.xml
+
+..........................
+[digest] malo (5 odbiorcow): 11 zapytan, duzo (50 odbiorcow): 11 zapytan
+....................................... 65 / 85 ( 76%)
+....................                                              85 / 85 (100%)
+
+Time: 00:03.959, Memory: 139.00 MB
+
+[30;42mOK (85 tests, 333 assertions)[0m

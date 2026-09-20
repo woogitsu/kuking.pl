@@ -1,0 +1,32 @@
+{
+  "mutations": [
+    {
+      "mutation": "public",
+      "exit": 1
+    },
+    {
+      "mutation": "author",
+      "exit": 1
+    },
+    {
+      "mutation": "recipe",
+      "exit": 1
+    },
+    {
+      "mutation": "photos",
+      "exit": 1
+    },
+    {
+      "mutation": "contributors",
+      "exit": 1
+    },
+    {
+      "mutation": "ready",
+      "exit": 1
+    }
+  ],
+  "md5": "cd080a9a75efdf0b76394772725f0fb3",
+  "mtime_ns": 1789686534000000000,
+  "restoredEach": true,
+  "final": "13 tests 147 assertions PASS"
+}

@@ -1,0 +1,11 @@
+{
+  "kind": "date",
+  "theme": "light",
+  "width": 320,
+  "height": 900,
+  "scale": 100,
+  "expectedHypothesis": "P581_FOKUS {",
+  "passed": false,
+  "error": "P581_FOKUS {\"id\":\"25\",\"checked\":false,\"focus\":true,\"focusVisible\":false,\"dateFocusWithin\":true,\"outline\":false,\"outlineStyle\":\"none\",\"outlineWidth\":\"3px\",\"outlineColor\":\"rgb(21, 23, 20)\",\"kolorFokusu\":\"rgb(21, 94, 239)\",\"pierscien\":false,\"shadow\":\"none\",\"fragments\":[true],\"width\":270,\"height\":64,\"target\":true,\"klatki\":30}",
+  "blockedMethods": []
+}

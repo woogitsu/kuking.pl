@@ -1,0 +1,16 @@
+{
+  "mutations": [
+    {
+      "mutation": "expanded",
+      "detected": true
+    },
+    {
+      "mutation": "landmark",
+      "detected": true
+    }
+  ],
+  "backup": "/tmp/kuking647-aria-negative-gnj7utpf/tagi-w-opisie.js",
+  "restored_md5": "e2c70b439b411e6f969c7de856afb0a1",
+  "mtime_restored": true,
+  "positive": "{\"state\":\"closed\",\"violations\":[]}\n{\"state\":\"open\",\"violations\":[]}\n"
+}

@@ -6,7 +6,7 @@ namespace App\Domain\Posts\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
-use App\Domain\Tags\Actions\ResolveTagsForPost;
+use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
@@ -50,7 +50,7 @@ final class PublishPost
 {
     public function __construct(
         private readonly NotifyUser $notify,
-        private readonly ResolveTagsForPost $resolveTags,
+        private readonly ResolvePostTags $resolveTags,
     ) {}
 
     /**
@@ -69,19 +69,33 @@ final class PublishPost
         ?string $ip = null,
         string $displayMode = Post::DISPLAY_NORMAL,
         ?string $kluczWyslania = null,
+        ?string $questionTitle = null,
     ): Post {
         $body = $this->cleanBody($body);
+        $kind = $questionTitle === null ? Post::KIND_DISH : Post::KIND_QUESTION;
+        if ($kind === Post::KIND_QUESTION) {
+            if (! config('kuking.questions.enabled')) {
+                throw new BladDlaCzlowieka('Dodawanie pytań jest teraz niedostępne.');
+            }
+            $questionTitle = trim($questionTitle);
+            if (mb_strlen($questionTitle) < 10 || mb_strlen($questionTitle) > 180) {
+                throw new BladDlaCzlowieka('Napisz pytanie w tytule — od 10 do 180 znaków.');
+            }
+            if (count(array_unique($mediaIds)) > 1) {
+                throw new BladDlaCzlowieka('Do pytania możesz dodać jedno zdjęcie.');
+            }
+            if ($recipeId !== null || $visibility !== Post::VISIBILITY_PUBLIC) {
+                throw new BladDlaCzlowieka('Pytanie publikujemy w dziale Poradźcie, dla wszystkich.');
+            }
+        }
 
-        if ($body === null && $mediaIds === []) {
+        if ($kind === Post::KIND_DISH && $body === null && $mediaIds === []) {
             throw new BladDlaCzlowieka('Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.');
         }
 
-        // Tagi (D-021, zastępują usunięty już Temat/`topic_id` z issue #31)
-        // — rozwiązywane PRZED transakcją tworzącą wpis, żeby
-        // `BladDlaCzlowieka` za zbyt wiele tagów przerwało publikację, zanim
-        // cokolwiek trafi do bazy (dokładnie tak samo jak sprawdzenie
-        // pustego wpisu wyżej).
-        $tags = $this->resolveTags->handle($tagNames);
+        // Nowe nazwy i pivoty powstają w tej samej transakcji co wpis.
+        // Odrzucony limit ani ponowione wysłanie nie zostawiają tagów-sierot.
+        $tags = [];
 
         $trybZadany = $displayMode;
 
@@ -89,8 +103,12 @@ final class PublishPost
         $orderedMedia = [];
         $displayMode = Post::DISPLAY_NORMAL;
 
-        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tags, &$orderedMedia, &$displayMode): Post {
-            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tags, $klucz, &$orderedMedia, &$displayMode): Post {
+        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $kind, $questionTitle, &$tags, &$orderedMedia, &$displayMode): Post {
+            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $klucz, $kind, $questionTitle, &$tags, &$orderedMedia, &$displayMode): Post {
+                $tags = $this->resolveTags->handle($body, $tagNames);
+                if ($kind === Post::KIND_QUESTION && count($tags) > 3) {
+                    throw new BladDlaCzlowieka('Do pytania dodaj najwyżej 3 tagi, także te wpisane w opisie.');
+                }
                 /*
                  * WYBÓR ZDJĘĆ STOI W TEJ SAMEJ TRANSAKCJI CO PRZYPIĘCIE
                  * (issue #285, D-083).
@@ -136,7 +154,10 @@ final class PublishPost
                     ? Post::DISPLAY_NORMAL
                     : $trybZadany;
 
-                $post = Post::create([
+                // `kind` i `title` NIE IDĄ przez tablicę: pole sterujące
+                // ustawia nazwana metoda (`Post::oznaczJakoPytanie()`),
+                // a tytuł jest z nim związany CHECK-iem w bazie.
+                $post = new Post([
                     'author_id' => $author->getKey(),
                     'body' => $body,
                     'visibility' => $visibility,
@@ -147,16 +168,20 @@ final class PublishPost
                     'published_at' => now(),
                 ]);
 
+                if ($kind === Post::KIND_QUESTION) {
+                    $post->oznaczJakoPytanie((string) $questionTitle);
+                }
+
+                $post->save();
+
                 foreach ($orderedMedia as $position => $mediaId) {
                     $post->media()->attach($mediaId, ['position' => $position]);
                 }
 
-                foreach ($tags as $position => $tag) {
-                    $post->tags()->attach($tag->getKey(), ['position' => $position]);
-                }
+                $post->tags()->attach($tags);
 
                 return $post;
-            });
+            }, 3);
         };
 
         try {

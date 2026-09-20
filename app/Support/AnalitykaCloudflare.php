@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
+
 /**
  * Analityka odwiedzin przez Cloudflare Web Analytics — czy działa, pod jakim
  * tokenem i pod jakimi DWOMA adresami (D-092).
@@ -59,6 +62,72 @@ final class AnalitykaCloudflare
     public static function wlaczona(): bool
     {
         return self::token() !== '';
+    }
+
+    /**
+     * Nazwy pól adresu, których obecność ZDEJMUJE beacona ze strony.
+     *
+     * @var list<string>
+     */
+    public const POLA_SEKRETNE = ['token', 'email', 'hash', 'cel'];
+
+    /**
+     * Czy na TEJ stronie wolno postawić beacona.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  PO CO TO ISTNIEJE — BEACON WYSYŁA ADRES STRONY, NIE SAM FAKT WEJŚCIA
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * `beacon.min.js` melduje Cloudflare PEŁNY adres odwiedzanej strony.
+     * Dopóki adres to `/wpisy/rosol-babci`, jest to zwykły pomiar odwiedzin
+     * i dokładnie po to analitykę tu włączono (D-092). Ale część adresów
+     * w tym serwisie NIESIE W SOBIE SEKRET albo dane osobowe:
+     *
+     *   /nowe-haslo/{token}?email=basia@wp.pl   ← ŻYWY żeton resetu + adres
+     *   /logowanie/link/{token}                 ← żeton DAJĄCY SESJĘ
+     *   /zaproszenie/{token}                    ← żeton zakładania konta
+     *   /potwierdz-email/{id}/{hash}            ← potwierdzenie adresu
+     *
+     * Beacon na takiej stronie wynosi te wartości do usługi, nad którą nie
+     * mamy żadnej kontroli, i zostawia je w cudzym panelu razem z czasem
+     * wejścia. Dla `/nowe-haslo` to nie jest „wyciek metryki" — to jest
+     * podanie obcej firmie DZIAŁAJĄCEGO klucza do czyjegoś konta wraz
+     * z adresem, na który ten klucz pasuje. Ta sama zasada, co przy
+     * `WebhookBleduHandler` (nic, czego nie zbudowaliśmy sami, nie wychodzi)
+     * i przy wzorcu trasy zamiast adresu w dzienniku 429.
+     *
+     * DLACZEGO PO POLACH ADRESU, A NIE PO LIŚCIE TRAS
+     * Bo lista tras starzeje się po cichu: nowa droga z żetonem w adresie
+     * dostałaby beacona i nikt by się nie dowiedział. Nazwa pola (`token`,
+     * `hash`, `email`, `cel`) jest natomiast widoczna w samej definicji
+     * trasy, więc reguła obejmuje także trasy, których dziś nie ma.
+     * `cel` to zaszyfrowany adres docelowy bramki `/otworz-link` — mówi,
+     * w co konkretnie ten człowiek kliknął.
+     *
+     * CO SIĘ DZIEJE, GDY NIE MA ŻĄDANIA (kolejka, CLI): oddajemy `true`,
+     * bo wtedy nie renderujemy żadnej strony i nie ma czego chronić.
+     */
+    public static function wolnoNaTejStronie(?Request $zadanie = null): bool
+    {
+        $zadanie ??= app()->bound('request') ? request() : null;
+
+        if (! $zadanie instanceof Request) {
+            return true;
+        }
+
+        $trasa = $zadanie->route();
+
+        foreach (self::POLA_SEKRETNE as $pole) {
+            if ($zadanie->query->has($pole)) {
+                return false;
+            }
+
+            if ($trasa instanceof Route && $trasa->hasParameter($pole)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**

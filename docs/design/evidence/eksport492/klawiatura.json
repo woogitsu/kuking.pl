@@ -1,0 +1,74 @@
+[
+  {
+    "silnik": "chromium",
+    "wersja": "151.0.7922.34",
+    "motyw": "light",
+    "krokowTab": 1,
+    "odnosnik": {
+      "tekst": "Rosół z kury na niedzielę",
+      "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+      "fokusWidoczny": true,
+      "outline": "solid 3px rgb(21, 94, 239)",
+      "wysokosc": 51,
+      "wWidoku": true
+    },
+    "enterOtworzyl": true,
+    "adresPo": "rosol-z-kury-na-niedziele-01a0b4.html",
+    "naglowekPo": "Rosół z kury na niedzielę",
+    "siec": []
+  },
+  {
+    "silnik": "chromium",
+    "wersja": "151.0.7922.34",
+    "motyw": "dark",
+    "krokowTab": 1,
+    "odnosnik": {
+      "tekst": "Rosół z kury na niedzielę",
+      "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+      "fokusWidoczny": true,
+      "outline": "solid 3px rgb(110, 168, 255)",
+      "wysokosc": 51,
+      "wWidoku": true
+    },
+    "enterOtworzyl": true,
+    "adresPo": "rosol-z-kury-na-niedziele-01a0b4.html",
+    "naglowekPo": "Rosół z kury na niedzielę",
+    "siec": []
+  },
+  {
+    "silnik": "firefox",
+    "wersja": "155.0",
+    "motyw": "light",
+    "krokowTab": 1,
+    "odnosnik": {
+      "tekst": "Rosół z kury na niedzielę",
+      "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+      "fokusWidoczny": true,
+      "outline": "solid 3px rgb(21, 94, 239)",
+      "wysokosc": 51,
+      "wWidoku": true
+    },
+    "enterOtworzyl": true,
+    "adresPo": "rosol-z-kury-na-niedziele-01a0b4.html",
+    "naglowekPo": "Rosół z kury na niedzielę",
+    "siec": []
+  },
+  {
+    "silnik": "firefox",
+    "wersja": "155.0",
+    "motyw": "dark",
+    "krokowTab": 1,
+    "odnosnik": {
+      "tekst": "Rosół z kury na niedzielę",
+      "href": "przepisy/rosol-z-kury-na-niedziele-01a0b4.html",
+      "fokusWidoczny": true,
+      "outline": "solid 3px rgb(110, 168, 255)",
+      "wysokosc": 51,
+      "wWidoku": true
+    },
+    "enterOtworzyl": true,
+    "adresPo": "rosol-z-kury-na-niedziele-01a0b4.html",
+    "naglowekPo": "Rosół z kury na niedzielę",
+    "siec": []
+  }
+]
