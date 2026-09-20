@@ -329,7 +329,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 })();
 
-// --- Tryb gotowania: minutniki przy krokach (issue #24, #751, #740) --------
+// --- Tryb gotowania: minutniki przy krokach (issue #24, #751, #740, #755) --
 
 /*
  * Baza bez JS to samo zdanie w Blade (ustaw sobie kuchenny minutnik na...).
@@ -343,6 +343,7 @@ document.addEventListener('DOMContentLoaded', () => {
  */
 document.querySelectorAll('.cook-timer').forEach((blok) => {
     const przycisk = blok.querySelector('.cook-timer-start');
+    const anuluj = blok.querySelector('.cook-timer-anuluj');
     const odliczanie = blok.querySelector('.cook-timer-odliczanie');
     const komunikat = blok.querySelector('.cook-timer-komunikat');
     const etykieta = blok.dataset.timerEtykieta ?? '';
@@ -350,7 +351,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const recipeSlug = blok.dataset.timerRecipe ?? '';
     const krok = blok.dataset.timerKrok ?? '';
 
-    if (!przycisk || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
+    if (!przycisk || !anuluj || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
         return;
     }
 
@@ -390,6 +391,12 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         }
     };
 
+    const zatrzymajOdliczanie = () => {
+        window.clearInterval(interwal);
+        interwal = null;
+        sessionStorage.removeItem(klucz);
+    };
+
     const uruchomOdliczanie = (terminMonotoniczny) => {
         pokaz(pozostaloSekund(terminMonotoniczny, performance.now()));
 
@@ -398,9 +405,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             pokaz(pozostalo);
 
             if (pozostalo <= 0) {
-                window.clearInterval(interwal);
-                interwal = null;
-                sessionStorage.removeItem(klucz);
+                zatrzymajOdliczanie();
                 zagraj();
 
                 if ('vibrate' in navigator) {
@@ -411,6 +416,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
                 przycisk.textContent = 'Uruchom minutnik jeszcze raz';
                 przycisk.hidden = false;
                 przycisk.disabled = false;
+                anuluj.hidden = true;
             }
         }, 1000);
     };
@@ -420,7 +426,8 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             return;
         }
 
-        przycisk.disabled = true;
+        przycisk.hidden = true;
+        anuluj.hidden = false;
         odliczanie.hidden = false;
         komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
 
@@ -430,6 +437,22 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         // nawet jesli czlowiek kliknął "Nastepny krok" sekunde po starcie.
         sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000));
         uruchomOdliczanie(terminMonotoniczny);
+    });
+
+    // Swiadome anulowanie (issue #755) -- ten sam odliczany krok da sie
+    // zatrzymac, zamiast czekac na dzwiek albo opuszczac tryb gotowania.
+    anuluj.addEventListener('click', () => {
+        if (interwal === null) {
+            return;
+        }
+
+        zatrzymajOdliczanie();
+        odliczanie.hidden = true;
+        anuluj.hidden = true;
+        przycisk.hidden = false;
+        przycisk.disabled = false;
+        przycisk.textContent = 'Uruchom minutnik w tej przeglądarce';
+        komunikat.textContent = 'Minutnik anulowany.';
     });
 
     /*
@@ -446,6 +469,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
     if (zapisanyStan) {
         przycisk.hidden = true;
+        anuluj.hidden = false;
         odliczanie.hidden = false;
         komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
         uruchomOdliczanie(zapisanyStan.terminMonotoniczny);

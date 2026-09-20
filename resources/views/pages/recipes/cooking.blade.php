@@ -96,6 +96,19 @@
                         Uruchom minutnik w tej przeglądarce
                     </button>
                     <p class="cook-timer-odliczanie" role="timer" aria-live="off" hidden></p>
+                    {{--
+                        Świadome anulowanie (issue #755). Bez tego przycisku
+                        jedynym sposobem na przerwanie odliczania było
+                        doczekanie dźwięku albo opuszczenie trybu gotowania
+                        — a krok bywa zrobiony wcześniej, niż mówił minutnik
+                        (danie zdjęte z ognia na oko, nie na czas). Osobny
+                        przycisk, nie to samo „Uruchom” w roli przełącznika:
+                        dwa różne czasowniki są jaśniejsze niż jeden
+                        przycisk, który zmienia znaczenie w locie.
+                    --}}
+                    <button type="button" class="btn btn-secondary btn-cook cook-timer-anuluj" hidden>
+                        Anuluj minutnik
+                    </button>
                     <p class="visually-hidden cook-timer-komunikat" aria-live="assertive"></p>
                 </div>
             @endif

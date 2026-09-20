@@ -234,4 +234,21 @@ class CookingModeTest extends TestCase
             ->assertSee('data-timer-recipe="'.$recipe->slug.'"', false)
             ->assertSee('data-timer-krok="1"', false);
     }
+
+    /**
+     * Regresja issue #755: minutnik ma dać się świadomie anulować, nie
+     * tylko doczekać do końca albo opuścić tryb gotowania. Przycisk stoi
+     * w znaczniku niezależnie od JS-u (ulepszenie odsłania go dopiero
+     * skrypt — patrz `resources/js/app.js`), więc test na treści strony
+     * łapie zniknięcie samego przycisku, nie stanu `hidden`, którego klient
+     * testowy Laravela i tak nie interpretuje jak przeglądarka.
+     */
+    public function test_minutnik_ma_przycisk_anulowania(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka13'), 1, minutnikNaPierwszym: 60);
+
+        $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
+            ->assertSee('cook-timer-anuluj', false)
+            ->assertSee('Anuluj minutnik');
+    }
 }
