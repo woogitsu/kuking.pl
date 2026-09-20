@@ -1,0 +1,60 @@
+KONTROLE UJEMNE — #611 (uproszczenie bramki CI)
+Data (UTC): 2026-09-19T13:24:54Z
+Kopia wykonawcza: /home/mateusz/kuking-611d
+Baza: 127.0.0.1:55439 / kuking_611d_tests (lokalna, do wyrzucenia)
+Kopie bajtów poza repozytorium: /home/mateusz/kontrola-ujemna-611/kopie
+Metoda: psujemy to, czego pilnuje kontrakt → test ma OBLAĆ na właściwej
+        asercji → przywracamy `cp -p`, po każdym MD5 i mtime.
+        Nigdy `git checkout --`, nigdy `git stash`.
+
+KOPIA  .github/workflows/ci.yml  md5=3e25aec698d59c48c805c8a4c9532abe
+
+KONTROLA DODATNIA PRZED SABOTAŻAMI: ZIELONO
+    Tests:    5 passed (87 assertions)
+
+--- 1. Warunek pomijania wraca na KROK — job znów może być zielony bez pomiaru
+    wystąpień wzorca: 2 (podmieniono pierwsze)
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „wrócił na krok”: tak
+    Tests:    1 failed, 4 passed (70 assertions)
+    przywrócone: md5=3e25aec698d59c48c805c8a4c9532abe mtime_zgodny=True md5_zgodny=True
+
+--- 2. Z warunku joba znika `widok` — job rusza mimo nietkniętej warstwy widoku
+    wystąpień wzorca: 3 (podmieniono pierwsze)
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „nie stoi na jobie”: tak
+    Tests:    1 failed, 4 passed (68 assertions)
+    przywrócone: md5=3e25aec698d59c48c805c8a4c9532abe mtime_zgodny=True md5_zgodny=True
+
+--- 3. Z filtra wypada skrypt pomiarowy — zmiana przyrządu nie uruchomi pomiaru
+    wystąpień wzorca: 1 (podmieniono pierwsze)
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „pominięto scripts/katalog-tagow.mjs”: tak
+    Tests:    1 failed, 4 passed (82 assertions)
+    przywrócone: md5=3e25aec698d59c48c805c8a4c9532abe mtime_zgodny=True md5_zgodny=True
+
+--- 4. Filtr wraca do drugiego miejsca (znów dwie kopie do utrzymania)
+    wystąpień wzorca: 1 (podmieniono pierwsze)
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „w więcej niż jednym miejscu”: tak
+    Tests:    1 failed, 4 passed (72 assertions)
+    przywrócone: md5=3e25aec698d59c48c805c8a4c9532abe mtime_zgodny=True md5_zgodny=True
+
+--- 5. Wczesna ścieżka `zakres` przestaje zapisywać `widok` — trzy joby milkną na zawsze
+    wystąpień wzorca: 2 (podmieniono pierwsze)
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „pomijałyby się wtedy ZAWSZE”: tak
+    Tests:    1 failed, 4 passed (82 assertions)
+    przywrócone: md5=3e25aec698d59c48c805c8a4c9532abe mtime_zgodny=True md5_zgodny=True
+
+--- 6. Job traci swój pomiar (kontrola dodatnia strażnika)
+    wystąpień wzorca: 1 (podmieniono pierwsze)
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „nie uruchamia już swojego pomiaru”: tak
+    Tests:    2 failed, 3 passed (83 assertions)
+    przywrócone: md5=3e25aec698d59c48c805c8a4c9532abe mtime_zgodny=True md5_zgodny=True
+
+KONTROLA DODATNIA PO WSZYSTKICH SABOTAŻACH: ZIELONO
+    Tests:    5 passed (87 assertions)
+
+RAZEM: 6 z 6 kontrol ujemnych oblało na właściwej asercji i wróciło bajt w bajt.

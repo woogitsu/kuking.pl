@@ -114,9 +114,45 @@ $result = $connection->transaction(static function () use ($connection, $app, $c
     $connection->statement('SET TRANSACTION ISOLATION LEVEL REPEATABLE READ, READ ONLY');
     $actual = $connection->selectOne('SELECT current_database() AS database');
     $check($actual->database === $expectedDatabase);
+    // #914: kolumny `users` zapisywane PRZY OKAZJI każdego uwierzytelnionego
+    // żądania przez globalny middleware `AktualizujOstatniaWizyte`
+    // (`bootstrap/app.php`, grupa `web`) — NIE przez żadną z akcji panelu,
+    // które ten skrypt ma obserwować (decyzje moderacyjne, odwołania).
+    // Ten runner wykonuje dokładnie jedno dodatkowe uwierzytelnione GET
+    // między migawką "przed" a "po" (`panel-validation.mjs`, `page.goto(list)`
+    // po przekierowaniu z odrzuconej walidacji) — to żądanie samo w sobie,
+    // niezależnie od tego, czy walidacja przeszła czy nie, potrafi dotknąć
+    // te dwie kolumny:
+    //   - `ostatnio_widziany_at` (`App\Domain\Analytics\ZanotujOstatniaWizyte`)
+    //     — zapisywana throttlowane co
+    //     `config('kuking.analytics.last_seen_throttle_minutes')` (domyślnie
+    //     15 min); jeśli throttl akurat wygasł MIĘDZY migawkami, wartość się
+    //     zmienia mimo braku jakiegokolwiek zapisu domenowego. Zmierzone
+    //     i odtworzone deterministycznie w
+    //     `tests/Feature/Sledztwo914PomiarPanoluOdwolanTest.php`.
+    //   - `pwa_prompt_state` (`App\Domain\Pwa\InstallPrompt::qualify()`,
+    //     wołane z tego samego middleware'u) — zapisywana, gdy poprzednia
+    //     wizyta była sprzed więcej niż 24h i pole jest jeszcze puste. Ten
+    //     sam mechanizm co wyżej, inny próg czasowy — nie zaobserwowaliśmy
+    //     tego akurat w tym scenariuszu (próg 15 min, nie 24h), ale źródło
+    //     zapisu jest identyczne, więc wykluczamy ją z tego samego powodu,
+    //     zanim ktoś zmierzy się z tym samym fałszywym alarmem po 24h ciszy.
+    //
+    // WYKLUCZAMY WYŁĄCZNIE TE DWIE KOLUMNY, WYŁĄCZNIE W TABELI `users` —
+    // reszta wiersza (w tym `status`, `role`, dane profilu w innych
+    // tabelach) zostaje w migawce nietknięta. Nic poza tym nie jest
+    // osłabiane: żadna tabela nie znika ze zrzutu, `isDeepStrictEqual`
+    // w `panel-validation.mjs` zostaje bez zmian, nie ma tolerancji
+    // czasowej. Kontrola dodatnia (prawdziwy zapis przy odrzuconej
+    // walidacji nadal wywołuje `DOMAIN_CHANGED`) jest w tym samym teście.
+    $klucePomijaneWUsers = ['ostatnio_widziany_at', 'pwa_prompt_state'];
     $domain = [];
     foreach (['reports', 'appeals', 'posts', 'users', 'moderation_actions', 'notifications', 'audit'] as $section) {
-        $domain[$section] = $connection->table($section === 'audit' ? 'audit_log' : $section)->orderBy('id')->get()->map(static fn (object $row): array => (array) $row)->all();
+        $wiersze = $connection->table($section === 'audit' ? 'audit_log' : $section)->orderBy('id')->get()->map(static fn (object $row): array => (array) $row)->all();
+        if ($section === 'users') {
+            $wiersze = array_map(static fn (array $row): array => array_diff_key($row, array_flip($klucePomijaneWUsers)), $wiersze);
+        }
+        $domain[$section] = $wiersze;
     }
     $find = static function (string $section, string $id) use ($domain, $check): array {
         foreach ($domain[$section] as $row) {

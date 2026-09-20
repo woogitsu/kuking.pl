@@ -6,6 +6,7 @@ namespace App\Domain\Zgody;
 
 use App\Models\User;
 use App\Models\WpisZgody;
+use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -96,10 +97,21 @@ final class PrzestawZgodeNaDigest
         } catch (Throwable $awaria) {
             // BEZ danych osobowych w dzienniku aplikacji (AGENTS.md §7) —
             // identyfikator konta wystarcza, żeby dopisać wiersz ręcznie.
+            // NAZWA KLASY I SQLSTATE, NIGDY `getMessage()`.
+            //
+            // Wyjątek leci z `DB::transaction()`, więc jest to najczęściej
+            // `QueryException` — a jego komunikat buduje STEROWNIK i wkłada
+            // w niego SQL RAZEM Z WARTOŚCIAMI („DETAIL: Key (email)=(…)",
+            // „insert into … values (…)"). Deklaracja „BEZ danych osobowych"
+            // dwie linijki wyżej była więc nieprawdziwa dokładnie w tym
+            // wierszu. Ten sam wzorzec, co w `App\Domain\Analytics\
+            // ZapiszSygnal` i `ZanotujOstatniaWizyte`; pełne uzasadnienie
+            // w `App\Logging\WebhookBleduHandler` (audyt A6-01).
             Log::error('Nie udało się zapisać wycofania zgody na tygodniowy digest.', [
                 'user_id' => (string) $osoba->getKey(),
                 'zrodlo' => $zrodlo,
-                'blad' => $awaria->getMessage(),
+                'wyjatek' => $awaria::class,
+                'sqlstate' => $awaria instanceof QueryException ? (string) $awaria->getCode() : null,
             ]);
 
             return true;

@@ -19,12 +19,15 @@ i jedyne źródło prawdy — dla Claude, GPT, Gemini i każdego innego modelu.
 - UX 50+: tekst ≥ 18 px, przyciski ≥ 48 px, ikony zgodnie z jawnymi wyjątkami w AGENTS.md (menu trzech kropek), bez hover/swipe,
   błędy po polsku mówiące co zrobić, poprawne dane nigdy nie znikają.
 - JavaScript: stosuj AGENTS.md i D-053 — newralgiczne formularze mogą wymagać JS; nie zostawiaj martwych przycisków.
-- Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback.
+- Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback,
+  a rollback **może odmówić** — patrz D-088 i AGENTS.md §6.
 - Bugfix = test regresyjny.
-- `status` i `role` użytkownika **nigdy** w `$fillable`.
+- Pola **sterujące** nigdy w `$fillable`: `status` i `role` użytkownika,
+  `kind` wpisu. Pełna reguła i powody w AGENTS.md §7 oraz D-006.
 - **UUID w adresie to nie autoryzacja** — każde wejście przez Policy.
 - Testy chodzą na **PostgreSQL**, nie na SQLite.
-- Przed PR-em: `vendor/bin/pint` i `php artisan test`.
+- Przed PR-em: `./scripts/check.sh` — jedna komenda (AGENTS.md §10).
+  Sam `pint` i `artisan test` pomijają składnię, migracje i assety.
 - Brak destrukcyjnych operacji na produkcji bez jawnej zgody.
 
 ## Zanim zaczniesz implementować

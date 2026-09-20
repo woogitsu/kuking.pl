@@ -28,7 +28,9 @@
     wyrenderuje się wtedy bez stylów — szara, ale w pełni czytelna: nagłówek,
     akapity i link są zwykłym HTML-em. To jest gorszy wygląd, nie utrata treści.
 
-    Zmienne: $tytul, $naglowek, $akapity (lista), $adresPowrotu (opcjonalny).
+    Zmienne: $tytul, $naglowek, $akapity (lista), $adresPowrotu (opcjonalny),
+    $etykietaPowrotu (opcjonalna — domyślnie „Spróbuj jeszcze raz”; przy 4xx
+    powtórzenie tego samego adresu nic nie da i przycisk nie ma tego obiecywać).
 --}}
 @php
     $nonce = \Illuminate\Support\Facades\Vite::cspNonce();
@@ -123,7 +125,7 @@
 
     @if(! empty($adresPowrotu))
         <p class="powrot">
-            <a href="{{ $adresPowrotu }}">Spróbuj jeszcze raz</a>
+            <a href="{{ $adresPowrotu }}">{{ $etykietaPowrotu ?? 'Spróbuj jeszcze raz' }}</a>
         </p>
     @endif
 
