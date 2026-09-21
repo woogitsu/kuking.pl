@@ -85,7 +85,7 @@ Powiązanie z Facebookiem możesz zawsze zostawić bez użytku, wchodząc hasłe
 ## 4. Twoje prawa
 
 Masz prawo do:
-- **dostępu** do swoich danych — możesz je zobaczyć w ustawieniach konta lub poprosić o pełną kopię,
+- **dostępu** do swoich danych — możesz je zobaczyć w ustawieniach konta lub poprosić o **kopię swoich treści** (wpisów, przepisów, zdjęć i komentarzy), razem z listą tego, czego kopia nie zawiera; jeżeli potrzebujesz czegoś spoza tej paczki (na przykład historii zgłoszeń albo korespondencji z nami), napisz na **kontakt@kuking.pl** — przygotujemy to ręcznie w terminie z art. 12 ust. 3 RODO,
 - **poprawienia** danych — edytując profil,
 - **usunięcia** danych — usuwając treść lub konto,
 - **przeniesienia danych** — pobrania ich w formacie, który możesz wykorzystać gdzie indziej,
