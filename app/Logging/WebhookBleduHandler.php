@@ -193,6 +193,13 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
     private function tresc(LogRecord $record): string
     {
         $naglowek = sprintf('[%s/%s]', config('app.name'), config('app.env'));
+        $requestId = $record->context['request_id'] ?? null;
+        // Tylko własne pole o pełnym kształcie UUID v4. Nigdy cały kontekst
+        // ani nagłówek żądania: mogą zawierać dane wpisane przez człowieka.
+        $correlation = is_string($requestId)
+            && preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/D', $requestId) === 1
+            ? 'żądanie: '.$requestId
+            : null;
         $wyjatek = $record->context['exception'] ?? null;
 
         if (! $wyjatek instanceof Throwable) {
@@ -201,7 +208,10 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             // wprost). Reszta kontekstu rekordu NIE JEST tu dołączana
             // świadomie — mógłby nieść cokolwiek, co ktoś kiedyś doda do
             // wywołania `Log::error()`.
-            return $this->przytnij($naglowek.' '.$this->jednalinia($record->message));
+            return $this->przytnij(implode("\n", array_filter([
+                $naglowek.' '.$this->jednalinia($record->message),
+                $correlation,
+            ])));
         }
 
         $linie = array_filter([
@@ -210,6 +220,7 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             sprintf('%s:%d', $this->wzgledna($wyjatek->getFile()), $wyjatek->getLine()),
             $this->trasa(),
             'odcisk: '.$this->odcisk($wyjatek),
+            $correlation,
         ], static fn (?string $linia): bool => $linia !== null && $linia !== '');
 
         return $this->przytnij(implode("\n", [

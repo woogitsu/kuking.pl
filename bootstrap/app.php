@@ -6,6 +6,7 @@ use App\Domain\Analytics\ZapiszSygnal;
 use App\Exceptions\OdzyskanyFormularz;
 use App\Http\Middleware\AktualizujOstatniaWizyte;
 use App\Http\Middleware\ApplySecurityHeaders;
+use App\Http\Middleware\CorrelateRequest;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
@@ -79,6 +80,7 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->prepend([
             NormalizeForwardedFor::class,
             ApplySecurityHeaders::class,
+            CorrelateRequest::class,
         ]);
 
         // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez

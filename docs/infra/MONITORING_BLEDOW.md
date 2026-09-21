@@ -1,5 +1,63 @@
 # Monitoring błędów — webhook na Slack/Discord (i docelowo Sentry)
 
+## Kod jednego żądania — zakres HTTP z issue #1040
+
+`CorrelateRequest` nadaje losowy UUID v4, niezależny od nagłówka klienta,
+konta, sesji, IP i treści formularza. W trakcie żądania `request_id` trafia
+do kontekstu otwartych oraz później tworzonych kanałów logowania.
+Webhook pokazuje go jako `żądanie: …`, odpowiedź jako `X-Request-ID`,
+a zwykła strona 500 jako „Kod błędu: … Podaj go, gdy do nas napiszesz.”.
+Obsługa może szukać dokładnego kodu w logu. Dotychczasowy ośmioznakowy
+`odcisk` nadal grupuje rodzaj awarii; nie zastępuje kodu żądania.
+Kilka wpisów logu tego samego żądania ma ten sam kod.
+
+Nagłówek otrzymują także odpowiedzi poprawne, JSON oraz 500 zwrócone
+bez wyjątku. Sam status 500 nie uruchamia nowego alarmu: dotychczasowe
+reguły raportowania pozostają bez zmian. Widok nie wymaga bazy ani
+manifestu assetów; kod jest zwykłym tekstem, bez przycisku wymagającego JS.
+Webhook dopuszcza tylko pełny kształt UUID v4 w tym nowym polu;
+pozostałych danych kontekstu nadal nie serializuje.
+
+### Jawna granica i niedokończona część issue
+
+Middleware jest trzeci w stosie globalnym, po `NormalizeForwardedFor`
+i `ApplySecurityHeaders`. Zachowujemy ich istniejącą kolejność.
+Korelacja obejmuje raportowanie i renderowanie wyjątku wewnątrz dalszego
+pipeline Laravela. Awaria rozruchu aplikacji albo wcześniejszych warstw
+nie otrzymuje sztucznego kodu: strona 500 zachowuje instrukcję kontaktu,
+ale kod i nagłówek mogą być nieobecne. Nie jest to dowód sprawności
+monitoringu całego procesu PHP.
+
+`finally` usuwa wyłącznie `request_id` z istniejących kanałów oraz ze
+współdzielonego kontekstu przyszłych kanałów; inne pola zostają.
+Atrybut żądania pozostaje dostępny przy późniejszym bezpośrednim
+renderowaniu strony. **Po wyjściu z tego middleware** (np. wyjątek podczas
+odwijania wcześniejszej warstwy, callback zakończenia odpowiedzi albo
+streaming) nie obiecujemy pełnego łańcucha log–alarm–nagłówek–widok.
+
+Nie wdrożono osobnego identyfikatora próby zadania ani trwałego przenoszenia
+kodu HTTP w payloadzie kolejki. Job wykonany synchronicznie wewnątrz żądania
+korzysta z jego kontekstu; późniejszy worker nie otrzymuje go tą zmianą.
+Test sprzątania dowodzi braku pozostałego kontekstu HTTP, **nie** pełnego
+cyklu długowiecznego workera. Ta część kryteriów #1040 zostaje otwarta.
+
+### Weryfikacja i wycofanie
+
+`KodBleduLaczyZadanieZAlarmemTest` przechodzi przez prawdziwy kernel HTTP,
+czyta zapisany lokalnie log i przechwytuje wysyłkę przez `Http::fake()`.
+Dwa wyjątki z tego samego miejsca mają różne UUID, ale jednakowy odcisk.
+Test obejmuje kanał otwarty później, podrobiony nagłówek, JSON, 500 bez
+wyjątku, granicę przed middleware i renderowanie bez bazy/manifestu.
+Żadna próba nie wysyła alarmu produkcyjnego.
+
+Kontrole ujemne (`scripts/kontrola-ujemna.sh`): usunięcie `$correlation`
+z treści alarmu oblewa `BRAK_KORELACJI_ALARMU`; usunięcie
+`Log::flushSharedContext()` oblewa `WYCIEK_KONTEKSTU_HTTP`. Po przywróceniu
+oba testy znów przechodzą. Wycofanie tej zmiany kodu usuwa nowe pole,
+nagłówek i akapit; nie ma migracji ani zmiany retencji danych.
+
+---
+
 Ten dokument jest dla **właściciela**. Zakłada, że masz dostęp do panelu
 Railway i konto na Discordzie (albo Slacku) — i nic więcej. Nie zakłada
 znajomości Sentry, Monologa ani tego, jak Laravel loguje wyjątki.
