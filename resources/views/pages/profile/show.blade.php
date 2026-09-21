@@ -226,11 +226,16 @@
                 @if($isFollowing)
                     <form method="POST" action="{{ route('social.unfollow', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- Ta sama ochrona co przy blokadzie niżej (#793):
+                             nazwa w adresie mogła między wyrenderowaniem tej
+                             strony a kliknięciem trafić do kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                     </form>
                 @elseif($owner->isActive())
                     <form method="POST" action="{{ route('social.follow', $p->username) }}">
                         @csrf
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-primary" type="submit">Obserwuj</button>
                     </form>
                 @else

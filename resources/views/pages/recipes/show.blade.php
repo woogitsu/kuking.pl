@@ -243,12 +243,18 @@
                         @if($obserwuje ?? false)
                             <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
                                 @csrf @method('DELETE')
+                                {{-- #793 rozszerzone na relacje: strona przepisu
+                                     bywa otwarta godzinami, a nazwa autora
+                                     w adresie mogła w tym czasie zmienić
+                                     właściciela. --}}
+                                <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
                         @else
                             @can('follow', $recipe->author)
                                 <form method="POST" action="{{ route('social.follow', $recipe->author->profile->username) }}">
                                     @csrf
+                                    <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                     <button class="btn btn-secondary" type="submit">Obserwuj</button>
                                 </form>
                             @endcan
