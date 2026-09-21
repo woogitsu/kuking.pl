@@ -3129,8 +3129,33 @@
      wszystkich trzech: bez czasu i bez poziomu zostaje sama liczba porcji
      i ma wtedy zająć całą szerokość, a nie jedną trzecią z dwiema dziurami.
 
-     `minmax(7rem, 1fr)` trzyma kafel czytelnym przy skali tekstu 150%,
-     przy której „4 porcje" nie mieści się w jednym wierszu. */
+     UWAGA (20.09.2026, D-223): `display` I `grid-template-columns` Z TEJ
+     REGUŁY NIE DOCHODZĄ DO PRZEGLĄDARKI. Jedyny nosiciel `.przepis-liczby`
+     w repozytorium (`pages/recipes/show.blade.php`) stoi wewnątrz
+     `.marka-przepis-tekst`, a `marka-przepis.css` ustawia mu
+     `display: flex; flex-wrap: wrap`. Ten arkusz NIE JEST OWINIĘTY W ŻADNĄ
+     WARSTWĘ, a kod spoza warstw bije KAŻDĄ warstwę nazwaną — także
+     `utilities`. Na kontenerze flex `grid-template-columns` nie znaczy nic.
+
+     Dlatego poprzednia wersja tego komentarza uzasadniała `7rem`
+     czytelnością „przy skali tekstu 150%" i była nieprawdziwa na trzy
+     sposoby naraz: (1) te `7rem` i tak są przykryte przez `10rem`
+     z `marka-ekrany.css`, (2) OBIE wartości są martwe, bo nosiciel jest
+     flexem, (3) skali 150% w tym produkcie NIE MA — `tokens.css` daje
+     70/80/90/112/125/140, a nasze `data-text-scale` skaluje tokeny tekstu,
+     nie korzeń dokumentu, więc `rem` w tej regule i tak by nie urosło.
+
+     ZMIERZONE, nie wyczytane z arkusza: wymuszenie `7rem` tam, gdzie
+     wartość naprawdę by obowiązywała, dało geometrię kafel-w-kafel
+     IDENTYCZNĄ z obecną w 30 konfiguracjach na 30 (dwa przepisy × 320/360/
+     1280 px × pięć wariantów pisma). Zero przewijania w poziomie, zero
+     ucięcia tekstu. Dowód: `docs/design/evidence/kaskada223/`.
+
+     REGUŁY NIE USUWAMY. Jej usunięcie JEST zmianą zachowania na wypadek,
+     gdyby `marka-przepis.css` kiedyś zniknął — to osobna decyzja. Jeśli
+     kiedykolwiek będziesz tu poprawiać wartość: popraw ją TAM, GDZIE
+     OBOWIĄZUJE, czyli w `marka-przepis.css`. Poprawka w tej regule nie
+     dojdzie do nikogo. Pilnuje tego `scripts/kaskada-martwe-reguly.mjs`. */
   .przepis-liczby {
     display: grid;
     grid-template-columns: repeat(auto-fit, minmax(min(7rem, 100%), 1fr));

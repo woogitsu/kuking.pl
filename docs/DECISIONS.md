@@ -10502,6 +10502,24 @@ przyszedł. Wtedy znika treść szyny na tych ekranach, a nie kolumna.
 
 ---
 
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Liczby tej decyzji nadal obowiązują
+> jako ROZSTRZYGNIĘCIE, ale reguły CSS, w których je zapisano, **w większości nie
+> dochodzą do przeglądarki**. Zmierzone `getComputedStyle` na wyrenderowanych
+> stronach, 72 konfiguracje: `.app-body { grid-template-columns:
+> var(--container-sidenav) … }`, `.app-body { max-width: var(--container-strona) }`
+> oraz `.uklad-solo .topbar-inner, .uklad-solo .site-… { max-width:
+> var(--container-strona-solo…) }` są **całkowicie przykryte** przez arkusze
+> `resources/css/marka-*.css`, które nie są owinięte w żadną warstwę — a kod
+> spoza warstw bije każdą warstwę nazwaną, także `utilities`.
+>
+> Znaczy to, że układ, który widzi gość, ustala dziś warstwa marki, a nie te
+> reguły. Sama decyzja zostaje bez zmian i nic tu nie usuwamy: usunięcie martwej
+> reguły JEST zmianą zachowania na wypadek zniknięcia arkuszy marki i wymaga
+> osobnego rozstrzygnięcia. Pilnuje tego `scripts/kaskada-martwe-reguly.mjs`.
+> Strażnik, który czytał TEKST arkusza, opisywał tu stan nieistniejący — po to
+> powstało D-223.
+
 ## D-123 · Wybór gospodarza na tablicy jest UZUPEŁNIANY automatem do sufitu, a nie zamyka tablicy na resztę serwisu
 
 **Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
@@ -10651,6 +10669,18 @@ Najbardziej traci na tym ktoś, kto czyta wolniej albo powiększa tekst — bo
 skanowanie wzrokiem przestaje być skrótem.
 
 ---
+
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Podział `.card` na sześć warstw
+> powierzchni obowiązuje jako rozstrzygnięcie, ale zmierzone w przeglądarce
+> deklaracje samej `.card` z warstwy `components` (m.in. tło, obramowanie
+> i promień) są **całkowicie przykryte** przez `[data-marka] .post-card`
+> i pokrewne z arkuszy `marka-*.css` spoza warstw. O wyglądzie karty decyduje
+> dziś warstwa marki, nie te reguły.
+>
+> Nic tu nie usuwamy ani nie zmieniamy statusu — to jest adnotacja o tym, GDZIE
+> wartość naprawdę obowiązuje. Poprawka wpisana w regułę `.card` z `components`
+> nie dojdzie do nikogo. Szczegóły i strażnik: D-223.
 
 ## D-126 · Panel formularza nie pojawia się tam, gdzie w danym stanie ekranu nie ma czego wypełnić
 
@@ -15016,6 +15046,155 @@ Pobieranie zdjęć obejmuje jednym batchem tagi promowane i bieżącą stronę
 katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
+
+## D-223 — Martwe reguły CSS: strażnik pyta o wynik kaskady, nie o tekst arkusza (20 września 2026)
+
+`resources/css/app.css` linia 1 ustawia `@layer theme, base, components, marka,
+utilities;`. Warstwa późniejsza bije wcześniejszą niezależnie od szczegółowości
+selektora i niezależnie od zapytania medialnego. W repozytorium żyją przez to
+reguły z komentarzami uzasadniającymi konkretne wartości, których przeglądarka
+nigdy nie widzi. Komentarz opisuje wtedy stan nieistniejący, a następny człowiek
+czyta go jak prawdę i na nim buduje.
+
+### Co zmierzono przy `.przepis-liczby` — i dlaczego wynik jest inny, niż zakładano
+
+Zlecenie pytało, czy `10rem` z `marka-ekrany.css` zamiast `7rem` z `app.css`
+psuje coś realnego przy 320 px i powiększonym piśmie. Odpowiedź: **nie psuje, bo
+ŻADNA z tych dwóch wartości nie działa.** Jedyny nosiciel `.przepis-liczby`
+(`pages/recipes/show.blade.php`) stoi wewnątrz `.marka-przepis-tekst`, a
+`marka-przepis.css` robi z niego `display: flex`. Na kontenerze flex
+`grid-template-columns` nie znaczy nic. Przykrycie `7rem` przez `10rem` było
+prawdziwe i zarazem bez znaczenia — spór o wartość toczył się o własność, która
+i tak nie dochodzi.
+
+Zmierzone w przeglądarce, nie wyczytane z arkusza: wymuszenie `7rem` tam, gdzie
+wartość naprawdę by obowiązywała, dało geometrię kafel-w-kafel **identyczną co do
+piksela w 30 konfiguracjach na 30** (dwa przepisy × 320/360/1280 px × pięć
+wariantów pisma). Zero przewijania w poziomie, zero ucięcia tekstu.
+Dowód: `docs/design/evidence/kaskada223/`.
+
+Dlatego **wartości nie ruszamy i reguł nie usuwamy** — poprawiono wyłącznie
+komentarze, żeby przestały uzasadniać liczbę, której nie ma. Usunięcie martwej
+reguły JEST zmianą zachowania na wypadek, gdyby `marka-przepis.css` zniknął,
+i jest osobną decyzją.
+
+### Trzy rzeczy, które ten pomiar ujawnił przy okazji
+
+1. **Osiem arkuszy nie jest owiniętych w żadną warstwę** (`marka-przepis`,
+   `marka-panel`, `marka-powiadomienia`, `marka-rama`, `marka-szukaj`,
+   `marka-wejscie`, `marka-zeszyt`, `pasek-przewijany`, `szybki-wyglad`).
+   Kod spoza warstw bije KAŻDĄ warstwę nazwaną, także `utilities` — istnieje
+   więc faktyczna warstwa najwyższa, której instrukcja `@layer` nie wymienia.
+   Komentarz przy imporcie twierdzi, że „każdy z nich dopisuje własne klasy do
+   @layer components". Dla tych ośmiu to nieprawda.
+2. **Instrukcja `@layer a, b, c;` NIE PRZEŻYWA BUDOWANIA.** W zbudowanym
+   arkuszu zostają same bloki `@layer nazwa { … }`, a kolejność wynika z ich
+   pierwszego wystąpienia. Dochodzi też wewnętrzna warstwa Tailwinda
+   `properties`, PRZED `theme` — w źródle jej nie ma.
+3. **Zapytania medialne są budowane w składni zakresowej** (`(width >= 48rem)`),
+   nie `(min-width: 48rem)`. Narzędzie szukające `min-width` znajduje zero
+   progów i wygląda wtedy na zielone.
+
+Wszystkie trzy są argumentem za tym samym: **o CSS trzeba pytać przeglądarkę, nie
+plik.** Strażnik czytający źródło mierzyłby tu co innego, niż widzi użytkownik.
+
+### Strażnik
+
+`scripts/kaskada-martwe-reguly.mjs` wykrywa deklarację z warstwy wcześniejszej
+całkowicie przykrytą przez warstwę późniejszą na tej samej własności i tym samym
+elemencie. Tekst arkusza służy wyłącznie do ZAWĘŻENIA listy kandydatów.
+Rozstrzyga pomiar: deklarację zdejmujemy z żywej reguły na wyrenderowanej
+stronie, porównujemy `getComputedStyle` każdego pasującego elementu przed i po,
+i przywracamy. Brak różnicy we wszystkich mierzonych konfiguracjach znaczy, że
+deklaracja nie zmienia nic.
+
+Strażnik nie jest listą znanych przypadków: kolejność warstw czyta z przeglądarki
+(pierwsze wystąpienie warstwy), reguły obchodzi rekurencyjnie przez `@layer`,
+`@media` i `@supports`, a szerokości bierze z progów znalezionych w arkuszu —
+więc czwarta warstwa i piąty arkusz wchodzą do pomiaru same. Jedyna lista nazw
+w tym pliku to WYJĄTKI i każdy ma przy sobie powód.
+
+Strażnik ma własną samokontrolę: brak wykrytych warstw albo zero przepytanych
+deklaracji to BŁĄD PRZYRZĄDU (kod 2), nie wynik pozytywny. Nie jest to ozdoba —
+pierwsza wersja tego strażnika czytała kolejność warstw z instrukcji `@layer`,
+której zbudowany arkusz nie zawiera, i meldowała „✓ żadna reguła nie jest
+przykryta", nie sprawdziwszy ani jednej. Samokontrola to złapała.
+
+### Czego ten strażnik nie mierzy
+
+Selektorów ze stanem interakcji (`:hover`, `:focus`), selektorów bez nosiciela na
+mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnętrzne
+reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
+pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
+
+### Kontrola ujemna strażnika — ZMIERZONA (20.09.2026, stanowisko `kaskada`)
+
+`scripts/kaskada-kontrola-ujemna.sh`. Przebieg PASS → FAIL → PASS, powtórzony
+trzykrotnie na dwóch niezależnie postawionych runtime'ach WSL (72 konfiguracje
+pomiarowe: 6 stron × 6 szerokości × motyw jasny).
+
+Mutacja **nie dotyka pliku, w którym stoi pilnowana wartość**. `app.css` zostaje
+bajt w bajt taki sam — dokładamy regułę o wyższej swoistości w `marka-przepis.css`,
+arkuszu bez warstwy:
+
+```
+[data-marka] .marka-przepis-tekst .przepis-liczba svg { color: var(--color-ink-muted); }
+```
+
+Strażnik czytający TREŚĆ `app.css` byłby po tej mutacji zielony — w pliku dalej
+stoi `.przepis-liczba svg { color: var(--color-brand) }`, czyli dokładnie to,
+czego pilnuje. Strażnik pytający o `getComputedStyle` oblał z oczekiwanego
+powodu (`martwe własności: color`, kod 1). **To jest cały argument za tym
+strażnikiem, wykonany jako pomiar, a nie jako zdanie w opisie.**
+
+Przywrócenie: MD5 `ecc442a60b07922afbe9031b7283b1df` przed i po, mtime
+porównany przez przyrząd, `cmp` z kopią w worktree — identyczne bajt w bajt.
+
+### Zawężenie `--tylko` też potrzebowało kontroli dodatniej
+
+Samokontrole strażnika (brak warstw, zero konfiguracji, zero przepytanych
+deklaracji) pilnują pomiaru JAKO CAŁOŚCI i dlatego nie widziały dziury
+w `--tylko`: przy zawężeniu werdykt zapada na garstce reguł, a całość dalej
+mierzy się poprawnie. Literówka w zawężeniu — albo zmiana nazwy klasy — dawała
+**pełną zieleń z pełnym pomiarem pod spodem**, czyli najbardziej przekonujący
+możliwy wariant zera (`PULAPKI_TESTOW.md` §2).
+
+Zmierzone: `--tylko .selektor-ktorego-nie-ma` przechodziło na zielono.
+Po poprawce daje BŁĄD PRZYRZĄDU (kod 2), a zawężenie prawdziwe wypisuje, ile
+reguł z nosicielem objęło. Liczymy reguły **z nosicielem**, nie dopasowania
+tekstowe: selektor obecny w arkuszu, ale bez elementu na mierzonych stronach,
+też niczego nie dowodzi.
+
+### `.przepis-liczba` NIE jest obszarem zielonym — zmierzone
+
+Zastane założenie mówiło, że `--tylko .przepis-liczba` nadaje się na kontrolę
+dodatnią. Pomiar mówi inaczej — przy tym zawężeniu strażnik jest **czerwony**
+w 12/12 zbadanych konfiguracji:
+
+| reguła (warstwa `components`) | martwe własności | przykrywa (warstwa `marka`) |
+|---|---|---|
+| `.przepis-liczba` | `padding`, `border-radius` | `.przepis-liczba` z `marka-ekrany.css` |
+| `.przepis-liczba span` | `font-size` | `.przepis-liczba span` z `marka-ekrany.css` |
+
+To nie jest artefakt pomiaru „tylko z włączoną marką": `data-marka="kuking-2026"`
+stoi na `<body>` na sztywno (`components/layout.blade.php`), bez flagi i bez
+warunku. Warstwa `marka` obowiązuje zawsze, więc te deklaracje z `components`
+naprawdę nie dochodzą do nikogo.
+
+**To są prawdziwe znaleziska tego samego rodzaju, którego strażnik pilnuje —
+idą do zaległości D-223, nie do `WYJATKI`.** Wyjątek bez powodu jest tylko
+wyciszeniem strażnika. Kontrola dodatnia stoi więc na `.przepis-liczba svg`
+(zmierzone: zielone, jedna reguła z nosicielem), a `scripts/kaskada-kontrola-polecenie.sh`
+ma to zawężenie jako domyślne.
+
+### Wymaganie wstępne, którego NIE dublujemy
+
+Kontrola ujemna nie ruszy bez poprawki SIGPIPE w `scripts/kontrola-ujemna.sh`
+(`grep -qE … <<<` zamiast `printf … | grep -q`; `PULAPKI_TESTOW.md` §5c).
+Wyjście strażnika ma kilkadziesiąt linii, więc przyrząd meldował fałszywe
+`ZLA_PRZYCZYNA` dla kontroli, która była poprawna. Poprawka żyje już na gałęzi
+`narzedzia/kontrola-ujemna-v2` i dlatego **nie jest powtórzona tutaj** — pomiary
+powyżej wykonano z nią nałożoną na runtime.
 
 ## D-224 — Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest (audyt L1, 20 września 2026)
 

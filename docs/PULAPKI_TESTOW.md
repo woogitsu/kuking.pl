@@ -101,6 +101,28 @@ $this->assertGreaterThan(100, $przeskanowane, 'Skan nie czyta plików — zła �
 Bez tej asercji przeniesienie katalogu wyłącza test bez jednego czerwonego
 przebiegu.
 
+### 2b. Ta sama dziura wraca przez ZAWĘŻENIE — i jest wtedy lepiej ukryta
+
+**Złapało: `scripts/kaskada-martwe-reguly.mjs --tylko`, 20.09.2026.**
+
+Strażnik z bramką zawężaną argumentem (`--tylko <fragment>`) ma dwa różne
+zbiory: to, co MIERZY, i to, na czym zapada WERDYKT. Samokontrole pisze się
+zwykle dla pierwszego — „zero zmierzonych konfiguracji to błąd przyrządu" —
+i one działają. Werdykt tymczasem zapada na drugim, a ten bywa pusty przy
+pomiarze, który przebiegł bez zarzutu.
+
+Skutek jest gorszy niż zwykłe zero z §2, bo **wygląda na wynik**: konsola
+wypisuje tysiące zbadanych reguł, pełną listę szerokości i motywów, po czym
+melduje zieleń na zbiorze pustym. Literówka w zawężeniu albo zmiana nazwy
+klasy wyłącza bramkę bez jednego czerwonego przebiegu i bez jednego
+podejrzanego wiersza w logu.
+
+**Co robić:** samokontrola musi stać przy ZBIORZE WERDYKTU, nie przy pomiarze.
+Zawężenie, które nie objęło ani jednego realnego przedmiotu badania, to błąd
+przyrządu (kod 2), nie wynik pozytywny. I licz przedmioty, nie dopasowania
+tekstowe: selektor obecny w arkuszu, ale bez nosiciela na mierzonych stronach,
+jest „niezmierzony", a nie „czysty".
+
 ---
 
 ## 3. Twój sabotaż może być za słaby — i uznasz dobry test za atrapę
@@ -503,6 +525,68 @@ wpisu" — i na tej podstawie postawiono błędną diagnozę o strefie czasowej.
 Polecenie diagnostyczne, którego kodu wyjścia nikt nie sprawdza, jest
 kolejnym źródłem tej samej pułapki. `MSYS_NO_PATHCONV=1` rozwiązuje ten
 konkretny przypadek; sprawdzanie kodu wyjścia rozwiązuje całą klasę.
+
+## 11. Strażnik CSS czytający ŹRÓDŁO mierzy inny arkusz, niż dostaje przeglądarka
+
+Ta pułapka jest odmianą §10 („stan stanowiska udaje wynik pomiaru"), ale
+stanowiskiem jest tu **budowanie arkusza**. Między `resources/css/*.css`
+a `public/build/assets/app-*.css` zmienia się na tyle dużo, że test czytający
+źródło potrafi opisywać układ, którego nikt nie zobaczy.
+
+Zmierzone 20 września 2026 przy strażniku martwych reguł (D-223), trzy różnice
+naraz, wszystkie milczące:
+
+**Instrukcja `@layer a, b, c;` nie przeżywa budowania.** W źródle stoi ona
+w `app.css` linia 1 i to ona ustala kolejność warstw. W zbudowanym arkuszu
+**jej nie ma** — zostają same bloki `@layer nazwa { … }`, a kolejność wynika
+z ich pierwszego wystąpienia. Strażnik szukający `CSSLayerStatementRule`
+dostawał pustą listę warstw, przez co **każdej regule przypisywał tę samą
+warstwę**, nie znajdował ani jednego kandydata i wypisywał „✓ nic nie jest
+przykryte". Zieleń była prawdziwa składniowo i bezwartościowa merytorycznie.
+Do zbudowanego arkusza dochodzi przy okazji wewnętrzna warstwa Tailwinda
+`properties`, PRZED `theme` — w źródle jej nie ma wcale.
+
+**Zapytania medialne są budowane w składni zakresowej.** W źródle bywa
+`@media (min-width: 48rem)`, w arkuszu stoi `(width >= 48rem)`. Wzorzec
+szukający `min-width` znajduje **zero** progów. Narzędzie mierzy wtedy tylko
+szerokości, które ktoś wpisał ręcznie, a każdą regułę schowaną pod progiem
+bierze za żywą albo za martwą — zależnie od tego, po której stronie progu
+przypadkiem stanęło.
+
+**Arkusz bez `@layer` bije każdą warstwę.** Osiem plików `resources/css/*.css`
+nie jest owiniętych w żadną warstwę. Kod spoza warstw jest w kaskadzie
+PÓŹNIEJSZY niż każda warstwa nazwana — także niż `utilities`. Istnieje więc
+warstwa najwyższa, której instrukcja `@layer` nie wymienia, a `grep '@layer'`
+po źródle jej nie pokaże, bo ona polega właśnie na BRAKU wpisu.
+
+### Co robić
+
+**Pytaj `getComputedStyle` na wyrenderowanej stronie, nie pliku.** Wynik
+kaskady jest jedyną odpowiedzią na pytanie „co widzi użytkownik". Tekst
+arkusza wolno wykorzystać do ZAWĘŻENIA listy kandydatów — nigdy do werdyktu.
+
+**Daj narzędziu samokontrolę na pustym przebiegu.** Zero wykrytych warstw,
+zero progów, zero zbadanych kandydatów — to są BŁĘDY PRZYRZĄDU, nie wyniki
+pozytywne. `scripts/kaskada-martwe-reguly.mjs` kończy się wtedy kodem 2
+i właśnie ta samokontrola złapała obie pomyłki opisane wyżej, zanim zrobiły
+z niego kolejnego strażnika meldującego zieleń bez pomiaru.
+
+**Przywracaj przez `cssText`, nie przez `setProperty`.** Pomiar, który zdejmuje
+deklarację i odtwarza ją z `getPropertyValue`, gubi skróty: dla `padding`
+o różnych składowych ta funkcja zwraca pusty łańcuch. „Przywrócona" reguła
+zostaje trwale okaleczona, a każdy następny pomiar na tej stronie biegnie po
+arkuszu, który poprzedni pomiar zepsuł. To jest §5b przeniesione z plików na
+CSSOM — i tak samo jak tam, przywrócenie trzeba SPRAWDZIĆ, a nie założyć.
+
+### Jedna różnica, której ta pułapka NIE dotyczy
+
+Nasze `data-text-scale` z profilu **nie jest** przykładem tej pułapki. Ono
+skaluje tokeny tekstu (`--user-text-scale`), a nie `font-size` korzenia, więc
+`rem` w regułach układu przy nim nie rośnie i progi zapytań medialnych się nie
+ruszają. Mylenie go z powiększeniem pisma w przeglądarce to osobna pomyłka —
+i to ona stoi za komentarzem uzasadniającym `7rem` „czytelnością przy skali
+tekstu 150%", podczas gdy skali 150% w tym produkcie nie ma w ogóle
+(`tokens.css` daje 70/80/90/112/125/140).
 
 ## Skąd ta lista
 

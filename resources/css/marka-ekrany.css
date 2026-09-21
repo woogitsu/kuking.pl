@@ -144,6 +144,17 @@
     box-shadow: var(--shadow-card);
   }
 
+  /* UWAGA (20.09.2026, D-223): ta reguła WYGRYWA z `7rem` w app.css — i też
+     NIE DOCHODZI DO PRZEGLĄDARKI. Jedyny nosiciel `.przepis-liczby` stoi
+     wewnątrz `.marka-przepis-tekst`, a `marka-przepis.css` (arkusz BEZ
+     WARSTWY, czyli ponad każdą warstwą nazwaną) robi z niego kontener flex.
+     Na flexie `grid-template-columns` nie znaczy nic.
+
+     Zmierzone: podmiana 10rem → 7rem nie zmienia ani jednego piksela
+     w 30 konfiguracjach. Nie „naprawiaj" tu wartości — najpierw rozstrzygnij,
+     czy nosiciel ma być siatką, czy flexem. Dowód i pełny opis:
+     `docs/design/evidence/kaskada223/` oraz D-223. Reguły nie usuwamy: to
+     osobna decyzja o zachowaniu, gdyby `marka-przepis.css` zniknął. */
   .przepis-liczby {
     grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
   }
