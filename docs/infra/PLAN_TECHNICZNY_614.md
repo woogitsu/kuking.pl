@@ -51,7 +51,7 @@ pochodzą od innego autora, są oznaczone. Odczyt pliku nie jest pomiarem usług
 | Obciążenie #605 | OPEN | W repo są werdykty `NIEWYKONANY`, m.in. `werdykt-r030-niewykonany.json`; zakłócony host nie dał wiarygodnej serii. Test przyrządu w CI nie mierzy pojemności aplikacji. | Zapewnić warunki pomiaru i wykonać serię; nie wyliczać limitu użytkowników z prób odrzuconych. |
 | Octane #612 | OPEN | W audycie jest warunkowe wobec #605; nie staje się obowiązkiem przez samą obecność issue. | Porównać dopiero po stwierdzeniu wąskiego gardła. |
 | Silnik mediów #613, upload #602 | OPEN | Kolejne etapy, nie przesłanka do pominięcia #601 i monitoringu. | Próbka i koszt pamięci/czasu; projekt kwarantanny i odbiór ochrony oryginału. |
-| CI #611 | OPEN, częściowo wykonane | #783 scalił pojedynczy filtr i composite action. Ten pakiet usuwa tylko trzy nieużywane pełne historie; [mapa](UPROSZCZENIE_CI_611.md) obejmuje 20 jobów. | Decyzje o ochronie gałęzi/retencji oraz dozwolony przebieg zdalny, bez osłabiania testów. |
+| CI #611 | OPEN, częściowo wykonane | #783 scalił pojedynczy filtr i composite action. Ten pakiet usuwa tylko trzy nieużywane pełne historie; [mapa](MAPA_CI_611.md) obejmuje 20 jobów. | Decyzje o ochronie gałęzi/retencji oraz dozwolony przebieg zdalny, bez osłabiania testów. |
 | Bramka R2 #120 | OPEN, część aplikacyjna wykonana | Aktualne issue wskazuje własny adapter bez ACL i prywatne warianty, a nie powrót do publicznego CDN. [Procedura](BRAMKA_R2.md) wymaga rzeczywistego medium i kompletu obecnych/historycznych hostów. Brak własnego odbioru prawdziwych bucketów. | Odczyt podpisany działa, niepodpisany odmawia, warianty nie mają EXIF, zapis bez ACL działa; osobno panel i #619. Nie budować drugiego adaptera. |
 | Cache zdjęć #597 | OPEN | `MediaController` sprawdza dostęp, przekierowuje na signed URL i różnicuje `public` oraz `private, no-store`; przenosi też Cache-Control na odpowiedź R2. Stan reguł Cloudflare nie wynika z pliku. | Odczytać panel, zmierzyć ruch; przed dłuższym TTL jawnie wybrać akceptowane okno po zmianie prywatności/blokadzie. |
 | Cache publicznych stron #610 | OPEN, po #597 | Opis opiera stan brzegu na dokumentacji, nie na aktualnym odczycie Cloudflare. Nie odebrano konfiguracji brzegu w tej pracy. | Wykluczyć sesje, odebrać zmianę widoczności i unieważnianie; żadnego ogólnego Cache Everything. |
@@ -108,7 +108,7 @@ tu całego audytu 202 wpisów; porównanie dotyczy zaleceń #614 i ich zależno�
   wariant pozostania przy obecnym układzie jest prawidłowy, jeśli spełnia
   cele. Octane/PgBouncer/nowy silnik nie są z góry zwycięzcami.
 - **CI:** ochrona main i los starych niescalonych gałęzi wymagają wyboru
-  opisanego w [mapie CI](UPROSZCZENIE_CI_611.md). Nie zamieniono wyboru w asercję.
+  opisanego w [mapie CI](MAPA_CI_611.md). Nie zamieniono wyboru w asercję.
 
 Nie zmieniono issue ani produkcji, nie publikowano komentarzy. Dokument
 jest gotowym materiałem do aktualizacji kanonicznego #614 przez właściciela
