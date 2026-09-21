@@ -56,7 +56,7 @@ Tabela inwentaryzacji kodu wskazuje, które klasy używają domyślnego mailera 
 `kuking:sprawdz-poczte` używa `Mail::raw()` (tekst) — brak piksela w takim liście **nie potwierdza** wyłączenia wstawek HTML; runbook to teraz koryguje.
 
 ### Konfiguracja dostawcy — przegląd publicznego API, bez wejścia na konto
-20.09.2026 pobrano publiczne OpenAPI EmailLabs: `POST /v2.1/email` przypisuje `X-TRACKING-OFF` do śledzenia **kliknięć**; `EmailObject` nie zawiera ustawienia otwarć. Nie znaleziono w tej dokumentacji nagłówka/pola wysyłki wyłączającego otwarcia — **to ograniczony wynik przeglądu publicznego API, nie dowód nieistnienia opcji dostępnej wyłącznie przez wsparcie**. Wskazana ścieżka ręczna dla właściciela: Email API → Settings → SMTP Accounts → subkonto (historycznie `1.mkapica.smtp`) → Additional Settings → Open Tracking → wyłączyć, potem odebrać nowe HTML (reset hasła, potwierdzenie adresu, informacja o paczce) i uruchomić `kuking:sprawdz-piksel`.
+20.09.2026 pobrano publiczne OpenAPI EmailLabs: `POST v2.1/email` (endpoint zewnętrznego API EmailLabs, nie nasza trasa) przypisuje `X-TRACKING-OFF` do śledzenia **kliknięć**; `EmailObject` nie zawiera ustawienia otwarć. Nie znaleziono w tej dokumentacji nagłówka/pola wysyłki wyłączającego otwarcia — **to ograniczony wynik przeglądu publicznego API, nie dowód nieistnienia opcji dostępnej wyłącznie przez wsparcie**. Wskazana ścieżka ręczna dla właściciela: Email API → Settings → SMTP Accounts → subkonto (historycznie `1.mkapica.smtp`) → Additional Settings → Open Tracking → wyłączyć, potem odebrać nowe HTML (reset hasła, potwierdzenie adresu, informacja o paczce) i uruchomić `kuking:sprawdz-piksel`.
 
 ### Polityka prywatności
 Własny odczyt `resources/legal/polityka-prywatnosci.md`: §2 (wiersze 35–36) i §3 (wiersze 52, 77–79) już wymieniają dostawcę i mechanizm piksela, zapowiadając wyłączenie po jego stronie — **zarzut całkowitego milczenia polityki nie opisuje tego drzewa**. Autor zastrzega: samo poinformowanie nie rozstrzyga podstawy przetwarzania; sformułowanie „w każdym liście” jest szersze niż udokumentowany mechanizm HTML i po decyzji/wyłączeniu wymaga korekty.
@@ -151,7 +151,7 @@ Końcowa weryfikacja pakietu: MinIO **2 PASS, 195 asercji**; **15/15 obiektów**
 
 ## `gpt/obciazenie` — #605 (korpus prawdziwych zdjęć)
 
-Ten raport (`docs/obciazenie/KORPUS_605.md`) jest krótkim opisem **nowej opcji przyrządu**, nie pełnym raportem z wynikami serii obciążeniowej. Generator i rampa to istniejące narzędzia `scripts/*obciazenia-605*`; nowa opcja `--korpus /bezwzgledna/sciezka/korpus.json` rozszerza scenariusz `upload` o realne pliki z manifestu (ścieżka, SHA-256, MIME, oczekiwany wynik `accepted`/`rejected`) — nie zastępuje mieszanki testem samych zdjęć.
+Ten raport (`docs/obciazenie/KORPUS_605.md`) jest krótkim opisem **nowej opcji przyrządu**, nie pełnym raportem z wynikami serii obciążeniowej. Generator i rampa to istniejące narzędzia `scripts/*obciazenia-605*`; nowa opcja `--korpus ŚCIEŻKA-BEZWZGLĘDNA/korpus.json` (bez wiodącego ukośnika w przykładzie) rozszerza scenariusz `upload` o realne pliki z manifestu (ścieżka, SHA-256, MIME, oczekiwany wynik `accepted`/`rejected`) — nie zastępuje mieszanki testem samych zdjęć.
 
 Przed napływem generator sprawdza wszystkie sumy; korpus pusty, brak pliku, nieznany MIME lub zmienione bajty **zatrzymują bieg**. Zdjęcia i manifest sesji pozostają poza repozytorium; zakaz publikowania ciasteczek/tokenów/haseł/pełnego zrzutu EXIF-GPS.
 
