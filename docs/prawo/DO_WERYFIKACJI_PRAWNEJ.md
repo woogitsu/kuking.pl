@@ -290,8 +290,14 @@ i na odpowiedzi magazynu.
 
 1. **Podpisany adres wydany przed decyzją działa przez cały czas ważności podpisu.**
    Ani usunięcie treści, ani ban go nie unieważniają — odcina go **wyłącznie zegar**.
-   Czyli między decyzją a faktycznym odcięciem istnieje **gwarantowane okno co
-   najmniej pięciominutowe**, a dla kopii w cache brzegowym okno nieznane.
+
+   **UWAGA, poprzednia redakcja tego zdania była BŁĘDNA.** Pisała o „gwarantowanym
+   oknie co najmniej pięciominutowym". Nieprawda: podpis zachowuje **pozostały**
+   czas ważności, liczony **od chwili wystawienia**, a nie od decyzji. Podpis wydany
+   cztery minuty przed banem daje około minuty, nie pięciu. Okno zależy więc od tego,
+   kiedy kto ostatnio otworzył stronę, i **nie ma jednego wspólnego końca** — moderator,
+   który nie jest odcięty (patrz pkt 2), może wydawać kolejne podpisy w nieskończoność.
+   Cache brzegowy liczy się osobno i pozostaje niezmierzony.
 2. **Moderator nie jest odcięty w żadnym stanie**, także po usunięciu obu treści
    i banie. Wynika to z `DostepDoZdjecia::wlascicielLubModerator()`, który przepuszcza
    **przed** odpytaniem rodziców. Przy żądaniu odcięcia konkretnego pliku ta reguła
