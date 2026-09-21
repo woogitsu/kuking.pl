@@ -33,6 +33,34 @@ declare(strict_types=1);
  * zepsuty test, tylko fałszywa czerwień z kontencji, po której każdy musiał
  * najpierw udowodnić, że to nie jego wina.
  *
+ * ── CZEGO ŚWIADOMIE NIE WYBRANO I DLACZEGO ─────────────────────────────────
+ *
+ *  - PID procesu. Dawałby nową, inną bazę przy KAŻDYM uruchomieniu — także
+ *    kolejnych w tym samym katalogu, jedno po drugim. To usuwa kolizję kosztem
+ *    gwarantowanego zaśmiecania dysku: baza nigdy nie jest ta sama, więc nigdy
+ *    nie ma jednej, powtarzalnej rzeczy do posprzątania ani do ponownego
+ *    użycia (cache migracji, dane testowe do inspekcji).
+ *
+ *  - Zmienna z CI (np. GITHUB_RUN_ID). Działa wyłącznie w CI, a w CI przebieg
+ *    i tak jest jeden (workflow ma `concurrency`, patrz ci.yml) — czyli
+ *    rozwiązywałaby problem tam, gdzie go nie ma, i nie rozwiązywałaby go
+ *    lokalnie, gdzie jest to issue.
+ *
+ *  - Losowy UUID przy starcie. Maksymalna izolacja, ale baza nie ma żadnej
+ *    stałej, rozpoznawalnej nazwy — nie da się jej odróżnić od śmiecia bez
+ *    dodatkowego rejestru. Nazwa worktree jest czytelna w `psql -l` za darmo
+ *    i widać po niej, do czego baza należy.
+ *
+ *  - SAM skrót pełnej ścieżki repozytorium. Działa, ale jest nieczytelny przy
+ *    sprzątaniu (`psql -l` pokazuje ciąg hexów, nie to, o który katalog
+ *    chodzi). Tam, gdzie Git nadaje worktree'owi czytelną nazwę, bierzemy ją;
+ *    skrót dokładamy tylko tam, gdzie nazwy worktree NIE MA — i wtedy obok
+ *    czytelnej nazwy katalogu, nie zamiast niej.
+ *
+ *  - SAMA nazwa katalogu, bez skrótu. Dwie kopie o tej samej nazwie w różnych
+ *    katalogach nadrzędnych (`/home/a/kuking.pl`, `/home/b/kuking.pl`)
+ *    dostałyby jedną bazę, czyli dokładnie tę awarię, tylko rzadziej.
+ *
  * ── CZEGO TA REGUŁA NIE OBIECUJE ───────────────────────────────────────────
  *
  * Przypadek 1. NIE JEST unikalny: dwa katalogi, w których `.git` jest
