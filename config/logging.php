@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Logging\EmailBleduLogger;
 use App\Logging\WebhookBleduLogger;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
@@ -138,6 +139,46 @@ return [
             'driver' => 'custom',
             'via' => WebhookBleduLogger::class,
             'url' => env('LOG_BLAD_WEBHOOK_URL'),
+            'level' => 'error',
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | DRUGI KANAŁ ALARMOWY: POCZTA (issue #599)
+        |----------------------------------------------------------------------
+        |
+        | RÓWNOLEGŁY do `blad_webhook`, nie zamiast niego. Oba mogą działać
+        | naraz, żaden nie wie o drugim, każdy włącza się SWOJĄ zmienną
+        | i każdy przy pustej zmiennej jest całkowicie martwy.
+        |
+        | PO CO, SKORO JEST WEBHOOK: bo webhooka na produkcji NIE MA.
+        | `LOG_BLAD_WEBHOOK_URL` nie jest tam ustawione (odczyt panelu
+        | 21.09.2026), a pusty adres = cisza. Czyli dziś błąd 500, awaria
+        | bazy, niedziałająca poczta, `/health degraded` i nieudane zadania
+        | w kolejce są policzone, zalogowane i NIE BUDZĄ NIKOGO. Właściciel
+        | nie używa Discorda ani Slacka; poczta (EmailLabs, `MAIL_MAILER=
+        | emaillabs`) jest skonfigurowana i realnie działa.
+        |
+        | `adres`, NIE `url` — inna nazwa klucza jest tu celowa: pomyłka
+        | „wkleiłem webhooka do zmiennej pocztowej" ma paść na etapie
+        | konfiguracji, a nie wyjść dopiero przy pierwszej awarii.
+        |
+        | TA SAMA TREŚĆ, CO NA WEBHOOKU, budowana tą samą metodą
+        | (`App\Logging\TrescAlarmu`) — to jest warunek bezpieczeństwa,
+        | nie oszczędność kodu. Drugie formatowanie rozjechałoby się
+        | z pierwszym i zaczęłoby wysyłać komunikat `QueryException`
+        | z e-mailem i hashem hasła w środku (audyt A6-01).
+        |
+        | Pętla zwrotna (alarm o awarii poczty, wysyłany pocztą), zalew
+        | skrzynki, brak kolejki oraz wybór nadawcy i odbiorcy: cztery
+        | ponumerowane akapity w komentarzu klasy `EmailBleduHandler`.
+        |
+        | POZIOM NA SZTYWNO `error`, tak samo jak przy webhooku.
+        */
+        'blad_email' => [
+            'driver' => 'custom',
+            'via' => EmailBleduLogger::class,
+            'adres' => env('LOG_BLAD_EMAIL'),
             'level' => 'error',
         ],
 

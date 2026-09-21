@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Security;
 
+use App\Logging\KanalyAlarmowe;
 use Illuminate\Contracts\Cache\LockTimeoutException;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
@@ -464,7 +465,7 @@ final class DziennyBudzetListow
                 .'Jeśli to się powtarza, przejdź na płatny plan u dostawcy — docs/decyzje/POCZTA.md §4.',
         ]);
 
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! KanalyAlarmowe::jakikolwiekWlaczony()) {
             return;
         }
 
@@ -473,7 +474,7 @@ final class DziennyBudzetListow
         // `message`, więc cokolwiek dołożonego w `context` i tak by nie
         // wyszło — a gdyby kiedyś wyszło, wychodziłoby do usługi, nad którą
         // nie mamy kontroli (AGENTS.md §7, audyt A6-01).
-        Log::channel('blad_webhook')->error(sprintf(
+        KanalyAlarmowe::zadzwon(sprintf(
             'Poczta: sufit „%s" zużyty w %d%% (%d z %d). Gdy się skończy, ta funkcja przestanie wysyłać listy.',
             $this->funkcja,
             (int) floor($zuzyte * 100 / $budzet),

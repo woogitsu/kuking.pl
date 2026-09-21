@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Polaczenia;
 
-use App\Logging\WebhookBleduHandler;
+use App\Logging\KanalyAlarmowe;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Cache;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -257,7 +256,7 @@ final class AlarmPolaczen
         // zmierzony 17.09.2026: zmienna LOG_BLAD_WEBHOOK_URL nie istnieje
         // w usłudze). Ten sam warunek stoi w `bootstrap/app.php`
         // i w `AlarmKopii`.
-        return ! blank(config('logging.channels.blad_webhook.url'));
+        return KanalyAlarmowe::jakikolwiekWlaczony();
     }
 
     /**
@@ -278,10 +277,10 @@ final class AlarmPolaczen
         // harmonogramu idą po sobie czujki kopii, połączeń i kolejki. Bez
         // wyzerowania cudzy sukces sprzed chwili zostałby odczytany jako nasz
         // (handler nie dotyka tej pamięci, gdy kanał ma pusty adres).
-        WebhookBleduHandler::zapomnijOstatniaWysylke();
+        KanalyAlarmowe::zapomnijOstatnieWysylki();
 
         try {
-            Log::channel('blad_webhook')->error($tresc);
+            KanalyAlarmowe::zadzwon($tresc);
         } catch (Throwable) {
             // Nieudane powiadomienie nie ma prawa przewrócić zadania
             // harmonogramu — w roli `all` błąd harmonogramu kładł kiedyś
@@ -296,7 +295,7 @@ final class AlarmPolaczen
         // prawdziwego niedodzwonienia się. Kod odpowiedzi zna handler
         // i trzeba go o niego zapytać. `null` (nie próbowaliśmy — kanał
         // zbudowany z pustym adresem) też nie jest przyjęciem.
-        return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+        return KanalyAlarmowe::ktorysPrzyjal() === true;
     }
 
     private function pamiec(): \DateInterval

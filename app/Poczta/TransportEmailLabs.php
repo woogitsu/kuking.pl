@@ -629,7 +629,7 @@ final class TransportEmailLabs extends AbstractTransport
 
     /**
      * Kod błędu przepuszczamy tylko o bezpiecznym kształcie — ta sama zasada,
-     * co w `WebhookBleduHandler::kod()`. Dokumentacja pokazuje kody typu
+     * co w `App\Logging\TrescAlarmu::kod()`. Dokumentacja pokazuje kody typu
      * `E-0-004`; nic nie gwarantuje, że dostawca nie wstawi tam kiedyś
      * czegoś innego.
      */

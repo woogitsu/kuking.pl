@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
-use App\Logging\WebhookBleduHandler;
+use App\Logging\KanalyAlarmowe;
 use App\Models\MailFailure;
 use App\Poczta\PowodOdmowy;
 use App\Support\AnalitykaCloudflare;
@@ -756,7 +756,7 @@ class HealthController extends Controller
             // serwis, kanał wyłączony) — każde wywołanie `/health` sprawdza
             // dziesięć kontroli, a bez tego warunku każda zdrowa odpowiedź
             // dokładałaby dziesięć zbędnych zapisów do tabeli `cache`.
-            if (filled(config('logging.channels.blad_webhook.url'))) {
+            if (KanalyAlarmowe::jakikolwiekWlaczony()) {
                 Cache::forget($this->kluczOdstepuWebhooka($nazwa));
             }
 
@@ -814,7 +814,7 @@ class HealthController extends Controller
      */
     private function powiadomWebhook(string $nazwa, string $powod): void
     {
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! KanalyAlarmowe::jakikolwiekWlaczony()) {
             return;
         }
 
@@ -825,9 +825,9 @@ class HealthController extends Controller
         // Czysta kartka przed pomiarem: w jednym żądaniu `/health` dzwonimy
         // nawet kilka razy (osobny odstęp na kontrolę), a bez tego drugi
         // dzwonek odczytałby wynik pierwszego.
-        WebhookBleduHandler::zapomnijOstatniaWysylke();
+        KanalyAlarmowe::zapomnijOstatnieWysylki();
 
-        Log::channel('blad_webhook')->error("/health: kontrola „{$nazwa}” nie przeszła (powód: {$powod}).");
+        KanalyAlarmowe::zadzwon("/health: kontrola „{$nazwa}” nie przeszła (powód: {$powod}).");
 
         // ────────────────────────────────────────────────────────────────
         //  CISZA NA POŁ GODZINY NALEŻY SIĘ ZA DZWONEK, KTÓRY ZADZWONIŁ
@@ -846,7 +846,7 @@ class HealthController extends Controller
         // `/health` (monitoring pyta co kilka minut) zadzwoni jeszcze raz.
         // Sam fakt niedodzwonienia się zostaje w dzienniku serwera — zapisuje
         // go handler.
-        if (WebhookBleduHandler::ostatniaWysylkaSieUdala() === false) {
+        if (KanalyAlarmowe::ktorysPrzyjal() === false) {
             Cache::forget($this->kluczOdstepuWebhooka($nazwa));
         }
     }

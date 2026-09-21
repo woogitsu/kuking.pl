@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Kopie;
 
-use App\Logging\WebhookBleduHandler;
-use Illuminate\Support\Facades\Log;
+use App\Logging\KanalyAlarmowe;
 use Throwable;
 
 /**
@@ -58,7 +57,7 @@ final class AlarmKopii
             return false;
         }
 
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! KanalyAlarmowe::jakikolwiekWlaczony()) {
             // Kanał wyłączony — tak jest dziś na produkcji. Ten sam warunek
             // stoi w `bootstrap/app.php` i w `DzwonekOperatora`.
             return false;
@@ -102,10 +101,10 @@ final class AlarmKopii
         // czyli wspólna dla całego procesu — a w jednym przebiegu harmonogramu
         // idą po sobie czujki kopii, połączeń i kolejki. Bez wyzerowania cudzy
         // sukces sprzed chwili zostałby odczytany jako nasz.
-        WebhookBleduHandler::zapomnijOstatniaWysylke();
+        KanalyAlarmowe::zapomnijOstatnieWysylki();
 
         try {
-            Log::channel('blad_webhook')->error($tresc);
+            KanalyAlarmowe::zadzwon($tresc);
         } catch (Throwable) {
             // Nieudane powiadomienie nie ma prawa przewrócić zadania
             // harmonogramu — w roli `all` błąd harmonogramu kładł kiedyś
@@ -114,7 +113,7 @@ final class AlarmKopii
         }
 
         // `null` znaczy „nie było próby" i też nie jest przyjęciem.
-        return WebhookBleduHandler::ostatniaWysylkaSieUdala() === true;
+        return KanalyAlarmowe::ktorysPrzyjal() === true;
     }
 
     /**
@@ -143,7 +142,7 @@ final class AlarmKopii
         };
 
         // BEZ NAGŁÓWKA `[nazwa/środowisko]`. Dokleja go sam kanał
-        // (`WebhookBleduHandler::tresc()`), więc wpisany tutaj drugi raz
+        // (`App\Logging\TrescAlarmu::tresc()`), więc wpisany tutaj drugi raz
         // dochodził do odbiornika jako „[Kuking/production] [Kuking/production]
         // kopia bazy: …". Zmierzone na prawdziwym odbiorniku webhooka 17.09.2026.
         return implode(' ', [

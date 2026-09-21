@@ -10,6 +10,7 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
+use App\Logging\KanalyAlarmowe;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -405,7 +406,7 @@ return Application::configure(basePath: dirname(__DIR__))
         //
         //  DLACZEGO WARUNEK TUTAJ, SKORO `WebhookBleduHandler` I TAK NIC NIE
         //  WYŚLE BEZ ADRESU. Bez niego KAŻDY raportowany wyjątek budowałby
-        //  kanał (`Log::channel('blad_webhook')`) tylko po to, żeby handler
+        //  kanał (`Log::channel(...)`) tylko po to, żeby handler
         //  i tak nic nie zrobił. Tani koszt, ale zerowy jest tańszy —
         //  a wymóg brzmi wprost: „gdy zmiennej nie ma, nic się nie dzieje".
         //
@@ -430,8 +431,14 @@ return Application::configure(basePath: dirname(__DIR__))
         //  sterownik i wkłada w niego SQL razem z wartościami, czyli e-mail
         //  i hash hasła. Pełne uzasadnienie: komentarz klasy
         //  `App\Logging\WebhookBleduHandler`.
+        //
+        //  OD #599 KANAŁY SĄ DWA: webhook i poczta (`LOG_BLAD_EMAIL`).
+        //  `KanalyAlarmowe` pisze na każdy WŁĄCZONY osobno — żaden nie wie
+        //  o drugim, oba mogą działać naraz, a przy obu pustych zmiennych nie
+        //  dzieje się nic, dokładnie jak dotąd. Treść jest ta sama: budowana
+        //  raz, w `App\Logging\TrescAlarmu`.
         $exceptions->report(function (Throwable $e) {
-            if (blank(config('logging.channels.blad_webhook.url'))) {
+            if (! KanalyAlarmowe::jakikolwiekWlaczony()) {
                 return;
             }
 
@@ -442,7 +449,7 @@ return Application::configure(basePath: dirname(__DIR__))
             // z komunikatem, który przy `QueryException` niesie e-mail i hash
             // hasła (A6-01). Skoro nie jest do niczego potrzebny, nie ma po co
             // go tu wkładać.
-            Log::channel('blad_webhook')->error($e::class, ['exception' => $e]);
+            KanalyAlarmowe::zadzwon($e::class, ['exception' => $e]);
         });
 
         // Wygaśnięcie sesji to zdarzenie normalne, nie awaria. Zgłaszanie go

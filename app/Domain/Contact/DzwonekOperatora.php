@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace App\Domain\Contact;
 
+use App\Logging\KanalyAlarmowe;
 use App\Models\ContactMessage;
-use Illuminate\Support\Facades\Log;
 use Throwable;
 
 /**
@@ -61,12 +61,12 @@ final class DzwonekOperatora
         // raportowaniem wyjątków; `WebhookBleduHandler` sprawdza go jeszcze
         // raz u siebie, ale sprawdzenie tutaj oszczędza budowanie loggera
         // i czyni umowę „brak zmiennej = zero efektu" widoczną w tym pliku.
-        if (blank(config('logging.channels.blad_webhook.url'))) {
+        if (! KanalyAlarmowe::jakikolwiekWlaczony()) {
             return;
         }
 
         try {
-            Log::channel('blad_webhook')->error($this->tresc($wiadomosc));
+            KanalyAlarmowe::zadzwon($this->tresc($wiadomosc));
         } catch (Throwable) {
             // Dzwonek nie ma prawa przewrócić zapisu, który już się udał.
             // Handler łyka własne błędy sam, ale między nim a tym miejscem
