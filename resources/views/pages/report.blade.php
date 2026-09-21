@@ -31,7 +31,9 @@
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij zgłoszenie</button>
-            <a class="btn btn-quiet" href="{{ url()->previous() }}">Wróć</a>
+            {{-- Cel liczony z autoryzowanego celu zgłoszenia, nie z Referera
+                 (issue #795) — patrz `ReportController::wracajDo()`. --}}
+            <a class="btn btn-quiet" href="{{ $powrot }}">Wróć</a>
         </div>
     </form>
 </x-layout>
