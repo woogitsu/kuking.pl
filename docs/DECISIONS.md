@@ -15048,54 +15048,6 @@ Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
 osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
 się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
 i `scripts/wyjecie-z-zeszytu.mjs`.
-
-## D-225 — Nazwa bazy testowej wynika ze ścieżki katalogu, nie z Gita (#736, 19 września 2026)
-
-Naprawa issue #66 dała każdemu `git worktree` własną bazę `kuking_test_<worktree>`,
-czytając `.git` jako plik ze wskaźnikiem `gitdir:`. Kopie robocze zakładane
-przez `git clone` mają `.git` jako KATALOG, więc wszystkie wpadały w gałąź
-domyślną i dostawały jedno wspólne `kuking_test`. Trzy równoległe sesje
-19 września zrzuciły sobie nawzajem schemat: 963 porażki `QueryException`,
-`relation "contact_messages" does not exist` i 3737 porażek. Wyglądało to na
-trzy niepowiązane regresje kodu.
-
-Nazwę liczy odtąd `tests/nazwa-bazy.php` ze ścieżki katalogu kopii roboczej:
-`kuking_test_<nazwa-katalogu>_<8 znaków SHA-1 pełnej ścieżki>`. Ścieżka jest
-jedyną rzeczą różną dla dwóch kopii i stałą dla wielu przebiegów w jednej —
-losowość (PID, UUID) usuwa kolizję kosztem baz mnożących się bez końca, a sama
-nazwa katalogu nie rozróżnia dwóch kopii o tej samej nazwie w różnych
-katalogach. Skrót jest z przodu poprzedzony czytelną nazwą katalogu, żeby
-`psql -l` dalej mówił, czyja to baza. **Gołego `kuking_test` nie dostaje już
-żaden katalog**: zwykły klon jest nieodróżnialny od kanonicznego checkoutu,
-więc „ten jeden bez sufiksu" znaczyłoby „wszystkie klony razem". CI ustawia
-`DB_DATABASE` jawnie w jobie, a jawna zmienna ma pierwszeństwo.
-
-Reguła mieszka w osobnym pliku wolnym od Composera, bo czytają ją także
-skrypty powłoki działające przed `composer install` — `.claude/hooks/session-start.sh`
-miał do dziś DRUGĄ kopię tej reguły napisaną w bashu i to ona rozjechała się
-z pierwszą.
-
-Ceną jest sprzątanie: ze skrótu nie da się odtworzyć ścieżki, więc
-`scripts/cleanup-test-dbs.sh` nie umie już zgadnąć, czyja jest baza. Każdy
-przebieg zostawia wpis w `~/.kuking-bazy-testowe/<nazwa-bazy>` ze ścieżką
-swojej kopii, a sprzątacz kasuje WYŁĄCZNIE bazy, dla których taki wpis
-istnieje i wskazuje katalog nieobecny na dysku. Baza bez wpisu zostaje na
-zawsze. To jest świadomy wybór kierunku pomyłki: niesprzątnięta baza kosztuje
-kilkaset megabajtów, skasowana baza trwającego przebiegu kosztuje cudzy dzień
-i jest nieodwracalna. Drugim, niezależnym bezpiecznikiem jest
-`pg_stat_activity` — baza z otwartym połączeniem nie jest kasowana, choćby
-rejestr mówił co innego.
-
-Przy okazji zniknęło `DB_PORT=5432` z `phpunit.xml`: `<env>` bez `force` bije
-`.env`, więc kopia z portem 55439 w `.env` i tak szła na klaster innego
-projektu. `scripts/port-bazy.sh` odtwarza tę samą kolejność (otoczenie →
-`.env` → 5432) dla skryptów powłoki, żeby `check.sh` pytał `pg_isready` o ten
-port, na którym naprawdę pojadą testy, i wypisywał go w komunikacie.
-
-Dowody: `tests/Unit/NazwaTestowejBazyTest.php`,
-`tests/skrypty/sprzatanie-baz-testowych.sh` (+ `SprzatanieBazTestowychTest`),
-`tests/Feature/SkryptyPytajaOWlasciwyPortTest.php`.
-
 ## D-226 — Przyrządy pomiarowe rozpoznają rodzinę baz, nie pojedyncze nazwy (#736, 19 września 2026)
 
 Siedemnaście skryptów w `scripts/*.mjs` robi `php artisan migrate:fresh --seed`,
@@ -15104,7 +15056,7 @@ czyli kasuje całą zawartość bazy z `DB_DATABASE`. Dwa z nich miały listę
 żadnej kontroli. Lista była listą ZAKAZÓW: wszystko, czego na niej nie było,
 przechodziło.
 
-Po zmianie nazewnictwa baz testowych (D-225) żadna kopia robocza nie nazywa się
+Po zmianie nazewnictwa baz testowych (D-228) żadna kopia robocza nie nazywa się
 już `kuking_test` — nazwa zawiera skrót ścieżki katalogu. Lista zakazów
 przestała więc trafiać kiedykolwiek i gdziekolwiek, zostając w kodzie jako
 zabezpieczenie, którego już nie ma. Zabezpieczenie, które przestaje działać we
@@ -15138,3 +15090,78 @@ nikt nie woła, to dokładnie stan sprzed tej decyzji.
 Dowody: `scripts/bezpiecznik-bazy.test.mjs` (10 przypadków) wciągane do
 `php artisan test` przez `tests/Feature/BezpiecznikBazyPomiarowejTest.php`
 oraz do `scripts/check.sh`.
+
+## D-228 — Baza testowa jest per KOPIA ROBOCZA, a kopia bez `.git` to nie główny checkout (#736, #920, 19–21 września 2026)
+
+**Ta decyzja nosiła najpierw numer D-225.** Przenumerowana na D-228 21 września,
+bo D-225 zajęła równolegle gałąź `jedna-droga` („Jedna droga wyjęcia wpisu
+z zeszytu", 22 odwołania w kodzie wobec dwóch tutaj) i właściciel rozstrzygnął,
+że numer zostaje tam. Zapisuję to wprost, bo `NumeryDecyzjiMajaWpisyTest` łapie
+duplikat numeru dopiero PO scaleniu drugiej gałęzi — osobno obie były zielone,
+więc zielony test niczego tu nie dowodził.
+
+Naprawa issue #66 dała każdemu `git worktree` własną bazę `kuking_test_<worktree>`,
+czytając `.git` jako plik ze wskaźnikiem `gitdir:`. Wszystko, co tego pliku nie
+miało, wpadało w gałąź domyślną i dostawało jedno wspólne `kuking_test`. Trzy
+równoległe sesje 19 września zrzuciły sobie nawzajem schemat: 963 porażki
+`QueryException`, `relation "contact_messages" does not exist` i 3737 porażek.
+Wyglądało to na trzy niepowiązane regresje kodu.
+
+**Obowiązująca reguła (`tests/nazwa-bazy.php`), trzy przypadki w tej kolejności:**
+
+| katalog | nazwa bazy |
+|---|---|
+| `.git` jest KATALOGIEM → główny checkout | `kuking_test` |
+| `.git` jest PLIKIEM → `git worktree` | `kuking_test_<nazwa-worktree>` |
+| `.git` NIE ISTNIEJE → kopia bez Gita | `kuking_test_kat_<katalog do 30 znaków>_<8 znaków SHA-256 pełnej ścieżki>` |
+
+Trzeci przypadek jest sednem i pochodzi z #920. Runtime floty
+(`_wspolne/przygotuj-runtime.sh`) przegrywa worktree rsynkiem z `--exclude '.git'`,
+a kod rozpakowany z archiwum albo z obrazu kontenera też go nie ma — więc
+w katalogu, w którym NAPRAWDĘ chodzą testy, nie ma czego czytać. Katalog
+repozytorium natomiast istnieje ZAWSZE, bo bez niego nie byłoby czego uruchomić,
+a pełna ścieżka jest na jednej maszynie unikalna z definicji systemu plików.
+Skrót stoi OBOK czytelnej nazwy katalogu, nie zamiast niej: sama nazwa bywa
+powtarzalna (dwa `…/kuking.pl` w różnych drzewach), a sam skrót jest
+nieczytelny przy sprzątaniu baz.
+
+**Czego ta reguła świadomie NIE obiecuje:** przypadek pierwszy NIE jest
+unikalny. Dwa zwykłe klony dostaną tę samą bazę `kuking_test`. Główny checkout
+na maszynie jest jeden, a CI ustawia `DB_DATABASE` jawnie na poziomie joba
+i jawna zmienna środowiskowa ma tu zawsze pierwszeństwo. Jeśli kiedyś przestanie
+być jeden, trzeba tu wrócić, a nie dziwić się czerwieni.
+
+**Limit 43 znaków na sufiks — nie ruszać bez przeliczenia.** PostgreSQL obcina
+identyfikator do 63 bajtów BEZ OSTRZEŻENIA, więc dwie za długie nazwy schodzą
+się po cichu w jedną bazę, czyli wracają dokładnie do błędu, który to naprawia.
+Najdłuższy przedrostek w repozytorium to `kuking_zrodlo_proby`
+(`tests/skrypty/proba-odtworzenia.sh`, 19 znaków), a przed sufiksem stoi jeszcze
+podkreślnik: 19 + 1 + 43 = 63. Wcześniej stało tam 50, co dawało 70 znaków,
+czyli ciche obcięcie.
+
+Reguła mieszka w osobnym pliku wolnym od Composera, bo czytają ją także skrypty
+powłoki działające przed `composer install` — `.claude/hooks/session-start.sh`
+miał do 19 września DRUGĄ kopię tej reguły napisaną w bashu i to ona rozjechała
+się z pierwszą. Nazwy baz wyścigów (`kuking_race*`, D-105) i próby wycofania
+(`proba_wycofania*`) liczy ta sama funkcja, żeby nie było w repozytorium trzech
+reguł nazywania baz, które rozjadą się przy pierwszej zmianie.
+
+Ceną jest sprzątanie: ze skrótu nie da się odtworzyć ścieżki, więc
+`scripts/cleanup-test-dbs.sh` nie umie zgadnąć, czyja jest baza. Każdy przebieg
+zostawia wpis w `~/.kuking-bazy-testowe/<nazwa-bazy>` ze ścieżką swojej kopii,
+a sprzątacz kasuje WYŁĄCZNIE bazy, dla których taki wpis istnieje i wskazuje
+katalog nieobecny na dysku. Baza bez wpisu zostaje na zawsze. To jest świadomy
+wybór kierunku pomyłki: niesprzątnięta baza kosztuje kilkaset megabajtów,
+skasowana baza trwającego przebiegu kosztuje cudzy dzień i jest nieodwracalna.
+Drugim, niezależnym bezpiecznikiem jest `pg_stat_activity` — baza z otwartym
+połączeniem nie jest kasowana, choćby rejestr mówił co innego.
+
+Przy okazji zniknęło `DB_PORT=5432` z `phpunit.xml`: `<env>` bez `force` bije
+`.env`, więc kopia z portem 55439 w `.env` i tak szła na klaster innego
+projektu. `scripts/port-bazy.sh` odtwarza tę samą kolejność (otoczenie →
+`.env` → 5432) dla skryptów powłoki, żeby `check.sh` pytał `pg_isready` o ten
+port, na którym naprawdę pojadą testy, i wypisywał go w komunikacie.
+
+Dowody: `tests/Unit/NazwaTestowejBazyTest.php`,
+`tests/skrypty/sprzatanie-baz-testowych.sh` (+ `SprzatanieBazTestowychTest`),
+`tests/Feature/SkryptyPytajaOWlasciwyPortTest.php`.

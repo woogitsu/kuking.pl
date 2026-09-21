@@ -26,8 +26,9 @@ declare(strict_types=1);
  * Skutek uboczny, zamierzony: nazwa bazy NIE pochodzi z `.env` kopii
  * roboczej. Gdyby pochodziła, dwie kopie zrobione przez `cp -a` miałyby tę
  * samą nazwę bazy aż do chwili, w której ktoś ręcznie poprawi `.env` —
- * czyli izolacja zależałaby od pamięci człowieka. Tu zależy od ścieżki
- * katalogu, której nie da się zapomnieć zmienić.
+ * czyli izolacja zależałaby od pamięci człowieka. Tu zależy od worktree,
+ * a tam, gdzie `.git` nie ma wcale, od ścieżki katalogu — której nie da się
+ * zapomnieć zmienić, bo bez niej nie byłoby czego uruchomić.
  */
 require __DIR__.'/nazwa-bazy.php';
 

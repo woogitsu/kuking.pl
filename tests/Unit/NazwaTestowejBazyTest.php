@@ -8,16 +8,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 
 /**
- * Test regresyjny do issue #66 i #736 (równoległe przebiegi testów psują sobie
- * bazę): sprawdza samą LOGIKĘ wyboru nazwy bazy z `tests/nazwa-bazy.php`,
+ * Test regresyjny do issue #66, #736 i #920 (równoległe przebiegi testów psują
+ * sobie bazę): sprawdza samą LOGIKĘ wyboru nazwy bazy z `tests/nazwa-bazy.php`,
  * bez odpalania Laravela — funkcje są zadeklarowane globalnie, bo ten plik
- * wciąga `tests/bootstrap.php`, czyli bootstrap PHPUnit.
- *
- * Test jest o ZACHOWANIU, nie o kształcie nazwy: dwa różne katalogi dostają
- * dwie różne bazy, ten sam katalog dostaje zawsze tę samą, a wynik mieści się
- * w limicie identyfikatora PostgreSQL-a. Asercja na dosłowną nazwę
- * (`kuking_test_agent_abc123`) byłaby asercją na regułę, a reguła ma prawo się
- * zmienić — zmienić się nie mają te trzy własności.
+ * wciąga `tests/bootstrap.php`, czyli bootstrap PHPUnit (patrz `bootstrap`
+ * w phpunit.xml).
  *
  * Świadomie `PHPUnit\Framework\TestCase`, nie `Tests\TestCase`: ten test nie
  * dotyka bazy danych w ogóle.
@@ -27,17 +22,204 @@ class NazwaTestowejBazyTest extends TestCase
     /** Limit długości identyfikatora w PostgreSQL-u (NAMEDATALEN - 1). */
     private const LIMIT_POSTGRESA = 63;
 
-    /**
-     * SEDNO NAPRAWY #736. Do 19 września nazwę różnicował wyłącznie `git
-     * worktree`, a kopie robocze w WSL to ZWYKŁE KLONY (`.git` jest w nich
-     * katalogiem, nie plikiem) — więc wszystkie dostawały jedno wspólne
-     * `kuking_test` i wszystkie równoległe przebiegi zrzucały sobie schemat.
-     * Ten test przechodzi tylko wtedy, gdy różnicuje KATALOG, a nie Git.
-     */
-    public function test_dwa_rozne_katalogi_dostaja_dwie_rozne_nazwy(): void
+    public function test_glowny_checkout_dostaje_nazwe_bez_sufiksu(): void
     {
-        $a = $this->tymczasowyKatalogRepo();
-        $b = $this->tymczasowyKatalogRepo();
+        $katalog = $this->tymczasowyKatalogRepo();
+
+        // Główny checkout: `.git` to KATALOG (jak w prawdziwym repo), nie plik
+        // wskazujący na worktree.
+        mkdir($katalog.'/.git');
+
+        $this->assertSame('kuking_test', kuking_nazwa_testowej_bazy($katalog));
+    }
+
+    public function test_worktree_dostaje_wlasny_stabilny_sufiks(): void
+    {
+        $katalog = $this->tymczasowyKatalogRepo();
+        file_put_contents(
+            $katalog.'/.git',
+            "gitdir: /home/user/kuking.pl/.git/worktrees/agent-abc123\n",
+        );
+
+        $this->assertSame(
+            'kuking_test_agent_abc123',
+            kuking_nazwa_testowej_bazy($katalog),
+        );
+    }
+
+    /**
+     * Sedno naprawy: DWA RÓŻNE worktree muszą dostać DWIE RÓŻNE bazy — inaczej
+     * dwa równoległe przebiegi `php artisan test` znowu zaczną sobie zrzucać
+     * schemat, dokładnie tak jak w incydencie z 2026-09-06.
+     */
+    public function test_dwa_rozne_worktree_dostaja_dwie_rozne_nazwy(): void
+    {
+        $katalogA = $this->tymczasowyKatalogRepo();
+        file_put_contents(
+            $katalogA.'/.git',
+            "gitdir: /home/user/kuking.pl/.git/worktrees/agent-a7b3b8ff6474e3a9a\n",
+        );
+
+        $katalogB = $this->tymczasowyKatalogRepo();
+        file_put_contents(
+            $katalogB.'/.git',
+            "gitdir: /home/user/kuking.pl/.git/worktrees/agent-a0463e5ee460dbe66\n",
+        );
+
+        $nazwaA = kuking_nazwa_testowej_bazy($katalogA);
+        $nazwaB = kuking_nazwa_testowej_bazy($katalogB);
+
+        $this->assertNotSame($nazwaA, $nazwaB);
+        $this->assertSame('kuking_test_agent_a7b3b8ff6474e3a9a', $nazwaA);
+        $this->assertSame('kuking_test_agent_a0463e5ee460dbe66', $nazwaB);
+    }
+
+    public function test_ten_sam_worktree_daje_ta_sama_nazwe_za_kazdym_razem(): void
+    {
+        $katalog = $this->tymczasowyKatalogRepo();
+        file_put_contents(
+            $katalog.'/.git',
+            "gitdir: /home/user/kuking.pl/.git/worktrees/agent-powtorka\n",
+        );
+
+        $this->assertSame(
+            kuking_nazwa_testowej_bazy($katalog),
+            kuking_nazwa_testowej_bazy($katalog),
+        );
+    }
+
+    public function test_nazwa_worktree_z_niebezpiecznymi_znakami_jest_oczyszczana(): void
+    {
+        $katalog = $this->tymczasowyKatalogRepo();
+        // Git nie generuje takich nazw sam z siebie, ale funkcja nie może
+        // ufać ślepo zawartości pliku .git — a wynik musi być bezpiecznym
+        // identyfikatorem Postgresa bez cudzysłowu.
+        file_put_contents(
+            $katalog.'/.git',
+            "gitdir: /repo/.git/worktrees/agent's; DROP TABLE x;--\n",
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/^kuking_test_[a-zA-Z0-9_]+$/',
+            kuking_nazwa_testowej_bazy($katalog),
+        );
+    }
+
+    /**
+     * ────────────────────────────────────────────────────────────────────────
+     *  SEDNO: KOPIA REPOZYTORIUM BEZ `.git` TO NIE JEST GŁÓWNY CHECKOUT
+     * ────────────────────────────────────────────────────────────────────────
+     *
+     * Runtime floty (`_wspolne/przygotuj-runtime.sh`) przegrywa worktree
+     * rsynkiem z `--exclude '.git'`, więc w katalogu, w którym NAPRAWDĘ chodzą
+     * testy, pliku `.git` NIE MA. Do 2026-09-20 funkcja traktowała ten
+     * przypadek jak główny checkout i zwracała gołe `kuking_test` — czyli
+     * KAŻDE stanowisko floty dostawało tę samą bazę, choć komentarz nad
+     * funkcją obiecywał unikalność. Zmierzone: trzy różne katalogi runtime
+     * dostawały `kuking_test`, `kuking_race` i `proba_wycofania` co do znaku.
+     *
+     * Skutkiem nie był wcale jeden zepsuty test, tylko fałszywa czerwień
+     * z kontencji: cudze `RefreshDatabase` zrzucało schemat w trakcie
+     * czyjegoś przebiegu i każdy, kto to zobaczył, musiał najpierw udowodnić,
+     * że to nie jego wina.
+     *
+     * Ten test oblewa dokładnie wtedy, gdy dwa stanowiska dostaną tę samą
+     * nazwę bazy — i o to w nim chodzi. Bez niego naprawa jest jednorazowa.
+     */
+    public function test_dwa_stanowiska_bez_pliku_git_dostaja_dwie_rozne_bazy(): void
+    {
+        // Dokładnie to, co robi runtime floty: katalog repozytorium jest,
+        // pliku `.git` nie ma, bo rsync go wykluczył.
+        $stanowiskoA = $this->tymczasowyKatalogRepo('r49-trasy-run');
+        $stanowiskoB = $this->tymczasowyKatalogRepo('zaleglosci-zgloszen-run');
+
+        $this->assertNotSame(
+            kuking_nazwa_testowej_bazy($stanowiskoA),
+            kuking_nazwa_testowej_bazy($stanowiskoB),
+            'Dwa stanowiska floty dostały tę samą bazę testową — wrócił issue #66.',
+        );
+
+        // Bazy wyścigów i wycofania liczą sufiks TĄ SAMĄ funkcją, więc
+        // zderzają się dokładnie tak samo. Sprawdzamy je wprost, żeby
+        // następny refaktor nie naprawił jednej reguły i zostawił dwie.
+        $this->assertNotSame(
+            kuking_nazwa_bazy_wyscigow($stanowiskoA),
+            kuking_nazwa_bazy_wyscigow($stanowiskoB),
+            'Dwa stanowiska floty dostały tę samą bazę wyścigów.',
+        );
+
+        $this->assertNotSame(
+            kuking_nazwa_bazy_wycofania($stanowiskoA),
+            kuking_nazwa_bazy_wycofania($stanowiskoB),
+            'Dwa stanowiska floty dostały tę samą bazę próby wycofania.',
+        );
+    }
+
+    /**
+     * Ta sama rodzina co wyżej, tylko od strony `tests/skrypty/proba-odtworzenia.sh`:
+     * skrypt liczy SUFIKS jako `substr(nazwa, strlen('kuking_test'))` i podstawia
+     * awaryjne `_glowny`, gdy wyjdzie pusto. Pusty sufiks w runtime znaczy więc
+     * `kuking_zrodlo_proby_glowny` u WSZYSTKICH naraz.
+     */
+    public function test_kopia_bez_pliku_git_daje_niepusty_sufiks_dla_skryptow(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('bazy-stanowisk-run');
+
+        $sufiks = substr(kuking_nazwa_testowej_bazy($stanowisko), strlen('kuking_test'));
+
+        $this->assertNotSame(
+            '',
+            $sufiks,
+            'Pusty sufiks wpycha wszystkie stanowiska w jedną bazę `kuking_zrodlo_proby_glowny`.',
+        );
+    }
+
+    public function test_kopia_bez_pliku_git_daje_ta_sama_nazwe_za_kazdym_razem(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('powtarzalne-run');
+
+        $this->assertSame(
+            kuking_nazwa_testowej_bazy($stanowisko),
+            kuking_nazwa_testowej_bazy($stanowisko),
+            'Nazwa bazy musi być stabilna, inaczej każdy przebieg zostawia nową bazę do sprzątania.',
+        );
+    }
+
+    public function test_kopia_bez_pliku_git_daje_bezpieczny_identyfikator(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('stanowisko-z-kropka.i-mysln1kiem');
+
+        $this->assertMatchesRegularExpression(
+            '/^kuking_test_[a-zA-Z0-9_]+$/',
+            kuking_nazwa_testowej_bazy($stanowisko),
+        );
+    }
+
+    /**
+     * Ten sam katalog podany raz z ukośnikiem na końcu, raz bez, to nadal ten
+     * sam katalog. Inaczej jeden skrypt wołający z `"$PWD/"` zakładałby drugą
+     * bazę obok tej, w której już stoi schemat.
+     */
+    public function test_konczacy_ukosnik_nie_tworzy_drugiej_bazy(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('ukosnik-run');
+
+        $this->assertSame(
+            kuking_nazwa_testowej_bazy($stanowisko),
+            kuking_nazwa_testowej_bazy($stanowisko.'/'),
+        );
+    }
+
+    /**
+     * Dwie kopie o TEJ SAMEJ nazwie katalogu, ale w różnych katalogach
+     * nadrzędnych — realny układ, gdy dwie osoby klonują repo pod tą samą
+     * nazwą albo gdy runtime i worktree nazywają się tak samo. Sama nazwa
+     * katalogu by tu nie wystarczyła; skrót pełnej ścieżki wystarcza.
+     */
+    public function test_ta_sama_nazwa_katalogu_w_dwoch_miejscach_daje_dwie_bazy(): void
+    {
+        $a = $this->tymczasowyKatalogRepo('kuking.pl');
+        $b = $this->tymczasowyKatalogRepo('kuking.pl');
 
         $this->assertNotSame(
             kuking_nazwa_testowej_bazy($a),
@@ -46,77 +228,24 @@ class NazwaTestowejBazyTest extends TestCase
     }
 
     /**
-     * Ten sam katalog jako ZWYKŁY KLON (`.git` to katalog) i jako WORKTREE
-     * (`.git` to plik ze wskaźnikiem) ma dostać tę samą nazwę — i obie muszą
-     * być różne od nazwy innego katalogu. Inaczej wracamy do stanu, w którym
-     * klon i główny checkout dzielą jedną bazę.
+     * PostgreSQL obcina identyfikatory do 63 bajtów BEZ OSTRZEŻENIA — a dwie
+     * nazwy obcięte do tej samej wartości to znowu jedna baza dla dwóch
+     * stanowisk, czyli ten sam błąd tylnymi drzwiami. Najdłuższy przedrostek
+     * w repozytorium to `kuking_zrodlo_proby` z `tests/skrypty/proba-odtworzenia.sh`.
      */
-    public function test_zwykly_klon_i_worktree_roznia_sie_katalogiem_a_nie_rodzajem_repo(): void
+    public function test_nazwa_miesci_sie_w_limicie_identyfikatora_postgresa(): void
     {
-        $klon = $this->tymczasowyKatalogRepo();
-        mkdir($klon.'/.git');
+        $dlugaNazwa = str_repeat('bardzo-dlugie-stanowisko-floty-', 5).'run';
 
-        $worktree = $this->tymczasowyKatalogRepo();
-        file_put_contents(
-            $worktree.'/.git',
-            "gitdir: /home/user/kuking.pl/.git/worktrees/agent-abc123\n",
+        $sufiks = substr(
+            kuking_nazwa_testowej_bazy($this->tymczasowyKatalogRepo($dlugaNazwa)),
+            strlen('kuking_test'),
         );
 
-        $bezRepo = $this->tymczasowyKatalogRepo();
-
-        $nazwy = [
-            kuking_nazwa_testowej_bazy($klon),
-            kuking_nazwa_testowej_bazy($worktree),
-            kuking_nazwa_testowej_bazy($bezRepo),
-        ];
-
-        $this->assertSame($nazwy, array_values(array_unique($nazwy)));
-    }
-
-    public function test_ten_sam_katalog_daje_ta_sama_nazwe_za_kazdym_razem(): void
-    {
-        $katalog = $this->tymczasowyKatalogRepo();
-
-        $this->assertSame(
-            kuking_nazwa_testowej_bazy($katalog),
-            kuking_nazwa_testowej_bazy($katalog),
-        );
-    }
-
-    /**
-     * Nazwa nie może być losowa przy każdym uruchomieniu — inaczej bazy mnożą
-     * się bez końca i nie ma czego sprzątać. Ten sam katalog podany raz ze
-     * ukośnikiem na końcu, raz bez, to nadal ten sam katalog.
-     */
-    public function test_konczacy_ukosnik_nie_tworzy_drugiej_bazy(): void
-    {
-        $katalog = $this->tymczasowyKatalogRepo();
-
-        $this->assertSame(
-            kuking_nazwa_testowej_bazy($katalog),
-            kuking_nazwa_testowej_bazy($katalog.'/'),
-        );
-    }
-
-    /**
-     * Dwie kopie o TEJ SAMEJ nazwie katalogu, ale w różnych katalogach
-     * nadrzędnych — realny układ, gdy dwie osoby klonują repo pod tą samą
-     * nazwą. Sama nazwa katalogu by tu nie wystarczyła; skrót pełnej ścieżki
-     * wystarcza.
-     */
-    public function test_ta_sama_nazwa_katalogu_w_dwoch_miejscach_daje_dwie_bazy(): void
-    {
-        $rodzicA = $this->tymczasowyKatalogRepo();
-        $rodzicB = $this->tymczasowyKatalogRepo();
-
-        mkdir($rodzicA.'/kuking.pl');
-        mkdir($rodzicB.'/kuking.pl');
-        $this->doUsuniecia[] = $rodzicA.'/kuking.pl';
-        $this->doUsuniecia[] = $rodzicB.'/kuking.pl';
-
-        $this->assertNotSame(
-            kuking_nazwa_testowej_bazy($rodzicA.'/kuking.pl'),
-            kuking_nazwa_testowej_bazy($rodzicB.'/kuking.pl'),
+        $this->assertLessThanOrEqual(
+            self::LIMIT_POSTGRESA,
+            strlen('kuking_zrodlo_proby'.$sufiks),
+            'Nazwa przekracza 63 bajty — Postgres obetnie ją po cichu i dwa stanowiska mogą trafić w jedną bazę.',
         );
     }
 
@@ -131,25 +260,28 @@ class NazwaTestowejBazyTest extends TestCase
         yield 'znaki wymagające cudzysłowu w SQL' => ["agent's; DROP TABLE x;--"];
         yield 'same znaki niebezpieczne' => ['.-.-.-'];
         yield 'znaki spoza ASCII' => ['kopia-żółć-ćma'];
+        yield 'wielkie litery' => ['Kuking-681'];
     }
 
     /**
      * Każda z trzech nazw (testowa, wyścigowa, próby wycofania) musi być
      * poprawnym identyfikatorem PostgreSQL-a BEZ cudzysłowu i musi się zmieścić
-     * w 63 znakach — dla dowolnie paskudnej nazwy katalogu. Najdłuższy prefiks
-     * to `proba_wycofania`, więc to on wyznacza margines.
+     * w 63 znakach — dla dowolnie paskudnej nazwy katalogu.
+     *
+     * MAŁE LITERY nie są kosmetyką: PostgreSQL składa identyfikator bez
+     * cudzysłowu do małych liter, więc `createdb Kuking_Test_X` zakłada bazę
+     * `kuking_test_x`, a aplikacja pyta przez PDO o `Kuking_Test_X` dosłownie
+     * i dostaje „database does not exist". Katalog `Kuking-681` wystarczy,
+     * żeby to wywołać.
      */
     #[DataProvider('katalogiOWieluKsztaltach')]
     public function test_nazwa_jest_bezpiecznym_identyfikatorem_w_limicie(string $nazwaKatalogu): void
     {
-        $rodzic = $this->tymczasowyKatalogRepo();
-        $katalog = $rodzic.'/'.$nazwaKatalogu;
+        $katalog = @$this->tymczasowyKatalogRepo($nazwaKatalogu);
 
-        if (! @mkdir($katalog)) {
+        if (! is_dir($katalog)) {
             $this->markTestSkipped('System plików nie przyjął nazwy: '.$nazwaKatalogu);
         }
-
-        $this->doUsuniecia[] = $katalog;
 
         foreach ([
             'kuking_nazwa_testowej_bazy',
@@ -178,24 +310,11 @@ class NazwaTestowejBazyTest extends TestCase
      */
     public function test_kazda_rodzina_baz_ma_swoj_przedrostek(): void
     {
-        $katalog = $this->tymczasowyKatalogRepo();
+        $stanowisko = $this->tymczasowyKatalogRepo('rodziny-run');
 
-        $this->assertStringStartsWith('kuking_test_', kuking_nazwa_testowej_bazy($katalog));
-        $this->assertStringStartsWith('kuking_race_', kuking_nazwa_bazy_wyscigow($katalog));
-        $this->assertStringStartsWith('proba_wycofania_', kuking_nazwa_bazy_wycofania($katalog));
-    }
-
-    /**
-     * Gołe `kuking_test` nie może już paść dla ŻADNEGO katalogu. Zwykły klon
-     * jest nieodróżnialny od kanonicznego checkoutu, więc „ten jeden katalog
-     * bez sufiksu" znaczyłoby „wszystkie klony w jednej bazie" — czyli
-     * dokładnie usterkę #736.
-     */
-    public function test_zaden_katalog_nie_dostaje_golej_nazwy_domyslnej(): void
-    {
-        foreach ([$this->tymczasowyKatalogRepo(), sys_get_temp_dir(), __DIR__.'/../..'] as $katalog) {
-            $this->assertNotSame('kuking_test', kuking_nazwa_testowej_bazy($katalog));
-        }
+        $this->assertStringStartsWith('kuking_test_kat_', kuking_nazwa_testowej_bazy($stanowisko));
+        $this->assertStringStartsWith('kuking_race_kat_', kuking_nazwa_bazy_wyscigow($stanowisko));
+        $this->assertStringStartsWith('proba_wycofania_kat_', kuking_nazwa_bazy_wycofania($stanowisko));
     }
 
     /**
@@ -206,19 +325,19 @@ class NazwaTestowejBazyTest extends TestCase
      */
     public function test_rejestr_zapisuje_sciezke_kopii_roboczej(): void
     {
-        $katalog = $this->tymczasowyKatalogRepo();
+        $stanowisko = $this->tymczasowyKatalogRepo('rejestr-run');
         $rejestr = $this->tymczasowyKatalogRepo();
 
         putenv('KUKING_REJESTR_BAZ='.$rejestr);
 
         try {
-            $nazwa = kuking_nazwa_testowej_bazy($katalog);
-            kuking_zapisz_rejestr_bazy($nazwa, $katalog);
+            $nazwa = kuking_nazwa_testowej_bazy($stanowisko);
+            kuking_zapisz_rejestr_bazy($nazwa, $stanowisko);
 
             $this->assertFileExists($rejestr.'/'.$nazwa);
-            $this->doUsuniecia[] = $rejestr.'/'.$nazwa;
+            $this->plikiDoUsuniecia[] = $rejestr.'/'.$nazwa;
             $this->assertSame(
-                rtrim(str_replace('\\', '/', (string) realpath($katalog)), '/'),
+                rtrim(str_replace('\\', '/', (string) realpath($stanowisko)), '/'),
                 trim((string) file_get_contents($rejestr.'/'.$nazwa)),
             );
         } finally {
@@ -226,37 +345,54 @@ class NazwaTestowejBazyTest extends TestCase
         }
     }
 
-    /** @var list<string> */
-    private array $doUsuniecia = [];
-
-    private function tymczasowyKatalogRepo(): string
+    /**
+     * Zakłada tymczasowy katalog repozytorium. Gdy podasz `$nazwa`, katalog
+     * dostaje ją jako ostatni segment ścieżki — bo od 2026-09-20 to właśnie
+     * nazwa katalogu współtworzy nazwę bazy i test musi móc nią sterować.
+     */
+    private function tymczasowyKatalogRepo(?string $nazwa = null): string
     {
-        $katalog = sys_get_temp_dir().'/kuking-nazwa-bazy-'.bin2hex(random_bytes(8));
-        mkdir($katalog, 0o777, true);
-        $this->doUsuniecia[] = $katalog;
+        $koperta = sys_get_temp_dir().'/kuking-nazwa-bazy-'.bin2hex(random_bytes(8));
+        $katalog = $nazwa === null ? $koperta : $koperta.'/'.$nazwa;
+
+        @mkdir($katalog, 0o777, true);
+
+        $this->tmpDoUsuniecia[] = $katalog;
+
+        if ($katalog !== $koperta) {
+            // Kopertę usuwamy PO katalogu w środku, stąd doklejenie na koniec
+            // listy — a nigdy nie jest nią `/tmp`, bo ma własny, losowy człon.
+            $this->tmpDoUsuniecia[] = $koperta;
+        }
 
         return $katalog;
     }
 
+    /** @var list<string> */
+    private array $tmpDoUsuniecia = [];
+
+    /** @var list<string> */
+    private array $plikiDoUsuniecia = [];
+
     protected function tearDown(): void
     {
-        // Katalogi kasujemy od najgłębszego: podkatalogi trafiły na listę
-        // później niż ich rodzice.
-        foreach (array_reverse($this->doUsuniecia) as $sciezka) {
-            if (is_dir($sciezka.'/.git')) {
-                @rmdir($sciezka.'/.git');
-            } elseif (is_file($sciezka.'/.git')) {
-                @unlink($sciezka.'/.git');
-            }
-
-            if (is_dir($sciezka)) {
-                @rmdir($sciezka);
-            } elseif (is_file($sciezka)) {
-                @unlink($sciezka);
-            }
+        foreach ($this->plikiDoUsuniecia as $plik) {
+            @unlink($plik);
         }
 
-        $this->doUsuniecia = [];
+        foreach ($this->tmpDoUsuniecia as $katalog) {
+            // Katalog ma co najwyżej jeden plik/podkatalog `.git` w środku —
+            // proste rekurencyjne czyszczenie wystarcza, bez zależności.
+            if (is_dir($katalog.'/.git')) {
+                @rmdir($katalog.'/.git');
+            } elseif (is_file($katalog.'/.git')) {
+                @unlink($katalog.'/.git');
+            }
+            @rmdir($katalog);
+        }
+
+        $this->plikiDoUsuniecia = [];
+        $this->tmpDoUsuniecia = [];
 
         parent::tearDown();
     }

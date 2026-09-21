@@ -396,15 +396,16 @@ refuses it, correctly.
   `--prefer-source` gets everything except `phpstan/phpstan`, which has no
   source in `composer.lock`. Workaround used: clone the tagged commit, zip it
   in GitHub-zipball shape and seed Composer's file cache.
-- Each working copy — `git worktree` **and plain clone alike** — needs its own
-  PostgreSQL database. The name is computed by `tests/nazwa-bazy.php` from the
-  DIRECTORY PATH as `kuking_test_<directory>_<8-char path hash>`; create it
-  before running tests there, or let `.claude/hooks/session-start.sh` do it.
-  Print the name with:
+- Each working copy needs its own PostgreSQL database. The name is computed by
+  `tests/nazwa-bazy.php`: `kuking_test` in the main checkout, `kuking_test_<worktree>`
+  in a `git worktree`, and `kuking_test_kat_<directory>_<8-char SHA-256 of the
+  path>` in a copy with no `.git` at all (fleet runtime, archive, container
+  image). Create it before running tests there, or let
+  `.claude/hooks/session-start.sh` do it. Print the name with:
   `php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);'`
-  Until 2026-09-19 the rule only told worktrees apart, so every plain clone
-  fell back to one shared `kuking_test` and parallel runs dropped each other's
-  schema.
+  Until 2026-09-20 a copy without `.git` was treated as the main checkout, so
+  every fleet runtime fell back to one shared `kuking_test` and parallel runs
+  dropped each other's schema.
 
 ## 6. Open product questions the owner has not been asked
 

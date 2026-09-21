@@ -15,11 +15,15 @@
  *  i szły. Lista była przy tym listą ZAKAZÓW: wszystko, czego na niej nie ma,
  *  było dozwolone.
  *
- *  Od naprawy #736 ŻADNA kopia robocza nie nazywa swojej bazy `kuking_test`
- *  (nazwa zawiera skrót ścieżki katalogu — `tests/nazwa-bazy.php`). Lista
- *  zakazów przestała więc trafiać kiedykolwiek i gdziekolwiek, zostając
- *  w kodzie jako zabezpieczenie, którego już nie ma. Zabezpieczenie, które
- *  przestaje działać we wszystkich przypadkach naraz, jest w praktyce usunięte.
+ *  Po #736 i #920 nazwa bazy testowej prawie nigdzie nie brzmi już dokładnie
+ *  `kuking_test`: w worktree jest `kuking_test_<worktree>`, a w kopii bez
+ *  `.git` (runtime floty) `kuking_test_kat_<katalog>_<skrót>` —
+ *  `tests/nazwa-bazy.php`. Lista dosłownych zakazów przestała więc trafiać
+ *  niemal wszędzie, zostając w kodzie jako zabezpieczenie, którego w praktyce
+ *  już nie ma. Zabezpieczenie, które przestaje działać w prawie wszystkich
+ *  przypadkach naraz, a wygląda na obecne, jest gorsze niż jego brak — bo
+ *  człowiek na nie liczy. Dlatego niżej stoją RODZINY nazw (`^kuking_test(_|$)`),
+ *  które łapią i gołe `kuking_test` głównego checkoutu, i każdy jego wariant.
  *
  *  ZASADA — TA SAMA, CO W `scripts/cleanup-test-dbs.sh`
  *  NIE WIEM, CZYJA TO BAZA, WIĘC ODMAWIAM.

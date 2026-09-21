@@ -484,19 +484,29 @@ Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.
 Nie polegaj na domyślnym porcie ani nazwie w środowisku współdzielonym.
 
 **Nazwy bazy testowej nie wymyślasz i nie wpisujesz do `.env`.** Liczy ją
-`tests/nazwa-bazy.php` ze ŚCIEŻKI KATALOGU kopii roboczej:
-`kuking_test_<nazwa-katalogu>_<8-znakowy skrót ścieżki>`. Dzięki temu każdy
-katalog — `git worktree` i zwykły klon tak samo — ma własną bazę, a dwa
-równoległe `php artisan test` nie zrzucają sobie schematu. Swoją nazwę
-sprawdzisz poleceniem:
+`tests/nazwa-bazy.php`, w trzech przypadkach:
+
+| katalog | nazwa bazy |
+|---|---|
+| główny checkout (`.git` to katalog) | `kuking_test` |
+| `git worktree` (`.git` to plik) | `kuking_test_<nazwa-worktree>` |
+| kopia bez `.git` (runtime, archiwum, obraz) | `kuking_test_kat_<katalog>_<8 znaków SHA-256 ścieżki>` |
+
+Trzeci przypadek jest tym, który naprawia awarię floty: runtime powstaje
+rsynkiem z `--exclude '.git'`, więc w katalogu, w którym NAPRAWDĘ chodzą testy,
+pliku `.git` nie ma — a wcześniej każde stanowisko dostawało wtedy gołe
+`kuking_test` i wszystkie lądowały w jednej bazie. Swoją nazwę sprawdzisz
+poleceniem:
 
 ```bash
 php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);'
 ```
 
-Do 19 września reguła rozróżniała wyłącznie `git worktree`, więc wszystkie
-zwykłe klony dostawały jedno wspólne `kuking_test` — stąd 963, 3737
-i kilkaset porażek `QueryException` w trzech sesjach tego samego dnia.
+Jedno miejsce, którego nie wolno ruszyć bez przeliczenia: limit **43 znaków**
+na sufiks w `kuking_bezpieczny_sufiks_bazy()`. Postgres obcina identyfikator do
+63 bajtów BEZ OSTRZEŻENIA, więc dwie za długie nazwy schodzą się po cichu
+w jedną bazę. Najdłuższy przedrostek w repozytorium to `kuking_zrodlo_proby`
+(19 znaków): 19 + 1 + 43 = 63.
 
 **Przyrządy pomiarowe w `scripts/*.mjs` robią `migrate:fresh`**, czyli kasują
 całą zawartość bazy z `DB_DATABASE`. `scripts/bezpiecznik-bazy.mjs` wpuszcza

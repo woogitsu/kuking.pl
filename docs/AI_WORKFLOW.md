@@ -132,9 +132,10 @@ każdy w **osobnym worktree gita** i z **osobną bazą testową**.
 | kod: profil i komentarze | `ProfileController`, `SocialController`, `comment-thread`, `resources/views/pages/profile/` |
 
 W tabeli nie ma już kolumny „baza testowa": **nazwy baz nie przydziela się
-ręcznie**. Wylicza ją `tests/nazwa-bazy.php` ze ścieżki katalogu kopii
-roboczej, więc każdy katalog — worktree i zwykły klon tak samo — dostaje
-własną bazę bez ustawiania czegokolwiek. Ręczne `DB_DATABASE=…` dalej ma
+ręcznie**. Wylicza ją `tests/nazwa-bazy.php`: `kuking_test` w głównym
+checkoucie, `kuking_test_<worktree>` w `git worktree`, a w kopii bez `.git`
+(runtime, archiwum, obraz) `kuking_test_kat_<katalog>_<skrót ścieżki>`.
+Ręczne `DB_DATABASE=…` dalej ma
 pierwszeństwo, ale nie jest już do niczego potrzebne. Swoją nazwę sprawdzisz
 poleceniem:
 
@@ -152,9 +153,10 @@ Cztery rzeczy, które sprawiają, że to działa:
    czyści bazę na starcie każdego testu, więc dwóch agentów na jednej bazie
    testowej kasuje sobie dane w połowie przebiegu i dostaje losowe błędy —
    963, 3737 i kilkaset porażek `QueryException` w trzech sesjach 19 września
-   wzięło się dokładnie stąd. Od naprawy #736 nie trzeba z tym nic robić:
-   `tests/nazwa-bazy.php` liczy nazwę z KATALOGU kopii roboczej, więc dwa
-   katalogi to z definicji dwie bazy. Porzucone bazy sprząta
+   wzięło się dokładnie stąd. Od naprawy #736 i #920 nie trzeba z tym nic
+   robić: `tests/nazwa-bazy.php` liczy nazwę z worktree albo — gdy `.git`
+   nie ma wcale, czyli w runtime — z KATALOGU kopii roboczej, więc dwa
+   stanowiska to z definicji dwie bazy. Porzucone bazy sprząta
    `./scripts/cleanup-test-dbs.sh` (kasuje tylko te, po których kopia robocza
    zniknęła z dysku — nigdy bazy trwającego przebiegu).
 4. **Symlink na `vendor` i `node_modules`** z głównego katalogu zamiast
