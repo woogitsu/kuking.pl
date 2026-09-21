@@ -172,6 +172,12 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
      * KONTROLA DODATNIA (D-229): gdyby ktoś kiedyś wrócił do zwykłego
      * formularza DELETE bez `<x-confirm-button>`, ta scena ma to złapać —
      * inaczej strażnik wyżej mierzyłby przypadkiem coś, co akurat przeszło.
+     *
+     * Adres `collections.unsave` NIE nadaje się do szukania po samym stringu
+     * (`/przepisy/{slug}/zapisz` obsługuje i zapis, i wyjęcie — różni je
+     * wyłącznie metoda HTTP), więc scena liczy formularze DELETE po DOM-ie:
+     * ile stoi w całym dokumencie i ile z nich stoi wewnątrz
+     * `<details class="confirm">`. Liczby muszą się zgadzać.
      */
     public function test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia(): void
     {
@@ -181,11 +187,29 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
 
         $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
 
-        // Formularz DELETE istnieje dopiero WEWNĄTRZ `<details class="confirm">`
-        // — poza nim nie ma żadnego zwykłego `<form method="POST">…DELETE`
-        // wiszącego bezpośrednio pod przyciskiem „Usuń z zeszytu".
-        $poza = preg_replace('/<details class="confirm">.*?<\/details>/s', '', $tresc);
-        $this->assertStringNotContainsString(route('collections.unsave', $przepis->slug), (string) $poza);
+        $dokument = new \DOMDocument;
+        $poprzednie = libxml_use_internal_errors(true);
+        $dokument->loadHTML('<?xml encoding="utf-8" ?>'.$tresc);
+        libxml_clear_errors();
+        libxml_use_internal_errors($poprzednie);
+
+        $xpath = new \DOMXPath($dokument);
+        $adres = route('collections.unsave', $przepis->slug);
+
+        $wyrazenie = sprintf(
+            '//form[@action="%s"][.//input[@name="_method"][translate(@value, "delete", "DELETE")="DELETE"]]',
+            $adres,
+        );
+
+        $wszystkie = $xpath->query($wyrazenie);
+        $wewnatrzPotwierdzenia = $xpath->query($wyrazenie.'[ancestor::details[@class="confirm"]]');
+
+        $this->assertGreaterThan(0, $wszystkie->length, 'Strona przepisu nie ma żadnego formularza wyjęcia.');
+        $this->assertSame(
+            $wszystkie->length,
+            $wewnatrzPotwierdzenia->length,
+            'Na stronie przepisu stoi formularz wyjęcia POZA `<details class="confirm">` — usuwa bez potwierdzenia.',
+        );
     }
 
     /**
