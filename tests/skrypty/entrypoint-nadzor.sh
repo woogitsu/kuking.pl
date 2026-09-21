@@ -166,7 +166,7 @@ sprawdz "niezerowy kod nigdy nie jest planowym recyklingiem" "brak" "$(grep -q '
 # Wykonujemy prawdziwy blok all, nie jego odpis. Atrapy nie uruchamiają PHP,
 # WWW ani bazy. Prawdziwy shutdown ma zatrzymać pozostałe procesy. Trzy
 # scenariusze sprawdzają każdy obserwowany PID i set -e przy niezerowym wait.
-for cel in kolejka www harmonogram; do
+for cel in kolejka www harmonogram recykling; do
   wynik="$(timeout 5 bash -c "$(wczytaj_funkcje)
 $(sed -n '/^czekaj_na_uslugi() {/,/^}/p' "$ENTRYPOINT")
 $(sed -n '/^shutdown() {/,/^}/p' "$ENTRYPOINT")
@@ -174,21 +174,43 @@ $(cat <<'PROBA'
 set -Eeuo pipefail
 ROLE=all PORT=8080 CHILD_PIDS=()
 NADZOR_MIN_CZAS=30 NADZOR_LIMIT=2
+STAN="$(mktemp)"
+echo 0 > "$STAN"
+trap 'rm -f "$STAN"' EXIT
 sleep() { command sleep 0.05; }
 trwaj() { while true; do command sleep 0.05; done; }
 # Funkcja zastępuje jedynie właściwą pracę, NIE nadzorcę.
-jeden_przebieg_kolejki() { if [[ "$CEL" == kolejka ]]; then return 23; else trwaj; fi; }
+jeden_przebieg_kolejki() {
+  case "$CEL" in
+    kolejka) return 23 ;;
+    recykling) echo "$(( $(cat "$STAN") + 1 ))" > "$STAN"; sleep 1; return 0 ;;
+    *) trwaj ;;
+  esac
+}
 harmonogram_raz() { if [[ "$CEL" == harmonogram ]]; then return 24; else trwaj; fi; }
-frankenphp() { if [[ "$CEL" == www ]]; then return 25; else trwaj; fi; }
+frankenphp() {
+  case "$CEL" in
+    www) return 25 ;;
+    recykling)
+      while (( $(cat "$STAN") < 3 )); do sleep 1; done
+      echo 'WWW przeżył trzy przebiegi kolejki'
+      return 25 ;;
+    *) trwaj ;;
+  esac
+}
 PROBA
 )
 CEL=$cel
+[[ \"\${CEL}\" != recykling ]] || NADZOR_MIN_CZAS=0
 case \"\${ROLE}\" in
 $(sed -n '/^  all)/,/^    ;;/p' "$ENTRYPOINT")
 esac" 2>&1)"
   kod=$?
   sprawdz "all eskaluje zakończenie usługi: ${cel}" "1" "$kod"
   sprawdz "all sprząta pozostałe usługi: ${cel}" "tak" "$(grep -q 'zamknięte (kod 1)' <<< "$wynik" && echo tak || echo nie)"
+  if [[ "$cel" == recykling ]]; then
+    sprawdz "all pozostaje czynne przy planowym recyklingu" "tak" "$(grep -q 'WWW przeżył trzy przebiegi kolejki' <<< "$wynik" && echo tak || echo nie)"
+  fi
 done
 
 # ---------------------------------------------------------------------------
