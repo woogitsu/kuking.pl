@@ -65,6 +65,13 @@ parameters:
     bootstrapFiles:
         - phpstan-bootstrap.php
 
+    # Pliki CZYTANE dla samych deklaracji, nie analizowane. `scripts/` nie jest
+    # w `paths`, a `FixturePomiarowyPrzyjmujeBazyZCiTest` woła strażnika baz
+    # pomiarowych stamtąd — bez tego wpisu PHPStan mówi „Function … not found"
+    # o funkcji, która istnieje i jest pokryta testem.
+    scanFiles:
+        - scripts/fixtures/baza-pomiarowa.php
+
     paths:
         - app
         - config

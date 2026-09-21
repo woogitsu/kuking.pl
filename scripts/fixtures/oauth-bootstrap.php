@@ -7,6 +7,7 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 
 require __DIR__.'/../../vendor/autoload.php';
+require __DIR__.'/baza-pomiarowa.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
 $kernel = $app->make(Kernel::class);
 $kernel->bootstrap();
@@ -24,8 +25,9 @@ set_exception_handler(function (Throwable $e): never {
 $c = DB::connection();
 if (! $app->environment('local') || ! in_array(PHP_SAPI, ['cli', 'cli-server'], true)
     || $c->getDriverName() !== 'pgsql'
-    || ! (in_array($c->getDatabaseName(), ['kuking_oauth345', 'kuking_test_a11y', 'kuking_a11y'], true)
-        || ($c->getDatabaseName() === 'kuking_test' && getenv('GITHUB_ACTIONS') === 'true'))
+    // Patrz `scripts/fixtures/baza-pomiarowa.php`: rodzina baz jednorazowych
+    // jest ta sama, co po stronie `scripts/bezpiecznik-bazy.mjs`.
+    || ! kukingWolnoUzycBazyFixture($c->getDatabaseName(), ['kuking_oauth345', 'kuking_test_a11y', 'kuking_a11y'])
     || ! in_array($c->getConfig('host'), ['127.0.0.1', 'localhost'], true)
     || ! getenv('DB_PORT') || (string) $c->getConfig('port') !== (string) getenv('DB_PORT')
     || config('mail.default') !== 'array') {
