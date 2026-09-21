@@ -220,7 +220,7 @@ final class PublishComment
                 actor: $author,
                 data: [
                     'comment_id' => $comment->getKey(),
-                    // BEZ `excerpt` — ISSUE #758, D-223. Wycinek treści liczy
+                    // BEZ `excerpt` — ISSUE #758, D-229. Wycinek treści liczy
                     // się przy WYŚWIETLANIU, z aktualnego komentarza
                     // (`Notification::zyweWycinkiKomentarzy()`). Kopia
                     // zapisana tutaj byłaby drugim źródłem prawdy i po
@@ -239,7 +239,7 @@ final class PublishComment
                     actor: $author,
                     data: [
                         'comment_id' => $comment->getKey(),
-                        // Bez `excerpt` — ten sam powód co wyżej (#758, D-223).
+                        // Bez `excerpt` — ten sam powód co wyżej (#758, D-229).
                         'url' => $this->urlFor($subject),
                     ],
                 );

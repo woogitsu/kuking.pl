@@ -15050,7 +15050,16 @@ się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
 i `scripts/wyjecie-z-zeszytu.mjs`.
 
 
-## D-223 — Powiadomienie śledzi treść komentarza (#758, 20 września 2026)
+## D-229 — Powiadomienie śledzi treść komentarza (#758, 20 września 2026)
+
+**Przenumerowane z D-223.** Ta decyzja nosiła pierwotnie numer D-223 — pod tym
+samym numerem stała też rodzina strażnika martwej kaskady CSS (`flota/kaskada`
+/ `flota/martwe-kaskady` / `flota/scal-915`). Rozstrzygnięcie właściciela
+21 września 2026: numer D-223 zostaje przy rodzinie kaskady, ta decyzja
+przechodzi na D-229 (pierwszy naprawdę wolny numer, sprawdzony przeglądem
+wszystkich gałęzi repozytorium). **Kryterium: koszt przeniesienia.** Rodzina
+kaskady miała w kodzie **16 odwołań** do D-223, ta decyzja tylko **13** —
+przenosi się ta strona, po której trzeba poprawić mniej miejsc.
 
 Decyzja właściciela. Wycinek treści komentarza w powiadomieniu jest **liczony
 przy wyświetlaniu, z aktualnej treści** — jedno źródło prawdy, nie zamrożona

@@ -8,7 +8,7 @@ use Illuminate\Support\Facades\DB;
 /**
  * USUNIĘCIE ZAMROŻONYCH WYCINKÓW TREŚCI Z POWIADOMIEŃ O KOMENTARZACH.
  *
- * Decyzja właściciela z 20.09.2026 (D-223): powiadomienie liczy wycinek
+ * Decyzja właściciela z 20.09.2026 (D-229): powiadomienie liczy wycinek
  * z AKTUALNEJ treści komentarza, a eksport RODO zmienia się razem z nim.
  * Uzasadnieniem było zdanie: paczka ma pokazywać, co o kimś trzymamy DZIŚ.
  *
@@ -39,7 +39,7 @@ return new class extends Migration
     private const TYPY = ['comment.created', 'comment.replied'];
 
     public const WYCOFANIE_NIC_NIE_ROBI = 'Migracja kasuje klucz `excerpt` z `notifications.data`, '
-        .'czyli zamrożone kopie cudzej treści sprzed decyzji D-223. Tych wartości nie ma skąd '
+        .'czyli zamrożone kopie cudzej treści sprzed decyzji D-229. Tych wartości nie ma skąd '
         .'odczytać z powrotem: wycinek liczy się teraz z ŻYWEJ treści komentarza, a kopii nigdzie '
         .'indziej nie trzymamy. `down()`, które cokolwiek wpisuje, wpisałoby wartość zmyśloną — '
         .'i to byłoby gorsze niż brak wycofania, bo wyglądałoby na prawdziwe. Jedynym źródłem '

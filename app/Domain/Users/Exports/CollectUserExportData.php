@@ -43,7 +43,7 @@ final class CollectUserExportData
      * `excerpt` jest na tej liście dla typów, które niosą własny tekst
      * (np. wiadomość od moderacji). Dla `comment.created`/`comment.replied`
      * NIE bierze się z `data` — tam wycinek liczy się z AKTUALNEJ treści
-     * komentarza przy budowaniu paczki (#758, D-223, `notifications()` niżej).
+     * komentarza przy budowaniu paczki (#758, D-229, `notifications()` niżej).
      */
     private const NOTIFICATION_DATA_KEYS = [
         'excerpt',
@@ -503,7 +503,7 @@ final class CollectUserExportData
             ->get();
 
         // WYCINEK KOMENTARZA JEST ZYWY - ISSUE #758, decyzja wlasciciela
-        // z 20 wrzesnia 2026 (D-223). Paczka ma pokazywac dane, ktore DZIS
+        // z 20 wrzesnia 2026 (D-229). Paczka ma pokazywac dane, ktore DZIS
         // o kims trzymamy, a nie ich historyczna wersje: zamrozony wycinek
         // opisywalby stan, ktorego w bazie juz nie ma. Jedno zapytanie na
         // CALY eksport, nie jedno na powiadomienie - pozycji bywa tu wiecej

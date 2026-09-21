@@ -40,7 +40,7 @@
             $actor = $notification->actor;
             $data = $notification->data ?? [];
             /*
-             * ISSUE #758 / D-223 — WYCINEK KOMENTARZA JEST ŻYWY.
+             * ISSUE #758 / D-229 — WYCINEK KOMENTARZA JEST ŻYWY.
              *
              * Bierzemy go z mapy policzonej JEDNYM zapytaniem na całą stronę
              * (`Notification::zyweWycinkiKomentarzy()`), a nie z `data.excerpt`.

@@ -4069,7 +4069,7 @@ schematu.** Nie dodaje, nie usuwa i nie zmienia ani jednej kolumny.
 zostawia resztę kluczy nietkniętą; warunek `jsonb_exists(data, 'excerpt')`
 zawęża zapis do wierszy, które ten klucz naprawdę mają.
 
-**Dlaczego.** Decyzja właściciela D-223: wycinek treści komentarza liczy się
+**Dlaczego.** Decyzja właściciela D-229: wycinek treści komentarza liczy się
 teraz z **aktualnej** treści, a eksport RODO zmienia się razem z ekranem.
 Uzasadnieniem było zdanie „paczka ma pokazywać, co o kimś trzymamy dziś" —
 a zamrożone kopie sprzed zmiany (do 120 znaków cudzego tekstu) leżały dalej

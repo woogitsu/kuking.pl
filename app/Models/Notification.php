@@ -31,7 +31,7 @@ class Notification extends Model
 
     public const TYPE_REPLY = 'comment.replied';
 
-    /** Ile znaków komentarza niesie powiadomienie (issue #758, D-223). */
+    /** Ile znaków komentarza niesie powiadomienie (issue #758, D-229). */
     public const DLUGOSC_WYCINKA_KOMENTARZA = 120;
 
     /** Typy, których wycinek JEST treścią komentarza — i tylko te. */
@@ -210,7 +210,7 @@ class Notification extends Model
     /**
      * AKTUALNE wycinki komentarzy dla podanych powiadomień — JEDNYM zapytaniem.
      *
-     * DECYZJA WŁAŚCICIELA Z 20 WRZEŚNIA 2026 (issue #758, D-223): wycinek
+     * DECYZJA WŁAŚCICIELA Z 20 WRZEŚNIA 2026 (issue #758, D-229): wycinek
      * treści komentarza liczy się PRZY WYŚWIETLANIU, z aktualnej treści.
      * Jedno źródło prawdy — nie zamrożona kopia w `notifications.data`.
      * Do tej zmiany `PublishComment` wpisywał do `data.excerpt` 120 znaków

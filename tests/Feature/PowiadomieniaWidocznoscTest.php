@@ -22,7 +22,7 @@ use Tests\TestCase;
  * właściciela statusu konta.
  *
  * UWAGA NA DAWNE ZDANIE W TYM MIEJSCU. Stało tu „powiadomienie jest MIGAWKĄ
- * zdarzenia z przeszłości" i od 20 września 2026 (#758, D-223) nie jest to
+ * zdarzenia z przeszłości" i od 20 września 2026 (#758, D-229) nie jest to
  * już prawda o WYCINKU TREŚCI: wycinek liczy się przy wyświetlaniu,
  * z aktualnego komentarza (`Notification::zyweWycinkiKomentarzy()`), bo
  * powiadomienie ma cytować to, co w wątku stoi dziś, a nie zdanie sprzed
