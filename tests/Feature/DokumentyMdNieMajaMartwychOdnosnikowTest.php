@@ -94,6 +94,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         '/przepisy/' => 'przykład stylu adresu — prawdziwa trasa ma parametr',
         '/pytania' => 'dział jawnie opisany jako jeszcze niezbudowany, issue #372 (BRAND_EXTENDED.md)',
         '/tag' => 'nieformalne odwołanie do prefiksu tras tagów',
+        '/tag/przetwory' => 'realny wzorzec tag/{tag} z przykładową wartością (AUDYT_COLD_START_29_2026-09-20.md)',
         '/tag/zupa' => 'realny wzorzec tag/{tag} z przykładową wartością',
         '/tag/zupy' => 'realny wzorzec tag/{tag} z przykładową wartością',
         '/temat/{slug}' => 'propozycja z dokumentu decyzyjnego, nie zbudowana trasa',
@@ -125,6 +126,9 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'scripts', 'docs', 'decyzje', 'config', 'tests', 'research',
         '_work', '_temp', '.npm', '.cache', 'actions-runner-kuking-03',
         'setup-php', 'linux', 'livewire', 'favicon', 'manifest', 'incoming',
+        // katalog domowy Windows w cytowanej ścieżce lokalnej (worktree,
+        // klon repozytorium), nigdy adres tego serwisu
+        'Users',
         // polecenia/skille Claude Code, cytowane w dokumentacji jak trasy
         'code-review', 'simplify', 'security-review', 'fewer-permission-prompts',
         'loop', 'init', 'run', 'permissions', 'slack',
