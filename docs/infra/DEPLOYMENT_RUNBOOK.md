@@ -460,7 +460,7 @@ To normalne, poprawimy to w kroku 8.
 
 → Kanwa projektu → **+ New** → **Database** → **Add PostgreSQL**
 
-Wybierz major **18**. Od decyzji właściciela z 20 września 2026 (D-223)
+Wybierz major **18**. Od decyzji właściciela z 20 września 2026 (D-227)
 osiemnastka jest **wymaganiem projektu**, nie preferencją — `AGENTS.md`
 mówi o niej wprost, a `TestyChodzaNaPostgresieTest` oblewa na starszej wersji.
 
@@ -2188,7 +2188,7 @@ Ta sama procedura dla hasła SMTP i tokenów Railway.
 | # | Decyzja | Rekomendacja | Krok |
 |---|---|---|---|
 | 8 | Dostawca poczty | Resend (alfa) → Brevo (beta) | 3 |
-| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place — **wyłącznie jako droga awaryjna odtworzenia**, nie stan docelowy (D-223) | 6.3 |
+| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place — **wyłącznie jako droga awaryjna odtworzenia**, nie stan docelowy (D-227) | 6.3 |
 | 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
 | 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
 | 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
