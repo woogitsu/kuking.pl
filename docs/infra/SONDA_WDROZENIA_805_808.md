@@ -24,12 +24,23 @@ kod procesu i wypisany werdykt; poprawne przypadki wymagają sukcesu.
 - **#808:** sonda sprawdza pierwszy skok 301/308 na HTTPS i dokładny host
   wskazany argumentem. Nie podąża za łańcuchem. Pętla, HTTP, obca domena,
   pusta lokalizacja i awaria transportu nie zaliczają kontroli (kod 1).
-- **#805:** `set -euo pipefail` zachowuje niezerowy kod Railway CLI;
-  „Gotowe.” występuje wyłącznie po kodzie 0. Nie parsujemy tekstu błędu
-  nieprzypiętej wersji CLI, nie przypisujemy kodom znaczeń dostawcy.
-  Także zgłoszenie braku środowiska kodem niezerowym pozostaje błędem.
-  Operator powinien wtedy sprawdzić stan w Railway. Nie dodano automatycznej
-  idempotencji opartej na niezweryfikowanym formacie odpowiedzi.
+- **#805 (kontrakt po decyzji właściciela z 21.09.2026 — „trzecia droga”):**
+  krok pyta `railway environment list --json`, **zanim** cokolwiek skasuje.
+  Powód: Railway CLI zwraca **kod 1 dla każdego błędu** — brak środowiska
+  wygląda identycznie jak wygasły token, brak uprawnień, ratelimit czy awaria
+  sieci. Dawne `|| true` przy `delete` zamieniało więc awarię tokenu w zielony
+  job, a płatne środowisko dalej stało. Cztery ścieżki kroku:
+  1. środowiska **nie ma** na liście — komunikat po polsku, kod **0**,
+     **bez „Gotowe.”** i bez dotknięcia `delete`;
+  2. **jest** i `delete` się udaje — kod **0** z „Gotowe.”;
+  3. **jest** i `delete` pada — kod CLI leci wprost do joba (`|| true`
+     usunięte), **bez „Gotowe.”**, komunikat CLI przepuszczony;
+  4. padła sama **lista** — też czerwień, inaczej ukrywalibyśmy ten sam błąd
+     piętro wyżej.
+  Nadal nie parsujemy tekstu błędu nieprzypiętej wersji CLI i nie przypisujemy
+  kodom znaczeń dostawcy — rozstrzyga obecność nazwy na liście, nie kod.
+  Nazwy wyjmuje `jq` (obecne na `ubuntu-latest` i na puli self-hosted);
+  porażka `jq` jest błędem kroku, a nie cichym „nie ma czego usuwać”.
 
 ## Pomiar własny przed poprawką
 
@@ -106,3 +117,32 @@ braku środowiska wymaga osobnej weryfikacji kontraktu konkretnej wersji CLI.
 Wycofanie: cofnąć lokalny commit poprawki przez `git revert`; brak migracji.
 Przywróci to również opisane fałszywe sukcesy, więc nie zaliczać na tej
 podstawie odbioru wdrożenia.
+
+## Zmiana kontraktu #805 — 21 września 2026
+
+Właściciel rozstrzygnął, że krok ma **sprawdzać istnienie środowiska przed
+kasowaniem**. Ostatni akapit sekcji wyżej („automatyczne zaliczanie braku
+środowiska wymaga osobnej weryfikacji kontraktu CLI”) został tą decyzją
+zamknięty: wersję CLI rozstrzyga nie kod wyjścia, tylko lista środowisk.
+
+Czym to NIE jest: nie jest to przypisanie kodom wyjścia znaczeń dostawcy.
+Kod 1 dalej znaczy „coś padło” i nadal kończy job czerwienią — także wtedy,
+gdy padła sama lista.
+
+Zestaw przypadków testu przebudowany pod dwa wywołania CLI. Syntetyczne
+kody 73 i 28 wypadły: w tym CLI nie istnieją, a przepisanie ich pod nowy krok
+utrwalałoby fikcję, że krok rozpoznaje przyczynę po kodzie wyjścia.
+
+Pomiary własne (runtime floty `gpt-sonda-wdrozenia-ODZYSK`, load average 3–6):
+
+| Co | Wynik |
+|---|---|
+| `--filter SondaWdrozeniaTest` przed poprawką | **3 oblane, 36 zaliczonych, 153 asercje** |
+| `--filter SondaWdrozeniaTest` po poprawce | **39 zaliczonych, 164 asercje** |
+| to samo na gałęzi `gpt-cloudflare-cache` | **39 zaliczonych, 164 asercje** |
+| `tests/skrypty/kontrola-sondy.sh` | 5 kontroli ujemnych POTWIERDZONYCH (PASS → FAIL → PASS) |
+
+Kontrola dodatnia jest w `tests/skrypty/kontrola-sondy.sh`: dwie mutacje
+(`|| true` przy `delete` oraz `|| true` przy `environment list`) muszą zapalić
+test. Oczekiwana przyczyna mutacji #805 zmieniła się z kodu 73 na kod 1 —
+inaczej kontrola przechodziłaby dlatego, że jej wzorzec nigdy nie pada.
