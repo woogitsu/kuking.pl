@@ -104,7 +104,7 @@ Na forku nie ma akcji tworzenia następnego forka. Można przejść do oryginał
 | Pełne wymazanie / spór prawny | Nie archiwizujemy usuniętej treści pod pretekstem pochodzenia. Zakres zachowania skopiowanych fragmentów wymaga rozstrzygnięcia praw i retencji. Do rozstrzygnięcia fork zachowany dla autora, publiczne serwowanie spornego tekstu wstrzymane |
 | Usunięcie forka | Oryginał i jego wykonania pozostają, pozycja na liście wersji znika |
 
-Proponowany dodatkowy ekran pod adresem do zbudowania przepisy/{fork}/oryginal (trasa jeszcze nie istnieje, zapis bez notacji trasy jest celowy): przy niedostępnym/usuniętym źródle wyjaśnia stan i daje powrót do wersji. **Odnośnik pozostaje obowiązkowy**, nie staje się martwym 404. Wejście wymaga Policy forka, a pokazanie oryginału osobnej Policy źródła. Nie ujawniamy prywatnego sluga, tytułu ani identyfikatora źródła w odpowiedzi dla nieuprawnionych. Gdy oryginał jest dostępny, główny link prowadzi bezpośrednio do przepisu.
+Proponowany dodatkowy ekran `/przepisy/{fork}/oryginal`: przy niedostępnym/usuniętym źródle wyjaśnia stan i daje powrót do wersji. **Odnośnik pozostaje obowiązkowy**, nie staje się martwym 404. Wejście wymaga Policy forka, a pokazanie oryginału osobnej Policy źródła. Nie ujawniamy prywatnego sluga, tytułu ani identyfikatora źródła w odpowiedzi dla nieuprawnionych. Gdy oryginał jest dostępny, główny link prowadzi bezpośrednio do przepisu.
 
 **Otwarta decyzja:** czy późniejsza prywatyzacja/ukrycie źródła wstrzymuje publiczny fork, czy tylko dostęp do oryginału. Rekomenduję wstrzymanie publicznej prezentacji do ustalenia zakresu zgody. To koszt dostępności cudzej pracy, który trzeba objaśnić przed publikacją. Sam zachowany wiersz nie dowodzi prawidłowej widoczności; nie zamrażam rekomendacji asercją.
 
@@ -195,7 +195,7 @@ Wiadomość tylko dla wersji dostępnej odbiorcy. Minimum: prywatny szkic, potem
 | Powierzchnia | Praca do wykonania |
 |---|---|
 | Oryginał, pages/recipes/show | Akcja, lista „Wersje innych osób”, stan pusty, paginacja i Policy |
-| Nowy tryb tworzenia | adres do zbudowania przepisy/{oryginal}/moja-wersja (trasa jeszcze nie istnieje), szkic z pochodzeniem, opis zmian, podgląd; autoryzacja także domenowa |
+| Nowy tryb tworzenia | `/przepisy/{oryginal}/moja-wersja`, szkic z pochodzeniem, opis zmian, podgląd; autoryzacja także domenowa |
 | Prosty formularz, szczegóły, kreator Livewire | Każda edycja i autosave zachowuje relację; zgoda źródła poza podstawowym formularzem |
 | Widok forka | Podpis źródła nad tytułem, autor zmian oddzielnie, opis, własne wykonania/komentarze |
 | Informacja o źródle | Działający stan usunięcia/niedostępności i powrót bez ujawnienia prywatnych danych |
@@ -293,9 +293,7 @@ To pytania produktowe, nie usterki do domknięcia asercją. Dokument rekomenduje
 
 ## 12. Zakres dostarczenia i ograniczenia
 
-Wyłącznie dokument, lokalny commit na wskazanej gałęzi. Zero zmian kodu produkcyjnego, testów, migracji, tras, modeli i widoków. Bez komentarza na GitHubie, zamknięcia #23, push i PR. Bez zmian plików aplikacji w repozytorium kanonicznym i bez działań na produkcji.
-
-Podczas końcowej kontroli zniknęły rejestracja worktree i gałąź, które były obecne na początku. `git worktree repair` nie potrafił odnaleźć repozytorium tego stanowiska; przyczyny zniknięcia nie ustalono. Zachowano cały katalog jako `C:\Users\matma\Documents\kuking-flota\gpt-moja-wersja-kopia-20260920`, po czym odtworzono wyłącznie własną gałąź i katalog z dokładnego SHA bazowego. W kanonicznym repo użyto tylko poleceń Git. Dokument skopiowano z zachowanej kopii; SHA256 przed i po: `D5BBC320782F5E4B1C37E15362AD79FF2A1D5C628DFE6450227993414E88AF29` (przed dodaniem tego akapitu). Kopia pozostaje jako zabezpieczenie; nie używano prune, reset ani stash.
+Wyłącznie dokument, lokalny commit na wskazanej gałęzi. Zero zmian kodu produkcyjnego, testów, migracji, tras, modeli i widoków. Bez komentarza na GitHubie, zamknięcia #23, push i PR. Bez zmian w repozytorium kanonicznym i na produkcji.
 
 Wykonano testy celowane i Pint. **Nie wykonano pełnego zestawu, builda ani scripts/check.sh**: wynik jest projektem, bez implementacji i bez PR. Nie są oznaczone jako zaliczone. ProbaOdtworzeniaTest nie uruchamiano ani nie diagnozowano. Nie ma testów UI forka, benchmarku i badania z użytkownikami, bo funkcja nie powstała. Nie dostarczono prototypu wykonawczego.
 
