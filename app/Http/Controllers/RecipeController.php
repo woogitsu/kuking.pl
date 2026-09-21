@@ -526,7 +526,23 @@ class RecipeController extends Controller
         $data = $request->validate([
             'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
             'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
-            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
+            /*
+             * KROK 0,01 — DECYZJA WŁAŚCICIELA Z 20.09.2026 (issue #750).
+             *
+             * Kolumna `servings` to `decimal(6,2)` — dwa miejsca po
+             * przecinku i ani jednego więcej. Formularz kiedyś deklarował
+             * `step="0.5"`, a walidacja dopuszczała `1.25`, więc pole było
+             * nieprawidłowe wobec własnej deklaracji (`stepMismatch=true`
+             * mimo `checkValidity()`), a `1.255` znikało po cichu jako
+             * `1.26` — bez słowa dla człowieka, który to wpisał.
+             *
+             * `decimal:0,2` dopuszcza 0, 1 albo 2 miejsca po przecinku, czyli
+             * dokładnie tyle, ile udźwignie kolumna: `4`, `1.5`, `1.25` —
+             * TAK; `1.255` — NIE, z komunikatem niżej każącym POPRAWIĆ, a nie
+             * cichym zaokrągleniem. `step="0.01"` w `szczegoly.blade.php`
+             * musi się z tym zgadzać, inaczej wraca ten sam błąd na nowo.
+             */
+            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
@@ -600,6 +616,7 @@ class RecipeController extends Controller
             'servings.numeric' => 'Liczba porcji musi być liczbą. Wpisz na przykład 4.',
             'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
             'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
+            'servings.decimal' => 'Liczba porcji może mieć najwyżej dwa miejsca po przecinku (setne). Zamiast 1,255 wpisz 1,25 albo 1,26.',
             'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
             'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
             'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
