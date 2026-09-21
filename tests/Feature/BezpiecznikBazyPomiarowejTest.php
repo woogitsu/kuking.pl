@@ -22,9 +22,11 @@ use Tests\TestCase;
  * Kilkanaście przyrządów w `scripts/` robi `php artisan migrate:fresh --seed`,
  * czyli kasuje całą zawartość bazy z `DB_DATABASE`. Do #736 dwa z nich miały
  * listę ZAKAZÓW `['kuking', 'kuking_test']`, a czternaście nie miało nic.
- * Po zmianie nazewnictwa baz testowych (`tests/nazwa-bazy.php`) żadna kopia
- * robocza nie nazywa się już `kuking_test`, więc ta lista nie trafiałaby
- * nigdy i nigdzie — zostając w kodzie jako zabezpieczenie, którego nie ma.
+ * Po zmianie nazewnictwa baz testowych (`tests/nazwa-bazy.php`) nazwa bazy
+ * kopii roboczej prawie nigdy nie brzmi już dokładnie `kuking_test` — ma
+ * sufiks worktree albo `_kat_<katalog>_<skrót>`. Lista dosłownych nazw nie
+ * trafiałaby więc niemal nigdy, zostając w kodzie jako zabezpieczenie,
+ * którego w praktyce nie ma. Dlatego bezpiecznik rozpoznaje RODZINY nazw.
  *
  * Najważniejszy z przypadków w pliku Node'a to ostatni: skan wymagający, żeby
  * KAŻDY skrypt z `migrate:fresh` wołał `ustalBazePomiarowa()`. Sam bezpiecznik

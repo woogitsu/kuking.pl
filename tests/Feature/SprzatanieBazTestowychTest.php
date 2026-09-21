@@ -19,8 +19,9 @@ use Tests\TestCase;
  *
  * DLACZEGO AKURAT TEN SKRYPT DOSTAJE WŁASNY DOWÓD
  * Bo jest jedynym miejscem w repozytorium, które robi `DROP DATABASE` na
- * bazach nienależących do siebie, a od #736 nazwa bazy zawiera SKRÓT ścieżki
- * kopii roboczej — czyli nie da się z niej odczytać, czyja jest. Sprzątacz
+ * bazach nienależących do siebie, a od #736/#920 nazwa bazy kopii bez `.git`
+ * zawiera SKRÓT ścieżki kopii roboczej — czyli nie da się z niej odczytać,
+ * czyja jest, bo skrót jest jednokierunkowy. Sprzątacz
  * opiera się więc na rejestrze i na `pg_stat_activity`, a to są dwa nowe
  * miejsca, w których da się pomylić „śmieć" z „cudzą pracą w toku".
  *

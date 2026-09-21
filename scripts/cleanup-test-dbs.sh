@@ -4,7 +4,8 @@
 # =============================================================================
 #
 #  PO CO TO JEST
-#  Każda kopia robocza ma własną bazę `kuking_test_<katalog>_<skrót-ścieżki>`
+#  Każda kopia robocza ma własną bazę `kuking_test_<worktree>` albo — gdy
+#  `.git` nie ma wcale, czyli w runtime floty — `kuking_test_kat_<katalog>_<skrót>`
 #  (reguła: `tests/nazwa-bazy.php`). Rozwiązuje to kolizję równoległych
 #  przebiegów `php artisan test`, ale wprowadza mniejszy problem: kiedy kopia
 #  robocza zostaje skasowana, jej baza ZOSTAJE na dysku. Sto takich baz to
@@ -30,11 +31,14 @@
 #  (`pg_stat_activity`) nie jest kasowana, choćby rejestr mówił co innego.
 #  Żywy przebieg testów trzyma połączenie przez cały czas trwania.
 #
-#  Dlaczego nie da się tego zrobić bez rejestru: nazwa zawiera SKRÓT ścieżki,
-#  a skrótu nie da się odwrócić. Poprzednia wersja skryptu czytała
-#  `git worktree list` — to działa dla worktree i dalej jest tu używane jako
-#  DODATKOWE źródło życia, ale nie widzi zwykłych klonów, a to one były
-#  źródłem awarii z 19 września.
+#  Dlaczego nie da się tego zrobić bez rejestru: nazwa kopii bez `.git` zawiera
+#  SKRÓT ścieżki, a skrótu nie da się odwrócić. Poprzednia wersja skryptu
+#  czytała `git worktree list` — to działa dla worktree i dalej jest tu używane
+#  jako DODATKOWE źródło życia, ale runtime floty nie ma `.git`, więc Git o nim
+#  nic nie wie. To właśnie te katalogi były źródłem awarii.
+#
+#  Gołe `kuking_test` (główny checkout) NIE JEST tu w ogóle kandydatem: wzorzec
+#  szuka `kuking_test\_%`, czyli wyłącznie nazw z sufiksem.
 #
 #  UŻYCIE
 #      ./scripts/cleanup-test-dbs.sh            # pokaż i usuń osierocone bazy

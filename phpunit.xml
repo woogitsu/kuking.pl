@@ -93,11 +93,13 @@
         <!--
             DB_DATABASE celowo NIE jest tu ustawiane na sztywno (issue #66).
 
-            Nazwę wylicza `tests/nazwa-bazy.php` z KATALOGU kopii roboczej
-            ("kuking_test_<katalog>_<skrót-ścieżki>"), żeby dwa równoległe
+            Nazwę wylicza `tests/nazwa-bazy.php`: "kuking_test" w głównym
+            katalogu, "kuking_test_<worktree>" w `git worktree`, a w kopii
+            BEZ `.git` (runtime floty, archiwum, obraz kontenera)
+            "kuking_test_kat_<katalog>_<skrót-ścieżki>" — żeby dwa równoległe
             przebiegi `php artisan test` w różnych katalogach nie zrzucały
-            sobie nawzajem schematu. Reguła rozróżnia zwykłe klony, nie
-            tylko `git worktree` — to była usterka #736. Pełne uzasadnienie
+            sobie nawzajem schematu. Trzeci przypadek to naprawa #920: kopia
+            bez `.git` NIE jest głównym checkoutem. Pełne uzasadnienie
             i alternatywy, których nie wybrano: nagłówek tests/nazwa-bazy.php.
         -->
         <env name="DB_USERNAME" value="kuking"/>

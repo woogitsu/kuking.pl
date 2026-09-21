@@ -42,8 +42,8 @@ if command -v pg_isready >/dev/null 2>&1; then
         # Baza testowa TEJ kopii roboczej. Nazwę liczy `tests/nazwa-bazy.php` —
         # TA SAMA funkcja, co w `tests/bootstrap.php`, a nie przepisana tu
         # drugi raz w bashu. Do 19 września stała tu bashowa kopia reguły
-        # i to ona się rozjechała: znała tylko `git worktree`, więc w zwykłym
-        # klonie zakładała `kuking_test`, czyli bazę wspólną dla wszystkich
+        # i to ona się rozjechała: znała tylko `git worktree`, więc wszędzie
+        # indziej zakładała `kuking_test`, czyli bazę wspólną dla wszystkich
         # kopii roboczych naraz. `tests/nazwa-bazy.php` jest świadomie wolny
         # od Composera, więc działa także tutaj — przed `composer install`.
         baza_testowa="$(php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);' 2>/dev/null)"
