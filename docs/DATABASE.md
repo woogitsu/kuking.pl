@@ -2658,9 +2658,27 @@ zestawem pól, trzymanym **36 miesięcy od zakończenia obsługi**. Pełny proje
 razem z rozstrzygnięciem powiązania z wnioskodawcą i jego słabościami:
 `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`.
 
-**Tabela jest dziś PUSTA i nic do niej nie pisze.** Migracja zakłada schemat;
-przeniesienie istniejących wpisów `account.*` i skasowanie ich pełnych kopii
-to osobne kroki, które uruchamia właściciel (lista w projekcie wyżej).
+**Kto do niej pisze (od 21.09.2026):** wyłącznie
+`App\Domain\Compliance\RejestrPotwierdzenRodo`. Wiersz `w_toku` powstaje przy
+zgłoszeniu żądania z `/ustawienia/twoje-dane` (w jednej transakcji
+z `users.markForDeletion()`), a domknięcie — `wykonane` albo `cofniete` — idzie
+**w tej samej transakcji** co `EraseAccountData` i `CancelAccountDeletion`.
+Potwierdzenie zapisane osobną transakcją potrafiłoby opisywać wykonanie,
+którego nie było, albo przemilczeć wykonanie, które było; dowodzi tego
+`tests/Feature/PotwierdzenieRodoIdzieWTejSamejTransakcjiTest.php`.
+
+Model `App\Models\PotwierdzenieZadaniaRodo` ma w `$fillable` **wyłącznie opis
+sprawy** (`rodzaj`, `otrzymano`, `wersja_procedury`, `wyjatki`). `numer`,
+`wynik`, `zakres`, `zakonczono`, `konto_id`, `wstrzymanie_do`
+i `wstrzymanie_sprawa` stoją **poza** `$fillable` — ta sama ostrożność co przy
+`status` i `role` użytkownika, tylko stawką jest tu prawdziwość dowodu, wskaźnik
+na dane osobowe i zegar retencji.
+
+**Czego nadal nie ma:** backfillu istniejących wpisów `account.*` i skasowania
+ich pełnych kopii — to osobne kroki właściciela (lista w projekcie wyżej), więc
+do ich wykonania dziennik i potwierdzenia stoją **obok siebie**, nie zamiast
+siebie. Numer sprawy też nie jest jeszcze nigdzie pokazywany ani wysyłany
+człowiekowi (brzmienie pisma to krok 2 właściciela).
 
 - `id uuid` PK, `DEFAULT gen_random_uuid()`;
 - **`numer varchar(19) UNIQUE`** — `RODO-XXXX-XXXX-XXXX`, losowany
@@ -2697,12 +2715,39 @@ to osobne kroki, które uruchamia właściciel (lista w projekcie wyżej).
   moderacyjna ma własne 36 miesięcy). Tekst wskazuje **regułę**, nie opowiada
   o człowieku;
 - **`konto_id uuid NULL`** → `users` (`ON DELETE SET NULL`) — powiązanie
-  **tylko dopóki konto nie zostało wymazane**. CHECK
-  `potwierdzenia_zadan_rodo_wykonane_bez_konta_check` zabrania go przy
-  `wynik = 'wykonane'`: z chwilą wykonania konto jest zanonimizowane, a ten
-  wskaźnik związałby dowód usunięcia danych osobowych ze wszystkim, co po tym
-  koncie w serwisie zostało. Reguła stoi **w bazie**, nie w PHP, bo drugie
-  miejsce zapisu obeszłoby regułę w PHP;
+  z wnioskodawcą, **zostające także po wykonaniu żądania**.
+
+  **DECYZJA WŁAŚCICIELA Z 21.09.2026, nie rekomendacja oceny zewnętrznej.**
+  Pierwotny schemat miał tu CHECK
+  `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`, zabraniający `konto_id`
+  przy `wynik = 'wykonane'`: z chwilą wykonania konto jest anonimizowane,
+  a wskaźnik wiąże dowód usunięcia danych osobowych ze wszystkim, co po tym
+  koncie w serwisie zostało. Właściciel zdecydował inaczej — ma się dać
+  odpowiedzieć regulatorowi o konkretną osobę bez pytania jej o numer sprawy —
+  i CHECK zdejmuje migracja
+  `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo` (jej
+  `down()` zakłada go z powrotem i odmawia wąsko, gdy stoi wiersz, który by go
+  złamał).
+
+  **CENA TEJ DECYZJI I JEDYNE, CO PO NIEJ ZOSTAŁO Z OCHRONY.** Rejestr umie
+  teraz odpowiedzieć na pytanie „czy ta osoba usunęła konto" każdemu, kto ma
+  dostęp do bazy — a przy zakresie `minimum` treści tej osoby zostają pod tym
+  samym `user_id` (D-022), więc wskaźnik prowadzi od potwierdzenia wprost do
+  jej zachowanego dorobku. Decyzja brzmiała „ma się dać odpowiedzieć
+  regulatorowi", a **nie** „ma być wyszukiwarka", więc:
+  - **nie ma i nie będzie ekranu, trasy ani endpointu** czytającego tę tabelę
+    po `konto_id` — pilnuje tego
+    `tests/Feature/RejestrPotwierdzenRodoNieMaEkranuTest.php` (skan tras, skan
+    warstwy HTTP i widoków, zamknięta lista publicznych metod klasy piszącej,
+    zakaz wiązania modelu z adresu — każdy z kontrolą dodatnią);
+  - **kto i w jakim trybie ma prawo z tego skorzystać:** właściciel serwisu,
+    **odczytem ręcznym wprost w bazie**, przy konkretnej sprawie od organu
+    nadzorczego albo sądu, notując przy sprawie, czego odczyt dotyczył. To nie
+    jest funkcja produktu i nie ma być wygodne — niewygoda jest tu jedynym, co
+    zostało z ochrony zdjętej razem z CHECK-iem.
+
+  Pełny zapis decyzji, argumentów przeciw i tego zawężenia:
+  `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.2 punkt 3 i §3.3 punkt 7;
 - **`wstrzymanie_do date NULL`** + **`wstrzymanie_sprawa varchar(100) NULL`** —
   udokumentowane wstrzymanie kasowania (§C: „o ile konkretna udokumentowana
   sprawa nie wymaga dalszego zachowania"). CHECK wymusza parę: wstrzymanie bez
@@ -2722,9 +2767,19 @@ migracji i bez recenzji schematu.
 `..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
 oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
 
-**Retencja: 36 miesięcy od `zakonczono`**, z pominięciem wierszy z aktywnym
-`wstrzymanie_do`. **Automatu jeszcze nie ma** — powstanie razem ze ścieżką
-zapisu, w kroku uruchamianym przez właściciela.
+**Retencja: 36 miesięcy od `zakonczono`** —
+`config('kuking.potwierdzenia_rodo.retention_months')`, egzekwuje
+`kuking:sprzataj-potwierdzenia-rodo`
+(`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`, codziennie o 05:00).
+Pomija wiersze z `wstrzymanie_do` w przyszłości; sprawy w toku (`zakonczono IS
+NULL`) nie są kandydatem w ogóle, bo kasowanie otwartej sprawy zamieniłoby
+retencję w sprzątanie dowodów zaniedbania. Próg liczony
+`subMonthsNoOverflow`, nie `subMonths` (A6-04) — przepełnienie daty przesuwa go
+w stronę nowszych wierszy i kasuje dowód wykonania art. 17 przed czasem.
+**To jedyny klucz configu, jaki ta sprawa dostaje**; przełącznika
+włączającego kasowanie nie ma i nie będzie, bo wyłącznik retencji jest
+bezterminowością pod inną nazwą. Obie kontrole dodatnie —  że automat naprawdę
+kasuje i naprawdę omija wstrzymane — w `tests/Feature/RetencjaPotwierdzenRodoTest.php`.
 
 **Rollback:** `down()` kasuje tabelę, ale **odmawia**, gdy stoi w niej choć
 jeden wiersz z wypełnionym `zakonczono` — to dowód obsługi żądania, którego nie

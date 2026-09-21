@@ -103,7 +103,7 @@ final class SlownikPotwierdzenRodo
      * procedury"). Format `RRRR-MM-DD` daty, od której obowiązuje opisany
      * przebieg; zmiana przebiegu to nowa wartość, nie poprawka starej.
      *
-     * Dzisiejsza procedura: zgłoszenie z `/ustawienia/dane`, 30 dni karencji,
+     * Dzisiejsza procedura: zgłoszenie z `/ustawienia/twoje-dane`, 30 dni karencji,
      * `kuking:usun-wygasle-konta` → `EraseAccountData` z zakresem wybranym
      * przez człowieka (D-022).
      */

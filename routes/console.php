@@ -174,6 +174,21 @@ ScheduledArtisanCommand::artisan('kuking:sprzataj-zmiany-adresu')
     ->dailyAt('04:50')
     ->withoutOverlapping();
 
+// Retencja `potwierdzenia_zadan_rodo` (OCENA_RETENCJI_ZEWNETRZNA.md §C,
+// PROJEKT_POTWIERDZENIA_RODO.md): `config('kuking.potwierdzenia_rodo.retention_months')`
+// miesięcy od `zakonczono`, z pominięciem wierszy z obowiązującym
+// `wstrzymanie_do`. Sprawy w toku nie są kandydatem w ogóle.
+//
+// 05:00, NIE 04:50 — o 04:50 startuje sprzątanie wygasłych żądań zmiany
+// adresu (wyżej), a w roli `all` harmonogram chodzi w JEDNYM procesie razem
+// z serwerem, więc dwa zadania o tej samej godzinie blokują pętlę jedno po
+// drugim. Cała ta lista jest rozsunięta co dziesięć minut.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-potwierdzenia-rodo'))
+    ->name('kuking:sprzataj-potwierdzenia-rodo')
+    ->dailyAt('05:00')
+    ->withoutOverlapping();
+
 // 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest
 // cała reszta tej listy (uzasadnienie odstępów wyżej).
 // Wygasłe zaproszenia do założenia konta (D-085): w wierszu leży adres e-mail

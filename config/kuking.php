@@ -2406,6 +2406,53 @@ return [
         'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
     ],
 
+    'potwierdzenia_rodo' => [
+        // RETENCJA POTWIERDZEŃ OBSŁUGI ŻĄDAŃ RODO —
+        // `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C,
+        // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`.
+        //
+        // 36 MIESIĘCY OD `zakonczono`, nie od `created_at`. Ocena zewnętrzna
+        // nie prosiła o skrócenie retencji trzech kategorii z
+        // `AuditLogEntry::NIGDY_NIE_KASUJ`, tylko o ich ZASTĄPIENIE minimalnym
+        // potwierdzeniem — i to potwierdzenie ma mieć datę końca, bo cały
+        // sens tej zmiany polega na tym, że dowód wykonania art. 17 przestaje
+        // być bezterminowy. 36 miesięcy to ten sam okres co dokumentacja
+        // sprawy moderacyjnej (`moderation.case_retention_months`,
+        // ADR_RETENCJE.md §5.6, art. 442¹ k.c.), bo broni go to samo:
+        // roszczenie z tej obsługi może wrócić jako spór.
+        //
+        // Egzekwuje `kuking:sprzataj-potwierdzenia-rodo`
+        // (`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`).
+        'retention_months' => (int) env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS', 36),
+
+        // KASOWANIE JEST DZIŚ WYŁĄCZONE — DECYZJA WŁAŚCICIELA, NIE PRZEOCZENIE.
+        //
+        // Autor tej zmiany świadomie NIE dał tu przełącznika i argumentował,
+        // że wyłącznik retencji jest tym samym co bezterminowość. Właściciel
+        // rozstrzygnął inaczej i to jego rozstrzygnięcie tu stoi: samo
+        // liczenie terminu zostaje, ale nieodwracalne kasowanie dowodu
+        // wykonania żądania RODO czeka na OPINIĘ PRAWNĄ.
+        //
+        // Powód jest wąski i nie podważa argumentu autora: 36 miesięcy nie
+        // zostało potwierdzone przez prawnika, a błąd w tę stronę jest
+        // nieodwracalny — skasowanego dowodu obsługi art. 17 nie da się
+        // odtworzyć, jeśli okaże się, że okres był za krótki. Odwrotny błąd
+        // (dowód poleży dłużej, niż trzeba) jest odwracalny jednym
+        // uruchomieniem komendy.
+        //
+        // Przy `false` zadanie harmonogramu NADAL CHODZI i nadal liczy
+        // kandydatów — tylko niczego nie kasuje i mówi to wprost w logu.
+        // Dzięki temu w dniu decyzji widać, ile wierszy czeka, a włączenie
+        // jest zmianą jednej zmiennej, nie wdrożeniem nowego kodu.
+        //
+        // WŁĄCZAĆ DOPIERO PO OPINII PRAWNEJ potwierdzającej okres z klucza
+        // wyżej. Wtedy `KUKING_POTWIERDZENIA_RODO_KASOWANIE=true`.
+        'kasowanie_wlaczone' => filter_var(
+            env('KUKING_POTWIERDZENIA_RODO_KASOWANIE', false),
+            FILTER_VALIDATE_BOOLEAN,
+        ),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której

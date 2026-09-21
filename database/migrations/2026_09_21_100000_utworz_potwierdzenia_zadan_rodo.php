@@ -13,6 +13,23 @@ use Illuminate\Support\Facades\Schema;
  * `potwierdzenia_zadan_rodo` — MINIMALNE potwierdzenie obsługi żądania
  * usunięcia konta, zamiast bezterminowego dziennika osobowego.
  *
+ * ┌──────────────────────────────────────────────────────────────────────┐
+ * │ UWAGA, TA MIGRACJA JEST JUŻ CZĘŚCIOWO NIEAKTUALNA — NIE EDYTUJ JEJ.  │
+ * │                                                                      │
+ * │ `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`, opisany niżej   │
+ * │ jako „NAJWAŻNIEJSZY CHECK W TEJ TABELI", ZOSTAŁ ZDJĘTY migracją      │
+ * │ `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo`  │
+ * │ — DECYZJĄ WŁAŚCICIELA z 21.09.2026, nie wnioskiem z oceny            │
+ * │ zewnętrznej. `konto_id` zostaje w wierszu także po wykonaniu         │
+ * │ żądania. Powód, cena i zawężenie: `PROJEKT_POTWIERDZENIA_RODO.md`    │
+ * │ §3.2 punkt 3 i §3.3 punkt 7.                                         │
+ * │                                                                      │
+ * │ Argumentacja za tym CHECK-iem została niżej NIETKNIĘTA celowo: nie   │
+ * │ przestała być prawdziwa, przestała być rozstrzygająca. Ta migracja   │
+ * │ mogła już gdzieś zostać zastosowana, więc poprawia się ją NOWĄ       │
+ * │ migracją, a nie edycją tej.                                          │
+ * └──────────────────────────────────────────────────────────────────────┘
+ *
  * ────────────────────────────────────────────────────────────────────────
  *  PO CO TA TABELA ISTNIEJE
  * ────────────────────────────────────────────────────────────────────────

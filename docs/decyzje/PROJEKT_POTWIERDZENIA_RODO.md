@@ -1,10 +1,32 @@
 # Projekt: minimalne potwierdzenie obsługi żądania usunięcia konta
 
-**Stan: PROJEKT + SCHEMAT. Nic nie zapisuje, nic nie kasuje, nic nie przenosi.**
-Ta gałąź zakłada tabelę `potwierdzenia_zadan_rodo` z ograniczeniami i testami.
-Ścieżka zapisu, backfill istniejących wpisów `account.*`, skasowanie ich pełnych
-kopii i automat retencji to **osobne kroki, które uruchamia właściciel** — lista
-na końcu tego dokumentu.
+**Stan: SCHEMAT + ŚCIEŻKA ZAPISU + AUTOMAT RETENCJI.** Tabela
+`potwierdzenia_zadan_rodo` stoi, pisze do niej obsługa żądania usunięcia konta,
+a wiersze przedawnione kasuje `kuking:sprzataj-potwierdzenia-rodo` (kroki 3 i 4
+z listy na końcu — zlecone i wykonane 21.09.2026).
+
+**Nadal NIEZROBIONE i nadal należące do właściciela:** backfill istniejących
+wpisów `account.*` (krok 5), skasowanie ich pełnych kopii razem ze zdjęciem
+trzech pozycji z `AuditLogEntry::NIGDY_NIE_KASUJ` (krok 6 — jedyny
+nieodwracalny inaczej niż z kopii zapasowej), aktualizacja polityki prywatności
+i `COMPLIANCE.md` (krok 7) oraz rejestr blokujący wskrzeszenie po odtworzeniu
+kopii (krok 8). Do czasu kroku 6 dziennik i potwierdzenia stoją **obok siebie**,
+a nie zamiast siebie.
+
+> **DECYZJA WŁAŚCICIELA Z 21.09.2026 — `konto_id` ZOSTAJE NA STAŁE.**
+> Ten dokument w pierwszej wersji zakładał, że przy `wynik = 'wykonane'` CHECK
+> w bazie zabrania `konto_id` (§3.2 punkt 3). **Właściciel zdecydował inaczej:**
+> wskaźnik ma zostać także po wykonaniu żądania, żeby dało się odpowiedzieć
+> regulatorowi o konkretną osobę bez pytania jej o numer sprawy. CHECK zdejmuje
+> migracja `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo`.
+>
+> **To jest wybór właściciela, a NIE wniosek z oceny zewnętrznej i nie zmiana
+> zdania autora tego projektu.** Argumenty przeciw (§3.1 wariant A) zostają
+> w dokumencie nietknięte, bo decyzja ich nie unieważnia — zmienia tylko to,
+> czyje ryzyko przeważyło. Cena decyzji jest wypisana w §3.3 punkcie 7
+> i zawężenie, które z nią idzie, też: **rejestr nie ma i nie dostanie ekranu,
+> trasy ani endpointu czytającego tę tabelę po `konto_id`**
+> (`tests/Feature/RejestrPotwierdzenRodoNieMaEkranuTest.php`).
 
 Źródło wymagania: `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C i §D,
 `docs/decyzje/ADR_RETENCJE.md` §3.1, §5.1 i §10.
@@ -113,16 +135,30 @@ zakresie", nie dostałby odpowiedzi — a to jest główny adresat tego rejestru
    ADR §3.1 nazywa wprost („nigdy nie prosiłem o usunięcie konta"), a
    `User::cancelDeletion()` zeruje `delete_requested_at`, więc poza tym
    rejestrem nie zostaje po nim ślad.
-3. **Z chwilą `wynik = 'wykonane'` powiązanie musi zniknąć** — i to nie jest
-   obietnica w komentarzu, tylko CHECK
-   `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`. Reguła w PHP dałaby się
-   obejść drugim miejscem zapisu; CHECK nie.
+3. ~~**Z chwilą `wynik = 'wykonane'` powiązanie musi zniknąć**~~ —
+   **UCHYLONE DECYZJĄ WŁAŚCICIELA Z 21.09.2026.** Pierwsza wersja tego punktu
+   brzmiała: powiązanie znika przy wykonaniu, a pilnuje tego CHECK
+   `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`, bo regułę w PHP dałoby
+   się obejść drugim miejscem zapisu. Właściciel rozstrzygnął odwrotnie
+   (§3.3 punkt 3 był jego decyzją do podjęcia): **`konto_id` zostaje także po
+   wykonaniu**, żeby dało się odpowiedzieć regulatorowi o konkretną osobę bez
+   pytania jej o numer sprawy. CHECK zdejmuje migracja
+   `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo`; jej
+   `down()` zakłada go z powrotem i **odmawia wąsko**, gdy w tabeli stoi
+   wiersz, który by go złamał.
 
-Domknięcie sprawy (wpisanie `wynik`, `zakonczono` i wyzerowanie `konto_id`)
-**musi iść jedną instrukcją `UPDATE` w tej samej transakcji co wymazanie
-danych** — inaczej istnieje okno, w którym wiersz mówi „wykonane", a wskaźnik
-jeszcze stoi. CHECK to okno zamyka (odrzuci taki zapis), ale kod ma tego nie
-próbować.
+   Zapis oryginalnej argumentacji zostaje wyżej celowo. Kto czyta to za pół
+   roku: powód, dla którego CHECK tu stał, był poważny i nie przestał nim być —
+   patrz §3.3 punkt 7, gdzie stoi cena decyzji, i zawężenie, które z nią idzie.
+
+Domknięcie sprawy (wpisanie `wynik` i `zakonczono`) **musi iść jedną
+instrukcją `UPDATE` w tej samej transakcji co wymazanie danych** — potwierdzenie
+zapisane osobno potrafi opisywać wykonanie, którego nie było, albo przemilczeć
+wykonanie, które było. Realizuje to `App\Domain\Compliance\RejestrPotwierdzenRodo`
+wołany ze środka `DB::transaction()` w `EraseAccountData`
+i `CancelAccountDeletion`; dowodzi tego
+`tests/Feature/PotwierdzenieRodoIdzieWTejSamejTransakcjiTest.php`, wymuszając
+porażkę po każdej z dwóch stron.
 
 ### 3.3 Słabości tego wariantu — nazwane, nie przemilczane
 
@@ -136,12 +172,14 @@ próbować.
    jest jedynym, co po tej sprawie zostanie — zachowaj go*. W grupie 50+ to
    znaczy: numer ma być na ekranie i w liście, w postaci nadającej się do
    przepisania na kartkę, a nie w odnośniku.
-3. **Nie odpowiemy na pytanie regulatora o KONKRETNĄ osobę bez jej numeru.**
-   Umiemy pokazać, że żądania obsługujemy i w jakich terminach; nie umiemy
-   powiedzieć „ta oto pani Kowalska złożyła żądanie 3 marca". Uważam to za
-   właściwą stronę kompromisu — zdolność do odpowiedzenia na takie pytanie
-   **jest** tym zbiorem danych, którego ocena każe nie trzymać — ale to jest
-   decyzja właściciela, nie moja, i ma zostać podjęta świadomie.
+3. ~~**Nie odpowiemy na pytanie regulatora o KONKRETNĄ osobę bez jej numeru.**~~
+   **ROZSTRZYGNIĘTE 21.09.2026 — właściciel wybrał odwrotnie.** Pierwotny
+   zapis: umiemy pokazać, że żądania obsługujemy i w jakich terminach; nie
+   umiemy powiedzieć „ta oto pani Kowalska złożyła żądanie 3 marca". Autor
+   projektu uważał to za właściwą stronę kompromisu, bo zdolność do
+   odpowiedzenia na takie pytanie **jest** tym zbiorem danych, którego ocena
+   każe nie trzymać — ale wprost zapisał, że to jest decyzja właściciela.
+   Właściciel podjął ją świadomie i w drugą stronę. Skutek jest w punkcie 7.
 4. **Sam numer nie jest upoważnieniem.** 59 bitów to dużo, ale rejestr nie ma
    i nie może dostać ekranu „wpisz numer, zobacz sprawę" — wtedy numer stałby
    się hasłem do cudzej sprawy i wymagałby drugiego składnika. Dziś numer podaje
@@ -158,12 +196,62 @@ próbować.
 6. **`cofniete` z `konto_id` to nadal dane osobowe** żywego konta, tyle że
    uzasadnione. Po 36 miesiącach znikają razem z wierszem — retencja nie robi tu
    wyjątku.
+7. **REJESTR UMIE TERAZ ODPOWIEDZIEĆ NA PYTANIE „CZY TA OSOBA USUNĘŁA KONTO" —
+   i to jest cena decyzji właściciela z 21.09.2026, nie przeoczenie.**
+   Dopisane 21.09.2026, po zdjęciu CHECK-a z §3.2 punktu 3.
+
+   Dopóki `konto_id` znikał przy wykonaniu, potwierdzenie usunięcia było
+   wierszem bez wskaźnika: żeby przypisać je do człowieka, trzeba było mieć
+   numer sprawy, który miał wyłącznie on. Od tej decyzji wskaźnik zostaje, więc
+   **każdy, kto ma dostęp do bazy, jednym `WHERE konto_id = …` dowiaduje się,
+   czy dana osoba żądała usunięcia konta, kiedy i w jakim zakresie.** To jest
+   dokładnie ta wyrocznia, którą §3.1 wariant B odrzucał przy HMAC-u adresu
+   e-mail — tylko że tam trzeba było zgadnąć adres, a tu wystarczy mieć
+   `user_id`.
+
+   Drugie ostrze jest gorsze od pierwszego i wymaga nazwania wprost:
+   **przy zakresie `minimum` treści osoby zostają w serwisie pod tym samym
+   `user_id`** (D-022, `COMPLIANCE.md` §2). Wskaźnik prowadzi więc od dowodu
+   usunięcia danych osobowych wprost do całego zachowanego dorobku kogoś, kto
+   prosił o usunięcie — czyli odtwarza to powiązanie, które usunięcie miało
+   rozerwać. Argument z §3.1 wariantu A nie przestał być prawdziwy; przestał
+   być rozstrzygający.
+
+   **ZAWĘŻENIE, KTÓRE IDZIE RAZEM Z DECYZJĄ — nie jest jej cofaniem.** Decyzja
+   właściciela brzmi „ma się dać odpowiedzieć regulatorowi", a **nie** „ma być
+   wyszukiwarka". Różnica jest cała w tym, ilu ludzi i jak łatwo może zadać to
+   pytanie:
+   - **Żadnego ekranu, trasy ani endpointu** czytającego tę tabelę po
+     `konto_id`. Pilnuje tego
+     `tests/Feature/RejestrPotwierdzenRodoNieMaEkranuTest.php`: skan tras, skan
+     warstwy HTTP i widoków, kontrola listy publicznych metod klasy piszącej
+     i zakaz wiązania modelu z adresu — każdy z kontrolą dodatnią.
+   - `App\Domain\Compliance\RejestrPotwierdzenRodo` ma **trzy metody publiczne
+     i wszystkie trzy PISZĄ**. Wyszukanie po koncie jest w niej prywatne
+     i służy wyłącznie domknięciu sprawy, którą sami otworzyliśmy.
+   - **Kto i w jakim trybie ma prawo z tego skorzystać:** właściciel serwisu,
+     **odczytem ręcznym wprost w bazie**, przy konkretnej sprawie od organu
+     nadzorczego albo od sądu, notując przy sprawie, czego dotyczył odczyt.
+     To **nie jest funkcja produktu** i nie ma być wygodne — niewygoda jest tu
+     jedynym, co zostało z ochrony, którą zdjął CHECK. Ten sam zapis stoi
+     w `docs/DATABASE.md`.
 
 ## 4. Plan wycofania (AGENTS.md §6, punkt 4)
 
-**Wycofanie samej migracji, dziś:** bezpieczne i bezwarunkowe. Tabela jest pusta,
-nic do niej nie pisze, nic z niej nie czyta. `migrate:rollback` kasuje ją razem
-z CHECK-ami i indeksami.
+**Wycofanie samej migracji zakładającej tabelę:** `migrate:rollback` kasuje ją
+razem z CHECK-ami i indeksami — ale **od 21.09.2026 tabela nie jest już pusta**:
+pisze do niej obsługa żądania usunięcia konta, więc `down()` zaczyna odmawiać
+w chwili, gdy zamknie się pierwsza sprawa (warunek niżej).
+
+**Wycofanie migracji zdejmującej zakaz `konto_id`**
+(`2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo`) to
+**cofnięcie decyzji właściciela**, nie techniczne cofnięcie wdrożenia. `down()`
+zakłada CHECK z powrotem i **odmawia wąsko**, gdy w tabeli stoi choć jeden
+wiersz `wykonane` z `konto_id` — bo przywrócenie ograniczenia wymagałoby
+wcześniejszego wyzerowania tej kolumny, czyli TRWAŁEJ utraty powiązania.
+Komunikat mówi, co zrobić, i każe najpierw zapisać w tym dokumencie, kto
+i kiedy decyzję cofnął. Pusta tabela i tabela bez takich wierszy cofają się bez
+pytania. Kolejność ta sama co niżej: **najpierw kod, potem migracja.**
 
 **Wycofanie po uruchomieniu zapisu:** `down()` **odmawia**, gdy w tabeli stoi
 choć jeden wiersz z wypełnionym `zakonczono` — komunikat mówi, co zrobić.
@@ -186,23 +274,42 @@ i oba należą do właściciela.
 
 Każdy krok jest osobny, bo każdy ma inny moment, w którym może się okazać zły.
 
-1. **Zatwierdzić albo odrzucić kompromis z §3.3 punkt 3** — czy godzimy się nie
-   umieć odpowiedzieć na pytanie o konkretną osobę bez jej numeru. To jest
-   jedyna decyzja w tym dokumencie, której nie wolno domknąć asercją w teście.
+1. ~~**Zatwierdzić albo odrzucić kompromis z §3.3 punkt 3**~~ — **ZROBIONE
+   21.09.2026: ODRZUCONY.** Właściciel zdecydował, że `konto_id` zostaje także
+   po wykonaniu żądania. Skutek i zawężenie: §3.3 punkt 7.
 2. **Zatwierdzić zawartość i brzmienie pisma**, w którym człowiek dostaje numer
    sprawy — treść, moment wysyłki (przy PRZYJĘCIU żądania, nie przy wykonaniu)
    i sposób pokazania numeru na ekranie. Bez tego numer nie dociera do nikogo
    i cały wariant z §3.2 przestaje działać.
-3. **Zlecić ścieżkę zapisu** (osobne zlecenie): wiersz `w_toku` przy zgłoszeniu
-   z `/ustawienia/twoje-dane`, domknięcie w tej samej transakcji co
-   `EraseAccountData` i co `CancelAccountDeletion`, oraz model z testami. Dopóki
-   tego nie ma, tabela jest pusta i nic się nie dzieje.
-4. **Zlecić automat retencji** — 36 miesięcy od `zakonczono`, z pominięciem
-   `wstrzymanie_do`, na wzór `PrzedawnioneWpisyAudytu` (uwaga:
-   `subMonthsNoOverflow`, nie `subMonths` — A6-04). Osobny klucz configu
-   `kuking.potwierdzenia_rodo.retention_months`. **To jest jedyny klucz configu,
-   jaki ta sprawa dostaje** — listy `NIGDY_NIE_KASUJ` w configu nie było i nie
-   będzie.
+3. ~~**Zlecić ścieżkę zapisu**~~ — **ZROBIONE 21.09.2026.** Wiersz `w_toku`
+   powstaje przy zgłoszeniu z `/ustawienia/twoje-dane`
+   (`DataSettingsController::requestDeletion`, w jednej transakcji
+   z `markForDeletion()`); domknięcie idzie w tej samej transakcji co
+   `EraseAccountData` (`wykonane` + `zakres` z faktycznie wykonanego zakresu)
+   i co `CancelAccountDeletion` (`cofniete`). Jedyne miejsce zapisu:
+   `App\Domain\Compliance\RejestrPotwierdzenRodo`. Model:
+   `App\Models\PotwierdzenieZadaniaRodo` — w `$fillable` stoi wyłącznie opis
+   sprawy (`rodzaj`, `otrzymano`, `wersja_procedury`, `wyjatki`); `numer`,
+   `wynik`, `zakres`, `zakonczono`, `konto_id` i para wstrzymania są POZA nim,
+   bo decydują o treści dowodu, o wskaźniku na dane osobowe i o zegarze
+   retencji (ta sama ostrożność co przy `status` i `role` użytkownika).
+   Dowód transakcyjności: `PotwierdzenieRodoIdzieWTejSamejTransakcjiTest`.
+
+   **Czego ten krok NIE objął:** numer sprawy nie jest jeszcze nigdzie
+   pokazywany ani wysyłany człowiekowi — to jest krok 2 wyżej (brzmienie
+   pisma), który nadal należy do właściciela. Do jego wykonania numer
+   powstaje, ale nie dociera do nikogo, więc wariant z §3.2 działa dziś tylko
+   po naszej stronie.
+4. ~~**Zlecić automat retencji**~~ — **ZROBIONE 21.09.2026.**
+   `kuking:sprzataj-potwierdzenia-rodo`
+   (`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`), codziennie o 05:00:
+   36 miesięcy od `zakonczono`, `subMonthsNoOverflow` (A6-04), z pominięciem
+   wierszy z `wstrzymanie_do` w przyszłości i ze sprawami w toku poza
+   kandydatami. Klucz `kuking.potwierdzenia_rodo.retention_months` — **jedyny,
+   jaki ta sprawa dostaje**; przełącznika włączającego kasowanie nie ma i nie
+   będzie, bo wyłącznik retencji jest bezterminowością pod inną nazwą. Obie
+   kontrole dodatnie (naprawdę kasuje / naprawdę omija wstrzymane) stoją
+   w `tests/Feature/RetencjaPotwierdzenRodoTest.php`.
 5. **Uruchomić backfill** istniejących wpisów `account.*` do potwierdzeń
    (osobna, jednorazowa komenda z `--dry-run`, do zaprojektowania w tym samym
    zleceniu co krok 3). Backfill **niczego nie kasuje** — dokłada wiersze obok.

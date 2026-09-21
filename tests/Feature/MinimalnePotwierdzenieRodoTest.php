@@ -23,9 +23,10 @@ use Tests\TestCase;
  * `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C.
  *
  * CZEGO TEN TEST NIE MIERZY, ŻEBY NIE UDAWAŁ, ŻE MIERZY
- * Nie ma dziś kodu, który do tej tabeli pisze — ta tura zakłada schemat,
- * a nie ścieżkę zapisu (`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`).
- * Test sprawdza więc BAZĘ: czy ograniczenia, na których opiera się cała
+ * Nie mierzy ŚCIEŻKI ZAPISU — ta ma własne pliki
+ * (`PotwierdzenieRodoIdzieWTejSamejTransakcjiTest`,
+ * `RetencjaPotwierdzenRodoTest`, `RejestrPotwierdzenRodoNieMaEkranuTest`).
+ * Tutaj mierzona jest BAZA: czy ograniczenia, na których opiera się cała
  * minimalizacja, są w PostgreSQL-u, a nie w czyichś dobrych chęciach.
  * Dlatego wiersze wstawia tu `DB::table()`, a nie model — gdyby szedł przez
  * model, mierzyłby regułę w PHP i przechodziłby także wtedy, gdyby CHECK-ów
@@ -56,29 +57,79 @@ class MinimalnePotwierdzenieRodoTest extends TestCase
     ];
 
     #[Test]
-    public function test_wykonane_usuniecie_nie_moze_wskazywac_na_konto(): void
+    public function test_wykonane_usuniecie_moze_wskazywac_na_konto(): void
     {
-        // TO JEST NAJWAŻNIEJSZA ASERCJA TEGO PLIKU. Po wykonaniu usunięcia
-        // konto jest zanonimizowane, ale NIE skasowane — wskaźnik na nie
-        // wiązałby dowód usunięcia danych osobowych ze wszystkim, co po tym
-        // koncie w serwisie zostało.
+        // DECYZJA WŁAŚCICIELA Z 21.09.2026 — I TEN TEST MÓWI DOKŁADNIE TO,
+        // CO SPRAWDZA, bo wcześniej stała tu asercja PRZECIWNA.
+        //
+        // Projekt (§3.2 punkt 3) zakładał CHECK zabraniający `konto_id` przy
+        // `wynik = 'wykonane'` i zostawiał właścicielowi decyzję opisaną
+        // w §3.3 punkcie 3: czy godzimy się NIE UMIEĆ odpowiedzieć
+        // regulatorowi o konkretną osobę bez jej numeru sprawy. Właściciel
+        // odpowiedział „nie godzimy się", więc CHECK zdejmuje migracja
+        // `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo`.
+        //
+        // To NIE jest rekomendacja oceny zewnętrznej i nie jest zmiana zdania
+        // autora projektu — cena tej decyzji stoi wypisana w §3.3 punkcie 7.
         $basia = $this->user('basia');
 
-        $this->expectException(QueryException::class);
-
-        $this->wstaw([
+        $numer = $this->wstaw([
             'wynik' => 'wykonane',
             'zakres' => User::DELETE_SCOPE_MINIMUM,
             'zakonczono' => '2026-09-20',
             'konto_id' => $basia->getKey(),
         ]);
+
+        $this->assertDatabaseHas('potwierdzenia_zadan_rodo', [
+            'numer' => $numer,
+            'konto_id' => $basia->getKey(),
+        ]);
     }
 
     #[Test]
-    public function test_wykonane_usuniecie_bez_konta_przechodzi(): void
+    public function test_zakaz_konta_przy_wykonanym_zniknal_z_bazy_ale_reszta_check_ow_stoi(): void
     {
-        // KONTROLA DODATNIA numer jeden: bez `konto_id` ten sam wiersz musi
-        // wejść. Inaczej test wyżej dowodziłby tylko, że coś jest zepsute.
+        // Wiersz wyżej przechodzi także wtedy, gdyby ktoś skasował CAŁĄ tabelę
+        // ograniczeń — więc pytamy bazę wprost, co w niej zostało.
+        $checki = $this->nazwyCheckow();
+
+        // KONTROLA DODATNIA PRZED ASERCJĄ O BRAKU: skan, który nie widzi
+        // żadnego CHECK-a, „udowodniłby" brak dowolnego z nich.
+        $this->assertContains('potwierdzenia_zadan_rodo_numer_check', $checki,
+            'Skan nie widzi CHECK-ów tej tabeli — zła nazwa tabeli albo migracja nie przeszła.');
+
+        $this->assertNotContains(
+            'potwierdzenia_zadan_rodo_wykonane_bez_konta_check',
+            $checki,
+            'Zakaz `konto_id` przy `wynik = wykonane` nadal stoi w bazie, mimo decyzji właściciela '
+            .'z 21.09.2026 — migracja zdejmująca go nie przeszła.',
+        );
+
+        // A TE MAJĄ ZOSTAĆ NIETKNIĘTE. Zdjęcie jednego CHECK-a nie jest
+        // pozwoleniem na zdjęcie sąsiednich: para `wstrzymanie_do`
+        // + `wstrzymanie_sprawa` i wiązanie `zakonczono` ⟺ `w_toku` bronią
+        // przed dwiema różnymi drogami powrotu do bezterminowości.
+        foreach ([
+            'potwierdzenia_zadan_rodo_wstrzymanie_check',
+            'potwierdzenia_zadan_rodo_koniec_check',
+            'potwierdzenia_zadan_rodo_zakres_tylko_wykonane_check',
+            'potwierdzenia_zadan_rodo_kolejnosc_dat_check',
+            'potwierdzenia_zadan_rodo_rodzaj_check',
+            'potwierdzenia_zadan_rodo_wynik_check',
+            'potwierdzenia_zadan_rodo_zakres_check',
+        ] as $nazwa) {
+            $this->assertContains($nazwa, $checki, 'Zniknął CHECK, którego decyzja właściciela nie dotyczyła: '.$nazwa.'.');
+        }
+    }
+
+    #[Test]
+    public function test_wykonane_usuniecie_bez_konta_tez_przechodzi(): void
+    {
+        // DRUGA STRONA decyzji: wskaźnik jest DOZWOLONY, nie WYMAGANY.
+        // `ON DELETE SET NULL` na `konto_id` zeruje go, gdyby wiersz `users`
+        // kiedykolwiek naprawdę zniknął, a backfill historycznych żądań
+        // (krok 5 właściciela) też nie będzie miał czego wskazać przy części
+        // spraw. Wiersz bez konta musi więc nadal wchodzić.
         $numer = $this->wstaw([
             'wynik' => 'wykonane',
             'zakres' => User::DELETE_SCOPE_MINIMUM,
@@ -401,6 +452,27 @@ class MinimalnePotwierdzenieRodoTest extends TestCase
         DB::table('potwierdzenia_zadan_rodo')->insert($wiersz);
 
         return (string) $wiersz['numer'];
+    }
+
+    /**
+     * Nazwy CHECK-ów stojących dziś na tej tabeli — prosto z katalogu
+     * PostgreSQL-a, nie z treści migracji. Migracja mówi, co CHCIAŁA założyć;
+     * tylko `pg_constraint` mówi, co w bazie faktycznie stoi.
+     *
+     * @return list<string>
+     */
+    private function nazwyCheckow(): array
+    {
+        return array_map(
+            static fn (object $wiersz): string => (string) $wiersz->conname,
+            DB::select(
+                "SELECT c.conname FROM pg_constraint c
+                 JOIN pg_class t ON t.oid = c.conrelid
+                 WHERE t.relname = ? AND c.contype = 'c'
+                 ORDER BY c.conname",
+                ['potwierdzenia_zadan_rodo'],
+            ),
+        );
     }
 
     /**
