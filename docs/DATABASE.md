@@ -2097,6 +2097,16 @@ pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł 
 zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
 kończyłoby się błędem 500.
 
+Równoległe pierwsze zapisy (#778) korzystają z `firstOrCreate` po
+`owner_id` (relacja) i `is_default = true`. Istniejący indeks
+`collections_one_default_per_owner_idx` nadal dopuszcza tylko jeden zeszyt
+domyślny. Po konflikcie Laravel odczytuje zwycięski wiersz, a przy zewnętrznej
+transakcji chroni próbę INSERT savepointem. Nazwa i prywatna widoczność są
+wartościami nowego wiersza, nie kryterium przejęcia ręcznego zeszytu.
+Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.php`
+oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
+się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
+
 ### notifications
 In-app.
 

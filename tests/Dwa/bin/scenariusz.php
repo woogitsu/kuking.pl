@@ -20,11 +20,14 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\SavePostToCollection;
+use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
@@ -75,6 +78,21 @@ DB::statement("SET idle_in_transaction_session_timeout = '".(getenv('KUKING_STAT
 
 try {
     $wartosc = match ($scenariusz) {
+        'zapis-do-zeszytu' => (function () use ($argumenty): string {
+            $save = function () use ($argumenty): string {
+                $user = User::query()->findOrFail($argumenty['kto']);
+                $collection = $argumenty['typ'] === 'recipe'
+                    ? app(SaveRecipeToCollection::class)->handle($user, Recipe::query()->findOrFail($argumenty['tresc']))
+                    : app(SavePostToCollection::class)->handle($user, Post::query()->findOrFail($argumenty['tresc']));
+
+                return (string) $collection->getKey();
+            };
+
+            // Transakcja zewnętrzna sprawdza, czy konflikt INSERT nie zostawia
+            // połączenia w stanie 25P02 i pozwala dopisać zamówioną treść.
+            return ($argumenty['transakcja'] ?? '0') === '1' ? DB::transaction($save) : $save();
+        })(),
+
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),

@@ -696,16 +696,13 @@ class User extends Authenticatable implements MustVerifyEmailContract
     /** Kolekcja "Zapisane", tworzona przy pierwszym zapisie przepisu. */
     public function defaultCollection(): Collection
     {
-        $istniejaca = $this->collections()->where('is_default', true)->first();
-
-        if ($istniejaca !== null) {
-            return $istniejaca;
-        }
-
-        return $this->collections()->create([
+        // Dwa pierwsze zapisy mogą równocześnie zobaczyć brak zeszytu (#778).
+        // firstOrCreate po konflikcie indeksu odczytuje zwycięski wiersz;
+        // Laravel osłania INSERT savepointem także w zewnętrznej transakcji.
+        // Szukamy po is_default, nigdy po nazwie publicznego zeszytu właściciela.
+        return $this->collections()->firstOrCreate(['is_default' => true], fn (): array => [
             'name' => $this->wolnaNazwaDomyslnegoZeszytu(),
             'visibility' => 'private',
-            'is_default' => true,
         ]);
     }
 
