@@ -50,7 +50,7 @@ posłużyły do ustalenia zakresu; opisane niżej pomiary wykonałem sam.
   odczytem MD5 zgodność mutowanych źródeł runtime z drzewem roboczym.
 
 Skrót pełnego przebiegu jest w `pelny-przebieg.txt`; pełne wyjście tekstowe
-zachowano lokalnie w `%TEMP%/kuking-kontakt-panel-pelny-przebieg-20260920.txt`.
+zachowano lokalnie w `%TEMP%\kuking-kontakt-panel-pelny-przebieg-20260920.txt`.
 
 ## Zachowanie i dowody
 
