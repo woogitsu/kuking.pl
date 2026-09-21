@@ -1,8 +1,5 @@
 # Dziennik wyjątków moderacji — #828 i #925
 
-> Aktualizacja: stanowisko odtworzone, poprawka zacommitowana i pomiar powtórzony.
-> Stan sprzed naprawy Git opisano historycznie niżej; aktualny odbiór jest w ostatniej sekcji.
-
 ## Zakres i rozwiązanie
 
 Baza stanowiska zweryfikowana przed zmianami: `4c811cc7bff365fb8f86d87eabac93b7738a45cd`.
@@ -93,6 +90,10 @@ Nie odtwarzano metadanych Git i nie zmieniano cudzej historii.
 - PHPStan dla pięciu zmienionych plików aplikacji: **bez błędów**.
 - Osobne porównanie MD5 po kontrolach: `dowody-828-925/przywrocenie.json`.
 - Pełny zapis testów: `dowody-828-925/pelne-testy.txt`.
+- Pomiary powtórzone po odtworzeniu stanowiska: `dowody-828-925/po-odtworzeniu/*.json`
+  (analiza awatara, analiza treści, przygotowanie obrazu, transport do OpenAI).
+  Opis samego odtworzenia usunięto z tego dokumentu — to procedura floty, nie
+  ustalenie o bezpieczeństwie. Pomiary zostają, bo one czegoś dowodzą.
 - Brak pomiarów produkcji, CI, budowania assetów i testów przeglądarkowych:
   zmiana dotyczy wyłącznie diagnostyki PHP, nie UI ani schematu.
 - **SHA nowego commita: brak.** Metadane repozytorium zmienia inny model,
@@ -103,46 +104,3 @@ Nie odtwarzano metadanych Git i nie zmieniano cudzej historii.
 Paczka obok stanowiska `gpt-dziennik-wyjatkow-pakiet.zip` zawiera wyłącznie
 sześć plików PHP, uzupełniony dokument sygnałów, ten raport i dowody.
 Nie jest kopią całego repozytorium i nie zawiera `.env` ani zależności.
-
-## Odtworzenie stanowiska i ponowny odbiór
-
-Wykonano instrukcję `_prompty/00-NAPRAWA-STANOWISKA.txt`.
-
-1. Uszkodzone powiązanie potwierdzono przez odczyt `.git` i błąd `git status`.
-2. Cały dotychczasowy katalog przemianowano na
-   `C:\Users\matma\Documents\kuking-flota\gpt-dziennik-wyjatkow-PLIKI`.
-   Kopia nadal istnieje i nie została usunięta.
-3. Po `git fetch origin --prune` gałęzi `origin/gpt/dziennik-wyjatkow`
-   **nie było**. Utworzono nową lokalną `gpt/dziennik-wyjatkow` od
-   `origin/main` = `4c811cc7bff365fb8f86d87eabac93b7738a45cd`.
-   Okazało się, że aktualna baza jest identyczna z bazą pierwotnego zadania.
-4. Skopiowano pliki z wykluczeniami instrukcji. `.git` wykluczono zarówno
-   jako katalog, jak i plik (worktree ma plik `.git`).
-   **Pliki przywrócone jako „nie moje”: żadne.** Status i pełna różnica
-   istniejących plików pokazały wyłącznie własną poprawkę oraz dokumentację;
-   nie było cofnięć cudzych zmian.
-5. Commit poprawki: `f0540493f86ca9a9e0cc0f71642b2f68efdd1390`
-   — „Nie zapisuj treści obcych wyjątków w dzienniku moderacji”.
-6. Po ponownym przygotowaniu runtime na własnej bazie PostgreSQL
-   `127.0.0.1:55439` powtórzono filtr `Moderacja`:
-   **32 PASS, 142 asercje, 3,54 s**.
-7. Ponownie wykonano wszystkie cztery fizyczne kontrole ujemne na tym kodzie:
-   **4 × PASS → FAIL na CONTROLLED_FOREIGN_EXCEPTION → PASS**.
-   Każda mutacja trafiła raz, przyrząd potwierdził odtworzenie MD5 i mtime.
-   Świeże JSON-y: `dowody-828-925/po-odtworzeniu/`.
-   Zastrzeżenie o polu `przywrocenie` w JSON opisane wyżej nadal obowiązuje.
-8. Pint `--test`: sześć plików, PASS. SHA-256 wszystkich sześciu plików PHP
-   w runtime i odtworzonym stanowisku są identyczne. Po kontroli źródła
-   drzewo Git było czyste.
-
-**Bezpowrotnie utracone w tym zadaniu: nic stwierdzonego.** Przed awarią
-repozytorium nie zdążyłem utworzyć żadnego własnego commita. Kod, testy,
-raport i wcześniejsze dowody zostały zachowane; znana baza jest dostępna.
-Nie jest to ocena strat innych stanowisk.
-
-Pełne 4398 testów i PHPStan z wcześniejszej sekcji są pomiarem SPRZED
-odtworzenia. Nie powtarzano pełnego zestawu: baza i kod poprawki są te same,
-a kluczowy pomiar, cztery czerwienie i formatowanie powtórzono samodzielnie.
-Nie wykonano push, PR, naprawy cudzych metadanych ani `git worktree prune`.
-Paczka ZIP obok stanowiska pozostaje historyczną kopią sprzed odtworzenia;
-aktualnym źródłem są lokalne commity oraz ten raport.
