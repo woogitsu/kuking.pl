@@ -1,5 +1,11 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.69 — gotowanie od nowa i komentarz, który nie przepada po piętnastu minutach
+
+- Zaproszenie „Ugotowałem” pokazuje się tylko tam, gdzie da się z niego skorzystać. Gość i konto zawieszone nie widzą już przycisku, który i tak skończyłby się odmową — ani przy przepisie, ani w trybie gotowania.
+- W trybie gotowania jest „Zacznij od początku”. Odhaczone kroki znikają dopiero po potwierdzeniu: wyjście z ekranu i anulowanie zostawiają postęp, a inne przepisy oraz historia wykonań zostają nietknięte.
+- Poprawka własnego komentarza odrzucona wyłącznie dlatego, że minęło piętnaście minut, nie zabiera już napisanego tekstu. Tekst wraca w polu do skopiowania, razem z drogą powrotu do rozmowy, i działa bez JavaScriptu. Okno edycji nie jest przez to przedłużane, a cudzy ani usunięty komentarz tą drogą nie wraca.
+
 ## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
 
 - Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
