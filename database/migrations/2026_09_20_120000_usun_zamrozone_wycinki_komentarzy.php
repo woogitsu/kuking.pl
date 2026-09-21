@@ -38,6 +38,15 @@ return new class extends Migration
     /** Typy, w których wycinek jest już liczony z żywej treści. */
     private const TYPY = ['comment.created', 'comment.replied'];
 
+    /**
+     * ŚWIADOMIE PUSTY `down()` — deklaracja, nie przeoczenie.
+     * Patrz `tests/Feature/KazdaMigracjaMaWycofanieTest.php`.
+     */
+    public const WYCOFANIE_NIC_NIE_ROBI = 'Kasujemy wartości `excerpt`, których nie ma skąd odczytać '
+        .'z powrotem — `down()`, które coś wpisuje, wpisałoby zmyśloną wartość i twierdziłoby, że '
+        .'wycofanie jest pełne, a nie jest. Jeśli te wartości okażą się potrzebne, jedynym źródłem '
+        .'jest kopia zapasowa bazy sprzed uruchomienia tej migracji — sama migracja ich nie odtworzy.';
+
     public function up(): void
     {
         /*
