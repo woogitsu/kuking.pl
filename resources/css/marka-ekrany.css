@@ -298,55 +298,16 @@
     font-size: var(--text-body);
   }
 
-  #jak-dziala .rzeczy {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--spacing-4);
-  }
-
-  #jak-dziala .rzecz {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    min-width: 0;
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    background-color: var(--color-surface-raised);
-    box-shadow: var(--shadow-card);
-  }
-
-  #jak-dziala .rzecz-znak {
-    border-radius: var(--radius-lg);
-    background-color: var(--color-brand-tint);
-    color: var(--color-brand-tint-ink);
-  }
-
-  #jak-dziala .rzecz-krok,
-  #jak-dziala .rzecz-opis {
-    font-size: var(--text-body);
-  }
-
-  .pas-ciemny-uklad .cytat-ugotowalem {
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-xl);
-    background-color: var(--color-surface-raised);
-    color: var(--color-ink);
-  }
-
-  .pas-ciemny-uklad .cytat-zrodlo {
-    font-size: var(--text-body);
-    color: var(--color-ink-muted);
-  }
-
-  .pas--cieply .dwie-kolumny > div {
-    min-width: 0;
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    background-color: var(--color-surface-raised);
-  }
+  /* Port marki dla sekcji „Jak działa” (`#jak-dziala .rzecz*`) i dla
+     ciemnego pasa „Ugotowałem” (`.pas-ciemny-uklad`, `.cytat-*`,
+     `.pas--cieply .dwie-kolumny`) stał tu do 20 września 2026. Powitalną
+     przepisano na `.landing-opowiesc` / `.landing-kroki` /
+     `.landing-wykonanie` (port marki w `marka-rama.css`); tamtych klas
+     nie nosi już ani jeden element
+     w `resources/views`, a `LandingKompozycjaFotografiiTest` pilnuje wprost,
+     że `.cytat-ugotowalem` na powitalnej NIE WYSTĘPUJE. Sam `#jak-dziala`
+     żyje dalej — i dlatego te reguły były mylące: identyfikator w selektorze
+     zgadzał się z dokumentem, a potomek nie istniał. */
 
   .zacheta-akcje {
     flex-wrap: wrap;
@@ -370,10 +331,6 @@
       grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
       gap: var(--spacing-10);
     }
-
-    #jak-dziala .rzeczy {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-    }
   }
 
   @media (max-width: 30rem) {
@@ -381,10 +338,7 @@
     .marka-zeszyty > .card,
     .przepis-panel,
     .przepis-siatka > .sekcja-strony,
-    .panel-formularza:has(.wyszukiwarka-input),
-    #jak-dziala .rzecz,
-    .pas-ciemny-uklad .cytat-ugotowalem,
-    .pas--cieply .dwie-kolumny > div {
+    .panel-formularza:has(.wyszukiwarka-input) {
       padding: var(--spacing-4);
     }
 

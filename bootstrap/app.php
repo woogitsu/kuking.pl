@@ -43,7 +43,43 @@ return Application::configure(basePath: dirname(__DIR__))
         // nie jest stały, a zakresy Cloudflare i tak nigdy nie są bezpośrednim
         // peerem TCP tego kontenera, więc żadna lista adresów nie ma prawa
         // zadziałać.
-        $middleware->prepend(NormalizeForwardedFor::class);
+        // DRUGI W STOSIE GLOBALNYM STOI `ApplySecurityHeaders` — i to NIE JEST
+        // przestawienie ustalenia wyżej. `NormalizeForwardedFor` zostaje
+        // PIERWSZY; nagłówki bezpieczeństwa wchodzą zaraz za nim, czyli i tak
+        // po normalizacji `X-Forwarded-For`, a przed `ValidatePostSize`
+        // i `PreventRequestsDuringMaintenance`.
+        //
+        // PO CO, SKORO TA SAMA KLASA STOI JUŻ W GRUPIE `web`. Bo połowa
+        // ekranów błędu NIGDY DO TEJ GRUPY NIE DOCHODZI, a to właśnie one
+        // wyświetlają najwięcej cudzej treści. Zmierzone 20 września 2026
+        // (`php artisan serve`, APP_DEBUG=false) — ani jednego nagłówka
+        // bezpieczeństwa, w tym ani jednej dyrektywy CSP:
+        //
+        //   404  wyjątek leci z ROUTERA, zanim ruszy grupa `web`;
+        //   419  `ValidateCsrfToken` stoi w grupie PRZED tą klasą;
+        //   429  `ThrottleRequests` jest na liście priorytetów frameworka
+        //        (`Kernel::$middlewarePriority`), więc sortowanie wynosi go
+        //        przed wszystko, co do tej listy nie należy — w tym przed
+        //        tę klasę;
+        //   413  `ValidatePostSize` jest globalny;
+        //   503  `PreventRequestsDuringMaintenance` jest globalny.
+        //
+        // 419 i 429 to JEDYNE DWA EKRANY W SERWISIE, KTÓRE WYPISUJĄ Z POWROTEM
+        // TEKST WPISANY PRZEZ CZŁOWIEKA (`OdzyskanyFormularz`). Strona, która
+        // wstawia cudzą treść do HTML-a, była dokładnie tą, która szła bez
+        // `script-src`, bez `frame-ancestors` i bez `X-Frame-Options`.
+        //
+        // DLACZEGO DWA RAZY, A NIE „przenieść z grupy `web` tutaj". Bo nonce
+        // musi powstać PRZED renderowaniem widoku, a wpis w grupie `web` jest
+        // tym miejscem, w którym cały serwis go dziś dostaje. Wywołanie
+        // zewnętrzne nie nadpisuje niczego: `handle()` zwraca odpowiedź bez
+        // zmian, gdy nagłówek `Content-Security-Policy` już na niej jest,
+        // a podpis bierze z `Vite::cspNonce()`, więc obie warstwy używają
+        // TEGO SAMEGO ciągu. Na zwykłej stronie ta warstwa nie robi nic.
+        $middleware->prepend([
+            NormalizeForwardedFor::class,
+            ApplySecurityHeaders::class,
+        ]);
 
         // Aplikacja NIGDY nie jest odpytywana bezpośrednio: ruch idzie przez
         // Cloudflare, a potem przez brzeg Railway. Bez tej linii Laravel nie
