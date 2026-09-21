@@ -310,9 +310,13 @@ function kuking_nazwa_testowej_bazy(string $katalogRepo): string
  *     czyszczenie znaków, i twardy limit długości.
  *
  * Budżet długości liczymy od NAJDŁUŻSZEGO przedrostka, jaki ten sufiks
- * dostaje w repozytorium — "proba_wycofania_" (16 znaków,
- * `kuking_nazwa_bazy_wycofania()`), nie od "kuking_test_" (12). 16 + 39 = 55,
- * czyli z zapasem pod limit 63.
+ * dostaje w repozytorium, nie od "kuking_test_" (12 znaków). Najdłuższy to
+ * "kuking_zrodlo_proby" (19) z `tests/skrypty/proba-odtworzenia.sh`, dalej
+ * "proba_wycofania" (15) i "kuking_race" (11). Sufiks ma najwyżej 39 znaków
+ * ("kopia_" + 24 + "_" + 8), więc najgorszy przypadek to 19 + 1 + 39 = 59 —
+ * pod limitem 63, przy którym Postgres tnie identyfikator BEZ OSTRZEŻENIA
+ * (dwie różne nazwy wskazałyby wtedy jedną bazę, czyli wróciłaby dokładnie
+ * ta kolizja, którą ten kod usuwa).
  *
  * `realpath()` normalizuje ścieżkę (dowiązania, "..", końcowy ukośnik), żeby
  * to samo drzewo osiągnięte dwiema zapisami ścieżki dostało jedną bazę —

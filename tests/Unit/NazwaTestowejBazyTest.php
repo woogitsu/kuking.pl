@@ -163,8 +163,9 @@ class NazwaTestowejBazyTest extends TestCase
 
     /**
      * Postgres tnie identyfikatory po 63 bajtach BEZ OSTRZEŻENIA, więc dwie
-     * różne nazwy dłuższe niż limit potrafią wskazać jedną bazę. Najdłuższy
-     * przedrostek w repozytorium to "proba_wycofania_", nie "kuking_test_".
+     * różne nazwy dłuższe niż limit potrafią wskazać jedną bazę. Liczy się
+     * NAJDŁUŻSZY przedrostek w repozytorium, a jest nim "kuking_zrodlo_proby"
+     * z `tests/skrypty/proba-odtworzenia.sh` — nie "kuking_test".
      */
     public function test_nazwa_kopii_miesci_sie_w_limicie_identyfikatora_postgresa(): void
     {
@@ -172,10 +173,16 @@ class NazwaTestowejBazyTest extends TestCase
         mkdir($katalog, 0o777, true);
         $this->tmpDoUsuniecia[] = $katalog;
 
+        $sufiks = substr(kuking_nazwa_testowej_bazy($katalog), strlen('kuking_test'));
+
         foreach ([
             kuking_nazwa_testowej_bazy($katalog),
             kuking_nazwa_bazy_wyscigow($katalog),
             kuking_nazwa_bazy_wycofania($katalog),
+            // Nazwy sklejane w `tests/skrypty/proba-odtworzenia.sh` z tego
+            // samego sufiksu — to one mają najdłuższe przedrostki w repozytorium.
+            'kuking_zrodlo_proby'.$sufiks,
+            'proba_odtworzenia_test'.str_replace('_', '', $sufiks),
         ] as $nazwa) {
             $this->assertLessThanOrEqual(63, strlen($nazwa), "za długa nazwa: {$nazwa}");
             $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_]+$/', $nazwa);
