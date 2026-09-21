@@ -33,10 +33,10 @@ class OstrzezenieZmianyAdresuWKolejceTest extends TestCase
     public function test_ostrzezenie_trafia_na_adres_z_chwili_zlecenia(bool $confirm, bool $deleteProfile): void
     {
         config(['mail.default' => 'array']);
-        Queue::fake();
+        $kolejka = Queue::fake();
         $user = $this->user('ostrzezenie', ['email' => 'stary@example.test']);
         $change = app(RequestEmailChange::class)->handle($user, 'nowy@example.test');
-        $jobs = Queue::pushed(SendQueuedNotifications::class);
+        $jobs = $kolejka->pushed(SendQueuedNotifications::class);
         $this->assertCount(2, $jobs);
         $warning = serialize($jobs->first(fn ($job) => $job->notification instanceof ZgloszonaZmianaAdresu));
         $confirmation = serialize($jobs->first(fn ($job) => $job->notification instanceof PotwierdzenieNowegoAdresu));

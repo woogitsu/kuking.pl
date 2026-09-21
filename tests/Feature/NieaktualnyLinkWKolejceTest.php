@@ -29,10 +29,14 @@ class NieaktualnyLinkWKolejceTest extends TestCase
     {
         $this->freezeTime();
         config(['mail.default' => 'array', 'kuking.login_link.waznosc_minut' => 30]);
-        Queue::fake();
+        // Atrapa trafia do zmiennej, bo `pushed()` istnieje na QueueFake,
+        // a nie na fasadzie. Ten sam wzorzec co przy `Log::shouldHaveReceived()`
+        // opisany w phpstan.neon: w czasie wykonania fasada przekazuje
+        // wywolanie dalej, ale analiza statyczna widzi samą fasadę.
+        $kolejka = Queue::fake();
         $user = $this->user();
         $this->assertTrue(app(WyslijLinkDoLogowania::class)->handle($user->email));
-        $job = Queue::pushed(SendQueuedNotifications::class)->sole();
+        $job = $kolejka->pushed(SendQueuedNotifications::class)->sole();
         $payload = serialize($job);
         $before = LoginLinkToken::sole()->getAttributes();
         $this->travel($seconds)->seconds();
@@ -53,13 +57,13 @@ class NieaktualnyLinkWKolejceTest extends TestCase
     {
         $this->freezeTime();
         config(['mail.default' => 'array']);
-        Queue::fake();
+        $kolejka = Queue::fake();
         $user = $this->user();
         $action = app(WyslijLinkDoLogowania::class);
         $this->assertTrue($action->handle($user->email));
-        $old = serialize(Queue::pushed(SendQueuedNotifications::class)->last());
+        $old = serialize($kolejka->pushed(SendQueuedNotifications::class)->last());
         $this->assertTrue($action->handle($user->email));
-        $new = serialize(Queue::pushed(SendQueuedNotifications::class)->last());
+        $new = serialize($kolejka->pushed(SendQueuedNotifications::class)->last());
         $before = LoginLinkToken::sole()->getAttributes();
         unserialize($new)->handle(app(ChannelManager::class));
         unserialize($old)->handle(app(ChannelManager::class));
