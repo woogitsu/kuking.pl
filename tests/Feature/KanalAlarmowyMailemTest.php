@@ -363,6 +363,52 @@ class KanalAlarmowyMailemTest extends TestCase
         $this->assertFalse(EmailBleduHandler::ostatniaWysylkaSieUdala());
     }
 
+    /**
+     * ZAPORA PONOWNEGO WEJŚCIA — sedno punktu 1, i do 22 września 2026 jedyna
+     * rzecz w tym pliku, której nie pilnował ŻADEN test.
+     *
+     * `awaria_wysylki_listu_nie_rzuca_…` obiecuje nazwą, że wysyłka „nie
+     * próbuje alarmować pocztą", ale tego nie dowodzi: jej transport tylko
+     * rzuca i nigdy nie woła `Log::error()`, więc przechodzi także wtedy, gdy
+     * zapory `$wSrodkuWysylki` nie ma w kodzie w ogóle (sprawdzone: wycięcie
+     * warunku nie zapala ani jednego testu w tym pliku).
+     *
+     * Tu transport ROBI to, co robi prawdziwy transport poczty, gdy padnie
+     * dostawca: loguje własną awarię. Wtórny błąd jest ŚWIADOMIE INNEJ KLASY
+     * niż pierwotny, więc ma inny odcisk — pamięć wyciszania go nie zatrzyma.
+     * Zatrzymać go może WYŁĄCZNIE zapora. Bez niej alarm o niedziałającej
+     * poczcie jedzie pocztą, w kółko, aż do wyczerpania stosu.
+     */
+    #[Test]
+    public function transport_poczty_wolajacy_log_nie_wpada_w_petle_zwrotna(): void
+    {
+        $this->wlaczPoczte();
+
+        $proby = 0;
+
+        Mail::shouldReceive('raw')->andReturnUsing(function () use (&$proby): void {
+            $proby++;
+
+            // Bezpiecznik SAMEGO TESTU: bez niego brak zapory nie daje
+            // czerwieni, tylko zawieszony przebieg albo przepełniony stos.
+            if ($proby > 5) {
+                return;
+            }
+
+            $wtorny = new \RuntimeException('EmailLabs zerwał połączenie');
+            Log::channel('blad_email')->error($wtorny::class, ['exception' => $wtorny]);
+        });
+
+        $blad = $this->bladBazyZDanymiCzlowieka();
+        Log::channel('blad_email')->error($blad::class, ['exception' => $blad]);
+
+        $this->assertSame(
+            1,
+            $proby,
+            'Alarm o awarii poczty pojechał pocztą — zapora ponownego wejścia nie działa.',
+        );
+    }
+
     #[Test]
     public function nieudany_list_nie_kupuje_ciszy(): void
     {
