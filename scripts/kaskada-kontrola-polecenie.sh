@@ -18,13 +18,24 @@
 #  się uzyskać kontroli DODATNIEJ. Zawężamy do obszaru, który jest zielony,
 #  i w nim pokazujemy przejście zielone → czerwone → zielone.
 #
-#  DOMYŚLNE ZAWĘŻENIE TO `.przepis-liczba svg`, NIE `.przepis-liczba`.
-#  Zmierzone 20.09.2026 (stanowisko `kaskada`, runtime WSL, 72 konfiguracje):
-#  samo `.przepis-liczba` jest CZERWONE i nie nadaje się na kontrolę dodatnią —
-#  `marka-ekrany.css` (warstwa `marka`) przykrywa `padding` i `border-radius`
-#  z warstwy `components`, a `.przepis-liczba span` przykrywa `font-size`.
-#  To są prawdziwe znaleziska tego samego rodzaju, którego strażnik pilnuje,
-#  i idą do zaległości D-223 — nie do wyjątków i nie do kontroli dodatniej.
+#  DOMYŚLNE ZAWĘŻENIE TO CAŁE `.przepis-liczba` — POSZERZONE 20.09.2026.
+#
+#  Historia, żeby nikt nie cofnął tego przez pomyłkę: do 20.09.2026 domyślne
+#  zawężenie brzmiało `.przepis-liczba svg`, bo samo `.przepis-liczba` było
+#  CZERWONE (`marka-ekrany.css` z warstwy `marka` przykrywało `padding`
+#  i `border-radius` z warstwy `components`, a `.przepis-liczba span`
+#  przykrywało `font-size`). Strażnik oblewałby wtedy na czymś, czego nikt
+#  nie wybrał, więc obszar trzeba było zawęzić do jednej reguły.
+#
+#  Właściciel rozstrzygnął te trzy deklaracje 20.09.2026: USUNĄĆ. Po usunięciu
+#  zmierzone (runtime WSL, 72 konfiguracje, stanowisko `martwe-kaskady`):
+#  całe `.przepis-liczba` jest ZIELONE przy 7 regułach z nosicielem — czyli
+#  zawężenie nie zzieleniało przez to, że przestało cokolwiek obejmować.
+#  Dowód niewidoczności usunięcia: `docs/design/evidence/martwe-liczby/`.
+#
+#  NIE ZAWĘŻAJ TEGO Z POWROTEM, żeby uciszyć czerwień. Czerwień na
+#  `.przepis-liczba` znaczy, że doszła kolejna martwa deklaracja — należy ją
+#  usunąć albo dopisać do `WYJATKI` z POWODEM, a nie wyprowadzić poza zakres.
 #
 #  Kontrola ujemna dla tego zawężenia: patrz `scripts/kaskada-kontrola-ujemna.sh`.
 set -euo pipefail
@@ -32,4 +43,4 @@ cd "$(dirname "$0")/.."
 
 npx vite build >/dev/null 2>&1
 
-exec node scripts/kaskada-martwe-reguly.mjs --szybko --tylko "${1:-.przepis-liczba svg}"
+exec node scripts/kaskada-martwe-reguly.mjs --szybko --tylko "${1:-.przepis-liczba}"

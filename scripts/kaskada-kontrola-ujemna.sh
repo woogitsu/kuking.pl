@@ -23,11 +23,13 @@
 #  UŻYCIE (w runtime WSL, z własną bazą i portem 55439):
 #      bash scripts/kaskada-kontrola-ujemna.sh
 #
-#  WYMAGANIE WSTĘPNE
+#  WYMAGANIE WSTĘPNE — JUŻ SPEŁNIONE W TYM DRZEWIE
 #  `scripts/kontrola-ujemna.sh` musi mieć poprawkę SIGPIPE (`grep -qE … <<<`
 #  zamiast `printf … | grep -q`), inaczej przy dużym wyjściu strażnika
-#  przyrząd melduje fałszywe `ZLA_PRZYCZYNA`. Poprawka żyje na gałęzi
-#  `narzedzia/kontrola-ujemna-v2` i NIE jest duplikowana tutaj.
+#  przyrząd melduje fałszywe `ZLA_PRZYCZYNA`. Do 20.09.2026 poprawka żyła
+#  wyłącznie na gałęzi `narzedzia/kontrola-ujemna-v2` i każdy nakładał ją sobie
+#  na runtime. Została PRZENIESIONA TUTAJ — ta kontrola ujemna rusza z samej
+#  tej gałęzi, bez cudzego drzewa pod spodem.
 #
 #  Wynik: storage/kontrola-ujemna-kaskada.json, kod wyjścia jak w przyrządzie.
 # =============================================================================
@@ -50,4 +52,4 @@ exec bash scripts/kontrola-ujemna.sh \
 }' \
   --oczekuj 'martwe własności: color' \
   --json storage/kontrola-ujemna-kaskada.json \
-  -- bash scripts/kaskada-kontrola-polecenie.sh '.przepis-liczba svg'
+  -- bash scripts/kaskada-kontrola-polecenie.sh '.przepis-liczba'

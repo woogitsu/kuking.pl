@@ -263,10 +263,26 @@ if [ $KOD_PO -eq 0 ]; then
 fi
 WYNIK_PO="FAIL (kod $KOD_PO)"
 
-if printf '%s' "$WYJSCIE_PO" | grep -qE "$OCZEKUJ"; then
+# NIE `printf ... | grep -q`. Wyglada niewinnie i jest pulapka: `grep -q`
+# konczy sie na PIERWSZYM trafieniu i zamyka potok, `printf` dostaje SIGPIPE
+# i wychodzi z kodem 141, a przy `set -o pipefail` statusem CALEGO potoku
+# jest wlasnie 141 — mimo ze wzorzec ZOSTAL znaleziony.
+#
+# Objawia sie WYLACZNIE przy duzym wyjsciu: gdy printf zdazy zapisac calosc,
+# zanim grep wyjdzie, SIGPIPE nie ma. Przy krotkich atrapach w kontroli
+# ujemnej bylo wiec zielono, a przy prawdziwym pakiecie (158 kB wyjscia
+# PHPUnita, kilkadziesiat linii straznika kaskady) przyrzad meldowal
+# ZLA_PRZYCZYNA dla kontroli, ktore byly POPRAWNE. Kierunek bledu lagodniejszy
+# niz falszywa zielen, skutek gorszy niz wyglada: czlowiek zaczyna ROZLUZNIAC
+# wzorzec --oczekuj, zeby „w koncu trafil" — czyli sam kasuje rozroznienie,
+# dla ktorego to pole istnieje.
+#
+# `<<<` nie tworzy potoku, wiec nie ma SIGPIPE i nie ma czego psuc.
+# docs/PULAPKI_TESTOW.md §5c.
+if grep -qE "$OCZEKUJ" <<< "$WYJSCIE_PO"; then
     PRZYCZYNA_OK=true
     ok "Test oblał Z OCZEKIWANEGO POWODU — wzorzec „$OCZEKUJ” wystąpił w wyjściu."
-    printf '%s\n' "$WYJSCIE_PO" | grep -E "$OCZEKUJ" | head -3 | sed 's/^/    /'
+    grep -E "$OCZEKUJ" <<< "$WYJSCIE_PO" | head -3 | sed 's/^/    /'
 else
     PRZYCZYNA_OK=false
     zle "Test oblał, ale NIE z oczekiwanego powodu — wzorca „$OCZEKUJ” nie ma w wyjściu."

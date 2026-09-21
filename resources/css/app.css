@@ -3165,13 +3165,19 @@
     margin: 0;
   }
 
+  /* `padding` i `border-radius` STAŁY TU I BYŁY MARTWE — usunięte 20.09.2026
+     (D-223, decyzja właściciela). `marka-ekrany.css` z warstwy `marka` ustawia
+     na tym samym selektorze `padding: var(--spacing-4)` i
+     `border-radius: var(--radius-lg)`, a warstwa późniejsza bije wcześniejszą
+     niezależnie od swoistości. `data-marka` stoi na `<body>` na sztywno, więc
+     nie było konfiguracji, w której te dwie deklaracje cokolwiek znaczyły.
+     Jeśli chcesz zmienić odstęp albo zaokrąglenie kafla — rób to
+     w `marka-ekrany.css`. Pilnuje `scripts/kaskada-martwe-reguly.mjs`. */
   .przepis-liczba {
     display: flex;
     align-items: center;
     gap: var(--spacing-3);
-    padding: var(--spacing-3);
     background-color: var(--color-surface-sunken);
-    border-radius: var(--radius-md);
   }
 
   .przepis-liczba svg {
@@ -3195,9 +3201,13 @@
     line-height: 1.3;
   }
 
+  /* `font-size: var(--text-help)` STAŁO TU I BYŁO MARTWE — usunięte 20.09.2026
+     (D-223). `marka-ekrany.css` ustawia na `.przepis-liczba span` wartość
+     `var(--text-body)` i to ona obowiązuje. Zmierzone: podpis kafla ma 18 px
+     przed usunięciem i 18 px po — usunięcie NIE zmniejsza pisma, więc próg
+     UX 50+ (tekst ≥ 18 px) zostaje nienaruszony. */
   .przepis-liczba span {
     display: block;
-    font-size: var(--text-help);
     color: var(--color-ink-muted);
   }
 
