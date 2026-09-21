@@ -33,7 +33,7 @@ final class Harmonogram
      * Rejestruje komendę Artisan w harmonogramie bez proc_open,
      * z twardą kontrolą kodu wyjścia.
      *
-     * @param array<string, mixed> $parametry
+     * @param  array<string, mixed>  $parametry
      */
     public static function artisan(string $komenda, array $parametry = []): CallbackEvent
     {
@@ -44,7 +44,7 @@ final class Harmonogram
     /**
      * Zwraca domknięcie wykonujące komendę Artisan z kontrolą kodu wyjścia.
      *
-     * @param array<string, mixed> $parametry
+     * @param  array<string, mixed>  $parametry
      * @return Closure(): int
      */
     public static function wykonaj(string $komenda, array $parametry = []): Closure
@@ -54,7 +54,7 @@ final class Harmonogram
 
             if ($kodWyjscia !== 0) {
                 throw new RuntimeException(
-                    sprintf("Komenda harmonogramu '%s' zakończyła się niepowodzeniem (kod wyjścia: %d).", $komenda, $kodWyjscia)
+                    sprintf("Komenda harmonogramu '%s' zakończyła się niepowodzeniem (kod wyjścia: %d).", $komenda, $kodWyjscia),
                 );
             }
 
