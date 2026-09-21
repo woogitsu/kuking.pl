@@ -115,7 +115,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
      * W pierwotnej postaci #776/D-224/D-225 ta scena wymagała, żeby strona
      * przepisu NIE MIAŁA `<details class="confirm">` — pytanie „czy na
      * pewno" miało zniknąć na rzecz komunikatu PO akcji. Właściciel
-     * rozstrzygnął to inaczej (D-229), łącząc obie prace zamiast wybierać
+     * rozstrzygnął to inaczej (D-230), łącząc obie prace zamiast wybierać
      * jedną: pytanie WRACA na tym jedynym ekranie o zasięgu globalnym,
      * bo `detach()` kasuje notatkę przy zapisie razem z nim, a „Zapisz
      * ponownie" po akcji tej notatki nie odzyskuje — to uzasadnia pytanie
@@ -139,7 +139,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
 
         $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
 
-        // POTWIERDZENIE PRZED AKCJĄ, BEZ JavaScriptu (D-229): `<details>`
+        // POTWIERDZENIE PRZED AKCJĄ, BEZ JavaScriptu (D-230): `<details>`
         // zwykłego HTML-a, a nie `onsubmit="return confirm(...)"`. Pytanie
         // nazywa zakres (WSZYSTKICH zeszytów) i ostrzega wprost, że notatki
         // przy zapisie znikną razem z nim.
@@ -169,7 +169,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
     }
 
     /**
-     * KONTROLA DODATNIA (D-229): gdyby ktoś kiedyś wrócił do zwykłego
+     * KONTROLA DODATNIA (D-230): gdyby ktoś kiedyś wrócił do zwykłego
      * formularza DELETE bez `<x-confirm-button>`, ta scena ma to złapać —
      * inaczej strażnik wyżej mierzyłby przypadkiem coś, co akurat przeszło.
      *

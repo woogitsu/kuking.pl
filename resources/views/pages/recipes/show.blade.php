@@ -317,7 +317,7 @@
                     @if($isSaved)
                         {{--
                             OPERACJA GLOBALNA — PYTA PRZED AKCJĄ I NAZYWA
-                            ZAKRES PO NIEJ (issue #775 + D-224/D-225 = D-229).
+                            ZAKRES PO NIEJ (issue #775 + D-224/D-225 = D-230).
 
                             Ten przycisk nie wie, w którym zeszycie stoi
                             człowiek — przepis mógł być zapisany w kilku naraz
@@ -326,7 +326,7 @@
                             mówiło, że zniknęło z KAŻDEGO zeszytu, ani nie
                             pytało przed usunięciem notatek, których żadna
                             droga powrotu nie odtwarza (`detach()` kasuje
-                            wiersz pivotu razem z `note`, D-229). D-224
+                            wiersz pivotu razem z `note`, D-230). D-224
                             rozstrzygnęło, że pytanie przed KAŻDĄ odwracalną
                             czynnością uczy odklikiwania — ale to rozstrzygnięcie
                             liczyło z odwracalnością całej akcji, nie z tym, że

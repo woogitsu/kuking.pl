@@ -520,7 +520,7 @@ class CollectionController extends Controller
 
     /**
      * KOMUNIKAT MÓWI, CO SIĘ STAŁO, NAZYWA ZAKRES (D-225) I NIE OBIECUJE
-     * WIĘCEJ, NIŻ „ZAPISZ PONOWNIE" NAPRAWDĘ ODDAJE (D-229).
+     * WIĘCEJ, NIŻ „ZAPISZ PONOWNIE" NAPRAWDĘ ODDAJE (D-230).
      *
      * „Usunięte z zeszytu." nie mówiło ani CO zniknęło, ani z ilu zeszytów —
      * a zakres globalny wyjmuje ze WSZYSTKICH zeszytów tej osoby (issue #775
@@ -532,7 +532,7 @@ class CollectionController extends Controller
      * więc zdaniem o „wszystkich Twoich zeszytach", a drugie kliknięcie
      * (norma w tej grupie, issue #43) nie kłamie, że znowu coś zabrało.
      *
-     * „MOŻESZ ZAPISAĆ PONOWNIE" NIE ZNACZY „NIC SIĘ NIE STRACIŁO" (D-229).
+     * „MOŻESZ ZAPISAĆ PONOWNIE" NIE ZNACZY „NIC SIĘ NIE STRACIŁO" (D-230).
      * `detach()` kasuje wiersz pivotu RAZEM z `note` — powrót przez „Zapisz
      * ponownie" przywraca sam fakt bycia w zeszycie, nie treść notatki przy
      * wpisie. Wcześniejsze zdanie „Nie usunęliśmy go z serwisu — możesz go

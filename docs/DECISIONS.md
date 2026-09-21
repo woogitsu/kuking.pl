@@ -15126,7 +15126,14 @@ Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
 `scripts/wyjecie-z-zeszytu.mjs`.
 
 
-## D-229 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-225, 21 września 2026)
+## D-230 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-225, 21 września 2026)
+
+*Ta decyzja nosiła najpierw numer D-229. Straciła go, bo tego samego dnia
+dwaj agenci floty niezależnie dostali od właściciela informację, że „pierwszy
+wolny numer to D-229" — jeden z nich (gałąź `gpt-n1-powiadomienia`) zajął go
+jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 14 w
+`gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
+D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
 
 Dwie gałęzie floty rozwiązały ten sam spór (#775) inaczej i obie miały rację
 w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
