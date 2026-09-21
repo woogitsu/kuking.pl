@@ -1,5 +1,19 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
+
+- Formularze ze zdjęciami przestały gubić to, co już wpisaliście. Wcześniej jedno źle wypełnione pole potrafiło zabrać całą resztę formularza razem z poprawnie wypełnionymi polami — teraz błąd zostaje przy swoim polu, a Wasz tekst czeka na miejscu. Podsumowanie błędów w kreatorze przepisu prowadzi do kroku, na którym to pole naprawdę jest.
+- Postęp w trybie gotowania przeżywa poprawkę przepisu. Do tej pory każdy zapis przepisu po cichu odznaczał wszystkie odhaczone kroki, nawet gdy ich treść się nie zmieniła.
+- Przy kroku przepisu jest minutnik, a ekran nie gaśnie, gdy gotujecie. Minutnik odlicza rzeczywisty czas — zmiana godziny w telefonie już go nie skróci ani nie przedłuży.
+- Powiększone zdjęcie pokazuje swój opis. Gdy się nie wczyta, zamiast pustego miejsca pojawia się krótka informacja i przycisk „Spróbuj ponownie”.
+- Wpis da się wyjąć z zeszytu. Karta wpisu ma przycisk „Usuń z zeszytu” obok odnośnika „Masz to w zeszycie”, a po kliknięciu od razu można zapisać ponownie.
+- Stopka, okruszki nad przepisem i filtr na stronie pytań mają większe pismo i większe pola do kliknięcia — takie same, jakich wymagamy na pozostałych ekranach.
+- Wyszukiwarka czyta frazę dosłownie: „100%” szuka teraz „100%”, a nie wszystkiego, co zawiera „100”. Wklejony adres z polskimi znakami staje się działającym odnośnikiem, a nie zwykłym tekstem.
+- Pod komentarzem widać, ile znaków jeszcze zostało. Powiadomienie o komentarzu prowadzi wprost do właściwego wątku, a z komentarza usuniętego mimo odpowiedzi nie wystaje już jego dawna treść — ani w powiadomieniu, ani w pobranych danych konta.
+- Ekran odwołania dla osoby zgłaszającej mówi, co się stało ze zgłoszoną treścią, ale nie ujawnia, jaką karę dostał jej autor. Potwierdzenie zgłoszenia i odwołanie po terminie przestały obiecywać rzeczy, które się nie wydarzą.
+- „Zablokuj” i „Zdejmij blokadę” trafiają w tę osobę, którą widzieliście na ekranie. Jeśli w międzyczasie zmieniła nazwę użytkownika, serwis odmawia i mówi o tym po polsku, zamiast po cichu zablokować kogoś innego.
+- Odwołanie i cofnięcie usunięcia konta są chronione przed zgadywaniem hasła tak samo jak logowanie. Komunikat po zablokowaniu podpowiada logowanie linkiem z poczty, a udana zmiana hasła blokadę zdejmuje.
+
 ## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
 
 - Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
