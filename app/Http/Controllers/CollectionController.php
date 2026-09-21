@@ -519,24 +519,31 @@ class CollectionController extends Controller
     }
 
     /**
-     * KOMUNIKAT MÓWI, CO SIĘ STAŁO, I NAZYWA ZAKRES (D-225).
+     * KOMUNIKAT MÓWI, CO SIĘ STAŁO, NAZYWA ZAKRES (D-225) I NIE OBIECUJE
+     * WIĘCEJ, NIŻ „ZAPISZ PONOWNIE" NAPRAWDĘ ODDAJE (D-229).
      *
      * „Usunięte z zeszytu." nie mówiło ani CO zniknęło, ani z ilu zeszytów —
      * a zakres globalny wyjmuje ze WSZYSTKICH zeszytów tej osoby (issue #775
-     * nazwał to „bez ujawnienia zakresu"). Pytania „czy na pewno" PRZED akcją
-     * nie przywracamy (D-224: wyjęcie jest odwracalne), więc zakres nazywa
-     * zdanie PO akcji, a drogę powrotu daje przycisk „Zapisz ponownie"
-     * (`components/layout.blade.php`).
+     * nazwał to „bez ujawnienia zakresu"). Zakres nazywa zdanie PO akcji,
+     * a drogę powrotu daje przycisk „Zapisz ponownie" (`components/layout.blade.php`).
      *
      * Liczba jest FAKTYCZNA, nie deklarowana: `remove()` oddaje, z ilu
      * zeszytów naprawdę wyjęto. Wpis leżący w jednym zeszycie nie straszy
      * więc zdaniem o „wszystkich Twoich zeszytach", a drugie kliknięcie
      * (norma w tej grupie, issue #43) nie kłamie, że znowu coś zabrało.
+     *
+     * „MOŻESZ ZAPISAĆ PONOWNIE" NIE ZNACZY „NIC SIĘ NIE STRACIŁO" (D-229).
+     * `detach()` kasuje wiersz pivotu RAZEM z `note` — powrót przez „Zapisz
+     * ponownie" przywraca sam fakt bycia w zeszycie, nie treść notatki przy
+     * wpisie. Wcześniejsze zdanie „Nie usunęliśmy go z serwisu — możesz go
+     * zapisać ponownie" sugerowało pełną odwracalność, której nie było:
+     * właściciel rozstrzygnął, że komunikat ma nazywać ten skutek wprost,
+     * a nie zacierać go ogólnym zapewnieniem.
      */
     private function komunikatPoWyjeciu(string $co, ?Collection $collection, int $ile): string
     {
         if ($collection !== null) {
-            return "{$co} wyjęty z zeszytu „{$collection->name}”. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.";
+            return "{$co} wyjęty z zeszytu „{$collection->name}”. Możesz zapisać go ponownie, ale notatka przy nim już nie wróci.";
         }
 
         if ($ile === 0) {
@@ -547,7 +554,7 @@ class CollectionController extends Controller
             ? 'z zeszytu'
             : sprintf('z %d Twoich %s', $ile, Odmiana::rzeczownik($ile, 'zeszytu', 'zeszytów', 'zeszytów'));
 
-        return "{$co} wyjęty {$zakres}. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.";
+        return "{$co} wyjęty {$zakres}. Możesz zapisać go ponownie, ale notatka przy nim już nie wróci.";
     }
 
     /**

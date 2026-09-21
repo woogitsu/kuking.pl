@@ -316,31 +316,39 @@
                     <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                     @if($isSaved)
                         {{--
-                            OPERACJA GLOBALNA, WIĘC NAZYWA ZAKRES — PO AKCJI,
-                            NIE PYTANIEM PRZED NIĄ (issue #775 + D-224 = D-225).
+                            OPERACJA GLOBALNA — PYTA PRZED AKCJĄ I NAZYWA
+                            ZAKRES PO NIEJ (issue #775 + D-224/D-225 = D-229).
 
                             Ten przycisk nie wie, w którym zeszycie stoi
                             człowiek — przepis mógł być zapisany w kilku naraz
                             przez „Wybierz zeszyt" niżej. Zarzut z #775 był
-                            prawdziwy: „Usunięte z zeszytu" po fakcie nie
-                            mówiło, że zniknęło z KAŻDEGO zeszytu, razem
-                            z notatkami. Odpowiedzią NIE jest jednak pytanie
-                            „czy na pewno" przed kliknięciem — D-224
-                            rozstrzygnęło, że przy akcji odwracalnej pytanie
-                            uczy odklikiwania i psuje wagę pytań przy rzeczach
-                            nieodwracalnych. Zakres nazywa więc komunikat PO
-                            akcji („Przepis wyjęty z 3 Twoich zeszytów"),
-                            a obok niego stoi przycisk „Zapisz ponownie"
-                            (`CollectionController::komunikatPoWyjeciu()`).
+                            podwójny: „Usunięte z zeszytu" po fakcie ani nie
+                            mówiło, że zniknęło z KAŻDEGO zeszytu, ani nie
+                            pytało przed usunięciem notatek, których żadna
+                            droga powrotu nie odtwarza (`detach()` kasuje
+                            wiersz pivotu razem z `note`, D-229). D-224
+                            rozstrzygnęło, że pytanie przed KAŻDĄ odwracalną
+                            czynnością uczy odklikiwania — ale to rozstrzygnięcie
+                            liczyło z odwracalnością całej akcji, nie z tym, że
+                            część jej skutku (notatki) nie wraca. Stąd pytanie
+                            wraca tu, na jedynym ekranie o zasięgu globalnym.
+
+                            Po potwierdzeniu komunikat nazywa zakres LICZBĄ
+                            („Przepis wyjęty z 3 Twoich zeszytów") i daje
+                            przycisk „Zapisz ponownie"
+                            (`CollectionController::komunikatPoWyjeciu()`) —
+                            ale mówi też wprost, że wraca sam zapis, nie
+                            notatka przy nim.
 
                             Usunięcie z JEDNEGO, wybranego zeszytu robi się
-                            w widoku tego zeszytu — tam przycisk nazywa się
-                            „Usuń z tego zeszytu" (D-225).
+                            w widoku tego zeszytu, bez pytania — tam przycisk
+                            nazywa się „Usuń z tego zeszytu" i notatki innych
+                            zeszytów w ogóle nie dotyczy (D-225).
                         --}}
-                        <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
-                        </form>
+                        <x-confirm-button
+                            :action="route('collections.unsave', $recipe->slug)"
+                            label="Usuń z zeszytu"
+                            question="Usunąć ten przepis ze wszystkich Twoich zeszytów, w których go zapisano? Notatki przy nim znikną razem z zapisem." />
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf

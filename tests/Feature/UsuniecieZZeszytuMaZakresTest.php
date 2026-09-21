@@ -112,20 +112,22 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
     /**
      * ZMIENIONY ŚWIADOMIE PRZY UJEDNOLICANIU (D-225).
      *
-     * W pierwotnej postaci ta scena wymagała na stronie przepisu
-     * `<details class="confirm">`, czyli pytania „czy na pewno" PRZED
-     * usunięciem. Równolegle powstałe #789 rozstrzygnęło odwrotnie (D-224):
-     * wyjęcie z zeszytu jest odwracalne, więc pytanie przed akcją uczy
-     * odklikiwania i psuje wagę pytań przy rzeczach naprawdę nieodwracalnych
-     * (kasowanie wpisu, kasowanie zeszytu). Właściciel utrzymał D-224.
+     * W pierwotnej postaci #776/D-224/D-225 ta scena wymagała, żeby strona
+     * przepisu NIE MIAŁA `<details class="confirm">` — pytanie „czy na
+     * pewno" miało zniknąć na rzecz komunikatu PO akcji. Właściciel
+     * rozstrzygnął to inaczej (D-229), łącząc obie prace zamiast wybierać
+     * jedną: pytanie WRACA na tym jedynym ekranie o zasięgu globalnym,
+     * bo `detach()` kasuje notatkę przy zapisie razem z nim, a „Zapisz
+     * ponownie" po akcji tej notatki nie odzyskuje — to uzasadnia pytanie
+     * przed czymś, co jest tylko CZĘŚCIOWO odwracalne.
      *
      * PRAWDZIWY ZARZUT Z #775 NIE ZNIKA — brzmiał „usuwa ze wszystkich
-     * zeszytów BEZ UJAWNIENIA ZAKRESU", a nie „usuwa bez pytania". Scena
-     * pilnuje więc dalej dokładnie tego: zakres ma być NAZWANY. Zmienia się
-     * tylko moment — po akcji zamiast przed nią — i dochodzi droga powrotu,
-     * bez której „po akcji" byłoby gorsze od „przed".
+     * zeszytów BEZ UJAWNIENIA ZAKRESU". Scena pilnuje więc TERAZ obu rzeczy
+     * naraz: pytania przed akcją (z jawnym ostrzeżeniem o notatkach) I zdania
+     * po akcji, które nazywa zakres liczbą i nie obiecuje więcej, niż „Zapisz
+     * ponownie" naprawdę oddaje.
      */
-    public function test_strona_przepisu_nazywa_zakres_usuniecia_po_akcji_i_daje_powrot(): void
+    public function test_strona_przepisu_pyta_przed_usunieciem_i_nazywa_zakres_po_akcji(): void
     {
         $basia = $this->user('basia');
         $przepis = Recipe::factory()->create();
@@ -137,9 +139,14 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
 
         $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
 
-        // Zwykły formularz DELETE, bez pytania przed akcją (D-224).
+        // POTWIERDZENIE PRZED AKCJĄ, BEZ JavaScriptu (D-229): `<details>`
+        // zwykłego HTML-a, a nie `onsubmit="return confirm(...)"`. Pytanie
+        // nazywa zakres (WSZYSTKICH zeszytów) i ostrzega wprost, że notatki
+        // przy zapisie znikną razem z nim.
         $this->assertStringContainsString('Usuń z zeszytu', $tresc);
-        $this->assertStringNotContainsString('<details class="confirm">', $tresc);
+        $this->assertStringContainsString('<details class="confirm">', $tresc);
+        $this->assertStringContainsString('wszystkich', $tresc);
+        $this->assertStringContainsString('Notatki przy nim znikną razem z zapisem', $tresc);
 
         $odpowiedz = $this->actingAs($basia)
             ->from($przepis->url())
@@ -148,15 +155,37 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
         $odpowiedz->assertRedirect();
 
         // ZAKRES NAZWANY LICZBĄ, KTÓRA JEST PRAWDZIWA — dwa zeszyty, więc
-        // zdanie mówi „z 2", a nie ogólnikowe „ze wszystkich".
+        // zdanie mówi „z 2", a nie ogólnikowe „ze wszystkich". Komunikat NIE
+        // obiecuje pełnej odwracalności: „Zapisz ponownie" przywraca zapis,
+        // nie notatkę przy nim.
         $odpowiedz->assertSessionHas('status', fn (string $tekst) => str_contains($tekst, 'z 2 Twoich zeszytów')
-            && str_contains($tekst, 'Nie usunęliśmy go z serwisu'));
+            && str_contains($tekst, 'notatka przy nim już nie wróci'));
 
         $odpowiedz->assertSessionHas('status_powrot', fn (array $powrot) => $powrot['etykieta'] === 'Zapisz ponownie'
             && $powrot['akcja'] === route('collections.save', $przepis->slug));
 
         $this->assertFalse($a->recipes()->whereKey($przepis->getKey())->exists());
         $this->assertFalse($b->recipes()->whereKey($przepis->getKey())->exists());
+    }
+
+    /**
+     * KONTROLA DODATNIA (D-229): gdyby ktoś kiedyś wrócił do zwykłego
+     * formularza DELETE bez `<x-confirm-button>`, ta scena ma to złapać —
+     * inaczej strażnik wyżej mierzyłby przypadkiem coś, co akurat przeszło.
+     */
+    public function test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia(): void
+    {
+        $basia = $this->user('basia');
+        $przepis = Recipe::factory()->create();
+        $basia->defaultCollection()->recipes()->attach($przepis->getKey());
+
+        $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
+
+        // Formularz DELETE istnieje dopiero WEWNĄTRZ `<details class="confirm">`
+        // — poza nim nie ma żadnego zwykłego `<form method="POST">…DELETE`
+        // wiszącego bezpośrednio pod przyciskiem „Usuń z zeszytu".
+        $poza = preg_replace('/<details class="confirm">.*?<\/details>/s', '', $tresc);
+        $this->assertStringNotContainsString(route('collections.unsave', $przepis->slug), (string) $poza);
     }
 
     /**

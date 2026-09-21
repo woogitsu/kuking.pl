@@ -291,9 +291,11 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         $odpowiedz->assertRedirect();
 
         // CO SIĘ STAŁO — po polsku i bez dwuznaczności: wpis wyszedł
-        // z zeszytu, a nie z serwisu.
+        // z zeszytu (nie z serwisu), a droga powrotu przywraca zapis, NIE
+        // notatkę przy nim — `detach()` kasuje wiersz pivotu razem z `note`
+        // (D-229), więc komunikat tego nie zaciera.
         $odpowiedz->assertSessionHas('status', fn (string $tekst) => str_contains($tekst, 'wyjęty z zeszytu')
-            && str_contains($tekst, 'Nie usunęliśmy go z serwisu'));
+            && str_contains($tekst, 'notatka przy nim już nie wróci'));
 
         // DROGA POWROTU — przycisk, nie samo zdanie „możesz zapisać ponownie”.
         $html = $this->actingAs($basia)
