@@ -239,14 +239,3 @@ Przed implementacją: zaakceptowane zasady, korpus z prawami, umowa OCR, źród�
 Po miesiącu: koszt udanego szkicu, udział użytych wyników, czas poprawek, p95 z kolejką, rzeczywiste gotowanie, zgłoszenia/100 publikacji, minuty moderatora. Kontynuować tylko przy oszczędności czasu użytkownika i obsługiwalnym koszcie społeczności.
 
 Nie wykonano: płatnego OCR, benchmarku rękopisu, kompletnego parsera, pomiaru ruchu/moderacji produkcji, negocjacji z wydawcami, porady prawnej ani odbioru nieistniejących ekranów. Nie zmieniono kodu produkcyjnego, migracji, tras, modeli, widoków, regulaminu i decyzji. Bez wiadomości, push i PR. Wynikiem jest projekt i lokalny commit, nie gotowość funkcji.
-
-## 11. Wykonane kontrole i przekazanie
-
-Własny pomiar na niezmienionym kodzie bazowym, runtime `/home/mateusz/flota/gpt-ocr-import-run`, PostgreSQL `127.0.0.1:55439`, baza `kuking_flota_gpt-ocr-import`, rola `kuking`:
-
-- `testuj.sh gpt-ocr-import --filter '^(?!.*ProbaOdtworzeniaTest)' --compact`: **4393 passed, 83 692 assertions, 478,23 s**, kod wyjścia 0. Zawiera RecipeTest, RecipeWizardTest i testy źródła/zgłoszeń. Nie dowodzi działania przyszłego OCR ani importera.
-- `ProbaOdtworzeniaTest` pominięty dokładnie po nazwie zgodnie z dopuszczeniem zlecenia — jego skrypt korzysta ze wspólnej bazy próby. Pierwszy niepełny przebieg zatrzymano przed tym testem, gdy okazało się, że wykluczenie grupy nie odpowiada nazwie klasy; wynik powyżej pochodzi z kolejnego kompletnego przebiegu z poprawnym filtrem.
-- Po odświeżeniu runtime `vendor/bin/pint`: **PASS, 1155 files**, kod wyjścia 0. Wywołanie przez PHP 8.4 z `/opt/kuking-php-8.4-avif/bin/php`.
-- Nie dodano testów cementujących decyzje produktowe ani testu regresji do nieimplementowanej poprawki. Kontrola ujemna będzie obowiązkowa przy przyszłych zmianach kodu.
-
-W trakcie pracy zniknęła rejestracja worktree i gałąź; `git worktree repair` nie znalazł repozytorium wskazanego przez `.git`. Zachowano cały katalog jako `C:\Users\matma\Documents\kuking-flota\gpt-ocr-import-recovery-20260920`, odtworzono wyłącznie własne stanowisko i gałąź od tego samego SHA, przeniesiono dokument. Nie wykonywano prune, reset ani operacji na cudzych stanowiskach. Kopia odzyskania pozostaje do dyspozycji właściciela.
