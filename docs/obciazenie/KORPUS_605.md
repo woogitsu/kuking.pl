@@ -1,7 +1,7 @@
 # Korpus prawdziwych zdjęć w przyrządzie #605
 
 Generator i rampa są istniejącymi narzędziami `scripts/*obciazenia-605*`.
-Opcja `--korpus /bezwzgledna/sciezka/korpus.json` rozszerza scenariusz
+Opcja `--korpus <bezwzględna ścieżka do korpus.json>` rozszerza scenariusz
 `upload`: kolejne wgrania przechodzą po wszystkich pozycjach, niezależnie
 od wyboru pozostałych scenariuszy. Nie zastępuje mieszanki testem samych zdjęć.
 Rampa i pojedyncza seria przekazują tę opcję przez `KORPUS_ZDJEC`.
