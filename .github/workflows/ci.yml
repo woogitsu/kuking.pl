@@ -11,7 +11,9 @@
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
 #  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
-#  Wszystkie dziewięć jobów ma dokładnie to samo:
+#  WYJĄTEK od 21.09.2026: pięć jobów przeglądarkowych czyta osobną zmienną,
+#  `CI_RUNS_ON_BROWSER` — patrz blok „JOBY PRZEGLĄDARKOWE" niżej. Wszystkie
+#  POZOSTAŁE joby mają dokładnie to samo:
 #
 #      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
@@ -50,6 +52,75 @@
 #  na nową pulę, skutek skasowania zmiennej i SYGNAŁ, po którym tę decyzję
 #  odwracamy, stoją w docs/infra/SELF_HOSTED_RUNNER.md → „Krok 1" → „Decyzja
 #  właściciela z 12 września 2026: zmienna ZOSTAJE na samym `self-hosted`".
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+#  JOBY PRZEGLĄDARKOWE: OSOBNA ZMIENNA `CI_RUNS_ON_BROWSER` (decyzja
+#  właściciela z 21.09.2026).
+#
+#  CO SIĘ ZMIENIŁO. Tego dnia CI przeszło na własne runnery (`CI_RUNS_ON`)
+#  we WSZYSTKICH jobach — koszt minut spadł do zera, ale runnery stoją na
+#  TEJ SAMEJ maszynie co flota agentów, która na niej równolegle pracuje.
+#  Przy pięciu pełnych zestawach testów naraz `load average` dobijał do 12,
+#  a joby przeglądarkowe (Playwright/Chromium pod obciążoną maszyną) odpadały
+#  z `TimeoutError` — `main` poczerwieniał z tego powodu raz tego dnia.
+#
+#  DECYZJA: pięć jobów, które podnoszą przeglądarkę, wraca na `ubuntu-latest`
+#  przez OSOBNĄ zmienną repozytorium, tym samym wzorcem co `CI_RUNS_ON`:
+#
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
+#
+#  Reszta jobów zostaje na `CI_RUNS_ON` (własne runnery) — nie ma powodu
+#  zdejmować z maszyny obciążenia, które jej nie przeszkadza.
+#
+#  KTÓRE JOBY: `assets`, `port_panelu`, `port_marki`, `port_funkcje`,
+#  `dostepnosc` — czyli WSZYSTKIE joby, które instalują Chromium/Playwright
+#  albo wołają skrypt `.mjs` sterujący przeglądarką. To jest PIĘĆ jobów, nie
+#  TRZY, jak sugerowałaby tabela pomiarów czasu (Panel marki 18 min, Port marki
+#  8 min, Dostępność 13 min) — w tej tabeli brakowało `port_funkcje` (zmierzone
+#  realnie ok. 27 min, patrz docs/infra/UPROSZCZENIE_CI_611.md, mediana i max
+#  „Port marki — rodziny ekranów") i pomijała `assets`, który też instaluje
+#  Chromium (krok „Proporcje małej skali — rzeczywisty CSS w Chromium"), choć
+#  tylko dla jednej szybkiej strony, nie pełnego zestawu jak pozostałe cztery.
+#  Pięć browserowych jobów to więc ok. 39 min na pełny przebieg (18+13+8+~27,
+#  `assets` liczy się w minutach budowy assetów, nie osobno) — z puli
+#  ~500 minut to około dwunastu pełnych przebiegów; ciasne, ale wiadome.
+#
+#  DLACZEGO OSOBNA ZMIENNA, A NIE ETYKIETA NA SZTYWNO W `runs-on:`. Sztywna
+#  etykieta wymagałaby PR-a i przeglądu za każdym razem, gdy flota przestaje
+#  pracować i te pięć jobów mogłoby wrócić na własne runnery. Zmienna zmienia
+#  się w Settings → Secrets and variables → Actions → Variables, bez PR-a —
+#  ten sam powód, dla którego istnieje `CI_RUNS_ON` (patrz blok wyżej).
+#
+#  ŚRODOWISKO: `ubuntu-latest` to ten sam obraz, który już był zapasem
+#  domyślnym tych jobów, zanim własne runnery przejęły wszystko — nie nowa,
+#  nieprzetestowana droga. Krok „Przeglądarka" (`npx playwright install
+#  chromium`, BEZ `--with-deps`) zakłada, że biblioteki systemowe Chromium
+#  (libnss, libatk, libgbm i inne) już są na maszynie: na własnym runnerze,
+#  bo ktoś je tam doinstalował ręcznie (docs/infra/SELF_HOSTED_RUNNER.md,
+#  „CI nie instaluje pakietów systemowych"); na `ubuntu-latest` — bo obraz
+#  GitHuba ma preinstalowane przeglądarki (Chrome, Edge), które ciągną te
+#  same biblioteki jako zależności pakietu. Nie jest to zmierzone NA TYM CI
+#  (żaden przebieg tej zmiany nie poszedł — patrz zlecenie), tylko wywnioskowane
+#  z dokumentacji obrazów runnerów GitHuba. Jeśli któryś pakiet jednak brakuje,
+#  Playwright powie to po nazwie przy starcie przeglądarki (ten sam komunikat
+#  co na self-hosted), nie padnie cicho.
+#
+#  KLIENT POSTGRESA, PHP, NODE: bez zmian. `shivammathur/setup-php`
+#  i `actions/setup-node` instalują wersję z `env.PHP_VERSION`/`NODE_VERSION`
+#  od zera na KAŻDYM runnerze, więc `ubuntu-latest` nie różni się tu niczym —
+#  to jest już standardowa droga tych akcji na obrazach GitHuba. Klient
+#  `pg_restore` 18 dotyczy wyłącznie joba `lint` (skrypty kopii bazy), który
+#  ZOSTAJE na `CI_RUNS_ON` — żaden z pięciu jobów przeglądarkowych go nie woła.
+#
+#  PO CZYM POZNAĆ, ŻE TRZEBA WRÓCIĆ NA WŁASNE RUNNERY: flota agentów
+#  przestaje obciążać maszynę (load average trwale poniżej ~4) — wtedy
+#  `CI_RUNS_ON_BROWSER` można skasować albo ustawić na tę samą wartość co
+#  `CI_RUNS_ON`, i te pięć jobów wraca na własną pulę bez PR-a.
+#
+#  Zgodności tego bloku z tym, co naprawdę stoi w `runs-on:` pięciu jobów
+#  przeglądarkowych, pilnuje ten sam strażnik co dla `CI_RUNS_ON`:
+#  `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`.
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -777,7 +848,7 @@ jobs:
     name: Build assetów (Vite)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
     steps:
@@ -887,7 +958,7 @@ jobs:
     name: Panel marki — puste i pełne widoki
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     timeout-minutes: 25
     services:
       postgres:
@@ -973,7 +1044,7 @@ jobs:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     timeout-minutes: 25
 
     services:
@@ -1072,7 +1143,7 @@ jobs:
     name: Port marki — rodziny ekranów, zoom i kreator
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     # CI 35241344523: pełne pomiary i upload trwały ponad 25 min; zachowujemy wszystkie kontrole.
     timeout-minutes: 35
 
@@ -1191,7 +1262,7 @@ jobs:
     name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     timeout-minutes: 20
 
     services:

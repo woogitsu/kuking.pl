@@ -126,6 +126,40 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
     ];
 
     /**
+     * Joby, które podnoszą przeglądarkę (Playwright/Chromium) — decyzja
+     * właściciela z 21.09.2026.
+     *
+     * Tego dnia własne runnery (`CI_RUNS_ON`) zaczęły dzielić maszynę z flotą
+     * agentów. Przy pięciu równoległych pełnych zestawach testów `load average`
+     * dobijał do 12, a joby przeglądarkowe odpadały z `TimeoutError` — `main`
+     * poczerwieniał z tego powodu raz. Decyzja: joby przeglądarkowe wracają na
+     * `ubuntu-latest` przez OSOBNĄ zmienną `CI_RUNS_ON_BROWSER` (ten sam wzorzec
+     * `fromJSON(vars.… || '"ubuntu-latest"')`), a reszta zostaje na `CI_RUNS_ON`.
+     *
+     * Znalezione kryterium: job instaluje Chromium/Playwright albo woła skrypt
+     * `.mjs` sterujący przeglądarką. Pięć jobów spełnia je dziś — nie trzy, jak
+     * sugerowała pierwotna tabela pomiarów: `port_panelu` (Panel marki, 18 min),
+     * `port_marki` (Port marki — kompozycje, 8 min), `port_funkcje` (Port marki —
+     * rodziny ekranów — brakował w tabeli, zmierzony realnie ok. 27 min, patrz
+     * `docs/infra/UPROSZCZENIE_CI_611.md`), `dostepnosc` (axe-core + Lighthouse,
+     * 13 min) i `assets` (Build assetów — krok „Proporcje małej skali", pojedyncza
+     * strona w Chromium, nie pełny zestaw Playwrighta jak pozostałe cztery).
+     *
+     * Lista jest ZAMKNIĘTA i sprawdzana przeciw plikowi: jeśli któryś z tych
+     * jobów zniknie albo zmieni identyfikator, test niżej oblewa z nazwaną
+     * przyczyną zamiast cicho przestać cokolwiek pilnować.
+     *
+     * @var list<string>
+     */
+    private const BROWSER_JOBY = [
+        'assets',
+        'port_panelu',
+        'port_marki',
+        'port_funkcje',
+        'dostepnosc',
+    ];
+
+    /**
      * PROGI — bez nich ten test jest zielony na pustym zbiorze.
      *
      * Test skanujący pliki przechodzi także wtedy, gdy nie znajdzie NICZEGO
@@ -219,25 +253,46 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
 
     public function test_joby_ci_wybieraja_runnera_jednym_i_tym_samym_sposobem(): void
     {
-        $deklaracje = $this->deklaracjeRunsOnZJobow();
+        $poJobie = $this->deklaracjeRunsOnPoJobie();
 
         $this->assertGreaterThanOrEqual(
             self::MIN_JOBOW,
-            count($deklaracje),
-            'W '.self::WORKFLOW.' widać tylko '.count($deklaracje).' jobów z `runs-on:`, '
+            count($poJobie),
+            'W '.self::WORKFLOW.' widać tylko '.count($poJobie).' jobów z `runs-on:`, '
             .'a spodziewamy się co najmniej '.self::MIN_JOBOW.'. Liczba jobów w CI nie '
             .'spada — to usterka TEGO TESTU, nie workflow-a: sprawdź ścieżkę do pliku '
             .'i wzorzec czytający `runs-on:` spoza komentarzy. Test, który nie znalazł '
             .'ani jednego joba, przechodzi na pustym zbiorze i nie pilnuje niczego.',
         );
 
+        $brakujace = array_values(array_diff(self::BROWSER_JOBY, array_keys($poJobie)));
+
+        $this->assertSame(
+            [],
+            $brakujace,
+            'Jobów z BROWSER_JOBY brak w '.self::WORKFLOW.': '.implode(', ', $brakujace).'. '
+            .'Job zniknął albo zmienił identyfikator — popraw listę BROWSER_JOBY albo '
+            .'workflow, zanim ten test oceni cokolwiek innego.',
+        );
+
+        $przegladarkowe = array_intersect_key($poJobie, array_flip(self::BROWSER_JOBY));
+        $pozostale = array_diff_key($poJobie, array_flip(self::BROWSER_JOBY));
+
         $this->assertCount(
             1,
-            array_unique($deklaracje),
-            'Joby w '.self::WORKFLOW.' wybierają runnera NA DWA RÓŻNE SPOSOBY: '
-            .implode(' | ', array_unique($deklaracje)).'. Żaden dokument nie opisze tego '
-            .'jednym zdaniem, a przebiegi rozjadą się po dwóch pulach. Zastane wartości '
-            .'wyżej — ujednolić albo opisać ten podział świadomie i przepisać ten test.',
+            array_unique($przegladarkowe),
+            'Joby przeglądarkowe ('.implode(', ', self::BROWSER_JOBY).') wybierają runnera '
+            .'NA RÓŻNE SPOSOBY: '.implode(' | ', array_unique($przegladarkowe)).'. Od 21.09.2026 '
+            .'mają czytać wspólnie `CI_RUNS_ON_BROWSER` — ujednolić albo opisać rozjazd świadomie '
+            .'i przepisać ten test.',
+        );
+
+        $this->assertCount(
+            1,
+            array_unique($pozostale),
+            'Pozostałe joby (poza BROWSER_JOBY) wybierają runnera NA RÓŻNE SPOSOBY: '
+            .implode(' | ', array_unique($pozostale)).'. Mają czytać wspólnie `CI_RUNS_ON` — '
+            .'ujednolić albo opisać rozjazd świadomie i przepisać ten test.',
         );
     }
 
@@ -247,10 +302,16 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
 
     public function test_dokumenty_cytuja_runs_on_dokladnie_tak_jak_stoi_w_jobach(): void
     {
-        $wKodzie = $this->deklaracjaRunsOnWKodzie();
+        $glowny = $this->runsOnGlownyWKodzie();
+        $przegladarkowy = $this->runsOnPrzegladarkowyWKodzie();
 
+        // `ci.yml` opisuje w komentarzach OBIE grupy naraz (jest dokumentem obu
+        // mechanizmów), pozostałe dokumenty znają tylko główny mechanizm — żaden
+        // z pozostałych trzech workflow-ów ani SELF_HOSTED_RUNNER.md nie ma dziś
+        // joba przeglądarkowego.
         foreach (self::DOKUMENTY as $dokument) {
             $cytaty = $this->cytatyRunsOn($this->trescDokumentu($dokument));
+            $dozwolone = $dokument === self::WORKFLOW ? [$glowny, $przegladarkowy] : [$glowny];
 
             $this->assertNotEmpty(
                 $cytaty,
@@ -261,15 +322,17 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
             );
 
             foreach ($cytaty as $cytat) {
-                $this->assertSame(
-                    $wKodzie,
+                $this->assertContains(
                     $cytat,
+                    $dozwolone,
                     $dokument.' cytuje `runs-on: '.$cytat.'`, a w jobach '.self::WORKFLOW
-                    .' stoi `runs-on: '.$wKodzie."`.\n"
+                    ." stoi:\n  główny (poza BROWSER_JOBY): `runs-on: ".$glowny."`\n"
+                    .'  przeglądarkowy (BROWSER_JOBY): `runs-on: '.$przegladarkowy."`\n"
                     .'Dokument i kod mówią dwie różne rzeczy o tym, GDZIE chodzi CI. '
                     ."Popraw tę stronę, która jest nieprawdziwa — a stroną prawdziwą jest\n"
-                    .'KOD (D-157 punkt 1); mechanizm wyboru runnera rozstrzyga D-121 i nie '
-                    ."zmienia się przy okazji porządkowania dokumentacji.\n"
+                    .'KOD (D-157 punkt 1); mechanizm wyboru runnera rozstrzyga D-121 (główny) '
+                    .'i decyzja właściciela z 21.09.2026 (przeglądarkowy), i nie zmienia się '
+                    ."przy okazji porządkowania dokumentacji.\n"
                     .'Tak właśnie wyglądało issue #342: nagłówek `ci.yml` cytował zestaw '
                     .'etykiet, a joby czytały zmienną repozytorium `CI_RUNS_ON`.',
                 );
@@ -289,11 +352,11 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
 
         $powod = $czytaZmienna
             ? 'Joby w '.self::WORKFLOW.' czytają zmienną repozytorium `CI_RUNS_ON` '
-                .'(`'.$this->deklaracjaRunsOnWKodzie().'`), więc zdanie odmawiające jej tej '
+                .'(`'.$this->runsOnGlownyWKodzie().'`), więc zdanie odmawiające jej tej '
                 .'roli jest nieprawdą — i to nieprawdą kierunkową: każe szukać etykiet '
                 .'w kodzie zamiast wartości zmiennej w ustawieniach repozytorium.'
             : 'Joby w '.self::WORKFLOW.' NIE czytają już żadnej zmiennej repozytorium '
-                .'(`'.$this->deklaracjaRunsOnWKodzie().'`), więc zdanie oddające jej wybór '
+                .'(`'.$this->runsOnGlownyWKodzie().'`), więc zdanie oddające jej wybór '
                 .'runnera jest nieprawdą. Dokument ma przestać mówić o zmiennej.';
 
         $this->assertSame([], $this->trafienia($zakazane), $powod);
@@ -307,13 +370,13 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
 
         $powod = $zapas !== null
             ? 'Joby w '.self::WORKFLOW.' MAJĄ zapas w runnerach GitHuba i jest on wartością '
-                .'domyślną: `'.$this->deklaracjaRunsOnWKodzie().'` schodzi bez zmiennej na '
+                .'domyślną: `'.$this->runsOnGlownyWKodzie().'` schodzi bez zmiennej na '
                 .'`'.$zapas.'`. Zdanie „te joby nie mają już zapasu" opisuje inny wariant '
                 .'`runs-on:` niż ten, który tu stoi — a różnica jest praktyczna: przy '
                 .'zapasie wyjściem awaryjnym z zakolejkowanego CI jest SKASOWANIE zmiennej, '
                 .'nie czekanie na maszyny.'
             : 'W `runs-on:` nie ma już zapasu w runnerach GitHuba (`'
-                .$this->deklaracjaRunsOnWKodzie().'`), a dokument dalej go obiecuje. '
+                .$this->runsOnGlownyWKodzie().'`), a dokument dalej go obiecuje. '
                 .'Zdanie o `ubuntu-latest` jako wartości domyślnej trzeba usunąć razem '
                 .'z zapasem, a nie po kolejnym zakolejkowanym wdrożeniu.';
 
@@ -408,64 +471,100 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
     // ---------------------------------------------------------------
 
     /**
-     * Wartości `runs-on:` ze WSZYSTKICH jobów, z pominięciem linii komentarza.
+     * Wartości `runs-on:` ze WSZYSTKICH jobów, z pominięciem linii komentarza,
+     * indeksowane identyfikatorem joba (`zakres`, `port_marki`, …).
      *
      * Komentarze są tu wycięte świadomie: nagłówek `ci.yml` cytuje `runs-on:`
      * w treści, a to jest obietnica dokumentu, nie kod. Pomieszanie jednego
      * z drugim dałoby test, który porównuje nagłówek sam ze sobą.
      *
-     * @return list<string>
+     * Identyfikator joba łapie klucz na DWÓCH spacjach wcięcia z gołym
+     * dwukropkiem na końcu linii (`  port_marki:`) — dokładnie tak wyglądają
+     * klucze jobów pod `jobs:` w tym pliku. Kilka takich linii istnieje też
+     * w bloku `on:` (`  push:`, `  workflow_dispatch:`) — nie szkodzi: żadna
+     * linia `runs-on:` nie pojawia się, zanim skaner trafi na pierwszy
+     * prawdziwy klucz joba pod `jobs:`, więc fałszywe „bieżące joby" z bloku
+     * `on:` nigdy nie zbierają żadnej wartości.
+     *
+     * @return array<string, string>
      */
-    private function deklaracjeRunsOnZJobow(): array
+    private function deklaracjeRunsOnPoJobie(): array
     {
-        $deklaracje = [];
+        $poJobie = [];
+        $aktualnyJob = null;
 
         foreach ($this->linie(self::WORKFLOW) as $linia) {
             if ($this->jestKomentarzem($linia)) {
                 continue;
             }
 
-            if (preg_match('/^\s+runs-on:\s*(\S.*?)\s*$/', $linia, $trafienie) === 1) {
-                $deklaracje[] = $this->bezNadmiarowychSpacji($trafienie[1]);
+            if (preg_match('/^  ([a-z][a-z0-9_]*):\s*$/', $linia, $trafienieJobu) === 1) {
+                $aktualnyJob = $trafienieJobu[1];
+
+                continue;
+            }
+
+            if ($aktualnyJob !== null && preg_match('/^\s+runs-on:\s*(\S.*?)\s*$/', $linia, $trafienie) === 1) {
+                $poJobie[$aktualnyJob] = $this->bezNadmiarowychSpacji($trafienie[1]);
             }
         }
 
-        return $deklaracje;
+        return $poJobie;
     }
 
-    /** Jedna, uzgodniona wartość `runs-on:` z jobów. */
-    private function deklaracjaRunsOnWKodzie(): string
+    /** Jedna, uzgodniona wartość `runs-on:` z podanego wycinka jobów. */
+    private function jedynaWartoscRunsOn(array $poJobie, string $opisGrupy): string
     {
-        $deklaracje = array_unique($this->deklaracjeRunsOnZJobow());
+        $deklaracje = array_unique($poJobie);
 
         $this->assertCount(
             1,
             $deklaracje,
-            'Joby w '.self::WORKFLOW.' nie mają jednej wspólnej wartości `runs-on:` '
-            .'(znalezione: '.count($deklaracje).'). Powód i co z tym zrobić opisuje '
+            'Joby '.$opisGrupy.' w '.self::WORKFLOW.' nie mają jednej wspólnej wartości '
+            .'`runs-on:` (znalezione: '.count($deklaracje).'). Powód i co z tym zrobić opisuje '
             .'test_joby_ci_wybieraja_runnera_jednym_i_tym_samym_sposobem.',
         );
 
         return (string) reset($deklaracje);
     }
 
+    /** Wspólna wartość `runs-on:` jobów POZA `BROWSER_JOBY` (czyta `CI_RUNS_ON`). */
+    private function runsOnGlownyWKodzie(): string
+    {
+        $poJobie = array_diff_key($this->deklaracjeRunsOnPoJobie(), array_flip(self::BROWSER_JOBY));
+
+        return $this->jedynaWartoscRunsOn($poJobie, 'pozostałe (poza BROWSER_JOBY)');
+    }
+
+    /** Wspólna wartość `runs-on:` jobów z `BROWSER_JOBY` (czyta `CI_RUNS_ON_BROWSER`). */
+    private function runsOnPrzegladarkowyWKodzie(): string
+    {
+        $poJobie = array_intersect_key($this->deklaracjeRunsOnPoJobie(), array_flip(self::BROWSER_JOBY));
+
+        return $this->jedynaWartoscRunsOn($poJobie, 'przeglądarkowe (BROWSER_JOBY)');
+    }
+
     /** Czy `runs-on:` sięga po zmienną repozytorium (`vars.…`). */
     private function kodCzytaZmiennaRepozytorium(): bool
     {
-        return preg_match('/\bvars\.[A-Z0-9_]+/', $this->deklaracjaRunsOnWKodzie()) === 1;
+        return preg_match('/\bvars\.[A-Z0-9_]+/', $this->runsOnGlownyWKodzie()) === 1;
     }
 
     /**
      * Etykieta zapasowa z `|| '"…"'`, albo `null`, gdy zapasu nie ma.
      *
      * To jest dokładnie ta konstrukcja, której istnieniu przeczył nagłówek:
-     * `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')`.
+     * `fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"')`. Sprawdzana na głównym
+     * mechanizmie — przeglądarkowy (`CI_RUNS_ON_BROWSER`) używa dziś tego
+     * samego wzorca zapasu i żaden osobny dokument nie twierdzi o nim czegoś
+     * innego, więc osobnego strażnika nie ma (D-157 punkt 3: zakaz na
+     * rzeczywistą obietnicę, nie na każdą możliwą przyszłą).
      */
     private function zapasWRunnerachGithuba(): ?string
     {
         $wzorzec = '/\|\|\s*\'"([^"]+)"\'/';
 
-        return preg_match($wzorzec, $this->deklaracjaRunsOnWKodzie(), $trafienie) === 1
+        return preg_match($wzorzec, $this->runsOnGlownyWKodzie(), $trafienie) === 1
             ? $trafienie[1]
             : null;
     }

@@ -144,12 +144,21 @@ W panelu GitHuba runner powinien pokazać się jako **Idle**.
 ### Krok 1 — ustaw zmienną repozytorium `CI_RUNS_ON`
 
 Runnera **wybiera zmienna repozytorium `CI_RUNS_ON`** (D-121). Każdy job
-w `ci.yml`, `deploy.yml`, `preview.yml` i `railway-iac.yml` ma dokładnie to
-samo:
+w `deploy.yml`, `preview.yml`, `railway-iac.yml` i większość jobów w `ci.yml`
+ma dokładnie to samo:
 
 ```yaml
 runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 ```
+
+**Wyjątek od 21.09.2026:** pięć jobów przeglądarkowych w `ci.yml` (`assets`,
+`port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc`) czyta osobną
+zmienną, `CI_RUNS_ON_BROWSER`, tym samym wzorcem. Powód i pełne uzasadnienie
+stoją w nagłówku `.github/workflows/ci.yml`, blok „JOBY PRZEGLĄDARKOWE" —
+własne runnery zaczęły dzielić maszynę z flotą agentów, a przy dużym
+obciążeniu joby Playwrighta padały z `TimeoutError`. Ten dokument opisuje
+mechanizm `CI_RUNS_ON`; mechanizm `CI_RUNS_ON_BROWSER` jest z nim identyczny,
+tylko dotyczy innego, węższego zestawu jobów.
 
 Bez tej zmiennej joby idą na `ubuntu-latest`. Żeby trafiły na własną pulę,
 ustaw w **Settings** → **Secrets and variables** → **Actions** →
