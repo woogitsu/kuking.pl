@@ -151,14 +151,20 @@ ma dokładnie to samo:
 runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 ```
 
-**Wyjątek od 21.09.2026:** pięć jobów przeglądarkowych w `ci.yml` (`assets`,
-`port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc`) czyta osobną
+**Wyjątek od 21.09.2026 (zawężony tego samego dnia):** JEDEN job w `ci.yml`,
+`port_funkcje` („Port marki — rodziny ekranów, zoom i kreator"), czyta osobną
 zmienną, `CI_RUNS_ON_BROWSER`, tym samym wzorcem. Powód i pełne uzasadnienie
-stoją w nagłówku `.github/workflows/ci.yml`, blok „JOBY PRZEGLĄDARKOWE" —
-własne runnery zaczęły dzielić maszynę z flotą agentów, a przy dużym
-obciążeniu joby Playwrighta padały z `TimeoutError`. Ten dokument opisuje
-mechanizm `CI_RUNS_ON`; mechanizm `CI_RUNS_ON_BROWSER` jest z nim identyczny,
-tylko dotyczy innego, węższego zestawu jobów.
+stoją w nagłówku `.github/workflows/ci.yml`, blok „JOB PRZEGLĄDARKOWY
+`port_funkcje`" — własne runnery zaczęły dzielić maszynę z flotą agentów,
+a `port_funkcje` (najdłuższy job w CI, medianą 51 s, ale maksimum 1638 s na
+25 przebiegach) pod tym obciążeniem padł na `main` z `TimeoutError`.
+Pierwsza wersja tej decyzji przełączyła PIĘĆ jobów (`assets`, `port_panelu`,
+`port_marki`, `port_funkcje`, `dostepnosc`) — właściciel to cofnął po
+zobaczeniu kosztu w minutach (pięć jobów = 66 min na przebieg = tylko
+7 przebiegów z puli ~500 minut; sam `port_funkcje` = 27 min = ok. 18
+przebiegów). Pozostałe cztery joby wróciły na `CI_RUNS_ON`. Ten dokument
+opisuje mechanizm `CI_RUNS_ON`; mechanizm `CI_RUNS_ON_BROWSER` jest z nim
+identyczny, tylko dotyczy jednego, węższego joba.
 
 Bez tej zmiennej joby idą na `ubuntu-latest`. Żeby trafiły na własną pulę,
 ustaw w **Settings** → **Secrets and variables** → **Actions** →

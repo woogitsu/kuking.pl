@@ -126,37 +126,39 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
     ];
 
     /**
-     * Joby, które podnoszą przeglądarkę (Playwright/Chromium) — decyzja
-     * właściciela z 21.09.2026.
+     * Job, który dziś czyta osobną zmienną `CI_RUNS_ON_BROWSER` — decyzja
+     * właściciela z 21.09.2026, ZAWĘŻONA tego samego dnia.
      *
      * Tego dnia własne runnery (`CI_RUNS_ON`) zaczęły dzielić maszynę z flotą
      * agentów. Przy pięciu równoległych pełnych zestawach testów `load average`
      * dobijał do 12, a joby przeglądarkowe odpadały z `TimeoutError` — `main`
-     * poczerwieniał z tego powodu raz. Decyzja: joby przeglądarkowe wracają na
-     * `ubuntu-latest` przez OSOBNĄ zmienną `CI_RUNS_ON_BROWSER` (ten sam wzorzec
-     * `fromJSON(vars.… || '"ubuntu-latest"')`), a reszta zostaje na `CI_RUNS_ON`.
+     * poczerwieniał z tego powodu raz.
      *
-     * Znalezione kryterium: job instaluje Chromium/Playwright albo woła skrypt
-     * `.mjs` sterujący przeglądarką. Pięć jobów spełnia je dziś — nie trzy, jak
-     * sugerowała pierwotna tabela pomiarów: `port_panelu` (Panel marki, 18 min),
-     * `port_marki` (Port marki — kompozycje, 8 min), `port_funkcje` (Port marki —
-     * rodziny ekranów — brakował w tabeli, zmierzony realnie ok. 27 min, patrz
-     * `docs/infra/UPROSZCZENIE_CI_611.md`), `dostepnosc` (axe-core + Lighthouse,
-     * 13 min) i `assets` (Build assetów — krok „Proporcje małej skali", pojedyncza
-     * strona w Chromium, nie pełny zestaw Playwrighta jak pozostałe cztery).
+     * PIERWSZA WERSJA tej decyzji przełączyła PIĘĆ jobów naraz (`assets`,
+     * `port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc`) — właściciel
+     * to cofnął po zobaczeniu kosztu w minutach: pięć jobów sumują się do
+     * 66 min na pełny przebieg (Panel marki 18 + Port marki 8 + Port marki —
+     * rodziny ekranów 27 + Dostępność 13), czyli tylko SIEDEM przebiegów
+     * z puli ~500 minut miesięcznie. Ostateczna decyzja: WYŁĄCZNIE
+     * `port_funkcje` wraca na `ubuntu-latest` przez `CI_RUNS_ON_BROWSER`
+     * (ten sam wzorzec `fromJSON(vars.… || '"ubuntu-latest"')`) — sam ten job
+     * jest najdłuższy w całym CI (mediana 51 s, maksimum 1638 s na
+     * 25 przebiegach) i to on padł na `main` z `TimeoutError` pod obciążeniem
+     * floty. Pozostałe cztery joby (w tym `assets`, mimo że też instaluje
+     * Chromium dla kroku „Proporcje małej skali") zostają na `CI_RUNS_ON` —
+     * czy pod obciążeniem floty też zaczną padać, NIE WIADOMO; to jest
+     * pytanie otwarte, nie rozstrzygnięcie tym zawężeniem.
      *
-     * Lista jest ZAMKNIĘTA i sprawdzana przeciw plikowi: jeśli któryś z tych
-     * jobów zniknie albo zmieni identyfikator, test niżej oblewa z nazwaną
-     * przyczyną zamiast cicho przestać cokolwiek pilnować.
+     * Lista jest ZAMKNIĘTA i sprawdzana przeciw plikowi: jeśli ten job
+     * zniknie albo zmieni identyfikator, test niżej oblewa z nazwaną
+     * przyczyną zamiast cicho przestać cokolwiek pilnować. Trzyma się formy
+     * listy (nie pojedynczej stałej), żeby przywrócenie kolejnych jobów do
+     * `CI_RUNS_ON_BROWSER` było dopisaniem elementu, a nie przepisaniem testu.
      *
      * @var list<string>
      */
     private const BROWSER_JOBY = [
-        'assets',
-        'port_panelu',
-        'port_marki',
         'port_funkcje',
-        'dostepnosc',
     ];
 
     /**
@@ -293,6 +295,36 @@ class DokumentyCiMowiaPrawdeORunnerzeTest extends TestCase
             'Pozostałe joby (poza BROWSER_JOBY) wybierają runnera NA RÓŻNE SPOSOBY: '
             .implode(' | ', array_unique($pozostale)).'. Mają czytać wspólnie `CI_RUNS_ON` — '
             .'ujednolić albo opisać rozjazd świadomie i przepisać ten test.',
+        );
+
+        // Z JEDNYM jobem w BROWSER_JOBY oba testy `assertCount(1, …)` wyżej są
+        // prawdziwe NAWET WTEDY, gdy ktoś przez pomyłkę przywróci `port_funkcje`
+        // na `CI_RUNS_ON` (zbiór jednoelementowy ma zawsze jedną unikalną
+        // wartość — sam z sobą się nie różni). Tego dokładnie dotyczyła usterka
+        // #342: cichy powrót do jednej wspólnej wartości. Dlatego to jest
+        // JEDYNE miejsce w tym pliku, które wprost porównuje obie grupy ze sobą.
+        $wartoscPrzegladarkowa = (string) reset($przegladarkowe);
+        $wartoscPozostalych = (string) reset($pozostale);
+
+        $this->assertNotSame(
+            $wartoscPozostalych,
+            $wartoscPrzegladarkowa,
+            'Job(y) z BROWSER_JOBY ('.implode(', ', self::BROWSER_JOBY).') mają TĘ SAMĄ '
+            .'wartość `runs-on:` co pozostałe joby: `'.$wartoscPrzegladarkowa.'`. To jest '
+            .'dokładnie przypadkowy powrót do jednej wspólnej wartości, przed którym ten test '
+            .'ma ostrzegać — z jednym jobem w grupie przeglądarkowej `assertCount(1, …)` wyżej '
+            .'przechodzi także wtedy, gdy ta grupa po cichu scaliła się z resztą. Job '
+            .'przeglądarkowy ma czytać `CI_RUNS_ON_BROWSER`, nie `CI_RUNS_ON`.',
+        );
+
+        $this->assertStringContainsString(
+            'CI_RUNS_ON_BROWSER',
+            $wartoscPrzegladarkowa,
+            'Job(y) z BROWSER_JOBY mają `runs-on: '.$wartoscPrzegladarkowa.'`, co nie '
+            .'wspomina zmiennej `CI_RUNS_ON_BROWSER` po nazwie. Decyzja właściciela '
+            .'z 21.09.2026 mówi wprost, jaka zmienna ma tu stać — sama różnica od '
+            .'wartości pozostałych jobów (sprawdzona wyżej) by tego nie wykryła, gdyby '
+            .'ktoś podstawił inną, trzecią wartość.',
         );
     }
 
