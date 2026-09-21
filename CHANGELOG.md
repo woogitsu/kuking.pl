@@ -1,5 +1,12 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.72 — zdjęcia przeżywają błąd w formularzu, a ponowione wysłanie nie wgrywa ich drugi raz
+
+- Wysłanie tego samego formularza drugi raz — bo ktoś kliknął dwa razy albo cofnął się w przeglądarce — nie tworzy już drugiego kompletu zdjęć. Serwis rozpoznaje zakończone wysłanie, zanim zabierze się za zdjęcia, i pokazuje ten sam wpis. Przy „Ugotowałem” najpierw nadal sprawdza prawo do przepisu.
+- Poprawne zdjęcia w „Ugotowałem” zapisują się przed sprawdzeniem tekstu. Kolejny błąd w innym polu nie każe wybierać ich od nowa: w formularzu jest podgląd przygotowanego zdjęcia i przycisk usunięcia, a usunięcie nie publikuje wykonania ani nie kasuje wpisanego tekstu.
+- Zachowane zdjęcie wraca do formularza tylko wtedy, gdy naprawdę należy do Was i nie zostało usunięte. Podstawienie czegoś, co nie jest identyfikatorem zdjęcia, kończy się zwykłą odmową zamiast błędem serwera.
+- Podsumowanie błędów nad formularzem wpisu, pytania i „Ugotowałem” prowadzi przy błędzie zdjęcia do pola wyboru pliku, a nie w próżnię. Samo pole jest oznaczone jako błędne i ma przy sobie tekst błędu. Kotwice pozostałych pól, na przykład kroków przepisu, zostają bez zmian.
+
 ## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
 
 - Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
