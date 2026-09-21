@@ -2646,6 +2646,93 @@ dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
 
+### potwierdzenia_zadan_rodo
+Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
+obsłużone — **zamiast** bezterminowego dziennika osobowego.
+
+Powstało z `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C, która nie kwestionuje
+liczby, tylko kształt: trzy kategorie `audit_log` z listy
+`AuditLogEntry::NIGDY_NIE_KASUJ` trzymają dziś BEZTERMINOWO wpis z `actor_id`,
+`ip_hash` i dowolnym `metadata jsonb`. Ocena każe je zastąpić zamkniętym
+zestawem pól, trzymanym **36 miesięcy od zakończenia obsługi**. Pełny projekt,
+razem z rozstrzygnięciem powiązania z wnioskodawcą i jego słabościami:
+`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`.
+
+**Tabela jest dziś PUSTA i nic do niej nie pisze.** Migracja zakłada schemat;
+przeniesienie istniejących wpisów `account.*` i skasowanie ich pełnych kopii
+to osobne kroki, które uruchamia właściciel (lista w projekcie wyżej).
+
+- `id uuid` PK, `DEFAULT gen_random_uuid()`;
+- **`numer varchar(19) UNIQUE`** — `RODO-XXXX-XXXX-XXXX`, losowany
+  z `App\Support\NumerZadaniaRodo` (alfabet bez `0`, `1`, `I`, `L`, `O`, `U`
+  wspólny z `NumerSprawy`, 12 znaków ≈ 59 bitów). To jest **jedyne powiązanie
+  wiersza z człowiekiem po wykonaniu usunięcia** — numer dostaje wnioskodawca,
+  baza nie trzyma niczego, z czego dałoby się go odtworzyć. Przedrostek inny
+  niż `KU` zgłoszeń moderacyjnych, żeby dwa rejestry nie mówiły tym samym
+  numerem. Wzór pilnuje CHECK `potwierdzenia_zadan_rodo_numer_check`,
+  **zamrożony w dniu migracji** — zmiana `NumerSprawy::ALFABET` wymaga nowej
+  migracji (tak samo jak przy `reports`);
+- **`rodzaj varchar(40)`** — CHECK po `SlownikPotwierdzenRodo::RODZAJE`. Dziś
+  jedna wartość: `usuniecie_konta`;
+- **`wynik varchar(30)`** — `w_toku` / `wykonane` / `cofniete` / `odmowa`.
+  Ta kolumna zastępuje TRZY kategorie dziennika jednym wierszem: cofnięcie
+  żądania jest **wynikiem**, nie osobnym zdarzeniem („Przechowuj właściwy stan
+  końcowy, nie trzy niekasowalne kopie wszelkich danych" — §C);
+- **`zakres varchar(20) NULL`** — `minimum` / `everything`, te same wartości co
+  `users.delete_scope` (D-022). CHECK wiąże je z wynikiem w OBIE strony:
+  `wykonane` musi mieć zakres, każdy inny wynik mieć go nie może;
+- **`otrzymano date`** + **`zakonczono date NULL`** — daty wpływu i zakończenia.
+  **`date`, nie `timestamptz`, i to jest minimalizacja**: sekunda zamknięcia
+  sprawy daje się zestawić z chwilą, w której czyjeś wpisy zmieniły autora na
+  „konto usunięte", czyli sama identyfikuje. Doba do wykazania terminu z art. 12
+  ust. 3 i do policzenia 36 miesięcy wystarcza. `zakonczono` jest **początkiem
+  zegara retencji**; `NULL` znaczy „sprawa w toku" i CHECK wiąże to z
+  `wynik = 'w_toku'` w obie strony, żeby bezterminowość nie wróciła przez pustą
+  kolumnę;
+- **`wersja_procedury varchar(20)`** — która wersja procedury usunięcia to
+  wykonała (`RRRR-MM-DD` daty obowiązywania). Bez niej „wykonane" znaczy tylko
+  „zrobiliśmy wtedy to, co wtedy robiliśmy";
+- **`wyjatki text NULL`** — czego NIE usunięto i z jakiej reguły to wynika
+  (przy `minimum` treści zostają zanonimizowane, `COMPLIANCE.md` §2; sprawa
+  moderacyjna ma własne 36 miesięcy). Tekst wskazuje **regułę**, nie opowiada
+  o człowieku;
+- **`konto_id uuid NULL`** → `users` (`ON DELETE SET NULL`) — powiązanie
+  **tylko dopóki konto nie zostało wymazane**. CHECK
+  `potwierdzenia_zadan_rodo_wykonane_bez_konta_check` zabrania go przy
+  `wynik = 'wykonane'`: z chwilą wykonania konto jest zanonimizowane, a ten
+  wskaźnik związałby dowód usunięcia danych osobowych ze wszystkim, co po tym
+  koncie w serwisie zostało. Reguła stoi **w bazie**, nie w PHP, bo drugie
+  miejsce zapisu obeszłoby regułę w PHP;
+- **`wstrzymanie_do date NULL`** + **`wstrzymanie_sprawa varchar(100) NULL`** —
+  udokumentowane wstrzymanie kasowania (§C: „o ile konkretna udokumentowana
+  sprawa nie wymaga dalszego zachowania"). CHECK wymusza parę: wstrzymanie bez
+  wskazanej sprawy to znów retencja bezterminowa, tylko pisana inną kolumną.
+  Data, nie flaga — blokada ma wygasać sama;
+- `created_at` / `updated_at` (`timestamptz`) — kiedy wiersz powstał. To **nie**
+  jest `otrzymano`; rozjazd między nimi jest jedynym sygnałem daty wpisanej
+  wstecz.
+
+**Czego tu nie ma, świadomie:** adresu e-mail (jawnego ani jako skrót), nazwy,
+biogramu, zdjęć, treści wniosku, korespondencji, `ip_hash` — oraz `metadata
+jsonb`, czyli tej jednej kolumny, przez którą wszystkie powyższe wróciłyby bez
+migracji i bez recenzji schematu.
+
+**Indeksy** (wszystkie częściowe — każdy pod jedno zapytanie):
+`potwierdzenia_zadan_rodo_retencja_idx (zakonczono) WHERE zakonczono IS NOT NULL`,
+`..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
+oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
+
+**Retencja: 36 miesięcy od `zakonczono`**, z pominięciem wierszy z aktywnym
+`wstrzymanie_do`. **Automatu jeszcze nie ma** — powstanie razem ze ścieżką
+zapisu, w kroku uruchamianym przez właściciela.
+
+**Rollback:** `down()` kasuje tabelę, ale **odmawia**, gdy stoi w niej choć
+jeden wiersz z wypełnionym `zakonczono` — to dowód obsługi żądania, którego nie
+ma gdzie indziej. Odmowa jest wąska (AGENTS.md §6, D-088): pusta tabela i tabela
+z samymi sprawami w toku cofają się bez pytania, bo sprawa w toku żyje nadal
+w `users.delete_requested_at`. Kolejność: **najpierw kod, potem migracja**.
+Pilnuje tego `MinimalnePotwierdzenieRodoTest` (odmowa + dwie kontrole dodatnie).
+
 ### dziennik_zgod
 Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
 **append-only** (migracja `2026_09_10_400000_create_dziennik_zgod_table`,
