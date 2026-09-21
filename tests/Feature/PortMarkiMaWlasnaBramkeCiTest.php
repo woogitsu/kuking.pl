@@ -51,6 +51,66 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
     }
 
     /**
+     * STRAŻNIK MARTWYCH REGUŁ CSS MA KTO URUCHOMIĆ (D-223).
+     *
+     * `scripts/kaskada-martwe-reguly.mjs` powstał 20.09.2026 i przez dobę nie
+     * wołał go NIKT — ani `ci.yml`, ani `scripts/check.sh`. Strażnik, którego
+     * nic nie uruchamia, jest dokumentacją zamiaru, a nie bramką; ten sam
+     * wzór wyszedł tego dnia pięć razy przy skryptach testujących JavaScript.
+     *
+     * Ten test pilnuje trzech rzeczy naraz, bo każda z osobna daje zieleń bez
+     * pomiaru:
+     *
+     * 1. WYWOŁANIE ISTNIEJE i stoi w jobie `dostepnosc` — jedynym, który ma
+     *    równocześnie Chromium, PHP, zbudowany arkusz i ZASIANĄ bazę.
+     * 2. STOI PO przeglądarce i PO `migrate:fresh --seed`. Przed nimi padłby
+     *    na braku Chromium albo na pustej bazie — czyli na przyrządzie,
+     *    a nie na CSS-ie, i pierwsza czerwień nauczyłaby czytelnika, że ta
+     *    bramka „zawsze się sypie".
+     * 3. IDZIE PRZEZ `scripts/kaskada-kontrola-polecenie.sh`, nie przez gołe
+     *    `node …mjs` z własnymi flagami w `ci.yml`. Zawężenie `--tylko` ma
+     *    JEDNO miejsce, wspólne z kontrolą ujemną — inaczej bramka i jej
+     *    dowód mierzyłyby dwa różne zakresy i dowód przestałby cokolwiek
+     *    dowodzić, nie zmieniając ani jednego znaku w skrypcie.
+     *
+     * Osobno: wywołania NIE MA w `npm run build` ani w `Dockerfile`. Lista
+     * `build` biegnie przy budowaniu obrazu, gdzie nie ma ani przeglądarki,
+     * ani bazy — strażnik wywróciłby tam wydanie na własnym braku narzędzi.
+     */
+    public function test_straznik_martwych_regul_css_ma_kto_uruchomic(): void
+    {
+        $wywolanie = 'run: bash scripts/kaskada-kontrola-polecenie.sh';
+
+        $this->assertSame(1, substr_count($this->workflow(), $wywolanie),
+            'Strażnik martwych reguł CSS nie jest wołany dokładnie raz w `ci.yml`.');
+
+        $job = $this->job('dostepnosc');
+        $this->assertStringContainsString($wywolanie, $job,
+            'Strażnik kaskady stoi poza jobem `dostepnosc` — a tylko ten ma Chromium, PHP i zasianą bazę.');
+        $this->assertStringNotContainsString('continue-on-error:', $job);
+
+        $przegladarka = strpos($job, 'npx playwright install chromium');
+        $baza = strpos($job, 'migrate:fresh --seed');
+        $straznik = strpos($job, $wywolanie);
+        $this->assertIsInt($przegladarka);
+        $this->assertIsInt($baza);
+        $this->assertLessThan($straznik, $przegladarka,
+            'Strażnik kaskady stoi PRZED instalacją Chromium — padłby na przyrządzie, nie na CSS-ie.');
+        $this->assertLessThan($straznik, $baza,
+            'Strażnik kaskady stoi PRZED zasianiem bazy — `/przepisy/rosol-babci-zofii` nie istniałoby.');
+
+        // Kontrola ujemna dla tego testu: samo `node scripts/kaskada-martwe-reguly.mjs`
+        // w `ci.yml` obeszłoby wspólne zawężenie i rozjechało bramkę z dowodem.
+        $this->assertStringNotContainsString('node scripts/kaskada-martwe-reguly.mjs', $this->workflow(),
+            'Bramka woła strażnika z pominięciem `kaskada-kontrola-polecenie.sh` — zawężenie `--tylko` ma jedno miejsce.');
+
+        foreach (['package.json', 'Dockerfile'] as $plik) {
+            $this->assertStringNotContainsString('kaskada-martwe-reguly', (string) file_get_contents(base_path($plik)),
+                $plik.': strażnik potrzebuje przeglądarki i bazy, których tam nie ma.');
+        }
+    }
+
+    /**
      * Filtr warstwy widoku stoi w JEDNYM miejscu i obejmuje sam przyrząd.
      *
      * Do 19 września 2026 ten sam filtr był skopiowany trzy razy — osobno
@@ -80,7 +140,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
 
         $pattern = '~'.str_replace('~', '\\~', $matches[1]).'~';
 
-        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css'] as $path) {
+        foreach (['scripts/port-grupy.mjs', 'scripts/port-grupy.test.mjs', 'scripts/nawigacja-etykiety.mjs', 'scripts/nawigacja-zoom.mjs', 'scripts/nawigacja-negatywy.mjs', 'scripts/szybki-wyglad.mjs', 'scripts/pasek-przewijany.mjs', 'scripts/zwarte-kolumny.mjs', 'scripts/katalog-tagow.mjs', 'scripts/zainteresowania-powiadomienia-marki.mjs', 'scripts/fixtures/kompozycje-513.php', 'resources/css/marka-onboarding.css', 'scripts/kaskada-martwe-reguly.mjs', 'scripts/kaskada-kontrola-polecenie.sh', 'scripts/kaskada-kontrola-ujemna.sh'] as $path) {
             $this->assertSame(1, preg_match($pattern, $path), 'zakres: pominięto '.$path);
         }
 

@@ -149,6 +149,34 @@ else
     zle "Naruszenia dostępności albo przewijanie w bok — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
 fi
 
+# --- 3c-bis. Martwe reguły CSS przykryte przez późniejszą warstwę (D-223) ---
+# Strażnik `kaskada-martwe-reguly.mjs` powstał 20.09.2026 i przez dobę nie wołał
+# go NIKT — ani `ci.yml`, ani ten plik. Bramką jest `ci.yml` (job `dostepnosc`);
+# tutaj stoi ta sama kontrola do uruchomienia u siebie, żeby czerwień wyszła
+# przed wysłaniem zmiany, a nie po kilkunastu minutach przebiegu.
+#
+# POD TĄ SAMĄ FLAGĄ CO AXE, z tego samego powodu: podnosi przeglądarkę, bazę
+# i przebudowuje arkusz. Stoi PO axe świadomie — `dostepnosc.mjs` zasiewa
+# `kuking_test_a11y`, a strażnik mierzy m.in. `/przepisy/rosol-babci-zofii`
+# i na pustej bazie zgłosiłby brak nosiciela zamiast wyniku.
+#
+# Idzie przez `kaskada-kontrola-polecenie.sh`, nie przez gołe `node …mjs`:
+# zawężenie `--tylko` ma JEDNO miejsce, wspólne z bramką CI i z kontrolą
+# ujemną. Trzy wywołania z własnymi flagami to trzy różne zakresy pomiaru.
+krok "Martwe reguły CSS (kaskada, D-223)"
+if [ "$SPRAWDZ_DOSTEPNOSC" -ne 1 ]; then
+    printf "  Pominięte: uruchom './scripts/check.sh --dostepnosc' przy zmianach w CSS-ie
+"
+elif [ ! -f scripts/kaskada-kontrola-polecenie.sh ]; then
+    # Nie `ok` i nie cisza: brak przyrządu to brak pomiaru, a nie wynik
+    # pozytywny (PULAPKI_TESTOW.md §2).
+    zle "Brak scripts/kaskada-kontrola-polecenie.sh — strażnika kaskady NIE zmierzono"
+elif DB_DATABASE=kuking_test_a11y bash scripts/kaskada-kontrola-polecenie.sh >/dev/null 2>&1; then
+    ok "Żadna reguła z wcześniejszej warstwy nie jest całkowicie przykryta przez późniejszą"
+else
+    zle "Martwe reguły CSS albo błąd przyrządu — szczegóły: bash scripts/kaskada-kontrola-polecenie.sh (i storage/kaskada-martwe-reguly.json)"
+fi
+
 # --- 3d. Wydajność i SEO (opcjonalna) --------------------------------------
 # Lighthouse na 8 stronach publicznych (issue #26, druga połowa). Mierzy
 # WYŁĄCZNIE `performance` i `seo` — dostępność już liczy krok wyżej (axe-core),

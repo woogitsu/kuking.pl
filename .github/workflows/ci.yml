@@ -241,7 +241,7 @@ jobs:
           # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
           # miernik bez jednego czerwonego przebiegu. Pilnuje tego
           # `PortMarkiMaWlasnaBramkeCiTest`.
-          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus|kaskada-martwe-reguly)\.mjs|scripts/kaskada-kontrola-(polecenie|ujemna)\.sh|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -1342,6 +1342,41 @@ jobs:
           php artisan migrate:fresh --seed --force --no-interaction
 
 
+      # ---------------------------------------------------------------------
+      #  STRAŻNIK MARTWYCH REGUŁ CSS (D-223)
+      # ---------------------------------------------------------------------
+      #  DLACZEGO TUTAJ, A NIE W `npm run build` ANI W `scripts/check.sh`.
+      #
+      #  Ten strażnik NIE czyta arkusza jako tekstu — podnosi `php artisan
+      #  serve`, otwiera strony w Chromium i pyta `getComputedStyle`, czy
+      #  deklaracja cokolwiek zmienia. Potrzebuje więc CZTERECH rzeczy naraz:
+      #  zbudowanego arkusza, przeglądarki, PHP i ZASIANEJ bazy (mierzy m.in.
+      #  `/przepisy/rosol-babci-zofii`).
+      #
+      #  Lista `npm run build` odpada z dwóch powodów zmierzonych 21.09.2026:
+      #  `build` biegnie także w `Dockerfile`, w obrazie BEZ przeglądarki
+      #  (i bez bazy), a w tym workflow `npm run build` stoi w jobie `assets`
+      #  PRZED `npx playwright install chromium`. W obu miejscach strażnik
+      #  padłby na braku Chromium, czyli na przyrządzie, a nie na CSS-ie.
+      #
+      #  Job `dostepnosc` ma wszystkie cztery rzeczy już postawione krok wyżej,
+      #  więc strażnik nie dokłada ani pobierania przeglądarki, ani migracji.
+      #  Stoi PRZED pomiarami axe i Lighthouse celowo: gdy CSS jest martwy,
+      #  werdykt pada po kilkudziesięciu sekundach zamiast po kilkunastu
+      #  minutach, a w logu zostaje jedna prawdziwa przyczyna.
+      #
+      #  ZAWĘŻENIE `--tylko` NIE JEST TU WYCISZENIEM. Repozytorium ma dziś
+      #  zmierzony zaległy zbiór deklaracji przykrytych (D-223), o którym
+      #  właściciel jeszcze nie rozstrzygnął — na całym arkuszu bramka byłaby
+      #  czerwona od pierwszego dnia i nikt by jej nie czytał. Zawężenie stoi
+      #  w JEDNYM miejscu, w `scripts/kaskada-kontrola-polecenie.sh`, razem
+      #  z zakazem cofania go dla uciszenia czerwieni; ten sam plik wywołuje
+      #  kontrola ujemna, więc bramka i jej dowód mierzą DOKŁADNIE to samo.
+      #  Sam skrypt kończy się kodem 2, gdy zawężenie nie objęło ani jednej
+      #  reguły z nosicielem — literówka w nim nie może dać cichej zieleni.
+      - name: Martwe reguły CSS przykryte przez późniejszą warstwę (D-223)
+        run: bash scripts/kaskada-kontrola-polecenie.sh
+
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
@@ -1425,6 +1460,7 @@ jobs:
           path: |
             storage/dostepnosc.json
             storage/dostepnosc/oauth345/
+            storage/kaskada-martwe-reguly.json
             output/fokus-zdjec/
           retention-days: 14
 
