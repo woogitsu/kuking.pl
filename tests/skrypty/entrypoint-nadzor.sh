@@ -192,7 +192,12 @@ frankenphp() {
   case "$CEL" in
     www) return 25 ;;
     recykling)
-      while (( $(cat "$STAN") < 3 )); do sleep 1; done
+      local przebiegi
+      while true; do
+        przebiegi="$(cat "$STAN")"
+        if [[ "$przebiegi" =~ ^[0-9]+$ ]] && (( przebiegi >= 3 )); then break; fi
+        sleep 1
+      done
       echo 'WWW przeżył trzy przebiegi kolejki'
       return 25 ;;
     *) trwaj ;;
