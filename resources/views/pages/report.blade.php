@@ -31,7 +31,10 @@
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij zgłoszenie</button>
-            <a class="btn btn-quiet" href="{{ url()->previous() }}">Wróć</a>
+            {{-- Cel liczy `ReportController::adresTresci()`, NIE `url()->previous()`:
+                 na ten formularz wchodzi się także wprost, a wtedy „poprzednim"
+                 adresem jest on sam i „Wróć" prowadziło donikąd (issue #795). --}}
+            <a class="btn btn-quiet" href="{{ $adresPowrotu }}">Wróć</a>
         </div>
     </form>
 </x-layout>

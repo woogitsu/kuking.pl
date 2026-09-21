@@ -51,7 +51,70 @@ class ReportController extends Controller
             'targetId' => $id,
             'target' => $target,
             'reasons' => Report::REASONS,
+            'adresPowrotu' => $this->adresTresci($type, $target),
         ]);
+    }
+
+    /**
+     * DOKĄD PROWADZI „WRÓĆ" W FORMULARZU ZGŁOSZENIA (issue #795).
+     *
+     * CO BYŁO PRZEDTEM
+     * Widok miał `href="{{ url()->previous() }}"`. `previous()` czyta nagłówek
+     * `Referer`, a gdy go nie ma — adres zapamiętany w sesji. Na `/zglos/…`
+     * wchodzi się jednak także WPROST: odnośnikiem z powiadomienia, wklejonym
+     * adresem, odświeżeniem, a przede wszystkim powrotem `back()` po błędzie
+     * walidacji. We wszystkich tych razach „poprzednim" adresem jest TEN SAM
+     * formularz i przycisk „Wróć" zawracał na siebie — dla osoby, która
+     * zgłasza cudzą treść i chce się wycofać, ślepy zaułek.
+     *
+     * DLACZEGO CEL LICZY KONTROLER, A NIE WIDOK
+     * Bo cel wynika z tego, CO zgłaszamy, a to wie `resolveTarget()`. Widok
+     * dostaje gotowy adres i nie musi znać pięciu rodzajów treści.
+     *
+     * DLACZEGO NIE `url()->previous($domyslny)`
+     * Bo fallback w `previous()` działa tylko przy BRAKU poprzedniego adresu.
+     * Usterka #795 to przypadek, w którym poprzedni adres JEST — i jest nim
+     * ten formularz. Fallback by go nie ruszył.
+     *
+     * Zgłaszana treść jest jedynym miejscem, o którym wiadomo na pewno,
+     * że istnieje (`resolveTarget()` właśnie ją znalazł) i że człowiek chciał
+     * tam być — przycisk „Zgłoś" stoi pod nią.
+     */
+    private function adresTresci(string $type, Model $target): string
+    {
+        return match ($type) {
+            'post' => route('posts.show', $target),
+            'recipe' => route('recipes.show', $target),
+            'cooked_event' => route('cooked.show', $target),
+            'user' => route('profile.show', $target->profile->username),
+            // Komentarz nie ma własnej strony — wracamy na treść, pod którą
+            // wisi, z kotwicą na sam komentarz (`id="komentarz-{id}"`
+            // w `components/comment-thread.blade.php`). Bez kotwicy człowiek
+            // lądowałby na górze długiego wpisu i szukał od nowa.
+            'comment' => $this->adresKomentarza($target),
+            // `resolveTarget()` przepuszcza tylko powyższe typy — `abort(404)`
+            // wypadł wcześniej. Ta gałąź jest asekuracją na wypadek, gdyby
+            // ktoś dołożył tam nowy typ i zapomniał o tym miejscu: lepiej
+            // odesłać na stronę główną niż wywalić formularz zgłoszenia,
+            // który jest obowiązkiem z DSA art. 16.
+            default => route('home'),
+        };
+    }
+
+    private function adresKomentarza(Comment $komentarz): string
+    {
+        $tresc = $komentarz->subject();
+
+        $adres = match (true) {
+            $tresc instanceof Post => route('posts.show', $tresc),
+            $tresc instanceof Recipe => route('recipes.show', $tresc),
+            $tresc instanceof CookedEvent => route('cooked.show', $tresc),
+            // Komentarz-sierota (treść skasowana pod nim). Nie ma dokąd wracać
+            // po treści — strona główna jest wtedy uczciwsza niż odnośnik do 404.
+            default => route('home'),
+        };
+
+        return $tresc === null ? $adres : $adres.'#komentarz-'.$komentarz->getKey();
     }
 
     public function store(Request $request, string $type, string $id): RedirectResponse
