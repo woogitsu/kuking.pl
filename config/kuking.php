@@ -2335,6 +2335,33 @@ return [
         // zmianą wdrożeniową bez recenzji kodu — dokładnie tego ta lista ma
         // nie dopuścić.
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
+
+        // ILE MIESIĘCY ŻYJĄ KATEGORIE DOWODOWE — DOMYŚLNIE `null`, CZYLI
+        // BEZTERMINOWO, DOKŁADNIE JAK DOTĄD.
+        //
+        // `AuditLogEntry::NIGDY_NIE_KASUJ` (trzy zdarzenia wokół usunięcia
+        // konta) nie ma dziś ŻADNEGO terminu. Zewnętrzna ocena prawna
+        // (`docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C) nazywa bezterminowy
+        // wyjątek "nie do obrony w opisanym kształcie" i proponuje w §D
+        // 36 miesięcy od zakończenia obsługi żądania; art. 5 ust. 1 lit. e
+        // RODO (ograniczenie przechowywania) wymaga JAKIEGOŚ terminu.
+        //
+        // TO NIE JEST PRZENIESIENIE SAMEJ LISTY DO CONFIGU — i różnica jest
+        // istotna. Obawa zapisana przy stałej ("jedna zmiana wdrożeniowa bez
+        // code review kasuje dowód RODO") dotyczy TEGO, CO JEST CHRONIONE.
+        // Lista zostaje zamkniętą stałą w kodzie i nie da się jej tu ruszyć.
+        // Tutaj stoi wyłącznie LICZBA MIESIĘCY, a jej brak jest bezpieczny:
+        // `null`, zero i wartość ujemna znaczą "nie kasuj nic". Żeby
+        // cokolwiek zniknęło, trzeba ŚWIADOMIE wpisać dodatnią liczbę.
+        //
+        // WŁAŚCICIEL JESZCZE TEJ LICZBY NIE WYBRAŁ. `docs/decyzje/ADR_RETENCJE.md`
+        // §5.1 nadal zapisuje jako obowiązującą decyzję "nigdy nie kasować
+        // automatem". Dopóki to zdanie nie zostanie zmienione przez
+        // właściciela, ta wartość ma zostać pusta, a mechanizm martwy.
+        // Skrócenie retencji dowodu wykonania RODO jest nieodwracalne.
+        'retencja_kategorii_dowodowych_miesiace' => is_numeric(env('KUKING_AUDIT_LOG_RETENCJA_DOWODOWYCH_MIESIACE'))
+            ? (int) env('KUKING_AUDIT_LOG_RETENCJA_DOWODOWYCH_MIESIACE')
+            : null,
     ],
 
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.

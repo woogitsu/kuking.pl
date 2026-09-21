@@ -403,10 +403,52 @@ przeglądu.
 | | |
 |---|---|
 | **Okres (domyślny, nie-wyjątkowe kategorie)** | **DECYZJA WŁAŚCICIELA (druga tura, §10): 12 miesięcy** od `created_at` — nie 24. Pierwsza tura przyjęła rekomendację agenta badawczego (24 miesiące) bez oceny prawnika; ocena zewnętrzna (`OCENA_RETENCJI_ZEWNETRZNA.md` §B.6) nazwała ją nieuzasadnioną i zaproponowała 12, właściciel to przyjął. |
-| **Wyjątek — nigdy nie kasować automatem** | `account.data_erased`, `account.delete_requested`, `account.delete_cancelled` — z powodów w §3.1. Zamknięta stała: `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`. |
+| **Wyjątek — nigdy nie kasować automatem** | `account.data_erased`, `account.delete_requested`, `account.delete_cancelled` — z powodów w §3.1. Zamknięta stała: `App\Models\AuditLogEntry::NIGDY_NIE_KASUJ`. | **STAN NA 21.09.2026: TO JEST OTWARTA USTERKA, NIE ZAMKNIĘTA DECYZJA — patrz §5.1a niżej.** |
 | **Co robi automat** | Wzorzec B (§1.3): `DELETE FROM audit_log WHERE created_at < próg AND action NOT IN (wyjątki)`. Bez efektu ubocznego poza bazą — jeden `DELETE`, bez `chunkById`. |
 | **Harmonogram** | Codziennie w nocy, 04:10 (po `kuking:sprzataj-sygnaly` o 04:00) — `Schedule::call()`, `withoutOverlapping()`, `dailyAt`, `routes/console.php`. |
 | **Błąd** | Pojedyncze zapytanie DB — albo się wykona w całości, albo w ogóle (atomowość jednej instrukcji SQL). Przy porażce: `Log::error` z komunikatem, następny przebieg dobiera to samo (predykat to sam wiek wiersza, nic do „zapamiętania" między przebiegami). |
+
+#### 5.1a Bezterminowy wyjątek jest sprzeczny z art. 5 ust. 1 lit. e — mechanizm gotowy, liczba do wyboru przez właściciela
+
+**Co jest nie tak.** Trzy kategorie z `AuditLogEntry::NIGDY_NIE_KASUJ` nie mają
+DZIŚ żadnego terminu. Zewnętrzna ocena prawna zamówiona przez ten sam projekt
+(`OCENA_RETENCJI_ZEWNETRZNA.md` §C) nazywa to wprost **„nie do obrony
+w opisanym kształcie”**: rozliczalność z art. 5 ust. 2 i art. 24 RODO wymaga
+UMIEĆ WYKAZAĆ obsługę żądania, ale nie ustanawia nieskończonej retencji
+osobowych logów, a art. 5 ust. 1 lit. e (ograniczenie przechowywania) wymaga
+JAKIEGOŚ terminu. §D proponuje **36 miesięcy od zakończenia obsługi żądania**.
+
+**Co już jest w kodzie (21.09.2026).**
+`PrzedawnioneWpisyAudytu::posprzatajKategorieDowodowe()` plus drugi przebieg
+w `kuking:sprzataj-audyt`. Termin liczy się **od najnowszego wpisu danej
+sprawy** (`subject_type` + `subject_id`), a nie od każdego wiersza osobno —
+bo `account.delete_requested` jest zawsze starsze od `account.delete_cancelled`
+i kasowanie wiersz po wierszu zostawiłoby „cofnął usunięcie” bez „zgłosił
+usunięcie”, czyli dowód okrojony do połowy. To jest ten sam błąd, który §B.2
+oceny zewnętrznej wytknął przy sprawach moderacyjnych.
+Pilnuje tego `RetencjaKategoriiDowodowychAudytuTest`.
+
+**Czego NIE ZROBIONO i dlaczego.** Mechanizm jest **domyślnie wyłączony**
+(`kuking.audit_log.retencja_kategorii_dowodowych_miesiace` = `null`) i dopóki
+właściciel nie wpisze liczby, nie kasuje ani jednego wiersza — zero i wartość
+ujemna też znaczą „wyłączone”. Skrócenie retencji dowodu wykonania RODO jest
+**nieodwracalne**, więc uruchomienie należy do właściciela, nie do automatu
+ani do agenta. Nie uruchomiono też żadnej migracji czyszczącej istniejące dane.
+
+**Jak to włączyć, gdy zapadnie decyzja.** Ustawić
+`KUKING_AUDIT_LOG_RETENCJA_DOWODOWYCH_MIESIACE` (proponowane `36`), przedtem
+uruchomić `php artisan kuking:sprzataj-audyt --na-sucho`, żeby zobaczyć liczbę
+spraw i wierszy, które znikną przy pierwszym przebiegu, i zrobić kopię
+zapasową bazy. Skasowanych wpisów nie ma skąd odtworzyć poza tą kopią.
+Po decyzji trzeba też poprawić wiersz „Wyjątek” w tabeli wyżej — dziś mówi
+„nigdy nie kasować automatem” i to zdanie przestanie być prawdziwe.
+
+**Co jeszcze zostaje do decyzji.** §C prosi dodatkowo, żeby ZASTĄPIĆ pełne
+wiersze dziennika **minimalnym potwierdzeniem obsługi żądania** (numer sprawy,
+daty otrzymania i zakończenia, rodzaj żądania, wynik, zakres wykonania, wersja
+procedury). To jest nowa tabela i zmiana schematu, a nie skrócenie okresu —
+świadomie poza zakresem tej poprawki. Osobno §C wskazuje potrzebę rejestru
+blokującego „wskrzeszenie” danych po przywróceniu kopii zapasowej.
 
 **Dlaczego lista wyjątków nie jest dłuższa.** `moderation.decided`,
 `moderation.restored`, `content.reported`, `appeal.filed`, `appeal.resolved`

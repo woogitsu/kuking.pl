@@ -39,6 +39,29 @@ class SprzatajAudyt extends Command
 
         $this->line("Pominięto jako niekasowalne (dowód RODO/DSA — AuditLogEntry::NIGDY_NIE_KASUJ): {$wynik['niekasowalne']}.");
 
+        // DRUGI PRZEBIEG — kategorie dowodowe, domyślnie WYŁĄCZONY.
+        // Dopóki właściciel nie wpisze liczby miesięcy, ta ścieżka mówi
+        // GŁOŚNO, że bezterminowy wyjątek dalej obowiązuje. Milczenie byłoby
+        // gorsze: raport "skasowano N" bez ani słowa o kategoriach dowodowych
+        // sugerowałby, że `audit_log` ma już komplet terminów, a nie ma.
+        $miesiaceDowodowe = config('kuking.audit_log.retencja_kategorii_dowodowych_miesiace');
+        $miesiaceDowodowe = $miesiaceDowodowe === null ? null : (int) $miesiaceDowodowe;
+
+        $wynikDowodowe = $sprzataj->posprzatajKategorieDowodowe($miesiaceDowodowe, $naSucho);
+
+        if (! $wynikDowodowe['wlaczone']) {
+            $this->line('Retencja kategorii dowodowych: WYŁĄCZONA (brak decyzji właściciela — '
+                .'KUKING_AUDIT_LOG_RETENCJA_DOWODOWYCH_MIESIACE nie jest ustawione). '
+                .'Te wpisy leżą bezterminowo, wbrew RODO art. 5 ust. 1 lit. e — '
+                .'patrz docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md §C.');
+
+            return self::SUCCESS;
+        }
+
+        $this->info($naSucho
+            ? "Do skasowania w kategoriach dowodowych: {$wynikDowodowe['skasowano']} wpisów z {$wynikDowodowe['grup']} spraw starszych niż {$miesiaceDowodowe} miesięcy."
+            : "Skasowano w kategoriach dowodowych: {$wynikDowodowe['skasowano']} wpisów z {$wynikDowodowe['grup']} spraw starszych niż {$miesiaceDowodowe} miesięcy.");
+
         return self::SUCCESS;
     }
 }
