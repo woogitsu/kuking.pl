@@ -619,9 +619,18 @@ Zanim ktokolwiek powie „można otwierać":
    konfiguracją a dokumentem zapala `DokumentyPrawneNieKlamiaTest` na czerwono.
    Wcześniej oba dokumenty mówiły „serwis prowadzi osoba fizyczna" i obiecywały
    dane później, co przy RODO art. 13 ust. 1 lit. a było zaniechaniem.
-6. **Działająca skrzynka pocztowa** (§7b). Dziś `MAIL_MAILER=log`: reset hasła
-   nie dochodzi do nikogo. To nie jest brak wygody — to konto tracone
-   bezpowrotnie przy pierwszym zapomnianym haśle.
+6. ~~**Działająca skrzynka pocztowa** (§7b).~~ **ZAMKNIĘTE — sprawdzone
+   na produkcji 20 września 2026.** Stało tu: „Dziś `MAIL_MAILER=log`: reset
+   hasła nie dochodzi do nikogo". To zdanie opisywało `.env.example`, czyli
+   ustawienie LOKALNE, i przestało być prawdą o produkcji. Odczyt
+   `https://kuking.pl/health` pokazuje `poczta: ok`, a jedynym niezdrowym
+   elementem jest `kolejka: zadania_nieudane`.
+
+   Zostawiam ten punkt przekreślony, a nie skasowany, bo jest dowodem na to,
+   po co ta bramka w ogóle powstała: **pozycja bramkująca, która blokuje na
+   rozwiązanym problemie, szkodzi dokładnie tak samo jak pozycja o usłudze,
+   której nigdy nie było**. Jedna każe czekać bez powodu, druga każe odhaczyć
+   niemożliwe — obie uczą, że listy nie trzeba czytać serio.
 7. ~~**Wybór okresów retencji**~~ — **ZAMKNIĘTE, poprawione 9 września.**
    Stało tu: „polityka prywatności nie podaje dziś żadnego okresu poza dwoma,
    które kod egzekwuje". To zdanie zostało z czasu sprzed `ADR_RETENCJE.md`

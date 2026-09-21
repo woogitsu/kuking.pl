@@ -212,6 +212,56 @@ class SygnalyProduktoweTest extends TestCase
     }
 
     /**
+     * Issue #737 — pusty ekran „Szukaj" (brak `q`, `q` puste albo same
+     * spacje) NIE odpytuje bazy w `SearchQuery` i nie ma prawa zostawić
+     * `search_performed`. Bez tej poprawki samo wejście na `/szukaj` liczyło
+     * się jako wyszukiwanie bez wyników (`has_results=false`), zatruwając
+     * miarę. Kontrola ujemna: przywrócenie bezwarunkowego `$this->sygnaly->handle(...)`
+     * sprawia, że ten test oblewa (sygnał jednak powstaje).
+     */
+    public function test_pusty_ekran_szukaj_nie_zapisuje_zadnego_sygnalu(): void
+    {
+        foreach ([[], ['q' => ''], ['q' => '   ']] as $parametry) {
+            $this->get(route('search', $parametry))->assertOk();
+        }
+
+        $this->assertDatabaseCount('product_signals', 0);
+    }
+
+    /**
+     * Issue #737 — fraza krótsza niż dwa znaki (ASCII i polska litera) to
+     * ten sam przypadek co pusty ekran: `SearchQuery` w ogóle nie pyta bazy,
+     * więc nie może powstać sygnał „bez wyników". Próg 2 MUSI się zgadzać
+     * z `SearchQuery::recipes()`/`::people()` — to ta sama liczba, nie
+     * niezależna kopia.
+     */
+    public function test_zbyt_krotka_fraza_nie_zapisuje_zadnego_sygnalu(): void
+    {
+        foreach (['a', 'ż'] as $fraza) {
+            $this->get(route('search', ['q' => $fraza]))->assertOk();
+        }
+
+        $this->assertDatabaseCount('product_signals', 0);
+    }
+
+    /**
+     * Kontrola dodatnia do dwóch testów wyżej: fraza dostatecznie długa
+     * (gość i zalogowany) NADAL zapisuje dokładnie jeden sygnał — inaczej
+     * „zero sygnałów" dla pustego/za krótkiego wejścia przechodziłoby też
+     * wtedy, gdyby zapis sygnału przestał działać w ogóle.
+     */
+    public function test_fraza_dwuznakowa_zapisuje_dokladnie_jeden_sygnal_gosc_i_zalogowany(): void
+    {
+        $this->get(route('search', ['q' => 'zz']))->assertOk();
+        $this->assertDatabaseCount('product_signals', 1);
+
+        $this->actingAs($this->user('basia'))
+            ->get(route('search', ['q' => 'zz']))
+            ->assertOk();
+        $this->assertDatabaseCount('product_signals', 2);
+    }
+
+    /**
      * NAJWAŻNIEJSZY TEST W TYM PLIKU (patrz zadanie): fraza z danymi
      * osobowymi (imię i nazwisko) nie może trafić do ŻADNEGO pola zapisanego
      * wiersza — sprawdzamy to na CAŁYM wierszu zserializowanym do JSON-a,

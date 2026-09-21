@@ -33,7 +33,9 @@
 #
 #  4. ŹRÓDŁO WRACA ZAWSZE. Przywracanie siedzi w `trap` na EXIT, INT i TERM,
 #     więc działa także wtedy, gdy test wywali się w połowie albo ktoś
-#     przerwie przebieg Ctrl+C. Po przywróceniu sprawdzamy MD5 **i** mtime.
+#     przerwie przebieg Ctrl+C. Po przywróceniu PORÓWNUJEMY MD5 **i** mtime —
+#     oba, nie tylko pierwsze. Do 20 września 2026 mtime był wyliczany
+#     i nieporównywany, a komunikat i tak twierdził, że się zgadza.
 #
 #  UŻYCIE
 #    scripts/kontrola-ujemna.sh \
@@ -123,8 +125,11 @@ PRZYWROCENIE="nie wykonane"
 przywroc() {
     local kod=$?
     if [ -f "$KOPIA" ]; then
+        # `cp -p` przywraca mtime z pełną dokładnością. Wcześniejsze
+        # `touch -d "@${MTIME_PRZED%.*}"` tę dokładność ODBIERAŁO, ucinając
+        # część podsekundową — czyli krok „przywracający" psuł to, co `cp -p`
+        # już zrobiło dobrze.
         cp -p "$KOPIA" "$PLIK"
-        touch -d "@${MTIME_PRZED%.*}" "$PLIK" 2>/dev/null || true
         local md5_po mtime_po
         md5_po="$(suma "$PLIK")"
         mtime_po="$(czas "$PLIK")"
@@ -135,9 +140,20 @@ przywroc() {
             zapisz_json "PRZYWROCENIE_NIEUDANE"
             exit 6
         fi
-        PRZYWROCENIE="ok (MD5 $md5_po, mtime ${mtime_po%.*})"
+        # Do 20 września 2026 `mtime_po` było WYLICZANE I NIGDY NIEPORÓWNYWANE,
+        # a komunikat mimo to twierdził „MD5 i mtime zgodne". Przyrząd budowany
+        # przeciw meldunkom bez pokrycia sam taki meldunek wypisywał.
+        if [ "$mtime_po" != "$MTIME_PRZED" ]; then
+            zle "PRZYWRÓCENIE NIEUDANE: mtime po przywróceniu ($mtime_po) ≠ mtime sprzed przebiegu ($MTIME_PRZED)."
+            zle "Treść wróciła (MD5 się zgadza), ale znacznik czasu nie — narzędzia patrzące na mtime zobaczą plik jako zmieniony."
+            zle "Kopia zostaje w $KOPIA."
+            PRZYWROCENIE="NIEUDANE"
+            zapisz_json "PRZYWROCENIE_NIEUDANE"
+            exit 6
+        fi
+        PRZYWROCENIE="ok (MD5 $md5_po, mtime $mtime_po)"
         rm -f "$KOPIA"
-        ok "Źródło przywrócone: MD5 i mtime zgodne ze stanem sprzed przebiegu."
+        ok "Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu."
     fi
     exit "$kod"
 }
@@ -267,7 +283,7 @@ fi
 # i tak zrobi to powtórnie na wyjściu i sprawdzi sumę.
 krok "4/4 — czy po przywróceniu źródła test znów przechodzi"
 cp -p "$KOPIA" "$PLIK"
-touch -d "@${MTIME_PRZED%.*}" "$PLIK" 2>/dev/null || true
+# Bez `touch`: `cp -p` wyżej oddaje mtime dokładnie, a ucięcie do pełnych sekund byłoby cofnięciem tej dokładności.
 if "${POLECENIE[@]}" >/dev/null 2>&1; then
     KD_PO="PASS"
     ok "Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS."

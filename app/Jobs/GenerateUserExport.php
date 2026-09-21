@@ -13,6 +13,7 @@ use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Poczta\BezpiecznyKomunikat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -528,9 +529,20 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable $e) {
             // Paczka JEST gotowa i widać ją w ustawieniach — nie cofamy statusu
             // tylko dlatego, że poczta chwilowo nie działa.
+            // KOMUNIKAT PRZECHODZI PRZEZ REDAKCJĘ, NIE SUROWY.
+            //
+            // To jest wyjątek z WYSYŁKI LISTU, więc jego komunikat buduje
+            // transport, a nie my — a transport przy odrzuconym odbiorcy
+            // wkleja w tekst JEGO ADRES („550 5.1.1 <basia@wp.pl>: Recipient
+            // address rejected"). Dziennik aplikacji nie jest miejscem na
+            // adresy (AGENTS.md §7); ta sama redakcja, którą robi
+            // `ZapiszNieudanyList` na tym samym rodzaju tekstu, a `Wyslij…`
+            // z `App\Domain\Security` rozwiązuje jeszcze ostrzej — samą
+            // nazwą klasy.
             Log::warning('Paczka z danymi gotowa, ale e-mail nie wyszedł', [
                 'data_export_id' => $export->getKey(),
-                'error' => $e->getMessage(),
+                'wyjatek' => $e::class,
+                'error' => BezpiecznyKomunikat::z($e->getMessage()),
             ]);
         }
     }

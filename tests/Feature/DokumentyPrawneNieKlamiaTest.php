@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Report;
 use App\Support\AnalitykaCloudflare;
 use App\Support\Odmiana;
+use Illuminate\Support\Facades\Artisan;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Sentry\Laravel\ServiceProvider;
 use Tests\TestCase;
@@ -1233,5 +1235,195 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
         ];
 
         return array_keys(array_filter($narzedzia, static fn (bool $uzywane): bool => ! $uzywane));
+    }
+
+    // =====================================================================
+    //  BRAMKA BETY — lista gotowości ma mówić prawdę bez pytania człowieka
+    // =====================================================================
+    //
+    //  Audyt procedur z 20 września 2026 znalazł w `docs/legal/` cztery
+    //  rozjazdy, których nikt nie pilnował. Każdy dostał tu strażnika i każdy
+    //  strażnik SKANUJE, zamiast wyliczać — bo rozjazd, który naprawiono bez
+    //  strażnika, odrasta w następnym dopisanym wierszu.
+
+    /**
+     * Każdy wiersz listy gotowości ma dowód.
+     *
+     * DLACZEGO TO JEST NAJWAŻNIEJSZY TEST W TYM PLIKU
+     * Lista gotowości jest bramką „czy można wpuścić pierwszych ludzi".
+     * Wiersz bez dowodu nie jest neutralny — jest gorszy niż brak wiersza,
+     * bo wygląda na sprawdzony. Właściciel ma móc ją odhaczyć, nie pytając
+     * nikogo, czy mówi prawdę.
+     *
+     * Dowodem jest jedno z trzech: nazwa testu albo `plik:linia`,
+     * jawne `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` albo jawne `BRAK:`.
+     */
+    #[DataProvider('dokumentyWewnetrzne')]
+    public function test_kazdy_wiersz_listy_gotowosci_ma_dowod(string $plik): void
+    {
+        $wiersze = self::wierszeListyKontrolnej($this->trescWewnetrzna($plik));
+
+        if ($wiersze === []) {
+            $this->addToAssertionCount(1);
+
+            return;
+        }
+
+        foreach ($wiersze as $nr => $wiersz) {
+            $maDowod = preg_match(
+                '/(DO SPRAWDZENIA PRZEZ CZŁOWIEKA:|BRAK:|[A-Z][A-Za-z0-9]*Test|\.php|routes\/|config\/)/u',
+                $wiersz,
+            ) === 1;
+
+            $this->assertTrue(
+                $maDowod,
+                "Wiersz listy gotowości w docs/legal/{$plik} (wiersz {$nr}) nie ma dowodu. "
+                .'Dopisz nazwę testu albo `plik:linia`, albo napisz wprost '
+                .'„DO SPRAWDZENIA PRZEZ CZŁOWIEKA:" lub „BRAK:". '
+                .'Sporny wiersz: „'.trim($wiersz).'”.',
+            );
+        }
+    }
+
+    /**
+     * Procedura nie może przemilczeć sygnału, którym automat oznacza treść.
+     *
+     * ZNALEZIONE 20 WRZEŚNIA: `SYGNALY_AUTOMATU.md` wymieniał trzy sygnały
+     * (`automat_wzorzec` 3, `automat_odnosnik` 2, `automat_powtorzenie` 1),
+     * a kod miał CZWARTY — `automat_model` z wagą **4**, czyli wyższą niż
+     * wszystkie opisane. Moderator czytający listę sygnałów nie wiedział,
+     * że istnieje najcięższy z nich.
+     *
+     * To jest ta klasa rozjazdu, której nikt nie szuka: nie „dokument
+     * obiecuje coś, czego nie ma", tylko „kod robi więcej, niż dokument mówi".
+     */
+    public function test_procedura_wymienia_kazdy_sygnal_automatu(): void
+    {
+        $sygnaly = array_keys(Report::REASONS_AUTOMAT);
+        $dokument = $this->trescWewnetrzna('SYGNALY_AUTOMATU.md');
+
+        $this->assertGreaterThanOrEqual(
+            3,
+            count($sygnaly),
+            'Sygnałów automatu jest mniej niż trzy — ten test przestał mierzyć.',
+        );
+
+        foreach ($sygnaly as $sygnal) {
+            $this->assertStringContainsString(
+                $sygnal,
+                $dokument,
+                "Kod oznacza treść sygnałem „{$sygnal}” (waga ".Report::WAGA[$sygnal].'), '
+                .'a `SYGNALY_AUTOMATU.md` w ogóle go nie wymienia. Moderator czyta ten dokument, '
+                .'żeby wiedzieć, co automat potrafi podnieść — lista musi być pełna.',
+            );
+        }
+    }
+
+    /**
+     * Komenda wymieniona w procedurze musi istnieć.
+     *
+     * Procedury obiecują siedem komend retencji. Gdy któraś zmieni nazwę
+     * albo zniknie, dokument dalej będzie twierdził, że dane są sprzątane —
+     * a to jest obietnica wobec człowieka, nie szczegół techniczny.
+     */
+    #[DataProvider('dokumentyWewnetrzne')]
+    public function test_komendy_wymienione_w_procedurach_istnieja(string $plik): void
+    {
+        preg_match_all('/`(kuking:[a-z0-9:-]+)`/u', $this->trescWewnetrzna($plik), $trafienia);
+
+        $komendy = array_unique($trafienia[1]);
+
+        if ($komendy === []) {
+            $this->addToAssertionCount(1);
+
+            return;
+        }
+
+        $zarejestrowane = array_keys(Artisan::all());
+
+        foreach ($komendy as $komenda) {
+            $this->assertContains(
+                $komenda,
+                $zarejestrowane,
+                "Dokument docs/legal/{$plik} wymienia komendę „{$komenda}”, a `php artisan` jej nie zna. "
+                .'Albo zmieniła nazwę, albo zniknęła — w obu przypadkach dokument obiecuje sprzątanie, '
+                .'którego nikt nie robi.',
+            );
+        }
+    }
+
+    /**
+     * Liczba, którą procedura podaje jako pomiar, musi zgadzać się z pomiarem.
+     *
+     * ZNALEZIONE 20 WRZEŚNIA: `SECURITY_BASELINE.md` tłumaczył, dlaczego
+     * `style-src` ma jeszcze `unsafe-inline`, liczbą „355 atrybutów `style=`
+     * w 57 plikach". Naprawdę było ich **169 w 14 plikach** — dług skurczył
+     * się o ponad połowę i nikt tego nie zauważył, bo liczba raz wpisana
+     * w dokument nigdy więcej nie była mierzona.
+     *
+     * Ten test nie pilnuje konkretnej liczby. Pilnuje, żeby liczba w zdaniu
+     * nadal opisywała rzeczywistość — i to on powie, kiedy zejdzie do zera,
+     * czyli kiedy dyrektywę wolno wreszcie docisnąć.
+     */
+    public function test_liczba_atrybutow_style_w_dokumencie_zgadza_sie_z_pomiarem(): void
+    {
+        $dokument = $this->trescWewnetrzna('SECURITY_BASELINE.md');
+
+        $znalezione = preg_match(
+            '/(\d+)\s+atrybut[^.]{0,20}`style="?…?"?`?[^.]{0,20}w\s+(\d+)\s+plik/u',
+            $dokument,
+            $zapisane,
+        );
+
+        $this->assertSame(
+            1,
+            $znalezione,
+            'Nie znalazłem w SECURITY_BASELINE.md zdania z liczbą atrybutów `style=`. '
+            .'Jeśli zdanie zniknęło razem z długiem — usuń też ten test. '
+            .'Jeśli tylko zmieniło brzmienie — popraw wzorzec, nie kasuj pomiaru.',
+        );
+
+        [$atrybuty, $pliki] = self::policzAtrybutyStyle();
+
+        $this->assertSame(
+            $atrybuty,
+            (int) $zapisane[1],
+            "SECURITY_BASELINE.md mówi o {$zapisane[1]} atrybutach `style=`, a jest ich {$atrybuty}. "
+            .'Popraw liczbę w dokumencie — a jeśli doszła do zera, dociśnij `style-src` i usuń akapit.',
+        );
+
+        $this->assertSame(
+            $pliki,
+            (int) $zapisane[2],
+            "SECURITY_BASELINE.md mówi o {$zapisane[2]} plikach z atrybutem `style=`, a jest ich {$pliki}.",
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int} liczba atrybutów i liczba plików
+     */
+    private static function policzAtrybutyStyle(): array
+    {
+        $katalog = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(dirname(__DIR__, 2).'/resources/views', \FilesystemIterator::SKIP_DOTS),
+        );
+
+        $atrybuty = 0;
+        $pliki = 0;
+
+        foreach ($katalog as $plik) {
+            if (! $plik->isFile() || $plik->getExtension() !== 'php') {
+                continue;
+            }
+
+            $ile = preg_match_all('/style="[^"]*"/u', (string) file_get_contents($plik->getPathname()));
+
+            if ($ile > 0) {
+                $atrybuty += $ile;
+                $pliki++;
+            }
+        }
+
+        return [$atrybuty, $pliki];
     }
 }

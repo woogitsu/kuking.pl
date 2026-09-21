@@ -339,7 +339,11 @@
         rozwija encje w wartościach atrybutów, więc beacon widzi poprawny
         JSON, a my nie renderujemy niczego surowego.
     --}}
-    @if(\App\Support\AnalitykaCloudflare::wlaczona())
+    {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
+         adres e-mail (`/nowe-haslo/{token}?email=…`). Beacon melduje pełny
+         adres strony, więc bez tego warunku żywy żeton resetu hasła trafiałby
+         do cudzego panelu — uzasadnienie w komentarzu tamtej metody. --}}
+    @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
                 data-cf-beacon='{{ \App\Support\AnalitykaCloudflare::konfiguracjaBeacona() }}'></script>
@@ -929,6 +933,34 @@
                 <div class="komunikaty" aria-live="polite">
                     @if(session('status'))
                         <p class="flash">{{ session('status') }}</p>
+                    @endif
+                    {{--
+                        DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
+                        `docs/AUDYT_2026-09.md`).
+
+                        Wyjęcie wpisu z zeszytu jest odwracalne, więc NIE pytamy
+                        „czy na pewno" przed kliknięciem — pytanie przed każdą
+                        odwracalną czynnością uczy odklikiwania i psuje wagę
+                        pytań przy czynnościach naprawdę nieodwracalnych.
+                        Zamiast tego po akcji stoi tu jedno kliknięcie powrotu.
+
+                        Komunikat ZOSTAJE osobnym `<p class="flash">` — nie
+                        wkładamy przycisku do środka akapitu: `.flash` jest
+                        czytany wprost przez kilka testów jako `<p>` i jako
+                        zdanie dla czytnika ekranu. Przycisk stoi pod nim,
+                        w tym samym obszarze `aria-live`, więc czytnik ogłasza
+                        najpierw co się stało, a potem co można z tym zrobić.
+
+                        Formularz, nie odnośnik: to jest zapis, czyli zmiana
+                        stanu. `GET`-em zmiany stanu nie robimy (CSRF, prefetch
+                        przeglądarki, historia).
+                    --}}
+                    @php $powrotPoAkcji = session('status_powrot'); @endphp
+                    @if(is_array($powrotPoAkcji) && isset($powrotPoAkcji['akcja'], $powrotPoAkcji['etykieta']))
+                        <form class="flash-powrot" method="POST" action="{{ $powrotPoAkcji['akcja'] }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit" data-rola="powrot-po-akcji">{{ $powrotPoAkcji['etykieta'] }}</button>
+                        </form>
                     @endif
                 </div>
                 {{-- Zapis do zeszytu wraca także na strumień bez formularza.

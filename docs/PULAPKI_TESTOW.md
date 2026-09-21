@@ -1,4 +1,4 @@
-# Pułapki testów — osiem rzeczy, które w tym repozytorium naprawdę przeszły
+# Pułapki testów — dziesięć rzeczy, które w tym repozytorium naprawdę przeszły
 
 Ten plik nie jest wykładem o testowaniu. To lista pomyłek, które **w tym
 projekcie** przeszły przez zielone CI i zostały wykryte dopiero przez
@@ -443,6 +443,66 @@ tyka dokładnie tyle, ile wynosi różnica między dniem napisania a wpisaną da
 ---
 
 ---
+
+## 10. Stan STANOWISKA udaje wynik pomiaru
+
+§8b mówi o czerwieni pochodzącej z maszyny — obciążenia, timeoutu, ubitego
+procesu. Ta pułapka jest inna i groźniejsza, bo nie wygląda na awarię:
+**stanowisko jest ciche, a jego wada zmienia wynik**. Test mówi prawdę
+o czymś, o co nikt nie pytał.
+
+19 września 2026 trafiło to cztery razy w jednym dniu, za każdym razem
+kosztując osobne śledztwo:
+
+**Klon przez `git archive`.** `.gitattributes` oznacza katalog `.github` jako `export-ignore`,
+więc z paczki zniknęło 38 plików i wypadły 22 testy o workflowach CI.
+Objaw: „PR psuje testy CI". Prawda: tych plików nie było w stanowisku.
+
+**Symlink na `vendor`.** Dowiązanie przestawia PSR-4 dla `App\` na katalog
+dawcy. Objaw: `JednoDekodowanieZdjeciaTest` wywraca się po ośmiu minutach
+hooka. Prawda: autoloader ładował cudzy kod. **Vendor się kopiuje, nie
+dowiązuje.**
+
+**Nieświeży lokalny `main`.** W repozytorium, po którym chodzi kilka sesji,
+gałąź `main` potrafi stać kilkaset commitów wstecz, a `git rev-list --count
+origin/main..main` pokazuje wtedy **zero** i niczego nie sygnalizuje.
+Gałąź zbudowana na takiej bazie dała 41 porażek drzewa sprzed tygodnia.
+Objaw: „regresja w main". Prawda: zła baza. **Bazę bierz z `origin/main`,
+nie z lokalnego `main`.**
+
+**Brak bitu wykonywalności.** Skrypt zacommitowany w worktree Windows dostaje
+tryb `100644` zamiast `100755`. Objaw: 8 oblanych z 12, wszystkie z kodem
+**126** („znaleziono, ale nie da się wykonać"). U autora było 12/12, bo plik
+na dysku był wykonywalny — zepsuty był wyłącznie tryb w commicie.
+Commituj skrypty przez `git update-index --chmod=+x`.
+
+### Dlaczego to jest osobna pułapka, a nie odmiana §5
+
+W §5 narzędzie **nie robi nic** i melduje sukces. Tutaj narzędzie robi
+dokładnie to, o co je poproszono — tylko nie na tym, na czym myślisz.
+Wynik jest prawdziwy i bezużyteczny naraz.
+
+### Dwa wzorce, które to wyłapują
+
+**Pytaj o zachowanie, nie o wygląd.** Podgląd pliku przez kilka warstw
+powłoki gubi ukośniki: `/^(P581_[A-Z_]+)\s/` wyświetlił się identycznie
+jak zepsute `/^(P581_[A-Z_]+)s/`. Rozstrzygnęło dopiero zaimportowanie
+modułu i sprawdzenie, co zwraca — wynik był dokładnie odwrotny od
+zamierzonego.
+
+**Bisektuj, zanim ogłosisz regresję.** Masowe porażki na gałęzi sprawdź
+najpierw na samych scaleniach bazy: jeśli każde z osobna jest zielone,
+winna jest baza albo stanowisko, nie kod. To odróżnienie zajęło pięć minut
+i oszczędziło zgłoszenia o nieistniejącej regresji.
+
+### Dotyczy to także poleceń pomocniczych
+
+Tego samego dnia `git show 'origin/main:.env.example'` **cicho padło** na
+zamianie ścieżki przez powłokę Windows, a skrypt wypisał własne „brak
+wpisu" — i na tej podstawie postawiono błędną diagnozę o strefie czasowej.
+Polecenie diagnostyczne, którego kodu wyjścia nikt nie sprawdza, jest
+kolejnym źródłem tej samej pułapki. `MSYS_NO_PATHCONV=1` rozwiązuje ten
+konkretny przypadek; sprawdzanie kodu wyjścia rozwiązuje całą klasę.
 
 ## Skąd ta lista
 
