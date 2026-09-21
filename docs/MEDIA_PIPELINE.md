@@ -338,10 +338,20 @@ kont. Jest idempotentne — czyszczenie adresu, którego w cache nie ma, to
 poprawna operacja bez skutku.
 
 Brak konfiguracji (`CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN`) wyłącza
-czyszczenie, ale **głośno**, wpisem w logu. Ciche wyłączenie wygląda dokładnie
-tak samo jak czyszczenie, które działa. Po wyczerpaniu prób w logu zostają
-konkretne adresy — bez nich nie da się tego dokończyć ręcznie, a przy wymazaniu
-konta ktoś dokończyć musi.
+czyszczenie. Ciche wyłączenie wygląda dokładnie tak samo jak czyszczenie, które
+działa — dlatego **głośne miejsce to `/health`, a nie log zadania**. Sam
+`Log::warning` z `PurgePublicMediaCache` do nikogo nie dociera: zadanie kończy
+się sukcesem (nie ma go w `failed_jobs`), a kanał alarmowy `blad_webhook` ma
+w `config/logging.php` poziom `error` ustawiony na sztywno i ostrzeżeń nie
+przyjmuje. Sygnałem, który dociera, jest sonda `cdn`
+(`HealthController::sprawdzCzyszczenieCdn()`): na produkcji z pustą
+konfiguracją `/health` oddaje `degraded` z powodem `czyszczenie_cdn_wylaczone`
+i dzwoni na webhook z odstępem. Świadomie **nie** jest to porażka zadania —
+kasowanie zdjęcia nie ma prawa się nie udać dlatego, że nie ma czym wyczyścić
+cudzego cache'u. Pilnuje tego `SondaCzyszczeniaCacheCdnTest`, z kontrolą
+dodatnią i ujemną. Po wyczerpaniu prób w logu zostają konkretne adresy — bez
+nich nie da się tego dokończyć ręcznie, a przy wymazaniu konta ktoś dokończyć
+musi.
 
 ## Storage
 
