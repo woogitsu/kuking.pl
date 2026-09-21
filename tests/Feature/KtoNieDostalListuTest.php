@@ -281,7 +281,7 @@ class KtoNieDostalListuTest extends TestCase
             ['username' => 'maria'.substr(md5($adres), 0, 8), 'display_name' => $nazwa],
         );
 
-        // Token ma istnieć, żeby awaria dotyczyła transportu, a nie strażnika ważności.
+        // Token ma istnie?, ?eby awaria dotyczy?a transportu, a nie stra?nika wa?no?ci.
         DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $uzytkownik->email],
             ['token' => Hash::make($token), 'created_at' => now()],

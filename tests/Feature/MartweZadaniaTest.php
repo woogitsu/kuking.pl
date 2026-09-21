@@ -517,7 +517,7 @@ class MartweZadaniaTest extends TestCase
     /** Prawdziwy nieudany list „Ustaw nowe hasło" — przez kolejkę i workera. */
     private function nieudanyListHasla(User $uzytkownik, string $zeton = 'zeton-do-testu'): void
     {
-        // Token ma istnieć, żeby awaria dotyczyła transportu, a nie strażnika ważności.
+        // Token ma istnie?, ?eby awaria dotyczy?a transportu, a nie stra?nika wa?no?ci.
         DB::table('password_reset_tokens')->updateOrInsert(
             ['email' => $uzytkownik->email],
             ['token' => Hash::make($zeton), 'created_at' => now()],

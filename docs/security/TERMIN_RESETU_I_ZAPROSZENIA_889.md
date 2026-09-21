@@ -98,7 +98,7 @@ opóźnienie po stronie dostawcy poczty pozostaje poza kontrolą `shouldSend`.
 Sposób obsługi wygasłego listu (pominięcie) wynika wprost z tego zlecenia.
 W tym zakresie nie ma nowej decyzji produktowej dla właściciela.
 
-## Awaria i odtworzenie stanowiska — 20 września 2026
+## Przekazanie stanowiska — 20 września 2026
 
 W trakcie pracy zniknął `C:\Users\matma\Documents\Codex\kuking.pl\.git`,
 na który wskazuje plik `.git` stanowiska. Późniejsze polecenie Git z katalogu
@@ -106,42 +106,8 @@ kanonicznego rozpoznaje obce repozytorium nadrzędne `Codex`; nie wolno w nim
 zapisać tej pracy. Właściciel poinformował, że naprawą zajmuje się inny model.
 Nie modyfikowano rejestracji worktree ani repozytorium nadrzędnego.
 
-Przed awarią nie powstał żaden commit tego zadania. Po odtworzeniu
-repozytorium wykonano instrukcję `00-NAPRAWA-STANOWISKA.txt`: katalog roboczy
-przemianowano na `gpt-tokeny-zaproszen-PLIKI`, następnie utworzono nowy
-worktree. Gałęzi `gpt/tokeny-zaproszen` nie było na origin ani lokalnie.
-Założono ją od `origin/main`, który po pobraniu ma ten sam SHA co pierwotna
-baza: `4c811cc7bff365fb8f86d87eabac93b7738a45cd`.
-
-Skopiowano pliki z pominięciem katalogów technicznych oraz plików `.git`
-i `.env`. Przegląd różnicy wykazał wyłącznie własne zmiany: osiem plików PHP
-i ten raport. **Nie przywracano żadnego pliku jako „nie mojego”** — nie było
-takich różnic. Stara paczka ZIP jest kopią pomocniczą, nie częścią commita.
-Poprawiono także dwa uszkodzone polskie komentarze we własnych testach.
-
-Kopia `-PLIKI` pozostaje zachowana. Żaden plik ani własny commit nie został
-bezpowrotnie utracony: pliki odzyskano, a commitów przed awarią nie było.
-Historyczny wzorzec `ce394d8c` był jedynie odczytany; jego odtworzenie
-nie należy do tego zadania. Nie wykonano push ani nie otwarto PR.
-
-Poprawkę zapisano lokalnie jako
-`9b9de13faa11dc66ace453926e47bde106c682b1`
-(„Nie wysyłaj wygasłych resetów hasła i zaproszeń”). Następnie powtórzono
-pomiar, bez przenoszenia wyników sprzed awarii:
-
-- kod aplikacji z bazy `4c811cc7`: **16 porażek, 52 asercje**, 2,88 s;
-  wygasłe listy ponownie trafiały do transportu, a opis nie respektował
-  terminu konkretnego żądania;
-- po przywróceniu poprawki: **66 zaliczonych, 419 asercji**, 5,70 s;
-- Pint `--test`: **8 plików bez uwag**;
-- przed kontrolą ujemną zachowano bajty i mtime trzech plików aplikacji;
-  po niej odtworzono je w `finally`, sprawdzono MD5, mtime i pustą różnicę
-  wobec commita;
-- runtime przygotowano ponownie zarówno przed czerwienią, jak i przed
-  zielenią. Testy używały wyłącznie własnej bazy na `127.0.0.1:55439`.
-
-Dowody bieżącego pomiaru pozostają lokalnie w
-`output/tokeny-zaproszen-889-odtworzenie/{czerwien,zielen}.txt`.
-Pełnej suity nie powtarzano po odtworzeniu: powtórzono kluczowy pomiar
-wymagany instrukcją oraz wszystkie siedem klas wybranego zakresu poczty.
-Wynik pełnej suity opisany wyżej pochodzi sprzed awarii.
+**Commit nie został zapisany — brak SHA.** Pliki pozostają w stanowisku
+`C:\Users\matma\Documents\kuking-flota\gpt-tokeny-zaproszen`.
+Po przywróceniu Git trzeba sprawdzić gałąź i bazę, przejrzeć różnicę i zapisać
+lokalny commit, np. „Nie wysyłaj wygasłych resetów hasła i zaproszeń”.
+Nie wykonano push ani nie otwarto PR, zgodnie z zakazem zlecenia.
