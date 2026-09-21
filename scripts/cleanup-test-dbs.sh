@@ -68,6 +68,18 @@ while IFS= read -r baza; do
     [ -z "$baza" ] && continue
     sufiks="${baza#kuking_test_}"
 
+    # Bazy `kuking_test_kat_<katalog>_<skrót>` NIE należą do żadnego worktree
+    # i nie ma ich z czym porównać: liczy je `kuking_nazwa_testowej_bazy()`
+    # z KATALOGU repozytorium, dla kopii bez `.git` (runtime floty, archiwum,
+    # obraz kontenera). Ze skrótu ścieżki nie da się odtworzyć katalogu, więc
+    # „nie znalazłem worktree" nie znaczy tu „osierocona" — a skasowanie takiej
+    # bazy w trakcie czyjegoś przebiegu dałoby dokładnie tę fałszywą czerwień,
+    # przed którą chroni `tests/bootstrap.php`. Zostawiamy je człowiekowi.
+    if [[ "$sufiks" == kat_* ]]; then
+        printf "  ${ZIELONY}zostaje${RESET}  %s  (baza katalogu bez .git — nie per-worktree)\n" "$baza"
+        continue
+    fi
+
     if grep -qxF "$sufiks" <<< "$zywe_worktree"; then
         printf "  ${ZIELONY}zostaje${RESET}  %s  (worktree istnieje)\n" "$baza"
     else
