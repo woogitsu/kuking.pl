@@ -28,10 +28,20 @@ bash scripts/kontrola-ujemna.sh --nazwa '#808 pomijanie celu' \
     --json storage/sonda-mutacja-808.json \
     -- vendor/bin/phpunit tests/Unit/SondaWdrozeniaTest.php --filter '808'
 
+# Kod 73 wypadl z zestawu: Railway CLI zwraca 1 dla kazdego bledu, wiec nowy
+# kontrakt (`environment list` przed `delete`) uzywa wylacznie jedynki.
 bash scripts/kontrola-ujemna.sh --nazwa '#805 tłumienie błędu CLI' \
     --plik .github/workflows/preview.yml \
     --zamien 'railway environment delete "$env_name" --yes' \
     --na 'railway environment delete "$env_name" --yes || true' \
-    --oczekuj 'Failed asserting that 0 is identical to 73' \
+    --oczekuj 'Failed asserting that 0 is identical to 1' \
     --json storage/sonda-mutacja-805.json \
+    -- vendor/bin/phpunit tests/Unit/SondaWdrozeniaTest.php --filter '805'
+
+bash scripts/kontrola-ujemna.sh --nazwa '#805 polkniecie awarii listy srodowisk' \
+    --plik .github/workflows/preview.yml \
+    --zamien 'envs_json="$(railway environment list --json)"' \
+    --na 'envs_json="$(railway environment list --json || true)"' \
+    --oczekuj 'Failed asserting that 0 is identical to 1' \
+    --json storage/sonda-mutacja-805-lista.json \
     -- vendor/bin/phpunit tests/Unit/SondaWdrozeniaTest.php --filter '805'
