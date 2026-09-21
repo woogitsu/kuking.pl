@@ -1596,3 +1596,88 @@ To pokazuje różnicę między dwoma testami w tym samym pliku strażnika:
 Nie rozszerzam wykluczenia na odnośniki. Zamiast tego przepisałem cytat tak,
 żeby był cytatem, a nie linkiem. Opis zdarzenia nie musi odtwarzać składni,
 której dotyczy — wystarczy, że mówi, co było nie tak.
+
+## 05:00Z (21.09) — Osiem napraw bramki. Wszystkie tego samego rodzaju
+
+Osiem gałęzi odbiło się od bramki i osiem wróciło poprawionych. Zestawienie,
+bo dopiero razem widać wzór:
+
+| gałąź | co padło | naprawa | czerwień → zieleń |
+|---|---|---|---|
+| `gpt-ai-piloty` | PHPStan, 21 × unknown class | `scanDirectories` w phpstan.neon | 21 błędów → `[OK] No errors` |
+| `gpt-harmonogram` | manifest Vite z rocznym cache'em | `/build/assets/*` + `no-cache` na manifest | 1 → 2 passed |
+| `gpt-konto-poczta` | PHPStan, `Queue::pushed()` | atrapa do zmiennej | 4 błędy → `[OK]`, 11 passed |
+| `gpt-n1-powiadomienia` | pusty `down()` migracji | stała `WYCOFANIE_NIC_NIE_ROBI` | 1 → 2 passed, 172 asercje |
+| `gpt-kontakt-panel` | `%TEMP%/…` wzięte za trasę | ukośnik windowsowy | 1 → 3 passed |
+| `gpt-monitoring` | odnośniki do przepadłych dowodów | nazwy plików + uwaga o utracie | 1 → 3 passed |
+| `gpt-obciazenie` | `/bezwzgledna/sciezka/…` | `<bezwzględna ścieżka do…>` | 1 → 3 passed |
+| `gpt-odbior-wdrozen` | `/zdjecia/UUID/feed` | pełny adres, jak trzy wiersze niżej | 1 → 3 passed |
+| `flota/stan-sesji-2` | mój cytat martwych odnośników | cytat bez składni odnośnika | 1 → 3 passed |
+
+**W żadnym z tych dziewięciu przypadków nie zmieniłem reguły strażnika.**
+Sześć razy poprawiłem dokument, dwa razy kod, raz zakres skanowania — i ten
+jeden raz jest opisany osobno, z uzasadnieniem, dlaczego zawężenie o katalog
+dzienników nie jest osłabieniem.
+
+Dwie gałęzie wstrzymałem, bo naprawa wymagałaby decyzji, której nie mam prawa
+podjąć: `gpt-ci-architektura` (zmiana raz już wycofana) i `gpt-cloudflare-cache`
+(pytanie o prywatność publicznego cache'u).
+
+### Koszt, który akceptuję świadomie
+
+Każda naprawa kosztuje jeden dodatkowy cykl bramki (~6 minut), bo kolejka
+pobiera gałąź w tej samej chwili, w której ją poprawiam, i najpierw jeszcze
+raz przemiela stary kod. Wstrzymywanie kolejki na czas naprawy kosztowałoby
+więcej niż te sześć minut, więc zostawiam jak jest — ale każdą taką porażkę
+trzeba wtedy odróżnić od prawdziwej i wyzerować licznik prób. Stąd
+`wpusc-galaz.sh`.
+
+## 06:10 — `gpt-sonda-wdrozenia` wstrzymana: to spór dwóch decyzji, nie luka
+
+Bramka: `SondaWdrozeniaTest > usuwanie preview nie ukrywa bledu cli`,
+trzy przypadki, wszystkie z tym samym objawem:
+
+```
+Usuwam środowisko: pr-999999
+Gotowe.
+ATRAPA_ODMOWA
+Failed asserting that 0 is identical to 73.
+```
+
+Czyli: polecenie usuwające środowisko **padło kodem 73**, a krok wypisał
+„Gotowe." i wyszedł zerem. Klasyczna fałszywa zieleń — dokładnie to, czego
+ten strażnik pilnuje.
+
+Winowajca stoi w `.github/workflows/preview.yml`:
+
+```yaml
+railway environment delete "$env_name" --yes || true
+echo "Gotowe."
+```
+
+`|| true` połyka **każdy** błąd. Komentarz obok uzasadnia go jednak sensownie:
+„jeśli środowisko już nie istnieje, to jest stan pożądany, a nie błąd".
+
+### Dlaczego NIE dokończyłem tego sam
+
+Test wymaga propagacji **każdego** niezerowego kodu — łącznie z przypadkiem
+nazwanym wprost „805 brak środowiska zgłoszony błędem" => kod 1. Czyli autor
+gałęzi świadomie rozstrzyga, że **usuwanie nieistniejącego środowiska ma
+zapalać joba na czerwono**, a autor obecnego kroku rozstrzygnął odwrotnie
+i zapisał to w komentarzu.
+
+To nie jest zapomniana implementacja (jak przy manifeście Vite, gdzie
+uzasadnienie starej reguły samo wykluczało manifest). To **dwie rozsądne
+decyzje operacyjne, które się wykluczają**: czy sprzątanie po zamkniętym PR-rze
+ma świecić na czerwono, gdy nie ma czego sprzątać.
+
+Rozstrzygnięcie kosztuje czyjś spokój przy każdym zamkniętym PR-rze albo
+ukrywa prawdziwe awarie usuwania. Wybór należy do właściciela.
+
+Gałąź wyjęta z kolejki do `wstrzymane.txt` — trzecia pozycja.
+
+### Uwaga na marginesie, warta sprawdzenia rano
+
+Ten sam test padał też na wstrzymanej `gpt-cloudflare-cache`. Dwie gałęzie
+ruszają tę samą sondę wdrożenia — to może być kolejna para zdublowanej pracy,
+obok `naprawa-858`/`tagi-filtr` i `gpt-n1-powiadomienia`/`notyfikacja-zywa`.
