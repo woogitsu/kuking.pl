@@ -3562,6 +3562,124 @@ nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
 
+### sessions
+
+Tabela sterownika sesji Laravela (`SESSION_DRIVER=database` — wartość
+**domyślna** w `config/session.php`, ta sama w `.env.example`, w `docker/php.ini`
+i w `.railway/railway.ts`). Zakłada ją domyślna migracja frameworka
+`0001_01_01_000001_create_users_table`, nie nasza.
+
+**Jest tu opisana, chociaż nie jest naszą tabelą — i to jest cała rzecz.**
+Do 21.09.2026 `docs/DATABASE.md` nie wspominał o niej ani razu, a leżą w niej
+dane osobowe. Sześć kolejnych audytów prywatności czytało ten dokument jako
+spis danych i żaden nie zauważył, że serwis trzyma adres IP zalogowanego
+człowieka — bo nikt tej tabeli nie „dodawał", więc nikt nie przeszedł ścieżki
+„migracja + test + `docs/DATABASE.md`", która takie rzeczy wyłapuje
+(badanie RZ-01, 21.09.2026). Cisza w dokumencie nie znaczyła, że nic tam nie ma.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | Identyfikator sesji z ciasteczka, `varchar` PRIMARY KEY. Nadaje go framework, nie my. |
+| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. |
+| `ip_address` | **ZGRUBNY adres IP, nie dokładny** (RZ-01). IPv4 bez ostatniego oktetu (`203.0.113.0`), IPv6 obcięty do `/48` (`2001:db8:1234::`). Zapisuje go `App\Support\Sesja\UchwytSesjiBezPelnegoAdresu` — nasze nadpisanie `DatabaseSessionHandler::ipAddress()`, zarejestrowane w `AppServiceProvider`. `varchar(45)` (długość na pełny IPv6) zostaje ze schematu frameworka. |
+| `user_agent` | **Pełny nagłówek `User-Agent`, do 500 znaków** — obcina go framework, nie my. To jest niezły odcisk palca przeglądarki i **dana osobowa**, gdy stoi obok `user_id`. Nie maskujemy go: to osobna decyzja, nie porządek przy okazji. |
+| `payload` | Zawartość sesji (`text`, base64 + `serialize`). Jedyna kolumna, którą obejmuje `SESSION_ENCRYPT` — patrz niżej. |
+| `last_activity` | Uniksowy znacznik czasu (`integer`, nie `timestamptz`), aktualizowany przy każdym zapisie sesji. Po nim liczy się retencja. |
+
+```sql
+CREATE TABLE sessions (
+    id            varchar(255) PRIMARY KEY,
+    user_id       uuid NULL,
+    ip_address    varchar(45) NULL,
+    user_agent    text NULL,
+    payload       text NOT NULL,
+    last_activity integer NOT NULL
+);
+
+CREATE INDEX sessions_user_id_index ON sessions (user_id);
+CREATE INDEX sessions_last_activity_index ON sessions (last_activity);
+```
+
+#### `SESSION_ENCRYPT` NIE zasłania adresu ani przeglądarki
+
+To jest pułapka, na którą łatwo wejść przy czytaniu `.railway/railway.ts`
+(planuje `SESSION_ENCRYPT: "true"`). Flaga szyfruje **wyłącznie kolumnę
+`payload`**. `ip_address` i `user_agent` są dokładane OBOK, jako osobne
+kolumny, przez `DatabaseSessionHandler::addRequestInformation()`, i zostają
+jawne niezależnie od niej. Kto weźmie zrzut tej tabeli, dostaje parę
+(`user_id`, zgrubny adres, pełny `User-Agent`).
+
+#### Dlaczego adres jest zgrubny, a nie dokładny i nie pusty
+
+Po `App\Http\Middleware\NormalizeForwardedFor` `$request->ip()` zwraca
+**prawdziwy adres człowieka** zza łańcucha Cloudflare → Railway → kontener,
+czyli adres domowy albo komórkowy, a nie adres infrastruktury. RZ-01 ustaliło
+przy tym, że **nic tej kolumny nie czyta**: jedyne odwołania do tabeli
+w całym `app/` to dwa `->delete()` po `user_id` i deklaracja nazwy tabeli.
+Nie ma wykrywania przejęcia sesji ani ekranu „Twoje aktywne urządzenia".
+
+Pełna precyzja nie ma więc dziś odbiorcy, a ma koszt. Zgrubny adres zostawia
+tyle, ile wystarcza przy incydencie na ręczne pytanie „czy te sesje szły
+z jednego miejsca, czy z pół świata"; wyzerowanie kolumny zamknęłoby tę drogę
+bez powrotu i jest osobną decyzją, której nikt nie podjął.
+
+**Uczciwa granica: zamaskowany adres NADAL jest daną osobową**, gdy leży obok
+`user_id` — u operatora, który deleguje abonentowi całe `/48`, ta maska nie
+zabiera nic. Zmiana zmniejsza szkodę przy wycieku; **nie znosi obowiązku
+opisania tego przetwarzania w polityce prywatności**, którego ten dokument nie
+zastępuje i którego nie wolno domknąć zmianą w kodzie.
+
+#### Retencja — twarda, nie loteryjna
+
+`kuking:sprzataj-sesje` (`App\Domain\Compliance\PrzedawnioneSesje`), co noc
+o 05:10: kasuje wiersze bez aktywności od `config('kuking.sessions.retention_days')`
+dni (domyślnie 7), **nigdy jednak krócej niż `SESSION_LIFETIME`** — wiersz
+młodszy niż czas życia sesji należy do sesji ŻYWEJ, a jego skasowanie to
+wylogowanie człowieka w środku pracy.
+
+Do 21.09.2026 kasowała tu wyłącznie loteria frameworka
+(`config/session.php` → `'lottery' => [2, 100]`, czyli `gc()` przy 2% żądań).
+Przy małym ruchu wiersz leżał dłużej niż `lifetime`, bez żadnej gwarantowanej
+górnej granicy — `sessions` była jedyną tabelą z danymi osobowymi bez nocnego
+zadania. **Loteria zostaje włączona obok**, świadomie: dwa mechanizmy o różnych
+trybach awarii (loteria czyści przy ruchu nawet po śmierci harmonogramu,
+zadanie czyści co noc nawet bez ruchu).
+
+#### Czego tu świadomie nie ma i co zostało zrobione z wierszami sprzed zmiany
+
+**Nie ma migracji nadpisującej adresy, które już leżały w tabeli** — i to jest
+decyzja, nie przeoczenie. Powody, w kolejności ważności:
+
+1. **Te wiersze znikają same, bez żadnej destrukcyjnej operacji.**
+   `addRequestInformation()` przepisuje `ip_address` przy KAŻDYM zapisie sesji,
+   więc adres w sesji żywej zostaje zamaskowany przy pierwszym żądaniu po
+   wdrożeniu. Sesja, do której nikt nie wraca, wygasa i zabiera ją
+   `kuking:sprzataj-sesje`. Po okresie retencji nie zostaje ani jeden
+   niezamaskowany adres.
+2. **`down()` takiej migracji nie umiałby nic przywrócić.** `AGENTS.md` wymaga
+   działającego wycofania; migracja nadpisująca dane jest nieodwracalna
+   z definicji, a nieodwracalna migracja udająca odwracalną jest gorsza niż
+   jej brak.
+3. **Kasowanie i nadpisywanie danych na produkcji wymaga osobnej, jawnej zgody
+   właściciela** (zasady floty). Zatwierdzone zostało maskowanie zapisu, nie
+   operacja na istniejących wierszach.
+
+Gdyby właściciel zdecydował inaczej, jest to bezpieczne: jednorazowy
+`UPDATE sessions SET ip_address = …` nikogo nie wylogowuje (kolumny nie czyta
+ani framework, ani nasz kod), ale jest nieodwracalny i dlatego ma być osobną,
+wyraźną decyzją, a nie skutkiem ubocznym tej zmiany.
+
+Nie ma też ekranu „aktywne urządzenia" ani wykrywania przejęcia sesji —
+gdyby kiedyś powstały, będą czytały ZGRUBNY adres i to trzeba wiedzieć przed
+projektowaniem takiego ekranu.
+
+**Rollback.** Ta zmiana **nie dotyka schematu** — nie ma czego wycofywać
+migracją. Wycofanie samego zachowania to zdjęcie rejestracji
+`Session::extend('database', …)` z `AppServiceProvider` (wracają pełne adresy)
+oraz zdjęcie zadania z `routes/console.php` (wraca sama loteria). Adresy
+zamaskowane w międzyczasie **nie wracają** do pełnej postaci i wrócić nie mogą.
+
+
 ## V1 / V2
 
 Później:
