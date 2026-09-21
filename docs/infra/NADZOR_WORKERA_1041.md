@@ -32,6 +32,18 @@ sprawdza błędy 23 po 31 sekundach czasu symulowanego, dokładny limit prób,
 przerwy 2/4 sekundy oraz log. Dla `all` osobno kończy każdą z trzech usług
 i wymaga kodu 1 oraz zakończonego sprzątania. Atrapy nie uruchamiają PHP,
 serwera HTTP ani bazy. To test sterowania procesami, nie odbiór produkcji.
+Osobna kontrola dodatnia wykonuje co najmniej trzy planowe recyklingi
+wewnątrz rzeczywistego `all`, zanim atrapa WWW kończy próbę.
+
+Pomiar lokalny 21 września 2026: 23/23 asercje oraz składnia obu skryptów
+przechodzą. Kontrole ujemne przyrządem `scripts/kontrola-ujemna.sh`:
+usunięcie warunku `kod == 0` oblewa limit długich awarii; cofnięcie roli
+`all` do oczekiwania tylko na PID WWW oblewa eskalację awarii kolejki.
+Obie mają przebieg PASS → FAIL z oczekiwanej przyczyny → PASS.
+Wykonano je na małej kopii plików w linuksowym `/tmp`, bez zależności i bazy.
+Pierwsza próba na `/mnt/c` potwierdziła zachowanie, ale przywrócenie mtime
+przez `cp -p` utraciło ułamek sekundy; nie jest dowodem poprawnego
+odtworzenia metadanych. Powtórzenia linuksowe porównują MD5 i pełne mtime.
 
 **Rollback:** wycofanie zmian tego zgłoszenia w entrypoincie i teście,
 ponowny standardowy proces wdrożenia. Brak migracji i zmian danych.
