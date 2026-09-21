@@ -272,6 +272,32 @@ ryzyko:
 4. **Moderator nie ma jak potwierdzić żadnego z powyższych** — panel mówi
    „Decyzja zapisana", nie „dostęp odcięty".
 
+**OSTRZEŻENIE DO CAŁEJ TEJ SEKCJI (dopisane po recenzji kodu testu).**
+Poniższa tabela to **zaobserwowane odczyty, nie asercje**. Test
+`PomiarOdcieciaDostepuDoPlikuTest` ma **dwie** asercje i obie dotyczą wyłącznie
+starego podpisu (`200` po ostatniej decyzji, `403` po odczekaniu). Statusy gościa,
+właściciela i moderatora oraz cele przekierowań są **zapisywane do CSV, ale nigdy
+sprawdzane** — zielony wynik testu **nie potwierdza tej tabeli**. Cztery konkretne
+granice:
+
+1. **Nie dowiedziono unieważnienia wcześniejszej sesji właściciela.** Po banie test
+   wykonuje ponownie `actingAs($widz->fresh())`, więc mierzy reakcję aplikacji na
+   żądanie zbanowanego użytkownika. Wyniku `302 → /login` **nie wolno przypisywać**
+   skasowaniu sesji przez `User::ban()`.
+2. **Samo `403` nie dowodzi przyczyny ani momentu wygaśnięcia.** Test nie odczytuje
+   czasu wystawienia ani wygaśnięcia z podpisu, nie sprawdza treści błędu magazynu
+   i nie kontroluje, czy świeży podpis do tego samego pliku daje `200`. Sformułowania
+   „przez cały czas ważności" i „odcina wyłącznie zegar" **nie mają w tym teście oparcia**.
+3. **Dostęp moderatora kończy się na `302`.** Test **nie pobiera pliku** nowo wydanym
+   adresem i nie porównuje skrótu bajtów. Potwierdzono więc, że moderator dostaje
+   przekierowanie — nie, że otrzymuje zawartość.
+4. **Nie sprawdzono, czy oba wpisy naprawdę zostały miękko usunięte** — test ufa
+   temu, że decyzja się zapisała (`STATUS_RESOLVED`), nie sprawdza skutku na treści.
+
+**Plik CSV z surowym przebiegiem nie istnieje** — zapisywał się do `storage_path()`
+runtime'u, który po pomiarze usunięto. Wyniki są więc **zaraportowane, nie odtworzone**.
+Commit testu (`62cf279b`) do chwili pisania **nie był na GitHubie**.
+
 **ZMIERZONE 21.09 — ta pozycja przestaje być analizą.** Pełny przebieg na
 wygenerowanym neutralnym zdjęciu, kod `cd966aae`, dysk o sterowniku `r2` (MinIO
 `127.0.0.1:59310`), ważność podpisu odczytana z konfiguracji: **5 minut**,
