@@ -59,7 +59,7 @@ class DemoSeeder extends Seeder
             return $this->haslo;
         }
 
-        $zOtoczenia = trim((string) env('KUKING_DEMO_HASLO', ''));
+        $zOtoczenia = trim((string) config('kuking.demo.haslo', ''));
 
         return $this->haslo = $zOtoczenia !== ''
             ? $zOtoczenia

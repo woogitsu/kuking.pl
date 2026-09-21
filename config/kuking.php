@@ -2795,4 +2795,14 @@ return [
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
     ],
+
+    'demo' => [
+        // Hasło kont demonstracyjnych `DemoSeeder`. Czytane przez `config()`,
+        // nie `env()` bezpośrednio w seederze — PHPStan słusznie oblewa
+        // gołe `env()` poza katalogiem `config/`, bo przy skonfigurowanym
+        // cache'u konfiguracji (`config:cache`) zwróciłoby `null` zamiast
+        // wartości. Bez wartości domyślnej celowo: `DemoSeeder::hasloDemo()`
+        // sam losuje hasło, gdy ta zmienna jest pusta.
+        'haslo' => env('KUKING_DEMO_HASLO'),
+    ],
 ];
