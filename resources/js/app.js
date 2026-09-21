@@ -21,6 +21,7 @@ import './szybki-wyglad.js';
 import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
+import './licznik-znakow.js';
 import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 

@@ -48,6 +48,12 @@
                         <span class="flex-1">{{ $person->displayName() }}</span>
                         <form method="POST" action="{{ route('social.unblock', $person->profile->username) }}">
                             @csrf @method('DELETE')
+                            {{-- #793: nazwa użytkownika w adresie mogła między
+                                 wyrenderowaniem tej listy a kliknięciem trafić
+                                 do kogoś innego (zwolniona i zajęta ponownie).
+                                 Kontroler porównuje ten identyfikator
+                                 z osobą, którą dziś naprawdę wskazuje nazwa. --}}
+                            <input type="hidden" name="oczekiwany_id" value="{{ $person->getKey() }}">
                             <button class="btn btn-secondary" type="submit">Zdejmij blokadę</button>
                         </form>
                     </div>

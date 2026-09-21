@@ -55,6 +55,7 @@ class SocialController extends Controller
         $target = $this->findUser($username);
 
         try {
+            $this->assertToTaSamaOsoba($request, $target);
             $this->blockUser->handle($request->user(), $target, $request->ip());
         } catch (BladDlaCzlowieka $e) {
             return back()->withErrors(['block' => $e->getMessage()]);
@@ -69,9 +70,57 @@ class SocialController extends Controller
     {
         $target = $this->findUser($username);
 
-        $this->unblockUser->handle($request->user(), $target, $request->ip());
+        try {
+            $this->assertToTaSamaOsoba($request, $target);
+            $this->unblockUser->handle($request->user(), $target, $request->ip());
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withErrors(['block' => $e->getMessage()]);
+        }
 
-        return back()->with('status', 'Blokada zdjęta.');
+        // #791: `UnblockUser` świadomie NIE przywraca obserwowania (patrz
+        // komentarz w tej klasie) — automatyczny powrót do obserwowania
+        // byłby niespodzianką w prywatności. Ale bez słowa o tym w komunikacie
+        // człowiek klika „Zdejmij blokadę”, oczekuje powrotu do stanu sprzed
+        // konfliktu i dowiaduje się o różnicy dopiero wtedy, gdy zauważy,
+        // że w swoim feedzie znów nie widzi tej osoby.
+        return back()->with('status',
+            'Blokada zdjęta. Możecie znów widzieć swoje treści, ale obserwowanie się nie wznawia samo — jeśli chcesz znów obserwować tę osobę, wejdź na jej profil i kliknij „Obserwuj”.',
+        );
+    }
+
+    /**
+     * Nazwa użytkownika w adresie formularza to NIE AUTORYZACJA (#793) —
+     * może zmienić właściciela między chwilą, w której formularz się
+     * wyrenderował, a chwilą, w której ktoś go wysłał.
+     *
+     * Username da się zwolnić (zmiana w Ustawieniach) i od razu ponownie
+     * zająć: `UsernameNotTaken` sprawdza tylko AKTUALNE zajęcie, nie
+     * historię. Stary, wciąż otwarty formularz „Zablokuj”/„Zdejmij blokadę”
+     * pod `/@stara-nazwa/blokuj` po takiej zmianie trafia więc w kogoś
+     * INNEGO, niż widział człowiek, który formularz otworzył — a ten
+     * człowiek nie ma jak się o tym dowiedzieć, bo strona nie krzyczy
+     * błędem, tylko cicho robi coś innego, niż pokazywała.
+     *
+     * Każdy formularz blokady/odblokowania nosi więc ukryte pole
+     * `oczekiwany_id` z identyfikatorem osoby widzianej w chwili
+     * renderowania. Pole jest OPCJONALNE (starsze wywołania API i
+     * istniejące testy go nie wysyłają — Policy i tak broni samej akcji),
+     * ale kiedy jest obecne, MUSI się zgadzać z osobą, którą naprawdę
+     * rozwiązuje dzisiejsza nazwa użytkownika.
+     */
+    private function assertToTaSamaOsoba(Request $request, User $target): void
+    {
+        $oczekiwanyId = $request->input('oczekiwany_id');
+
+        if ($oczekiwanyId === null) {
+            return;
+        }
+
+        if ((string) $target->getKey() !== (string) $oczekiwanyId) {
+            throw new BladDlaCzlowieka(
+                'Ta nazwa użytkownika należy teraz do innej osoby. Odśwież stronę i spróbuj ponownie.',
+            );
+        }
     }
 
     /** Lista osób, które obserwują dany profil: /@{username}/obserwujacy */

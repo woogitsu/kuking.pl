@@ -291,4 +291,112 @@ class SearchTest extends TestCase
             ->assertSee('noindex', false)
             ->assertHeader('X-Robots-Tag', 'noindex, nofollow');
     }
+
+    /**
+     * Issue #753 — `%` z frazy MUSI zostać dosłownym tekstem, nie wzorcem
+     * LIKE. Celowo przez SKŁADNIK (`ingredient_text_search`), nie przez
+     * tytuł: tytuł ma jeszcze osobną, LEGALNĄ gałąź trigramową (`<%`), która
+     * mogłaby dopasować „1000" do „100%" przez samo podobieństwo — a to nie
+     * miałoby nic wspólnego z metaznakami LIKE i fałszywie potwierdzałoby
+     * poprawkę (zmierzone: `word_similarity('100%', '1000 domowe pierogi')
+     * = 0.8`, powyżej progu 0,5). Oba tytuły niżej są celowo niepodobne do
+     * „100%", żeby gałąź trigramowa nie mogła dorzucić żadnego z nich.
+     *
+     * Kontrola ujemna: przywrócenie gołego `'%'.$needle.'%'` (bez ucieczki)
+     * sprawia, że ten test oblewa, bo `100%` zaczyna dopasowywać każdy
+     * składnik zawierający „100".
+     */
+    public function test_procent_z_frazy_nie_dziala_jak_wzorzec_like(): void
+    {
+        $basia = $this->user('basia');
+        $trafienie = Recipe::factory()->create([
+            'author_id' => $basia->getKey(),
+            'title' => 'Zupa jarzynowa',
+            'slug' => 'zupa-jarzynowa-753',
+        ]);
+        RecipeIngredient::create([
+            'recipe_id' => $trafienie->getKey(),
+            'ingredient_text' => '100% masło',
+            'position' => 0,
+        ]);
+        $niepasujacy = Recipe::factory()->create([
+            'author_id' => $basia->getKey(),
+            'title' => 'Placki ziemniaczane',
+            'slug' => 'placki-ziemniaczane-753',
+        ]);
+        RecipeIngredient::create([
+            'recipe_id' => $niepasujacy->getKey(),
+            'ingredient_text' => '1000 gramów ziemniaków',
+            'position' => 0,
+        ]);
+
+        $wyniki = app(SearchQuery::class)->recipes('100%');
+
+        $this->assertCount(1, $wyniki);
+        $this->assertSame($trafienie->getKey(), $wyniki->first()->getKey());
+    }
+
+    /**
+     * Issue #753 — `_` w LIKE dopasowuje DOWOLNY jeden znak. Fraza
+     * „kapu_ta” (dosłowny podkreślnik ze zgłoszenia) nie ma prawa znaleźć
+     * składnika „kapusta”, bo to oznaczałoby, że podkreślnik zadziałał jak
+     * wieloznacznik, a nie jak zwykły znak.
+     */
+    public function test_podkreslnik_z_frazy_nie_dziala_jak_wzorzec_like(): void
+    {
+        $basia = $this->user('basia');
+        $recipe = Recipe::factory()->create([
+            'author_id' => $basia->getKey(),
+            'title' => 'Coś zupełnie inaczej nazwane',
+            'slug' => 'cos-zupelnie-inaczej-nazwane-2',
+        ]);
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(),
+            'ingredient_text' => 'kiszona kapusta',
+            'position' => 0,
+        ]);
+
+        $this->assertCount(0, app(SearchQuery::class)->recipes('kapu_ta'));
+        // Kontrola dodatnia: dosłowny podkreślnik NAPRAWDĘ jest w bazie i da
+        // się go znaleźć, gdy fraza go zawiera dokładnie.
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(),
+            'ingredient_text' => 'kapu_ta wpisana z podkreślnikiem',
+            'position' => 1,
+        ]);
+        $this->assertGreaterThanOrEqual(1, app(SearchQuery::class)->recipes('kapu_ta')->count());
+    }
+
+    /**
+     * Sama fraza złożona wyłącznie z metaznaków (`%%`) ma dwa znaki, więc
+     * przechodzi bramkę długości — i nie może zwrócić wszystkiego, co jest
+     * w bazie, tak jak zrobiłby to nieucieczkowany wzorzec `%%%%`.
+     */
+    public function test_fraza_z_samych_metaznakow_nie_dopasowuje_wszystkiego(): void
+    {
+        $basia = $this->user('basia');
+        Recipe::factory()->create([
+            'author_id' => $basia->getKey(),
+            'title' => 'Zwyczajny rosół',
+            'slug' => 'zwyczajny-rosol',
+        ]);
+
+        $this->assertCount(0, app(SearchQuery::class)->recipes('%%'));
+        $this->assertCount(0, app(SearchQuery::class)->people('%%'));
+    }
+
+    /**
+     * To samo dla wyszukiwania ludzi (`people()`) — inna metoda, ten sam
+     * błąd źródłowy w budowie wzorca LIKE.
+     */
+    public function test_procent_z_frazy_nie_dziala_jak_wzorzec_like_dla_ludzi(): void
+    {
+        $trafienie = $this->user('sto_procent', ['display_name' => '100% Basia']);
+        $this->user('tysiac', ['display_name' => '1000 Basia']);
+
+        $wyniki = app(SearchQuery::class)->people('100%');
+
+        $this->assertCount(1, $wyniki);
+        $this->assertSame($trafienie->profile->getKey(), $wyniki->first()->getKey());
+    }
 }
