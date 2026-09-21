@@ -32,10 +32,30 @@
   /* Pole i przycisk stoją obok siebie, dopóki jest na to miejsce, a przy
      320 px i przy powiększonym tekście schodzą pod siebie — `flex-wrap`
      plus `min-width` na polu. Bez `min-width` pole kurczy się do zera
-     wcześniej, niż przycisk zejdzie do następnego wiersza. */
+     wcześniej, niż przycisk zejdzie do następnego wiersza.
+
+     `min(10rem, 100%)`, A NIE SAMO `10rem` — i to jest poprawka zmierzonej
+     usterki, nie ostrożność na zapas. `rem` liczy się od pisma KORZENIA,
+     więc przy czcionce przeglądarki 200% (korzeń 32 px) `10rem` to 320 px,
+     a kolumna treści w oknie 320 px ma 304 px. `min-width` jest twarde:
+     wygrywa z `flex-shrink`, więc pole stawało na 320 px i wychodziło poza
+     okno. ZMIERZONE na `/ustawienia/tagi`, Chromium, okno 320 × 740 px,
+     CDP `Page.setFontSizes` 32 px — dokładnie jak w `scripts/dostepnosc.mjs`:
+     `input.field-input` na x = 8…328, `documentElement.scrollWidth` 328 px
+     przy 320 px okna, czyli przewijanie w bok (WCAG 2.2 AA 1.4.10 Reflow).
+
+     `min()` NICZEGO NIE ZMIENIA TAM, GDZIE BYŁO DOBRZE: przy zwykłym piśmie
+     10rem to 160 px i to ono jest mniejsze, więc minimum zostaje 160 px na
+     każdej mierzonej szerokości. Zmniejsza się dopiero wtedy, gdy 10rem
+     przestaje się mieścić w kontenerze — czyli w tym jednym przypadku.
+
+     CZEGO ŚWIADOMIE NIE ZROBIONO: nie tknięto ani `--text-body`, ani
+     `--pole-wysokosc-min` (standard UX 50+: pismo i pole dotykowe zostają),
+     nie dołożono `overflow-x: hidden` (zasłania usterkę) ani progu
+     w zapytaniu medialnym (drugi próg do pamiętania osobno). */
   .tagi-filtr-wiersz .field-input {
     flex: 1 1 14rem;
-    min-width: 10rem;
+    min-width: min(10rem, 100%);
   }
 
   .tagi-filtr-wiersz .btn {
