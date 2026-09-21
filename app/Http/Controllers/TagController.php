@@ -120,6 +120,14 @@ class TagController extends Controller
             // Ta sama macierz widoczności co wszędzie indziej: wpisy tylko
             // dla obserwujących i prywatne NIE MOGĄ wypłynąć przez tag.
             ->widoczneDla($widz)
+            // Zapowiedź przepisu (issue #368) jest na stałe `public`, bo
+            // widoczność trzyma PRZEPIS, nie jego zapowiedź — `widoczneDla()`
+            // wyżej jej więc nie odcina. Bez tej drugiej bramki strona tagu
+            // wypisywała tytuł i zdjęcie główne cudzego przepisu „tylko dla
+            // obserwujących" (issue #941). Ten sam zakres i w tej samej roli
+            // stoi w `TagFeed`, `TagCollage`, `TagPublicStats`, `FollowingFeed`,
+            // `DiscoverFeed`, `DailyBoard` i `PodpowiedziTagow`.
+            ->zWidocznymPrzepisem($widz)
             // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
             ->tylkoOdAktywnychAutorow()
