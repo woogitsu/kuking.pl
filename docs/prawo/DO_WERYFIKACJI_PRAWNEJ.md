@@ -215,6 +215,49 @@ została już naprawiona** — §4.1 tego samego audytu kończy się słowem
 w `ModerationController::decide()`, w. 199), a „Krzywdzenie dzieci — usuwamy
 natychmiast” przyjmuje puste pole. Nie traktować tego cytatu jako stanu bieżącego.
 
+**Trzy ustalenia z kodu, dodane 21.09 po przeglądzie zewnętrznym i zweryfikowane
+odczytem (żadnego testu nie uruchomiono).** Są mocniejsze niż pierwotna treść tej
+pozycji, bo dotyczą skutku, a nie braku:
+
+**(a) Powiadomienie nazywa kategorię, mimo pustego pola wiadomości.**
+`PodstawaDecyzji.php:267` przy podstawie `krzywdzenie-dzieci` zwraca:
+*„Podstawą tej decyzji jest zasada, od której nie ma u nas wyjątku: treści
+krzywdzące dzieci usuwamy natychmiast."* Playbook §2 i §7.1 mówią autorowi
+procedury, że „pójdzie samo neutralne zdanie domyślne" — neutralna jest
+wiadomość, ale ekran dokleja do niej zdanie o podstawie. **To stoi w napięciu
+z krokiem 4 tego samego playbooka**: „nie opisuj szczegółowo powodu
+w komunikacji z użytkownikiem — to może zaszkodzić postępowaniu, jeśli sprawa
+trafi do organów". Pytanie dla prawnika: czy przy tej kategorii wolno — albo
+trzeba — odstąpić od uzasadnienia wymaganego przez art. 17 DSA.
+
+**(b) Usunięcie treści nie odcina zdjęcia.** `DostepDoZdjecia` przepuszcza plik,
+gdy **którykolwiek** rodzic jest widoczny. Jeśli ten sam rekord `media` jest
+zdjęciem publicznego przepisu B, usunięcie wpisu A nie zmienia dostępności.
+Reguła jest **zamierzona i dla zwykłych zdjęć poprawna** — kod uzasadnia ją tak:
+*„gdyby wygrywał rodzic najwęższy, publiczny przepis pokazywałby pustą ramkę
+tylko dlatego, że autor wrzucił to samo zdjęcie gdzieś jeszcze"*.
+
+**(c) Na samym zdjęciu moderator nie ma żadnego działania poza banem autora.**
+`ModerationAction::DOZWOLONE['media']` to `none`, `warn`, `suspend`, `ban` —
+świadomie bez `hide` i `remove`. Powód też jest dobry: `Media` nie ma miękkiego
+kasowania, więc `remove` byłoby nieodwracalne, a **od decyzji `remove`
+przysługuje odwołanie z art. 17 DSA**. Kod pisze wprost: *„Decyzja, od której nie
+da się skutecznie odwołać, nie może stać na tym ekranie."* Dodanie przycisku
+byłoby więc złą poprawką — brakuje miękkiego kasowania zdjęć, nie przycisku.
+
+**Co z tego wynika — i to jest sedno tej pozycji.** Żadna z tych trzech decyzji
+projektowych nie jest błędem osobno; każda ma uzasadnienie zapisane w kodzie.
+**Razem dają stan, w którym moderator usuwa wpis, blokuje konto, widzi komunikat
+„Decyzja zapisana" — a plik nadal jest serwowany.** Przy zwykłej treści to nie
+szkodzi. Przy tej kategorii szkodzi.
+
+**Czego NIE zmierzono i czego nie należy stąd wnioskować.** Nikt nie uruchomił
+żadnego testu ani aplikacji. Wartości „podpis ważny 5 minut" i „publiczny
+`Cache-Control` 150 s" pochodzą z odczytu `config/`, **nie z pomiaru produkcji**.
+Nie potwierdzono, czy produkcja używa jeszcze magazynu `r2_legacy` z publicznym
+URL-em. `ZdjeciaChronioneNieWyciekajaTest::test_zdjecie_o_dwoch_rodzicach_widac_przez_szerszego`
+istnieje i potwierdza **zamiar** reguły — nie uruchomiono go.
+
 **Czego dotyczy** — DSA art. 18 (zawiadamianie organów ścigania), art. 14
 (warunki korzystania muszą odpowiadać praktyce).
 
