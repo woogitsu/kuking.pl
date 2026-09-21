@@ -146,7 +146,17 @@
 [data-marka] .marka-start-kroki a,
 [data-marka] .marka-start-zaufanie a { display: inline-flex; min-height: 48px; align-items: center; }
 [data-marka] .marka-start-zaufanie { margin-top: calc(32px * var(--user-layout-scale, 1)); padding: calc(24px * var(--user-layout-scale, 1)); background: var(--color-surface-raised); border-radius: 20px; }
-[data-marka] .site-footer { margin-top: calc(48px * var(--user-layout-scale, 1)); padding-bottom: calc(var(--rezerwa-pod-belka) + calc(24px * var(--user-layout-scale, 1))); }
+/* Stopka ma WŁASNY odstęp od dołu swojego pudełka i nic poza tym.
+
+   Rezerwa na przypiętą belkę należy do `body` (niżej) — tam jest liczona RAZ
+   i obejmuje wszystko, co pływa nad treścią. Gdy stała także tutaj, obie
+   rezerwy dodawały się: 200 px wewnątrz stopki plus 256 px pod nią, czyli
+   456 px pustego pasa na belkę wysoką 176 px. Tak wyglądał zrzut właściciela. */
+[data-marka] .site-footer { margin-top: calc(48px * var(--user-layout-scale, 1)); padding-bottom: calc(24px * var(--user-layout-scale, 1)); }
+/* Jedyne miejsce, w którym rezerwa na belkę wchodzi do układu strony.
+   `szybki-wyglad.css` nadpisuje tę regułę, dokładając miejsce na pływający
+   przycisk „Wygląd" — i też liczy rezerwę RAZ. */
+body[data-marka] { padding-bottom: var(--rezerwa-pod-belka, 0px); }
 [data-marka] .site-footer-inner { width: min(1120px, calc(100% - 32px)); max-width: none; margin-inline: auto; }
 [data-marka] .bottom-nav {
   left: 8px;
@@ -215,10 +225,24 @@
 /* Obrys pozostaje wewnątrz zaokrąglonej grupy zdjęć. */
 [data-marka] .post-card > :is(.photo-grid, .karuzela, .kolaz) :focus-visible { outline-offset: -4px; }
 
-/* Rezerwy przewijania uwzględniają pływające belki i wielkość tekstu. */
+/* Rezerwy przewijania uwzględniają pływające belki i wielkość tekstu.
+
+   `--rezerwa-pod-belka` istnieje po to, żeby przypięta dolna nawigacja nie
+   zasłaniała końca strony. Dlatego warunkiem jest OBECNOŚĆ tej nawigacji,
+   nie sam motyw marki: `.bottom-nav` renderuje się wyłącznie dla zalogowanych
+   (`@auth` w `layout.blade.php`), więc gość dostawał rezerwę na belkę, której
+   u niego nie ma — 176 px pustego pasa pod stopką bez żadnego powodu.
+   Zgłoszone przez właściciela zrzutem z `/o-kuking`.
+
+   Ujemna strona `:has()` jest tu świadoma: gdy nawigacja zniknie z szablonu,
+   rezerwa zniknie razem z nią, zamiast zostać jako liczba, której nikt nie
+   umie wytłumaczyć. */
 :root:has(body[data-marka]) {
-  --rezerwa-pod-belka: calc(11rem * var(--user-text-scale, 1));
+  --rezerwa-pod-belka: 0rem;
   --rezerwa-nad-belka: calc(9rem + 6rem * var(--user-text-scale, 1));
+}
+:root:has(body[data-marka] .bottom-nav) {
+  --rezerwa-pod-belka: calc(11rem * var(--user-text-scale, 1));
 }
 @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
   /* Zostaje tylko miejsce na pierścień fokusu, nie wysokość przewiniętego nagłówka. */
