@@ -53,6 +53,8 @@ declare(strict_types=1);
  * których worktree już nie istnieje na dysku (czyli został usunięty przez
  * `git worktree remove`, a baza po nim została).
  */
+require __DIR__.'/Support/kuking_nazwa_testowej_bazy.php';
+
 if (getenv('DB_DATABASE') === false || getenv('DB_DATABASE') === '') {
     putenv('DB_DATABASE='.kuking_nazwa_testowej_bazy(__DIR__.'/..'));
 }
@@ -194,38 +196,6 @@ function kuking_nazwa_bazy_wycofania(string $katalogRepo): string
     return 'proba_wycofania'.substr(kuking_nazwa_testowej_bazy($katalogRepo), strlen('kuking_test'));
 }
 
-/**
- * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"
- * dla głównego checkoutu, "kuking_test_<worktree>" dla `git worktree`.
- */
-function kuking_nazwa_testowej_bazy(string $katalogRepo): string
-{
-    $domyslna = 'kuking_test';
-
-    $wskaznikGit = $katalogRepo.'/.git';
-
-    // Główny checkout: `.git` to katalog ze schematem repo, nie plik
-    // wskazujący na worktree — nie ma czego wyliczać.
-    if (! is_file($wskaznikGit)) {
-        return $domyslna;
-    }
-
-    $tresc = file_get_contents($wskaznikGit);
-    if ($tresc === false || ! preg_match('/gitdir:\s*(\S+)/', $tresc, $dopasowanie)) {
-        return $domyslna;
-    }
-
-    // Format wskaźnika worktree: "gitdir: <repo>/.git/worktrees/<nazwa>".
-    if (! preg_match('#/\.git/worktrees/([^/]+)/?$#', trim($dopasowanie[1]), $nazwaWorktree)) {
-        return $domyslna;
-    }
-
-    // Nazwa katalogu worktree bywa dłuższa niż limit identyfikatora
-    // Postgresa (63 znaki) po doliczeniu prefiksu "kuking_test_" — a znaki
-    // spoza [a-zA-Z0-9_] wymagałyby cudzysłowu w SQL. Obcinamy i czyścimy,
-    // zamiast zakładać, że Git zawsze nada bezpieczną nazwę.
-    $sufiks = preg_replace('/[^a-zA-Z0-9_]/', '_', $nazwaWorktree[1]);
-    $sufiks = substr((string) $sufiks, 0, 50);
-
-    return $domyslna.'_'.$sufiks;
-}
+// `kuking_nazwa_testowej_bazy()` żyje teraz w `tests/Support/kuking_nazwa_testowej_bazy.php`
+// (wymagane na górze tego pliku) — to jedyne źródło tej reguły, współdzielone
+// z `.claude/hooks/session-start.sh`. Nie dopisuj tu drugiej definicji.
