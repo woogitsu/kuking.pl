@@ -1,6 +1,6 @@
 # Spis treści floty Kuking.pl
 
-**Odświeżono automatycznie: 2026-09-20 23:03:28 CEST**
+**Odświeżono automatycznie: 2026-09-21 07:47:42 CEST**
 
 Ten plik jest w całości generowany przez `_wspolne/odswiez-spis.sh`.
 Nie edytuj go ręcznie — zostanie nadpisany przy następnym uruchomieniu.
@@ -31,10 +31,10 @@ dana rzecz nie istnieje.
 |---|---|---|
 | AUDYT_PRZED_KOLEJKA.md | 5 KB | Audyt przed kolejką — czego szukać |
 | CZYTAJ-TO-NAJPIERW.md | 4 KB | Przekazanie pracy nad Kuking.pl — co jest w tej paczce |
-| DZIENNIK_NOCNY.md | 12 KB | Dziennik nocny — 20/21 września 2026 |
-| INWENTARZ_FLOTY.md | 22 KB | Inwentarz floty Kuking.pl — 20 września 2026, ok. 23:00 CEST |
+| DZIENNIK_NOCNY.md | 85 KB | Dziennik nocny — 20/21 września 2026 |
+| INWENTARZ_FLOTY.md | 26 KB | Inwentarz floty Kuking.pl — 20 września 2026, ok. 23:00 CEST |
 | KOLEJKA_ZADAN.md | 12 KB | Kolejka zadań floty — stan 20.09.2026 |
-| KOLEJNOSC_SCALANIA.md | 34 KB | Kolejność scalania otwartych PR-ów |
+| KOLEJNOSC_SCALANIA.md | 35 KB | WYMUSZONA KOLEJNOSC (ustalona z logow CI 20.09, godz. 23:30) |
 | KONTROLA_DODATNIA_LUKA.md | 10 KB | Luka kontroli dodatniej — co robi mechanizm, czego nie łapie i co proponuję |
 | REJESTR_FLOTY.md | 10 KB | Rejestr floty — sesja prowadząca z 20.09.2026 |
 | WERYFIKACJA_ODZYSKU.md | 17 KB | Weryfikacja wielkiego odzysku (56 gałęzi) — 20 września 2026 |
@@ -144,34 +144,131 @@ dana rzecz nie istnieje.
 
 ## Gałęzie
 
-- Gałęzie lokalne: **71**
-- Gałęzie na origin: **73**
-- W kolejce do pchnięcia (`do-pchniecia.txt`): **117**
-- Już pchnięte (`pchniete.txt`): **56**
-- Nieudane próby (`nieudane.txt`): **4**
+- Gałęzie lokalne (kanoniczne repo, może być nieodświeżone bez `fetch`): **81**
+- Gałęzie na origin wg lokalnego gita (może być nieodświeżone bez `fetch`): **114**
+- Gałęzie na GitHubie wg `gh api .../branches` (źródło prawdy, nie wymaga lokalnego fetch): **113**
+- W kolejce do pchnięcia (`do-pchniecia.txt`): **60**
+- Już pchnięte (`pchniete.txt`): **51**
+- Nieudane próby (`nieudane.txt`): **3**
+- Nieodzyskane po awarii (`nieodzyskane.txt`): **51**
+- Wstrzymane, czekają na decyzję właściciela (`wstrzymane.txt`): **3**
+
+## Runtime WSL (`/home/mateusz/flota`)
+
+- Katalogów `*-run`: **154**
+- Zajętość `/home/mateusz/flota` (`du -sh --apparent-size`): **88G**
+
+## Narzędzia we `_wspolne` (pliki .sh)
+
+| Plik | Rozmiar |
+|---|---|
+| blad-ekrany.sh | 1 KB |
+| blad-migracji.sh | 1 KB |
+| blad-sondy.sh | 1 KB |
+| blad3.sh | 1 KB |
+| blad4.sh | 1 KB |
+| blad5.sh | 1 KB |
+| blad6.sh | 1 KB |
+| czemu-padlo.sh | 1 KB |
+| czemu-padlo2.sh | 1 KB |
+| czemu-padlo3.sh | 1 KB |
+| czy-wstana.sh | 1 KB |
+| diag-bazy.sh | 1 KB |
+| diag-bazy2.sh | 1 KB |
+| diagnoza-stanowiska.sh | 1 KB |
+| dopisz-do-kolejki9.sh | 1 KB |
+| fetchfail.sh | 1 KB |
+| kolejka10.sh | 2 KB |
+| kolejka11.sh | 4 KB |
+| kolejka9.sh | 6 KB |
+| martwe-odnosniki.sh | 1 KB |
+| martwe-trasy.sh | 1 KB |
+| martwe2.sh | 1 KB |
+| nowe-stanowisko-pchania.sh | 2 KB |
+| odswiez-spis.sh | 15 KB |
+| odtworz-listy.sh | 2 KB |
+| phpstan-blad.sh | 1 KB |
+| phpstan-blad2.sh | 1 KB |
+| phpstan-piloty.sh | 1 KB |
+| phpstan-poczta.sh | 1 KB |
+| pint-check.sh | 1 KB |
+| pint-drobne.sh | 1 KB |
+| pint-fix.sh | 1 KB |
+| pint-format.sh | 1 KB |
+| podziel-paczke.sh | 1 KB |
+| przebuduj-stan.sh | 1 KB |
+| przemianuj-na-gpt.sh | 2 KB |
+| przygotuj-runtime.sh | 3 KB |
+| restart-kolejek.sh | 1 KB |
+| sonda-ile.sh | 1 KB |
+| sprawdz-794.sh | 1 KB |
+| sprawdz-drobne.sh | 1 KB |
+| sprawdz-dwa.sh | 1 KB |
+| sprawdz-dwa2.sh | 1 KB |
+| sprawdz-eks.sh | 1 KB |
+| sprawdz-format.sh | 2 KB |
+| sprawdz-harm.sh | 1 KB |
+| sprawdz-hk.sh | 1 KB |
+| sprawdz-kpanel.sh | 1 KB |
+| sprawdz-migracje.sh | 1 KB |
+| sprawdz-mod.sh | 1 KB |
+| sprawdz-n1.sh | 2 KB |
+| sprawdz-powiadomienia.sh | 2 KB |
+| sprawdz-pw.sh | 1 KB |
+| sprawdz-r1.sh | 2 KB |
+| sprawdz-tablice.sh | 1 KB |
+| sprawdz-tagi.sh | 1 KB |
+| sprawdz-zz.sh | 1 KB |
+| stan-ai-piloty.sh | 1 KB |
+| stan-runnerow.sh | 1 KB |
+| stop-kolejki.sh | 1 KB |
+| test-fetch.sh | 1 KB |
+| testuj-poczte.sh | 1 KB |
+| testuj.sh | 1 KB |
+| triaz-bramki.sh | 1 KB |
+| wpusc-dwie.sh | 1 KB |
+| wpusc-galaz.sh | 1 KB |
+| wpusc-pg18.sh | 1 KB |
+| wpusc-piloty.sh | 1 KB |
+| wstrzymaj-cache.sh | 1 KB |
+| wstrzymaj-ci-arch.sh | 1 KB |
+| wstrzymaj-sonde.sh | 1 KB |
+| wyczysc-licznik.sh | 1 KB |
+| wylacz-autostart.sh | 1 KB |
+| wznow-kolejke.sh | 1 KB |
+| zatrzymaj-metro2.sh | 1 KB |
+| zatrzymaj-obce.sh | 1 KB |
+| zeruj-stan-sesji.sh | 1 KB |
+
+## Runnery obcych projektów (systemd, `disabled` vs `enabled`)
+
+```
+actions.runner.woogitsu-lockstate.lockstate-wsl-DOM-NEW-01.service            enabled         enabled
+actions.runner.woogitsu-lockstate.lockstate-wsl-DOM-NEW-02.service            disabled        enabled
+actions.runner.woogitsu-metro.brussels.metro-wsl-DOM-NEW-01.service           enabled         enabled
+actions.runner.woogitsu-metro.brussels.metro-wsl-DOM-NEW-02.service           disabled        enabled
+actions.runner.woogitsu-osadale.osadale-wsl-DOM-NEW-01.service                enabled         enabled
+actions.runner.woogitsu-osadale.osadale-wsl-DOM-NEW-02.service                disabled        enabled
+```
+
+## Stan `main` w kanonicznym repozytorium
+
+- HEAD kanonicznego repo (`/mnt/c/Users/matma/Documents/Codex/kuking.pl`): **cd966aae**
+- Scalone PR-y widoczne przez `gh pr list --state merged` (ostatnie 30, sprawdź `mergedAt` ręcznie które "z nocy"): **30**
 
 ## Otwarte pull requesty
 
 | Nr | Gałąź | Tytuł |
 |---|---|---|
-| 929 | naprawa/klient-pg18-w-ci | Klient PostgreSQL 18 tam, gdzie CI woła pg_restore |
-| 924 | flota/komentarze | Komentarze: usunięcie rozpoznawane po znaczniku, nie po treści |
 | 923 | flota/zdjecia-formularze | Zdjęcia w formularzach: błąd ma stan, a podgląd zwalnia pamięć |
-| 922 | flota/relacje | Relacje: stary formularz blokady nie trafi w cudzy login |
-| 921 | robota/martwe-reguly-css | Skreśl reguły CSS bez nosiciela i te przykryte kaskadą |
 | 920 | robota/bazy-stanowisk | Nazwa testowej bazy z katalogu, nie z nieistniejącego .git |
-| 919 | flota/r73-feed | Strażnik: feed obserwowanych nie zacznie układać treści po popularności |
-| 918 | codex/audyt-ux50plus | Cztery miejsca poniżej minimów UX 50+ |
-| 917 | flota/r47-skan | Strażnik R47: poświadczenia, zaszyte hasła i ochrona CSRF |
-| 916 | flota/wyszukiwarka | Wyszukiwarka: fraza przestaje być wzorcem, a polskie znaki linkiem donikąd |
 | 915 | robota/kaskada-straznik | Przyrząd kontroli ujemnej przestaje kłamać przy dużym wyjściu |
-| 914 | flota/dsa-odwolania | Odwołania i potwierdzenia zgłoszeń przestają obiecywać nieprawdę |
 | 913 | flota/gotowanie | Tryb gotowania: minutnik, Wake Lock i postęp, który przeżywa zapis |
 | 786 | praca/izolacja-bazy-klon | Rozlaczne bazy testowe dla zwyklych klonow + bezpiecznik 17 skryptow |
 | 725 | codex/717-panel-kolejki | Panel kolejki: powiedz, KTÓRE zadania trzymają /health w degraded |
 
-Razem otwartych PR: **15**
+Razem otwartych PR: **6**
 
 ---
 
-_Koniec spisu. Wygenerowano przez `odswiez-spis.sh` o 2026-09-20 23:03:28 CEST._
+_Koniec spisu. Wygenerowano przez `odswiez-spis.sh` o 2026-09-21 07:47:42 CEST._

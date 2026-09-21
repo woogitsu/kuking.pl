@@ -252,20 +252,101 @@ else
   LOKALNE="nieustalone (brak kanonicznego repo Codex/kuking.pl)"
   ORIGIN="nieustalone"
 fi
-echo "- Gałęzie lokalne: **$LOKALNE**"
-echo "- Gałęzie na origin: **$ORIGIN**"
+echo "- Gałęzie lokalne (kanoniczne repo, może być nieodświeżone bez \`fetch\`): **$LOKALNE**"
+echo "- Gałęzie na origin wg lokalnego gita (może być nieodświeżone bez \`fetch\`): **$ORIGIN**"
+if [ -n "$GH" ] && [ -n "$CANON" ]; then
+  ORIGIN_GH="$(czysta_liczba "$("$GH" api "repos/$(git -C "$CANON" config --get remote.origin.url 2>/dev/null | sed -E 's#.*github.com[:/]##; s#\.git$##')/branches" --paginate -q '.[].name' 2>/dev/null | wc -l)")"
+  echo "- Gałęzie na GitHubie wg \`gh api .../branches\` (źródło prawdy, nie wymaga lokalnego fetch): **$ORIGIN_GH**"
+else
+  echo "- Gałęzie na GitHubie wg \`gh api .../branches\`: nieustalone (gh CLI niedostępny albo brak kanonicznego repozytorium)"
+fi
 if [ -n "$PUSH_DIR" ]; then
   DO_PCHNIECIA="nieustalone"
   PCHNIETE="nieustalone"
   NIEUDANE="nieustalone"
+  NIEODZYSKANE="nieustalone"
+  WSTRZYMANE="nieustalone"
   [ -f "$PUSH_DIR/do-pchniecia.txt" ] && DO_PCHNIECIA="$(czysta_liczba "$(wc -l < "$PUSH_DIR/do-pchniecia.txt" 2>/dev/null)")"
   [ -f "$PUSH_DIR/pchniete.txt" ] && PCHNIETE="$(czysta_liczba "$(wc -l < "$PUSH_DIR/pchniete.txt" 2>/dev/null)")"
   [ -f "$PUSH_DIR/nieudane.txt" ] && NIEUDANE="$(czysta_liczba "$(wc -l < "$PUSH_DIR/nieudane.txt" 2>/dev/null)")"
+  [ -f "$PUSH_DIR/nieodzyskane.txt" ] && NIEODZYSKANE="$(czysta_liczba "$(wc -l < "$PUSH_DIR/nieodzyskane.txt" 2>/dev/null)")"
+  [ -f "$PUSH_DIR/wstrzymane.txt" ] && WSTRZYMANE="$(czysta_liczba "$(wc -l < "$PUSH_DIR/wstrzymane.txt" 2>/dev/null)")"
   echo "- W kolejce do pchnięcia (\`do-pchniecia.txt\`): **$DO_PCHNIECIA**"
   echo "- Już pchnięte (\`pchniete.txt\`): **$PCHNIETE**"
   echo "- Nieudane próby (\`nieudane.txt\`): **$NIEUDANE**"
+  echo "- Nieodzyskane po awarii (\`nieodzyskane.txt\`): **$NIEODZYSKANE**"
+  echo "- Wstrzymane, czekają na decyzję właściciela (\`wstrzymane.txt\`): **$WSTRZYMANE**"
 else
   echo "- Kolejka pchania (WSL /home/mateusz/flota): nieustalone (skrypt nie biegnie w WSL albo katalog zniknął)"
+fi
+echo
+
+# --- 5b. Runtime WSL (/home/mateusz/flota) ---------------------------------
+echo "## Runtime WSL (\`/home/mateusz/flota\`)"
+echo
+if [ -n "$PUSH_DIR" ]; then
+  LICZBA_RUN="$(czysta_liczba "$(find "$PUSH_DIR" -maxdepth 1 -type d -iname '*-run' 2>/dev/null | wc -l)")"
+  ROZMIAR_RUN="$(du -sh --apparent-size "$PUSH_DIR" 2>/dev/null | cut -f1)"
+  [ -z "$ROZMIAR_RUN" ] && ROZMIAR_RUN="nieustalone"
+  echo "- Katalogów \`*-run\`: **$LICZBA_RUN**"
+  echo "- Zajętość \`$PUSH_DIR\` (\`du -sh --apparent-size\`): **$ROZMIAR_RUN**"
+else
+  echo "nieustalone (skrypt nie biegnie w WSL albo katalog zniknął)."
+fi
+echo
+
+# --- 5c. Narzędzia we _wspolne (pliki .sh) ---------------------------------
+echo "## Narzędzia we \`_wspolne\` (pliki .sh)"
+echo
+echo "| Plik | Rozmiar |"
+echo "|---|---|"
+if [ -d "$WSPOLNE" ]; then
+  liczba_narzedzi=0
+  while IFS= read -r plik; do
+    nazwa="$(basename "$plik")"
+    echo "| $nazwa | $(rozmiar_kb "$plik") |"
+    liczba_narzedzi=$((liczba_narzedzi + 1))
+  done < <(find "$WSPOLNE" -maxdepth 1 -type f -iname '*.sh' | sort)
+  [ "$liczba_narzedzi" -eq 0 ] && echo "| (brak) | - |"
+else
+  echo "| _wspolne nieustalone | - |"
+fi
+echo
+
+# --- 5d. Runnery obcych projektów na tej maszynie (systemd) ----------------
+echo "## Runnery obcych projektów (systemd, \`disabled\` vs \`enabled\`)"
+echo
+if command -v systemctl >/dev/null 2>&1; then
+  RUNNERY="$(systemctl list-unit-files --all --no-pager --plain 2>/dev/null | grep -iE 'lockstate|osadale|metro' || true)"
+  if [ -z "$RUNNERY" ]; then
+    echo "nieustalone (brak jednostek pasujących do lockstate/osadale/metro albo \`systemctl\` nie odpowiedział)."
+  else
+    echo '```'
+    echo "$RUNNERY"
+    echo '```'
+  fi
+else
+  echo "nieustalone (\`systemctl\` niedostępny — skrypt prawdopodobnie nie biegnie w WSL/Linuksie)."
+fi
+echo
+
+# --- 5e. Stan main -----------------------------------------------------------
+echo "## Stan \`main\` w kanonicznym repozytorium"
+echo
+if [ -n "$CANON" ]; then
+  MAIN_SHA="$(git -C "$CANON" rev-parse --short HEAD 2>/dev/null || true)"
+  [ -z "$MAIN_SHA" ] && MAIN_SHA="nieustalone"
+  echo "- HEAD kanonicznego repo (\`$CANON\`): **$MAIN_SHA**"
+else
+  echo "nieustalone (brak kanonicznego repo Codex/kuking.pl)."
+fi
+if [ -n "$GH" ] && [ -n "$CANON" ]; then
+  MERGED_JSON="$("$GH" pr list --state merged --limit 30 --json number,mergedAt -R "$(git -C "$CANON" config --get remote.origin.url 2>/dev/null | sed -E 's#.*github.com[:/]##; s#\.git$##')" 2>/dev/null)"
+  if [ -n "$MERGED_JSON" ] && [ "$MERGED_JSON" != "null" ]; then
+    echo "- Scalone PR-y widoczne przez \`gh pr list --state merged\` (ostatnie 30, sprawdź \`mergedAt\` ręcznie które \"z nocy\"): **$(czysta_liczba "$(grep -o '"number":' <<<"$MERGED_JSON" | wc -l)")**"
+  else
+    echo "- Scalone PR-y: nieustalone (gh nie zwrócił danych)."
+  fi
 fi
 echo
 

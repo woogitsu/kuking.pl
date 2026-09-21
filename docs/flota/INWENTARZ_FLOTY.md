@@ -10,6 +10,55 @@ sprawdzania, nie stan zamrożony na zawsze — do bieżącego stanu służy tera
 
 ---
 
+## 0. Aktualizacja — 21 września 2026, poranek (kontrola prawdziwości)
+
+Ten inwentarz i `SPIS_TRESCI.md` powstały wczoraj wieczorem (ok. 23:00). Od tamtej
+pory zaszło dużo — poniższe liczby zmierzyłem dziś rano bezpośrednio (`gh api`,
+`git rev-parse`, `wc -l`, `du -sh`, `systemctl list-unit-files`), nie przejąłem
+z żadnego cudzego raportu. Reszta dokumentu (sekcje 1–6, „Podsumowanie liczbowe")
+zostaje jako zrzut z wczoraj 23:00 — nie przepisuję jej w całości, bo część
+ustaleń (duplikaty, osierocone katalogi) wymagałaby ponownego pełnego audytu,
+którego zakres zlecenia dzisiaj nie obejmował. Bieżące liczby zawsze pokazuje
+`SPIS_TRESCI.md` po `odswiez-spis.sh` — poniżej tylko to, co się zmieniło:
+
+- **Gałęzie na GitHubie**: **113** (wg `gh api repos/woogitsu/kuking.pl/branches`,
+  zlecenie mówiło "~111"; wieczorem było 77 — czyli kolejka pchania rzeczywiście
+  wypchnęła koło 50 gałęzi w nocy).
+- **`main` w kanonicznym repo**: **`cd966aae`** (wczoraj `4c811cc7`) — 9 PR-ów
+  scalonych w nocy: #929, #924, #922, #921, #919, #918, #917, #916, #914
+  (sprawdzone `gh pr list --state merged`, `mergedAt` między 22:28 a 01:21).
+- **Kolejka pchania rozdzielona na CZTERY pliki** w `/home/mateusz/flota/`
+  (wcześniej `odswiez-spis.sh` znał tylko trzy — poprawiony, patrz niżej):
+  - `pchniete.txt` — **51** wpisów,
+  - `do-pchniecia.txt` — **60** wpisów,
+  - `nieudane.txt` — **3** wpisy (osobne od nieodzyskanych — to bieżące próby, nie awaria),
+  - `nieodzyskane.txt` — **51** gałęzi, które nie przetrwały nocnej awarii,
+  - `wstrzymane.txt` — **3** gałęzie czekające na decyzję właściciela.
+- **Nowe narzędzia w `_wspolne`**: `triaz-bramki.sh`, `wpusc-galaz.sh`,
+  `kolejka11.sh`, `stan-runnerow.sh` — wszystkie cztery istnieją i są wykonywalne.
+  Generator (`odswiez-spis.sh`) wcześniej nie wymieniał w ogóle skryptów `.sh`;
+  dodano sekcję „Narzędzia we `_wspolne`", więc każdy nowy skrypt pojawi się
+  tam automatycznie, bez ręcznej listy do utrzymywania.
+- **Runtime WSL `/home/mateusz/flota`**: **153** katalogów `*-run` dziś rano
+  (było 132 wczoraj wieczorem, w międzyczasie skoczyło do 150 w trakcie tej
+  kontroli — środowisko jest żywe, liczba rośnie w locie), zajętość **≈ 88 GB**
+  (`du -sh --apparent-size`, było 76 GB wczoraj — przybyło ≈ 12 GB). Dokładna
+  liczba i rozmiar to migający cel; aktualną wartość zawsze pokaże świeże
+  uruchomienie `odswiez-spis.sh`, nie ten dokument.
+- **Trzy zdublowane runnery obcych projektów wyłączone**: `lockstate-02`,
+  `osadale-02`, `metro-02` mają dziś `disabled` w
+  `systemctl list-unit-files` (ich `-01` odpowiedniki zostają `enabled`).
+  Potwierdzone bezpośrednio, nie przejęte.
+
+**Czego generator nadal NIE łapie** (świadomie zostawione, patrz meldunek
+sesji floty, nie ten plik): dokładnej treści `DZIENNIK_NOCNY.md` (tylko rozmiar
+i pierwszy nagłówek, dokument ma 84 KB), różnicy między `nieudane.txt` a
+`nieodzyskane.txt` poza samą liczbą wierszy (semantyka wymaga przeczytania
+pliku), oraz czy `wstrzymane.txt` doczekało się decyzji właściciela (to musi
+sprawdzić człowiek, nie skrypt).
+
+---
+
 ## 1. Praca, której NIE MA w gicie — NAJWAŻNIEJSZE
 
 ### 1a. Potwierdzone unikatowe pliki w `_zapas` (nie istnieją na ŻADNEJ gałęzi, lokalnej ani origin)
