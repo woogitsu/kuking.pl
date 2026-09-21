@@ -242,12 +242,6 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
         return $this->wycinekPoKlasie($html, 'ul', self::KLASA_KARTY);
     }
 
-    /** Blok liczb z PRAWEJ SZYNY (egzemplarz szerokiego ekranu). */
-    private function wycinekSzyny(string $html): string
-    {
-        return $this->wycinekPoKlasie($html, 'div', self::KLASA_SZYNY);
-    }
-
     /**
      * Wycięcie JEDNEGO elementu po klasie — bo karta, szyna, stopka
      * i nawigacja zawierają te same słowa i te same liczby.
@@ -315,61 +309,6 @@ class ProfilLiczbyWPrawejSzynieTest extends TestCase
         $wezel = $wynik === false ? null : $wynik->item(0);
 
         return $wezel instanceof DOMElement ? $wezel : null;
-    }
-
-    private function blokSzynyLezyWSzynie(string $html): bool
-    {
-        $wezel = $this->wezelPoKlasie($html, 'div', self::KLASA_SZYNY);
-
-        for ($rodzic = $wezel?->parentNode; $rodzic !== null; $rodzic = $rodzic->parentNode) {
-            if ($rodzic instanceof DOMElement
-                && $rodzic->tagName === 'aside'
-                && str_contains($rodzic->getAttribute('class'), 'marka-profil-szyna')) {
-                return true;
-            }
-        }
-
-        return false;
-    }
-
-    /**
-     * Treść zapytania `@media (min-width: 80rem)` z arkusza profilu.
-     *
-     * Wycinamy je, zamiast szukać reguł w całym pliku: reguła stojąca POZA
-     * tym zapytaniem chowałaby liczby w karcie także na telefonie.
-     */
-    private function trescZapytania80rem(string $css): string
-    {
-        $poczatek = mb_strpos($css, '@media (min-width: 80rem)');
-
-        $this->assertNotFalse(
-            $poczatek,
-            'W arkuszu profilu nie ma zapytania `@media (min-width: 80rem)` — '
-            .'to jest próg, na którym w ogóle powstaje trzecia kolumna.',
-        );
-
-        // Zapytanie kończy się na pierwszym zamknięciu na jego poziomie
-        // zagnieżdżenia; liczymy klamry zamiast zgadywać po wcięciu.
-        $glebokosc = 0;
-        $dlugosc = mb_strlen($css);
-
-        for ($i = (int) $poczatek; $i < $dlugosc; $i++) {
-            $znak = mb_substr($css, $i, 1);
-
-            if ($znak === '{') {
-                $glebokosc++;
-            }
-
-            if ($znak === '}') {
-                $glebokosc--;
-
-                if ($glebokosc === 0) {
-                    return mb_substr($css, (int) $poczatek, $i - (int) $poczatek + 1);
-                }
-            }
-        }
-
-        return mb_substr($css, (int) $poczatek);
     }
 
     /** Liczba zapytań agregujących (`count(*)`) wykonanych przy jednym wejściu. */

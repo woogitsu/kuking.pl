@@ -250,6 +250,42 @@ new class extends Component
         $this->step = max($this->step - 1, 1);
     }
 
+    /**
+     * Który krok pokazuje pole o tym kluczu błędu (issue #747).
+     *
+     * Podsumowanie błędów zbiera klucze ze WSZYSTKICH kroków naraz —
+     * `$errors->keys()` nie wie nic o aktualnie wyrenderowanym `$step`.
+     * `back()` potrafi zostawić błąd walidacji z kroku 3 (`saveDraft()` →
+     * `validateRows(changeStep: false)`) i mimo to zejść na krok 2: link
+     * `href="#f-steps-0-instruction"` wskazywałby wtedy na pole, którego
+     * w bieżącym HTML w ogóle nie ma.
+     */
+    public function stepForKey(string $key): int
+    {
+        return match (true) {
+            str_starts_with($key, 'ingredients.') => 2,
+            // Obejmuje zarówno `steps` (błąd „opisz przynajmniej jeden
+            // krok”) jak i `steps.N.instruction` / `steps.N.photo`.
+            str_starts_with($key, 'steps') => 3,
+            $key === 'publikacja' => self::STEP_PREVIEW,
+            default => 1,
+        };
+    }
+
+    /**
+     * Kliknięcie odnośnika w podsumowaniu błędów, gdy pole stoi na INNYM
+     * kroku niż ten, który człowiek aktualnie widzi. Przełącza krok
+     * i prosi przeglądarkę (przez zdarzenie JS) o ustawienie fokusu na
+     * właściwym polu PO przerenderowaniu — sam `$this->step` nie wystarczy,
+     * bo DOM w tej samej chwili jeszcze nie istnieje.
+     */
+    public function jumpToError(string $key): void
+    {
+        $this->step = $this->stepForKey($key);
+
+        $this->dispatch('kreator-fokus-pole', pole: 'f-'.str_replace(['[', ']', '.'], '-', $key));
+    }
+
     // -----------------------------------------------------------------
     // Wiersze składników (issue #13)
     // -----------------------------------------------------------------
@@ -389,9 +425,20 @@ new class extends Component
         $this->resetErrorBag();
 
         if (! $this->storePendingPhotos()) {
-            // Zdjęcie się nie przyjęło. Nie publikujemy w ciszy — człowiek
-            // ma zobaczyć dlaczego. Reszta danych zostaje zapisana w szkicu.
-            $this->step = 1;
+            /*
+             * Zdjęcie się nie przyjęło. Nie publikujemy w ciszy — człowiek
+             * ma zobaczyć dlaczego. Reszta danych zostaje zapisana w szkicu.
+             *
+             * `storePendingPhotos()` przypisuje błąd ALBO do `heroPhoto`
+             * (krok 1), ALBO do `steps.N.photo` (krok 3) — nigdy do obu na
+             * raz w jednym wywołaniu tej metody nie znaczy to samo. Stałe
+             * „krok 1” tutaj (issue #747) pokazywało puste zdjęcie główne,
+             * podczas gdy prawdziwy błąd — i jedyne pole z komunikatem —
+             * czekał na kroku 3.
+             */
+            $this->step = collect($this->getErrorBag()->keys())->contains(fn (string $klucz) => str_starts_with($klucz, 'steps'))
+                ? 3
+                : 1;
             $this->saveDraft();
 
             return;
@@ -1032,8 +1079,26 @@ new class extends Component
                 Sprawdź formularz
             </p>
             <ul>
+                {{--
+                    Pole błędu może stać na kroku, którego CAŁE `@if($step
+                    === N)` nie jest teraz wyrenderowane (issue #747) — np.
+                    po `back()` z błędem walidacji przygotowania. Zwykłe
+                    `href="#f-..."` prowadziłoby donikąd: cel nie istnieje
+                    w bieżącym HTML. Link zostaje zwykłym `<a>` tylko
+                    wtedy, gdy jego pole jest na kroku, który człowiek
+                    naprawdę widzi; w przeciwnym razie to `wire:click`,
+                    który najpierw przełącza krok i prosi o fokus na
+                    właściwym polu po przerenderowaniu.
+                --}}
                 @foreach($errors->keys() as $key)
-                    <li><a href="#f-{{ str_replace(['[', ']', '.'], '-', $key) }}">{{ $errors->first($key) }}</a></li>
+                    @php $celId = 'f-'.str_replace(['[', ']', '.'], '-', $key); @endphp
+                    <li>
+                        @if($this->stepForKey($key) === $step)
+                            <a href="#{{ $celId }}">{{ $errors->first($key) }}</a>
+                        @else
+                            <button type="button" class="error-summary-link" wire:click="jumpToError('{{ $key }}')">{{ $errors->first($key) }}</button>
+                        @endif
+                    </li>
                 @endforeach
             </ul>
         </div>
