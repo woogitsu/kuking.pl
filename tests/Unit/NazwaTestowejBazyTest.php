@@ -180,9 +180,12 @@ class NazwaTestowejBazyTest extends TestCase
             kuking_nazwa_bazy_wyscigow($katalog),
             kuking_nazwa_bazy_wycofania($katalog),
             // Nazwy sklejane w `tests/skrypty/proba-odtworzenia.sh` z tego
-            // samego sufiksu — to one mają najdłuższe przedrostki w repozytorium.
+            // samego sufiksu. To NAJGORSZY przypadek w repozytorium, bo tam
+            // sufiks traci podkreślniki i dostaje jeszcze końcówkę na wariant
+            // bazy — najdłuższą "bezhasla". Bez tej pozycji strażnik świeciłby
+            // na zielono przy nazwie, która i tak zostanie po cichu obcięta.
             'kuking_zrodlo_proby'.$sufiks,
-            'proba_odtworzenia_test'.str_replace('_', '', $sufiks),
+            'proba_odtworzenia_test'.str_replace('_', '', $sufiks).'bezhasla',
         ] as $nazwa) {
             $this->assertLessThanOrEqual(63, strlen($nazwa), "za długa nazwa: {$nazwa}");
             $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_]+$/', $nazwa);

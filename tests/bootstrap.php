@@ -309,14 +309,23 @@ function kuking_nazwa_testowej_bazy(string $katalogRepo): string
  *     stringów (`proba-odtworzenia.sh`, `cleanup-test-dbs.sh`). Stąd i
  *     czyszczenie znaków, i twardy limit długości.
  *
- * Budżet długości liczymy od NAJDŁUŻSZEGO przedrostka, jaki ten sufiks
- * dostaje w repozytorium, nie od "kuking_test_" (12 znaków). Najdłuższy to
- * "kuking_zrodlo_proby" (19) z `tests/skrypty/proba-odtworzenia.sh`, dalej
- * "proba_wycofania" (15) i "kuking_race" (11). Sufiks ma najwyżej 39 znaków
- * ("kopia_" + 24 + "_" + 8), więc najgorszy przypadek to 19 + 1 + 39 = 59 —
- * pod limitem 63, przy którym Postgres tnie identyfikator BEZ OSTRZEŻENIA
- * (dwie różne nazwy wskazałyby wtedy jedną bazę, czyli wróciłaby dokładnie
- * ta kolizja, którą ten kod usuwa).
+ * BUDŻET DŁUGOŚCI liczymy od najgorszej nazwy, jaką ktokolwiek w repozytorium
+ * z tego sufiksu sklei — nie od "kuking_test_" (12 znaków). Najgorsza jest
+ * w `tests/skrypty/proba-odtworzenia.sh`, bo tam sufiks dostaje przedrostek
+ * "proba_odtworzenia_test" (22), traci po drodze podkreślniki (`${SUFIKS//_/}`,
+ * więc krótszy nie będzie) i jeszcze dostaje własną końcówkę na wariant bazy,
+ * najdłuższą "bezhasla" (8):
+ *
+ *     22 + ("kopia" 5 + nazwa katalogu 16 + skrót 8) + 8 = 59  ≤ 63
+ *
+ * Limit 63 jest twardy i CICHY: Postgres obcina dłuższy identyfikator bez
+ * ostrzeżenia, więc dwie różne nazwy wskazałyby jedną bazę — czyli wróciłaby
+ * dokładnie ta kolizja, którą ten kod usuwa, tylko trudniejsza do zauważenia.
+ * Stąd 16 znaków na nazwę katalogu, a nie „ile się zmieści": cztery znaki
+ * zapasu zostają dla następnego wariantu bazy, którego dziś nie ma.
+ * Pozostali wołający mają luz: "kuking_zrodlo_proby" (19) → 48,
+ * "proba_wycofania" (15) → 46, "kuking_test" (11) → 42, "kuking_race" (11) → 42.
+ * Pilnuje tego `test_nazwa_kopii_miesci_sie_w_limicie_identyfikatora_postgresa`.
  *
  * `realpath()` normalizuje ścieżkę (dowiązania, "..", końcowy ukośnik), żeby
  * to samo drzewo osiągnięte dwiema zapisami ścieżki dostało jedną bazę —
@@ -337,7 +346,7 @@ function kuking_sufiks_kopii_drzewa(string $katalogRepo): string
     $skrot = substr(sha1($sciezka), 0, 8);
 
     $nazwaKatalogu = (string) preg_replace('/[^a-zA-Z0-9_]/', '_', basename($sciezka));
-    $nazwaKatalogu = trim(substr($nazwaKatalogu, 0, 24), '_');
+    $nazwaKatalogu = trim(substr($nazwaKatalogu, 0, 16), '_');
 
     // Katalog o nazwie złożonej wyłącznie ze znaków niebezpiecznych zostawia
     // pusty człon czytelny — wtedy zostaje sam skrót, który nadal rozróżnia.
