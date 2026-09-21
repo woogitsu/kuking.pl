@@ -1521,10 +1521,10 @@ Strażnik odnośników markdown zgłosił cztery:
 
 ```
 docs/infra/MONITORING_ODBIOR_2026_09_20.md:
-  [`output/monitoring/baseline.json`](…)   -> brak pliku
-  [`received.json`](…)                     -> brak pliku
-  [`alert-cases.json`](…)                  -> brak pliku
-  [`negative.json`](…)                     -> brak pliku
+  odnosnik do output/monitoring/baseline.json    -> brak pliku
+  odnosnik do output/monitoring/received.json    -> brak pliku
+  odnosnik do output/monitoring/alert-cases.json -> brak pliku
+  odnosnik do output/monitoring/negative.json    -> brak pliku
 ```
 
 Sprawdziłem najpierw, czy to nie znana pułapka `.gitignore` (w tym projekcie
@@ -1579,3 +1579,20 @@ Czerwień 1 failed → zieleń **2 passed, 172 asercje**.
 Warto to zapamiętać przy pisaniu strażników: ten podał w komunikacie nazwę
 stałej, minimalną długość uzasadnienia i **plik z przykładem**. Naprawa zajęła
 minutę, bo nie trzeba było zgadywać, czego strażnik chce.
+
+## 04:30Z (21.09) — Strażnik odnośników złapał mnie na cytacie
+
+Gałąź z dziennikiem odbiła się jeszcze raz, tym razem na odnośnikach markdown.
+Powód jest zabawny i wart zapisania: **zacytowałem w dzienniku tamte cztery
+martwe odnośniki dosłownie, razem ze składnią linku** — więc skaner poszedł
+za nimi po raz drugi, teraz w moim własnym tekście.
+
+To pokazuje różnicę między dwoma testami w tym samym pliku strażnika:
+- test **tras** pomija bloki kodu i katalog `docs/flota/` (wykluczenie dodane
+  o 02:15),
+- test **odnośników** sprawdza wszystko — i słusznie, bo martwy odnośnik jest
+  martwy niezależnie od tego, w jakim dokumencie stoi.
+
+Nie rozszerzam wykluczenia na odnośniki. Zamiast tego przepisałem cytat tak,
+żeby był cytatem, a nie linkiem. Opis zdarzenia nie musi odtwarzać składni,
+której dotyczy — wystarczy, że mówi, co było nie tak.
