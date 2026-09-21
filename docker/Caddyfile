@@ -73,10 +73,20 @@
 	# cache'ować agresywnie i immutable. Cloudflare Cache Rule powinna to
 	# zdublować na krawędzi (patrz INFRA_DECISION.md).
 	# -------------------------------------------------------------------------
-	@viteAssets path /build/*
+	@viteAssets path /build/assets/*
 	header @viteAssets {
 		Cache-Control "public, max-age=31536000, immutable"
 	}
+
+	# Manifest NIE ma hasha w nazwie, a to on mówi przeglądarce, który plik
+	# z hashem wziąć. Poprzednia reguła `path /build/*` obejmowała go razem
+	# z assetami i dawała mu rok `immutable` — czyli uzasadnienie z komentarza
+	# wyżej („nazwy plików są hashowane") akurat na niego nie działało.
+	# Skutek: po wdrożeniu przeglądarka trzymała stary manifest i prosiła
+	# o pliki, których już nie ma. `no-cache` nie znaczy „nie przechowuj",
+	# tylko „zapytaj, zanim użyjesz" — koszt to jedno warunkowe żądanie.
+	@viteManifest path /build/manifest.json
+	header @viteManifest Cache-Control "no-cache"
 
 	# Statyka bez hasha (favicon, manifest PWA, ikony) — krócej.
 	@staticRoot path /favicon.ico /robots.txt /manifest.webmanifest
