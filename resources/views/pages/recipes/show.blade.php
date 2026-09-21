@@ -470,18 +470,14 @@
                             <h3 class="naglowek-grupy">{{ $grupaSkladnikow['nazwa'] }}</h3>
                         @endif
                         <ul class="ingredient-list">
+                            {{-- Wiersz składnika rysuje `x-wiersz-skladnika`, ten sam,
+                                 co w trybie gotowania — łącznie z oznaczeniem
+                                 „bez podanej ilości" (#878 rozstrzyga #764).
+                                 Dwie kopie tego wiersza pozwoliły kiedyś dwóm
+                                 gałęziom nadać mu sprzeczne kontrakty bez
+                                 konfliktu w gicie. --}}
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
-                                <li>
-                                    {{ $ingredient->ingredient_text }}
-                                    {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                         tego sam w tekście składnika (issue #44).
-                                         „Sól do smaku — do smaku” wygląda jak usterka,
-                                         a nie jak informacja. --}}
-                                    @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
-                                        <span class="meta"> — do smaku</span>
-                                    @endif
-                                    @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
-                                </li>
+                                <x-wiersz-skladnika :skladnik="$ingredient" />
                             @endforeach
                         </ul>
                     @endforeach

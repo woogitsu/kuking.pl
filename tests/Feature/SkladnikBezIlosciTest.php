@@ -108,7 +108,14 @@ class SkladnikBezIlosciTest extends TestCase
         $this->assertNull($sol->quantity, 'Ilość przetrwała mimo „bez ilości” — CHECK w bazie wywali publikację.');
     }
 
-    public function test_przepis_pokazuje_do_smaku_zamiast_pustej_ilosci(): void
+    /**
+     * Treść oznaczenia i porównanie obu ekranów stoją w
+     * `WierszSkladnikaJedenKontraktTest`. Tutaj zostaje to, czego pilnowało
+     * issue #44: że składnik zaznaczony jako „bez ilości" w ogóle dostaje
+     * na ekranie własne oznaczenie, zamiast wyglądać jak wiersz, przy
+     * którym autor czegoś zapomniał.
+     */
+    public function test_przepis_oznacza_skladnik_bez_ilosci_zamiast_zostawiac_pusto(): void
     {
         $autor = $this->user('basia');
 
@@ -129,12 +136,11 @@ class SkladnikBezIlosciTest extends TestCase
         $html = (string) $this->get(route('recipes.show', $przepis->slug))->assertOk()->getContent();
 
         $this->assertStringContainsString('pieprz', $html);
-        $this->assertStringContainsString('— do smaku', $html);
+        $this->assertStringContainsString('— bez podanej ilości', $html);
 
-        // A TU JEST CAŁA SUBTELNOŚĆ: autor, który sam napisał „sól do smaku",
-        // nie ma dostać „sól do smaku — do smaku". Powtórzenie wygląda jak
-        // usterka, nie jak informacja.
-        $this->assertStringNotContainsString('sól do smaku — do smaku', $html);
+        // Dopisek „do smaku" obiecywał doprawianie także tam, gdzie chodziło
+        // o konsystencję albo zastosowanie (#878). Nie wraca żadnym ekranem.
+        $this->assertStringNotContainsString('— do smaku', $html);
     }
 
     public function test_formularz_jednostronicowy_ma_te_opcje_bez_javascriptu(): void

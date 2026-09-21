@@ -48,12 +48,16 @@
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
             @else
+                {{-- Wiersz składnika rysuje `x-wiersz-skladnika`, ten sam, co na
+                     stronie przepisu. Do tej zmiany tryb gotowania miał własną
+                     kopię tego wiersza i przez to własny, cichy kontrakt: nie
+                     mówił ani słowa o `no_amount`, więc „sól" zaznaczona jako
+                     bez ilości wyglądała tu na przeoczenie autora. Teraz oba
+                     ekrany czytają jeden plik i nie da się zmienić jednego,
+                     nie ruszając drugiego. --}}
                 <ul class="ingredient-list">
                     @foreach($recipe->ingredients as $ingredient)
-                        <li>
-                            {{ $ingredient->ingredient_text }}
-                            @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
-                        </li>
+                        <x-wiersz-skladnika :skladnik="$ingredient" />
                     @endforeach
                 </ul>
             @endif
