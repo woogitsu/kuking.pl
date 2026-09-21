@@ -483,6 +483,35 @@ Przed utworzeniem bazy ustal jej właściciela, host, port i nazwę.
 Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.
 Nie polegaj na domyślnym porcie ani nazwie w środowisku współdzielonym.
 
+**Nazwy bazy testowej nie wymyślasz i nie wpisujesz do `.env`.** Liczy ją
+`tests/nazwa-bazy.php` ze ŚCIEŻKI KATALOGU kopii roboczej:
+`kuking_test_<nazwa-katalogu>_<8-znakowy skrót ścieżki>`. Dzięki temu każdy
+katalog — `git worktree` i zwykły klon tak samo — ma własną bazę, a dwa
+równoległe `php artisan test` nie zrzucają sobie schematu. Swoją nazwę
+sprawdzisz poleceniem:
+
+```bash
+php -r 'require "tests/nazwa-bazy.php"; echo kuking_nazwa_testowej_bazy(__DIR__);'
+```
+
+Do 19 września reguła rozróżniała wyłącznie `git worktree`, więc wszystkie
+zwykłe klony dostawały jedno wspólne `kuking_test` — stąd 963, 3737
+i kilkaset porażek `QueryException` w trzech sesjach tego samego dnia.
+
+**Przyrządy pomiarowe w `scripts/*.mjs` robią `migrate:fresh`**, czyli kasują
+całą zawartość bazy z `DB_DATABASE`. `scripts/bezpiecznik-bazy.mjs` wpuszcza
+wyłącznie jednorazową bazę pomiarową (własną bazę skryptu, jej wariant
+`_cos`, albo nazwę z rodziny `…_pomiar` / `kuking_qa_…`) i **odmawia startu
+przy nazwie, której nie rozpoznaje** — bo nie wie, czyja jest, a za chwilę
+miałby ją skasować. `kuking`, `kuking_test*`, `kuking_race*`,
+`proba_wycofania*` i `railway*` nie przejdą nigdy.
+
+**Port bierze się z `DB_PORT` albo z `.env` tej kopii**, nie z domyślnego 5432.
+`scripts/check.sh` pyta `pg_isready` dokładnie o ten port i wypisuje go
+w komunikacie; wspólną logikę trzyma `scripts/port-bazy.sh`. Porzucone bazy
+sprząta `./scripts/cleanup-test-dbs.sh` — kasuje wyłącznie te, po których
+kopia robocza zniknęła z dysku, i nigdy bazy trwającego przebiegu.
+
 **Jeśli pracujesz w worktree gita z dowiązanym `vendor`** — dodaj jawną ścieżkę
 bazową, inaczej Laravel załaduje trasy i klasy z głównego katalogu, a testy
 będą fałszywie zielone:

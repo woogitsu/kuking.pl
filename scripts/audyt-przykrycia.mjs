@@ -29,6 +29,7 @@
  */
 
 import { chromium } from 'playwright';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 import { spawn, execFileSync } from 'node:child_process';
 import { mkdirSync, writeFileSync } from 'node:fs';
 import { createServer } from 'node:net';
@@ -37,6 +38,16 @@ import { createServer } from 'node:net';
    Wskazanie `kuking` albo cudzej bazy odbiorowej kasowałoby czyjąś pracę
    (AGENTS.md §6). Port 5432 jest tu zakazany świadomie. */
 const BAZA_DOMYSLNA = 'kuking_audyt_browser';
+
+/* BEZPIECZNIK: ten skrypt robi `migrate:fresh`, czyli KASUJE zawartosc
+   bazy. `ustalBazePomiarowa()` wpuszcza wylacznie jednorazowa baze pomiarowa
+   i ODMAWIA startu przy nazwie, ktorej nie rozpoznaje — nie wiem, czyja to
+   baza, wiec jej nie kasuje (scripts/bezpiecznik-bazy.mjs). Liczone RAZ, na
+   starcie: odmowa ma paść, zanim skrypt cokolwiek zbuduje albo podniesie. */
+const BAZA_POMIAROWA = ustalBazePomiarowa({
+  domyslna: BAZA_DOMYSLNA,
+  skrypt: 'scripts/audyt-przykrycia.mjs',
+});
 const PORT_BAZY_ZAKAZANY = '5432';
 
 const SZYBKO = process.argv.includes('--szybko');
@@ -105,7 +116,7 @@ const wolnyPort = () => new Promise((resolve, reject) => {
 });
 
 function sprawdzBaze() {
-  const baza = process.env.DB_DATABASE || BAZA_DOMYSLNA;
+  const baza = BAZA_POMIAROWA;
   const port = process.env.DB_PORT || '';
   if (port === PORT_BAZY_ZAKAZANY) {
     throw new Error(`DB_PORT=${PORT_BAZY_ZAKAZANY} jest zakazany dla pomiarów — użyj izolowanej instancji (AGENTS.md §10).`);

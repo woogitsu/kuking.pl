@@ -91,7 +91,7 @@ PSQL=(psql -q -U "${BAZA_UZYTKOWNIK}" -h "${BAZA_HOST}" -p "${BAZA_PORT}")
 # kilku agentów i kilka przebiegów testów. Sufiks liczy ta sama funkcja, co
 # nazwy baz testowych (`tests/bootstrap.php`) — żeby nie było w repozytorium
 # drugiej reguły nazywania baz, która może się z tamtą rozjechać.
-SUFIKS="$(php -r 'require "'"${KATALOG}"'/tests/bootstrap.php"; echo substr(kuking_nazwa_testowej_bazy("'"${KATALOG}"'"), strlen("kuking_test"));' 2>/dev/null)"
+SUFIKS="$(php -r 'require "'"${KATALOG}"'/tests/nazwa-bazy.php"; echo substr(kuking_nazwa_testowej_bazy("'"${KATALOG}"'"), strlen("kuking_test"));' 2>/dev/null)"
 SUFIKS="${SUFIKS:-_glowny}"
 
 BAZA_ZRODLOWA="kuking_zrodlo_proby${SUFIKS}"
@@ -144,8 +144,12 @@ for narzedzie in pg_dump pg_restore psql openssl php; do
   fi
 done
 
+# Port z tej samej zmiennej, z której korzysta reszta skryptu (`BAZA_PORT`),
+# a nie domyślny 5432 gołego `pg_isready` — inaczej test melduje „baza jest",
+# patrząc na klaster innego projektu.
 if ! pg_isready -q -h "${BAZA_HOST}" -p "${BAZA_PORT}" 2>/dev/null; then
-  printf '\033[0;31mPostgreSQL nie odpowiada — nie ma czego dowodzić.\033[0m\n' >&2
+  printf '\033[0;31mPostgreSQL nie odpowiada na %s:%s — nie ma czego dowodzić.\033[0m\n' \
+    "${BAZA_HOST}" "${BAZA_PORT}" >&2
   exit 1
 fi
 

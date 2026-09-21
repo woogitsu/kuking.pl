@@ -1403,16 +1403,41 @@ jobs:
       - name: Regresja bramki kafla dodawania (#484)
         run: node scripts/kafel-dodawania-bramka.test.mjs
 
+      # WLASNA BAZA, NIE `kuking_test` Z POZIOMU JOBA (#736).
+      #
+      # Te skrypty robia `migrate:fresh --seed`, czyli kasuja zawartosc bazy.
+      # Do dzis kasowaly `kuking_test` — te sama, na ktorej kroki wyzej chodzi
+      # `php artisan test`. Dzialalo, bo kroki sa po kolei, ale jest to
+      # dokladnie ten uklad, ktory lokalnie kosztowal trzy sesje jednego dnia.
+      # `scripts/bezpiecznik-bazy.mjs` odmawia teraz startu na `kuking_test*`,
+      # wiec nazwa musi tu stac jawnie. Kazdy skrypt zaklada swoja baze sam.
       - name: Pomiar kafla dodawania (15 wariantów)
+        env:
+          DB_DATABASE: kuking_kafel_pomiar
         run: node scripts/kafel-dodawania.mjs
 
       - name: Fokus i kliknięcia kart dania (#485)
+        env:
+          DB_DATABASE: kuking_focus_pomiar
         run: node scripts/fokus-karty-dania.mjs
 
+      # TA SAMA baza, co krok wyzej: `fokus-zdjec.mjs` nie sieje danych, tylko
+      # czyta te, ktore zostawil po sobie `fokus-karty-dania.mjs` (DemoSeeder).
+      # Wczesniej dzialo sie to na wspolnym `kuking_test` i zaleznosc byla
+      # niewidoczna; teraz stoi wprost.
       - name: Fokus, kliknięcia i dialog zdjęć (#561)
+        env:
+          DB_DATABASE: kuking_focus_pomiar
         run: node scripts/fokus-zdjec.mjs
 
+      # `kuking_widok_pomiar` — WSPOLNA baza kroku axe i kroku Lighthouse.
+      # Lighthouse chodzi z `POMIN_MIGRACJE=1` na danych zasianych tutaj, wiec
+      # obie nazwy MUSZA byc te same. Konczy sie na `_pomiar`, bo tak wyglada
+      # rodzina baz jednorazowych rozpoznawana przez `bezpiecznik-bazy.mjs`.
+      # `dostepnosc.mjs` zaklada ja sam, jesli jej nie ma.
       - name: axe-core (aktualna macierz ekranów i wariantów)
+        env:
+          DB_DATABASE: kuking_widok_pomiar
         run: node scripts/dostepnosc.mjs
 
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
@@ -1460,6 +1485,8 @@ jobs:
         # gorszy niż krok pominięty. Issue #215.
         env:
           POMIN_MIGRACJE: '1'
+          # TA SAMA baza, co krok axe wyzej — patrz komentarz tam.
+          DB_DATABASE: kuking_widok_pomiar
         run: node scripts/wydajnosc.mjs
 
       - name: Zapis wyniku (wydajność)
