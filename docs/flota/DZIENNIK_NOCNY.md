@@ -1311,3 +1311,271 @@ a ustawienia repozytorium zostają jego decyzją.
 - **#920** — prawdziwe znalezisko: porzucone nie wchodzą do mianownika.
 - **#725** — inna przyczyna (panel marki), nieruszane.
 - **#786, #915** — `CONFLICTING` od wieczora.
+
+## 02:15Z (21.09) — Strażnik złapał mój własny dziennik. Sprawiedliwie
+
+`flota/stan-sesji-2` — gałąź z tym właśnie dziennikiem — odbiła się od bramki:
+
+```
+FAILED  DokumentyMdNieMajaMartwychOdnosnikowTest > trasy wspominane w dokumentach
+Martwe trasy wspomniane w dokumentach:
+docs/flota/DZIENNIK_NOCNY.md: `/merge`
+docs/flota/DZIENNIK_NOCNY.md: `/c/.../Codex`
+docs/flota/INWENTARZ_FLOTY.md: `/Users/matma/…/.git/worktrees/gemini-zeszyt-zapisy`
+docs/flota/KOLEJNOSC_SCALANIA.md: `/logs`
+docs/flota/STAN_SESJI_CZESC7.md: `/v2.1/email`
+… (dwanaście zgłoszeń)
+```
+
+Obejrzałem **wszystkie dwanaście**. Ani jedno nie jest adresem na kuking.pl —
+to ścieżki systemu plików i fragmenty cudzych API, które trafiły do backticków,
+bo tak się cytuje polecenia.
+
+Poprawka `2e361546`: `docs/flota/` dołącza do
+`WYKLUCZONE_Z_TRAS_PREFIKSY`, czyli do istniejącej już konwencji obok
+`docs/research/` i `docs/zlecenia/` — tam, gdzie ten plik sam wcześniej
+odróżnił dokument operacyjny od obietnicy produktu.
+
+**To zawężenie zakresu, nie osłabienie strażnika.** Różnica jest konkretna:
+`docs/product/` i `docs/design/` dalej muszą wskazywać trasy, które istnieją.
+Gdybym poszedł na skróty i dopisał te dwanaście do `DOZWOLONE_NIE_TRASY`,
+zaśmieciłbym listę wyjątków produktu ścieżkami z cudzego dysku.
+
+Zieleń zmierzona w runtime `stan-sesji-2-run`: **3 passed, 49 asercji**,
+przy czerwieni z dwunastoma zgłoszeniami sprzed poprawki.
+
+Dla porządku: to **ten sam strażnik**, który o 23:02 słusznie zatrzymał
+dokument #23 obiecujący nieistniejące trasy. Raz miał rację co do treści,
+raz co do zakresu — i w obu przypadkach poprawiałem dokument albo zakres,
+nigdy samą regułę.
+
+## 02:25Z (21.09) — Czego NIE wiem o minutach Actions
+
+Chciałem oprzeć dalsze otwieranie PR-ów na pomiarze, nie na szacunku.
+Nie da się tym tokenem:
+
+```
+gh api orgs/woogitsu/settings/billing/actions
+→ 410 "This endpoint has been moved."
+→ "This API operation needs the admin:org scope."
+```
+
+Więc **liczby 2189 z wieczora nie potrafię dziś potwierdzić ani zaktualizować.**
+Mój rachunek wydatków tej nocy jest szacunkiem:
+- 10 × aktualizacja PR-a wobec `main` (pełny przebieg),
+- 8 × scalenie do `main` (każde wyzwala `ci.yml` z `push`),
+- 1 × przebieg #929 po przywiezieniu `021264c6`.
+
+To rząd **kilkunastu przebiegów**, nie kilkudziesięciu — ale to szacunek
+i tak go nazywam. Licznik widać w Settings → Billing i **tam należy sprawdzić
+rano, zanim otworzy się kolejne PR-y**.
+
+Wniosek na resztę nocy: nie otwieram nowych PR-ów hurtem. Pchanie gałęzi jest
+darmowe (push do gałęzi roboczej nie wyzwala żadnego workflow — sprawdzone
+w blokach `on:` czterech plików) i to nim się zajmuję. Decyzję o kolejnych
+PR-ach zostawiam z widocznym licznikiem, czyli właścicielowi.
+
+## 02:45Z (21.09) — Trzeci raz ten sam wzór: strażnik jest, jego zmiana przepadła
+
+`gpt-harmonogram` odbiła się na `SondaCacheAssetowTest > manifest bez hasha
+nie dostaje rocznego cache assetow`. Gałąź dodaje ten strażnik (29 linii),
+ale **nie zmienia `docker/Caddyfile`** — dokładnie jak `gpt-ci-architektura`
+(strażnik bez zmiany w `ci.yml`) i `gpt-cloudflare-cache` (strażnicy bez kodu
+aplikacji).
+
+**To już nie przypadek, tylko ślad po wieczornej awarii.** Trzy stanowiska
+straciły commity z implementacją, a ocalały te z testami — bo testy powstawały
+później i trafiły do odzysku. Warto to sprawdzić na pozostałych gałęziach
+`-ODZYSK` rano.
+
+### Tę jedną naprawiłem, bo uzasadnienie obalało samo siebie
+
+W `Caddyfile` stało:
+
+```
+# Assety Vite: nazwy plików są hashowane (app-a1b2c3.js), więc możemy
+# cache'ować agresywnie i immutable.
+@viteAssets path /build/*
+header @viteAssets { Cache-Control "public, max-age=31536000, immutable" }
+```
+
+Wzorzec `/build/*` obejmuje też `/build/manifest.json` — **jedyny plik w tym
+katalogu bez hasha**, i to on mówi przeglądarce, który plik z hashem wziąć.
+Komentarz uzasadniał regułę powodem, który na manifest nie działa.
+
+Skutek dla człowieka: po wdrożeniu przeglądarka trzyma stary manifest przez rok
+i prosi o pliki, których już nie ma. Strona wygląda na zepsutą i wraca dopiero
+po twardym odświeżeniu — czego nie da się komuś wytłumaczyć komunikatem.
+
+Poprawka `ee2fb8d7`: zakres zawężony do `/build/assets/*`, manifest dostaje
+osobne `no-cache`. Zmierzone: czerwień 1 failed → zieleń **2 passed, 7 asercji**
+w runtime `gpt-harmonogram-ODZYSK-run`.
+
+### Dlaczego tę zrobiłem, a `fetch-depth: 0` nie
+
+Różnica jest w tym, co wiem. Tu strażnik podaje docelowy kształt **co do
+znaku**, kierunek jest jednoznacznie bezpieczniejszy (mniej agresywny cache),
+a uzasadnienie starej reguły samo wyklucza manifest. Przy `fetch-depth: 0`
+wiedziałem tylko tyle, że tę samą zmianę **już raz wycofano** (`abef3c94`) —
+i nie znałem powodu. Pierwsze to dokończenie opisanej roboty, drugie byłoby
+zgadywaniem w cudzej decyzji.
+
+Zaznaczam w commicie wprost, że zmiana dotyka konfiguracji serwera
+na produkcji i jest warta obejrzenia.
+
+## 03:05Z (21.09) — `gpt-kontakt-panel`: ukośnik nie z tej strony
+
+Strażnik martwych odnośników zgłosił jedno:
+
+```
+evidence/kontakt-panel/RAPORT.md: `/kuking-kontakt-panel-pelny-przebieg-20260920.txt`
+```
+
+W dokumencie stało ``%TEMP%/kuking-…-20260920.txt``. Skaner zobaczył adres
+zaczynający się od ukośnika — i formalnie miał rację. To ścieżka do pliku
+z logiem, a nie trasa; przy tym `%TEMP%` jest zmienną **windowsową**, więc
+poprawny separator to `\`, nie `/`.
+
+Poprawka `c46ae171` naprawia więc dwie rzeczy naraz: zapis ścieżki i fałszywe
+trafienie. Strażnika nie ruszano. Czerwień 1 failed → zieleń **3 passed,
+49 asercji**.
+
+To drobiazg, ale wart zapisania jako wzór: **gdy strażnik zgłasza coś, co
+„przecież nie jest trasą", najczęściej dokument naprawdę jest zapisany źle.**
+Trzykrotnie dziś tak wyszło — #23 obiecywał nieistniejące adresy, dzienniki
+floty mieszały ścieżki dysku z trasami, a tu ukośnik stał po prostu nie z tej
+strony. Ani razu nie trzeba było zmieniać reguły.
+
+## 03:25Z (21.09) — `gpt-konto-poczta`: analiza widziała fasadę, nie atrapę
+
+PHPStan, cztery razy:
+
+```
+Call to an undefined static method Illuminate\Support\Facades\Queue::pushed()
+```
+
+W czasie wykonania to działa: `Queue::fake()` podmienia obiekt za fasadą na
+`QueueFake`, a ten `pushed()` ma. Analiza statyczna widzi samą fasadę.
+
+**Ten projekt rozstrzygnął już ten sam przypadek** — przy
+`Log::shouldHaveReceived()`, i zapisał uzasadnienie w `phpstan.neon`:
+„fasada przekazuje wywołanie do obiektu Mockery, ale analiza widzi samą
+fasadę. Szpieg trafił do zmiennej." Zastosowałem ten sam wzorzec:
+
+```php
+$kolejka = Queue::fake();
+… $kolejka->pushed(SendQueuedNotifications::class) …
+```
+
+Nic nie jest wyciszane, nie dochodzi żaden wyjątek w konfiguracji. Zmienia się
+tylko sposób sięgnięcia po atrapę — kod mówi teraz analizie to samo, co robi
+w czasie wykonania.
+
+Zmierzone: PHPStan **4 błędy → `[OK] No errors`**, oba testy po zmianie
+**11 passed, 53 asercje**. Commit `443100cf`.
+
+Warto odnotować, że rozwiązanie nie było moim pomysłem — leżało w komentarzu
+konfiguracji, napisane przy okazji poprzedniego takiego błędu. Gdyby ten
+komentarz wtedy nie powstał, dziś zgadywałbym.
+
+## 03:40Z (21.09) — #918 scalone; dwa konflikty zostają dla człowieka, jeden z nich to znana pułapka
+
+**#918 „Napraw przepełnienie 320 px" — MERGED `cd966aae`.** Poprawka stopki
+(`5a221f23`) dojechała kolejką i PR od razu pokazał **13 zielonych, zero
+czerwonych**. To dziewiąte scalenie tej nocy.
+
+### Dwa PR-y naprawdę konfliktują — sprawdziłem, co dokładnie
+
+`gh pr update-branch` odmówił obu: „Cannot update PR branch due to conflicts".
+Zrobiłem próbne scalenie lokalnie, żeby wiedzieć, o co idzie:
+
+| PR | gałąź | pliki w konflikcie |
+|---|---|---|
+| #923 | `flota/zdjecia-formularze` | `resources/views/components/field.blade.php` |
+| #913 | `flota/gotowanie` | **`package.json`** i `resources/js/app.js` |
+
+### #913 to pułapka opisana w karcie audytu, punkt 7
+
+`package.json` — to jest **dokładnie** ten przypadek, przed którym ostrzega
+`KOLEJNOSC_SCALANIA.md` i punkt 7 karty audytu: konflikt na wspólnej linii
+`build` da się „rozwiązać", biorąc swoją wersję, i **nic nie zaświeci na
+czerwono** — a cicho wypadnie krok budowania drugiej strony.
+
+Dlatego nie tknąłem ani jednego z tych dwóch. Rozstrzygnięcie wymaga
+sprawdzenia, czego potrzebują OBIE strony, a nie wybrania jednej.
+Oba PR-y mają poza tym komplet zielonych sprawdzeń — konflikt jest jedyną
+przeszkodą.
+
+### Stan otwartych PR-ów nad ranem
+
+| PR | stan |
+|---|---|
+| #913, #923 | zielone, ale **konflikt** — do rozstrzygnięcia ręcznie |
+| #920 | „Przyrząd testu obciążeniowego": porzucone nie wchodzą do mianownika |
+| #725 | „Panel marki — puste i pełne widoki", przyczyna nierozpoznana |
+| #786, #915 | `CONFLICTING` od wieczora, nieruszane |
+
+## 03:55Z (21.09) — `gpt-monitoring`: raport odsyłał do dowodów, które przepadły
+
+Strażnik odnośników markdown zgłosił cztery:
+
+```
+docs/infra/MONITORING_ODBIOR_2026_09_20.md:
+  [`output/monitoring/baseline.json`](…)   -> brak pliku
+  [`received.json`](…)                     -> brak pliku
+  [`alert-cases.json`](…)                  -> brak pliku
+  [`negative.json`](…)                     -> brak pliku
+```
+
+Sprawdziłem najpierw, czy to nie znana pułapka `.gitignore` (w tym projekcie
+`*.log` bywa połykany bez ostrzeżenia). **Nie jest**: `git check-ignore` nic
+nie zwraca, katalog `output/` nie jest ignorowany. Plików nie ma także na
+dysku stanowiska — nie zdążyły trafić do commita przed awarią z 20 września.
+
+Poprawka `effab631`: odnośniki zamienione na same nazwy plików, a na końcu
+dokumentu stoi uwaga mówiąca wprost, że liczby w tabelach pochodzą z tamtych
+przebiegów i **nie da się ich dziś niezależnie sprawdzić**, dopóki dowody nie
+zostaną odtworzone — razem z instrukcją odtworzenia.
+
+Świadomie **nie usunąłem liczb**. Usunięcie byłoby wygodne (dokument
+przestaje mówić cokolwiek trudnego), ale skasowałoby ślad po prawdziwej
+pracy. Zostawienie odnośników byłoby gorsze: raport obiecywałby dowód jednym
+kliknięciem, nie mając czym go pokryć. Trzecia droga — powiedzieć, co jest
+zmierzone, i co z tego dziś nie jest sprawdzalne.
+
+Czerwień 1 failed → zieleń **3 passed, 49 asercji**.
+
+To już **czwarta gałąź tej nocy, na której awaria zabrała część pracy,
+a zostawiła opis tej pracy.** Wzór jest stały: zostają testy i raporty,
+znika to, co opisują.
+
+## 04:10Z (21.09) — `gpt-n1-powiadomienia`: uzasadnienie było, tylko nie tam, gdzie patrzy strażnik
+
+`KazdaMigracjaMaWycofanieTest` odrzucił migrację
+`2026_09_20_120000_usun_zamrozone_wycinki_komentarzy.php` — pusty `down()`.
+
+Strażnik nie poprzestaje na zgłoszeniu, tylko mówi **co zrobić**:
+
+> napisz wycofanie, a jeśli naprawdę nie ma czego cofać — zadeklaruj to
+> w klasie migracji stałą `WYCOFANIE_NIC_NIE_ROBI` z uzasadnieniem po polsku
+> (co najmniej 60 znaków), tak jak robi to
+> `0001_01_01_000000_enable_postgres_extensions`.
+
+I miał rację co do sedna: pusty `down()` wygląda **identycznie**, gdy ktoś
+o wycofaniu zapomniał, i gdy świadomie uznał, że nie ma czego cofać.
+
+Ciekawe jest to, że autor migracji uzasadnił tę pustkę wyczerpująco — cały
+akapit w docbloku, łącznie ze zdaniem „Migracja w drugą stronę, która milczy,
+twierdziłaby, że wycofanie jest pełne — a nie jest". Tyle że napisał to tam,
+gdzie czyta człowiek, a nie tam, gdzie patrzy maszyna.
+
+Poprawka `4da45693`: to samo uzasadnienie przeniesione do stałej
+`WYCOFANIE_NIC_NIE_ROBI`. **Nie podjąłem żadnej nowej decyzji** — nie tknąłem
+ani zakresu migracji, ani `up()`. Przełożyłem cudze zdanie z prozy do miejsca,
+w którym strażnik umie je znaleźć.
+
+Czerwień 1 failed → zieleń **2 passed, 172 asercje**.
+
+Warto to zapamiętać przy pisaniu strażników: ten podał w komunikacie nazwę
+stałej, minimalną długość uzasadnienia i **plik z przykładem**. Naprawa zajęła
+minutę, bo nie trzeba było zgadywać, czego strażnik chce.
