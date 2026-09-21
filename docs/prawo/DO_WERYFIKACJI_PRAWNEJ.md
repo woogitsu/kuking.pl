@@ -193,7 +193,7 @@ człowiek nie wie, co zostaje na jego urządzeniu przez rok.
 
 ---
 
-### R-05 · Regulamin obiecuje zgłoszenie organom przy CSAM; w kodzie nie ma na to niczego
+### R-05 · Procedura CSAM jest kompletna na papierze, ale w kodzie nie ma jej wcale
 
 **Co obiecujemy** — `regulamin:117`:
 > „Wyjątkiem są sytuacje wymagające natychmiastowego działania ze względów
@@ -207,16 +207,28 @@ Procedura istnieje wyłącznie jako tekst: `docs/legal/MODERATION_PLAYBOOK.md`
 §7.1, a własna lista gotowości trzyma to jako P0 do potwierdzenia —
 `docs/legal/COMPLIANCE.md:310`: „`DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` (…)
 potwierdzić właściwy organ **przed startem, nie w trakcie incydentu**”.
-Audyt procedur nazywa to wprost „sprzeczna instrukcja przy CSAM — najgorsze
-możliwe miejsce” (`docs/legal/AUDYT_PROCEDUR_2026_09_20.md:95`).
+Audyt procedur nazwał kiedyś „sprzeczną instrukcję przy CSAM — najgorsze możliwe
+miejsce” (`docs/legal/AUDYT_PROCEDUR_2026_09_20.md:95`), ale **ta sprzeczność
+została już naprawiona** — §4.1 tego samego audytu kończy się słowem
+„Poprawione”, a playbook §7.0 ma dziś tabelę ostrzegającą, że podstawa
+„Treść niezgodna z prawem” wymusza wiadomość do autora (`required_if`
+w `ModerationController::decide()`, w. 199), a „Krzywdzenie dzieci — usuwamy
+natychmiast” przyjmuje puste pole. Nie traktować tego cytatu jako stanu bieżącego.
 
 **Czego dotyczy** — DSA art. 18 (zawiadamianie organów ścigania), art. 14
 (warunki korzystania muszą odpowiadać praktyce).
 
-**Ryzyko dla człowieka.** Dziecko, którego wizerunek trafi na serwis, zależy
-od tego, czy jedna osoba obsługująca moderację będzie w tamtej chwili
-wiedziała, gdzie zadzwonić. Moderator ma co przeczytać, ale nie ma gdzie
-kliknąć.
+**Ryzyko dla człowieka.** Moderator **wie, gdzie zadzwonić** — §7.1 playbooka
+podaje Dyżurnet.pl, Policję (997 albo 112) i 116 123 przy zagrożeniu
+suicydalnym, w siedmiu ponumerowanych krokach. Ryzyko nie polega więc na
+niewiedzy. Polega na tym, że **cała ścieżka zewnętrzna jest ręczna i nic jej nie
+przypomina**: żaden ekran nie pyta „czy zgłoszono?", nic nie pilnuje terminu
+i nic nie zapisuje numeru referencyjnego. Sprawa zgłoszona w nocy, przy jednej
+osobie w zespole, nie ma technicznego śladu do rana.
+
+Zaznaczamy to wprost, bo pierwsza wersja tego wpisu mówiła, że wszystko zależy
+od tego, czy ktoś będzie wiedział, gdzie zadzwonić. **To było nieprawdziwe** —
+sprawdzone przez odczytanie §7.1 w całości.
 
 ---
 
@@ -747,7 +759,10 @@ Dokument, który udaje kompletny, jest gorszy niż krótki i uczciwy.
   hasła: RODO, prywatność, art. 15, retencja, zgoda, polityka, regulamin,
   dane osobowe, eksport — oraz etykiety `obszar: prawo` i `prywatność`.
   75% otwartych issues nie ma żadnej etykiety, więc etykieta nie jest sitem.
-- **Nie czytaliśmy `docs/legal/MODERATION_PLAYBOOK.md` w całości** — R-05
+- ~~Nie czytaliśmy `docs/legal/MODERATION_PLAYBOOK.md` w całości~~ — **uzupełnione
+  21.09 po południu.** §7.1 przeczytana w całości; okazała się kompletną,
+  siedmiopunktową procedurą z nazwanymi adresatami. R-05 poprawione w §2.
+  Ta biała plama była przyczyną przesadzonej oceny ryzyka. Pierwotny zapis: R-05
   opiera się na cytatach z `COMPLIANCE.md` i z audytu procedur.
 
 **Prawo:**
