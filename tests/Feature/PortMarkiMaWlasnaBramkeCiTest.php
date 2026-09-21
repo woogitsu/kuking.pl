@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use PHPUnit\Framework\Attributes\DataProvider;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 class PortMarkiMaWlasnaBramkeCiTest extends TestCase
@@ -91,6 +93,54 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
 
         // Kontrola ujemna: filtr ma ROZRÓŻNIAĆ, a nie przepuszczać wszystko.
         $this->assertSame(0, preg_match($pattern, 'docs/PRODUCT.md'));
+    }
+
+    public static function screenPaths(): array
+    {
+        return [
+            'kreator' => ['app/Livewire/RecipeWizard.php', true],
+            'komponent' => ['app/View/Components/Layout.php', true],
+            'kontroler' => ['app/Http/Controllers/RecipeController.php', true],
+            'kontroler techniczny bez wyjątków' => ['app/Http/Controllers/HealthController.php', true],
+            'middleware' => ['app/Http/Middleware/EnsureAccountIsActive.php', true],
+            'model' => ['app/Models/Recipe.php', true],
+            'polityka' => ['app/Policies/RecipePolicy.php', true],
+            'domena' => ['app/Domain/Search/SearchQuery.php', true],
+            'trasy' => ['routes/web.php', true],
+            'konfiguracja' => ['config/kuking.php', true],
+            'start aplikacji' => ['bootstrap/app.php', true],
+            'tłumaczenia' => ['lang/pl/validation.php', true],
+            'dane ekranów' => ['database/seeders/DemoSeeder.php', true],
+            'zależności' => ['composer.json', true],
+            'wersje zależności' => ['composer.lock', true],
+            'dokumentacja' => ['docs/PRODUCT.md', false],
+            'instrukcja główna' => ['README.md', false],
+            'ścieżka podobna do zależności' => ['composer.json.md', false],
+            'dokumentacja i PHP' => ["docs/PRODUCT.md\napp/Livewire/RecipeWizard.php", true],
+            'duży diff bez SIGPIPE' => ["app/Livewire/RecipeWizard.php\n".str_repeat("docs/dlugi-niezmieniajacy-interfejsu-opis.md\n", 10000), true],
+        ];
+    }
+
+    /** Uruchamia rzeczywisty warunek w Bashu, nie tłumaczenie regexu na PCRE. */
+    #[DataProvider('screenPaths')]
+    public function test_php_sterujace_ekranem_uruchamia_pomiar(string $paths, bool $expected): void
+    {
+        $this->assertSame(1, preg_match('/^\s*(if [^\n]*grep -qE .*?^\s*fi)/ms', $this->job('zakres'), $matches));
+        $output = tempnam(sys_get_temp_dir(), 'kuking-zakres-');
+        $this->assertNotFalse($output);
+
+        try {
+            $process = new Process(['bash', '-c', "set -euo pipefail\nZMIENIONE=\"$(cat)\"\n".$matches[1]], base_path(), [
+                'GITHUB_OUTPUT' => $output,
+            ]);
+            $process->setInput($paths);
+            $process->run();
+            $this->assertSame(0, $process->getExitCode(), $process->getErrorOutput());
+            $this->assertSame('widok='.($expected ? 'true' : 'false')."\n", file_get_contents($output),
+                'zakres: błędna decyzja dla '.strtok($paths, "\n"));
+        } finally {
+            unlink($output);
+        }
     }
 
     /**
