@@ -272,6 +272,53 @@ ryzyko:
 4. **Moderator nie ma jak potwierdzić żadnego z powyższych** — panel mówi
    „Decyzja zapisana", nie „dostęp odcięty".
 
+**ZMIERZONE 21.09 — ta pozycja przestaje być analizą.** Pełny przebieg na
+wygenerowanym neutralnym zdjęciu, kod `cd966aae`, dysk o sterowniku `r2` (MinIO
+`127.0.0.1:59310`), ważność podpisu odczytana z konfiguracji: **5 minut**,
+`Cache-Control` **`public, max-age=150`** potwierdzony i na przekierowaniu,
+i na odpowiedzi magazynu.
+
+| stan | gość (trasa aplikacji) | moderator (trasa) | podpis wydany wcześniej |
+|---|---|---|---|
+| przed czymkolwiek | **302** → magazyn | **302** | **200** |
+| po `Usuń treść` | **302** → magazyn | **302** | **200** |
+| **po banie autora** | **404** | **302** → magazyn | **200** |
+| po usunięciu drugiej treści | **404** | **302** → magazyn | **200** |
+| po 5 min 20 s | — | — | **403** |
+
+**Trzy ustalenia z tego pomiaru, istotne prawnie:**
+
+1. **Podpisany adres wydany przed decyzją działa przez cały czas ważności podpisu.**
+   Ani usunięcie treści, ani ban go nie unieważniają — odcina go **wyłącznie zegar**.
+   Czyli między decyzją a faktycznym odcięciem istnieje **gwarantowane okno co
+   najmniej pięciominutowe**, a dla kopii w cache brzegowym okno nieznane.
+2. **Moderator nie jest odcięty w żadnym stanie**, także po usunięciu obu treści
+   i banie. Wynika to z `DostepDoZdjecia::wlascicielLubModerator()`, który przepuszcza
+   **przed** odpytaniem rodziców. Przy żądaniu odcięcia konkretnego pliku ta reguła
+   też przepuszcza.
+3. **Odcięcie gościa następuje na BANIE, nie na usunięciu treści.** Po `Usuń treść`
+   gość dalej dostawał `302` przez drugiego rodzica. To ma znaczenie dla oceny
+   „niezwłoczności": sama decyzja o usunięciu treści nie kończy udostępniania.
+
+**Obalone tym pomiarem:** podejrzenie, że `MediaController` wydaje podpis przed
+sprawdzeniem uprawnień. `abort_unless($decyzja->dlaWidza, 404)` stoi **przed**
+`temporaryUrl()`, a odmowa nie niesie nagłówka `Location`. Kolejność jest poprawna.
+
+**Zastrzeżenie do wiarygodności pomiaru:** zdjęcie o dwóch rodzicach zbudowano
+**wprost w bazie**, bo zwykłą ścieżką użytkownika się nie dało
+(`PostController::zebranZdjecia()` ma `->whereDoesntHave('posts')`). Scenariusz jest
+więc osiągalny po stronie danych, ale nie wykazano trasy, którą otworzyłby go
+zwykły użytkownik.
+
+**Co ten pomiar NIE obejmuje — i jedno z tego może go unieważnić:**
+- **Czy produkcja używa jeszcze magazynu `r2_legacy` z publicznym, bezterminowym
+  URL-em.** Jeżeli tak, powyższa tabela **nie opisuje tej drogi w ogóle.**
+  To wymaga odczytu zmiennych produkcji i jest pytaniem do właściciela.
+- **Cache brzegowy Cloudflare** — pomiar szedł na MinIO bez CDN, więc nie wiadomo,
+  jak długo bajty żyją na brzegu po wygaśnięciu podpisu. Przy `max-age=150` to okno
+  realne, a `403` z magazynu go nie zamyka.
+- Właściciel zdjęcia na innym, niezbanowanym koncie; cache przeglądarki i proxy.
+
 **Czego nadal nie zmierzono i bez czego ta pozycja nie jest zamknięta:** przejście
 całej ścieżki na neutralnym zdjęciu — dwa miejsca użycia, usunięcie, ban, stary
 podpis, cache. Dopóki tego nie ma, powyższe jest analizą kodu, nie dowodem.
