@@ -118,7 +118,7 @@ Wcześniejsza wersja tego raportu pisała w tym miejscu:
 `git diff origin/main -- .github/workflows/` nie dawał ani jednej dodanej
 linii. Oba pliki testowe leżały w repozytorium i **nie uruchamiało ich nic**.
 
-Stan po commicie `%SHA%` — dwa testy, dwie różne drogi do CI, bo droga jest
+Stan po commicie ``5c0a97c5`` — dwa testy, dwie różne drogi do CI, bo droga jest
 własnością testu, nie autora:
 
 | Plik | Droga do CI | Dlaczego ta |
