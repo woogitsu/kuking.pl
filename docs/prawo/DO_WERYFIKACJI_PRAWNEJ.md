@@ -245,11 +245,36 @@ przysługuje odwołanie z art. 17 DSA**. Kod pisze wprost: *„Decyzja, od któr
 da się skutecznie odwołać, nie może stać na tym ekranie."* Dodanie przycisku
 byłoby więc złą poprawką — brakuje miękkiego kasowania zdjęć, nie przycisku.
 
-**Co z tego wynika — i to jest sedno tej pozycji.** Żadna z tych trzech decyzji
-projektowych nie jest błędem osobno; każda ma uzasadnienie zapisane w kodzie.
-**Razem dają stan, w którym moderator usuwa wpis, blokuje konto, widzi komunikat
-„Decyzja zapisana" — a plik nadal jest serwowany.** Przy zwykłej treści to nie
-szkodzi. Przy tej kategorii szkodzi.
+**ZAWĘŻENIE (21.09, po kontrargumencie zewnętrznym i sprawdzeniu w kodzie).**
+Poprzednia wersja tego akapitu mówiła, że po usunięciu treści i banie konta
+„plik nadal jest serwowany". **To było za mocne i nie było wynikiem pomiaru.**
+
+`PostPolicy` i `RecipePolicy` zawierają jawny warunek:
+```php
+if (! $isOwnerOrModerator && ! $post->author->jestDostepnyJakoAutor()) {
+    return false;
+}
+```
+Ban odcina zwykłym odbiorcom dostęp do wpisów i przepisów autora. **Jeżeli oba
+miejsca użycia zdjęcia należą do zbanowanego konta, reguła „którykolwiek rodzic"
+nie znajdzie widocznego rodzica** i plik przestaje być serwowany nowym żądaniom
+aplikacyjnym.
+
+**Co zostaje prawdziwe po tym zawężeniu** — i tylko to należy pokazywać jako
+ryzyko:
+1. **Kolejność ma znaczenie.** Między usunięciem treści a banem (dwie osobne
+   sprawy, bo jedno zgłoszenie przyjmuje jedną decyzję) istnieje okno, w którym
+   plik jest dostępny przez drugiego rodzica.
+2. **Zdjęcie z rodzicem na INNYM, niezbanowanym koncie** nie jest odcięte —
+   reguła „którykolwiek rodzic" działa wtedy w pełni.
+3. **Wcześniej wydane podpisy, cache i ewentualny publiczny magazyn `r2_legacy`**
+   są poza zasięgiem obu polityk. Ban nie unieważnia podpisu, który już wyszedł.
+4. **Moderator nie ma jak potwierdzić żadnego z powyższych** — panel mówi
+   „Decyzja zapisana", nie „dostęp odcięty".
+
+**Czego nadal nie zmierzono i bez czego ta pozycja nie jest zamknięta:** przejście
+całej ścieżki na neutralnym zdjęciu — dwa miejsca użycia, usunięcie, ban, stary
+podpis, cache. Dopóki tego nie ma, powyższe jest analizą kodu, nie dowodem.
 
 **Czego NIE zmierzono i czego nie należy stąd wnioskować.** Nikt nie uruchomił
 żadnego testu ani aplikacji. Wartości „podpis ważny 5 minut" i „publiczny
