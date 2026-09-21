@@ -194,16 +194,50 @@ else
 fi
 
 # --- 5. Testy -------------------------------------------------------------
+# KUKING_TESTY_ROWNOLEGLE=N puszcza baterię na N procesach. Domyślnie PUSTE,
+# czyli szeregowo — i tak ma zostać. Równoległość jest świadomym wyborem
+# stanowiska, które wie, ile rdzeni ma wolnych, a nie zachowaniem domyślnym.
+#
+# Po co: zmierzone 21.09.2026 na 4402 testach — 310 s szeregowo, 105 s na
+# sześciu procesach. Bateria zajmowała 82% czasu bramki i chodziła na JEDNYM
+# rdzeniu z 24.
+#
+# Czego NIE wolno zapomnieć: przy zwykłym przeciążeniu obowiązuje reguła
+# „fałszywa czerwień, nigdy fałszywa zieleń" — przebieg zielony pod obciążeniem
+# jest wiarygodny. Równoległość tę regułę OSŁABIA: test zależny od kolejności
+# albo współdzielonego stanu może się pod nią zachować inaczej. W pomiarze
+# z 21.09 liczba testów zgadzała się co do jednego (4402), ale asercji było
+# 83722 szeregowo i 83721 równolegle. Ta jedna różnica jest nadal niewyjaśniona.
+# Dlatego domyślnie szeregowo, a równolegle tylko tam, gdzie liczy się czas
+# i ktoś ten kompromis podjął świadomie.
+#
+# --recreate-databases jest konieczne, nie kosmetyczne: bazy robocze
+# <baza>_test_N przeżywają między przebiegami, a kolejne gałęzie mają różne
+# migracje. Bez tego druga gałąź dostałaby schemat pierwszej.
 krok "Testy"
 _test_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-tests.XXXXXX")
-if php artisan test >"$_test_log" 2>&1; then
+_test_polecenie=(php artisan test)
+_test_podpowiedz='php artisan test'
+if [ -n "${KUKING_TESTY_ROWNOLEGLE:-}" ]; then
+    if [ ! -x vendor/bin/paratest ]; then
+        # Cicha ucieczka do szeregowych byłaby najgorsza z możliwych: bramka
+        # trwałaby trzy razy dłużej, nikt by nie wiedział czemu, a przyczyną
+        # byłby brakujący pakiet. Mówimy wprost.
+        zle "KUKING_TESTY_ROWNOLEGLE ustawione, a brak vendor/bin/paratest — uruchom: composer install"
+    fi
+    _test_polecenie=(php artisan test --parallel \
+        --processes="$KUKING_TESTY_ROWNOLEGLE" --recreate-databases)
+    _test_podpowiedz="php artisan test --parallel --processes=$KUKING_TESTY_ROWNOLEGLE"
+    printf '  Bateria na %s procesach (KUKING_TESTY_ROWNOLEGLE)\n' "$KUKING_TESTY_ROWNOLEGLE"
+fi
+if "${_test_polecenie[@]}" >"$_test_log" 2>&1; then
     rm -f "$_test_log"
     ok "Testy przechodzą"
 else
     printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
     printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
     tail -n 160 "$_test_log"
-    zle "Testy nie przechodzą — uruchom: php artisan test"
+    zle "Testy nie przechodzą — uruchom: $_test_podpowiedz"
 fi
 
 # --- 5b. Wyścigi na dwóch połączeniach (opcjonalne) ------------------------
