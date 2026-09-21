@@ -31,11 +31,17 @@
 
 set -uo pipefail
 
-export PGPASSWORD="${PGPASSWORD:-kuking}"
-# Host, port i użytkownik ze środowiska/`.env` — te same, na których pojadą
-# testy. Twardy `-h 127.0.0.1` bez portu trafiał w klaster 5432 innego
+# Host, port, użytkownik I HASŁO ze środowiska/`.env` — te same, na których
+# pojadą testy. Twardy `-h 127.0.0.1` bez portu trafiał w klaster 5432 innego
 # projektu, więc ten dowód potrafił mierzyć nie tę bazę, o którą chodzi.
+#
+# Hasło stało tu zaszyte jako `kuking` i było niewidoczne lokalnie, bo nasz
+# klaster ma `trust`. Na serwerze, który hasła sprawdza (jak usługa w `ci.yml`
+# z `POSTGRES_PASSWORD: secret`), ten dowód meldował „Problemów: 2" —
+# przyczyną nie była izolacja baz, tylko brak możliwości zalogowania.
+# Ten skrypt nie chodzi dziś w CI, więc nikt tego nie zobaczył.
 BAZA_UZYTKOWNIK="${DB_USERNAME:-kuking}"
+export PGPASSWORD="${PGPASSWORD:-${DB_PASSWORD:-kuking}}"
 BAZA_HOST="${DB_HOST:-127.0.0.1}"
 BAZA_PORT="${DB_PORT:-$(sed -n 's/^[[:space:]]*DB_PORT[[:space:]]*=[[:space:]]*//p' "$(dirname "${BASH_SOURCE[0]}")/../../.env" 2>/dev/null | tail -n1)}"
 BAZA_PORT="${BAZA_PORT:-5432}"

@@ -79,8 +79,23 @@ if ! pg_isready -q -h "$KUKING_DB_HOST" -p "$KUKING_DB_PORT" 2>/dev/null; then
     exit 1
 fi
 
-export PGPASSWORD="${PGPASSWORD:-kuking}"
+# Hasło z `port-bazy.sh` (DB_PASSWORD → `.env` → `kuking`), a NIE zaszyte
+# `kuking`. Zaszyte działało lokalnie tylko dlatego, że nasz klaster ma
+# `trust`; w CI (`POSTGRES_PASSWORD: secret`) każde `psql` niżej kończyło się
+# `FATAL: password authentication failed`, a że wszystkie mają `2>/dev/null`,
+# skrypt meldował „Brak baz kuking_test_*" i wychodził zerem. Cichy sprzątacz,
+# który nie umie się zalogować, jest nie do odróżnienia od czystego systemu.
+export PGPASSWORD="${PGPASSWORD:-$KUKING_DB_HASLO}"
 PSQL=(psql -tA -U "$KUKING_DB_UZYTKOWNIK" -h "$KUKING_DB_HOST" -p "$KUKING_DB_PORT" -d postgres)
+
+# `pg_isready` NIE loguje się — odpowiada „accepting connections" także wtedy,
+# gdy poświadczenia są złe. Dopiero prawdziwe zapytanie odróżnia „serwer stoi"
+# od „umiem z nim rozmawiać". Bez tego kroku brak dostępu udawał pustą bazę.
+if ! "${PSQL[@]}" -c "SELECT 1" >/dev/null 2>&1; then
+    printf "${CZERWONY}Nie umiem się zalogować do %s jako %s — nic nie ruszam.${RESET}\n" \
+        "$(kuking_opis_bazy)" "$KUKING_DB_UZYTKOWNIK" >&2
+    exit 1
+fi
 
 # Katalog rejestru pytamy PHP, a nie liczymy tu drugi raz — to ten sam powód,
 # dla którego nazwa bazy też przychodzi z PHP. Dwie kopie reguły rozjadą się.

@@ -34,7 +34,10 @@ cd "${KATALOG}" || exit 1
 
 kuking_ustal_dostep_do_bazy "${KATALOG}" || exit 1
 
-export PGPASSWORD="${PGPASSWORD:-kuking}"
+# Hasło z `port-bazy.sh`, nie zaszyte `kuking` — patrz komentarz tam. Zaszyte
+# przechodziło lokalnie (klaster z `trust`) i oblewało 5 z 6 werdyktów w CI,
+# gdzie usługa startuje z `POSTGRES_PASSWORD: secret`.
+export PGPASSWORD="${PGPASSWORD:-${KUKING_DB_HASLO}}"
 PSQL=(psql -q -tA -U "${KUKING_DB_UZYTKOWNIK}" -h "${KUKING_DB_HOST}" -p "${KUKING_DB_PORT}" -d postgres)
 
 zdane=0
@@ -62,6 +65,18 @@ if ! pg_isready -q -h "${KUKING_DB_HOST}" -p "${KUKING_DB_PORT}" 2>/dev/null; th
   exit 1
 fi
 
+# `pg_isready` nie loguje się, więc mówi „accepting connections" także przy
+# złym haśle. Bez tego kroku dowód nie padał — on się DEGRADOWAŁ: `CREATE
+# DATABASE` cicho nie działało, sprzątacz meldował „Brak baz", a werdykty
+# 2–6 robiły się czerwone z komunikatem wskazującym na sprzątacza, choć winna
+# była niemożność zalogowania. Przyczyna ma stać w pierwszej linii, nie być
+# zgadywana z pięciu skutków.
+if ! "${PSQL[@]}" -c "SELECT 1" >/dev/null 2>&1; then
+  printf '\033[0;31mNie umiem się zalogować do %s jako %s — dowód nie mierzyłby sprzątacza, tylko brak dostępu.\033[0m\n' \
+    "$(kuking_opis_bazy)" "${KUKING_DB_UZYTKOWNIK}" >&2
+  exit 1
+fi
+
 PIASKOWNICA="$(mktemp -d "${TMPDIR:-/tmp}/kuking-sprzatacz-XXXXXX")"
 export KUKING_REJESTR_BAZ="${PIASKOWNICA}/rejestr"
 mkdir -p "${KUKING_REJESTR_BAZ}"
@@ -86,6 +101,14 @@ trap posprzataj EXIT INT TERM
 for b in "${BAZA_ZYWA}" "${BAZA_OSIEROCONA}" "${BAZA_NIEZNANA}" "${BAZA_ZAJETA}"; do
   "${PSQL[@]}" -c "DROP DATABASE IF EXISTS ${b} WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -c "CREATE DATABASE ${b} OWNER ${KUKING_DB_UZYTKOWNIK}" >/dev/null 2>&1
+  # Bez tego sprawdzenia nieudane `CREATE` szło niezauważone, a werdykt
+  # „baza X ZOSTAJE" robił się czerwony dla bazy, której nigdy nie było —
+  # czyli dowód oskarżał sprzątacza o cudzą winę. Jedyny wyjątek jest odwrotny:
+  # werdykt „osierocona ZNIKA" byłby wtedy ZIELONY bez powodu.
+  if ! istnieje_baza "${b}"; then
+    printf '\033[0;31mNie udało się założyć bazy %s — dowód nie miałby na czym stać.\033[0m\n' "${b}" >&2
+    exit 1
+  fi
 done
 
 mkdir -p "${KATALOG_ZYWY}" "${KATALOG_ZAJETY}"
@@ -106,12 +129,17 @@ rm -rf "${KATALOG_ZAJETY}"
 
 # Czekamy, aż połączenie NAPRAWDĘ stanie w pg_stat_activity. Bez tego dowód
 # potrafiłby przejść przypadkiem, na wolnej maszynie mierząc pustkę.
+# Warunek jest na „padło co najmniej jedno połączenie", a NIE na „odpowiedź
+# jest różna od zera": przy nieudanym `psql` odpowiedź jest PUSTA, więc
+# `!= "0"` było prawdziwe i pętla przerywała się od razu, przepuszczając dowód,
+# który niczego nie zmierzył.
 for _ in $(seq 1 50); do
-  [ "$("${PSQL[@]}" -c "SELECT count(*) FROM pg_stat_activity WHERE datname='${BAZA_ZAJETA}'" 2>/dev/null)" != "0" ] && break
+  liczba_polaczen="$("${PSQL[@]}" -c "SELECT count(*) FROM pg_stat_activity WHERE datname='${BAZA_ZAJETA}'" 2>/dev/null)"
+  [[ "${liczba_polaczen}" =~ ^[1-9][0-9]*$ ]] && break
   sleep 0.2
 done
 
-if [ "$("${PSQL[@]}" -c "SELECT count(*) FROM pg_stat_activity WHERE datname='${BAZA_ZAJETA}'" 2>/dev/null)" = "0" ]; then
+if ! [[ "${liczba_polaczen}" =~ ^[1-9][0-9]*$ ]]; then
   printf '\033[0;31mNie udało się otworzyć połączenia kontrolnego — dowód byłby pusty.\033[0m\n' >&2
   kill "${PID_POLACZENIA}" 2>/dev/null
   exit 1
