@@ -1,5 +1,13 @@
 #!/usr/bin/env bash
 # Uruchamiamy prawdziwy początek check.sh na atrapach, bez dostępu do bazy.
+#
+# Pilnujemy dwóch rzeczy naraz:
+#  1. sonda pyta DOKŁADNIE o wskazany endpoint i nie podnosi klastra,
+#  2. w `check.sh` NIE MA zaszytego portu — port przychodzi z `DB_PORT`,
+#     z wartością zapasową 5432 (jak `.env.example`, `phpunit.xml`
+#     i `tests/skrypty/proba-odtworzenia.sh`). Zaszyta liczba oznaczałaby
+#     `exit 1` zamiast kontroli u każdego, kto nie stoi na tym stanowisku:
+#     w CI (port losowy) i w każdym świeżym klonie.
 set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 TASK="$(mktemp -d)"
@@ -42,13 +50,58 @@ check test "$code" != 0
 check grep -q '127.0.0.1:55439' "$TASK/output"
 check test "$(grep -c UNEXPECTED_CLUSTER_START "$TRACE" || true)" = 0
 unset READY_STATUS
-for missing in DB_HOST DB_PORT DB_DATABASE DB_USERNAME; do
+# Nazwa bazy i użytkownik nadal OBOWIĄZKOWE: to one decydują, co skasuje
+# `migrate:refresh`, więc brak którejkolwiek ma zatrzymać kontrolę PRZED sondą.
+for missing in DB_DATABASE DB_USERNAME; do
     (unset "$missing"; run; test "$code" != 0 && test ! -s "$TRACE") || {
         echo "BŁĄD: brak $missing nie zatrzymał sondy"; failures=$((failures + 1));
     }
 done
-DB_PORT=5432 run
-check test "$code" != 0
-check test ! -s "$TRACE"
+
+# --- Port NIE jest zaszyty -------------------------------------------------
+# Kontrola dodatnia: inny port niż ten stanowiska ma PRZEJŚĆ i trafić do sondy.
+# Gdyby ktoś wpisał liczbę z powrotem, ten przebieg oblewa.
+(
+    export DB_PORT=6543
+    run
+    test "$code" = 0 && grep -q -- '-p 6543 ' "$TRACE"
+) || { echo "BŁĄD: inny port nie przeszedł kontroli"; failures=$((failures + 1)); }
+
+# Port 5432 to zwykły port, nie port zakazany — świeży klon nie ma innego.
+(
+    export DB_PORT=5432
+    run
+    test "$code" = 0 && grep -q -- '-p 5432 ' "$TRACE"
+) || { echo "BŁĄD: port 5432 nie przeszedł kontroli"; failures=$((failures + 1)); }
+
+# Brak DB_PORT: wartość zapasowa 5432, ta sama co w reszcie repozytorium.
+(
+    unset DB_PORT
+    run
+    test "$code" = 0 && grep -q -- '-p 5432 ' "$TRACE"
+) || { echo "BŁĄD: brak DB_PORT nie wziął wartości zapasowej 5432"; failures=$((failures + 1)); }
+
+# Brak DB_HOST: wartość zapasowa 127.0.0.1.
+(
+    unset DB_HOST
+    run
+    test "$code" = 0 && grep -q -- '-h 127.0.0.1 ' "$TRACE"
+) || { echo "BŁĄD: brak DB_HOST nie wziął wartości zapasowej 127.0.0.1"; failures=$((failures + 1)); }
+
+# Kontrola ujemna, która ZOSTAJE: kontrola kasuje wskazaną bazę, więc nie wolno
+# jej skierować poza pętlę zwrotną — i to musi paść PRZED dotknięciem sondy.
+(
+    export DB_HOST=baza.produkcja.example
+    run
+    test "$code" != 0 && test ! -s "$TRACE"
+) || { echo "BŁĄD: nielokalny DB_HOST nie zatrzymał sondy"; failures=$((failures + 1)); }
+
+# Kontrola ujemna sprawdzająca SAM PRZYRZĄD: gdyby `run` nie wykonywał
+# prawdziwego `check.sh`, wszystkie powyższe przeszłyby na pusto.
+(
+    export DB_PORT=6543
+    run
+    grep -q -- '-p 55439 ' "$TRACE"
+) && { echo "BŁĄD: sonda poszła na zaszyty port mimo DB_PORT=6543"; failures=$((failures + 1)); }
 if [ "$failures" -gt 0 ]; then exit 1; fi
-echo 'Gotowość, niedostępność, brak parametrów i niedozwolony port: poprawnie.'
+echo 'Gotowość, niedostępność, brak parametrów, port ze zmiennej i nielokalny host: poprawnie.'

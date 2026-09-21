@@ -47,14 +47,33 @@ zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; BLEDY=$((BLEDY + 1)); }
 krok "PostgreSQL"
 # Parametry muszą być eksportowane: ten sam endpoint dostaną też PHPUnit
 # i migracje. Nie wczytujemy .env jako kodu powłoki ani nie zarządzamy klastrem.
-for parametr in DB_HOST DB_PORT DB_DATABASE DB_USERNAME; do
+#
+# Nazwa bazy i użytkownik ZOSTAJĄ obowiązkowe i bez wartości zapasowej: to one
+# decydują, co skasuje `migrate:refresh` w kroku 6. Domyślna nazwa bazy
+# znaczyłaby „zaoraj cudzą bazę, bo ktoś zapomniał wyeksportować zmienną”.
+for parametr in DB_DATABASE DB_USERNAME; do
     if [ -z "${!parametr:-}" ]; then
         zle "Ustaw i wyeksportuj $parametr dla własnej bazy testowej przed kontrolą."
         exit 1
     fi
 done
-if [ "$DB_HOST" != 127.0.0.1 ] || [ "$DB_PORT" != 55439 ]; then
-    zle "Ustaw DB_HOST=127.0.0.1 i DB_PORT=55439 dla lokalnego odbioru."
+
+# Host i port bierzemy ZE ŚRODOWISKA — tą samą konwencją i tymi samymi
+# wartościami zapasowymi, co `tests/skrypty/proba-odtworzenia.sh`
+# (`BAZA_PORT="${DB_PORT:-5432}"`), `.env.example` i `phpunit.xml`.
+#
+# Stał tu pin `DB_PORT != 55439`. Nie był kaprysem: chodziło o to, żeby
+# kontrola nie szła po cichu na zastany, współdzielony serwer — bo krok 6
+# robi `migrate:refresh` i kasuje to, w co trafi. Ta intencja zostaje w całości
+# (host musi być pętlą zwrotną, sonda pyta dokładnie o wskazany endpoint,
+# klastra nie podnosimy, `DB_URL` jest zakazane, nazwa bazy obowiązkowa),
+# ale sama LICZBA zaszyta być nie może: to port klastra jednego stanowiska.
+# CI dostaje port losowy (`job.services.postgres.ports[5432]` w `ci.yml`),
+# a świeży klon ma 5432 — dla obu ten pin znaczył `exit 1` zamiast kontroli.
+DB_HOST="${DB_HOST:-127.0.0.1}"
+DB_PORT="${DB_PORT:-5432}"
+if [ "$DB_HOST" != 127.0.0.1 ]; then
+    zle "Ustaw DB_HOST=127.0.0.1 — kontrola kasuje wskazaną bazę, więc ma iść wyłącznie na lokalną instancję testową."
     exit 1
 fi
 if [ -n "${DB_URL:-}" ]; then
