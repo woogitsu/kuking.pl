@@ -15,7 +15,7 @@ Sesje, cache i kolejka korzystały z `database`. Dane: 200 publicznych wpisów,
 Próbnik co około 5 ms, każde zapytanie w osobnej transakcji; liczy wyłącznie
 `client backend` własnej bazy, **bez swojego PID**. Inne stanowiska nie
 wchodzą do wyniku. Limit klastra jest jednak wspólny dla wszystkich baz.
-Dowód surowy: [`output/monitoring/baseline.json`](../../output/monitoring/baseline.json).
+Dowód surowy: plik `output/monitoring/baseline.json` (patrz uwaga o dowodach na końcu).
 
 | Uruchomiony scenariusz | Szczyt zajętych | Szczyt aktywnych | Szczyt idle | Dowód pracy |
 |---|---:|---:|---:|---|
@@ -142,15 +142,15 @@ liczba zajętych pochodzi z rzeczywistego `pg_stat_activity`. Nie zajmujemy
 
 Sprawdzono liczbę i kolejność wiadomości, treść sygnału, dokładnie jeden
 nagłówek oraz brak nazwy bazy i adresu połączenia. Dowody:
-[`received.json`](../../output/monitoring/received.json),
-[`alert-cases.json`](../../output/monitoring/alert-cases.json).
+`output/monitoring/received.json`,
+`output/monitoring/alert-cases.json`.
 Odbiornik HTTP nie dowodzi odbioru przez człowieka, działania Discorda ani TLS.
 
 Weryfikacja poprawki: **4399 testów, 83 710 asercji, wszystkie zaliczone**
 w 506 s na PostgreSQL. Pominięto wyłącznie `ProbaOdtworzeniaTest`, zgodnie
 z instrukcją floty o jego wspólnej bazie. Zestaw alarmów: 103 testy,
 453 asercje. Pint: 6 plików; PHPStan: trzy klasy alarmów i nowy test,
-bez błędów. Dowód kontroli ujemnej: [`negative.json`](../../output/monitoring/negative.json).
+bez błędów. Dowód kontroli ujemnej: plik `output/monitoring/negative.json` (patrz uwaga niżej).
 Celowa mutacja powoduje błąd `CACHE_BLOKUJE_ALARM`; po odtworzeniu test
 przechodzi. Pole `przywrocenie` istniejącego skryptu pozostaje historycznie
 „nie wykonane”, bo zapis JSON poprzedza końcowy trap; niezależne porównanie
@@ -283,3 +283,20 @@ produkcji w celu wycofania — usuwałoby to pamięć innych funkcji.
 Nie wykonano push, PR, wdrożenia, zmian kont dostawców, wysyłek do ludzi,
 pomiaru produkcji ani odczytu jej sekretów. #598 pozostaje bez aktualnego
 produkcyjnego peaku i #599 bez odebranych alertów zewnętrznych.
+
+## Uwaga o dowodach surowych (dopisane 21.09.2026)
+
+Cztery pliki wymienione wyżej — `baseline.json`, `received.json`,
+`alert-cases.json` i `negative.json` — **nie są w repozytorium**. Powstały
+lokalnie w katalogu `output/`, a ten katalog przepadł razem z lokalnymi
+commitami przy awarii repozytorium 20 września. Katalog `output/` nie jest
+ignorowany przez `.gitignore`, więc nie chodzi o połknięcie przez wzorzec:
+plików po prostu nie zdążono zacommitować.
+
+Były to odnośniki prowadzące donikąd, więc zostały zamienione na same nazwy
+plików. Liczby w tabelach wyżej pochodzą z tamtych przebiegów i **nie zostały
+powtórzone** — do czasu odtworzenia dowodów należy je czytać jako zapis
+z pomiaru, którego nie da się dziś niezależnie sprawdzić.
+
+Odtworzenie: uruchomić próbnik ponownie i zacommitować `output/monitoring/*.json`
+razem z raportem.
