@@ -101,13 +101,85 @@ class NazwaTestowejBazyTest extends TestCase
         );
     }
 
-    public function test_brak_pliku_git_daje_domyslna_nazwe(): void
+    /**
+     * Drzewo BEZ `.git` to kopia (runtime testowy floty powstaje przez
+     * `rsync --exclude '.git'`). Do naprawy tej usterki funkcja zwracała
+     * wtedy gołe "kuking_test" — czyli WSZYSTKIE runtime'y na jednej bazie,
+     * i dokładnie to sypało losową czerwienią przy równoległych przebiegach.
+     *
+     * Poprzednia wersja tego testu asercją zabetonowała tamto zachowanie
+     * („kod rozpakowany z archiwum ma dostać nazwę domyślną"). Asercja była
+     * dobrze uzasadniona dla archiwum i błędna dla kopii runtime'u — a że
+     * odróżnić ich nie sposób, wygrywa przypadek, który realnie chodzi
+     * równolegle. Archiwum dostanie własną bazę i nikomu to nie szkodzi;
+     * dziesięć runtime'ów na jednej bazie szkodziło mierzalnie.
+     */
+    public function test_kopia_drzewa_bez_git_dostaje_wlasny_sufiks(): void
     {
         $katalog = $this->tymczasowyKatalogRepo();
-        // Celowo bez `.git` w ogóle — np. kod rozpakowany z archiwum,
-        // nie sklonowany. Funkcja ma się wtedy zachować jak dla głównego
-        // checkoutu, nie wybuchnąć.
-        $this->assertSame('kuking_test', kuking_nazwa_testowej_bazy($katalog));
+
+        $this->assertMatchesRegularExpression(
+            '/^kuking_test_kopia_[a-zA-Z0-9_]+$/',
+            kuking_nazwa_testowej_bazy($katalog),
+        );
+        $this->assertNotSame('kuking_test', kuking_nazwa_testowej_bazy($katalog));
+    }
+
+    public function test_dwie_rozne_kopie_drzewa_dostaja_dwie_rozne_nazwy(): void
+    {
+        $katalogA = $this->tymczasowyKatalogRepo();
+        $katalogB = $this->tymczasowyKatalogRepo();
+
+        $this->assertNotSame(
+            kuking_nazwa_testowej_bazy($katalogA),
+            kuking_nazwa_testowej_bazy($katalogB),
+        );
+    }
+
+    public function test_ta_sama_kopia_drzewa_daje_ta_sama_nazwe_za_kazdym_razem(): void
+    {
+        $katalog = $this->tymczasowyKatalogRepo();
+
+        $this->assertSame(
+            kuking_nazwa_testowej_bazy($katalog),
+            kuking_nazwa_testowej_bazy($katalog),
+        );
+
+        // Ta sama kopia osiągnięta inaczej zapisaną ścieżką to wciąż ta sama
+        // kopia: `tests/bootstrap.php` woła funkcję z `__DIR__.'/..'`,
+        // a skrypty powłoki z gołej ścieżki katalogu. Gdyby te dwa zapisy
+        // dawały dwie bazy, jeden runtime kasowałby bazę sam sobie.
+        mkdir($katalog.'/tests');
+        $this->assertSame(
+            kuking_nazwa_testowej_bazy($katalog),
+            kuking_nazwa_testowej_bazy($katalog.'/tests/..'),
+        );
+        $this->assertSame(
+            kuking_nazwa_testowej_bazy($katalog),
+            kuking_nazwa_testowej_bazy($katalog.'/'),
+        );
+        rmdir($katalog.'/tests');
+    }
+
+    /**
+     * Postgres tnie identyfikatory po 63 bajtach BEZ OSTRZEŻENIA, więc dwie
+     * różne nazwy dłuższe niż limit potrafią wskazać jedną bazę. Najdłuższy
+     * przedrostek w repozytorium to "proba_wycofania_", nie "kuking_test_".
+     */
+    public function test_nazwa_kopii_miesci_sie_w_limicie_identyfikatora_postgresa(): void
+    {
+        $katalog = sys_get_temp_dir().'/kuking-nazwa-bazy-'.str_repeat('a', 80);
+        mkdir($katalog, 0o777, true);
+        $this->tmpDoUsuniecia[] = $katalog;
+
+        foreach ([
+            kuking_nazwa_testowej_bazy($katalog),
+            kuking_nazwa_bazy_wyscigow($katalog),
+            kuking_nazwa_bazy_wycofania($katalog),
+        ] as $nazwa) {
+            $this->assertLessThanOrEqual(63, strlen($nazwa), "za długa nazwa: {$nazwa}");
+            $this->assertMatchesRegularExpression('/^[a-zA-Z0-9_]+$/', $nazwa);
+        }
     }
 
     private function tymczasowyKatalogRepo(): string

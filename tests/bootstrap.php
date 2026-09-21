@@ -44,10 +44,18 @@ declare(strict_types=1);
  *    dodatkowego rejestru. Nazwa worktree jest czytelna w `psql -l` za darmo
  *    i widać po niej, do czego baza należy.
  *
- *  - Hash pełnej ścieżki repozytorium. Działałby równie dobrze jak nazwa
- *    worktree, ale jest nieczytelny przy sprzątaniu (`psql -l` pokazuje
- *    ciąg hexów, nie to, o który worktree chodzi). Git już nadaje worktree'om
- *    czytelne, unikalne nazwy — nie ma sensu liczyć własnego hashu obok.
+ *  - Hash pełnej ścieżki repozytorium JAKO REGUŁA GŁÓWNA. Działałby równie
+ *    dobrze jak nazwa worktree, ale jest nieczytelny przy sprzątaniu
+ *    (`psql -l` pokazuje ciąg hexów, nie to, o który worktree chodzi). Git
+ *    już nadaje worktree'om czytelne, unikalne nazwy — nie ma sensu liczyć
+ *    własnego hashu obok.
+ *
+ *    Uwaga: skrót ścieżki wchodzi mimo to jako REGUŁA OSTATNIA, dla drzew
+ *    skopiowanych poza Gitem (runtime'y testowe floty: `rsync` bez `.git`),
+ *    bo tam Gita nie ma i nie ma kogo zapytać o nazwę. Nazwa niesie wtedy
+ *    obie części — czytelną nazwę katalogu i skrót — więc zarzut
+ *    nieczytelności jej nie dotyczy. Szczegóły przy
+ *    `kuking_nazwa_testowej_bazy()` niżej.
  *
  * Sprzątanie: `scripts/cleanup-test-dbs.sh` usuwa bazy `kuking_test_*`,
  * których worktree już nie istnieje na dysku (czyli został usunięty przez
@@ -195,8 +203,57 @@ function kuking_nazwa_bazy_wycofania(string $katalogRepo): string
 }
 
 /**
- * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"
- * dla głównego checkoutu, "kuking_test_<worktree>" dla `git worktree`.
+ * Zwraca nazwę testowej bazy dla danego katalogu repozytorium:
+ *
+ *  - "kuking_test" dla GŁÓWNEGO CHECKOUTU (`.git` jest katalogiem),
+ *  - "kuking_test_<worktree>" dla `git worktree` (`.git` jest plikiem-wskaźnikiem),
+ *  - "kuking_test_kopia_<katalog>_<skrót ścieżki>" dla KOPII DRZEWA BEZ `.git`.
+ *
+ * TRZECI PRZYPADEK JEST NOWY I TO ON BYŁ USTERKĄ. Runtime'y testowe floty
+ * powstają przez `rsync --exclude '.git'` (`_wspolne/przygotuj-runtime.sh`),
+ * więc w skopiowanym drzewie nie ma ani katalogu `.git`, ani wskaźnika
+ * worktree. Do dziś funkcja zwracała wtedy gołe "kuking_test" dla KAŻDEGO
+ * stanowiska naraz: dziesięć równoległych runtime'ów mieliło jedną bazę,
+ * `RefreshDatabase` jednego zrzucał schemat drugiemu i sypało to losową
+ * czerwienią wyglądającą jak regresja gałęzi. Czyli dokładnie issue #66,
+ * tylko że przeniesione o jeden poziom dalej — z worktree'ów na ich kopie.
+ *
+ * PO CZYM ODRÓŻNIAMY KOPIĘ OD GŁÓWNEGO CHECKOUTU — I DLACZEGO TAK
+ *
+ * Po `.git`, nie po ścieżce. Trzy stany są rozłączne i wyczerpujące:
+ * katalog `.git` = główny checkout, plik `.git` = worktree, brak `.git` =
+ * drzewo, które ktoś SKOPIOWAŁ. Tylko kopie mogą istnieć w wielu
+ * egzemplarzach naraz bez wiedzy Gita, więc tylko one potrzebują sufiksu,
+ * którego Git nie umie im nadać.
+ *
+ * Świadomie NIE po ścieżce (np. "czy katalog kończy się na -run", „czy leży
+ * w /home/mateusz/flota"). Taki warunek wpisałby układ katalogów jednej
+ * maszyny floty do repozytorium produktu: przetrwałby dokładnie do pierwszej
+ * zmiany nazewnictwa runtime'ów i milczałby przy niej, bo nierozpoznana
+ * ścieżka to znowu gołe "kuking_test" — czyli powrót usterki bez żadnego
+ * objawu poza losową czerwienią. Pytanie „czy to kopia" ma odpowiedź w samym
+ * drzewie i tam po nią sięgamy.
+ *
+ * CO SIĘ STANIE, GDY KTOŚ SKOPIUJE RUNTIME W INNE MIEJSCE
+ *
+ * Dostanie INNĄ nazwę bazy niż oryginał, bo sufiks liczy się ze ścieżki.
+ * To jest zachowanie zamierzone, nie skutek uboczny: dwie kopie w dwóch
+ * katalogach to dwa drzewa, które mogą chodzić równolegle, więc muszą mieć
+ * dwie bazy. Cena jest jedna i trzeba ją znać: PRZENIESIENIE (a nie
+ * skopiowanie) runtime'u zostawia po starej ścieżce bazę-sierotę, a nowa
+ * ścieżka zaczyna od pustej bazy — pierwszy przebieg po przeprowadzce
+ * odtwarza migracje od zera i trwa dłużej. Sierotę widać w `psql -l` po
+ * przedrostku "kuking_test_kopia_" i po czytelnej nazwie katalogu w środku;
+ * `scripts/cleanup-test-dbs.sh` świadomie ICH NIE KASUJE (patrz komentarz
+ * tam), bo z maszyny sprzątającej nie da się stwierdzić, czy cudza kopia
+ * jeszcze żyje — a skasowanie bazy pracującego runtime'u byłoby gorsze niż
+ * zostawienie śmiecia.
+ *
+ * Skrót ścieżki, a nie sama nazwa katalogu: dwa runtime'y mogą nazywać się
+ * tak samo w różnych miejscach (`/a/kuking-run` i `/b/kuking-run`).
+ * Nagłówek tego pliku odrzucał kiedyś „hash pełnej ścieżki" jako nieczytelny
+ * w `psql -l` — i miał rację, dlatego nazwa niesie OBIE części: czytelną
+ * nazwę katalogu do rozpoznania oraz skrót do rozróżnienia.
  */
 function kuking_nazwa_testowej_bazy(string $katalogRepo): string
 {
@@ -204,10 +261,15 @@ function kuking_nazwa_testowej_bazy(string $katalogRepo): string
 
     $wskaznikGit = $katalogRepo.'/.git';
 
-    // Główny checkout: `.git` to katalog ze schematem repo, nie plik
-    // wskazujący na worktree — nie ma czego wyliczać.
-    if (! is_file($wskaznikGit)) {
+    // Główny checkout: `.git` to katalog ze schematem repo — nazwa bez
+    // sufiksu i tak ma zostać, bo główny checkout jest jeden.
+    if (is_dir($wskaznikGit)) {
         return $domyslna;
+    }
+
+    // Ani katalog, ani plik `.git` — drzewo skopiowane poza Gitem.
+    if (! is_file($wskaznikGit)) {
+        return $domyslna.'_'.kuking_sufiks_kopii_drzewa($katalogRepo);
     }
 
     $tresc = file_get_contents($wskaznikGit);
@@ -228,4 +290,56 @@ function kuking_nazwa_testowej_bazy(string $katalogRepo): string
     $sufiks = substr((string) $sufiks, 0, 50);
 
     return $domyslna.'_'.$sufiks;
+}
+
+/**
+ * Sufiks dla drzewa skopiowanego poza Gitem (runtime testowy): czytelna
+ * nazwa katalogu plus ośmioznakowy skrót jego pełnej, rozwiniętej ścieżki.
+ *
+ * Wymagania, które ten sufiks ma spełniać, i skąd się biorą:
+ *
+ *  1. RÓŻNE dla różnych katalogów — bo o to w całej poprawce chodzi.
+ *  2. TEN SAM przy każdym przebiegu z tego samego katalogu. Sufiks liczony
+ *     z PID-u albo znacznika czasu też usunąłby kolizję, ale każdy przebieg
+ *     zakładałby nową bazę i klaster zarastałby śmieciem w tempie jednego
+ *     przebiegu; tu wejściem jest wyłącznie ścieżka, która się nie zmienia.
+ *  3. BEZPIECZNY jako identyfikator Postgresa bez cudzysłowu. Postgres tnie
+ *     identyfikatory po 63 bajtach po cichu, a znak spoza [a-zA-Z0-9_]
+ *     wymagałby cudzysłowów w każdym miejscu, które sklepuje SQL ze
+ *     stringów (`proba-odtworzenia.sh`, `cleanup-test-dbs.sh`). Stąd i
+ *     czyszczenie znaków, i twardy limit długości.
+ *
+ * Budżet długości liczymy od NAJDŁUŻSZEGO przedrostka, jaki ten sufiks
+ * dostaje w repozytorium — "proba_wycofania_" (16 znaków,
+ * `kuking_nazwa_bazy_wycofania()`), nie od "kuking_test_" (12). 16 + 39 = 55,
+ * czyli z zapasem pod limit 63.
+ *
+ * `realpath()` normalizuje ścieżkę (dowiązania, "..", końcowy ukośnik), żeby
+ * to samo drzewo osiągnięte dwiema zapisami ścieżki dostało jedną bazę —
+ * `tests/bootstrap.php` woła tę funkcję z `__DIR__.'/..'`, a skrypty
+ * powłoki z gołej ścieżki katalogu. Gdy `realpath()` zawiedzie (katalog
+ * zniknął w trakcie), zostaje ścieżka podana — gorzej znormalizowana, ale
+ * wciąż stabilna, bo pochodzi od wołającego.
+ */
+function kuking_sufiks_kopii_drzewa(string $katalogRepo): string
+{
+    $sciezka = realpath($katalogRepo);
+    if ($sciezka === false) {
+        $sciezka = rtrim(str_replace('\\', '/', $katalogRepo), '/');
+    } else {
+        $sciezka = rtrim(str_replace('\\', '/', $sciezka), '/');
+    }
+
+    $skrot = substr(sha1($sciezka), 0, 8);
+
+    $nazwaKatalogu = (string) preg_replace('/[^a-zA-Z0-9_]/', '_', basename($sciezka));
+    $nazwaKatalogu = trim(substr($nazwaKatalogu, 0, 24), '_');
+
+    // Katalog o nazwie złożonej wyłącznie ze znaków niebezpiecznych zostawia
+    // pusty człon czytelny — wtedy zostaje sam skrót, który nadal rozróżnia.
+    if ($nazwaKatalogu === '') {
+        return 'kopia_'.$skrot;
+    }
+
+    return 'kopia_'.$nazwaKatalogu.'_'.$skrot;
 }
