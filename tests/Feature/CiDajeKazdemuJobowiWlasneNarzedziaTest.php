@@ -68,7 +68,7 @@ class CiDajeKazdemuJobowiWlasneNarzedziaTest extends TestCase
         $zbadane = 0;
 
         foreach ($this->joby($wiersze) as $nazwa => [$od, $do]) {
-            $blok = array_slice($wiersze, $od, $do - $od);
+            $blok = $this->zWstawionaAkcja(array_slice($wiersze, $od, $do - $od));
 
             $setupPhp = $this->pierwszyKrokSetupPhp($blok);
 
@@ -176,6 +176,56 @@ class CiDajeKazdemuJobowiWlasneNarzedziaTest extends TestCase
      *
      * @param  list<string>  $wiersze
      */
+    /**
+     * Job, który bierze środowisko PHP ze wspólnej akcji, jest skanowany tak,
+     * jakby miał jej kroki wpisane u siebie.
+     *
+     * DLACZEGO PODSTAWIENIE, A NIE OSOBNA ŚCIEŻKA W SKANERZE
+     * Bo gwarancja jest DOKŁADNIE TA SAMA: prywatny katalog musi powstać
+     * przed `setup-php`. Gdyby skaner sprawdzał akcję osobnym kodem, byłyby
+     * dwie implementacje jednej reguły — czyli to, co ten pakiet likwiduje.
+     * Po podstawieniu cała logika niżej działa bez zmian, a każdy kolejny
+     * job przeniesiony na wspólną akcję jest obejmowany automatycznie.
+     *
+     * DLACZEGO TO NIE ROZMYWA GWARANCJI
+     * `RUNNER_TEMP`, `GITHUB_RUN_ID` i `GITHUB_JOB` w krokach composite action
+     * mają wartości JOBA, który ją wywołał — ścieżka zostaje prywatna dla
+     * każdego joba osobno. Gdyby akcja przestała eksportować którąkolwiek
+     * zmienną albo odwróciła kolejność kroków, ten test oblewa tak samo, jak
+     * oblewał przy kodzie wpisanym wprost w job.
+     *
+     * @param  list<string>  $blok
+     * @return list<string>
+     */
+    private function zWstawionaAkcja(array $blok): array
+    {
+        $sciezka = base_path('.github/actions/php/action.yml');
+
+        if (! is_file($sciezka)) {
+            return $blok;
+        }
+
+        $krokiAkcji = preg_split('/\r\n|\n|\r/', (string) file_get_contents($sciezka)) ?: [];
+
+        $wynik = [];
+
+        foreach ($blok as $wiersz) {
+            if (preg_match('#^\s*-?\s*uses:\s*\./\.github/actions/php\s*$#', $wiersz) === 1) {
+                // Kroki akcji wchodzą W MIEJSCE jej wywołania, więc zachowują
+                // kolejność względem pozostałych kroków joba.
+                foreach ($krokiAkcji as $wierszAkcji) {
+                    $wynik[] = $wierszAkcji;
+                }
+
+                continue;
+            }
+
+            $wynik[] = $wiersz;
+        }
+
+        return $wynik;
+    }
+
     private function pierwszyKrokSetupPhp(array $wiersze): ?int
     {
         foreach ($wiersze as $numer => $wiersz) {
@@ -259,11 +309,19 @@ class CiDajeKazdemuJobowiWlasneNarzedziaTest extends TestCase
             );
         }
 
-        $this->assertGreaterThanOrEqual(
-            6,
+        // Bramka pilnuje, żeby skaner nie stracił po cichu pokrycia.
+        //
+        // Liczba jest TWARDA, nie „co najmniej sześć": przy przenoszeniu jobów
+        // na wspólną akcję (`.github/actions/php`) każdy nieuwzględniony job
+        // zmniejszałby pokrycie o jeden, a luźna bramka przepuściłaby to bez
+        // słowa aż do zera. Skaner podstawia kroki akcji, więc liczba ma
+        // zostać TA SAMA niezależnie od tego, ile jobów już przeniesiono.
+        $this->assertSame(
+            9,
             $razem,
-            "Przeskanowałem tylko {$razem} jobów z `setup-php`, a w `ci.yml` jest ich sześć. "
-            .'Skaner czyta złe miejsce — a test, który nie znajduje NICZEGO, przechodzi i nie pilnuje niczego.',
+            "Przeskanowałem {$razem} jobów stawiających PHP, a ma ich być dziewięć. "
+            .'Albo doszedł job bez izolacji narzędzi, albo skaner przestał widzieć któryś '
+            .'z istniejących — a test, który nie znajduje NICZEGO, przechodzi i nie pilnuje niczego.',
         );
     }
 
