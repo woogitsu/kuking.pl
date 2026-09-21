@@ -1,5 +1,12 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.71 — formularze mówią, ile zdjęć się zmieści, i pozwalają wycofać wybrane
+
+- Formularz wpisu i „Ugotowałem” mówią z góry, ile zdjęć łącznie można dodać i jak duży może być jeden plik — a także wprost, że zdjęcia zachowane po poprzednim wysłaniu wliczają się do tego limitu.
+- Wybrane zdjęcie da się wycofać jeszcze przed wysłaniem. Każdy plik ma swoją nazwę i przycisk „Usuń zdjęcie”; usunięcie jednego nie miesza kolejności pozostałych ani nie kasuje wpisanego tekstu.
+- Ekran „Twoje zdjęcie” przestał obiecywać przygotowanie zdjęcia, którego już nikt nie przygotowuje. Gdy przygotowanie się nie uda, strona mówi to wprost i prosi o wybranie zdjęcia jeszcze raz, zamiast kazać w nieskończoność odświeżać.
+- Ta gałąź niesie też — przeniesione wprost z pracy nad zdjęciami przy publikacji — zachowywanie zdjęć po błędzie formularza, ochronę przed wgraniem ich drugi raz po ponowionym wysłaniu i kotwice błędów zdjęć w podsumowaniu. Jeśli tamta praca wejdzie wcześniej, w tym punkcie nie ma tu nic nowego.
+
 ## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
 
 - Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
