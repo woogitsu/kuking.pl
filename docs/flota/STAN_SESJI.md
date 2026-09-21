@@ -133,7 +133,7 @@ Warianty: policzyć i zaraportować skalę / od razu zredagować / nie ruszać.
 
 ### P2. Formularz „Zgłoś" na osobie — ta sama luka co #793
 
-`/zglos/user/{nazwa}` bierze osobę **po nazwie użytkownika**. Jeśli nazwa
+Trasa `/zglos/{type}/{id}` z `type=user` bierze osobę **po nazwie użytkownika** jako `{id}`. Jeśli nazwa
 zmieniła właściciela między wyświetleniem a wysłaniem, zgłoszenie idzie na
 **niewinną osobę** i zostawia wiersz w moderacji, którego nie cofa jedno
 kliknięcie. Cięższy skutek niż przy obserwowaniu.
@@ -1361,7 +1361,7 @@ więc **112 ze 118 katalogów straciło działającego gita**.
    WSL-ową, więc każdy `git fetch origin` po cichu padał, a `origin/main`
    zamarzł na commicie `61360bf6` — sprzed setek zmian. Tłumiłem błędy przez
    `2>/dev/null`, więc tego nie widziałem.
-2. Użyłem `MSYS_NO_PATHCONV=1` przy `git worktree add` ze ścieżką `/c/...`.
+2. Użyłem `MSYS_NO_PATHCONV=1` przy `git worktree add` ze ścieżką dysku MSYS zaczynającą się od `/c/`.
    Ten przedrostek **wyłącza** tłumaczenie ścieżek, więc git zakładał katalogi
    w `C:\c\Users\...`. **Przy `wsl` jest obowiązkowy, przy `git worktree add`
    jest szkodliwy.**
