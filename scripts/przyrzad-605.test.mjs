@@ -354,10 +354,31 @@ writeFileSync(join(katalogZdjec, 'kuking-b605-12mpx.jpg'), Buffer.alloc(2048, 7)
   const bezPorzuconych = w.razem.zadan_wyslanych
     ? Math.round(((w.razem.zadan_wyslanych - w.razem.poprawnych) / w.razem.zadan_wyslanych) * 1000) / 10
     : 0;
+  /*
+   * DOWÓD NA LICZNIKACH, NIE NA ODSETKU. Odsetek nasyca się na 100%: gdy
+   * żadne żądanie nie zdąży się udać — a na obciążonym runnerze CI twardy
+   * limit `--calkowity` ścina także szybkie ścieżki — to 100% wychodzi
+   * ZARÓWNO z mianownikiem obejmującym porzucone, JAK I bez niego. Sprawdzenie
+   * oparte wyłącznie na `blad_procent` traci wtedy zdolność rozróżniania
+   * i pokazuje czerwień o brakującym mianowniku tam, gdzie mianownik jest
+   * poprawny. Liczba nieudanych nie nasyca się nigdy: różnica między
+   * księgowaniem z porzuconymi i bez nich to zawsze dokładnie `porzucone`.
+   */
+  assert.equal(w.razem.nieudanych, mianownik - w.razem.poprawnych,
+    'Liczba nieudanych ma obejmować żądania porzucone przez limit w locie —'
+    + ` jest ${w.razem.nieudanych}, a z porzuconymi powinno być ${mianownik - w.razem.poprawnych}.`);
+  assert.equal(w.razem.nieudanych - (w.razem.zadan_wyslanych - w.razem.poprawnych),
+    w.razem.porzuconych_przez_limit,
+    'Porzucone nie weszły do księgowania błędów: księgowanie z nimi i bez nich daje tę samą liczbę.');
+
   assert.equal(w.razem.blad_procent, Math.round(((mianownik - w.razem.poprawnych) / mianownik) * 1000) / 10,
     'blad_procent ma być liczony z mianownikiem obejmującym żądania porzucone.');
-  assert.ok(w.razem.blad_procent > bezPorzuconych,
-    `Porzucone nie weszły do mianownika: ${w.razem.blad_procent}% to tyle samo, co bez nich (${bezPorzuconych}%).`);
+  if (w.razem.poprawnych > 0) {
+    // Odsetek rozróżnia tylko wtedy, gdy cokolwiek się udało. Gdy nie — dowód
+    // niosą dwie asercje wyżej, które są bezwarunkowe i ściślejsze.
+    assert.ok(w.razem.blad_procent > bezPorzuconych,
+      `Porzucone nie weszły do mianownika: ${w.razem.blad_procent}% to tyle samo, co bez nich (${bezPorzuconych}%).`);
+  }
   assert.ok(w.uwagi.some((u) => u.includes('maks_w_locie')),
     'Zdławiony napływ musi być opisany w uwagach, a nie tylko w liczbie.');
   assert.equal(w.razem.w_locie_na_koniec, 0, 'Zostały żądania w locie po zamknięciu serii.');
@@ -622,15 +643,22 @@ await stanowiskoKU.zamknij();
   const w = JSON.parse(readFileSync(plikWyniku, 'utf8'));
   assert.ok(w.razem.porzuconych_przez_limit > 0, 'Kontrola ujemna mianownika: napływ nie został zdławiony.');
   const mianownik = w.razem.zadan_wyslanych + w.razem.porzuconych_przez_limit;
+  /*
+   * Kontrola musi zapalić także wtedy, gdy nic się nie udało. Przy zerze
+   * poprawnych odpowiedzi obie wersje mianownika dają `blad_procent` równe
+   * 100% i sam odsetek niczego nie wykrywa — dlatego patrzymy też na liczbę
+   * nieudanych, która przy wyciętych porzuconych jest niższa o `porzucone`.
+   */
   let oblalo = false;
   try {
+    assert.equal(w.razem.nieudanych, mianownik - w.razem.poprawnych);
     assert.equal(w.razem.blad_procent, Math.round(((mianownik - w.razem.poprawnych) / mianownik) * 1000) / 10);
   } catch {
     oblalo = true;
   }
   assert.ok(oblalo,
     'Kontrola ujemna mianownika NIE zadziałała: po wycięciu porzuconych z mianownika wynik się nie zmienił'
-    + ` (blad_procent=${w.razem.blad_procent}).`);
+    + ` (nieudanych=${w.razem.nieudanych}, blad_procent=${w.razem.blad_procent}).`);
   await stanowisko5.zamknij();
   rmSync(kopia);
   powiedz('kontrola ujemna: porzucone poza mianownikiem → zaniżony odsetek błędów, sprawdzenie OBLEWA');
