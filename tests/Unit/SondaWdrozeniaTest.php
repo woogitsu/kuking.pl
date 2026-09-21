@@ -77,9 +77,25 @@ final class SondaWdrozeniaTest extends TestCase
         ];
     }
 
+    /**
+     * Kontrakt kroku „Usuń środowisko PR" po decyzji właściciela: najpierw
+     * `environment list --json`, dopiero potem `delete`.
+     *
+     * @param  list<string>  $expectedInOutput  fragmenty, które MUSZĄ paść
+     * @param  list<string>  $forbiddenInOutput  fragmenty, których NIE WOLNO zobaczyć
+     */
     #[DataProvider('deleteCases')]
-    public function test_usuwanie_preview_nie_ukrywa_bledu_cli(int $code, string $message): void
-    {
+    public function test_usuwanie_preview_nie_ukrywa_bledu_cli(
+        string $listStdout,
+        string $listStderr,
+        int $listCode,
+        int $deleteCode,
+        string $deleteMessage,
+        int $expectedExit,
+        bool $expectGotowe,
+        array $expectedInOutput,
+        array $forbiddenInOutput,
+    ): void {
         $root = dirname(__DIR__, 2);
         $workflow = file_get_contents($root.'/.github/workflows/preview.yml');
         $count = preg_match_all('/      - name: Usuń środowisko PR\R        run: \|\R((?:          .*\R|\R)+)/u', $workflow, $matches);
@@ -88,18 +104,41 @@ final class SondaWdrozeniaTest extends TestCase
         $script = str_replace('${{ github.event.inputs.pr_number }}', '999999', $script);
         $stub = <<<'BASH'
 railway() {
-    [[ "$*" == 'environment delete pr-999999 --yes' ]] || exit 99
-    printf '%s\n' "$CLI_MESSAGE" >&2
-    return "$CLI_CODE"
+    case "$*" in
+        'environment list --json')
+            printf '%s' "$LIST_STDOUT"
+            if [[ -n "$LIST_STDERR" ]]; then printf '%s\n' "$LIST_STDERR" >&2; fi
+            return "$LIST_CODE"
+            ;;
+        'environment delete pr-999999 --yes')
+            printf '%s\n' "$DELETE_MESSAGE" >&2
+            return "$DELETE_CODE"
+            ;;
+        *)
+            printf 'ATRAPA_NIEZNANE_WYWOLANIE: %s\n' "$*" >&2
+            exit 99
+            ;;
+    esac
 }
 export -f railway
 BASH;
-        $process = new Process(['bash', '-c', $stub."\n".$script], $root, ['CLI_CODE' => (string) $code, 'CLI_MESSAGE' => $message]);
+        $process = new Process(['bash', '-c', $stub."\n".$script], $root, [
+            'LIST_STDOUT' => $listStdout,
+            'LIST_STDERR' => $listStderr,
+            'LIST_CODE' => (string) $listCode,
+            'DELETE_CODE' => (string) $deleteCode,
+            'DELETE_MESSAGE' => $deleteMessage,
+        ]);
         $process->run();
         $output = $process->getOutput().$process->getErrorOutput();
-        $this->assertSame($code, $process->getExitCode(), $output);
-        $this->assertStringContainsString($message, $output);
-        if ($code === 0) {
+        $this->assertSame($expectedExit, $process->getExitCode(), $output);
+        foreach ($expectedInOutput as $fragment) {
+            $this->assertStringContainsString($fragment, $output);
+        }
+        foreach ($forbiddenInOutput as $fragment) {
+            $this->assertStringNotContainsString($fragment, $output);
+        }
+        if ($expectGotowe) {
             $this->assertStringContainsString('Gotowe.', $output);
         } else {
             $this->assertStringNotContainsString('Gotowe.', $output);
@@ -108,12 +147,57 @@ BASH;
 
     public static function deleteCases(): array
     {
-        // Kody są syntetyczne. Test nie przypisuje im znaczenia z Railway CLI.
+        // DLACZEGO ZESTAW PRZYPADKÓW SIĘ ZMIENIŁ (decyzja właściciela — trzecia droga).
+        //
+        // Stara wersja testu karmiła atrapę kodami 0, 73, 28 i 1, jakby po samym
+        // kodzie wyjścia dało się odróżnić „brak środowiska" od „wygasły token".
+        // Te kody były syntetyczne i — co ważniejsze — w tym CLI NIE ISTNIEJĄ:
+        // Railway CLI zwraca 1 dla KAŻDEGO błędu. Przepisanie 73 i 28 pod nowy
+        // krok utrwaliłoby fikcję, że krok może po nich cokolwiek rozpoznać.
+        //
+        // Nowy kontrakt nie zgaduje po kodzie, tylko najpierw pyta o listę,
+        // więc przypadki rozdzielają się wzdłuż DWÓCH wywołań CLI:
+        //   1. czego nie ma na liście — nie ma czego kasować (zielono, cicho),
+        //   2. jest i skasowane — zielono, z „Gotowe.",
+        //   3. jest i kasowanie padło — czerwono, komunikat CLI przepuszczony,
+        //   4. padła sama lista — czerwono, bo inaczej ukrywamy błąd piętro wyżej.
+        // Jedyny kod błędu w zestawie to 1, bo tylko taki to CLI produkuje.
+        $lista = static fn (string ...$names): string => json_encode(
+            array_map(static fn (string $n): array => ['id' => 'env_'.$n, 'name' => $n], $names),
+            JSON_THROW_ON_ERROR,
+        );
+
         return [
-            '805 sukces' => [0, 'ATRAPA_USUNIETO'],
-            '805 odmowa dostępu' => [73, 'ATRAPA_ODMOWA'],
-            '805 awaria komunikacji' => [28, 'ATRAPA_KOMUNIKACJA'],
-            '805 brak środowiska zgłoszony błędem' => [1, 'ATRAPA_BRAK_SRODOWISKA'],
+            '805 brak środowiska na liście — nie ma czego usuwać' => [
+                $lista('production', 'staging', 'pr-111111'), '', 0,
+                0, 'ATRAPA_NIE_WOLNO_KASOWAC',
+                0, false,
+                ['nie ma czego usuwać'],
+                // Dowód, że krok NIE dotknął `delete` — to jest cała stawka
+                // pytania o listę przed kasowaniem.
+                ['ATRAPA_NIE_WOLNO_KASOWAC'],
+            ],
+            '805 środowisko jest, kasowanie się udaje' => [
+                $lista('production', 'staging', 'pr-999999'), '', 0,
+                0, 'ATRAPA_USUNIETO',
+                0, true,
+                ['ATRAPA_USUNIETO'],
+                ['nie ma czego usuwać'],
+            ],
+            '805 środowisko jest, kasowanie pada' => [
+                $lista('staging', 'pr-999999'), '', 0,
+                1, 'ATRAPA_ODMOWA_TOKENU',
+                1, false,
+                ['ATRAPA_ODMOWA_TOKENU'],
+                ['nie ma czego usuwać'],
+            ],
+            '805 padła sama lista środowisk' => [
+                '', 'ATRAPA_LISTA_PADLA', 1,
+                0, 'ATRAPA_NIE_WOLNO_KASOWAC',
+                1, false,
+                ['ATRAPA_LISTA_PADLA'],
+                ['ATRAPA_NIE_WOLNO_KASOWAC', 'nie ma czego usuwać'],
+            ],
         ];
     }
 }
