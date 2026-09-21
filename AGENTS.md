@@ -107,7 +107,7 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | PHP | 8.4 (minimum frameworka: 8.3) | `composer.json`: `php` |
 | UI | Blade + Alpine.js; Livewire 4 w kreatorze przepisu | `composer.json`: `livewire/livewire` |
 | CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) | `package.json`: `tailwindcss`, `@tailwindcss/vite` |
-| Baza | PostgreSQL 18 (lokalnie i w CI też 18+) | usługa zewnętrzna |
+| Baza | PostgreSQL — wymagane **18+** lokalnie, w CI i na produkcji (D-227) | usługa zewnętrzna |
 | Kolejka | Laravel database queue | `composer.json`: `laravel/framework` |
 | Hosting | Railway | usługa zewnętrzna |
 | DNS / CDN / storage | Cloudflare + R2 | usługa zewnętrzna · `composer.json`: `league/flysystem-aws-s3-v3` |
@@ -478,6 +478,13 @@ npm run build            # assety się budują
 Testy chodzą na **PostgreSQL**, nie na SQLite — schemat używa indeksów
 częściowych, `num_nonnulls()`, `gen_random_uuid()`, `pg_trgm` i `unaccent`.
 Test na SQLite przechodziłby, nic nie sprawdzając.
+
+I to na **PostgreSQL 18 lub nowszym** — tak samo lokalnie, w CI i na produkcji.
+Jeden próg dla wszystkich trzech, bo próg niższy od produkcyjnego przepuszcza
+lokalnie migracje, które w CI padają. Produkcja ma 18, CI stawia
+`postgres:18-alpine`, więc `php artisan test` na starszym majorze mierzy silnik,
+którego nigdzie nie używamy. Pilnuje tego `TestyChodzaNaPostgresieTest` —
+i pilnuje też tego, żeby ten akapit i próg w strażniku mówiły tę samą liczbę.
 
 Przed utworzeniem bazy ustal jej właściciela, host, port i nazwę.
 Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.

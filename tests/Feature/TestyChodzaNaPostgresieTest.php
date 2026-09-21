@@ -254,6 +254,31 @@ class TestyChodzaNaPostgresieTest extends TestCase
         $this->assertSame([], $naruszenia, implode("\n", $naruszenia));
     }
 
+    /**
+     * `AGENTS.md` wymaga DOKŁADNIE tego majora, który przepuszcza strażnik.
+     *
+     * Ten test istnieje przez ciche zderzenie, które da się mieć bez jednej
+     * czerwieni: reguła mówi 18, stała w tym pliku mówi 16, wszystko jest
+     * zielone, a repozytorium ma dwa różne wymagania naraz. Zderzenie jest
+     * ciche właśnie dlatego, że OBIE strony z osobna są poprawne — sprzeczne
+     * są dopiero razem, a nic ich razem nie czytało.
+     *
+     * Docblock przy `MINIMALNY_MAJOR` cytuje regułę, ale cytat w komentarzu
+     * nie oblewa, gdy reguła się zmieni. Dlatego czytamy plik.
+     *
+     * Kierunek zależności jest tu celowy: źródłem prawdy jest `AGENTS.md`,
+     * a stała ma za nim nadążać. Gdy ktoś zmieni próg w tym pliku, nie
+     * ruszywszy reguły, ten test ma go zatrzymać — bo inaczej strażnik
+     * uczy, że regułę wolno obchodzić testem.
+     */
+    public function test_agents_md_wymaga_tego_samego_majora_co_straznik(): void
+    {
+        $naruszenia = $this->naruszeniaReguly($this->trescAgents());
+
+        $this->assertSame([], $naruszenia, implode('
+', $naruszenia));
+    }
+
     // ═══════════════════════════════════════════════════════════════════
     //  3. KONTROLA DODATNIA (PULAPKI_TESTOW.md §2)
     // ═══════════════════════════════════════════════════════════════════
@@ -277,10 +302,12 @@ class TestyChodzaNaPostgresieTest extends TestCase
     {
         $phpunit = $this->trescPhpunit();
         $workflow = $this->trescWorkflow();
+        $agents = $this->trescAgents();
 
         // ── 1 i 2: naprawdę mamy w ręku te pliki, nie pustkę.
         $this->assertGreaterThan(2000, strlen($phpunit), 'phpunit.xml wygląda na pusty albo nie ten.');
         $this->assertGreaterThan(20000, strlen($workflow), 'ci.yml wygląda na pusty albo nie ten.');
+        $this->assertGreaterThan(20000, strlen($agents), 'AGENTS.md wygląda na pusty albo nie ten.');
 
         $this->assertGreaterThanOrEqual(
             10,
@@ -345,6 +372,42 @@ class TestyChodzaNaPostgresieTest extends TestCase
             'Skan ci.yml uznał workflow BEZ zadania z testami za poprawny — '
             .'to jest dokładnie pułapka 2: brak trafień jako sukces.',
         );
+
+        // ── 3b: to samo dla reguły z AGENTS.md. Kontrola dodatnia na progu
+        //        jest tu sednem, a nie dodatkiem: gdyby skan nie umiał
+        //        powiedzieć "nie" na "16+", nie chroniłby przed dokładnie
+        //        tym zderzeniem, dla którego powstał.
+        $this->assertNotSame(
+            [],
+            $this->naruszeniaReguly(str_replace('**18+**', '**16+**', $agents)),
+            'Skan AGENTS.md przepuścił regułę wymagającą niższego majora niż strażnik.',
+        );
+
+        $this->assertNotSame(
+            [],
+            $this->naruszeniaReguly(str_replace(
+                'wymagane **18+** lokalnie, w CI i na produkcji',
+                'wymagane **18+** lokalnie i w CI',
+                $agents,
+            )),
+            'Skan AGENTS.md przepuścił regułę, która milczy o produkcji.',
+        );
+
+        $this->assertNotSame(
+            [],
+            $this->naruszeniaReguly(str_replace('**18+**', '18', $agents)),
+            'Skan AGENTS.md przepuścił wiersz bez progu w postaci "N+".',
+        );
+
+        $this->assertNotSame(
+            [],
+            $this->naruszeniaReguly('# AGENTS.md
+
+Bez tabeli stacku.
+'),
+            'Skan AGENTS.md uznał dokument BEZ wiersza o bazie za poprawny — '
+            .'to jest pułapka 2 zastosowana do samej reguły.',
+        );
     }
 
     // ═══════════════════════════════════════════════════════════════════
@@ -352,6 +415,64 @@ class TestyChodzaNaPostgresieTest extends TestCase
     //  im zepsute wejście. Zwracają LISTĘ naruszeń, nie true/false: pusta
     //  lista znaczy „czysto", a niepusta sama mówi, co jest nie tak.
     // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Czyta z `AGENTS.md` próg, którego reguła wymaga, i porównuje ze stałą.
+     *
+     * Wiersz stacku jest jedynym miejscem, w którym reguła podaje LICZBĘ,
+     * więc to jego brak — a nie tylko niezgodność — jest naruszeniem.
+     * Skan, który nie znalazł wiersza, ma powiedzieć „nie wiem", a nie
+     * przejść; to jest pułapka 2 zastosowana do samej reguły.
+     *
+     * Osobno pilnujemy, żeby reguła nazywała WSZYSTKIE TRZY miejsca:
+     * lokalnie, w CI i na produkcji. Zapis „PostgreSQL 18+" bez nich jest
+     * prawdziwy i bezużyteczny — poprzednia wersja tej reguły mówiła
+     * „lokalnie i w CI wystarczy 16+" i właśnie ta luka pozwoliła suicie
+     * chodzić na innym silniku niż produkcja.
+     *
+     * @return list<string>
+     */
+    private function naruszeniaReguly(string $agents): array
+    {
+        $naruszenia = [];
+
+        $wiersz = [];
+
+        if (preg_match('/^\|\s*Baza\s*\|([^|]*PostgreSQL[^|]*)\|/m', $agents, $wiersz) !== 1) {
+            $naruszenia[] = 'W AGENTS.md nie ma wiersza stacku "| Baza | PostgreSQL …". '
+                .'Strażnik nie ma z czym porównać progu '.self::MINIMALNY_MAJOR
+                .' — a skan bez trafienia NIE jest zgodą.';
+
+            return $naruszenia;
+        }
+
+        $tresc = $wiersz[1];
+
+        $progi = [];
+
+        if (preg_match_all('/(\d+)\s*\+/', $tresc, $progi) === 0) {
+            $naruszenia[] = 'Wiersz "Baza" w AGENTS.md nie podaje progu w postaci "N+": '.trim($tresc);
+
+            return $naruszenia;
+        }
+
+        foreach ($progi[1] as $prog) {
+            if ((int) $prog !== self::MINIMALNY_MAJOR) {
+                $naruszenia[] = 'AGENTS.md wymaga PostgreSQL '.$prog.'+, a strażnik przepuszcza od '
+                    .self::MINIMALNY_MAJOR.'+. Jedno z dwóch jest nieprawdą i nic tego nie zgłasza: '
+                    .'reguła i próg muszą mówić tę samą liczbę.';
+            }
+        }
+
+        foreach (['lokalnie' => 'lokalnie', 'w CI' => 'CI', 'na produkcji' => 'produkcj'] as $gdzie => $igla) {
+            if (! str_contains($tresc, $igla)) {
+                $naruszenia[] = 'Reguła w AGENTS.md nie mówi, czego wymagamy '.$gdzie
+                    .'. Próg, który nie nazywa miejsca, nie rozstrzyga sporu o to miejsce.';
+            }
+        }
+
+        return $naruszenia;
+    }
 
     /** @return list<string> */
     private function naruszeniaPhpunit(string $xml): array
@@ -472,6 +593,11 @@ class TestyChodzaNaPostgresieTest extends TestCase
         }
 
         return $joby;
+    }
+
+    private function trescAgents(): string
+    {
+        return $this->plik(base_path('AGENTS.md'));
     }
 
     private function trescPhpunit(): string
