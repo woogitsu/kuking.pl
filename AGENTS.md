@@ -107,7 +107,7 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 | PHP | 8.4 (minimum frameworka: 8.3) | `composer.json`: `php` |
 | UI | Blade + Alpine.js; Livewire 4 w kreatorze przepisu | `composer.json`: `livewire/livewire` |
 | CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) | `package.json`: `tailwindcss`, `@tailwindcss/vite` |
-| Baza | PostgreSQL 18 (lokalnie i w CI wystarczy 16+) | usługa zewnętrzna |
+| Baza | PostgreSQL 18 (lokalnie i w CI też 18+) | usługa zewnętrzna |
 | Kolejka | Laravel database queue | `composer.json`: `laravel/framework` |
 | Hosting | Railway | usługa zewnętrzna |
 | DNS / CDN / storage | Cloudflare + R2 | usługa zewnętrzna · `composer.json`: `league/flysystem-aws-s3-v3` |
