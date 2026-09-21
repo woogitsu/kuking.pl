@@ -82,10 +82,40 @@ final class SaveRecipeToCollection
         return $collection;
     }
 
-    public function remove(User $user, Recipe $recipe): void
+    /**
+     * Usuwa zapis — z JEDNEGO zeszytu, jeśli go podano, inaczej ze WSZYSTKICH
+     * własnych zeszytów tej osoby (issue #775).
+     *
+     * PRZED TĄ ZMIANĄ ten sam przepis zapisany w dwóch zeszytach dawał się
+     * wykasować obydwu naraz jednym przyciskiem „Usuń z zeszytu” na stronie
+     * przepisu — bez wyboru, bez potwierdzenia zakresu i z utratą notatki
+     * w zeszycie, o którym człowiek nawet nie myślał. „Poprawne dane nigdy
+     * nie znikają" (AGENTS.md §5) dotyczy też danych w INNYM zeszycie niż
+     * ten, z którego ktoś akurat usuwał.
+     *
+     * `$collection` jest tu zaufany przez wywołującego —
+     * `CollectionController::selectedCollection()` już sprawdził, że należy
+     * do tej samej osoby (`owner_id`), zanim dotarł tutaj.
+     */
+    public function remove(User $user, Recipe $recipe, ?Collection $collection = null): int
     {
-        $user->collections()->each(
-            fn (Collection $collection) => $collection->recipes()->detach($recipe->getKey()),
-        );
+        if ($collection !== null) {
+            return $collection->recipes()->detach($recipe->getKey()) > 0 ? 1 : 0;
+        }
+
+        // ODDAJEMY LICZBĘ ZESZYTÓW, Z KTÓRYCH NAPRAWDĘ WYJĘTO (D-225).
+        //
+        // Komunikat po akcji nazywa zakres („wyjęty z 3 Twoich zeszytów"),
+        // a nazwać go da się tylko licząc FAKTYCZNE odpięcia — nie liczbę
+        // zeszytów, które ta osoba ma. `detach()` oddaje liczbę skasowanych
+        // wierszy, więc zeszyt bez tego zapisu nie podbija licznika i drugie
+        // kliknięcie nie kłamie, że znowu coś zabrało.
+        $ile = 0;
+
+        $user->collections()->each(function (Collection $collection) use ($recipe, &$ile): void {
+            $ile += $collection->recipes()->detach($recipe->getKey()) > 0 ? 1 : 0;
+        });
+
+        return $ile;
     }
 }

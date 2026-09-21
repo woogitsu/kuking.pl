@@ -12,6 +12,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
+use App\Support\Odmiana;
 use App\Support\PaginationLinks;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
@@ -41,7 +42,30 @@ class CollectionController extends Controller
         // pokazujemy pustego folderu osobie, która nic jeszcze nie zapisała.
         return view('pages.collections.index', [
             'collections' => $user->collections()
-                ->withCount(['recipes', 'posts'])
+                ->withCount([
+                    // LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK
+                    // ZOBACZY PO WEJŚCIU (issue #774).
+                    //
+                    // PRZED TĄ ZMIANĄ ta karta liczyła bez żadnego filtra
+                    // widoczności ani statusu autora, a `show()` niżej filtrował
+                    // OBOMA (`widoczneDla()` i `dostepnyJakoAutor()`, audyt
+                    // W5-08). Dwa ekrany dwóch tego samego zeszytu liczyły więc
+                    // dwie różne rzeczy — i to NIE PO RÓWNO: prywatna treść była
+                    // wliczona w obie liczby, a treść miękko usunięta (SoftDeletes
+                    // dodaje globalny zakres) wypadała tylko z tej karty, nie
+                    // z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo
+                    // różnych: karta pokazuje WIDOCZNE, wnętrze dokłada „N nie
+                    // jest dostępnych" — i te dwie liczby razem dają całość.
+                    'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
+                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    'posts as posts_count' => fn ($q) => $q->widoczneDla($user)
+                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    // CAŁKOWITA LICZBA ZACHOWANYCH ZAPISÓW — łącznie z tymi
+                    // miękko usuniętymi (`withTrashed()`, tak jak w `show()`) —
+                    // po to, żeby policzyć RÓŻNICĘ, nie żeby ją pokazać wprost.
+                    'recipes as recipes_total_count' => fn ($q) => $q->withTrashed(),
+                    'posts as posts_total_count' => fn ($q) => $q->withTrashed(),
+                ])
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
@@ -281,10 +305,80 @@ class CollectionController extends Controller
     {
         $user = $request->user();
 
-        $data = $request->validate([
+        $data = $this->validateCollectionData($request, $user->getKey());
+
+        try {
+            $collection = $user->collections()->create($data);
+        } catch (UniqueConstraintViolationException) {
+            // Walidacja wyżej sprawdza to samo, ale między jej SELECT-em
+            // a tym INSERT-em jest okno — a podwójne kliknięcie „Załóż zeszyt”
+            // to w grupie 50+ norma, nie wyjątek. Bez tego łapania drugie
+            // żądanie kończy się błędem 500 zamiast zdaniem po polsku.
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
+        }
+
+        return redirect()->route('collections.show', $collection)->with('status', 'Zeszyt utworzony.');
+    }
+
+    /**
+     * Formularz zmiany nazwy, opisu i widoczności — istniał `update()`
+     * w Policy, nie istniała droga do niego (issue #777). Do tej zmiany
+     * jedynym sposobem cofnięcia publicznego udostępnienia było USUNIĘCIE
+     * całego zeszytu razem z jego zawartością.
+     */
+    public function edit(Request $request, Collection $collection): View
+    {
+        $this->authorize('update', $collection);
+
+        return view('pages.collections.edit', ['collection' => $collection]);
+    }
+
+    /**
+     * Te same reguły co `store()` (`validateCollectionData()`), z jednym
+     * wyjątkiem: nazwa własnego, niezmienionego zeszytu nie jest dla niego
+     * „zajęta" (`CollectionNameNotTaken::$ignoreCollectionId`).
+     *
+     * KOMUNIKAT NAZYWA ZAKRES ZMIANY WIDOCZNOŚCI, NIE TYLKO FAKT ZAPISU.
+     * „Zeszyt zaktualizowany" nie powiedziałoby człowiekowi, czy publiczny
+     * adres, który ktoś mógł już mieć zapisany, dalej działa. Zmiana
+     * widoczności jest tu decyzją semantyczną (jak w D-088), więc zasługuje
+     * na własne zdanie, nie ogólnikowe potwierdzenie zapisu.
+     */
+    public function update(Request $request, Collection $collection): RedirectResponse
+    {
+        $this->authorize('update', $collection);
+
+        $bylaPubliczna = $collection->isPublic();
+
+        $data = $this->validateCollectionData($request, $collection->owner_id, $collection->getKey());
+
+        $collection->update($data);
+
+        $jestPubliczna = $collection->isPublic();
+
+        $status = match (true) {
+            $bylaPubliczna && ! $jestPubliczna => 'Zeszyt jest teraz widoczny tylko dla Ciebie. Dawny bezpośredni adres przestał działać dla innych.',
+            ! $bylaPubliczna && $jestPubliczna => 'Zeszyt jest teraz widoczny dla wszystkich.',
+            default => 'Zeszyt zaktualizowany.',
+        };
+
+        return redirect()->route('collections.show', $collection)->with('status', $status);
+    }
+
+    /**
+     * Wspólne reguły `store()` i `update()`. `$ignoreCollectionId` przepuszcza
+     * niezmienioną nazwę własnego zeszytu przy zapisie formularza edycji.
+     *
+     * @return array{name: string, description: ?string, visibility: string}
+     */
+    private function validateCollectionData(Request $request, string $ownerId, ?string $ignoreCollectionId = null): array
+    {
+        return $request->validate([
             'name' => [
                 'required', 'string', 'min:2', 'max:120',
-                new CollectionNameNotTaken($user->getKey()),
+                new CollectionNameNotTaken($ownerId, $ignoreCollectionId),
             ],
             'description' => ['nullable', 'string', 'max:500'],
             'visibility' => ['required', 'in:public,private'],
@@ -309,20 +403,6 @@ class CollectionController extends Controller
              */
             'visibility.required' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
         ]);
-
-        try {
-            $collection = $user->collections()->create($data);
-        } catch (UniqueConstraintViolationException) {
-            // Walidacja wyżej sprawdza to samo, ale między jej SELECT-em
-            // a tym INSERT-em jest okno — a podwójne kliknięcie „Załóż zeszyt”
-            // to w grupie 50+ norma, nie wyjątek. Bez tego łapania drugie
-            // żądanie kończy się błędem 500 zamiast zdaniem po polsku.
-            return back()
-                ->withInput()
-                ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
-        }
-
-        return redirect()->route('collections.show', $collection)->with('status', 'Zeszyt utworzony.');
     }
 
     public function saveRecipe(Request $request, string $recipe): RedirectResponse
@@ -337,13 +417,30 @@ class CollectionController extends Controller
         return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
     }
 
+    /**
+     * `collection_id` opcjonalny — jego brak jest operacją GLOBALNĄ (usuwa
+     * ze wszystkich własnych zeszytów) i tak zostaje jedyna droga dostępna
+     * ze strony przepisu, gdzie nie wiadomo, „w którym zeszycie stoi
+     * człowiek". Podanie go zawęża usunięcie do JEDNEGO zeszytu — to jest
+     * naturalny zakres wewnątrz widoku konkretnego zeszytu (issue #775).
+     * Walidacja własności jest identyczna jak przy zapisie
+     * (`selectedCollection()`): cudzy `collection_id` kończy się błędem
+     * walidacji, nie cichym brakiem skutku.
+     */
     public function removeRecipe(Request $request, string $recipe): RedirectResponse
     {
         $model = Recipe::where('slug', $recipe)->firstOrFail();
 
-        $this->save->remove($request->user(), $model);
+        $collection = $this->selectedCollection($request);
 
-        return back()->with('status', 'Usunięte z zeszytu.');
+        $ile = $this->save->remove($request->user(), $model, $collection);
+
+        return back()
+            ->with('status', $this->komunikatPoWyjeciu('Przepis', $collection, $ile))
+            ->with('status_powrot', $this->drogaPowrotu(
+                route('collections.save', $model->slug),
+                $collection,
+            ));
     }
 
     /**
@@ -386,12 +483,18 @@ class CollectionController extends Controller
             : null;
     }
 
+    /**
+     * Ten sam zakres co `removeRecipe()` i z tego samego powodu (issue #775):
+     * `collection_id` zawęża usunięcie do JEDNEGO zeszytu, jego brak zostaje
+     * operacją globalną.
+     */
     public function removePost(Request $request, Post $post): RedirectResponse
     {
         // Bez `authorize`: usuwamy z WŁASNEGO zeszytu i tylko z własnego
-        // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
-        // wolno oglądać, tym bardziej musi dać się stamtąd wyjąć — inaczej
-        // zostawałby w zeszycie na zawsze.
+        // (`remove` chodzi po kolekcjach tej osoby, `selectedCollection()`
+        // sprawdza `owner_id`). Wpis, którego już nie wolno oglądać, tym
+        // bardziej musi dać się stamtąd wyjąć — inaczej zostawałby w zeszycie
+        // na zawsze.
         //
         // TO NIE JEST OBEJŚCIE REGUŁY „UUID W ADRESIE TO NIE AUTORYZACJA"
         // (AGENTS.md §7), tylko granica OSTRZEJSZA niż Policy. Policy
@@ -403,23 +506,69 @@ class CollectionController extends Controller
         // tamtego wiersza (`ZeszytPrzyjmujeWpisyTest`:
         // „obca osoba nie wyjmie wpisu z cudzego zeszytu"). Gość nie dochodzi
         // tu wcale — trasa stoi za `auth` (`routes/web.php`).
-        $this->savePost->remove($request->user(), $post);
+        $collection = $this->selectedCollection($request);
 
-        // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
-        //
-        // „Usunięte z zeszytu." nie mówiło, CO zostało usunięte ani czy
-        // zniknęło z jednego zeszytu, czy ze wszystkich — a wyjmujemy ze
-        // wszystkich zeszytów tej osoby, więc trzeba to napisać wprost.
-        // Zamiast pytania „czy na pewno" PRZED akcją (wyjęcie jest
-        // odwracalne) idzie przycisk powrotu PO niej; rysuje go
-        // `components/layout.blade.php` w tym samym obszarze `aria-live`,
-        // co komunikat.
+        $ile = $this->savePost->remove($request->user(), $post, $collection);
+
         return back()
-            ->with('status', 'Wpis wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.')
-            ->with('status_powrot', [
-                'akcja' => route('collections.save-post', $post),
-                'etykieta' => 'Zapisz ponownie',
-            ]);
+            ->with('status', $this->komunikatPoWyjeciu('Wpis', $collection, $ile))
+            ->with('status_powrot', $this->drogaPowrotu(
+                route('collections.save-post', $post),
+                $collection,
+            ));
+    }
+
+    /**
+     * KOMUNIKAT MÓWI, CO SIĘ STAŁO, I NAZYWA ZAKRES (D-225).
+     *
+     * „Usunięte z zeszytu." nie mówiło ani CO zniknęło, ani z ilu zeszytów —
+     * a zakres globalny wyjmuje ze WSZYSTKICH zeszytów tej osoby (issue #775
+     * nazwał to „bez ujawnienia zakresu"). Pytania „czy na pewno" PRZED akcją
+     * nie przywracamy (D-224: wyjęcie jest odwracalne), więc zakres nazywa
+     * zdanie PO akcji, a drogę powrotu daje przycisk „Zapisz ponownie"
+     * (`components/layout.blade.php`).
+     *
+     * Liczba jest FAKTYCZNA, nie deklarowana: `remove()` oddaje, z ilu
+     * zeszytów naprawdę wyjęto. Wpis leżący w jednym zeszycie nie straszy
+     * więc zdaniem o „wszystkich Twoich zeszytach", a drugie kliknięcie
+     * (norma w tej grupie, issue #43) nie kłamie, że znowu coś zabrało.
+     */
+    private function komunikatPoWyjeciu(string $co, ?Collection $collection, int $ile): string
+    {
+        if ($collection !== null) {
+            return "{$co} wyjęty z zeszytu „{$collection->name}”. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.";
+        }
+
+        if ($ile === 0) {
+            return "{$co} nie leżał w żadnym Twoim zeszycie. Nic nie zniknęło — możesz go zapisać.";
+        }
+
+        $zakres = $ile === 1
+            ? 'z zeszytu'
+            : sprintf('z %d Twoich %s', $ile, Odmiana::rzeczownik($ile, 'zeszytu', 'zeszytów', 'zeszytów'));
+
+        return "{$co} wyjęty {$zakres}. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.";
+    }
+
+    /**
+     * Droga powrotu PO akcji odwracalnej (D-224, D-225).
+     *
+     * `pola` wracają tam, skąd wyjęto: bez `collection_id` przycisk „Zapisz
+     * ponownie" po wyjęciu z zeszytu „Obiady" odłożyłby wpis do zeszytu
+     * DOMYŚLNEGO, czyli cicho przeniósłby go gdzie indziej. Cofnięcie ma
+     * przywracać stan, nie tworzyć nowy.
+     *
+     * @return array{akcja: string, etykieta: string, pola: array<string, string>}
+     */
+    private function drogaPowrotu(string $akcja, ?Collection $collection): array
+    {
+        return [
+            'akcja' => $akcja,
+            'etykieta' => 'Zapisz ponownie',
+            'pola' => $collection !== null
+                ? ['collection_id' => (string) $collection->getKey()]
+                : [],
+        ];
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse

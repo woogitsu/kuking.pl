@@ -315,6 +315,28 @@
                     --}}
                     <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                     @if($isSaved)
+                        {{--
+                            OPERACJA GLOBALNA, WIĘC NAZYWA ZAKRES — PO AKCJI,
+                            NIE PYTANIEM PRZED NIĄ (issue #775 + D-224 = D-225).
+
+                            Ten przycisk nie wie, w którym zeszycie stoi
+                            człowiek — przepis mógł być zapisany w kilku naraz
+                            przez „Wybierz zeszyt" niżej. Zarzut z #775 był
+                            prawdziwy: „Usunięte z zeszytu" po fakcie nie
+                            mówiło, że zniknęło z KAŻDEGO zeszytu, razem
+                            z notatkami. Odpowiedzią NIE jest jednak pytanie
+                            „czy na pewno" przed kliknięciem — D-224
+                            rozstrzygnęło, że przy akcji odwracalnej pytanie
+                            uczy odklikiwania i psuje wagę pytań przy rzeczach
+                            nieodwracalnych. Zakres nazywa więc komunikat PO
+                            akcji („Przepis wyjęty z 3 Twoich zeszytów"),
+                            a obok niego stoi przycisk „Zapisz ponownie"
+                            (`CollectionController::komunikatPoWyjeciu()`).
+
+                            Usunięcie z JEDNEGO, wybranego zeszytu robi się
+                            w widoku tego zeszytu — tam przycisk nazywa się
+                            „Usuń z tego zeszytu" (D-225).
+                        --}}
                         <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
                             @csrf @method('DELETE')
                             <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
