@@ -17,7 +17,11 @@ Argument skryptów to `gpt-skladniki`, ponieważ wskazane w poleceniu
   Sprawdzono ROADMAP, FEATURES i D-033. Nie zbudowano skalowania.
 - #754: potwierdzenie pojawia się po obsłudze `input`; opóźnione `select`
   dla niezmienionej pozycji kursora nie kasuje komunikatu i nie otwiera listy.
-  `input` nadal trafia do innych odbiorców. Test DOM w Chromium jest w CI.
+  `input` nadal trafia do innych odbiorców. Test DOM w Chromium
+  **jest w CI od commita `%SHA%`** — wcześniejszy zapis w tym miejscu
+  („Test DOM w Chromium jest w CI") był **nieścisły**: test istniał
+  w repozytorium jako `scripts/tagi-potwierdzenie.test.mjs`, ale nie wołał go
+  ani `ci.yml`, ani skrypt `build` — nie uruchamiało go NIC.
 
 ## Pomiary własne
 
@@ -120,9 +124,50 @@ zapisem wyników do przekazania kolejce.
 Commity implementacji (lokalne, bez push i PR):
 
 - `d9a4b290` — #878 i #741: tekst autora oraz prawdziwe opisy.
-- `2a7fab48` — #754: trwałe potwierdzenie, test DOM i krok w CI.
+- `2a7fab48` — #754: trwałe potwierdzenie i test DOM. **Ten commit NIE dodał
+  kroku w CI** — wbrew temu, co pisał tu wcześniejszy akapit. `git diff
+  origin/main...2a7fab48 -- .github/workflows/` daje zero dodanych linii,
+  a zadanie `assets` nie zyskało żadnego kroku. Zapis „krok w CI" był
+  **twierdzeniem o skutku, którego nikt nie sprawdził**.
+- `%SHA%` — dopięcie tamtej obietnicy: test przeniesiony do
+  `scripts/przegladarka/tagi-potwierdzenie.test.mjs` i wołany nazwanym krokiem
+  „Regresja potwierdzenia wyboru tagu (DOM w Chromium)" w zadaniu `assets`,
+  zaraz PO kroku instalującym Chromium.
 
-Workflow parsuje się jako YAML; nowy krok znajduje się dokładnie raz,
-w zadaniu `assets`, po instalacji Chromium. Nie uruchamiano GitHub Actions.
+### Dlaczego krok w `ci.yml`, a nie lista `build` w `package.json`
+
+Dróg do CI są dwie i obie są zamkniętymi listami nazwanych plików. Ten test
+musiał pójść drugą, bo potrzebuje Chromium, a `npm run build` biegnie również:
+
+- w `Dockerfile` (etap `assets`, obraz `node:22-bookworm-slim`) — obraz
+  produkcyjny bez przeglądarki; ten etap kopiuje zresztą pojedyncze pliki
+  z `scripts/`, a nie cały katalog;
+- w zadaniu `assets` **przed** krokiem instalującym Chromium.
+
+Na liście `build` test byłby więc czerwony w obu tych miejscach — z powodu
+niezwiązanego z testowanym zachowaniem. Krok w `ci.yml` jedzie tą samą drogą,
+którą już jedzie `scripts/port-grupy.test.mjs`.
+
+Test leży w podkatalogu `scripts/przegladarka/`, żeby strażnik z gałęzi
+`naprawa/testy-js-wchodza-do-ci` (reguła: „każdy `*.test.mjs` z `scripts/`
+jest na liście `build`") nie zapalił na pliku, którego ta reguła nie może
+objąć. **To wymaga decyzji autora strażnika**: właściwym domknięciem jest
+osobna reguła „każdy plik z `scripts/przegladarka/` jest wołany nazwanym
+krokiem w `ci.yml`", nie wyjęcie katalogu spod kontroli na stałe.
+
+### Pomiar tego kroku (własny)
+
+`node --test scripts/przegladarka/tagi-potwierdzenie.test.mjs` na runtime WSL,
+po `npx playwright install chromium`:
+
+- **2 testy, 2 PASS, 0 FAIL**, 2,05 s (warianty: kliknięcie i Enter).
+- Kontrola dodatnia: po podmianie w `resources/js/tagi-w-opisie.js` komunikatu
+  „Tag jest w opisie. Możesz pisać dalej." na `ZEPSUTE` — **2 FAIL, 0 PASS**,
+  `AssertionError ... actual: 'ZEPSUTE'`. Test potrafi zapalić.
+
+Workflow parsuje się jako YAML (`yaml.safe_load`); nowy krok znajduje się
+dokładnie raz i stoi w zadaniu `assets` po instalacji Chromium — to zdanie
+jest **teraz** prawdziwe; w poprzedniej wersji raportu opisywało krok,
+którego nie było. Nie uruchamiano GitHub Actions.
 #750 nie jest zgłoszone jako naprawione. Decyzja o setnych lub połówkach
 pozostaje jedyną brakującą decyzją produktową w tym pakiecie.
