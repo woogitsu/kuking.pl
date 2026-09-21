@@ -218,7 +218,7 @@ class ProfileController extends Controller
             // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
             // gdy relacja jest już doładowana, więc bez tego archiwum
             // profilu nie miałoby żadnych chipów tematów.
-            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name,status'])
+            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name,status', 'recipe:id,title,slug,visibility,hero_media_id', 'recipe.heroMedia'])
             ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
@@ -272,7 +272,11 @@ class ProfileController extends Controller
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
         if ($query->getModel() instanceof Post) {
-            $query->enabledKinds();
+            // Zapowiedź jest publicznym wpisem, lecz dostęp wyznacza przepis.
+            // Ten helper obejmuje także liczniki, lata oraz zawartość szyny.
+            $query->enabledKinds()->zWidocznymPrzepisem($viewer);
+            $query->where(fn ($posts) => $posts->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($author) => $author->dostepnyJakoAutor()));
         }
 
         if ($isOwner) {

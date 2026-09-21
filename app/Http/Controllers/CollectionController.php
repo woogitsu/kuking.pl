@@ -158,8 +158,11 @@ class CollectionController extends Controller
 
         $posts = $collection->posts()
             ->widoczneDla($request->user())
+            ->zWidocznymPrzepisem($request->user())
+            ->where(fn ($posts) => $posts->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($author) => $author->dostepnyJakoAutor()))
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            ->with(['author.profile.avatar', 'media'])
+            ->with(['author.profile.avatar', 'media', 'recipe:id,title,slug,visibility,hero_media_id', 'recipe.heroMedia'])
             ->withVisibleCommentCount($request->user())
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą
