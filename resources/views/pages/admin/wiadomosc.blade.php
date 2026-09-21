@@ -1,6 +1,20 @@
-{{-- Dwie osobne operacje we wspólnym formularzu zachowującym roboczy tekst.
-     Każda trasa pyta Policy. Bez JavaScriptu przycisk wybiera endpoint,
-     a kontroler zachowuje pola drugiej operacji wyłącznie na przekierowanie. --}}
+{{-- DWA OSOBNE FORMULARZE, W TEJ KOLEJNOŚCI (D-058): najpierw odpowiedź
+     (list wychodzi na zewnątrz i jest nieodwracalny), potem stan i notatka
+     dla siebie (do poprawienia w każdej chwili). Każda trasa pyta Policy.
+
+     JEDEN WSPÓLNY FORMULARZ BYŁBY BŁĘDEM, i to nie stylistycznym. Formularz
+     z dwoma przyciskami `submit` ma przycisk DOMYŚLNY — pierwszy w kolejności
+     drzewa. Enter wciśnięty na przycisku radio w „Stanie wiadomości” nie pyta,
+     który to przycisk: wysyła formularz tym domyślnym, czyli WYSYŁA LIST.
+     Osoba, która chciała tylko zaznaczyć stan, nie ma jak tego cofnąć.
+     Rozdzielenie formularzy jest jedyną rzeczą, która to wyklucza bez
+     JavaScriptu (AGENTS.md §5 pkt 3).
+
+     CENĄ jest to, że zapis stanu nie niesie już szkicu odpowiedzi w tym samym
+     żądaniu. `withInput()` w kontrolerze zostaje — działa, gdy oba komplety
+     pól przyjdą razem — ale przeglądarka wysyła teraz tylko pola tego
+     formularza, który został zatwierdzony. Nieodwracalna wysyłka listu przez
+     pomyłkę jest gorsza niż przepisanie szkicu. --}}
 <x-layout title="Wiadomość do nas — Panel moderacji" :noindex="true">
     <x-panel-moderacji ekran="Wiadomości do nas" />
 
@@ -60,21 +74,6 @@
     </div>
 
     <x-error-summary />
-
-    {{-- Obie sekcje przesyłają robocze pola; dopiero przycisk wybiera operację.
-         Zapis stanu nigdy nie wysyła listu, a odpowiedź nie zapisuje notatki. --}}
-    <form method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
-        @csrf
-        <input type="hidden" name="version" value="{{ $errors->has('version') ? $wiadomosc->version : old('version', $wiadomosc->version) }}">
-        <div id="f-version" tabindex="-1">
-            @error('version')
-                <p class="notice" role="alert">{{ $message }}</p>
-                <p>Bieżący stan: <strong>{{ $wiadomosc->statusLabel() }}</strong>.</p>
-                <p>Bieżąca notatka:</p>
-                <p class="whitespace-pre-line">{{ $wiadomosc->handler_note ?? 'Brak notatki.' }}</p>
-                <p>Twój tekst pozostał w polu „Notatka dla siebie”.</p>
-            @enderror
-        </div>
 
     {{--
         ═══════════════════════════════════════════════════════════════════
@@ -152,7 +151,8 @@
         @endif
 
         @if($wiadomosc->adresDoOdpowiedzi())
-            <div>
+            <form method="POST" action="{{ route('admin.contact.reply', $wiadomosc) }}">
+                @csrf
                 @php($attempt = $wiadomosc->odpowiedzi->firstWhere('reply_key', old('reply_key', '')))
                 <input type="hidden" name="reply_key" value="{{ old('reply_key', (string) \Illuminate\Support\Str::uuid()) }}">
                 @error('reply_key')<p class="field-error" id="f-reply_key" tabindex="-1">{{ $message }}</p>@enderror
@@ -169,12 +169,12 @@
                 <div class="form-actions">
                     @if($attempt)
                         <p>To będzie osobny list. Przy nieustalonym wyniku najpierw sprawdź u dostawcy, czy poprzedni został przyjęty.</p>
-                        <button class="btn btn-primary" type="submit" name="reply_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}" formaction="{{ route('admin.contact.reply', $wiadomosc) }}">Wyślij jako nową odpowiedź</button>
+                        <button class="btn btn-primary" type="submit" name="reply_key" value="{{ (string) \Illuminate\Support\Str::uuid() }}">Wyślij jako nową odpowiedź</button>
                     @else
-                    <button class="btn btn-primary" type="submit" formaction="{{ route('admin.contact.reply', $wiadomosc) }}">Wyślij odpowiedź</button>
+                        <button class="btn btn-primary" type="submit">Wyślij odpowiedź</button>
                     @endif
                 </div>
-            </div>
+            </form>
 
             <p class="meta">
                 Wiadomość wyjdzie od serwisu (<strong>{{ config('mail.from.address') }}</strong>),
@@ -216,7 +216,18 @@
         @endif
     </section>
 
-    <section class="panel-formularza mt-5">
+    <form class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
+        @csrf
+        <input type="hidden" name="version" value="{{ $errors->has('version') ? $wiadomosc->version : old('version', $wiadomosc->version) }}">
+        <div id="f-version" tabindex="-1">
+            @error('version')
+                <p class="notice" role="alert">{{ $message }}</p>
+                <p>Bieżący stan: <strong>{{ $wiadomosc->statusLabel() }}</strong>.</p>
+                <p>Bieżąca notatka:</p>
+                <p class="whitespace-pre-line">{{ $wiadomosc->handler_note ?? 'Brak notatki.' }}</p>
+                <p>Twój tekst pozostał w polu „Notatka dla siebie”.</p>
+            @enderror
+        </div>
 
         <fieldset class="border-0 p-0">
             <legend class="font-bold mb-3">Stan wiadomości</legend>
@@ -251,9 +262,8 @@
                  help="Widzi ją tylko obsługa. Na przykład: numer issue. Wysłanych odpowiedzi nie musisz tu przepisywać — są zapisane wyżej." />
 
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit" formnovalidate>Zapisz</button>
+            <button class="btn btn-primary" type="submit">Zapisz</button>
         </div>
-    </section>
     </form>
 
     <p class="meta mt-5">
