@@ -174,6 +174,17 @@ kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
 sprawdz 'test czerwony już przed mutacją → BRAK_KONTROLI_DODATNIEJ (5)' 5 "$kod"
 sprawdz 'przy braku kontroli dodatniej plik nietknięty (MD5)' "$MD5_WZORCOWY" "$(md5sum "$PRACA/zrodlo.txt" | cut -d' ' -f1)"
 
+# REGRESJA: werdykt 5 musi POWIEDZIEC, dlaczego bylo czerwono. Sam kod wyjscia
+# nie wystarcza — gdy przyrzad siegal po nieustawione `$WYJSCIE_PRZED`, pod
+# `set -u` wypis ginal w podpowloce potoku, kod wyjscia zostawal poprawny (5)
+# i asercja kodu wyzej swiecila na zielono. Uzasadnienie werdyktu jest tu
+# calym przedmiotem sporu, wiec sprawdzamy TRESC, nie tylko liczbe.
+if grep -qF 'SQLSTATE[08006]' "$PRACA/wyjscie.log" && ! grep -qF 'unbound variable' "$PRACA/wyjscie.log"; then
+    printf "  ${ZIELONY}✓${RESET} werdykt 5 pokazuje POWOD czerwieni, nie samo „bylo czerwono”\n"; zdane=$((zdane + 1))
+else
+    printf "  ${CZERWONY}✗${RESET} werdykt 5 nie pokazuje wyjscia testu — uzasadnienie zginelo\n"; oblane=$((oblane + 1))
+fi
+
 # --- 6. Przywrócenie, gdy test ginie w połowie ------------------------------
 uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
         --oczekuj 'cokolwiek' -- ./test-ginie-w-polowie.sh zrodlo.txt >/dev/null
