@@ -1,3 +1,34 @@
+/*
+ * =============================================================================
+ *  DLACZEGO TEN TEST LEŻY W `scripts/przegladarka/`, A NIE W `scripts/`
+ * =============================================================================
+ *  Bo NIE MOŻE wejść na listę `node --test` w skrypcie `build` z package.json,
+ *  a wszystko, co leży płasko w `scripts/`, na tę listę wejść musi.
+ *
+ *  `npm run build` biegnie w miejscach, które nie mają i nie będą miały
+ *  przeglądarki:
+ *    1. `Dockerfile` (etap `assets`, obraz `node:22-bookworm-slim`) — obraz
+ *       produkcyjny; Chromium to tam setki megabajtów za nic.
+ *    2. `.github/workflows/ci.yml`, zadanie `assets` — `npm run build` stoi
+ *       PRZED krokiem, który instaluje Chromium.
+ *
+ *  URUCHAMIA GO WŁASNY KROK w `ci.yml`, w zadaniu `assets`, POSTAWIONY PO
+ *  instalacji Chromium. Lokalnie:
+ *    npx playwright install chromium
+ *    node --test scripts/przegladarka/wyglad-nawigacja.test.mjs
+ *
+ *  Test czysto node'owy tej samej gałęzi, `scripts/kopiowanie-adresu.test.mjs`,
+ *  poszedł DRUGĄ drogą — na listę `build` — bo przeglądarki nie potrzebuje.
+ *
+ *  UWAGA DLA STRAŻNIKA (`scripts/straznik-testow-js.test.mjs` z gałęzi
+ *  `naprawa/testy-js-wchodza-do-ci`): ten katalog jest poza jego skanem,
+ *  bo jego reguła brzmi „każdy test JS ma być na liście `build`", a dla
+ *  testów przeglądarkowych ta reguła jest nie do spełnienia. Strażnik
+ *  powinien objąć ten katalog własną regułą — „każdy plik z
+ *  `scripts/przegladarka/` jest wołany nazwanym krokiem w `ci.yml`".
+ *  Do rozstrzygnięcia przez autora strażnika.
+ * =============================================================================
+ */
 import {test} from 'node:test';
 import assert from 'node:assert/strict';
 import {readFileSync} from 'node:fs';
@@ -5,7 +36,7 @@ import {chromium} from 'playwright';
 
 // Pełny moduł produkcyjny w Chromium; kontrolowany serwer i mały DOM panelu.
 // To nie jest test zapisu konta ani fizycznego telefonu.
-const source = readFileSync(new URL('../resources/js/szybki-wyglad.js', import.meta.url), 'utf8');
+const source = readFileSync(new URL('../../resources/js/szybki-wyglad.js', import.meta.url), 'utf8');
 const html = `<html data-text-scale="100" data-theme="light"><head><meta charset="utf-8"></head><body>
 <a href="/cel">Przejdź dalej</a>
 <details open data-szybki-wyglad><summary>Wygląd</summary>

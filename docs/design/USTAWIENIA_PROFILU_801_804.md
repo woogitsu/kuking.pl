@@ -106,8 +106,58 @@ potwierdziło porównanie MD5 i mtime; `kontrola_dodatnia_po_przywroceniu`
 we wszystkich czterech plikach wynosi PASS. Nie podmieniono tego pola
 ręcznie w dowodach.
 
-Testy JS: `npm run test:ustawienia-profilu`; podłączone do zadania assetów
-CI po instalacji Chromium. Testy PHP są częścią zwykłego zestawu.
+### Testy JS — sprostowanie
+
+Wcześniejsza wersja tego raportu pisała w tym miejscu:
+
+> „Testy JS: `npm run test:ustawienia-profilu`; podłączone do zadania assetów
+> CI po instalacji Chromium."
+
+**To było nieprawdą i zostaje tu zapisane, a nie wycięte.** Skryptu
+`test:ustawienia-profilu` NIE BYŁO w `package.json` tej gałęzi, a
+`git diff origin/main -- .github/workflows/` nie dawał ani jednej dodanej
+linii. Oba pliki testowe leżały w repozytorium i **nie uruchamiało ich nic**.
+
+Stan po commicie `%SHA%` — dwa testy, dwie różne drogi do CI, bo droga jest
+własnością testu, nie autora:
+
+| Plik | Droga do CI | Dlaczego ta |
+|---|---|---|
+| `scripts/kopiowanie-adresu.test.mjs` | lista `node --test` w skrypcie `build` (`package.json`) | Czysty Node: czyta `resources/js/app.js` i wykonuje handler w `node:vm`. Przeglądarki nie potrzebuje, więc może jechać wszędzie, gdzie jedzie `build` — także w obrazie Dockera. |
+| `scripts/przegladarka/wyglad-nawigacja.test.mjs` | własny krok „Regresja szybkiego panelu wyglądu (DOM w Chromium)" w `ci.yml`, zadanie `assets`, **po** instalacji Chromium | Podnosi Chromium przez Playwrighta. Na liście `build` byłby czerwony w `Dockerfile` (etap `assets`, `node:22-bookworm-slim`, bez przeglądarki) i w samym zadaniu `assets`, gdzie `npm run build` stoi PRZED krokiem instalującym Chromium. |
+
+Do `Dockerfile` doszła linia `COPY scripts/kopiowanie-adresu.test.mjs` —
+etap `assets` kopiuje pojedyncze pliki z `scripts/`, a nie cały katalog, więc
+bez niej `npm run build` w obrazie padłby na brakującym pliku. **Przy okazji
+znaleziona zastana usterka, nie tej gałęzi:** `scripts/panel-komunikat.test.mjs`
+stoi na liście `build` od dawna i nie jest kopiowany do obrazu — etap `assets`
+w `Dockerfile` jest z tego powodu czerwony niezależnie od tej gałęzi.
+
+Test przeglądarkowy leży w podkatalogu `scripts/przegladarka/`, żeby strażnik
+z gałęzi `naprawa/testy-js-wchodza-do-ci` (reguła: „każdy `*.test.mjs`
+z `scripts/` jest na liście `build`") nie zapalił na pliku, którego ta reguła
+nie może objąć. **To wymaga decyzji autora strażnika**: właściwym domknięciem
+jest osobna reguła „każdy plik z `scripts/przegladarka/` jest wołany nazwanym
+krokiem w `ci.yml`", a nie wyjęcie katalogu spod kontroli na stałe.
+
+Pomiary własne, runtime WSL:
+
+- `node --test scripts/kopiowanie-adresu.test.mjs` — **3 testy, 3 PASS,
+  0 FAIL**, 40 ms. Kontrola dodatnia: po podmianie w `resources/js/app.js`
+  komunikatu „Skopiowano adres." na `ZEPSUTE` — **2 FAIL, 1 PASS**,
+  `AssertionError ... actual: 'ZEPSUTE'`.
+- `node --test scripts/przegladarka/wyglad-nawigacja.test.mjs` po
+  `npx playwright install chromium` — **5 testów, 5 PASS, 0 FAIL**, 12,7 s
+  (success, 500, offline, timeout, json). Kontrola dodatnia: po podmianie
+  selektora `data-wyglad-status` w `resources/js/szybki-wyglad.js` —
+  **5 FAIL, 0 PASS**, `TimeoutError`.
+- `npm run build` z rozszerzoną listą — **23 PASS, 0 FAIL**, Vite zbudował
+  manifest i `app-*.css`/`app-*.js`.
+- `ci.yml` parsuje się jako YAML (`yaml.safe_load`); nowy krok występuje
+  dokładnie raz i stoi w zadaniu `assets` zaraz po instalacji Chromium.
+  Nie uruchamiano GitHub Actions.
+
+Testy PHP są częścią zwykłego zestawu.
 Pint przeszedł na 1157 plikach; `npm run build` przeszedł.
 
 Pełny zestaw PHP: **4402 testy / 83797 asercji**, 436,71 s. Pominięto
