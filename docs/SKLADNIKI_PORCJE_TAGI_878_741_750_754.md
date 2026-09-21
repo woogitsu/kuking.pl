@@ -18,7 +18,7 @@ Argument skryptów to `gpt-skladniki`, ponieważ wskazane w poleceniu
 - #754: potwierdzenie pojawia się po obsłudze `input`; opóźnione `select`
   dla niezmienionej pozycji kursora nie kasuje komunikatu i nie otwiera listy.
   `input` nadal trafia do innych odbiorców. Test DOM w Chromium
-  **jest w CI od commita `%SHA%`** — wcześniejszy zapis w tym miejscu
+  **jest w CI od commita `c7b0f498`** — wcześniejszy zapis w tym miejscu
   („Test DOM w Chromium jest w CI") był **nieścisły**: test istniał
   w repozytorium jako `scripts/tagi-potwierdzenie.test.mjs`, ale nie wołał go
   ani `ci.yml`, ani skrypt `build` — nie uruchamiało go NIC.
@@ -129,7 +129,7 @@ Commity implementacji (lokalne, bez push i PR):
   origin/main...2a7fab48 -- .github/workflows/` daje zero dodanych linii,
   a zadanie `assets` nie zyskało żadnego kroku. Zapis „krok w CI" był
   **twierdzeniem o skutku, którego nikt nie sprawdził**.
-- `%SHA%` — dopięcie tamtej obietnicy: test przeniesiony do
+- `c7b0f498` — dopięcie tamtej obietnicy: test przeniesiony do
   `scripts/przegladarka/tagi-potwierdzenie.test.mjs` i wołany nazwanym krokiem
   „Regresja potwierdzenia wyboru tagu (DOM w Chromium)" w zadaniu `assets`,
   zaraz PO kroku instalującym Chromium.
