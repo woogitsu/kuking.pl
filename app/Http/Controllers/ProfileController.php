@@ -267,6 +267,34 @@ class ProfileController extends Controller
      * zapytania budującego listę. To są dwie różne drogi i naprawienie jednej
      * nie naprawia drugiej — dlatego macierz z issue #41 testuje je osobno.
      *
+     * DRUGA GRANICA, OSOBNA OD POWYŻSZEJ: WIDOCZNOŚĆ PRZEPISU (#368).
+     * Warunek `whereIn('visibility', …)` niżej pyta o WPIS. Wpis zapowiadający
+     * przepis ma `visibility = 'public'` na stałe
+     * (`WpisWskazujacyPrzepis::dopisz()`) i nie jest to jego widoczność, tylko
+     * brak własnego zawężenia — bramką ma być PRZEPIS. Sam filtr po widoczności
+     * wpisu przepuszczał więc zapowiedź przepisu w KAŻDYM stanie, a karta
+     * rysuje z relacji `$post->recipe` tytuł, zdjęcie główne i odnośnik,
+     * w którym slug niesie ten sam tytuł zapisany inaczej.
+     *
+     * BRAMKA STOI TUTAJ, A NIE W `postsFor()`, I TO JEST CAŁA RZECZ.
+     * Ten filtr jest wspólny dla SZEŚCIU zapytań tego ekranu: archiwum, listy
+     * lat, obu liczników, szyny tematów i szyny zdjęć. Każde z nich ma w tym
+     * pliku komentarz mówiący, że musi odpowiadać na to samo pytanie co
+     * archiwum — bo licznik niezgodny z listą i rok prowadzący do pustej
+     * strony są oracle'ami istnienia treści (ta sama klasa błędu co W7-05,
+     * opisana przy `liczbaPolaczen()`). Bramka wstawiona w samo `postsFor()`
+     * zrobiłaby dokładnie ten rozjazd: tytuł zniknąłby z listy, a licznik nad
+     * nią dalej by go liczył.
+     *
+     * DLACZEGO NIE `tylkoZWidocznychPrzepisow()` Z TEGO SAMEGO PLIKU.
+     * Bo ona robi `whereHas('recipe', …)` BEZ gałęzi na `recipe_id IS NULL`.
+     * Na wykonaniach jest to poprawne — każde wykonanie ma przepis. Tutaj
+     * większość wierszy przepisu NIE MA, więc ten warunek skasowałby z profilu
+     * całe zwykłe archiwum. `Post::scopeZWidocznymPrzepisem($widz)` tę gałąź
+     * ma, jest tym samym zakresem, którym bramkują się wszystkie strumienie,
+     * i sam liczy „własny przepis widza" — dlatego wolno go wywołać po
+     * `$isOwner`, nie zamiast.
+     *
      * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
      */
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
@@ -287,6 +315,13 @@ class ProfileController extends Controller
         }
 
         $query->whereIn('visibility', $widocznosci);
+
+        // Bramka PRZEPISU — patrz akapit w opisie metody. Tylko dla `Post`:
+        // zakładka „Przepisy" pyta wprost o `Recipe` i ma tu już swój warunek
+        // wyżej, a `recipes.recipe_id` nie istnieje.
+        if ($query->getModel() instanceof Post) {
+            $query->zWidocznymPrzepisem($viewer);
+        }
     }
 
     /**
