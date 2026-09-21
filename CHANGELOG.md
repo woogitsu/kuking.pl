@@ -1,5 +1,13 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.70 — wydruk przepisu na kartkę i powrót do tego, co czytaliście, gdy zniknie sieć
+
+- „Spróbuj ponownie” na ekranie bez internetu naprawdę ponawia tę stronę, na której stoicie. Wcześniej ten odnośnik zabierał na stronę główną i gubił przepis otwarty przy garnku.
+- Przepis wydrukowany na A4 mieści się na dwóch–czterech stronach zamiast sześciu–dziesięciu. Na papier nie idą już przyciski, dolna nawigacja ani ciemne tło z ciemnego motywu — drukuje się sam przepis, ze wszystkimi składnikami i pełną treścią kroków.
+- Lista obserwowanych nie mówi już „Jeszcze nikogo nie obserwuje”, gdy usuniecie ostatnią osobę z dalszej strony. Serwis przenosi na ostatnią istniejącą stronę i zachowuje komunikat o usunięciu.
+- Przy własnym przepisie z odrzuconym zdjęciem widać odnośnik do edycji przepisu zamiast rady „Wpis możesz usunąć”, która do przepisu nie pasowała. Dotyczy zdjęcia głównego, skanu starej kartki, zdjęcia kroku i trybu gotowania.
+- Zmiana niewidoczna dla osób korzystających z serwisu, ale wnoszona przez tę gałąź: lokalna kontrola przed wysłaniem zmian bierze port i host bazy ze środowiska zamiast z zaszytej liczby, więc przestaje odmawiać pracy każdemu, kto nie stoi przy jednym konkretnym stanowisku.
+
 ## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
 
 - Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
