@@ -36,6 +36,36 @@ use Illuminate\Support\Str;
  */
 class DemoSeeder extends Seeder
 {
+    /**
+     * Hasło do kont demonstracyjnych.
+     *
+     * DO 20 WRZEŚNIA 2026 STAŁO TU WPISANE W KODZIE. Zmieniła to decyzja
+     * właściciela, po tym jak strażnik `PoswiadczeniaPozaRepozytoriumTest`
+     * (R47) pokazał, że repozytorium nosi hasło konta MODERATORA. Chroniły je
+     * dwie bramki i jedna z nich jest zmierzona testem — ale bramka jest
+     * zabezpieczeniem, a nieobecność sekretu jest brakiem tego, co można
+     * wynieść. To drugie jest tańsze i nie wymaga niczyjej czujności.
+     *
+     * Bez `KUKING_DEMO_HASLO` losujemy hasło na każdy przebieg i wypisujemy
+     * je na koniec. Celowo NIE ma tu wartości domyślnej: wartość domyślna
+     * wróciłaby do repozytorium tym samym wejściem, którym właśnie wyszła,
+     * tylko pod inną nazwą.
+     */
+    private ?string $haslo = null;
+
+    private function hasloDemo(): string
+    {
+        if ($this->haslo !== null) {
+            return $this->haslo;
+        }
+
+        $zOtoczenia = trim((string) env('KUKING_DEMO_HASLO', ''));
+
+        return $this->haslo = $zOtoczenia !== ''
+            ? $zOtoczenia
+            : Str::password(16, symbols: false);
+    }
+
     public function run(): void
     {
         if (app()->environment('production')) {
@@ -484,7 +514,7 @@ class DemoSeeder extends Seeder
                 ->assignEmail($email, potwierdzony: true)
                 // `password` jest poza `$fillable` tak samo jak `email`
                 // — obie wartości wchodzą jawną, nazwaną metodą.
-                ->assignPassword('haslo-testowe-123');
+                ->assignPassword($this->hasloDemo());
 
             $user->forceFill([
                 'status' => User::STATUS_ACTIVE,
@@ -520,7 +550,7 @@ class DemoSeeder extends Seeder
          */
         $this->probowane[] = $email;
 
-        if (Hash::check('haslo-testowe-123', (string) $user->password)) {
+        if (Hash::check($this->hasloDemo(), (string) $user->password)) {
             $this->logowalne[] = $email;
         }
 
@@ -679,12 +709,12 @@ class DemoSeeder extends Seeder
             // Seeder, który nie zostawia ŻADNEGO konta do zalogowania, jest
             // bezużyteczny do pracy nad wyglądem i do automatu dostępności.
             // Cisza w tym miejscu byłaby gorsza niż ostrzeżenie.
-            $this->command?->warn('Dane demo gotowe, ale ŻADNE konto nie przyjmuje hasła „haslo-testowe-123”. Wszystkie adresy demo były już zajęte przez persony treści zalążkowej (D-025).');
+            $this->command?->warn('Dane demo gotowe, ale ŻADNE konto nie przyjmuje hasła demo. Wszystkie adresy demo były już zajęte przez persony treści zalążkowej (D-025).');
 
             return;
         }
 
-        $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: haslo-testowe-123');
+        $this->command?->info('Dane demo gotowe. Hasło do wszystkich kont niżej: '.$this->hasloDemo());
 
         foreach ($logowalne as $email) {
             $rola = $email === $emailModeratora ? ' (moderator)' : '';
