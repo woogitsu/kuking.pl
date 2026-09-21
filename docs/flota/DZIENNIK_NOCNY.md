@@ -1172,3 +1172,142 @@ git krzyczy o uszkodzeniu, wszystko się sypie. A repozytorium było całe.
 Różnicę pokazały dwa tanie polecenia — `git fsck` i `git cat-file -t`.
 Gdybym uwierzył pierwszemu komunikatowi, zacząłbym odtwarzać repozytorium
 z GitHuba po raz drugi tej doby i **naprawdę** stracił 61 gałęzi pracy.
+
+## 01:45Z (21.09) — Dwie gałęzie „rozjechane" to był skutek mojej własnej aktualizacji PR-ów
+
+`flota/gotowanie` odbijała się od bramki. Triaż nie pokazał żadnego testu —
+push padał na `non-fast-forward`. Przyczyna:
+
+```
+flota/gotowanie        lokalnie 63c15757   zdalnie 280b4c46
+  tylko lokalnie:  Napraw miernik minutnika i ogonki w komunikacie konca (#913)
+  tylko zdalnie:   Merge branch 'main' into flota/gotowanie
+                   … czyli #914 i #929
+```
+
+To samo na `codex/audyt-ux50plus` z poprawką przepełnienia stopki (#918).
+
+Zdalne wyprzedzenie zrobiłem **sam**, o 01:05, poleceniem `gh pr update-branch`
+na dziesięciu PR-ach. Nie pomyślałem wtedy, że dwie z tych gałęzi mają jeszcze
+niepchnięte commity po stronie lokalnej — i tym samym ustawiłem je w rozjazd.
+
+Naprawa: `git rebase origin/<gałąź>` w obu stanowiskach. Oba commity były
+**nigdy nie publikowane**, więc przeniesienie ich na nowy wierzchołek niczego
+nie przepisuje cudzego. Bez konfliktów:
+- `b3787218` — minutnik (#913),
+- `5a221f23` — przepełnienie stopki (#918).
+
+Liczniki porażek obu gałęzi wyzerowane: odbicia wynikały z rozjazdu, nie z kodu.
+
+### Trzeci raz tej nocy ta sama pułapka powłoki — tym razem w moim skrypcie
+
+Pierwsze czyszczenie liczników **nie zadziałało w ciszy**:
+
+```
+grep -vxF "$B" "$f" > "$f.n" && mv "$f.n" "$f"
+```
+
+Gdy `grep -v` nie zostawia ani jednego wiersza, zwraca **kod 1**, więc `&&`
+blokuje `mv` i plik zostaje nietknięty. Zobaczyłem to tylko dlatego, że
+skrypt od razu wypisywał licznik po czyszczeniu i pokazał `3` zamiast `0`.
+
+To ta sama rodzina co `grep -c` zwracające 1 przy zerze trafień, opisana
+w komentarzu kolejki9. Zapisuję trzeci przypadek, bo wniosek jest już wyraźny:
+**w tym projekcie każde `grep` w potoku decyzyjnym trzeba domknąć `|| true`
+i sprawdzić wynik osobno** — inaczej skrypt melduje sukces, nie zrobiwszy nic.
+
+## 01:50Z (21.09) — Powódź czerwieni skończona; zostały trzy pojedyncze sprawy
+
+Stan dziesięciu odświeżonych PR-ów po wejściu #929 i #914:
+
+| PR | czerwone joby |
+|---|---|
+| #916, #917, #919, #921, #922, #923, #924 | **żadnych** |
+| #913 | „Port marki — rodziny ekranów, zoom i kreator" |
+| #918 | oba joby portu marki |
+| #920 | „Przyrząd testu obciążeniowego (#605)" |
+
+Siedem PR-ów bez ani jednej czerwieni. #916 i #924 mają już pełny komplet
+zielonych.
+
+### Dwie z trzech pozostałych tłumaczą się tym samym
+
+#913 i #918 padają na porcie marki — czyli **dokładnie na tym, co naprawiają
+commity, których jeszcze nie pchnęliśmy**: `b3787218` (minutnik) i `5a221f23`
+(przepełnienie stopki 320 px). Obie poprawki są zrebasowane i czekają
+w kolejce. To nie są nowe usterki, tylko ta sama, jeszcze nieprzywieziona.
+
+### Trzecia jest prawdziwym znaleziskiem
+
+#920 (`robota/bazy-stanowisk`), krok „Regresje i kontrole ujemne przyrządu":
+
+```
+AssertionError: Porzucone nie weszły do mianownika:
+                100% to tyle samo, co bez nich (100%).
+```
+
+To **licznik bez mianownika** — punkt 3 karty audytu, wprost. Kontrola ujemna
+przyrządu obciążeniowego wykryła, że porzucone żądania nie wchodzą do
+mianownika, więc wynik „100%" znaczy to samo z nimi i bez nich. Miernik, który
+nie umie pokazać porażki, zawsze pokaże sukces.
+
+Nie naprawiam tego w nocy: to przyrząd pomiarowy cudzego stanowiska, a zmiana
+mianownika zmienia znaczenie wszystkich dotychczasowych odczytów. Zapisane jako
+sprawa do obejrzenia rano — z tym, że **strażnik zadziałał poprawnie** i to
+jest dobra wiadomość, nie zła.
+
+## 01:55Z (21.09) — Cztery PR-y scalone; `main` idzie do przodu
+
+| PR | tytuł | commit |
+|---|---|---|
+| #929 | Klient PostgreSQL 18 i sonda gotowości na port CI | `71424852` |
+| #914 | Odwołania i potwierdzenia zgłoszeń przestają obiecywać nieprawdę | `e65f297f` |
+| #924 | Komentarze: usunięcie rozpoznawane po znaczniku | `ee80a8b2` |
+| #916 | Wyszukiwarka: fraza przestaje być wzorcem, a polskie znaki linkiem donikąd | `6052f699` |
+
+Każdy scalony dopiero po **pełnym komplecie zielonych sprawdzeń** i statusie
+`CLEAN MERGEABLE`; żadnego nie przepchnąłem „bo prawie zielony".
+
+Kolejność nie była przypadkowa: #929 jako jedyny zdejmował czerwień z reszty,
+#914 był drugim niezależnym dowodem, że lekarstwo działa, a #924 i #916
+poszły dopiero wtedy, gdy miały komplet własnych zielonych.
+
+Wieczorem otwartych PR-ów było **14 i ani jeden nie był zielony**.
+
+## 02:05Z (21.09) — Osiem PR-ów scalonych; `main` = `96ef4d0f`
+
+| PR | tytuł | commit |
+|---|---|---|
+| #929 | Klient PostgreSQL 18 i sonda gotowości na port CI | `71424852` |
+| #914 | Odwołania i potwierdzenia zgłoszeń przestają obiecywać nieprawdę | `e65f297f` |
+| #924 | Komentarze: usunięcie rozpoznawane po znaczniku | `ee80a8b2` |
+| #916 | Wyszukiwarka: fraza przestaje być wzorcem | `6052f699` |
+| #921 | Skreśl reguły CSS bez nosiciela i te przykryte | `a25c52b3` |
+| #922 | Relacje: stary formularz blokady nie trafi w próżnię | `b8c59f1d` |
+| #917 | Strażnik R47: poświadczenia i zaszyte hasła | — |
+| #919 | Strażnik: feed obserwowanych nie zacznie układać | `96ef4d0f` |
+
+Wieczorem: **14 otwartych PR-ów, zero zielonych.** Teraz: osiem scalonych.
+
+Każde scalenie miało twardy warunek w kodzie, nie w mojej ocenie:
+`mergeStateStatus = CLEAN` **oraz** zero sprawdzeń w stanie `fail` lub
+`pending`. Gdy GitHub przeliczał scalalność i zwracał `UNKNOWN`, pętla
+**pomijała** PR zamiast scalać w ciemno — zadziałało to trzy razy.
+
+### Automatycznego scalania GitHuba nie włączyłem
+
+`gh pr merge --auto` odbiło się: `Auto merge is not allowed for this
+repository`. Włączenie tego wymaga zmiany ustawień repozytorium. **Nie robię
+tego**, bo właściciel rozstrzygnął wcześniej inaczej: „pasuje mi automatyczne
+scalanie realizuje pętla". Scalanie robi więc pętla, z jawnym warunkiem,
+a ustawienia repozytorium zostają jego decyzją.
+
+### Co zostało z wieczornej czternastki
+
+- **#913** — `DIRTY` (konflikt po scaleniu #924). Poprawka minutnika
+  `b3787218` jest już na zdalnym; konflikt rozstrzyga człowiek.
+- **#923** — `DIRTY`, ten sam powód.
+- **#918** — czeka na przywiezienie `5a221f23` (przepełnienie stopki).
+- **#920** — prawdziwe znalezisko: porzucone nie wchodzą do mianownika.
+- **#725** — inna przyczyna (panel marki), nieruszane.
+- **#786, #915** — `CONFLICTING` od wieczora.
