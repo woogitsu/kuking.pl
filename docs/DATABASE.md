@@ -2577,6 +2577,17 @@ dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
 
+**`admin.media_viewed`** — wgląd moderatora w zdjęcie, którego nie zobaczyłby
+bez uprawnienia moderatorskiego (`App\Domain\Media\DostepDoZdjecia`, decyzja
+właściciela z 20.09.2026, audyt ADR / audyt bezpieczeństwa 2026-09-15).
+Uprawnienie moderatora zostaje (widzi każde zdjęcie w serwisie, np. do celów
+moderacji), ale każde otwarcie zdjęcia, do którego dostęp bez tego uprawnienia
+zostałby odmówiony (zdjęcie prywatnego przepisu, prywatnego wpisu, osierocone cudze
+zdjęcie), trafia do audytu: `actor_id` to moderator, `subject_type` = `Media`,
+`subject_id` — oglądane zdjęcie. **Zdjęcia publiczne wpisu nie zostawiają** —
+moderator oglądający treść jawną nie korzysta z nadzwyczajnego uprawnienia.
+Bez metadanych i bez treści zdjęcia. Retencja zwykła (12 miesięcy).
+
 ### dziennik_zgod
 Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
 **append-only** (migracja `2026_09_10_400000_create_dziennik_zgod_table`,

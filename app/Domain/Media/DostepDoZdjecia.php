@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Media;
 
+use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
@@ -150,7 +151,7 @@ final class DostepDoZdjecia
             return false;
         }
 
-        if ($this->wlascicielLubModerator($widz, $zdjecie)) {
+        if ($this->wlasciciel($widz, $zdjecie)) {
             return true;
         }
 
@@ -160,7 +161,7 @@ final class DostepDoZdjecia
             }
         }
 
-        return false;
+        return $this->wgladModeratora($widz, $zdjecie);
     }
 
     /**
@@ -195,9 +196,9 @@ final class DostepDoZdjecia
             return new DecyzjaOZdjeciu(dlaWidza: $wynik, dlaAnonima: $wynik);
         }
 
-        // Anonim nie może być ani właścicielem, ani moderatorem, więc ta
-        // skrótowa ścieżka dotyczy wyłącznie odpowiedzi dla widza.
-        $dlaWidza = $this->wlascicielLubModerator($widz, $zdjecie);
+        // Anonim nie może być właścicielem, więc ta skrótowa ścieżka dotyczy
+        // wyłącznie odpowiedzi dla widza.
+        $dlaWidza = $this->wlasciciel($widz, $zdjecie);
         $dlaAnonima = false;
 
         foreach ($this->rodzice($zdjecie) as $rodzic) {
@@ -212,6 +213,10 @@ final class DostepDoZdjecia
             if ($dlaWidza && $dlaAnonima) {
                 break;
             }
+        }
+
+        if (! $dlaWidza && $this->wgladModeratora($widz, $zdjecie)) {
+            $dlaWidza = true;
         }
 
         return new DecyzjaOZdjeciu(dlaWidza: $dlaWidza, dlaAnonima: $dlaAnonima);
@@ -245,15 +250,42 @@ final class DostepDoZdjecia
     }
 
     /**
-     * Właściciel i moderator PRZED odpytaniem bazy o rodziców: zdjęcie
+     * Właściciel PRZED odpytaniem bazy o rodziców: zdjęcie
      * osierocone (wgrane i nieprzypięte jeszcze do niczego — normalny stan
      * w trakcie wypełniania formularza) musi być widoczne dla tego, kto je
      * właśnie wgrał, inaczej podgląd w kreatorze byłby pustą ramką.
      */
-    private function wlascicielLubModerator(?User $widz, Media $zdjecie): bool
+    private function wlasciciel(?User $widz, Media $zdjecie): bool
     {
-        return $widz !== null
-            && ($widz->getKey() === $zdjecie->owner_id || $widz->isModerator());
+        return $widz !== null && $widz->getKey() === $zdjecie->owner_id;
+    }
+
+    /**
+     * Uprawnienie moderatora ZOSTAJE (decyzja właściciela z 20.09.2026).
+     *
+     * Moderator może zobaczyć każde zdjęcie w serwisie (np. na potrzeby moderacji),
+     * ale każde otwarcie zdjęcia, którego nie zobaczyłby bez tego uprawnienia,
+     * trafia do dziennika audytu (`admin.media_viewed`).
+     */
+    private function wgladModeratora(?User $widz, Media $zdjecie): bool
+    {
+        if ($widz === null || ! $widz->isModerator()) {
+            return false;
+        }
+
+        $this->zalogujWgladModeratora($widz, $zdjecie);
+
+        return true;
+    }
+
+    private function zalogujWgladModeratora(User $widz, Media $zdjecie): void
+    {
+        AuditLogEntry::record(
+            action: 'admin.media_viewed',
+            actor: $widz,
+            subject: $zdjecie,
+            ip: request()?->ip(),
+        );
     }
 
     /**
