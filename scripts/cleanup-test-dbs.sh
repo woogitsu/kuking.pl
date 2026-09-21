@@ -93,20 +93,6 @@ done <<< "$wszystkie_bazy"
 # ma jej co porównywać z listą worktree'ów, więc nigdy jej nie ruszamy.
 osierocone="$(tr ' ' '\n' <<< "$osierocone" | grep -vx 'kuking_test_a11y' | tr '\n' ' ')"
 
-# Bazy "kuking_test_kopia_<katalog>_<skrót>" należą do drzew SKOPIOWANYCH poza
-# Gitem (runtime'y testowe: rsync bez `.git` — patrz `kuking_nazwa_testowej_bazy()`
-# w tests/bootstrap.php). Git o takich drzewach nie wie, więc każda z tych baz
-# wygląda stąd na osieroconą — także ta, na której ktoś właśnie odpala testy.
-# Kasowanie ich byłoby dokładnie tą awarią, którą ten skrypt ma nie powodować,
-# więc ich NIE RUSZAMY: sprząta je ten, kto runtime postawił, bo tylko on wie,
-# czy katalog jeszcze istnieje.
-kopie="$(tr ' ' '\n' <<< "$osierocone" | grep -x 'kuking_test_kopia_.*' || true)"
-if [ -n "${kopie// /}" ]; then
-    printf "\n${ZOLTY}Pomijam bazy kopii drzewa (runtime'y bez .git) — Git ich nie zna, więc nie da się stąd sprawdzić, czy żyją:${RESET}\n"
-    while IFS= read -r _b; do [ -n "$_b" ] && printf "  pomijam  %s\n" "$_b"; done <<< "$kopie"
-fi
-osierocone="$(tr ' ' '\n' <<< "$osierocone" | grep -vx 'kuking_test_kopia_.*' | tr '\n' ' ')"
-
 if [ -z "${osierocone// /}" ]; then
     printf "\n${ZIELONY}Wszystkie bazy kuking_test_* należą do żywych worktree — nic do usunięcia.${RESET}\n"
     exit 0
