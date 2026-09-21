@@ -200,6 +200,10 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             && preg_match('/\A[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}\z/D', $requestId) === 1
             ? 'żądanie: '.$requestId
             : null;
+        $jobId = $record->context['job_id'] ?? null;
+        $attemptId = $record->context['attempt_id'] ?? null;
+        $jobCorrelation = QueueCorrelation::validId($jobId) ? 'zadanie: '.$jobId : null;
+        $attemptCorrelation = QueueCorrelation::validId($attemptId) ? 'próba: '.$attemptId : null;
         $wyjatek = $record->context['exception'] ?? null;
 
         if (! $wyjatek instanceof Throwable) {
@@ -211,6 +215,8 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             return $this->przytnij(implode("\n", array_filter([
                 $naglowek.' '.$this->jednalinia($record->message),
                 $correlation,
+                $jobCorrelation,
+                $attemptCorrelation,
             ])));
         }
 
@@ -221,6 +227,8 @@ final class WebhookBleduHandler extends AbstractProcessingHandler
             $this->trasa(),
             'odcisk: '.$this->odcisk($wyjatek),
             $correlation,
+            $jobCorrelation,
+            $attemptCorrelation,
         ], static fn (?string $linia): bool => $linia !== null && $linia !== '');
 
         return $this->przytnij(implode("\n", [

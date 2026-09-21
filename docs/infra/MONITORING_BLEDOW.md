@@ -1,6 +1,6 @@
 # Monitoring błędów — webhook na Slack/Discord (i docelowo Sentry)
 
-## Kod jednego żądania — zakres HTTP z issue #1040
+## Kod żądania i zadania — issue #1040
 
 `CorrelateRequest` nadaje losowy UUID v4, niezależny od nagłówka klienta,
 konta, sesji, IP i treści formularza. W trakcie żądania `request_id` trafia
@@ -18,7 +18,7 @@ manifestu assetów; kod jest zwykłym tekstem, bez przycisku wymagającego JS.
 Webhook dopuszcza tylko pełny kształt UUID v4 w tym nowym polu;
 pozostałych danych kontekstu nadal nie serializuje.
 
-### Jawna granica i niedokończona część issue
+### Jawna granica HTTP
 
 Middleware jest trzeci w stosie globalnym, po `NormalizeForwardedFor`
 i `ApplySecurityHeaders`. Zachowujemy ich istniejącą kolejność.
@@ -35,11 +35,42 @@ renderowaniu strony. **Po wyjściu z tego middleware** (np. wyjątek podczas
 odwijania wcześniejszej warstwy, callback zakończenia odpowiedzi albo
 streaming) nie obiecujemy pełnego łańcucha log–alarm–nagłówek–widok.
 
-Nie wdrożono osobnego identyfikatora próby zadania ani trwałego przenoszenia
-kodu HTTP w payloadzie kolejki. Job wykonany synchronicznie wewnątrz żądania
-korzysta z jego kontekstu; późniejszy worker nie otrzymuje go tą zmianą.
-Test sprzątania dowodzi braku pozostałego kontekstu HTTP, **nie** pełnego
-cyklu długowiecznego workera. Ta część kryteriów #1040 zostaje otwarta.
+### Kolejka: żądanie, zadanie i osobna próba
+
+`CorrelationServiceProvider` rejestruje hook tworzenia payloadu oraz
+słuchaczy `JobProcessing` i `JobAttempted`. Nie trzeba dopisywać middleware
+do każdego joba osobno. Koperta `kuking:correlation` przenosi wyłącznie
+poprawny UUID `request_id` z aktywnego kontekstu — nigdy całą sesję,
+kontekst logu ani atrybuty użytkownika. Zwykły UUID payloadu, już losowany
+przez Laravel, jest `job_id`: nie dublujemy go drugą losową wartością.
+Przy retry pozostaje stały. `attempt_id` jest nowym losowym UUID każdej
+próby, aby dwa takie same błędy tego samego zadania dało się rozróżnić.
+
+W logach zadania wszystkie trzy pola są w kontekście, a webhook nazywa
+je `żądanie`, `zadanie` i `próba`. Zadanie wysłane z CLI nie ma
+`request_id`; nie przejmuje go od poprzedniego zadania workera. Zadanie
+wysłane podczas innego zadania dziedziczy bezpieczny kod źródłowego HTTP,
+ale dostaje własne `job_id`. Payloady spoza standardowego mechanizmu
+Laravela, bez poprawnego UUID zadania, dostają losowy kod bieżącego
+wykonania; nie gwarantujemy w nich stałego `job_id` pomiędzy retry.
+
+`QueueCorrelation` przywraca poprzedni kontekst w `JobAttempted`, także
+po błędzie i przy zagnieżdżonym `sync`. Jest tu ważna kolejność Laravel 13:
+worker najpierw emituje `JobAttempted`, **potem** raportuje wyjątek.
+Dlatego same bezpieczne ID zostają przy obiekcie wyjątku w `WeakMap`.
+Standardowy handler dodaje je do logu i jawnego kanału alarmu już po
+sprzątnięciu kontekstu. Mapa nie utrzymuje wyjątku przy życiu i nie niesie
+referencji do zadania, sesji ani requestu w swoich wartościach.
+
+Wbudowany `Context` Laravela hydratuje całą własną kopertę do `extra`
+rekordu przy `JobProcessing`. Nie zapewnia naszej wąskiej listy pól,
+przywrócenia zagnieżdżonego zakresu przy `JobAttempted` ani zachowania
+korelacji wyjątku raportowanego po tym zdarzeniu. Dlatego nie włączamy
+automatycznego kopiowania całego kontekstu do naszej koperty.
+
+Granica kolejki: obsługujemy zwykły cykl `database` workera i `sync`.
+Nie obiecujemy alarmu po zabiciu procesu, OOM ani błędzie, który uniemożliwił
+rozruch frameworka. Nie dodajemy nowych kolumn, retencji, APM ani usług.
 
 ### Weryfikacja i wycofanie
 
@@ -55,6 +86,23 @@ z treści alarmu oblewa `BRAK_KORELACJI_ALARMU`; usunięcie
 `Log::flushSharedContext()` oblewa `WYCIEK_KONTEKSTU_HTTP`. Po przywróceniu
 oba testy znów przechodzą. Wycofanie tej zmiany kodu usuwa nowe pole,
 nagłówek i akapit; nie ma migracji ani zmiany retencji danych.
+
+`KorelacjaKolejkiTest` używa PostgreSQL, prawdziwie serializowanego joba
+i **tego samego `Illuminate\Queue\Worker` przez kilka `runNextJob()`**:
+błąd, inne zadanie, retry, końcowa porażka oraz zagnieżdżony `sync`.
+Nie podstawia zdarzeń kolejki i nie używa `Queue::fake()`. Czyta plik
+logu i przechwytuje rzeczywisty payload alarmu przez `Http::fake()`.
+Sprawdza alarm po `JobAttempted`, brak ID w logach między zadaniami,
+nowy `attempt_id` przy retry oraz zwolnienie wyjątku po usunięciu referencji
+testowego kolektora Laravel. To pomiar workera w procesie PHP testu,
+nie uruchomienie produkcyjnego workera ani pomiar wielu procesów.
+Kontrole ujemne osobno usuwają propagację, mapę wyjątku i sprzątanie;
+każda musi dać PASS → FAIL właściwej asercji → PASS po przywróceniu.
+
+Rollback części kolejkowej: wycofać provider, kopertę i formatowanie tych
+pól razem. Istniejące payloady pozostają wykonywalne: stary kod ignoruje
+dodatkową kopertę; nowy obsługuje payload bez niej. Nie usuwać rekordów
+`jobs` ani `failed_jobs` w ramach wycofania.
 
 ---
 
