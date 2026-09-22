@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\StepTimer;
 use App\Exceptions\BladDlaCzlowieka;
@@ -376,6 +377,10 @@ new class extends Component
             return $this->saveState === 'saved';
         }
 
+        if (! $this->validateExistingStepIds()) {
+            return false;
+        }
+
         $this->storePendingPhotos();
 
         if (mb_strlen(trim($this->title)) < 3) {
@@ -423,6 +428,12 @@ new class extends Component
     public function publish(): void
     {
         $this->resetErrorBag();
+
+        if (! $this->validateExistingStepIds()) {
+            $this->step = 3;
+
+            return;
+        }
 
         if (! $this->storePendingPhotos()) {
             /*
@@ -497,6 +508,32 @@ new class extends Component
     // -----------------------------------------------------------------
     // Zapis do bazy
     // -----------------------------------------------------------------
+
+    private function validateExistingStepIds(): bool
+    {
+        try {
+            $recipe = $this->existingRecipe();
+        } catch (BladDlaCzlowieka $e) {
+            $this->addError('publikacja', $e->getMessage());
+            $this->saveState = 'error';
+            $this->saveMessage = $e->getMessage();
+
+            return false;
+        }
+
+        $errors = ExistingStepDuplicates::errors($this->steps, $recipe?->steps()->pluck('id') ?? []);
+        foreach ($errors as $field => $message) {
+            $this->addError($field, $message);
+        }
+        if ($errors !== []) {
+            $this->saveState = 'error';
+            $this->saveMessage = 'Nie zapisaliśmy tych zmian. Popraw zaznaczone pola. Cały tekst jest nadal w formularzu.';
+
+            return false;
+        }
+
+        return true;
+    }
 
     private function persist(bool $publish): Recipe
     {

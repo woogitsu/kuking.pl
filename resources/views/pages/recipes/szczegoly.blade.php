@@ -400,9 +400,10 @@
                         <label for="f-steps-{{ $i }}-instruction">Co się robi w tym kroku</label>
                         <textarea class="field-input" id="f-steps-{{ $i }}-instruction"
                                   name="steps[{{ $i }}][instruction]" rows="3"
+                                  @error("steps.$i.instruction") aria-invalid="true" aria-describedby="f-steps-{{ $i }}-instruction-error" @enderror
                                   @if($i === 0) placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny." @endif
                         >{{ $oldSteps[$i]['instruction'] ?? '' }}</textarea>
-                        @error("steps.$i.instruction")<span class="field-error">{{ $message }}</span>@enderror
+                        @error("steps.$i.instruction")<span class="field-error" id="f-steps-{{ $i }}-instruction-error">{{ $message }}</span>@enderror
                     </div>
 
                     {{-- Ręczna rozpiska, a nie `x-field`, i to jest świadome.

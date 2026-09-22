@@ -8,6 +8,7 @@ use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Recipes\CoMoznaDopisac;
+use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\StepTimer;
 use App\Domain\Recipes\TekstNaWiersze;
 use App\Exceptions\BladDlaCzlowieka;
@@ -271,6 +272,10 @@ class RecipeController extends Controller
         $this->authorize('update', $recipe);
 
         $data = $this->validated($request);
+        $duplicateErrors = ExistingStepDuplicates::errors($data['steps'] ?? [], $recipe->steps()->pluck('id'));
+        if ($duplicateErrors !== []) {
+            throw ValidationException::withMessages($duplicateErrors);
+        }
         $user = $request->user();
 
         try {

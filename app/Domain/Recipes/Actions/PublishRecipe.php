@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Recipes\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Recipes\ExistingStepDuplicates;
 use App\Domain\Recipes\GrupySkladnikow;
 use App\Domain\Recipes\RecipeStatusTransitions;
 use App\Domain\Recipes\StepTimer;
@@ -193,6 +194,11 @@ final class PublishRecipe
                 : $existing->steps()->get()->keyBy(
                     static fn (RecipeStep $step): string => (string) $step->getKey(),
                 );
+
+            $duplicateErrors = ExistingStepDuplicates::errors($cleanSteps, $istniejaceKroki->keys());
+            if ($duplicateErrors !== []) {
+                throw new BladDlaCzlowieka(reset($duplicateErrors));
+            }
 
             /*
              * WSZYSTKIE ZDJĘCIA TEGO ZAPISU BLOKOWANE JEDNYM ZAPYTANIEM
