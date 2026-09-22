@@ -2253,6 +2253,14 @@
      schodzi do nowej linii, zamiast wypychać cokolwiek poza ekran. */
   .post-card-report { margin-left: auto; }
 
+  /* Cytat treści na formularzu zgłoszenia (issue #794). */
+  .cel-zgloszenia-cytat {
+    font-size: var(--text-body);
+    font-style: italic;
+    color: var(--color-ink-muted);
+    overflow-wrap: anywhere;
+  }
+
   /* --- Zachęta do dodania wpisu („composer" z mockupów 01 i 05) ---
 
      To jest ODNOŚNIK do strony dodawania, nie pole tekstowe udające formularz.
