@@ -118,6 +118,11 @@ php artisan serve
 Konta demo: `basia@example.test`, `marek@example.test`, `ania@example.test`,
 moderator `moderacja@example.test`. Hasło ustawia `KUKING_DEMO_HASLO`;
 bez tej zmiennej seeder losuje je na każdy przebieg i wypisuje na koniec.
+W CI ta zmienna przychodzi z **sekretu repozytorium** o tej samej nazwie —
+wartości nie ma i nie będzie w repozytorium. Joby, które zasiewają bazę
+i logują się w przeglądarce, sprawdzają obecność sekretu zaraz po `checkout`
+(`.github/actions/haslo-demo`), żeby jego brak nie wychodził kilkanaście minut
+później jako timeout logowania.
 
 ### Testy i kontrola przed wysłaniem
 
