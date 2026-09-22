@@ -1,0 +1,51 @@
+{
+  "retrieved_utc": "2026-09-20T18:34:00.670Z",
+  "source": "Railway MCP read-only",
+  "result": {
+    "service": {
+      "id": "200d68a6-24b0-46f3-bd7a-924cd00e532e",
+      "name": "kuking.pl"
+    },
+    "environment": {
+      "id": "ea146c13-dc55-4a4f-a386-0835f650f9ce",
+      "name": "production"
+    },
+    "config": {
+      "source": {
+        "repo": "woogitsu/kuking.pl",
+        "branch": "main",
+        "checkSuites": true
+      },
+      "networking": {
+        "customDomains": {
+          "kuking.pl": {
+            "port": 8080
+          }
+        },
+        "privateNetworkEndpoint": "kukingpl"
+      },
+      "build": {
+        "builder": "DOCKERFILE",
+        "buildEnvironment": "V3",
+        "dockerfilePath": "Dockerfile"
+      },
+      "deploy": {
+        "startCommand": "/usr/local/bin/kuking-entrypoint all",
+        "preDeployCommand": [
+          "php artisan migrate --force --no-interaction"
+        ],
+        "healthcheckPath": "/health",
+        "healthcheckTimeout": 180,
+        "useLegacyStacker": false,
+        "ipv6EgressEnabled": false,
+        "runtime": "V2",
+        "multiRegionConfig": {
+          "europe-west4-drams3a": {
+            "numReplicas": 1
+          }
+        }
+      }
+    },
+    "staged": null
+  }
+}

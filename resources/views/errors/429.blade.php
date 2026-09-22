@@ -55,7 +55,12 @@
 
     @if($formularz->maCoOdzyskac())
         <p class="mb-5">
-            <strong>Twój tekst jest na miejscu</strong> — nic nie przepadło.
+            @if($formularz->obciete)
+                <strong>Część Twojego tekstu jest niżej</strong>, ale formularz był wyjątkowo duży
+                i nie wszystko udało się przenieść. Sprawdź treść i uzupełnij, czego brakuje.
+            @else
+                <strong>Twój tekst jest na miejscu</strong> — nic z niego nie przepadło.
+            @endif
             Poczekaj
             @if($minuty)
                 te {{ $minuty }} min,
@@ -66,7 +71,18 @@
             klikanie „odśwież” niczego nie przyspieszy.
         </p>
 
-        <form class="card" method="POST" action="{{ $formularz->akcja }}"
+        {{-- WARSTWA ZALEŻY OD TEGO, CZY COŚ TU WIDAĆ. Krótkie wartości
+             wracają jako pola ukryte, więc przy komentarzu na kilkanaście
+             znaków i bez zdjęcia w tym bloku nie ma nic do wypełnienia —
+             tylko przycisk „Wyślij jeszcze raz". Mocna obwódka panelu
+             obiecywałaby wtedy formularz, którego nie widać, a ekran mówi
+             w tym samym czasie „Twój tekst jest na miejscu". Sekcja, a nie
+             ramka pomocnicza: blok nadal niesie akcję, tylko nie wypełnianie. --}}
+        <form @class([
+                  'panel-formularza' => $formularz->maWidocznePola(),
+                  'sekcja-strony' => ! $formularz->maWidocznePola(),
+              ])
+              method="POST" action="{{ $formularz->akcja }}"
               @if($formularz->maPliki()) enctype="multipart/form-data" @endif>
             {{-- Ochrona CSRF zostaje w mocy — ponowne wysłanie idzie normalną
                  drogą, przez ValidateCsrfToken, i normalnie przez limiter. --}}
@@ -113,7 +129,7 @@
                         <span class="pole-zdjecia-tytul" id="odzyskany-plik-{{ $loop->index }}-tytul">Wybierz zdjęcie jeszcze raz</span>
                         <span class="field-help" id="odzyskany-plik-{{ $loop->index }}-help">
                             Zdjęcia nie da się odzyskać — przeglądarka na to nie pozwala.
-                            Tekst jest bezpieczny, brakuje tylko pliku.
+                            Trzeba je wybrać jeszcze raz.
                         </span>
                     </label>
                 </div>
@@ -137,8 +153,15 @@
              Ta gałąź obsługuje przede wszystkim limit logowania, rejestracji
              i drugiego składnika — tam nie ma czego zachowywać i mówimy tylko
              to, co jest prawdą: przerwa mija sama. --}}
+        @if($formularz->obciete)
+            <p class="mb-5">
+                <strong>Nie udało się odzyskać tekstu</strong>, bo formularz był wyjątkowo duży.
+                Wróć do poprzedniej strony. Jeśli przeglądarka zachowała wpisaną treść,
+                skopiuj ją przed ponowną próbą wysłania.
+            </p>
+        @endif
         <p class="mb-5">
-            Nic się nie zepsuło — ta przerwa mija sama, a klikanie „odśwież”
+            Ta przerwa mija sama, a klikanie „odśwież”
             jej nie skróci.
             @if($formularz->maPliki())
                 Zdjęcie trzeba będzie wybrać jeszcze raz: przeglądarka nie pozwala

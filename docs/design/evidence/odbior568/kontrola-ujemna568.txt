@@ -1,0 +1,60 @@
+# Fizyczna kontrola ujemna nowego testu granic — #568, 19 wrzesnia 2026
+# Kopia wykonawcza /home/mateusz/kuking-568-odbior-claude na HEAD 8a2ecb2a.
+# Mutowany jest KOD APLIKACJI, nie test. Kazda mutacja potwierdzona grepem,
+# przywrocenie potwierdzone porownaniem MD5, na koniec kontrola dodatnia.
+
+=== 0. STAN WYJSCIOWY (musi byc identyczny z HEAD) ===
+git: oba pliki zgodne z HEAD 8a2ecb2a
+4a0634d3409166be8ba47ea243befa84  /home/mateusz/kuking-568-odbior-claude/app/Http/Controllers/SearchController.php
+d15ed216a63fa637ad383e11e6fe5cd4  /home/mateusz/kuking-568-odbior-claude/resources/views/pages/search.blade.php
+=== 1. MUTACJA A: granica 200 liczona z >= zamiast > ===
+--- grep kontrolny (mutacja MUSI byc widoczna) ---
+152:            'jestWiecej' => $przepisy->count() >= $ile,
+0646264d1d0526893c1ae65a2a0e5cef  /home/mateusz/kuking-568-odbior-claude/app/Http/Controllers/SearchController.php
+--- test po mutacji A (oczekiwana PORAZKA) ---
+  at tests/Feature/GraniceOkienWyszukiwaniaTest.php:38
+     34▕ 
+     35▕         $response = $this->get(route('search', ['q' => 'Kalarepa', 'sekcja' => 'przepisy', 'ile' => 200]))->assertOk();
+     36▕ 
+     37▕         $this->assertCount(200, $response->viewData('recipes'));
+  ➜  38▕         $this->assertFalse($response->viewData('jestWiecej'));
+     39▕         $this->assertSame([], $this->links((string) $response->getContent(), 'Pokaż więcej przepisów'));
+     40▕         $response->assertSee('Znaleziono 200 przepisów.', false);
+     41▕         $this->assertSame([], $this->links((string) $response->getContent(), 'Wróć do początku przepisów'));
+     42▕     }
+  1   tests/Feature/GraniceOkienWyszukiwaniaTest.php:38
+  Tests:    1 failed, 5 passed (31 assertions)
+  Duration: 1.47s
+kod wyjscia PHPUnit (mutacja A): 1
+MD5 po przywroceniu A: 4a0634d3409166be8ba47ea243befa84 (przed: 4a0634d3409166be8ba47ea243befa84)
+=== 2. MUTACJA B: zakres w widoku liczony bez przesuniecia ===
+--- grep kontrolny ---
+168:                    Pokazujemy przepis {{ 1 }}.
+4ee5f46e21e295d71fe994b8b9fb667c  /home/mateusz/kuking-568-odbior-claude/resources/views/pages/search.blade.php
+--- test po mutacji B (oczekiwana PORAZKA) ---
+  To contain: Pokazujemy przepis 201.
+  at tests/Feature/GraniceOkienWyszukiwaniaTest.php:61
+     57▕         $this->assertCount(1, $links);
+     58▕ 
+     59▕         $next = $this->get($links[0])->assertOk();
+     60▕         $this->assertCount(1, $next->viewData('recipes'));
+  ➜  61▕         $next->assertSee('Pokazujemy przepis 201.', false);
+     62▕         $this->assertSame([], $this->links((string) $next->getContent(), 'Pokaż więcej przepisów'));
+     63▕         $this->assertCount(1, $this->links((string) $next->getContent(), 'Wróć do początku przepisów'));
+     64▕     }
+     65▕
+  Tests:    1 failed, 5 passed (32 assertions)
+  Duration: 1.45s
+kod wyjscia PHPUnit (mutacja B): 1
+MD5 po przywroceniu B: d15ed216a63fa637ad383e11e6fe5cd4 (przed: d15ed216a63fa637ad383e11e6fe5cd4)
+=== 3. KONTROLA DODATNIA PO PRZYWROCENIU ===
+4a0634d3409166be8ba47ea243befa84  /home/mateusz/kuking-568-odbior-claude/app/Http/Controllers/SearchController.php
+d15ed216a63fa637ad383e11e6fe5cd4  /home/mateusz/kuking-568-odbior-claude/resources/views/pages/search.blade.php
+  ✓ powrot osob zachowuje dalsze okno przepisow                          0.20s  
+  ✓ dalsze osoby pomijaja blokady w obie strony                          0.21s  
+  ✓ blokada w obie strony jest stosowana przed przesunieciem             0.15s  
+  ✓ nieprawidlowe przesuniecia nie powoduja bledu ani utraty pierwszych… 0.11s  
+  Tests:    16 passed (124 assertions)
+  Duration: 5.16s
+kod wyjscia PHPUnit (po przywroceniu): 0
+[trap] przywrocono pliki

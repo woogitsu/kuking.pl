@@ -1,0 +1,68 @@
+[
+  {
+    "theme": "light",
+    "page": "recipe",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140",
+    "ctaClicked": false
+  },
+  {
+    "theme": "light",
+    "page": "collection",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140",
+    "ctaClicked": true
+  },
+  {
+    "theme": "light",
+    "page": "index",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140",
+    "ctaClicked": true
+  },
+  {
+    "theme": "dark",
+    "page": "recipe",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140",
+    "ctaClicked": false
+  },
+  {
+    "theme": "dark",
+    "page": "collection",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140",
+    "ctaClicked": true
+  },
+  {
+    "theme": "dark",
+    "page": "index",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140",
+    "ctaClicked": true
+  }
+]

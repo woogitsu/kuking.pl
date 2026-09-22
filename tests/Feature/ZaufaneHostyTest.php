@@ -9,6 +9,7 @@ use App\Models\User;
 use App\Notifications\LinkDoLogowania;
 use App\Notifications\PotwierdzenieAdresu;
 use App\Notifications\PotwierdzenieNowegoAdresu;
+use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -152,6 +153,12 @@ class ZaufaneHostyTest extends TestCase
     {
         return [
             'reset hasła' => ['haslo', '/nowe-haslo/'],
+            // Ta sama trasa, inna treść: konto z niepotwierdzonym adresem
+            // dostaje ją zamiast linku do logowania (issue #317). Osobny
+            // wiersz, bo to osobna klasa powiadomienia — a gdyby ktoś zbudował
+            // w niej adres `route()`-em zamiast przez `AdresKanoniczny`,
+            // wiersz „reset hasła" niczego by nie zauważył.
+            'hasło zamiast linku' => ['haslo_zamiast_linku', '/nowe-haslo/'],
             'potwierdzenie adresu' => ['potwierdzenie', '/potwierdz-email/'],
             'logowanie linkiem' => ['logowanie', '/logowanie/link/'],
             'zmiana adresu e-mail' => ['zmiana', '/ustawienia/e-mail/potwierdz/'],
@@ -305,6 +312,9 @@ class ZaufaneHostyTest extends TestCase
         return match ($ktory) {
             'haslo' => $this->linkZWiadomosci(
                 (new UstawienieNowegoHasla('token-testowy'))->toMail($odbiorca),
+            ),
+            'haslo_zamiast_linku' => $this->linkZWiadomosci(
+                (new UstawienieHaslaZamiastLinku('token-testowy'))->toMail($odbiorca),
             ),
             'potwierdzenie' => $this->linkZWiadomosci(
                 (new PotwierdzenieAdresu)->toMail($odbiorca),

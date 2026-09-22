@@ -54,13 +54,20 @@ class EkranZaproszeniaTest extends TestCase
         // Dwa wejścia pod rząd — tak jak zrobi to skaner poczty, a potem
         // człowiek. Oba mają wyglądać tak samo i oba mają zostawić wiersz.
         foreach ([1, 2] as $ktore) {
-            $this->get(route('zaproszenie.pokaz', ['token' => $token]))
-                ->assertOk()
-                // ADRES W CAŁOŚCI, nie w skrócie: patrzy na to właściciel
-                // skrzynki, na swój własny adres, i tylko pełny zapis pozwala
-                // zobaczyć w nim cudzą literówkę.
-                ->assertSee('basia@example.com')
-                ->assertSee('Załóż konto');
+            $odpowiedz = $this->get(route('zaproszenie.pokaz', ['token' => $token]))
+                ->assertOk();
+
+            // ADRES W CAŁOŚCI, nie w skrócie: patrzy na to właściciel
+            // skrzynki, na swój własny adres, i tylko pełny zapis pozwala
+            // zobaczyć w nim cudzą literówkę.
+            $odpowiedz->assertSee('basia@example.com');
+
+            // „Załóż konto" MIERZONE W TREŚCI — z tego samego powodu, dla
+            // którego niżej stoi `tresc()`: układ ma własny przycisk o tej
+            // samej nazwie w belce, a strona ma ten napis również w `<title>`.
+            // Zmierzone: po skasowaniu nagłówka i przycisku tego ekranu
+            // asercja na całej odpowiedzi dalej przechodziła.
+            $this->assertStringContainsString('Załóż konto', $this->tresc($odpowiedz));
 
             $this->assertDatabaseCount('registration_invites', 1);
         }

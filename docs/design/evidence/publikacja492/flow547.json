@@ -1,0 +1,83 @@
+[
+  {
+    "stage": "zapis",
+    "theme": "light",
+    "zoom": 1,
+    "width": 320,
+    "scroll": 320,
+    "text": "Wykonanie zapisane.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-6f4d-7180-8816-5c3d534d1ecb",
+    "axe": []
+  },
+  {
+    "stage": "powtorzenie",
+    "theme": "light",
+    "zoom": 1,
+    "width": 320,
+    "scroll": 320,
+    "text": "To wykonanie już zapisaliśmy. Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-6f4d-7180-8816-5c3d534d1ecb",
+    "axe": []
+  },
+  {
+    "stage": "zapis",
+    "theme": "dark",
+    "zoom": 1,
+    "width": 320,
+    "scroll": 320,
+    "text": "Wykonanie zapisane.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-75c5-737d-8efd-7b6990f48d56",
+    "axe": []
+  },
+  {
+    "stage": "powtorzenie",
+    "theme": "dark",
+    "zoom": 1,
+    "width": 320,
+    "scroll": 320,
+    "text": "To wykonanie już zapisaliśmy. Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-75c5-737d-8efd-7b6990f48d56",
+    "axe": []
+  },
+  {
+    "stage": "zapis",
+    "theme": "light",
+    "zoom": 2,
+    "width": 320,
+    "scroll": 320,
+    "text": "Wykonanie zapisane.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-7be2-7365-929d-e99847f4cb21",
+    "axe": []
+  },
+  {
+    "stage": "powtorzenie",
+    "theme": "light",
+    "zoom": 2,
+    "width": 320,
+    "scroll": 320,
+    "text": "To wykonanie już zapisaliśmy. Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-7be2-7365-929d-e99847f4cb21",
+    "axe": []
+  },
+  {
+    "stage": "zapis",
+    "theme": "dark",
+    "zoom": 2,
+    "width": 320,
+    "scroll": 320,
+    "text": "Wykonanie zapisane.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-8231-71bb-bd95-1a61a0c4d40f",
+    "axe": []
+  },
+  {
+    "stage": "powtorzenie",
+    "theme": "dark",
+    "zoom": 2,
+    "width": 320,
+    "scroll": 320,
+    "text": "To wykonanie już zapisaliśmy. Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.",
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-8231-71bb-bd95-1a61a0c4d40f",
+    "axe": [],
+    "replay": "Formularz z pierwotnym kluczem lokalnego wykonania"
+  }
+]

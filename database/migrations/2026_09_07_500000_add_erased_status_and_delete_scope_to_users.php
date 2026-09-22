@@ -154,9 +154,13 @@ return new class extends Migration
         $zEverything = DB::table('users')->where('delete_scope', 'everything')->count();
 
         if ($zEverything > 0) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1 kont"
+            // to nie polszczyzna, a jedno konto jest stanem
+            // prawdopodobniejszym niż pięć. Mianownik przed dwukropkiem nie
+            // odmienia się wcale, więc zdanie jest poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                "W tabeli `users` jest {$zEverything} kont z delete_scope = 'everything' — ".
-                'człowiek poprosił o usunięcie WSZYSTKICH swoich treści, nie tylko danych '.
+                "Liczba kont z delete_scope = 'everything' w tabeli `users`: ".$zEverything.'. '.
+                'Człowiek poprosił o usunięcie WSZYSTKICH swoich treści, nie tylko danych '.
                 'osobowych. Stary schemat (sprzed tej migracji) nie ma tej kolumny wcale: gdyby '.
                 'cofnięcie przeszło, kolejny `migrate` odtworzyłby ją jako `minimum` — bo to jedyna '.
                 'wartość, jaką backfill wyżej umie nadać. Człowiek dostałby po cichu ODWROTNOŚĆ '.

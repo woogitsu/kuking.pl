@@ -13,7 +13,8 @@ use Illuminate\View\View;
 /**
  * Rozmiar tekstu i wygoda czytania.
  *
- * Ustawienie leży na KONCIE, nie w ciasteczku. Osoba, która raz z trudem
+ * Ustawienie zalogowanej osoby leży na KONCIE. Kopia w ciasteczku zachowuje
+ * wybór po wylogowaniu na tym samym urządzeniu. Osoba, która raz z trudem
  * powiększyła tekst, nie może go stracić po zmianie przeglądarki albo po
  * wyczyszczeniu danych — to jest dla niej powrót do stanu "nie da się czytać".
  */
@@ -42,6 +43,6 @@ class AccessibilitySettingsController extends Controller
 
         $request->user()->update(['text_scale' => $data['text_scale']]);
 
-        return back()->with('status', 'Rozmiar tekstu zapisany. Będzie taki na każdym urządzeniu, na którym się zalogujesz.');
+        return back()->withCookie(cookie(config('kuking.text.cookie'), (string) $data['text_scale'], 60 * 24 * 365))->with('status', 'Rozmiar tekstu zapisany. Będzie taki na każdym urządzeniu, na którym się zalogujesz.');
     }
 }

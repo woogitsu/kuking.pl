@@ -95,25 +95,25 @@ class KomuWyszloUkladTest extends TestCase
             ->getContent();
 
         $this->assertMatchesRegularExpression(
-            '/30\s+osób ugotowało to danie/u',
+            '/30\s+wykonań/u',
             $tresc,
             'Pasek liczb ma mówić o WSZYSTKICH 30 wykonaniach, nie o 12 pokazanych na stronie.',
         );
     }
 
-    /** Odmiana liczebnika idzie przez `App\Support\Odmiana` (issue #86) — jedna osoba. */
-    public function test_pasek_liczb_odmienia_liczebnik_dla_jednej_osoby(): void
+    /** Odmiana liczebnika idzie przez `App\Support\Odmiana` (issue #86) — jedno wykonanie. */
+    public function test_pasek_liczb_odmienia_liczebnik_dla_jednego_wykonania(): void
     {
         $przepis = $this->opublikowanyPrzepis();
         $this->dodajWykonanie($przepis, true, 1);
 
         $this->get(route('recipes.show', $przepis->slug))
             ->assertOk()
-            ->assertSee('1 osoba ugotowała to danie', escape: false);
+            ->assertSee('1 wykonanie', escape: false);
     }
 
-    /** ...i dla kilku osób (2-4) — inna forma niż „5+". */
-    public function test_pasek_liczb_odmienia_liczebnik_dla_kilku_osob(): void
+    /** ...i dla kilku wykonań (2-4) — inna forma niż „5+". */
+    public function test_pasek_liczb_odmienia_liczebnik_dla_kilku_wykonan(): void
     {
         $przepis = $this->opublikowanyPrzepis();
         $this->dodajWykonanie($przepis, true, 1);
@@ -122,7 +122,7 @@ class KomuWyszloUkladTest extends TestCase
 
         $this->get(route('recipes.show', $przepis->slug))
             ->assertOk()
-            ->assertSee('3 osoby ugotowały to danie', escape: false);
+            ->assertSee('3 wykonania', escape: false);
     }
 
     /**
@@ -139,7 +139,8 @@ class KomuWyszloUkladTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringNotContainsString('zrobi to ponownie', $tresc);
+        $this->assertStringNotContainsString('Zrobię ponownie:', $tresc);
+        $this->assertStringNotContainsString('odpowiedzi: „Zrobię ponownie”', $tresc);
     }
 
     /** Od trzech ocen procent MUSI być tym, co naprawdę wyszło z policzenia. */
@@ -155,7 +156,7 @@ class KomuWyszloUkladTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('67% zrobi to ponownie', $tresc);
+        $this->assertStringContainsString('67% odpowiedzi: „Zrobię ponownie”', $tresc);
     }
 
     /**
@@ -194,6 +195,6 @@ class KomuWyszloUkladTest extends TestCase
         // I LICZBA w pasku liczb zgadza się z tym, co widz naprawdę widzi
         // (jedno wykonanie), nie z tym, co jest w bazie (dwa) — ten sam
         // wymóg, który komentarz w kontrolerze nazywa „oracle istnienia".
-        $odpowiedz->assertSee('1 osoba ugotowała to danie', escape: false);
+        $odpowiedz->assertSee('1 wykonanie', escape: false);
     }
 }

@@ -1,0 +1,20 @@
+### Result
+[{"width":320,"theme":"light","scale":100,"count":4,"overflow":false,"columns":"264px","collageWidth":240,"tiles":[{"w":124.078125,"h":200,"left":40,"right":164.078125,"loaded":true},{"w":107.90625,"h":120,"left":172.078125,"right":279.984375,"loaded":true},{"w":107.90625,"h":200,"left":172.078125,"right":279.984375,"loaded":true},{"w":124.078125,"h":120,"left":40,"right":164.078125,"loaded":true}]},{"width":1440,"theme":"light","scale":100,"count":4,"overflow":false,"columns":"428.391px 523.609px","collageWidth":499.609375,"tiles":[{"w":262.953125,"h":200,"left":704.390625,"right":967.34375,"loaded":true},{"w":228.640625,"h":120,"left":975.34375,"right":1203.984375,"loaded":true},{"w":228.640625,"h":200,"left":975.34375,"right":1203.984375,"loaded":true},{"w":262.953125,"h":120,"left":704.390625,"right":967.34375,"loaded":true}]}]
+### Ran Playwright code
+```js
+await (async (page) => {
+ const result=[];
+ for(const width of [320,1440])for(const theme of ['light'])for(const scale of [100]){
+ await page.setViewportSize({width,height:1000});await page.reload();
+ await page.evaluate(({theme,scale})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.textScale=String(scale);}, {theme,scale});
+ await page.waitForTimeout(100);
+ const m=await page.evaluate(()=>{const hero=document.querySelector('.hero'),c=document.querySelector('.hero-kolaz');return {count:document.querySelectorAll('.hero-kolaz-kafel').length,overflow:document.documentElement.scrollWidth>innerWidth+1,columns:getComputedStyle(hero).gridTemplateColumns,collageWidth:c?.getBoundingClientRect().width,tiles:[...document.querySelectorAll('.hero-kolaz-kafel')].map(e=>{const r=e.getBoundingClientRect();return {w:r.width,h:r.height,left:r.left,right:r.right,loaded:e.complete&&e.naturalWidth>0};})};});
+ if(m.count!==4||m.overflow||m.tiles.some(t=>t.w<=0||t.h<=0||t.left<0||t.right>width+1))throw Error(JSON.stringify({width,theme,scale,m}));
+ if(4===1||4===3){if(Math.abs(m.tiles[0].w-m.collageWidth)>2)throw Error('PARTIAL_GAP');}
+ if(width===1440&&4===0&&m.columns.split(' ').length!==1)throw Error('EMPTY_TWO_COLUMNS');
+ if(true)await page.locator('.hero-kolaz-blok').screenshot({path:'/mnt/c/Users/matma/Documents/Codex/kuking-kolaz632/docs/design/evidence/kolaz632/photo-'+4+'-'+width+'.png'});
+ result.push({width,theme,scale,...m});
+ }
+ return result;
+})(page);
+```

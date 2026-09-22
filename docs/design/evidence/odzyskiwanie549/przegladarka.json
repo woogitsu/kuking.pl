@@ -1,0 +1,146 @@
+[
+  {
+    "state": "pelny",
+    "width": 320,
+    "zoom": 2,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "pelny",
+    "width": 320,
+    "zoom": 2,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "czesc",
+    "width": 320,
+    "zoom": 2,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "czesc",
+    "width": 320,
+    "zoom": 2,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "brak",
+    "width": 320,
+    "zoom": 2,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "brak",
+    "width": 320,
+    "zoom": 2,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "logowanie",
+    "width": 320,
+    "zoom": 2,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "logowanie",
+    "width": 320,
+    "zoom": 2,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "pelny",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "pelny",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "czesc",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "czesc",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "brak",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "brak",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "logowanie",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "light",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  },
+  {
+    "state": "logowanie",
+    "width": 1440,
+    "zoom": 1,
+    "theme": "dark",
+    "status": 419,
+    "heading": "Nie udało się wysłać formularza",
+    "overflow": false
+  }
+]

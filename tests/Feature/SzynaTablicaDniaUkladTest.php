@@ -187,18 +187,19 @@ class SzynaTablicaDniaUkladTest extends TestCase
     }
 
     /**
-     * Druga połowa tego samego warunku: `flex: 1 1 11rem` działa tylko na
-     * elemencie rzędu `.kuking-board-post`. I jednocześnie sprawdzenie, że
-     * klasa w ogóle jest w widoku — reguła w arkuszu bez niej nie ma na czym
-     * zadziałać.
+     * Druga połowa tego samego warunku: `flex: 1 1 10rem` działa tylko na
+     * elemencie WIERSZA, a wierszem karty dania jest od 11 września 2026
+     * odnośnik obejmujący całą kartę (`.kuking-board-post-link`), nie samo
+     * `<li>`. I jednocześnie sprawdzenie, że klasa w ogóle jest w widoku —
+     * reguła w arkuszu bez niej nie ma na czym zadziałać.
      */
     #[Test]
-    public function test_podpis_dania_jest_bezposrednim_dzieckiem_rzedu_dania(): void
+    public function test_podpis_dania_jest_bezposrednim_dzieckiem_wiersza_dania(): void
     {
         $dom = $this->tablicaNaStronieStartowej();
         $xpath = new \DOMXPath($dom);
 
-        $podpisy = $xpath->query($this->klasa('div', 'kuking-board-post-body'));
+        $podpisy = $xpath->query($this->klasa('span', 'kuking-board-post-body'));
 
         $this->assertGreaterThan(
             0,
@@ -213,23 +214,132 @@ class SzynaTablicaDniaUkladTest extends TestCase
 
             $this->assertInstanceOf(\DOMElement::class, $rodzic);
             $this->assertStringContainsString(
-                'kuking-board-post',
+                'kuking-board-post-row',
                 (string) $rodzic->getAttribute('class'),
-                'Blok podpisu dania nie jest bezpośrednim dzieckiem `.kuking-board-post`, '.
-                'więc `flex: 1 1 11rem` na nim nic nie robi i podpis wraca pod zdjęcie.',
+                'Blok podpisu dania nie jest bezpośrednim dzieckiem `.kuking-board-post-row`, '.
+                'więc `flex: 1 1 10rem` na nim nic nie robi i podpis wraca pod zdjęcie.',
+            );
+
+            $wiersz = $rodzic->parentNode;
+
+            $this->assertInstanceOf(\DOMElement::class, $wiersz);
+            $this->assertStringContainsString(
+                'kuking-board-post',
+                (string) $wiersz->getAttribute('class'),
+                'Kontener wiersza dania nie stoi bezpośrednio w `<li class="kuking-board-post">`. '.
+                'Wcięcie i kreska siedzą na `<li>`, a układ na wierszu — rozdzielenie ich '.
+                'czymkolwiek pośrodku rozjeżdża rytm obu list.',
             );
         }
     }
 
     /**
-     * Danie BEZ gotowego zdjęcia nie zostawia w rzędzie pustego odnośnika.
-     * Element o zerowej szerokości w kontenerze `flex` zabiera swój `gap`
-     * także wtedy, gdy nic nie zawiera — zmierzone przy bazie 32 px: podpis
-     * takiego dania stał 24 px w prawo od krawędzi wszystkich pozostałych
-     * kart w tablicy.
+     * CAŁY WIERSZ DANIA JEST JEDNYM ODNOŚNIKIEM, BEZ PRZYCISKU „ZOBACZ"
+     * (zgłoszenie właściciela: „żadnej symetrii, byle jak").
+     *
+     * Do 11 września 2026 karta dania miała trzy cele kliknięcia prowadzące
+     * w dwa miejsca: zdjęcie i przycisk „Zobacz" (oba do wpisu) oraz imię
+     * autora (do profilu). Przycisk powtarzał się przy każdym daniu, nie
+     * robiąc nic ponad to, co zdjęcie obok, i stał raz z wcięciem, raz bez —
+     * zależnie od tego, czy danie miało zdjęcie.
+     *
+     * Ten test pilnuje obu połówek naraz: że odnośnik jest DOKŁADNIE jeden
+     * (czyli nikt nie dołożył drugiego celu w środku pierwszego — odnośnik
+     * w odnośniku nie istnieje w HTML-u) i że „Zobacz" nie wróciło.
      */
     #[Test]
-    public function test_danie_bez_zdjecia_nie_zostawia_pustego_odnosnika(): void
+    public function test_wiersz_dania_jest_jednym_odnosnikiem_bez_przycisku_zobacz(): void
+    {
+        $dom = $this->tablicaNaStronieStartowej();
+        $xpath = new \DOMXPath($dom);
+
+        $karty = $xpath->query($this->klasa('li', 'kuking-board-post'));
+
+        $this->assertGreaterThan(0, $karty->length, 'W tablicy nie ma ani jednej karty dania.');
+
+        foreach ($karty as $karta) {
+            $odnosniki = $xpath->query('.//a', $karta);
+
+            $this->assertSame(
+                1,
+                $odnosniki->length,
+                'Karta dania ma '.$odnosniki->length.' odnośników zamiast jednego. Cały wiersz '.
+                'jest celem kliknięcia; drugi odnośnik w środku albo nie da się kliknąć, albo '.
+                'wraca stan sprzed poprawki — trzy cele prowadzące w dwa miejsca.',
+            );
+
+            $this->assertStringContainsString(
+                'kuking-board-post-link',
+                (string) $odnosniki->item(0)?->getAttribute('class'),
+                'Jedyny odnośnik karty dania nie jest wierszem `.kuking-board-post-link`.',
+            );
+
+            $this->assertNotSame(
+                'Zobacz',
+                trim((string) $xpath->query('.//a[normalize-space()="Zobacz"]', $karta)->item(0)?->textContent),
+                'Przy daniu wrócił przycisk „Zobacz" — powtórzony przy każdej karcie, choć cały '.
+                'wiersz prowadzi pod ten sam adres.',
+            );
+        }
+    }
+
+    /**
+     * OBIE LISTY MAJĄ JEDNĄ KOLUMNĘ ZDJĘĆ I JEDEN PRÓG DWÓCH KOLUMN.
+     *
+     * To jest cała symetria tej sekcji sprowadzona do dwóch liczb. Zmierzone
+     * przed poprawką na `/` przy oknie 1512 px: tekst osoby zaczynał się przy
+     * `x = 345`, podpis dania ZE zdjęciem przy `x = 389`, podpis dania BEZ
+     * zdjęcia i pasek miniatur przy `x = 249`. Po poprawce obie listy zaczynają
+     * tekst przy tym samym `x` (396 px) na każdej z czterech mierzonych
+     * szerokości — ale tylko dopóki awatar i zdjęcie dania biorą szerokość
+     * z JEDNEJ zmiennej, a oba bloki tekstu mają TEN SAM próg.
+     */
+    #[Test]
+    public function test_obie_listy_maja_ta_sama_kolumne_zdjecia(): void
+    {
+        $css = $this->css();
+
+        $this->assertMatchesRegularExpression(
+            '/--tablica-zdjecie:\s*\d+px/',
+            $this->regula('.kuking-board'),
+            '`.kuking-board` nie definiuje `--tablica-zdjecie` w pikselach. W `rem` ta liczba '.
+            'podwoiłaby się przy czcionce przeglądarki 200 % (240 px) i samo zdjęcie nie '.
+            'zmieściłoby się na ekranie 320 px (D-082, D-107).',
+        );
+
+        $this->assertMatchesRegularExpression(
+            '/\.kuking-board-avatar,\s*\.kuking-board-post-photo\s*\{[^}]*width:\s*var\(--tablica-zdjecie\)/',
+            $css,
+            'Awatar osoby i zdjęcie dania nie biorą szerokości z jednej zmiennej. Gdy każda '.
+            'lista ma własną liczbę, tekst zaczyna się w nich przy innym `x` — czyli wraca '.
+            'stan, który właściciel nazwał „bez symetrii".',
+        );
+
+        foreach (['.kuking-board-person-body', '.kuking-board-post-body'] as $blok) {
+            $this->assertMatchesRegularExpression(
+                '/\.kuking-board-person-body,\s*\.kuking-board-post-body\s*\{[^}]*flex:\s*1\s+1\s+[\d.]+rem/',
+                $css,
+                "Blok `{$blok}` nie ma wspólnego progu `flex: 1 1 <N>rem` z drugą listą. ".
+                'Dwa różne progi znaczą, że jedna lista zawija się na pion przy innej '.
+                'szerokości niż druga, a to widać jako rozjazd między „Osobami" a „Daniami".',
+            );
+        }
+    }
+
+    /**
+     * Danie BEZ gotowego zdjęcia nie zostawia w wierszu pustego miejsca po
+     * zdjęciu. Element o zerowej szerokości w kontenerze `flex` zabiera swój
+     * `gap` także wtedy, gdy nic nie zawiera — zmierzone przy bazie 32 px:
+     * podpis takiego dania stał 24 px w prawo od krawędzi wszystkich
+     * pozostałych kart w tablicy.
+     *
+     * Od 11 września 2026 miejscem na zdjęcie jest `<span>`, nie `<a>`:
+     * odnośnikiem jest cały wiersz, a odnośnik w odnośniku nie istnieje
+     * w HTML-u. Sprawdzenie dotyczy tego samego, co przedtem — pustego
+     * elementu zabierającego `gap`.
+     */
+    #[Test]
+    public function test_danie_bez_zdjecia_nie_zostawia_pustego_miejsca_po_zdjeciu(): void
     {
         $dom = $this->tablicaNaStronieStartowej();
         $xpath = new \DOMXPath($dom);
@@ -240,7 +350,7 @@ class SzynaTablicaDniaUkladTest extends TestCase
         $bezZdjecia = 0;
 
         foreach ($karty as $karta) {
-            $miejscaNaZdjecie = $xpath->query('.'.$this->klasa('a', 'kuking-board-post-photo'), $karta);
+            $miejscaNaZdjecie = $xpath->query('.'.$this->klasa('span', 'kuking-board-post-photo'), $karta);
             $obrazki = $xpath->query('.//img', $karta);
 
             if ($obrazki->length > 0) {
@@ -249,7 +359,7 @@ class SzynaTablicaDniaUkladTest extends TestCase
                 $this->assertSame(
                     1,
                     $miejscaNaZdjecie->length,
-                    'Danie ZE zdjęciem straciło odnośnik `.kuking-board-post-photo`.',
+                    'Danie ZE zdjęciem straciło miejsce na zdjęcie `.kuking-board-post-photo`.',
                 );
 
                 continue;
@@ -260,7 +370,7 @@ class SzynaTablicaDniaUkladTest extends TestCase
             $this->assertSame(
                 0,
                 $miejscaNaZdjecie->length,
-                'Danie bez gotowego zdjęcia renderuje pusty `<a class="kuking-board-post-photo">`. '.
+                'Danie bez gotowego zdjęcia renderuje pusty `<span class="kuking-board-post-photo">`. '.
                 'Element o zerowej szerokości zabiera w kontenerze `flex` swój `gap`, więc podpis '.
                 'stoi odsunięty od krawędzi, przy której licują wszystkie pozostałe karty tablicy.',
             );
@@ -271,6 +381,67 @@ class SzynaTablicaDniaUkladTest extends TestCase
         // a bez dania bez zdjęcia — kształtu bez niego.
         $this->assertGreaterThan(0, $zeZdjeciem, 'Test nie miał ani jednego dania ZE zdjęciem.');
         $this->assertGreaterThan(0, $bezZdjecia, 'Test nie miał ani jednego dania BEZ zdjęcia.');
+    }
+
+    /**
+     * TABLICA NA STRONIE POWITALNEJ NIE JEST KARTĄ — I NA POZOSTAŁYCH
+     * EKRANACH DALEJ JEST (zgłoszenie właściciela).
+     *
+     * Na `/` hierarchię buduje tło PASA (`.pas` w `pages/landing.blade.php`),
+     * a tablica była tam jedyną sekcją z własną powierzchnią w środku pasa,
+     * czyli powierzchnią w powierzchni. W szynie i na `/odkryj` jest
+     * odwrotnie: tablica stoi obok „Mojego zeszytu" i obok kart wpisów, więc
+     * bez własnego tła nie wiadomo, gdzie się kończy.
+     *
+     * WARSTWĄ JEST `sekcja-strony`, NIE `card`. Tablica dnia to blok strony,
+     * a karty treści są dopiero w jej środku (docs/design/ROLE_KART.md,
+     * role 1 i 3). Do 11 września obie te rzeczy nosiły tę samą klasę i tak
+     * powstała „karta w karcie" o identycznym wyglądzie — test pilnuje
+     * OBECNOŚCI własnej powierzchni, a nie konkretnej nazwy sprzed podziału.
+     *
+     * DWIE POŁOWY W JEDNYM TEŚCIE, BO OSOBNO NIE ZNACZĄ NIC. Samo „nie ma
+     * powierzchni na `/`" przechodzi także wtedy, gdy ktoś zdejmie ją
+     * wszędzie; samo „jest na `/odkryj`" nie zauważy, że na `/` wróciła.
+     */
+    #[Test]
+    public function test_tablica_jest_karta_wszedzie_poza_strona_powitalna(): void
+    {
+        $this->wyborNaDzis();
+
+        $powitalna = $this->sekcjaTablicy($this->tablicaZTrasy('landing'));
+
+        $this->assertStringNotContainsString(
+            ' sekcja-strony ',
+            $powitalna,
+            'Tablica na stronie powitalnej znów ma własną powierzchnię. W środku pasa '.
+            '(`.pas`) to jest powierzchnia w powierzchni — jedyna taka sekcja na tym ekranie.',
+        );
+
+        $odkryj = $this->sekcjaTablicy($this->tablicaZTrasy('discover'));
+
+        $this->assertStringContainsString(
+            ' sekcja-strony ',
+            $odkryj,
+            'Tablica na `/odkryj` straciła własną powierzchnię. Stoi tam nad listą kart '.
+            'wpisów i bez własnego tła nie widać, gdzie się kończy — a to jest zmiana '.
+            'w drugą stronę, nie naprawa strony powitalnej.',
+        );
+    }
+
+    /** Atrybut `class` sekcji tablicy — jedno miejsce, żeby nie powtarzać XPatha. */
+    private function sekcjaTablicy(\DOMDocument $dom): string
+    {
+        $xpath = new \DOMXPath($dom);
+        $sekcja = $xpath->query($this->klasa('section', 'kuking-board'))->item(0);
+
+        $this->assertInstanceOf(
+            \DOMElement::class,
+            $sekcja,
+            'Na ekranie nie ma `<section class="… kuking-board">` — bez niej ten test '.
+            'przeszedłby, nie sprawdzając niczego.',
+        );
+
+        return ' '.(string) $sekcja->getAttribute('class').' ';
     }
 
     /** XPath na element z klasą — porównanie po całym atrybucie łapie też `kuking-board-post-body`. */
@@ -296,7 +467,31 @@ class SzynaTablicaDniaUkladTest extends TestCase
      * tego, w której kolumnie stoi tablica — o tym, czy rząd się mieści,
      * mówi pomiar w przeglądarce, nie ten plik.
      */
-    private function tablicaNaStronieStartowej(): \DOMDocument
+    private function tablicaNaStronieStartowej(string $trasa = 'discover'): \DOMDocument
+    {
+        $this->wyborNaDzis();
+
+        return $this->tablicaZTrasy($trasa);
+    }
+
+    /** Ten sam wybór redakcyjny, ale wsiewany DOKŁADNIE RAZ — patrz `wyborNaDzis()`. */
+    private function tablicaZTrasy(string $trasa): \DOMDocument
+    {
+        $html = $this->get(route($trasa))->assertOk()->getContent();
+
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+
+        return $dom;
+    }
+
+    /**
+     * Wybór redakcyjny na dziś. OSOBNO OD RENDEROWANIA, bo test porównujący
+     * dwa ekrany (`/` i `/odkryj`) musi wsiać te same dane raz: drugie
+     * wywołanie przewracało się na `profiles_username_unique`, czyli na
+     * własnych danych, a nie na sprawdzanej rzeczy.
+     */
+    private function wyborNaDzis(): void
     {
         $gospodarz = $this->moderator();
         $kucharka = $this->user('kucharka', ['display_name' => 'Ewa Kapica']);
@@ -347,12 +542,5 @@ class SzynaTablicaDniaUkladTest extends TestCase
                 'curator_id' => $gospodarz->getKey(),
             ]);
         }
-
-        $html = $this->get(route('discover'))->assertOk()->getContent();
-
-        $dom = new \DOMDocument;
-        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
-
-        return $dom;
     }
 }

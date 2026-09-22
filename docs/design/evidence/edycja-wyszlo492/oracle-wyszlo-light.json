@@ -1,0 +1,107 @@
+{
+  "expected": [
+    {
+      "id": "0",
+      "key": "0",
+      "type": "textarea",
+      "name": "body"
+    },
+    {
+      "id": "1",
+      "key": "1",
+      "type": "submit",
+      "name": ""
+    },
+    {
+      "id": "2",
+      "key": "2",
+      "type": "",
+      "name": ""
+    }
+  ],
+  "seen": [
+    {
+      "id": "0",
+      "key": "0",
+      "type": "textarea",
+      "name": "body",
+      "focusVisible": true,
+      "outline": "rgb(21, 94, 239) solid 3px",
+      "shadow": "none",
+      "rects": [
+        {
+          "x": 58,
+          "y": 428.578125,
+          "w": 204,
+          "h": 176,
+          "bottom": 604.578125
+        }
+      ],
+      "hits": [
+        {
+          "x": 160,
+          "y": 516.578125,
+          "ok": true,
+          "hit": "TEXTAREA"
+        }
+      ],
+      "height": 900
+    },
+    {
+      "id": "1",
+      "key": "1",
+      "type": "submit",
+      "name": "",
+      "focusVisible": true,
+      "outline": "rgb(255, 255, 255) none 3px",
+      "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+      "rects": [
+        {
+          "x": 58,
+          "y": 594.078125,
+          "w": 204,
+          "h": 59.5,
+          "bottom": 653.578125
+        }
+      ],
+      "hits": [
+        {
+          "x": 160,
+          "y": 623.828125,
+          "ok": true,
+          "hit": "BUTTON"
+        }
+      ],
+      "height": 900
+    },
+    {
+      "id": "2",
+      "key": "2",
+      "type": "",
+      "name": "",
+      "focusVisible": true,
+      "outline": "rgb(21, 23, 20) none 3px",
+      "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+      "rects": [
+        {
+          "x": 33,
+          "y": 420.578125,
+          "w": 254,
+          "h": 91,
+          "bottom": 511.578125
+        }
+      ],
+      "hits": [
+        {
+          "x": 160,
+          "y": 466.078125,
+          "ok": true,
+          "hit": "A"
+        }
+      ],
+      "height": 900
+    }
+  ],
+  "arrows": [],
+  "missing": []
+}

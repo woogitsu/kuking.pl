@@ -1,0 +1,39 @@
+ZOOM_TAB_OK /szukaj 7/7
+GEOMETRIA {"scrollY":755,"innerHeight":800,"active":"<a class=\"btn btn-quiet\" href=\"http://127.0.0.1:8068/szukaj?q=Kalarepa&amp;sekcja=wszystko&amp;ile=200&amp;od_przepisu=0&amp;od_osoby=0\" data-pomiar-tab=\"6\">Wróć do początku przepisów</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-235.7578125,"height":219.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-499.2421875,"height":1134.109375,"position":"static"},{"tag":"H1","cls":"","top":-499.2421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-420.5078125,"height":554,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1960.8984375,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":144,"height":705.125,"position":"static"}]}
+ZOOM_TAB_OK /szukaj 7/7
+GEOMETRIA {"scrollY":755,"innerHeight":800,"active":"<a class=\"btn btn-quiet\" href=\"http://127.0.0.1:8068/szukaj?q=Kalarepa&amp;sekcja=wszystko&amp;ile=200&amp;od_przepisu=0&amp;od_osoby=0\" data-pomiar-tab=\"6\">Wróć do początku przepisów</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-235.7578125,"height":219.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-499.2421875,"height":1134.109375,"position":"static"},{"tag":"H1","cls":"","top":-499.2421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-420.5078125,"height":554,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1960.8984375,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":144,"height":705.125,"position":"static"}]}
+ZOOM_TAB_OK /szukaj 7/7
+GEOMETRIA {"scrollY":211,"innerHeight":800,"active":"<a class=\"btn btn-quiet\" href=\"http://127.0.0.1:8068/szukaj?q=Kalarepa&amp;sekcja=wszystko&amp;ile=200&amp;od_przepisu=0&amp;od_osoby=0\" data-pomiar-tab=\"6\">Wróć do początku przepisów</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-96.7578125,"height":80.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-94.2421875,"height":753.171875,"position":"static"},{"tag":"H1","cls":"","top":-94.2421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-15.5078125,"height":377.75,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1432.09375,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":172,"height":591,"position":"static"}]}
+ZOOM_TAB_OK /szukaj 7/7
+GEOMETRIA {"scrollY":211,"innerHeight":800,"active":"<a class=\"btn btn-quiet\" href=\"http://127.0.0.1:8068/szukaj?q=Kalarepa&amp;sekcja=wszystko&amp;ile=200&amp;od_przepisu=0&amp;od_osoby=0\" data-pomiar-tab=\"6\">Wróć do początku przepisów</a>","elements":[{"tag":"HEADER","cls":"topbar marka-topbar","top":-96.7578125,"height":80.7578125,"position":"sticky"},{"tag":"MAIN","cls":"app-main","top":-94.2421875,"height":753.171875,"position":"static"},{"tag":"H1","cls":"","top":-94.2421875,"height":54.734375,"position":"static"},{"tag":"FORM","cls":"panel-formularza","top":-15.5078125,"height":377.75,"position":"static"},{"tag":"FORM","cls":"site-footer-motyw","top":1432.09375,"height":52,"position":"static"},{"tag":"FORM","cls":"lightbox-akcje","top":0,"height":0,"position":"static"},{"tag":"FORM","cls":"","top":172,"height":591,"position":"static"}]}
+POWROT_Z_PUSTEGO_OKNA_OK
+[
+  {
+    theme: 'light',
+    zoom: 2,
+    width: 320,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'dark',
+    zoom: 2,
+    width: 320,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'light',
+    zoom: 2,
+    width: 768,
+    overflow: false,
+    font: '25.2px'
+  },
+  {
+    theme: 'dark',
+    zoom: 2,
+    width: 768,
+    overflow: false,
+    font: '25.2px'
+  }
+]

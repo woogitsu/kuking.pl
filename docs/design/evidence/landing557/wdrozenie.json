@@ -1,0 +1,54 @@
+{
+  "sha": "181b93f6f1f06c437b4bd93413a5bed23c136960",
+  "ci": 34910661018,
+  "jobs": [
+    {
+      "name": "Zakres zmiany",
+      "conclusion": "success"
+    },
+    {
+      "name": "Larastan (analiza statyczna)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Pint (styl kodu)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Build assetów (Vite)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Testy (PostgreSQL 18)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Build obrazu (weryfikacja)",
+      "conclusion": "success"
+    },
+    {
+      "name": "Audyt zależności",
+      "conclusion": "success"
+    }
+  ],
+  "railway": 6448719034,
+  "railway_status": "success",
+  "railway_at": "2026-09-15T00:21:29Z",
+  "deploy": 34912846146,
+  "php_job": 104197225378,
+  "php_tests": 3814,
+  "php_assertions": 76612,
+  "deploy_status": "success"
+}

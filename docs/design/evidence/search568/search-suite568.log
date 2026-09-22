@@ -1,0 +1,11 @@
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-search568-runtime/phpunit.xml
+
+................................................................. 65 / 83 ( 78%)
+..................                                                83 / 83 (100%)
+
+Time: 00:07.138, Memory: 79.00 MB
+
+[30;42mOK (83 tests, 324 assertions)[0m

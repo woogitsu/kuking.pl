@@ -35,16 +35,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Zakładanie konta w Kuking</title>
 </head>
-<body style="margin:0;padding:0;background:#FAF6F0;">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#FAF6F0;">
+<body style="margin:0;padding:0;background:#F3F4F1;">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0" style="background:#F3F4F1;">
     <tr>
         <td align="center" style="padding:24px 12px;">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0" border="0"
-                   style="max-width:600px;background:#FFFFFF;border:1px solid #E4DACB;border-radius:12px;">
+                   style="max-width:600px;background:#FFFFFF;border:1px solid #DDE0D8;border-radius:24px;">
                 <tr>
-                    <td style="padding:32px 28px;font-family:Georgia,'Times New Roman',serif;font-size:19px;line-height:1.6;color:#2B241D;">
+                    <td style="padding:32px 28px;font-family:Arial,Helvetica,sans-serif;font-size:19px;line-height:1.6;color:#151714;">
 
-                        <p style="margin:0 0 20px;font-size:28px;line-height:1.3;font-weight:bold;color:#2B241D;">
+                        <p style="margin:0 0 20px;font-size:28px;line-height:1.3;font-weight:bold;color:#151714;">
                             Zakładanie konta w Kuking
                         </p>
 
@@ -58,7 +58,7 @@
 
                         <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="margin:0 0 28px;">
                             <tr>
-                                <td align="center" bgcolor="#2F6B3A" style="border-radius:8px;">
+                                <td align="center" bgcolor="#BE3025" style="border-radius:14px;">
                                     <a href="{{ $linkUrl }}"
                                        style="display:inline-block;padding:16px 32px;min-height:48px;box-sizing:border-box;
                                               font-family:Arial,Helvetica,sans-serif;font-size:20px;font-weight:bold;
@@ -69,33 +69,32 @@
                             </tr>
                         </table>
 
-                        <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
+                        <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
                             Otworzy się strona Kuking z jednym przyciskiem „Załóż konto”. Kliknij go, a przejdziesz
                             do krótkiego formularza — adres e-mail będzie już w nim wpisany i potwierdzony,
                             więc zostanie imię, nazwa użytkownika i hasło.
                         </p>
 
-                        <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
+                        <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
                             Link działa {{ $waznoscTekst }}.
                         </p>
 
-                        <p style="margin:0 0 20px;font-size:18px;color:#5C5347;">
+                        <p style="margin:0 0 20px;font-size:18px;color:#555E53;">
                             Jeśli to nie Ty — nie musisz nic robić. Nic się nie stało i nikt nie zakłada konta
                             na ten adres bez Twojego udziału.
                         </p>
 
-                        <p style="margin:0 0 12px;font-size:18px;color:#5C5347;">
+                        <p style="margin:0 0 12px;font-size:18px;color:#555E53;">
                             Jeśli przycisk nie działa, skopiuj ten adres i wklej go w pasku przeglądarki:
                         </p>
 
-                        <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:16px;
-                                  line-height:1.5;color:#5C5347;word-break:break-all;">
+                        <p style="margin:0 0 20px;font-family:Arial,Helvetica,sans-serif;font-size:18px;
+                                  line-height:1.5;color:#555E53;word-break:break-all;">
                             {{ $linkUrl }}
                         </p>
 
-                        <p style="margin:0;font-size:18px;color:#5C5347;">
-                            Coś tu nie gra? Napisz do nas na {{ config('kuking.community.contact_email') }} —
-                            odpisuje człowiek.
+                        <p style="margin:0;font-size:18px;color:#555E53;">
+                            Jeśli nie możesz założyć konta, napisz do nas na {{ config('kuking.community.contact_email') }}.
                         </p>
 
                     </td>
@@ -103,7 +102,7 @@
             </table>
 
             <p style="max-width:600px;margin:20px auto 0;font-family:Arial,Helvetica,sans-serif;
-                      font-size:15px;line-height:1.5;color:#5C5347;">
+                      font-size:18px;line-height:1.5;color:#555E53;">
                 Kuking.pl — pokaż, co dziś ugotowałeś.
             </p>
         </td>

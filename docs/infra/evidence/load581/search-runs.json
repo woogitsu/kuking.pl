@@ -1,0 +1,18 @@
+[
+  {
+    "label": "search-1",
+    "exit": 0,
+    "start": 1789496571.1770005,
+    "end": 1789496616.4928186,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "search-5",
+    "exit": 0,
+    "start": 1789496677.4929457,
+    "end": 1789496722.8313959,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  }
+]

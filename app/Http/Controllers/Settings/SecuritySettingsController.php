@@ -40,24 +40,31 @@ class SecuritySettingsController extends Controller
 
     public function updatePassword(Request $request, CancelEmailChange $anuluj): RedirectResponse
     {
+        // Kontekst ustala obsługiwana akcja, nie wartość przysłana z formularza.
+        $request->merge(['_wiersz' => 'zmiana']);
+
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'confirmed', Password::min(10)->uncompromised()],
         ], [
             'current_password.required' => 'Wpisz obecne hasło.',
             'password.required' => 'Wpisz nowe hasło.',
-            'password.confirmed' => 'Oba nowe hasła muszą być takie same.',
-            'password.min' => 'Nowe hasło musi mieć co najmniej 10 znaków.',
+            // KAŻDE ZDANIE KOŃCZY SIĘ POLECENIEM. Same „muszą być takie same"
+            // i „musi mieć 10 znaków" mówią tylko, co jest źle.
+            'password.confirmed' => 'Oba nowe hasła muszą być takie same. Wpisz jeszcze raz to samo w obu polach.',
+            'password.min' => 'Nowe hasło musi mieć co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu.',
             'password.uncompromised' => 'To hasło pojawiło się już w wyciekach danych z innych serwisów. Wybierz inne.',
         ]);
 
         $user = $request->user();
 
         if (! Hash::check($data['current_password'], $user->password)) {
-            return back()->withErrors(['current_password' => 'To hasło jest nieprawidłowe.']);
+            return back()->withErrors(['current_password' => 'Wpisz poprawne obecne hasło.'])
+                ->withInput(['_wiersz' => 'zmiana']);
         }
 
-        $user->forceFill(['password' => Hash::make($data['password'])])->save();
+        // Jedna nazwana droga do hasła — `password` jest poza `$fillable`.
+        $user->assignPassword($data['password'])->save();
 
         // Rotacja sesji (issue #12): stare sesje — te, w których mogła siedzieć
         // osoba, przez którą hasło było zmieniane — przestają działać od razu.
@@ -91,6 +98,8 @@ class SecuritySettingsController extends Controller
 
     public function logoutOtherSessions(Request $request): RedirectResponse
     {
+        $request->merge(['_wiersz' => 'wyloguj']);
+
         $data = $request->validate([
             'password' => ['required', 'string'],
         ], [
@@ -100,7 +109,8 @@ class SecuritySettingsController extends Controller
         $user = $request->user();
 
         if (! Hash::check($data['password'], $user->password)) {
-            return back()->withErrors(['password' => 'To hasło jest nieprawidłowe.']);
+            return back()->withErrors(['password' => 'Wpisz poprawne hasło, żeby wylogować inne urządzenia.'])
+                ->withInput(['_wiersz' => 'wyloguj']);
         }
 
         $user->invalidateSessions($request->session()->getId());

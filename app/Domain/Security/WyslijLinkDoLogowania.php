@@ -44,14 +44,23 @@ use Throwable;
  *     (`LoginController`), a link, który wchodzi tam, gdzie hasło nie wchodzi,
  *     byłby obejściem blokady moderacyjnej. Osoba zablokowana ma na ekranie
  *     logowania powód i drogę odwoławczą (#10) — i to jest jej droga.
- *  3. NA KONTO MODERATORA ALBO ADMINISTRATORA — wprost z zakresu issue #25:
+ *  3. NA KONTO Z NIEPOTWIERDZONYM ADRESEM (issue #317) — taki adres
+ *     dostaje ZA TO list z ustawieniem nowego hasła, nie wejście na konto.
+ *     Link wysłany na adres, którego nikt nie potwierdził, wpuszczałby
+ *     właściciela skrzynki na konto ZAŁOŻONE PRZEZ KOGOŚ INNEGO na ten
+ *     adres — przejęcie z wyprzedzeniem, ta sama droga, którą po swojej
+ *     stronie zamyka D-069 reguła 2 dla wejścia kontem Google. Ustawienie
+ *     hasła jest jedyną drogą, która wpuszcza właściciela skrzynki
+ *     i jednocześnie WYRZUCA napastnika. Szczegóły:
+ *     `WyslijOdzyskanieKonta`.
+ *  4. NA KONTO MODERATORA ALBO ADMINISTRATORA — wprost z zakresu issue #25:
  *     „konta moderatorów i administratorów wykluczone, tam obowiązuje hasło
  *     + 2FA". To są konta z władzą nad cudzą treścią i cudzymi danymi;
  *     przeniesienie ich bezpieczeństwa na skrzynkę pocztową byłoby
  *     rozluźnieniem, którego `EnsureModeratorHasTwoFactor` nie widzi, bo
  *     tamten middleware pilnuje panelu, a nie wejścia do serwisu.
  *
- * Cisza wobec pytającego jest w każdym z tych trzech przypadków konieczna
+ * Cisza wobec pytającego jest w każdym z tych przypadków konieczna
  * — inaczej formularz odpowiadałby na pytania „czy tu jest konto",
  * „czy zostało zablokowane" i „czy ta osoba jest moderatorem". Żeby cisza
  * nie zamieniła się w pułapkę, ekran po wysłaniu MÓWI WPROST (dla wszystkich
@@ -84,6 +93,7 @@ final class WyslijLinkDoLogowania
 {
     public function __construct(
         private readonly WyslijZaproszenieDoRejestracji $zaproszenia = new WyslijZaproszenieDoRejestracji,
+        private readonly WyslijOdzyskanieKonta $odzyskanie = new WyslijOdzyskanieKonta,
     ) {}
 
     /**
@@ -115,6 +125,23 @@ final class WyslijLinkDoLogowania
 
         if (! $this->wolnoWyslac($user)) {
             return false;
+        }
+
+        // ADRES NIEPOTWIERDZONY NIE DOSTAJE LINKU WCHODZĄCEGO NA KONTO
+        // (issue #317). Dostaje list z ustawieniem nowego hasła — pełne
+        // uzasadnienie w `WyslijOdzyskanieKonta`, w skrócie: konto założone
+        // na cudzy adres jest u nas kontem w pełni sprawnym, więc link
+        // wysłany na ten adres wpuszczałby jego właściciela na KONTO
+        // NAPASTNIKA, a napastnikowi zostawiał hasło i otwarte sesje.
+        //
+        // ROZGAŁĘZIENIE STOI TUTAJ, NIE W KONTROLERZE — z tego samego
+        // powodu co rozgałęzienie na zaproszenie (D-085): kontroler nie ma
+        // prawa zobaczyć, czy konto istnieje i w jakim jest stanie, bo
+        // każda taka wartość jest o jeden `if` od trafienia na ekran.
+        // Wychodzi stąd `bool` o jednym, niezmienionym znaczeniu: „czy
+        // zajęłam jeden list z dobowego budżetu".
+        if (! $user->hasVerifiedEmail()) {
+            return $this->odzyskanie->handle($user, $ip);
         }
 
         $token = LoginLinkToken::nowyToken();

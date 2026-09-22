@@ -16,8 +16,8 @@
 import { chromium } from 'playwright';
 import { writeFileSync } from 'node:fs';
 
-const MARKA = '#B3401F';
-const TLO = '#F7F4EE';
+const MARKA = '#BE3025';
+const TLO = '#F3F4F1';
 
 /** Kształt znaku w układzie 64×64. Jedno źródło prawdy dla wszystkich ikon. */
 const ksztalt = (polysk) => `
@@ -75,7 +75,7 @@ for (const [sciezka, tresc] of Object.entries(warianty)) {
 // której akurat szuka paczka playwright. Wskazujemy binarkę wprost —
 // inaczej skrypt każe pobierać przeglądarkę, której nie da się pobrać.
 const przegladarka = await chromium.launch({
-  executablePath: process.env.CHROMIUM_PATH || '/opt/pw-browsers/chromium-1194/chrome-linux/chrome',
+  executablePath: process.env.CHROMIUM_PATH || undefined,
 });
 const strona = await przegladarka.newPage();
 
@@ -115,13 +115,13 @@ await strona.setContent(`
       display:flex;flex-direction:column;align-items:center;justify-content:center;gap:28px;
       font-family:Inter,system-ui,-apple-system,"Segoe UI",Arial,sans-serif;
     }
-    .nazwa{font-size:92px;font-weight:850;letter-spacing:-3px;color:#2B241D}
+    .nazwa{font-size:92px;font-weight:850;letter-spacing:-3px;color:#151714}
     .nazwa span{color:${MARKA}}
-    .haslo{font-size:34px;color:#5C5347}
+    .haslo{font-size:34px;color:#555E53}
   </style>
   <div class="karta">
     <svg width="180" height="180" viewBox="0 0 64 64" fill="none">${ksztalt(TLO)}</svg>
-    <div class="nazwa">KuKing<span>.pl</span></div>
+    <div class="nazwa">Ku<span>King</span>.pl</div>
     <div class="haslo">Pokaż, co dziś ugotowałeś</div>
   </div>
 `);

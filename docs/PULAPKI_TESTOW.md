@@ -1,4 +1,4 @@
-# Pułapki testów — siedem rzeczy, które w tym repozytorium naprawdę przeszły
+# Pułapki testów — dziesięć rzeczy, które w tym repozytorium naprawdę przeszły
 
 Ten plik nie jest wykładem o testowaniu. To lista pomyłek, które **w tym
 projekcie** przeszły przez zielone CI i zostały wykryte dopiero przez
@@ -36,6 +36,49 @@ trzy gotowe wzorce — użyj któregoś, nie wymyślaj czwartego:
 | `wycinek($html, $od, $do)` | `tests/Feature/OnboardingZnajdzZnajomychTest.php` |
 | `DOMXPath` z zakresem sekcji | `tests/Feature/LandingJakDzialaPrzedTablicaTest.php` |
 | wycinanie pasa/sekcji po identyfikatorze | `tests/Feature/StronaPowitalnaPasyTest.php`, `tests/Feature/OdkrywaniePustyStanTest.php` |
+| `trescEkranu()` — sama zawartość `<main>` | `tests/Support/WycinaObudoweEkranu.php` |
+
+## 1b. …a najczęstszym cudzym źródłem tego słowa jest `<title>` STRONY
+
+**Złapała: dziesięć asercji naraz, w dziesięciu plikach, przy przeglądzie
+12.09.2026.**
+
+Pułapka 1 mówi o nawigacji, szynie i stopce. W praktyce najczęstszym
+źródłem fałszywego trafienia okazał się `<head>` — bo **tytuł karty
+przeglądarki jest zwykle tym samym zdaniem, co nagłówek ekranu**, a do tego
+powtarza się w `<meta name="description">`, `og:title` i `og:image:alt`.
+Jedno zdanie stoi więc w dokumencie cztery razy, zanim ktokolwiek spojrzy
+na treść.
+
+Zmierzone (sabotaż: skasowany nagłówek ekranu, `<head>` nietknięty — wszystkie
+te asercje **przeszły**):
+
+| Ekran | Asercja | Skąd naprawdę przechodziła |
+|---|---|---|
+| `/o-kuking` | `assertStringContainsString('O Kuking', $html)` | tylko `<title>` i `<meta>` — po D-145 nagłówek brzmi „O kuKING" i tego napisu nie ma w treści **ani razu** |
+| `/login` | `assertSee('Zaloguj się')` | `<title>` + `<meta>` + przycisk belki dla gościa |
+| `/napisz-do-nas` | `assertSee('Napisz do nas')` | `<title>` + 4 × `<meta>` + odnośnik stopki (na każdym ekranie) |
+| 404 | `assertSee('Nie znaleźliśmy tej strony')` | `<title>` + `<meta>` |
+| `/` (gość) | `assertSee('Pokaż, co dziś ugotowałeś')` | `<title>` + `<meta>` |
+| `/dodaj/zdjecie` | `assertSee('Dodaj zdjęcie')` | `<title>` |
+| tryb gotowania (gość) | `assertSee('Załóż konto')` | przycisk belki dla gościa |
+| ekran zaproszenia | `assertSee('Załóż konto')` | `<title>` + przycisk belki |
+| `/@ja` (główka) | `assertSee('Dodaj zdjęcie profilowe')` | skrót w prawej szynie |
+| `/@ja` (szyna) | `assertStringContainsString('Dodaj zdjęcie profilowe', $html)` | podpis pod awatarem w główce |
+
+**Co robić:** przy asercji „widać X na tym ekranie" wycinaj `<main>`
+(`trescEkranu()`). Dwa ostatnie wiersze pokazują, że to nie wystarcza, gdy
+ten sam napis stoi w treści **i** w szynie: wtedy trzeba wybrać stronę,
+o którą chodzi w danym pliku (`trescEkranu()` albo `SzynaKolejneEkranyTest::szyna()`),
+bo inaczej test pilnuje „gdziekolwiek", a nie tego jednego miejsca.
+
+**Czego NIE zwężać:** asercji „X nie ma". Te zostają na całym dokumencie —
+szersze spojrzenie jest tam ostrożniejsze, nie słabsze.
+
+**Uwaga o `bezStopki()`:** ten wzorzec zdejmuje stopkę i tylko stopkę.
+Na trafienia z `<title>` i z belki **nie wystarcza** — sprawdzone na
+`/o-kuking`, gdzie po zdjęciu stopki napis „O Kuking" nadal był w dokumencie
+trzy razy.
 
 ---
 
@@ -126,6 +169,50 @@ wiemy".
 
 Ta sama zasada rządzi bramkami w `docs/OTWARCIE.md`: **`NIE WIEMY` liczy się
 jako nieprzejście, nie jako sukces.**
+
+### 5b. …a najdroższą odmianą tego jest KONTROLA UJEMNA, która niczego nie zepsuła
+
+19 września 2026 ten sam wzorzec trafił **cztery razy w czterech niezależnych
+pakietach**, zawsze tak samo: ktoś mutował źródło, wzorzec `sed` nie trafiał,
+plik zostawał nietknięty, test przechodził — i przebieg wyglądał na poprawnie
+wykonaną kontrolę ujemną. **Dowód był wart zero, a raport twierdził coś
+przeciwnego.** To jest gorsze niż brak kontroli: brak widać, a no-op wygląda
+jak robota.
+
+Trzy odmiany tej jednej choroby, wszystkie zaobserwowane:
+
+1. **Mutacja nie trafiła.** Wzorzec przestał pasować po niewinnym
+   przeformatowaniu kodu albo po zmianie nazwy zmiennej.
+2. **Test był czerwony JUŻ PRZED mutacją.** Czerwień po mutacji niczego nie
+   dowodzi, a wygląda identycznie.
+3. **Czerwień z niewłaściwego powodu.** Test padł na braku bazy, timeoucie
+   albo literówce w samej mutacji — nie na tym, czego pilnuje.
+
+**Co robić: nie pisz kontroli ujemnej ręcznie.** Przepuść ją przez
+`scripts/kontrola-ujemna.sh`, który wszystkie trzy odmiany odcina
+konstrukcyjnie:
+
+```bash
+scripts/kontrola-ujemna.sh   --nazwa 'docięcie numeru strony drugiej listy — #646'   --plik app/Support/PaginationLinks.php   --zamien 'min($other->currentPage(), $other->lastPage())'   --na '$other->currentPage()'   --oczekuj 'page.*999'   --json storage/kontrola-646.json   -- vendor/bin/phpunit tests/Feature/ZeszytPaginacjaObuListTest.php
+```
+
+Przyrząd liczy podmiany (PHP `str_replace`, zwykły łańcuch, nie wyrażenie
+regularne) i **odmawia uruchomienia testu**, gdy podmian było zero — komunikat
+`ODMOWA_NO_OP`, kod wyjścia 2. Wymaga też kontroli dodatniej przed mutacją
+(kod 5, gdy test był już czerwony) i wzorca `--oczekuj`, bez którego nie
+odróżnia dowodu od awarii środowiska (kod 4 przy czerwieni z innej przyczyny).
+Źródło wraca w `trap` na EXIT, INT i TERM, ze sprawdzeniem MD5 i mtime —
+także wtedy, gdy test zginie w połowie.
+
+Sam przyrząd ma własną kontrolę ujemną: `tests/skrypty/kontrola-ujemna.sh`
+podaje mu m.in. mutację, która **nie trafia**, i sprawdza, że odmawia zamiast
+zameldować sukces. Bez tego byłby kolejnym narzędziem z dokładnie tą wadą,
+którą naprawia. Przebieg jest w `scripts/check.sh` — nie wymaga bazy i trwa
+poniżej sekundy.
+
+**Dlaczego łańcuch, a nie wyrażenie regularne.** Łańcuch albo jest w pliku,
+albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
+innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
 
 ---
 
@@ -219,6 +306,204 @@ połączenia są naprawdę dwa.
 
 ---
 
+## 8. `git checkout -- <plik>` cofa nie tylko sabotaż, ale i niezacommitowaną naprawę
+
+**Złapała: koordynatora tej sesji, na trzech kontrolach ujemnych z rzędu —
+i wszystkie trzy wyglądały na udane.**
+
+Przebieg był taki. Naprawa leżała w katalogu roboczym, **bez commita**. Agent
+zepsuł plik celowo, uruchomił test, zobaczył czerwień — i przywrócił plik
+przez `git checkout -- <plik>`. To polecenie nie zna pojęcia „sabotaż":
+przywraca treść z `HEAD`, czyli stan SPRZED naprawy. Od tej chwili plik
+zawierał starą, zepsutą treść, o której agent myślał, że jest naprawiona.
+
+Dalej działo się najgorsze możliwe: drugi i trzeci sabotaż raportowały
+czerwień z **pierwszej** usterki, tej cofniętej razem z naprawą. Trzy
+kontrole ujemne oblały się trzy razy z tego samego, niewłaściwego powodu —
+a w podsumowaniu wyglądało to jak trzy niezależne dowody, że testy mierzą.
+
+Wykryte tylko dlatego, że w komunikacie oblanego testu stała nazwa **nie tego
+pliku**, który był sabotowany. Gdyby komunikat był ogólniejszy („asercja nie
+przeszła"), pomyłka weszłaby do raportu jako trzy zielone kontrole ujemne.
+
+**Co robić:**
+
+1. **Przed serią kontroli ujemnych zacommituj naprawę** — wtedy `HEAD` jest
+   stanem naprawionym i `git checkout -- <plik>` robi to, czego się od niego
+   oczekuje.
+2. **Albo nie przywracaj z `HEAD` w ogóle**: odłóż kopię (`cp <plik>
+   <plik>.kopia`), sabotuj, przywróć przez `cp <plik>.kopia <plik>`. Kopia nie
+   wie nic o commitach, więc nie cofnie niczego poza sabotażem.
+3. **Czytaj, CZEGO dotyczy komunikat oblanego testu, nie tylko że jest
+   czerwony.** Kontrola ujemna, która oblewa się z innego powodu niż Twój
+   sabotaż, nie dowodzi niczego — dokładnie tak samo jak sabotaż, który
+   w ogóle się nie nałożył i dał bezwartościowe „0 failed" (pułapki 2 i 3).
+   To jest siostra tamtych dwóch: **raz nie mierzysz nic, raz mierzysz nie to,
+   a wynik w obu przypadkach wygląda na dowód.**
+4. Po każdej kontroli ujemnej `git diff` **i** `git status` — pusty diff przy
+   niezacommitowanej naprawie znaczy, że naprawy już nie ma, a nie że
+   wszystko wróciło na miejsce.
+
+## 8b. …a czerwień, którą czytasz, może pochodzić z maszyny, nie z kodu
+
+**Złapała: 11.09.2026, agenta pracującego równolegle — i kosztowała cudzy czas
+na szukanie usterki, której nie było.**
+
+`RegressionTest::test_przetworzenie_odnotowuje_czy_zastosowano_obrot` oblał się
+z komunikatem:
+
+```text
+Brak pliku źródłowego w storage.
+```
+
+Człowiek, który to czyta, idzie szukać błędu w przetwarzaniu zdjęć. A pliku nie
+było, bo **skończyło się miejsce na dysku** (w chwili startu zostało 5,7 GB
+i malało — kilku agentów pracowało naraz). Zapis padł, plik nie powstał,
+a `ProcessUploadedImage` sprawdza tylko, **czy plik jest**:
+
+```php
+if ($original === null) {
+    throw new \RuntimeException('Brak pliku źródłowego w storage.');
+}
+```
+
+Brak miejsca, brak uprawnień, skasowanie pliku i nigdy nieudany zapis dają
+w tym miejscu jeden, ten sam, mylący komunikat — nazywający OBJAW widziany
+przez kod, nie PRZYCZYNĘ. Ten sam test na `main`, uruchomiony osobno,
+przechodził.
+
+**Co robić:**
+
+1. **Zanim uwierzysz czerwieni, uruchom ten jeden test osobno** — `--filter`
+   na jego nazwie. Usterka w kodzie oblewa się tak samo w pełnym przebiegu
+   i w pojedynczym; wyczerpany zasób maszyny zwykle nie.
+2. **Sprawdź `df -h /`.** To jedno polecenie odróżnia „test pilnuje czegoś
+   zepsutego" od „maszynie skończyło się miejsce".
+3. Przy pisaniu własnych komunikatów: jeśli warunek brzmi „czy plik jest",
+   to komunikat nie ma prawa twierdzić, że wie, dlaczego go nie ma. Lepiej
+   wymienić w nim możliwe przyczyny niż nazwać jedną, nieprawdziwą.
+
+To jest siostra pułapki 8 z drugiej strony: tam czerwień była prawdziwa, ale
+z niewłaściwego pliku; tu jest prawdziwa, ale z niewłaściwej warstwy. W obu
+razach **czerwień bez przeczytanej przyczyny nie jest informacją.**
+
+## 8c. …a `git stash` jest WSPÓLNY dla wszystkich worktree'ów
+
+**Złapała: 11.09.2026, dwóch agentów naraz — jeden odłożył swoją pracę,
+a `git stash pop` zwrócił mu SZEŚĆ PLIKÓW drugiego, z całkiem innego zadania.**
+
+Agent pracujący nad migracjami zrobił `git stash`, a po chwili `git stash pop`
+— i dostał pliki bramki R2, nad którą pracował ktoś inny, w innym worktree.
+Uratowało to tylko tyle, że zauważył obce nazwy plików; obie prace dało się
+odzyskać.
+
+Przyczyna jest konstrukcyjna i warto ją znać dokładnie. `git worktree`
+izoluje **katalog roboczy, indeks i `HEAD`** — i na tym kończy izolacja.
+Schowek (`refs/stash`), wszystkie refy i cały katalog `.git` są **wspólne**.
+Agent, który myśli „mam swój worktree, więc mam swój schowek", zabiera cudzą
+pracę bez jednego ostrzeżenia.
+
+**Co robić:** w tym repozytorium **nie używaj `git stash` w ogóle.** Jak
+w pułapce 8: zacommituj albo odłóż kopie plików (`cp`). Jedno i drugie jest
+Twoje i tylko Twoje.
+
+To jest trzecia rzecz z tej samej rodziny co pułapki 8 i 8b: **polecenie
+gita, które w pojedynczej pracy jest bezpieczne, przy kilku agentach naraz
+kasuje robotę** — a wygląda przy tym dokładnie tak, jakby zadziałało.
+
+## 9. Test z datą wpisaną na sztywno przechodzi tylko do tej daty
+
+**Złapała: 12.09.2026 o 10:00 UTC — `main` zrobił się czerwony bez ani jednego
+commita. Zegar wybił godzinę wpisaną w teście pół tygodnia wcześniej.**
+
+`AccountStatusTest::test_zawieszony_widzi_date_konca_kary_po_polsku` zawieszał
+konto do `2026-09-12 10:00:00` i sprawdzał, czy na ekranie widać
+„12 września 2026”. Gdy test powstawał, ta data była w przyszłości, więc
+`isSuspended()` zwracało prawdę i komunikat się renderował. Tego dnia o 10:00
+termin minął: `EnsureAccountIsActive` zdjął karę przy pierwszym żądaniu
+(`User::punishmentHasExpired`), ekran słusznie przestał cokolwiek pokazywać
+— i test zaczął padać na **sprawnym** kodzie.
+
+Najgorsze jest to, jak taka czerwień wygląda: pada w środku dnia, na gałęzi,
+która nie tknęła ani moderacji, ani layoutu, i pierwszy odruch to szukać
+winnego wśród świeżo scalonych PR-ów. Sprawdzenie, które kończy poszukiwania
+w pół minuty: **uruchom ten jeden test na czystym `main`.** Jeśli pada i tam,
+to nie jest niczyja zmiana.
+
+**Co robić:** jeśli test sprawdza FORMAT albo TREŚĆ zależną od daty
+— przymroż zegar (`$this->travelTo(Carbon::parse('…', 'UTC'))`) i podaj datę
+jawnie. Jeśli sprawdza UPŁYW czasu — licz względem `now()`
+(`now()->addDays(7)`, `now()->subMinute()`) i nie wpisuj żadnej daty.
+Jedno i drugie w jednym teście to właśnie ta pułapka.
+
+Krótko: **w teście albo data jest stała i zegar też, albo obie są względne.
+Stała data przy idącym zegarze to bomba z opóźnionym zapłonem**, która
+tyka dokładnie tyle, ile wynosi różnica między dniem napisania a wpisaną datą.
+
+---
+
+---
+
+## 10. Stan STANOWISKA udaje wynik pomiaru
+
+§8b mówi o czerwieni pochodzącej z maszyny — obciążenia, timeoutu, ubitego
+procesu. Ta pułapka jest inna i groźniejsza, bo nie wygląda na awarię:
+**stanowisko jest ciche, a jego wada zmienia wynik**. Test mówi prawdę
+o czymś, o co nikt nie pytał.
+
+19 września 2026 trafiło to cztery razy w jednym dniu, za każdym razem
+kosztując osobne śledztwo:
+
+**Klon przez `git archive`.** `.gitattributes` oznacza katalog `.github` jako `export-ignore`,
+więc z paczki zniknęło 38 plików i wypadły 22 testy o workflowach CI.
+Objaw: „PR psuje testy CI". Prawda: tych plików nie było w stanowisku.
+
+**Symlink na `vendor`.** Dowiązanie przestawia PSR-4 dla `App\` na katalog
+dawcy. Objaw: `JednoDekodowanieZdjeciaTest` wywraca się po ośmiu minutach
+hooka. Prawda: autoloader ładował cudzy kod. **Vendor się kopiuje, nie
+dowiązuje.**
+
+**Nieświeży lokalny `main`.** W repozytorium, po którym chodzi kilka sesji,
+gałąź `main` potrafi stać kilkaset commitów wstecz, a `git rev-list --count
+origin/main..main` pokazuje wtedy **zero** i niczego nie sygnalizuje.
+Gałąź zbudowana na takiej bazie dała 41 porażek drzewa sprzed tygodnia.
+Objaw: „regresja w main". Prawda: zła baza. **Bazę bierz z `origin/main`,
+nie z lokalnego `main`.**
+
+**Brak bitu wykonywalności.** Skrypt zacommitowany w worktree Windows dostaje
+tryb `100644` zamiast `100755`. Objaw: 8 oblanych z 12, wszystkie z kodem
+**126** („znaleziono, ale nie da się wykonać"). U autora było 12/12, bo plik
+na dysku był wykonywalny — zepsuty był wyłącznie tryb w commicie.
+Commituj skrypty przez `git update-index --chmod=+x`.
+
+### Dlaczego to jest osobna pułapka, a nie odmiana §5
+
+W §5 narzędzie **nie robi nic** i melduje sukces. Tutaj narzędzie robi
+dokładnie to, o co je poproszono — tylko nie na tym, na czym myślisz.
+Wynik jest prawdziwy i bezużyteczny naraz.
+
+### Dwa wzorce, które to wyłapują
+
+**Pytaj o zachowanie, nie o wygląd.** Podgląd pliku przez kilka warstw
+powłoki gubi ukośniki: `/^(P581_[A-Z_]+)\s/` wyświetlił się identycznie
+jak zepsute `/^(P581_[A-Z_]+)s/`. Rozstrzygnęło dopiero zaimportowanie
+modułu i sprawdzenie, co zwraca — wynik był dokładnie odwrotny od
+zamierzonego.
+
+**Bisektuj, zanim ogłosisz regresję.** Masowe porażki na gałęzi sprawdź
+najpierw na samych scaleniach bazy: jeśli każde z osobna jest zielone,
+winna jest baza albo stanowisko, nie kod. To odróżnienie zajęło pięć minut
+i oszczędziło zgłoszenia o nieistniejącej regresji.
+
+### Dotyczy to także poleceń pomocniczych
+
+Tego samego dnia `git show 'origin/main:.env.example'` **cicho padło** na
+zamianie ścieżki przez powłokę Windows, a skrypt wypisał własne „brak
+wpisu" — i na tej podstawie postawiono błędną diagnozę o strefie czasowej.
+Polecenie diagnostyczne, którego kodu wyjścia nikt nie sprawdza, jest
+kolejnym źródłem tej samej pułapki. `MSYS_NO_PATHCONV=1` rozwiązuje ten
+konkretny przypadek; sprawdzanie kodu wyjścia rozwiązuje całą klasę.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
@@ -232,6 +517,22 @@ Siódma dołączyła 11.09.2026, przy zakładaniu grupy `dwa-polaczenia` (D-105,
 issue #314): wyszła z pomiaru zrobionego po to, żeby sprawdzić, czy nowy
 szkielet w ogóle cokolwiek mierzy. Okazało się, że przy jednym połączeniu nie
 mierzy — i że wygląda przy tym dokładnie tak samo jak wtedy, gdy mierzy.
+
+Ósma dołączyła 11.09.2026 razem z dopiskami 8b i 8c — z tego samego dnia
+i tej samej sesji kilkunastu agentów pracujących równolegle. Cała trójka jest
+jedyną częścią tej listy, która nie dotyczy kodu testu, tylko **obsługi
+pomiaru: czytania własnej kontroli ujemnej, czytania cudzej czerwieni
+i narzędzi, które przy kilku agentach naraz zachowują się inaczej, niż
+podpowiada intuicja o izolacji**. Ósma wyszła z serii trzech kontroli
+ujemnych, które oblały się trzy razy z tego samego, cofniętego wraz z naprawą
+powodu. Ta trójka zostaje na liście, bo lista pilnuje nie tylko tego, żeby
+test mierzył, ale i tego, żeby jego pomiar był uczciwy — a pomiar czytany
+źle albo skasowany przez własne narzędzie nie jest uczciwy.
+
+Dziewiąta dołączyła 12.09.2026 — jedyna na tej liście, która zapaliła się
+sama, bez czyjegokolwiek commita, o godzinie wpisanej w test kilka dni
+wcześniej. Zostaje tu, bo należy do tej samej rodziny co 8b: **czerwień, którą
+czytasz, nie musi pochodzić ze zmiany, którą właśnie oglądasz.**
 
 Dwie zasady o kodzie, które z tego zostają (D-079, obowiązują szerzej niż
 miejsce zapisu):

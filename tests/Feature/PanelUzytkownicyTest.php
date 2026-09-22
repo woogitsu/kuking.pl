@@ -127,8 +127,9 @@ class PanelUzytkownicyTest extends TestCase
 
     public function test_wyszukiwanie_naprawde_zaweza_wynik(): void
     {
-        $this->user('halinka', ['display_name' => 'Halina Kowalska']);
-        $this->user('zenek', ['display_name' => 'Zenon Nowak']);
+        // Szukamy także po e-mailu: losowy adres mógł zawierać „kowalska”.
+        $this->user('halinka', ['display_name' => 'Halina Kowalska', 'email' => 'halina@example.test']);
+        $this->user('zenek', ['display_name' => 'Zenon Nowak', 'email' => 'zenon@example.test']);
 
         $this->actingAs($this->moderator())
             ->get(route('admin.users', ['szukaj' => 'kowalska']))

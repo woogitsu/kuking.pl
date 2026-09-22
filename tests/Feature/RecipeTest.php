@@ -29,11 +29,27 @@ class RecipeTest extends TestCase
         $this->assertSame('rosol-babci-zofii', $recipe->slug);
     }
 
-    public function test_publikacja_wymaga_skladnikow_i_krokow(): void
+    public function test_publikacja_wymaga_kroku_ale_nie_wymaga_skladnika(): void
     {
         $basia = $this->user('basia');
 
-        $this->expectExceptionMessage('Dodaj przynajmniej jeden składnik');
+        // SKŁADNIK NIE JEST WARUNKIEM — zgoda właściciela z 11.09.2026
+        // (issue #364). Pełny dowód regresyjny wraz z drogą przez formularz
+        // stoi w `DodawaniePrzepisuSzescKontrolekTest`; tu pilnujemy samej
+        // akcji domenowej, bo to ona jest jedyną bramką dla obu dróg zapisu.
+        $bezSkladnikow = app(PublishRecipe::class)->handle(
+            author: $basia,
+            attributes: ['title' => 'Przepis bez składników'],
+            steps: [['instruction' => 'Wymieszać wszystko.']],
+            publish: true,
+        );
+
+        $this->assertSame(Recipe::STATUS_PUBLISHED, $bezSkladnikow->status);
+        $this->assertCount(0, $bezSkladnikow->ingredients);
+
+        // KROK JEST WARUNKIEM i zostaje: przepis, który nie mówi, co zrobić,
+        // nie jest przepisem.
+        $this->expectExceptionMessage('Opisz przynajmniej jeden krok');
 
         app(PublishRecipe::class)->handle(
             author: $basia,
@@ -131,9 +147,14 @@ class RecipeTest extends TestCase
     public function test_przepis_rodzinny_podpisuje_oryginalnego_autora(): void
     {
         $basia = $this->user('basia', ['display_name' => 'Basia']);
-        $recipe = Recipe::factory()->family('babci Zofii')->create(['author_id' => $basia->getKey()]);
+        $recipe = Recipe::factory()->family('od babci Zofii')->create(['author_id' => $basia->getKey()]);
 
-        $this->assertStringContainsString('babci Zofii', $recipe->attributionLine());
-        $this->assertStringContainsString('spisany przez', $recipe->attributionLine());
+        // Obie informacje zostają: skąd przepis i kto go tu zapisał. Zmieniła
+        // się konstrukcja — dawne „spisany przez Basia" odmieniało nazwę konta
+        // i przy „Żaneta" dawało zdanie niegramatyczne. Pełny dowód regresyjny
+        // dla wrogich wartości stoi w `ZrodloPrzepisuBezPrzyimkaTest`.
+        $this->assertStringContainsString('od babci Zofii', $recipe->attributionLine());
+        $this->assertStringContainsString('Basia', $recipe->attributionLine());
+        $this->assertStringNotContainsString('spisany przez', $recipe->attributionLine());
     }
 }

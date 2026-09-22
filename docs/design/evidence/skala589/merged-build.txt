@@ -1,0 +1,17 @@
+
+> build
+> node scripts/kontrast-marki.mjs && vite build
+
+Kontrast marki: 72 par spełnia przypisane progi.
+vite v8.2.2 building client environment for production...
+transforming...
+✓ 8 modules transformed.
+rendering chunks...
+computing gzip size...
+public/build/manifest.json                                        0.83 kB │ gzip:  0.26 kB
+public/build/assets/inter-latin-wght-normal-Dx4kXJAl.woff2       48.25 kB
+public/build/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2   85.06 kB
+public/build/assets/app-BbC4zqzk.css                            141.73 kB │ gzip: 24.83 kB
+public/build/assets/app-BfcwSyV6.js                              15.12 kB │ gzip:  5.50 kB
+
+✓ built in 257ms

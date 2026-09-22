@@ -17,6 +17,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use PragmaRX\Google2FA\Google2FA;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -39,6 +40,7 @@ use Tests\TestCase;
 class LogowanieLinkiemTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     /**
      * Czy wymuszony przeplot z `wSrodkuZuzyciaTokenu()` naprawdę się wykonał.
@@ -70,10 +72,16 @@ class LogowanieLinkiemTest extends TestCase
 
         // KROK 1: samo wejście pod adres z listu NICZEGO NIE ZUŻYWA
         // i NIKOGO NIE LOGUJE.
-        $this->get($link)
-            ->assertOk()
-            ->assertSee('Zaloguj mnie')
-            ->assertSee('b***@example.com');
+        $ekran = $this->get($link)->assertOk();
+
+        // Na treści ekranu, nie w `<title>` (pułapka 1b) — ekran z linku ma
+        // `title="Zaloguj mnie"`. Zmierzone 12.09.2026: po skasowaniu
+        // nagłówka i napisu na przycisku ta asercja nadal przechodziła.
+        $this->assertStringContainsString(
+            'Zaloguj mnie',
+            $this->trescEkranu((string) $ekran->getContent()),
+        );
+        $ekran->assertSee('b***@example.com');
 
         $this->assertGuest();
         $this->assertDatabaseCount('login_link_tokens', 1);
@@ -128,7 +136,17 @@ class LogowanieLinkiemTest extends TestCase
 
         $this->flushSession();
 
-        $this->get($link)->assertOk()->assertSee('Zaloguj mnie');
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1b): ekran
+        // z linku ma `title="Zaloguj mnie"`, czyli to samo zdanie w `<title>`
+        // i w `<meta>`. Zmierzone 12.09.2026 — po skasowaniu i nagłówka,
+        // i napisu na przycisku asercja na całej odpowiedzi nadal przechodziła,
+        // choć na ekranie nie było już czego kliknąć.
+        $ekran = $this->get($link)->assertOk();
+
+        $this->assertStringContainsString(
+            'Zaloguj mnie',
+            $this->trescEkranu((string) $ekran->getContent()),
+        );
         $this->wejdz($link);
 
         $this->assertAuthenticatedAs($basia);
@@ -157,7 +175,14 @@ class LogowanieLinkiemTest extends TestCase
         $this->assertStringContainsString('już nie działa', (string) session('status'));
 
         // I ekran z linku też ma już nic nie oferować.
-        $this->get($link)->assertOk()->assertSee('Ten link już nie działa');
+        //
+        // NA TREŚCI EKRANU (pułapka 1b): `auth/login-link-unavailable.blade.php`
+        // podaje ten sam napis do `title=`, więc asercja na całej odpowiedzi
+        // przechodziła po skasowaniu nagłówka ekranu. Zmierzone 12.09.2026.
+        $this->assertStringContainsString(
+            'Ten link już nie działa',
+            $this->trescEkranu((string) $this->get($link)->assertOk()->getContent()),
+        );
     }
 
     public function test_wygasly_token_nie_loguje(): void
@@ -168,7 +193,11 @@ class LogowanieLinkiemTest extends TestCase
         // Minutę po terminie z `config('kuking.login_link.waznosc_minut')`.
         $this->travel((int) config('kuking.login_link.waznosc_minut') + 1)->minutes();
 
-        $this->get($link)->assertOk()->assertSee('Ten link już nie działa');
+        // Na treści ekranu, nie w `<title>` — jak wyżej.
+        $this->assertStringContainsString(
+            'Ten link już nie działa',
+            $this->trescEkranu((string) $this->get($link)->assertOk()->getContent()),
+        );
         $this->wejdz($link);
 
         $this->assertGuest();
@@ -278,9 +307,11 @@ class LogowanieLinkiemTest extends TestCase
         $this->user('basia', ['email' => 'basia@example.com']);
 
         foreach (['abc', str_repeat('a', 64), str_repeat('Z', 200)] as $zmyslony) {
-            $this->get('/logowanie/link/'.$zmyslony)
-                ->assertOk()
-                ->assertSee('Ten link już nie działa');
+            // Na treści ekranu, nie w `<title>` — jak wyżej.
+            $this->assertStringContainsString(
+                'Ten link już nie działa',
+                $this->trescEkranu((string) $this->get('/logowanie/link/'.$zmyslony)->assertOk()->getContent()),
+            );
 
             $this->post(route('login.link.store'), ['token' => $zmyslony]);
 
@@ -401,6 +432,26 @@ class LogowanieLinkiemTest extends TestCase
         // komunikat naprawdę zawiera skrót adresu i naprawdę poszedł tylko
         // jeden list.
         $this->assertStringContainsString('b***@example.com', $this->komunikat($zKontem));
+        $this->assertDatabaseCount('login_link_tokens', 1);
+    }
+
+    public function test_status_pozwala_otworzyc_wiadomosc_na_innym_urzadzeniu_bez_ujawniania_konta(): void
+    {
+        Notification::fake();
+        $osoba = $this->user('basia', ['email' => 'basia@example.com']);
+        $zKontem = $this->wyslijFormularz('basia@example.com');
+        // Sesja jest współdzielona między żądaniami testu: zapisz komunikat przed drugim POST.
+        $statusZKontem = $this->komunikat($zKontem);
+        $bezKonta = $this->wyslijFormularz('bogumila@example.com');
+        $statusBezKonta = $this->komunikat($bezKonta);
+
+        $zKontem->assertRedirect(route('login.link'));
+        $bezKonta->assertRedirect(route('login.link'));
+        $this->assertSame($statusZKontem, $statusBezKonta);
+        $this->assertStringContainsString('b***@example.com', $statusZKontem);
+        $this->assertStringContainsString('także na innym telefonie albo komputerze', $statusZKontem);
+        $this->assertStringNotContainsString('tym samym', $statusZKontem);
+        Notification::assertSentTo($osoba, LinkDoLogowania::class);
         $this->assertDatabaseCount('login_link_tokens', 1);
     }
 

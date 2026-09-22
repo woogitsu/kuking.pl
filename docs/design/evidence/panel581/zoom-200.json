@@ -1,0 +1,3676 @@
+{
+  "scope": "Chromium zoom2/320CSS/text140, reducedMotion reduce; panel oracle: Tab and radio arrows; actual browser zoom",
+  "mutations": [],
+  "rows": [
+    {
+      "id": "zgloszenia-pelny",
+      "path": "/admin/zgloszenia",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 25,
+        "odwiedzone": 25,
+        "grupyRadio": 2,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "25",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "26",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "30",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "31",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "32",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "33",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "34",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "35",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "36",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "37",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "38",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "zgloszenia-pelny",
+      "path": "/admin/zgloszenia",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 25,
+        "odwiedzone": 25,
+        "grupyRadio": 2,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "25",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "26",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "30",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "31",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "32",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "33",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "34",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "35",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "36",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "37",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "38",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "sygnaly-pelny",
+      "path": "/admin/sygnaly",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 19,
+        "odwiedzone": 19,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "sygnaly-pelny",
+      "path": "/admin/sygnaly",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 19,
+        "odwiedzone": 19,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "odwolania-pelny",
+      "path": "/admin/odwolania",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 20,
+        "odwiedzone": 20,
+        "grupyRadio": 1,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "23",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "odwolania-pelny",
+      "path": "/admin/odwolania",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 20,
+        "odwiedzone": 20,
+        "grupyRadio": 1,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "23",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "wiadomosci-pelny",
+      "path": "/admin/wiadomosci",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 19,
+        "odwiedzone": 19,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "wiadomosci-pelny",
+      "path": "/admin/wiadomosci",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 19,
+        "odwiedzone": 19,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "wiadomosc-pelny",
+      "path": "/admin/wiadomosci/01a0a622-8cf0-71e1-ae7e-c5f9c374d451",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 21,
+        "odwiedzone": 21,
+        "grupyRadio": 1,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "wiadomosc-pelny",
+      "path": "/admin/wiadomosci/01a0a622-8cf0-71e1-ae7e-c5f9c374d451",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 21,
+        "odwiedzone": 21,
+        "grupyRadio": 1,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "ArrowRight"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "kolaz-powitalny-pelny",
+      "path": "/admin/kolaz-powitalny",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 20,
+        "odwiedzone": 20,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "kolaz-powitalny-pelny",
+      "path": "/admin/kolaz-powitalny",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 20,
+        "odwiedzone": 20,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "kuking-na-dzis-pelny",
+      "path": "/admin/kuking-na-dzis",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 26,
+        "odwiedzone": 26,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "kuking-na-dzis-pelny",
+      "path": "/admin/kuking-na-dzis",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 26,
+        "odwiedzone": 26,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "tagi-promowane-pelny",
+      "path": "/admin/tagi-promowane",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 21,
+        "odwiedzone": 21,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "tagi-promowane-pelny",
+      "path": "/admin/tagi-promowane",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 21,
+        "odwiedzone": 21,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "uzytkownicy-pelny",
+      "path": "/admin/uzytkownicy?szukaj=panel581-bb4a90188663",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 38,
+        "odwiedzone": 38,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "30",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "31",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "32",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "33",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "34",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "35",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "36",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "37",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "38",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "39",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "40",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "41",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "uzytkownicy-pelny",
+      "path": "/admin/uzytkownicy?szukaj=panel581-bb4a90188663",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 38,
+        "odwiedzone": 38,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "30",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "31",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "32",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "33",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "34",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "35",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "36",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "37",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "38",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "39",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "40",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "41",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "uzytkownik-pelny",
+      "path": "/admin/uzytkownicy/01a0a622-8c20-72ce-b399-a0cc5610dd0d",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 15,
+        "odwiedzone": 15,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "uzytkownik-pelny",
+      "path": "/admin/uzytkownicy/01a0a622-8c20-72ce-b399-a0cc5610dd0d",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 15,
+        "odwiedzone": 15,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "bez-odpowiedzi-wpisy-pelny",
+      "path": "/admin/bez-odpowiedzi?typ=wpisy",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 32,
+        "odwiedzone": 32,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "30",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "31",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "32",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "33",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "34",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "35",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "bez-odpowiedzi-wpisy-pelny",
+      "path": "/admin/bez-odpowiedzi?typ=wpisy",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 32,
+        "odwiedzone": 32,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "22",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "23",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "24",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "25",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "26",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "27",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "28",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "29",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "30",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "31",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "32",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "33",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "34",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "35",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "bez-odpowiedzi-przepisy-pelny",
+      "path": "/admin/bez-odpowiedzi?typ=przepisy",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 18,
+        "odwiedzone": 18,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "bez-odpowiedzi-przepisy-pelny",
+      "path": "/admin/bez-odpowiedzi?typ=przepisy",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 18,
+        "odwiedzone": 18,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "bez-odpowiedzi-ugotowane-pelny",
+      "path": "/admin/bez-odpowiedzi?typ=ugotowane",
+      "theme": "light",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 18,
+        "odwiedzone": 18,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    },
+    {
+      "id": "bez-odpowiedzi-ugotowane-pelny",
+      "path": "/admin/bez-odpowiedzi?typ=ugotowane",
+      "theme": "dark",
+      "zoom": 2,
+      "width": 320,
+      "height": 850,
+      "dpr": 2,
+      "font": 25.2,
+      "scroll": 320,
+      "klawiatura": {
+        "oczekiwane": 18,
+        "odwiedzone": 18,
+        "grupyRadio": 0,
+        "ustalenieFokusu": [
+          {
+            "id": "4",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "5",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "6",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "7",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "8",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "9",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "10",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "11",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "12",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "13",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "14",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "15",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "16",
+            "klatki": 0,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "17",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "18",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "19",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "20",
+            "klatki": 1,
+            "wejscie": "Tab"
+          },
+          {
+            "id": "21",
+            "klatki": 1,
+            "wejscie": "Tab"
+          }
+        ],
+        "zakres": "Początkowo widoczne kontrolki main i nawigacji; jedno wejście Tab na grupę radio i pełny cykl strzałek. Widoczny fragment celu z obrysem CSS, nie raster wszystkich krawędzi. Bez otwierania zamkniętych details, odbioru nowo ujawnionych pól i wysyłania formularzy."
+      },
+      "tab": "PASS"
+    }
+  ]
+}

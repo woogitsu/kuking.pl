@@ -1,0 +1,134 @@
+[
+  {
+    "width": 240,
+    "theme": "light",
+    "viewport": 320,
+    "scroll": 320,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 280,
+    "headingFont": 100.8
+  },
+  {
+    "width": 240,
+    "theme": "dark",
+    "viewport": 320,
+    "scroll": 320,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 280,
+    "headingFont": 100.8
+  },
+  {
+    "width": 280,
+    "theme": "light",
+    "viewport": 360,
+    "scroll": 360,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 320,
+    "headingFont": 100.8
+  },
+  {
+    "width": 280,
+    "theme": "dark",
+    "viewport": 360,
+    "scroll": 360,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 320,
+    "headingFont": 100.8
+  },
+  {
+    "width": 310,
+    "theme": "light",
+    "viewport": 390,
+    "scroll": 390,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 350,
+    "headingFont": 100.8
+  },
+  {
+    "width": 310,
+    "theme": "dark",
+    "viewport": 390,
+    "scroll": 390,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 350,
+    "headingFont": 100.8
+  },
+  {
+    "width": 334,
+    "theme": "light",
+    "viewport": 414,
+    "scroll": 414,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 374,
+    "headingFont": 100.8
+  },
+  {
+    "width": 334,
+    "theme": "dark",
+    "viewport": 414,
+    "scroll": 414,
+    "root": 32,
+    "body": 50.4,
+    "x": 40,
+    "right": 374,
+    "headingFont": 100.8
+  },
+  {
+    "width": 680,
+    "theme": "light",
+    "viewport": 768,
+    "scroll": 768,
+    "root": 32,
+    "body": 50.4,
+    "x": 44,
+    "right": 724,
+    "headingFont": 100.8
+  },
+  {
+    "width": 680,
+    "theme": "dark",
+    "viewport": 768,
+    "scroll": 768,
+    "root": 32,
+    "body": 50.4,
+    "x": 44,
+    "right": 724,
+    "headingFont": 100.8
+  },
+  {
+    "width": 884.8125,
+    "theme": "light",
+    "viewport": 1440,
+    "scroll": 1440,
+    "root": 32,
+    "body": 50.4,
+    "x": 192,
+    "right": 1076.8125,
+    "headingFont": 100.8
+  },
+  {
+    "width": 884.8125,
+    "theme": "dark",
+    "viewport": 1440,
+    "scroll": 1440,
+    "root": 32,
+    "body": 50.4,
+    "x": 192,
+    "right": 1076.8125,
+    "headingFont": 100.8
+  }
+]

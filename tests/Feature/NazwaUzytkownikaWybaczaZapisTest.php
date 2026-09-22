@@ -141,7 +141,7 @@ class NazwaUzytkownikaWybaczaZapisTest extends TestCase
         // Tu z kolei musi zadziałać reguła zajętości — „BASIA" przechodzi
         // wzorzec, więc gdyby normalizacja psuła kolejność, powstałoby drugie
         // konto różniące się tylko wielkością liter (audyt A25).
-        $odpowiedz->assertSessionHasErrors(['username' => 'Ta nazwa jest już zajęta. Wolna jest: BASIA_2 — możesz ją wpisać.']);
+        $odpowiedz->assertSessionHasErrors(['username' => 'Ta nazwa jest już zajęta. Wpisz zamiast niej BASIA_2 — ta jest wolna.']);
         $this->assertSame(1, Profile::query()->whereRaw('lower(username) = ?', ['basia'])->count());
     }
 

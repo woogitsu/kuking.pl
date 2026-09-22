@@ -23,7 +23,7 @@ Konfiguracja przez middleware (np. pakiet `spatie/laravel-csp` lub własny middl
 > bez `new Function`).
 >
 > **Jedyna niedomknięta dyrektywa:** `style-src` ma jeszcze `unsafe-inline`,
-> bo w widokach zostało 355 atrybutów `style="…"` w 57 plikach. Nonce ich nie
+> bo w widokach zostało 198 atrybutów `style="…"` w 14 plikach. Nonce ich nie
 > ratuje — działa na elementy `<style>`, a nie na atrybut `style`. Nagłówek
 > `Report-Only` jest ustawiony ostrzej (`style-src` z samym nonce), żeby
 > mierzyć dokładnie tę pozostałość, a nie coś, co jest już w porządku.
@@ -72,7 +72,7 @@ X-Frame-Options: DENY
 
 - **Cookies sesji:** `secure=true`, `httponly=true`, `samesite=lax` (nie `strict`, bo `strict` łamie powrót z linków e-mail typu reset hasła w niektórych przeglądarkach) — w `config/session.php`.
 - **Rotacja ID sesji** przy logowaniu i przy zmianie uprawnień (Laravel robi to domyślnie przez `Auth::login()` + regenerację sesji — upewnij się, że nic w kodzie nie wyłącza tego zachowania).
-- **Wylogowanie z innych urządzeń:** Laravel udostępnia `Auth::logoutOtherDevices($password)` — wystaw to jako opcję w ustawieniach konta ("Wyloguj wszystkie inne urządzenia"), wymagaj ponownego podania hasła przy tej akcji.
+- **Wylogowanie z innych urządzeń:** ustawienia wymagają ponownego podania hasła i wywołują `User::invalidateSessions()` z wyjątkiem bieżącej sesji. Metoda odwołuje też linki logowania i wspólny `remember_token` (#584). Bieżąca sesja zostaje, ale po jej utracie stare ciasteczko pamiętania nie zaloguje ponownie. Implementacja nie używa `Auth::logoutOtherDevices()`; nie należy zakładać obecności middleware `auth.session`. Zakres i dowody: `docs/security/ZAPAMIETANE_LOGOWANIE_584.md`.
 - **Invalidacja sesji przy zmianie hasła:** wymuś wylogowanie wszędzie poza bieżącym urządzeniem automatycznie przy zmianie hasła (nie tylko jako opcja) — to standard, nie luksus.
 - **2FA — kiedy:**
   - **Obowiązkowe dla kont administracyjnych/moderatorskich** od dnia startu — to konta z realną władzą nad treścią i danymi innych osób.
@@ -262,7 +262,7 @@ Gdy pojawi się import przepisu z zewnętrznego URL (`FEATURES.md` V2):
 ## 6. Autoryzacja
 
 - **Policy dla każdego modelu z właścicielem/widocznością:** `Post`, `Recipe`, `Media`, `CookedEvent`, `Collection` (i każdy kolejny model UGC) — jawna `PostPolicy`, `RecipePolicy` itd., rejestrowane w `AuthServiceProvider`, wywoływane przez `$this->authorize()` w każdym kontrolerze/akcji Livewire, **nigdy** poleganie tylko na warunku w widoku (Blade `@can` chowa przycisk, ale nie chroni endpointu — to tylko UX, nie bezpieczeństwo).
-- **IDOR (Insecure Direct Object Reference):** każdy endpoint przyjmujący ID zasobu (np. `/recipes/{recipe}/edit`) musi przejść przez Policy sprawdzającą, czy zalogowany użytkownik jest właścicielem/ma prawo do akcji — **niezależnie od tego, czy ID jest zgadywalne czy nie**.
+- **IDOR (Insecure Direct Object Reference):** każdy endpoint przyjmujący ID zasobu (np. `/przepisy/{recipe}/edycja`) musi przejść przez Policy sprawdzającą, czy zalogowany użytkownik jest właścicielem/ma prawo do akcji — **niezależnie od tego, czy ID jest zgadywalne czy nie**.
 - **Dlaczego UUID w URL nie zastępuje autoryzacji:** UUID (np. `recipes/3f2a...`) chroni przed **enumeracją** (nie da się łatwo zgadnąć ID kolejnego rekordu, jak przy autoincrement), ale **nie chroni przed IDOR** — jeśli ktoś zna/przechwyci konkretny UUID (np. z linku udostępnionego, logów, historii przeglądarki na współdzielonym komputerze, lub po prostu z publicznego URL-a przepisu), a endpoint nie sprawdza właściciela, atakujący i tak wykona akcję. UUID to **obfuskacja**, nie **autoryzacja** — te dwie rzeczy trzeba wdrożyć osobno, i to Policy jest tą właściwą warstwą.
 - Wizualne domyślne testy: dla każdego nowego endpointu zapisz test "użytkownik B nie może edytować/usunąć zasobu użytkownika A" — to tani, wysoko-wartościowy test regresyjny.
 

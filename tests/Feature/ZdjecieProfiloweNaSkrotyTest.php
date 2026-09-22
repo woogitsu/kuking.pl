@@ -16,6 +16,7 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\Support\JpegZeWspolrzednymiGps;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -53,6 +54,7 @@ class ZdjecieProfiloweNaSkrotyTest extends TestCase
 {
     use JpegZeWspolrzednymiGps;
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     protected function setUp(): void
     {
@@ -155,7 +157,17 @@ class ZdjecieProfiloweNaSkrotyTest extends TestCase
         $bezZdjecia = (string) $this->actingAs($basia)
             ->get(route('profile.show', 'basia'))->getContent();
 
-        $this->assertStringContainsString('Dodaj zdjęcie profilowe', $bezZdjecia);
+        // ZACHĘTA PRZY AWATARZE, czyli w treści ekranu — a nie gdziekolwiek
+        // w dokumencie (pułapka 1). Ten sam napis niesie skrót w prawej
+        // szynie, więc asercja na całej odpowiedzi przechodziła też po
+        // skasowaniu podpisu pod awatarem, o który chodzi w tym pliku.
+        $this->assertStringContainsString(
+            'Dodaj zdjęcie profilowe',
+            $this->trescEkranu($bezZdjecia),
+        );
+
+        // Asercje „czegoś nie ma" zostają na CAŁYM dokumencie: szerzej znaczy
+        // tu ostrożniej, bo zachęta nie ma prawa wyjść RÓWNIEŻ w szynie.
         $this->assertStringNotContainsString('Zmień zdjęcie profilowe', $bezZdjecia);
 
         $this->gotoweZdjecieNaProfilu($basia);

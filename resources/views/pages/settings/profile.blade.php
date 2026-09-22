@@ -4,7 +4,7 @@
 
     {{-- Bez `enctype="multipart/form-data"`: ten formularz nie przyjmuje już
          pliku. Zdjęcie profilowe ma własny ekran (`/ustawienia/zdjecie`). --}}
-    <form class="card" method="POST" action="{{ route('settings.profile') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('settings.profile') }}">
         @csrf @method('PUT')
 
         <x-field name="display_name" label="Jak mamy Cię nazywać?" required :value="$profile->display_name" />
@@ -33,7 +33,7 @@
         Podgląd obok odnośnika, bo „zdjęcie" bez pokazania, JAKIE, każe wejść
         na osobny ekran tylko po to, żeby sprawdzić, czy w ogóle jakieś jest.
     --}}
-    <section class="card zdjecie-profilowe-skrot">
+    <section class="ramka-pomocnicza zdjecie-profilowe-skrot">
         <x-avatar :user="$profile->user" :size="64" />
         <div>
             <h2 class="mt-0 mb-2">Zdjęcie profilowe</h2>

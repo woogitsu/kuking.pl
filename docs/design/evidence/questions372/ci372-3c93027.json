@@ -1,0 +1,80 @@
+{
+  "sha": "3c93027488a6de6c8a16b38b122e1c5e29f2ca22",
+  "run_id": 35344659078,
+  "url": "https://github.com/woogitsu/kuking.pl/actions/runs/35344659078",
+  "conclusion": "success",
+  "jobs": [
+    {
+      "name": "Zakres zmiany",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03",
+      "completed_at": "2026-09-18T12:36:30Z"
+    },
+    {
+      "name": "Build assetów (Vite)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01",
+      "completed_at": "2026-09-18T12:44:12Z"
+    },
+    {
+      "name": "Pint (styl kodu)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01",
+      "completed_at": "2026-09-18T12:43:42Z"
+    },
+    {
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-02",
+      "completed_at": "2026-09-18T12:42:43Z"
+    },
+    {
+      "name": "Build obrazu (weryfikacja)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-02",
+      "completed_at": "2026-09-18T12:48:00Z"
+    },
+    {
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03",
+      "completed_at": "2026-09-18T12:55:17Z"
+    },
+    {
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03",
+      "completed_at": "2026-09-18T12:47:38Z"
+    },
+    {
+      "name": "Audyt zależności",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03",
+      "completed_at": "2026-09-18T12:47:58Z"
+    },
+    {
+      "name": "Testy (PostgreSQL 18)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03",
+      "completed_at": "2026-09-18T13:04:34Z"
+    },
+    {
+      "name": "Larastan (analiza statyczna)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03",
+      "completed_at": "2026-09-18T12:57:00Z"
+    },
+    {
+      "name": "Port marki — rodziny ekranów, zoom i kreator",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01",
+      "completed_at": "2026-09-18T13:07:32Z"
+    },
+    {
+      "name": "Panel marki — puste i pełne widoki",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-02",
+      "completed_at": "2026-09-18T13:03:10Z"
+    }
+  ]
+}

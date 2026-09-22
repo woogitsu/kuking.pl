@@ -21,7 +21,7 @@ use Tests\TestCase;
  * DLACZEGO TE TRZY RAZEM
  * Audyt #33 zapytał wprost, czy `/health` mówi prawdę o poczcie i o kolejce,
  * i czy `failed_jobs` w ogóle ktokolwiek widzi. Odpowiedź brzmiała „nie" na
- * oba pytania (D-042, `docs/DECISIONS.md`: „Jedyne miejsce, które w ogóle
+ * oba pytania (D-057 §4, `docs/DECISIONS.md`: „Jedyne miejsce, które w ogóle
  * liczy `failed_jobs`, to `kuking:sprawdz-poczte`, uruchamiane ręcznie") —
  * i to samo dotyczyło Turnstile: `check()` woła `Log::error`, ale na
  * produkcji `LOG_CHANNEL=stderr` (`.railway/railway.ts`), więc `Log::error`
@@ -98,6 +98,27 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
             // powód i `status` byłby `degraded` niezależnie od poczty.
             'kuking.turnstile.klucz_publiczny' => 'test-klucz-publiczny',
             'kuking.turnstile.sekret' => 'test-sekret',
+            // `/health` sprawdza teraz także dwie dodatkowe drogi wejścia
+            // (`google`, `facebook`, issue #258/#259): na produkcji, z funkcją
+            // włączoną i bez kluczy, każda z nich zgłasza WŁASNY powód
+            // i `status` byłby `degraded` niezależnie od tego, co ten test
+            // mierzy. Kluczy w testach nie ma i mieć nie musi, więc wyłączamy
+            // je świadomie — dokładnie tym przełącznikiem, którym wyłącza się
+            // je na produkcji.
+            'kuking.google.wlaczone' => false,
+            'kuking.facebook.wlaczone' => false,
+            // Analityka odwiedzin (D-092) zapala się na produkcji z trzeciego,
+            // własnego powodu: polityka prywatności ją obiecuje, a tokenu
+            // w testach nie ma. Przełącznika „wyłącz" tu nie ma i mieć nie ma
+            // (obietnica stoi w dokumencie prawnym, nie w konfiguracji), więc
+            // uciszamy ją jedyną uczciwą drogą — udawanym tokenem.
+            'kuking.analytics.cloudflare.token' => 'udawany-token-analityki',
+            // Czyszczenie cache CDN (audyt G-03) zapala na produkcji własny
+            // sygnał `czyszczenie_cdn_wylaczone`, gdy nie ma `CLOUDFLARE_ZONE_ID`
+            // i `CLOUDFLARE_PURGE_TOKEN` — a w testach ich nie ma i mieć nie
+            // musi. Uciszamy go udawaną parą, żeby ten test mierzył swoje.
+            'kuking.media.cdn_purge.zone_id' => 'udawana-strefa',
+            'kuking.media.cdn_purge.token' => 'udawany-token-czyszczenia',
         ]);
         $this->app->detectEnvironment(static fn (): string => 'production');
 
@@ -122,7 +143,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
     }
 
     /**
-     * D-042: dziś ISTNIEJE realny sposób stracenia listu po cichu (limit
+     * D-057 §4: dziś ISTNIEJE realny sposób stracenia listu po cichu (limit
      * dobowy EmailLabs padający w środku wysyłki), a jedynym miejscem, które
      * w ogóle patrzy na `failed_jobs`, jest komenda uruchamiana ręcznie.
      * Ten test dowodzi, że `/health` — a więc i zewnętrzny monitoring —
@@ -171,7 +192,7 @@ class HealthPocztaKolejkaIWebhookTest extends TestCase
             'queue' => 'default',
             // Treść jak w prawdziwym `failed_jobs.exception` — pełny ślad
             // stosu z adresem e-mail w środku (dokładnie ten kształt, który
-            // D-042 opisuje jako ginący bez śladu). Testy niżej dowodzą, że
+            // D-057 §4 opisuje jako ginący bez śladu). Testy niżej dowodzą, że
             // TA TREŚĆ nigdzie z `/health` ani z webhooka nie wychodzi.
             'exception' => "Illuminate\\Mail\\... adres: przepadly-list@example.com\nStack trace:\n#0 ...",
             'payload' => '{}',

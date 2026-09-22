@@ -72,6 +72,26 @@ parameters:
         - routes
         - tests
 
+    # Klasy narzędzi badawczych pilotów AI (`Kuking\AiPilots\{Pilot,Transport,
+    # Budget}`) leżą w `scripts/ai-pilots/` i są wciągane przez `require_once`
+    # w `setUp` testów kontraktowych, a nie przez autoload Composera. PHPStan
+    # takiej drogi nie prześledzi i zgłaszał 21 × „unknown class".
+    #
+    # To NIE jest wyciszenie: `scanDirectories` mówi analizatorowi, gdzie te
+    # klasy SĄ, więc sygnatury zaczynają być sprawdzane. Dotąd było odwrotnie —
+    # testy meldowały „przechodzą", a zmiana nazwy metody w `Pilot` nie
+    # zapaliłaby nigdzie. Kontrakt wyglądał na pokryty i pokryty nie był.
+    #
+    # `scanDirectories`, a nie `paths`: te skrypty nie są kodem produktu
+    # i nie mają być analizowane na poziomie projektu — mają być ROZPOZNAWANE.
+    # Droga przez `autoload-dev` w composer.json działałaby w CI (jest tam
+    # `composer install`), ale nie u bramki pchania: runtime dostaje `vendor/`
+    # kopiowany z pamięci podręcznej, bez `dump-autoload`. Sprawdzone
+    # pomiarem — poprawka w composer.json nie zmieniła wyniku bramki ani o jeden
+    # błąd. Jedno miejsce, działające po obu stronach, jest lepsze niż dwa.
+    scanDirectories:
+        - scripts/ai-pilots
+
     # Współdzielony z krokiem cache w CI ("Cache PHPStana", path: .phpstan-cache)
     # — bez tego CI cache'owałoby katalog, którego PHPStan nigdy by nie użył,
     # i każdy przebieg analizowałby wszystko od zera.

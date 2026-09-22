@@ -72,45 +72,13 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
          * „czy te siedem nadal tam jest", a nie od pustego miejsca.
          */
 
-        /*
-         * WEJŚCIE KONTEM GOOGLE (D-069) — dwie różne przyczyny, nie jedna.
-         *
-         * `wejdz/google` i `wejdz/google/wroc` nie mają czego pokazać:
-         * `start()` i `callback()` zwracają `RedirectResponse`, nigdy widoku.
-         * Nie jest to dług — tam po prostu NIE MA strony do zmierzenia.
-         *
-         * `domknij` i `polacz` to prawdziwe ekrany i powinny być mierzone.
-         * Automat ich nie otworzy, bo oba czytają tożsamość z Google z sesji
-         * (`GoogleLoginController::tozsamoscZSesji()`, klucz zakładany
-         * WYŁĄCZNIE przez `callback()` po udanej wymianie kodu u Google);
-         * bez niej oba odsyłają na `/login`.
-         *
-         * SPRAWDZONE 11 WRZEŚNIA, przy spłacie długu siedmiu stron wyżej —
-         * i dlatego ta pozycja zostaje, a tamte nie. Droga na skróty
-         * musiałaby być jedną z dwóch, i obie są zamknięte:
-         *
-         *  1. Podstawienie klucza sesji z zewnątrz. Wymaga trasy, komendy albo
-         *     middleware'u, który pozwala zapisać do sesji „tożsamość
-         *     potwierdzoną przez Google" bez przejścia przez Google. Wiersz
-         *     w `tozsamosci_zewnetrzne` JEST drogą wejścia na konto (D-098),
-         *     więc taki właz jest przejęciem konta czekającym na pomyłkę
-         *     w konfiguracji — i zostałby w repozytorium na zawsze, pokazując
-         *     następnej osobie, że tak wolno. To ta sama granica, której nie
-         *     przekracza `stanModeratora()` przy 2FA.
-         *  2. Podstawienie odpowiedzi Google. Wymiana kodu na token idzie
-         *     Z SERWERA (`KlientGoogle`), a nie z przeglądarki, więc
-         *     Playwright nie ma czego przechwycić — jego `route()` widzi
-         *     wyłącznie ruch karty.
-         *
-         * Zostaje to więc długiem, ale długiem o innym powodzie niż tamte
-         * siedem: nie „nikt się nie zabrał", tylko „zmierzenie tego wymaga
-         * najpierw atrapy dostawcy tożsamości". To jest osobna praca i osobna
-         * decyzja, a nie linijka w automacie.
-         */
-        'wejdz/google' => 'przekierowanie do Google — `start()` zwraca RedirectResponse, nie ma strony',
-        'wejdz/google/wroc' => 'powrót z Google — `callback()` zwraca RedirectResponse, nie ma strony',
-        'wejdz/google/domknij' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Google w sesji — automat jej nie założy',
-        'wejdz/google/polacz' => 'DŁUG: prawdziwy ekran, ale wymaga tożsamości Google w sesji — automat jej nie założy',
+        // Start i powrót prowadzą do kolejnego kroku. Cztery formularze oraz
+        // wariant Facebooka bez adresu mierzy oddzielny moduł OAuth (#345).
+        'wejdz/google' => 'przekierowanie do dostawcy, bez własnego ekranu',
+        'wejdz/google/wroc' => 'powrót z Google przekierowuje do właściwego formularza',
+        'wejdz/facebook' => 'przekierowanie do dostawcy, bez własnego ekranu',
+        'wejdz/facebook/wroc' => 'przekierowanie albo stan bez adresu mierzony przez moduł OAuth',
+
     ];
 
     /** Adresy wymienione w `EKRANY` w automacie dostępności. */
@@ -151,7 +119,16 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
             .'a test przestał cokolwiek mierzyć.',
         );
 
-        return $adresy;
+        $oauth = (string) file_get_contents(base_path('scripts/fixtures/oauth-dostepnosc.mjs'));
+        $od = strpos($oauth, 'export const EKRANY_OAUTH = [');
+        $this->assertNotFalse($od, 'Brakuje jawnej listy ekranów OAuth.');
+        $do = strpos($oauth, "\n];", $od);
+        $this->assertNotFalse($do);
+        preg_match_all("~adres:\s*'([^']+)'~", substr($oauth, $od, $do - $od), $trasyOauth);
+        $this->assertCount(5, $trasyOauth[1], 'OAuth ma cztery formularze i piąty stan bez adresu.');
+
+        return array_merge($adresy, $trasyOauth[1]);
+
     }
 
     public function test_kazda_publiczna_strona_jest_mierzona_albo_wypisana_jako_wyjatek(): void
@@ -249,10 +226,22 @@ class PomiarDostepnosciObejmujeStronyPubliczneTest extends TestCase
         $this->assertContains(
             '/tagi',
             $this->mierzoneAdresy(),
-            'Spis wszystkich tematów (`/tagi`, D-087) wypadł z listy `EKRANY` w automacie '
+            'Spis wszystkich tagów (`/tagi`, D-087) wypadł z listy `EKRANY` w automacie '
             .'dostępności. To strona publiczna — gęste rzędy odnośników z licznikami, '
             .'czyli układ, który przy 320 px i tekście 140% najłatwiej wypycha stronę w bok.',
         );
+    }
+
+    public function test_formularze_oauth_nie_moga_wrocic_na_liste_wyjatkow(): void
+    {
+        $mierzone = $this->mierzoneAdresy();
+        foreach (['google', 'facebook'] as $dostawca) {
+            foreach (['domknij', 'polacz'] as $krok) {
+                $uri = "wejdz/{$dostawca}/{$krok}";
+                $this->assertArrayNotHasKey($uri, self::WYJATKI);
+                $this->assertContains('/'.$uri, $mierzone);
+            }
+        }
     }
 
     public function test_kazdy_wyjatek_ma_powod(): void

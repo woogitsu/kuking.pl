@@ -1,0 +1,13 @@
+{
+  "odczyt_utc": "2026-09-18T19:02:20Z",
+  "produkcja": "Alfa 0.67, wydanie 18 wrzesnia 2026, 20:53, 3f315b3",
+  "metoda": "HTTP GET bez sesji, bez zapisu",
+  "adresy": [
+    {"adres": "/zeszyt", "http": 302, "redirect": "https://kuking.pl/login", "przyciski_wiecej": "", "pasek_liczb": ""},
+    {"adres": "/zeszyt/01a0b4b3-483b-705d-8f47-e89f298b9665", "http": 302, "redirect": "https://kuking.pl/login", "przyciski_wiecej": "", "pasek_liczb": ""},
+    {"adres": "/zeszyt?page=2", "http": 302, "redirect": "https://kuking.pl/login", "przyciski_wiecej": "", "pasek_liczb": ""},
+    {"adres": "/przepisy/bigos-z-cukinii", "http": 200, "redirect": "", "przyciski_wiecej": "", "pasek_liczb": ""},
+    {"adres": "/przepisy/rolada-kawowa", "http": 404, "redirect": "", "przyciski_wiecej": "", "pasek_liczb": ""},
+    {"adres": "/szukaj?sekcja=przepisy", "http": 200, "redirect": "", "przyciski_wiecej": "", "pasek_liczb": ""}
+  ]
+}

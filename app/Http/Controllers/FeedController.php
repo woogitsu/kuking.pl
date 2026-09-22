@@ -7,9 +7,13 @@ namespace App\Http\Controllers;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Feed\DiscoverFeed;
 use App\Domain\Feed\FollowingFeed;
+use App\Domain\Feed\HeroKolaz;
 use App\Domain\Feed\TagFeed;
+use App\Domain\Pwa\InstallPrompt;
+use App\Domain\Pwa\InstallPromptContext;
 use App\Domain\Wspomnienia\Wspomnienia;
 use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\View\View;
 
@@ -22,9 +26,11 @@ class FeedController extends Controller
      * częścią ekranu i ma pokazywać mniej niż gdzie indziej.
      *
      * DLACZEGO OBCINAMY TUTAJ, A NIE W `DailyBoard`
-     * `DailyBoard::PEOPLE`/`POSTS` (po 4) i sam limit tej klasy dotyczą
-     * WSZYSTKICH trzech ekranów, które z niej korzystają: `/home`, `/odkryj`
-     * i `/szukaj`. Zmiana limitu tam zmieniłaby też to, co widzi zalogowany
+     * Sufit `DailyBoard::PEOPLE`/`POSTS` dotyczy WSZYSTKICH trzech ekranów,
+     * które z tej klasy korzystają: `/home`, `/odkryj` i `/szukaj`. Samej
+     * liczby świadomie tu nie przepisuję — stała już raz w tym komentarzu
+     * i zestarzała się w dniu, w którym sufit poszedł z czterech na sześć.
+     * Zmiana limitu tam zmieniłaby też to, co widzi zalogowany
      * — a decyzja właściciela dotyczy wyłącznie gościa. Do tego wybór
      * redakcyjny (`Admin\DailyBoardController::update()`) nie ma górnej
      * sumy: gospodarz może wskazać do 6 osób I do 6 dań na raz, czyli do
@@ -42,6 +48,7 @@ class FeedController extends Controller
         private readonly TagFeed $tagFeed,
         private readonly DailyBoard $dailyBoard,
         private readonly Wspomnienia $wspomnienia,
+        private readonly HeroKolaz $heroKolaz,
     ) {}
 
     /**
@@ -62,6 +69,18 @@ class FeedController extends Controller
         return view('pages.landing', [
             'posts' => $this->discoverFeed->paginate(null, 9),
             'board' => $board,
+
+            // Kolaż w hero (zgłoszenie właściciela: „na samej górze po prawej
+            // stronie … najładniejsze albo wybrane przez admina zdjęcia").
+            //
+            // TYLKO TUTAJ, TYLKO DLA GOŚCIA. `home()` niżej tego nie dostaje
+            // i nie ma dostać: po zalogowaniu górę ekranu zajmuje feed, a
+            // zachęta do rejestracji nie ma już kogo zachęcać.
+            //
+            // Pusta kolekcja jest normalnym wynikiem, nie awarią — znaczy
+            // „serwis nie ma jeszcze czterech publicznych zdjęć" i widok
+            // pomija wtedy kolaż w całości (patrz `HeroKolaz`).
+            'kolaz' => $this->heroKolaz->doKolazu(),
         ]);
     }
 
@@ -141,7 +160,11 @@ class FeedController extends Controller
             ->get();
 
         return view('pages.home', [
-            'greeting' => $this->greeting($user->displayName()),
+            'pwaEligible' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE,
+            'pwaContext' => $user->pwa_prompt_state === InstallPrompt::ELIGIBLE
+                ? app(InstallPromptContext::class)->issue($user, $request->session()->getId())
+                : null,
+            'greeting' => $this->pytanieDnia($user),
             'zeszyt' => $zeszyt,
             'wspomnienie' => $wspomnienie,
             'podpisWspomnienia' => $wspomnienie === null ? null : $this->wspomnienia->podpis($wspomnienie),
@@ -166,19 +189,14 @@ class FeedController extends Controller
     }
 
     /**
-     * Powitanie zależne od pory dnia. Drobiazg, ale to jest pierwsza rzecz,
-     * którą użytkownik czyta, i decyduje o tym, czy produkt sprawia
-     * wrażenie żywego miejsca, czy panelu administracyjnego.
+     * Staly zwrot grzecznosciowy, bez wnioskowania o porze dnia lub rodzaju.
+     * Nazwa profilu pozostaje doslowna; brak nazwy nie dostaje zastepnika.
+     * Pytanie o gotowanie nalezy do kafla publikacji, nie do powitania.
      */
-    private function greeting(string $name): string
+    private function pytanieDnia(User $user): string
     {
-        $hour = (int) now()->format('G');
+        $imie = trim((string) $user->profile?->display_name);
 
-        return match (true) {
-            $hour < 10 => "Dzień dobry, {$name}. Co dziś gotujesz?",
-            $hour < 15 => "Dzień dobry, {$name}. Co dziś na obiad?",
-            $hour < 21 => "Dobry wieczór, {$name}. Co dziś wyszło?",
-            default => "Dobry wieczór, {$name}. Pokaż, co dziś wyszło.",
-        };
+        return $imie === '' ? 'Dzień dobry' : "Dzień dobry, {$imie}";
     }
 }

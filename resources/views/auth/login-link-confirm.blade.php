@@ -25,7 +25,9 @@
         ({{ $adresSkrot }}). Hasła nie trzeba wpisywać.
     </p>
 
-    <form class="card" method="POST" action="{{ route('login.link.store') }}">
+    {{-- Ekran potwierdzenia, nie panel formularza: nie ma tu czego wypełniać,
+         jest jeden przycisk zużywający token. --}}
+    <form class="sekcja-strony" method="POST" action="{{ route('login.link.store') }}">
         @csrf
         <input type="hidden" name="token" value="{{ $token }}">
 
@@ -36,7 +38,6 @@
     </form>
 
     <p class="notice mt-6">
-        Ten link działa tylko raz. Po zalogowaniu przestaje działać, więc nikt inny nie wejdzie
-        na Twoje konto, nawet jeśli zobaczy tę wiadomość.
+        Ten link działa tylko raz. Po zalogowaniu nie można go użyć ponownie.
     </p>
 </x-layout>

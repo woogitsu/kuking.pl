@@ -1,0 +1,40 @@
+@layer components {
+  .pwa-install[hidden] {
+    display: none;
+  }
+
+  .pwa-install {
+    margin-block: var(--spacing-5);
+    padding: var(--spacing-4);
+    overflow-wrap: anywhere;
+  }
+
+  .pwa-install h2 {
+    margin-top: 0;
+  }
+
+  .pwa-install-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    padding: var(--spacing-2);
+  }
+
+  .pwa-install-actions .btn {
+    max-width: 100%;
+    min-height: 48px;
+    white-space: normal;
+    scroll-margin-block: var(--spacing-5);
+  }
+
+  .pwa-install-status:empty {
+    display: none;
+  }
+
+  @media (forced-colors: active) {
+    .pwa-install .btn:focus-visible {
+      outline: 3px solid Highlight;
+      outline-offset: 2px;
+    }
+  }
+}

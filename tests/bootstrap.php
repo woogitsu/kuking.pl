@@ -44,10 +44,21 @@ declare(strict_types=1);
  *    dodatkowego rejestru. Nazwa worktree jest czytelna w `psql -l` za darmo
  *    i widać po niej, do czego baza należy.
  *
- *  - Hash pełnej ścieżki repozytorium. Działałby równie dobrze jak nazwa
- *    worktree, ale jest nieczytelny przy sprzątaniu (`psql -l` pokazuje
- *    ciąg hexów, nie to, o który worktree chodzi). Git już nadaje worktree'om
- *    czytelne, unikalne nazwy — nie ma sensu liczyć własnego hashu obok.
+ *  - SAM hash pełnej ścieżki repozytorium. Działa, ale jest nieczytelny przy
+ *    sprzątaniu (`psql -l` pokazuje ciąg hexów, nie to, o który katalog
+ *    chodzi). Tam, gdzie Git nadaje worktree'owi czytelną nazwę, bierzemy ją;
+ *    hash dokładamy tylko tam, gdzie nazwy worktree NIE MA (patrz niżej) —
+ *    i wtedy obok czytelnej nazwy katalogu, nie zamiast niej.
+ *
+ * 2026-09-20: KOPIA REPOZYTORIUM BEZ `.git` TO NIE JEST GŁÓWNY CHECKOUT.
+ * Powyższe opiera się na pliku `.git`, a runtime floty (`przygotuj-runtime.sh`)
+ * przegrywa worktree rsynkiem z `--exclude '.git'`. W katalogu, w którym
+ * NAPRAWDĘ chodzą testy, tego pliku nie ma — więc każde stanowisko dostawało
+ * gołe `kuking_test` i wszystkie lądowały w jednej bazie. Objawem nie był
+ * jeden zepsuty test, tylko fałszywa czerwień z kontencji, po której każdy
+ * musiał najpierw udowodnić, że to nie jego wina. Dlatego trzecia gałąź
+ * funkcji liczy nazwę z KATALOGU REPOZYTORIUM — jedynej rzeczy, która
+ * w runtime istnieje na pewno, bo bez niej nie byłoby czego uruchamiać.
  *
  * Sprzątanie: `scripts/cleanup-test-dbs.sh` usuwa bazy `kuking_test_*`,
  * których worktree już nie istnieje na dysku (czyli został usunięty przez
@@ -174,8 +185,61 @@ function kuking_nazwa_bazy_wyscigow(string $katalogRepo): string
 }
 
 /**
- * Zwraca nazwę testowej bazy dla danego katalogu repozytorium: "kuking_test"
- * dla głównego checkoutu, "kuking_test_<worktree>" dla `git worktree`.
+ * Zwraca nazwę bazy POMIAROWEJ dla próby wycofania migracji
+ * (`scripts/proba-wycofania.sh`): "proba_wycofania" w głównym checkoucie,
+ * "proba_wycofania_<worktree>" w `git worktree`.
+ *
+ * Prefiks jest inny niż `kuking_*` i to jest jego jedyne zadanie. Skrypt
+ * próby wycofania KASUJE swoją bazę i zrzuca w niej schemat do zera — czyli
+ * robi dokładnie to, czego nie wolno zrobić nigdzie indziej. Jego bezpiecznik
+ * przepuszcza wyłącznie nazwy pasujące do `proba_wycofania*`, więc `kuking`,
+ * `kuking_test*`, `kuking_race*` ani `railway` nie wpadną do niego nawet
+ * przy literówce: to nie jest różnica jednego znaku.
+ *
+ * Sufiks liczy `kuking_nazwa_testowej_bazy()` — świadomie TA SAMA metoda, co
+ * przy bazie testowej i wyścigowej, żeby nie było w repozytorium trzech reguł
+ * nazywania baz, które rozjadą się przy pierwszej zmianie.
+ */
+function kuking_nazwa_bazy_wycofania(string $katalogRepo): string
+{
+    return 'proba_wycofania'.substr(kuking_nazwa_testowej_bazy($katalogRepo), strlen('kuking_test'));
+}
+
+/**
+ * Zwraca nazwę testowej bazy dla danego katalogu repozytorium. Trzy przypadki,
+ * w tej kolejności:
+ *
+ *  1. `.git` jest KATALOGIEM → główny checkout → "kuking_test" (bez sufiksu).
+ *     Na jednej maszynie główny checkout jest jeden, a CI i tak ustawia
+ *     `DB_DATABASE` wprost, więc ta nazwa nie koliduje z niczym.
+ *
+ *  2. `.git` jest PLIKIEM wskazującym na `.git/worktrees/<nazwa>` →
+ *     "kuking_test_<nazwa>". Git sam pilnuje, żeby te nazwy były różne,
+ *     a przy tym są czytelne w `psql -l`.
+ *
+ *  3. `.git` NIE ISTNIEJE albo nie da się z niego odczytać nazwy worktree →
+ *     "kuking_test_kat_<katalog>_<8 znaków skrótu pełnej ścieżki>".
+ *
+ * DLACZEGO PRZYPADEK 3. LICZY SIĘ Z KATALOGU, A NIE Z `.git`
+ * Bo `.git` w runtime NIE ISTNIEJE. Runtime floty powstaje rsynkiem
+ * z `--exclude '.git'` (`_wspolne/przygotuj-runtime.sh`), a kod rozpakowany
+ * z archiwum czy z obrazu kontenera też go nie ma. Katalog repozytorium
+ * natomiast istnieje ZAWSZE — jest tym, z czego uruchamiane są testy, więc
+ * nie da się go „zapomnieć skopiować". To jedyne źródło, które w runtime
+ * jest pewne. Pełna ścieżka jest przy tym na jednej maszynie unikalna
+ * z definicji systemu plików, czyli dwa stanowiska nie mogą dostać tej samej
+ * nazwy, choćby katalogi nazywały się tak samo w różnych miejscach.
+ *
+ * Skrót jest ośmioznakowy i stoi OBOK czytelnej nazwy katalogu, nie zamiast
+ * niej: sama nazwa katalogu bywa powtarzalna (dwa `…/kuking.pl` w różnych
+ * drzewach), a sam skrót jest nieczytelny przy sprzątaniu baz.
+ *
+ * CZEGO TA FUNKCJA NIE OBIECUJE — i to jest ważne, bo poprzednia wersja tego
+ * komentarza obiecywała unikalność bezwarunkowo, a jej nie dawała:
+ * przypadek 1. NIE JEST unikalny. Dwa katalogi, w których `.git` jest
+ * katalogiem, dostaną tę samą bazę "kuking_test" i będą sobie zrzucać
+ * schemat. Jest to świadome — główny checkout jest jeden — ale jeśli kiedyś
+ * przestanie być jeden, trzeba tu wrócić, a nie dziwić się czerwieni.
  */
 function kuking_nazwa_testowej_bazy(string $katalogRepo): string
 {
@@ -185,26 +249,58 @@ function kuking_nazwa_testowej_bazy(string $katalogRepo): string
 
     // Główny checkout: `.git` to katalog ze schematem repo, nie plik
     // wskazujący na worktree — nie ma czego wyliczać.
-    if (! is_file($wskaznikGit)) {
+    if (is_dir($wskaznikGit)) {
         return $domyslna;
     }
 
-    $tresc = file_get_contents($wskaznikGit);
-    if ($tresc === false || ! preg_match('/gitdir:\s*(\S+)/', $tresc, $dopasowanie)) {
+    if (is_file($wskaznikGit)) {
+        $tresc = file_get_contents($wskaznikGit);
+
+        if ($tresc !== false && preg_match('/gitdir:\s*(\S+)/', $tresc, $dopasowanie)
+            // Format wskaźnika worktree: "gitdir: <repo>/.git/worktrees/<nazwa>".
+            && preg_match('#/\.git/worktrees/([^/]+)/?$#', trim($dopasowanie[1]), $nazwaWorktree)
+        ) {
+            return $domyslna.'_'.kuking_bezpieczny_sufiks_bazy($nazwaWorktree[1]);
+        }
+    }
+
+    // Przypadek 3.: kopia repozytorium bez `.git` — runtime floty, archiwum,
+    // obraz kontenera. Nazwa musi wynikać z katalogu, bo nic innego tu nie ma.
+    $sciezka = realpath($katalogRepo);
+
+    if ($sciezka === false) {
+        // Katalogu nie ma wcale. Nie ma z czego liczyć nazwy, a zgadywanie
+        // byłoby gorsze od domyślnej: i tak nie ma czego uruchomić.
         return $domyslna;
     }
 
-    // Format wskaźnika worktree: "gitdir: <repo>/.git/worktrees/<nazwa>".
-    if (! preg_match('#/\.git/worktrees/([^/]+)/?$#', trim($dopasowanie[1]), $nazwaWorktree)) {
-        return $domyslna;
-    }
+    $sciezka = str_replace('\\', '/', $sciezka);
+    $skrot = substr(hash('sha256', $sciezka), 0, 8);
 
-    // Nazwa katalogu worktree bywa dłuższa niż limit identyfikatora
-    // Postgresa (63 znaki) po doliczeniu prefiksu "kuking_test_" — a znaki
-    // spoza [a-zA-Z0-9_] wymagałyby cudzysłowu w SQL. Obcinamy i czyścimy,
-    // zamiast zakładać, że Git zawsze nada bezpieczną nazwę.
-    $sufiks = preg_replace('/[^a-zA-Z0-9_]/', '_', $nazwaWorktree[1]);
-    $sufiks = substr((string) $sufiks, 0, 50);
+    // Małe litery, bo bezcudzysłowowy identyfikator i tak jest przez Postgresa
+    // składany do małych, a bezpieczniki skryptów (`proba-odtworzenia.sh`,
+    // `proba-wycofania.sh`) dopuszczają wyłącznie `[a-z0-9_]`. Wielka litera
+    // w nazwie katalogu zatrzymywałaby je na „niedozwolonej nazwie bazy".
+    $czytelna = strtolower(kuking_bezpieczny_sufiks_bazy(basename($sciezka), 30));
 
-    return $domyslna.'_'.$sufiks;
+    return $domyslna.'_kat_'.$czytelna.'_'.$skrot;
+}
+
+/**
+ * Sprowadza dowolny tekst do bezpiecznego fragmentu identyfikatora Postgresa.
+ *
+ * Znaki spoza [a-zA-Z0-9_] wymagałyby cudzysłowu w SQL, a długość ma znaczenie
+ * większe, niż widać: Postgres obcina identyfikator do 63 bajtów BEZ
+ * OSTRZEŻENIA, więc dwie za długie nazwy potrafią po cichu zejść się w jedną
+ * bazę — czyli wrócić do dokładnie tego błędu, który ten plik naprawia.
+ * Najdłuższy przedrostek w repozytorium to "kuking_zrodlo_proby"
+ * (`tests/skrypty/proba-odtworzenia.sh`, 19 znaków), a przed sufiksem stoi
+ * jeszcze podkreślnik: 19 + 1 + 43 = 63. Stąd domyślne 43, a nie 50, które
+ * stało tu wcześniej i dawało 70 znaków, czyli ciche obcięcie.
+ */
+function kuking_bezpieczny_sufiks_bazy(string $tekst, int $limit = 43): string
+{
+    $sufiks = preg_replace('/[^a-zA-Z0-9_]/', '_', $tekst);
+
+    return substr((string) $sufiks, 0, $limit);
 }

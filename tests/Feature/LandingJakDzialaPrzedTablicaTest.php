@@ -55,7 +55,16 @@ class LandingJakDzialaPrzedTablicaTest extends TestCase
         $sekcja = $this->wytnijSekcje($html, 'id="jak-dziala"', '</section>');
 
         $this->assertStringContainsString('Jak działa', $sekcja);
-        $this->assertSame(3, substr_count($sekcja, 'class="rzecz"'), 'Sekcja „Jak działa" ma inną liczbę kroków niż trzy.');
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="utf-8" ?>'.$sekcja);
+        $xpath = new DOMXPath($dom);
+        $kroki = $xpath->query('//ol[contains(concat(" ", normalize-space(@class), " "), " landing-kroki ")]/li');
+        $this->assertSame(3, $kroki->length, 'Sekcja „Jak działa” musi mieć trzy kroki.');
+        foreach (['Robisz zdjęcie', 'Piszesz kilka słów', 'Ktoś odpowiada'] as $index => $tytul) {
+            $this->assertSame($tytul, trim($xpath->query('.//h3', $kroki->item($index))->item(0)?->textContent ?? ''));
+            $numer = $xpath->query('.//p[contains(@class,"landing-krok-numer")]', $kroki->item($index))->item(0);
+            $this->assertSame(sprintf('%02d', $index + 1), trim($numer?->textContent ?? ''));
+        }
     }
 
     /**
@@ -119,8 +128,12 @@ class LandingJakDzialaPrzedTablicaTest extends TestCase
         $gospodarz = $this->moderator();
         $widz = $this->user('widz');
 
-        $osoby = collect(range(1, 5))->map(fn (int $i) => $this->user('home_osoba_'.$i)->getKey());
-        $wpisy = collect(range(1, 5))->map(
+        // SZEŚĆ pozycji redakcyjnych, nie pięć — tyle, ile wynosi sufit tablicy
+        // (`DailyBoard::PEOPLE`/`POSTS`). Przy pięciu automat dobierałby szóstą
+        // i test mierzyłby uzupełnianie, a nie to, o co pyta: że zalogowany
+        // widzi wybór gospodarza W CAŁOŚCI, bez limitu gościa.
+        $osoby = collect(range(1, 6))->map(fn (int $i) => $this->user('home_osoba_'.$i)->getKey());
+        $wpisy = collect(range(1, 6))->map(
             fn (int $i) => Post::factory()->create(['author_id' => $this->user('home_autor_'.$i)->getKey()])->getKey(),
         );
 
@@ -158,8 +171,8 @@ class LandingJakDzialaPrzedTablicaTest extends TestCase
             $tablica['wpisy'],
             'Ekran po zalogowaniu został ograniczony limitem gościa — to jest dokładnie to, czego nie wolno.',
         );
-        $this->assertSame(5, $tablica['osoby']);
-        $this->assertSame(5, $tablica['wpisy']);
+        $this->assertSame(6, $tablica['osoby']);
+        $this->assertSame(6, $tablica['wpisy']);
     }
 
     /**

@@ -4,7 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
 
@@ -51,21 +55,39 @@ class PanelModeracjiWMenuTest extends TestCase
         return substr($html, $start, $koniec - $start);
     }
 
+    /** Menu widoczne także wtedy, gdy zwykła nawigacja boczna jest ukryta. */
+    private function wytnijMenuKonta(string $html): string
+    {
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $menu = $xpath->query("//header//details[contains(concat(' ', normalize-space(@class), ' '), ' topbar-konto ')]")->item(0);
+        $this->assertInstanceOf(DOMElement::class, $menu, 'Brak menu konta w nagłówku.');
+
+        return (string) $dom->saveHTML($menu);
+    }
+
     /**
-     * Moderator widzi WYDZIELONĄ sekcję — prawdziwy nagłówek, grupę
-     * dostępną dla czytnika ekranu i wszystkie sześć odnośników panelu.
+     * W PANELU moderator widzi WYDZIELONĄ sekcję — prawdziwy nagłówek, grupę
+     * dostępną dla czytnika ekranu i wszystkie sześć odnośników.
+     *
+     * Do 11 września ta lista stała też POZA panelem, w zwykłym menu obok
+     * „Profil", a pod nią przycisk prowadzący dokładnie tam, gdzie prowadziła
+     * jej pierwsza pozycja. Zgłoszenie właściciela: „po co w menu cały panel
+     * moderacji i pod spodem przycisk »Otwórz panel moderacji«?". Spis ekranów
+     * pracy został więc tam, gdzie się tę pracę wykonuje.
      */
-    public function test_moderator_widzi_sekcje_panelu_i_wszystkie_szesc_odnosnikow(): void
+    public function test_w_panelu_moderator_widzi_sekcje_i_wszystkie_szesc_odnosnikow(): void
     {
         $moderator = $this->moderator();
 
-        $html = $this->actingAs($moderator)->get('/home')->assertOk()->getContent();
+        $html = $this->actingAs($moderator)->get('/admin/zgloszenia')->assertOk()->getContent();
         $boczna = $this->wytnijBoczna($html);
 
         $this->assertStringContainsString(
             '<h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>',
             $boczna,
-            'Brak prawdziwego nagłówka sekcji panelu w menu bocznym.',
+            'Brak prawdziwego nagłówka sekcji panelu w menu bocznym panelu.',
         );
         $this->assertStringContainsString(
             'role="group" aria-labelledby="side-nav-moderacja-naglowek"',
@@ -77,9 +99,111 @@ class PanelModeracjiWMenuTest extends TestCase
             $this->assertStringContainsString(
                 $pozycja,
                 $boczna,
-                "Moderator nie widzi pozycji „{$pozycja}” w menu.",
+                "Moderator nie widzi pozycji „{$pozycja}” w menu panelu.",
             );
         }
+    }
+
+    /**
+     * POZA PANELEM menu ma jedno wejście i ani jednej pozycji panelu.
+     *
+     * Bez tej połowy poprzedni test przechodziłby także wtedy, gdyby lista
+     * wróciła na każdy ekran serwisu — sprawdzałby bowiem tylko, że w panelu
+     * jest, a nie że gdzie indziej jej nie ma.
+     */
+    public function test_poza_panelem_menu_ma_tylko_wejscie_do_panelu(): void
+    {
+        $moderator = $this->moderator();
+
+        $html = $this->actingAs($moderator)->get('/home')->assertOk()->getContent();
+        $boczna = $this->wytnijBoczna($html);
+
+        $this->assertStringContainsString(
+            'Otwórz panel moderacji',
+            $boczna,
+            'Moderator stracił wejście do panelu ze zwykłego menu.',
+        );
+
+        $this->assertStringNotContainsString(
+            'side-nav-moderacja-naglowek',
+            $boczna,
+            'Nagłówek „Panel moderacji" wrócił do zwykłego menu — razem z przyciskiem '.
+            'poniżej mówi tę samą rzecz dwa razy.',
+        );
+
+        foreach (self::POZYCJE_PANELU as $pozycja) {
+            // „Zgłoszenia" wypada z tej pętli: samo słowo pada też w innych
+            // miejscach menu i asercja negatywna na nie łapałaby cudzy tekst.
+            if ($pozycja === 'Zgłoszenia') {
+                continue;
+            }
+
+            $this->assertStringNotContainsString(
+                $pozycja,
+                $boczna,
+                "Pozycja panelu „{$pozycja}” wróciła do zwykłego menu.",
+            );
+        }
+    }
+
+    /**
+     * Wejście do panelu niesie SUMĘ wszystkich pięciu kolejek.
+     *
+     * Bez tej plakietki moderator straciłby poza panelem jedyny sygnał „jest
+     * robota", jaki dotąd miał przy pozycji „Bez odpowiedzi" — a cicha strata
+     * poprawnej informacji jest zakazana wprost (AGENTS.md).
+     *
+     * DLACZEGO TEST WSTAWIA LICZBY DO CACHE, ZAMIAST TWORZYĆ ZGŁOSZENIA:
+     * `KolejkiPanelu::liczby()` czyta wyłącznie cache, a przeliczaniem zajmuje
+     * się harmonogram. Test ma sprawdzić SUMOWANIE w widoku, a nie pięć
+     * zapytań, które mają własny test (`LicznikiKolejekBezZapytanTest`).
+     *
+     * I najważniejsze: pusta kolejka NIE renderuje plakietki, więc test
+     * wykonany tylko na czystej bazie przechodziłby także dla kodu, który tej
+     * plakietki nie ma wcale (D-099/D-106). Dlatego są tu OBA stany.
+     */
+    public function test_wejscie_do_panelu_pokazuje_sume_kolejek(): void
+    {
+        $moderator = $this->moderator();
+
+        Cache::forever('panel:kolejki', [
+            'bez_odpowiedzi_per_host' => [$moderator->getKey() => 6],
+            'zgloszenia' => 2,
+            'sygnaly' => 1,
+            'odwolania' => 0,
+            'wiadomosci' => 3,
+        ]);
+
+        $boczna = $this->wytnijMenuKonta(
+            (string) $this->actingAs($moderator)->get('/home')->assertOk()->getContent(),
+        );
+
+        // Liczba widoczna i ta sama liczba słowami dla czytnika ekranu.
+        // Forma czasownika idzie z `Odmiana::rzeczownik` — dla dwunastu jest to
+        // „czeka”, nie „czekają”, i test bierze ją z komponentu, zamiast
+        // zgadywać polską odmianę po swojemu.
+        $this->assertStringContainsString('<span aria-hidden="true">12</span>', $boczna,
+            'Wejście do panelu nie pokazuje sumy wszystkich kolejek.');
+        $this->assertStringContainsString('12 czeka', $boczna,
+            'Suma kolejek nie jest czytana przez czytnik ekranu.');
+
+        // Stan przeciwny: puste kolejki nie pokazują „0”. Zero to sam hałas,
+        // a plakietka ma znaczyć „tu jest praca”.
+        Cache::forever('panel:kolejki', [
+            'bez_odpowiedzi_per_host' => [$moderator->getKey() => 0],
+            'zgloszenia' => 0,
+            'sygnaly' => 0,
+            'odwolania' => 0,
+            'wiadomosci' => 0,
+        ]);
+
+        $pusta = $this->wytnijMenuKonta(
+            (string) $this->actingAs($moderator)->get('/home')->assertOk()->getContent(),
+        );
+
+        $this->assertStringContainsString('Otwórz panel moderacji', $pusta);
+        $this->assertStringNotContainsString('licznik-kolejki', $pusta,
+            'Puste kolejki pokazują plakietkę — „0” na ekranie jest samym hałasem.');
     }
 
     /**
@@ -138,7 +262,10 @@ class PanelModeracjiWMenuTest extends TestCase
 
         $html = $this->actingAs($moderator)->get(route('admin.reports'))->assertOk()->getContent();
 
-        $this->assertStringContainsString('class="panel-pasek"', $html, 'Brak paska panelu na ekranie.');
+        $dom = new DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+        $xpath = new DOMXPath($dom);
+        $this->assertCount(1, $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' panel-pasek ')]"), 'Brak paska panelu na ekranie.');
         $this->assertStringContainsString('Panel moderacji', $html);
         $this->assertStringContainsString(
             '<title>Zgłoszenia — Panel moderacji — Kuking</title>',
@@ -190,9 +317,12 @@ class PanelModeracjiWMenuTest extends TestCase
         foreach ($trasy as $uri) {
             $html = $this->actingAs($moderator)->get('/'.$uri)->assertOk()->getContent();
 
-            $this->assertStringContainsString(
-                'class="panel-pasek"',
-                (string) $html,
+            $dom = new DOMDocument;
+            @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+            $xpath = new DOMXPath($dom);
+            $this->assertCount(
+                1,
+                $xpath->query("//main//*[contains(concat(' ', normalize-space(@class), ' '), ' panel-pasek ')]"),
                 'Ekran /'.$uri.' nie ma paska panelu. Dodaj `<x-panel-moderacji ekran="…" />` '
                 .'zaraz po otwarciu `<x-layout>` — po to ten komponent istnieje.',
             );

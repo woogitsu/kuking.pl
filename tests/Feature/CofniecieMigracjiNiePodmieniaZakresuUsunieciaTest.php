@@ -56,16 +56,34 @@ class CofniecieMigracjiNiePodmieniaZakresuUsunieciaTest extends TestCase
         $basia = $this->user('basia');
         $basia->markForDeletion(User::DELETE_SCOPE_EVERYTHING);
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
+        $odmowa = null;
+
         try {
             Artisan::call('migrate:rollback', ['--path' => self::SCIEZKA_MIGRACJI, '--realpath' => false]);
-
-            $this->fail('Cofnięcie migracji przeszło, mimo że konto ma delete_scope = everything.');
         } catch (RuntimeException $e) {
-            // Komunikat ma mówić ILE kont i CO ZROBIĆ — „coś się nie zgadza"
-            // nie skłania nikogo do zatrzymania się w środku wdrożenia.
-            $this->assertStringContainsString("1 kont z delete_scope = 'everything'", $e->getMessage());
-            $this->assertStringContainsString('everything', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie migracji przeszło, mimo że konto ma delete_scope = everything.');
+
+        // Komunikat ma mówić ILE kont i CO ZROBIĆ — „coś się nie zgadza"
+        // nie skłania nikogo do zatrzymania się w środku wdrożenia.
+        //
+        // JEDNO konto, nie pięć: liczba stoi na końcu zdania, za rzeczownikiem
+        // w mianowniku, więc jedynka jest tu poprawna po polsku (D-132).
+        $this->assertStringContainsString(
+            "Liczba kont z delete_scope = 'everything' w tabeli `users`: 1.",
+            $odmowa->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('jest 1 kont', $odmowa->getMessage());
+
+        $this->assertStringContainsString('everything', $odmowa->getMessage());
 
         // NAJWAŻNIEJSZA ASERCJA W TYM PLIKU: wybór człowieka jest NADAL
         // `everything`, nie coś, co "wygląda podobnie". Odmowa, która i tak

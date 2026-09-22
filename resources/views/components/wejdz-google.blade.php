@@ -29,10 +29,10 @@
     NIE potrzebuje skryptu (Turnstile go potrzebuje, D-050) — i to jest
     argument za nią, nie przeciw.
 --}}
-@props(['naglowek' => 'Masz konto Google? Wejdź jednym kliknięciem'])
+@props(['naglowek' => 'Masz konto Google? Zaloguj się przez nie'])
 
 @if(\App\Support\Google::dziala())
-    <div class="card mt-6">
+    <div class="sekcja-strony mt-6">
         <h2>{{ $naglowek }}</h2>
         <p>
             Nie musisz wymyślać ani pamiętać hasła. Przeniesiemy Cię na stronę Google,

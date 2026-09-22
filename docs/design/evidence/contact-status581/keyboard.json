@@ -1,0 +1,108 @@
+{
+  "results": [
+    {
+      "width": 320,
+      "theme": "light",
+      "geometry": {
+        "left": 47,
+        "right": 71,
+        "top": 278,
+        "bottom": 302,
+        "headerBottom": 216.25,
+        "focused": true,
+        "overflow": false,
+        "theme": "light",
+        "scale": "140"
+      },
+      "keyboard": {
+        "focused": true,
+        "visible": true,
+        "outline": "solid",
+        "outlineWidth": "3px",
+        "top": 454.0625,
+        "bottom": 478.0625,
+        "left": 47,
+        "right": 71,
+        "headerBottom": 216.25
+      }
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "geometry": {
+        "left": 47,
+        "right": 71,
+        "top": 278,
+        "bottom": 302,
+        "headerBottom": 216.25,
+        "focused": true,
+        "overflow": false,
+        "theme": "dark",
+        "scale": "140"
+      },
+      "keyboard": {
+        "focused": true,
+        "visible": true,
+        "outline": "solid",
+        "outlineWidth": "3px",
+        "top": 454.0625,
+        "bottom": 478.0625,
+        "left": 47,
+        "right": 71,
+        "headerBottom": 216.25
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "geometry": {
+        "left": 449.390625,
+        "right": 473.390625,
+        "top": 141.109375,
+        "bottom": 165.109375,
+        "headerBottom": 88.75,
+        "focused": true,
+        "overflow": false,
+        "theme": "light",
+        "scale": "140"
+      },
+      "keyboard": {
+        "focused": true,
+        "visible": true,
+        "outline": "solid",
+        "outlineWidth": "3px",
+        "top": 141.109375,
+        "bottom": 165.109375,
+        "left": 773.25,
+        "right": 797.25,
+        "headerBottom": 88.75
+      }
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "geometry": {
+        "left": 449.390625,
+        "right": 473.390625,
+        "top": 141.109375,
+        "bottom": 165.109375,
+        "headerBottom": 88.75,
+        "focused": true,
+        "overflow": false,
+        "theme": "dark",
+        "scale": "140"
+      },
+      "keyboard": {
+        "focused": true,
+        "visible": true,
+        "outline": "solid",
+        "outlineWidth": "3px",
+        "top": 141.109375,
+        "bottom": 165.109375,
+        "left": 773.25,
+        "right": 797.25,
+        "headerBottom": 88.75
+      }
+    }
+  ]
+}

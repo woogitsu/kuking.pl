@@ -1,0 +1,21 @@
+{
+  "before": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323000000000
+  },
+  "restored": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323000000000
+  },
+  "runtime_before": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323221509900
+  },
+  "runtime_after": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323221509900
+  },
+  "equal_results": true,
+  "negative_exit": 1,
+  "negative_error": "RuntimeException: single orientation"
+}
