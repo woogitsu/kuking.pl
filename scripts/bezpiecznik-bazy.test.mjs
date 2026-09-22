@@ -171,7 +171,7 @@ test('kazdy skrypt robiacy migrate:fresh wola bezpiecznik', () => {
 });
 
 /**
- * DRUGA STRONA KONTRAKTU (D-241): to, CO podaje przyrządom `scripts/check.sh`.
+ * DRUGA STRONA KONTRAKTU (D-242): to, CO podaje przyrządom `scripts/check.sh`.
  *
  * Bezpiecznik odmawia rodzinie `kuking_test*`, a `check.sh` przez dobę dalej
  * wołał `DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs` —
