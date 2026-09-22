@@ -1,0 +1,429 @@
+{
+  "S001": {
+    "recipes": [
+      "Pierogi ruskie"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S002": {
+    "recipes": [
+      "Pierogi ruskie"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S003": {
+    "recipes": [
+      "Żurek"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S004": {
+    "recipes": [
+      "Żurek"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S005": {
+    "recipes": [
+      "Sernik"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S006": {
+    "recipes": [
+      "Sernik"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S007": {
+    "recipes": [
+      "Rosół"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S008": {
+    "recipes": [
+      "Zupa pomidorowa"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S009": {
+    "recipes": [
+      "Zupa z dyni"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S010": {
+    "recipes": [
+      "Zupa z dyni"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S011": {
+    "recipes": [
+      "Naleśniki"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S012": {
+    "recipes": [
+      "Placki ziemniaczane"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S013": {
+    "recipes": [
+      "Ziemniaki z piekarnika"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S014": {
+    "recipes": [
+      "Ziemniaki z piekarnika"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S015": {
+    "recipes": [
+      "Cukinia"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S016": {
+    "recipes": [
+      "Bigos"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S017": {
+    "recipes": [
+      "Sałatka jarzynowa"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S018": {
+    "recipes": [
+      "Gołąbki"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S019": {
+    "recipes": [
+      "Ciasto z kaszą manną"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S020": {
+    "recipes": [
+      "Marlenka"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S021": {
+    "recipes": [
+      "Makowiec"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S022": {
+    "recipes": [
+      "Rolada kawowa"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S023": {
+    "recipes": [
+      "Chleb na zakwasie"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S024": {
+    "recipes": [
+      "Kluski śląskie"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S025": {
+    "recipes": [
+      "Kopytka"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S026": {
+    "recipes": [
+      "Racuchy z jabłkami"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S027": {
+    "recipes": [
+      "Szarlotka"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S028": {
+    "recipes": [
+      "Ogórki kiszone"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S029": {
+    "recipes": [
+      "Leczo"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S030": {
+    "recipes": [
+      "Krupnik"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S031": {
+    "recipes": [
+      "Zupa jarzynowa"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S032": {
+    "recipes": [
+      "Ryż z jabłkami"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S033": {
+    "recipes": [
+      "Kluski leniwe"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S034": {
+    "recipes": [
+      "Ziemniaki z piekarnika"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S035": {
+    "recipes": [
+      "Modra kapusta"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S036": {
+    "recipes": [
+      "Wodzionka"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S037": {
+    "recipes": [
+      "Kapuśniak"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S038": {
+    "recipes": [
+      "Racuchy z jabłkami"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S039": {
+    "recipes": [
+      "Grochówka"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S040": {
+    "recipes": [
+      "Pasztet"
+    ],
+    "minutes": null,
+    "people": []
+  },
+  "S041": {
+    "recipes": [
+      "Zupa pomidorowa",
+      "Zupa z dyni",
+      "Zupa jarzynowa",
+      "Żurek",
+      "Krupnik",
+      "Kapuśniak",
+      "Grochówka",
+      "Rosół"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S042": {
+    "recipes": [
+      "Zupa pomidorowa"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S043": {
+    "recipes": [
+      "Naleśniki"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S044": {
+    "recipes": [
+      "Leczo"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S045": {
+    "recipes": [
+      "Jajecznica"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S046": {
+    "recipes": [
+      "Makaron"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S047": {
+    "recipes": [
+      "Zupa z dyni"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S048": {
+    "recipes": [
+      "Ryż z jabłkami"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S049": {
+    "recipes": [
+      "Sałatka jarzynowa"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S050": {
+    "recipes": [
+      "Placki ziemniaczane"
+    ],
+    "minutes": 30,
+    "people": []
+  },
+  "S051": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "basia"
+    ]
+  },
+  "S052": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "marek"
+    ]
+  },
+  "S053": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "halina"
+    ]
+  },
+  "S054": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "halina"
+    ]
+  },
+  "S055": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "halina"
+    ]
+  },
+  "S056": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "halina"
+    ]
+  },
+  "S057": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "ewa_kuchnia"
+    ]
+  },
+  "S058": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "zofia"
+    ]
+  },
+  "S059": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "janek"
+    ]
+  },
+  "S060": {
+    "recipes": [],
+    "minutes": null,
+    "people": [
+      "anna"
+    ]
+  }
+}

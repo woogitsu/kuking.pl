@@ -123,7 +123,19 @@ class Profile extends Model
     }
 
     /**
-     * Czekanie ma sens tylko podczas pracy, zanim istnieje bezpieczny wariant.
+     * Czy człowiek ma zdjęcie, którego jeszcze nie da się pokazać.
+     *
+     * Ekran `/ustawienia/zdjecie` mówi teraz CZTERY różne zdania i musi je
+     * rozróżnić: „to jest Twoje zdjęcie", „Twoje zdjęcie się przygotowuje",
+     * „nie udało się go przygotować" i „nie masz jeszcze zdjęcia". Ta metoda
+     * stoi obok `zdjecieDoPokazania()`, żeby obie odpowiedzi brały `deleted`
+     * pod uwagę w ten sam sposób — wiersz przejęty do skasowania nie
+     * przygotowuje się do niczego i człowiek nie ma na co czekać.
+     *
+     * Czekanie ma sens tylko podczas pracy, zanim istnieje bezpieczny wariant:
+     * dlatego pytamy o `pending`/`processing`, a nie „cokolwiek poza deleted".
+     * Odrzucone zdjęcie obsługuje `photoPreparationFailed()` — inaczej ekran
+     * kazałby odświeżać stronę w nieskończoność.
      */
     public function zdjecieSieJeszczePrzygotowuje(): bool
     {

@@ -252,67 +252,42 @@
     text-decoration: underline;
   }
 
-  /* --- LICZBY O OSOBIE: KARTA NA WĄSKIM, PRAWA SZYNA NA SZEROKIM (D-091) ---
+  /* --- LICZBY O OSOBIE: JEDEN EGZEMPLARZ (D-210 zastąpiło D-091) ---------
 
-     Zgłoszenie właściciela: „prawa kolumna jest marnowana, można tam dać
-     info o użytkowniku […] a nie na środku przez co wpisy są dużo niżej".
-     Pięć wierszy po 48 px w karcie spychało pierwszy wpis poniżej zgięcia,
-     a trzecia kolumna na cudzym profilu bez tagów i zeszytów stała pusta na
-     całej wysokości.
+     Stał tu komplet reguł dla układu D-091: liczby wypisane w dokumencie
+     DWA RAZY (karta + prawa szyna) i para reguł, która od 80rem pokazywała
+     egzemplarz w szynie, a chowała ten w karcie. D-210 ten układ zniosło —
+     dziś `pages/profile/show.blade.php` woła `x-liczby-profilu` RAZ,
+     z `wariant="karta"`, a `x-szyna-profilu` bloku z liczbami nie wysyła.
 
-     TA SAMA TREŚĆ JEST W DOKUMENCIE DWA RAZY, a te dwie reguły są PARĄ:
-     jedna pokazuje egzemplarz w szynie, druga chowa egzemplarz w karcie,
-     obie w tym samym zapytaniu o szerokość. Rozdzielenie ich (albo dopisanie
-     trzeciej reguły, która którykolwiek egzemplarz pokazuje z powrotem)
-     daje układ z liczbami w dwóch miejscach naraz — a tego przy 1512 px
-     nie widać na pierwszy rzut oka, bo obie kolumny są wtedy widoczne.
-     Dlaczego dwa egzemplarze, a nie jeden przestawiany: `x-liczby-profilu`
-     (krótko: szyna jest RODZEŃSTWEM `<main>`, więc żaden `order` ani
-     `grid-area` nie wsunie jej zawartości do środka karty, a skrypt
-     przenoszący węzeł łamałby „ważne rzeczy działają bez JavaScriptu").
+     Reguły zostały tu po tamtej zmianie i obie kłamały, każda inaczej:
 
-     PRÓG 80rem, A NIE 64rem — bo to jest próg, na którym w `app.css`
-     w ogóle POWSTAJE trzecia kolumna. Wcześniej `.app-rail` nie znika,
-     tylko ląduje POD treścią; pokazanie tam liczb, a schowanie ich w karcie,
-     zepchnęłoby je na telefonie pod całe archiwum wpisów.
+       `.profil-liczby-szyna`        — tej klasy nie nosi już żaden element,
+                                       więc czytelnik arkusza widział wariant,
+                                       którego w serwisie nie ma;
+       `.profil-liczby-w-szynie`     — klasę wypisuje wyłącznie gałąź
+                                       `$wariant === 'szyna'`, a tego wariantu
+                                       nie podaje ani jedno wywołanie;
+       `.app-body…  .profil-liczby-karta { display: none }` przy 80rem
+                                       — selektor PASOWAŁ do elementu, tylko
+                                       wartość do skutku nie dochodziła:
+                                       `marka-profil.css` ustawia tej samej
+                                       liście `display: grid` w `@layer marka`,
+                                       a `marka` stoi w porządku warstw
+                                       (`app.css`, linia 1) ZA `components`.
+                                       Zmierzone przez `getComputedStyle` na
+                                       ułożonym profilu przy 1440 i 1280 px:
+                                       `display` = `grid`, nie `none`.
 
-     `:not(.app-body-solo)` I `:not(.app-body-powitalny)` TO NIE OZDOBA —
-     ALE OD D-122 Z INNEGO POWODU NIŻ NAPISANO TU WCZEŚNIEJ.
-     Stało tu: „Gość ma jedną kolumnę na KAŻDEJ szerokości". Od 11 września
-     2026 to już nieprawda — gość na ekranie z prawą szyną dostaje od 80rem
-     DWIE kolumny (`.app-body-solo-z-szyna` w app.css), a profil jest właśnie
-     takim ekranem. Wykluczenia zostają i są tak samo konieczne, bo powodem
-     jest co innego: BLOKU Z LICZBAMI GOŚCIOWI W OGÓLE NIE WYSYŁAMY
-     (`@auth` w `x-szyna-profilu` — te liczby nie mają dla niego drugiego
-     egzemplarza). Bez tych wykluczeń reguła schowałaby mu egzemplarz
-     w karcie, a pokazać nie miałaby czego: liczby zniknęłyby ze strony
-     całkiem. Klasa `.app-body-solo` zostaje więc na `<div class="app-body">`
-     gościa TAKŻE wtedy, gdy ma on szynę — znaczy „układ gościa", a nie
-     „jedna kolumna", i ta para selektorów jest jednym z jej czytelników.
+     Ta ostatnia była najgroźniejsza: kto czytał sam arkusz, wnioskował, że
+     na szerokim ekranie liczb w karcie NIE MA — a są, i to jedyne, jakie
+     tam stoją. Każda „poprawka" wychodząca z tego założenia zabrałaby je
+     z profilu całkiem. Reguła przykryta kaskadą nie jest widoczna w tekście
+     pliku; widać ją dopiero na ułożonej stronie.
+
+     Położenie i wygląd jedynej listy liczb określa dziś
+     `marka-profil.css` (`.marka-profil-statystyki .profil-liczby-karta`).
      --------------------------------------------------------------------- */
-
-  .profil-liczby-szyna {
-    display: none;
-  }
-
-  /* W szynie kreska nad liczbami jest zbędna: blok ma już własny nagłówek
-     („Twoje liczby" / „Ta osoba w liczbach"), a druga linia pod nim czyta
-     się jak podział jednej listy na dwie. W karcie kreska zostaje, bo tam
-     oddziela opis osoby od liczb i nic innego tego nie robi. */
-  .profil-liczby-w-szynie {
-    border-top: 0;
-    padding-top: 0;
-  }
-
-  @media (min-width: 80rem) {
-    .app-body:not(.app-body-solo):not(.app-body-powitalny) .profil-liczby-szyna {
-      display: block;
-    }
-
-    .app-body:not(.app-body-solo):not(.app-body-powitalny) .profil-liczby-karta {
-      display: none;
-    }
-  }
 
   /* Nagłówki miesięcy w archiwum („archive-title" w kicie) i odstęp lat
      nad nimi (`.lata-archiwum`) już mają właściwy rozmiar i odstęp z

@@ -1,0 +1,70 @@
+TAP version 13
+# Subtest: komunikat cudzego wyjątku nie wychodzi do dziennika
+ok 1 - komunikat cudzego wyjątku nie wychodzi do dziennika
+  ---
+  duration_ms: 1.640973
+  ...
+# Subtest: komunikat mówi, jaki to był wyjątek i w którym pliku pomiaru
+ok 2 - komunikat mówi, jaki to był wyjątek i w którym pliku pomiaru
+  ---
+  duration_ms: 0.501011
+  ...
+# Subtest: wiadomości własne skryptu idą w całości — one nic cudzego nie niosą
+ok 3 - wiadomości własne skryptu idą w całości — one nic cudzego nie niosą
+  ---
+  duration_ms: 0.893464
+  ...
+# Subtest: kod pomiaru bez przedrostka P581_ idzie w całości
+ok 4 - kod pomiaru bez przedrostka P581_ idzie w całości
+  ---
+  duration_ms: 0.481278
+  ...
+# Subtest: kod sklejony z czymkolwiek NIE idzie w całości
+ok 5 - kod sklejony z czymkolwiek NIE idzie w całości
+  ---
+  duration_ms: 1.3066
+  ...
+# Subtest: kod własny sklejony z danymi oddaje sam kod, bez danych
+ok 6 - kod własny sklejony z danymi oddaje sam kod, bez danych
+  ---
+  duration_ms: 0.232846
+  ...
+# Subtest: kod w środku komunikatu nie udaje przyczyny
+ok 7 - kod w środku komunikatu nie udaje przyczyny
+  ---
+  duration_ms: 0.346265
+  ...
+# Subtest: spacja bez przedrostka P581_ nie otwiera furtki
+ok 8 - spacja bez przedrostka P581_ nie otwiera furtki
+  ---
+  duration_ms: 0.558567
+  ...
+# Subtest: pusty komunikat nie przechodzi jako kod
+ok 9 - pusty komunikat nie przechodzi jako kod
+  ---
+  duration_ms: 0.286845
+  ...
+# Subtest: błąd Playwrighta z hasłem nie przechodzi nową furtką
+ok 10 - błąd Playwrighta z hasłem nie przechodzi nową furtką
+  ---
+  duration_ms: 0.267693
+  ...
+# Subtest: brak stosu nie wywraca komunikatu
+ok 11 - brak stosu nie wywraca komunikatu
+  ---
+  duration_ms: 0.162315
+  ...
+# Subtest: rzucona rzecz, która nie jest błędem, też nie wywraca komunikatu
+ok 12 - rzucona rzecz, która nie jest błędem, też nie wywraca komunikatu
+  ---
+  duration_ms: 0.166585
+  ...
+1..12
+# tests 12
+# suites 0
+# pass 12
+# fail 0
+# cancelled 0
+# skipped 0
+# todo 0
+# duration_ms 30.456251

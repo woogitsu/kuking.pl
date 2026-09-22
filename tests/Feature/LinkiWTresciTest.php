@@ -60,6 +60,51 @@ class LinkiWTresciTest extends TestCase
         }
     }
 
+    /**
+     * Issue #763 — polski znak w ŚCIEŻCE (bez wcześniejszego kodowania
+     * procentowego) MUSI stać się linkiem, dokładnie do tego samego celu co
+     * jego wersja `%XX`. Kontrola ujemna: usunięcie kodowania w
+     * `LinkiWTekscie::bezpiecznyAdres()` sprawia, że pierwsza asercja oblewa
+     * (link znika), bo `FILTER_VALIDATE_URL` odrzuca surowy Unicode.
+     */
+    public function test_polskie_znaki_w_sciezce_staja_sie_linkiem_do_tego_samego_celu_co_wersja_procentowa(): void
+    {
+        $zUnicode = 'https://example.test/żurek';
+        $zProcentem = 'https://example.test/%C5%BCurek';
+
+        $this->assertStringContainsString('<a ', (string) LinkiWTekscie::render($zUnicode));
+        $this->assertSame($this->cel($zProcentem), $this->cel($zUnicode));
+        $this->assertSame('https://example.test/%C5%BCurek', LinkiWTekscie::bezpiecznyAdres($zUnicode));
+
+        // Bez podwójnego kodowania: wersja już zakodowana wychodzi identyczna.
+        $this->assertSame('https://example.test/%C5%BCurek', LinkiWTekscie::bezpiecznyAdres($zProcentem));
+    }
+
+    /**
+     * To samo dla zapytania i fragmentu, nie tylko dla ścieżki — i kontrola,
+     * że `/`, `?`, `&`, `=`, `#` nie zmieniają znaczenia przy okazji.
+     */
+    public function test_polskie_znaki_w_zapytaniu_i_fragmencie_tez_staja_sie_linkiem(): void
+    {
+        $adres = 'https://example.test/przepis?q=żurek&x=1#sekcja-żurek';
+
+        $this->assertSame(
+            'https://example.test/przepis?q=%C5%BCurek&x=1#sekcja-%C5%BCurek',
+            LinkiWTekscie::bezpiecznyAdres($adres),
+        );
+    }
+
+    /**
+     * Granica z issue: domena (host) z polskim znakiem to OSOBNA kategoria
+     * (IDNA), świadomie nieobjęta tą poprawką — nadal ma zostać odrzucona,
+     * nie zamieniona po cichu na coś innego.
+     */
+    public function test_polski_znak_w_samej_domenie_nadal_jest_odrzucany(): void
+    {
+        $this->assertNull(LinkiWTekscie::bezpiecznyAdres('https://żurek.example/przepis'));
+        $this->assertStringNotContainsString('<a ', (string) LinkiWTekscie::render('https://żurek.example/przepis'));
+    }
+
     public function test_niedozwolone_adresy_nie_staja_sie_linkami(): void
     {
         foreach (['javascript:alert(1)', 'data:text/html,test', 'file:///etc/passwd', '//example.test', 'https://user:pass@example.test/', 'https://example.test\\@evil.test', 'https://example.test/%0d%0aLocation:x', "https://example.test/\u{202e}abc", 'https://example.test/…'] as $adres) {

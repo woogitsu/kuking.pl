@@ -226,7 +226,7 @@ Scenariusze:
 Mierzyć przede wszystkim miejsca, w których pada pytanie:
 > „Co mam teraz kliknąć?”
 
-**Zestaw do przeprowadzenia tych sesji** — skrypt prowadzącego, brzmienie zadań,
-zgoda na nagranie, karta notatek, definicja blokera i sposób policzenia wyniku —
+**Zestaw do przeprowadzenia tych sesji** — skrypt prowadzącego, osiem zadań R1,
+kryteria sukcesu, karta notatek bez nagrań, definicja blokera i sposób policzenia wyniku —
 leży w `docs/product/TESTY_Z_UZYTKOWNIKAMI.md` (issue #15). Wnioski z badania
 wracają TUTAJ: ten standard ma się uczyć, a nie zostać na zawsze hipotezą.

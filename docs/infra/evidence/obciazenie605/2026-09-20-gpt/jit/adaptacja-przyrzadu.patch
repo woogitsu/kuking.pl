@@ -1,0 +1,12 @@
+--- scripts/pomiar-feedu.php
++++ poza-repo/pomiar-feedu-diagnostic.php
+@@ -15,2 +15,2 @@
+-require __DIR__.'/../tests/bootstrap.php';
+-$app = require __DIR__.'/../bootstrap/app.php';
++require '/app/vendor/autoload.php';
++$app = require '/app/bootstrap/app.php';
+@@ -28,2 +28,2 @@
+-    || $connection->getDatabaseName() !== 'kuking_585_benchmark') {
+-    throw new RuntimeException('Pomiar wymaga lokalnej bazy kuking_585_benchmark na 127.0.0.1:55439.');
++    || $connection->getDatabaseName() !== 'kuking_b605_gpt_obciazenie') {
++    throw new RuntimeException('Pomiar wymaga lokalnej bazy kuking_b605_gpt_obciazenie na 127.0.0.1:55439.');

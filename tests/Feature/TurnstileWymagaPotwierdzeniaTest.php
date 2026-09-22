@@ -308,7 +308,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
             );
 
             $this->assertCount(1, $odrzucone, 'Pusta wartość ma odrzucać.');
-            $this->assertSame(Turnstile::komunikatBrakuTokenu(), $odrzucone[0]);
+            $this->assertSame(Turnstile::komunikatBrakuTokenu('rejestracja'), $odrzucone[0]);
         }
 
         $this->assertNiePytalismyCloudflare();
@@ -792,6 +792,12 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
             'kuking.google.wlaczone' => false,
             'kuking.facebook.wlaczone' => false,
             'kuking.analytics.cloudflare.token' => 'udawany-token-analityki',
+            // Czyszczenie cache CDN (audyt G-03) ma na produkcji własny sygnał
+            // `czyszczenie_cdn_wylaczone` przy pustych `CLOUDFLARE_ZONE_ID`
+            // i `CLOUDFLARE_PURGE_TOKEN` — w testach ich nie ma i mieć nie
+            // musi. Udawana para ucisza go, żeby ten plik mierzył Turnstile.
+            'kuking.media.cdn_purge.zone_id' => 'udawana-strefa',
+            'kuking.media.cdn_purge.token' => 'udawany-token-czyszczenia',
         ]);
     }
 

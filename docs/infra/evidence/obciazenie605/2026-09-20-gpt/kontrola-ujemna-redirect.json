@@ -1,0 +1,16 @@
+{
+  "nazwa": "Korpus: odrzucenie nie udaje publikacji",
+  "plik": "scripts/generator-obciazenia-605.mjs",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "20729a59d93cac34d1c6ca7056041427",
+  "md5_po_mutacji": "7e7ea48f1edb276c34a0ecbd30e84458",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "302 wracające do formularza",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:44:45Z"
+}

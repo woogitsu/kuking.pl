@@ -13,7 +13,7 @@
              data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
              data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
             <x-field name="body" label="Napisz trochę więcej" type="textarea" :rows="5" help="Możesz dopisać, co już udało Ci się spróbować. Najwyżej 4000 znaków." />
-            <p class="field-help">Wpisz # i nazwę, na przykład #zupa. Tagi możesz też znaleźć poniżej.</p>
+            <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="3" :pytanie="true" />
         </div>
 
         @foreach($zachowane as $zdjecie)
@@ -38,7 +38,7 @@
         @if($errors->hasAny(['photos', 'photos.*', 'media_ids', 'media_ids.*']))
             <p class="field-error" id="f-photos-error">{{ $errors->first('photos') ?: $errors->first('photos.*') ?: $errors->first('media_ids') ?: $errors->first('media_ids.*') }}</p>
         @endif
-        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="3" :pytanie="true" />
+
         <button class="btn btn-primary" type="submit">Opublikuj pytanie</button>
     </form>
 </x-layout>
