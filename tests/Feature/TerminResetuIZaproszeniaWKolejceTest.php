@@ -16,6 +16,7 @@ use Illuminate\Notifications\SendQueuedNotifications;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Password;
 use Illuminate\Support\Facades\Queue;
+use Illuminate\Support\Testing\Fakes\QueueFake;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
@@ -23,12 +24,25 @@ class TerminResetuIZaproszeniaWKolejceTest extends TestCase
 {
     use RefreshDatabase;
 
+    /**
+     * Podstawiona kolejka trzymana w ZMIENNEJ, nie odpytywana przez fasadę.
+     *
+     * `Queue::pushed()` działa w czasie wykonania (fasada przekazuje wywołanie
+     * do podstawionego `QueueFake`), ale analiza statyczna widzi samą fasadę,
+     * na której takiej metody nie ma — i właśnie tak ten plik wywracał
+     * PHPStana. To ta sama poprawka, którą ma już `PolitykaBezpieczenstwaTest`
+     * dla `Log::spy()` (komentarz w `phpstan.neon`): szpieg trafia do
+     * zmiennej. `Queue::fake()` zwraca `QueueFake` jawnie, więc `pushed()`
+     * jest widoczne i dla PHP, i dla analizy — bez ani jednego wyciszenia.
+     */
+    private QueueFake $kolejka;
+
     protected function setUp(): void
     {
         parent::setUp();
         $this->freezeTime();
         config(['mail.default' => 'array', 'auth.passwords.users.expire' => 60]);
-        Queue::fake();
+        $this->kolejka = Queue::fake();
     }
 
     public static function delays(): array
@@ -41,7 +55,7 @@ class TerminResetuIZaproszeniaWKolejceTest extends TestCase
     {
         $user = $this->user();
         $this->assertSame(Password::RESET_LINK_SENT, Password::sendResetLink(['email' => $user->email]));
-        $payload = serialize(Queue::pushed(SendQueuedNotifications::class)->sole());
+        $payload = serialize($this->kolejka->pushed(SendQueuedNotifications::class)->sole());
         $before = (array) DB::table('password_reset_tokens')->sole();
         $this->travel($seconds)->seconds();
         // Worker startuje z nową konfiguracją; stare żądanie nie dostaje nowego terminu.
@@ -60,7 +74,7 @@ class TerminResetuIZaproszeniaWKolejceTest extends TestCase
     {
         config(['kuking.login_link.zaproszenia.waznosc_godzin' => 1]);
         $this->assertTrue(app(WyslijZaproszenieDoRejestracji::class)->handle('zaproszenie@example.com'));
-        $payload = serialize(Queue::pushed(SendQueuedNotifications::class)->sole());
+        $payload = serialize($this->kolejka->pushed(SendQueuedNotifications::class)->sole());
         $before = RegistrationInvite::sole()->getAttributes();
         $this->travel($seconds)->seconds();
         config(['kuking.login_link.zaproszenia.waznosc_godzin' => 24]);
