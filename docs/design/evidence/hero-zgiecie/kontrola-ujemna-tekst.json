@@ -1,0 +1,16 @@
+{
+  "nazwa": "opisowe zdanie wraca na pierwszy ekran",
+  "plik": "resources/views/pages/landing.blade.php",
+  "werdykt": "PRZYWROCENIE_NIEUDANE",
+  "md5_przed": "9f94f5c8f0bbefc3c29c719225927be0",
+  "md5_po_mutacji": "78f53a3dd6bb04d7856de3d8e450938e",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "jedno zdanie",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "OBLANY",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T10:57:29Z"
+}

@@ -1,0 +1,6 @@
+Timing is on.
+SET
+Time: 0.112 ms
+Time: 3.624 ms
+psql:scripts/dr594-dane.sql:14: ERROR:  Wybierz własną bazę kuking_flota_gpt_dr_baza_source na 127.0.0.1:55439, rolę kuking.
+CONTEXT:  PL/pgSQL function inline_code_block line 5 at RAISE

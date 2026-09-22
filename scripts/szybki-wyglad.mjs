@@ -222,6 +222,11 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
  const page=await browser.newPage({viewport:{width:720,height:456}});
  try {
   await page.goto(adres+'/login');
+  // Czcionka webowa przesuwa `getBoundingClientRect()` błędu i widżetu —
+  // ten sam powód, dla którego czeka na nią `scripts/pasek-przewijany.mjs`.
+  // Bez tego pomiar delty niżej bywa zrobiony na tymczasowym, nieostatecznym
+  // układzie.
+  await page.evaluate(()=>document.fonts.ready);
   await page.locator('input[name=login]').fill('nieistniejacy-odbior-wygladu@example.test');
   await page.locator('input[name=password]').fill('nieprawidlowe-haslo');
   await page.getByRole('button',{name:'Zaloguj się',exact:true}).click();
@@ -237,7 +242,23 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
    const widget=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
    window.scrollBy(0,error.top-widget.top);
   });
-  await page.waitForFunction(()=>document.querySelector('[data-szybki-wyglad]').hasAttribute('data-wyglad-w-przeplywie'));
+  // NIE czekamy na atrybut `data-wyglad-w-przeplywie`. Zmierzone na żywo na
+  // tym samym /login, 20.09.2026: scrollBy realnie przesuwa stronę
+  // (np. 445 px → 0 px, przycięte do góry dokumentu),
+  // `scroll` faktycznie leci, `geometry()` w `resources/js/szybki-wyglad.js`
+  // faktycznie się wykonuje — a mimo to atrybut bywa ustawiony w jednym
+  // przebiegu i nie ustawiony w kolejnym (3 uruchomienia pod rząd:
+  // FAIL 30,8 s / PASS / FAIL 30,8 s), bo `geometry()` ustawia go WYŁĄCZNIE
+  // gdy w danej klatce realnie wykryje zasłonięcie — to jest wynik, nie
+  // warunek wstępny testu. Czekanie na ten atrybut testowało więc
+  // implementację, nie zachowanie, i było źródłem timeoutu.
+  // Zamiast tego czekamy dwie klatki animacji — `scroll` po programowym
+  // `scrollBy` bywa dostarczany asynchronicznie, więc potrzeba co najmniej
+  // jednej klatki, by `geometry()` zdążyła przeliczyć layout — a potem
+  // mierzymy PRAWDZIWE zasłonięcie bezpośrednio. To wciąż twarda asercja na
+  // mechanizm: jeśli błąd naprawdę chowa się pod widżetem, `overlaps` niżej
+  // będzie `true` i test poczerwienieje, tak jak przed tą zmianą.
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const overlaps=await page.evaluate(()=>{
    const w=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
    return [...document.querySelectorAll('.field-error')].some(e=>[...e.getClientRects()].some(r=>r.right>w.left&&r.left<w.right&&r.bottom>w.top&&r.top<w.bottom));
@@ -273,6 +294,23 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
  * rozpoczęty od 75% wysokości startuje NA NIEJ, więc `hint.contains(target)`
  * jest prawdziwe i podpowiedź słusznie zostaje. Wygląda to jak niedziałająca
  * poprawka, a jest źle wycelowanym palcem. Gest musi omijać podpowiedź.
+ *
+ * TA SAMA PUŁAPKA, DRUGI RAZ — UŁAMEK WYSOKOŚCI TO NIE JEST POMIAR (#684)
+ * Pierwotna wersja startowała palec od 0,45·h i zakładała, że „górna połowa
+ * okna" leży poza podpowiedzią. To założenie jest fałszywe przy niskim oknie.
+ * Podpowiedź jest zakotwiczona do DOLNEJ krawędzi (`bottom: 76px`) i ma stałą
+ * wysokość ~156,3 px, więc jej górna krawędź to zawsze `h − 232,3` — a nie
+ * jakiś procent wysokości. Zmierzone na `/` (Chromium, gość):
+ *   320×512 → podpowiedź 279,7–436,0; punkt 0,45·h = 230 leży 49,7 px NAD nią,
+ *   320×420 → podpowiedź 187,7–344,0; punkt 0,45·h = 189 wpada 1,3 px W NIĄ.
+ * Warunek `0,45·h < h − 232,3` spełnia się dopiero powyżej ~422 px wysokości,
+ * więc okno 320×420 przewracało się z definicji, a nie przez wadę układu:
+ * przykrycie jest przy obu oknach identyczne co do piksela (296×156,3 px,
+ * 76 px nad dolną krawędzią, te same elementy strony pod spodem).
+ * Dlatego punkt startu liczymy z FAKTYCZNEGO prostokąta podpowiedzi i jawnie
+ * sprawdzamy, że `elementFromPoint` nie zwraca z niej niczego. To nie jest
+ * poluzowanie strażnika: dotąd „poza podpowiedzią" było życzeniem autora
+ * testu, teraz jest zmierzone przy każdym oknie i każdym sposobie.
  */
 export async function sprawdzPodpowiedzUstepujeWskaznikowi({browser:b,adres,out}) {
   const OKNA = [{w:320,h:512},{w:320,h:420},{w:384,h:512},{w:390,h:520}];
@@ -288,10 +326,23 @@ export async function sprawdzPodpowiedzUstepujeWskaznikowi({browser:b,adres,out}
       if (sposob === 'kolko') {
         await p.mouse.wheel(0,600);
       } else {
-        // Prawdziwe przeciągnięcie palcem, celowo w GÓRNEJ połowie okna,
-        // żeby nie dotknąć samej podpowiedzi — patrz pułapka w nagłówku.
+        // Prawdziwe przeciągnięcie palcem, celowo POZA podpowiedzią. Punkt
+        // startu bierzemy z jej zmierzonego prostokąta, nie z ułamka wysokości
+        // okna — przy 320×420 ułamek 0,45 wpadał 1,3 px w podpowiedź, bo jej
+        // górna krawędź to `h − 232,3`, a nie procent wysokości (patrz nagłówek).
         const cdp = await ctx.newCDPSession(p);
-        const x = Math.round(o.w/2), gora = Math.round(o.h*0.45), dol = Math.round(o.h*0.05);
+        const x = Math.round(o.w/2);
+        const gornaKrawedz = await p.evaluate(()=>document.querySelector('[data-wyglad-podpowiedz]').getBoundingClientRect().top);
+        const dol = Math.round(o.h*0.05);
+        const gora = Math.min(Math.round(o.h*0.45), Math.floor(gornaKrawedz) - 12);
+        // Dwie asercje zamiast założenia: palec startuje NAPRAWDĘ poza
+        // podpowiedzią i gest zostaje prawdziwym przeciągnięciem, a nie
+        // muśnięciem, którego przeglądarka mogłaby nie policzyć za przewijanie.
+        assert(gora - dol >= 48,`GEST_ZA_KROTKI ${o.w}x${o.h} ${sposob} start=${gora} koniec=${dol}`);
+        assert(await p.evaluate(([x,y])=>{
+          const el = document.elementFromPoint(x,y);
+          return !!el && !document.querySelector('[data-wyglad-podpowiedz]').contains(el);
+        },[x,gora]),`PUNKT_GESTU_W_PODPOWIEDZI ${o.w}x${o.h} ${sposob} y=${gora} gora_podpowiedzi=${gornaKrawedz}`);
         await cdp.send('Input.dispatchTouchEvent',{type:'touchStart',touchPoints:[{x,y:gora}]});
         for (let k=1;k<=5;k++) await cdp.send('Input.dispatchTouchEvent',{type:'touchMove',touchPoints:[{x,y:Math.round(gora-(gora-dol)*k/5)}]});
         await cdp.send('Input.dispatchTouchEvent',{type:'touchEnd',touchPoints:[]});

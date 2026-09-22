@@ -9,6 +9,7 @@ use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
 use App\Domain\Moderation\Sygnaly\WykrywaczSygnalow;
 use App\Models\Comment;
 use App\Models\Post;
+use App\Moderacja\ExceptionContext;
 use App\Moderacja\OcenaModelem;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\PendingDispatch;
@@ -130,7 +131,7 @@ class PrzeanalizujTresc implements ShouldQueue
             Log::warning('Analiza treści pod kątem sygnałów nie powiodła się.', [
                 'typ' => $this->typ,
                 'id' => $this->id,
-                'blad' => $blad->getMessage(),
+                ...ExceptionContext::forStage($blad, 'content_analysis'),
             ]);
         }
     }
