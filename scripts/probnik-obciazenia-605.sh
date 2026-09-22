@@ -136,6 +136,8 @@ select
 poprzedni_cpu=""
 poprzedni_web=""
 poprzedni_worker=""
+poprzedni_pid_web=""
+poprzedni_pid_worker=""
 poprzedni_czas=""
 poprzedni_host=""
 poprzedni_gen=""
@@ -175,13 +177,15 @@ while true; do
   set -- ${DB:-0 0 0 0 0 0}
   POL="${1:-0}"; AKT="${2:-0}"; LOCK="${3:-0}"; KOLEJKA="${4:-0}"; NAJSTARSZE="${5:-0}"; NIEUDANE="${6:-0}"
 
-  RDZENIE_KONT=0; RDZENIE_WEB=0; RDZENIE_WRK=0
+  RDZENIE_KONT=0; RDZENIE_WEB=null; RDZENIE_WRK=null
   RDZENIE_HOST=0; RDZENIE_GEN=0; RDZENIE_STAN=0; RDZENIE_OBCE=0
   if [ -n "$poprzedni_czas" ]; then
     DT="$(awk -v a="$MONO" -v b="$poprzedni_czas" 'BEGIN{printf "%.4f", a-b}')"
     RDZENIE_KONT="$(awk -v a="$CPU_USEC" -v b="$poprzedni_cpu" -v dt="$DT" 'BEGIN{if(dt>0)printf "%.3f",(a-b)/1e6/dt; else print 0}')"
-    RDZENIE_WEB="$(awk -v a="$WEB_T" -v b="$poprzedni_web" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0)printf "%.3f",(a-b)/hz/dt; else print 0}')"
-    RDZENIE_WRK="$(awk -v a="$WRK_T" -v b="$poprzedni_worker" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0)printf "%.3f",(a-b)/hz/dt; else print 0}')"
+    # Po wymianie procesu nie ma wspólnego okna liczników. Null oznacza
+    # brak pomiaru; zero udawałoby bezczynność, a różnica mogłaby być ujemna.
+    RDZENIE_WEB="$(awk -v pid="$PID_WEB" -v prev="$poprzedni_pid_web" -v a="$WEB_T" -v b="$poprzedni_web" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(pid>0 && pid==prev && dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print "null"}')"
+    RDZENIE_WRK="$(awk -v pid="$PID_WORKER" -v prev="$poprzedni_pid_worker" -v a="$WRK_T" -v b="$poprzedni_worker" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(pid>0 && pid==prev && dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print "null"}')"
     RDZENIE_HOST="$(awk -v a="$HOST_T" -v b="$poprzedni_host" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0)printf "%.2f",(a-b)/hz/dt; else print 0}')"
     RDZENIE_GEN="$(awk -v a="$GEN_T" -v b="$poprzedni_gen" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print 0}')"
     SAMO="$(awk -v a="$SAM_T" -v b="$poprzedni_sam" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0)printf "%.3f",(a-b)/hz/dt; else print 0}')"
@@ -192,6 +196,7 @@ while true; do
     RDZENIE_OBCE="$(awk -v h="$RDZENIE_HOST" -v s="$RDZENIE_STAN" 'BEGIN{o=h-s; if(o<0)o=0; printf "%.2f", o}')"
   fi
   poprzedni_cpu="$CPU_USEC"; poprzedni_web="$WEB_T"; poprzedni_worker="$WRK_T"; poprzedni_czas="$MONO"
+  poprzedni_pid_web="$PID_WEB"; poprzedni_pid_worker="$PID_WORKER"
   poprzedni_host="$HOST_T"; poprzedni_gen="$GEN_T"; poprzedni_sam="$SAM_T"
 
   printf '{"t":"%s","load1":%s,"rdzeni_hosta":%s,"rdzenie_zajete_host":%s,"rdzenie_stanowiska":%s,"rdzenie_obce":%s,"psi_cpu_some_avg10":%s,"runnery_kuking_pracujace":%s,"generator_rdzenie":%s,"kontener_rdzenie":%s,"kontener_rss_mb":%s,"kontener_rss_szczyt_mb":%s,"web_rdzenie":%s,"web_rss_mb":%s,"worker_rdzenie":%s,"worker_rss_mb":%s,"db_polaczenia":%s,"db_aktywne":%s,"db_czeka_na_blokade":%s,"kolejka":%s,"najstarsze_zadanie_s":%s,"nieudane_zadania":%s}\n' \

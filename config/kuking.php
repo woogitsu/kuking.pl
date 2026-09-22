@@ -271,13 +271,17 @@ return [
          *   za długo   przełączenie przepisu na prywatny albo zablokowanie
          *              kogoś nie odcina dostępu przez ten cały czas.
          *
-         * `max-age` odpowiedzi dla treści publicznej to POŁOWA tej liczby,
+         * Zdjęcia publiczne mają osobne okno poniżej (#597). `max-age`
+         * ich odpowiedzi to POŁOWA publicznego okna,
          * nie ona sama: przeglądarka cache'uje przekierowanie razem z już
          * podpisanym adresem, więc przy równych wartościach 302 wyjęte
          * z cache w ostatniej sekundzie okna prowadziłoby pod adres, który
          * właśnie wygasa. Szczegóły w `MediaController::sekundyCache()`.
          */
         'signed_url_minutes' => (int) env('KUKING_MEDIA_SIGNED_URL_MINUTES', 5),
+        // Decyzja właściciela #597: wcześniej publiczny podpis może działać
+        // godzinę po zmianie widoczności. Prywatnego okna nie wydłużamy.
+        'public_signed_url_minutes' => (int) env('KUKING_MEDIA_PUBLIC_SIGNED_URL_MINUTES', 60),
 
         // Maksymalna liczba zdjęć w JEDNEJ wysyłce (wpis albo „Ugotowałem").
         //
@@ -1641,6 +1645,34 @@ return [
          * mieści i to.
          */
         'ustawienia' => '30,10',
+
+        /*
+         * PRZEGLĄDANIE „TWOICH TAGÓW" — filtr i „Pokaż kolejne…" na ekranie
+         * `/ustawienia/tagi` (#858, decyzja właściciela z 20.09.2026, punkt 1).
+         *
+         * Szkoda z nadużycia: żadna widoczna dla innych, dokładnie jak reszta
+         * grupy `ustawienia` — to czyste odczyty, żadna z tych dróg nie
+         * dotyka relacji obserwowania (`TagFollowController::przegladaj()`).
+         *
+         * DLACZEGO NIE ZOSTAJE W GRUPIE `ustawienia`. Bo dzieliła z nią
+         * budżet 30/10 razem z ZAPISEM — a szukanie właściwego tagu to nie
+         * jedno kliknięcie: wpisz frazę, popraw literówkę, doładuj kolejną
+         * porcję, wpisz inną frazę. Kilkanaście takich kroków w jednej
+         * sesji to normalne przeglądanie listy stu kilkudziesięciu tagów,
+         * a nie próba obejścia czegokolwiek — i to ono zjadało budżet
+         * zapisu, więc człowiek, który dużo szukał, tracił możliwość
+         * ZAPISANIA wyniku. Zapis zostaje przy 30/10 bez zmian: jego
+         * ochrona się nie rozluźnia, dostaje tylko własny, nietknięty koszyk.
+         *
+         * SKĄD 300 NA 10 MINUT. Hojny budżet dla czystego odczytu, celowo
+         * o rząd wielkości większy niż `ustawienia` — bo to jest właśnie
+         * ten limit, który ma PRZESTAĆ przeszkadzać normalnemu przeglądaniu.
+         * Osobny koszyk nie zwalnia z reguły „poprawne dane nigdy nie
+         * znikają" (#858, punkt 2): nawet przy tym budżecie ktoś kiedyś go
+         * wyczerpie, a wtedy 429 na tej trasie ma oddać zaznaczenia z powrotem
+         * (`App\Support\OdzyskiwalneDane`), nie pokazać pusty formularz.
+         */
+        'tagi_przegladanie' => '300,10',
 
         /*
          * POWIADOMIENIA — kliknięcie „Zobacz" przy pojedynczym powiadomieniu.

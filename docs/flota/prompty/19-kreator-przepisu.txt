@@ -1,0 +1,160 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-kreator-przepisu
+Gałąź:            gpt/kreator-przepisu  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-kreator-przepisu
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-kreator-przepisu --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Kreator przepisu — autozapis, szkice i indeksy kroków: #892 #893 #894 #897 #901 #899.
+
+Zacznij od #893 i #897 — obie GUBIĄ PRACĘ CZŁOWIEKA. Reszta to komunikaty,
+kolejność i droga dostępu.
+
+#893 — przepis edytowany w kreatorze znika (usunięty gdzie indziej), a kreator
+       po cichu przełącza zapis na TWORZENIE NOWEGO. Człowiek myśli, że
+       poprawia swój przepis, a zakłada drugi.
+#897 — formularz „Dopisz szczegóły" gubi old input przy NIECIĄGŁYCH indeksach
+       kroków (po usunięciu kroku ze środka). To jest wprost złamanie zasady
+       „poprawne dane nigdy nie znikają".
+#894 — po przestawieniu kroków błąd zdjęcia zostaje przypięty do DAWNEGO
+       indeksu, więc czerwień świeci przy niewłaściwym kroku.
+#892 — „Szkic zapisany" potrafi opisywać POPRZEDNIĄ wersję, kiedy autozapis
+       jeszcze leci. Komunikat obiecuje stan, którego nie ma.
+#901 — powyżej trzech szkiców starsze nie mają widocznej drogi dostępu.
+       Endpoint jest, drogi dla człowieka nie ma (D-053 od drugiej strony).
+#899 — przejście z „Dopisz szczegóły" do kreatora nie przenosi niezapisanych
+       zmian ANI nie ostrzega.
+
+UWAGA NA KOLEJNOŚĆ: #894 i #897 dotykają tego samego przeliczania indeksów.
+Zrób je jednym spójnym rozwiązaniem, nie dwoma łatkami obok siebie —
+inaczej druga cofnie pierwszą.
+
+#899 może się okazać PYTANIEM PRODUKTOWYM, a nie usterką: „przenieś
+niezapisane" i „ostrzeż i pozwól zostać" to dwa różne produkty. Jeśli tak
+wyjdzie — wypisz warianty z kosztem, nie betonuj asercją.
+
+NIE DOTYKAJ migawek wersji ani audytu publikacji (app/Domain/Recipe/*Snapshot*,
+*Version*) — równoległa gałąź gpt/wersje-przepisu pracuje dokładnie tam.
+
+------------------------------------------------------------------------
+PRZEKAZANIE Z GAŁĘZI gpt/wersje-przepisu — DOTYCZY CIEBIE WPROST
+------------------------------------------------------------------------
+Stanowisko gpt/wersje-przepisu domknęło #900 (adres źródła przepisu) dla
+formularza jednostronicowego, ale **NIE dla kreatora** — bo kreator należy
+do Ciebie i miało zakaz go dotykać.
+
+Decyzja właściciela z 20.09.2026, którą masz zastosować:
+  „Zachowaj niezmieniony stary adres; nowe lub zmienione wymagają HTTP/HTTPS."
+
+W `resources/views/components/recipe-wizard.blade.php` i w `validateInfo()`
+została reguła `url` BEZ ograniczenia protokołów, czyli FTP i SSH przechodzą.
+
+Masz:
+- zastosować tę samą regułę w kreatorze,
+- zmierzyć ją RAZEM Z AUTOZAPISEM — i to jest sedno: **nie wolno uznać
+  adresu FTP świeżo utrwalonego przez autozapis za „historyczny wyjątek"**.
+  Wyjątek dotyczy adresów, które istniały wcześniej, a nie takich, które
+  autozapis dopiero co zapisał w tej samej sesji edycji,
+- zachować błąd przypięty do pola `source_url` i tekst formularza po odmowie.
+
+Przeczytaj `docs/research/2026-09-20-wersje-przepisu-895-900.md` na gałęzi
+gpt/wersje-przepisu, zanim to napiszesz.
+
+------------------------------------------------------------------------
+DRUGIE PRZEKAZANIE — PORCJE PRZEPISU (#750)
+------------------------------------------------------------------------
+Gałąź `naprawa/750-porcze` (commit `46dc3d3f`) wykonała DECYZJĘ WŁAŚCICIELA
+z 20.09.2026: **porcje mają krok 0.01 (setne), a `1.255` ma być ODRZUCONE
+z instrukcją, nie cicho zaokrąglone do `1.26`.**
+
+Zrobione tam: formularz jednostronicowy (`step="0.01"`, `min="0.5"`) oraz
+walidacja serwerowa w `RecipeController::validated()`
+(`'servings' => ['nullable','numeric','min:0.5','max:999','decimal:0,2']`)
+z komunikatem po polsku mówiącym, co wpisać zamiast 1,255.
+
+**KREATOR ZOSTAŁ ŚWIADOMIE NIETKNIĘTY, bo należy do Ciebie.**
+W `resources/views/components/recipe-wizard.blade.php` (okolice linii 607
+i 1123) nadal stoi `step="0.5"`, a reguła `servings` nie ma `decimal:0,2`.
+Czyli **w kreatorze `1.255` dalej cicho się zaokrągla**.
+
+Masz zastosować tę samą regułę i zmierzyć ją RAZEM Z AUTOZAPISEM. Pytanie,
+którego nie wolno pominąć: co się dzieje, gdy autozapis utrwali wartość
+z trzema miejscami po przecinku, zanim człowiek zdąży wysłać formularz.
+
+To jest DRUGIE przekazanie do tego stanowiska — pierwsze dotyczy adresu
+źródła przepisu (#900). Oba mają ten sam kształt: reguła obowiązuje
+w formularzu jednostronicowym, a w kreatorze jej nie ma.

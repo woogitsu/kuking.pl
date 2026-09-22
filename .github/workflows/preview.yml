@@ -309,8 +309,20 @@ jobs:
         run: |
           set -euo pipefail
           env_name="pr-${{ github.event.inputs.pr_number }}"
-          echo "Usuwam środowisko: $env_name"
-          # `|| true`: jeśli środowisko już nie istnieje, to jest stan pożądany,
-          # a nie błąd. Job nie powinien świecić na czerwono za sukces.
-          railway environment delete "$env_name" --yes || true
-          echo "Gotowe."
+          # Railway CLI zwraca kod 1 dla KAŻDEGO błędu: brak środowiska, wygasły
+          # token, brak uprawnień, ratelimit, awaria sieci. Po samym kodzie
+          # `delete` nie da się ich odróżnić, więc dawne `|| true` zamieniało
+          # awarię tokenu w zielony job, a płatne środowisko dalej stało.
+          # Dlatego najpierw PYTAMY O LISTĘ, a dopiero potem kasujemy.
+          echo "Sprawdzam, czy środowisko istnieje: $env_name"
+          # Porażka samej listy to błąd i job MUSI być czerwony — inaczej
+          # odtwarzamy dokładnie ten sam problem piętro wyżej.
+          envs_json="$(railway environment list --json)"
+          env_names="$(jq -r '[.. | objects | select(has("name")) | .name] | .[]' <<< "$envs_json")"
+          if grep -qxF "$env_name" <<< "$env_names"; then
+            # Bez `|| true`: kod wyjścia CLI leci wprost do joba.
+            railway environment delete "$env_name" --yes
+            echo "Gotowe."
+          else
+            echo "Środowiska $env_name nie ma na liście — nie ma czego usuwać."
+          fi

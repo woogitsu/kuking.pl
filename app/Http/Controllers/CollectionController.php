@@ -158,7 +158,25 @@ class CollectionController extends Controller
 
         $posts = $collection->posts()
             ->widoczneDla($request->user())
+            // BRAMKA PRZEPISU, OSOBNA OD `widoczneDla()` (#368). Tamten
+            // zakres pyta o WPIS, a wpis zapowiadający przepis ma
+            // `visibility = 'public'` na stałe (`WpisWskazujacyPrzepis::dopisz()`)
+            // — to nie jest jego widoczność, tylko brak własnego zawężenia,
+            // bo bramką ma być PRZEPIS. Bez tego warunku zeszyt rysował
+            // `x-post-card` z tytułem, zdjęciem głównym i odnośnikiem, w
+            // którym slug niesie ten sam tytuł.
+            //
+            // W ZESZYCIE TEN WYCIEK DOJRZEWA W CZASIE i to jest jego różnica
+            // wobec reszty rodziny. Zapowiedź zostaje tu wskazana na stałe,
+            // więc gdy autor zawęzi przepis albo zdejmie go moderacja,
+            // treść nie znika sama — a osoba, która ją zapisała, nie ma
+            // powodu jej wyjmować, bo w chwili zapisu widziała przepis
+            // całkowicie legalnie.
             ->zWidocznymPrzepisem($request->user())
+            // A OBOK BRAMKI PRZEPISU — DOSTĘPNOŚĆ JEGO AUTORA (#1036).
+            // `Recipe::scopeWidoczneDla()` liczy blokady i widoczność, ale NIE
+            // pyta o stan konta autora przepisu. Zapowiedź przepisu osoby
+            // zbanowanej albo skasowanej dalej niosła więc tytuł i zdjęcie.
             ->where(fn ($posts) => $posts->whereNull('posts.recipe_id')
                 ->orWhereHas('recipe.author', fn ($author) => $author->dostepnyJakoAutor()))
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())

@@ -15,6 +15,8 @@
             Te trzy kroki są opcjonalne. Każdy z nich możesz pominąć.
         </p>
 
+        <x-error-summary />
+
         @if($tags->isEmpty())
             <p class="onboarding-empty">
                 Nie mamy jeszcze listy tagów do zaproponowania.
@@ -26,7 +28,7 @@
         @else
             <form method="POST" action="{{ route('onboarding.interests') }}">
                 @csrf
-                <fieldset class="onboarding-interests">
+                <fieldset id="f-tags" class="onboarding-interests" @error('tags') aria-invalid="true" aria-describedby="f-tags-error" tabindex="-1" @enderror>
                     <legend>Zaznacz tematy, które chcesz obserwować.</legend>
                     <p id="onboarding-interests-help">Możesz zmienić wybór później albo przejść dalej bez zaznaczania.</p>
                     <div class="onboarding-interest-grid">
@@ -37,6 +39,7 @@
                             </label>
                         @endforeach
                     </div>
+                    <x-blad-grupy name="tags" />
                 </fieldset>
                 <div class="form-actions">
                     <button class="btn btn-primary" type="submit">Dalej</button>
