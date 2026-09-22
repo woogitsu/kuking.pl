@@ -1,0 +1,25 @@
+### Result
+{"javascript":false,"remove":true,"search":true,"addMultiword":true,"bodyPreserved":true,"removeHeight":73}
+### Ran Playwright code
+```js
+await (async page => {
+  const context=await page.context().browser().newContext({storageState:await page.context().storageState(),javaScriptEnabled:false,viewport:{width:320,height:900}});
+  const p=await context.newPage();
+  try {
+    await p.goto('http://127.0.0.1:8647/wpisy/01a0bfe7-1d7b-711c-8b86-c7dee88e5ab4/edycja');
+    await p.locator('textarea[name=body]').fill('Zmieniony opis #pomiar-3');
+    await p.getByRole('button',{name:'Usuń',exact:true}).click();
+    if(await p.locator('textarea[name=body]').inputValue()!=='Zmieniony opis #pomiar-3')throw Error('Utrata opisu');
+    if(await p.locator('input[name="tag_names[]"]').count())throw Error('Tag ręczny wrócił');
+    await p.getByText('Dodaj tag bezpośrednio',{exact:true}).click();
+    await p.getByRole('textbox',{name:'Nazwa tagu',exact:true}).fill('zupa pomidorowa');
+    await p.getByRole('button',{name:'Sprawdź tag',exact:true}).click();
+    await p.getByRole('button',{name:'Dodaj',exact:true}).click();
+    if(await p.locator('input[name="tag_names[]"]').inputValue()!=='zupa pomidorowa')throw Error('Brak ręcznego taga');
+    if(await p.locator('textarea[name=body]').inputValue()!=='Zmieniony opis #pomiar-3')throw Error('Utrata opisu po dodaniu');
+    const geometry=await p.locator('#f-tagi button[name=usun_tag]').boundingBox();
+    await p.screenshot({path:'/mnt/c/Users/matma/Documents/kuking-flota/gpt-tagi-miejsce/output/playwright/647-nojs-320.png',fullPage:true});
+    return {javascript:false,remove:true,search:true,addMultiword:true,bodyPreserved:true,removeHeight:geometry.height};
+  }finally{await context.close();}
+})(page);
+```

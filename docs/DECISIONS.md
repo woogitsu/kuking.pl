@@ -1673,6 +1673,12 @@ w wierszu metadanych bywa przeoczona. Nie „wrażenia, że jest za mała".
 
 ## D-033 · Składniki dostają grupy, a przepis przeliczanie porcji
 
+> **Doprecyzowanie właściciela, 20 września 2026, #878:** „Bez ilości” nie
+> oznacza „do smaku”. Pokazujemy wyłącznie tekst autora i jego uwagę, bez
+> automatycznego dopisku. Zmiana dotyczy prezentacji z #44; flaga i CHECK
+> zostają. W zadaniu #741 właściciel polecił poprawić opisy, bez budowania
+> skalowania porcji: jest ono nadal niewdrożonym planem V2 (`FEATURES.md`).
+
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
 niezbudowana** · **poprawia D-017**
 
@@ -15017,6 +15023,31 @@ katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
 
+## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+
+Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
+wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
+odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
+pełna gwarancja zaczyna się od wdrożenia.
+
+Pamięć należy do autora, nie do powiadomienia ani aktualnego gospodarza.
+`first_post_events` utrwala jeden nośnik; usunięcie go pozostawia zdarzenie,
+zmiana gospodarza nie wywołuje reemisji. Inny moderator zobaczy oznaczenie
+tylko przy tym nośniku i tylko jeśli ma dostęp. Nie dostaje alternatywnego
+„pierwszego” publicznego wpisu, gdy nośnik był followers poza jego zasięgiem.
+Bez gospodarza pierwszy publiczny wkład zużywa pierwszeństwo bez alertu;
+followers bez dostępnego odbiorcy nie zużywa go. Historia jest odtwarzana
+najpierw z alertów, potem z zachowanych dostępnych wpisów, w tym soft-deleted.
+
+Publikacja serializuje autora po blokadach mediów (D-103), przed INSERT.
+Wpis, znacznik, audyt, alert i enqueue są jedną transakcją. Standardowy
+dispatch pozostaje: gwarancja trwałego enqueue dotyczy database queue na
+identycznym obiekcie połączenia. Odmienny connection database odmawia przed
+zapisem; sync/fake zachowują dotychczasowy kontrakt testowy, nie stanowią
+dowodu trwałości. Zlecenie `low` ma beforeCommit, worker widzi je po commit.
+Nie naprawiamy historycznych częściowych publikacji z #935 ani retencji.
+Rollback jest wąsko chroniony zgodnie z D-088 (szczegóły: DATABASE.md).
+
 ## D-224 — Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest (audyt L1, 20 września 2026)
 
 Trasa `DELETE /wpisy/{post}/zapisz` (`collections.unsave-post`) istniała,
@@ -15048,6 +15079,36 @@ Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
 osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
 się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
 i `scripts/wyjecie-z-zeszytu.mjs`.
+
+## D-225 — Godzinny podpis zdjęcia publicznego, bez cache sesji (#597/#610)
+
+20 września 2026, jawna decyzja właściciela w zadaniu `gpt/cloudflare-cache`:
+„Zaakceptuj godzinę dla wcześniej publicznego zdjęcia”. Podpis wydany, gdy
+Policy dopuszcza anonima, może działać po zmianie widoczności do końca tej
+godziny. Z 30-minutowym cache bajtów okno może sięgnąć 90 minut od wydania.
+Treści dostępne wyłącznie prywatnie zachowują podpis do 5 minut i no-store.
+Najszerszy rodzic i kontrola Policy z D-020 pozostają bez zmian.
+
+Odpowiedzi z sesją, ciasteczkiem albo logowaniem nie trafiają do wspólnego
+cache, także dla publicznych zdjęć. Publiczny odczyt zdjęcia bez stanu
+klienta nie wystawia sesji. Ta decyzja nie dopuszcza cache HTML z sesją
+ani nie ustala opóźnienia ukrycia HTML. Projekt reguł, bramka i ograniczenia:
+`docs/infra/CLOUDFLARE_CACHE_597_610.md`. Konfiguracji Cloudflare nie zmieniono.
+
+## Uzupełnienie #369 — Próg prezentacji publicznej aktywności (20 września 2026)
+
+Właściciel zatwierdził pozostawienie **5 zdjęć / 3 osób wyłącznie jako progu
+prezentacji publicznej aktywności, bez obietnicy anonimowości**. Nie jest to
+próg ochrony tożsamości ani ograniczenie dostępu do publicznych wpisów.
+
+Pomiar lokalny na syntetycznych danych: gość bez JavaScriptu mógł odczytać
+wszystkich autorów z kart dla tagów z 2, 3, 5, 10 i 42 osobami; ostatni
+przypadek wymagał przejścia trzech stron. Podnoszenie samego progu nie
+ukrywa autorstwa kart. Wynik nie jest badaniem danych ani użytkowników
+produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
+zakresu statystyk o prywatne treści ani ranking.
+
+Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
 
 ## D-227 — PostgreSQL 18 jest wymaganiem, nie preferencją
 

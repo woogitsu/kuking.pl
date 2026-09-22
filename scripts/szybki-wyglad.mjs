@@ -222,6 +222,11 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
  const page=await browser.newPage({viewport:{width:720,height:456}});
  try {
   await page.goto(adres+'/login');
+  // Czcionka webowa przesuwa `getBoundingClientRect()` błędu i widżetu —
+  // ten sam powód, dla którego czeka na nią `scripts/pasek-przewijany.mjs`.
+  // Bez tego pomiar delty niżej bywa zrobiony na tymczasowym, nieostatecznym
+  // układzie.
+  await page.evaluate(()=>document.fonts.ready);
   await page.locator('input[name=login]').fill('nieistniejacy-odbior-wygladu@example.test');
   await page.locator('input[name=password]').fill('nieprawidlowe-haslo');
   await page.getByRole('button',{name:'Zaloguj się',exact:true}).click();
@@ -237,7 +242,23 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
    const widget=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
    window.scrollBy(0,error.top-widget.top);
   });
-  await page.waitForFunction(()=>document.querySelector('[data-szybki-wyglad]').hasAttribute('data-wyglad-w-przeplywie'));
+  // NIE czekamy na atrybut `data-wyglad-w-przeplywie`. Zmierzone na żywo na
+  // tym samym /login, 20.09.2026: scrollBy realnie przesuwa stronę
+  // (np. 445 px → 0 px, przycięte do góry dokumentu),
+  // `scroll` faktycznie leci, `geometry()` w `resources/js/szybki-wyglad.js`
+  // faktycznie się wykonuje — a mimo to atrybut bywa ustawiony w jednym
+  // przebiegu i nie ustawiony w kolejnym (3 uruchomienia pod rząd:
+  // FAIL 30,8 s / PASS / FAIL 30,8 s), bo `geometry()` ustawia go WYŁĄCZNIE
+  // gdy w danej klatce realnie wykryje zasłonięcie — to jest wynik, nie
+  // warunek wstępny testu. Czekanie na ten atrybut testowało więc
+  // implementację, nie zachowanie, i było źródłem timeoutu.
+  // Zamiast tego czekamy dwie klatki animacji — `scroll` po programowym
+  // `scrollBy` bywa dostarczany asynchronicznie, więc potrzeba co najmniej
+  // jednej klatki, by `geometry()` zdążyła przeliczyć layout — a potem
+  // mierzymy PRAWDZIWE zasłonięcie bezpośrednio. To wciąż twarda asercja na
+  // mechanizm: jeśli błąd naprawdę chowa się pod widżetem, `overlaps` niżej
+  // będzie `true` i test poczerwienieje, tak jak przed tą zmianą.
+  await page.evaluate(()=>new Promise(resolve=>requestAnimationFrame(()=>requestAnimationFrame(resolve))));
   const overlaps=await page.evaluate(()=>{
    const w=document.querySelector('[data-szybki-wyglad] summary').getBoundingClientRect();
    return [...document.querySelectorAll('.field-error')].some(e=>[...e.getClientRects()].some(r=>r.right>w.left&&r.left<w.right&&r.bottom>w.top&&r.top<w.bottom));

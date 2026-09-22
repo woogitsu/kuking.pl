@@ -55,6 +55,7 @@
                     </li>
                 @endforeach
             </ul>
+            <p class="mb-0"><a class="btn btn-secondary" href="{{ route('recipes.drafts') }}">Wszystkie szkice</a></p>
         </div>
     @endif
 

@@ -1794,13 +1794,27 @@ Running pre-deploy command...         ← migracje
 **Wszystko poniżej robi jedno polecenie:**
 
 ```bash
-./scripts/sprawdz-wdrozenie.sh kuking.pl
+SESSION_COOKIE=kuking-session ./scripts/sprawdz-wdrozenie.sh kuking.pl
 ```
 
 Skrypt nie potrzebuje żadnych kluczy ani dostępu do paneli — pyta z zewnątrz,
 tak jak przeglądarka użytkownika. Przerywa, gdy serwis nie odpowiada, zamiast
 meldować „w porządku" o czymś, czego nie sprawdził. Kod wyjścia `1` przy
 błędach, więc nadaje się też do CI.
+
+`SESSION_COOKIE` podaj zgodnie z efektywną konfiguracją badanego środowiska
+(`config/session.php`: jawne `SESSION_COOKIE` albo nazwa wyprowadzona z
+`APP_NAME`). Sonda nie zgaduje nazwy po innych ciasteczkach i nie wyświetla
+ich wartości. Brak nazwy, ciasteczka lub pomiaru daje błąd kontroli.
+
+Kontrola www sprawdza **jeden skok** 301/308 na HTTPS z dokładnym hostem
+podanym argumentem. Nie potwierdza końca łańcucha przekierowań. Kontrola
+Livewire wymaga jednej kompletnej odpowiedzi HEAD z HTTP 405 oraz
+`CF-Cache-Status: BYPASS` lub `DYNAMIC`. HIT/MISS to błąd cache, a timeout,
+404/500, ucięte nagłówki i brak rozpoznanego statusu cache to „nie sprawdzono”
+z kodem wyjścia 1. Brak dowodu nie zalicza odbioru.
+
+Regresje na atrapach, zakres i ograniczenia: [SONDA_WDROZENIA_805_808.md](SONDA_WDROZENIA_805_808.md).
 
 Polecenia niżej zostają jako źródło i do ręcznego dochodzenia, gdy skrypt
 pokaże problem.

@@ -1,0 +1,16 @@
+{
+  "nazwa": "842 wygasanie",
+  "plik": "app/Support/FormConfirmation.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "e23a0dabf5f78be50be44687927f514f",
+  "md5_po_mutacji": "f7394a85e41b1d4e80836f8dbd8d2eec",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Mamy Twoj",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:05:51Z"
+}
