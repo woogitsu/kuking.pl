@@ -6,6 +6,7 @@ namespace App\Console\Commands;
 
 use App\Models\AuditLogEntry;
 use App\Models\User;
+use App\Support\AdresEmail;
 use Illuminate\Console\Command;
 
 /**
@@ -91,7 +92,18 @@ class NadajRole extends Command
             $this->warn('Administrator rozstrzyga odwołania od decyzji moderacyjnych (D-039) i widzi cały panel moderacji. Nadawaj to świadomie.');
         }
 
-        if (! $this->option('tak') && ! $this->confirm("Zmienić rolę konta {$user->email} z „{$poprzednia}\" na „{$rola}\"?")) {
+        // ADRES W SKRÓCIE, NIE W CAŁOŚCI (issue #1026, ta sama rodzina).
+        // Tę komendę uruchamia się także z konsoli platformy hostingowej,
+        // a wszystko, co wypisze, zostaje w logu tej platformy — poza
+        // kontrolą serwisu i bez ustalonej retencji (AGENTS.md §7).
+        // Skrót `j***@wp.pl` odpowiada na jedyne pytanie, jakie właściciel
+        // zadaje przy potwierdzeniu („czy to na pewno to konto"), bo login
+        // i tak podał przed chwilą sam. A `findByLogin()` przyjmuje TAKŻE
+        // nazwę konta — więc bez skrótu ta linia dopisywałaby do logu
+        // powiązanie nazwa konta → pełny adres, którego w wywołaniu nie było.
+        $skrot = AdresEmail::maska((string) $user->email);
+
+        if (! $this->option('tak') && ! $this->confirm("Zmienić rolę konta {$skrot} z „{$poprzednia}\" na „{$rola}\"?")) {
             $this->info('Anulowano.');
 
             return self::SUCCESS;
@@ -115,7 +127,7 @@ class NadajRole extends Command
             ],
         );
 
-        $this->info("Rola konta {$user->email} zmieniona z „{$poprzednia}\" na „{$rola}\".");
+        $this->info("Rola konta {$skrot} zmieniona z „{$poprzednia}\" na „{$rola}\".");
 
         if (in_array($rola, [User::ROLE_MODERATOR, User::ROLE_ADMIN], true) && ! $user->hasTwoFactorConfirmed()) {
             $this->warn('To konto NIE MA jeszcze potwierdzonego 2FA, a bez niego panel moderacji go nie wpuści (EnsureModeratorHasTwoFactor). Niech włączy je w ustawieniach.');
