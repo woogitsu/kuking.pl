@@ -4903,6 +4903,33 @@ Ta decyzja NIE jest „nigdy" — jest „nie bez tych trzech rzeczy naraz":
   `docs/MEDIA_PIPELINE.md`, `config/kuking.php` (komentarz przy
   `accepted_mime_types`).
 
+### Aktualizacja 20 września 2026 — obietnica bez pokrycia poprawiona (#119 follow-up)
+
+Ta decyzja **nie jest otwierana na nowo**: HEIC nadal jest odrzucany, `libheif`
+nadal nie wchodzi do obrazu Dockera. Poprawiono wyłącznie TEKST komunikatu
+z §3 pkt 2, po pomiarze stanowiska `gpt/heic-format`
+(`docs/research/heic-119/RAPORT.md`).
+
+Znaleziony błąd: komunikat obiecywał **bezwarunkowo**, że wysłanie HEIC do
+siebie e-mailem da JPG („wyślij najpierw do siebie e-mailem — przyjdzie jako
+JPG"). Apple (support.apple.com/pl-pl/116944) opisuje to jako zależne od
+sposobu udostępniania i możliwości odbiorcy — „może" zostać wysłane w formacie
+zgodnym, nie „zostanie". Naprawiono `App\Support\RozpoznanieZdjecia::komunikatHeic()`:
+wynik dla TEGO zdjęcia nazwany jako niepewny („telefon czasem sam zamienia
+je wtedy na JPG, ale zależy to od modelu telefonu"), z prostą alternatywą
+(wybrać inne, gotowe zdjęcie), i osobno, jasno opisane ustawienie na
+PRZYSZŁOŚĆ, które nie przerabia zdjęcia już zrobionego. Nie zastąpiono jednej
+niepewnej obietnicy inną równie pewną — żadna sprawdzona na 100% droga
+konwersji ISTNIEJĄCEGO pliku nie jest znana (patrz RAPORT.md §5: Mail,
+„Duplikuj" i zewnętrzny konwerter odradzane jako pewniki).
+
+Drugi błąd, drobniejszy: polska pomoc Apple podaje etykietę „Najbardziej
+zgodne" (rodzaj nijaki), a komunikat (i ten wpis w §3 pkt 1 wyżej) miał
+błędną odmianę „Najbardziej zgodny". Poprawiono w obu miejscach.
+
+Test regresyjny (RED przed poprawką, GREEN po):
+`tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php::test_komunikat_heic_nie_obiecuje_bezwarunkowo_konwersji_mailem`.
+
 ### Co CZEKA na właściciela (opisane, nie wykonane)
 
 - **Pomiar na prawdziwym iPhonie** (§3, §6 pkt 2) — nie do wykonania z tego
@@ -15109,48 +15136,181 @@ produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
 zakresu statystyk o prywatne treści ani ranking.
 
 Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
-## D-226 — Przyrządy pomiarowe rozpoznają rodzinę baz, nie pojedyncze nazwy (#736, 19 września 2026)
 
-Siedemnaście skryptów w `scripts/*.mjs` robi `php artisan migrate:fresh --seed`,
-czyli kasuje całą zawartość bazy z `DB_DATABASE`. Dwa z nich miały listę
-`BAZY_ZAKAZANE = ['kuking', 'kuking_test']`, pozostałych piętnaście nie miało
-żadnej kontroli. Lista była listą ZAKAZÓW: wszystko, czego na niej nie było,
-przechodziło.
+## D-227 — PostgreSQL 18 jest wymaganiem, nie preferencją
 
-Po zmianie nazewnictwa baz testowych (D-228) żadna kopia robocza nie nazywa się
-już `kuking_test` — nazwa zawiera skrót ścieżki katalogu. Lista zakazów
-przestała więc trafiać kiedykolwiek i gdziekolwiek, zostając w kodzie jako
-zabezpieczenie, którego już nie ma. Zabezpieczenie, które przestaje działać we
-wszystkich przypadkach naraz, jest w praktyce usunięte, a wygląda na obecne —
-i to jest gorsze niż jego brak, bo człowiek na nie liczy.
+Data: 20 września 2026. Decyzja właściciela.
 
-`scripts/bezpiecznik-bazy.mjs` rozpoznaje odtąd RODZINY nazw i odwraca
-domniemanie: wpuszcza wyłącznie jednorazową bazę pomiarową (bazę własną
-skryptu, jej wariant z sufiksem, albo nazwę z rodziny `…_pomiar` /
-`kuking_qa_…`), a nazwa nierozpoznana jest ODMOWĄ, nie zgodą. Rodziny chronione
-(`kuking`, `kuking_test*`, `kuking_race*`, `proba_wycofania*`,
-`proba_odtworzenia*`, `kuking_zrodlo_proby*`, `railway*`, bazy systemowe) biją
-regułę wpuszczającą, więc `kuking_test_pomiar` też się nie prześlizgnie.
-Porównanie idzie po małych literach, bo PostgreSQL składa identyfikator bez
-cudzysłowu i `KUKING_TEST_X` to ta sama baza. To jest ten sam kierunek pomyłki,
-co w `scripts/cleanup-test-dbs.sh`: nie wiem, czyja to baza, więc jej nie ruszam.
+**Co zdecydowano.** Wymagana wersja PostgreSQL to **18** — lokalnie, w CI
+i na produkcji. Wcześniej `AGENTS.md` mówił „lokalnie i w CI wystarczy 16+".
 
-Konsekwencja w CI: job `dostepnosc` ustawiał `DB_DATABASE: kuking_test` na
-poziomie całego joba, a kroki przeglądarkowe robiły na tej bazie
-`migrate:fresh` — czyli kasowały bazę, na której kroki wyżej chodził
-`php artisan test`. Działało, bo kroki idą po kolei, ale to dokładnie ten
-układ, który lokalnie kosztował trzy sesje. Każdy krok dostał własną bazę
-jawnie; `dostepnosc.mjs` zakłada swoją sam, tak jak robiły to już trzy inne
-przyrządy.
+**Dlaczego.** Szesnastka opisywała stan, którego już nigdzie nie ma: CI stawia
+`postgres:18-alpine` w sześciu usługach, produkcja ma 18, lokalny klaster
+18.6. Reguła, która dopuszcza konfigurację nieistniejącą u nikogo, nie chroni
+przed niczym — a przy tym usypia: każdy czyta ją jako „przetestowane na 16".
 
-Najważniejszy dowód nie sprawdza samej funkcji, tylko to, czy jest WŁĄCZONA:
-skan w `scripts/bezpiecznik-bazy.test.mjs` wymaga, żeby każdy plik z
-`migrate:fresh` wołał `ustalBazePomiarowa()`. Bezpiecznik bez zarzutu, którego
-nikt nie woła, to dokładnie stan sprzed tej decyzji.
+**Numer.** Ta decyzja nosiła najpierw D-223. Po awarii 20.09 o ten sam
+numer stanęły trzy różne rozstrzygnięcia z trzech odzyskanych gałęzi, a
+`NumeryDecyzjiMajaWpisyTest` łapie duplikat numeru dopiero PO scaleniu —
+czyli wtedy, gdy odnośniki w kodzie już wskazują na dwie decyzje naraz.
+Numer przyznano tej pracy, która ma najmniej odnośników z zewnątrz:
+tutaj dwa, oba w `DEPLOYMENT_RUNBOOK.md`. Strażnik martwych reguł CSS
+zostaje przy D-223, bo jego numer siedzi w jedenastu miejscach i w nazwie
+katalogu dowodów `docs/design/evidence/kaskada223/`.
 
-Dowody: `scripts/bezpiecznik-bazy.test.mjs` (10 przypadków) wciągane do
-`php artisan test` przez `tests/Feature/BezpiecznikBazyPomiarowejTest.php`
-oraz do `scripts/check.sh`.
+**Kolejność zmiany jest częścią decyzji.** Najpierw reguła w `AGENTS.md`
+(`68099722`), dopiero potem próg w strażniku R60 (`d2ffccac`). Odwrotna
+kolejność uczyłaby, że regułę wolno wyprzedzić testem — a `AGENTS.md` jest
+jedynym źródłem prawdy projektu.
+
+**Zakres.** Zmienione cztery miejsca stawiające wymóg: tabela stacku
+w `AGENTS.md` i jej kopia w `README.md`, wymagania uruchomienia w `README.md`
+oraz wymagania własnego runnera w `docs/infra/CI_BEZ_ACTIONS.md`.
+
+**Czego świadomie NIE zmieniono.** Zapisów o POMIARACH wykonanych na 16.13
+(`SearchQuery`, `ProgPodobienstwa`, migracja z 9 września) ani notek „od
+PostgreSQL 17…" w migracjach i `docs/DATABASE.md`. To są fakty o silniku
+i cudze pomiary — przepisanie ich na 18 sfałszowałoby czyjś wynik.
+
+**Skutek dla runbooka.** `DEPLOYMENT_RUNBOOK.md` §6.3 zachowuje wariant „weź
+17 i zrób upgrade in-place", ale **wyłącznie jako drogę awaryjną odtworzenia
+po awarii**, gdy dostawca nie oferuje 18 w danej chwili. Nie jest to
+dopuszczalny stan docelowy, a upgrade staje się wtedy zadaniem do domknięcia.
+Procedurę trzymamy, bo improwizowanie jej w kryzysie kosztuje więcej niż
+zapisanie z góry.
+
+**Dowód, że próg nie jest martwą liczbą.** Podbicie go na chwilę na 19 oblewa
+strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
+„18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
+
+## D-233 — Rejestr potwierdzeń RODO tak, automatyczne kasowanie wpisów NIE (#1222 nie dotyczy)
+
+22 września 2026, jawna decyzja właściciela przy odbiorze gałęzi
+`naprawa/minimalne-potwierdzenie-rodo`. Gałąź robiła dwie rzeczy: zakładała
+rejestr potwierdzeń obsługi żądań RODO z zapisem **atomowym, w tej samej
+transakcji co skutek**, i włączała **automatyczne kasowanie tych wpisów po 36
+miesiącach, domyślnie, bez przełącznika**. Właściciel przyjmuje pierwszą część
+i wstrzymuje drugą.
+
+Autor gałęzi uzasadniał brak przełącznika zdaniem „wyłącznik retencji to
+bezterminowość pod inną nazwą”. Argument zostaje zapisany, bo jest sensowny
+i bo za tydzień ktoś wyprowadzi go ponownie. Nie przeważa jednak dwóch rzeczy.
+Po pierwsze, **okresu nie potwierdził prawnik**: 36 miesięcy to analogia do
+dokumentacji sprawy moderacyjnej (art. 442¹ k.c., D-057 i ADR_RETENCJE §4), nie
+ustalenie dla tej kategorii. Po drugie, kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby” nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą” — czyli nie jest znana nawet długość drogi odzysku.
+
+Wyłączenie stoi na dwóch niezależnych barierach, żeby nie zdejmowała go jedna
+pomyłka: `kuking.potwierdzenia_rodo.retencja_wlaczona` jest `false`, a zadanie
+`kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte w `routes/console.php`**.
+`retention_months` jest `null`, nie 36, więc samo przestawienie flagi nie
+uruchamia kasowania według okresu, którego nikt nie potwierdził. Komenda
+istnieje i jest przetestowana; `--na-sucho` działa mimo wyłączenia, bo tym mają
+zostać przygotowane dane historyczne.
+
+Ta decyzja **nie cofa** niczego, co gałąź zrobiła dobrze: dziewięciu ograniczeń
+CHECK, braku ekranu dla tej tabeli (osobny test skanuje trasy i widoki),
+zapamiętania zakresu żądania **przed** anonimizacją ani atomowości zapisu.
+Wyłączenie ma być zdjęte świadomie, po potwierdzeniu okresu — droga w trzech
+krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
+i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
+
+Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
+(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
+
+Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
+że domyślnie nic się nie kasuje i że po jawnym włączeniu automat działa.
+
+## D-238 — Cofnięcie migracji 2FA ODMAWIA, zamiast po cichu zdjąć drugi składnik (DB-01, 22 września 2026)
+
+**Data:** 22 września 2026 · **Naprawa znaleziska z audytu** (DB-01 z
+`docs/AUDYT_2026-09-13.md`, gałąź `claude/laughing-edison-sz4k69`) ·
+Status: **obowiązuje**
+
+### Co było zepsute
+
+`down()` migracji `2026_09_06_120000_add_two_factor_to_users_table` kasowało
+bezwarunkowo cztery kolumny: `two_factor_secret`, `two_factor_backup_codes`,
+`two_factor_confirmed_at`, `two_factor_last_used_at` — a wcześniej zdejmowało
+CHECK `users_two_factor_confirmed_requires_secret_check`.
+
+Sekret TOTP jest zaszyfrowany i nie ma go skąd odtworzyć. Kody zapasowe są
+trzymane wyłącznie jako skróty. Po cofnięciu nie da się przywrócić ani
+jednego, ani drugiego.
+
+### Dlaczego to nie było „świadome", tylko przeoczone
+
+Migracja **broniła się własnym komentarzem**: „nikt nie zostaje zablokowany,
+bo wymóg drugiego składnika znika razem z kolumnami, które go przechowywały".
+To samo zdanie stało w `docs/DATABASE.md`. I ono jest prawdziwe — dlatego
+właśnie było groźne.
+
+> Cofnięcie nie wybija nikogo z serwisu. Ono ZDEJMUJE OCHRONĘ.
+
+Cykl `rollback` → `migrate`, który CI wykonuje jako `migrate:refresh`,
+zostawia kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika.
+Konto moderatora, o którym właściciel wie, że jest chronione dwoma
+składnikami, wraca do logowania samym hasłem — bez błędu, bez komunikatu,
+bez śladu. Moderator widzi zgłoszenia, cudze ukryte treści i odwołania;
+`docs/SECURITY_PRIVACY_LEGAL.md` obiecuje „MFA obowiązkowe dla adminów".
+
+To jest dokładnie „przywracanie stanu groźnego" z zasady **D-088**, tylko
+w postaci trudniejszej do zauważenia niż w #287: tam cofnięcie po cichu
+zmieniało ZNACZENIE decyzji człowieka, tu po cichu USUWA jego zabezpieczenie.
+Objaw jest ten sam — brak śladu błędu.
+
+### Ile było takich strażników przed tą naprawą
+
+W `database/migrations/` odmowę miało już kilkanaście migracji, a w
+`tests/Feature/` stało **dziewiętnaście** testów `Cofniecie*` — m.in. dziennik
+zgód, zaproszenia, zgłoszenia prawne, odwołania zgłaszających, tożsamość
+Google, tożsamość Facebooka, skala tekstu, znacznik odebrania dostępu,
+zeszyty, kolaż powitalny, numer sprawy, sygnały automatu i wiadomości.
+
+Dla 2FA — czyli dla najbardziej wrażliwej z tych wartości — **nie było ani
+jednego**. Nie dlatego, że ktoś to rozważył i odrzucił: przeciwnie,
+komentarz przy migracji pokazuje, że ryzyko było zauważone i uznane za
+akceptowalne, zanim powstała zasada D-088.
+
+### Rozstrzygnięcie
+
+`down()` liczy konta z `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją — **przed jakąkolwiek operacją
+niszczącą**, także przed zdjęciem CHECK-a. Świadome cofnięcie przepuszcza
+`KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`, zgodnie z konwencją furtek z
+`KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY` i `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE`
+(`getenv()`, nie `env()` — na produkcji konfiguracja bywa zbuforowana).
+
+**Granica jest przy POTWIERDZENIU, nie przy sekrecie.** Sekret zapisany bez
+`confirmed_at` to konto w trakcie włączania 2FA — ekran włączenia pokazuje
+sekret, zanim człowiek wpisze pierwszy kod. To nie jest ochrona, którą można
+stracić; człowiek zaczyna włączanie od nowa. Gdyby strażnik liczył sam
+sekret, jedno porzucone włączanie blokowałoby rollback na stałe.
+
+Na świeżym środowisku cofnięcie działa bez pytania, więc `migrate:refresh`
+w `scripts/check.sh` i w CI chodzi jak dotąd.
+
+### Czego ta decyzja NIE zmienia
+
+Nie zmienia schematu, zachowania logowania ani niczego, co widzi użytkownik.
+Kolumny, CHECK i limit prób zostają bez zmian. Zmienia się wyłącznie to, co
+`down()` robi, gdy ktoś ma 2FA naprawdę włączone.
+
+### Dowód
+
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php` — pięć przypadków, obie
+strony granicy: odmowa z danymi nietkniętymi po niej, świeże środowisko bez
+pytania, sam sekret bez potwierdzenia nieblokujący, furtka przepuszczająca
+oraz kolejność (strażnik przed zdjęciem CHECK-a i przed `dropColumn`).
+
+Kontrola ujemna: na kodzie sprzed tej naprawy **oblewają dwa przypadki z
+pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i to
+jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 
 ## D-228 — Baza testowa jest per KOPIA ROBOCZA, a kopia bez `.git` to nie główny checkout (#736, #920, 19–21 września 2026)
 
@@ -15226,3 +15386,53 @@ port, na którym naprawdę pojadą testy, i wypisywał go w komunikacie.
 Dowody: `tests/Unit/NazwaTestowejBazyTest.php`,
 `tests/skrypty/sprzatanie-baz-testowych.sh` (+ `SprzatanieBazTestowychTest`),
 `tests/Feature/SkryptyPytajaOWlasciwyPortTest.php`.
+
+## D-239 — Przyrządy pomiarowe rozpoznają rodzinę baz, nie pojedyncze nazwy (#736, 19 września 2026)
+
+**Ta decyzja nosiła najpierw numer D-226** (gałąź `flota/scal-786`, 21 września).
+Przenumerowana na D-239 22 września przy scalaniu `main`: D-226 wzięła wcześniej
+(20 września) gałąź `fix/732-wspolny-licznik-poczty`, a równolegle niesie go też
+`jedna-droga` (#1208). Żadnej z nich nie ma jeszcze na `main`, więc według D-235
+ustępuje strona, która numer wzięła później. Treść decyzji bez zmian.
+
+Siedemnaście skryptów w `scripts/*.mjs` robi `php artisan migrate:fresh --seed`,
+czyli kasuje całą zawartość bazy z `DB_DATABASE`. Dwa z nich miały listę
+`BAZY_ZAKAZANE = ['kuking', 'kuking_test']`, pozostałych piętnaście nie miało
+żadnej kontroli. Lista była listą ZAKAZÓW: wszystko, czego na niej nie było,
+przechodziło.
+
+Po zmianie nazewnictwa baz testowych (D-228) żadna kopia robocza nie nazywa się
+już `kuking_test` — nazwa zawiera skrót ścieżki katalogu. Lista zakazów
+przestała więc trafiać kiedykolwiek i gdziekolwiek, zostając w kodzie jako
+zabezpieczenie, którego już nie ma. Zabezpieczenie, które przestaje działać we
+wszystkich przypadkach naraz, jest w praktyce usunięte, a wygląda na obecne —
+i to jest gorsze niż jego brak, bo człowiek na nie liczy.
+
+`scripts/bezpiecznik-bazy.mjs` rozpoznaje odtąd RODZINY nazw i odwraca
+domniemanie: wpuszcza wyłącznie jednorazową bazę pomiarową (bazę własną
+skryptu, jej wariant z sufiksem, albo nazwę z rodziny `…_pomiar` /
+`kuking_qa_…`), a nazwa nierozpoznana jest ODMOWĄ, nie zgodą. Rodziny chronione
+(`kuking`, `kuking_test*`, `kuking_race*`, `proba_wycofania*`,
+`proba_odtworzenia*`, `kuking_zrodlo_proby*`, `railway*`, bazy systemowe) biją
+regułę wpuszczającą, więc `kuking_test_pomiar` też się nie prześlizgnie.
+Porównanie idzie po małych literach, bo PostgreSQL składa identyfikator bez
+cudzysłowu i `KUKING_TEST_X` to ta sama baza. To jest ten sam kierunek pomyłki,
+co w `scripts/cleanup-test-dbs.sh`: nie wiem, czyja to baza, więc jej nie ruszam.
+
+Konsekwencja w CI: job `dostepnosc` ustawiał `DB_DATABASE: kuking_test` na
+poziomie całego joba, a kroki przeglądarkowe robiły na tej bazie
+`migrate:fresh` — czyli kasowały bazę, na której kroki wyżej chodził
+`php artisan test`. Działało, bo kroki idą po kolei, ale to dokładnie ten
+układ, który lokalnie kosztował trzy sesje. Każdy krok dostał własną bazę
+jawnie; `dostepnosc.mjs` zakłada swoją sam, tak jak robiły to już trzy inne
+przyrządy.
+
+Najważniejszy dowód nie sprawdza samej funkcji, tylko to, czy jest WŁĄCZONA:
+skan w `scripts/bezpiecznik-bazy.test.mjs` wymaga, żeby każdy plik z
+`migrate:fresh` wołał `ustalBazePomiarowa()`. Bezpiecznik bez zarzutu, którego
+nikt nie woła, to dokładnie stan sprzed tej decyzji.
+
+Dowody: `scripts/bezpiecznik-bazy.test.mjs` (10 przypadków) wciągane do
+`php artisan test` przez `tests/Feature/BezpiecznikBazyPomiarowejTest.php`
+oraz do `scripts/check.sh`.
+
