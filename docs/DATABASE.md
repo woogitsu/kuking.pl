@@ -2170,6 +2170,39 @@ Dwie rzeczy różnią ją od pozostałych w schemacie:
 Pełny opis sygnałów, progów i fałszywych alarmów:
 `docs/legal/SYGNALY_AUTOMATU.md`.
 
+##### Ślad po pilnym alarmie (issue #1051)
+
+Migracja `2026_09_22_100000_dodaj_slad_pilnego_alarmu_do_reports` dokłada
+dwie kolumny i jeden indeks częściowy:
+
+| Kolumna | Po co |
+|---|---|
+| `alarm_pilny_stan` | **`NULL` = sprawa nie jest pilna** i tak wygląda ogromna większość wierszy. Każda inna wartość znaczy „automat uznał tę sprawę za pilną" i mówi, co się z alarmem stało: `zalegly`, `zlecony`, `bez_adresu`, `nieudany` (stałe `Report::ALARM_*`). |
+| `alarm_pilny_zlecony_at` | Kiedy alarm został **zlecony kanałowi pocztowemu**. Nazwa mówi `zlecony`, a nie `wyslany`, celowo: `PilnyAlarmModeracyjny` jest `ShouldQueue`, więc w tym miejscu nie da się wiedzieć, czy EmailLabs list przyjął. Za dalszy odcinek drogi odpowiadają `failed_jobs` i `mail_failures`. |
+
+Bez tych kolumn pilność sprawy **nie dawała się odtworzyć z bazy**: żyła
+w liście obiektów `Sygnal` w pamięci workera, a do `reports` trafiał sam kod
+powodu (`automat_model`), identyczny dla sprawy pilnej i niepilnej. Skutek
+był taki, że sprawa zapisana bez wysłanego alarmu wyglądała dokładnie tak
+samo jak dzień bez ani jednego pilnego zgłoszenia.
+
+`alarm_pilny_stan` zapisuje **ta sama transakcja**, która zapisuje wiersz
+(`OznaczDoPrzegladu`) — obowiązek alarmu nie może mieć własnej szczeliny,
+skoro powstał po to, żeby szczelinę zamknąć.
+
+Indeks częściowy `reports_pilny_alarm_bez_sladu` obejmuje dokładnie
+`alarm_pilny_stan IS NOT NULL AND alarm_pilny_zlecony_at IS NULL`, czyli
+wiersze, o które pyta sonda `alarmy_moderacji` w `/health`
+(`Report::scopePilneBezAlarmu()`). Wiersz **wychodzi** z indeksu w chwili,
+w której alarm dochodzi do skutku, więc indeks zostaje mały na zawsze.
+
+Wierszom sprzed tej migracji obie kolumny zostają **puste** — świadomie.
+`'zlecony'` byłoby kłamstwem (nikt tego nie zmierzył), `'zalegly'`
+zapaliłoby sondę dla setek spraw, które alarmu nigdy nie potrzebowały.
+Granica przebiega w dacie wdrożenia. Cofnięcie migracji **odmawia**, gdy
+którakolwiek sprawa ma zapisany stan (D-088) —
+`KUKING_ROLLBACK_KASUJ_SLAD_ALARMOW=true` mówi to wprost.
+
 Kolumny dołożone dla drogi prawnej:
 
 | Kolumna | Po co |

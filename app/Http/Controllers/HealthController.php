@@ -7,6 +7,7 @@ namespace App\Http\Controllers;
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Logging\WebhookBleduHandler;
 use App\Models\MailFailure;
+use App\Models\Report;
 use App\Poczta\PowodOdmowy;
 use App\Support\AnalitykaCloudflare;
 use App\Support\Facebook;
@@ -136,6 +137,9 @@ class HealthController extends Controller
         self::POWOD_LISTY_PRZEPADAJA,
         self::POWOD_LIMIT_POCZTY_WYCZERPANY,
         self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
+        self::POWOD_PILNY_ALARM_NIE_DOTARL,
+        self::POWOD_KANAL_ALARMOWY_WYLACZONY,
+        self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -229,6 +233,30 @@ class HealthController extends Controller
     private const POWOD_SLAD_LISTOW_NIESPRAWDZALNY = 'slad_listow_niesprawdzalny';
 
     /**
+     * W `reports` leży sprawa PILNA (treść seksualna albo cokolwiek
+     * dotyczącego dziecka), o której nie poszedł alarm — issue #1051.
+     * Kod nie mówi ani którą, ani czego dotyczy: ta odpowiedź jest publiczna.
+     */
+    private const POWOD_PILNY_ALARM_NIE_DOTARL = 'pilny_alarm_nie_dotarl';
+
+    /**
+     * To samo, ale z powodu pustego `KUKING_MODEL_ALARM_EMAIL` — osobny kod,
+     * bo osobna czynność człowieka: nie ma czego naprawiać w kodzie i nie
+     * pomoże ponowienie, trzeba wpisać adres. Ten sam podział, co między
+     * `listy_przepadaja` a `limit_poczty_wyczerpany`.
+     */
+    private const POWOD_KANAL_ALARMOWY_WYLACZONY = 'kanal_alarmowy_wylaczony';
+
+    /**
+     * Nie dało się sprawdzić śladu alarmów — najczęściej kolumn
+     * `reports.alarm_pilny_*` jeszcze nie ma, bo kod wdrożył się przed
+     * migracją. Osobny kod z tego samego powodu co
+     * `slad_listow_niesprawdzalny`: brak kolumny nie ma prawa meldować się
+     * jako „pilna sprawa nie dotarła".
+     */
+    private const POWOD_SLAD_ALARMOW_NIESPRAWDZALNY = 'slad_alarmow_niesprawdzalny';
+
+    /**
      * Ile minut milczymy na webhooku o TEJ SAMEJ nazwanej kontroli, zanim
      * wyślemy kolejne powiadomienie. Bez tego zewnętrzny monitoring odpytujący
      * `/health` co kilka minut zamieniłby jedną trwającą awarię w dzwonek
@@ -260,6 +288,7 @@ class HealthController extends Controller
             'poczta' => $this->check('poczta', self::POWOD_POCZTA_NIE_WYSYLA, fn () => $this->sprawdzPoczte()),
             'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
             'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
+            'alarmy_moderacji' => $this->check('alarmy_moderacji', self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY, fn () => $this->sprawdzPilneAlarmy()),
         ];
 
         $krytyczneOk = ! in_array(
@@ -334,6 +363,63 @@ class HealthController extends Controller
             'Nieodhaczonych nieudanych listów: '.$nieodhaczone.'. '
             .'Najświeższy powód: '.($najswiezszy?->powod->value ?? 'nieznany').'. '
             .'Przeczytaj: php artisan kuking:nieudane-listy',
+        );
+    }
+
+    /**
+     * Czy jakaś PILNA sprawa moderacyjna nie dotarła do nikogo (issue #1051).
+     *
+     * PO CO TO TU JEST
+     * Bo do 22 września 2026 zgubiony alarm nie zostawiał ŻADNEGO śladu.
+     * Oznaczenie automatu powstawało we własnej, zamkniętej transakcji,
+     * a list do moderatora szedł linijkę później, poza nią; worker ubity
+     * w tej szczelinie (`timeout = 30`, `tries = 1`, restart przy wdrożeniu)
+     * zostawiał sprawę zapisaną i alarm niewysłany. Każda kolejna analiza
+     * tej samej treści zatrzymywała się na `OznaczDoPrzegladu` i milczała,
+     * więc zgubione zostawało zgubione — a dotyczy to JEDYNYCH dwóch
+     * kategorii, przy których doba zwłoki jest realną szkodą: treści
+     * seksualnych i wszystkiego, co dotyczy dziecka.
+     *
+     * Dochodzi do tego stan, który nie jest awarią kodu i którego żadne
+     * ponowienie nie naprawi: pusty `KUKING_MODEL_ALARM_EMAIL`. Dziś na
+     * produkcji kanał alarmowy jest z tego powodu wyłączony, a rejestracja
+     * stoi otworem — więc sprawa, która tu przepadnie, nie dotrze NIGDZIE.
+     * Ma własny kod powodu, bo operator naprawia to wpisaniem adresu,
+     * a nie szukaniem błędu.
+     *
+     * BEZ OKNA CZASOWEGO, ten sam argument co przy `sprawdzNieudaneListy()`:
+     * alarm, który gaśnie sam po godzinie, chowa sprawę z nocy przed
+     * poranną zmianą. Gaśnie dopiero wtedy, gdy alarm zostanie zlecony
+     * naprawdę (`Report::scopePilneBezAlarmu()`).
+     *
+     * `alarmy_moderacji` NIE JEST na liście `KRYTYCZNE` — to samo, co przy
+     * `listy`. Sprawa, o której nikt nie wie, nie jest powodem, żeby Railway
+     * restartował serwis; jest powodem, żeby monitoring zapalił się na
+     * czerwono i został taki, dopóki ktoś nie zajrzy.
+     */
+    private function sprawdzPilneAlarmy(): void
+    {
+        $bezAlarmu = Report::query()->pilneBezAlarmu()->count();
+
+        if ($bezAlarmu === 0) {
+            return;
+        }
+
+        // Stan z NAJŚWIEŻSZEJ zaległej sprawy: przy wyłączonym kanale
+        // alarmowym wszystkie mają ten sam, a operatora interesuje to, co
+        // dzieje się TERAZ.
+        $najswiezsza = Report::query()
+            ->pilneBezAlarmu()
+            ->orderByDesc('created_at')
+            ->first();
+
+        $wylaczony = $najswiezsza?->alarm_pilny_stan === Report::ALARM_BEZ_ADRESU;
+
+        throw new KontrolaZdrowiaNieprzeszla(
+            $wylaczony ? self::POWOD_KANAL_ALARMOWY_WYLACZONY : self::POWOD_PILNY_ALARM_NIE_DOTARL,
+            'Pilnych spraw moderacyjnych bez alarmu: '.$bezAlarmu.'. '
+            .'Stan najświeższej: '.($najswiezsza?->alarm_pilny_stan ?? 'nieznany').'. '
+            .'Obejrzyj w panelu: /admin/sygnaly',
         );
     }
 

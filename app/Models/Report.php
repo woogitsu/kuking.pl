@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Support\NumerSprawy;
 use Database\Factories\ReportFactory;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
@@ -107,6 +108,43 @@ class Report extends Model
      * (`docs/INSPIRATION_DECISIONS.md` poz. 3.6, 3.10, 3.14, 3.16).
      */
     public const SOURCE_AUTOMAT = 'automat';
+
+    /**
+     * STAN PILNEGO ALARMU MODERACYJNEGO (issue #1051).
+     *
+     * `alarm_pilny_stan === null` znaczy „automat nie uznał tej sprawy za
+     * pilną" i tak wygląda ogromna większość wierszy. Każda inna wartość
+     * znaczy „ta sprawa JEST pilna" i mówi, co się z alarmem stało. Sprawa
+     * pilna, przy której `alarm_pilny_zlecony_at` jest pusty, to sprawa,
+     * o której nikt się nie dowiedział — i dokładnie o to pyta sonda
+     * `alarmy_moderacji` w `/health`.
+     *
+     * DLACZEGO KAŻDA CISZA MA WŁASNĄ NAZWĘ
+     * Bo do 22 września 2026 miały jedną: żadnej. `AlarmujModeratora`
+     * oddawał `false` i przy braku adresu, i przy braku sygnałów pilnych,
+     * a obaj wołający ten wynik ignorowali. Brak listu z powodu pustego
+     * `KUKING_MODEL_ALARM_EMAIL` wyglądał identycznie jak brak listu
+     * z powodu „nic pilnego się nie zdarzyło" — ta sama pułapka, którą
+     * `StanKopiiBazy` rozbroił stanem `WYLACZONA` (patrz komentarz przy
+     * `StanKopiiBazy::sprawdz()`).
+     */
+    public const ALARM_ZALEGLY = 'zalegly';
+
+    /** Alarm zlecony kanałowi pocztowemu — `alarm_pilny_zlecony_at` mówi kiedy. */
+    public const ALARM_ZLECONY = 'zlecony';
+
+    /**
+     * Sprawa pilna, ale `KUKING_MODEL_ALARM_EMAIL` jest pusty — kanał
+     * alarmowy nie istnieje. To NIE jest awaria kodu i nie da się tego
+     * naprawić ponowieniem; naprawia to człowiek, wpisując adres. Osobna
+     * nazwa właśnie po to, żeby operator nie szukał błędu tam, gdzie go nie
+     * ma (ten sam powód, dla którego `HealthController` rozdziela
+     * `listy_przepadaja` od `limit_poczty_wyczerpany`).
+     */
+    public const ALARM_BEZ_ADRESU = 'bez_adresu';
+
+    /** Próba zlecenia listu rzuciła wyjątkiem — wyjątek poszedł do `report()`. */
+    public const ALARM_NIEUDANY = 'nieudany';
 
     /**
      * Powody, które wpisuje AUTOMAT — osobno od `REASONS`.
@@ -218,7 +256,32 @@ class Report extends Model
             'good_faith_at' => 'datetime',
             'receipt_sent_at' => 'datetime',
             'decision_sent_at' => 'datetime',
+            'alarm_pilny_zlecony_at' => 'datetime',
         ];
+    }
+
+    /**
+     * Sprawy PILNE, o których nikt się nie dowiedział (issue #1051).
+     *
+     * BEZ OKNA CZASOWEGO — I TO JEST SEDNO, ten sam argument co przy
+     * `HealthController::sprawdzNieudaneListy()`. Nie pytamy „czy coś
+     * przepadło w ostatniej godzinie", tylko „czy cokolwiek pilnego nadal
+     * nie dotarło". Alarm z oknem czasowym gaśnie sam, czyli sprawa z nocy
+     * jest rano znowu niewidoczna — a to jest ta sama cicha porażka, tylko
+     * o kilka godzin późniejsza. Gaśnie dopiero wtedy, gdy alarm zostanie
+     * zlecony naprawdę.
+     *
+     * STATUS SPRAWY TU NIE WCHODZI CELOWO. Moderator może zamknąć sprawę
+     * w panelu, nigdy nie dostawszy o niej listu — i to jest prawdziwy,
+     * zdarzający się przebieg (wszedł do kolejki z innego powodu). Zaległy
+     * alarm zostaje wtedy zaległy: pytanie brzmi „czy kanał alarmowy
+     * zadziałał", a nie „czy ktoś się w końcu domyślił".
+     */
+    public function scopePilneBezAlarmu(Builder $zapytanie): Builder
+    {
+        return $zapytanie
+            ->whereNotNull('alarm_pilny_stan')
+            ->whereNull('alarm_pilny_zlecony_at');
     }
 
     public function reporter(): BelongsTo
