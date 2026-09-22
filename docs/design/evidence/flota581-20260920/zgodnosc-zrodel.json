@@ -1,0 +1,2991 @@
+{
+  "pass": true,
+  "count": 597,
+  "files": [
+    {
+      "file": "app/Console/Commands/BramkaR2.php",
+      "sha256": "90f03b9c88d1e1fef8a31acb756fb7d433673fba1ea715e73a67ec7b99582890",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/BudzetPolaczen.php",
+      "sha256": "d1e2173e3fdae94fadcfc33f952cdd3d8c28034277d628603906d526fe27a6f8",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/CleanUpDataExports.php",
+      "sha256": "640f28adbc9ddf5f3bb1c2ce6b173a3f154a79d1ecabdb0f46e7d650536275cb",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/DopiszWpisyPrzepisow.php",
+      "sha256": "60592f3ff43d1eaf943f8abbbbc71356e6de7944e3affdeba5628388cdc4400f",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/KtoNieDostalListu.php",
+      "sha256": "e0a43ef9c71b7e0abae8a40662c155f7143d208db8d4c956c841458d7d99a1fa",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/MartweZadania.php",
+      "sha256": "1a5946e03d26e47a708f6c3a5c707603adeee0769c431bfc4a6e3362b551db74",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/NadajRole.php",
+      "sha256": "2de41d61da51e009c80049d3d4ffda91f263399f7da2bfc2bdec744b4acbede2",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/NieudaneListy.php",
+      "sha256": "2136e6ba6e4f1d7d9c03ad8d66be66e45945ab20ce2afe1fcb80bffe81414c47",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/PilnujTerminowOdwolan.php",
+      "sha256": "ac04e3de17e3c6883e6f30a7cd1a2906284438fa9c0ca8c275819038d606ff8c",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/PodsumowanieAutomatu.php",
+      "sha256": "14526c0d45733dfea549f9fe95462fea8bdaa671db4920bd761a5f654e48e449",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/PoliczKolejki.php",
+      "sha256": "1c21959b1ee58cac2d95b4367cde1ad8e0c54b5b93dcf2a37d55ff18a1f2d859",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/PoliczKontaBezPotwierdzenia.php",
+      "sha256": "b5e8c891f04fa0b38998deadc4a9c8e67d255059190eea11dc045405540fdf06",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/PoliczKukingow.php",
+      "sha256": "6feddb887f5f948eb79bc11e39828c71fa5f716d1f9d0d9ac31031b8d5a59ac8",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/PrzeniesZdjeciaDoNowychBucketow.php",
+      "sha256": "6839d4e7487830f0c18869e9e6fcf88d3288878f5637012e981ada8b338ac530",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/PurgeExpiredAccountDeletions.php",
+      "sha256": "debd83c9782cc876825d5e81d3e39693876e26512fe304729b7b9c8320893576",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/RaportPowrotow.php",
+      "sha256": "1c0e605206c9afe17233f41d0842c4df89faf86a5323be4155d5e0829a6bc58f",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/RaportSygnalow.php",
+      "sha256": "97c141cc0a67f50a168aff30cafa941dbcd249812b6919d40d5658c1972d9748",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/ReportWeeklyActiveCooks.php",
+      "sha256": "5035d47ac68b7af5c4752591577e7f2cb99e1285199aaf71967b4bb231022b27",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/RestoreExpiredSuspensions.php",
+      "sha256": "209e0537e13dcda620c0cb9c792c9b73d37a8d16c24d3504de1ff21ef4f30d69",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprawdzAlarm.php",
+      "sha256": "c18ba05c65b3c31ffd9eb432215f73b2585d6c4fe36a70441d9654bc0d7031b6",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprawdzKolejke.php",
+      "sha256": "ef43181ed743ba0ecaaa44362f032fdbb2688af4da2a64ecdafb75cf70764e64",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprawdzKopieBazy.php",
+      "sha256": "4b4bff49b8b553e5362d7d7f65bba2fb7fd556a32cf38e4bfd9b88e157f6cb61",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprawdzModel.php",
+      "sha256": "adb206554e13bca5eebe2be1f77504e1650c8f753f55b2f455089b9b710442f4",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprawdzPiksel.php",
+      "sha256": "65050c97670c18e53d49a074247dbc274e7dc2c19d89c8929de678890166c8c4",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprawdzPoczte.php",
+      "sha256": "648f483ee013d2a0efdd51a03cb72abbe1a1ea60351eeee861427ba1a7622f34",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajAudyt.php",
+      "sha256": "625adcb320eaa47fa223ed0fd9d490f17391bc99819eb9019cfbea86c2cc272a",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajOsieroconeZdjecia.php",
+      "sha256": "ed861072a217dc05a1418152da02835ad073a8f502faba6d7d56feaf1cde4dcd",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajPowiadomienia.php",
+      "sha256": "0c26de13b6c2c61d76234b934176842afc7ed029b11f2e03774b590878649ae5",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajSprawyModeracyjne.php",
+      "sha256": "ab2e0729f3825d2f2f99861d5d202e4c4ae2db16775b332ed8bded287820fedf",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajSygnaly.php",
+      "sha256": "4fca7a797234571ef16ebb79144189b9f988f2b8cd91decc07da208d61995181",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajWiadomosci.php",
+      "sha256": "d93944eb3f6c3495fdd8dae4dffcde599b703964f05fc363e87594c0064c27fe",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajZaproszenia.php",
+      "sha256": "1d3d48c514f14f10016550377f70011cf11a7b5f3c07db617e0104ba8d94f783",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/SprzatajZmianyAdresu.php",
+      "sha256": "f8ed61102aa31ef7ad98f4625175c865202ceb6523ace3e2dff850318a292b75",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/WylaczDwuetapowaWeryfikacje.php",
+      "sha256": "2717391a60939f8ddaab58399720eef71a72d0d4325601b4fdf8a2128b3c367a",
+      "equal": true
+    },
+    {
+      "file": "app/Console/Commands/WyslijPodsumowaniaTygodnia.php",
+      "sha256": "b834f3e7d40ce9b7892432143b060428ae0cb6ad1027aa473dd5914fcf69bfc5",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/AktywniWTygodniu.php",
+      "sha256": "48c3c02b714258e907c05d72d53460bdbead7ab490377e99b010266d86c8a199",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/CookActivity.php",
+      "sha256": "e9dbe6a3f324f534f5aa561965bdfe23321ea6ebc4ac3a7e1e16f5131750352a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/CookEligibility.php",
+      "sha256": "513a50e917c844abcca7f72e9a59071f935ab8aff30cc6001b15c58d6bbd433c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/CookRetentionCohorts.php",
+      "sha256": "786cc2d93358bfba63284e1546e117d8c714922c2339171a6fcd1349a62e791c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/LiczbaKukingow.php",
+      "sha256": "9f36dd91e0244cc99057a3554273cfe5c99bc1f2fde1bfd014956a94b8cc9b7e",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/PowrotPoDniach.php",
+      "sha256": "2d23100bb14d2d25340daa2040e8a1758079d0f14355ed37f08ff3e69dbe1d7b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/PrzedawnioneSygnaly.php",
+      "sha256": "5054a02dc0da3e94bdff4c86e2b9de4c8d7c54b499b7bddfbeed8dc5e77f1530",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/WeeklyActiveCooks.php",
+      "sha256": "d91b3742ad4529f32c0bce339eb6be10c72ae0c0f8058cb4689c7440bc6c4990",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/ZanotujOstatniaWizyte.php",
+      "sha256": "8bc5530d276a10838afa4c124c39bd197b0910b136fd6bc08c4d3b10eff39024",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/ZapiszSygnal.php",
+      "sha256": "d3373f0dff2349de435edc99ab82e3bc15e1a6c236019ec484d248eb207465bd",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Analytics/ZasiegUgotowalem.php",
+      "sha256": "123fe136b74577687280208c1d1e6b364f75efde5dd8bb47913f659b3ed9ed64",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Collections/Actions/SavePostToCollection.php",
+      "sha256": "ff9025bd8600ed2ed5124b5eda051c47ae10b6327205102742448c38934b0243",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Collections/Actions/SaveRecipeToCollection.php",
+      "sha256": "87d1595821362f388e8e608ae99bd10135db71a77103e16e973d082ab13b671a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Collections/ZapisyWpisu.php",
+      "sha256": "5f2c1831430f42c78f32489b9fb1836d4e3ff7686b702a9f0b2c0a470d42b2b3",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Collections/ZeszytyDoWyboru.php",
+      "sha256": "c5e983f75d7d89a26ac0b7914ecd93db96ff8700cc8ad88a9571e2abc7ab3075",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Comments/Actions/PublishComment.php",
+      "sha256": "12dbd205714d2ebfbfba53cebe0ed02da239f34469c552e0ac35474e38a07716",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnionePowiadomienia.php",
+      "sha256": "e0aac816c42acdb3de5599e85ec4ffeb81c9240494db2b6fbeb151deb7f3a012",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneSprawyModeracyjne.php",
+      "sha256": "503006bb253c17461c7468c29bf6c0aad2b7ff4f103fcfa2364efa02b589f01c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneWiadomosciDoOperatora.php",
+      "sha256": "17c3144d05c8b2d1adf51c5bf8159194b5a0e9937b5a5828c4969c546fe7f965",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneWpisyAudytu.php",
+      "sha256": "3284166964717f09174fa8fa2662b6f941990590b6f2f8cd1ad18adab4a4dbc0",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneZaproszenia.php",
+      "sha256": "6c172675868fc19ac0b92736c7b61199889c85b7b7c5250c95243b1428189219",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/PrzedawnioneZmianyAdresu.php",
+      "sha256": "89fd93e9811a52bbedde1abe06f86232f7fa3ee563b5fe9b3585b3cfba5fb908",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/RaportRetencjiPowiadomien.php",
+      "sha256": "2da97402673c26cf9f7797d9e282909c302662dda5c8d4df194dbcd0b00b64fc",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Compliance/RaportRetencjiSpraw.php",
+      "sha256": "1cc33ad3eb7bfa92ee6fa1d0acea76c559f149dbabc5f261294236eb1e5f7984",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Contact/Actions/BrakAdresuDoOdpowiedzi.php",
+      "sha256": "dfebe9cb7fa690dc1bfa2a8e9e249638e9a9834c086afa73b4a5dd73086a94ea",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Contact/Actions/PrzyjmijWiadomosc.php",
+      "sha256": "5ee14eedd9c9341b4c478b39fc9a3e4ef2a747c7b0c4d467ee5e0de213e414ab",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Contact/Actions/WyslijOdpowiedz.php",
+      "sha256": "81302d8e4fa1c0edc8f2acaced51fc32e9d76f16a7d461696f39c94388eb2237",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Contact/DzwonekOperatora.php",
+      "sha256": "7164df64a030aaddb725770fc2f8340f8dd5b53e09172fed13059a08f28e8940",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Digest/BramkaDomyslnejZgody.php",
+      "sha256": "471a695838455e4cb8c34cde7fdaedc9aba03a3332123628bb6fdcec51451e0c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Digest/OdbiorcyDigestu.php",
+      "sha256": "1e971f4edbac094a416e5e41d39a4fda3067020e039f32a804b94d3bbeb507da",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Digest/OdnosnikWypisania.php",
+      "sha256": "73b82ad4b37645472be1b56c9901da52e3a413c1126c70e3b83ac7fe048421f5",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Digest/TrescDigestu.php",
+      "sha256": "01dc9501869a36aea6d839c2f7a9f4a129a650ae180ba596a7429f96aa1fc872",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Digest/ZbierzTresciDigestu.php",
+      "sha256": "f6d24ab6c3ae0e4ab252b1550d15c14bcc0f3f128bb31914102f639ef367ac67",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Feed/DailyBoard.php",
+      "sha256": "123a80bcd6fb202801c42f4242f7d4e874dc85608075d6b608df65a41e5d6fcd",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Feed/DiscoverFeed.php",
+      "sha256": "d61835a25b263fe473f85ddba37f7a106bbc43fe95125376c239328090cfbd18",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Feed/FollowingFeed.php",
+      "sha256": "33d3558fccf000421ebe3f317fdce8fcfe40dcd5e11f55d785d65e8223d6c364",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Feed/HeroKolaz.php",
+      "sha256": "f1d1d6f3e3ea625823283793bf88b9b2ebbbf4b3128043d9880ea4b94db49513",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Feed/TagFeed.php",
+      "sha256": "b6f897a8d80f290eea92e9b72c9c33cadb4d9d8b1597194a823205de24e8f495",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Kolejka/AlarmKolejki.php",
+      "sha256": "cbaa161bef5746fb28380da09c6958cad0d73211304193d16661f947b3235a2c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Kolejka/StanKolejki.php",
+      "sha256": "57882099da3517cdf11cfdca65ce3af33f443d708212ce46aa9d591ec1497002",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Kopie/AlarmKopii.php",
+      "sha256": "5a942d4f4a2c2020cf6d4c3748cbcd6a87f7b1c66427ab879aca6003cb9bf015",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Kopie/StanKopiiBazy.php",
+      "sha256": "dec50b79e412083ac6329cbc6c834229efea8a08b5209a9765bc0b417ce152a6",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/Actions/PrzypnijAwatar.php",
+      "sha256": "e5efc4fddbfaaeda40c677441beb1004314a3aa23d88b623717e090861ba2f22",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/Actions/StoreUploadedImage.php",
+      "sha256": "2cb13e541d5fe6f0915149150aa434b95dcec87c0cc744fda72ce5b7bb5b3352",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/DecyzjaOZdjeciu.php",
+      "sha256": "256adc2ec1561e5f515b5aab8764450cf336e0e3c9143c9407f9a6650340516a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/DostepDoZdjecia.php",
+      "sha256": "fb6e0d4e30121440976bcfbce96623cd185b169eafc8d86fc3b71f1faf5c3223",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/KasujZdjecie.php",
+      "sha256": "6992a5db866d4a428b816e9981c838bbe1ddedad1aead04fb21fcbf87d5359f8",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/OrientacjaZdjecia.php",
+      "sha256": "632eb5d7461e3d886bf2256947a7191a2028536a5658b68b1fa3c465d58b8248",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/OsieroconeZdjecia.php",
+      "sha256": "d0232e92dc4ebae7d1b79bf7332143663cddb3309a97d80fec38023035b007d5",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/PodgladOdRazu.php",
+      "sha256": "f715af9706f3d8e82d6210a5f8af6f93137e3468622ad22f11ee844345ef46eb",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/UsunGps.php",
+      "sha256": "54d91d53eed90f34287ca1591448e6adcb42c45fce4e19bbb41a7c87202b8672",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Media/ZdjeciaDoPrzypiecia.php",
+      "sha256": "2395de2ddb78aee96880fa438dcff3e420ac7cb3a8cb4642d96816df25d14405",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/AlarmujModeratora.php",
+      "sha256": "43f7dc92b96469395efa245003a8c61864135b131578d1b19b13a1a9b4593eb4",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/FileAppeal.php",
+      "sha256": "644d0696038c6e949b6239d3e47b7e89ca92b4badc431ebb678cba2b9514098b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/FileReporterAppeal.php",
+      "sha256": "d172666d2ce9e4d8657f58d1e893c25b7e70fe684a69ba9f1bd84e3afe11d071",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyAppealOutcome.php",
+      "sha256": "ed9287173eade0460850945393dd8a42da873846e24e1c2d380cc8d1d3e4fb42",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyModerationDecision.php",
+      "sha256": "ae09d77c44e459ecc3839e010c0d46b47aec5b7a7d885caa068a7175d2dafd4b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyReporterAppealOutcome.php",
+      "sha256": "f23d5599fad0b725884b9bc7fefbe10c35c2e16aa2b2fd422b047f480488e7e6",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyReporterDecision.php",
+      "sha256": "f9108ecdba7f83a83ef4ea99435c3c559ca2a2927af5b005ae77bc705620b690",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/NotifyReporterReceipt.php",
+      "sha256": "dc8f95adafef153de85df9a0890829f97b61a68ba28d6c3bd5e38361573f394b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/OznaczDoPrzegladu.php",
+      "sha256": "d6226ce8c4a58595f955dc32d9503f1a73ff0e04db76f59d4ab98048e6a7d74c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/PowiadomOOdwolaniu.php",
+      "sha256": "721e8a0727222a89303fb4f123f869b654f1eb489b107bf1c910ff7ab9a4476f",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/ReportContent.php",
+      "sha256": "22dfa50918a4660324ae416d2130a227eb2d6d18c509bf9fd826b7d48455c2e4",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/ResolveAppeal.php",
+      "sha256": "a4e0952587648553a8e4c0f5f1ce8ef8ba3707bc501c7240630f99328129cd4d",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/RestoreContent.php",
+      "sha256": "92935567285c4244f0bc9cb00b7f0986e3cc8e4c9d8cd6b7e31fd1e0c9c9eee6",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Actions/ZglosNielegalnaTresc.php",
+      "sha256": "d220e382a0282c713f270c9ce08a4bad3aa367025e2e6185b157c47baf15889a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/DlugoscZawieszenia.php",
+      "sha256": "0f27009c3f0c73773ed9181717c1d7aab8efbf930bb0a361809b8c35514ee209",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/KolejkiPanelu.php",
+      "sha256": "6170f4f4197471b0ab6f5b5850fafa95e51ae8e6dee21dd68470eca8da14e5b0",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/ModeratedContent.php",
+      "sha256": "2ce5e3f04c83208873fbcbb27bcc7d1a390d876f1b267ff9db7d6e098205e1ee",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/OdpowiedzDlaZglaszajacego.php",
+      "sha256": "69038b706c150ca507ded8087b32920a76c2104a1e7e0cc5985843fc6491f70e",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/PodstawaDecyzji.php",
+      "sha256": "e60e9c0aaf30129e7d332fab54fe48c505f36e891bcc71682410adf480c72e2e",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Sygnaly/Sygnal.php",
+      "sha256": "2b292e2fc40c9dc08b14d64d53231a6d94f0f2d4c1977804a3032d4b2315c8fa",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/Sygnaly/WykrywaczSygnalow.php",
+      "sha256": "9c90e08794f6eb4519c8b36d5087ebe008c410067328cff7c1c4907994b9431b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/UnansweredContent.php",
+      "sha256": "5e097988d5e2aae51e5a2a593549e95a5c83f7c0192ec16ec747d41b502a5bb1",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Moderation/UzasadnienieDecyzji.php",
+      "sha256": "8c65e5e64ab5a807f882dda1ba0b572e2515bfeb91d998f3cfe1ddfafb97ae26",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Notifications/Actions/NotifyUser.php",
+      "sha256": "66e8e6d09dd01771dbffb1e9235122f82ecf29c54cf01e2ba6bf3d4c2efc92bf",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Polaczenia/AlarmPolaczen.php",
+      "sha256": "50867de9a2b2a9318c5bd94bc4e45c7a8b535cef60182690c058b81bb3cb8ac2",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Polaczenia/StanPolaczenBazy.php",
+      "sha256": "6f57df4bfd049e114cd6215853f71e403ae90ed0b5e5991fb09aa13a3ef2af5c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Posts/Actions/ArrangePostMedia.php",
+      "sha256": "5a7f97359e21d1b07feec301753a04f3705793f6569b57a3387ea86031893003",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Posts/Actions/EditPost.php",
+      "sha256": "6e5baa1bf5ee6576a655b29032403303265d6ba90c3fe961cc23700dadd56f10",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Posts/Actions/PublishPost.php",
+      "sha256": "56c28d0fbe4bc0f836cfebfb1c242bc28109a8eb69a609dad75746ed67989f99",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Posts/SasiedniWpisAutora.php",
+      "sha256": "ff55882e13cac5532fe31ef4c371588f649ca2943e7d6aac3f8ade7094274ae0",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Pwa/InstallPrompt.php",
+      "sha256": "371de6df683b80a8871e8d0e1822c60f2ebf11c3e00ba4c239a13e50d54d0c6b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Pwa/InstallPromptContext.php",
+      "sha256": "a2d4a9af69236ee7fe3d888f83a9aac4266d872965380956ab12d6b890fada87",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Pwa/RecordPromptShown.php",
+      "sha256": "69ca2097bdf8bbb7c2ccc7f6ae78602635cdb614d2c1d642d271db088fab474a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Questions/QuestionList.php",
+      "sha256": "510cb3299d45d9ba33c2fb920d019ac6db95a3736dbb14592730ab4b710bd25c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/GenerateRecipeSlug.php",
+      "sha256": "30cffe9cf7bf80ec6e804cbf41089b4a2897c9837cbdcec6bfad6b66db1b5e84",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/PublishRecipe.php",
+      "sha256": "53c7bca0fadfc5ff99f97b4467dc9e424a0abacd9e083e1e8b28e196dc98ac4c",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/RecordCookedEvent.php",
+      "sha256": "7bb23a7e2f4d3f3b10a8c9c14adf473faad4832ab907a184ff8a38d2b992880e",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/Actions/SnapshotRecipeVersion.php",
+      "sha256": "c1019f0d78487c36389f76326e2d1f3cba043286554ecb268acc5a3eeac978b0",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/CoMoznaDopisac.php",
+      "sha256": "36695415b98aee940eb2392ecb34338d6d16b527865524415be6559ca19d85e0",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/GrupySkladnikow.php",
+      "sha256": "d9c0ac433437716de13214563d57a572e9a5698a28dcd6929372d6e26c223fb2",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/RecipeStatusTransitions.php",
+      "sha256": "b346cc335743df7b50ae12403b64fd3bec62f3f7aa9ea356f4d47fd74142afc8",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/StepTimer.php",
+      "sha256": "8893332f2208909747ca033377872854677af5704f986ec8b4b08d65dd3f2c6b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/TekstNaWiersze.php",
+      "sha256": "e1fb4f5fd0259e6d84f457ea04fc406e31c321ff396a6a24bb1147c52d49c822",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Recipes/WpisWskazujacyPrzepis.php",
+      "sha256": "e923081c4b512aafe44c431992303e2c3943b68453c5baa5e81d373248fb2f96",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Search/SearchQuery.php",
+      "sha256": "d5a11c46f5f2c4e84b959c639249a58a6277d869c9892c185d7b6e97240382c4",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/DziennyBudzetListow.php",
+      "sha256": "4a826e5e4e2104df2f23c3b6725276a55141ad5cfcaa855d7a342312442698d4",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/KomunikatZamknietegoKonta.php",
+      "sha256": "aef6473ae8c782c42c43164f74d5fa92ebd4757630032db8e577c50d2182acea",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/KontaBezPotwierdzonegoAdresu.php",
+      "sha256": "ccc0befe1443dc7fcaadfe02ff7cba161fe5b33b0589e8a5b103ac6c3b5a4fcb",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/LimitProbHasla.php",
+      "sha256": "ddaf326bfd386239ab1983045a155ef0c337651ac035f184883f43c6adf4e867",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/PomiarKontBezPotwierdzenia.php",
+      "sha256": "2bebc5b6064e635fd2ea58911ed08ee3e3a720eefd92fdb058c5d07f490d9a82",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/TwoFactorAuthenticator.php",
+      "sha256": "ca4f696a9769af50ebd7a91bd30d63277125cab8ff8b7c3bcdc6c29f8d4aabba",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/WyslijLinkDoLogowania.php",
+      "sha256": "0e6cc442f98ab619bd55448618e5e8adf46eb86793082db96d71144f2cb7cde7",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/WyslijOdzyskanieKonta.php",
+      "sha256": "f8857886ac4f1772ca5a1501a5e2cd50d922f11b45d0f995999891bd0433bbd4",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/WyslijZaproszenieDoRejestracji.php",
+      "sha256": "0e1ea3e284dad16145ef866171786792822eeed3345ef586ae155fc58376bc10",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Security/ZaproszenieWSesji.php",
+      "sha256": "895f06d0292e28bece80764d0cfb78173f1f6cae6ec1f478993d30804a335d8f",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Sharing/Udostepnianie.php",
+      "sha256": "ca83ace95b18e2f92605ba155af80d42c9f1a7fa7b9028641b779849a8b14436",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Social/Actions/BlockUser.php",
+      "sha256": "b6c3a1e002bfff7804d2cad52a95e8417e9da3ef06b97ae186e94505381de022",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Social/Actions/FollowUser.php",
+      "sha256": "146aa19d353ef3a930fb547b473bf5879143d36a317ed48c765eca6ffb6515ee",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Social/Actions/UnblockUser.php",
+      "sha256": "768e38fbbf58efce92d2095694a197b1ec58a912922aef89e1d6cb97ba0adb92",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Social/Actions/UnfollowUser.php",
+      "sha256": "ba2ddba906d2f3c3f71ad0daabf6c22d798fa055e6eeb1739bbe633a437bb8d1",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Social/ZamekPary.php",
+      "sha256": "d3b4255b468340ea576952089fa729760f14b0ec7bf88f7ce56a82994306174b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/Actions/MergeTags.php",
+      "sha256": "50682a30518bfaaee7e41d06342b3ed5e02cd99c478ce7739edad03e8b60e96a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/Actions/ResolvePostTags.php",
+      "sha256": "6408277f0709faf83c577dd16baf411fb9a922059a3bd66caa7889171b9601c9",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/Actions/ResolveTagsForPost.php",
+      "sha256": "d953d9884a4acd7280640d3609081e61a2794a7610ec6c8e522b58f3d856f99d",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/FiltrWulgaryzmow.php",
+      "sha256": "d9b84f32bd18c6d122d08f564dc555621e8db9742640743a220966ae25f67d7a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/InlineTagTokens.php",
+      "sha256": "4c5ffedb6742ba8d99b3ae6f1ae9809ecc09f645a4899a8f03c12495ee09b3b8",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/PodpowiedziTagow.php",
+      "sha256": "1f4e65797c07d07ca6ba4a029113d57e84e64109da94f843d808ed570803d99b",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/TagCollage.php",
+      "sha256": "8f487565a96c870a2537d26ef7e1c3e5471a5ff8e2eb89c69ad226036d01c677",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/TagMutationLock.php",
+      "sha256": "f3ff636fd430b5a6e4ac134ed6069a2fe9c040bcfc23f855ce220dc5edbb314e",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/TagPublicStats.php",
+      "sha256": "7f29d5237acf868a1b0dc2b29a689313ff307e7ac1a26dc5026c069db0bdc519",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Tags/TagSuggester.php",
+      "sha256": "484ea534bcf0512a7dd58bafb086ccdbd89cf2eb79b12ce71c355ef51c6db74a",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Actions/CancelAccountDeletion.php",
+      "sha256": "609d0ccb8da61729459bff9f5ede7ebd8aac51b6e655464f40c325b1f19a56d9",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Actions/CancelEmailChange.php",
+      "sha256": "57300b5723f82e06557f7e7740382874e55bf22a44f4192d0ef29505a2704e28",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Actions/ConfirmEmailChange.php",
+      "sha256": "5503d0c2ec46cf398d193ad821292a3d6cc7c11bebbc081e66889934789aeabc",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Actions/EraseAccountData.php",
+      "sha256": "68e553bc9e5533d26f6f29b1e96b3b4a91a1a16460e8dc6558514d305b79c198",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Actions/RequestEmailChange.php",
+      "sha256": "a07fddf97b6cbd446e95d0dfdebd3d2ac5e31be67f8a52a4325d3be42c07ccbd",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Actions/ZalozKonto.php",
+      "sha256": "953addb203009b7d34032b4c94f773bf6cfad96eb5d2ec3c94580f3c523f2a4d",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Exports/CollectUserExportData.php",
+      "sha256": "3597469705ddb51cea67566b52252be1e8fc1b12c85b3388b65cccca39205a44",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Exports/ExportFileNames.php",
+      "sha256": "4c72ab9e41bcde84a35b3ceb583f41467993ef4d228dd338ed9806f853f48572",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/Exports/ExportPhotoPlan.php",
+      "sha256": "bce7935aff87705e59a78884b1f1c9db44f07aec8a5fe5fdfe49c877a79aebe2",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Users/ZamekKonta.php",
+      "sha256": "00e07fcab18f97ea21e8db49316d3ee211fe53b36c4d430f55f92dd7c1b201d6",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Wspomnienia/Wspomnienia.php",
+      "sha256": "dd836b5482fd4942cf9a0e87c11b6ff31a49b1292d4f30df198994176174bf3e",
+      "equal": true
+    },
+    {
+      "file": "app/Domain/Zgody/PrzestawZgodeNaDigest.php",
+      "sha256": "b7c9e8cf808ffc2090534fa9eab3b8e59c8d0a8f5c7aebad23694e91df2c6ed5",
+      "equal": true
+    },
+    {
+      "file": "app/Exceptions/BladDlaCzlowieka.php",
+      "sha256": "6362133f47e40a59aaa1a3cfcf1754e2a5d5cc337c988921deb24b70ffa93756",
+      "equal": true
+    },
+    {
+      "file": "app/Exceptions/DataExportStorageFailure.php",
+      "sha256": "75748d9191a62d2352777d3fe4719c4930217fb273fd8a61dbe3f958c45b9aae",
+      "equal": true
+    },
+    {
+      "file": "app/Exceptions/KontrolaZdrowiaNieprzeszla.php",
+      "sha256": "f8c1bf2d9cec4368368d0451018479db5e906cee8c9e304e39bf30c6cdfce2cb",
+      "equal": true
+    },
+    {
+      "file": "app/Exceptions/OdzyskanyFormularz.php",
+      "sha256": "14186b520f1bb5c92b41b82213a8d0bb22d3357e76b62d8bf8c038450c7ab37d",
+      "equal": true
+    },
+    {
+      "file": "app/Facebook/KlientFacebook.php",
+      "sha256": "bd560385eee25709635ff5fb0575cddf7ad49b94859729c1817423975c2c3f4a",
+      "equal": true
+    },
+    {
+      "file": "app/Facebook/TozsamoscFacebook.php",
+      "sha256": "e644d3f772a66b0896e4d110164dfb22bfbd11f44a45b89e376337fde388133a",
+      "equal": true
+    },
+    {
+      "file": "app/Google/KlientGoogle.php",
+      "sha256": "d901b486d5b7b14e404710699e015dfd0a6f5ad039b0f5451d2fc572ecc6219a",
+      "equal": true
+    },
+    {
+      "file": "app/Google/TozsamoscGoogle.php",
+      "sha256": "69aab1ab325c2228eb3d38669db92e12671b5293975d95f03c428f16a151ba16",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/AccountDeletionController.php",
+      "sha256": "1b7695b4d110cc6dd8b5e2b43d7ddd295d5f2cd4b692d2a5e02f242205de3832",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/AppealController.php",
+      "sha256": "980a87ebd938c55abd3ab467cd9538c0f1323041bcf39ca376ad40b8a81a91da",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/BezOdpowiedziController.php",
+      "sha256": "e9bd862362f36699b97a95121d9e052bb0f68db74a9f58dbc3473f2b08d19e30",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/DailyBoardController.php",
+      "sha256": "ca25262c72a0ed3f21a9100936dc54ee075a71c0b9629e1af204bad9ad64a54f",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/HeroKolazController.php",
+      "sha256": "67d5500a034ea41ab844d53bfebc54e2b5c50eaaaac8d496be2d7c8fe1b0f6df",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/ModerationController.php",
+      "sha256": "989c4ad221e153c71f7d2366b7a41c57ab1d17fb302bf928808af2f880bc08e5",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/SygnalyController.php",
+      "sha256": "f6e77ccce3f1e5607462dbf5774aaf66293a9d28c835b0db08135ad93813e131",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/TagPromotionController.php",
+      "sha256": "4d1e104c1a40a6433626371c8b9b86931d51bb8af8dd31f3de250e03925a7ef5",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/UzytkownicyController.php",
+      "sha256": "34ce153dbc8fe25c4f4fc514b2de3f8fcc73b8042ca2e3f2682dc8095b86a640",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Admin/WiadomosciController.php",
+      "sha256": "07a5eb2b847a99853ae421190b8cae278e64ef2d6c8e7836055f2cc26b15977e",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/AppealController.php",
+      "sha256": "ec573882abdd0dfd3eac76e464aad454ef8f6e5122cbfbc8bb7bd7de4f5c66f7",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/EmailVerificationController.php",
+      "sha256": "5e955904dda2dbcf265743861e115e2d2561b11a935f696ec0bccd7c01f31489",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/FacebookDeauthorizeController.php",
+      "sha256": "b58dc01cecd3107f2fcbe2f6ca5e117a90aef1cef887251f9b4bebd28b8394ac",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/FacebookLoginController.php",
+      "sha256": "bf8415f64f09e796c78b7a272517a9f15a75abdc535e32dc284753e53ced177c",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/GoogleLoginController.php",
+      "sha256": "fc19a8de04907d13afa89be9912f256b6e6822bbc5860f33492adf217ab38226",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/LoginController.php",
+      "sha256": "4a705f08d6844054ebeca70374e84c16207cf5dc72d7a9685feb5e24a8725157",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/LoginLinkController.php",
+      "sha256": "4f4613afe0a3e3e50af3d3b6d7d457341b17772190db31f46d520e99882830fe",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/PasswordResetController.php",
+      "sha256": "dc98c0d99ac4f1e1d7ba4765b3ecbfe9b90d625cf1391360e5a3c9b3324f3154",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/RegisterController.php",
+      "sha256": "e85e4069f21cae99b65e2f4a386c8f41e2307d4a4bc3232a58d3948214aa0c66",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/RegistrationInviteController.php",
+      "sha256": "5cff43ae3c90961538d3068390e68f6b950a581169b2197abd43b8659e43a5c4",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Auth/TwoFactorChallengeController.php",
+      "sha256": "7f722092912da9dfe459d349259ba4635ccf82a0488bb4144d2309a65020895b",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/CollectionController.php",
+      "sha256": "a43c9bc2f796628cad594e7390779007b765acfa9e48678e56e9115223d8ea08",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/CommentController.php",
+      "sha256": "9b0922541aef36a0f99de7e729bab76d9168f8e5282b48bc31ccc11f163d1e12",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Controller.php",
+      "sha256": "f12cd4c03a602910ab505e67f4f9f52640d58ff7a4336f216ed5a59e9e615642",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/CookedEventController.php",
+      "sha256": "274eea12e68d66f77c625536964432b6589dd66546fa7e2ab0e5e6e77693bc85",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/CookingModeController.php",
+      "sha256": "98373d60d91f7ded82e39d432072d1f56cd7e64368c0d0e4f1aae13a621fe6fb",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/CspReportController.php",
+      "sha256": "b5efdc0e8fc0e1977309081c337211846d9e17387aae7e3d90bd3f1b3f839ded",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/ExternalLinkController.php",
+      "sha256": "63df6f19849e84178bfb4d5026d86e3d66334b13ed1a9e0391d914e930df1836",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/FeedController.php",
+      "sha256": "57e98112c62897334c65c78a993043708da31b35db2b987c2773889dcc0a192c",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/HealthController.php",
+      "sha256": "d836995f42da6cb564815f8c1b017ee289d99d85f106f0cd9473daefcca05e2e",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/MediaController.php",
+      "sha256": "005dd3d4ce37328b2013acac52162b35363b7a1773c2bd6778cb1aa165485b9e",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/NapiszDoNasController.php",
+      "sha256": "caf6edf5068217c363188a8412a0cec843e1e3cc935f3613cd1ca772f2a6b11d",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/NotificationController.php",
+      "sha256": "18041586a0db1c835244bc7b4f6796f3b95a49f7a7c02cd5954bdf0633741dd7",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/OnboardingController.php",
+      "sha256": "53f103b5656d71362cdfd2bf5356b0b6a1083d02175a47b61ddf143929aa1557",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/PodsumowanieTygodniaController.php",
+      "sha256": "899e18670e00a1edc1b6534d274e7c9dcf4668db9c342fbd5945fbf7e732a462",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/PostController.php",
+      "sha256": "f71223cc3964dcdb915eec55f3f1651ae28418fd5544e91559cfccd19aee1a79",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/PostMediaController.php",
+      "sha256": "eec016be0be624e3c56bf985d73e35f2090c5f654f16578b3fbabce0c8f98498",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/ProfileController.php",
+      "sha256": "80609fc475df1d467bdd4787851a5193e8781b3ca3063c60fe9ae494f924f11a",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/PwaInstallController.php",
+      "sha256": "fe064ad4975de538a09bc5f967b31d3ec33fac327d27c1387c21c980d968bac8",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/QuestionController.php",
+      "sha256": "eb6202ca94119e2a382d5897b08159b2e85ea4606506ddf7ee6dea681b38d732",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/RecipeController.php",
+      "sha256": "3e659a0edc3668382340ad76d7a4a9be8a7d92c8f02df7b9009921fe61801656",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/ReportController.php",
+      "sha256": "cf43c3cc08f54cc60fa1611e26386675814204790d0d1c0c3df1be91ccc1d765",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/ReporterAppealController.php",
+      "sha256": "bb83435283e115f8480dd2902dd9ba448c663ac1d355fb9cbf120d4dd0917964",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/SearchController.php",
+      "sha256": "e5c82bf2105bc2e3f1749d91bd0be902b7ddf93277496c1cc950b9bdd87101c3",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/AccessibilitySettingsController.php",
+      "sha256": "98d75f830076ef3e1f9b11cca31dbfea0b58005136de61b06066fb97c52c9e49",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/AvatarSettingsController.php",
+      "sha256": "bd51e552b60ab0eeddc76c6eb12907fbdfb9e0b750392cc4dbc0f8f6f95f07b4",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/DataSettingsController.php",
+      "sha256": "c197e11614362315919c1a532160c8c56df621705f25109937f25aff0aaae243",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/EmailSettingsController.php",
+      "sha256": "0115a01d7df283b17366f2889d5087ec444cbf17d0d065c3a0a8c5b7fcbc5f82",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/PrivacySettingsController.php",
+      "sha256": "4d966bd84a6570980ca3e0af603e8f69a35aa1450588bc003f7e9be2747ec505",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/ProfileSettingsController.php",
+      "sha256": "8d811272779ad757a55ca94cb8912a7f85b7e684d59eb6bdebd87df9af3654b0",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/SecuritySettingsController.php",
+      "sha256": "708e3f6cfc10898eb6bd87d0038644b19199c01ae570146fef335f9dfc81adf7",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/SettingsIndexController.php",
+      "sha256": "4ee85d9f1eca1985752b2aab8b3b066dd83fab87f79879b628789717f0cd2517",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/Settings/TwoFactorSettingsController.php",
+      "sha256": "d925b9a04eddac43c7ca846a3ec29143299d89f4f60dab880ec2ff59a13f3c0e",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/SitemapController.php",
+      "sha256": "486ecafdba1a6216e16bfe3d32ed759e5361fd4d5575107451560ef025ae0f94",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/SocialController.php",
+      "sha256": "da93ccdbc1a87e1a57752f4e6c857b7c256d220a68edd5e87054edb0eb10c4eb",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/StaticPageController.php",
+      "sha256": "a6f7a19e53026288109e8137631498f4d61c339dfb86998dd88f6eeeb2aa1d87",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/TagController.php",
+      "sha256": "078f26c01e76a0488f1486136350b71b131b1bcb930416b3666f3b3f6e010fd9",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/TagFollowController.php",
+      "sha256": "da035c47cfe402a253347c347f8fa726ff094b8d98f5abb2a07fceb661bc900b",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/TagSuggestionController.php",
+      "sha256": "b3032e11d03a0d99eea5d6963a3b215a620b7bf1cc26d98cf41f72836b7f8964",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/ThemeController.php",
+      "sha256": "e9b8738fbe231c992539a9efd1f75d5cef620234d326549a29bc0e1a4e79ae16",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/WspomnienieController.php",
+      "sha256": "eb2651bf522f36bb7178d485b6b98ec101a2b56ed7fe90035f8beebcc3712d2c",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Controllers/ZgloszenieNielegalnejTresciController.php",
+      "sha256": "333a5cfb5a965cbc86b74f9562de4278c5e9e23f6b1fdc52ac77bac5da8b4ca6",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Middleware/AktualizujOstatniaWizyte.php",
+      "sha256": "25881e34c0bd3613c3c95fbe5f766cd4f78d46462e512b9d900bf62b2b721cbe",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Middleware/ApplySecurityHeaders.php",
+      "sha256": "e3bbdb320db5ac988329951cab1f909cc4265b651f34ddea498a4594ae79b108",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Middleware/EnsureAccountIsActive.php",
+      "sha256": "4d11a8ff8f0fdc4dc51b9892da2809aeb18eff201bc65469848353da6d81d80d",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Middleware/EnsureModeratorHasTwoFactor.php",
+      "sha256": "3e52498e8dd1faa4994ad34af696cf608d2dd2b470fc49c9733670ca444ff441",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Middleware/EnsureUserIsModerator.php",
+      "sha256": "8585ae56ca391eff92c7a6e5611fc588a6dc0b8dcaf347a22a844ed00eef13ea",
+      "equal": true
+    },
+    {
+      "file": "app/Http/Middleware/NormalizeForwardedFor.php",
+      "sha256": "72f6d2a6147f0223f5b67952e7226581c3ad172b5c3723e774918a750aba7535",
+      "equal": true
+    },
+    {
+      "file": "app/Jobs/GenerateUserExport.php",
+      "sha256": "f27ec272130250b20dd19c77d1ba088d0acaa6971f2ba14684fdf3f90b426290",
+      "equal": true
+    },
+    {
+      "file": "app/Jobs/ProcessUploadedImage.php",
+      "sha256": "a4ec448aa4fa25970e30a8d5899d09135f35692e5557866240c095de1ee1f8ed",
+      "equal": true
+    },
+    {
+      "file": "app/Jobs/PrzeanalizujAwatar.php",
+      "sha256": "ee83e897d09e775009934ca828796a269416426b885932529bab4e53fcab4af9",
+      "equal": true
+    },
+    {
+      "file": "app/Jobs/PrzeanalizujTresc.php",
+      "sha256": "d85a3955da0d41a95a538bd1553616785fa95ed184fb38fb0549547653ca132d",
+      "equal": true
+    },
+    {
+      "file": "app/Jobs/PurgePublicMediaCache.php",
+      "sha256": "a3a773b04939cbce05269f5b4304b09de855c0aa316de3e5dae8c0a8987fe46f",
+      "equal": true
+    },
+    {
+      "file": "app/Logging/WebhookBleduHandler.php",
+      "sha256": "064d277119d6039138eb399c598d3e4d5e01f67e2a2a126d7254d2e0c637ee77",
+      "equal": true
+    },
+    {
+      "file": "app/Logging/WebhookBleduLogger.php",
+      "sha256": "7c0298b3a2180506faf33d1af67e03215da04f5557c2041e69da984e1bc682e8",
+      "equal": true
+    },
+    {
+      "file": "app/Mail/DataExportReady.php",
+      "sha256": "10a2df9ec7b1896158259a7a9c08c268b247d73cf3f86c572d525db58ae3ebae",
+      "equal": true
+    },
+    {
+      "file": "app/Mail/OdpowiedzNaWiadomosc.php",
+      "sha256": "26b6cdcf0b6d2d8fae1c8908727a7a465b722c0034c4e5390e9fd18bd5913bb6",
+      "equal": true
+    },
+    {
+      "file": "app/Mail/PodsumowanieTygodnia.php",
+      "sha256": "6ab91951c641c045fbf84c66d80328758b2a408793be1829d3dffe892e676a25",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Appeal.php",
+      "sha256": "68ffb60a329e98d491e7e503b59c403d55b3d2c567b0c01a0cd87cbe2ca80ad8",
+      "equal": true
+    },
+    {
+      "file": "app/Models/AuditLogEntry.php",
+      "sha256": "1c5ef851c6f63c536062e88a65a3806143a6eb4f73fde424fcb69f96b166e28b",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Block.php",
+      "sha256": "e180c964f13c8bf6ff769b0577102122d631d7b59117a64dd1487846174b65c3",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Collection.php",
+      "sha256": "5bec43516c479cb50cd3a04444a3417fe1d578c36c4de3ac9d56ab90b3e1639d",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Comment.php",
+      "sha256": "5f1707846967cbe17d1bf998071be7c7078b818929503a0dbb98a80fca7095f6",
+      "equal": true
+    },
+    {
+      "file": "app/Models/ContactMessage.php",
+      "sha256": "ae3e92931fabbc98cf3f3922b34a0fc9e50fd40fb35aa40fc0c498578ff37187",
+      "equal": true
+    },
+    {
+      "file": "app/Models/ContactMessageReply.php",
+      "sha256": "c4d9ca62e919e6ce8e43baf71d7b59c90b9d38d0704eb7cb6e5963345783c40a",
+      "equal": true
+    },
+    {
+      "file": "app/Models/CookedEvent.php",
+      "sha256": "75121b582426d20c84b1b5fd672341db5a4bd7c79a628c2c16f892a084cd2418",
+      "equal": true
+    },
+    {
+      "file": "app/Models/DailyPick.php",
+      "sha256": "1aacf4fda054e6ca0c61d4b8bef90dce40d7d1f7f7afa91d3c2e3c060d35c39d",
+      "equal": true
+    },
+    {
+      "file": "app/Models/DataExport.php",
+      "sha256": "0926c73641ac745bb348e689413bf87ea6fa814638eccbe6dc7ed7736883db8d",
+      "equal": true
+    },
+    {
+      "file": "app/Models/HeroPick.php",
+      "sha256": "75a286cc76c5be5cb3d7bb3b990cc7beaa2de4f90e5c97f90dbe9256678751ab",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Ingredient.php",
+      "sha256": "210f7c76aeb37dd5f630a021e1ed2f4ee6eb27f24c26089abeeebd188e5a0647",
+      "equal": true
+    },
+    {
+      "file": "app/Models/LoginLinkToken.php",
+      "sha256": "ddf3f6390c5d92bdfc539b3c6559eba1f528b12416dfd5a1dbcc61df8fb66214",
+      "equal": true
+    },
+    {
+      "file": "app/Models/MailFailure.php",
+      "sha256": "9d06e510737cc0001478f234e7cde3206db529a99f0b128ff61dd90667f73149",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Media.php",
+      "sha256": "7dcc3245f9a50e99501984bcb89a091dddf91edb9935d2603c2618a322d3e940",
+      "equal": true
+    },
+    {
+      "file": "app/Models/ModerationAction.php",
+      "sha256": "7ff5b5db4ed4142122f98673e0383035e7dd5e9d22cc65baa6471a1e39e46389",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Notification.php",
+      "sha256": "7eaa1dc84ec86fab1b8c44f478be937a11ecb441e847ffbdde56211234d6fa87",
+      "equal": true
+    },
+    {
+      "file": "app/Models/PendingEmailChange.php",
+      "sha256": "c7d3ee0703b54758267c141f442238316650079eaca99a8ffc87a8c3d5299bb8",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Post.php",
+      "sha256": "9d51797a3b7fa042279b22be9e0fdaaa689a4b959b6f1b3ea3bd39588f2ecc9d",
+      "equal": true
+    },
+    {
+      "file": "app/Models/PostTag.php",
+      "sha256": "2df8fb3a7a8ddd63ba1c8f850ae9203f074f5d215e0d3a92372387f39dab63ec",
+      "equal": true
+    },
+    {
+      "file": "app/Models/ProductSignal.php",
+      "sha256": "05f6ec17af003f7ebcc98a56a33fb90fd394fd4d74a4f7c9901362998d18d4ca",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Profile.php",
+      "sha256": "801567d865d4e253eec2c95bf54b4cb5a28cf05d60b97b9a599dbec9cfc3e073",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Recipe.php",
+      "sha256": "59425972c168c39b4d7bc976a2dddcae27149f633d594e39b673211c3d4d3b76",
+      "equal": true
+    },
+    {
+      "file": "app/Models/RecipeIngredient.php",
+      "sha256": "0d1afa8806178c6929359c9e6d8d06e9af6eba93af52ccb321129da54904ac62",
+      "equal": true
+    },
+    {
+      "file": "app/Models/RecipeStep.php",
+      "sha256": "07131766fc143ac71de65618abbc574a0f45c559632644bd68c555d88385ed1c",
+      "equal": true
+    },
+    {
+      "file": "app/Models/RecipeVersion.php",
+      "sha256": "d71106e3b6ce538abc7295ac46d384444414d70c7a0cffd43e16edf2e4c9f5dc",
+      "equal": true
+    },
+    {
+      "file": "app/Models/RegistrationInvite.php",
+      "sha256": "611a0b7106dd50f778d9baf63f0beabe81fc6718c37637abf689e33eb959775a",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Report.php",
+      "sha256": "e45fc4acdd54a2f00daa84b253db5d78b9542ad959d6ff79e793f23123f9b0c9",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Tag.php",
+      "sha256": "ff1f4a6cf225e64cc6dc54a43404c54da944e594bcf8b4694e333fb5d2ae5f74",
+      "equal": true
+    },
+    {
+      "file": "app/Models/TagAlias.php",
+      "sha256": "8468591634e2ffdf00005ba75ce834732122366385e17c10c672c0b8abe002d9",
+      "equal": true
+    },
+    {
+      "file": "app/Models/TagPromotion.php",
+      "sha256": "17da63adc11658165881ae885b312a82f043245d33b0cce6348f986bd1c46b7f",
+      "equal": true
+    },
+    {
+      "file": "app/Models/TozsamoscZewnetrzna.php",
+      "sha256": "349a325cddc0989dd37ce30d972d3a6c02136d103fd99b3eae6cbe7f03b23fc8",
+      "equal": true
+    },
+    {
+      "file": "app/Models/Unit.php",
+      "sha256": "0c0fd3c78790ef81d785adb37ef4de958916180bcb046a086b2a13c4055b8268",
+      "equal": true
+    },
+    {
+      "file": "app/Models/User.php",
+      "sha256": "fb2a80d9e1085f633b8e02063906eca100a4fbff1be5b8de1918ac0f24fb3a8a",
+      "equal": true
+    },
+    {
+      "file": "app/Models/WpisZgody.php",
+      "sha256": "e2275a5d77b174549326d5acbac2d70b7f1a418b6c2e9c37c7bb3bb191cc9c0d",
+      "equal": true
+    },
+    {
+      "file": "app/Moderacja/KategorieModeracji.php",
+      "sha256": "3a256d3e13abed50c1a4a92db587713ee4e18af151794a73e41402d270c38fdd",
+      "equal": true
+    },
+    {
+      "file": "app/Moderacja/KlientOpenAI.php",
+      "sha256": "79fbcd58a5bfaa9d4ead8d76fb83bb5edeca39fdb5f1730577acb478818a79f5",
+      "equal": true
+    },
+    {
+      "file": "app/Moderacja/OcenaModelem.php",
+      "sha256": "000b83856afeb3febe424e6fe009f6017007c83cb211d6ff36660128ae027aab",
+      "equal": true
+    },
+    {
+      "file": "app/Moderacja/WynikOceny.php",
+      "sha256": "cf4cf3b608dceeff4d0a4f8ef714997ae059457393f3f3da845d9022783fe445",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/DecyzjaWSprawieZgloszenia.php",
+      "sha256": "de9d01e550cd7c81c1b4fc65060be371fec770242bda5d1206419175514e5c47",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/LinkDoLogowania.php",
+      "sha256": "1f1731245239712c6bb102d8252893c7452888d1588992e8705685f0639f26b0",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/OdpowiedzNaOdwolanieZglaszajacego.php",
+      "sha256": "050fdd758ec4038c018c9f6e67f407f8bd2930f5f451e7710abdbfb5cc57471b",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/PilnyAlarmModeracyjny.php",
+      "sha256": "fedc88e4da6a14010a327820486e8d81286d5330bcef211e4aff41c8745619dc",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/PodsumowanieKolejkiAutomatu.php",
+      "sha256": "6494b72399125579dfd5465873c60de2011f4817e3ec782facd44a444603c5f6",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieAdresu.php",
+      "sha256": "b24f882dbaa9b90e98e9d789e44f57ff69525805bf8c57e824b534ec0fcb18d3",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieNowegoAdresu.php",
+      "sha256": "fa976336dfae252fe2119cb085d13eadf16c874d1d83c313031c63ed48757ede",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieOdwolaniaZglaszajacego.php",
+      "sha256": "e5ea1ae834564137483bd1ad249e6cf6839d8f64b5bf5b0069da4fb04e89d3fa",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/PotwierdzenieZgloszeniaNielegalnejTresci.php",
+      "sha256": "4196de8c13476b9ddd1e161053bb9e6a71b35e7e83c32afb69089da992a9d971",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/ProbaWejsciaKontemFacebooka.php",
+      "sha256": "c10d21f4e422aa56a803eecbae2a85919f0c4e731c11a3dc912c7aefad765108",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/TerminOdwolaniaBlisko.php",
+      "sha256": "2e7298ac01b8eefd937b02e754b05df6af194bef361e003ba4daac7a9b9bea87",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/UstawienieHaslaZamiastLinku.php",
+      "sha256": "0b3fe685a4e756132a9cc245c720ec95c4f33419497a385141e24f899b87ea6d",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/UstawienieNowegoHasla.php",
+      "sha256": "aa4d6c0402db76f3c0e8e61b8b36b1457eafed361ea5b74f7a9dbaea49a6afca",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/ZaproszenieDoZalozeniaKonta.php",
+      "sha256": "8ad8d3929606ca0a960eb3d27576dcb4499b58d2381dec264c21bef2b5fe4a9b",
+      "equal": true
+    },
+    {
+      "file": "app/Notifications/ZgloszonaZmianaAdresu.php",
+      "sha256": "e9b3d5fca57ec0a6d611445e014c3be7e2ba19e5a3b75ee61d3cf806b76d5d59",
+      "equal": true
+    },
+    {
+      "file": "app/Poczta/BezpiecznyKomunikat.php",
+      "sha256": "2a6b874db99f9bee87f4d275c514911dc51e8dce2e82af33e54f5a56c792966d",
+      "equal": true
+    },
+    {
+      "file": "app/Poczta/BrakKonfiguracjiEmailLabs.php",
+      "sha256": "be1676711c56895866cf054d19b1d1d34e578f9e6fcc9eea0b102e15cd32d8ae",
+      "equal": true
+    },
+    {
+      "file": "app/Poczta/OdmowaEmailLabs.php",
+      "sha256": "e03261c621f1673ffeca0b9fbded8c4516c8247c240ab27447306cb7efa5775d",
+      "equal": true
+    },
+    {
+      "file": "app/Poczta/PowodOdmowy.php",
+      "sha256": "c5fd2fe4f2f5856a4a4ceeb8b293e2bc12f0ce19a3cd2910996dec737ca24a52",
+      "equal": true
+    },
+    {
+      "file": "app/Poczta/SladySledzeniaOtwarc.php",
+      "sha256": "b8468a58f38cac7a27b8414a3c0aab710424e31e247fea72eeace1da51c37d84",
+      "equal": true
+    },
+    {
+      "file": "app/Poczta/TransportEmailLabs.php",
+      "sha256": "ec0ad2139270b3eedf59657764ce913604332df3f55b6b99634ba502ccfd9a97",
+      "equal": true
+    },
+    {
+      "file": "app/Poczta/ZapiszNieudanyList.php",
+      "sha256": "1b6612d5d487726e1bd45907aee56c279803df4e3b1ea8f7782e87cf92d1b4cb",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/CollectionPolicy.php",
+      "sha256": "0c95917aaeb1cabe788af0890330caebc5facec03459853f5cb8437af6f02e75",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/CommentPolicy.php",
+      "sha256": "a22788a082f90f90c273d06dddf30cff90ce5a33a6f2c17cdd68e87ae779b9e9",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/ContactMessagePolicy.php",
+      "sha256": "6692b1e743adc9ccbc58d281655ea4d1abaf89576311399262b847cdb038f9d2",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/CookedEventPolicy.php",
+      "sha256": "b2cba30bbbb5b826e05b75d1626de921d9c973943e9df5bc8fda8575e5827320",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/PostPolicy.php",
+      "sha256": "fabca1f7bf0e295e8f794eac08c1b436e2e9a572852de9e05b5a1268b4995fa5",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/ProfilePolicy.php",
+      "sha256": "88e707c0818acde5b59e9e3794283fb6c4b6e77424d1fb58b5c69f8a07761f85",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/RecipePolicy.php",
+      "sha256": "e84e2007d98a876f35da742e15fba591db41695a371179fb3d7eacf124cd9cf8",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/RecipeStepPolicy.php",
+      "sha256": "5ce497b9035b295bc06a013f30a344bbd277cf63add09d6d3471c185da0deb02",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/ReportPolicy.php",
+      "sha256": "ef3ad7e37dd7fcc41ef93007c72d4a4bf241fcbf7cdb6097fc09f01c96ef0548",
+      "equal": true
+    },
+    {
+      "file": "app/Policies/UserPolicy.php",
+      "sha256": "c684a5cd2bd173f2b703bd9a7e34bf9f75c43d33b773d5ef37673b3c93398205",
+      "equal": true
+    },
+    {
+      "file": "app/Providers/AppServiceProvider.php",
+      "sha256": "13914865cd5543826993eb1fdb4e949210ae33d2ad39308fa2a3577274b6452c",
+      "equal": true
+    },
+    {
+      "file": "app/Providers/PocztaServiceProvider.php",
+      "sha256": "a5b168e8b8ff39dbad4fe737ad8295babab11f5e577fd669a41920d3f10b7df8",
+      "equal": true
+    },
+    {
+      "file": "app/Rules/CollectionNameNotTaken.php",
+      "sha256": "44cf7a7e8393b705970db00a7d01d0bec8719d2eb14b6eda01c0b0e960ea4eee",
+      "equal": true
+    },
+    {
+      "file": "app/Rules/ObslugiwaneZdjecie.php",
+      "sha256": "f770076ac94164c4ccbb1eaf201a823ca9816da4e778c1a72d0a8621f5fe15b8",
+      "equal": true
+    },
+    {
+      "file": "app/Rules/ReservedUsername.php",
+      "sha256": "8ef76f5ac1651517980b8944596de009632b01911e8e664111853e3c95c02ed2",
+      "equal": true
+    },
+    {
+      "file": "app/Rules/TurnstileJestPotwierdzony.php",
+      "sha256": "fbbb3779c17c71a3ab0626e12513487bcf5fe5ca4ff24766d564dedb47941aa8",
+      "equal": true
+    },
+    {
+      "file": "app/Rules/UsernameNotTaken.php",
+      "sha256": "b4cdd15d59c7a52806af49dcf2ecf932142bbb318bb7dd2816f6998bf59a003c",
+      "equal": true
+    },
+    {
+      "file": "app/Support/AdresEmail.php",
+      "sha256": "93865676adbf06752ef49474669f84cec9894a85474a61031bab624ab99dde03",
+      "equal": true
+    },
+    {
+      "file": "app/Support/AdresKanoniczny.php",
+      "sha256": "3349182b5cb22c959e21392f5a3be8510890eed09d4704abe17a8ab2d4fdc0c9",
+      "equal": true
+    },
+    {
+      "file": "app/Support/AnalitykaCloudflare.php",
+      "sha256": "aae917c66908032cf69bc062a0c2f6081fa2aa2ab19b443d1cd17041c7091e01",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Czas.php",
+      "sha256": "301e9c739c130fcc2c48949179e3ec0edc2a545da3ae40b319147a5369c6fb5b",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Facebook.php",
+      "sha256": "746adeb6aa115ad51f9d3a0f6b44dcb1de0652007e4076bf25918cdf9e53f96f",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Google.php",
+      "sha256": "58a3f15adf668e2beb30056388f5f5e405f0cfd8054bc372d4c50b3e70a85b59",
+      "equal": true
+    },
+    {
+      "file": "app/Support/JsonLd.php",
+      "sha256": "9bbf6cc8662f8157e3aef41cb586897603280ec464de851e7e2405ba50b561fb",
+      "equal": true
+    },
+    {
+      "file": "app/Support/KluczeLimitow.php",
+      "sha256": "423f7074c33b9b3c84df45fc9448629cff581d68b559dfe7ff9346a48eec8933",
+      "equal": true
+    },
+    {
+      "file": "app/Support/KomunikatZaDuzaWysylka.php",
+      "sha256": "791e8a6ce8caca0074d9a22a0755b13c0b9ea0b3784ca356775ef9fa8d9c8234",
+      "equal": true
+    },
+    {
+      "file": "app/Support/LimityTagow.php",
+      "sha256": "48924e5cca149ad4cbdab8c8d11a65f7f83cef4599b2448799e70d16f58df7b7",
+      "equal": true
+    },
+    {
+      "file": "app/Support/LimityTekstuPrzepisu.php",
+      "sha256": "09c73f90a0c10f3e14ccd2982da9c7aab205527b21a4a307f1dd6a7b872acd20",
+      "equal": true
+    },
+    {
+      "file": "app/Support/LimityZdjec.php",
+      "sha256": "2156b7cb0ae932aab34d1180a9904d37db58cbfaa495e851624d628294ed5c46",
+      "equal": true
+    },
+    {
+      "file": "app/Support/LinkiWTekscie.php",
+      "sha256": "90c5f4f045e88319e30070f40508c39f757655c6ec2205c2b86603abd59f5685",
+      "equal": true
+    },
+    {
+      "file": "app/Support/NazwaUzytkownika.php",
+      "sha256": "33329e14ec8bb0a35740ab0b6939f2d1e88d28458e63abf0f336dc3f0b5f84d4",
+      "equal": true
+    },
+    {
+      "file": "app/Support/NumerSprawy.php",
+      "sha256": "732e92f601dec03791fc63176c5d1c5de5431ac5b5742691fe2da08b551741ca",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Odmiana.php",
+      "sha256": "719e7bc8cfacc463a9ff851c65ef9fac735558f307f1708f7645f39ad3161288",
+      "equal": true
+    },
+    {
+      "file": "app/Support/OdmianaWalidacji.php",
+      "sha256": "138bc28821abbe8a8a067c7e1f99804688f8a862bde4008d5a4f008f44b7c3d6",
+      "equal": true
+    },
+    {
+      "file": "app/Support/OdzyskiwalneDane.php",
+      "sha256": "15a81481b3483dcd65c69f4f8e23ed6fd110de38c9d79f6970cb47eed46800e7",
+      "equal": true
+    },
+    {
+      "file": "app/Support/PaginationLinks.php",
+      "sha256": "906e3badbb2eacfc12991dc97c3276d1ac2ce87b022b5ce1a60e5c1c6081c679",
+      "equal": true
+    },
+    {
+      "file": "app/Support/PhpIniRozmiar.php",
+      "sha256": "ff0d2e971fe4f73a86f37645db76be8109ec14fa8b916a2baa53f9f1169b8c33",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Poczta.php",
+      "sha256": "61a67516234234191b6e33fde0de5dce3d74cc729cb847e1016312613cc8f9b8",
+      "equal": true
+    },
+    {
+      "file": "app/Support/ProgPodobienstwa.php",
+      "sha256": "6480a46d08d9851bd10e1c8ee3adfae6507615ab416def08fd96672a899b6fe6",
+      "equal": true
+    },
+    {
+      "file": "app/Support/RozpoznanieZdjecia.php",
+      "sha256": "cd9dc989a5b5a2a18db40a668dc3c8ab24f784560924e0b6c095b2883dc3aeb7",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Skrot.php",
+      "sha256": "51da01ea69b11fb6011e70631bfe411965353103cf22656a60aaaba67dfcf5b8",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Storage/DyskR2.php",
+      "sha256": "b0e99d22ce88d7f4d40774290570d96aac4891cfa787dd99dc004b9f89a98c91",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Storage/R2Adapter.php",
+      "sha256": "19fa51e734a6d7882095275aa459e496953b0a8e413f63d9e3ae44ff63d80c9d",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Turnstile.php",
+      "sha256": "38db9008d30d9ce18cf1b39ba9d06db4429c3a6c6b51355b7417a13e093c0ec4",
+      "equal": true
+    },
+    {
+      "file": "app/Support/Wersja.php",
+      "sha256": "ed25000aa14e6e640f9e6a0b5f179c134c61c8264793410b904c1a8f2f941e2c",
+      "equal": true
+    },
+    {
+      "file": "app/Support/WierszFormularza.php",
+      "sha256": "28bf03bbe5fb0c17840030ffa1757c8c9550e288af2e9272fbcfd4d97744da41",
+      "equal": true
+    },
+    {
+      "file": "app/Support/WynikRozpoznania.php",
+      "sha256": "4c727caaa058ddb7c4a96187616bf05aac8f8dacbc18eb274a7b2271b2b9bf9c",
+      "equal": true
+    },
+    {
+      "file": "app/Support/ZapowiedzWpisu.php",
+      "sha256": "a7fde7423d9f93a480f08f34f4a09ef62e43ab294ed65f4c1241bde5f4777430",
+      "equal": true
+    },
+    {
+      "file": "app/Support/ZaufaneHosty.php",
+      "sha256": "8af9231e5291141a4f79f7b4d32857cd99af8598b9ec61e1c2d4a3f9cc49acb3",
+      "equal": true
+    },
+    {
+      "file": "app/Turnstile/KlientTurnstile.php",
+      "sha256": "56b89d6bf27eed5ae320f4c896fc7c91e6697b2fc37b307184d5e97cf476bbf3",
+      "equal": true
+    },
+    {
+      "file": "app/Turnstile/WynikTurnstile.php",
+      "sha256": "a16d962ffaa79ff6723c74cc51456d576aea56198273b19fed4a4ceef6c00214",
+      "equal": true
+    },
+    {
+      "file": "resources/css/app.css",
+      "sha256": "aa9060bf8dbd64342081cac4b75e44811bb1818fa4a42747e3c8c42e823320bc",
+      "equal": true
+    },
+    {
+      "file": "resources/css/ekran-dodawania.css",
+      "sha256": "911e133e20d9325204ef3659ba42372892f55c391c9a517ce18e0af6a39a9282",
+      "equal": true
+    },
+    {
+      "file": "resources/css/ekran-odkrywania.css",
+      "sha256": "784e15473d60b174bdfc1567627c6bad3cab0fde0304283286a58167ba42a35c",
+      "equal": true
+    },
+    {
+      "file": "resources/css/ekran-odwolan.css",
+      "sha256": "c1958a5c248cf159f81a5928e94d32c315e28e0c94f7098a4db4856c5afd56b7",
+      "equal": true
+    },
+    {
+      "file": "resources/css/ekran-profilu.css",
+      "sha256": "493e2e11d0b2aa8123bb6c0408ec7d7f8d8a9f8f24c9166cd27239515f14930c",
+      "equal": true
+    },
+    {
+      "file": "resources/css/ekran-uzytkownikow.css",
+      "sha256": "58f29b7e0a9628d3a34bd3eda4c124a262ed5fb771f6900b969c5023b5997336",
+      "equal": true
+    },
+    {
+      "file": "resources/css/ekran-wyszukiwania.css",
+      "sha256": "855142ef7124e083dfcbae775122340a943c0c44d626597d5d8c3ace68e67eb3",
+      "equal": true
+    },
+    {
+      "file": "resources/css/fonts.css",
+      "sha256": "694761b1740046430cd8d26b2dacabad89c392cc44e2101af32a603570de4c2a",
+      "equal": true
+    },
+    {
+      "file": "resources/css/karta-ugotowania.css",
+      "sha256": "b4773158ebe4529e7e30245a08e192f7379bf14662253e3d2f6a32f820603d5a",
+      "equal": true
+    },
+    {
+      "file": "resources/css/linki-w-tresci.css",
+      "sha256": "ee085cba55e61b8ace74a97a5a351c844d741fc8f43e3e0b9b7fb1c21267dcf8",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-ekrany.css",
+      "sha256": "46cb31a80cd7892d4a84da89348bdff062c8394e47fddcad7950948b22593901",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-onboarding.css",
+      "sha256": "7258ec28e589191e0e8027acc0ebea134e963c82070ebdd8e80411cc925d0f83",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-panel.css",
+      "sha256": "07dc26489e34de1b8424efed171d55a1d283e314e967966941fc5e5fdafe0bbb",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-powiadomienia.css",
+      "sha256": "f03b37421a07cdf978da16aa8312a070fcbd3ede6a2e0208ecc8b924447767b8",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-profil.css",
+      "sha256": "83aec9ea72274e716fee4249f0e41b9fbbdde94edd4dbd99ec98ada2b2072f76",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-przepis.css",
+      "sha256": "0810bc5ddc88ebc13a3cf4fade05f347b53b13221df860cdd98fd37c778f7693",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-rama.css",
+      "sha256": "05dd4e01e6691d7e87f6a3cdab439cf6a94c807daaf69384370eaaf58f96b7d0",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-szukaj.css",
+      "sha256": "72854eecab69ff40d41eeb028561efd821f1343736dc62ddbabde29355b70d23",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-tablica-publiczna.css",
+      "sha256": "304e40d9b3a1c296a99548f756689316d7023a1f522c4b9fad9a01deed074646",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-tagi.css",
+      "sha256": "a9c53ddadbf09c8e4f8153103454bd8cbceef831e37cc27012b29a767c82934a",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-wejscie.css",
+      "sha256": "425b354bb938060a3f7d3eef20b6d766502ae81e2d7c2ca45a070d607f6be1b7",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-wlasnosc.css",
+      "sha256": "7fc52673998ef2ea121cefe0fdcd5880ec9f4b8c76a396d8cf61968372fddd5c",
+      "equal": true
+    },
+    {
+      "file": "resources/css/marka-zeszyt.css",
+      "sha256": "c985aeeac5a4f8b1da5158459b6c1d09ef1561f49b9082a2f358c072ff0c9593",
+      "equal": true
+    },
+    {
+      "file": "resources/css/pasek-przewijany.css",
+      "sha256": "5f9a9f67e0f35cd3d76723f9c8597a28b05caa8da187c2bb10cd149c0c4badf1",
+      "equal": true
+    },
+    {
+      "file": "resources/css/pwa-install.css",
+      "sha256": "9c3cf60ec4d7bbc22568a7ee5ee0e94774d0ec6726566db6b8cf7d42eeca324c",
+      "equal": true
+    },
+    {
+      "file": "resources/css/strony-publiczne.css",
+      "sha256": "b8459e5f666432e246b658b987e058acb0277c574e8fd3ee32cd67979730704b",
+      "equal": true
+    },
+    {
+      "file": "resources/css/szybki-wyglad.css",
+      "sha256": "2c31b21a60303c41682cd74808cd7cd75e2971f94d5231539a0d8ec70f024d13",
+      "equal": true
+    },
+    {
+      "file": "resources/css/tagi-w-opisie.css",
+      "sha256": "efc8d116bca95b6f80a55dc7b3c1f203dfbc4a6d72a756b2e2f27c0c568a306e",
+      "equal": true
+    },
+    {
+      "file": "resources/css/tokens.css",
+      "sha256": "fd8abc351a25dd9967df674ddff07a5d3698ab87ebc203a72b1970abb65becff",
+      "equal": true
+    },
+    {
+      "file": "resources/css/wpis-nawigacja-sasiedzi.css",
+      "sha256": "b7ffaf63810eb2817cea25d64d5362beea477d9ff5a8b808769a7bb5e01a00f7",
+      "equal": true
+    },
+    {
+      "file": "resources/fonts/LICENSE-inter.txt",
+      "sha256": "3b0a5fca3d17942cde889069889dedbbbd075e9b599968c82a95f4d944e9b345",
+      "equal": true
+    },
+    {
+      "file": "resources/fonts/inter-latin-ext-wght-normal.woff2",
+      "sha256": "34b9c504cab7a73e37b746343a449132e56cf7b5481af2cb81dc74dcff25c956",
+      "equal": true
+    },
+    {
+      "file": "resources/fonts/inter-latin-wght-normal.woff2",
+      "sha256": "3100e775e8616cd2611beecfa23a4263d7037586789b43f035236a2e6fbd4c62",
+      "equal": true
+    },
+    {
+      "file": "resources/js/app.js",
+      "sha256": "b767f881705eacd00ceb520b24adaf832f7df2e10f933b98b2cf3ce4b8f49fe5",
+      "equal": true
+    },
+    {
+      "file": "resources/js/landing-wpisy.js",
+      "sha256": "d284494d91e1f2dc181c5ccfea492e316f4606b8670ff36d8bcde54ff6134741",
+      "equal": true
+    },
+    {
+      "file": "resources/js/panel-menu.js",
+      "sha256": "2f308ac4ab03805e427a3fb14fe375931b1f56bdde107017e9ef3afcabfcd987",
+      "equal": true
+    },
+    {
+      "file": "resources/js/panel-tabela.js",
+      "sha256": "a21496508cb6f3874891cba1850eeceb71c2cae7d28d8bd200e03594b1f72738",
+      "equal": true
+    },
+    {
+      "file": "resources/js/pasek-przewijany.js",
+      "sha256": "c08cad0dc04ae19eb8773d5c51829a5ce2fb74891115ead3ad70023bd2136711",
+      "equal": true
+    },
+    {
+      "file": "resources/js/pwa-install.js",
+      "sha256": "3c38bac46276ee2b5e38f54c0768f7e1054b9ff2d42ba27e8ad6344ddeade27a",
+      "equal": true
+    },
+    {
+      "file": "resources/js/service-worker.js",
+      "sha256": "46ea4ef526a4a4e579349824b4c08df5c52f19d34b812fe9633a948a059b756d",
+      "equal": true
+    },
+    {
+      "file": "resources/js/szybki-wyglad.js",
+      "sha256": "967fd0179c233614adcf972a09128d4c7b6ef98ce30ccec2e89613de8f753263",
+      "equal": true
+    },
+    {
+      "file": "resources/js/tagi-w-opisie.js",
+      "sha256": "5812d1a5a2b810370b5c0506e9d1472ec3799692b9a6996c1cb01dd824504970",
+      "equal": true
+    },
+    {
+      "file": "resources/js/tagi-w-opisie.test.mjs",
+      "sha256": "a979cfe322cc6ea86c51b311207a38bfa5a839a67a24950dee03770dd055042a",
+      "equal": true
+    },
+    {
+      "file": "resources/legal/polityka-prywatnosci.md",
+      "sha256": "06d33f3b745d3431ccd87d43a563696fd9c1e8e365694575726abfb97bbaf002",
+      "equal": true
+    },
+    {
+      "file": "resources/legal/regulamin.md",
+      "sha256": "08bb107e3caa32918b6e3a9276f05d7a8548a63b9f9499008c137faf7041a36e",
+      "equal": true
+    },
+    {
+      "file": "resources/legal/zasady.md",
+      "sha256": "c91482b300456248a695be02bcd5c00092e8e9de922c62ea3b8aaf7eec10e8da",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/facebook-bez-adresu.blade.php",
+      "sha256": "d1ab14dfc994685f5e2f54ef8f28832dd7eb229accc8de8f6a3558c009a73c02",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/facebook-finish.blade.php",
+      "sha256": "ba796fd62f55c932543185770ff5089279305f79db84ac1b8e2ee06294479afc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/facebook-link.blade.php",
+      "sha256": "48c83337c6cd22d285fda8767cbd6eddadd0c9f5047ff0cb70b015a1f806d060",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/forgot-password.blade.php",
+      "sha256": "353cbfcee8be4f6bfc5cd533ec482004b01e3b94c5dd4b530e2f21168ae8270f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/google-finish.blade.php",
+      "sha256": "5a41eccdb7531bba8fdee8db8d92a71b7f76413ce48b8f75a55397ba04974319",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/google-link.blade.php",
+      "sha256": "8737585fa99d5d4bfbc12cc484d0f0799f0ddb7e643af1df7b6d073b3b2c1ba6",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/login-link-confirm.blade.php",
+      "sha256": "4ef6dda2b8e1006d1dad8e91104d6c6f2b8629da8abf911193d14c91b6ca7ced",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/login-link-unavailable.blade.php",
+      "sha256": "466abfa588ddeab9bc79c13b9bc33ab5465c2792b3d6e06fbeeccee6e394e981",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/login-link.blade.php",
+      "sha256": "8ee9e6130694092d8310c7c8bbda9bf023d39fd3db050b092ac23fc6741b5e36",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/login.blade.php",
+      "sha256": "7cd44b3d064bc50ef0c048ef610994d6f83459e6e299dbf6c812211447d5a0cf",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/register.blade.php",
+      "sha256": "7e29615f53cd97c2864d1827c6294dec7e0eac8bfe93aed41d3c589113704aad",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/reset-password.blade.php",
+      "sha256": "f465889a23529518c24f6d3a6010ca84eb6594c49605c3c8418c99a24ac5634e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/two_factor_challenge.blade.php",
+      "sha256": "e16d8d3d4abb653913ca988314c51887a27670ea7e2a6f6de966cbe72d0d638d",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/verify-email.blade.php",
+      "sha256": "78d3dcb9d2998982b679610303a5d361d447a0f1d6baba231cd6c3658d0411b6",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/zaproszenie-nieaktualne.blade.php",
+      "sha256": "3b2ba91f25538d1058046b63cd43a28b1901500e082633abae8306d6725a93dc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/auth/zaproszenie.blade.php",
+      "sha256": "eb8f2b95b04b3d8c4e4a7e99c950cfeae4c9a61b1d0f1a85b023a474e5709d0e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/avatar.blade.php",
+      "sha256": "5eb857dc60b01cbe3299041aad6b7b3edfbfec37657a4dc98c2594441e17952e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/blad-grupy.blade.php",
+      "sha256": "7fa680fe94b37366b3154e16cab3edb2bedfe30d2ae35d409cc62580c0a4153a",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/comment-thread.blade.php",
+      "sha256": "8eb86b1b26656b5cdc8e2d4d6949a99329ff287a3c5fba91f47281d6ea430b9d",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/confirm-button.blade.php",
+      "sha256": "7be319c392d7c17784e324d380f57c447a629cde8047e7de78227a2643dc3b6e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/cooked-card.blade.php",
+      "sha256": "4fc8398327e4617fef9ed7be1d28f70a7350dfb74c01fcdc98eae521ef498196",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/empty-state.blade.php",
+      "sha256": "bd8ec8bb61bc7efcaebd384cae00d5a3cd34aa6786d60d2680565d8ab315468f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/error-summary.blade.php",
+      "sha256": "8821d710be4794321eb443faf2912b0aa79beddcf0a6ed43454256408fa2e3af",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/field.blade.php",
+      "sha256": "2c4b44d77f29641b7fc860cf49c4fa4a5cbf0b905f9bd9f1fdef9eadd41adcdd",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/ikona.blade.php",
+      "sha256": "7a125ebc7a9c8382056415d3fd1f66d7e61644e2587871decf91300bdabce593",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/json-ld.blade.php",
+      "sha256": "8815eaa102c5ee6419cd885c0303a3e4674e842f9fd50161c9ad99c2858ac3ed",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/karuzela-zdjec.blade.php",
+      "sha256": "8a30ad637f4c9570c6e248bee7f1945bed37b20c3551182cb13af03b5d73c541",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/kolaz-zdjec.blade.php",
+      "sha256": "37a55ce5747629bfd593ab78920ffb97146456cf5582866197f7b553d29027a6",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/konto-przykladowe.blade.php",
+      "sha256": "e7f10982dfad4af061c8c7a7e6e2cc24410acbe1ada878d40ad23dbe6ec66c8f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/kuking-board/people.blade.php",
+      "sha256": "b9f805a64c0d563609debf926b0d80b361dec504015787c8198c22097ed1accc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/kuking-board/posts.blade.php",
+      "sha256": "0d79090dbd91e4ae5e1befb0d4e2825ac8b31788b9fa852b1bd23292e5132440",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/kuking-board.blade.php",
+      "sha256": "a4107e20974b69dd398637744beef240cdeb739ce6b613e1c55b0ce417b838eb",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/kuking-mark.blade.php",
+      "sha256": "a73c1bac6cbe890eb210153dd1a201898bdc1e8b320b835bd838329f9910d411",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/kuking-word.blade.php",
+      "sha256": "14932aaaba77fd67c8e1db652bfb1b255b412a4eadc7b3ed0ff4647d04a38954",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/layout.blade.php",
+      "sha256": "e85ef0650de38f9f5ad95f9f2f5820b27aae3ff9a3312fbb7b478d717762df5c",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/liczby-profilu.blade.php",
+      "sha256": "6b113b44eb9888e7bb0079d5ffaa22b019532a27d32e6bbf3a5cab3fd8b1125f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/licznik-kolejki.blade.php",
+      "sha256": "4ceccb51f789186465c67606f00a2a588e0b6f1b9907866db24cff0dba02479e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/licznik-profilu.blade.php",
+      "sha256": "ee811b8f731a292ad48048cd044c2f8d9a1552e577d025e065beaca6a76e1a3e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/logo-dostawcy.blade.php",
+      "sha256": "4ad5db9ea09faca7c2d7b153ba0b96f3f577a56dc5cb4e7b147def78d9c0e0e3",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/marka-wejscie.blade.php",
+      "sha256": "48720120648da93fdfbe43475e27fbb3e41c9af84e4b742c74f2f7dcbfe92f03",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/panel-moderacji.blade.php",
+      "sha256": "d66feecbe8666894f3d9af554de6946f9968025565c5aa63b49e963be5b293b5",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/photo.blade.php",
+      "sha256": "55af6e36a1e7211143b1fa1719b9cd121398d06858addf7e223654503ac9dfb8",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/podziel-sie.blade.php",
+      "sha256": "82f44ae643f2c2908f0faf1b7c041eefceed7b9f53eda2664c79d4266c347797",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/post-card.blade.php",
+      "sha256": "91288d428f874ad76b51ab950bc3234ab56a98913863e640343118862ca67782",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/pwa-install.blade.php",
+      "sha256": "e0229860c7299313fde7cc30366572223c7dcb2d7536b5722e736964c262a312",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/recipe-card.blade.php",
+      "sha256": "1d232ea5b67892e0f10031a9c62785473b655ef5b532fdfbcf2af5eda102601a",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/recipe-wizard.blade.php",
+      "sha256": "6e5a279b00c69b1b66869fd35b5109d275b8b3661e850b013e5c28d4b41dc3a9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/show-more.blade.php",
+      "sha256": "a02f7b2620e89ebdf10a0209f96c4832858343fedb5f68236ca115725e5ea6f9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/szybki-wyglad.blade.php",
+      "sha256": "9f661960e8e53255289e3a86b409ff60afef6a349e3d5280dff5273ad76e8d9b",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/szyna-blok.blade.php",
+      "sha256": "0c85d84a083c40703dbdce98ce75e7b115a016af19b204c67891345fccced9af",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/szyna-linki.blade.php",
+      "sha256": "3bd95254b3aac5cb21ca2bd41d7bb01a647c747c431b2f319b855686e3fc8965",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/szyna-ostatnio-zapisane.blade.php",
+      "sha256": "1db582e2c607c70afe50f425aacc520213c25dde4ad20ff9e0e5fea9e6b8b2d9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/szyna-profilu.blade.php",
+      "sha256": "d4f70bfdb9b7836cca2872e44a53795d4f2f75ff37baa3e2bfc0b33951f315ee",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/szyna-startowa.blade.php",
+      "sha256": "e43058dbbcdea77e1895a01b15da103624cdb88ae04138c3a1bd1430487d56d7",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/tag-collage.blade.php",
+      "sha256": "cfcba2ecef041d2ee566f68b327a30accad2bbde9f800d503322e8dfae713dc8",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/tag-directory-card.blade.php",
+      "sha256": "e77fceb491c7cc029021c93b60bf8aace15c33d215fd466fec34537be9672319",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/tag-public-stats.blade.php",
+      "sha256": "003eca0d7f48decdf47679a8883669b8a155320daebdec3a9136755ad72b0c32",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/tagi-formularz.blade.php",
+      "sha256": "6280b6c20694bfc3206d89ae001d6ab035ab73d0332d9d740503a792d51df485",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/turnstile.blade.php",
+      "sha256": "a04a90650bee14d83abffcca856eb3fe56f64d63866898de59e82ea95f43090f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/ustawienia-nawigacja.blade.php",
+      "sha256": "5f4be8a3d2c1fb4c2c8567ff8f4d59211d79c273a7954c74c79b17c1b78909b3",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/wejdz-google.blade.php",
+      "sha256": "81fd81aa03efea4fdeb60a5af22b492a12f725a14b72b1545f1f30b533236e89",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/wejscia-zewnetrzne.blade.php",
+      "sha256": "1e581427817fd1edfce1df8b0f8f49b46b31543e97bbe584429047d05ab1a216",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/wybor-wygladu.blade.php",
+      "sha256": "4e99c7190ec6f0f5388a3f3681850d4e6f1195df770fd5f81178a71a6ae6f776",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/wybor-zeszytu.blade.php",
+      "sha256": "d68c23f9be6544ad6cf8c137d904d6182b472db81df8bd31e198dce2ad23255a",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/wyloguj.blade.php",
+      "sha256": "f10a61228ebc17452602923247e430dc65c9ad4a54bdbde926898aa4b1dfca49",
+      "equal": true
+    },
+    {
+      "file": "resources/views/components/zakladki-dodawania.blade.php",
+      "sha256": "ba1ba230e46bf47c49ec35d3cc6e4c4daa278699fe17214d96c750b78a007f64",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/403.blade.php",
+      "sha256": "121f503a1d7683b4858e08ab6720256c9da16248e1988dee2971c5e98925ba10",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/404.blade.php",
+      "sha256": "6b38b8250443c90e9cf643d836b319560e726bf5807158ce546b46897c55a9e9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/419.blade.php",
+      "sha256": "1b3b5cc3f49da0df75add56cc7f8712d6766951c8332caad4eeeed58ac407387",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/429.blade.php",
+      "sha256": "caabc89954a46c865c59e659a62bad279b28df505633e967ba9fbef71b7f8a76",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/4xx.blade.php",
+      "sha256": "5cef43cc935a0d00d70a9893bacfc9ee6ea7c72efa0bdbffa979afc11cf107ad",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/500.blade.php",
+      "sha256": "0614a01c190036200dda31463f9f0733e9e5aef23789b5e8b87577b4a6ea563c",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/503.blade.php",
+      "sha256": "cf3ee2dc1cc08b0f104f6acc4353e90330b8e5142e96379c1909e4dd15a4a7e8",
+      "equal": true
+    },
+    {
+      "file": "resources/views/errors/_prosty.blade.php",
+      "sha256": "7f48a50a51274f6fd0cdc9f13ac1accfd9dd36d66981694019c30c8beb8da645",
+      "equal": true
+    },
+    {
+      "file": "resources/views/exports/index.blade.php",
+      "sha256": "ba8ac2419eb25e9c6d0a1175cd8e299cd5eeefd73b474392fcf7bd21cf5994fb",
+      "equal": true
+    },
+    {
+      "file": "resources/views/exports/posts.blade.php",
+      "sha256": "6ab1db3b6acb7aea868d24fab6954538e2d7b1061e760e7c51d9c083f210895c",
+      "equal": true
+    },
+    {
+      "file": "resources/views/exports/readme.blade.php",
+      "sha256": "3a819d670a102f37d0b7e6b1eab52fb584f19ec29feab140537f27dcee138008",
+      "equal": true
+    },
+    {
+      "file": "resources/views/exports/recipe.blade.php",
+      "sha256": "7ded137cc862733fe1f7265d914a83894c675cd019177b764fa479faad151391",
+      "equal": true
+    },
+    {
+      "file": "resources/views/exports/styles.blade.php",
+      "sha256": "4fdf61e63921e13997c62282a70b6580df2ebf4bba21c8397b37383cb689acfa",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/data-export-ready.blade.php",
+      "sha256": "b8442669ea273f64010663c54354e901f24fef3547e84759891502ac29292e4a",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/haslo-zamiast-linku.blade.php",
+      "sha256": "9d7ea4f68e433b40c67c4b19f641cd7ebe69bf62d0b10dbbdceb4a0e0b540384",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/link-do-logowania.blade.php",
+      "sha256": "cfcace3745bd61bb48845e27b272b3ae4c7e0283a57419e10ab1e31a9cc6a885",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/nowe-haslo.blade.php",
+      "sha256": "7728bf9f9d05a6bfe7f4a8f83ed91a99772ae90eb98b36c894d8ee007b2eff4b",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/odpowiedz-na-wiadomosc.blade.php",
+      "sha256": "65be6af487dc70e18fd7ff2207bf49bacb4115f5650d51e5a3ae3da83e5009c7",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/podsumowanie-tygodnia-tekst.blade.php",
+      "sha256": "7429766d628e4577398311022e7919756ea0c0596187a2b9b8509c5661e4f108",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/podsumowanie-tygodnia.blade.php",
+      "sha256": "d0bc761c7b9c7dd56a9256366403fdcfd37e0687963c98f302191a820df8b9c0",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/potwierdz-adres.blade.php",
+      "sha256": "06774310d5a718ce50d291ae5a5e077e4cae22c3155b98f570c1d379fdf72774",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/potwierdz-nowy-adres.blade.php",
+      "sha256": "0b88da11470410bf4005e4ba50f914b818eb043a17bf710f0e1ce4c84cba9747",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/proba-wejscia-kontem-facebooka.blade.php",
+      "sha256": "51ffc1ff19ed2724612f259d8cca595616fce0efc3cf62ad5ebf47f206b67e05",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/zaproszenie-do-zalozenia-konta.blade.php",
+      "sha256": "8b22eb9a9a6889dee0778d0d714759d80f48be4493007c144360edf5132bf925",
+      "equal": true
+    },
+    {
+      "file": "resources/views/mail/zgloszona-zmiana-adresu.blade.php",
+      "sha256": "8eddd81d5a602061677d6fde27096071e9841c5bfed3f136bf927acd3f0b6056",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/account/cancel-deletion.blade.php",
+      "sha256": "b4a1a44c6c69ff5e351a41c05b13d204286908601c8ba78295358fdd0057f989",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/add.blade.php",
+      "sha256": "95de331049747647cad61aad2a9162f405240474301e551bb7b0b4cad61fcfe9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/_bez-odpowiedzi-nawigacja.blade.php",
+      "sha256": "5e30b050d1ed0804a85b06e5acdbd7334c40dc74e920a8e94c094978885c7948",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/appeals.blade.php",
+      "sha256": "1163db80efa1e5985ad2cd9e48999b4ee7f4a9832b731b2e42110a37c32bf47f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/bez-odpowiedzi-inne.blade.php",
+      "sha256": "742f79ed17a3cd578eb5c77021a08146779dbdda68fe2b4c39b080554faf05b7",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/bez-odpowiedzi-pytania.blade.php",
+      "sha256": "abbbbbc211a9be553054d53112287b23c7ac6a811985a8d2943a6f4cdcd54195",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/bez-odpowiedzi.blade.php",
+      "sha256": "be541fe85832b9860d66da7bf30a6fb62d4b4e60f3c03cb954cb9dad5f681462",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/daily-board.blade.php",
+      "sha256": "6c9fe659f808100b08ec8a6284aa07ddbef55b97ba2205d22ae3741043dc6c37",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/kolaz-powitalny.blade.php",
+      "sha256": "0f21def91acaecd0075abd2204693cb40dd55823aa0916161d45d8d560b2e8c4",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/reports.blade.php",
+      "sha256": "0ff75d04a9976603bda76d784a4b3ac43d7276034e6371fca394f967446b859f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/sygnaly.blade.php",
+      "sha256": "2f324deec3d93fca3702c568c3d895835c51b6a6e936349b7bc1935bf63e90c0",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/tag-promotions.blade.php",
+      "sha256": "4b124889014998fb6aa502159e1eae818b2bba08af6642e4238379ed409e72a1",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/uzytkownicy.blade.php",
+      "sha256": "6e37ff8d84dfd4c459b40cadb80cefa4e62d0f74a150677a5690c80f2732ca02",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/uzytkownik.blade.php",
+      "sha256": "978a8a821e8db27deab4ca6e492733357e235592a4dce1a837425f13a0bb5bde",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/wiadomosc.blade.php",
+      "sha256": "d04c27f4be3c9b05eb38f213c81e45ded4a481ca4de8545cb431f3c542c066b0",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/wiadomosci.blade.php",
+      "sha256": "dda5df099054d9b6e6fead344c6026d3adda90fa59a92d3772d501efa0114b75",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/admin/wymagane_2fa.blade.php",
+      "sha256": "3513fa166439edf8dec0383db23760b0524a1ea6f1004cbc9e5c6173643b693f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/appeals/create.blade.php",
+      "sha256": "268ea74ce3548f7f70d58bb67d16394cb2de794a88cf92ddcf3930f6bc31283c",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/appeals/guest.blade.php",
+      "sha256": "2b3bc0520b9d62df45e0621f391637be08f1b03c3db1b04c84b2f6bb03eaa23d",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/appeals/reporter.blade.php",
+      "sha256": "16504f91f913f14986f72a4070598986b34177eb60ef7cc2f88b84a3cde0c0dc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/collections/index.blade.php",
+      "sha256": "113c3472bd5d052dd683c92541cbaff103a0a484f3cb8a7e8507aced4bb8a43a",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/collections/show.blade.php",
+      "sha256": "2ce21f696e666441f9941a8531510531548cdb025acc2316e553432314345bbf",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/cooked/celebrate.blade.php",
+      "sha256": "ab30ef53015812836bb34b43a486f3abea44c5b489b2d46a6728c48e18ec3043",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/cooked/create.blade.php",
+      "sha256": "f179754f90f5950ce1fb10d71519387bdb9676d6ca31a7d1dc49d5c09ff1dcc9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/cooked/show.blade.php",
+      "sha256": "26cfa7c4c4122d99ae8f863137663f24036e6bc297a07f705f61ee5676ee348e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/discover.blade.php",
+      "sha256": "98f5864cf9f799b3c3efbe9c55c1e11b0df84f00b6f4985ee3a89065429461a9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/external-link.blade.php",
+      "sha256": "eec93dcc8633ea5a3b0d9a660c385f958a09650a6a840472b942bf3ddc0faaee",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/home.blade.php",
+      "sha256": "330f133b86034e8abbdcad921144b895d827668131de3be95865b9a210b222c5",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/landing.blade.php",
+      "sha256": "1e955d8dd4a1ed5546049894805aa9ed264e61c7d6da8fd177432cc926c6e259",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/napisz-do-nas-potwierdzenie.blade.php",
+      "sha256": "4e9b7e0584d06146f3069513b825e17042bc9fb6c2e2de3cd685c79fae1b2afa",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/napisz-do-nas.blade.php",
+      "sha256": "c88772e6dd1613bef369ed437e02c78fcce57c4db0bbeaa1ecda3964e2a20c00",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/notifications.blade.php",
+      "sha256": "2e452ece82d8e574db7df7ca94d7eb0caaec17b8a5953a3afc723fee04bb3201",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/onboarding/done.blade.php",
+      "sha256": "0ed6788df605855f4b170f1341d7fc8a78b7b7f54dac0657de3a0113a7752964",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/onboarding/interests.blade.php",
+      "sha256": "061383c54556628f0cad96c9d6482f3138a53506e0a41c2e500297f78cc88812",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/onboarding/people.blade.php",
+      "sha256": "f09bc28d1b44b780d0b46aea43b90e544510d0e65ee2c2c70ed0a149a5c079a0",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/podsumowanie-wrocono.blade.php",
+      "sha256": "9f25707172da17b4bc7a2348fee6c19360c5f81fac4ef0c17430203fda8681e4",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/podsumowanie-wypisano.blade.php",
+      "sha256": "2832c95cd63819ec150cb37e1cae75b2822f545ee59742f8743e31a2bb1bc6ef",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/posts/create.blade.php",
+      "sha256": "14c93ac9dd27bb9db25d27506eb8ff9e74ad072728450a854466acc5db3aac96",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/posts/edit.blade.php",
+      "sha256": "6519416510e31a1609300eed6b5b4d84fe3c220194d9a4b04607b63c3b2c725a",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/posts/show.blade.php",
+      "sha256": "1eafa00b871fbe288a3e9a7e369101285073377812b9c4a31ca699bf42bedc64",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/posts/zdjecia.blade.php",
+      "sha256": "d1054ee072639ce9c87a5e7944d7fab7b5fe69a8c7feb1736cd8f45d014df4b6",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/profile/connections.blade.php",
+      "sha256": "0d4098460074eb94bdfdd666543e128affff0c5657d7a6d3d3b1ecdf2e1fd94d",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/profile/show.blade.php",
+      "sha256": "01d0b931a7ffb66582259b5b0baf06701ff0ca41c3ac0cae9d3ba14ad04e84d1",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/questions/create.blade.php",
+      "sha256": "066bb1caf84cca964b712ae931f383410e859b8c52a836c1701763e40cb354cc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/questions/index.blade.php",
+      "sha256": "1e2b60cb974e1f68da9c00ff8f0b42e3d9264b8349eded55cebb8ac31e8b5118",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/questions/show.blade.php",
+      "sha256": "5e53dbbad47c07bb9ffa220098e3a9d27883da223f4a0ffcce4d71f9cb8832cd",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/recipes/cooking.blade.php",
+      "sha256": "2d4ab8f7776dee262a43aeaa35d603341fe577d4b36dc36ffbb5d174f26a30bc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/recipes/create.blade.php",
+      "sha256": "cf52b123d02fc493e5e01da26bb85c6e7438d0695957bf41fedcbe1762749b3e",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/recipes/show.blade.php",
+      "sha256": "0273461ed36f8a009e26d2d1cc6618bf2ab0f2d225819b4e67a650306ffda9e1",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/recipes/szczegoly.blade.php",
+      "sha256": "2930b2ff8859be1a17537b30fe691d1e977343b7f0c1a4df81315c1adba2183d",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/recipes/wizard.blade.php",
+      "sha256": "f9ff8ba1b7591c1a659b47a2aaa57e68341d5927f5c699c73a891923407402ca",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/report.blade.php",
+      "sha256": "5c3f6e05c0f19fbeb847ffc17096bf488f314ac382e5762b17558a9dbe229741",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/search.blade.php",
+      "sha256": "4fba0632fbf3be1b6dca303670bff8ab6ab1862c06ba011712dc96b77812b69f",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/accessibility.blade.php",
+      "sha256": "a96a7d27ba6574638ae4ebf2cd83049b7994137da37e8f3669d29eb483f88b48",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/avatar.blade.php",
+      "sha256": "0f60acb7c8e7453ba660705ddaf24fc8dfa3be10c79e9a0d85f7fd8b4cc68700",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/data.blade.php",
+      "sha256": "b85e4330cdd202ed9d412c1768f39b691b27812dc8facbe96590b24b0789419b",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/email.blade.php",
+      "sha256": "bb74a829be38fb7a26c27b81eea502c2105e47724d652530125f53a7c1445c08",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/index.blade.php",
+      "sha256": "18b2cf9746dbc86ff37f5a1e492d952ced9a08419e168b0ff8ddc6ff745ddef5",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/privacy.blade.php",
+      "sha256": "6215a3d5c2798889a1e821d88c677c74fafff3dea21a7cf8c2963c22ed587ae7",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/profile.blade.php",
+      "sha256": "82880416fb073399e138e6686dad358e80acee6d70d1ec18402a32af6e627257",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/security.blade.php",
+      "sha256": "f5839299674740417049d3d7165d7aa7126a1066f9f94e2edc42cc03dd362a0b",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/tags.blade.php",
+      "sha256": "55b62198b40e010b0034219fcdbe6e1f92007329082005b16f367b3c2543e364",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/two_factor/codes.blade.php",
+      "sha256": "52a7eacd71ba19b5ce53d4773115927a76a4ef911ed3b121f87e55dd80986426",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/two_factor/enable.blade.php",
+      "sha256": "3ec5fced71e30c19b670e8d3a6993c0dc89b7794b0a0f7c4a1747a86f09c89d9",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/settings/two_factor/index.blade.php",
+      "sha256": "ae289711a8788223d1e124294ea922b48230f1b987b07437374dbfce872e07ac",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/static/about.blade.php",
+      "sha256": "0ca5ba2827bdac85a4ab2834727d8d8345046865ab2afab5e839f847b978b294",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/static/help.blade.php",
+      "sha256": "30d93cf3e83f8996904100bc8f63f2d86346e8fe834507e593f8f8d487b23555",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/static/legal.blade.php",
+      "sha256": "978382f023ddba242d3cf290b4fc41f007cc0dd8ece997b9597c4fba8bf612bc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/tags/index.blade.php",
+      "sha256": "a294f26ad37acf7ead9c731d3872e6fcc87361fa07f397789f06bb335916b4f3",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/tags/show.blade.php",
+      "sha256": "ff5094fd86fc64f28cb513f75711aca69d94e641f138a03cc92a5ba6472b291b",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/zglos-nielegalna-tresc-potwierdzenie.blade.php",
+      "sha256": "ae46588097e9da52d3bd39b4c0b1bafc2489c098db79beeb801cb1acbac11b22",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/zglos-nielegalna-tresc.blade.php",
+      "sha256": "a01fe6b3726fa7bae459c95f93c9241b7aba1b630551a169e3886376205dbf2d",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/zgloszenia/lista.blade.php",
+      "sha256": "6c3a57881c080eadd5d9ddc7d481eca0de7d87668743c5dd4dd7469d2b88fe18",
+      "equal": true
+    },
+    {
+      "file": "resources/views/pages/zgloszenia/szczegoly.blade.php",
+      "sha256": "411c878e793dff422e180bb093d705b0338407ff05199cfce3f1cd452fcf24dc",
+      "equal": true
+    },
+    {
+      "file": "resources/views/sitemap.blade.php",
+      "sha256": "0805291515798f35c2c6db890b003ec2ca1c2eb7a33dff5bae8116154db9a65d",
+      "equal": true
+    },
+    {
+      "file": "resources/views/vendor/mail/html/header.blade.php",
+      "sha256": "f8393564a130d5e2a902a4aaf3636d65f949d583383756ea94da41216beb3226",
+      "equal": true
+    },
+    {
+      "file": "resources/views/vendor/mail/html/themes/default.css",
+      "sha256": "4c527a6e11810a93c146ba0a8f7b74a224a6328da4cdf453a544543c0747821a",
+      "equal": true
+    },
+    {
+      "file": "routes/console.php",
+      "sha256": "818c26d451503bd572975582c95475e2f4e505f9cee968456187485e0f7266b6",
+      "equal": true
+    },
+    {
+      "file": "routes/web.php",
+      "sha256": "e5a889c0538494ed1fea783d1be58841721031c119865f9e78dbf133d3e485ce",
+      "equal": true
+    },
+    {
+      "file": "config/app.php",
+      "sha256": "dd9fd9f661e5a3b45f596d964c97842bb48b5240a91bd52e030385f9b861781b",
+      "equal": true
+    },
+    {
+      "file": "config/auth.php",
+      "sha256": "4c3c04aea0426b878bafe2e873a1d16b1df56be4d8e2060d9e16367bb8b0b059",
+      "equal": true
+    },
+    {
+      "file": "config/cache.php",
+      "sha256": "c3d513579bba5963c2bd4e48c36dd96340ba62a42cc35357a4b47f737ee21c62",
+      "equal": true
+    },
+    {
+      "file": "config/database.php",
+      "sha256": "bf85cd673724130d79d8adf74446e42c112b4d174a02b9576ff23f8404944cfd",
+      "equal": true
+    },
+    {
+      "file": "config/filesystems.php",
+      "sha256": "cff35e62b8d238caf9d6846c29ad9dca049cf63169538627ba5b9852c6d20a25",
+      "equal": true
+    },
+    {
+      "file": "config/kuking.php",
+      "sha256": "9acf971b18b136bcb49502d742cacee641a4f423463f30dc8060953bbddab271",
+      "equal": true
+    },
+    {
+      "file": "config/livewire.php",
+      "sha256": "d56a239340859fe9eb9ec70b48e9f480ec0189cbce62c92863a1f1871682a9dd",
+      "equal": true
+    },
+    {
+      "file": "config/logging.php",
+      "sha256": "17ee449f9632a648a785c37eac6fb13349edc4a1dd1e22c0d5deeee82cef4aa3",
+      "equal": true
+    },
+    {
+      "file": "config/mail.php",
+      "sha256": "343d8b64565a5f7e9f140468e9a38fd9918b35db01ee425c5b1f527f67a1e0f1",
+      "equal": true
+    },
+    {
+      "file": "config/proxy.php",
+      "sha256": "04490ea739f0d1ac4f52e221a782e0b3791ccc04610410630546a05d76425345",
+      "equal": true
+    },
+    {
+      "file": "config/queue.php",
+      "sha256": "fb72fdd4863926c44e63538a43adb645779efbb6e922e2b304eb225de60891fa",
+      "equal": true
+    },
+    {
+      "file": "config/services.php",
+      "sha256": "8ec384ac621d6b02869e5f379660d50042284eedf60eef6372c2cf998469eb31",
+      "equal": true
+    },
+    {
+      "file": "config/session.php",
+      "sha256": "c98791b4b638c8809bcabbfce0edba2c9df597deb4187ee54b80c170224bad08",
+      "equal": true
+    }
+  ]
+}
