@@ -207,6 +207,32 @@ class WyjecieZZeszytuNieKasujeInnychZeszytowTest extends TestCase
     }
 
     /**
+     * SCENA SIÓDMA — `collection_id` nie w formacie UUID też niczego nie rusza.
+     *
+     * Osobno od sceny szóstej, bo pilnuje INNEJ reguły. Tam chodziło o cudzy,
+     * ale poprawny identyfikator (`exists` z `owner_id`); tutaj o wejście,
+     * które w ogóle nie jest UUID-em. Bez `'bail', ... 'uuid'` zapytanie
+     * `exists` poszłoby z tekstem na kolumnę `uuid` i skończyłoby się błędem
+     * bazy zamiast zdaniem po polsku — a gdyby przeszło, `find()` zwróciłby
+     * `null`, czyli po cichu „wszystkie moje zeszyty". Dokładnie ten zakres
+     * naprawia issue #775, więc musi mieć własną asercję.
+     */
+    public function test_collection_id_nie_w_formacie_uuid_nie_rusza_niczego(): void
+    {
+        [$basia, $przepis] = $this->przepisWTrzechZeszytach();
+
+        $this->actingAs($basia)
+            ->from(route('recipes.show', $przepis->slug))
+            ->delete(route('collections.unsave', $przepis->slug), ['collection_id' => 'to-nie-jest-uuid'])
+            ->assertSessionHasErrors([
+                'collection_id' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
+            ]);
+
+        $this->assertSame(3, $this->wierszeOsoby($basia, $przepis),
+            'Niepoprawny identyfikator zeszytu zdjął przepis z własnych zeszytów Basi.');
+    }
+
+    /**
      * Basia, przepis i TRZY zeszyty, każdy z inną notatką.
      *
      * @return array{0: User, 1: Recipe, 2: array<string, Collection>}

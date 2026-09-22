@@ -17,6 +17,7 @@ CONTROLLER = "app/Http/Controllers/CollectionController.php"
 LAYOUT = "resources/views/components/layout.blade.php"
 CSS = "resources/css/app.css"
 COLLECTION_TEST = "WyborZeszytuMaWalidacjeTest"
+REMOVAL_TEST = "WyjecieZZeszytuNieKasujeInnychZeszytowTest"
 COMPOSER_TEST = "KafelDodawaniaPrzyDuzymTekscieTest"
 
 
@@ -43,6 +44,31 @@ def replace_once(source, old, new):
     return source.replace(old, new, 1)
 
 
+def w_metodzie(nazwa, mutacja):
+    """Mutacja ograniczona do ciała JEDNEJ metody kontrolera.
+
+    Po co: reguła walidacji `collection_id` stoi dziś w dwóch metodach —
+    `selectedCollection()` (zapis do zeszytu) i `wybranyZeszytDoWyjecia()`
+    (wyjęcie z zeszytu, issue #775). Obie mają identyczne linie, więc goły
+    wzorzec przestał trafiać jednoznacznie i `replace_once()` przerywał
+    kontrolę, zamiast cokolwiek zmierzyć. Zakres domykamy tym samym chwytem,
+    co `smaller_help()` przy bloku CSS: wycinamy ciało metody i mutujemy
+    wyłącznie je, żeby każda kontrola mierzyła DOKŁADNIE to miejsce, którego
+    pilnuje jej test.
+    """
+
+    def zastosuj(source):
+        naglowek = "private function " + nazwa + "("
+        if source.count(naglowek) != 1:
+            raise RuntimeError("Kontrola nie znalazła dokładnie jednej metody: " + nazwa)
+        start = source.index(naglowek)
+        klamra = "\n    }\n"
+        koniec = source.index(klamra, start) + len(klamra)
+        return source[:start] + mutacja(source[start:koniec]) + source[koniec:]
+
+    return zastosuj
+
+
 def remove_notice(source):
     start = source.index("@if($collectionError)")
     end = source.index("@endif", start) + len("@endif")
@@ -57,10 +83,18 @@ def smaller_help(source):
 
 
 checks = [
-    ("Format UUID", CONTROLLER, COLLECTION_TEST,
-     lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
-    ("Własność zeszytu", CONTROLLER, COLLECTION_TEST,
-     lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
+    ("Format UUID przy zapisie", CONTROLLER, COLLECTION_TEST,
+     w_metodzie("selectedCollection",
+                lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',"))),
+    ("Format UUID przy wyjmowaniu", CONTROLLER, REMOVAL_TEST,
+     w_metodzie("wybranyZeszytDoWyjecia",
+                lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',"))),
+    ("Własność zeszytu przy zapisie", CONTROLLER, COLLECTION_TEST,
+     w_metodzie("selectedCollection",
+                lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')"))),
+    ("Własność zeszytu przy wyjmowaniu", CONTROLLER, REMOVAL_TEST,
+     w_metodzie("wybranyZeszytDoWyjecia",
+                lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')"))),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
@@ -68,6 +102,7 @@ checks = [
 ]
 
 run_test(COLLECTION_TEST, True)
+run_test(REMOVAL_TEST, True)
 run_test(COMPOSER_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
@@ -89,4 +124,4 @@ with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
             if restored != before:
                 raise RuntimeError("Przywrócone źródło różni się od oryginału.")
         run_test(test, True)
-print("Pięć kontroli negatywnych wykryły regresje; źródła przywrócone.")
+print(f"Kontrole negatywne ({len(checks)}) wykryły regresje; źródła przywrócone.")
