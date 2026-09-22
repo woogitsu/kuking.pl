@@ -1,0 +1,16 @@
+{
+  "nazwa": "854",
+  "plik": "app/Domain/Tags/Actions/UpdateTagFollows.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "31c2a9652d49a64771a41ee4e7172297",
+  "md5_po_mutacji": "479011f6ba04c783d1d8ae25e602f27a",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Stary formularz cofnął nowsze odznaczenie",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T15:56:38Z"
+}

@@ -1,0 +1,1828 @@
+{
+  "duzy-przed": {
+    "rozmiar": "duzy",
+    "skala": {
+      "autorow": 1000,
+      "wpisow": 10000,
+      "zdjecNaWpis": 3,
+      "przepisow": 1000,
+      "komentarzy": 200,
+      "wykonan": 300,
+      "obserwowanych": 60,
+      "tagow": 20,
+      "zdjec": 30000
+    },
+    "analyze_ms": 281.9,
+    "przed_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 145.1,
+          "ms_min": 128.3,
+          "ms_max": 157,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-8c80a5-0",
+          "zapytan": 61,
+          "ms_mediana": 89,
+          "ms_min": 79.9,
+          "ms_max": 99.1,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 30,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar8c80a50",
+          "zapytan": 46,
+          "ms_mediana": 179.2,
+          "ms_min": 168.4,
+          "ms_max": 183.3,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar8c80a50?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 135.1,
+          "ms_min": 118.7,
+          "ms_max": 174.5,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar8c80a50?zakladka=ugotowane",
+          "zapytan": 53,
+          "ms_mediana": 263.5,
+          "ms_min": 260.9,
+          "ms_max": 270.3,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 1025.4,
+          "ms_min": 1019.4,
+          "ms_max": 1050.6,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-8c80a5-0",
+          "zapytan": 3,
+          "ms_mediana": null,
+          "ms_min": null,
+          "ms_max": null,
+          "przerwane_limitem_ms": 10000,
+          "ksztalty_powtorzone": {}
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 33,
+          "ms_mediana": 8327.1,
+          "ms_min": 7798,
+          "ms_max": 8457.3,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {},
+      "strona_25": {}
+    },
+    "po_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 120.7,
+          "ms_min": 116.2,
+          "ms_max": 149.8,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-8c80a5-0",
+          "zapytan": 61,
+          "ms_mediana": 88.7,
+          "ms_min": 82.7,
+          "ms_max": 89.8,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 30,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar8c80a50",
+          "zapytan": 46,
+          "ms_mediana": 84.2,
+          "ms_min": 80.3,
+          "ms_max": 89,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar8c80a50?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 32.3,
+          "ms_min": 30.1,
+          "ms_max": 37.9,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar8c80a50?zakladka=ugotowane",
+          "zapytan": 53,
+          "ms_mediana": 55.4,
+          "ms_min": 55.1,
+          "ms_max": 66,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 81.3,
+          "ms_min": 79.6,
+          "ms_max": 88.8,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-8c80a5-0",
+          "zapytan": 31,
+          "ms_mediana": 133.9,
+          "ms_min": 108.9,
+          "ms_max": 145.9,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 8,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 128.3,
+          "ms_min": 124.5,
+          "ms_max": 131.3,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 90.4,
+          "ms_min": 88.9,
+          "ms_max": 107.6,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-8c80a5-0",
+          "zapytan": 41,
+          "ms_mediana": 57.2,
+          "ms_min": 52.9,
+          "ms_max": 62.9,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 10,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar8c80a50",
+          "zapytan": 46,
+          "ms_mediana": 83.3,
+          "ms_min": 74.8,
+          "ms_max": 84.4,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar8c80a50?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 33.1,
+          "ms_min": 30.2,
+          "ms_max": 36.5,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar8c80a50?zakladka=ugotowane",
+          "zapytan": 52,
+          "ms_mediana": 60.2,
+          "ms_min": 49.8,
+          "ms_max": 60.2,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 89.4,
+          "ms_min": 88.6,
+          "ms_max": 97.2,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-8c80a5-0",
+          "zapytan": 25,
+          "ms_mediana": 82.2,
+          "ms_min": 72.4,
+          "ms_max": 97.6,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 3,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 94.3,
+          "ms_min": 90.1,
+          "ms_max": 99.5,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        }
+      },
+      "strona_25": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 177.9,
+          "ms_min": 168.6,
+          "ms_max": 183.6,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"media\" where \"media\".\"id\" in (?, ?, ?)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-8c80a5-0",
+          "zapytan": 81,
+          "ms_mediana": 109.7,
+          "ms_min": 105.8,
+          "ms_max": 116.3,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 50,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar8c80a50",
+          "zapytan": 46,
+          "ms_mediana": 81.5,
+          "ms_min": 77.2,
+          "ms_max": 85.7,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar8c80a50?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 37.2,
+          "ms_min": 34.1,
+          "ms_max": 53.7,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar8c80a50?zakladka=ugotowane",
+          "zapytan": 52,
+          "ms_mediana": 54.5,
+          "ms_min": 53.3,
+          "ms_max": 56.3,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 112.3,
+          "ms_min": 98.1,
+          "ms_max": 119.2,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-8c80a5-0",
+          "zapytan": 36,
+          "ms_mediana": 158.2,
+          "ms_min": 151.9,
+          "ms_max": 161.4,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 13,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 184.6,
+          "ms_min": 183.8,
+          "ms_max": 193.1,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      }
+    }
+  },
+  "duzy-po": {
+    "rozmiar": "duzy",
+    "skala": {
+      "autorow": 1000,
+      "wpisow": 10000,
+      "zdjecNaWpis": 3,
+      "przepisow": 1000,
+      "komentarzy": 200,
+      "wykonan": 300,
+      "obserwowanych": 60,
+      "tagow": 20,
+      "zdjec": 30000
+    },
+    "analyze_ms": 310,
+    "przed_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 112.4,
+          "ms_min": 110.6,
+          "ms_max": 120.2,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-ddbbe6-0",
+          "zapytan": 33,
+          "ms_mediana": 62,
+          "ms_min": 61.7,
+          "ms_max": 66.1,
+          "ksztalty_powtorzone": {
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiarddbbe60",
+          "zapytan": 46,
+          "ms_mediana": 137.6,
+          "ms_min": 133.6,
+          "ms_max": 138.1,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiarddbbe60?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 101.9,
+          "ms_min": 90.9,
+          "ms_max": 108.9,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiarddbbe60?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 178.8,
+          "ms_min": 169.2,
+          "ms_max": 185.4,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 916.4,
+          "ms_min": 894.9,
+          "ms_max": 932.4,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-ddbbe6-0",
+          "zapytan": 23,
+          "ms_mediana": 232,
+          "ms_min": 202.8,
+          "ms_max": 232.9,
+          "ksztalty_powtorzone": {}
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 104.2,
+          "ms_min": 103,
+          "ms_max": 106.6,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {},
+      "strona_25": {}
+    },
+    "po_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 132.2,
+          "ms_min": 118.8,
+          "ms_max": 141.5,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-ddbbe6-0",
+          "zapytan": 33,
+          "ms_mediana": 59.6,
+          "ms_min": 57.8,
+          "ms_max": 62.2,
+          "ksztalty_powtorzone": {
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiarddbbe60",
+          "zapytan": 46,
+          "ms_mediana": 83.2,
+          "ms_min": 83.1,
+          "ms_max": 94.3,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiarddbbe60?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 32.7,
+          "ms_min": 32.3,
+          "ms_max": 33.7,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiarddbbe60?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 36.9,
+          "ms_min": 36.9,
+          "ms_max": 40.6,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 75.7,
+          "ms_min": 74.3,
+          "ms_max": 87.3,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-ddbbe6-0",
+          "zapytan": 23,
+          "ms_mediana": 113.2,
+          "ms_min": 107.9,
+          "ms_max": 113.8,
+          "ksztalty_powtorzone": {}
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 113.6,
+          "ms_min": 108.5,
+          "ms_max": 121.8,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 95.9,
+          "ms_min": 85.1,
+          "ms_max": 100.9,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-ddbbe6-0",
+          "zapytan": 33,
+          "ms_mediana": 58.7,
+          "ms_min": 45.8,
+          "ms_max": 61.2,
+          "ksztalty_powtorzone": {
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiarddbbe60",
+          "zapytan": 46,
+          "ms_mediana": 82.7,
+          "ms_min": 80.3,
+          "ms_max": 87.9,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiarddbbe60?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 27.6,
+          "ms_min": 26.7,
+          "ms_max": 32,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiarddbbe60?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 45.1,
+          "ms_min": 36.6,
+          "ms_max": 55.8,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 84.8,
+          "ms_min": 84.1,
+          "ms_max": 86.7,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-ddbbe6-0",
+          "zapytan": 23,
+          "ms_mediana": 80.8,
+          "ms_min": 80,
+          "ms_max": 87.9,
+          "ksztalty_powtorzone": {
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 83.1,
+          "ms_min": 72.4,
+          "ms_max": 91.9,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        }
+      },
+      "strona_25": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 137.9,
+          "ms_min": 132.9,
+          "ms_max": 144.2,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"media\" where \"media\".\"id\" in (?, ?, ?)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-ddbbe6-0",
+          "zapytan": 33,
+          "ms_mediana": 82.6,
+          "ms_min": 74.5,
+          "ms_max": 84.6,
+          "ksztalty_powtorzone": {
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiarddbbe60",
+          "zapytan": 46,
+          "ms_mediana": 76.9,
+          "ms_min": 76.1,
+          "ms_max": 80.1,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiarddbbe60?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 30.6,
+          "ms_min": 27,
+          "ms_max": 36.8,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiarddbbe60?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 40.3,
+          "ms_min": 37.4,
+          "ms_max": 41.4,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 82.7,
+          "ms_min": 71.5,
+          "ms_max": 86.3,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-ddbbe6-0",
+          "zapytan": 23,
+          "ms_mediana": 138.1,
+          "ms_min": 126.2,
+          "ms_max": 139,
+          "ksztalty_powtorzone": {}
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 130.9,
+          "ms_min": 129.5,
+          "ms_max": 136.4,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      }
+    }
+  },
+  "maly-przed": {
+    "rozmiar": "maly",
+    "skala": {
+      "autorow": 100,
+      "wpisow": 1000,
+      "zdjecNaWpis": 3,
+      "przepisow": 100,
+      "komentarzy": 20,
+      "wykonan": 30,
+      "obserwowanych": 6,
+      "tagow": 20,
+      "zdjec": 3000
+    },
+    "analyze_ms": 106.7,
+    "przed_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 103.8,
+          "ms_min": 103.4,
+          "ms_max": 135.7,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-25ab92-0",
+          "zapytan": 61,
+          "ms_mediana": 69.4,
+          "ms_min": 66.5,
+          "ms_max": 76.7,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 30,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar25ab920",
+          "zapytan": 46,
+          "ms_mediana": 80.2,
+          "ms_min": 69.6,
+          "ms_max": 81.4,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar25ab920?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 31.6,
+          "ms_min": 29.5,
+          "ms_max": 33.5,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar25ab920?zakladka=ugotowane",
+          "zapytan": 52,
+          "ms_mediana": 46.4,
+          "ms_min": 46.1,
+          "ms_max": 61.1,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 80.7,
+          "ms_min": 62.1,
+          "ms_max": 82.3,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-25ab92-0",
+          "zapytan": 31,
+          "ms_mediana": 93.3,
+          "ms_min": 85.5,
+          "ms_max": 102,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 8,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 96.8,
+          "ms_min": 94.9,
+          "ms_max": 104.1,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {},
+      "strona_25": {}
+    },
+    "po_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 87.9,
+          "ms_min": 86.6,
+          "ms_max": 94.9,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-25ab92-0",
+          "zapytan": 61,
+          "ms_mediana": 87.7,
+          "ms_min": 80.3,
+          "ms_max": 88,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 30,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar25ab920",
+          "zapytan": 46,
+          "ms_mediana": 73.5,
+          "ms_min": 73.1,
+          "ms_max": 92.1,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar25ab920?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 31.1,
+          "ms_min": 27.6,
+          "ms_max": 31.6,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar25ab920?zakladka=ugotowane",
+          "zapytan": 52,
+          "ms_mediana": 51.4,
+          "ms_min": 48.3,
+          "ms_max": 52.3,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 52.1,
+          "ms_min": 43.3,
+          "ms_max": 56.2,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-25ab92-0",
+          "zapytan": 31,
+          "ms_mediana": 87.7,
+          "ms_min": 86.6,
+          "ms_max": 92.2,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 8,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 77.6,
+          "ms_min": 75.8,
+          "ms_max": 92.4,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 63.9,
+          "ms_min": 58.9,
+          "ms_max": 65.9,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-25ab92-0",
+          "zapytan": 41,
+          "ms_mediana": 52.4,
+          "ms_min": 48.3,
+          "ms_max": 54.5,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 10,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar25ab920",
+          "zapytan": 46,
+          "ms_mediana": 83.9,
+          "ms_min": 81.4,
+          "ms_max": 84.8,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar25ab920?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 30,
+          "ms_min": 27.3,
+          "ms_max": 31.5,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar25ab920?zakladka=ugotowane",
+          "zapytan": 52,
+          "ms_mediana": 53.4,
+          "ms_min": 51.2,
+          "ms_max": 55.3,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 49.1,
+          "ms_min": 45,
+          "ms_max": 54.9,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-25ab92-0",
+          "zapytan": 25,
+          "ms_mediana": 59.7,
+          "ms_min": 47.4,
+          "ms_max": 60.3,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 3,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 58.4,
+          "ms_min": 52.5,
+          "ms_max": 61.2,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        }
+      },
+      "strona_25": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 126.5,
+          "ms_min": 109.5,
+          "ms_max": 129.1,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-25ab92-0",
+          "zapytan": 71,
+          "ms_mediana": 83,
+          "ms_min": 78.7,
+          "ms_max": 85.8,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 40,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar25ab920",
+          "zapytan": 46,
+          "ms_mediana": 78.9,
+          "ms_min": 72.8,
+          "ms_max": 87.8,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar25ab920?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 27.4,
+          "ms_min": 25.5,
+          "ms_max": 27.5,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar25ab920?zakladka=ugotowane",
+          "zapytan": 52,
+          "ms_mediana": 47.8,
+          "ms_min": 46.6,
+          "ms_max": 55.4,
+          "ksztalty_powtorzone": {
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 13,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 43.8,
+          "ms_min": 42.5,
+          "ms_max": 48.9,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-25ab92-0",
+          "zapytan": 36,
+          "ms_mediana": 121.2,
+          "ms_min": 116.5,
+          "ms_max": 123.2,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 13,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 109.6,
+          "ms_min": 106.3,
+          "ms_max": 110.6,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      }
+    }
+  },
+  "maly-po": {
+    "rozmiar": "maly",
+    "skala": {
+      "autorow": 100,
+      "wpisow": 1000,
+      "zdjecNaWpis": 3,
+      "przepisow": 100,
+      "komentarzy": 20,
+      "wykonan": 30,
+      "obserwowanych": 6,
+      "tagow": 20,
+      "zdjec": 3000
+    },
+    "analyze_ms": 127.2,
+    "przed_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 96.6,
+          "ms_min": 79.6,
+          "ms_max": 96.8,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-700e5b-0",
+          "zapytan": 33,
+          "ms_mediana": 58.3,
+          "ms_min": 57.5,
+          "ms_max": 61.1,
+          "ksztalty_powtorzone": {
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar700e5b0",
+          "zapytan": 46,
+          "ms_mediana": 74,
+          "ms_min": 68.9,
+          "ms_max": 78,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar700e5b0?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 29.4,
+          "ms_min": 28.8,
+          "ms_max": 34,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar700e5b0?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 45.8,
+          "ms_min": 43.4,
+          "ms_max": 50.9,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 72.2,
+          "ms_min": 67.6,
+          "ms_max": 88.3,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-700e5b-0",
+          "zapytan": 23,
+          "ms_mediana": 115.2,
+          "ms_min": 102.6,
+          "ms_max": 117.1,
+          "ksztalty_powtorzone": {}
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 100.5,
+          "ms_min": 95.3,
+          "ms_max": 132.6,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {},
+      "strona_25": {}
+    },
+    "po_analyze": {
+      "strona_15": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 90.3,
+          "ms_min": 78.3,
+          "ms_max": 106.7,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-700e5b-0",
+          "zapytan": 33,
+          "ms_mediana": 74.1,
+          "ms_min": 72.3,
+          "ms_max": 81.9,
+          "ksztalty_powtorzone": {
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar700e5b0",
+          "zapytan": 46,
+          "ms_mediana": 97.1,
+          "ms_min": 94.3,
+          "ms_max": 120.1,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar700e5b0?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 55.6,
+          "ms_min": 37.8,
+          "ms_max": 60.5,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar700e5b0?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 53.3,
+          "ms_min": 47.8,
+          "ms_max": 62.1,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 60.5,
+          "ms_min": 54.1,
+          "ms_max": 63.6,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-700e5b-0",
+          "zapytan": 23,
+          "ms_mediana": 87,
+          "ms_min": 83.9,
+          "ms_max": 91.3,
+          "ksztalty_powtorzone": {}
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 90.5,
+          "ms_min": 89.2,
+          "ms_max": 95.1,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      },
+      "strona_5": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 65.9,
+          "ms_min": 57.4,
+          "ms_max": 67.6,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-700e5b-0",
+          "zapytan": 33,
+          "ms_mediana": 46.2,
+          "ms_min": 44.3,
+          "ms_max": 52.8,
+          "ksztalty_powtorzone": {
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 3,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar700e5b0",
+          "zapytan": 46,
+          "ms_mediana": 99,
+          "ms_min": 96.2,
+          "ms_max": 101.6,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar700e5b0?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 39.7,
+          "ms_min": 37.6,
+          "ms_max": 42,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar700e5b0?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 49.3,
+          "ms_min": 46.1,
+          "ms_max": 52,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 54.8,
+          "ms_min": 44.1,
+          "ms_max": 65.1,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-700e5b-0",
+          "zapytan": 23,
+          "ms_mediana": 54.1,
+          "ms_min": 51.9,
+          "ms_max": 57.3,
+          "ksztalty_powtorzone": {
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?)": 2
+          }
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 53.6,
+          "ms_min": 52.6,
+          "ms_max": 59.3,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2,
+            "select \"media\".*, \"post_media\".\"post_id\" as \"pivot_post_id\", \"post_media\".\"media_id\" as \"pivot_media_id\", \"post_media\".\"position\" as \"pivot_position\" from \"medi": 2,
+            "select \"id\", \"title\", \"slug\", \"visibility\", \"hero_media_id\" from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2,
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2
+          }
+        }
+      },
+      "strona_25": {
+        "strumien obserwowanych (/home)": {
+          "url": "/home",
+          "zapytan": 38,
+          "ms_mediana": 123,
+          "ms_min": 112.6,
+          "ms_max": 131,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona przepisu (/przepisy/{slug})": {
+          "url": "/przepisy/pierogi-700e5b-0",
+          "zapytan": 33,
+          "ms_mediana": 72.4,
+          "ms_min": 71.2,
+          "ms_max": 73.9,
+          "ksztalty_powtorzone": {
+            "select * from \"media\" where \"media\".\"id\" in (?)": 2,
+            "select * from \"users\" where \"users\".\"id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)": 2,
+            "select * from \"recipes\" where \"recipes\".\"id\" in (?) and \"recipes\".\"deleted_at\" is null": 2
+          }
+        },
+        "profil (/@{username})": {
+          "url": "/@pomiar700e5b0",
+          "zapytan": 46,
+          "ms_mediana": 77.2,
+          "ms_min": 74.9,
+          "ms_max": 84.6,
+          "ksztalty_powtorzone": {
+            "select * from \"recipes\" where \"recipes\".\"id\" = ? and \"recipes\".\"deleted_at\" is null limit 1": 12,
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 6,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"posts\" where \"posts\".\"author_id\" = ? and \"posts\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not null an": 2,
+            "select * from \"media\" where \"media\".\"id\" = ? limit 1": 2
+          }
+        },
+        "profil - przepisy": {
+          "url": "/@pomiar700e5b0?zakladka=przepisy",
+          "zapytan": 34,
+          "ms_mediana": 32.5,
+          "ms_min": 26.4,
+          "ms_max": 36,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 5,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" = ? and \"profiles\".\"user_id\" is not null limit 1": 5,
+            "select * from \"users\" where \"users\".\"id\" = ? limit 1": 4,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"recipes\" where \"recipes\".\"author_id\" = ? and \"recipes\".\"author_id\" is not null and \"status\" = ? and \"published_at\" is not n": 2
+          }
+        },
+        "profil - ugotowane": {
+          "url": "/@pomiar700e5b0?zakladka=ugotowane",
+          "zapytan": 30,
+          "ms_mediana": 41.9,
+          "ms_min": 40.9,
+          "ms_max": 45.3,
+          "ksztalty_powtorzone": {
+            "select exists(select * from \"users\" inner join \"follows\" on \"users\".\"id\" = \"follows\".\"followed_id\" where \"follows\".\"follower_id\" = ? and \"users\".\"id\" = ?) as \"e": 4,
+            "select * from \"users\" where \"users\".\"id\" in (?)": 2,
+            "select exists(select * from \"blocks\" where (\"blocker_id\" = ? and \"blocked_id\" = ?) or (\"blocker_id\" = ? and \"blocked_id\" = ?)) as \"exists\"": 2,
+            "select count(*) as \"aggregate\" from \"cooked_events\" where \"cooked_events\".\"user_id\" = ? and \"cooked_events\".\"user_id\" is not null and exists (select * from \"rec": 2
+          }
+        },
+        "wyszukiwarka (/szukaj?q=pierogi)": {
+          "url": "/szukaj?q=pierogi",
+          "zapytan": 36,
+          "ms_mediana": 58.3,
+          "ms_min": 50.4,
+          "ms_max": 60.2,
+          "ksztalty_powtorzone": {
+            "select * from \"cache\" where \"key\" in (?)": 5,
+            "SELECT set_config('pg_trgm.word_similarity_threshold', ?, false)": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 2,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 2,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        },
+        "strona tagu (/tag/{slug})": {
+          "url": "/tag/temat-700e5b-0",
+          "zapytan": 23,
+          "ms_mediana": 116.6,
+          "ms_min": 113.2,
+          "ms_max": 123.9,
+          "ksztalty_powtorzone": {}
+        },
+        "odkrywanie (/odkryj)": {
+          "url": "/odkryj",
+          "zapytan": 32,
+          "ms_mediana": 114.6,
+          "ms_min": 111.5,
+          "ms_max": 118,
+          "ksztalty_powtorzone": {
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocked_id\" where \"blocks\".\"blocker_id\" = ?": 3,
+            "select \"users\".\"id\" from \"users\" inner join \"blocks\" on \"users\".\"id\" = \"blocks\".\"blocker_id\" where \"blocks\".\"blocked_id\" = ?": 3,
+            "select * from \"profiles\" where \"profiles\".\"user_id\" in (?, ?, ?, ?, ?, ?)": 2
+          }
+        }
+      }
+    }
+  }
+}
