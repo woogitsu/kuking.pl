@@ -147,6 +147,16 @@ class OdpowiedzDlaZglaszajacegoMowiPrawdeTest extends TestCase
         $this->assertStringNotContainsString('zasadne', $tresc);
     }
 
+    public function test_niedostepny_cel_nie_udaje_odmowy_ani_wykonanej_sankcji(): void
+    {
+        $tresc = $this->tresc(ModerationAction::ACTION_TARGET_UNAVAILABLE);
+
+        $this->assertStringContainsString('Nie mogliśmy ocenić', $tresc);
+        $this->assertStringContainsString('nie była już dostępna', $tresc);
+        $this->assertStringNotContainsString('zostaje w serwisie', $tresc);
+        $this->assertStringNotContainsString('Uznaliśmy Twoje zgłoszenie za zasadne', $tresc);
+    }
+
     /**
      * Mail nigdy nie może nieść nazwy ani adresu ukaranej osoby — to dane
      * osobowe osoby trzeciej, a mechanizm zgłoszeń nie jest narzędziem do

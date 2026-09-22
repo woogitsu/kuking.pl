@@ -327,8 +327,9 @@ class Recipe extends Model
      * Liczba porcji gotowa do pokazania człowiekowi (audyt A28).
      *
      * DLACZEGO TO NIE JEST `(int) $recipe->servings` W WIDOKU
-     * Kolumna `servings` to `decimal(6,2)`, a formularz dopuszcza `step=0.5`
-     * i `min=0.5`. Rzutowanie na `int` w widoku dawało:
+     * Kolumna `servings` to `decimal(6,2)`, a formularz dopuszcza `step=0.01`
+     * (setne — decyzja właściciela z 20.09.2026, issue #750) i `min=0.5`.
+     * Rzutowanie na `int` w widoku dawało:
      *
      *     w bazie 0.5  → „0 porcji"
      *     w bazie 1.5  → „1 porcji"

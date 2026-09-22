@@ -58,7 +58,7 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
 
         $this->post(route('zglos.nielegalna.store'), $this->poprawneZgloszenie())
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+            ->assertRedirectContains(route('zglos.nielegalna.potwierdzenie').'?potwierdzenie=');
 
         $this->assertDatabaseHas('reports', [
             'source' => Report::SOURCE_LEGAL_NOTICE,
@@ -180,7 +180,7 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
             'target_url' => 'gdzieś na waszej stronie, widziałam to wczoraj',
         ]))
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+            ->assertRedirectContains(route('zglos.nielegalna.potwierdzenie').'?potwierdzenie=');
 
         $zgloszenie = Report::where('source', Report::SOURCE_LEGAL_NOTICE)->firstOrFail();
 
@@ -201,7 +201,11 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(Report::STATUS_REJECTED, $zgloszenie->refresh()->status);
+        $this->assertSame(Report::STATUS_RESOLVED, $zgloszenie->refresh()->status);
+        $this->assertSame(
+            ModerationAction::ACTION_TARGET_UNAVAILABLE,
+            ModerationAction::where('report_id', $zgloszenie->getKey())->sole()->action,
+        );
     }
 
     public function test_brak_uzasadnienia_albo_oswiadczenia_zatrzymuje_zgloszenie(): void

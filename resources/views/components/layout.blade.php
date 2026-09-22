@@ -340,9 +340,9 @@
         JSON, a my nie renderujemy niczego surowego.
     --}}
     {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
-         adres e-mail (`/nowe-haslo/{token}?email=…`). Beacon melduje pełny
-         adres strony, więc bez tego warunku żywy żeton resetu hasła trafiałby
-         do cudzego panelu — uzasadnienie w komentarzu tamtej metody. --}}
+         adres e-mail (`/nowe-haslo/{token}?email=…`). Odczytany beacon usuwa
+         query, ale zostawia ścieżkę. Osobny nagłówek no-referrer chroni
+         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie. --}}
     @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
@@ -1301,8 +1301,22 @@
         <dialog id="powiekszenie" class="lightbox" aria-label="Powiększone zdjęcie">
             <img class="lightbox-obraz" src="" alt="">
 
-            {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
+            {{--
+                Stan wczytywania/błędu dużego wariantu (issue #743).
+
+                Dialog otwiera się PRZED zakończeniem pobierania — jeśli duży
+                plik nie dojdzie albo się nie zdekoduje, ten region (nie samo
+                zepsute `<img>` przeglądarki) mówi po polsku co się stało
+                i daje działającą akcję. `role="status"` + `aria-live="polite"`,
+                żeby czytnik ekranu ogłosił zmianę bez przenoszenia fokusu —
+                fokus zostaje w dialogu, gdzie już jest (pułapka focusu
+                `showModal()`).
+            --}}
+            <p class="lightbox-status" role="status" aria-live="polite" hidden></p>
+
             <form method="dialog" class="lightbox-akcje">
+                <button type="button" class="btn btn-secondary lightbox-ponow" hidden>Spróbuj ponownie</button>
+                {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
                 <button class="btn btn-secondary" type="submit">Zamknij</button>
             </form>
         </dialog>
