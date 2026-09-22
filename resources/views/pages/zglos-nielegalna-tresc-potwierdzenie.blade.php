@@ -1,14 +1,7 @@
-{{--
-    Potwierdzenie na EKRANIE, osobno od potwierdzenia e-mailem.
-
-    List może nie dojść albo trafić do spamu, a zgłaszający ma prawo wiedzieć
-    OD RAZU, że kliknięcie coś zrobiło. Numer sprawy jest tu także dlatego,
-    że część osób zgłasza bez podawania adresu — dla nich to jedyny ślad.
---}}
-<x-layout title="Zgłoszenie przyjęte" :noindex="true">
-    <h1>Przyjęliśmy Twoje zgłoszenie</h1>
-
+{{-- Potwierdzenie ekranowe jest niezależne od e-maila. Bez adresu numer jest jedynym śladem dla zgłaszającego. --}}
+<x-layout :title="$numer ? 'Zgłoszenie przyjęte' : 'Potwierdzenie zgłoszenia'" :noindex="true">
     @if($numer)
+        <h1>Przyjęliśmy Twoje zgłoszenie</h1>
         <div class="sekcja-strony">
             <p class="mt-0">Numer sprawy:</p>
             <p class="kod-do-przepisania">{{ $numer }}</p>
@@ -17,14 +10,18 @@
                 tam potwierdzenie z tym samym numerem.
             </p>
         </div>
+        <p>
+            Człowiek z naszego zespołu przeczyta zgłoszenie i sprawdzi treść.
+            Napiszemy Ci, co postanowiliśmy — także wtedy, gdy uznamy, że treść
+            zostaje.
+        </p>
+    @else
+        <h1>Potwierdzenie zgłoszenia</h1>
+        <p>Na tej stronie nie ma potwierdzenia wysłania. Jeśli zgłoszenie zostało wysłane,
+            mogło do nas dotrzeć. Nie wysyłaj go ponownie tylko z tego powodu.</p>
+        <p>Jeśli potrzebujesz pomocy, napisz na
+            <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a>.</p>
     @endif
-
-    <p>
-        Człowiek z naszego zespołu przeczyta zgłoszenie i sprawdzi treść.
-        Napiszemy Ci, co postanowiliśmy — także wtedy, gdy uznamy, że treść
-        zostaje.
-    </p>
-
     <p>
         <a class="btn btn-quiet" href="{{ route('landing') }}">Wróć na stronę główną</a>
     </p>

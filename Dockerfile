@@ -77,11 +77,15 @@ COPY routes ./routes
 COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs
 COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs
 # Testy z listy `node --test` w skrypcie `build` MUSZĄ tu dojechać — inaczej
-# `npm run build` w tym etapie pada na brakującym pliku. (Osobno: brakuje tu
-# `scripts/panel-komunikat.test.mjs`, który na tej liście stoi od dawna —
-# to zastana usterka etapu, nie tej gałęzi.)
+# `npm run build` w tym etapie pada na brakującym pliku.
+COPY scripts/panel-komunikat.mjs ./scripts/panel-komunikat.mjs
+COPY scripts/panel-komunikat.test.mjs ./scripts/panel-komunikat.test.mjs
 COPY scripts/kopiowanie-adresu.test.mjs ./scripts/kopiowanie-adresu.test.mjs
 
+# Node pomija nieistniejący plik podany do `--test` zamiast kończyć błędem.
+# Bez tej bramki obraz budował się zielono, uruchamiając 21 zamiast 33 testów.
+RUN test -f scripts/panel-komunikat.mjs \
+ && test -f scripts/panel-komunikat.test.mjs
 RUN npm run build
 # Wynik: /app/public/build/{manifest.json,assets/*}
 

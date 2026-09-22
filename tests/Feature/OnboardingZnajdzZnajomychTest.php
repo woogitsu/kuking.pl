@@ -270,6 +270,56 @@ class OnboardingZnajdzZnajomychTest extends TestCase
         );
     }
 
+    /**
+     * Issue #738 — tablica w `q` jest niepoprawnym kształtem parametru GET,
+     * ale nie może wywrócić ekranu ani uruchomić wyszukiwarki fikcyjną frazą
+     * „Array”. Każdy wariant jest osobnym żądaniem rzeczywistej trasy.
+     */
+    public function test_tablicowe_q_daje_pusty_ekran_bez_wyszukiwania_i_sygnalu(): void
+    {
+        $basia = $this->user('basiatablica');
+        $zapytania = [];
+
+        DB::listen(function ($query) use (&$zapytania): void {
+            $zapytania[] = $query->sql;
+        });
+
+        foreach ([
+            ['q' => ['halina']],
+            ['q' => ['nazwa' => 'halina']],
+            ['q' => [['halina']]],
+        ] as $parametry) {
+            $response = $this->actingAs($basia)
+                ->get(route('onboarding.people').'?'.http_build_query($parametry))
+                ->assertOk();
+
+            $this->assertSame('', $response->viewData('phrase'));
+            $this->assertFalse($response->viewData('zaKrotka'));
+            $this->assertNull($response->viewData('wynikiWyszukiwania'));
+        }
+
+        $this->assertSame(0, DB::table('product_signals')->count());
+        $this->assertFalse(
+            collect($zapytania)->contains(fn (string $sql): bool => str_contains($sql, 'display_name_search')),
+            'Tablicowe q uruchomiło zapytanie wyszukiwarki osób.',
+        );
+    }
+
+    public function test_tekstowe_q_z_polskim_znakiem_nadal_wyszukuje_osobe(): void
+    {
+        $szukana = $this->user('zaneta', ['display_name' => 'Żaneta']);
+
+        $response = $this->actingAs($this->user('szukajacazanety'))
+            ->get(route('onboarding.people', ['q' => 'Żaneta']))
+            ->assertOk();
+
+        $this->assertSame('Żaneta', $response->viewData('phrase'));
+        $this->assertSame(
+            [$szukana->getKey()],
+            $response->viewData('wynikiWyszukiwania')->pluck('user_id')->all(),
+        );
+    }
+
     // -----------------------------------------------------------------
     // Regresja: krok da się nadal pominąć, sugerowana ósemka nadal działa.
     // -----------------------------------------------------------------

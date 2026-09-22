@@ -1,0 +1,31 @@
+{
+  "generated_at_utc": "2026-09-09T16:58:03+00:00",
+  "postgres_version": "PostgreSQL 18.6",
+  "php": "8.4.24",
+  "source_sha256_before": "54d91d53eed90f34287ca1591448e6adcb42c45fce4e19bbb41a7c87202b8672",
+  "source_sha256_after": "54d91d53eed90f34287ca1591448e6adcb42c45fce4e19bbb41a7c87202b8672",
+  "tests_selected": [
+    "tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php",
+    "tests/Feature/OryginalTraciWspolrzedneGpsTest.php",
+    "tests/Feature/OryginalZdjeciaTest.php"
+  ],
+  "baseline": {"tests": 21, "assertions": 72, "exit_code": 0},
+  "mutants": [
+    {"id":"M01_png_detector_off","status":"KILLED"},
+    {"id":"M02_webp_detector_off","status":"KILLED"},
+    {"id":"M03_jpeg_detector_off","status":"SURVIVED_TARGETED","classification":"REAL_TEST_GAP","reason":"typowy JPEG nadal wpada w awaryjne strpos; brak testu, że dane po SOS nie są skanowane jako EXIF"},
+    {"id":"M04_png_chunk_name","status":"KILLED"},
+    {"id":"M05_webp_chunk_name","status":"KILLED"},
+    {"id":"M06_webp_odd_padding","status":"SURVIVED_TARGETED","classification":"REAL_TEST_GAP","reason":"brak testu poprzedzającego chunku RIFF o nieparzystej długości; niezależna sonda A7 potwierdza poprawne zachowanie obecnego kodu"},
+    {"id":"M07_jpeg_sos_marker","status":"SURVIVED_TARGETED","classification":"REAL_TEST_GAP","reason":"brak testu gwarantującego zatrzymanie parsera JPEG na SOS"},
+    {"id":"M08_jpeg_app1_marker","status":"KILLED"},
+    {"id":"M09_little_endian","status":"KILLED"},
+    {"id":"M10_big_endian","status":"SURVIVED_TARGETED","classification":"REAL_TEST_GAP","reason":"testy autora używają TIFF little-endian; niezależna sonda A7 potwierdza, że obecny big-endian działa"},
+    {"id":"M11_magic","status":"KILLED"},
+    {"id":"M12_gps_tag","status":"KILLED"},
+    {"id":"M13_inline_boundary","status":"SURVIVED_TARGETED","classification":"REAL_TEST_GAP","reason":"brak wpisu TIFF o wartości dokładnie 4 B; mutant może potraktować wartość inline jak offset i przerwać sanitację"},
+    {"id":"M14_png_crc_bypass","status":"KILLED"},
+    {"id":"M15_prefix_skip","status":"SURVIVED_TARGETED","classification":"REAL_TEST_GAP","reason":"komentarz klasy deklaruje obsługę Exif\\0\\0 wewnątrz PNG/WebP, ale testy tego wariantu nie chronią"},
+    {"id":"M16_crc_boundary","status":"SURVIVED_TARGETED","classification":"EQUIVALENT_FOR_VALID_PNG","reason":"różnica zachowania zachodzi tylko gdy CRC eXIf kończy cały plik; poprawny PNG musi mieć późniejszy IEND"}
+  ]
+}

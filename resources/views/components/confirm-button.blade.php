@@ -26,7 +26,10 @@
     u samej góry ekranu. Pytanie wpisane w stronę widać tam, gdzie człowiek
     właśnie patrzy.
 --}}
-@props(['action', 'method' => 'DELETE', 'label', 'question'])
+{{-- `fields`: pola ukryte dopisywane do formularza (np. `oczekiwany_id`
+     przy #793 — identyfikator osoby widzianej w chwili renderowania, nie
+     tej, którą nazwa użytkownika w adresie wskazuje dziś). --}}
+@props(['action', 'method' => 'DELETE', 'label', 'question', 'fields' => []])
 
 <details class="confirm">
     <summary class="btn btn-danger confirm-summary">{{ $label }}</summary>
@@ -37,6 +40,9 @@
         <form method="POST" action="{{ $action }}">
             @csrf
             @method($method)
+            @foreach($fields as $nazwa => $wartosc)
+                <input type="hidden" name="{{ $nazwa }}" value="{{ $wartosc }}">
+            @endforeach
             {{ $slot }}
             <button class="btn btn-danger" type="submit">Tak, {{ mb_strtolower($label) }}</button>
         </form>

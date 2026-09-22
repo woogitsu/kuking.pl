@@ -554,7 +554,22 @@ paczka nie jest potrzebna**. To realna przewaga SES w tym repozytorium.
 > (zdjęcia), a region jest ustawiony literalnie na `auto`. Gdyby SES czytał te
 > same zmienne, próbowałby zalogować się do Amazona kluczem Cloudflare
 > w regionie, którego Amazon nie ma. Dlatego `config/services.php` daje poczcie
-> **własne** nazwy i dopiero potem sięga po `AWS_*`.
+> **własne** nazwy i nigdy nie sięga po `AWS_*`.
+
+Brak `MAIL_SES_KEY` albo `MAIL_SES_SECRET` (także pusta wartość) oznacza
+odmowę startu procesu, jeśli wybrany mailer używa `ses` lub `ses-v2`.
+Dotyczy to również aliasów oraz składników `failover` i `roundrobin`.
+Jawne wybranie innego mailera SES później także odmawia budowy transportu
+bez kompletu poświadczeń. Komunikat podaje nazwę brakującej zmiennej,
+nigdy jej wartość. Brak `MAIL_SES_REGION` daje `eu-central-1`, niezależnie
+od `AWS_DEFAULT_REGION=auto`. Po poprawieniu zmiennych odśwież cache
+konfiguracji i uruchom proces ponownie.
+
+To zabezpieczenie konfiguracji, **nie włączenie SES na produkcji**. Wybór
+innego dostawcy nadal wymaga decyzji właściciela (D-047). Rollback kodu
+przywróciłby niebezpieczne dziedziczenie poświadczeń R2; bezpiecznym
+wycofaniem wdrożenia jest pozostawienie dotychczasowego mailera EmailLabs,
+nie użycie `AWS_*` zamiast brakującego `MAIL_SES_*`. Nie ma migracji danych.
 
 | Zmienna | Wartość | Sekret? |
 |---|---|---|
