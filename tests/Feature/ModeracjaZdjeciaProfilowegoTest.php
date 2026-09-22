@@ -4,8 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
-use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
+use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Jobs\PrzeanalizujAwatar;
 use App\Models\Media;
 use App\Models\ModerationAction;
@@ -14,7 +14,6 @@ use App\Models\Profile;
 use App\Models\Report;
 use App\Models\User;
 use App\Moderacja\OcenaModelem;
-use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Http;
@@ -23,11 +22,23 @@ use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 use Intervention\Image\ImageManager;
+use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * ZDJĘCIE PROFILOWE PRZECHODZI PRZEZ MODEL (issue #237).
+ * ZDJĘCIE PROFILOWE NIE WYCHODZI DO MODELU (D-239; wcześniej issue #237).
+ *
+ * CO SIĘ ZMIENIŁO
+ * Od #237 do D-239 miniatura awatara szła do OpenAI. Decyzja właściciela
+ * z 22.09.2026: awatar bez potwierdzonej zgody nie wychodzi, a serwis nie ma
+ * mechanizmu takiej zgody. Te testy pilnują więc dwóch rzeczy: że żadna droga
+ * (formularz, zadanie zostawione w kolejce) nie wysyła zdjęcia profilowego,
+ * i że oznaczenia awatarów sprzed tej zmiany dalej da się rozpatrzyć
+ * w panelu moderatora.
+ *
+ * Poniżej zostaje opis z #237 — powody, dla których ocena awatarów w ogóle
+ * powstała, są dalej prawdziwe i będą potrzebne przy jej przywracaniu.
  *
  * DLACZEGO TO JEST WAŻNIEJSZE, NIŻ WYGLĄDA
  * Awatar jest widoczny CZĘŚCIEJ niż jakikolwiek wpis: chodzi za człowiekiem
@@ -64,35 +75,39 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // ŁAPIE
+    // NIE WYCHODZI (D-239)
     // ---------------------------------------------------------------
 
+    /** @return array<string, array{string}> */
+    public static function stanyAwatara(): array
+    {
+        return [
+            'gotowy, model odpowiedzialby „nienawisc"' => ['hate'],
+            'gotowy, model odpowiedzialby „tresc seksualna"' => ['sexual'],
+            'w przetwarzaniu' => ['processing'],
+        ];
+    }
+
     #[Test]
-    public function test_zdjecie_profilowe_trafia_do_kolejki_jako_oznaczenie_pliku(): void
+    #[DataProvider('stanyAwatara')]
+    public function test_zadanie_z_kolejki_nie_wysyla_zdjecia_profilowego(string $stan): void
     {
         Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
+        $this->modelOdpowiada([$stan === 'sexual' ? 'sexual' : 'hate' => 0.93]);
 
         $osoba = $this->user('awatarowa');
         $zdjecie = $this->awatar($osoba);
 
+        if ($stan === 'processing') {
+            $zdjecie->forceFill(['status' => Media::STATUS_PROCESSING])->save();
+        }
+
+        // Zadanie mogło zostać w kolejce sprzed wdrożenia D-239.
         $this->analizuj($zdjecie);
 
-        $oznaczenie = Report::query()->where('source', Report::SOURCE_AUTOMAT)->sole();
-
-        // CELEM JEST PLIK, NIE KONTO — patrz komentarz klasy.
-        $this->assertSame('media', $oznaczenie->target_type);
-        $this->assertSame((string) $zdjecie->getKey(), (string) $oznaczenie->target_id);
-
-        // …ale człowiek, którego to dotyczy, jest zapisany, bo kolejka
-        // automatu grupuje po autorze i kara zawsze dotyczy człowieka.
-        $this->assertSame((string) $osoba->getKey(), (string) $oznaczenie->autor_tresci_id);
-
-        $this->assertSame(OcenaModelem::KOD, $oznaczenie->reason);
-
-        // Moderator musi wiedzieć, NA CO patrzy, zanim otworzy podgląd.
-        $this->assertStringContainsString('Zdjęcie profilowe', (string) $oznaczenie->details);
-        $this->assertStringContainsString('mowa nienawiści', (string) $oznaczenie->details);
+        Http::assertNothingSent();
+        $this->assertSame(0, Report::query()->count());
+        Notification::assertNothingSent();
     }
 
     #[Test]
@@ -106,7 +121,6 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
 
         $this->analizuj($zdjecie);
 
-        // Zdjęcie nadal jest awatarem i nadal jest gotowe do pokazania.
         $osoba->refresh();
         $this->assertSame(
             (string) $zdjecie->getKey(),
@@ -114,179 +128,8 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
             'Automat podmienił komuś awatar — to jest shadow filtering (D-052 poz. 3.16).',
         );
         $this->assertSame(Media::STATUS_READY, $zdjecie->refresh()->status);
-
-        // Żadnej decyzji i żadnego powiadomienia — bo nic się nie stało.
         $this->assertSame(0, ModerationAction::query()->count());
         $this->assertSame(0, PowiadomienieWSerwisie::query()->where('user_id', $osoba->getKey())->count());
-    }
-
-    #[Test]
-    public function test_drugie_zdjecie_tego_samego_konta_dostaje_wlasne_oznaczenie(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
-
-        $osoba = $this->user('podmieniajaca');
-
-        $pierwsze = $this->awatar($osoba);
-        $this->analizuj($pierwsze);
-
-        // Podmiana zdjęcia to sekunda pracy. Gdyby celem oznaczenia było
-        // konto, indeks `reports_jeden_automat_na_tresc` przepuściłby tylko
-        // pierwsze zdjęcie — i cała funkcja dałaby się obejść jednym klikiem.
-        $drugie = $this->awatar($osoba);
-        $this->analizuj($drugie);
-
-        $cele = Report::query()
-            ->where('source', Report::SOURCE_AUTOMAT)
-            ->pluck('target_id')
-            ->map(static fn ($id): string => (string) $id)
-            ->all();
-
-        $this->assertCount(2, $cele);
-        $this->assertContains((string) $pierwsze->getKey(), $cele);
-        $this->assertContains((string) $drugie->getKey(), $cele);
-    }
-
-    #[Test]
-    public function test_pilna_kategoria_alarmuje_moderatora_poczta(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['sexual' => 0.88]);
-
-        $this->analizuj($this->awatar($this->user('pilna')));
-
-        Notification::assertSentOnDemand(PilnyAlarmModeracyjny::class);
-    }
-
-    #[Test]
-    public function test_do_modelu_idzie_przekodowana_miniatura_a_nie_oryginal(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
-
-        $this->analizuj($this->awatar($this->user('miniaturowa')));
-
-        Http::assertSent(function ($zadanie): bool {
-            $tresc = $zadanie->data()['input'][0] ?? [];
-            $adres = (string) ($tresc['image_url']['url'] ?? '');
-
-            // JPEG, nie WebP i nie oryginał: oryginał niesie pełny EXIF,
-            // czyli współrzędne GPS kuchni (AGENTS.md §7).
-            return str_starts_with($adres, 'data:image/jpeg;base64,')
-                && ! str_contains($adres, 'incoming/');
-        });
-    }
-
-    // ---------------------------------------------------------------
-    // NIE ŁAPIE — I TO TEŻ MUSI BYĆ PILNOWANE
-    // ---------------------------------------------------------------
-
-    #[Test]
-    public function test_zdjecie_ktore_przestalo_byc_awatarem_nie_jest_oceniane(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
-
-        $osoba = $this->user('rozmyslila');
-        $zdjecie = $this->awatar($osoba);
-
-        // Ktoś zdążył podmienić zdjęcie albo je usunąć, zanim zadanie
-        // wyszło z kolejki. Oglądanie pliku, którego nikt już nie widzi,
-        // dokładałoby moderatorowi pozycję za treść, której nie ma na ekranie.
-        Profile::query()->where('user_id', $osoba->getKey())->update(['avatar_media_id' => null]);
-
-        $this->analizuj($zdjecie);
-
-        Http::assertNothingSent();
-        $this->assertSame(0, Report::query()->count());
-    }
-
-    #[Test]
-    public function test_zdjecie_w_przetwarzaniu_wraca_do_kolejki_zamiast_cicho_przepasc(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
-
-        $osoba = $this->user('wtrakcie');
-        $zdjecie = $this->awatar($osoba);
-        $zdjecie->forceFill(['status' => Media::STATUS_PROCESSING])->save();
-
-        $zadanie = (new PrzeanalizujAwatar((string) $zdjecie->getKey()))->withFakeQueueInteractions();
-
-        $zadanie->handle(
-            app(OcenaModelem::class),
-            app(OznaczDoPrzegladu::class),
-            app(AlarmujModeratora::class),
-        );
-
-        // Wariant `thumb` powstaje w INNYM zadaniu, na innej kolejce. Gdyby
-        // to zadanie kończyło się tu powodzeniem, cała funkcja działałaby
-        // wyłącznie wtedy, gdy worker mediów wyprzedzi worker kolejki `low`.
-        $zadanie->assertReleased(30);
-
-        Http::assertNothingSent();
-        $this->assertSame(0, Report::query()->count());
-    }
-
-    #[Test]
-    public function test_odrzucone_zdjecie_nie_stawia_oznaczenia(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
-
-        $osoba = $this->user('odrzucone');
-        $zdjecie = $this->awatar($osoba);
-        $zdjecie->forceFill(['status' => Media::STATUS_REJECTED])->save();
-
-        $this->analizuj($zdjecie);
-
-        Http::assertNothingSent();
-        $this->assertSame(0, Report::query()->count());
-    }
-
-    #[Test]
-    public function test_awaria_modelu_nie_ma_zadnego_skutku(): void
-    {
-        Notification::fake();
-        Http::fake(['*api.openai.com*' => Http::response('', 500)]);
-
-        $osoba = $this->user('awaria');
-        $zdjecie = $this->awatar($osoba);
-
-        $this->analizuj($zdjecie);
-
-        $this->assertSame(0, Report::query()->count());
-        $this->assertSame(
-            (string) $zdjecie->getKey(),
-            (string) $osoba->refresh()->profile->avatar_media_id,
-        );
-    }
-
-    #[Test]
-    public function test_wylaczony_automat_nie_wysyla_zdjecia_nikomu(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
-        config(['kuking.moderation.sygnaly.wlaczone' => false]);
-
-        $this->analizuj($this->awatar($this->user('wylaczony')));
-
-        Http::assertNothingSent();
-        $this->assertSame(0, Report::query()->count());
-    }
-
-    #[Test]
-    public function test_wylaczona_ocena_zdjec_nie_wysyla_awatara(): void
-    {
-        Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
-        config(['kuking.moderation.model.ocenia_zdjecia' => false]);
-
-        $this->analizuj($this->awatar($this->user('bezzdjec')));
-
-        Http::assertNothingSent();
-        $this->assertSame(0, Report::query()->count());
     }
 
     // ---------------------------------------------------------------
@@ -294,7 +137,7 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
     // ---------------------------------------------------------------
 
     #[Test]
-    public function test_wgranie_zdjecia_zleca_ocene_modelem(): void
+    public function test_wgranie_zdjecia_nie_zleca_oceny_modelem(): void
     {
         Queue::fake();
 
@@ -306,20 +149,17 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
             ])
             ->assertRedirect(route('settings.avatar'));
 
-        // Bez tego zlecenia cała funkcja nie istnieje — a widać to tylko tu,
-        // bo formularz działa identycznie w obu przypadkach.
-        Queue::assertPushed(PrzeanalizujAwatar::class);
+        Queue::assertNotPushed(PrzeanalizujAwatar::class);
     }
 
     #[Test]
     public function test_kolejka_pokazuje_miniature_zdjecia_i_prowadzi_na_profil(): void
     {
         Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
 
         $osoba = $this->user('ogladana');
         $zdjecie = $this->awatar($osoba);
-        $this->analizuj($zdjecie);
+        $this->oznaczenieSprzedD239($zdjecie);
 
         // `moderator()` z `TestCase`, bo bez POTWIERDZONEGO 2FA żądanie
         // odbija się o `EnsureModeratorHasTwoFactor` (403), zanim dojdzie do
@@ -335,10 +175,9 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
     public function test_przy_zdjeciu_nie_wolno_ukryc_ani_usunac(): void
     {
         Notification::fake();
-        $this->modelOdpowiada(['hate' => 0.93]);
 
         $osoba = $this->user('decyzyjna');
-        $this->analizuj($this->awatar($osoba));
+        $this->oznaczenieSprzedD239($this->awatar($osoba));
 
         $oznaczenie = Report::query()->where('source', Report::SOURCE_AUTOMAT)->sole();
 
@@ -391,6 +230,17 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
         Profile::query()->where('user_id', $osoba->getKey())->update(['avatar_media_id' => $zdjecie->getKey()]);
 
         return $zdjecie->refresh();
+    }
+
+    /**
+     * Oznaczenie awatara, jakie postawiał automat przed D-239. Takie wiersze
+     * dalej leżą w kolejce i moderator musi móc je rozpatrzyć.
+     */
+    private function oznaczenieSprzedD239(Media $zdjecie): void
+    {
+        app(OznaczDoPrzegladu::class)->handle($zdjecie, [
+            new Sygnal(OcenaModelem::KOD, 'Zdjęcie profilowe: mowa nienawiści', false),
+        ]);
     }
 
     private function analizuj(Media $zdjecie): void
