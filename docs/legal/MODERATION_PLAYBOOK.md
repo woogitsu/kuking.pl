@@ -422,3 +422,13 @@ Przy 1–2 osobach moderacja treści wrażliwych (zwłaszcza zdjęć i opisów) 
 - Powiązane: `docs/legal/COMPLIANCE.md` (podstawy prawne DSA/RODO cytowane w tym dokumencie)
 - Wewnętrzne źródło produktowe: `docs/MODERATION.md` (założenia produktowe, na których oparto ten podręcznik)
 - Kod, który egzekwuje terminy i decyzje opisane wyżej: `config/kuking.php` (`kuking.moderation`), `app/Domain/Moderation/`, `app/Http/Controllers/Admin/ModerationController.php`, `app/Http/Controllers/Admin/AppealController.php`, `routes/console.php` (harmonogram)
+
+## Potwierdzenie formularza zgłoszenia — #842
+
+Ekran po wysłaniu zachowuje numer sprawy przez 30 minut w sesji tej samej
+osoby. Każde wysłanie ma osobne potwierdzenie, więc dwie karty nie podmieniają
+sobie numerów. Bez kontekstu lub po wygaśnięciu ekran nie twierdzi, że nowe
+zgłoszenie przyjęto, i nie zachęca do ponownego wysyłania. Sam adres
+potwierdzenia nie daje dostępu do sprawy w innej sesji. Nie zmienia to
+retencji zgłoszeń, potwierdzeń pocztą ani sposobu pracy moderatora.
+Pomiar i granice: `docs/product/KONTAKT_FORMULARZ_836_842.md`.
