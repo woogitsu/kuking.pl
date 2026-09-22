@@ -159,7 +159,25 @@ uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
 sprawdz 'mtime wraca co do ułamka sekundy, nie tylko co do sekundy' \
         "$mtime_przed" "$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
 
-# --- 9. Trafienie przed dużym wyjściem nie może zginąć przez SIGPIPE ----------
+# --- 9. REGRESJA: JSON i konsola muszą meldować to samo przywrócenie -------
+# Do 21 września 2026 pole "przywrocenie" w JSON było liczone w INNYM
+# miejscu niż komunikat na konsolę: JSON zapisywał się w głównym biegu
+# skryptu, ZANIM `trap` na EXIT zdążył naprawdę przywrócić plik, więc
+# zostawał przy wartości startowej „nie wykonane" — mimo że przywrócenie
+# się udało i konsola poprawnie meldowała „Źródło przywrócone". Ten sam
+# fakt liczony dwa razy w dwóch miejscach dawał dwie różne odpowiedzi.
+JSON_9="$PRACA/wynik-9.json"
+rm -f "$JSON_9"
+( cd "$PRACA" && "$PRZYRZAD" --plik zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+    --oczekuj 'BRAMKA_ZDJETA' --json "$JSON_9" -- ./test-dobry.sh zrodlo.txt ) >"$PRACA/wyjscie.log" 2>&1
+if [ -f "$JSON_9" ] && grep -qF '"przywrocenie": "ok' "$JSON_9"; then
+    printf "  ${ZIELONY}✓${RESET} JSON zgadza się z konsolą: przywrocenie zapisane jako „ok”, nie „nie wykonane”\n"; zdane=$((zdane + 1))
+else
+    printf "  ${CZERWONY}✗${RESET} JSON rozjeżdża się z konsolą — pole \"przywrocenie\" nie mówi „ok”\n"
+    [ -f "$JSON_9" ] && grep '"przywrocenie"' "$JSON_9" | sed 's/^/     /'
+    oblane=$((oblane + 1))
+fi
+# --- 10. Trafienie przed dużym wyjściem nie może zginąć przez SIGPIPE --------
 cat > "$PRACA/test-duze-wyjscie.sh" <<'EOF'
 #!/usr/bin/env bash
 if grep -q 'BRAMKA=wlaczona' "$1"; then exit 0; fi

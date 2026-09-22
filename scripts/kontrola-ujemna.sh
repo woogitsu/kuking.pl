@@ -153,6 +153,21 @@ przywroc() {
         fi
         PRZYWROCENIE="ok (MD5 $md5_po, mtime $mtime_po)"
         rm -f "$KOPIA"
+        # JEDNO ŹRÓDŁO PRAWDY: do 21 września 2026 ten fakt był liczony w
+        # dwóch miejscach osobno. Komunikat na konsolę powstawał TU, po
+        # naprawdę wykonanym porównaniu MD5 i mtime. JSON zapisywał go
+        # wcześniej — jawnym wywołaniem `zapisz_json` w głównym biegu skryptu,
+        # zanim ten `trap` (uruchamiany na EXIT) w ogóle zdążył przywrócić
+        # plik. Pole „przywrocenie” w JSON zastawało więc swoją wartość
+        # startową „nie wykonane" i takie zostawało, mimo że przywrócenie
+        # faktycznie się powiodło — konsola i JSON mówiły o tym samym fakcie
+        # co innego, bo mierzyły go w dwóch różnych momentach.
+        # Naprawa: przepisujemy JSON TERAZ, PO realnym przywróceniu, tym
+        # samym `$WERDYKT`, którym posłużył się główny bieg. Trap na EXIT
+        # kończy się zawsze jako ostatni, więc ten zapis jest ostatnim i
+        # jedynym wiarygodnym stanem na dysku — nie ma już dwóch ścieżek
+        # liczących to samo.
+        zapisz_json "$WERDYKT"
         ok "Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu."
     fi
     exit "$kod"

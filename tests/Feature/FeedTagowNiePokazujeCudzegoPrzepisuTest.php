@@ -6,6 +6,7 @@ namespace Tests\Feature;
 
 use App\Domain\Feed\TagFeed;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Social\Actions\FollowUser;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
@@ -106,6 +107,103 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
     }
 
     /**
+     * FURTKA „AUTOR WIDZI SWOJE" DZIAŁA — I NIE SIĘGA DALEJ.
+     *
+     * `Post::scopeZWidocznymPrzepisem()` ma nad sobą komentarz obiecujący
+     * JEDEN Świadomy wyjątek: autor zobaczy w strumieniu własny przepis
+     * „tylko dla obserwujących", „a nawet tylko dla mnie" (AGENTS.md §5,
+     * „poprawne dane nigdy nie znikają"). Zmierzona była dotąd połowa pierwsza:
+     * `followers`, w teście wyżej. Połowa druga — `private`, czyli ta, przy
+     * której wyciek kosztuje najwięcej — nie miała w całym repozytorium żadnej
+     * asercji: ani w stronę „działa", ani w stronę „nie sięga dalej".
+     *
+     * ŚWIADOMA FURTKA BEZ ASERCJI TO NIE TO SAMO, CO FURTKA ZAMKNIĘTA. Kod,
+     * który przepuszcza autorowi jego własną treść, i kod, który przepuszcza za
+     * dużo, wyglądają na zielono identycznie — dopóki nikt nie zapyta, KOMU
+     * jeszcze się otwiera. Dlatego obie strony stoją w jednym teście: osobno,
+     * każda z nich zgnije bez drugiej.
+     *
+     * DLACZEGO GOŚĆ MIERZONY JEST ZAKRESEM, A NIE STRUMIENIEM. `TagFeed`
+     * bierze `User`, nie `?User` — strumień tagów to lista obserwowanych tagów,
+     * a gość żadnych nie obserwuje. Pytanie „czy gość to zobaczy" i tak jest
+     * pytaniem do tego zakresu, bo przy zapowiedzi przepisu jest on JEDYNĄ
+     * bramką, więc stawiam je zakresowi wprost.
+     */
+    public function test_wlasny_przepis_tylko_dla_mnie_widzi_autor_i_nikt_wiecej(): void
+    {
+        [$ola, $wpisPrzepisu, $wpisPubliczny, $kasia] = $this->strumien('private');
+
+        $basia = User::query()->whereKey($wpisPrzepisu->author_id)->firstOrFail();
+
+        $zapowiedz = (string) $wpisPrzepisu->getKey();
+        $kontrolaDodatnia = (string) $wpisPubliczny->getKey();
+
+        // FURTKA DZIAŁA: autorka widzi własny przepis „tylko dla mnie".
+        $this->assertContains(
+            $zapowiedz,
+            $this->strumienOczami($basia),
+            'Autorka nie widzi w strumieniu własnego przepisu „tylko dla mnie". Świadomy wyjątek '
+            .'z komentarza nad `Post::scopeZWidocznymPrzepisem()` przestał działać, a AGENTS.md §5 mówi, '
+            .'że poprawne dane nigdy nie znikają — także własne, także prywatne.',
+        );
+
+        // FURTKA NIE SIĘGA DALEJ: ani obserwująca, ani obca.
+        foreach (['obserwująca autorkę' => $kasia, 'obca osoba' => $ola] as $kto => $widz) {
+            $widziane = $this->strumienOczami($widz);
+
+            // KONTROLA DODATNIA (pułapka 4): ten widz w ogóle coś ze strumienia
+            // dostaje. Bez niej „nie widzi przepisu" znaczyłoby tylko tyle, że
+            // strumień jest pusty z byle powodu.
+            $this->assertContains(
+                $kontrolaDodatnia,
+                $widziane,
+                "Strumień tagów nie oddał nawet publicznego wpisu ({$kto}) — asercja niżej nie mówiłaby "
+                .'wtedy o widoczności przepisu, tylko o pustym feedzie.',
+            );
+
+            $this->assertNotContains(
+                $zapowiedz,
+                $widziane,
+                "Przepis „tylko dla mnie\" wyszedł poza autorkę ({$kto}). Furtka „autor widzi swoje\" "
+                .'sięga dalej, niż obiecuje komentarz nad `Post::scopeZWidocznymPrzepisem()`.',
+            );
+        }
+
+        // I GOŚĆ — pytany zakresem wprost, patrz opis metody.
+        $widzianePrzezGoscia = Post::query()
+            ->zWidocznymPrzepisem(null)
+            ->pluck('id')
+            ->map(fn ($id) => (string) $id)
+            ->all();
+
+        $this->assertContains(
+            $kontrolaDodatnia,
+            $widzianePrzezGoscia,
+            'Zakres odciął gościowi nawet zwykły wpis bez przepisu — asercja niżej nie mierzyłaby '
+            .'wtedy widoczności przepisu, tylko pustego wyniku.',
+        );
+
+        $this->assertNotContains(
+            $zapowiedz,
+            $widzianePrzezGoscia,
+            'Zapowiedź przepisu „tylko dla mnie" przeszła przez zakres dla gościa. Wpis wskazujący '
+            .'przepis jest na stałe `public`, więc ten zakres jest przy nim JEDYNĄ bramką.',
+        );
+    }
+
+    /**
+     * Identyfikatory wpisów, które strumień tagów oddaje temu widzowi.
+     *
+     * @return list<string>
+     */
+    private function strumienOczami(User $widz): array
+    {
+        return collect(app(TagFeed::class)->paginate($widz)->items())
+            ->map(fn (Post $wpis) => (string) $wpis->getKey())
+            ->all();
+    }
+
+    /**
      * `maTresci()` musi pytać DOKŁADNIE tak samo jak `paginate()`.
      *
      * `FeedController::home()` wybiera strumień po tej metodzie. Gdyby pytała
@@ -142,19 +240,33 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
     }
 
     /**
-     * Basia ma przepis „tylko dla obserwujących" z tagiem, Ola obserwuje ten
-     * sam tag i nie obserwuje Basi.
+     * Basia ma przepis z tagiem, Ola obserwuje ten sam tag i nie obserwuje
+     * Basi, a Kasia obserwuje Basię.
      *
-     * @return array{0: User, 1: Post, 2: Post}
+     * KASIA JEST CZĘŚCIĄ POMIARU. Bez niej „nikt inny nie widzi" znaczy tylko
+     * „obca osoba nie widzi" — a to samo powiedziałaby zwykłe zawężenie do
+     * obserwujących. Dopiero OBSERWUJĄCA odróżnia „przepis jest zawężony" od
+     * „przepis jest wyłącznie dla autora".
+     *
+     * @return array{0: User, 1: Post, 2: Post, 3: User}
      */
-    private function strumien(): array
+    private function strumien(string $widocznosc = 'followers'): array
     {
         $tag = Tag::create(['slug' => 'obiady', 'name' => 'Obiady', 'normalized_name' => 'obiady']);
 
         $basia = $this->user('basia');
         $ola = $this->user('ola');
+        $kasia = $this->user('kasia');
         $ola->followedTags()->attach($tag->getKey(), ['created_at' => now()]);
         $basia->followedTags()->attach($tag->getKey(), ['created_at' => now()]);
+        $kasia->followedTags()->attach($tag->getKey(), ['created_at' => now()]);
+        app(FollowUser::class)->handle($kasia, $basia);
+
+        $this->assertTrue(
+            $kasia->following()->whereKey($basia->getKey())->exists(),
+            'Kasia nie obserwuje Basi — wtedy „Kasia nie widzi przepisu tylko dla mnie" nie mówi '
+            .'nic o zasięgu furtki dla autora, bo Kasia nie zobaczyłaby też przepisu dla obserwujących.',
+        );
 
         $this->assertFalse(
             $ola->following()->whereKey($basia->getKey())->exists(),
@@ -164,7 +276,7 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
 
         $przepis = app(PublishRecipe::class)->handle(
             author: $basia,
-            attributes: ['title' => 'Bigos z kapusty kiszonej', 'visibility' => 'followers', 'source_type' => 'own'],
+            attributes: ['title' => 'Bigos z kapusty kiszonej', 'visibility' => $widocznosc, 'source_type' => 'own'],
             ingredients: [['text' => 'kapusta kiszona']],
             steps: [['instruction' => 'Gotuj powoli, przez trzy godziny.']],
             publish: true,
@@ -174,7 +286,7 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
             'hero_media_id' => Media::factory()->create(['owner_id' => $basia->getKey()])->getKey(),
         ])->save();
 
-        $this->assertSame('followers', $przepis->fresh()->visibility);
+        $this->assertSame($widocznosc, $przepis->fresh()->visibility);
 
         /** @var Post $wpisPrzepisu */
         $wpisPrzepisu = Post::query()->where('recipe_id', $przepis->getKey())->firstOrFail();
@@ -196,6 +308,6 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
         ]);
         $wpisPubliczny->tags()->attach($tag->getKey(), ['position' => 0]);
 
-        return [$ola, $wpisPrzepisu, $wpisPubliczny];
+        return [$ola, $wpisPrzepisu, $wpisPubliczny, $kasia];
     }
 }

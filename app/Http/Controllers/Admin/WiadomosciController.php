@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Compliance\PrzedawnioneWiadomosciDoOperatora;
 use App\Domain\Contact\Actions\UpdateContactMessage;
 use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Http\Controllers\Controller;
@@ -34,7 +35,10 @@ use Illuminate\View\View;
  */
 class WiadomosciController extends Controller
 {
-    public function __construct(private readonly WyslijOdpowiedz $wyslij) {}
+    public function __construct(
+        private readonly WyslijOdpowiedz $wyslij,
+        private readonly PrzedawnioneWiadomosciDoOperatora $retencja,
+    ) {}
 
     public function index(Request $request): View
     {
@@ -92,6 +96,9 @@ class WiadomosciController extends Controller
                 'handler.profile',
                 'odpowiedzi.author.profile',
             ]),
+            // `null`, gdy sprawa jest otwarta — patrz
+            // `PrzedawnioneWiadomosciDoOperatora::terminUsuniecia()` (#847).
+            'terminUsuniecia' => $this->retencja->terminUsuniecia($wiadomosc),
         ]);
     }
 
