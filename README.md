@@ -69,11 +69,11 @@ i zakładka Issues.
 | PHP | 8.4 (minimum frameworka: 8.3) |
 | UI | Blade + Alpine.js; Livewire 4 w kreatorze przepisu |
 | CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) |
-| Baza | PostgreSQL 18 (lokalnie i w CI wystarczy 16+) |
+| Baza | PostgreSQL — wymagane **18+** lokalnie, w CI i na produkcji (D-227) |
 | Kolejka | Laravel database queue |
 | Hosting | Railway |
 | DNS / CDN / storage | Cloudflare + R2 |
-| Wyszukiwarka | PostgreSQL: `pg_trgm` + `unaccent` |
+| Wyszukiwarka | PostgreSQL: `pg_trgm` (`word_similarity`, próg 0,5) + `unaccent` — dopasowanie trigramowe (D-004, D-046) |
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) |
 | Mobile | PWA |
@@ -94,7 +94,7 @@ w [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
 
 ## Uruchomienie lokalnie
 
-Wymagania: PHP 8.4, Composer, Node 22, PostgreSQL 16+.
+Wymagania: PHP 8.4, Composer, Node 22, PostgreSQL 18+.
 
 ```bash
 git clone https://github.com/woogitsu/kuking.pl.git
