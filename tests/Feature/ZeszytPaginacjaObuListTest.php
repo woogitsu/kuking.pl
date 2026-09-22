@@ -152,25 +152,7 @@ final class ZeszytPaginacjaObuListTest extends TestCase
         $this->assertStringContainsString($druga->viewData('posts')->getCollection()->first()->body, $sekcja);
     }
 
-    /**
-     * DOKLEJAMY STRONĘ, NA KTÓREJ DRUGA LISTA NAPRAWDĘ STOI — NIE NUMER
-     * WPISANY W ADRES.
-     *
-     * Laravel uznaje `?page=999` za poprawne (liczba całkowita >= 1) i oddaje
-     * pustą stronę, bez cofania na ostatnią. Zanim powstała poprawka #646,
-     * taki numer znikał sam przy pierwszym kliknięciu w drugą listę, bo adres
-     * budował się od zera. Gdyby doklejać `currentPage()` bez docięcia,
-     * poprawka zamieniłaby tę samoleczącą się pomyłkę w stan trwały.
-     *
-     * Dlatego doklejana jest `min(currentPage, lastPage)`: kliknięcie w drugą
-     * listę WRACA do ostatniej strony z treścią, zamiast nieść pustkę dalej.
-     * Oba kierunki, bo asymetria byłaby tu najłatwiejsza do przeoczenia.
-     *
-     * Czego ten test NIE dowodzi: że ręcznie wpisany adres z dwoma numerami
-     * poza zakresem pokaże cokolwiek poza pustym ekranem. Pokaże pusty i tak
-     * było przed tą poprawką — paginator nie rysuje własnego przycisku dla
-     * pustej strony. Docięcie odbiera tylko możliwość DOJŚCIA tam klikaniem.
-     */
+    /** Numer spoza zakresu wraca na istniejącą stronę przed budową linków (#908). */
     public function test_numer_strony_spoza_zakresu_nie_jest_przenoszony_do_odnosnika(): void
     {
         [$owner, $author, $book] = $this->scene();
@@ -178,11 +160,12 @@ final class ZeszytPaginacjaObuListTest extends TestCase
 
         foreach ([['page', 'recipes', self::PRZYCISK_WPISY], ['wpisy', 'posts', self::PRZYCISK_PRZEPISY]] as [$parametr, $lista, $przycisk]) {
             $gdzie = 'Parametr '.$parametr.'=999.';
-            $odpowiedz = $this->actingAs($owner)->get(route('collections.show', ['collection' => $book, $parametr => 999]))->assertOk();
+            $redirect = $this->actingAs($owner)->get(route('collections.show', ['collection' => $book, $parametr => 999]))->assertRedirect();
+            $odpowiedz = $this->get($redirect->headers->get('Location'))->assertOk();
 
-            // Kontrola dodatnia opisu: Laravel naprawdę oddaje pustą stronę.
-            $this->assertSame(999, $odpowiedz->viewData($lista)->currentPage(), $gdzie);
-            $this->assertCount(0, $odpowiedz->viewData($lista), $gdzie);
+            // Kontrola: człowiek widzi ostatnią istniejącą stronę.
+            $this->assertSame(2, $odpowiedz->viewData($lista)->currentPage(), $gdzie);
+            $this->assertCount(1, $odpowiedz->viewData($lista), $gdzie);
 
             $linki = $this->przyciskiWiecej($odpowiedz->getContent());
             $this->assertSame([$przycisk], array_keys($linki), $gdzie.' Pusta lista nie ma przycisku „więcej".');

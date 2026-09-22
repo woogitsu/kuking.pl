@@ -69,9 +69,10 @@ final class NotifyReporterReceipt
      * tego samego zgłoszenia dokończy potwierdzenie
      * (`ReportContent::dokonczPotwierdzenie()`).
      *
-     * A SPRAWA, DO KTÓREJ NIKT NIE WRÓCI, ma własną drogę: decyzją
-     * właściciela z 20.09.2026 obchodzi je komenda
-     * `kuking:dosylaj-potwierdzenia-zgloszen`, wpięta w harmonogram co
+     * A SPRAWA, DO KTÓREJ NIKT NIE WRÓCI, ma własną drogę. Do 20.09.2026
+     * stało tu, że takiej komendy NIE MA i że jej dołożenie jest decyzją
+     * właściciela. Decyzja zapadła: komenda nazywa się
+     * `kuking:dosylaj-potwierdzenia-zgloszen` i chodzi w harmonogramie co
      * godzinę. Woła ona `handle()` niżej, a nie własną kopię tej logiki —
      * zamek na `receipt_sent_at` rozstrzyga więc zbieg dosyłki z powrotem
      * człowieka tak samo, jak rozstrzyga dwa równoległe ponowienia.

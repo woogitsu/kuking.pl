@@ -186,6 +186,28 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
     ->dailyAt('05:00')
     ->withoutOverlapping();
 
+// 05:10 — dziesięć minut po zaproszeniach, tak jak rozsunięta jest cała reszta
+// tej listy (uzasadnienie odstępów wyżej).
+// Retencja tabeli `sessions` (RZ-01): `config('kuking.sessions.retention_days')`
+// dni od ostatniej aktywności, nigdy mniej niż `SESSION_LIFETIME`.
+//
+// DLACZEGO TO ZADANIE JEST POTRZEBNE, SKORO LARAVEL SPRZĄTA SESJE SAM
+// Bo „sam" znaczy `config/session.php` → `'lottery' => [2, 100]`, czyli
+// `gc()` przy dwóch procentach żądań. To jest sprzątanie probabilistyczne
+// i zależne od ruchu — przy małym ruchu wiersz z adresem IP i pełnym
+// `User-Agent` leży dłużej niż `lifetime`, bez żadnej gwarantowanej górnej
+// granicy. Każda inna tabela z danymi osobowymi ma tu swoje nocne zadanie
+// i twardą liczbę; `sessions` była jedyną bez.
+//
+// LOTERIA ZOSTAJE WŁĄCZONA — to nie jest przeoczenie. Dwa mechanizmy mają
+// różne tryby awarii: loteria czyści przy ruchu nawet po śmierci
+// harmonogramu, zadanie czyści co noc nawet bez ruchu.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-sesje'))
+    ->name('kuking:sprzataj-sesje')
+    ->dailyAt('05:10')
+    ->withoutOverlapping();
+
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
 // Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
