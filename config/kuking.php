@@ -2564,6 +2564,24 @@ return [
         // której nie wolno zejść poniżej (pilnuje jej test).
         'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 180),
 
+        // ILE DNI PO ZAMKNIĘCIU SPRAWY DZIAŁA JESZCZE LINK ZGŁASZAJĄCEGO
+        // do strony śledzenia (issue #798, decyzja właściciela 20.09.2026).
+        //
+        // To NIE jest termin na odwołanie i nie ma z nim nic wspólnego —
+        // termin na odwołanie liczy `ModerationAction::appealDeadline()`
+        // (sześć miesięcy), a tu chodzi o dostęp do strony, na której tę
+        // sprawę się śledzi. Przedtem obie rzeczy były jedną liczbą i stąd
+        // wzięło się 403 na własną, wciąż otwartą sprawę.
+        //
+        // Link żyje, DOPÓKI SPRAWA JEST OTWARTA (`DostepDoStronySprawy`),
+        // a ta liczba mówi tylko, ile jeszcze po jej zamknięciu. 30 dni,
+        // bo odpowiedź i tak poszła pocztą (`NotifyReporterAppealOutcome`),
+        // a to okno ma wystarczyć na powrót po nią z maila — nie na
+        // trzymanie sprawy bezterminowo pod adresem, który może trafić
+        // w cudze ręce. Sama LICZBA jest do potwierdzenia przez właściciela;
+        // testy czytają ją stąd, żeby nie zabetonować niewybranego progu.
+        'reporter_case_link_days' => (int) env('KUKING_REPORTER_CASE_LINK_DAYS', 30),
+
         // Ile DNI ROBOCZYCH mamy na odpowiedź. Playbook §3 punkt 4.
         // Świąt nie liczymy — Carbon zna weekendy, nie kalendarz polskich
         // dni wolnych. Termin jest więc celem operacyjnym pokazywanym
