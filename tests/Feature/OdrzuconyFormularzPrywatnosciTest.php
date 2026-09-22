@@ -107,7 +107,20 @@ class OdrzuconyFormularzPrywatnosciTest extends TestCase
         $this->assertMatchesRegularExpression('/name="wants_weekly_digest"[^>]*checked/', $html);
     }
 
-    public function test_poprawne_zapisanie_obu_pol_dziala_jak_dawniej(): void
+    /**
+     * KONTRAKT ZMIENIONY ŚWIADOMIE (#879/#882, pozycja 5 przeglądu właściciela).
+     *
+     * Wcześniej ten test pilnował, że formularz BEZ pól `original_*` zapisuje
+     * się „jak dawniej". Tak już nie jest i nie jest to regresja: formularz,
+     * który nie niesie stanu początkowego, nie potrafi dowieść, że nie
+     * nadpisuje decyzji podjętej po jego otwarciu — na przykład wypisania się
+     * z tygodniowego e-maila klikniętego w międzyczasie w stopce listu.
+     * Właściciel rozstrzygnął, że zapis NIE MOŻE cofać nowszej decyzji, więc
+     * stary formularz dostaje czytelną odmowę zamiast cichego nadpisania.
+     *
+     * Pełne pokrycie tej ścieżki stoi w `StaryFormularzPrywatnosciTest`.
+     */
+    public function test_formularz_bez_stanu_poczatkowego_dostaje_odmowe_zamiast_nadpisac(): void
     {
         $basia = $this->user('basia', [
             'memories_enabled' => true,
@@ -117,10 +130,11 @@ class OdrzuconyFormularzPrywatnosciTest extends TestCase
         $this->actingAs($basia)->put(route('settings.privacy'), [
             'wants_weekly_digest' => '1',
             // memories_enabled pominięte = odznaczenie.
-        ])->assertRedirect()->assertSessionHasNoErrors();
+        ])->assertSessionHasErrors(['original_digest', 'original_memories']);
 
+        // Nic się nie zapisało — ani połowa formularza.
         $basia->refresh();
-        $this->assertFalse($basia->memories_enabled);
-        $this->assertTrue($basia->wants_weekly_digest);
+        $this->assertTrue($basia->memories_enabled);
+        $this->assertFalse($basia->wants_weekly_digest);
     }
 }

@@ -104,8 +104,18 @@ class PrywatnoscKomunikatyIWspomnieniaTest extends TestCase
         $this->assertFalse($target->fresh()->isFollowing($user));
         $this->assertDatabaseMissing('blocks', ['blocker_id' => $user->id, 'blocked_id' => $target->id]);
         $html = $this->get(route('settings.privacy'))->assertOk()->getContent();
-        $this->assertStringContainsString('Zdjęcie blokady nie przywraca obserwowania.', $this->trescEkranu($html));
-        $this->assertStringContainsString('Jeśli na profilu tej osoby jest przycisk', $this->trescEkranu($html));
+        // Brzmienie komunikatu pochodzi z #791 na `main` i jest NOWSZE niż to,
+        // które niosła ta gałąź. Sprawdzamy więc treść obowiązującą, a nie
+        // wariant sprzed odzyskania gałęzi — sedno testu (komunikat pada we
+        // wszystkich pięciu stanach) zostaje bez zmian.
+        $this->assertStringContainsString('obserwowanie się nie wznawia samo', $this->trescEkranu($html));
+        // UWAGA DLA PRZEGLĄDAJĄCEGO: gałąź niosła brzmienie WARUNKOWE („jeśli na
+        // profilu tej osoby jest przycisk »Obserwuj«”), celowo prawdziwe także
+        // dla konta zamkniętego i zawieszonego — dwa zestawy danych niżej.
+        // Brzmienie z #791 na `main` jest nowsze, ale bezwarunkowe. Nie
+        // podmieniam tu tekstu widocznego dla człowieka, bo właściciel nie
+        // rozstrzygał tego komunikatu; zgłaszam różnicę w raporcie.
+        $this->assertStringContainsString('wejdź na jej profil i kliknij', $this->trescEkranu($html));
         if ($mutual) {
             $this->assertDatabaseHas('blocks', ['blocker_id' => $target->id, 'blocked_id' => $user->id]);
         }

@@ -11,14 +11,14 @@
         <input type="hidden" name="original_memories" value="{{ old('original_memories', session()->hasOldInput() ? '' : (int) auth()->user()->memories_enabled) }}">
         <input type="hidden" name="wants_weekly_digest" value="0">
         <label class="choice" for="f-wants_weekly_digest" id="f-original_digest">
-            <input id="f-wants_weekly_digest" type="checkbox" name="wants_weekly_digest" value="1" @checked(old('wants_weekly_digest', auth()->user()->wants_weekly_digest)) @if($errors->hasAny(['wants_weekly_digest', 'original_digest'])) aria-invalid="true" aria-describedby="digest-error" @endif>
+            <input id="f-wants_weekly_digest" type="checkbox" name="wants_weekly_digest" value="1" @checked(old('wants_weekly_digest', auth()->user()->wants_weekly_digest)) @if($errors->hasAny(['wants_weekly_digest', 'original_digest'])) aria-invalid="true" aria-describedby="f-wants_weekly_digest-error" @endif>
             <span>
                 <span class="choice-label">Chcę raz w tygodniu dostawać e-mail z Kuking</span>
                 <span class="choice-help">Krótkie podsumowanie: kto ugotował z Twoich przepisów, kto zaczął Cię obserwować i co pokazali ludzie, których obserwujesz. Jeden e-mail tygodniowo, nigdy więcej — i tylko wtedy, gdy naprawdę jest o czym pisać. Wypisać się możesz jednym kliknięciem na dole każdego e-maila, bez logowania.</span>
             </span>
         </label>
         @if($errors->hasAny(['wants_weekly_digest', 'original_digest']))
-            <p id="digest-error" class="field-error">{{ $errors->first('wants_weekly_digest') ?: $errors->first('original_digest') }}</p>
+            <p id="f-wants_weekly_digest-error" class="field-error">{{ $errors->first('wants_weekly_digest') ?: $errors->first('original_digest') }}</p>
         @endif
 
         {{--
@@ -36,14 +36,14 @@
         --}}
         <input type="hidden" name="memories_enabled" value="0">
         <label class="choice mt-4" for="f-memories_enabled" id="f-original_memories">
-            <input id="f-memories_enabled" type="checkbox" name="memories_enabled" value="1" @checked(old('memories_enabled', auth()->user()->memories_enabled)) @if($errors->hasAny(['memories_enabled', 'original_memories'])) aria-invalid="true" aria-describedby="memories-error" @endif>
+            <input id="f-memories_enabled" type="checkbox" name="memories_enabled" value="1" @checked(old('memories_enabled', auth()->user()->memories_enabled)) @if($errors->hasAny(['memories_enabled', 'original_memories'])) aria-invalid="true" aria-describedby="f-memories_enabled-error" @endif>
             <span>
                 <span class="choice-label">Przypominaj mi moje wpisy z tego dnia w poprzednich latach</span>
                 <span class="choice-help">Na stronie głównej pojawia się wtedy jeden Twój dawny wpis z tego samego dnia. Możesz to wyłączyć w każdej chwili — a pojedyncze wspomnienie schować przyciskiem przy nim.</span>
             </span>
         </label>
         @if($errors->hasAny(['memories_enabled', 'original_memories']))
-            <p id="memories-error" class="field-error">{{ $errors->first('memories_enabled') ?: $errors->first('original_memories') }}</p>
+            <p id="f-memories_enabled-error" class="field-error">{{ $errors->first('memories_enabled') ?: $errors->first('original_memories') }}</p>
         @endif
 
         <button class="btn btn-primary mt-4" type="submit">Zapisz</button>
