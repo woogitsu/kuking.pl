@@ -1,5 +1,22 @@
 # System projektowy v3.1 — co to jest i jak się ma do reszty `docs/design/`
 
+## Aktualne źródło stylu
+
+Najpierw przeczytaj [AGENTS.md](../../../AGENTS.md), następnie
+[aktualną konstytucję marki](../../brand/KONSTYTUCJA_MARKI.md)
+i [decyzje właściciela](../../DECISIONS.md), w tym D-206–D-213.
+Starsze paczki nie zastępują tych zasad. Aktualny materiał referencyjny
+wskazuje [audyt paczki marki](../AUDYT_PACZKI_MARKI_508.md): zachowany ZIP
+[KuKing-styl-wizualizacja-konstytucja.zip](../references/KuKing-styl-wizualizacja-konstytucja.zip). Nie zmieniamy jego oryginału
+ani historycznych materiałów w uploads. Bieżący zakres odbioru opisuje
+[macierz kompletności](../MACIERZ_KOMPLETNOSCI_517.md); sama obecność makiety nie dowodzi wdrożenia.
+
+## Materiały historyczne
+
+Poniższy opis dokumentuje wcześniejszy etap projektu. Dawne porównania
+tokenów i stany wdrożenia odnoszą się do dat podanych w opisie, nie do
+aktualnej aplikacji. Nie są poleceniem przywrócenia starej palety lub układu.
+
 Paczka **„Kuking.pl — system projektowy"**, przysłana przez właściciela
 8 września 2026, zrobiona w Claude Design. Wchodzi do repozytorium w całości,
 razem z oryginałem w `uploads/`, bo istniała dotąd wyłącznie jako plik ZIP
@@ -58,8 +75,8 @@ wartości. Nie zgadza się **układ**".
 
 | Ścieżka | Do czego |
 |---|---|
-| `uploads/KuKING-design-system-v3.1-poprawiony/` | **oryginał, rozstrzygający przy każdej wątpliwości** — decyzje D-101…D-112, fundamenty, audyt ze zrzutami |
-| `ui_kits/serwis/` | jedenaście ekranów serwisu jako wzorzec odniesienia — to jest to, do czego dopasowujemy widoki |
+| `uploads/KuKING-design-system-v3.1-poprawiony/` | **oryginał historycznej paczki v3.1**; nie zastępuje aktualnej konstytucji — decyzje D-101…D-112, fundamenty, audyt ze zrzutami |
+| `ui_kits/serwis/` | jedenaście ekranów będących wzorcem na etapie v3.1; aktualne wymagania wskazano powyżej |
 | `components/` | komponenty referencyjne w JSX z typami i promptami; **nie wdrażamy Reacta**, czytamy je jak specyfikację |
 | `components.css`, `site.css` | źródło reguł do przeniesienia do `resources/css/` |
 | `guidelines/` | karty specyfikacji: kolor, typografia, rytm, marka |

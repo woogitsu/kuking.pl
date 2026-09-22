@@ -12,17 +12,20 @@
 <x-layout title="Twoje tagi" :noindex="true">
     <h1>Twoje tagi</h1>
 
-    <p class="lead">
+    <p class="text-lead">
         Z tych tagów budujemy Twoją stronę główną, dopóki nikogo nie
         obserwujesz. Kiedy zaczniesz obserwować ludzi, ich wpisy będą
         ważniejsze niż tagi — i to one pojawią się na górze.
     </p>
 
     @if($tags->isEmpty())
-        <x-empty-state title="Nie obserwujesz jeszcze żadnego tagu">
+        <x-empty-state
+            title="Nie obserwujesz jeszcze żadnego tagu"
+            action="Zobacz wszystkie tagi"
+            :href="route('tags.index')">
             <p class="mb-0">
-                Zacznij od strony dowolnego tagu i kliknij „Obserwuj ten tag" —
-                albo wróć tutaj, gdy gospodarz doda pierwsze propozycje.
+                Wybierz tag i kliknij „Obserwuj ten tag" — albo wróć tutaj,
+                gdy gospodarz doda pierwsze propozycje.
             </p>
         </x-empty-state>
     @else
@@ -47,5 +50,9 @@
         </form>
     @endif
 
-    <x-ustawienia-nawigacja aktywne="tags" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="tags" />
+    </x-slot:rail>
 </x-layout>

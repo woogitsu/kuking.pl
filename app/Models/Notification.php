@@ -63,6 +63,37 @@ class Notification extends Model
     public const TYPE_WELCOME = 'account.welcome';
 
     /**
+     * NOWE ODWOŁANIE CZEKA W PANELU — powiadomienie dla ADMINISTRATORA, nie
+     * dla użytkownika (zgłoszenie właściciela z 10 września: „nie mam jako
+     * admin powiadomienia, że jakieś odwołanie jest").
+     *
+     * DLACZEGO TO JEST WAŻNIEJSZE NIŻ WYGODA: odwołanie ma termin
+     * odpowiedzi (`Appeal::responseDeadline()`, siedem dni roboczych
+     * z `docs/legal/MODERATION_PLAYBOOK.md` §3, wypisany człowiekowi na
+     * ekranie jako „odpowiedz do …"). Kolejka, o której nikt nie wie, że
+     * coś w niej leży, to termin, który upływa po cichu — a jest to
+     * zobowiązanie z DSA art. 20 i z regulaminu §8, nie uprzejmość.
+     *
+     * KOMU IDZIE: wyłącznie administratorom. Odwołanie rozstrzyga admin,
+     * nie moderator (`UserPolicy::resolveAppeals()`, D-039) — powiadomienie
+     * dla kogoś, kto po kliknięciu zobaczy „tę sprawę zamyka
+     * administrator", byłoby wezwaniem do czynności, której ta osoba nie
+     * może wykonać. Moderator widzi kolejkę i licznik przy niej w menu,
+     * i to jest właściwa dla niego dawka. Rozstrzyga to
+     * `App\Domain\Moderation\Actions\PowiadomOOdwolaniu`.
+     *
+     * ŚWIADOMIE NIE MA GO NA LIŚCIE `WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`
+     * i nie jest to przeoczenie: tamta lista chroni powiadomienia, które
+     * NIOSĄ CZŁOWIEKOWI decyzję i pouczenie o odwołaniu, więc nie wolno ich
+     * skasować przed upływem terminu na to odwołanie. To powiadomienie jest
+     * po drugiej stronie biurka — jest zawiadomieniem o pracy do wykonania,
+     * a nie dowodem niczyjego prawa. Trwałym zapisem sprawy jest `appeals`
+     * i dziennik zdarzeń (`appeal.filed` w `AuditLogEntry`), które żyją
+     * własnymi terminami.
+     */
+    public const TYPE_APPEAL_FILED = 'appeal.filed';
+
+    /**
      * Pierwszy wpis nowej osoby — powiadomienie dla GOSPODARZA, nie dla
      * autora (issue #6).
      *
@@ -195,6 +226,11 @@ class Notification extends Model
             self::TYPE_SAVED => isset($data['recipe_slug']) ? route('recipes.show', $data['recipe_slug']) : null,
             self::TYPE_FOLLOW => isset($data['username']) ? route('profile.show', $data['username']) : null,
             self::TYPE_FIRST_POST => route('admin.unanswered'),
+            // Wprost na kolejkę odwołań. Bez identyfikatora w adresie:
+            // kolejka nie ma ekranu jednej sprawy, a odwołania otwarte stoją
+            // na niej najstarsze na górze, czyli to z najbliższym terminem
+            // jest pierwsze (`AppealController::index()`).
+            self::TYPE_APPEAL_FILED => route('admin.appeals'),
             self::TYPE_WELCOME => route('posts.create'),
             // Obie drogi zgłaszającego (issue #10) prowadzą na kartę TEJ
             // sprawy, nie na listę: człowiek klika „Zobacz" przy konkretnym
@@ -204,8 +240,129 @@ class Notification extends Model
             self::TYPE_REPORT_RECEIVED, self::TYPE_REPORT_DECIDED => is_string($data['report_id'] ?? null) && $data['report_id'] !== ''
                 ? route('reports.mine.show', $data['report_id'])
                 : null,
+            // ISSUE #759: komentarz/odpowiedź, nie tylko "gdzieś na tej treści".
+            // Patrz `urlDoKomentarza()` niżej.
+            self::TYPE_COMMENT, self::TYPE_REPLY => $this->urlDoKomentarza($data),
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
+    }
+
+    /**
+     * Adres KONKRETNEGO komentarza/odpowiedzi, nie tylko pierwszej strony
+     * treści, pod którą stoi.
+     *
+     * CO BYŁO ZEPSUTE
+     * `data.url` (`PublishComment::urlFor()`) niesie WYŁĄCZNIE
+     * `$subject->url()` — bez numeru strony i bez kotwicy. Wątek pod
+     * popularnym wpisem/przepisem jest stronicowany
+     * (`config('kuking.comments.page_size')`, `PostController::show()`,
+     * `RecipeController::show()`), więc przy odpowiedzi w korzeniu leżącym
+     * poza pierwszą stroną „Zobacz" otwierał stronę bez tego wątku w ogóle —
+     * a powiadomienie było już oznaczone jako przeczytane.
+     *
+     * DLACZEGO LICZYMY STRONĘ TERAZ, A NIE ZAPISUJEMY JEJ PRZY PUBLIKACJI
+     * Numer strony zależy od tego, ILE wątków przed tym konkretnym jest
+     * WIDOCZNYCH DLA ODBIORCY w chwili kliknięcia — a widoczność (blokady,
+     * moderacja, inne komentarze skasowane w międzyczasie) zmienia się po
+     * drodze. Zapisanie strony przy publikacji zamroziłoby ją na zawsze
+     * błędną, gdy coś nad tym wątkiem zniknie albo się pojawi.
+     *
+     * KOTWICA WSKAZUJE SAM KOMENTARZ, NIE TYLKO KORZEŃ WĄTKU
+     * `comment-thread.blade.php` ma `id="komentarz-{uuid}"` na artykule
+     * korzenia — dla odpowiedzi (`TYPE_REPLY`) wskazujemy więc stronę
+     * korzenia, ale kotwicę samej odpowiedzi, żeby przeglądarka przewinęła
+     * dokładnie do niej, a nie tylko do góry wątku.
+     *
+     * NIEDOSTĘPNY/USUNIĘTY KOMENTARZ: BEZ UJAWNIANIA FRAGMENTU
+     * Gdy komentarza już nie ma, nie jest widoczny dla tego odbiorcy albo
+     * treść nadrzędna zniknęła spod niego, wracamy do zwykłego adresu treści
+     * (`data.url`) zamiast błędu albo strony bez kontekstu — dokładnie tak,
+     * jak przed tą poprawką dla WSZYSTKICH powiadomień o komentarzu. Sam
+     * fakt niedostępności nie jest tu ujawniany bardziej, niż był wcześniej.
+     */
+    private function urlDoKomentarza(array $data): ?string
+    {
+        $fallback = is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
+
+        $commentId = $data['comment_id'] ?? null;
+
+        if (! is_string($commentId) || $commentId === '') {
+            return $fallback;
+        }
+
+        $viewer = $this->user;
+
+        if ($viewer === null) {
+            return $fallback;
+        }
+
+        $comment = Comment::query()->find($commentId);
+
+        if ($comment === null) {
+            return $fallback;
+        }
+
+        $subject = $comment->subject();
+
+        if ($subject === null) {
+            return $fallback;
+        }
+
+        $rootId = $comment->parent_id ?? $comment->getKey();
+        $root = $rootId === $comment->getKey() ? $comment : Comment::query()->find($rootId);
+
+        if ($root === null) {
+            return $fallback;
+        }
+
+        // Kolejność i filtr IDENTYCZNE jak w kontrolerach (`Post::comments()`,
+        // `Recipe::comments()`, `CookedEvent::comments()`: `whereNull('parent_id')`,
+        // `status=published`, `oldest()->orderBy('id')`) plus `widoczneDla($viewer)`
+        // — inna kolejność albo inny filtr policzyłaby INNĄ stronę niż ta,
+        // na którą trafi kontroler przy renderowaniu.
+        $widoczneKorzenie = $subject->comments()->widoczneDla($viewer);
+
+        if (! $widoczneKorzenie->clone()->whereKey($root->getKey())->exists()) {
+            // Rodzic niewidoczny dla TEGO odbiorcy — nie zdradzamy, gdzie
+            // jest, tylko wracamy do zwykłego adresu treści.
+            return $fallback;
+        }
+
+        $bazowy = $subject->url();
+        $kotwica = '#komentarz-'.$comment->getKey();
+
+        if (! ($subject instanceof Post || $subject instanceof Recipe)) {
+            // "Ugotowałem" nie stronicuje komentarzy (`CookedEventController::show()`
+            // ładuje je wszystkie naraz) — sama kotwica wystarczy.
+            return $bazowy.$kotwica;
+        }
+
+        $pageSize = (int) config('kuking.comments.page_size');
+
+        if ($pageSize < 1) {
+            return $fallback;
+        }
+
+        $pozycja = $widoczneKorzenie->clone()
+            ->where(function (Builder $wczesniejsze) use ($root): void {
+                $wczesniejsze
+                    ->where('comments.created_at', '<', $root->created_at)
+                    ->orWhere(function (Builder $remis) use ($root): void {
+                        $remis->where('comments.created_at', $root->created_at)
+                            ->where('comments.id', '<', $root->getKey());
+                    });
+            })
+            ->count();
+
+        $strona = intdiv($pozycja, $pageSize) + 1;
+
+        if ($strona <= 1) {
+            return $bazowy.$kotwica;
+        }
+
+        $laczek = str_contains($bazowy, '?') ? '&' : '?';
+
+        return $bazowy.$laczek.'komentarze='.$strona.$kotwica;
     }
 
     /**
@@ -375,6 +532,16 @@ class Notification extends Model
                         ->whereRaw("pc.id = (notifications.data->>'comment_id')::uuid")
                         ->where('pc.status', Comment::STATUS_PUBLISHED)
                         ->whereNull('pc.deleted_at')
+                        // ISSUE #757: usunięcie komentarza Z ODPOWIEDZIAMI nie robi
+                        // soft delete (zostaje `status=published`, `deleted_at=null`),
+                        // żeby dzieci nie zawisły bez rodzica — `CommentController::destroy()`
+                        // zostawia zamiast tego placeholder i ustawia `body_removed_at`.
+                        // Bez tego warunku ta gałąź NIE łapała tej jedynej innej drogi
+                        // usunięcia, więc zamrożony `excerpt` z chwili publikacji (do
+                        // 120 znaków oryginalnej treści) dalej wychodził w powiadomieniu
+                        // i w eksporcie danych (`CollectUserExportData` używa tego samego
+                        // `visibleTo()`), mimo że treść w wątku jest już zastąpiona.
+                        ->whereNull('pc.body_removed_at')
                         ->where(function (QueryBuilder $tresc) use ($viewer): void {
                             $tresc
                                 ->where(fn (QueryBuilder $q) => $q->whereExists(
@@ -403,6 +570,10 @@ class Notification extends Model
     private function wierszTresciWidoczny(QueryBuilder $sub, string $tabela, string $fk, User $widz): void
     {
         $widzId = $widz->getKey();
+
+        if ($tabela === 'posts' && ! config('kuking.questions.enabled')) {
+            $sub->where('tw.kind', Post::KIND_DISH);
+        }
 
         $sub->selectRaw('1')
             ->from("{$tabela} as tw")

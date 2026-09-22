@@ -1,0 +1,11 @@
+{
+  "mutation": "rail",
+  "source": "/home/mateusz/kuking-panel581-runtime/resources/css/marka-panel.css",
+  "md5": "626734eb93118502ced861b69e8ee77e",
+  "mtime_ns": 1789496075269284700,
+  "passed": true,
+  "negative_exit": 1,
+  "negative_detected": true,
+  "source_restored": true,
+  "restored_exit": 0
+}

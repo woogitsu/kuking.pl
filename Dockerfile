@@ -73,6 +73,9 @@ COPY vite.config.js ./
 COPY resources ./resources
 COPY app ./app
 COPY routes ./routes
+# Pomiar palety jest częścią polecenia budowania assetów.
+COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs
+COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs
 
 RUN npm run build
 # Wynik: /app/public/build/{manifest.json,assets/*}

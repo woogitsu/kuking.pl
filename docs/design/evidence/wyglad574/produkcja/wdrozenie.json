@@ -1,0 +1,12 @@
+{
+  "sha": "0e1bdbe80ffe25d72accf2f773a3a533675ef458",
+  "version": "Alfa 0.38",
+  "railway": 6462041446,
+  "state": "success",
+  "created_at": "2026-09-15T15:36:08Z",
+  "main_ci": 34986762320,
+  "deploy_workflow": 34989544692,
+  "css": "app-Bx-MzRPK.css",
+  "js": "app-BlSF1GKB.js",
+  "fonts_http": 200
+}

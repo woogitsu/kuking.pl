@@ -37,16 +37,59 @@ use Illuminate\Support\Facades\DB;
  * jednego kliknięcia. Taniej jest przestawić kolumnę, póki nie ma czego
  * wysyłać, niż tłumaczyć się z pierwszej wysyłki.
  *
- * PLAN COFNIĘCIA
- * `down()` przywraca `DEFAULT true` dla nowych wierszy i NIE dotyka
- * istniejących. To jest świadoma asymetria: cofnięcie migracji jest
- * operacją techniczną i nie może samo z siebie zapisać ludzi na
- * wysyłkę. Kto chce wrócić do stanu sprzed migracji w całości, musi
- * przestawić wiersze osobnym, jawnym `UPDATE` — i wtedy jest to
- * decyzja człowieka, a nie skutek uboczny rollbacku.
+ * PLAN COFNIĘCIA — `down()` NIE PRZYWRACA `DEFAULT true`
+ *
+ * POPRAWKA Z 10 WRZEŚNIA 2026 (audyt DB2, `docs/DECISIONS.md` D-072).
+ * Do tego dnia `down()` wykonywał `SET DEFAULT true`, czyli przywracał
+ * DOKŁADNIE to zachowanie, przez które ta migracja powstała. Gdy ją pisano,
+ * było to obronne: digestu nie było w kodzie w ogóle, więc `DEFAULT true`
+ * nie kończył się żadną wysyłką. **Od 10 września wysyłka istnieje**
+ * (`kuking:wyslij-podsumowania`, harmonogram codziennie o 08:30), więc
+ * techniczne cofnięcie migracji zapisywałoby NOWE konta na prawdziwy mailing
+ * bez ani jednego kliknięcia — a `resources/views/auth/register.blade.php`
+ * nadal o tę zgodę nie pyta. Zgoda, o którą nie zapytano, nie jest zgodą,
+ * a rollback jest operacją techniczną i nie ma prawa jej wytworzyć.
+ *
+ * ASYMETRIA JEST WIĘC TERAZ PEŁNA I JAWNA: `up()` przestawia `DEFAULT`
+ * ORAZ istniejące wiersze na `false`, a `down()` nie przywraca ani jednego,
+ * ani drugiego — jest pustą, świadomie bezczynną operacją. Tak, to znaczy,
+ * że tej migracji NIE DA SIĘ cofnąć „wiernie historycznie". Tak ma być:
+ * wierny rollback przywraca też wadę, którą migracja naprawiła, a przy
+ * poczcie wychodzącej ta wada jest nieodwracalna — listu wysłanego bez zgody
+ * nie da się odwołać. Bezpieczny rollback bije wierny wszędzie tam, gdzie
+ * wierny wraca do stanu groźnego.
+ *
+ * Kto naprawdę chce wrócić do opt-outu (czyli świadomie: mailing bez pytania
+ * dla nowych kont), robi to jawnym `ALTER TABLE … SET DEFAULT true` z ręki,
+ * po przeczytaniu D-072 i po dodaniu pola zgody do formularza rejestracji.
+ * Wtedy jest to decyzja człowieka, a nie skutek uboczny `migrate:rollback`.
+ *
+ * PILNUJE TEGO TAKŻE KOD, NIE TYLKO TEN KOMENTARZ: `App\Domain\Digest\
+ * BramkaDomyslnejZgody` pyta `information_schema` przed każdą wysyłką i przy
+ * `DEFAULT true` nie pozwala jej wystartować. Komentarz przeczyta ten, kto
+ * otworzy plik — bramka zatrzyma wysyłkę także wtedy, gdy `DEFAULT` przestawi
+ * ktoś zupełnie inną drogą (ręczny `ALTER`, przywrócenie bazy z kopii sprzed
+ * tej migracji, `pg_restore` starego schematu). Pilnują tego
+ * `RollbackNieWlaczaDigestuTest`.
  */
 return new class extends Migration
 {
+    /**
+     * ŚWIADOMIE PUSTY `down()` — deklaracja, nie przeoczenie.
+     *
+     * Uzasadnienie w całości stoi w sekcji „PLAN COFNIĘCIA" w nagłówku; tutaj
+     * jest jego skrót w formie, którą czyta MASZYNA:
+     * `tests/Feature/KazdaMigracjaMaWycofanieTest.php` oblewa każdy pusty
+     * `down()`, który tej stałej nie ma. Bez niej nowa migracja bez wycofania
+     * przemknęłaby przez CI pod pretekstem „przecież tamta też jest pusta" —
+     * a tamta jest pusta z powodu, który ktoś musiał wypisać.
+     */
+    public const WYCOFANIE_NIC_NIE_ROBI = 'Wierny rollback przywróciłby `DEFAULT true` na '
+        .'`users.wants_weekly_digest`, czyli zapisywałby nowe konta na prawdziwy mailing bez ani '
+        .'jednego kliknięcia — formularz rejestracji o tę zgodę nie pyta (D-072, audyt DB2). '
+        .'Listu wysłanego bez zgody nie da się odwołać, więc bezpieczny rollback bije tu wierny: '
+        .'`DEFAULT false` zostaje, a kto naprawdę chce opt-outu, robi jawny ALTER TABLE z ręki.';
+
     public function up(): void
     {
         // Sam `DEFAULT` — dla każdej drogi tworzenia konta, nie tylko
@@ -63,8 +106,18 @@ return new class extends Migration
         ]);
     }
 
-    public function down(): void
-    {
-        DB::statement('ALTER TABLE users ALTER COLUMN wants_weekly_digest SET DEFAULT true');
-    }
+    /**
+     * ŚWIADOMIE NIE ROBI NIC — patrz „PLAN COFNIĘCIA" w nagłówku.
+     *
+     * Metoda ZOSTAJE, mimo że jest pusta, i to nie jest przeoczenie: bez niej
+     * `migrate:rollback` przewracałby się na tej migracji, a `migrate:refresh`
+     * (chodzi w CI) nie zszedłby poniżej niej. Pusta metoda mówi „cofnięcie
+     * jest dozwolone i nie zmienia domyślnej wartości"; brak metody mówiłby
+     * „cofnięcie jest niemożliwe" — a to nieprawda i zablokowałoby rollback
+     * KAŻDEJ późniejszej migracji.
+     *
+     * `DEFAULT false` zostaje po cofnięciu. Nowe konta nadal wstają bez
+     * zapisu na mailing, o który nikt ich nie zapytał.
+     */
+    public function down(): void {}
 };

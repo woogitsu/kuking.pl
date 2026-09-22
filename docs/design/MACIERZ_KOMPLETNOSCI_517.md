@@ -1,0 +1,716 @@
+# Macierz pokrycia identyfikacji — odbiory i ograniczenia
+
+## Aktualizacja dowodów — 20 września 2026
+
+[Audyt #713 i pozostałych luk #492](../audits/WERYFIKACJA_713_492_2026_09_20.md)
+sprawdza każdą pozycję długu i wskazuje źródła oraz granice pomiarów.
+Produkcja i badany kod mają SHA `4c811cc7bff365fb8f86d87eabac93b7738a45cd`.
+PR #707 i #711 są scalone; #716 jest wdrożony. Dawne „czeka na wdrożenie”
+poniżej opisuje 19 września, nie dzisiejszy stan.
+
+Pełny port nadal **CZĘŚCIOWO**. Zamknięcie #697 nie dowodzi pełnego logowania,
+a dwie z trzech luk #370 mają już odbiór. Audyt doprecyzowuje D7 o własną
+paginację wyszukiwarki i oddziela prawdziwy zoom od deklaracji o DPR.
+Późniejsze dowody relacji, Podziękuj i PUT po 419 mają pierwszeństwo przed
+historycznymi brakami tych samych scenariuszy. Nie powtarzać zamkniętych pakietów.
+
+## Co zostało — stan zweryfikowany 19 września 2026
+
+Pełny raport: [`POZOSTALE_LUKI_492.md`](POZOSTALE_LUKI_492.md).
+Przegląd `main` `e306842c` i odczyt produkcji tego samego dnia.
+**Pełny port marki nadal CZĘŚCIOWO.**
+
+**Produkcja jest o dwa scalenia za `main`**: Alfa 0.67 = `ab91185`, więc PR #717
+i PR #716 (martwa klasa `lead`) czekają na wdrożenie. Żadnego odbioru
+produkcyjnego tych zmian nie da się dziś zapisać.
+
+Trzy pozycje długu weryfikacyjnego (#713) zostały domknięte odczytem i pomiarem,
+bez pisania kodu:
+
+| Pozycja | Wynik |
+|---|---|
+| D1 — job `Panel marki` gubi przyczynę porażki | **Już naprawione** w `e1ac577e`, z własnym testem `scripts/panel-komunikat.test.mjs`. Wpis w #713 był nieaktualny w dniu powstania |
+| D7 — trzecie miejsce z dwiema listami na jednym adresie | **Nie istnieje.** Wszystkie widoki i akcje z ≥2 paginatorami mają rozłączne nazwy stron albo wykluczają się zakładkami |
+| D4 — `lead → text-lead` bez oglądu | **Zmierzone i obejrzane lokalnie**: `questions/index` i `settings/tags`, 36 konfiguracji, wstęp 22 px przy zwykłym 18 px. Zostaje odbiór produkcyjny po wdrożeniu |
+
+Nie do domknięcia bez dostępu, realnych danych, urządzenia albo decyzji
+produktowej — wyliczone w §2 raportu: A1–A3, B1–B4, C1–C4 z #713, odbiór
+#581, oraz ekrany „Poradźcie" (#371/#372), które na produkcji odpowiadają
+**404** za wyłączoną flagą `KUKING_QUESTIONS_ENABLED`.
+
+Do sprawdzenia w cudzych, otwartych PR-ach, nie tutaj: pasek górny po
+zalogowaniu w trybie gotowania i panelu (PR #711 — na `main` pasek chowa się
+wyłącznie gościom) oraz regresja #707.
+
+
+## Pośrednie stany logowania w ciemnym motywie — 18 września 2026
+
+[Dodatkowy odbiór logowania](LOGOWANIE_CIEMNE_STANY_492.md) uzupełnia
+historyczny brak ciemnych wariantów: potwierdzenie wysłania i ważnego
+linku przy 390/1440 (4 konfiguracje), a następnie osobno zalogowany
+Start po sukcesie przy tych samych szerokościach (2 konfiguracje).
+Po zalogowaniu motyw konta przełączono rzeczywistym interfejsem.
+Obejrzano zrzuty; pomiary nie wykazały poziomego przepełnienia.
+
+Poczta pozostała w lokalnym SMTP. Limit prób wygasł naturalnie, bez
+resetowania ani zmiany tożsamości. Odbiór nie obejmuje nowych kontroli
+zoomu, całej klawiatury, dostarczalności zewnętrznej ani klientów poczty.
+Źródła runtime: `609328b`; relewantne pliki logowania i interfejsu
+porównano z `c6bed3e`, bez twierdzenia o identyczności całej aplikacji.
+
+## Nakładki publicznej strony przy zoomie 200% — 18 września 2026
+
+[Odbiór nakładek](NAKLADKI_ZOOM_492.md) obejmuje lokalną stronę publiczną,
+CSS viewport 320×740, rzeczywisty zoom 200%, tekst 140% oraz oba motywy.
+Podpowiedź można zamknąć; zamknięcie utrzymuje się po odświeżeniu.
+Nagłówek chowa się i wraca przy zmianie kierunku przewijania.
+Osiem kolejnych przystanków Tab w każdym motywie miało widoczny fokus,
+cały element w viewport i niezasłonięty środek kontrolki.
+
+Nakładki nadal przykrywają fragmenty tekstu w niektórych kadrach.
+W sprawdzonym scenariuszu treść można odsłonić przewijaniem i zamknięciem
+podpowiedzi; nie jest to dowód braku zasłaniania na całej stronie.
+Nie badano zalogowanego Start ani fizycznego telefonu. Ten odbiór nie
+zastępuje osobnego zakresu dolnej nawigacji #638 i nie zamyka całego #492.
+
+## Korekta stanu dostarczenia panelu i nawigacji — 18 września 2026
+
+Poniższe potwierdzenia zastępują historyczne statusy „lokalne”,
+„wdrożenie w toku” i „pozostaje #638” w dalszych sekcjach.
+Nie rozszerzają zakresu oglądu poszczególnych ekranów.
+
+| Pakiet | Potwierdzony stan | Pozostałe ograniczenie |
+|---|---|---|
+| Notatki tagów #642 i cel błędu wiadomości #643 | Wdrożone w Alfie 0.55, `b83d7c070b9725f117464d0ec75241e10c6cfb8d`; main CI 35233772201 i Railway 6504992264 success. Odczyt produkcji potwierdził wersję. [Dowód #581](https://github.com/woogitsu/kuking.pl/issues/581#issuecomment-5717126088) | Dowód wersji nie zastępuje oglądu zalogowanych formularzy po tych zmianach; #581 pozostaje otwarte do opisanych stanów produkcyjnych |
+| Pełne etykiety dolnej nawigacji #638 | PR #639 scalony, CI 35197757945: 12/12 success; lokalne kontrole geometrii, zoomu, klawiatury i emulowanego dotyku oraz reprezentatywny odbiór produkcji zakończone. [Końcowy odbiór](https://github.com/woogitsu/kuking.pl/issues/638#issuecomment-5719666685); issue zamknięte | Fizyczny telefon i zoom 200% na produkcji nie były badane; zoom ma dowód lokalny/CI. Nie powtarzać implementacji na podstawie historycznego statusu niżej |
+
+Pełny port marki pozostaje **CZĘŚCIOWO**. Brak rzeczywistych danych do
+odbioru zgłoszeń, odwołań lub 2FA nie jest pozytywnym wynikiem i nie
+uzasadnia tworzenia fikcyjnych rekordów na produkcji.
+
+## Uzupełnienie formularzy — 18 września 2026
+
+[Odbiór PUT i linku logowania](ODBIOR_PUT_I_LINKU_492.md) aktualizuje
+wyłącznie poniższe historyczne braki. Źródła wykonania: `609328b`;
+bez zmian aplikacji i bez testowych zapisów na produkcji.
+Pełny port marki pozostaje **CZĘŚCIOWO**.
+
+| Stan | Potwierdzenie lokalne | Nadal poza dowodem |
+|---|---|---|
+| Istniejący przepis: PUT po 419/429 | Odmowa bez zmiany danych, odzyskany payload, rzeczywiste ponowienie i odczyt opisu/kroków/mediów/prywatności/czasów. 429 po naturalnym TTL; 419 przez kontrolowany transport fallbacku CSRF. 16 zrzutów 390/1440 i obu motywów | Nowe uploady, maksymalne dane, pełny fokus, zoom 200%, fizyczny telefon; motyw przez data-theme nie sprawdza przełącznika ani kontrastu |
+| Link logowania: formularz → lokalny SMTP → GET → POST → sesja | Trzy pełne przejścia z odczytem bazy, odrzucenie ponownego użycia, osobny kontrolowanie wygasły token bez autoryzowanej sesji | Dostarczalność poza lokalnym SMTP, prawdziwe programy pocztowe i urządzenia |
+| Formularz prośby o link i ekran nieaktualnego linku | Rzeczywisty przełącznik aplikacji, 390/1440 × jasny/ciemny, osiem obejrzanych PNG bez poziomego przepełnienia | Pozostałe pośrednie stany mają dowody jasnego motywu, nie pełną macierz; brak nowego odbioru zoomu |
+
+Nie powtarzać aktualizacji PUT tylko dlatego, że historyczny wiersz Alfy
+0.29 wykluczał ją z ówczesnego zakresu. Odrębny odbiór błędu pliku i pełnej
+klawiatury formularza zdjęć pozostaje otwarty. Historyczne wyniki nie
+uzyskują automatycznie nowego SHA ani szerszego zakresu.
+
+## Bieżące uzupełnienie panelu — 17 września 2026
+
+Poniższy stan ma pierwszeństwo przed historycznymi zapisami „niewysłane”
+w raportach poszczególnych etapów. Pełny port nadal **CZĘŚCIOWO**.
+
+| Pakiet | Kod i kontrole | Produkcja / pozostały zakres |
+|---|---|---|
+| Walidacja odwołań, Alfa 0.53 | PR #641 scalony; main `2b26853d14701dca79968adf922b92dd0086ce4c`, CI 35220851228: 12/12 success | Railway 6502545149 i Deploy 35223754657 success. Publiczna przeglądarka potwierdziła wersję i SHA; nie zastępuje to oglądu zalogowanych odwołań |
+| Osobne notatki tagów, Alfa 0.54 | [Raport](NOTATKI_TAGOW_581.md); PR #642 scalony jako `4b824c146f24d4bdb60ce6e952a6384b51727f85`. CI PR 35222930757: 12/12 success. Artefakt panelu: 288 pustych i 312 pełnych konfiguracji oraz 9 błędnych POST — PASS | W momencie aktualizacji Railway 6503528112 trwało, przeglądarka nadal pokazywała Alfę 0.53. Odbiór produkcyjny pozostaje otwarty |
+| Błąd stanu wiadomości, przygotowana Alfa 0.55 | [Raport i granice](STAN_WIADOMOSCI_581.md): 48 testów / 233 asercje, 24 konfiguracje, 4 scenariusze klawiatury/myszy, 2 rzeczywiste zoomy oraz 3 fizyczne negatywy | Pakiet lokalny, bez potwierdzenia CI i wdrożenia |
+
+600 konfiguracji panelu sprawdza kompozycję pełnych i pustych widoków;
+nie oznacza 600 wykonanych operacji moderacji. Dziewięć błędnych POST
+również nie obejmuje wszystkich możliwych błędów. Pozostają końcowe
+odbiory #581 i dolnej nawigacji #638 oraz odrębne ograniczenia poczty,
+urządzeń i pozostałych rodzin opisane niżej. Nie należy ponownie
+implementować panelu na podstawie historycznych zapisów o zatrzymanym push.
+
+## Bieżące uzupełnienie — 16 września 2026
+
+Pełny port marki nadal **CZĘŚCIOWO**. Poniższe wpisy aktualizują zakres
+konkretnych pakietów; nie rozszerzają historycznych odbiorów na inne stany.
+
+| Pakiet | Kod i kontrole | Produkcja / ograniczenie |
+|---|---|---|
+| #579 kolejka gospodarza | Lokalnie 43/274, 72 konfiguracje i rzeczywisty zoom200/Tab; pięć fizycznych negatywów. [Raport](KOLEJKA_GOSPODARZA_579.md) | Alfa0.39/108bc93, main CI34999668844 i Railway6464297399 success; HTTP i zalogowana przeglądarka potwierdzone. Osobny smoke Deploy35002625751 nie wykonał kroków z powodu awarii inicjalizacji runnera; nie jest zaliczony |
+| #574 szybki wygląd i #577 podział CI | PR #575, head7cbdef8, 11/11 CI34983616697, PHP3834/76883; lokalne negatywy, oba motywy53/53 fokusu profilu, kliknięcie panelu i powrót do stałego miejsca | Merge0e1bdbe; mainCI11/11, Railway6462041446 i Deploy34989544692 success; gość6 paneli,24 warianty paska, zapis/reload/reset. [Raport](SZYBKI_WYGLAD_574.md) |
+| Przewijany pasek | PR #573; obecny również w merge0e1bdbe, objęty CI PR #575 | Alfa0.37 nie miała osobnego potwierdzenia; odebrano razem z0.38. [Raport](PASEK_PRZEWIJANIE.md) |
+| #567 niedostępne zapisy | PR #572, CI PR i main10/10; widoczność pozostaje chroniona | Alfa0.36/d50183e, Railway6459320591 i Deploy34975402661 success; HTTP potwierdzone. [Raport](NIEDOSTEPNE_ZAPISY_567.md) |
+| #549 komunikat419 | PR #570, CI PR i main10/10; komunikat nie zgaduje przyczyny odmowy | Alfa0.35/72b96f9, Railway6458271154 i Deploy34968590919 success; rzeczywista odpowiedź419 odebrana. [Raport](KOMUNIKAT_ODZYSKIWANIA_549.md) |
+
+[Odbiór produkcji0.38 i ograniczenia](ODBIOR_PRODUKCJI_ALFA_038.md).
+Aktualna kolejka po zakończonym odbiorze0.38: #568 (dalsze wyniki wyszukiwania), #561
+(fokus wysokich zdjęć), pozostałe stany #492. Dawne wskazania „następne
+#548/#549” poniżej są historią; obie poprawki zostały już wykonane.
+
+## Odmiana minutnika — #548, Alfa0.34
+
+[Raport](ODMIANA_MINUTNIKA_548.md): lokalnie51 testów/258 asercji,
+trzy fizyczne negatywy,4 warianty działania w przeglądarce z zoomem200%.
+PR #565 i main CI10/10 success; be3d355 wdrożony i HTTP potwierdzony.
+Produkcja:4 renderowania publicznego gotowania; dostępny przepis bez
+minutnika, więc dokładne odliczanie i podgląd kreatora odebrane lokalnie.
+
+
+## Zwarte kolumny wpisów — Alfa 0.33, odbiór lokalny i CI #560
+
+PR #562 scalony; CI PR34936291390 oraz main34938070574 (próba2)
+mają 10/10 success. Produkcja Alfa0.33/05151d7 odebrana: Railway6454177593 i
+Deploy34943686652 success; 390/1440 px × oba motywy, 4/4 PASS.
+Ogląd czterech zrzutów i rzeczywiste otwieranie wpisów zakończone.
+
+[Raport](ZWARTE_KOLUMNY_560.md): 48 konfiguracji z rzeczywistym zoomem,
+działania linków i dialogu zdjęć, zmiana szerokości oraz pięć fizycznych
+kontroli ujemnych. Niezależny review bez blokera. CI i produkcja tego
+pakietu potwierdzone powyżej. Osobno zapisano odtworzony także na
+bazowym main problem pełnej widoczności fokusu dużego zdjęcia przy
+domyślnym foncie przeglądarki 32 px i tekście 140%.
+
+## Publiczna tablica — Alfa 0.32, wdrożone #557
+
+[Raport](TABLICA_PUBLICZNA_557.md) rozdziela nową kompozycję landing od
+pozostałych szyn. Duże fotografie, wizytówki i jedno zaproszenie zastępują
+układ ze zrzutu właściciela. Odbiór lokalny ma osobną fixture; produkcyjny
+obejmuje390/1440, oba motywy i12 rzeczywistych kliknięć zdjęć. Main181b93f,
+CI34910661018, Railway6448719034 i Deploy34912846146 potwierdzają wydanie;
+HTTP oraz przeglądarka pokazały Alfa0.32 i właściwe zdjęcia. Nie oznacza to ponownego sprawdzenia
+całej strony powitalnej ani zamknięcia całego portu marki.
+
+## Menu Konto — Alfa 0.31, wdrożone #555
+
+[Raport](MENU_KONTA_555.md): szersza lista z zachowaniem miejsca po
+zawinięciu belki; lokalnie48 konfiguracji i24 niskiego okna, fizyczny
+negatyw CSS oraz przywrócenie MD5/mtime. PR #556, merge
+`1b43b69668cce731be52d270479264d315b92a24`; CI34903826583:10/10 success.
+MainCI34905715490, Railway6447950025 i Deploy34907646494: success.
+HTTP potwierdziło Alfa0.31/1b43b69; zalogowany Chrome pokazał cztery pozycje
+bez wymuszonego zawijania, także panel moderacji z niezerowym licznikiem.
+Nie wykonano działań moderacyjnych ani wylogowania podczas tego odbioru.
+
+## Uzupełnienie pustej szyny profilu — Alfa 0.30, wdrożone #551
+
+[Raport i dowody](SZYNA_ZDJEC_PROFILU_551.md): trzy ostatnie widoczne wpisy
+ze zdjęciem uzupełniają cudzy profil bez tagów i zeszytów. Testy PHP
+obejmują uprawnienia i pierwszeństwo istniejących bloków; lokalny ogląd
+48 konfiguracji dotyczy zalogowanego widza. Nie jest to ponowny odbiór
+całego profilu ani wszystkich stanów gościa. Wdrożenie05f5717 potwierdzają
+Railway6447341870 i Deploy34905037101 success, HTTP0.30 oraz zalogowany
+Chrome z kliknięciem zdjęcia do wpisu. Pełny port marki nadal **CZĘŚCIOWO**.
+
+## Aktualny odbiór publikowania — Alfa 0.29
+
+PR #546, head `8e4da2f2ff51178df57d7dd118978e441b8c5130`, scalony jako `443da38c763f5ee2c26e8610b516c95fa4e42b94`. CI PR `34889241332`: 10/10 success, PHP 3807 testów / 76412 asercji. [Wdrożenie potwierdzone](ODBIOR_PRODUKCJI_ALFA_029.md): Railway6445551937 i Deploy34894880938 success, HTTP i zalogowany Chrome0.29/443da38. MainCI34891635127 także10/10success. Pełny port marki nadal **CZĘŚCIOWO**.
+
+| Ekran lub stan | Wygląd, teksty i rzeczywiste działanie | Mobile i dowód | Pozostałe ograniczenie |
+|---|---|---|---|
+| Zdjęcie i edycja wpisu | Upload → błędny opis → zachowane zdjęcie i tekst → prywatny wpis; edycja z korektą i ponownym odczytem | [Odbiór publikowania](ODBIOR_PUBLIKOWANIA_492.md): 240 konfiguracji pięciu zwykłych widoków i 12 wariantów błędów mają odrębne zakresy | Pełna klawiatura dodawania zdjęcia i inne warianty błędnych plików |
+| Dwa obrazy i błędny JPG | Tekst udający JPG odrzucony bez wpisu; dwa obrazy opublikowane prywatnie, odwrócona kolejność i karuzela zachowane po zapisie | [Odbiór zdjęć](ODBIOR_ZDJEC_492.md): oba motywy320/140/zoom200%, klik i Tab→Enter zmieniają obraz; desktop kontrolny | Drugi obraz to lokalny zrzut testowy; inne formaty/błędy, wszystkie tryby i pełny fokus po aktywacji nie są objęte |
+| Pierwszy wpis #545 | Usunięta niezmierzona obietnica szybkości; zrzuty końcowe obejrzane | [Raport](PIERWSZY_WPIS_545.md): 48 konfiguracji, cztery Tab 10/10, axe, dwie fizyczne kontrole ujemne | Odbiór produkcji osobno; nie rozszerzać na cały formularz |
+| Publikacja przepisu i szkic | Prosty formularz publikuje; pełny zapisuje szkic; ponowne otwarcie i kreator ze składnikiem, zdjęciem i minutą aż do publikacji | [Rzeczywiste przebiegi](ODBIOR_PUBLIKOWANIA_492.md); historyczny [autozapis](AUTOZAPIS_KREATORA_528.md) zachowuje osobny zakres | Wszystkie warianty błędnych plików i odzyskiwania 419/429 |
+| Pełna edycja przepisu | Błędny tytuł odrzucony; poprawiony zapisany i odczytany; treść przywrócona, media/składnik/minuta/private zachowane | [Odbiór edycji](ODBIOR_EDYCJI_WYSZLO_492.md): oba motywy, CSS320, tekst140, prawdziwy zoom200%, 37/37 Tab i komplet grup radio; kontrola desktop1440 | Brak trwałego pełnego logu HTTP walidacji; wysokie etykiety zdjęć wymagają przewijania, choć fokus i Enter działają |
+| Tryb gotowania | Historycznie długa instrukcja, przejścia i odhaczanie; teraz także składniki, zdjęcie i rzeczywisty koniec minutnika | [Podstawa](ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md):48 konfiguracji na starszym SHA; [uzupełnienie](ODBIOR_GOTOWANIA_UZUPELNIENIE_492.md):cztery konfiguracje na końcowym head | #548: odmiana „na 1 minuta”; dźwięk, fizyczny telefon, Wake Lock i praca w tle niepotwierdzone |
+| Ugotowałem #547 | Błąd → korekta → zapis; własny autor poprawnie ma zero powiadomień; tekst nie obiecuje wyjątków | [Raport](KOMUNIKAT_UGOTOWALEM_547.md):31/148, sześć fizycznych negatywów, 48 konfiguracji instrukcji i osiem wyników zapisu/powtórzenia | Inni autorzy: testy PHP, bez oglądu wszystkich stanów na produkcji |
+| Odzyskiwanie419/429 | Autentyczne odmowy → natywne ponowienie → GET edycji z zachowanymi polami;429 po naturalnym TTL | [Raport](ODBIOR_ODZYSKIWANIA_492.md): trzy kroki, oba motywy320/140/zoom200%;419 przez jawny transport starszego klienta | #549: wyjaśnienie419 zgaduje upływ czasu; bez update/PUT, mediów, maksymalnych danych i pełnego fokusu; geometriaJSON tylko429 |
+| Wyszło | Legalny GET istniejącego własnego wykonania, długi tytuł i formularz | [Odbiór](ODBIOR_EDYCJI_WYSZLO_492.md):3/3 Tab, oba motywy320/140/zoom200%, kontrola desktop1440 | Nie wysłano podziękowania; brak dowodu wynikowego komentarza/powiadomienia |
+
+Proste `/dodaj/przepis` nie tworzy szkicu. Szkic zapisuje `/dodaj/przepis/jedna-strona`; kreator otwiera istniejący szkic lub szczegóły przepisu. Zdjęcia wpisu mają kolejność i sposób wyświetlania, nie wymianę plików. Nie dopisywać nieistniejących funkcji jako błędów portu marki.
+
+Następna kolejność: #548 i #549, pozostałe błędne pliki/tryby zdjęć i fokus karuzeli, rzeczywiste podziękowanie z Wyszło, pozostałe warianty odzyskiwania419/429; następnie pozostałe rodziny zatwierdzonego planu. [Scenariusze badań #15](../product/SCENARIUSZE_UZUPELNIAJACE_15.md) są przygotowaniem, nie wynikami sesji. Historyczne dowody poniżej nie otrzymują automatycznie zakresu ani SHA bieżącego odbioru.
+
+## Uzupełnienie OAuth — Alfa 0.28
+
+PR #543 domyka lokalny i CI odbiór pięciu końcowych stanów OAuth na head `795dc2f`: oba motywy, 320×740, tekst 140%, Tab w głównej treści, axe i ogląd zrzutów. Obejmuje ostatnią poprawkę tekstu Facebooka bez adresu. [Szczegóły i macierz](EKRANY_OAUTH_345.md), [osobny dowód wdrożenia](ODBIOR_PRODUKCJI_ALFA_028.md). Zewnętrzny dostawca, końcowy POST i prawdziwy zoom 200% nie są objęte tym odbiorem. Pełny port nadal **CZĘŚCIOWO**.
+
+## Potwierdzony pakiet Alfa 0.27 — 14 września 2026
+
+[Potwierdzony odbiór produkcji Alfa 0.27](ODBIOR_PRODUKCJI_ALFA_027.md): kod `4c537b2`, Railway6439273567 success, CI PR i main 10/10. Obejrzano produkcyjne Start320×500 i390×844 oraz fokus podpowiedzi w obu motywach. Dodatkowe stany i powiększenia mają odrębne dowody lokalne/CI. Pełny port pozostaje **CZĘŚCIOWO**. Historyczne statusy przed wdrożeniem poniżej nie są aktualnym stanem pakietu.
+
+
+## Uzupełniony ogląd wiadomości — 14 września 2026
+
+[Odbiór 18 wiadomości](ODBIOR_WIADOMOSCI_027.md) uzupełnia historyczne
+wiersze poczty poniżej: obejrzano każdy z 11 własnych szablonów i siedmiu
+Laravel MailMessage przy 320 oraz 640 px, razem 36 zrzutów. Nie znaleziono
+błędu układu w tych wariantach. To lokalny Chromium na źródłach 595f41f,
+bez wysyłki, nie dowód zgodności z Gmail/Outlook/Apple Mail. Nie sprawdzono
+każdego wariantu treści, trybu ciemnego klienta ani obsługi odpowiedzi.
+
+## Historia przygotowania — lokalne poprawki Alfa 0.27 przed wdrożeniem
+
+[Raport poprawek](POPRAWKI_ISSUES_ALFA_027.md) opisuje #538 (komunikat
+rzeczywistego limitu imienia) i #444 (systemowy odstęp przed usuwaniem
+komentarza i odpowiedzi), ich regresje oraz fizyczne kontrole ujemne.
+[Nawigacja przy małej wysokości](NAWIGACJA_NISKI_WIDOK_492.md) uzupełnia
+wcześniejsze ograniczenie zasłaniania treści; [mieszana karuzela](KARUZELA_MIESZANA_431.md)
+dodaje kontrolowaną próbkę obu orientacji do automatu.
+Zamknięcie historycznych #440/#445/#448 i nieodtwarzalnego #518 nie
+oznacza ponownego odbioru całego portalu. Pełny port: **CZĘŚCIOWO**.
+
+## Potwierdzone wdrożenie Alfy 0.26 — 14 września 2026
+
+[Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_026.md): PR #535 scalony jako
+`d7f92870bf9a0a3471e305c370ab79524c316d79`, dziesięć sukcesów CI PR i main,
+Railway **6435698933 success o 11:36:07 UTC**, Deploy 34839034097 success.
+HTTP i zalogowany Chrome potwierdziły **0.26 / d7f9287**, nowy arkusz
+z poprawionym selektorem oraz czytelne przyciski w podpowiedziach.
+Pełny port pozostaje **CZĘŚCIOWO**; dokładne zakresy odbiorów są poniżej.
+
+## Dodatkowy lokalny odbiór moderacji — 14 września 2026
+
+[Raport ścieżek moderacji](ODBIOR_MODERACJI_2026_09_14.md) uzupełnia
+historyczne wiersze panelu i odwołań. Prawdziwe lokalne formularze z CSRF
+potwierdziły ukrycie wpisu, brak działania, odwołanie, cofnięcie decyzji,
+przywrócenie wpisu i odmowy 403. Logowanie moderatora i administratora
+obejmowało rzeczywiste wyzwanie TOTP; wiadomości pozostały lokalne.
+
+| Ekran lub stan | Odbiór wyglądu i treści | Mobile i zoom | Ograniczenie |
+|---|---|---|---|
+| Pełna kolejka zgłoszeń i formularz odwołania | Długie treści, realne działania, zrzuty | 320/768/1440, dwa motywy, 100/140; osiem wariantów zoomu 200% | Pierwsza tablica pomiarów JSON nie zachowała się; są zrzuty; późniejszy Tab opisano w osobnym wierszu |
+| Pełna kolejka odwołań, wynik autora i oba puste stany | Działania i stan bazy potwierdzone; reprezentatywne zrzuty obejrzane | 48 zachowanych pomiarów; osiem zachowanych pomiarów zoomu | Brak poziomego overflow nie oznacza pełnej dostępności fokusu |
+| Otwarte formularze zgłoszenia i odwołania, normalne oraz z błędem | 42/42 oczekiwanych przystanków Tab; podsumowanie otrzymuje fokus | Osiem wariantów: zoom 200%, CSS 320, tekst 140%, oba motywy | Widoczny fragment każdej kontrolki; częściowe zasłanianie długiego błędu, bez deklaracji pełnej zgodności WCAG |
+| Zamknięte kolejki | 16 trafień Tab w linki treści z obrysem | 320 / tekst 140% | Nie jest to odbiór wszystkich pól ani zasłaniania przy zoomie |
+
+Nie potwierdzono nowej usterki w tym zakresie. Niezależny review porównał
+raport z zachowanymi dowodami. Pełny port pozostaje **CZĘŚCIOWO**:
+przy zoomie 200% i tekście 140% stała nawigacja zajmuje znaczną część
+wysokości. Uzupełnienie Tab nie obejmuje każdej kombinacji decyzji, sterowania
+wszystkimi opcjami radiowymi ani jednoczesnej widoczności całego długiego błędu.
+
+## Regresja gotowości strony w teście fokusu #536
+
+[Diagnoza i kontrole ujemne](FOKUS_ZDJECIA_BEZ_JS_536.md) wyjaśniają
+czerwone zadanie pierwszego CI PR #535: pomiar bez JS zaczynał przed
+załadowaniem CSS. Dodano kontrolowane opóźnienie arkusza i oczekiwanie
+na zasoby, zachowując Tab i obrys. To poprawka testu, nie usunięcie
+fokusu w aplikacji. Końcowy head przeszedł pełne CI; wdrożenie opisano powyżej.
+
+## Lokalna regresja kontrastu #534 — zakres dowodu przed wdrożeniem
+
+Potwierdzono, że szeroki selektor `.notice a` nadpisywał kolory przycisków.
+[Raport regresji](KONTRAST_PODPOWIEDZI_534.md): 24 konfiguracje, 72 pomiary
+normal/hover/fokus programowy, trzy kontrole ujemne rzeczywistego CSS
+z odtworzeniem MD5 i mtime oraz 12 wariantów prawdziwego zoomu 200%.
+Reprezentatywne zrzuty obejrzano. To zakres odbioru lokalnego; późniejsze wdrożenie potwierdza raport powyżej. Pełny port marki nadal **CZĘŚCIOWO**.
+
+## Potwierdzone wdrożenie Alfy 0.25
+
+[Odbiór produkcji](ODBIOR_PRODUKCJI_ALFA_025.md) potwierdza Railway
+`6433957176` success o 09:34:16 UTC, zielone main CI i Deploy oraz
+rzeczywistą stopkę **0.25 / b4d5d8e**. Na istniejącym prywatnym wpisie
+obejrzano poprawiony komunikat widoczności. Nie wykonywano zapisów danych
+produkcyjnych. Ogląd ujawnił słaby kontrast przycisku w podpowiedzi `.notice`;
+późniejsza diagnoza i poprawka lokalna są opisane powyżej jako #534. Pełny port nadal
+**CZĘŚCIOWO**, z ograniczeniami opisanymi w raporcie.
+
+## Historyczny odczyt bezpośrednio po scaleniu PR #531 — 14 września 2026
+
+PR #531 scalono jako `b4d5d8e875006ad165660f7f2af8cc5b2b7ca77e`.
+CI `34822658081`: wszystkie dziesięć zadań success, w tym port marki.
+PHP z logu joba `103908931994`: **3793 testy / 76259 asercji**.
+To potwierdza scalenie Alfy 0.25, ale jeszcze nie jej wdrożenie.
+
+Ostatnia potwierdzona produkcja to **Alfa 0.24**,
+`b0712cf8df4a3508ec76e9fada31b4f839c99169`: Railway `6433191800` success
+14 września o 08:44:33 UTC, Deploy `34824265942` success, main CI
+`34822427307` success. Rzeczywisty HTTP ponownie zwrócił stopkę 0.24 /
+`b0712cf`; CSS, JS i oba lokalne fonty Inter odpowiadają 200. Odczyt wersji
+i zasobów nie jest pełnym oglądem wszystkich stanów produkcyjnych.
+
+Poniższe etapy i wyniki pozostają zapisem historycznym. Aktualizacja nie
+przypisuje ich automatycznie nowszym wydaniom. Pełny port: **CZĘŚCIOWO**.
+
+## Dodatkowy odbiór lokalny — 14 września 2026, kod 24afa9e
+
+[Tryb gotowania](ODBIOR_TRYBU_GOTOWANIA_2026_09_14.md) uzupełnia historyczny
+wiersz tej trasy: 48 konfiguracji, w tym rzeczywisty zoom 200%, długa
+instrukcja 4000 znaków, faktyczne przejścia, Tab/Enter i zachowanie
+odhaczenia. Reprezentatywne zrzuty obejrzano; nie testowano fizycznego
+telefonu, Wake Lock ani wysłania wykonania.
+
+[Fokus szczegółów przepisu](ODBIOR_FOKUSU_SZCZEGOLY_530.md): cztery
+przebiegi po 25 elementów przy prawdziwym zoomie. Nie odtworzono całkowitego
+zasłonięcia fokusu, ale przy tekście 140% pozostaje tylko 101,5 px między
+nawigacjami, a napis etykiety zdjęcia wymaga przewinięcia. Ten pomiar nie
+obejmuje błędów walidacji. Pełny port nadal **CZĘŚCIOWO**.
+
+[Sprostowanie indeksów #532](ZRODLO_STYLU_532.md) usuwa kierowanie modeli
+do historycznego kitu jako bieżącej identyfikacji. Nie zmienia oryginalnych
+paczek ani wyglądu aplikacji.
+
+## Odbiór produkcji Alfy 0.23 i dalsze poprawki
+
+Railway deployment 6432286380 dla `6db1b8978f8d7e2229a77e8dd4701ffd510a1b6a`: success 14 września 2026 o 07:43:37 UTC. CI main 34817233565: completed/success. Rzeczywisty odczyt produkcji pokazał Alfę 0.23 i `6db1b89`; CSS, JS i oba lokalne pliki Inter zwróciły 200. W zalogowanej przeglądarce Chrome po odświeżeniu wyszukiwarki również odczytano Alfę 0.23 i `6db1b89`. Obejrzano produkcyjne `/szukaj` (puste pole i brak polecanych tagów) oraz `/home` (rzeczywisty strumień, ciemna karta dodawania i boczne sekcje). To ogląd bieżącego widoku desktopowego, nie pełna macierz skal i stanów produkcji.
+
+[Składniki #526](SLOWNIK_SKLADNIKOW_526.md) i [autozapis #528](AUTOZAPIS_KREATORA_528.md) mają lokalną regresję po integracji i odbiór przeglądarkowy opisany w raportach. [Komunikaty widoczności #530](KOMUNIKATY_WIDOCZNOSCI_530.md) uzupełniają ten pakiet. Końcowy zakres lokalny: 104/1194, 16 kontroli ujemnych, opisane odbiory przeglądarkowe. Alfa 0.25 jest przygotowywana, bez potwierdzenia wdrożenia. Pełny port nadal **CZĘŚCIOWO**.
+
+## Uzupełnienie lokalne #524 i #527
+
+[Pełny przepis po 419/429](ODZYSKIWANIE_PELNEGO_PRZEPISU_524.md):
+48 konfiguracji, osiem prawdziwych zoomów, 51 kroków odzyskanych jeden do
+jednego, rzeczywiste ponowienie utworzenia i edycji z kontrolą CSRF w PHP.
+[Podsumowanie walidacji](PODSUMOWANIE_WALIDACJI_527.md): poprawione sześć
+widoków i historyczne zalecenie COPY_STYLE. Razem 93 testy / 671 asercji
+oraz 13 negatywów źródła w opisanych zakresach. Alfa 0.24 przygotowana
+lokalnie; wynik nie jest potwierdzeniem wdrożenia.
+
+[Odbiór pełnej wiadomości moderatora](ODBIOR_WIADOMOSCI_MODERACJI_2026_09_14.md)
+uzupełnia historyczny wiersz paneli: pełna treść, historia trzech stanów,
+brak adresu, walidacja notatki. Wyłącznie lokalne dane; bez wysyłania listów.
+Pełny port marki nadal **CZĘŚCIOWO** odebrany.
+
+## Uzupełnienie lokalne #523 — 419 i 429
+
+[Odbiór odzyskiwania formularzy](ODZYSKIWANIE_FORMULARZA_523.md) uzupełnia
+historyczny wiersz 419/429: rzeczywiste odpowiedzi middleware, trzy stany,
+144 konfiguracje układu, osiem prawdziwych zoomów częściowego odzyskania
+i reprezentatywny ogląd. Usuwa potwierdzone sprzeczności komunikatów oraz
+nakaz logowania na publicznej trasie. Zakres nie obejmuje wszystkich
+formularzy, naturalnego wygaśnięcia sesji ani klawiatury ekranowej.
+Wdrożenie Alfy 0.23 wymaga osobnego potwierdzenia; pełna marka: CZĘŚCIOWO.
+
+## Aktualny stan — 14 września 2026, po scaleniu PR #521
+
+Pakiet #515–516 jest scalony: PR #521, head
+`1cb2ab5f485a0130a992b1cd4e5ba8db2a02b672`, merge
+`a3cb64df819351b18450603c1dcabe775aa748f0`.
+Obowiązkowy lokalny hook i zwykły push zakończyły się sukcesem.
+CI PR `34792102646`: **10 zadań success**, PHP **3726 testów / 75240 asercji**.
+Port marki job `103818145082` zakończył się sukcesem po 17 min 54 s;
+moduł tagów zaliczył 192 konfiguracje, cztery przejścia bez JS oraz
+sześć rzeczywistych negatywów CSS z przywróceniem końcowego źródła.
+Wyniki wcześniejszych prób poniżej pozostają zapisem historycznym.
+
+Potwierdzenie wdrożenia i granice odbioru opisuje
+[odbiór Alfa 0.22](ODBIOR_PRODUKCJI_ALFA_022.md).
+Pełny port marki nadal ma status **CZĘŚCIOWO**; pozytywny CI nie oznacza
+osobistego oglądu każdej strony, stanu i klienta poczty.
+
+13.09.2026. Źródło przekazane do przeglądu: `667ace890492f02b1221e259a73977cac0897ee3`, PR #517 / #511. CI `34780301310` trwało przy rozpoczęciu tej notki; ta notka nie weryfikuje jego zakończenia ani wdrożenia. Inwentaryzacja opiera się na `routes/web.php`, istniejących raportach i przyrządach, uzupełnionych aktualnym spisem tras oraz oddzielnym lokalnym odbiorem 20 wariantów stanów #511 opisanym poniżej. Aktualizacja tej notki nie uruchamia kolejnych testów ani nie mutuje źródeł.
+
+**Pełna kompozycja wszystkich ekranów i stanów nie ma kompletnego odbioru.** Zielony pełny suite nie oznacza obejrzenia każdego stanu. Historyczne wyniki są oznaczone datą/raportem; późniejsza poprawka wspólnego CSS nie aktualizuje automatycznie ich zrzutów.
+
+## Źródła i znaczenie oznaczeń
+
+- **R014**: `docs/design/AUDYT_KOMPLETNOSCI_MARKI_ALFA_014.md`, zwłaszcza macierz, zakres pomiarów i ograniczenia. Zawiera historyczny ogląd reprezentatywnych zrzutów, nie wszystkich 912 odczytów.
+- **R012**: `docs/design/AUDYT_SPOJNOSCI_ALFA_012.md:90–118`; produkcyjne odczyty i lokalne samodzielne ekrany/poczta. 200% oznacza tam font, nie zoom.
+- **R508**: `docs/design/AUDYT_PACZKI_MARKI_508.md`: mapowanie 19 widoków oryginału; K to kod, nie pomiar.
+- **R509**: `docs/design/KOMPOZYCJE_MARKI_509.md`: 432 konfiguracje kompozycji, 48 prawdziwych zoomów, ograniczenie Tab do zamkniętych menu.
+- **R511**: `docs/design/ZESZYTY_MARKI_511.md`: końcowy lokalny port; 96 konfiguracji zeszytów i 64 zoomy ośmiu tras. Nie jest potwierdzeniem produkcji #517.
+- **S511**: `docs/design/ODBIOR_STANOW_ZESZYTU_511.md` i `output/stany511/results.json`: dodatkowy lokalny odbiór 20 wariantów pięciu stanów, reprezentatywny ogląd zrzutów oraz przebiegi Tab. 320/1440, oba motywy, tekst140 przy320 i100 przy1440; **bez rzeczywistego zoomu200**.
+- **V**: raport jawnie mówi o obejrzeniu zrzutu / obraz obejrzany w tej sesji. **L**: lokalny pomiar lub render. **P**: historyczny odczyt produkcji. **K**: inwentaryzacja źródła. Brak indywidualnego V nie oznacza, że ekran nie działa; oznacza brak takiego dowodu.
+- **M6**: 320/360/390/414/768/1440, oba motywy. R509/R511 dodają 100/140%, bazowy font 32 px i jego połączenie z 140%. **Z**: rzeczywiste `chrome.tabs.setZoom(2)`, sprawdzone API/DPR/połowa viewportu; nie CDP zmieniające wyłącznie font.
+
+`docs/design/INWENTARZ_EKRANOW_MARKI_014.md` pozostaje historycznym inwentarzem. Aktualny `output/routes-517.json` wygenerowano rzeczywistym `php artisan route:list --json` w kopii native po synchronizacji gałęzi roboczej opartej na main `34b4b61` (trasy niezmienione względem PR #517): **192 wpisy**, w tym **100 GET|HEAD**, **3 GET|POST|HEAD**, 63 POST, 14 DELETE i 12 PUT. Zatem 103 wpisy obsługują GET; ani100, ani103 nie jest liczbą ekranów lub obejrzanych stanów. Spis obejmuje też pliki, przekierowania i endpointy systemowe. Bieżący `routes/web.php` stanowi źródło rodzin poniżej. Prefiksy Livewire zależą od instalacji i nie są ekranami. Wspólny kod wzorca poza 19 makietami to `layout.blade.php`, `tokens.css`, `marka-rama.css`, dokumenty marki i komponenty formularzy; brak oddzielnego widoku w ZIP nie zwalnia z tych zasad.
+
+## Historyczna macierz odbioru #511 — późniejsze uzupełnienia poniżej
+
+Ścieżki widoków poniżej są względem `resources/views/`. Nazwa testu oznacza konkretny przyrząd lub rodzinę regresji; wyniku indywidualnego testu nie dopisujemy z samego faktu jego istnienia.
+
+| Ekran / stan i trasy | Kod wzorca | Faktycznie oglądany dowód | Mobile / tekst / zoom | Test / wykonany zakres | Brak lub ograniczenie |
+|---|---|---|---|---|---|
+| Publiczna `/`: kroki, wykonanie, własność | `pages/landing`, `marka-wlasnosc.css`; D208/D210 | V w odbiorach506/R509; R511 zachowuje port landingu | M6 R509, Z R509/R511 | `port-projektu`, `kompozycje-marki`, `zoom-marki`, `KompozycjaWejsciaMarkiTest` | Nie każda kombinacja brakującego kolażu, tablicy i wspomnienia ma osobny V |
+| Zalogowane `/` i `/home`: strumień, composer, tablica | `pages/home`, composer, kuking-board; D207 | P/V R014 i odbiór501 | Historyczne mobile/tekst, port; nie przypisywać Z publicznego `/` zalogowanemu `/home` | Port/kafel/fokus; wcześniejszy kontrakt GET home/root | Sam Z publicznego Startu nie sprawdza zalogowanego strumienia |
+| `/odkryj`, `/szukaj`: wyniki/bez wyników; `/tagi`, `/tag/{tag}` | `FeedController`, `SearchController`, `TagController`; rama/listy | P/L R012/R014, wybrane V wyszukiwarki i R508 | Historyczne 320–1440 i font; brak Z w zestawie ośmiu tras R511 | Szeroka macierz i dostępność | Kafle były zakresem #515 — zakończonym w PR #521; wszystkie kombinacje filtrów nadal nieobejrzane |
+| `/@{username}` własny/cudzy, długie nazwy i rzeczywiste liczby | `pages/profile/show`, `marka-profil.css`; D210 | V R509; `output/final511/zoom200-ania-false.png`, `…true.png` | M6, Z; nowa fixture ujawniła i naprawiła obrys szyny | 432 konfiguracje, `KompozycjaProfiluMarkiTest`, pomiar pasa, Z64 i negatyw szyny | Nie wszystkie stany relacji/blokad kont mają indywidualny ogląd |
+| `/@{username}/obserwowani`, `/@{username}/obserwujacy` | `pages/profile/connections` | L R014; brak wskazanego osobnego aktualnego V | Historyczna macierz, bez bieżącego Z | Dostępność i polityki | Pusta lista vs wielostronicowa nie mają osobno przypisanego V |
+| `/login`, `/register` formularz podstawowy | `components/marka-wejscie`; D210 | V R509 | M6; Z obu motywów; Tab7/7 i10/10 w fixture | `KompozycjaWejsciaMarkiTest`, kompozycje, zoom | Sukces pełnej rejestracji i realne zewnętrzne uwierzytelnienie nie wynikają z GET |
+| Błąd loginu, `/logowanie/link`, token linku, `/nie-pamietam-hasla`, `/nowe-haslo/{token}` | auth views/controllers | V/L R014; P/V formularza linku po wdrożeniu014 | R014:32 warianty wejścia; produkcja12; brak Z tych podtras w R511 | `InstrukcjaLogowaniaMarkiTest`, regresje tokenów/enumeracji, render SMTP | Brak rzeczywistej wysyłki; nie każdy token ważny/zużyty/wygasły ma osobny V |
+| `/zaproszenie/{token}`, `/potwierdz-email`, podpisane potwierdzenie, `/cofnij-usuniecie-konta`, `/logowanie/kod` | auth/account views, odpowiednie kontrolery | K; R014 zbiorczy odbiór instrukcji dostępnych ekranów | Nie ma podstaw do przypisania pełnego M6/Z wszystkim stanom | Istniejące regresje funkcjonalne; nie dopisano indywidualnego wykonania | Osobno wymagają dowodu stany wygasłe, zużyte, błędne i sukcesu |
+| Google/Facebook: start, callback, domknięcie i łączenie | `Auth/*LoginController`, widoki domknięcia | K; L/V #345: pięć stanów × dwa motywy, końcowy head 795dc2f | 320×740, tekst140, Tab; bez prawdziwego Z200 i realnego dostawcy | CI OAuth10/10, lokalnie10/10; rzeczywisty start/callback, atrapa transportu | Obejrzano pięć końcowych stanów; samo przekierowanie nie zwiększa liczby ekranów. Finalny POST i dostawca pozostają poza pomiarem |
+| `/witaj/zainteresowania`, `/witaj/ludzie`, `/witaj/gotowe` | onboarding views; prototyp onboarding | V/L R014 dla trzech kroków; K R508 | 320/140 historycznie; nie Z R511 | Dodatkowa macierz014; regresje onboardingu/N+1 | Kompozycja #513; puste dane/brak propozycji nie są automatycznie objęte trzema GET |
+| `/dodaj`, `/dodaj/zdjecie`, `/wpisy/{post}/edycja`, `/wpisy/{post}/zdjecia` | add/posts views | L R014, przejście menu→edycja; wybrane V | Historyczne szerokości, edycja320/1440 | Macierz i testy upload/walidacji | Nie każde upload/loading/error/sukces ma osobny V; produkcji nie publikowano |
+| `/dodaj/przepis`, `/dodaj/przepis/jedna-strona`, `/przepisy/{recipe}/edycja`, `/przepisy/{recipe}/szczegoly` | recipes views / Livewire wizard | V R014/R508, właściciel; błędny403 wykluczony z odbioru edycji | R014 końcowe12 wariantów; brak Z tych formularzy w R511 | GET/POST/PUT/Livewire: szkic, wymagany krok, publikacja | Test POST nie potwierdza wizualnego komunikatu każdego błędu |
+| `/przepisy/{recipe}`: foto/no-image/pełny opis | recipes/show, `marka-przepis.css`; D210 | V R509, wcześniejsze P R012 | M6 oba warianty; Z reprezentatywnego przepisu | Kompozycje/zoom; lokalne otwarcie i zamknięcie zdjęcia | Nie każdy typ atrybucji, licznik i stan niedostępnego autora oglądany |
+| `/przepisy/{recipe}/gotuj` | cooking views; prototyp gotuj | P/L R012/R014, brak nowego osobnego V511 | Historyczne mobile/font; bez Z511 | Historyczny pomiar i testy trybu | Nie przypisywać mu Z szczegółów przepisu ani testu minutnika z makiety |
+| `/wpisy/{post}` i rozmowy/otwarte menu | posts/show, post-card, comment-thread | L R014, wybrane działania lokalne | Historyczny M6; zakres fokusu kart określa osobny skrypt | `fokus-karty-dania`, szeroka macierz | Z509/511 jawnie pomija ukryte wnętrza zamkniętych details; nie obejmuje wszystkich dialogów |
+| `/przepisy/{recipe}/ugotowalem`, `/ugotowane/{cookedEvent}`, `/ugotowane/{cookedEvent}/wyszlo` | cooked views | V/L R014 z rzeczywistymi lokalnymi zasobami | Dodatkowe320/140 oba motywy | Dodatkowa macierz i testy własności | Brak nowego Z i wszystkich wariantów błędów formularza |
+| `/zeszyt` z folderami i ostatnimi zapisami | collections/index, recent component, `marka-zeszyt.css`; D211 | V R511; `output/final511/zeszyty511-index-*` | M6×2motywy×4pisma; Z | Moduł96 (łącznie2trasy),5negCSS, PHP scopedDOM, pełny port | Zrzuty są lokalnymi danymi, nie produkcjąPR517 |
+| `/zeszyt` pusty, otwarty formularz, walidacja utworzenia | ten sam widok + error-summary/details | S511: L wszystkich wariantów; V reprezentatywnego pustego indeksu, formularza i błędu | 320/1440 oba motywy; tekst140 na320; bez Z200 | Rzeczywiste rozwinięcie, Tab i lokalny niepoprawny POST; opis zachowany, formularz otwarty, niezależny odczyt0 utworzonych zeszytów | Część dodatkowych20wariantów, nie wcześniejszych96; bez poprawnego wysłania i bez osobnego oglądu każdej grafiki |
+| `/zeszyt/{collection}`: foto/no-image/długi tytuł | collections/show, recipe-card wariantkafel | V R511; `output/final511/zeszyty511-show-*` | M6×2×4, Z | Moduł96, klikzdjęcia, PHP i5negCSS | Strona2 i ograniczona widoczność nie mają osobnego V tej fixture |
+| `/zeszyt/{collection}` pusty i zawierający tylko wpisy | collections/show, post-card, szyna zeszytów | S511: L i reprezentatywne V obu stanów | 320/1440 oba motywy; tekst140 na320; bez Z200 | Rzeczywiste lokalne dane, Tab, pomiar bez poziomego overflow; brak fikcyjnych zdjęć/przepisów | Część dodatkowych20wariantów; nie obejmuje wszystkich akcji wpisu, publicznej cudzej kolekcji ani paginacji |
+| Zeszyty: prywatność, paginatory, niedostępne zapisy | CollectionController/Policy, modele | Kod i PHP; nie V | Nie przypisywać M6 trzem przepisom wszystkim wariantom danych | R51141testów/241asercji; niezależne paginatory i filtry zachowane | Odbiór zachowania nie oznacza oglądu komunikatu „niedostępne” na każdej szerokości |
+| `/powiadomienia` zwykłe i decyzyjne | notifications/index i typy zdarzeń | P/L R014, K R508 | Historyczna macierz, bez Z511 | Regresje widoczności/zdarzeń; szeroka dostępność | #513 zwykłe karty; nie wszystkie typy, brak danych i działania zbiorcze mają V |
+| `/ustawienia` i profil/zdjęcie/tagi/czytelność/prywatność/bezpieczeństwo/e-mail/dane | settings views; wspólne formularze | P/L/V R014 dla reprezentatywnych widoków | Historyczny M6; ustawienia produkcji zachowane90%, nie udawane140% | Port i regresje ustawień | GET nie dowodzi zapisu każdej preferencji; realna klawiatura ekranowa niebadana |
+| 2FA: `/ustawienia/2fa`, `/ustawienia/2fa/wlacz`, `/ustawienia/2fa/kody-zapasowe`; potwierdzenie e-mail | settings/two_factor, EmailSettingsController | R014 rzeczywiste lokalne włączenie2FA; sekrety tylko lokalnie | Historyczny mobile, bez Z511 | `InstrukcjaBramkiModeracjiTest`, testy2FA | Nie każdy błąd/kod zapasowy ma osobny V; nie ujawniać sekretów w artefaktach |
+| Pomoc/zasady/o-kuking/regulamin/prywatnosc | static views + layout | P/L R012/R014; bez przypisania V każdej podstronie | Historyczne320/1440/font oraz macierz | Dostępność | Treści prawne nieaudytowane merytorycznie; nie ma Z511 |
+| Kontakt i dziękujemy, zgłoś treść/zgłoszenia/szczegół, odwołania, zgłoszenie nielegalne/przyjęte | contact/reports/appeals views | L R014, V reprezentatywnego zgłoszenia; kontakt bez wysłania | Historyczne320/140 + macierz | Regresje formularzy; dostępność wybranych dróg | Potwierdzenia sukcesu nie wynikają z obejrzenia formularza; nie wszystkie listy puste/pełne |
+| Admin: zgłoszenia/sygnały/odwołania/bez-odpowiedzi/wiadomości/kolaz/kuking-na-dzis/tagi/użytkownicy | `pages/admin/*`, własna bramka2FA | R014: V/L dziewięciu paneli, puste kolejki i lista osób | R01436 wariantów320/1440×2motywy; brak Z511 | R014 rzeczywiste2FA; bieżący dostępność wybiera część paneli | Nie rozciągać9 paneli na wszystkie 11 GET ani szczegóły wiadomości/osoby; pełne kolejki i wyniki działań niepotwierdzone V |
+| Bramka moderatora bez2FA / odmowa zwykłemu kontu | admin/wymagane_2fa, middleware | V/L R014 dla bramki | Historycznie320/1440 | Dedykowany render i realny negatyw instrukcji | Nie jest dowodem wyglądu panelu za bramką |
+| 403/404 | errors views / rzeczywiste odmowy | V/L R014, realneHTTP403/404 | 320/140 oba motywy historycznie | Dodatkowe warianty014 | To dowód błędu, nie odbiór niedostępnego profilu/edycji |
+| 419/429 | errors views | V/L R014: osobny render lokalny **HTTP200** | 320/140 historycznie | Render szablonu | Nie wywołano właściwego middleware w tym odbiorze; brak pełnego scenariusza sesji/limitu |
+| 500/503 | samodzielne errors layouts | V/L R012/R014 | 320–1440/font historycznie, nie Z | `SamodzielneEkranyMarkiTest`, niezależne rendery | Brak celowej awarii produkcji; nie przypisywać dostępności bazy/service całej ścieżce awarii |
+| Offline/PWA | `public/offline.html`, serviceworker | V ciemnego320 R014, realnie wczytana ikona | 8 końcowych wariantów014; historyczne16/32font | Test prawdziwego źródłaSW/fallback/cache | Instalacja013 historyczna; brak aktualnego odbioru wszystkich systemów i rzeczywistego Z |
+| ZIP eksportu: HTML/README, foto jeszcze przetwarzane, druk | exports/* | V/L R014, jasny/ciemny ekran i jasnydruk | Historyczne320/1440, brak Z | `EksportNieObiecujeTerminuTest`, `EksportMowiOZdjeciachWDrodzeTest`, prawdziwyZIP/negatywy | Odczyt pobranego HTML wChromium nie obejmuje wszystkich przeglądarek/offline czy klientówZIP |
+| 11 własnych maili | mail/* | R014: 11 renderów; V reprezentatywnego digestu i listu technicznego | 320; minimum18px/link48, realne negatywy | `SpojnoscWiadomosciMarkiTest`, rodziny pocztowe | Nie wszystkie11 osobiście obejrzane; bez wysyłki i klientów pocztowych; Reply-To nie dowodzi czytania odpowiedzi |
+| 7 standardowych Laravel MailMessage | vendor/mail/html/theme+header, notifications | R012: render 7 klas, Chromium320/640; R014: render CI; brak dowodu V każdej klasy | R012CTA183×56 i zawijanie długiegoURL; nie Z | `StandardoweWiadomosciMarkiTest`, treści powiadomień | Brak lokalnego vendor/notifications/email nie jest luką: nadpisanymotyw działa przezLaravel. Bez Outlook/Gmail/AppleMail; teksty automatu #514 |
+| Pliki/callbacki/system | zdjęcia, robots,sitemap,health, eksportdownload, Livewire, OAuth | K; aktualny spis `output/routes-517.json`; pojedyncze odczyty nie są ekranami | Nie stosować metryki geometrii ekranów doJSON/pliku/przekierowania | Testyautoryzacji/tras | Wchodzą do192 wpisów tras, ale nie zwiększają liczby „obejrzanych ekranów” |
+
+## Luki dowodu zapisane po #511 — stan historyczny
+
+1. **Puste/błędne/sukcesowe stany nie dziedziczą wyników happy-path.** S511 domknął ograniczony odbiór pustego indeksu, otwartego formularza, rzeczywistej walidacji, pustej kolekcji i samych wpisów:20wariantów bez poziomego overflow, z reprezentatywnym V. Nie rozszerza to wyniku96wariantów ani rzeczywistego zoomu200 na te stany. Druga strona, ograniczona widoczność i sukces utworzenia nadal nie mają tu osobnego V.
+2. **Ówczesny Z dotyczył ośmiu wybranych tras, nie całego serwisu.** Późniejszy zintegrowany port #521 obejmuje jedenaście tras; szczegółowe zakresy #513 i #515 opisano poniżej. Nie ma podstaw do pozytywnego wyniku Z dla ustawień, kreatora, gotowania, administratora, poczty i błędów. Historyczne font200 pozostaje osobnym dowodem, nawet po udanym Z509/511.
+3. **Moderacja:** puste kolejki i bramka2FA są faktycznymi stanami, lecz nie dowodzą skomplikowanej wypełnionej karty, szczegółów wiadomości/użytkownika ani wyniku akcji. Pełny PHP sprawdza zachowanie, nie wygląd wszystkich takich stanów.
+4. **PocztaLaravel:** istnieje port motywu i realny render; nie ma dowodu zgodności wszystkich klientów. Nie należy zgłaszać „brak portu standardowych maili” wyłącznie na podstawie braku jednego pliku vendor. Raport012 zawiera pozytywny, ale historyczny pomiar.
+5. **Awaria:** render419/429 podHTTP200 nie jest end-to-end sesji/limitera; ekran500 nie dowodzi poprawnego działania podczas każdej awarii zależności. Brak takiego ćwiczenia nie jest potwierdzonym błędem aplikacji.
+
+## Zgłoszenia na etapie #511 — stan historyczny
+
+**Nie potwierdzono nowego błędu kompozycji ani nowej sprzeczności funkcjonalnej w odczycie pokrycia i dodatkowym odbiorze S511.** Podejrzenie zasłonięcia wielowierszowego linku błędu wyjaśniono osobną analizą czterech rzeczywistych fragmentów i zrzutem fokusu w jasnym motywie; wspólny prostokąt obejmował puste miejsca między wierszami. Szczegółowe ograniczenia tej diagnozy zawiera S511. Nie tworzymy usterek z samego braku pomiaru. Ówcześnie otwarte rodziny #513–516 zostały następnie zakończone w PR #519–521; aktualizacje poniżej rozdzielają ich zakresy i dowody. Powyższych ograniczeń nie wolno natomiast usuwać z końcowego twierdzenia o kompletności.
+
+## Aktualizacja po scaleniu
+
+PR #517 scalono do main `34b4b61109ebd1e1c808066191609672cd5ae332`.
+CI PR `34780301310`: wszystkie dziewięć zadań success; PHP 3707 testów
+i 74853 asercje. To aktualizuje status CI, nie rozszerza zakresu wizualnego
+powyższej macierzy. Stan produkcji należy odczytać osobno w przekazaniu.
+
+## Aktualizacja #513 — odbiór lokalny, przed scaleniem
+
+Raport [zainteresowań i powiadomień](ZAINTERESOWANIA_POWIADOMIENIA_513.md)
+rozszerza dwa wiersze macierzy o 96 konfiguracji, 16 nowych wariantów
+rzeczywistego zoomu, pełne decyzje moderacyjne i rzeczywiste lokalne POST.
+Obejrzano reprezentatywne zrzuty 320/140 oraz desktop 1440 w obu motywach. Końcowy pełny port przeszedł z 80 rzeczywistymi zoomami dziesięciu tras i sześcioma negatywami zoomu; nie rozszerza to wyniku na inne trasy. Dodatkowe osiem
+pustych stron i cztery przejścia paginacji mają tylko dowód HTTP, treści
+i braku poziomego overflow; nie dziedziczą pełnych skal ani Tab.
+
+Produkcja Alfa 0.19 jest potwierdzona dla `34b4b61`: [osobny odbiór](ODBIOR_PRODUKCJI_ALFA_019.md).
+Powyższy odbiór lokalny uzupełniono po scaleniu PR #519: Alfa 0.20
+`ce82638dc6a69be3f73dbc0094db7cb7cede6e97` ma potwierdzone CI, Railway,
+HTTP i ograniczony ogląd zalogowanej produkcji — [osobny odbiór](ODBIOR_PRODUKCJI_ALFA_020.md).
+Status pełnego portu marki pozostaje **CZĘŚCIOWO**. Ta aktualizacja nie
+rozszerza odbioru na wszystkie typy wiadomości, klientów poczty, panele
+moderatora ani pozostałe zakresy #514–516.
+
+
+## Aktualizacja #514 — 14 września 2026
+
+PR #520, head `c2a05d015ba6e197f3be5bb3334864c3967ec582`, scalono jako
+`ae6b519cd5b7ccf68bc43e7b2e61ff46d54de8c2`. CI PR `34788400687`:
+10 zadań success, PHP 3719 testów / 75077 asercji. Szczegóły, rzeczywiste
+negatywy, lokalny render MailMessage i ograniczenia w
+[raporcie precyzji](PRECYZJA_KOMUNIKATOW_514.md). Nie przeprowadzono
+wysyłki do rzeczywistych klientów poczty ani całego zewnętrznego OAuth.
+Samo scalenie nie potwierdza wdrożenia Alfa 0.21.
+
+## Aktualizacja #515–516 — prace lokalne
+
+Kafle prawdziwych promowanych tagów na pustej wyszukiwarce oraz
+[sprostowanie instrukcji modeli](SPROSTOWANIE_INSTRUKCJI_516.md)
+są przygotowane lokalnie. Końcowy zintegrowany port, CI, scalenie
+i produkcja tego pakietu wymagają osobnego potwierdzenia.
+Nie zmienia to statusu pełnej marki: **CZĘŚCIOWO**.
+
+
+Alfa 0.21 ma teraz potwierdzone wdrożenie Railway6427633492 i rzeczywisty
+odczyt metryczki ae6b519. Zakres oglądu i ograniczenia:
+[odbiór produkcji0.21](ODBIOR_PRODUKCJI_ALFA_021.md).
+
+
+Końcowy lokalny odbiór pustej wyszukiwarki (#515):
+[szczegółowy raport](POLECANE_TAGI_515.md) — 192 konfiguracje, cztery
+przejścia bez JS do wszystkich tagów i 112 wariantów prawdziwego zoomu
+(w tym 16 wyszukiwarki). Pełne/puste dane, gość i konto zalogowane,
+pełne nazwy/opisy, widoczny fokus i rzeczywiste negatywy. Ogląd obejmuje
+reprezentatywne zrzuty, nie każdy wariant. Ten odbiór nie rozszerza
+pokrycia wszystkich filtrów i wyników ani innych tras z wspólnego wiersza.
+
+## Uzupełnienie odbioru #539
+
+Potwierdzono i poprawiono kontrast fokusu przy jednoczesnym najechaniu na przycisk podpowiedzi. Regresja: 88 wierszy pomiarów, pięć kontroli ujemnych rzeczywistego CSS i cztery próby prawdziwego zoomu. Niezależny końcowy odbiór po integracji z nawigacją: ciemny motyw, zoom 200%, tekst 140%, Tab 14/14 PASS wraz z hover + focus-visible. Wcześniejszego nieudanego przebiegu nie traktujemy jako pozytywnego. Szczegóły: [FOKUS_PODPOWIEDZI_539.md](FOKUS_PODPOWIEDZI_539.md). Wdrożenie pakietu potwierdzono w [odbiorze Alfa0.27](ODBIOR_PRODUKCJI_ALFA_027.md): SHA4c537b220af20c8efdd8cc109cc36dcbb46e3377, Railway6439273567 i Deploy34859662013 success. Zakres produkcyjnego oglądu pozostaje dokładnie taki jak w raporcie; nie rozszerzamy go o wszystkie warianty lokalne.
+
+## Uzupełnienie 15.09 — #549 i audyt
+
+[Komunikat419](KOMUNIKAT_ODZYSKIWANIA_549.md): lokalne 16 konfiguracji,
+18 testów/330 asercji i trzy fizyczne negatywy. Późniejszy odbiór w tym raporcie potwierdza CI PR/main oraz Railway6458271154 i Deploy34968590919 success dla SHA72b96f979a264ed1982a4803bc7e07e623428c2e.
+[Audyt wielodyscyplinarny](AUDYT_WIELODYSCYPLINARNY_2026_09_15.md)
+zapisuje #567–569 oraz priorytety. Nie rozszerza wykonanych odbiorów.
+
+## Uzupełnienie #567 — niedostępne zapisy
+
+[Raport](NIEDOSTEPNE_ZAPISY_567.md): lokalnie 23 testy / 185 asercji,
+cztery fizyczne negatywy i 36 konfiguracji przeglądarki. Obejrzano trzy
+końcowe zrzuty. Zakres: informacja o niedostępnych zapisach w istniejącym
+zeszycie; nie jest to ponowny odbiór całej rodziny. CI PR/main oraz Railway6459320591 i Deploy34975402661 zakończyły się success dla SHAd50183eecda28455ece64469571c074e3897c408; szczegóły w powiązanym raporcie #567.
+
+## Pasek gościa — Alfa 0.37, odbiór lokalny
+
+[PASEK_PRZEWIJANIE.md](PASEK_PRZEWIJANIE.md): 24 warianty oraz osobno
+rzeczywisty zoom200% i Shift+Tab, dwa fizyczne negatywy. Wdrożenie
+potwierdzone razem z Alfą0.38, SHA0e1bdbe80ffe25d72accf2f773a3a533675ef458, w [odbiorze produkcji](ODBIOR_PRODUKCJI_ALFA_038.md). Nie ma osobnego potwierdzenia wdrożenia0.37; nie zmienia to statusu pełnej macierzy.
+
+## Szybki wygląd — #574, lokalnie
+
+[SZYBKI_WYGLAD_574.md](SZYBKI_WYGLAD_574.md):36 geometrii, zapis gościa,
+reset, błąd429, bezJS, nawigacja w trakcie zapisu, konto i zoom200%.
+Cztery fizyczne negatywy. Późniejszy odbiór w powiązanym raporcie potwierdza main CI11/11, Railway6462041446 i Deploy34989544692 success dla SHA0e1bdbe80ffe25d72accf2f773a3a533675ef458. Zakres produkcyjny jest opisany oddzielnie od lokalnych konfiguracji.
+
+
+## Korekta historycznych statusów — 16 września 2026
+
+Powyższe sześć korekt (#539, #549, #567, #574, pasek i #579) wynika z odczytu późniejszych raportów obecnych w main f77bd4d. Nie wykonano przy tej korekcie nowego odbioru przeglądarkowego ani produkcyjnego. Zachowano ograniczenie smoke testu #579. Pełny port marki pozostaje **CZĘŚCIOWO**; pozostałe wiersze wymagają oceny własnych dowodów, a nie zbiorowego uznania za zakończone.
+
+## Uzupełnienie 17.09 — linki #634 i instalacja #278
+
+| Ekran / stan | Kod i lokalny odbiór | CI | Produkcja i ograniczenia |
+|---|---|---|---|
+| Link w treści oraz „Opuszczasz Kuking” | Wspólny renderer, 24 konfiguracje ostrzeżenia, 8 prób rzeczywistego zoomu 200%, testy XSS/tokenów i fizyczne negatywy | PR #635 i main: po 12 zadań success | Alfa 0.48 / 3f122d6: istniejący wpis Marcinka, ostrzeżenie, przejście do celu i powrót sprawdzone; bez zmiany danych użytkownika. Nie jest to skaner antywirusowy |
+| Jednorazowa propozycja instalacji PWA | 24 konfiguracje, 8 prób rzeczywistego zoomu 200%, odmowa HTTP/DB/reload, symulowane accepted/appinstalled; osobno rzeczywisty beforeinstallprompt lokalnego Chromium | PR #631 i main: po 12 success, zwykły hook przeszedł | Railway i Deploy success, HTTP i przeglądarka gościa/konta: Alfa 0.49 / 7c15301. Panel nie pojawił się na aktualnym koncie; bez wymuszania decyzji. Brak odbioru natywnej instalacji Android/iOS |
+
+Szczegóły i zakres dowodów: [linki](LINKI_634.md) oraz
+[instalacja PWA](INSTALACJA_PWA_278.md). Uzupełnienie PWA dotyczy propozycji
+instalacji, nie zastępuje całego historycznego wiersza offline/service worker.
+Pełny port marki pozostaje **CZĘŚCIOWO**.
+
+
+## Odzyskanie PUT po 419 przy rzeczywistym zoomie — 18 września 2026
+
+[Wąski odbiór](ODBIOR_PUT_ZOOM_492.md) na źródłach6fb497c uzupełnia wcześniejszy
+PUT: oba motywy ustawione przez UI, rzeczywisty zoom200%, CSS320×900, tekst140.
+Payload i snapshot badanego przepisu zachowane przy odmowie; Tab dociera do
+ponowienia, które po dodatkowym przewinięciu jest widoczne i niezasłonięte.
+Enter wykonuje prawdziwy PUT, z potwierdzeniem opisu, kroków, przypisań mediów,
+minutników kroków i prywatności. Oba PNG obejrzane również przez reviewera.
+
+Zakres nie obejmuje nowych uploadów, maksymalnych danych, wszystkich pól
+fokusu, naturalnego wygaśnięcia sesji, 429 przy zoomie ani fizycznych urządzeń.
+Nie dowodzi samoczynnego odsłonięcia celu przez sam Tab. Historyczne ograniczenia
+pozostają ważne poza tym zakresem. Pełny port marki nadal CZĘŚCIOWO.
+
+## Fotograficzny katalog tagów — #681, roboczy odbiór lokalny
+
+A–Z otrzymał szerszą ramę i karty z publicznymi zdjęciami oraz podpisami.
+[Raport](FOTOGRAFICZNE_TAGI_681.md) rozdziela pomiar 36 konfiguracji,
+rzeczywisty zoom 200%, obsługę myszy/emulowanego dotyku/Tab i kontrole
+ujemne od ograniczeń. Lokalny axe nie znalazł naruszeń w siatce; kontrast
+fotografii wymagał osobnego obliczenia. CI i produkcja tego pakietu jeszcze
+niepotwierdzone. Nie zmienia to statusu pełnego portu: **CZĘŚCIOWO**.
+
+## Odbiór wdrożonych funkcji — 18 września 2026
+
+Ten rozdział ma **pierwszeństwo** przed historycznymi statusami czterech
+pakietów wymienionych niżej. Nie rozszerza zakresu oglądu żadnego ekranu
+i nie powtarza implementacji — cały ten kod jest scalony i wdrożony.
+
+Powstał 18 września 2026 po południu na podstawie pomiaru na `55877e2`
+i został **uzupełniony tego samego dnia wieczorem**, kiedy produkcja stała
+już na `3f315b3`. Obie warstwy są niżej rozdzielone i obie są ważne —
+każda z własną datą, SHA i zakresem.
+
+### Punkt wyjścia: SHA w chwili każdego pomiaru
+
+| Pomiar | Produkcja w tej chwili | Co z niej odczytano |
+|---|---|---|
+| 18.09.2026, ok. 13:10–13:24 UTC | `55877e2` — Alfa 0.65, assety `app-4x8Pd5Wp.js` i `app-BN8XjHof.css`, wdrożenie Railway 09:53 UTC SUCCESS, `/health` 200 | brak publicznych tagów, brak wykonań |
+| 18.09.2026, 18:54–19:02 UTC | `3f315b3` — Alfa 0.67, wydanie 20:53 czasu lokalnego | dwa publiczne tagi, jedno wykonanie |
+
+**Żaden z tych dwóch stanów nie jest „stanem produkcji" bez daty.** Odcisk
+assetów przy pierwszym pomiarze jest istotny z tego samego powodu: numer Alfy
+bywa podnoszony w kodzie wcześniej, niż nastąpi wdrożenie, a nazwa pliku
+z hashem dowodzi, że serwowany jest **ten** build.
+
+Jedyne `degraded` to znane historyczne `kolejka: zadania_nieudane` — poza
+zakresem tego odbioru i **nie wolno** kasować tych zadań po to, żeby stan
+stał się zielony.
+
+**Co z tego wynika:** żaden z poniższych braków nie bierze się z niewdrożenia.
+
+### Popołudnie: w sprawdzonych powierzchniach nie było danych
+
+To jedno ustalenie przesądzało po południu o czterech pakietach naraz.
+**Zakres jest dosłownie taki, jak w tabeli** — jedenaście stron publicznych
+i kilka prób bezpośrednich. To nie jest spis bazy i nie zastępuje go.
+
+| Co sprawdzono | Wynik, 18.09.2026 ok. 13:20 UTC, `55877e2` |
+|---|---|
+| spis tagów | HTTP 200, **stan pusty**: „Tagi jeszcze się nie pojawiły" |
+| wyszukiwarka, zakres przepisów | HTTP 200, „Nie ma jeszcze polecanych tagów." |
+| strona pojedynczego tagu dla slugów obiad, zupy, deser, cukinia, bigos i ciasto | **404** |
+| jedenaście stron publicznych zapisanych w dowodzie | **zero** odnośników do strony pojedynczego tagu |
+| publiczne przepisy znalezione w sprawdzonych powierzchniach | **jeden**: przepis o slugu bigos-z-cukinii (200) |
+| ten przepis: wykonania | „Jeszcze nikt tego nie gotował. Twoje wykonanie będzie pierwsze." |
+| ten przepis: komentarze | „Jeszcze nikt tu nic nie napisał." |
+| trzy profile, zakładka ugotowanych | „Brak wykonań" |
+
+**Sprostowanie do wcześniejszego zapisu tej sesji:** „Rolada kawowa" **nie
+jest przepisem, tylko wpisem** (identyfikator 01a0a6af). Adres przepisu
+o slugu rolada-kawowa zwraca **404**.
+
+Uwaga, która zapobiega fałszywemu tropowi: w treści wpisów pojawiają się
+ciągi w rodzaju `#ciasto`, ale w sprawdzonych wtedy stronach nie było ani
+jednego odnośnika do strony tagu. Pusta lista tagów **nie była usterką
+renderowania**.
+
+**Brak danych nie jest wynikiem pozytywnym.** Wytworzenie tagów, wykonań albo
+komentarzy na produkcji zamknęłoby cztery zgłoszenia i **zafałszowało odbiór**;
+dlatego tego nie zrobiono i nie należy tego robić.
+
+### Wieczór: dane się pojawiły i dwa braki są już częściowo domknięte
+
+Ponowny odczyt 18:54–19:02 UTC, wyłącznie GET bez sesji, na `3f315b3`
+(Alfa 0.67). **Popołudniowy wynik nie staje się przez to nieprawdziwy — staje
+się historyczny.**
+
+- **Publiczne tagi są.** Spis wymienia `ciasto` (1 wpis, z miniaturą) oraz
+  `sernik` (0 wpisów); obie strony tagów odpowiadają 200. Strona `ciasto`
+  renderuje kolaż `tag-collage--1` z kaflem prowadzącym do wpisu oraz
+  gałąź **poniżej progu** komponentu statystyk: „Pokaż, co gotujesz — dodaj
+  swój wpis." Próg to 5 zdjęć i 3 osoby (`tag_public_stats`), a tag ma
+  jednego autora — zachowanie jest więc poprawne i **odebrane na produkcji**.
+- **Niezerowy licznik wykonań jest.** Strona przepisu bigos-z-cukinii ma
+  w nagłówku „Komu wyszło" akapit `pasek-liczb` z treścią `1 wykonanie` —
+  poprawna forma pojedyncza, etykieta nazywa zdarzenie, nie osobę.
+- **Okruszek i cele odnośników trzymają się po zmianie wdrożenia:** widoczna
+  lista `okruchy` zgadza się z `BreadcrumbList` co do pozycji, „Świeżo
+  z Kuking" prowadzi na `/odkryj` (200), wyszukiwarka zachowuje zakres
+  w ukrytym polu, a zbiorczy katalog przepisów nadal **nie powstał** (404).
+- **Zeszyt dalej wymaga sesji** — 302 na logowanie. To granica dowodu.
+
+**Uwaga do rozdziału o fotograficznym katalogu tagów (#681) powyżej.** Stoi
+w nim, że produkcja tego pakietu jest jeszcze niepotwierdzona. Wieczorny
+odczyt to **posuwa do przodu, nie cofa**: spis tagów na `3f315b3` ma już
+kartę z publicznym zdjęciem i podpisem („Zdjęcie: Ewa Kapica”) przy tagu
+`ciasto`. To odczyt HTML jednej karty, nie odbiór macierzy 36 konfiguracji
+ani kontrastu fotografii — reszta ograniczeń tamtego rozdziału zostaje
+w mocy.
+
+### Stan czterech pakietów po obu pomiarach
+
+| Pakiet | Implementacja | Dowód lokalny | CI | Dowód produkcji | Czego dokładnie brakuje |
+|---|---|---|---|---|---|
+| **#369** statystyki tagów | `app/Domain/Tags/TagPublicStats.php`, próg w `config/kuking.php`; PR #665 → `e22b79d` | pełny: 13/147 i 55/315, sześć fizycznych negatywów, benchmark 2/30 tagów, 48 układów, zoom 200% | success na `55877e2` | **częściowy** — gałąź poniżej progu potwierdzona na żywym tagu 18.09 wieczorem | zdanie `Publicznie: N zdjęć od M osób.`; potrzebny tag z co najmniej 5 zdjęciami od co najmniej 3 osób |
+| **#370** bogatsze strony tagów | `app/Domain/Tags/TagCollage.php`; PR #669 → `397a742` | pełny; uzupełniony o kontrole **wskaźnikiem**, nie tylko klawiaturą | success | **częściowy** — kolaż i CTA obecne w HTML na żywym tagu | reguła „jedno zdjęcie od osoby" (potrzeba co najmniej 3 autorów) oraz CTA jako rzeczywista interakcja |
+| **#666** etykiety liczników | `recipes/show.blade.php` z `Odmiana::rzeczownik(...)`; PR #671 → `bdc56b8` | pełny: 33/180, cztery fizyczne negatywy, 96 konfiguracji, zoom 200% w 8 scenach | success | **częściowy** — puste stany oraz `1 wykonanie` potwierdzone | odmiana dla 2, 5 i 22 wykonań, podpis odpowiedzi i procent |
+| **#667** etykiety i cele odnośników | okruszek → `route('discover')`; CTA zeszytu → `route('search', ['sekcja' => 'przepisy'])`; PR #672 → `71549eb` | pełny: 4/17, 25/127, 72 konfiguracje, zoom 200% | success | **prawie pełny**, potwierdzony ponownie na `3f315b3` | render obu CTA zeszytu — wymaga zalogowanej sesji |
+
+### Znaleziony przy okazji błąd — przekazany, nie naprawiony
+
+**#684** — widget „Wygląd" potrafi zasłonić treść. Sformułowanie z pierwszej
+wersji tego rozdziału („całe odsłanianie wisi na `focusin`") było za szerokie
+i zostaje sprostowane: `geometry()` w `resources/js/szybki-wyglad.js` chodzi
+także na `resize`, `scroll`, przez `ResizeObserver` i przy starcie, oraz
+sprawdza `.field-error`. **Wyłącznie na `focusin` wisi doprzewinięcie**
+(`window.scrollBy`, l. 186). Skutek dla użytkownika jest ten sam i to on jest
+treścią zgłoszenia: klawiatura dostaje odsłonięcie, mysz i dotyk nie dostają
+żadnego — a to są scenariusze podstawowe.
+
+Globalny CSS, widget „Wygląd" i nawigacja były **wyłączone z zakresu** tego
+odbioru, więc problem odtworzono i zgłoszono zamiast naprawiać. To **nie jest
+regresja #370**. Doprzewinięcie o 120 px przywraca dostęp we wszystkich
+sprawdzonych przypadkach.
+
+### Rozróżnienia, bez których te wyniki znaczyłyby co innego
+
+- **Odczyt HTML a interakcja w przeglądarce.** Produkcję czytano odczytowo
+  (HTTP oraz ogląd strony przepisu w przeglądarce); prawdziwe kliknięcia
+  i dotknięcia wykonywano **lokalnie**, nie na produkcji.
+- **Emulacja szerokości a fizyczny telefon.** Wszystkie wąskie układy to
+  emulacja. **Fizycznego telefonu nie badano.**
+- **Skala tekstu a rzeczywisty zoom 200%.** Raporty rozróżniają jedno od
+  drugiego; tam, gdzie jest zoom, jest to zoom przeglądarki.
+- **Wynik lokalny, wynik CI i wynik produkcyjny to trzy różne rzeczy.** Żaden
+  lokalny dowód w tym rozdziale nie jest liczony jako produkcyjny, a zielone
+  CI nie jest oglądem wdrożenia.
+- **SHA bez daty nie znaczy nic.** Dwa pomiary w tym rozdziale dzieli sześć
+  godzin i dwie wersje produkcji.
+
+Pełny port marki pozostaje **CZĘŚCIOWO**. Rozdział niczego nie zamyka:
+#369, #370, #666 i #667 zostają otwarte, a #492 pozostaje meta-issue.

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Rules;
 
 use App\Models\Profile;
+use App\Support\NazwaUzytkownika;
 use Closure;
 use Illuminate\Contracts\Validation\ValidationRule;
 
@@ -66,7 +67,17 @@ class UsernameNotTaken implements ValidationRule
             // Ten sam komunikat co przy nazwie zajętej co do znaku — dla
             // człowieka to jest ta sama sytuacja, a tłumaczenie „różnicie się
             // wielkością liter" tylko podpowiada, żeby spróbować inaczej.
-            $fail('Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu.');
+            //
+            // ZAJĘTE, ALE Z GOTOWYM WYJŚCIEM. „Spróbuj dodać coś na końcu" to
+            // polecenie zadania do wykonania, a nie pomoc: człowiek musi sam
+            // wymyślić, co dodać, i drugi raz trafić na wolne. Podajemy więc
+            // KONKRETNĄ wolną nazwę, którą wystarczy przepisać — o ile da się
+            // ją ułożyć.
+            $propozycja = NazwaUzytkownika::wolnaPropozycja($value);
+
+            $fail($propozycja === null
+                ? 'Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu.'
+                : 'Ta nazwa jest już zajęta. Wpisz zamiast niej '.$propozycja.' — ta jest wolna.');
         }
     }
 }

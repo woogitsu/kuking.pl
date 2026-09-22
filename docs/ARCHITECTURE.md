@@ -101,8 +101,8 @@ Redis dopiero po pomiarze.
 ## Search
 
 MVP:
-- PostgreSQL FTS;
-- `pg_trgm`;
+- PostgreSQL z `pg_trgm` i `unaccent`;
+- porównania trigramowe oraz `LIKE` w `app/Domain/Search/SearchQuery.php`;
 - GIN;
 - SQL filters.
 

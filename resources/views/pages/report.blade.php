@@ -7,10 +7,13 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('reports.store', ['type' => $targetType, 'id' => $targetId]) }}">
+    <form class="panel-formularza" method="POST" action="{{ route('reports.store', ['type' => $targetType, 'id' => $targetId]) }}">
         @csrf
 
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-reason"
+                  @error('reason') tabindex="-1" aria-invalid="true" aria-describedby="f-reason-error" @enderror>
             <legend class="font-bold mb-3">Co jest nie tak?</legend>
             <div class="stack-tight">
                 @foreach($reasons as $value => $label)
@@ -20,7 +23,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('reason')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="reason" />
         </fieldset>
 
         <x-field name="details" label="Chcesz coś dopisać?" type="textarea" :rows="4"

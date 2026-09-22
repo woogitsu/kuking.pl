@@ -1,0 +1,2906 @@
+[
+  {
+    "width": 305,
+    "dark": false,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 297,
+        "top": 11025.9375,
+        "bottom": 11283.9375
+      },
+      "width": 305,
+      "clientWidth": 305,
+      "navWidth": 289,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 292,
+          "bottom": 11094.9375,
+          "top": 11034.9375,
+          "width": 279,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11042.34375,
+              "bottom": 11086.34375,
+              "left": 125.25,
+              "right": 213.734375
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 11154.9375,
+          "top": 11094.9375,
+          "width": 279,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11102.34375,
+              "bottom": 11146.34375,
+              "left": 111.28125,
+              "right": 227.703125
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 11214.9375,
+          "top": 11154.9375,
+          "width": 279,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11162.34375,
+              "bottom": 11206.34375,
+              "left": 130.25,
+              "right": 230.734375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 149.578125,
+          "bottom": 11274.9375,
+          "top": 11214.9375,
+          "width": 136.578125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11222.34375,
+              "bottom": 11266.34375,
+              "left": 55.359375,
+              "right": 141.203125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 149.578125,
+          "right": 292,
+          "bottom": 11274.9375,
+          "top": 11214.9375,
+          "width": 142.421875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11222.34375,
+              "bottom": 11266.34375,
+              "left": 191.9375,
+              "right": 283.625
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 305,
+    "dark": false,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 297,
+        "top": 18617.40625,
+        "bottom": 18977.828125
+      },
+      "width": 305,
+      "clientWidth": 305,
+      "navWidth": 289,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 292,
+          "bottom": 18694.890625,
+          "top": 18626.40625,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18629.40625,
+              "bottom": 18690.40625,
+              "left": 107.5625,
+              "right": 231.421875
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 18763.375,
+          "top": 18694.890625,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18697.890625,
+              "bottom": 18758.890625,
+              "left": 88.015625,
+              "right": 250.984375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 18831.859375,
+          "top": 18763.375,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18766.375,
+              "bottom": 18827.375,
+              "left": 110.171875,
+              "right": 250.828125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 292,
+          "bottom": 18900.34375,
+          "top": 18831.859375,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18834.859375,
+              "bottom": 18895.859375,
+              "left": 109.421875,
+              "right": 229.578125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 13,
+          "right": 292,
+          "bottom": 18968.828125,
+          "top": 18900.34375,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18903.34375,
+              "bottom": 18964.34375,
+              "left": 105.328125,
+              "right": 233.671875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 305,
+    "dark": true,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 297,
+        "top": 11025.9375,
+        "bottom": 11283.9375
+      },
+      "width": 305,
+      "clientWidth": 305,
+      "navWidth": 289,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 292,
+          "bottom": 11094.9375,
+          "top": 11034.9375,
+          "width": 279,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11042.34375,
+              "bottom": 11086.34375,
+              "left": 125.25,
+              "right": 213.734375
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 11154.9375,
+          "top": 11094.9375,
+          "width": 279,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11102.34375,
+              "bottom": 11146.34375,
+              "left": 111.28125,
+              "right": 227.703125
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 11214.9375,
+          "top": 11154.9375,
+          "width": 279,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11162.34375,
+              "bottom": 11206.34375,
+              "left": 130.25,
+              "right": 230.734375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 149.578125,
+          "bottom": 11274.9375,
+          "top": 11214.9375,
+          "width": 136.578125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11222.34375,
+              "bottom": 11266.34375,
+              "left": 55.359375,
+              "right": 141.203125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 149.578125,
+          "right": 292,
+          "bottom": 11274.9375,
+          "top": 11214.9375,
+          "width": 142.421875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 11222.34375,
+              "bottom": 11266.34375,
+              "left": 191.9375,
+              "right": 283.625
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 305,
+    "dark": true,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 297,
+        "top": 18617.40625,
+        "bottom": 18977.828125
+      },
+      "width": 305,
+      "clientWidth": 305,
+      "navWidth": 289,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 292,
+          "bottom": 18694.890625,
+          "top": 18626.40625,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18629.40625,
+              "bottom": 18690.40625,
+              "left": 107.5625,
+              "right": 231.421875
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 18763.375,
+          "top": 18694.890625,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18697.890625,
+              "bottom": 18758.890625,
+              "left": 88.015625,
+              "right": 250.984375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 292,
+          "bottom": 18831.859375,
+          "top": 18763.375,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18766.375,
+              "bottom": 18827.375,
+              "left": 110.171875,
+              "right": 250.828125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 292,
+          "bottom": 18900.34375,
+          "top": 18831.859375,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18834.859375,
+              "bottom": 18895.859375,
+              "left": 109.421875,
+              "right": 229.578125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 13,
+          "right": 292,
+          "bottom": 18968.828125,
+          "top": 18900.34375,
+          "width": 279,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 18903.34375,
+              "bottom": 18964.34375,
+              "left": 105.328125,
+              "right": 233.671875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 320,
+    "dark": false,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 312,
+        "top": 10546.96875,
+        "bottom": 10744.96875
+      },
+      "width": 320,
+      "clientWidth": 320,
+      "navWidth": 304,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 146.03125,
+          "bottom": 10615.96875,
+          "top": 10555.96875,
+          "width": 133.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10563.375,
+              "bottom": 10607.375,
+              "left": 52.265625,
+              "right": 140.75
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 146.03125,
+          "right": 307,
+          "bottom": 10615.96875,
+          "top": 10555.96875,
+          "width": 160.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10563.375,
+              "bottom": 10607.375,
+              "left": 185.296875,
+              "right": 301.71875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 307,
+          "bottom": 10675.96875,
+          "top": 10615.96875,
+          "width": 294,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10623.375,
+              "bottom": 10667.375,
+              "left": 137.75,
+              "right": 238.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 157.078125,
+          "bottom": 10735.96875,
+          "top": 10675.96875,
+          "width": 144.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10683.375,
+              "bottom": 10727.375,
+              "left": 59.109375,
+              "right": 144.953125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 157.078125,
+          "right": 307,
+          "bottom": 10735.96875,
+          "top": 10675.96875,
+          "width": 149.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10683.375,
+              "bottom": 10727.375,
+              "left": 203.1875,
+              "right": 294.875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 320,
+    "dark": false,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 312,
+        "top": 17491.03125,
+        "bottom": 17851.453125
+      },
+      "width": 320,
+      "clientWidth": 320,
+      "navWidth": 304,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 307,
+          "bottom": 17568.515625,
+          "top": 17500.03125,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17503.03125,
+              "bottom": 17564.03125,
+              "left": 115.0625,
+              "right": 238.921875
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 307,
+          "bottom": 17637,
+          "top": 17568.515625,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17571.515625,
+              "bottom": 17632.515625,
+              "left": 95.515625,
+              "right": 258.484375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 307,
+          "bottom": 17705.484375,
+          "top": 17637,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17640,
+              "bottom": 17701,
+              "left": 117.671875,
+              "right": 258.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 307,
+          "bottom": 17773.96875,
+          "top": 17705.484375,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17708.484375,
+              "bottom": 17769.484375,
+              "left": 116.921875,
+              "right": 237.078125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 13,
+          "right": 307,
+          "bottom": 17842.453125,
+          "top": 17773.96875,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17776.96875,
+              "bottom": 17837.96875,
+              "left": 112.828125,
+              "right": 241.171875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 320,
+    "dark": true,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 312,
+        "top": 10546.96875,
+        "bottom": 10744.96875
+      },
+      "width": 320,
+      "clientWidth": 320,
+      "navWidth": 304,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 146.03125,
+          "bottom": 10615.96875,
+          "top": 10555.96875,
+          "width": 133.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10563.375,
+              "bottom": 10607.375,
+              "left": 52.265625,
+              "right": 140.75
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 146.03125,
+          "right": 307,
+          "bottom": 10615.96875,
+          "top": 10555.96875,
+          "width": 160.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10563.375,
+              "bottom": 10607.375,
+              "left": 185.296875,
+              "right": 301.71875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 307,
+          "bottom": 10675.96875,
+          "top": 10615.96875,
+          "width": 294,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10623.375,
+              "bottom": 10667.375,
+              "left": 137.75,
+              "right": 238.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 157.078125,
+          "bottom": 10735.96875,
+          "top": 10675.96875,
+          "width": 144.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10683.375,
+              "bottom": 10727.375,
+              "left": 59.109375,
+              "right": 144.953125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 157.078125,
+          "right": 307,
+          "bottom": 10735.96875,
+          "top": 10675.96875,
+          "width": 149.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 10683.375,
+              "bottom": 10727.375,
+              "left": 203.1875,
+              "right": 294.875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 320,
+    "dark": true,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 312,
+        "top": 17491.03125,
+        "bottom": 17851.453125
+      },
+      "width": 320,
+      "clientWidth": 320,
+      "navWidth": 304,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 307,
+          "bottom": 17568.515625,
+          "top": 17500.03125,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17503.03125,
+              "bottom": 17564.03125,
+              "left": 115.0625,
+              "right": 238.921875
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 307,
+          "bottom": 17637,
+          "top": 17568.515625,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17571.515625,
+              "bottom": 17632.515625,
+              "left": 95.515625,
+              "right": 258.484375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 307,
+          "bottom": 17705.484375,
+          "top": 17637,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17640,
+              "bottom": 17701,
+              "left": 117.671875,
+              "right": 258.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 307,
+          "bottom": 17773.96875,
+          "top": 17705.484375,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17708.484375,
+              "bottom": 17769.484375,
+              "left": 116.921875,
+              "right": 237.078125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 13,
+          "right": 307,
+          "bottom": 17842.453125,
+          "top": 17773.96875,
+          "width": 294,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 17776.96875,
+              "bottom": 17837.96875,
+              "left": 112.828125,
+              "right": 241.171875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 360,
+    "dark": false,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 352,
+        "top": 9127.859375,
+        "bottom": 9325.859375
+      },
+      "width": 360,
+      "clientWidth": 360,
+      "navWidth": 344,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 166.03125,
+          "bottom": 9196.859375,
+          "top": 9136.859375,
+          "width": 153.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9144.265625,
+              "bottom": 9188.265625,
+              "left": 62.265625,
+              "right": 150.75
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 166.03125,
+          "right": 347,
+          "bottom": 9196.859375,
+          "top": 9136.859375,
+          "width": 180.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9144.265625,
+              "bottom": 9188.265625,
+              "left": 215.296875,
+              "right": 331.71875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 347,
+          "bottom": 9256.859375,
+          "top": 9196.859375,
+          "width": 334,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9204.265625,
+              "bottom": 9248.265625,
+              "left": 157.75,
+              "right": 258.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 177.078125,
+          "bottom": 9316.859375,
+          "top": 9256.859375,
+          "width": 164.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9264.265625,
+              "bottom": 9308.265625,
+              "left": 69.109375,
+              "right": 154.953125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 177.078125,
+          "right": 347,
+          "bottom": 9316.859375,
+          "top": 9256.859375,
+          "width": 169.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9264.265625,
+              "bottom": 9308.265625,
+              "left": 233.1875,
+              "right": 324.875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 360,
+    "dark": false,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 352,
+        "top": 15950.53125,
+        "bottom": 16242.46875
+      },
+      "width": 360,
+      "clientWidth": 360,
+      "navWidth": 344,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 347,
+          "bottom": 16028.015625,
+          "top": 15959.53125,
+          "width": 334,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15962.53125,
+              "bottom": 16023.53125,
+              "left": 135.0625,
+              "right": 258.921875
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 347,
+          "bottom": 16096.5,
+          "top": 16028.015625,
+          "width": 334,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16031.015625,
+              "bottom": 16092.015625,
+              "left": 115.515625,
+              "right": 278.484375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 347,
+          "bottom": 16164.984375,
+          "top": 16096.5,
+          "width": 334,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16099.5,
+              "bottom": 16160.5,
+              "left": 137.671875,
+              "right": 278.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 175.90625,
+          "bottom": 16233.46875,
+          "top": 16164.984375,
+          "width": 162.90625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16167.984375,
+              "bottom": 16228.984375,
+              "left": 51.375,
+              "right": 171.53125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 175.90625,
+          "right": 347,
+          "bottom": 16233.46875,
+          "top": 16164.984375,
+          "width": 171.09375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16167.984375,
+              "bottom": 16228.984375,
+              "left": 214.28125,
+              "right": 342.625
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 360,
+    "dark": true,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 352,
+        "top": 9127.859375,
+        "bottom": 9325.859375
+      },
+      "width": 360,
+      "clientWidth": 360,
+      "navWidth": 344,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 166.03125,
+          "bottom": 9196.859375,
+          "top": 9136.859375,
+          "width": 153.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9144.265625,
+              "bottom": 9188.265625,
+              "left": 62.265625,
+              "right": 150.75
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 166.03125,
+          "right": 347,
+          "bottom": 9196.859375,
+          "top": 9136.859375,
+          "width": 180.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9144.265625,
+              "bottom": 9188.265625,
+              "left": 215.296875,
+              "right": 331.71875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 347,
+          "bottom": 9256.859375,
+          "top": 9196.859375,
+          "width": 334,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9204.265625,
+              "bottom": 9248.265625,
+              "left": 157.75,
+              "right": 258.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 177.078125,
+          "bottom": 9316.859375,
+          "top": 9256.859375,
+          "width": 164.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9264.265625,
+              "bottom": 9308.265625,
+              "left": 69.109375,
+              "right": 154.953125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 177.078125,
+          "right": 347,
+          "bottom": 9316.859375,
+          "top": 9256.859375,
+          "width": 169.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 9264.265625,
+              "bottom": 9308.265625,
+              "left": 233.1875,
+              "right": 324.875
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 360,
+    "dark": true,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 352,
+        "top": 15950.53125,
+        "bottom": 16242.46875
+      },
+      "width": 360,
+      "clientWidth": 360,
+      "navWidth": 344,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 347,
+          "bottom": 16028.015625,
+          "top": 15959.53125,
+          "width": 334,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15962.53125,
+              "bottom": 16023.53125,
+              "left": 135.0625,
+              "right": 258.921875
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 13,
+          "right": 347,
+          "bottom": 16096.5,
+          "top": 16028.015625,
+          "width": 334,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16031.015625,
+              "bottom": 16092.015625,
+              "left": 115.515625,
+              "right": 278.484375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 347,
+          "bottom": 16164.984375,
+          "top": 16096.5,
+          "width": 334,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16099.5,
+              "bottom": 16160.5,
+              "left": 137.671875,
+              "right": 278.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 175.90625,
+          "bottom": 16233.46875,
+          "top": 16164.984375,
+          "width": 162.90625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16167.984375,
+              "bottom": 16228.984375,
+              "left": 51.375,
+              "right": 171.53125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 175.90625,
+          "right": 347,
+          "bottom": 16233.46875,
+          "top": 16164.984375,
+          "width": 171.09375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 16167.984375,
+              "bottom": 16228.984375,
+              "left": 214.28125,
+              "right": 342.625
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 390,
+    "dark": false,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 382,
+        "top": 8550.109375,
+        "bottom": 8748.109375
+      },
+      "width": 390,
+      "clientWidth": 390,
+      "navWidth": 374,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 181.03125,
+          "bottom": 8619.109375,
+          "top": 8559.109375,
+          "width": 168.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8566.515625,
+              "bottom": 8610.515625,
+              "left": 69.765625,
+              "right": 158.25
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 181.03125,
+          "right": 377,
+          "bottom": 8619.109375,
+          "top": 8559.109375,
+          "width": 195.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8566.515625,
+              "bottom": 8610.515625,
+              "left": 237.796875,
+              "right": 354.21875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 377,
+          "bottom": 8679.109375,
+          "top": 8619.109375,
+          "width": 364,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8626.515625,
+              "bottom": 8670.515625,
+              "left": 172.75,
+              "right": 273.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 192.078125,
+          "bottom": 8739.109375,
+          "top": 8679.109375,
+          "width": 179.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8686.515625,
+              "bottom": 8730.515625,
+              "left": 76.609375,
+              "right": 162.453125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 192.078125,
+          "right": 377,
+          "bottom": 8739.109375,
+          "top": 8679.109375,
+          "width": 184.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8686.515625,
+              "bottom": 8730.515625,
+              "left": 255.6875,
+              "right": 347.375
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 390,
+    "dark": false,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 382,
+        "top": 14976.40625,
+        "bottom": 15199.859375
+      },
+      "width": 390,
+      "clientWidth": 390,
+      "navWidth": 374,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 175.4375,
+          "bottom": 15053.890625,
+          "top": 14985.40625,
+          "width": 162.4375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14988.40625,
+              "bottom": 15049.40625,
+              "left": 49.28125,
+              "right": 173.140625
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 175.4375,
+          "right": 377,
+          "bottom": 15053.890625,
+          "top": 14985.40625,
+          "width": 201.5625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14988.40625,
+              "bottom": 15049.40625,
+              "left": 211.734375,
+              "right": 374.703125
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 377,
+          "bottom": 15122.375,
+          "top": 15053.890625,
+          "width": 364,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15056.890625,
+              "bottom": 15117.890625,
+              "left": 152.671875,
+              "right": 293.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 190.90625,
+          "bottom": 15190.859375,
+          "top": 15122.375,
+          "width": 177.90625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15125.375,
+              "bottom": 15186.375,
+              "left": 58.875,
+              "right": 179.03125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 190.90625,
+          "right": 377,
+          "bottom": 15190.859375,
+          "top": 15122.375,
+          "width": 186.09375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15125.375,
+              "bottom": 15186.375,
+              "left": 236.78125,
+              "right": 365.125
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 390,
+    "dark": true,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 382,
+        "top": 8550.109375,
+        "bottom": 8748.109375
+      },
+      "width": 390,
+      "clientWidth": 390,
+      "navWidth": 374,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 181.03125,
+          "bottom": 8619.109375,
+          "top": 8559.109375,
+          "width": 168.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8566.515625,
+              "bottom": 8610.515625,
+              "left": 69.765625,
+              "right": 158.25
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 181.03125,
+          "right": 377,
+          "bottom": 8619.109375,
+          "top": 8559.109375,
+          "width": 195.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8566.515625,
+              "bottom": 8610.515625,
+              "left": 237.796875,
+              "right": 354.21875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 377,
+          "bottom": 8679.109375,
+          "top": 8619.109375,
+          "width": 364,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8626.515625,
+              "bottom": 8670.515625,
+              "left": 172.75,
+              "right": 273.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 192.078125,
+          "bottom": 8739.109375,
+          "top": 8679.109375,
+          "width": 179.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8686.515625,
+              "bottom": 8730.515625,
+              "left": 76.609375,
+              "right": 162.453125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 192.078125,
+          "right": 377,
+          "bottom": 8739.109375,
+          "top": 8679.109375,
+          "width": 184.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8686.515625,
+              "bottom": 8730.515625,
+              "left": 255.6875,
+              "right": 347.375
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 390,
+    "dark": true,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 382,
+        "top": 14976.40625,
+        "bottom": 15199.859375
+      },
+      "width": 390,
+      "clientWidth": 390,
+      "navWidth": 374,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 175.4375,
+          "bottom": 15053.890625,
+          "top": 14985.40625,
+          "width": 162.4375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14988.40625,
+              "bottom": 15049.40625,
+              "left": 49.28125,
+              "right": 173.140625
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 175.4375,
+          "right": 377,
+          "bottom": 15053.890625,
+          "top": 14985.40625,
+          "width": 201.5625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14988.40625,
+              "bottom": 15049.40625,
+              "left": 211.734375,
+              "right": 374.703125
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 377,
+          "bottom": 15122.375,
+          "top": 15053.890625,
+          "width": 364,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15056.890625,
+              "bottom": 15117.890625,
+              "left": 152.671875,
+              "right": 293.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 190.90625,
+          "bottom": 15190.859375,
+          "top": 15122.375,
+          "width": 177.90625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15125.375,
+              "bottom": 15186.375,
+              "left": 58.875,
+              "right": 179.03125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 190.90625,
+          "right": 377,
+          "bottom": 15190.859375,
+          "top": 15122.375,
+          "width": 186.09375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 15125.375,
+              "bottom": 15186.375,
+              "left": 236.78125,
+              "right": 365.125
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 414,
+    "dark": false,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 406,
+        "top": 8182.9375,
+        "bottom": 8380.9375
+      },
+      "width": 414,
+      "clientWidth": 414,
+      "navWidth": 398,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 193.03125,
+          "bottom": 8251.9375,
+          "top": 8191.9375,
+          "width": 180.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8199.34375,
+              "bottom": 8243.34375,
+              "left": 75.765625,
+              "right": 164.25
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 193.03125,
+          "right": 401,
+          "bottom": 8251.9375,
+          "top": 8191.9375,
+          "width": 207.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8199.34375,
+              "bottom": 8243.34375,
+              "left": 255.796875,
+              "right": 372.21875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 401,
+          "bottom": 8311.9375,
+          "top": 8251.9375,
+          "width": 388,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8259.34375,
+              "bottom": 8303.34375,
+              "left": 184.75,
+              "right": 285.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 204.078125,
+          "bottom": 8371.9375,
+          "top": 8311.9375,
+          "width": 191.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8319.34375,
+              "bottom": 8363.34375,
+              "left": 82.609375,
+              "right": 168.453125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 204.078125,
+          "right": 401,
+          "bottom": 8371.9375,
+          "top": 8311.9375,
+          "width": 196.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8319.34375,
+              "bottom": 8363.34375,
+              "left": 273.6875,
+              "right": 365.375
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 414,
+    "dark": false,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 406,
+        "top": 14055.484375,
+        "bottom": 14278.9375
+      },
+      "width": 414,
+      "clientWidth": 414,
+      "navWidth": 398,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 187.4375,
+          "bottom": 14132.96875,
+          "top": 14064.484375,
+          "width": 174.4375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14067.484375,
+              "bottom": 14128.484375,
+              "left": 55.28125,
+              "right": 179.140625
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 187.4375,
+          "right": 401,
+          "bottom": 14132.96875,
+          "top": 14064.484375,
+          "width": 213.5625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14067.484375,
+              "bottom": 14128.484375,
+              "left": 229.734375,
+              "right": 392.703125
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 401,
+          "bottom": 14201.453125,
+          "top": 14132.96875,
+          "width": 388,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14135.96875,
+              "bottom": 14196.96875,
+              "left": 164.671875,
+              "right": 305.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 202.90625,
+          "bottom": 14269.9375,
+          "top": 14201.453125,
+          "width": 189.90625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14204.453125,
+              "bottom": 14265.453125,
+              "left": 64.875,
+              "right": 185.03125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 202.90625,
+          "right": 401,
+          "bottom": 14269.9375,
+          "top": 14201.453125,
+          "width": 198.09375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14204.453125,
+              "bottom": 14265.453125,
+              "left": 254.78125,
+              "right": 383.125
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 414,
+    "dark": true,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 406,
+        "top": 8182.9375,
+        "bottom": 8380.9375
+      },
+      "width": 414,
+      "clientWidth": 414,
+      "navWidth": 398,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 193.03125,
+          "bottom": 8251.9375,
+          "top": 8191.9375,
+          "width": 180.03125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8199.34375,
+              "bottom": 8243.34375,
+              "left": 75.765625,
+              "right": 164.25
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 193.03125,
+          "right": 401,
+          "bottom": 8251.9375,
+          "top": 8191.9375,
+          "width": 207.96875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8199.34375,
+              "bottom": 8243.34375,
+              "left": 255.796875,
+              "right": 372.21875
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 401,
+          "bottom": 8311.9375,
+          "top": 8251.9375,
+          "width": 388,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8259.34375,
+              "bottom": 8303.34375,
+              "left": 184.75,
+              "right": 285.234375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 204.078125,
+          "bottom": 8371.9375,
+          "top": 8311.9375,
+          "width": 191.078125,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8319.34375,
+              "bottom": 8363.34375,
+              "left": 82.609375,
+              "right": 168.453125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 204.078125,
+          "right": 401,
+          "bottom": 8371.9375,
+          "top": 8311.9375,
+          "width": 196.921875,
+          "height": 60,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8319.34375,
+              "bottom": 8363.34375,
+              "left": 273.6875,
+              "right": 365.375
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 414,
+    "dark": true,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 406,
+        "top": 14055.484375,
+        "bottom": 14278.9375
+      },
+      "width": 414,
+      "clientWidth": 414,
+      "navWidth": 398,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 187.4375,
+          "bottom": 14132.96875,
+          "top": 14064.484375,
+          "width": 174.4375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14067.484375,
+              "bottom": 14128.484375,
+              "left": 55.28125,
+              "right": 179.140625
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 187.4375,
+          "right": 401,
+          "bottom": 14132.96875,
+          "top": 14064.484375,
+          "width": 213.5625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14067.484375,
+              "bottom": 14128.484375,
+              "left": 229.734375,
+              "right": 392.703125
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 13,
+          "right": 401,
+          "bottom": 14201.453125,
+          "top": 14132.96875,
+          "width": 388,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14135.96875,
+              "bottom": 14196.96875,
+              "left": 164.671875,
+              "right": 305.328125
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 13,
+          "right": 202.90625,
+          "bottom": 14269.9375,
+          "top": 14201.453125,
+          "width": 189.90625,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14204.453125,
+              "bottom": 14265.453125,
+              "left": 64.875,
+              "right": 185.03125
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 202.90625,
+          "right": 401,
+          "bottom": 14269.9375,
+          "top": 14201.453125,
+          "width": 198.09375,
+          "height": 68.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 14204.453125,
+              "bottom": 14265.453125,
+              "left": 254.78125,
+              "right": 383.125
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 768,
+    "dark": false,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 760,
+        "top": 5872.515625,
+        "bottom": 5991.703125
+      },
+      "width": 768,
+      "clientWidth": 768,
+      "navWidth": 752,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 153.296875,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 140.296875,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 38.90625,
+              "right": 127.390625
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 153.296875,
+          "right": 321.546875,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 168.25,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 179.203125,
+              "right": 295.625
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 321.546875,
+          "right": 473.84375,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 152.296875,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5934.515625,
+              "bottom": 5978.515625,
+              "left": 347.453125,
+              "right": 447.9375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 473.84375,
+          "right": 611.5,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 137.65625,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 499.75,
+              "right": 585.59375
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 611.5,
+          "right": 755,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 143.5,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 637.40625,
+              "right": 729.09375
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 768,
+    "dark": false,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 760,
+        "top": 8702.15625,
+        "bottom": 8838.640625
+      },
+      "width": 768,
+      "clientWidth": 768,
+      "navWidth": 752,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 150.0625,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 137.0625,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 19.59375,
+              "right": 143.453125
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 150.0625,
+          "right": 326.234375,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 176.171875,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 156.65625,
+              "right": 319.625
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 326.234375,
+          "right": 480.09375,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 153.859375,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8764.15625,
+              "bottom": 8825.15625,
+              "left": 332.828125,
+              "right": 473.484375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 480.09375,
+          "right": 613.453125,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 133.359375,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 486.6875,
+              "right": 606.84375
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 613.453125,
+          "right": 755,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 141.546875,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 620.046875,
+              "right": 748.390625
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 768,
+    "dark": true,
+    "scale": 100,
+    "result": {
+      "scale": 100,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 760,
+        "top": 5872.515625,
+        "bottom": 5991.703125
+      },
+      "width": 768,
+      "clientWidth": 768,
+      "navWidth": 752,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 153.296875,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 140.296875,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 38.90625,
+              "right": 127.390625
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 153.296875,
+          "right": 321.546875,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 168.25,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 179.203125,
+              "right": 295.625
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 321.546875,
+          "right": 473.84375,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 152.296875,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5934.515625,
+              "bottom": 5978.515625,
+              "left": 347.453125,
+              "right": 447.9375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 473.84375,
+          "right": 611.5,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 137.65625,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 499.75,
+              "right": 585.59375
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 611.5,
+          "right": 755,
+          "bottom": 5982.703125,
+          "top": 5881.515625,
+          "width": 143.5,
+          "height": 101.1875,
+          "lines": 1,
+          "font": 36,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 5923.515625,
+              "bottom": 5967.515625,
+              "left": 637.40625,
+              "right": 729.09375
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  },
+  {
+    "width": 768,
+    "dark": true,
+    "scale": 140,
+    "result": {
+      "scale": 140,
+      "rootFont": 32,
+      "nav": {
+        "left": 8,
+        "right": 760,
+        "top": 8702.15625,
+        "bottom": 8838.640625
+      },
+      "width": 768,
+      "clientWidth": 768,
+      "navWidth": 752,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 150.0625,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 137.0625,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 19.59375,
+              "right": 143.453125
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 150.0625,
+          "right": 326.234375,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 176.171875,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 156.65625,
+              "right": 319.625
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 326.234375,
+          "right": 480.09375,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 153.859375,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8764.15625,
+              "bottom": 8825.15625,
+              "left": 332.828125,
+              "right": 473.484375
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 480.09375,
+          "right": 613.453125,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 133.359375,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 486.6875,
+              "right": 606.84375
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 613.453125,
+          "right": 755,
+          "bottom": 8829.640625,
+          "top": 8711.15625,
+          "width": 141.546875,
+          "height": 118.484375,
+          "lines": 1,
+          "font": 50.4,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 8753.15625,
+              "bottom": 8814.15625,
+              "left": 620.046875,
+              "right": 748.390625
+            }
+          ]
+        }
+      ]
+    },
+    "pass": true
+  }
+]

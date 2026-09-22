@@ -6,29 +6,46 @@ panelu Railway i do panelu Cloudflare z domeną `kuking.pl` — i nic więcej.
 
 **Pełne, źródłowane porównanie sześciu dostawców, cen i rezydencji danych jest
 w [`docs/decyzje/POCZTA.md`](../decyzje/POCZTA.md).** Ten dokument mówi, co
-zrobić **po** wyborze, dla pięciu wariantów: EmailLabs, Brevo, Postmark,
-Amazon SES i Resend.
+zrobić **po** wyborze.
+
+> ## ⚠️ NAJWAŻNIEJSZE ZDANIE W CAŁYM PLIKU
+>
+> **Na planach Railway Free, Trial i Hobby SMTP jest wyłączony i żaden
+> wariant SMTP z tego dokumentu nie zadziała.** Dokumentacja Railwaya mówi
+> dosłownie: *„SMTP is only available on the Pro plan and above. Free, Trial,
+> and Hobby plans must use transactional email services with HTTPS APIs. SMTP
+> is disabled on these plans to prevent spam and abuse."*
+>
+> Objaw jest gorszy niż zwykły błąd: pakiety idą w próżnię, więc połączenie
+> nie tyle pada, co **wisi**. Zmierzone 9 września 2026 w dzienniku Railwaya:
+> zadanie `App\Notifications\UstawienieNowegoHasla` wchodzi w `RUNNING`
+> i **nigdy się nie kończy** — ani `DONE`, ani `FAIL`. W panelu wygląda to jak
+> zawieszony worker, nie jak awaria poczty.
+>
+> **Dlatego jedynym wariantem na dziś jest §2A — EmailLabs przez API HTTPS.**
 
 > ### Rekomendacja w skrócie
 >
-> **Wybierz EmailLabs (§2A).** W trzech zdaniach: to jedyny z pięciu opisanych
-> wariantów, z którym podpiszesz umowę powierzenia (DPA) po polsku, na polskim
-> prawie, przy danych, które nie opuszczają UE — a przy grupie odbiorców 50+
-> zaufanie jest walutą. Darmowy pakiet STARTUP (300 wiadomości na dobę,
-> 9 000 na miesiąc, **bez karty płatniczej**) pokrywa pierwszą falę ~20 osób
-> z dużym zapasem. I nie wymaga jednej linijki nowego kodu — korzysta
-> z gotowego sterownika `smtp`, więc „włączenie jednym wpisem” to dosłownie
-> cztery zmienne w Railway.
+> **Wybierz EmailLabs przez API HTTPS (§2A).** W trzech zdaniach: to jedyny
+> z opisanych wariantów, z którym podpiszesz umowę powierzenia (DPA) po polsku,
+> na polskim prawie, przy danych, które nie opuszczają UE — a przy grupie
+> odbiorców 50+ zaufanie jest walutą. Darmowy pakiet STARTUP (300 wiadomości
+> na dobę, 9 000 na miesiąc, **bez karty płatniczej**) pokrywa pierwszą falę
+> ~20 osób z dużym zapasem. Kod po stronie Kuking jest już napisany
+> (`App\Poczta\TransportEmailLabs`, D-047) i nie wymaga żadnej paczki
+> Composera — zostają trzy wartości do wpisania w Railway.
 >
 > **Zapasowo, gdyby EmailLabs odmówił rejestracji** nowej spółce (kontrola
-> antyfraudowa, spółka bez historii) — **Brevo (§2B)**: ten sam mechanizm
-> (`smtp`, też zero kodu), też serwery w UE, też bez karty. Zamiana jednego
-> na drugi to podmiana czterech wartości w Railway, nie nowy PR.
+> antyfraudowa, spółka bez historii) — **Brevo (§2B)**: też serwery w UE, też
+> bez karty. Ale uwaga: opisany niżej wariant Brevo idzie przez SMTP, więc
+> **na planie Free/Hobby wymagałby najpierw napisania analogicznego transportu
+> po API** (Brevo ma `POST https://api.brevo.com/v3/smtp/email`). To jest
+> wtedy nowy PR, nie podmiana czterech zmiennych.
 >
-> Postmark, Amazon SES i Resend (§2C–§2E) zostają opisane niżej — to
-> sprawdzone, działające warianty, przydatne, gdyby priorytety się zmieniły
-> (Amazon SES jako plan na wypadek eksplozji wolumenu, patrz §6) — ale żaden
-> z nich nie jest dzisiejszą rekomendacją.
+> Warianty SMTP (§2A-SMTP, §2B) i warianty po API innych dostawców (§2C–§2E)
+> zostają opisane niżej — pierwsze jako gotowa droga po przejściu na plan Pro,
+> drugie na wypadek zmiany priorytetów (Amazon SES przy eksplozji wolumenu,
+> patrz §6). Żaden z nich nie jest dzisiejszą rekomendacją.
 
 ---
 
@@ -63,18 +80,49 @@ Siedem wiadomości. **Tygodniowego digestu w kodzie nie ma** — mimo że
 realna wysyłka to kilkadziesiąt listów miesięcznie i **żaden limit dzienny nie
 ma znaczenia**.
 
-### Poczta bez workera nie wychodzi
+### Poczta bez działającej kolejki nie wychodzi
+
+> ⚠️ **SPROSTOWANIE, 9 września 2026.** Ten akapit twierdził, że na produkcji
+> kolejkę obsługuje „osobny serwis `worker`". **Nieprawda.** Zmierzone
+> connectorem Railway: produkcja to jeden serwis `kuking.pl`, uruchamiany
+> komendą `/usr/local/bin/kuking-entrypoint all` — serwer HTTP, pętla kolejki
+> i harmonogram działają w **jednym kontenerze**. Serwisu `worker` nie ma
+> i nigdy nie było; `PRODUCTION_SPLIT_SERVICES = true` w `.railway/railway.ts`
+> opisuje stan docelowy, do którego `railway config apply` jeszcze nigdy nie
+> zostało uruchomione (patrz `docs/DECISIONS.md` D-038 i sprostowania w
+> `docs/OTWARCIE.md`).
 
 Wszystkie powiadomienia mają `ShouldQueue`, a `QUEUE_CONNECTION=database`. List
-nie jest wysyłany w żądaniu — trafia do tabeli `jobs` i czeka na `queue:work`.
-Na produkcji robi to **osobny serwis `worker`** (`.railway/railway.ts`,
-`PRODUCTION_SPLIT_SERVICES = true`; na staging i preview jest to jeden kontener
-w trybie `APP_ROLE=all`).
+nie jest wysyłany w żądaniu — trafia do tabeli `jobs` i czeka na pętlę kolejki
+(`queue:work`). Dziś ta pętla działa w tym samym kontenerze co strona, w trybie
+`all` (na staging i preview jest to ten sam tryb `APP_ROLE=all`) — nie ma
+osobnego serwisu do sprawdzania, jest jeden kontener, w którym coś może paść
+po cichu.
 
-Wniosek, o którym łatwo zapomnieć: **poprawny dostawca + niedziałający worker =
-dokładnie ten sam skutek co `MAIL_MAILER=log`.** Nikt nic nie dostaje i nic tego
-nie pokazuje. Dlatego sprawdzenie z §5 ma dwa przebiegi: synchroniczny
-i przez kolejkę.
+Wniosek, o którym łatwo zapomnieć: **poprawny dostawca + niedziałająca pętla
+kolejki w tym kontenerze = dokładnie ten sam skutek co `MAIL_MAILER=log`.**
+Nikt nic nie dostaje i nic tego nie pokazuje. Dlatego sprawdzenie z §5 ma dwa
+przebiegi: synchroniczny i przez kolejkę.
+
+### Trzecia warstwa: plan Railway wyłącza SMTP
+
+Ustalone na produkcji 9 września 2026, po naprawieniu dwóch poprzednich
+warstw (`MAIL_MAILER=log`, potem `MAIL_SCHEME=tls`). Dostawca był wtedy
+poprawny, hasło poprawne, schemat poprawny, worker chodził — a zadanie
+`UstawienieNowegoHasla` weszło w `RUNNING` i nigdy się nie skończyło.
+
+Powód nie leżał po naszej stronie ani po stronie EmailLabs: **Railway blokuje
+ruch SMTP na planach Free, Trial i Hobby.** Pakiety idą w próżnię, więc nie ma
+odmowy, którą dałoby się zalogować — jest cisza aż do timeoutu.
+
+Naprawa: wysyłka przez **API HTTPS** tego samego dostawcy (§2A, D-047). Ta
+warstwa jest już naprawiona w kodzie; do zrobienia zostaje wygenerowanie
+kluczy w panelu EmailLabs i wpisanie trzech zmiennych w Railway.
+
+**Ta warstwa zostawiła po sobie ludzi, nie tylko wpis w dzienniku.** Cztery
+listy „Ustaw nowe hasło” z 9 września nie doszły do nikogo i nadal stoją
+w `failed_jobs`. Kto to był, co z tym zrobić i dlaczego `queue:retry` wyśle
+im **martwy link**: [`ZDARZENIE_2026-09-09_NIEWYSLANE_HASLA.md`](ZDARZENIE_2026-09-09_NIEWYSLANE_HASLA.md).
 
 ---
 
@@ -98,25 +146,164 @@ Zrób je raz. Zmiana dostawcy nie unieważnia żadnej z nich.
 5. **Wszystkie rekordy poczty w Cloudflare muszą być „DNS only” (szara
    chmurka), nigdy „Proxied”.** Cloudflare nie proxuje poczty; proxowanie
    rozbija weryfikację domeny i nie daje przy tym żadnego błędu.
-6. **Sprawdź, że worker chodzi**, zanim uznasz pocztę za działającą (§5).
+6. **Sprawdź, że pętla kolejki w kontenerze `kuking.pl` faktycznie przetwarza
+   `jobs`**, zanim uznasz pocztę za działającą (§5). Nie ma osobnego serwisu
+   do sprawdzenia — jest jeden proces w trybie `all`, który może ubić kolejkę
+   po cichu.
 
 ---
 
 ## 2. Warianty dostawców
 
-Wspólne dla wszystkich pięciu: po zmianie zmiennych **zrestartuj serwisy**.
+Wspólne dla wszystkich: po zmianie zmiennych **zrestartuj serwisy**.
 Konfiguracja jest zapiekana przy starcie kontenera (`php artisan optimize`
 w `docker/entrypoint.sh`), więc zmienna zmieniona bez restartu nie działa,
-a wygląda, jakby działała. Przy EmailLabs i Brevo restart dotyczy tylko
-wartości Shared Variables (§2A, §2B) — plik `.railway/railway.ts` się nie
-zmienia.
+a wygląda, jakby działała.
 
-### 2A. EmailLabs — rekomendowany
+| Wariant | Droga | Działa na Free/Hobby? |
+|---|---|---|
+| **§2A. EmailLabs po API HTTPS** | `MAIL_MAILER=emaillabs` | **TAK — jedyny** |
+| §2A-SMTP. EmailLabs po SMTP | `MAIL_MAILER=smtp` | nie, dopiero od planu Pro |
+| §2B. Brevo po SMTP | `MAIL_MAILER=smtp` | nie, dopiero od planu Pro |
+| §2C. Postmark | `MAIL_MAILER=postmark` (API) | tak, ale dane w USA |
+| §2D. Amazon SES | `MAIL_MAILER=ses` (API) | tak, ale spółka z USA |
+| §2E. Resend | `MAIL_MAILER=resend` (API) | tak, ale dane w USA |
+
+---
+
+### 2A. EmailLabs przez API HTTPS — jedyny wariant działający na Free i Hobby
+
+**Czas: ~20 minut pracy + do godziny na rozejście się DNS.** Kod jest już
+napisany i wmergowany (`App\Poczta\TransportEmailLabs`, D-047) — **żadnej
+paczki Composera, żadnej zmiany w repozytorium.** Zostają trzy wartości do
+wpisania w Railway.
+
+Ten wariant **nie używa portu 587 ani żadnego innego portu SMTP**. Wysyła
+zwykłym `POST`-em HTTPS na `https://api.emaillabs.io/v2.1/email`, czyli tą samą
+drogą, którą kontener rozmawia z Cloudflare R2 i Sentry — a tej Railway nie
+blokuje na żadnym planie.
+
+#### Krok 1 — konto i domena
+
+1. → [panel.emaillabs.net.pl/pl/register](https://panel.emaillabs.net.pl/pl/register)
+   → nowe konto. **Rejestracja jest darmowa i nie wymaga karty płatniczej** —
+   każde nowe konto startuje na darmowym pakiecie STARTUP (300 wiadomości/dobę,
+   9 000/miesiąc) `[sprawdzone 2026-09-08 — emaillabs.io/cennik-v2,
+   docs.emaillabs.io/faq/konto]`.
+2. W panelu: **Domeny** → dodaj `kuking.pl` (albo dedykowaną subdomenę
+   wysyłkową, np. `poczta.kuking.pl` — zalecane, patrz §1 pkt 3) →
+   **Autoryzacja domeny From**.
+
+#### Krok 2 — WYGENERUJ KLUCZE API (to jest krok, którego nie ma w wariancie SMTP)
+
+**Login i hasło SMTP z sekcji „Konta SMTP" NIE DZIAŁAJĄ na API.** API ma własną
+parę kluczy i trzeba ją wygenerować osobno:
+
+1. W panelu: **Konto → Ustawienia → API**.
+2. W polu „Klucz API" wpisz nazwę (np. `kuking-produkcja`) → **Generuj klucz API**.
+3. Panel pokaże **dwa** klucze:
+   - **Application-Key** → to jest `EMAILLABS_APP_KEY`,
+   - **Authorization** (ciąg 128 znaków) → to jest `EMAILLABS_SECRET_KEY`.
+4. **Skopiuj oba OD RAZU.** Po przeładowaniu strony klucza autoryzacyjnego nie
+   da się już podejrzeć — trzeba by wygenerować nowy
+   `[docs.emaillabs.io/konto/ustawienia/api/generowanie-kluczy-api]`.
+5. W sekcji **Konta SMTP** odczytaj **nazwę konta wysyłkowego** — ma kształt
+   `1.nazwa.smtp`. To jest `EMAILLABS_SMTP_ACCOUNT`, wymagane pole `smtpAccount`
+   w każdym żądaniu API. Mimo nazwy **nie jest to login SMTP**.
+
+> Jeśli panel pozwala ograniczyć klucz do wybranych adresów IP — **nie włączaj
+> tego na start.** Railway nie gwarantuje stałego adresu wychodzącego, a klucz
+> zablokowany na cudzym IP objawi się jako 401 po najbliższym wdrożeniu.
+
+#### Krok 3 — rekordy w Cloudflare (DNS → Records, wszystkie „DNS only")
+
+Identyczne jak przy SMTP — droga wysyłki nie zmienia wymagań DNS:
+
+| Typ | Nazwa | Wartość | Po co |
+|---|---|---|---|
+| TXT | `@` (albo nazwa subdomeny wysyłkowej) | `v=spf1 include:_spf.emaillabs.net.pl ~all` | SPF — zgoda na wysyłkę w Twoim imieniu |
+| CNAME | `emaillabs._domainkey` | `emaillabs._domainkey.emaillabs.net.pl` | DKIM — podpis wiadomości |
+| TXT | `_dmarc` | `v=DMARC1; p=none; rua=mailto:kontakt@kuking.pl` | DMARC — polityka i raporty |
+
+> Jeśli `kuking.pl` ma już rekord SPF, **nie dodawaj drugiego** — dopisz
+> `include:_spf.emaillabs.net.pl` do istniejącego (wyjaśnienie w §3).
+
+#### Krok 4 — zmienne w Railway (Shared Variables, środowisko `production`)
+
+`.railway/railway.ts` już referencuje te trzy zmienne. Trzeba wpisać ich
+WARTOŚCI raz, w panelu Railway (Environment → Variables → Shared Variables):
+
+| Zmienna | Wartość | Sekret? |
+|---|---|---|
+| `EMAILLABS_APP_KEY` | Application-Key z kroku 2 | **TAK** |
+| `EMAILLABS_SECRET_KEY` | Authorization z kroku 2 (128 znaków) | **TAK** |
+| `EMAILLABS_SMTP_ACCOUNT` | nazwa konta SMTP, kształt `1.nazwa.smtp` | nie |
+
+> ⚠️ **`MAIL_MAILER=emaillabs` USTAW RĘCZNIE.** Ten akapit mówił „jest już
+> wpisane na stałe w `.railway/railway.ts` — nie dodawaj go ręcznie".
+> Nieprawda w praktyce: **`railway config apply` nie zostało uruchomione ani
+> razu** (stan na 9 września 2026), więc nic z tego pliku nie obowiązuje.
+> Zmienną trzeba wpisać w panelu, obok trzech kluczy wyżej.
+>
+> `railway config apply` zastosowałoby przy okazji CAŁY plik, czyli także
+> rozbicie jednego serwisu na trzy — to osobna, dużo większa zmiana, której
+> przy uruchamianiu poczty nie chcesz. I nie ruszaj go bez kopii bazy, której
+> dziś nie ma (#193).
+
+Po wpisaniu zmiennych: **restart serwisu** `kuking.pl`. Jeden, bo jest jeden —
+w trybie `all` restart pociąga za sobą stronę, pętlę kolejki i harmonogram
+naraz. Restart jest konieczny, nie kosmetyczny: konfiguracja jest zapiekana
+przy starcie kontenera (`php artisan optimize`), więc zmienna bez restartu nie
+działa i wygląda, jakby działała.
+
+#### Krok 5 — sprawdzenie
+
+```bash
+railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl
+```
+
+Komenda wypisze między innymi adres API, nazwę konta SMTP i to, czy oba klucze
+są ustawione (bez pokazywania ich wartości). Dalej: §5 tego dokumentu, oba
+przebiegi — synchroniczny i przez kolejkę.
+
+**Czego nie dało się sprawdzić bez prawdziwego konta:** że EmailLabs przyjmuje
+żądanie zbudowane dokładnie tak, jak je składamy. Kształt żądania pochodzi ze
+specyfikacji OpenAPI dostawcy i jest pokryty testami, ale pierwsze prawdziwe
+wywołanie tej komendy jest jednocześnie pierwszym prawdziwym sprawdzeniem
+integracji. Jeśli wróci błąd, jego kod i pole są w komunikacie — **treści listu
+i adresu odbiorcy tam celowo nie ma**, bo ten komunikat trafia do `failed_jobs`.
+
+#### Uwaga o rozliczeniach
+
+> **Do konta EmailLabs nie da się dziś podpiąć karty płatniczej.** Po
+> przekroczeniu darmowego pakietu dostawca wysyła fakturę mailem, płatną
+> przelewem `[sprawdzone 2026-09-08, docs.emaillabs.io/faq/konto]`. Przy
+> pierwszej fali ~20 osób (`docs/decyzje/POCZTA.md` §0) limit 300/dobę nie
+> zostanie nawet zbliżony.
+
+---
+
+### 2A-SMTP. EmailLabs przez SMTP — dopiero od planu Railway Pro
+
+> ### ⚠️ Na planach Free, Trial i Hobby ten wariant NIE ZADZIAŁA
+>
+> Railway wyłącza na nich ruch SMTP. Połączenie nie kończy się błędem, tylko
+> **wisi**: zadanie w kolejce wchodzi w `RUNNING` i nigdy nie osiąga ani
+> `DONE`, ani `FAIL`. Zmierzone 9 września 2026. Jeśli jesteś na Free albo
+> Hobby — wróć do §2A. Ten opis zostaje jako gotowa droga na potem, bo od
+> planu Pro jest poprawny i wtedy nie wymaga ani linijki kodu.
+>
+> Dwie rzeczy, które trzeba wiedzieć, gdyby plan kiedyś się zmienił:
+> **po przejściu na Pro trzeba jeszcze raz wdrożyć serwis**, żeby SMTP zaczął
+> wychodzić (mówi to wprost dokumentacja Railwaya) — a sam Railway i tak
+> **rekomenduje usługi po HTTPS na wszystkich planach**, nie tylko tam, gdzie
+> SMTP jest zablokowany.
 
 **Czas: ~20 minut pracy + do godziny na rozejście się DNS. Zero zmian w kodzie
-i zero zmian w `.railway/railway.ts`** — sterownik `smtp` jest tam już
-ustawiony domyślnie (`MAIL_MAILER: "smtp"`), a `MAIL_SCHEME: "smtp"` też jest
-wpisany na stałe. Zostają cztery wartości do wpisania w Railway.
+i zero zmian w `.railway/railway.ts`** — sterownik `smtp` i `MAIL_SCHEME:
+"smtp"` są tam wpisane na stałe (choć uśpione), wystarczy przestawić
+`MAIL_MAILER` z powrotem na `smtp`. Zostają cztery wartości do wpisania
+w Railway.
 
 #### Krok 1 — konto i domena
 
@@ -178,8 +365,18 @@ Status domeny w panelu musi być zweryfikowany. Potem §5 tego dokumentu.
 
 ### 2B. Brevo — zapasowy, gdyby EmailLabs odmówił rejestracji
 
+> ### ⚠️ Ten opis też idzie przez SMTP, więc na Free/Hobby nie zadziała
+>
+> Wszystko, co niżej, zakłada plan Railway Pro albo wyżej. Na dzisiejszym
+> planie przejście na Brevo wymagałoby najpierw **napisania dla niego
+> transportu po API** — analogicznego do `App\Poczta\TransportEmailLabs`,
+> tylko pod `POST https://api.brevo.com/v3/smtp/email` z nagłówkiem
+> `api-key`. To jest osobny PR na jakieś pół dnia, nie podmiana czterech
+> zmiennych. `[do weryfikacji — kształt API Brevo nie był sprawdzany przy
+> D-047; sprawdź jego dokumentację, zanim zaczniesz]`
+
 **Czas: ~20 minut. Też sterownik `smtp`, też zero zmian w kodzie** — zamiana
-z EmailLabs na Brevo to podmiana czterech wartości w Railway, nic więcej.
+z EmailLabs (SMTP) na Brevo to podmiana czterech wartości w Railway, nic więcej.
 
 #### Krok 1 — konto i domena
 
@@ -474,8 +671,9 @@ reputację u każdego dostawcy, przy komplecie zielonych rekordów.
 
 | Plik | Zmiana | Warianty |
 |---|---|---|
-| — | **żadna** — `MAIL_MAILER: "smtp"` i `MAIL_SCHEME: "smtp"` są już w `.railway/railway.ts`; wystarczą cztery Shared Variables w panelu Railway | **EmailLabs, Brevo** (rekomendowane) |
-| `.railway/railway.ts` | `MAIL_MAILER` na `postmark` / `ses` / `resend`; usunąć cztery zmienne SMTP | Postmark, SES, Resend |
+| — | **żadna** — `MAIL_MAILER: "emaillabs"` jest już w `.railway/railway.ts`; wystarczą trzy Shared Variables w panelu Railway | **EmailLabs po API** (rekomendowane, §2A) |
+| `.railway/railway.ts` | `MAIL_MAILER` z powrotem na `smtp`; cztery Shared Variables SMTP | EmailLabs/Brevo po SMTP — **tylko od planu Pro** |
+| `.railway/railway.ts` | `MAIL_MAILER` na `postmark` / `ses` / `resend`; usunąć zmienne SMTP i EmailLabs | Postmark, SES, Resend |
 | `composer.json` | `symfony/postmark-mailer` | Postmark |
 | `composer.json` | `resend/resend-php` | Resend |
 | `composer.json` | — (`aws/aws-sdk-php` już jest) | SES |
@@ -510,8 +708,8 @@ mówi panel dostawcy i sama skrzynka.
 railway ssh -- php artisan kuking:sprawdz-poczte ty@wp.pl --kolejka
 ```
 
-To sprawdza drugą połowę układu: czy serwis `worker` w Railway w ogóle chodzi.
-Jeśli po minucie nic nie przyszło:
+To sprawdza drugą połowę układu: czy pętla kolejki w kontenerze `kuking.pl`
+(tryb `all`) w ogóle przetwarza `jobs`. Jeśli po minucie nic nie przyszło:
 
 ```bash
 railway ssh -- php artisan queue:failed
@@ -547,6 +745,55 @@ Na koniec przejdź ścieżkę użytkownika, nie komendy:
 
 Dopiero to jest dowód. Ekran „Nie pamiętam hasła” **sam się odblokuje**, gdy
 `MAIL_MAILER` przestanie być `log` — nie ma tam nic do przełączenia ręcznie.
+
+### Krok 6 — piksel śledzący otwarcia (issue #204)
+
+**Zmierzone 9 września 2026 na prawdziwym liście doręczonym na o2.pl**
+(potwierdzenie adresu): w treści HTML siedziały DWA znaczniki liczące
+otwarcie — `<img>` o rozmiarze 1×1 z adresem na `click.kuking.pl/track/o/…`
+oraz zapasowy `<div>` z tym samym adresem w `background:url()`, dla klientów,
+które blokują obrazki. Odnośniki nie były przepisane, czyli nasz nagłówek
+`X-TRACKING-OFF` działa — problem dotyczy **wyłącznie otwarć**.
+
+Piksel raportuje moment otwarcia, adres IP i klienta pocztowego odbiorcy.
+Przy liście transakcyjnym nie ma to żadnego zastosowania: nie mierzymy
+otwieralności kampanii, bo kampanii nie ma.
+
+**Tego nie naprawi żaden PR.** Specyfikacja API dostawcy mówi o nagłówku
+`X-TRACKING-OFF` dosłownie: „**Link** tracking is enabled by default" —
+samo śledzenie otwarć jest ustawieniem konta wysyłkowego w panelu i API nie
+ma pola, którym dałoby się je ani odczytać, ani zmienić.
+
+Kolejność jest więc taka:
+
+1. **panel EmailLabs → konto wysyłkowe `1.mkapica.smtp` → wyłącz śledzenie
+   otwarć.** Jeśli takiego przełącznika tam nie ma — napisz do wsparcia
+   Vercomu i **wklej tu ich odpowiedź razem z datą**;
+2. wyślij list jeszcze raz (`kuking:sprawdz-poczte`) i zapisz jego **surowe
+   źródło** ze skrzynki (Gmail „Pokaż oryginał", o2 i WP „Więcej" → „Pokaż
+   szczegóły") do pliku;
+3. sprawdź ten plik komendą:
+
+```bash
+php artisan kuking:sprawdz-piksel ~/list-z-kuking.eml
+```
+
+   Komenda **kończy się porażką**, gdy w liście stoi obcy obrazek albo
+   przepisany odnośnik, i mówi, który ślad znalazła. Kończy się porażką także
+   wtedy, gdy w pliku nie ma ANI JEDNEGO adresu http(s) — bo to znaczy „nic
+   nie zmierzyliśmy", a nie „list jest czysty";
+4. **wynik wpisz tutaj, z datą.** To jest konfiguracja poza repozytorium,
+   a dowód bez daty nie znaczy nic.
+
+**Czego ta komenda nie mówi, nawet gdy świeci na zielono:** że przełącznik
+w panelu jest wyłączony. Mówi o jednym konkretnym liście. Dowodem na
+ustawienie jest panel plus ten sam wynik na kilku listach z różnych
+powiadomień. W drugą stronę jest mocniej — jeden ślad wystarcza, żeby
+wiedzieć, że śledzenie otwarć wciąż działa.
+
+**Stan na 11 września 2026: NIE WYŁĄCZONE, do zrobienia po stronie
+właściciela.** Dopóki tak jest, polityka prywatności musi o tym mówić
+(sekcja 3, akapit o EmailLabs) — i mówi.
 
 ### `MAIL_FROM_NAME` zostaw NIEUSTAWIONE
 
@@ -640,6 +887,27 @@ obsługą odbić i skarg, pod groźbą zawieszenia konta.
 
 ## 7. Na co uważać
 
+**Plan Railway decyduje o tym, czy SMTP w ogóle wychodzi.** Free, Trial
+i Hobby mają go wyłączonego i objawia się to zawieszeniem, nie błędem —
+zadanie w kolejce stoi w `RUNNING` bez końca. Jeśli ktoś kiedyś przestawi
+`MAIL_MAILER` z `emaillabs` na `smtp` „na próbę", dostanie dokładnie tę
+awarię z powrotem. Ostrzega przed nią `kuking:sprawdz-poczte`.
+
+**Limity API EmailLabs, o których warto wiedzieć zawczasu.** Ze specyfikacji
+OpenAPI dostawcy: najwyżej **200 adresatów** w jednym żądaniu, całe żądanie do
+**15 MB**, temat **2–128 znaków**, nazwa nadawcy i odbiorcy **2–64 znaki**.
+Nasze listy mają po jednym adresacie i krótkie tematy, więc dziś nie dotyka to
+niczego — ale digest, kiedy powstanie, będzie musiał dzielić wysyłkę na paczki.
+`[do weryfikacji — dokumentacja NIE podaje limitu liczby żądań na sekundę ani
+kodu odpowiedzi po przekroczeniu dobowego pułapu konta; sprawdź to przy
+pierwszej większej wysyłce]`
+
+**Śledzenie odnośników jest u dostawcy włączone domyślnie, u nas wyłączone.**
+Przy włączonym EmailLabs podmienia każdy link w liście na własny adres
+przekierowujący. W liście z linkiem do zmiany hasła to jest zła zamiana: osoba
+60+ widzi wtedy adres, który nie ma nic wspólnego z `kuking.pl`. Włącza się to
+zmienną `EMAILLABS_TRACKING=true` i trzeba mieć po temu powód.
+
 **Limit dzienny, nie tylko miesięczny.** EmailLabs STARTUP to 300
 wiadomości na dobę **i** 9 000 na miesiąc — oba limity obowiązują naraz.
 Przy dzisiejszej wysyłce (siedem typów listów z §0) i pierwszej fali ~20 osób
@@ -687,6 +955,9 @@ z wyprzedzeniem:
 
 - **założenie konta u dostawcy** — przy EmailLabs i Brevo bez karty, tylko
   adres e-mail; przy Amazon SES z kartą płatniczą (wymaga jej AWS);
+- **wygenerowanie kluczy API w panelu EmailLabs** (Konto → Ustawienia → API) —
+  to są INNE dane niż login i hasło SMTP i bez nich wariant §2A nie ruszy;
+  klucza autoryzacyjnego nie da się podejrzeć po przeładowaniu strony;
 - **założenie skrzynki `kontakt@kuking.pl`**, jeśli jeszcze nie istnieje —
   i sprawdzenie, że ktoś ją czyta;
 - **wpisanie rekordów DNS w Cloudflare** — z panelu dostawcy, nie z tego pliku;
@@ -708,8 +979,12 @@ z wyprzedzeniem:
 - [`docs/decyzje/POCZTA.md`](../decyzje/POCZTA.md) — porównanie sześciu dostawców, ceny, rezydencja danych, decyzja
 - [`docs/infra/DEPLOYMENT_RUNBOOK.md`](DEPLOYMENT_RUNBOOK.md) — krok 3 (poczta) i krok 8 (zmienne w Railway)
 - [`docs/brand/BRAND_EXTENDED.md`](../brand/BRAND_EXTENDED.md) §5 — ton e-maili, zakaz `noreply@`
+- [`docs/DECISIONS.md`](../DECISIONS.md) D-047 — dlaczego wysyłamy po API, a nie po SMTP
 - `App\Support\Poczta` — czym serwis mierzy „poczta działa”
+- `App\Poczta\TransportEmailLabs` — transport z §2A, razem z odesłaniami do dokumentacji API
 - `App\Console\Commands\SprawdzPoczte` — komenda z §5
+- [Railway — Outbound Networking → Email delivery (SMTP tylko od planu Pro, na Free/Trial/Hobby wyłączone)](https://docs.railway.com/networking/outbound-networking#email-delivery) — sprawdzone 2026-09-09
+- [EmailLabs — specyfikacja OpenAPI](https://apidocs.emaillabs.io/openapi.json) · [uwierzytelnienie](https://vercom.gitbook.io/emaillabs-api-docs/authentication) · [kształt odpowiedzi](https://vercom.gitbook.io/emaillabs-api-docs/introduction) · [generowanie kluczy API](https://docs.emaillabs.io/konto/ustawienia/api/generowanie-kluczy-api) — sprawdzone 2026-09-09
 - [EmailLabs — rejestracja](https://panel.emaillabs.net.pl/pl/register) · [cennik](https://emaillabs.io/cennik-v2/) · [konto — brak karty, rozliczenie fakturą](https://docs.emaillabs.io/faq/konto) · [SPF/DKIM](https://emaillabs.io/en/secure-email-delivery/) — wszystkie sprawdzone 2026-09-08
 - [Brevo — rejestracja](https://app.brevo.com/account/register) · [cennik](https://www.brevo.com/pricing/) · [SPF/DKIM setup](https://easydmarc.com/blog/brevo-ex-sendinblue-spf-dkim-setup/) — sprawdzone 2026-09-08
 - [Postmark — Pricing & Billing FAQ](https://postmarkapp.com/support/article/1285-pricing-billing-faq) — brak karty na planie Developer, sprawdzone 2026-09-08

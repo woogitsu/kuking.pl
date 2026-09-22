@@ -10,21 +10,46 @@
 #    ./scripts/check.sh           # to samo, co robi ten workflow
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
-#  GDZIE TO CHODZI: na własnej puli `woogitsu-linux-01`–`woogitsu-linux-10`,
-#  wskazanej ZESTAWEM ETYKIET, nie nazwą runnera i nie zmienną repozytorium:
+#  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
+#  Wszystkie dziewięć jobów ma dokładnie to samo:
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
-#  Dlaczego etykiety, a nie nazwa: nazwa przypina job do JEDNEJ maszyny, więc
-#  jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe: `i5-10400f`
-#  i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`, `X64`,
+#  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
+#  JEST i jest wartością domyślną. Żeby wysłać joby na własną pulę
+#  `woogitsu-linux-01`–`woogitsu-linux-10`, właściciel ustawia w Settings →
+#  Secrets and variables → Actions → Variables:
+#
+#      CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+#
+#  Dlaczego KOMPLET ETYKIET, a nie nazwa runnera: nazwa przypina job do JEDNEJ
+#  maszyny, więc jej awaria zatrzymuje całe CI. Dlaczego te dwie dodatkowe:
+#  `i5-10400f` i `nvidia-gtx1070` ma wyłącznie nowa pula. Stare runnery WSL-owe
+#  (`kuking-wsl-DOM-NEW-01`–`-03` — trzy rejestracje JEDNEJ maszyny, nazwa
+#  potwierdzona przez właściciela 12.09.2026) noszą tylko `self-hosted`, `Linux`, `X64`,
 #  `wsl2`, `woogitsu` — samo `self-hosted` wpuściłoby joby także na nie.
 #
-#  KOSZT TEJ DECYZJI, ŻEBY BYŁ ZAPISANY: te joby NIE mają już zapasu
-#  w runnerach GitHuba. Gdy cała pula jest offline, przebiegi stoją w kolejce
-#  bez końca — a CI jest bramką deployu (Railway ma „Wait for CI"), więc stoi
-#  wtedy także wdrożenie. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
+#  KOSZT, ŻEBY BYŁ ZAPISANY: kiedy zmienna wskazuje własną pulę, a cała pula
+#  jest offline, przebiegi stoją w kolejce bez końca — a CI jest bramką deployu
+#  (Railway ma „Wait for CI"), więc stoi wtedy także wdrożenie. Ratunkiem jest
+#  wtedy SKASOWANIE zmiennej (powrót na `ubuntu-latest`), nie PR.
+#
+#  STAN ZMIERZONY 11.09.2026 (D-121, przebieg CI nr 661): `labels: ["self-hosted"]`,
+#  `runner_name: kuking-wsl-DOM-NEW-02`. Zmienna jest dziś ustawiona na SAMO
+#  `self-hosted`, więc joby lądują na starej puli WSL-owej — tej, którą komplet
+#  sześciu etykiet miał wykluczać. Zmiana tej wartości należy do właściciela
+#  repozytorium, nie do kodu. Instrukcja runnera: docs/infra/SELF_HOSTED_RUNNER.md
+#
+#  TO JEST WYBÓR, NIE PRZEOCZENIE — decyzja właściciela z 12.09.2026.
+#  Z trzech dróg (komplet sześciu etykiet / skasowanie zmiennej / zostawienie
+#  jak jest) właściciel wybrał TRZECIĄ, znając koszt: przebiegi chodzą na starej
+#  puli WSL, czyli na TRZECH REJESTRACJACH JEDNEJ MASZYNY — tej samej, która
+#  dała wyścig o binarkę Composera z #262. Kto tu trafia po czerwonym CI: stan
+#  „stara pula" nie jest tu usterką do naprawienia i nie szukaj przyczyny
+#  w `runs-on:`. Przyjęty koszt w całości, dokładna wartość do przełączenia
+#  na nową pulę, skutek skasowania zmiennej i SYGNAŁ, po którym tę decyzję
+#  odwracamy, stoją w docs/infra/SELF_HOSTED_RUNNER.md → „Krok 1" → „Decyzja
+#  właściciela z 12 września 2026: zmienna ZOSTAJE na samym `self-hosted`".
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -44,8 +69,8 @@
 # =============================================================================
 
 # ---------------------------------------------------------------------------
-#  RUNNERY: TYMCZASOWO `ubuntu-latest`, NIE WŁASNA PULA — decyzja właściciela
-#  z 8 września 2026, wieczorem.
+#  RUNNERY: WYBIERA JE ZMIENNA REPOZYTORIUM `CI_RUNS_ON`, A BEZ NIEJ STOI
+#  `ubuntu-latest` — decyzja właściciela z 8 września 2026, wieczorem (D-121).
 #
 #  D-028 mówi: „CI wraca na własne runnery, wybierane etykietami, nie nazwą"
 #  — i ta decyzja NIE JEST odwołana. Powodem zmiany jest sytuacja, nie zwrot
@@ -55,8 +80,9 @@
 #  „Wait for CI" — nie wdrażał niczego na produkcję.
 #
 #  Właściciel ma ~2000 niewykorzystanych minut Actions i kazał ich użyć.
-#  Repozytorium jest PRYWATNE, więc minuty są płatne: pełny przebieg to
-#  siedem jobów, orientacyjnie 25-35 minut maszynowych.
+#  Repozytorium jest PRYWATNE, więc minuty są płatne — ale płacą się tylko
+#  wtedy, gdy przebieg idzie na runnery GitHuba. Pełny przebieg ma dziesięć
+#  jobów po wydzieleniu portu marki. Czas zależy od zakresu i kolejki runnerów.
 #
 #  JAK WRÓCIĆ NA WŁASNĄ PULĘ — BEZ ZMIANY W KODZIE (od 8 września, wieczór).
 #  `runs-on` czyta zmienną repozytorium `CI_RUNS_ON`. Bez niej stoi
@@ -80,6 +106,11 @@
 #  Nic poza `runs-on` nie wymagało zmiany: usługa `postgres` i odczyt
 #  zmapowanego portu przez `job.services.postgres.ports[5432]` działają tak
 #  samo na obu rodzajach runnerów.
+#
+#  CZEGO TEN KOMENTARZ NIE MÓWI, BO NIE MOŻE: jaka jest DZIŚ wartość zmiennej.
+#  Zmienna żyje w ustawieniach repozytorium i z kodu jej nie widać — ostatni
+#  pomiar stoi wyżej (D-121). Zgodność tego opisu z tym, co naprawdę stoi
+#  w `runs-on:`, pilnuje `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`.
 # ---------------------------------------------------------------------------
 
 name: CI
@@ -137,6 +168,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       kod: ${{ steps.sprawdz.outputs.kod }}
+      widok: ${{ steps.sprawdz.outputs.widok }}
 
     steps:
       - uses: actions/checkout@v7
@@ -156,12 +188,14 @@ jobs:
           if [ -z "${BAZA}" ] || [ "${BAZA}" = "0000000000000000000000000000000000000000" ]; then
             echo "Brak punktu odniesienia — pełny zestaw."
             echo "kod=true" >> "$GITHUB_OUTPUT"
+            echo "widok=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
           if ! git cat-file -e "${BAZA}^{commit}" 2>/dev/null; then
             echo "Baza ${BAZA} nieosiągalna — pełny zestaw."
             echo "kod=true" >> "$GITHUB_OUTPUT"
+            echo "widok=true" >> "$GITHUB_OUTPUT"
             exit 0
           fi
 
@@ -183,6 +217,37 @@ jobs:
             echo "kod=true" >> "$GITHUB_OUTPUT"
           fi
 
+          # -------------------------------------------------------------
+          # WARSTWA WIDOKU — jedno miejsce dla trzech jobów przeglądarkowych.
+          #
+          # Do 19 września 2026 ten sam filtr stał TRZY RAZY, osobno w
+          # `port_marki`, `port_funkcje` i `dostepnosc`, i pilnował KROKÓW,
+          # a nie jobów. Skutek był taki, że przy zmianie kodu poza warstwą
+          # widoku job się URUCHAMIAŁ, wszystkie jego kroki pomiarowe były
+          # pomijane, a job kończył się na ZIELONO — nie do odróżnienia na
+          # liście kontrolnej od joba, który naprawdę wszystko zmierzył.
+          # Zmierzone na 25 przebiegach: „Port marki (kompozycje…)" miał
+          # 15 sukcesów, z czego 4 trwały 19–22 s wobec 462–506 s przy
+          # rzeczywistym pomiarze. Tak samo „Port marki — rodziny ekranów"
+          # (4 × 19–21 s wobec 1456–1638 s) i „Dostępność" (4 × 18–22 s
+          # wobec 745–955 s). Razem dwanaście zielonych bez ani jednego
+          # pomiaru.
+          #
+          # Teraz warunek stoi na JOBIE. Gdy warstwa widoku jest nietknięta,
+          # cały job jest `skipped` — czyli widać, że nic nie zmierzono.
+          # Zielony wynik znowu znaczy „zmierzone".
+          #
+          # Wzorzec obejmuje TAKŻE SAME SKRYPTY POMIAROWE i `ci.yml`: zmiana
+          # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
+          # miernik bez jednego czerwonego przebiegu. Pilnuje tego
+          # `PortMarkiMaWlasnaBramkeCiTest`.
+          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+            echo "widok=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
+            echo "widok=false" >> "$GITHUB_OUTPUT"
+          fi
+
   # ===========================================================================
   #  1. Styl kodu — Laravel Pint
   # ===========================================================================
@@ -196,32 +261,12 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+      # Prywatny katalog narzędzi joba i konfiguracja PHP — pełne
+      # uzasadnienie stoi teraz przy kodzie, w `.github/actions/php`.
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          # TA SAMA LISTA WE WSZYSTKICH PIĘCIU JOBACH — higiena, nie łatka.
-          #
-          # Trzy runnery stoją na JEDNEJ maszynie i dzielą jedną instalację PHP.
-          # Pięć jobów prosiło o pięć różnych zestawów rozszerzeń; przy wspólnym
-          # PHP to jest proszenie się o kłopot, nawet jeśli dziś nikt na tym nie
-          # padł. Jedna lista znaczy: obojętne, który job konfigurował ostatni.
-          #
-          # UWAGA, ŻEBY NIE WPROWADZAĆ NIKOGO W BŁĄD: ta zmiana NIE naprawiła
-          # awarii `pcntl` z 9 września. Sprawdzone — po ujednoliceniu list job
-          # dostępności padł tak samo. `setup-php` raportuje wtedy
-          # `✓ pcntl Enabled`, a `php artisan serve` i tak kończy się kodem 1
-          # na „Signals are not supported (…) or that pcntl_* functions are not
-          # disabled by your php.ini's disable_functions directive". Czyli
-          # rozszerzenie jest włączone, a FUNKCJE zablokowane w `php.ini`
-          # maszyny — to jest do naprawienia na runnerze, nie tutaj.
-          #
-          # Koszt: lekkie joby (Pint, Audyt zależności) włączają kilka
-          # rozszerzeń więcej. Na współdzielonej maszynie są już zainstalowane,
-          # więc to sekundy.
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
         uses: actions/cache@v6
@@ -236,7 +281,111 @@ jobs:
       # --test = tylko raportuj, nie modyfikuj plików.
       # Naprawa lokalnie: `vendor/bin/pint`
       - name: Pint
-        run: vendor/bin/pint --test
+        run: vendor/bin/pint --test -v
+
+      # =====================================================================
+      #  TESTY SKRYPTU KOPII BAZY (issue #193, D-043/D-049)
+      #
+      #  DLACZEGO TO STOI W CI, A NIE TYLKO W `scripts/check.sh`
+      #  Bo do tej pory NIE STAŁO NIGDZIE poza kontrolą lokalną — zmierzone
+      #  10.09.2026: `.github/workflows/ci.yml` nie uruchamiał ani jednego
+      #  pliku z `tests/skrypty/`. Kopia bazy jest w całości skryptem powłoki
+      #  (w obrazie bez PHP — o tym jest D-043), więc żaden test PHPUnit jej
+      #  nie dotyka. Zielone CI nie mówiło zatem NIC o jedynej kopii bazy
+      #  tego projektu, a wystarczyło zapomnieć uruchomić `check.sh`.
+      #
+      #  To jest dokładnie pułapka 5 z `docs/PULAPKI_TESTOW.md`: narzędzie
+      #  melduje sukces, nie sprawdzając tego, o czym mowa.
+      #
+      #  Krok jest tani (kilka sekund, bez bazy i bez sieci) i sam pilnuje
+      #  swojej wiarygodności: skrypt testowy wychodzi kodem 1, gdy nie
+      #  znajdzie plików do testowania, więc przeniesienie `docker/kopia/`
+      #  zapali CI, a nie wyłączy testu po cichu.
+      # =====================================================================
+      # =====================================================================
+      #  KLIENT POSTGRESA MUSI MIEĆ WERSJĘ 18 — inaczej `pg_restore` ODMAWIA
+      #
+      #  Skrypty kopii i próby odtworzenia wołają PRAWDZIWY `pg_restore` na
+      #  runnerze, a serwer w usłudze to `postgres:18-alpine`. Klient starszy
+      #  niż serwer nie ostrzega — odmawia odczytu archiwum, i to ZDROWEGO
+      #  archiwum tak samo jak uszkodzonego. Zmierzone 20.09.2026 po
+      #  przełączeniu `CI_RUNS_ON` na `ubuntu-latest`: każdy przypadek dostawał
+      #  kod 51 („pg_restore nie czyta") zamiast 0 dla zdrowego i 53 dla
+      #  obciętego, więc test obcięcia przestawał cokolwiek mierzyć, meldując
+      #  przy tym czerwień wyglądającą na winę gałęzi. Na `self-hosted`, gdzie
+      #  klient 18 stoi od dawna, ten sam job był zielony.
+      #
+      #  ŚWIADOMY KOSZT: to jest `apt-get`, czyli przebieg CI zależy od
+      #  dostępności repozytorium PGDG. W tym repozytorium taka zależność raz
+      #  już zabiła joba na czterech PR-ach naraz i dlatego istnieje strażnik
+      #  `JobDostepnosciNieWolaAptaTest` — ale pilnuje on WYŁĄCZNIE joba
+      #  dostępności i nie dotyczy tego kroku. Decyzja właściciela z 20.09.2026:
+      #  zostajemy na `ubuntu-latest` i doinstalowujemy klienta.
+      #
+      #  Krok NIE JEST cichy: gdy klient 18 jest już obecny, nie rusza apta
+      #  w ogóle; gdy instalacja się nie uda, job pada TUTAJ z nazwaną
+      #  przyczyną, zamiast później udawać awarię kopii bazy.
+      # =====================================================================
+      - name: Klient PostgreSQL 18 (wymagany przez skrypty kopii)
+        run: |
+          set -euo pipefail
+          # `case`, nie `grep -qE` — straznik PortMarkiMaWlasnaBramkeCiTest
+          # wymaga, by `grep -qE` z apostrofem bylo w tym pliku DOKLADNIE RAZ.
+          case "$(pg_restore --version 2>/dev/null)" in
+            *" 18."*|*" 18") echo "Klient 18 juz jest - apt nietkniety."; exit 0 ;;
+          esac
+          echo "Obecny klient: $(pg_restore --version 2>/dev/null || echo brak)"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL --retry 3 --retry-delay 5 \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          # Bez tego `pg_restore` dalej wskazywalby starszego klienta z PATH.
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/18/bin:$PATH"
+          wersja=$(pg_restore --version)
+          echo "Po instalacji: ${wersja}"
+          # Kontrola dodatnia: krok ma pasc TU, a nie dopiero na kopii bazy.
+          case "${wersja}" in
+            *" 18."*|*" 18") ;;
+            *) echo "::error::Klient PostgreSQL 18 NIE zostal zainstalowany (${wersja}). Skrypty kopii bazy odmowilyby odczytu ZDROWEGO archiwum, meldujac to jako uszkodzenie."; exit 1 ;;
+          esac
+      - name: Testy skryptu kopii bazy
+        run: bash tests/skrypty/kopia-bazy.sh
+
+  # ===========================================================================
+  #  1b. Przyrząd do testu obciążeniowego (#605)
+  # ===========================================================================
+  #  Osobny job, bo to jedyny zestaw w tym repozytorium, który sprawdza
+  #  NARZĘDZIE POMIAROWE, a nie produkt. Nie potrzebuje bazy, PHP, przeglądarki
+  #  ani sieci: stanowiskiem jest `scripts/serwer-scenariuszy-605.mjs` na
+  #  porcie przydzielanym dynamicznie. Całość trwa ok. 20 s.
+  #
+  #  Bez tego kroku regresja z 18 września 2026 wraca po cichu: `zadanie()`
+  #  nie kończyło obietnicy przy odpowiedzi urwanej po nagłówkach, a limit
+  #  mierzył bezczynność gniazda zamiast czasu żądania — i pomiar wisiał.
+  #  Odtworzenie: docs/infra/evidence/obciazenie605/ODTWORZENIE_ZAWIESZENIA.md
+  # ===========================================================================
+  przyrzad_605:
+    name: Przyrząd testu obciążeniowego (#605)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 10
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      # Bez `npm ci` — przyrząd i jego testy nie mają ani jednej zależności.
+      - name: Regresje i kontrole ujemne przyrządu
+        run: node scripts/przyrzad-605.test.mjs
 
   # ===========================================================================
   #  2. Analiza statyczna — Larastan / PHPStan
@@ -271,15 +420,14 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+      # Własny katalog narzędzi tego joba — pełne uzasadnienie i pomiary
+      # przy tym samym kroku w jobie `lint` wyżej (issue #262).
+      # Prywatny katalog narzędzi joba i konfiguracja PHP — pełne
+      # uzasadnienie stoi teraz przy kodzie, w `.github/actions/php`.
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          # Larastan bootuje aplikację Laravela, więc potrzebuje tych samych
-          # rozszerzeń co runtime — inaczej wysypie się na brakującym pdo_pgsql.
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
         uses: actions/cache@v6
@@ -400,7 +548,6 @@ jobs:
       FILESYSTEM_DISK: local
       # Wyłącz telemetrię w testach.
       SENTRY_LARAVEL_DSN: ""
-      POSTHOG_KEY: ""
 
     steps:
       - uses: actions/checkout@v7
@@ -430,15 +577,12 @@ jobs:
           echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+      # Prywatny katalog narzędzi joba i konfiguracja PHP — pełne
+      # uzasadnienie stoi przy kodzie, w `.github/actions/php`.
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          # Ten zestaw MUSI odpowiadać rozszerzeniom z Dockerfile,
-          # inaczej CI przepuści kod, który nie wystartuje na produkcji.
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Cache Composera
         uses: actions/cache@v6
@@ -453,6 +597,58 @@ jobs:
       - name: Przygotowanie .env
         run: cp .env.example .env
 
+      # =====================================================================
+      #  KLIENT POSTGRESA MUSI MIEĆ WERSJĘ 18 — inaczej `pg_restore` ODMAWIA
+      #
+      #  Skrypty kopii i próby odtworzenia wołają PRAWDZIWY `pg_restore` na
+      #  runnerze, a serwer w usłudze to `postgres:18-alpine`. Klient starszy
+      #  niż serwer nie ostrzega — odmawia odczytu archiwum, i to ZDROWEGO
+      #  archiwum tak samo jak uszkodzonego. Zmierzone 20.09.2026 po
+      #  przełączeniu `CI_RUNS_ON` na `ubuntu-latest`: każdy przypadek dostawał
+      #  kod 51 („pg_restore nie czyta") zamiast 0 dla zdrowego i 53 dla
+      #  obciętego, więc test obcięcia przestawał cokolwiek mierzyć, meldując
+      #  przy tym czerwień wyglądającą na winę gałęzi. Na `self-hosted`, gdzie
+      #  klient 18 stoi od dawna, ten sam job był zielony.
+      #
+      #  ŚWIADOMY KOSZT: to jest `apt-get`, czyli przebieg CI zależy od
+      #  dostępności repozytorium PGDG. W tym repozytorium taka zależność raz
+      #  już zabiła joba na czterech PR-ach naraz i dlatego istnieje strażnik
+      #  `JobDostepnosciNieWolaAptaTest` — ale pilnuje on WYŁĄCZNIE joba
+      #  dostępności i nie dotyczy tego kroku. Decyzja właściciela z 20.09.2026:
+      #  zostajemy na `ubuntu-latest` i doinstalowujemy klienta.
+      #
+      #  Krok NIE JEST cichy: gdy klient 18 jest już obecny, nie rusza apta
+      #  w ogóle; gdy instalacja się nie uda, job pada TUTAJ z nazwaną
+      #  przyczyną, zamiast później udawać awarię kopii bazy.
+      # =====================================================================
+      - name: Klient PostgreSQL 18 (wymagany przez skrypty kopii)
+        run: |
+          set -euo pipefail
+          # `case`, nie `grep -qE` — straznik PortMarkiMaWlasnaBramkeCiTest
+          # wymaga, by `grep -qE` z apostrofem bylo w tym pliku DOKLADNIE RAZ.
+          case "$(pg_restore --version 2>/dev/null)" in
+            *" 18."*|*" 18") echo "Klient 18 juz jest - apt nietkniety."; exit 0 ;;
+          esac
+          echo "Obecny klient: $(pg_restore --version 2>/dev/null || echo brak)"
+          sudo install -d /usr/share/postgresql-common/pgdg
+          sudo curl -fsSL --retry 3 --retry-delay 5 \
+            -o /usr/share/postgresql-common/pgdg/apt.postgresql.org.asc \
+            https://www.postgresql.org/media/keys/ACCC4CF8.asc
+          echo "deb [signed-by=/usr/share/postgresql-common/pgdg/apt.postgresql.org.asc] https://apt.postgresql.org/pub/repos/apt $(lsb_release -cs)-pgdg main" \
+            | sudo tee /etc/apt/sources.list.d/pgdg.list >/dev/null
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq postgresql-client-18
+          # Bez tego `pg_restore` dalej wskazywalby starszego klienta z PATH.
+          echo "/usr/lib/postgresql/18/bin" >> "$GITHUB_PATH"
+          export PATH="/usr/lib/postgresql/18/bin:$PATH"
+          wersja=$(pg_restore --version)
+          echo "Po instalacji: ${wersja}"
+          # Kontrola dodatnia: krok ma pasc TU, a nie dopiero na kopii bazy.
+          case "${wersja}" in
+            *" 18."*|*" 18") ;;
+            *) echo "::error::Klient PostgreSQL 18 NIE zostal zainstalowany (${wersja}). Skrypty kopii bazy odmowilyby odczytu ZDROWEGO archiwum, meldujac to jako uszkodzenie."; exit 1 ;;
+          esac
+
       # Migracje osobnym krokiem, nie w ramach testów: jeśli padnie migracja,
       # chcemy zobaczyć w raporcie "migracje", a nie 300 padniętych testów.
       - name: Migracje
@@ -466,8 +662,109 @@ jobs:
       - name: Kontrola odwracalności migracji
         run: php artisan migrate:refresh --force --no-interaction
 
+      # Skrypt najpierw sprawdza niezmienione źródła, po każdej mutacji
+      # przywraca kopię i ponawia test. Pełny zestaw idzie na końcu.
+      - name: Kontrole negatywne regresji Alfa 0.8 i portu marki
+        run: python3 scripts/kontrole-negatywne-alfa08.py
+
       - name: Testy
         run: php artisan test
+
+  # ===========================================================================
+  #  3b. Grupa `dwa-polaczenia` — testy na DWÓCH połączeniach (D-105, #314)
+  # ===========================================================================
+  #  Osobny job, nie krok w jobie `test`, i to jest cała treść decyzji D-105:
+  #  ta grupa nie używa `RefreshDatabase`, ZATWIERDZA dane naprawdę i zakłada
+  #  blokady na wierszach. Na tej samej bazie co zwykły przebieg zrzucałaby mu
+  #  schemat w trakcie działania (issue #66 z drugiej strony), więc ma własną
+  #  bazę `kuking_race` — zakłada ją `tests/Dwa/bin/przygotuj-baze.php`.
+  #
+  #  `continue-on-error: true` JEST TYMCZASOWE I MA WARUNEK ZDJĘCIA.
+  #  Lokalnie grupa przeszła 20 przebiegów z 20, ale na współdzielonym runnerze
+  #  i na PostgreSQL 18 (lokalnie: 16) nie ma jeszcze ani jednego pomiaru
+  #  stabilności. Migający test blokujący uczy ludzi ignorować czerwone, więc
+  #  do czasu zebrania tych danych job RAPORTUJE, ale nie blokuje scalenia.
+  #  Warunek zdjęcia flagi: dwadzieścia kolejnych przebiegów CI bez ani jednej
+  #  czerwieni tego joba. Co robić, gdy grupa zacznie migać: D-105, sekcja
+  #  „Gdy grupa zacznie migać".
+  # ===========================================================================
+  dwa-polaczenia:
+    name: Wyścigi na dwóch połączeniach (nie blokuje)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 15
+    continue-on-error: true
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        # Port hosta dynamiczny z tego samego powodu co w jobie `test` —
+        # runnery dzielą jeden demon Dockera (komentarz przy tamtym jobie).
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      APP_ENV: testing
+      APP_DEBUG: "true"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      # DB_DATABASE świadomie NIE stoi tutaj: nazwę bazy wyścigów liczy
+      # `kuking_nazwa_bazy_wyscigow()` z `tests/bootstrap.php`, a wpisana tu
+      # wartość przesłoniłaby ją i grupa odmówiłaby startu (albo, gorzej,
+      # wystartowała na `kuking_test`).
+      CACHE_STORE: array
+      SESSION_DRIVER: array
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: local
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+
+      # Drugi job na wspólnej akcji. `dwa-polaczenia` jest oznaczony
+      # `continue-on-error: true` i w nazwie ma „nie blokuje", więc jego
+      # ewentualna porażka kosztuje najmniej po `audit`.
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
+        with:
+          wersja: ${{ env.PHP_VERSION }}
+
+      - name: Cache Composera
+        uses: actions/cache@v6
+        with:
+          path: vendor
+          key: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-${{ hashFiles('composer.lock') }}
+          restore-keys: composer-${{ runner.os }}-php${{ env.PHP_VERSION }}-
+
+      - name: Instalacja zależności
+        run: composer install --no-interaction --prefer-dist --no-progress
+
+      - name: Przygotowanie .env
+        run: cp .env.example .env
+
+      # Jedno polecenie robi wszystko: zakłada bazę `kuking_race`, migruje ją
+      # i uruchamia grupę. To samo polecenie, którego używa się lokalnie —
+      # żeby nie było w repozytorium dwóch różnych sposobów uruchomienia tej
+      # grupy, z których jeden nigdy nie jest sprawdzany.
+      - name: Wyścigi na dwóch połączeniach
+        run: ./scripts/testy-dwa-polaczenia.sh
 
   # ===========================================================================
   #  4. Build assetów — Vite 7 + Tailwind 4
@@ -499,6 +796,11 @@ jobs:
 
       - name: Build
         run: npm run build
+
+      - name: Proporcje małej skali — rzeczywisty CSS w Chromium
+        run: |
+          flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+          node scripts/skala-proporcje.mjs
 
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
@@ -576,10 +878,319 @@ jobs:
   #  w tym repozytorium. Progi (70 / 85) są z pomiaru lokalnego, nie
   #  z głowy — uzasadnienie liczb w nagłówku `scripts/wydajnosc.mjs`.
   # ===========================================================================
+  # Pełny port ma osobny budżet czasu i własną bazę. Nie pomija żadnego
+  # dotychczasowego pomiaru; nowe konfiguracje #513 nie konkurują o limit
+  # czasu z axe i Lighthouse (PR #517: wspólny job trwał 18 min 34 s).
+  # #581: 600 konfiguracji panelu ma własny budżet czasu i PostgreSQL.
+  # Każda zmiana kodu (również samego skryptu/fixture/workflow) uruchamia job.
+  port_panelu:
+    name: Panel marki — puste i pełne widoki
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 25
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_port_panel
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_port_panel"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+    env:
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_DATABASE: kuking_port_panel
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+    steps:
+      - uses: actions/checkout@v7
+      - name: Izolowane połączenie i narzędzia PHP
+        run: |
+          set -euo pipefail
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
+          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
+          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+      - name: Instalacja zależności
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+      - name: Przeglądarka
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+      - name: Nowa baza bez danych demonstracyjnych i rzeczywiste assety
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          php artisan storage:link
+          php artisan migrate --force --no-interaction
+          npm run build
+      - name: Panel — logowanie z TOTP, faza pusta i pełna
+        run: node scripts/panel-marki-run.mjs
+      - name: Dowody panelu bez sesji i poświadczeń
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: panel-marki-${{ github.sha }}
+          path: |
+            storage/port-panelu/*.json
+            storage/port-panelu/*.png
+            storage/port-panelu/details/*.json
+            storage/port-panelu/details/*.png
+            storage/port-panelu/details-zoom/*.json
+            storage/port-panelu/details-zoom/*.png
+          retention-days: 14
+
+  port_marki:
+    name: Port marki (kompozycje, zoom i kontrole ujemne)
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      PORT_GRUPA: baza
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
+
+
+      # Prywatny katalog narzędzi joba i konfiguracja PHP — pełne
+      # uzasadnienie stoi przy kodzie, w `.github/actions/php`.
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
+        with:
+          wersja: ${{ env.PHP_VERSION }}
+
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalacja zależności
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+
+      - name: Regresja wyboru grup portu
+        run: node --test scripts/port-grupy.test.mjs
+
+      - name: Przeglądarka
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+
+      - name: Przygotowanie
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          php artisan storage:link
+          npm run build
+
+          php artisan migrate:fresh --seed --force --no-interaction
+
+      - name: Port projektu — układ i kontrola ujemna
+        env:
+          DB_DATABASE: kuking_port_pomiar
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/port-projektu.mjs
+
+      - name: Zrzuty portu marki
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: port-marki-${{ github.sha }}
+          path: |
+            storage/port-projektu
+          retention-days: 14
+
+  # #577: osobny checkout i PostgreSQL; mutacje negatywów nie współdzielą plików.
+  port_funkcje:
+    name: Port marki — rodziny ekranów, zoom i kreator
+    needs: zakres
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    # CI 35241344523: pełne pomiary i upload trwały ponad 25 min; zachowujemy wszystkie kontrole.
+    timeout-minutes: 35
+
+    services:
+      postgres:
+        image: postgres:18-alpine
+        env:
+          POSTGRES_DB: kuking_test
+          POSTGRES_USER: kuking
+          POSTGRES_PASSWORD: secret
+        ports:
+          - 5432
+        options: >-
+          --health-cmd="pg_isready -U kuking -d kuking_test"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
+
+    env:
+      PORT_GRUPA: rozszerzenia
+      APP_ENV: local
+      APP_DEBUG: "false"
+      APP_KEY: base64:AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+      DB_CONNECTION: pgsql
+      DB_DATABASE: kuking_test
+      DB_USERNAME: kuking
+      DB_PASSWORD: secret
+      CACHE_STORE: file
+      SESSION_DRIVER: file
+      QUEUE_CONNECTION: sync
+      MAIL_MAILER: array
+      FILESYSTEM_DISK: public
+      SENTRY_LARAVEL_DSN: ""
+
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Konfiguracja dynamicznego połączenia z PostgreSQL
+        run: |
+          echo "DB_HOST=127.0.0.1" >> "$GITHUB_ENV"
+          echo "DB_PORT=${{ job.services.postgres.ports[5432] }}" >> "$GITHUB_ENV"
+          echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
+
+
+      - name: Własny katalog narzędzi PHP (issue #262)
+        run: |
+          set -euo pipefail
+          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
+          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
+          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
+
+      - name: Konfiguracja PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: ${{ env.PHP_VERSION }}
+          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
+          coverage: none
+          tools: composer:v2
+
+      - name: Konfiguracja Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Instalacja zależności
+        run: |
+          composer install --no-interaction --prefer-dist --no-progress
+          npm ci --no-audit --no-fund
+
+      - name: Regresja wyboru grup portu
+        run: node --test scripts/port-grupy.test.mjs
+
+      - name: Przeglądarka
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
+
+      - name: Przygotowanie
+        run: |
+          cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
+          php artisan storage:link
+          npm run build
+
+          php artisan migrate:fresh --seed --force --no-interaction
+
+      - name: Port projektu — układ i kontrola ujemna
+        env:
+          DB_DATABASE: kuking_port_pomiar
+          PGPORT: ${{ job.services.postgres.ports[5432] }}
+        run: node scripts/port-projektu.mjs
+
+      - name: Trzy kroki kreatora przy dużym tekście
+        env:
+          DB_DATABASE: kuking_port_pomiar
+        run: node scripts/kroki-kreatora.mjs
+
+      - name: Minutnik — opóźnione wywołania i dostępny czas
+        run: |
+          node scripts/minutnik-regresja.mjs
+          node scripts/minutnik-fokus.mjs
+
+      - name: Zrzuty portu marki
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: port-funkcje-${{ github.sha }}
+          path: |
+            storage/port-projektu
+            storage/kroki-kreatora
+          retention-days: 14
+
   dostepnosc:
     name: Dostępność (axe-core) i wydajność (Lighthouse)
     needs: zakres
-    if: needs.zakres.outputs.kod == 'true'
+    if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 20
 
@@ -628,7 +1239,6 @@ jobs:
       MAIL_MAILER: array
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
-      POSTHOG_KEY: ""
 
     steps:
       # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą
@@ -649,33 +1259,15 @@ jobs:
       # więc robimy to sami. Wszystkie kolejne kroki są za tym warunkiem —
       # przy zmianie w kontrolerze albo w migracji job kończy się w kilka
       # sekund, zamiast pobierać przeglądarkę i podnosić bazę.
-      - name: Czy zmieniła się warstwa widoku
-        id: zmiany
+      - name: Własny katalog narzędzi PHP (issue #262)
         run: |
           set -euo pipefail
-          baza='${{ github.event.pull_request.base.sha || github.event.before }}'
-
-          # Przy pierwszym pushu na gałąź `before` to same zera — nie ma
-          # z czym porównywać, więc sprawdzamy wszystko. Lepiej raz zapłacić
-          # za niepotrzebny przebieg niż przepuścić regresję.
-          if [ -z "$baza" ] || [ "$baza" = "0000000000000000000000000000000000000000" ]; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-            echo "Brak punktu odniesienia — sprawdzam."
-            exit 0
-          fi
-
-          zmienione="$(git diff --name-only "$baza" HEAD)"
-          echo "Zmienione pliki:"; echo "$zmienione"
-
-          if echo "$zmienione" | grep -qE '^(resources/|public/|scripts/dostepnosc\.mjs|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
-            echo "warto=1" >> "$GITHUB_OUTPUT"
-          else
-            echo "warto=0" >> "$GITHUB_OUTPUT"
-            echo "Warstwa widoku nietknięta — pomijam."
-          fi
+          KATALOG="${RUNNER_TEMP}/kuking-narzedzia/${GITHUB_RUN_ID}-${GITHUB_RUN_ATTEMPT}-${GITHUB_JOB}"
+          mkdir -p "$KATALOG/bin" "$KATALOG/cache"
+          echo "SETUP_PHP_TOOLS_DIR=$KATALOG/bin" >> "$GITHUB_ENV"
+          echo "SETUP_PHP_TOOL_CACHE_DIR=$KATALOG/cache" >> "$GITHUB_ENV"
 
       - name: Konfiguracja PHP
-        if: steps.zmiany.outputs.warto == '1'
         uses: shivammathur/setup-php@v2
         with:
           php-version: ${{ env.PHP_VERSION }}
@@ -684,33 +1276,43 @@ jobs:
           tools: composer:v2
 
       - name: Konfiguracja Node
-        if: steps.zmiany.outputs.warto == '1'
         uses: actions/setup-node@v7
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
 
       - name: Instalacja zależności
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           composer install --no-interaction --prefer-dist --no-progress
           npm ci --no-audit --no-fund
 
-      # Na runnerze GitHuba nie ma gotowego Chromium — pobieramy tylko jego,
-      # bez Firefoksa i WebKita, których ten automat nie używa.
-      #  `flock`, BO TRZY RUNNERY DZIELĄ JEDNĄ MASZYNĘ.
+      # Pobieramy SAMO Chromium — bez Firefoksa i WebKita, których ten automat
+      # nie używa, i bez `--with-deps`, czyli bez wołania `apt-get`.
       #
-      #  `--with-deps` woła `apt-get` jako root. Runnery `kuking-wsl-DOM-NEW-01`,
-      #  `-02` i `-03` stoją na jednym systemie, więc dzielą `/var/lib/dpkg`.
-      #  Gdy dwa PR-y trafiły tu równocześnie, drugi dostał:
+      #  DLACZEGO BEZ `--with-deps`. Ta flaga przełącza się na roota i robi
+      #  `apt-get update`, a runnery `kuking-wsl-DOM-NEW-01`, `-02` i `-03`
+      #  stoją na jednym systemie z listą źródeł, w której siedzi PPA
+      #  `ppa.setup-php.com/ondrej/php`. 9 września to źródło zaczęło zwracać
+      #  404 na plik Release dla Ubuntu „resolute":
       #
-      #      E: Could not get lock /var/lib/dpkg/lock-frontend.
-      #         It is held by process 93121 (apt-get)
+      #      Err:4 https://ppa.setup-php.com/ondrej/php/ubuntu resolute Release
+      #        404  Not Found
+      #      E: The repository ... does not have a Release file.
       #      Failed to install browsers → exit 100
       #
-      #  Zmierzone 9 września: job na #161 przeszedł o 09:00:02, ten sam job
-      #  na #162 padł o 09:00:59. Nie było to znalezisko axe-core — job umarł,
-      #  zanim sprawdził pierwszy ekran.
+      #  `apt-get update` kończy się wtedy niezerowo, Playwright przerywa
+      #  instalację i job pada, ZANIM zobaczy pierwszy ekran. Job dostępności
+      #  nie ma nic wspólnego z PHP z PPA — a jednak umierał na tym, że komuś
+      #  na świecie zniknął plik Release. Biblioteki systemowe Chromium są na
+      #  tej maszynie zainstalowane raz, na stałe; jeśli kiedyś zabraknie
+      #  którejś, Playwright powie to wprost i wymieni pakiety do doinstalowania
+      #  (jednorazowo, na maszynie, nie z CI).
+      #
+      #  `flock` ZOSTAJE, BO TRZY RUNNERY DZIELĄ JEDNĄ MASZYNĘ — a więc i jeden
+      #  katalog przeglądarek. Wcześniej blokada chroniła `/var/lib/dpkg`
+      #  (job na #161 przeszedł o 09:00:02, ten sam job na #162 padł o 09:00:59
+      #  na zajętym locku apta); teraz chroni rozpakowywanie Chromium do
+      #  współdzielonej ścieżki.
       #
       #  DLACZEGO `flock`, A NIE `concurrency:` NA JOBIE. Klucz `concurrency`
       #  trzyma w grupie jeden bieg działający i JEDEN oczekujący; trzeci
@@ -723,31 +1325,107 @@ jobs:
       #  job wiszący do limitu. Blokada leży w `/tmp`, więc znika z restartem
       #  maszyny i nie potrafi zostać zatrzaśnięta na stałe.
       - name: Przeglądarka
-        if: steps.zmiany.outputs.warto == '1'
-        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install --with-deps chromium
+        run: flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
 
       - name: Przygotowanie
-        if: steps.zmiany.outputs.warto == '1'
         run: |
           cp .env.example .env
+          sed -i "s|^APP_KEY=.*|APP_KEY=${APP_KEY}|" .env
           php artisan storage:link
           npm run build
+
+          # MIGRACJA TUTAJ, NIE TYLKO W SKRYPCIE. `dostepnosc.mjs` robi
+          # `migrate:fresh --seed` sam, ale `wydajnosc.mjs` na tym polegał —
+          # dwa niezależne narzędzia dzieliły stan, którego jedno z nich nie
+          # tworzy. Gdy pierwsze nie doszło do końca, drugie startowało na
+          # pustej bazie i padało na healthchecku (issue #215).
+          php artisan migrate:fresh --seed --force --no-interaction
+
 
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
       # przeglądarkę spod stałej ścieżki. Nie trzeba nic podawać.
-      - name: axe-core (27 ekranów × 4 warianty)
-        if: steps.zmiany.outputs.warto == '1'
+      - name: Kontrola ujemna wiadomości marki
+        shell: bash
+        run: |
+          set -euo pipefail
+          source_file=resources/views/mail/link-do-logowania.blade.php
+          backup_dir=$(mktemp -d)
+          cp "$source_file" "$backup_dir/wiadomosc.blade.php"
+          before_hash=$(md5sum "$source_file" | cut -d' ' -f1)
+          restore_mail() {
+            cp "$backup_dir/wiadomosc.blade.php" "$source_file"
+            php artisan view:clear >/dev/null
+            after_hash=$(md5sum "$source_file" | cut -d' ' -f1)
+            test "$before_hash" = "$after_hash"
+            echo "MAIL_UJEMNA przywrocony=$after_hash"
+            rm -rf "$backup_dir"
+          }
+          trap restore_mail EXIT
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('resources/views/mail/link-do-logowania.blade.php')
+          s = p.read_text()
+          assert '#F3F4F1' in s
+          p.write_text(s.replace('#F3F4F1', '#FAF6F0'))
+          PY
+          echo "MAIL_UJEMNA przed=$before_hash zmieniony=$(md5sum "$source_file" | cut -d' ' -f1)"
+          php artisan view:clear
+          if php artisan test --compact --filter=SpojnoscWiadomosciMarkiTest > "$backup_dir/wynik.txt" 2>&1; then
+            echo "BŁĄD: stara paleta nie została wykryta"
+            exit 1
+          fi
+          cat "$backup_dir/wynik.txt"
+          grep -q "F3F4F1" "$backup_dir/wynik.txt"
+          cp "$backup_dir/wiadomosc.blade.php" "$source_file"
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('resources/views/mail/link-do-logowania.blade.php')
+          s = p.read_text()
+          assert 'ten link niedługo przestanie działać.' in s
+          p.write_text(s.replace('ten link niedługo przestanie działać.', 'ten link niedługo przestanie działać. Nikt bez dostępu do tej skrzynki nie wejdzie na Twoje konto.'))
+          PY
+          php artisan view:clear
+          echo "MAIL_UJEMNA obietnica=$(md5sum "$source_file" | cut -d' ' -f1)"
+          if php artisan test --compact --filter=test_listy_logowania_nie_obiecuja_wylacznego_dostepu_przez_skrzynke > "$backup_dir/wynik.txt" 2>&1; then
+            echo "BŁĄD: fałszywa obietnica nie została wykryta"
+            exit 1
+          fi
+          cat "$backup_dir/wynik.txt"
+          grep -q "Nikt bez" "$backup_dir/wynik.txt"
+          restore_mail
+          trap - EXIT
+          php artisan test --compact --filter=SpojnoscWiadomosciMarkiTest
+
+      - name: Aktualizacja aplikacji ze starym workerem
+        run: node scripts/service-worker-aktualizacja.mjs
+
+      - name: Regresja bramki kafla dodawania (#484)
+        run: node scripts/kafel-dodawania-bramka.test.mjs
+
+      - name: Pomiar kafla dodawania (15 wariantów)
+        run: node scripts/kafel-dodawania.mjs
+
+      - name: Fokus i kliknięcia kart dania (#485)
+        run: node scripts/fokus-karty-dania.mjs
+
+      - name: Fokus, kliknięcia i dialog zdjęć (#561)
+        run: node scripts/fokus-zdjec.mjs
+
+      - name: axe-core (aktualna macierz ekranów i wariantów)
         run: node scripts/dostepnosc.mjs
 
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
       - name: Zapis wyniku (dostępność)
-        if: always() && steps.zmiany.outputs.warto == '1'
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: dostepnosc-${{ github.sha }}
-          path: storage/dostepnosc.json
+          path: |
+            storage/dostepnosc.json
+            storage/dostepnosc/oauth345/
+            output/fokus-zdjec/
           retention-days: 14
 
       # ---------------------------------------------------------------------
@@ -757,27 +1435,35 @@ jobs:
       #  (70 / 85, z pomiaru, nie z głowy) stoi w nagłówku `scripts/wydajnosc.mjs`
       #  i w komentarzu przy tym joobie wyżej. Krótko tutaj:
       #
-      #  `!cancelled()`, NIE `always()` — krok ma pojechać, nawet gdy axe-core
-      #  wyżej ZAKOŃCZYŁ SIĘ BŁĘDEM (naruszenia dostępności nie psują ani bazy,
-      #  ani zbudowanych assetów, na których stoi Lighthouse), ale NIE wtedy,
-      #  gdy job został ANULOWANY (nowy push do tego samego PR-a — `concurrency`
-      #  na górze pliku). Gdy wcześniejszy krok („Przeglądarka", `npm run build`)
-      #  faktycznie nie doszedł do końca, ten krok i tak pojedzie i sam
-      #  ZAWIEDZIE na brakującym Chromium/assetach — czytelny czerwony wynik,
-      #  bez dodatkowego warunku do pilnowania w dwóch miejscach naraz.
+      #  ŻADNEJ FURTKI URUCHAMIAJĄCEJ PO PORAŻCE. Stało tu kiedyś, że krok ma
+      #  pojechać także wtedy, gdy skan axe wyżej zakończył się błędem — bo
+      #  naruszenia dostępności nie psują ani bazy, ani assetów. Rozumowanie
+      #  było poprawne dla JEDNEJ przyczyny porażki i fałszywe dla wszystkich
+      #  pozostałych: 9 września skan padł na nieprzygotowanej bazie, a `!cancelled()`
+      #  puściło Lighthouse'a na to samo środowisko, gdzie zameldował własny
+      #  błąd („brak odpowiedzi z /health") — i tym zasłonił przyczynę na trzy
+      #  godziny. Dziś krok ma tylko warunek zakresu zmiany; po porażce
+      #  poprzedniego kroku jest pomijany, czyli w logu zostaje jedna, prawdziwa
+      #  awaria. Issue #215.
       #
       #  `POMIN_MIGRACJE=1`, BEZ `ADRES` — baza jest już wysiana przez
       #  `dostepnosc.mjs` chwilę wyżej, w TYM SAMYM joobie; skrypt sam stawia
       #  DRUGI `php artisan serve` (własny, dynamiczny port — pierwszy serwer
       #  axe-core już zamknął swój) na tych samych, gotowych danych.
       - name: Lighthouse (wydajność i SEO)
-        if: steps.zmiany.outputs.warto == '1' && !cancelled()
+        # `!cancelled()` STĄD ZDJĘTE — 9 września 2026 to ono zasłoniło
+        # prawdziwą awarię. Ten warunek znosi domyślne pomijanie kroku po
+        # porażce poprzedniego, więc gdy skan axe padał, Lighthouse startował
+        # mimo to — na środowisku, którego nikt nie przygotował — i zgłaszał
+        # własny, niezwiązany błąd („brak odpowiedzi z /health"). Krok, który
+        # uruchamia się po awarii i melduje coś innego niż jej przyczynę, jest
+        # gorszy niż krok pominięty. Issue #215.
         env:
           POMIN_MIGRACJE: '1'
         run: node scripts/wydajnosc.mjs
 
       - name: Zapis wyniku (wydajność)
-        if: always() && steps.zmiany.outputs.warto == '1'
+        if: always()
         uses: actions/upload-artifact@v7
         with:
           name: wydajnosc-${{ github.sha }}
@@ -802,13 +1488,15 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Konfiguracja PHP
-        uses: shivammathur/setup-php@v2
+      # Prywatny katalog narzędzi joba i konfiguracja PHP — oba kroki stoją
+      # razem w `.github/actions/php`, bo działają TYLKO w tej kolejności
+      # (issue #262). Pierwszy job przeniesiony na wspólną akcję: `audit`
+      # jest szybki i niczego nie blokuje, więc jego ewentualna porażka
+      # kosztuje najmniej.
+      - name: Środowisko PHP
+        uses: ./.github/actions/php
         with:
-          php-version: ${{ env.PHP_VERSION }}
-          extensions: mbstring, intl, pdo_pgsql, pgsql, gd, zip, exif, bcmath, pcntl
-          coverage: none
-          tools: composer:v2
+          wersja: ${{ env.PHP_VERSION }}
 
       - name: Konfiguracja Node
         uses: actions/setup-node@v7
@@ -961,6 +1649,88 @@ jobs:
           else
             echo "BŁĄD: entrypoint nie odrzucił startu bez APP_KEY (kod $kod)"
             echo "--- wyjście entrypointa ---"
+            printf '%s\n' "$wyjscie"
+            exit 1
+          fi
+
+      # =====================================================================
+      #  DRUGI OBRAZ: serwis kopii bazy (issue #193, decyzja D-043)
+      #
+      #  To jest DZIŚ JEDYNA planowana kopia bazy Kuking — Railway na planie
+      #  Free/Hobby nie robi żadnych (Volume Backups i PITR są tylko w Pro).
+      #  Obraz buduje się z osobnego Dockerfile'a i nie ma w nim PHP, bo
+      #  `pg_dump` z PHP wymaga `proc_open`, wyłączonego w docker/php.ini.
+      #
+      #  DLACZEGO TEN BUILD JEST W CI, A NIE TYLKO NA PRODUKCJI
+      #  Bo dwóch rzeczy z tego obrazu NIE DA SIĘ sprawdzić lokalnie ani
+      #  testem w powłoce: czy paczki z APT-a w ogóle się zainstalują i czy
+      #  `pg_dump` w obrazie ma NAPRAWDĘ wersję 18. Niezgodna wersja klienta
+      #  nie jest ostrzeżeniem — `pg_dump` wtedy ODMAWIA pracy, czyli kopii
+      #  po prostu nie ma. Lepiej dowiedzieć się o tym z czerwonego CI niż
+      #  z alarmu o trzeciej nad ranem.
+      # =====================================================================
+      - name: Build obrazu kopii bazy
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/kopia/Dockerfile
+          push: false
+          load: true
+          tags: kuking-kopia:ci-${{ github.sha }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Test dymny obrazu kopii bazy
+        run: |
+          set -euo pipefail
+          OBRAZ=kuking-kopia:ci-${{ github.sha }}
+
+          echo "--- pg_dump MUSI być w wersji 18 (zgodnej z serwerem) ---"
+          wersja=$(docker run --rm "$OBRAZ" pg_dump --version)
+          printf '%s\n' "$wersja"
+          major=$(sed -E 's/[^0-9]*([0-9]+).*/\1/' <<< "$wersja")
+          if [ "$major" = "18" ]; then
+            echo "OK   pg_dump $major"
+          else
+            echo "BŁĄD: pg_dump ma wersję $major, a serwer produkcyjny to 18."
+            echo "      Starszy klient ODMAWIA zrzutu — kopii by nie było."
+            exit 1
+          fi
+
+          echo "--- narzędzia, bez których skrypt nie zaszyfruje i nie wyśle ---"
+          for narzedzie in openssl curl psql pg_restore; do
+            if docker run --rm "$OBRAZ" sh -c "command -v $narzedzie" >/dev/null; then
+              echo "OK   $narzedzie"
+            else
+              echo "BRAK $narzedzie"; exit 1
+            fi
+          done
+
+          echo "--- kontener NIE MOŻE chodzić jako root ---"
+          kto=$(docker run --rm "$OBRAZ" id -un)
+          if [ "$kto" = "root" ]; then
+            echo "BŁĄD: obraz kopii startuje jako root."; exit 1
+          fi
+          echo "OK   $kto"
+
+          echo "--- w obrazie kopii nie ma PHP (o to chodzi w D-043) ---"
+          if docker run --rm "$OBRAZ" sh -c 'command -v php' >/dev/null 2>&1; then
+            echo "BŁĄD: w obrazie kopii jest PHP — to nie jest ten obraz."; exit 1
+          fi
+          echo "OK   brak PHP"
+
+          # Bez zmiennych skrypt MUSI odmówić pracy i powiedzieć, czego brakuje.
+          # Ten sam wzorzec i to samo uzasadnienie, co przy APP_KEY wyżej:
+          # przechwytujemy wyjście i kod OSOBNO, bez potoku, i wymagamy OBU
+          # rzeczy naraz — niezerowego kodu ORAZ komunikatu.
+          echo "--- brak konfiguracji musi zatrzymać przebieg, nie zrobić pustej kopii ---"
+          wyjscie=$(docker run --rm "$OBRAZ" \
+                      /usr/local/lib/kuking/kopia-bazy.sh --sprawdz 2>&1) && kod=0 || kod=$?
+
+          if [ "$kod" -ne 0 ] && grep -q "brak zmiennych" <<< "$wyjscie"; then
+            echo "OK   skrypt odmówił i wypisał brakujące zmienne (kod $kod)"
+          else
+            echo "BŁĄD: skrypt nie odmówił pracy bez konfiguracji (kod $kod)"
             printf '%s\n' "$wyjscie"
             exit 1
           fi

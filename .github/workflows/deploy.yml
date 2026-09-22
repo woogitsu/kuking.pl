@@ -1,24 +1,42 @@
 # ---------------------------------------------------------------------------
-#  UWAGA: repozytorium jest PRYWATNE, więc każda minuta GitHub Actions jest
-#  płatna. Dopóki konto nie ma dostępnych minut, ten workflow jest wyłączony
-#  z automatycznego uruchamiania (`workflow_dispatch` = tylko ręcznie).
+#  UWAGA: repozytorium jest PRYWATNE, więc minuta GitHub Actions jest płatna
+#  wtedy, gdy przebieg idzie na runnery GitHuba.
 #
 #  Kontrolę robimy lokalnie, za darmo:  ./scripts/check.sh
 #  Instalacja hooka pre-push:           ./scripts/install-hooks.sh
 #
-#  Żeby WŁĄCZYĆ ten workflow: odkomentuj blok `on:` poniżej. Runnera nie
-#  wybiera już żadna zmienna repozytorium — joby chodzą na własnej puli
-#  `woogitsu-linux-01`–`woogitsu-linux-10`, wskazanej ZESTAWEM ETYKIET:
+#  TEN WORKFLOW CHODZI SAM i nie ma tu czego odkomentowywać: blok `on:` niżej
+#  jest aktywny i ma `deployment_status` (Railway melduje wynik deployu) obok
+#  ręcznego `workflow_dispatch`. Zmierzone 12.09.2026 parserem YAML.
 #
-#      runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+#  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
+#  Każdy job tego pliku ma dokładnie to samo, co joby `ci.yml`:
 #
-#  Etykiet, nie nazw: nazwa runnera w `runs-on` przypina job do jednej
-#  maszyny, więc jej awaria zatrzymuje CI. Etykiety `i5-10400f`
-#  i `nvidia-gtx1070` mają WYŁĄCZNIE nowe runnery — stare WSL-owe
-#  (`woogitsu-wsl-DOM-NEW-01`–`04`) noszą tylko `self-hosted`, `Linux`,
-#  `X64`, `wsl2`, `woogitsu`, więc samo `self-hosted` wpuściłoby joby także
-#  na nie.
-#  Pełne porównanie opcji i kosztów: docs/infra/CI_BEZ_ACTIONS.md
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+#
+#  Bez tej zmiennej joby idą na `ubuntu-latest` — zapas w runnerach GitHuba
+#  JEST i jest wartością domyślną. Żeby trafiły na nową pulę
+#  `woogitsu-linux-01`–`woogitsu-linux-10`, właściciel ustawia w Settings →
+#  Secrets and variables → Actions → Variables:
+#
+#      CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+#
+#  Wartość jest TABLICĄ JSON, bo `fromJSON` dostaje ją w całości; pojedyncza
+#  etykieta to `"self-hosted"` z cudzysłowami, nie `self-hosted`.
+#
+#  Komplet etykiet, a nie nazwa runnera: nazwa przypina job do JEDNEJ maszyny,
+#  więc jej awaria zatrzymuje całe CI. `i5-10400f` i `nvidia-gtx1070` ma
+#  wyłącznie nowa pula — stare rejestracje WSL-owe (w pomiarach
+#  `kuking-wsl-DOM-NEW-01`–`-03`) noszą tylko `self-hosted`, `Linux`, `X64`,
+#  `wsl2`, `woogitsu`, więc samo `self-hosted` wpuszcza joby także na nie.
+#
+#  STAN ZMIERZONY 11.09.2026 (D-121, przebieg CI nr 661): zmienna stoi na SAMYM
+#  `self-hosted`, więc przebiegi lądują na starej puli WSL. WŁAŚCICIEL ZOSTAWIA
+#  TO TAK ŚWIADOMIE — decyzja z 12.09.2026; to nie jest przeoczenie i nie szukaj
+#  tu usterki. Przyjęty koszt, dokładna wartość do przełączenia puli, skutek
+#  skasowania zmiennej i sygnał, po którym decyzję odwracamy:
+#  docs/infra/SELF_HOSTED_RUNNER.md → „Krok 1" → „Decyzja właściciela
+#  z 12 września 2026". Porównanie opcji: docs/infra/CI_BEZ_ACTIONS.md
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -41,9 +59,12 @@
 #
 #  DLACZEGO NIE `railway up` Z TEGO WORKFLOW?
 #  Kuszące jest wypchnąć kod z Actions przez `railway up`. Odrzuciliśmy to:
-#    1. `railway up` wysyła kod do JEDNEGO serwisu. Mamy trzy serwisy
-#       aplikacyjne (web, worker, scheduler) z tego samego repo — trzeba by
-#       zrobić trzy uploady i trzy niezależne buildy tego samego obrazu.
+#    1. `railway up` wysyła kod do JEDNEGO serwisu. Docelowo chcemy trzy
+#       serwisy aplikacyjne (web, worker, scheduler) z tego samego repo —
+#       trzeba by zrobić trzy uploady i trzy niezależne buildy tego samego
+#       obrazu. (Dziś, 9 września 2026, jest JEDEN serwis `kuking.pl`
+#       w trybie `all`; rozbicie stoi w `.railway/railway.ts`, ale nikt nie
+#       uruchomił `railway config apply`, więc jest życzeniem, nie stanem.)
 #    2. Tracimy natywne środowiska PR, które wymagają źródła GitHub.
 #    3. Tracimy cache warstw buildu Railway (osobny per commit vs. per upload).
 #    4. Podwójny deploy: jeśli źródło GitHub zostanie podłączone, każdy push
@@ -132,11 +153,33 @@ jobs:
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 10
 
-    # Tylko udane deploye na produkcję lub staging.
+    # -----------------------------------------------------------------------
+    #  BRAMKA. Zawężona świadomie — patrz sprostowanie niżej.
+    #
+    #  BYŁO: warunek sprawdzał dodatkowo
+    #      contains(fromJSON('["production","staging"]'), github.event.deployment.environment)
+    #
+    #  Zmierzone 9 września 2026: workflow „Deploy" ma **249 przebiegów
+    #  i WSZYSTKIE mają conclusion `skipped`.** Ten test dymny nie uruchomił
+    #  się ANI RAZU — a to on miał wyłapywać „deploy się udał, ale strona nie
+    #  działa". Przebieg 249 wystartował o 16:44:20, czyli pięć sekund po tym,
+    #  jak wdrożenie zgłosiło sukces o 16:44:15 — i też został pominięty.
+    #
+    #  Czyli któryś człon tego warunku nie pasuje do tego, co naprawdę
+    #  przysyła Railway. NIE ZGADUJĘ KTÓRY: sprawdzenie nazwy środowiska
+    #  przeniesione jest do kroku niżej, który ją WYPISUJE. Po najbliższym
+    #  wdrożeniu będzie w dzienniku czarno na białym, zamiast kolejnej hipotezy.
+    #
+    #  Dlaczego nie zdjąłem też `state == 'success'`: `deployment_status`
+    #  strzela kilka razy na jedno wdrożenie (zmierzone: pięć razy). Bez tego
+    #  członu każde wdrożenie płaciłoby za pięć przebiegów zamiast jednego,
+    #  a minuty Actions są w tym projekcie skończone i płatne (D-010). Jeśli
+    #  po tej zmianie przebieg NADAL będzie `skipped`, to znaczy, że winny
+    #  jest właśnie ten człon — i wtedy wiadomo, co poprawić.
+    # -----------------------------------------------------------------------
     if: >-
       github.event_name == 'deployment_status' &&
-      github.event.deployment_status.state == 'success' &&
-      contains(fromJSON('["production", "staging"]'), github.event.deployment.environment)
+      github.event.deployment_status.state == 'success'
 
     steps:
       - uses: actions/checkout@v7
@@ -146,12 +189,57 @@ jobs:
         run: |
           set -euo pipefail
           env_name='${{ github.event.deployment.environment }}'
-          if [ "$env_name" = "production" ]; then
-            echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
-          else
-            echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
-          fi
-          echo "env=$env_name" >> "$GITHUB_OUTPUT"
+          stan='${{ github.event.deployment_status.state }}'
+
+          # DIAGNOSTYKA, nie ozdoba. To jest jedyne miejsce, w którym da się
+          # zobaczyć, jak Railway naprawdę nazywa środowisko — dokumentacja
+          # tego nie gwarantuje, a 249 pominiętych przebiegów to skutek
+          # zgadywania.
+          echo "=== Co przyszło w zdarzeniu deployment_status ==="
+          echo "  deployment.environment  = '${env_name}'"
+          echo "  deployment_status.state = '${stan}'"
+          echo "================================================"
+
+          # ZMIERZONE 10 WRZEŚNIA 2026, w logu przebiegu 34484294591:
+          #
+          #     deployment.environment = 'ideal-exploration / production'
+          #
+          # Railway NIE przysyła gołej nazwy środowiska. Przysyła
+          # „<nazwa projektu> / <środowisko>". Poprzedni `case` dopasowywał
+          # dokładne `production` i `staging`, więc każdy przebieg wpadał
+          # w gałąź `*` i ustawiał `pomin=1`.
+          #
+          # To jest DRUGA połowa usterki „249 przebiegów, wszystkie skipped".
+          # Pierwsza poprawka zdjęła warunek z poziomu joba, więc job zaczął
+          # kończyć się jako `success` — ale sam KROK testu dymnego dalej był
+          # pomijany. Efekt był gorszy niż przedtem: zielony job, który nie
+          # sprawdza niczego. Pominięty job przynajmniej widać.
+          #
+          # Dlatego bierzemy człon po ostatnim ukośniku i obcinamy odstępy.
+          # Świadomie NIE dopisujemy pełnej nazwy z projektem do `case`:
+          # zmiana nazwy projektu w Railwayu nie ma prawa po cichu wyłączyć
+          # testu dymnego, a dopasowanie na sam człon środowiska to przetrwa.
+          srodowisko="${env_name##*/}"
+          srodowisko="$(echo "$srodowisko" | tr -d '[:space:]')"
+
+          echo "  środowisko po obcięciu    = '${srodowisko}'"
+
+          case "$srodowisko" in
+            production)
+              echo "url=https://kuking.pl" >> "$GITHUB_OUTPUT"
+              ;;
+            staging)
+              echo "url=https://staging.kuking.pl" >> "$GITHUB_OUTPUT"
+              ;;
+            *)
+              echo "Środowisko '${env_name}' (człon: '${srodowisko}') nie jest ani production, ani staging."
+              echo "Testu dymnego nie uruchamiam — nie wiem, pod jakim adresem go szukać."
+              echo "JEŚLI TO NAZWA, KTÓRA POWINNA BYĆ OBSŁUGIWANA, dopisz ją w tym case."
+              echo "pomin=1" >> "$GITHUB_OUTPUT"
+              ;;
+          esac
+
+          echo "env=$srodowisko" >> "$GITHUB_OUTPUT"
 
       # -----------------------------------------------------------------------
       #  Test dymny. Cel: wyłapać "deploy się udał, ale strona nie działa".
@@ -159,6 +247,8 @@ jobs:
       #  go później. My sprawdzamy realne ścieżki użytkownika przez Cloudflare.
       # -----------------------------------------------------------------------
       - name: Test dymny
+        id: dymny
+        if: steps.target.outputs.pomin != '1'
         env:
           BASE_URL: ${{ steps.target.outputs.url }}
         run: |
@@ -182,7 +272,7 @@ jobs:
           echo "=== Test dymny: ${BASE_URL} ==="
           check /health          200 "healthcheck aplikacji i bazy"
           check /                200 "strona główna"
-          check /logowanie       200 "formularz logowania"
+          check /login           200 "formularz logowania"
           check /robots.txt      200 "robots"
           check /nie-ma-takiej-strony-$(date +%s) 404 "obsługa 404"
 
@@ -224,6 +314,31 @@ jobs:
             echo "OK    strona błędu nie ujawnia szczegółów"
           fi
 
+
+          # Potwierdzenie portu w HTML i faktycznie serwowanym arkuszu.
+          # Sam HTTP 200 nie wykrywa pozostawienia starego wyglądu.
+          echo "--- Wersja interfejsu i zasoby marki ---"
+          html_marki=$(curl -fsS --max-time 30 --retry 3 "${BASE_URL}/") || fail=1
+          if [[ "${html_marki:-}" != *'data-marka="kuking-2026"'* ]]; then
+            echo "BLAD  serwowany HTML nie zawiera nowej ramy marki"
+            fail=1
+          else
+            echo "OK    HTML używa kuking-2026"
+          fi
+          css_marki=$(python3 -c 'import re,sys; from urllib.parse import urljoin; html=sys.stdin.read(); links=re.findall(r"<link\b[^>]*href=\"([^\"]+)\"[^>]*>",html); print(next((urljoin(sys.argv[1],x) for x in links if "/build/assets/app-" in x and x.endswith(".css")),""))' "$BASE_URL/" <<< "${html_marki:-}")
+          if [ -z "$css_marki" ]; then
+            echo "BLAD  brak adresu zbudowanego arkusza aplikacji"
+            fail=1
+          else
+            arkusz_marki=$(curl -fsS --max-time 30 --retry 3 "$css_marki") || fail=1
+            if [[ "${arkusz_marki:-}" == *".marka-topbar"* && "${arkusz_marki:-}" == *".marka-rama"* ]]; then
+              echo "OK    serwowany CSS zawiera pływający nagłówek i nowy układ"
+            else
+              echo "BLAD  serwowany CSS nie zawiera portu marki"
+              fail=1
+            fi
+          fi
+
           exit $fail
 
       # -----------------------------------------------------------------------
@@ -232,7 +347,15 @@ jobs:
       #  Krok nieblokujący: brak wpisu w Sentry to nie powód do alarmu.
       # -----------------------------------------------------------------------
       - name: Rejestracja wydania w Sentry
-        if: vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
+        # JEDEN `if`, DWA WARUNKI — I TO NIE JEST KOSMETYKA.
+        # Stały tu dwa osobne klucze `if:` w jednym kroku. YAML w takiej
+        # sytuacji nie protestuje (drugi cicho nadpisuje pierwszy), ale
+        # GitHub Actions ODRZUCA CAŁY PLIK: każdy push tworzył przebieg
+        # kończący się porażką bez ani jednego joba, a taka porażka
+        # zatruwała check suite commita. Railway ma włączone „Wait for CI",
+        # więc POMIJAŁ każdy deploy — produkcja stała cztery godziny na
+        # starej wersji, przy zielonym CI i zielonych PR-ach.
+        if: steps.target.outputs.pomin != '1' && vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
         continue-on-error: true
         uses: getsentry/action-release@v3
         env:
@@ -243,17 +366,44 @@ jobs:
           environment: ${{ steps.target.outputs.env }}
           version: ${{ github.sha }}
 
+      # -----------------------------------------------------------------------
+      #  POMINIĘTY TEST DYMNY MA BYĆ CZERWONY, NIE ZIELONY.
+      #
+      #  Zmierzone 10 września 2026: job kończył się jako `success`, mając
+      #  krok testu dymnego `skipped`. To jest gorsze niż stary stan „249
+      #  przebiegów skipped": pominięty JOB widać na liście, a zielony job
+      #  z pominiętym KROKIEM wygląda dokładnie jak przeprowadzony test.
+      #  Audyt infrastruktury wymaga dowodu „job = SUCCESS, nie skipped" —
+      #  a taki job spełniał kryterium formalnie, nie sprawdzając niczego.
+      #
+      #  Warunek jest zawężony do wdrożeń, które SIĘ UDAŁY. Zdarzenie
+      #  o nieudanym deployu nie ma czego dymnie testować i nie ma powodu
+      #  świecić na czerwono.
+      # -----------------------------------------------------------------------
+      - name: Pominięty test dymny to nieprzejście, nie sukces
+        if: >-
+          steps.target.outputs.pomin == '1' &&
+          github.event.deployment_status.state == 'success'
+        run: |
+          echo "::error title=Test dymny nie został uruchomiony::Wdrożenie zakończyło się sukcesem, ale nie ustaliliśmy adresu środowiska '${{ steps.target.outputs.env }}', więc żadna ścieżka użytkownika nie została sprawdzona. To NIE jest zielony deploy — patrz krok „Ustal adres środowiska" po nazwę, która przyszła w zdarzeniu."
+          exit 1
+
       - name: Podsumowanie
         if: always()
         run: |
+          # `steps.<id>.outcome` mówi, co się z krokiem STAŁO (`success`,
+          # `failure`, `skipped`), a `job.status` mówi tylko, czy job jako
+          # całość przeszedł. Stało tu `job.status`, więc podsumowanie
+          # pisało „success" nad pominiętym testem.
           {
             echo "## Deploy: ${{ steps.target.outputs.env }}"
             echo ""
             echo "| | |"
             echo "|---|---|"
-            echo "| Adres | ${{ steps.target.outputs.url }} |"
+            echo "| Adres | ${{ steps.target.outputs.url || 'NIE USTALONO' }} |"
             echo "| Commit | \`${{ github.sha }}\` |"
-            echo "| Test dymny | ${{ job.status }} |"
+            echo "| Test dymny | ${{ steps.dymny.outcome }} |"
+            echo "| Job jako całość | ${{ job.status }} |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # ===========================================================================
@@ -281,6 +431,22 @@ jobs:
         && secrets.RAILWAY_TOKEN_PRODUCTION
         || secrets.RAILWAY_TOKEN_STAGING }}
       TARGET_ENV: ${{ github.event.inputs.environment }}
+      # Nazwa serwisu aplikacyjnego w Railway — JEDNO miejsce, nie trzy.
+      #
+      # Zmierzone connectorem 9 września 2026: projekt `ideal-exploration`
+      # ma DWA serwisy, `Postgres` i `kuking.pl`. Serwisów `web`, `worker`
+      # i `scheduler` NIE MA i nigdy nie było — `.railway/railway.ts`, który
+      # je deklaruje, nie został zastosowany (`railway config apply` nie
+      # uruchomiono ani razu). Kroki niżej odwoływały się do tych nazw, więc
+      # migracja padała na nieistniejącym serwisie, a redeploy pomijał
+      # wszystkie trzy po kolei i kończył się sukcesem, NIE ROBIĄC NICZEGO.
+      #
+      # Kontener chodzi w trybie `all`, czyli web, worker i harmonogram są
+      # w tym jednym serwisie — redeploy jednej nazwy restartuje wszystko.
+      #
+      # Gdy kiedyś dojdzie do rozbicia na trzy serwisy, tę zmienną trzeba
+      # zamienić na listę i wrócić do pętli.
+      APP_SERVICE: kuking.pl
 
     steps:
       - uses: actions/checkout@v7
@@ -329,15 +495,15 @@ jobs:
         run: |
           set -euo pipefail
           echo "=== Stan migracji PRZED ==="
-          railway ssh --service web --environment "$TARGET_ENV" \
+          railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             "php artisan migrate:status"
 
           echo "=== Uruchamiam migracje ==="
-          railway ssh --service web --environment "$TARGET_ENV" \
+          railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             "php artisan migrate --force --no-interaction"
 
           echo "=== Stan migracji PO ==="
-          railway ssh --service web --environment "$TARGET_ENV" \
+          railway ssh --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             "php artisan migrate:status"
 
       # -----------------------------------------------------------------------
@@ -350,11 +516,17 @@ jobs:
         if: github.event.inputs.action == 'redeploy'
         run: |
           set -euo pipefail
-          for svc in web worker scheduler; do
-            echo "--- redeploy: $svc ---"
-            railway redeploy --service "$svc" --environment "$TARGET_ENV" --yes \
-              || echo "UWAGA: serwis $svc nie istnieje w środowisku $TARGET_ENV (pomijam)"
-          done
+          # Jeden serwis, bo produkcja ma jeden serwis aplikacyjny w trybie
+          # `all` — restart pociąga za sobą web, workera i harmonogram.
+          #
+          # Nie ma tu `|| echo "pomijam"`. Poprzednia wersja przebiegała
+          # pętlą po `web`, `worker` i `scheduler`, a każde niepowodzenie
+          # zbywała ostrzeżeniem — więc gdy żaden z tych serwisów nie
+          # istniał, krok kończył się ZIELONO, nie restartując niczego.
+          # Redeploy, który nic nie robi i mówi, że się udał, jest gorszy
+          # niż redeploy, który pada.
+          echo "--- redeploy: $APP_SERVICE ---"
+          railway redeploy --service "$APP_SERVICE" --environment "$TARGET_ENV" --yes
 
       # -----------------------------------------------------------------------
       #  ROLLBACK
@@ -385,17 +557,20 @@ jobs:
           echo "=========================================================="
           echo ""
           echo "Ostatnie deploye serwisu web:"
-          railway deployment list --service web --environment "$TARGET_ENV" \
+          railway deployment list --service "$APP_SERVICE" --environment "$TARGET_ENV" \
             || echo "(nie udało się pobrać listy — użyj panelu)"
           echo ""
           echo "PAMIĘTAJ: rollback cofa KOD, nie MIGRACJE."
           echo "Jeśli ostatni deploy zawierał migrację destrukcyjną"
           echo "(DROP COLUMN / RENAME), rollback kodu NIE naprawi bazy."
-          echo "W takim przypadku przejdź do PITR — INFRA_DECISION.md."
+          echo ""
+          echo "I NIE MA DO CZEGO WRÓCIĆ: PITR i Volume Backups to funkcje"
+          echo "planu Pro. Na Free i Hobby Railway nie robi ZADNEJ kopii."
+          echo "Jedyna kopia to zrzut z issue #193 — jesli jeszcze nie"
+          echo "istnieje, utrata danych jest bezpowrotna (D-043)."
           echo ""
           echo "Wykonaj rollback w panelu Railway:"
-          echo "  Service web → Deployments → poprzedni udany → ... → Redeploy"
-          echo "Powtórz dla worker i scheduler."
+          echo "  Service $APP_SERVICE → Deployments → poprzedni udany → ... → Redeploy"
           echo ""
           echo "Krok celowo NIE wykonuje rollbacku automatycznie —"
           echo "wymaga świadomej decyzji człowieka o stanie bazy."

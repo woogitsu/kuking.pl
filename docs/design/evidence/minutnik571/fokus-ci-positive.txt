@@ -1,0 +1,2 @@
+ZOOM_TAB_OK minutnik-light 1/1
+ZOOM_TAB_OK minutnik-dark 1/1

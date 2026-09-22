@@ -6,6 +6,8 @@ namespace App\Http\Controllers;
 
 use App\Domain\Contact\Actions\PrzyjmijWiadomosc;
 use App\Models\ContactMessage;
+use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Str;
@@ -15,13 +17,20 @@ use Illuminate\View\View;
  * „Napisz do nas" — zwykła strona z formularzem, pod własnym adresem.
  *
  * DLACZEGO STRONA, A NIE DYMEK W ROGU
- * Bo AGENTS.md §5 mówi, że ważne funkcje działają bez JavaScriptu, a dymek,
- * który bez skryptu się nie otwiera, jest ozdobą udającą przycisk — dokładnie
- * to samo rozstrzygnięcie, co przy menu pod awatarem w `layout.blade.php`.
- * Człowiek, do którego nie dociągnął się skrypt (a to jest ta sama osoba,
- * której akurat coś nie działa i dlatego chce napisać), musi mieć drogę,
- * która działa z samego HTML-a. Dymek wolno kiedyś dołożyć — ale JAKO SKRÓT
- * DO TEGO ADRESU, nie zamiast niego.
+ * Bo dymek, który bez skryptu się nie otwiera, jest ozdobą udającą przycisk —
+ * dokładnie to samo rozstrzygnięcie, co przy menu pod awatarem
+ * w `layout.blade.php`. Strona pod własnym adresem da się otworzyć, wysłać
+ * linkiem, zapamiętać i wskazać komuś przez telefon. Dymek wolno kiedyś
+ * dołożyć — ale JAKO SKRÓT DO TEGO ADRESU, nie zamiast niego.
+ *
+ * TEN FORMULARZ NIE DZIAŁA JUŻ BEZ JAVASCRIPTU — i trzeba to napisać wprost,
+ * bo brzmi jak zaprzeczenie akapitu wyżej. Od 9 września 2026 (D-050, decyzja
+ * właściciela) stoi tu Turnstile z wymaganym tokenem, więc człowiek
+ * z wyłączonym skryptem wiadomości stąd nie wyśle. Dostaje w zamian ramkę
+ * `<noscript>` z adresem e-mail, pod którym siedzi człowiek — i to jest tu
+ * najważniejsze zdanie w całym widoku, bo pisze do nas zwykle ktoś, komu
+ * WŁAŚNIE coś nie działa. Skrót do formularza, który potrafi odmówić, wciąż
+ * musi mieć obok siebie adres, który odmówić nie może.
  *
  * TO NIE JEST ZGŁOSZENIE TREŚCI. Skarga na cudzy wpis idzie przyciskiem
  * „Zgłoś" pod treścią (`ReportController`), a treść niezgodna z prawem —
@@ -67,6 +76,21 @@ class NapiszDoNasController extends Controller
             // wiadomość w błąd walidacji, którego nikt nie zrozumie.
             'contact_email' => ['nullable', 'email:rfc', 'max:255'],
             'page_path' => ['nullable', 'string', 'max:300'],
+            /*
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
+             *
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
+             */
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('kontakt'),
         ], [
             'kind.required' => 'Zaznacz, czego dotyczy wiadomość — jedno z trzech pól wyżej.',
             'kind.in' => 'Zaznacz, czego dotyczy wiadomość — jedno z trzech pól wyżej.',

@@ -15,12 +15,51 @@
 --}}
 <x-layout title="Napisz do nas"
           description="Napisz do nas, jeśli coś nie działa, masz pomysł albo po prostu chcesz coś powiedzieć. Czyta to człowiek.">
+    {{--
+        PRAWA SZYNA (issue #205).
+
+        DWIE RZECZY, KTÓRE MOGĄ SPRAWIĆ, ŻE PISANIE NIE BĘDZIE POTRZEBNE.
+        Człowiek pisze do nas najczęściej dlatego, że czegoś nie znalazł —
+        a najczęstszym „czegoś" jest logowanie. Odnośnik do odzyskania hasła
+        stoi więc na wierzchu i TYLKO dla osoby niezalogowanej; zalogowanej
+        byłby podpowiedzią do problemu, którego nie ma.
+
+        To NIE jest zniechęcanie do napisania. Formularz zostaje tam, gdzie
+        był, w środku ekranu, i nic go nie przykrywa — tekst niżej mówi
+        wprost, że wiadomość jest w porządku także wtedy, gdy odpowiedź
+        gdzieś tam jest.
+
+        ZERO ZAPYTAŃ DO BAZY.
+    --}}
+    <x-slot:rail>
+        <x-szyna-blok tytul="Może odpowiedź już tu jest" id="szyna-pomoc" ikona="chat">
+            <x-szyna-linki :pozycje="array_values(array_filter([
+                auth()->check() ? null : [
+                    'href' => route('password.request'),
+                    'nazwa' => 'Nie możesz się zalogować',
+                    'podpis' => 'Ustawimy nowe hasło — potrzebny jest tylko adres e-mail.',
+                ],
+                [
+                    'href' => route('help'),
+                    'nazwa' => 'Pomoc',
+                    'podpis' => 'Pytania, które wracają najczęściej.',
+                ],
+                [
+                    'href' => route('rules'),
+                    'nazwa' => 'Zasady',
+                    'podpis' => 'Czego się tu po sobie spodziewamy.',
+                ],
+            ]))" />
+
+            <p class="mb-0">Jeśli tego tam nie ma — pisz.</p>
+        </x-szyna-blok>
+    </x-slot:rail>
+
     <h1>Napisz do nas</h1>
 
     <p class="mb-5">
-        Po drugiej stronie jest człowiek, nie automat. Napisz, jeśli coś nie działa,
-        jeśli masz pomysł albo jeśli chcesz nam po prostu coś powiedzieć.
-        Nie musisz mieć konta w Kuking i nie musisz pisać ładnie —
+        Napisz, jeśli coś nie działa, jeśli masz pomysł albo jeśli chcesz nam coś
+        powiedzieć. Nie musisz mieć konta w Kuking i nie musisz pisać ładnie —
         wystarczy, żebyśmy zrozumieli, o co chodzi.
     </p>
 
@@ -33,12 +72,11 @@
         tutaj. Bez tego jedna kolejka zapycha drugą, a zgłoszenie treści
         wpadałoby tam, gdzie nie ma decyzji, od której można się odwołać.
     --}}
-    <div class="card mb-5">
+    <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o czyjś wpis, przepis albo komentarz?</h2>
         <p>
-            To jest inna droga i prowadzi do innej kolejki. Pod każdą treścią jest
-            przycisk <strong>Zgłoś</strong> — użyj go, jeśli ktoś kogoś obraża,
-            wrzuca spam albo doradza coś niebezpiecznego.
+            Pod każdą treścią jest przycisk <strong>Zgłoś</strong> — użyj go,
+            jeśli ktoś kogoś obraża, wrzuca spam albo doradza coś niebezpiecznego.
         </p>
         <p class="mb-0">
             Jeśli treść Twoim zdaniem łamie prawo, wypełnij
@@ -50,7 +88,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('kontakt.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('kontakt.store') }}">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (D-027). Zwykłe ukryte pole,
@@ -68,7 +106,10 @@
             <input type="hidden" name="page_path" value="{{ $sciezka }}">
         @endif
 
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-kind"
+                  @error('kind') tabindex="-1" aria-invalid="true" aria-describedby="f-kind-error" @enderror>
             <legend class="font-bold mb-3">Czego dotyczy?</legend>
             <div class="stack-tight">
                 @foreach($rodzaje as $wartosc => $etykieta)
@@ -78,7 +119,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('kind')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="kind" />
         </fieldset>
 
         <x-field name="message" label="Co chcesz nam powiedzieć?"
@@ -96,22 +137,23 @@
             </p>
         @endguest
 
+        <x-turnstile miejsce="kontakt" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij wiadomość</button>
         </div>
     </form>
 
-    <div class="card mt-5">
+    <div class="ramka-pomocnicza mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <p>
             Wiadomość zapisuje się w Kuking od razu — nawet gdyby akurat nie działała
             poczta, nie zginie.
         </p>
         <p class="mb-0">
-            Czyta je {{ config('kuking.community.host_name') }} i odpisuje po ludzku.
-            Kuking prowadzi na razie jedna osoba, więc nie mamy całodobowego dyżuru
-            i nie będziemy go udawać — czasem odpowiedź przyjdzie tego samego dnia,
-            czasem po weekendzie. Przeczytana zostanie każda.
+            Czyta je {{ config('kuking.community.host_name') }}. Kuking prowadzi na razie
+            jedna osoba, więc nie ma tu całodobowego dyżuru — czasem odpowiedź przyjdzie
+            tego samego dnia, czasem po weekendzie. Przeczytana zostanie każda.
         </p>
     </div>
 

@@ -1,0 +1,30 @@
+{
+  "baseline": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-nav638-scope/phpunit.xml\n\n..                                                                  2 / 2 (100%)\n\nTime: 00:00.070, Memory: 44.50 MB\n\n\u001b[30;42mOK (2 tests, 76 assertions)\u001b[0m\n",
+  "before": {
+    "md5": "6a5f995738794b2f0bc0e4c57e519199",
+    "mtime_ns": 1789630806711734600
+  },
+  "backup": "/tmp/kuking638-scope-h_9j6aq0",
+  "mutations": [
+    {
+      "job": "port_marki",
+      "exit": 1,
+      "detected": true
+    },
+    {
+      "job": "port_funkcje",
+      "exit": 1,
+      "detected": true
+    },
+    {
+      "job": "dostepnosc",
+      "exit": 1,
+      "detected": true
+    }
+  ],
+  "positive": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-nav638-scope/phpunit.xml\n\n..                                                                  2 / 2 (100%)\n\nTime: 00:00.081, Memory: 44.50 MB\n\n\u001b[30;42mOK (2 tests, 76 assertions)\u001b[0m\n",
+  "restored": {
+    "md5": "6a5f995738794b2f0bc0e4c57e519199",
+    "mtime_ns": 1789630806711734600
+  }
+}

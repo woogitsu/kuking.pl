@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Notifications\PotwierdzenieAdresu;
+use App\Notifications\UstawienieHaslaZamiastLinku;
 use App\Notifications\UstawienieNowegoHasla;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Transport\ArrayTransport;
@@ -72,6 +73,33 @@ final class ListyZSystemuPoPolskuTest extends TestCase
 
         $this->assertStringContainsString('hasło', (string) $wiadomosc->getSubject());
         $this->assertStringContainsString('Ustaw nowe hasło', $this->tresc($wiadomosc));
+        $this->assertStringContainsString('Jeśli przycisk nie działa', $this->tresc($wiadomosc));
+        $this->assertStringContainsString('token-testowy', $this->tresc($wiadomosc));
+
+        $this->assertBezAngielskiego($wiadomosc);
+    }
+
+    /**
+     * Wiadomość, którą dostaje konto z NIEPOTWIERDZONYM adresem zamiast linku
+     * do logowania (issue #317). Osobny test, bo to osobna klasa i osobny
+     * widok — `test_list_z_nowym_haslem_jest_po_polsku` wyżej nie dotyka jej
+     * ani razu.
+     */
+    public function test_wiadomosc_z_haslem_zamiast_linku_jest_po_polsku(): void
+    {
+        $user = $this->user(null, ['email' => 'basia@example.com', 'email_verified_at' => null]);
+
+        $user->notify(new UstawienieHaslaZamiastLinku('token-testowy'));
+
+        $wiadomosc = $this->ostatniaWiadomosc();
+
+        // NAJPIERW dowód, że cokolwiek się wyrenderowało — bez tego asercja
+        // „nie ma angielskiego" przechodzi także na pustej wiadomości.
+        $this->assertNotSame('', trim((string) $wiadomosc->getSubject()));
+        $this->assertGreaterThan(200, mb_strlen($this->tresc($wiadomosc)));
+
+        $this->assertStringContainsString('hasło', (string) $wiadomosc->getSubject());
+        $this->assertStringContainsString('Najpierw ustaw hasło', $this->tresc($wiadomosc));
         $this->assertStringContainsString('Jeśli przycisk nie działa', $this->tresc($wiadomosc));
         $this->assertStringContainsString('token-testowy', $this->tresc($wiadomosc));
 

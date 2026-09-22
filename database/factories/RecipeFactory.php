@@ -44,7 +44,7 @@ class RecipeFactory extends Factory
         ]);
     }
 
-    public function family(string $person = 'mamie, Halinie'): static
+    public function family(string $person = 'od mamy, Haliny'): static
     {
         return $this->state(fn () => [
             'source_type' => Recipe::SOURCE_FAMILY,

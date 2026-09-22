@@ -8,7 +8,7 @@ Stan wiedzy zweryfikowany we wrześniu 2026 (Google Search Central, web.dev). Za
 
 ### 1.1 Slug przepisu
 
-Format: `/recipes/{slug}`, gdzie `slug` pochodzi z `recipes.slug varchar(220) UNIQUE` (patrz `database/schema_mvp.sql`).
+Format: `/przepisy/{slug}`, gdzie `slug` pochodzi z `recipes.slug varchar(220) UNIQUE` (patrz `database/reference/schema_mvp.sql`).
 
 **Transliteracja polskich znaków — tak, zawsze.** Google radzi sobie z UTF-8 w URL-ach, ale dla użytkowników 50+ udostępniających linki przez Messengera/SMS-y ASCII-slug jest bardziej niezawodny (mniej problemów z kopiowaniem, skracaniem linków, starszymi klientami mailowymi) i unika dwuznaczności `ł`→`l`/`w` w różnych transliteratorach.
 
@@ -52,24 +52,24 @@ CREATE TABLE recipe_slug_redirects (
 );
 ```
 
-Logika w use case `UpdateRecipe`: przy zmianie `recipes.slug` zapisz stary slug do `recipe_slug_redirects` **zanim** nadpiszesz kolumnę. Middleware/route fallback: gdy `/recipes/{slug}` nie znajdzie rekordu w `recipes`, sprawdź `recipe_slug_redirects` i zwróć **301** (permanentne, nie 302) na aktualny URL. 301 przenosi sygnały rankingowe i jest tym, czego oczekuje Googlebot przy trwałej zmianie adresu.
+Logika w use case `UpdateRecipe`: przy zmianie `recipes.slug` zapisz stary slug do `recipe_slug_redirects` **zanim** nadpiszesz kolumnę. Middleware/route fallback: gdy `/przepisy/{slug}` nie znajdzie rekordu w `recipes`, sprawdź `recipe_slug_redirects` i zwróć **301** (permanentne, nie 302) na aktualny URL. 301 przenosi sygnały rankingowe i jest tym, czego oczekuje Googlebot przy trwałej zmianie adresu.
 
 Nie generuj nowego slugu przy każdej drobnej edycji treści (składniki, kroki) — tylko przy zmianie samego tytułu, i najlepiej z potwierdzeniem UI („Zmiana tytułu zmieni adres przepisu — stary link nadal będzie działać”).
 
 ### 1.2 Paginacja
 
-Listy (profil — zakładki „Wszystko/Przepisy/Ugotowane”, `/discover`, wyniki `/search`) używają **cursor pagination** (zgodnie z `ARCHITECTURE.md`: `ORDER BY published_at DESC, id DESC`), nie numerów stron w stylu `?page=2`. Konsekwencje SEO:
+Listy (profil — zakładki „Wszystko/Przepisy/Ugotowane”, `/odkryj`, wyniki `/szukaj`) używają **cursor pagination** (zgodnie z `ARCHITECTURE.md`: `ORDER BY published_at DESC, id DESC`), nie numerów stron w stylu `?page=2`. Konsekwencje SEO:
 
 - Jeśli mimo to publiczne strony 2+ mają URL-e (np. `/@basia?page=2`), oznacz je `rel="next"`/`rel="prev"` **nie jest już wspierane przez Google od 2019** — zamiast tego po prostu upewnij się, że strona 1 (kanoniczna, indeksowalna) linkuje do kolejnych stron zwykłymi linkami `<a href>`, żeby crawler mógł je odkryć, i że każda strona ma unikalny, opisowy `<title>`.
 - Strony 2+ list nie potrzebują unikalnej wartości SEO — mogą zostać `index,follow` (są prawdziwą treścią, tylko podzieloną), ale **nie kanonikalizuj ich do strony 1** (to ukryłoby treść stron 2+ przed Google, czyli realne przepisy autora by „zniknęły”).
 
 ### 1.3 Filtry wyszukiwania → `noindex`
 
-`/search?q=...&category=...` — nieskończona liczba kombinacji parametrów zapytania to klasyczny wektor **cienkich, duplikowanych stron** (crawl budget waste, potencjalnie „doorway pages”). Zasada:
+`/szukaj?q=...&category=...` — nieskończona liczba kombinacji parametrów zapytania to klasyczny wektor **cienkich, duplikowanych stron** (crawl budget waste, potencjalnie „doorway pages”). Zasada:
 
-- `/search` bez parametrów lub z pustym wynikiem: `noindex, follow`.
-- `/search?q=...`: zawsze `noindex, follow` — to strona wyników, nie strona docelowa. Prawdziwa treść (przepis, profil) ma **swój własny kanoniczny URL**, do którego wynik wyszukiwania linkuje.
-- Nigdy nie polegaj wyłącznie na `robots.txt Disallow: /search` — to blokuje crawlowanie, ale nie gwarantuje deindeksacji linków już odkrytych skądinąd. Użyj **meta robots / `X-Robots-Tag: noindex`** na samej stronie (patrz sekcja 3), a `robots.txt` potraktuj jako dodatkową oszczędność crawl budgetu.
+- `/szukaj` bez parametrów lub z pustym wynikiem: `noindex, follow`.
+- `/szukaj?q=...`: zawsze `noindex, follow` — to strona wyników, nie strona docelowa. Prawdziwa treść (przepis, profil) ma **swój własny kanoniczny URL**, do którego wynik wyszukiwania linkuje.
+- Nigdy nie polegaj wyłącznie na `robots.txt Disallow: /szukaj` — to blokuje crawlowanie, ale nie gwarantuje deindeksacji linków już odkrytych skądinąd. Użyj **meta robots / `X-Robots-Tag: noindex`** na samej stronie (patrz sekcja 3), a `robots.txt` potraktuj jako dodatkową oszczędność crawl budgetu.
 
 ### 1.4 Duplikaty treści
 
@@ -79,7 +79,7 @@ Listy (profil — zakładki „Wszystko/Przepisy/Ugotowane”, `/discover`, wyni
 
 Zasady procedury dla „Moja wersja” (do wdrożenia razem z funkcją w V1, nie później):
 1. Fork domyślnie dziedziczy **niższą widoczność** niż oryginał, dopóki autor forka nie doda realnej zmiany (inny czas, inne proporcje, inna technika — nie tylko inne zdjęcie).
-2. Strona forka ma `<link rel="canonical">` wskazujący **na siebie** tylko jeśli różni się od oryginału na tyle, by mieć samodzielną wartość; w przeciwnym razie renderuj ją jako sekcję/wariant na stronie oryginału (`/recipes/{oryginal-slug}#wersja-{id}`), a nie osobny indeksowalny URL.
+2. Strona forka ma `<link rel="canonical">` wskazujący **na siebie** tylko jeśli różni się od oryginału na tyle, by mieć samodzielną wartość; w przeciwnym razie renderuj ją jako sekcję/wariant na stronie oryginału (`/przepisy/{oryginal-slug}#wersja-{id}`), a nie osobny indeksowalny URL.
 3. Widoczny, człowiekowi czytelny link „na podstawie: [Bigos staropolski Basi]” — dobre dla UX i dodatkowo sygnalizuje Google relację (to nie jest kradzież, to pochodna z przypisaniem).
 4. Twardy próg produktowy: jeśli fork ma < 30% unikalnego tekstu względem oryginału (prosty porównywacz Levenshteina/shingling na `recipeIngredient` + `recipeInstructions` przy zapisie), domyślnie `noindex` i komunikat do autora „Twoja wersja jest bardzo podobna do oryginału — możesz ją zapisać prywatnie albo dodać, co zmieniłaś”.
 
@@ -147,21 +147,21 @@ Pełny, poprawny przykład (zwalidowany `python3 -m json.tool`):
       "@type": "HowToStep",
       "name": "Przygotuj kapustę",
       "text": "Kapustę kiszoną odciśnij z nadmiaru soku, kapustę białą poszatkuj i sparz wrzątkiem.",
-      "url": "https://kuking.pl/recipes/bigos-staropolski#krok-1",
+      "url": "https://kuking.pl/przepisy/bigos-staropolski#krok-1",
       "image": "https://kuking.pl/storage/recipes/bigos-krok-1.jpg"
     },
     {
       "@type": "HowToStep",
       "name": "Podsmaż mięsa",
       "text": "Pokrojone w kostkę mięso i boczek obsmaż na rozgrzanym tłuszczu, dodaj pokrojoną cebulę.",
-      "url": "https://kuking.pl/recipes/bigos-staropolski#krok-2",
+      "url": "https://kuking.pl/przepisy/bigos-staropolski#krok-2",
       "image": "https://kuking.pl/storage/recipes/bigos-krok-2.jpg"
     },
     {
       "@type": "HowToStep",
       "name": "Połącz składniki i duś",
       "text": "Połącz kapustę z mięsem, dodaj namoczone grzyby, koncentrat, przyprawy. Duś pod przykryciem co najmniej 3 godziny, mieszając co jakiś czas.",
-      "url": "https://kuking.pl/recipes/bigos-staropolski#krok-3",
+      "url": "https://kuking.pl/przepisy/bigos-staropolski#krok-3",
       "image": "https://kuking.pl/storage/recipes/bigos-krok-3.jpg"
     },
     {
@@ -279,7 +279,7 @@ Zalecany na **każdej** publicznej stronie treści (przepis, post, profil) — G
       "@type": "ListItem",
       "position": 2,
       "name": "Odkrywaj",
-      "item": "https://kuking.pl/discover"
+      "item": "https://kuking.pl/odkryj"
     },
     {
       "@type": "ListItem",
@@ -341,8 +341,8 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 | Treść `visibility IN ('followers','private')` | `noindex, nofollow` + brak w sitemapie + wymagany auth do renderu | Nigdy nie może wyciec do crawlera |
 | Konto `status IN ('suspended','banned','pending_delete')` | `noindex`, treść zwraca 410/404 zgodnie z polityką retencji | Nie utrzymywać w indeksie kont usuniętych/zbanowanych |
 | Treść zgłoszona i ukryta (`status='hidden'`/`'removed'` po `moderation_actions`) | `noindex, nofollow`, HTTP 410 (removed) lub 200+noindex (hidden, w toku triage) | Zgodność z DSA (decyzja + możliwość odwołania), zero ryzyka rankingowego z treści naruszającej zasady |
-| `/search`, `/notifications`, `/settings/*`, `/admin/*` | `noindex, nofollow` (+ `Disallow` w `robots.txt` dla `/settings`, `/admin`, `/notifications` — auth-only, crawler i tak ich nie zobaczy, ale to tania dodatkowa warstwa) | Brak wartości publicznej, ryzyko crawl budgetu |
-| `/home`, `/add`, `/collections` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
+| `/szukaj`, `/powiadomienia`, `/ustawienia/*`, `/admin/*` | `noindex, nofollow` (+ `Disallow` w `robots.txt` dla `/ustawienia`, `/admin`, `/powiadomienia` — auth-only, crawler i tak ich nie zobaczy, ale to tania dodatkowa warstwa) | Brak wartości publicznej, ryzyko crawl budgetu |
+| `/home`, `/dodaj`, `/zeszyt` (widoki wymagające loginu) | poza indeksem z definicji (auth wall) | j.w. |
 | Kolekcje prywatne | `noindex, nofollow` | `collections.visibility='private'` domyślne |
 | Kolekcje publiczne | `index, follow` | Realna, kuracyjna treść — dobry sygnał jakości |
 
@@ -350,17 +350,19 @@ Każdy JSON-LD blok renderowany przez Blade powinien przechodzić dwa testy zani
 
 ```text
 User-agent: *
-Disallow: /settings/
+Disallow: /ustawienia/
 Disallow: /admin/
-Disallow: /notifications
+Disallow: /powiadomienia
 Disallow: /home
-Disallow: /add
+Disallow: /dodaj
 Allow: /
 
 Sitemap: https://kuking.pl/sitemap_index.xml
 ```
 
-Nie blokuj `/search` w `robots.txt` samodzielnie jako jedyny mechanizm — patrz 1.3 i 3.2 (meta robots jest tu ważniejszy, bo strony `/search?q=` mogą być odkryte przez linki zewnętrzne mimo `Disallow`, a `Disallow` uniemożliwia Google **zobaczenie** meta tagu `noindex` na tej stronie, więc de facto może **utrzymać** ją w indeksie bez treści, jeśli już raz została odkryta gdzieś indziej). Dlatego: `/search` ma `noindex` w HTML, ale **nie** ma wpisu w `robots.txt` — niech Google może ją odwiedzić, zobaczyć `noindex` i faktycznie ją wyrzucić/nie dodać.
+Realny plik generuje `app/Http/Controllers/SitemapController.php::robots()` — adresy tam i tu muszą się zgadzać; do 12 września 2026 ten dokument (i sam kontroler) miały `/search`, `/home` i `/add` po angielsku, czyli pod adresami, których serwis nie ma, więc wyszukiwarka i ekran dodawania nie były w praktyce wyłączone z indeksowania.
+
+Nie blokuj `/szukaj` w `robots.txt` samodzielnie jako jedyny mechanizm — patrz 1.3 i 3.2 (meta robots jest tu ważniejszy, bo strony `/szukaj?q=` mogą być odkryte przez linki zewnętrzne mimo `Disallow`, a `Disallow` uniemożliwia Google **zobaczenie** meta tagu `noindex` na tej stronie, więc de facto może **utrzymać** ją w indeksie bez treści, jeśli już raz została odkryta gdzieś indziej). Dlatego: `/szukaj` ma `noindex` w HTML, ale **nie** ma wpisu w `robots.txt` — niech Google może ją odwiedzić, zobaczyć `noindex` i faktycznie ją wyrzucić/nie dodać.
 
 ### 3.2 Meta robots + `X-Robots-Tag`
 
@@ -485,7 +487,7 @@ Livewire (v4, full-stack reaktywność server-side) jest z natury bardziej podat
 
 - Statyczne warianty obrazów: `Cache-Control: public, max-age=31536000, immutable` (nazwy plików z hashem/UUID — nigdy nie nadpisuj istniejącego pliku pod tym samym URL-em).
 - HTML publicznych stron (przepis, profil, post): krótki edge cache (np. `s-maxage=300, stale-while-revalidate=600`) jeśli używany jest CDN — pozwala odciążyć serwer bez ryzyka pokazywania bardzo nieaktualnej treści po edycji.
-- Response dla treści prywatnych/auth: zawsze `Cache-Control: private, no-store` — nigdy cache współdzielony dla stron `/home`, `/settings/*`.
+- Response dla treści prywatnych/auth: zawsze `Cache-Control: private, no-store` — nigdy cache współdzielony dla stron `/home`, `/ustawienia/*`.
 
 ### 5.4 Fonty
 
@@ -534,13 +536,13 @@ Konkretne wektory ryzyka dla Kuking i mitygacje:
 - [ ] Tabela `recipe_slug_redirects` + middleware 301 fallback przy zmianie tytułu
 - [ ] `<link rel="canonical">` na każdej stronie treści (przepis, post, profil, kolekcja)
 - [ ] Wymuszony kanoniczny host (bez `www`, https-only) na poziomie serwera/edge
-- [ ] Meta robots `noindex, follow` na `/search`, pustych profilach, treściach `followers`/`private`
+- [ ] Meta robots `noindex, follow` na `/szukaj`, pustych profilach, treściach `followers`/`private`
 - [ ] `X-Robots-Tag: noindex` middleware dla `api/*`, eksportów, storage prywatnego
-- [ ] `robots.txt` z `Disallow` dla `/settings`, `/admin`, `/notifications`, `/home`, `/add` + link do `sitemap_index.xml`
+- [ ] `robots.txt` z `Disallow` dla `/ustawienia`, `/admin`, `/powiadomienia`, `/home`, `/dodaj` + link do `sitemap_index.xml`
 - [ ] `<html lang="pl">` + `og:locale=pl_PL` globalnie
 
 **Structured data:**
-- [ ] JSON-LD `Recipe` na `/recipes/{slug}` z mapowaniem z sekcji 2.1 (bez `aggregateRating`)
+- [ ] JSON-LD `Recipe` na `/przepisy/{slug}` z mapowaniem z sekcji 2.1 (bez `aggregateRating`)
 - [ ] JSON-LD `ProfilePage`+`Person` na `/@username` (tylko gdy profil ma ≥1 publiczną treść)
 - [ ] JSON-LD `BreadcrumbList` na wszystkich stronach treści
 - [ ] JSON-LD `WebSite`+`Organization` globalnie w layoucie
@@ -585,4 +587,4 @@ Konkretne wektory ryzyka dla Kuking i mitygacje:
 - [Site Has One Language/Region? No Need To Use hreflang For Google — Search Engine Roundtable](https://www.seroundtable.com/one-language-hreglang-google-23970.html)
 - [Managing Multi-Regional and Multilingual Sites — Google Search Central](https://developers.google.com/search/docs/specialty/international/managing-multi-regional-sites)
 - Sitemap 50 000 URL / 50 MB limit — [Sitemap Limits: 50000 URLs and 50MB Max](https://library.linkbot.com/what-are-the-url-and-file-size-limits-for-sitemaps-and-how-can-large-sites-adapt/) `[do weryfikacji: dokładny numer aktualnej wersji dokumentacji Google sitemaps.org, limit sam w sobie jest stabilny od lat]`
-- Pliki wewnętrzne projektu: `docs/SEO_ANALYTICS_GROWTH.md`, `docs/PRODUCT.md`, `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, `docs/MEDIA_PIPELINE.md`, `docs/MODERATION.md`, `database/schema_mvp.sql`
+- Pliki wewnętrzne projektu: `docs/SEO_ANALYTICS_GROWTH.md`, `docs/PRODUCT.md`, `docs/FEATURES.md`, `docs/ARCHITECTURE.md`, `docs/MEDIA_PIPELINE.md`, `docs/MODERATION.md`, `database/reference/schema_mvp.sql`

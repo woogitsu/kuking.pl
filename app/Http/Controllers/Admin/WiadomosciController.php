@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Admin;
 
+use App\Domain\Contact\Actions\WyslijOdpowiedz;
 use App\Http\Controllers\Controller;
 use App\Models\ContactMessage;
 use Illuminate\Http\RedirectResponse;
@@ -29,6 +30,8 @@ use Illuminate\View\View;
  */
 class WiadomosciController extends Controller
 {
+    public function __construct(private readonly WyslijOdpowiedz $wyslij) {}
+
     public function index(Request $request): View
     {
         $this->authorize('viewAny', ContactMessage::class);
@@ -73,7 +76,14 @@ class WiadomosciController extends Controller
         $this->authorize('view', $wiadomosc);
 
         return view('pages.admin.wiadomosc', [
-            'wiadomosc' => $wiadomosc->load(['author.profile', 'handler.profile']),
+            // `odpowiedzi.author.profile` doładowane RAZEM z resztą, nie
+            // w widoku: bez tego każda odpowiedź w historii dokładałaby
+            // własne zapytanie o nazwę moderatora.
+            'wiadomosc' => $wiadomosc->load([
+                'author.profile',
+                'handler.profile',
+                'odpowiedzi.author.profile',
+            ]),
         ]);
     }
 
@@ -100,5 +110,91 @@ class WiadomosciController extends Controller
         return redirect()
             ->route('admin.contact.show', $wiadomosc)
             ->with('status', 'Zapisano: '.$wiadomosc->statusLabel().'.');
+    }
+
+    /**
+     * ODPOWIEDŹ POCZTĄ DO OSOBY, KTÓRA NAPISAŁA (D-058).
+     *
+     * Do 10 września 2026 ten ekran miał wyłącznie odnośnik `mailto:` i pole
+     * „Notatka dla siebie". Odpisywało się więc z własnego programu poczty,
+     * a w serwisie nie zostawał ŻADEN ślad, że odpowiedź poszła — poza tym,
+     * co moderator sam sobie zapisał. Zgłoszenie właściciela brzmiało wprost:
+     * „widzę je, przychodzą, ale jak mam odpisać?".
+     *
+     * OSOBNA TRASA, NIE DRUGIE POLE W `update()`. Te dwie rzeczy mają różne
+     * skutki i różną odwracalność: zapis stanu i notatki da się poprawić
+     * w każdej chwili, a wysłanego listu nie da się odwołać. Jeden formularz
+     * znaczyłby, że poprawienie literówki w notatce wysyła drugi list —
+     * albo że wysłanie listu wymaga jednoczesnego wybrania stanu.
+     *
+     * NIE ZMIENIAMY TU STANU WIADOMOŚCI, i to jest decyzja, nie oszczędność.
+     * „Odpisałem" nie znaczy „załatwione": odpowiedź bywa pytaniem
+     * dodatkowym („z jakiego telefonu Pani pisze?"), po którym sprawa jest
+     * bardziej otwarta niż przedtem. Automatyczne przestawienie na
+     * „Załatwiona" ruszyłoby przy okazji `handled_at`, czyli ZEGAR RETENCJI
+     * (12 miesięcy, D-045) — dla wiadomości, której nikt nie zamknął. Ekran
+     * mówi więc wprost, że stan zaznacza się osobno, niżej.
+     */
+    public function odpowiedz(Request $request, ContactMessage $wiadomosc): RedirectResponse
+    {
+        $this->authorize('reply', $wiadomosc);
+
+        $dane = $request->validate([
+            // 5000 znaków — tyle samo, co sama wiadomość. Odpowiedź na opis
+            // awarii bywa dłuższa niż opis.
+            'odpowiedz' => ['required', 'string', 'max:5000'],
+        ], [
+            'odpowiedz.required' => 'Napisz odpowiedź, zanim ją wyślesz.',
+            'odpowiedz.max' => 'Odpowiedź jest za długa — zmieść się w 5000 znakach.',
+        ]);
+
+        $adres = $wiadomosc->adresDoOdpowiedzi();
+
+        if ($adres === null) {
+            // Widok nie pokazuje w tej sytuacji formularza, więc tutaj
+            // dochodzi się wyłącznie żądaniem złożonym poza ekranem albo
+            // z karty otwartej przed anonimizacją konta autora. Komunikat
+            // i tak mówi, co się stało, a wpisana treść zostaje w polu.
+            return back()
+                ->withInput()
+                ->withErrors(['odpowiedz' => 'Ta osoba nie zostawiła adresu e-mail, więc nie ma jak '
+                    .'wysłać jej odpowiedzi. Jeśli sprawa jest do zamknięcia, oznacz wiadomość jako '
+                    .'załatwioną i zapisz w notatce, co ustalono.']);
+        }
+
+        $odpowiedz = $this->wyslij->handle(
+            wiadomosc: $wiadomosc,
+            moderator: $request->user(),
+            tresc: $dane['odpowiedz'],
+            ip: $request->ip(),
+        );
+
+        if (! $odpowiedz->wyszla()) {
+            /*
+             * NIE MELDUJEMY SUKCESU I NIE GUBIMY TEKSTU.
+             *
+             * `withInput()` jest tu połową funkcji, nie uprzejmością:
+             * odpowiedź na wiadomość od człowieka pisze się kwadrans, a
+             * awaria poczty nie jest niczyim błędem we formularzu
+             * (docs/UX_50_PLUS.md — poprawnie wpisane dane nigdy nie
+             * znikają). Sama treść leży już zapisana przy wiadomości ze
+             * stanem „Nie udało się wysłać", więc nie przepada nawet wtedy,
+             * gdy ktoś zamknie kartę.
+             *
+             * Komunikat mówi, CO ZROBIĆ, i podaje obie drogi: spróbować
+             * jeszcze raz albo odpisać z własnej poczty na widoczny obok
+             * adres.
+             */
+            return back()
+                ->withInput()
+                ->withErrors(['odpowiedz' => 'Nie udało się wysłać odpowiedzi — poczta serwisu '
+                    .'odmówiła przyjęcia listu. Twój tekst jest zapisany przy wiadomości i został '
+                    .'w polu. Spróbuj wysłać jeszcze raz; jeśli znów się nie uda, odpisz z własnej '
+                    .'poczty na '.$adres.'. Powód odmowy jest wypisany niżej, w historii odpowiedzi.']);
+        }
+
+        return redirect()
+            ->route('admin.contact.show', $wiadomosc)
+            ->with('status', 'Odpowiedź wysłana na '.$adres.'.');
     }
 }

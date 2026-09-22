@@ -42,6 +42,8 @@ use Illuminate\Database\UniqueConstraintViolationException;
  */
 final class FileAppeal
 {
+    public function __construct(private readonly PowiadomOOdwolaniu $powiadom = new PowiadomOOdwolaniu) {}
+
     public function handle(User $osoba, ModerationAction $decyzja, string $tresc, ?string $ip = null): Appeal
     {
         if ($decyzja->subject_user_id === null || $decyzja->subject_user_id !== $osoba->getKey()) {
@@ -96,6 +98,15 @@ final class FileAppeal
             ],
             ip: $ip,
         );
+
+        // Zawiadomienie dla administratora — odwołanie ma termin (DSA art. 20)
+        // i kolejka, o której nikt nie wie, że coś w niej leży, to termin,
+        // który upływa po cichu. Stoi TUTAJ, a nie w kontrolerze, bo odwołanie
+        // wchodzi dwiema drogami (formularz osoby zalogowanej i formularz
+        // przed logowaniem, dla osób zablokowanych) — reguła zapisana
+        // w jednym kontrolerze byłaby regułą omijalną przez drugi, dokładnie
+        // jak trzy reguły opisane na górze tej klasy.
+        $this->powiadom->handle($odwolanie, $osoba->displayName());
 
         return $odwolanie;
     }

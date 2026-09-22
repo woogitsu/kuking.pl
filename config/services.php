@@ -16,6 +16,38 @@ return [
     |
     */
 
+    /*
+    | EMAILLABS — POCZTA PRODUKCYJNA PRZEZ API HTTPS (D-047).
+    |
+    | Dwa klucze, nie jeden, bo tak wygląda uwierzytelnienie tego API: żądanie
+    | niesie nagłówek `Application-Key` (klucz aplikacji) ORAZ `Authorization`
+    | (klucz autoryzacyjny, 128 znaków). Oba generuje się razem w panelu
+    | EmailLabs: Konto → Ustawienia → API → „Generuj klucz API".
+    |
+    | TO NIE SĄ LOGIN I HASŁO SMTP. Dane SMTP z sekcji „Konta SMTP" panelu
+    | służą wyłącznie do wysyłki portem 587 — API ich nie przyjmie i odpowie
+    | 401. Pomylenie jednego z drugim jest tu najbardziej prawdopodobnym
+    | błędem konfiguracji, dlatego nazwy zmiennych zaczynają się od
+    | `EMAILLABS_`, a nie od `MAIL_`.
+    |
+    | `EMAILLABS_SMTP_ACCOUNT` to mimo nazwy pole API: identyfikator konta
+    | wysyłkowego w kształcie `1.nazwa.smtp`, wymagane pole `smtpAccount`
+    | w każdym żądaniu. Znajdziesz je w panelu przy koncie SMTP.
+    |
+    | `EMAILLABS_TRACKING` domyślnie WYŁĄCZONE: włączone śledzenie podmienia
+    | każdy odnośnik w liście na adres przekierowujący dostawcy, a link do
+    | zmiany hasła prowadzący pod obcą domenę wygląda dla osoby 60+ dokładnie
+    | jak phishing, przed którym ostrzegają banki.
+    */
+    'emaillabs' => [
+        'key' => env('EMAILLABS_APP_KEY'),
+        'secret' => env('EMAILLABS_SECRET_KEY'),
+        'smtp_account' => env('EMAILLABS_SMTP_ACCOUNT'),
+        'endpoint' => env('EMAILLABS_ENDPOINT', 'https://api.emaillabs.io/v2.1/email'),
+        'timeout' => env('EMAILLABS_TIMEOUT', 15),
+        'tracking' => env('EMAILLABS_TRACKING', false),
+    ],
+
     'postmark' => [
         'key' => env('POSTMARK_API_KEY'),
     ],

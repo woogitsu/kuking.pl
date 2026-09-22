@@ -9,7 +9,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('account.delete.cancel.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('account.delete.cancel.store') }}">
         @csrf
 
         <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required
@@ -17,6 +17,8 @@
                  help="Ten sam, którego używasz do logowania." />
 
         <x-field name="password" label="Hasło do konta" type="password" required autocomplete="current-password" />
+
+        <x-turnstile miejsce="cofniecie_usuniecia" />
 
         <button class="btn btn-primary mt-5" type="submit">Cofnij usunięcie konta</button>
     </form>

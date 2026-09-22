@@ -1,0 +1,2 @@
+{"level":"info","ts":1789722646.2328439,"msg":"maxprocs: Updating GOMAXPROCS=2: determined from CPU quota"}
+{"level":"info","ts":1789722646.2827902,"logger":"frankenphp","msg":"FrankenPHP started 🐘","php_version":"8.4.25","num_threads":4,"max_threads":4,"max_requests":0}

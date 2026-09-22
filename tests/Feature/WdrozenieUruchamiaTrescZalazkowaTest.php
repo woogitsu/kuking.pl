@@ -36,6 +36,24 @@ use Tests\TestCase;
  *
  * Idempotencji seedera ten test NIE powtarza — pilnuje jej
  * `TrescZalazkowaSeederTest::test_drugi_przebieg_nic_nie_zmienia`.
+ *
+ * CZEGO TEN TEST NIE DOWODZI — DOPISANE 9 WRZEŚNIA WIECZOREM
+ * Punkt 1 czyta `.railway/railway.ts`, czyli PLIK, a nie produkcję. Jest
+ * zielony od 9 września — i przez cały ten czas produkcja **nie wołała
+ * seedera**. Zmierzony connectorem Railway `preDeployCommand` serwisu
+ * `kuking.pl` to dokładnie `php artisan migrate --force --no-interaction`
+ * i nic więcej, bo **`railway config apply` nigdy nie zostało uruchomione**.
+ *
+ * Czyli: usterka ostatniego metra, którą ten test miał zamknąć, przesunęła
+ * się o jeden metr dalej. Zielony test tutaj znaczy „ktoś to zapisał
+ * w konfiguracji", nie „produkcja to robi". Tej drugiej rzeczy nie da się
+ * sprawdzić z testu — dowodem jest wyłącznie odczyt z Railwaya albo
+ * przykładowe konto widoczne na żywym `/odkryj` po wdrożeniu.
+ *
+ * Nie osłabiam przez to asercji niżej: pilnowanie, że plik konfiguracyjny
+ * mówi właściwą rzecz, jest potrzebne. Chodzi o to, żeby nikt nie przeczytał
+ * tej zieleni jako dowodu, którym ona nie jest. Kolejność kroków po stronie
+ * właściciela opisuje `docs/OTWARCIE.md`, wiersz 14 tabeli stanu.
  */
 class WdrozenieUruchamiaTrescZalazkowaTest extends TestCase
 {

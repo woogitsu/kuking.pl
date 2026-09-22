@@ -1,0 +1,946 @@
+[
+  {
+    "stage": "edit",
+    "status": 200,
+    "url": "http://127.0.0.1:8033/przepisy/lokalny-szkic-odbioru-publikacji/edycja"
+  },
+  {
+    "stage": "edit",
+    "theme": "light",
+    "zoom": 1,
+    "geometry": {
+      "width": 1440,
+      "scroll": 1440
+    },
+    "tab": [
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "Otwórz kreator w trzech krokach",
+        "type": "",
+        "main": true,
+        "top": 501.046875,
+        "bottom": 528.046875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "title",
+        "id": "f-title",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 714.8125,
+        "bottom": 789.875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "hero_photo",
+        "id": "f-hero_photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 859.9375,
+        "bottom": 860.9375,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "summary",
+        "id": "f-summary",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.578125,
+        "bottom": 665.578125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "servings",
+        "id": "f-servings",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.828125,
+        "bottom": 912.890625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "prep_minutes",
+        "id": "f-prep_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.828125,
+        "bottom": 912.890625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "cook_minutes",
+        "id": "f-cook_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.828125,
+        "bottom": 912.890625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "difficulty",
+        "id": "",
+        "text": "",
+        "type": "radio",
+        "main": true,
+        "top": 515.34375,
+        "bottom": 539.34375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "visibility",
+        "id": "",
+        "text": "",
+        "type": "radio",
+        "main": true,
+        "top": 514.78125,
+        "bottom": 538.78125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_type",
+        "id": "",
+        "text": "",
+        "type": "radio",
+        "main": true,
+        "top": 854.671875,
+        "bottom": 878.671875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_person",
+        "id": "f-source_person",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 489.71875,
+        "bottom": 564.78125,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "source_note",
+        "id": "f-source_note",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 765.03125,
+        "bottom": 957.28125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "family_since_year",
+        "id": "f-family_since_year",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 489.34375,
+        "bottom": 564.40625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_scan",
+        "id": "f-source_scan",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 634.46875,
+        "bottom": 635.46875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_url",
+        "id": "f-source_url",
+        "text": "",
+        "type": "url",
+        "main": true,
+        "top": 489.171875,
+        "bottom": 564.234375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[0][text]",
+        "id": "f-ingredients-0-text",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 838.15625,
+        "bottom": 913.21875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[0][group_name]",
+        "id": "f-ingredients-0-group_name",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 489.28125,
+        "bottom": 564.34375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[0][no_amount]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 592.734375,
+        "bottom": 616.734375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[1][text]",
+        "id": "f-ingredients-1-text",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 769.53125,
+        "bottom": 844.59375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[1][group_name]",
+        "id": "f-ingredients-1-group_name",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 837.65625,
+        "bottom": 912.71875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[1][no_amount]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 515.109375,
+        "bottom": 539.109375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[2][text]",
+        "id": "f-ingredients-2-text",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 691.90625,
+        "bottom": 766.96875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[2][group_name]",
+        "id": "f-ingredients-2-group_name",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 830.03125,
+        "bottom": 905.09375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[2][no_amount]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 514.484375,
+        "bottom": 538.484375,
+        "height": 913
+      },
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "kreatorze w trzech krokach",
+        "type": "",
+        "main": true,
+        "top": 628.21875,
+        "bottom": 658.21875,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "steps[0][instruction]",
+        "id": "f-steps-0-instruction",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.609375,
+        "bottom": 665.609375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[0][timer_minutes]",
+        "id": "f-steps-0-timer_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.921875,
+        "bottom": 912.984375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[0][remove_photo]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 514.4375,
+        "bottom": 538.4375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[0][photo]",
+        "id": "f-steps-0-photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 662.234375,
+        "bottom": 663.234375,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "steps[1][instruction]",
+        "id": "f-steps-1-instruction",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.9375,
+        "bottom": 665.9375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[1][timer_minutes]",
+        "id": "f-steps-1-timer_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 838.25,
+        "bottom": 913.3125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[1][photo]",
+        "id": "f-steps-1-photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 526.375,
+        "bottom": 527.375,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "steps[2][instruction]",
+        "id": "f-steps-2-instruction",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.078125,
+        "bottom": 665.078125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[2][timer_minutes]",
+        "id": "f-steps-2-timer_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 838.390625,
+        "bottom": 913.453125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[2][photo]",
+        "id": "f-steps-2-photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 526.515625,
+        "bottom": 527.515625,
+        "height": 913
+      },
+      {
+        "tag": "BUTTON",
+        "name": "action",
+        "id": "",
+        "text": "Zapisz zmiany",
+        "type": "submit",
+        "main": true,
+        "top": 853.09375,
+        "bottom": 912.59375,
+        "height": 913
+      },
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "Nie teraz",
+        "type": "",
+        "main": true,
+        "top": 853.09375,
+        "bottom": 912.59375,
+        "height": 913
+      }
+    ]
+  },
+  {
+    "stage": "edit",
+    "status": 200,
+    "url": "http://127.0.0.1:8033/przepisy/lokalny-szkic-odbioru-publikacji/edycja"
+  },
+  {
+    "stage": "edit",
+    "theme": "dark",
+    "zoom": 1,
+    "geometry": {
+      "width": 1440,
+      "scroll": 1440
+    },
+    "tab": [
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "Otwórz kreator w trzech krokach",
+        "type": "",
+        "main": true,
+        "top": 418.296875,
+        "bottom": 445.296875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "title",
+        "id": "f-title",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 632.0625,
+        "bottom": 707.125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "hero_photo",
+        "id": "f-hero_photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 777.1875,
+        "bottom": 778.1875,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "summary",
+        "id": "f-summary",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.828125,
+        "bottom": 665.828125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "servings",
+        "id": "f-servings",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.828125,
+        "bottom": 912.890625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "prep_minutes",
+        "id": "f-prep_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.828125,
+        "bottom": 912.890625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "cook_minutes",
+        "id": "f-cook_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.828125,
+        "bottom": 912.890625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "difficulty",
+        "id": "",
+        "text": "",
+        "type": "radio",
+        "main": true,
+        "top": 515.171875,
+        "bottom": 539.171875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "visibility",
+        "id": "",
+        "text": "",
+        "type": "radio",
+        "main": true,
+        "top": 514.4375,
+        "bottom": 538.4375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_type",
+        "id": "",
+        "text": "",
+        "type": "radio",
+        "main": true,
+        "top": 843.15625,
+        "bottom": 867.15625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_person",
+        "id": "f-source_person",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 489.203125,
+        "bottom": 564.265625,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "source_note",
+        "id": "f-source_note",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 764.515625,
+        "bottom": 956.765625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "family_since_year",
+        "id": "f-family_since_year",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 489.828125,
+        "bottom": 564.890625,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_scan",
+        "id": "f-source_scan",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 634.953125,
+        "bottom": 635.953125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "source_url",
+        "id": "f-source_url",
+        "text": "",
+        "type": "url",
+        "main": true,
+        "top": 489.65625,
+        "bottom": 564.71875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[0][text]",
+        "id": "f-ingredients-0-text",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 837.640625,
+        "bottom": 912.703125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[0][group_name]",
+        "id": "f-ingredients-0-group_name",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 489.765625,
+        "bottom": 564.828125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[0][no_amount]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 593.21875,
+        "bottom": 617.21875,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[1][text]",
+        "id": "f-ingredients-1-text",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 770.015625,
+        "bottom": 845.078125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[1][group_name]",
+        "id": "f-ingredients-1-group_name",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 838.140625,
+        "bottom": 913.203125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[1][no_amount]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 514.59375,
+        "bottom": 538.59375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[2][text]",
+        "id": "f-ingredients-2-text",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 691.390625,
+        "bottom": 766.453125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[2][group_name]",
+        "id": "f-ingredients-2-group_name",
+        "text": "",
+        "type": "text",
+        "main": true,
+        "top": 829.515625,
+        "bottom": 904.578125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "ingredients[2][no_amount]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 514.484375,
+        "bottom": 538.484375,
+        "height": 913
+      },
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "kreatorze w trzech krokach",
+        "type": "",
+        "main": true,
+        "top": 628.21875,
+        "bottom": 658.21875,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "steps[0][instruction]",
+        "id": "f-steps-0-instruction",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.609375,
+        "bottom": 665.609375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[0][timer_minutes]",
+        "id": "f-steps-0-timer_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 837.921875,
+        "bottom": 912.984375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[0][remove_photo]",
+        "id": "",
+        "text": "",
+        "type": "checkbox",
+        "main": true,
+        "top": 514.4375,
+        "bottom": 538.4375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[0][photo]",
+        "id": "f-steps-0-photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 662.234375,
+        "bottom": 663.234375,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "steps[1][instruction]",
+        "id": "f-steps-1-instruction",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.9375,
+        "bottom": 665.9375,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[1][timer_minutes]",
+        "id": "f-steps-1-timer_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 838.25,
+        "bottom": 913.3125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[1][photo]",
+        "id": "f-steps-1-photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 526.375,
+        "bottom": 527.375,
+        "height": 913
+      },
+      {
+        "tag": "TEXTAREA",
+        "name": "steps[2][instruction]",
+        "id": "f-steps-2-instruction",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 489.078125,
+        "bottom": 665.078125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[2][timer_minutes]",
+        "id": "f-steps-2-timer_minutes",
+        "text": "",
+        "type": "number",
+        "main": true,
+        "top": 838.390625,
+        "bottom": 913.453125,
+        "height": 913
+      },
+      {
+        "tag": "INPUT",
+        "name": "steps[2][photo]",
+        "id": "f-steps-2-photo",
+        "text": "",
+        "type": "file",
+        "main": true,
+        "top": 526.515625,
+        "bottom": 527.515625,
+        "height": 913
+      },
+      {
+        "tag": "BUTTON",
+        "name": "action",
+        "id": "",
+        "text": "Zapisz zmiany",
+        "type": "submit",
+        "main": true,
+        "top": 853.09375,
+        "bottom": 912.59375,
+        "height": 913
+      },
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "Nie teraz",
+        "type": "",
+        "main": true,
+        "top": 853.09375,
+        "bottom": 912.59375,
+        "height": 913
+      }
+    ]
+  },
+  {
+    "stage": "wyszlo",
+    "status": 200,
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-6f4d-7180-8816-5c3d534d1ecb/wyszlo"
+  },
+  {
+    "stage": "wyszlo",
+    "theme": "light",
+    "zoom": 1,
+    "geometry": {
+      "width": 1440,
+      "scroll": 1440
+    },
+    "tab": [
+      {
+        "tag": "TEXTAREA",
+        "name": "body",
+        "id": "f-body",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 781.671875,
+        "bottom": 957.671875,
+        "height": 913
+      },
+      {
+        "tag": "BUTTON",
+        "name": "",
+        "id": "",
+        "text": "Podziękuj",
+        "type": "submit",
+        "main": true,
+        "top": 496.671875,
+        "bottom": 556.171875,
+        "height": 913
+      },
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "Zobacz cały wpis",
+        "type": "",
+        "main": true,
+        "top": 581.171875,
+        "bottom": 640.671875,
+        "height": 913
+      }
+    ]
+  },
+  {
+    "stage": "wyszlo",
+    "status": 200,
+    "url": "http://127.0.0.1:8033/ugotowane/01a0a16b-6f4d-7180-8816-5c3d534d1ecb/wyszlo"
+  },
+  {
+    "stage": "wyszlo",
+    "theme": "dark",
+    "zoom": 1,
+    "geometry": {
+      "width": 1440,
+      "scroll": 1440
+    },
+    "tab": [
+      {
+        "tag": "TEXTAREA",
+        "name": "body",
+        "id": "f-body",
+        "text": "",
+        "type": "textarea",
+        "main": true,
+        "top": 781.671875,
+        "bottom": 957.671875,
+        "height": 913
+      },
+      {
+        "tag": "BUTTON",
+        "name": "",
+        "id": "",
+        "text": "Podziękuj",
+        "type": "submit",
+        "main": true,
+        "top": 496.671875,
+        "bottom": 556.171875,
+        "height": 913
+      },
+      {
+        "tag": "A",
+        "name": "",
+        "id": "",
+        "text": "Zobacz cały wpis",
+        "type": "",
+        "main": true,
+        "top": 581.171875,
+        "bottom": 640.671875,
+        "height": 913
+      }
+    ]
+  }
+]

@@ -1,0 +1,10 @@
+[
+  {
+    "name": "label",
+    "expected": "OAUTH345_ETYKIETA",
+    "md5": "c5196e8ee7c4e1d9c1e494e1ff529849",
+    "mtimeNs": 1789399044000000000,
+    "backup": "/tmp/kuking345-negative-63r_r8rs/label.bak",
+    "positive": true
+  }
+]

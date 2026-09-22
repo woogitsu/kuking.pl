@@ -62,10 +62,17 @@ final class SprawdzeniePocztyTest extends TestCase
             ->assertFailed();
     }
 
-    /** Nazwa sterownika spoza `config/mail.php` pada tu, a nie przy czyjejś rejestracji. */
+    /**
+     * Nazwa sterownika spoza `config/mail.php` pada tu, a nie przy czyjejś
+     * rejestracji.
+     *
+     * Stało tu `emaillabs` jako przykład nazwy wymyślonej. Od D-047 taki
+     * sterownik ISTNIEJE (własny transport po API HTTPS), więc przykład
+     * przestał być przykładem — stąd nazwa, której na pewno nikt nie doda.
+     */
     public function test_nieznany_sterownik_nie_udaje_ze_dziala(): void
     {
-        config(['mail.default' => 'emaillabs']);
+        config(['mail.default' => 'poczta-goscinna-z-ksiezyca']);
 
         $this->artisan('kuking:sprawdz-poczte', ['adres' => 'basia@example.com'])
             ->expectsOutputToContain('nie ma sterownika o nazwie')

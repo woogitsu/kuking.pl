@@ -55,6 +55,7 @@ class SocialController extends Controller
         $target = $this->findUser($username);
 
         try {
+            $this->assertToTaSamaOsoba($request, $target);
             $this->blockUser->handle($request->user(), $target, $request->ip());
         } catch (BladDlaCzlowieka $e) {
             return back()->withErrors(['block' => $e->getMessage()]);
@@ -69,9 +70,57 @@ class SocialController extends Controller
     {
         $target = $this->findUser($username);
 
-        $this->unblockUser->handle($request->user(), $target, $request->ip());
+        try {
+            $this->assertToTaSamaOsoba($request, $target);
+            $this->unblockUser->handle($request->user(), $target, $request->ip());
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withErrors(['block' => $e->getMessage()]);
+        }
 
-        return back()->with('status', 'Blokada zdjęta.');
+        // #791: `UnblockUser` świadomie NIE przywraca obserwowania (patrz
+        // komentarz w tej klasie) — automatyczny powrót do obserwowania
+        // byłby niespodzianką w prywatności. Ale bez słowa o tym w komunikacie
+        // człowiek klika „Zdejmij blokadę”, oczekuje powrotu do stanu sprzed
+        // konfliktu i dowiaduje się o różnicy dopiero wtedy, gdy zauważy,
+        // że w swoim feedzie znów nie widzi tej osoby.
+        return back()->with('status',
+            'Blokada zdjęta. Możecie znów widzieć swoje treści, ale obserwowanie się nie wznawia samo — jeśli chcesz znów obserwować tę osobę, wejdź na jej profil i kliknij „Obserwuj”.',
+        );
+    }
+
+    /**
+     * Nazwa użytkownika w adresie formularza to NIE AUTORYZACJA (#793) —
+     * może zmienić właściciela między chwilą, w której formularz się
+     * wyrenderował, a chwilą, w której ktoś go wysłał.
+     *
+     * Username da się zwolnić (zmiana w Ustawieniach) i od razu ponownie
+     * zająć: `UsernameNotTaken` sprawdza tylko AKTUALNE zajęcie, nie
+     * historię. Stary, wciąż otwarty formularz „Zablokuj”/„Zdejmij blokadę”
+     * pod `/@stara-nazwa/blokuj` po takiej zmianie trafia więc w kogoś
+     * INNEGO, niż widział człowiek, który formularz otworzył — a ten
+     * człowiek nie ma jak się o tym dowiedzieć, bo strona nie krzyczy
+     * błędem, tylko cicho robi coś innego, niż pokazywała.
+     *
+     * Każdy formularz blokady/odblokowania nosi więc ukryte pole
+     * `oczekiwany_id` z identyfikatorem osoby widzianej w chwili
+     * renderowania. Pole jest OPCJONALNE (starsze wywołania API i
+     * istniejące testy go nie wysyłają — Policy i tak broni samej akcji),
+     * ale kiedy jest obecne, MUSI się zgadzać z osobą, którą naprawdę
+     * rozwiązuje dzisiejsza nazwa użytkownika.
+     */
+    private function assertToTaSamaOsoba(Request $request, User $target): void
+    {
+        $oczekiwanyId = $request->input('oczekiwany_id');
+
+        if ($oczekiwanyId === null) {
+            return;
+        }
+
+        if ((string) $target->getKey() !== (string) $oczekiwanyId) {
+            throw new BladDlaCzlowieka(
+                'Ta nazwa użytkownika należy teraz do innej osoby. Odśwież stronę i spróbuj ponownie.',
+            );
+        }
     }
 
     /** Lista osób, które obserwują dany profil: /@{username}/obserwujacy */
@@ -155,7 +204,48 @@ class SocialController extends Controller
 
                 // „Czy widz obserwuje tę osobę" — jednym zapytaniem dla całej
                 // strony zamiast jednego na wiersz. Widok czyta `obserwowany`.
-                $query->withExists(['followers as obserwowany' => fn ($f) => $f->where('users.id', $widzId)]);
+                //
+                // KWALIFIKACJA KOLUMNY JEST TU CAŁĄ ODPOWIEDZIĄ, NIE DETALEM
+                // (#648). `followers` to relacja User→User, więc podzapytanie
+                // sięga po tę samą tabelę co zapytanie zewnętrzne i Eloquent
+                // MUSI ją w środku przemianować (`users as laravel_reserved_0`).
+                // Po tej zamianie `users.id` wewnątrz podzapytania nie wskazuje
+                // już obserwującego, tylko WIERSZ ZEWNĘTRZNY — czyli osobę
+                // z listy. Warunek cicho zmieniał się w „czy ta osoba to widz,
+                // i czy ktokolwiek ją obserwuje", więc bywał prawdziwy najwyżej
+                // na jednym wierszu: własnym wierszu widza, który widok i tak
+                // rysuje jako „To Ty". Skutek nie zostawiał ani jednego błędu,
+                // a był całkowity: obie listy pokazywały „Obserwuj" przy każdej
+                // osobie, także zaraz po udanym kliknięciu i po świeżym wejściu
+                // na stronę.
+                //
+                // `follows.follower_id` to kolumna TABELI POŚREDNIEJ, której
+                // Eloquent w tym podzapytaniu NIE przemianowuje; złączenie
+                // przyrównuje ją do klucza osoby obserwującej, więc pytanie
+                // wraca do „czy to WIDZ obserwuje tę osobę".
+                //
+                // NA CZYM TO STOI — ŻEBY NASTĘPNY CZYTELNIK NIE MUSIAŁ ZGADYWAĆ.
+                // Podzapytanie ma własne `follows` o tej samej nazwie co tabela
+                // pośrednia zapytania zewnętrznego i PRZYSŁANIA ją. Dopóki tak
+                // jest, ten zapis znaczy to, co mówi. Gdyby `follows` dostało
+                // kiedyś w środku alias, warunek związałby się z pivotem
+                // zewnętrznym i wróciłby błąd TEJ SAMEJ KLASY, BEZ BŁĘDU SQL —
+                // zmierzone. Zdegenerowałby się przy tym inaczej na każdej
+                // liście: na `obserwujacy` dokładnie w #648 („osoba z listy to
+                // widz"), a na `obserwowani` w „gospodarz to widz", czyli
+                // jedną stałą odpowiedź dla całej strony. Regresja łapie obie.
+                // Wariantem odpornym na taki alias jest
+                // `whereKey($widzId)`: wstawia `laravel_reserved_N.id = ?`,
+                // czyli wiąże się z aliasem wprost. Wybrano mimo to kolumnę
+                // pivotu, bo mówi o KIERUNKU relacji, a `whereKey()` milczy
+                // o nim zupełnie; cenę tego wyboru pilnuje regresja
+                // `FollowListsTest`, nie ten komentarz.
+                //
+                // Nazwy relacji nie da się przy tym zamienić „razem z kolumną":
+                // `following` + `follows.followed_id` to nie ta sama rzecz
+                // napisana inaczej, tylko ODWRÓCONE pytanie („czy ta osoba
+                // obserwuje widza"). Też zmierzone, też bez błędu SQL.
+                $query->withExists(['followers as obserwowany' => fn ($f) => $f->where('follows.follower_id', $widzId)]);
             })
             ->orderByPivot('created_at', 'desc')
             ->orderByDesc('users.id')

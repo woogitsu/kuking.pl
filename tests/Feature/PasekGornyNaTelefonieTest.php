@@ -105,8 +105,8 @@ class PasekGornyNaTelefonieTest extends TestCase
         $this->assertStringContainsString(
             'overflow-wrap: break-word',
             $this->regula($this->css('tokens.css'), '  body {'),
-            'Zniknęło łamanie długich słów. Powiadomienie „X ugotowała/ugotował '
-            .'z Twojego przepisu" wypycha wtedy stronę do 366 px przy oknie 320.',
+            'Zniknęło łamanie długich słów. Długi adres wklejony w komentarzu '
+            .'wypycha wtedy stronę do 366 px przy oknie 320.',
         );
     }
 

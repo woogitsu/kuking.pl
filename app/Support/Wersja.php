@@ -24,13 +24,25 @@ use Carbon\CarbonImmutable;
  * Sama etykieta nie wystarcza: stałaby tygodniami bez zmian. Sam skrót
  * commita też nie: siedmiu znaków szesnastkowych nie porówna z pamięcią
  * nikt, kto nie ma obok historii gita — a właśnie po to się na wersję patrzy.
- * Data bez skrótu byłaby z kolei bezużyteczna przy błędzie w Sentry.
+ * Data bez skrótu byłaby z kolei bezużyteczna przy zgłoszonej usterce: mówi,
+ * KIEDY, ale nie CO.
  *
  * Skrót bierzemy z RAILWAY_GIT_COMMIT_SHA — Railway wstrzykuje ją do każdego
- * wdrożenia. Ta sama wartość idzie do SENTRY_RELEASE (`.railway/railway.ts`),
- * więc wersja w stopce i wersja przy błędzie w Sentry to dokładnie ten sam
- * commit. To jest cała wartość tego rozwiązania: widząc błąd, wiesz, którego
- * kodu dotyczy.
+ * wdrożenia. To jest cała wartość tego rozwiązania: gdy ktoś zgłasza usterkę
+ * i przepisze to, co widzi w stopce, wiadomo, którego commita zgłoszenie
+ * dotyczy — bez odtwarzania z pamięci, kiedy to dokładnie było.
+ *
+ * CZEGO TU NIE MA, CHOĆ STAŁO NAPISANE DO 10 WRZEŚNIA 2026
+ * Ten komentarz twierdził, że ta sama wartość idzie do SENTRY_RELEASE, „więc
+ * wersja w stopce i wersja przy błędzie w Sentry to dokładnie ten sam commit".
+ * SENTRY_RELEASE rzeczywiście jest ustawiane w `.railway/railway.ts`, ale
+ * **Sentry'ego w tym projekcie nie ma**: nie ma pakietu w `composer.json`, nie
+ * ma `config/sentry.php`, a `SENTRY_LARAVEL_DSN` nie czyta ani jedna linijka
+ * PHP (D-041). Wpisów przy błędzie, do których ten skrót miałby pasować, nie
+ * ma więc żadnych. Błędy 500 idą dziś na kanał `blad_webhook`, a ten wysyła
+ * klasę wyjątku, plik:linię i wzorzec trasy — bez numeru wydania. Powiązanie
+ * zgłoszenia z commitem robi się dziś ręcznie, przez stopkę, i to jest jedyny
+ * powód, dla którego ten skrót w ogóle w niej stoi.
  */
 final class Wersja
 {
@@ -55,9 +67,9 @@ final class Wersja
      * albo tyle z tego, ile w ogóle wiadomo.
      *
      * DLACZEGO DATA IDZIE PRZED SKRÓTEM, a nie odwrotnie: data jest tą
-     * częścią, którą człowiek czyta. Skrót zostaje, bo to on wiąże stronę
-     * z wpisem w Sentry (`SENTRY_RELEASE`, `.railway/railway.ts`) — bez niego
-     * przy zgłoszonym błędzie nie da się powiedzieć, którego kodu dotyczy.
+     * częścią, którą człowiek czyta. Skrót zostaje, bo to on wiąże ekran,
+     * na który ktoś patrzy, z konkretnym commitem — bez niego przy zgłoszonym
+     * błędzie nie da się powiedzieć, którego kodu dotyczy.
      */
     public static function opisWydania(): string
     {

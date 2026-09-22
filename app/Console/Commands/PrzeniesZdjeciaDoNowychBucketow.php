@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Console\Commands;
 
 use App\Models\Media;
+use App\Support\Odmiana;
 use Illuminate\Console\Command;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\Log;
@@ -89,7 +90,13 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
         }
 
         if ($dryRun) {
-            $this->info('Tryb podglądu: '.$doPrzeniesienia->count().' zdjęć czeka na przeniesienie.');
+            // Odmienia się rzeczownik I czasownik: „1 zdjęcie czeka",
+            // „2 zdjęcia czekają", „5 zdjęć czeka".
+            $ile = $doPrzeniesienia->count();
+            $zdjecia = Odmiana::rzeczownik($ile, 'zdjęcie', 'zdjęcia', 'zdjęć');
+            $czeka = Odmiana::rzeczownik($ile, 'czeka', 'czekają', 'czeka');
+
+            $this->info("Tryb podglądu: {$ile} {$zdjecia} {$czeka} na przeniesienie.");
 
             return self::SUCCESS;
         }
@@ -101,7 +108,10 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
         $zostalo = Media::query()->where('disk', $stary)->count();
 
         if ($zostalo > 0) {
-            $this->warn("Zostało {$zostalo} zdjęć. Uruchom komendę ponownie.");
+            $zostaloSlowo = Odmiana::rzeczownik($zostalo, 'Zostało', 'Zostały', 'Zostało');
+            $zdjec = Odmiana::rzeczownik($zostalo, 'zdjęcie', 'zdjęcia', 'zdjęć');
+
+            $this->warn("{$zostaloSlowo} {$zostalo} {$zdjec}. Uruchom komendę ponownie.");
         } else {
             $this->info('Komplet przeniesiony. Publiczność starego bucketu można zdjąć DOPIERO teraz.');
         }

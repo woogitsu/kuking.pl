@@ -45,7 +45,7 @@ class ProfilLicznikObserwujacychZgadzaSieZBlokadaTest extends TestCase
 
         // KONTROLA LICZBOWA: dokładnie 1 (tylko `widoczny4`), nie „mniej niż 2".
         $odpowiedzProfil->assertSee(
-            '<span class="stat-value">1</span><span class="stat-label">obserwujących</span>',
+            '<span class="stat-value">1</span> <span class="stat-label">obserwujący</span>',
             false,
         );
 
@@ -71,7 +71,7 @@ class ProfilLicznikObserwujacychZgadzaSieZBlokadaTest extends TestCase
         $this->get(route('profile.show', ['username' => 'wlascicielka5']))
             ->assertOk()
             ->assertSee(
-                '<span class="stat-value">2</span><span class="stat-label">obserwujących</span>',
+                '<span class="stat-value">2</span> <span class="stat-label">obserwujących</span>',
                 false,
             );
     }

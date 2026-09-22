@@ -76,6 +76,11 @@ class ZglaszajacyDostajeOdpowiedzTest extends TestCase
                 'action' => $akcja,
                 'reason_code' => 'harassment',
                 'user_message' => 'Ukrywamy wpis, bo obraża konkretną osobę.',
+                // Przy „Zawieś konto" termin jest obowiązkowy: brak wyboru
+                // znaczył kiedyś „bezterminowo", czyli najsurowszą karę
+                // przez zaniechanie (`DlugoscZawieszenia`). Przy pozostałych
+                // decyzjach ta wartość jest ignorowana.
+                'suspend_days' => '7',
             ])
             ->assertSessionHasNoErrors();
     }

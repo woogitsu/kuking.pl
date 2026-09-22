@@ -34,4 +34,27 @@ class ProfilePolicy
 
         return app(UserPolicy::class)->viewProfile($user, $profile->user);
     }
+
+    /**
+     * Kto może zmienić TEN profil — dziś: zdjęcie profilowe.
+     *
+     * DLACZEGO REGUŁA JEST TUTAJ, SKORO TRASA NIE MA IDENTYFIKATORA
+     * `/ustawienia/zdjecie` działa zawsze na profilu osoby zalogowanej, więc
+     * w adresie nie ma czego podmienić. To jest jednak własność DZISIEJSZEJ
+     * TRASY, a nie reguła produktu — a AGENTS.md §7 mówi wprost, że każde
+     * wejście na cudzą treść przechodzi przez Policy. Gdy jutro powstanie
+     * druga droga (panel moderacji, konsola, trasa z nazwą użytkownika
+     * w adresie), reguła ma już swoje miejsce i nie zostanie napisana drugi
+     * raz — inaczej niż widoczność zdjęcia, którą audyt W7-02 zastał
+     * przepisaną w siedmiu wariantach.
+     *
+     * Konto zawieszone albo zbanowane celowo NIE jest tu sprawdzane: to jest
+     * bramka `EnsureUserCanPublish` na trasach publikujących, a zdjęcie
+     * profilowe nie jest publikacją. Osoba w trakcie kasowania konta ma prawo
+     * zdjąć swoją twarz ze strony.
+     */
+    public function update(User $user, Profile $profile): bool
+    {
+        return $profile->user_id === $user->getKey();
+    }
 }

@@ -2,7 +2,7 @@
 
 **Zostawiłbym 36 miesięcy dla ograniczonego materiału dowodowego sprawy, ale nie dla całego jej surowego „worka danych”; zwykły dziennik skróciłbym do 12 miesięcy, powiadomienia do 3 miesięcy, a bezterminowe wyjątki usunął.** To proponowana polityka po minimalizacji i udokumentowaniu interesu, nie potwierdzenie legalności obecnego automatu.
 
-Materiały: `05-retencja-36-miesiecy/ZADANIE.md`, cały opis decyzji i tabel w `ADR_RETENCJE.md`, `COMPLIANCE.md`. Przepisy i źródła: [L1–L3] w `../zrodla-prawne.md`.
+Materiały: `05-retencja-36-miesiecy/ZADANIE.md` (brief zadania, poza repozytorium), cały opis decyzji i tabel w `ADR_RETENCJE.md`, `COMPLIANCE.md`. Przepisy i źródła: [L1–L3] w `ZRODLA_PRAWNE_ZEWNETRZNE.md`.
 
 **Rozbieżność stanu:** brief zadania 5 deklaruje uruchomione 36 miesięcy i jedynie rekomendowane 24/24, natomiast nagłówek ADR nadal mówi „PROPOZYCJA, NIC WDROŻONE”; zadanie 3 opisuje wdrożenie oczekujące pierwszego uruchomienia. W tej ocenie przyjmuję deklarację właściciela z zadania 5 jako opis zamierzonego aktualnego stanu, ale nie jako dowód uruchomienia. Przed zmianą polityki trzeba sprawdzić commit, konfigurację oraz wynik rzeczywistego przebiegu.
 

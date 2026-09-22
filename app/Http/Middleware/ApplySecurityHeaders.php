@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Middleware;
 
+use App\Support\AnalitykaCloudflare;
+use App\Support\Turnstile;
 use Closure;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Vite;
@@ -77,6 +79,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ApplySecurityHeaders
 {
+    /** Znacznik na żądaniu: „podpis dla tego żądania już powstał". */
+    private const KLUCZ_PODPISU = 'kuking_csp_nonce';
+
     public function handle(Request $request, Closure $next): Response
     {
         // PODPIS MUSI POWSTAĆ PRZED `$next()`, NIE PO.
@@ -86,9 +91,45 @@ class ApplySecurityHeaders
         // strona zostałaby bez skryptów, bez żadnego błędu w logu. To jest
         // dokładnie ten rodzaj awarii, którego nie widać na oczy, więc
         // pilnuje go osobny test (PolitykaBezpieczenstwaTest).
-        $nonce = Vite::useCspNonce();
+        // JEDEN PODPIS NA ŻĄDANIE — ANI ZERO, ANI DWA.
+        //
+        // Ta klasa stoi w stosie DWA RAZY: raz globalnie (drugi wpis, zaraz
+        // za `NormalizeForwardedFor` — patrz bootstrap/app.php) i raz w
+        // grupie `web`. Gdyby warstwa wewnętrzna generowała własny podpis,
+        // w HTML-u byłby inny ciąg niż w nagłówku warstwy zewnętrznej
+        // i strona zostałaby bez skryptów, bez jednej linijki w logu.
+        //
+        // ZNACZNIK SIEDZI NA `$request`, NIE W `Vite::cspNonce()`, i to jest
+        // POPRAWKA BŁĘDU, nie kosmetyka. Pierwsza wersja tej naprawy czytała
+        // `Vite::cspNonce()` i brała go, gdy już istniał. W `php artisan
+        // serve` (proces na żądanie) wyglądało to poprawnie, ale `Vite` żyje
+        // tak długo jak APLIKACJA: przy długo żyjącym procesie — pakiet
+        // testowy, w przyszłości Octane — ten sam podpis wracałby w KAŻDEJ
+        // kolejnej odpowiedzi. Nonce, który się nie zmienia, jest
+        // `unsafe-inline` napisanym trudniej; pilnuje tego
+        // `PolitykaBezpieczenstwaTest::test_podpis_jest_inny_przy_kazdym_zadaniu`.
+        //
+        // Worek atrybutów `$request` żyje dokładnie jedno żądanie, a Laravel
+        // przepuszcza przez cały potok TEN SAM obiekt żądania — więc obie
+        // warstwy trafiają na ten sam wpis, a następne żądanie zaczyna
+        // z pustym.
+        $nonce = $request->attributes->get(self::KLUCZ_PODPISU);
+
+        if (! is_string($nonce)) {
+            $nonce = Vite::useCspNonce();
+            $request->attributes->set(self::KLUCZ_PODPISU, $nonce);
+        }
 
         $response = $next($request);
+
+        // WARSTWA WEWNĘTRZNA JUŻ TO ZROBIŁA. Na zwykłej stronie odpowiedź
+        // przechodzi przez grupę `web`, więc wywołanie globalne widzi tu
+        // gotowy komplet i nie dokłada nic — żadnego drugiego nagłówka,
+        // żadnego drugiego podpisu. Dalej idzie tylko to, co grupy `web`
+        // nigdy nie zobaczyło: 404 z routera, 419, 429, 413 i 503.
+        if ($response->headers->has('Content-Security-Policy')) {
+            return $response;
+        }
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
@@ -112,6 +153,71 @@ class ApplySecurityHeaders
         // gałęzi nie ma — `public/hot` powstaje wyłącznie lokalnie.
         $vite = $this->zrodlaSerweraVite();
 
+        // Cloudflare Turnstile (D-050). Widget dociąga własne skrypty, rysuje
+        // się w RAMCE i ODZYWA SIĘ Z POWROTEM do Cloudflare, więc potrzebuje
+        // TRZECH dyrektyw naraz: `script-src`, `frame-src` i `connect-src`.
+        // Sam podpis (`nonce`) nie wystarczy — nonce nie przechodzi na
+        // skrypty, które api.js wstawia sam.
+        //
+        // TRZECIA DYREKTYWA KOSZTOWAŁA MARTWE LOGOWANIE HASŁEM (issue #697).
+        // Do 19 września 2026 host szedł tylko do `script-src` i `frame-src`.
+        // Widget rysował się poprawnie, po czym przechodził w „Weryfikacja
+        // negatywna", bo jego wywołanie do
+        // `challenges.cloudflare.com/cdn-cgi/challenge-platform/…` ginęło na
+        // `connect-src`, a w konsoli stawał `TurnstileError 600010`. Formularz
+        // hasła nie dawał się wysłać NIKOMU — polityka idzie z każdą
+        // odpowiedzią. Serwis nie był zamknięty tylko dlatego, że Google,
+        // Facebook i list z odnośnikiem nie przechodzą przez Turnstile.
+        //
+        // To jest DOKŁADNIE ta sama pułapka, którą opisuje akapit o analityce
+        // kilkadziesiąt linii niżej — ten sam plik, drugi host, przeoczona.
+        // Dlatego pilnuje jej teraz test
+        // `tests/Feature/PolitykaCspDopuszczaPowrotTurnstileTest.php`, a nie
+        // komentarz: komentarz stał tu już wtedy i nie zatrzymał niczego.
+        //
+        // DOKŁADAMY TO TYLKO WTEDY, GDY TURNSTILE MA KLUCZE. Bez nich widget
+        // się nie renderuje, więc rozluźnianie polityki nie miałoby czego
+        // obsłużyć — a każdy obcy host w `script-src` to poszerzenie
+        // powierzchni ataku dla XSS-a (issue #12). Polityka opisuje to,
+        // co strona naprawdę ładuje.
+        //
+        // ŚWIADOMIE NIE dokładamy `style-src 'unsafe-inline'`, o którym
+        // wspominają niektóre poradniki: własne style widgetu żyją WEWNĄTRZ
+        // jego ramki, czyli pod polityką Cloudflare, nie naszą. Dodanie
+        // `unsafe-inline` skasowałoby cały efekt issue #107.
+        $turnstile = Turnstile::skonfigurowany() ? ['https://challenges.cloudflare.com'] : [];
+
+        // Analityka Cloudflare Web Analytics (D-092). Ten sam warunek co
+        // przy Turnstile i z tego samego powodu: polityka opisuje to, co
+        // strona NAPRAWDĘ ładuje. Bez `CLOUDFLARE_ANALYTICS_TOKEN` żaden
+        // znacznik nie wychodzi z widoku, więc nie ma czego dopuszczać — a
+        // każdy obcy host w `script-src` to poszerzenie powierzchni ataku dla
+        // XSS-a (issue #12).
+        //
+        // DWIE DYREKTYWY I DWA RÓŻNE HOSTY — TU JEST CAŁA PUŁAPKA.
+        // Zmierzone w `beacon.min.js` (D-092): plik pobiera się z
+        // `static.cloudflareinsights.com`, a zdarzenia lecą przez
+        // `navigator.sendBeacon` na `cloudflareinsights.com/cdn-cgi/rum`,
+        // czyli na host BEZ `static.`. To są dwie różne wartości, nie jedna
+        // powtórzona — przy Plausible, które tu stało wcześniej, oba adresy
+        // były tym samym hostem i jedna linijka obsługiwała obie dyrektywy.
+        //
+        // `script-src` pozwala POBRAĆ plik i na tym koniec. Wysyłka podlega
+        // `connect-src` — która w tej polityce jest wypisana osobno, więc NIE
+        // dziedziczy nic z `default-src 'self'`. Gdyby zabrakło drugiej
+        // linijki albo gdyby wpisano do niej ten sam host co do pierwszej,
+        // skrypt pobrałby się poprawnie i każde zdarzenie ginęłoby na
+        // barierze CSP: strona bez usterki, panel Cloudflare pusty,
+        // w dzienniku serwera ani śladu. Pilnują tego DWA osobne testy —
+        // jeden na dyrektywę, żeby żaden nie zdał za drugiego.
+        //
+        // Podpis (`nonce`) tego nie załatwia: nonce dotyczy znacznika,
+        // a nie połączenia wychodzącego — i tak samo jak przy Turnstile
+        // hosty trzeba wymienić z nazwy.
+        $analitykaWlaczona = AnalitykaCloudflare::wlaczona();
+        $analitykaSkrypt = $analitykaWlaczona ? [AnalitykaCloudflare::hostSkryptu()] : [];
+        $analitykaZdarzenia = $analitykaWlaczona ? [AnalitykaCloudflare::hostZdarzen()] : [];
+
         $wspolne = [
             "default-src 'self'",
             "base-uri 'self'",
@@ -125,9 +231,16 @@ class ApplySecurityHeaders
             "img-src 'self' data: blob: https:",
             "font-src 'self' data:",
             "worker-src 'self'",
-            'connect-src '.implode(' ', ["'self'", ...$vite['connect']]),
-            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host']]),
+            'connect-src '.implode(' ', ["'self'", ...$vite['connect'], ...$turnstile, ...$analitykaZdarzenia]),
+            'script-src '.implode(' ', ["'self'", "'nonce-{$nonce}'", ...$vite['host'], ...$turnstile, ...$analitykaSkrypt]),
         ];
+
+        // `frame-src` pojawia się w polityce WYŁĄCZNIE z Turnstile. Bez niego
+        // ramki dziedziczą `default-src 'self'` — czyli domyślnie nie wolno
+        // wstawiać żadnej obcej, i tak ma zostać.
+        if ($turnstile !== []) {
+            $wspolne[] = 'frame-src '.implode(' ', ["'self'", ...$turnstile]);
+        }
 
         // `style-src` bez `unsafe-inline` — od issue #107 w widokach nie ma
         // ani jednego atrybutu `style=`. Podpis zostaje, bo obejmuje `<style>`

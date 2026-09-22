@@ -70,6 +70,13 @@ class Recipe extends Model
 
     protected $fillable = [
         'author_id',
+        // Tożsamość JEDNEGO wysłania formularza „Opublikuj" — nie treść
+        // i nie stan przepisu. Częściowy indeks UNIQUE
+        // `recipes_one_per_klucz_wyslania` na parze (autor, klucz) sprawia,
+        // że drugie kliknięcie nie zakłada drugiego przepisu (ADR
+        // `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`). Wypełniane tylko
+        // przy ZAKŁADANIU przepisu; edycja tej kolumny nie dotyka.
+        'klucz_wyslania',
         'title',
         'slug',
         'summary',
@@ -395,19 +402,35 @@ class Recipe extends Model
     }
 
     /**
-     * Kto jest prawdziwym autorem przepisu — użytkownik czy osoba, po której
-     * przepis został odziedziczony. To jest jedno z serc produktu: przepis
-     * "po Halinie" ma być podpisany Haliną.
+     * Podpis przepisu: kto go tu zapisał i skąd go ma.
+     *
+     * NIGDY NIE DOKLEJAJ PRZYIMKA ANI SŁOWA NIOSĄCEGO PRZYPADEK DO TEKSTU
+     * WPISANEGO PRZEZ CZŁOWIEKA ANI DO NAZWY KONTA. Polskiej odmiany nie da
+     * się policzyć z dowolnego ciągu znaków, a każda próba kończy się zdaniem,
+     * które wygląda na zepsute oprogramowanie.
+     *
+     * Do 11 września 2026 stało tu `"przepis {$source_person}, spisany przez
+     * {$author}"` i miało dwa błędy odmiany naraz: tekst użytkownika wchodził
+     * w miejsce dopełniacza („przepis Nasze smaki"), a nazwa konta w miejsce
+     * biernika („spisany przez Krzysztof"). Wariant bez źródła był zepsuty tak
+     * samo: „przepis Krzysztof".
+     *
+     * Dlatego obie wartości stoją tu w MIANOWNIKU, w osobnych członach:
+     * nazwa konta jako podpis (tak samo jak w wierszu z awatarem), a wartość
+     * pola po dwukropku — dwukropek zdejmuje wymaganie przypadku i działa
+     * dla „od mamy", „Nasze smaki" i „z gazety Przyjaciółka" jednakowo.
+     * Wartość idzie dosłownie: po dwukropku mała litera jest poprawna,
+     * a zmiana wielkości liter należy do widoku, nie do podpisu.
      */
     public function attributionLine(): string
     {
         $author = $this->author->displayName();
 
         if ($this->source_person !== null && $this->source_person !== '') {
-            return "przepis {$this->source_person}, spisany przez {$author}";
+            return "{$author} · skąd ten przepis: {$this->source_person}";
         }
 
-        return "przepis {$author}";
+        return $author;
     }
 
     public function url(): string

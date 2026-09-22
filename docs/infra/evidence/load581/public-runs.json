@@ -1,0 +1,42 @@
+[
+  {
+    "label": "public-warmup",
+    "exit": 0,
+    "start": 1789495713.6336849,
+    "end": 1789495743.980596,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "public-1",
+    "exit": 0,
+    "start": 1789495773.9807324,
+    "end": 1789495834.3181477,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "public-5",
+    "exit": 0,
+    "start": 1789495864.3182914,
+    "end": 1789495924.6975198,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "public-10",
+    "exit": 0,
+    "start": 1789495954.6976545,
+    "end": 1789496015.0201867,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  },
+  {
+    "label": "public-20",
+    "exit": 0,
+    "start": 1789496045.0203176,
+    "end": 1789496105.4094114,
+    "harness_sha256": "f5cc6370f4d03f775dd364fe30e007df10d3482171efa2c3376fcb722c9d6ada",
+    "harness": "baseline-v1.k6.js"
+  }
+]

@@ -68,7 +68,7 @@ class CommentController extends Controller
         if ($hasReplies) {
             // Nie kasujemy wiersza — jego dzieci (odpowiedzi) by "zawisły"
             // bez rodzica w widoku. Zostawiamy widoczny ślad zamiast tego.
-            $comment->forceFill(['body' => self::DELETED_PLACEHOLDER])->save();
+            $comment->forceFill(['body' => self::DELETED_PLACEHOLDER, 'body_removed_at' => now()])->save();
         } else {
             $comment->delete();
         }

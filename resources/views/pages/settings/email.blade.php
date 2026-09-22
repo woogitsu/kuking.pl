@@ -26,7 +26,7 @@
 
     <x-error-summary />
 
-    <section class="card">
+    <section class="sekcja-strony">
         <h2 class="mt-0">Twój adres</h2>
 
         {{-- Adres w całości i dużym drukiem. Człowiek ma tu zobaczyć własną
@@ -64,11 +64,15 @@
     </section>
 
     @if($oczekujaca)
-        <section class="card mt-8">
+        {{-- SEKCJA, nie ramka. D-048 nazywa zmianę adresu ZMIANĄ STANU KONTA,
+             nie edycją profilu — a ten blok niesie termin ważności odnośnika
+             i przycisk „Anuluj zmianę adresu". Stan konta z terminem i akcją
+             nie jest wyjaśnieniem obok głównej rzeczy. --}}
+        <section class="sekcja-strony mt-8">
             <h2 class="mt-0">Zmiana adresu czeka na potwierdzenie</h2>
 
             <p>
-                Wysłaliśmy list na adres <strong>{{ $oczekujaca->new_email }}</strong>.
+                Wysłaliśmy e-mail na adres <strong>{{ $oczekujaca->new_email }}</strong>.
                 Kliknij w nim odnośnik, a wtedy przeniesiemy konto na ten adres.
             </p>
 
@@ -78,7 +82,7 @@
             </p>
 
             <p class="field-help">
-                Odnośnik z listu działa do {{ \App\Support\Czas::data($oczekujaca->expires_at, 'j F Y, H:i') }}.
+                Odnośnik z e-maila działa do {{ \App\Support\Czas::data($oczekujaca->expires_at, 'j F Y, H:i') }}.
                 Po tym terminie zamówisz zmianę jeszcze raz.
             </p>
 
@@ -90,13 +94,28 @@
             </form>
 
             <p class="field-help mt-3">
-                Po anulowaniu odnośnik z listu przestaje działać, a konto zostaje przy
+                Po anulowaniu odnośnik z e-maila przestaje działać, a konto zostaje przy
                 dotychczasowym adresie.
             </p>
         </section>
     @endif
 
-    <section class="card mt-8">
+    {{-- WARSTWA ZALEŻY OD TEGO, CZY JEST TU CO WYPEŁNIĆ — tak samo jak
+         w `pages/admin/wiadomosc.blade.php`. Gdy poczta nie działa, gałąź
+         `@else` niżej nie ma ani jednego pola ani przycisku, tylko zdanie
+         z adresem kontaktowym. Mocna obwódka obiecywałaby wtedy formularz,
+         którego świadomie nie ma (D-053, zakaz martwego przycisku).
+
+         Dwa inne ekrany rozwiązały to samo inaczej — `auth/forgot-password`
+         i `auth/login-link` trzymają cały panel wewnątrz
+         `@if(Poczta::dziala())`. Tutaj nie da się tak zrobić, bo gałąź
+         zastępcza musi coś powiedzieć: to jedyne miejsce w serwisie,
+         w którym człowiek szuka zmiany adresu. --}}
+    <section @class([
+        'mt-8',
+        'panel-formularza' => $pocztaDziala,
+        'sekcja-strony' => ! $pocztaDziala,
+    ])>
         <h2 class="mt-0">Zmień adres e-mail</h2>
 
         @if($pocztaDziala)
@@ -108,7 +127,7 @@
 
             <p>
                 Na dotychczasowy adres wyślemy od razu wiadomość o tej prośbie. Jeśli
-                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosiłaś/eś o zmianę —
+                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosisz o zmianę —
                 zmień hasło.
             </p>
 
@@ -139,5 +158,9 @@
         @endif
     </section>
 
-    <x-ustawienia-nawigacja aktywne="email" />
+    {{-- Spis „Wszystkie ustawienia" w prawej szynie, nie pod formularzem —
+         uzasadnienie i próg szerokości: components/ustawienia-nawigacja.blade.php. --}}
+    <x-slot:rail>
+        <x-ustawienia-nawigacja aktywne="email" />
+    </x-slot:rail>
 </x-layout>

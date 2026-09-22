@@ -1,0 +1,63 @@
+{
+  "deploymentId": "04d9b308-074a-4fcd-81e0-2b242bc6b2d7",
+  "serviceId": "200d68a6-24b0-46f3-bd7a-924cd00e532e",
+  "environmentId": "ea146c13-dc55-4a4f-a386-0835f650f9ce",
+  "status": "SUCCESS",
+  "deploy": [
+    {
+      "timestamp": "2026-09-20T17:30:48.770351649Z",
+      "severity": "info",
+      "message": "  2026-09-20 17:30:39 Running [kuking:sprawdz-kolejke] {\"message\":\"kuking:sprawdz-kolejke\",\"context\":{\"stan\":\"spokojna\",\"oczekujace\":0,\"zaleglosc_sekundy\":0,\"zawieszone\":0,\"nieudane_w_oknie\":0,\"nieudane_razem\":4,\"prog_zaleglosci_sekundy\":600},\"level\":200,\"level_name\":\"INFO\",\"channel\":\"production\",\"datetime\":\"2026-09-20T17:30:39.508565+00:00\",\"extra\":{}}",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-20T17:45:49.382809009Z",
+      "severity": "info",
+      "message": "  2026-09-20 17:45:41 Running [kuking:sprawdz-kolejke] {\"message\":\"kuking:sprawdz-kolejke\",\"context\":{\"stan\":\"spokojna\",\"oczekujace\":0,\"zaleglosc_sekundy\":0,\"zawieszone\":0,\"nieudane_w_oknie\":0,\"nieudane_razem\":4,\"prog_zaleglosci_sekundy\":600},\"level\":200,\"level_name\":\"INFO\",\"channel\":\"production\",\"datetime\":\"2026-09-20T17:45:41.927400+00:00\",\"extra\":{}}",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-20T18:00:50.425191029Z",
+      "severity": "info",
+      "message": "  2026-09-20 18:00:44 Running [kuking:sprawdz-kolejke] {\"message\":\"kuking:sprawdz-kolejke\",\"context\":{\"stan\":\"spokojna\",\"oczekujace\":0,\"zaleglosc_sekundy\":0,\"zawieszone\":0,\"nieudane_w_oknie\":0,\"nieudane_razem\":4,\"prog_zaleglosci_sekundy\":600},\"level\":200,\"level_name\":\"INFO\",\"channel\":\"production\",\"datetime\":\"2026-09-20T18:00:44.264493+00:00\",\"extra\":{}}",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-20T18:15:51.377052092Z",
+      "severity": "info",
+      "message": "  2026-09-20 18:15:46 Running [kuking:sprawdz-kolejke] {\"message\":\"kuking:sprawdz-kolejke\",\"context\":{\"stan\":\"spokojna\",\"oczekujace\":0,\"zaleglosc_sekundy\":0,\"zawieszone\":0,\"nieudane_w_oknie\":0,\"nieudane_razem\":4,\"prog_zaleglosci_sekundy\":600},\"level\":200,\"level_name\":\"INFO\",\"channel\":\"production\",\"datetime\":\"2026-09-20T18:15:46.715302+00:00\",\"extra\":{}}",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-20T18:30:58.401858987Z",
+      "severity": "info",
+      "message": "  2026-09-20 18:30:49 Running [kuking:sprawdz-kolejke] {\"message\":\"kuking:sprawdz-kolejke\",\"context\":{\"stan\":\"spokojna\",\"oczekujace\":0,\"zaleglosc_sekundy\":0,\"zawieszone\":0,\"nieudane_w_oknie\":0,\"nieudane_razem\":4,\"prog_zaleglosci_sekundy\":600},\"level\":200,\"level_name\":\"INFO\",\"channel\":\"production\",\"datetime\":\"2026-09-20T18:30:49.083390+00:00\",\"extra\":{}}",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    }
+  ]
+}

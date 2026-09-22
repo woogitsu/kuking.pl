@@ -1,9 +1,35 @@
 <x-layout title="Zaloguj się" :noindex="true">
+    <x-marka-wejscie opis="Twoja kuchnia, przepisy i ludzie, którzy naprawdę gotują.">
     <h1>Zaloguj się</h1>
+
+    {{--
+        WEJŚCIE KONTEM GOOGLE (issue #258, D-069) — TRZECIA droga, dodatkowa.
+
+        Stoi POD hasłem i NAD linkiem e-mail, a nie na dole strony: dla osób,
+        które przyjdą z kampanii na Facebooku z telefonu z Androidem, to jest
+        najkrótsza droga, jaka istnieje (konto Google jest tam już
+        zalogowane). Nie stoi jednak PIERWSZA, bo część naszych ludzi ma
+        adresy `@wp.pl` i `@o2.pl`, gdzie konta Google nie ma — i dla nich
+        pierwszą rzeczą na ekranie ma zostać to, co znają.
+
+        Cały blok znika, gdy nie działa ŻADEN dostawca, a przycisk pojedynczego
+        dostawcy znika razem z jego kluczami — patrz komponent. Martwego
+        przycisku nie zostawiamy nigdzie (D-053).
+
+        RZĄD DOSTAWCÓW, NIE JEDEN PRZYCISK (issue #259): od 11.09 stoją tu
+        Google i Facebook obok siebie — prośba właściciela, bo „większość ma
+        fb i google". Kolejność i uzasadnienie: `x-wejscia-zewnetrzne`.
+    --}}
+    <x-wejscia-zewnetrzne />
+
+    {{-- NAD FORMULARZEM, NIE POD NIM — zgłoszenie właściciela z 11.09.
+         Pod formularzem ten rząd widziała tylko osoba, która i tak wpisała
+         już hasło. Człowiek, dla którego to wejście powstało, odbijał się
+         wcześniej. --}}
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('login') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('login') }}">
         @csrf
 
         <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required
@@ -12,11 +38,48 @@
 
         <x-field name="password" label="Hasło" type="password" required autocomplete="current-password" />
 
+        <x-turnstile miejsce="logowanie" />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Zaloguj się</button>
             <a class="btn btn-quiet" href="{{ route('password.request') }}">Nie pamiętam hasła</a>
         </div>
     </form>
+
+
+    {{--
+        DRUGA, RÓWNORZĘDNA DROGA WEJŚCIA — LOGOWANIE LINKIEM (issue #25, D-056).
+
+        Stoi TU, zaraz pod formularzem hasła, a nie pod „innymi opcjami"
+        i nie na dole strony. To jest wymóg z issue: dla dużej części naszych
+        ludzi (`docs/research/AUDIENCE_50_PLUS.md` — 12,3% osób 65-74 ma
+        podstawowe umiejętności cyfrowe) hasło jest murem, a link jest drogą
+        PODSTAWOWĄ. Schowana droga podstawowa przestaje być drogą.
+
+        Cały blok znika, gdy `KUKING_LOGOWANIE_LINKIEM=false` — to jest
+        wycofanie funkcji bez wdrażania migracji. Martwego przycisku nie
+        zostawiamy nigdzie (D-053): jak nie ma drogi, nie ma i wejścia do niej.
+    --}}
+    @if(config('kuking.login_link.wlaczone'))
+        {{-- SEKCJA, NIE RAMKA POMOCNICZA. Ramka jest wgłębiona i tym samym
+             mówi „to jest obok głównej rzeczy" — a D-056 rozstrzyga, że
+             logowanie linkiem jest drogą RÓWNORZĘDNĄ z hasłem, dla części
+             naszych ludzi podstawową. Wgłębienie byłoby cofnięciem tamtej
+             decyzji w warstwie wizualnej. Sekcja ma własne tło i obwódkę,
+             więc dalej odróżnia się od panelu z polami — traci tylko cień,
+             bo nie jest tym, co się na tym ekranie WYPEŁNIA. --}}
+        <div class="sekcja-strony mt-6">
+            <h2>Nie pamiętasz hasła? Nie musisz go wpisywać</h2>
+            <p>
+                Wyślemy Ci wiadomość z linkiem. Otwórz go, a na stronie kliknij „Zaloguj mnie”.
+                Przy potwierdzonym adresie hasło zostaje bez zmian.
+                Jeśli adres konta nie był potwierdzony, wiadomość poprosi najpierw o ustawienie hasła.
+            </p>
+            <p class="form-actions">
+                <a class="btn btn-secondary" href="{{ route('login.link') }}">Wyślij mi link do zalogowania</a>
+            </p>
+        </div>
+    @endif
 
     <p class="mt-6">Nie masz konta? <a href="{{ route('register') }}">Załóż konto</a>.</p>
 
@@ -31,4 +94,5 @@
     --}}
     <p>Twoje konto zostało zablokowane albo zawieszone i uważasz, że to pomyłka?
         <a href="{{ route('appeals.guest') }}">Złóż odwołanie</a>.</p>
+    </x-marka-wejscie>
 </x-layout>

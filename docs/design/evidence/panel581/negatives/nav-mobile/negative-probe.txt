@@ -1,0 +1,2 @@
+P581_ROZCIETE_SLOWO_NAWIGACJI [{"etykieta":"Bez odpowiedzi","slowo":"odpowiedzi"},{"etykieta":"Wiadomości do nas","slowo":"Wiadomości"}]
+P581_ROZCIETE_SLOWO_NAWIGACJI [{"etykieta":"Bez odpowiedzi","slowo":"odpowiedzi"},{"etykieta":"Wiadomości do nas","slowo":"Wiadomości"}]

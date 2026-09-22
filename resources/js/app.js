@@ -13,13 +13,17 @@
 
 // --- Service worker (PWA) -------------------------------------------------
 
-if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-        navigator.serviceWorker.register('/sw.js').catch(() => {
-            // Brak service workera nie może niczego zepsuć — aplikacja działa dalej.
-        });
-    });
-}
+import './service-worker.js';
+import './pwa-install.js';
+import './landing-wpisy.js';
+import './pasek-przewijany.js';
+import './szybki-wyglad.js';
+import './panel-tabela.js';
+import './panel-menu.js';
+import './tagi-w-opisie.js';
+import './licznik-znakow.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
+import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
 
@@ -47,6 +51,29 @@ function kotwicaPodPolem(input) {
 }
 
 /*
+ * ZWALNIANIE `object URL` PODGLĄDU (issue #742).
+ *
+ * `URL.createObjectURL(plik)` rezerwuje adres, który żyje aż do
+ * `URL.revokeObjectURL()` albo zamknięcia dokumentu — cokolwiek nastąpi
+ * pierwsze. Miniatura zwalniała go WYŁĄCZNIE po zdarzeniu `load`: obraz
+ * z poprawnym nagłówkiem MIME, którego przeglądarka nie potrafi
+ * zdekodować, kończy się `error`, dla którego nie było sprzątania —
+ * i kolejny wybór albo wyczyszczenie pola (`pojemnik.replaceChildren()`
+ * niżej) usuwał dzieci z DOM-u, ale nie zwalniał ich adresów.
+ *
+ * Jedna funkcja, wywoływana PRZED każdym `replaceChildren()`, żeby żaden
+ * z dwóch miejsc czyszczących ten kontener nie mógł o tym zapomnieć osobno.
+ * Revoke na już zwolnionym albo nieistniejącym blobie jest w przeglądarce
+ * bezpiecznym no-opem — nie trzeba pilnować, czy `load`/`error` już się
+ * zdążyło odpalić.
+ */
+function zwolnijPodgladObjectUrls(pojemnik) {
+    for (const img of pojemnik.querySelectorAll('img.podglad-wyboru-zdjecie')) {
+        URL.revokeObjectURL(img.src);
+    }
+}
+
+/*
  * Po wybraniu pliku pokazujemy miniaturę i nazwę. Bez tego użytkownik nie ma
  * żadnego potwierdzenia, że zdjęcie zostało wybrane — a to jest najczęstszy
  * moment porzucenia formularza „dodaj zdjęcie”.
@@ -64,14 +91,12 @@ document.addEventListener('change', (event) => {
     if (! pojemnik) {
         pojemnik = document.createElement('div');
         pojemnik.id = pojemnikId;
+        pojemnik.className = 'podglad-wyboru';
         pojemnik.setAttribute('aria-live', 'polite');
-        pojemnik.style.marginTop = '12px';
-        pojemnik.style.display = 'grid';
-        pojemnik.style.gap = '8px';
-        pojemnik.style.gridTemplateColumns = 'repeat(auto-fill, minmax(120px, 1fr))';
         kotwicaPodPolem(input).insertAdjacentElement('afterend', pojemnik);
     }
 
+    zwolnijPodgladObjectUrls(pojemnik);
     pojemnik.replaceChildren();
 
     const pliki = Array.from(input.files ?? []);
@@ -80,10 +105,23 @@ document.addEventListener('change', (event) => {
         return;
     }
 
+    /*
+     * LICZBA ZDJĘĆ STERUJE UKŁADEM Z ARKUSZA, nie stylami wpisywanymi tutaj.
+     *
+     * Dopóki siatka była ustawiana w skrypcie na `repeat(auto-fill,
+     * minmax(120px, 1fr))`, JEDNO wybrane zdjęcie dostawało jedną kolumnę
+     * z dwóch — ZMIERZONE: 150 px z 390 px okna. Człowiek, który właśnie
+     * wybrał zdjęcie swojego obiadu, widział znaczek mniejszy niż połowa
+     * ekranu. To ta sama usterka, którą właściciel zgłosił przy bloku
+     * zastępczym w kolażu (#432), tylko o jeden ekran wcześniej.
+     *
+     * Wartości idą teraz z `ekran-dodawania.css`, przez `[data-ile]` — czyli
+     * z jednego miejsca, w którym odstępy i promienie są tokenami.
+     */
+    pojemnik.dataset.ile = String(pliki.length);
+
     const info = document.createElement('p');
-    info.style.gridColumn = '1 / -1';
-    info.style.margin = '0';
-    info.style.fontWeight = '700';
+    info.className = 'podglad-wyboru-info';
     info.textContent = pliki.length === 1
         ? 'Wybrano 1 zdjęcie.'
         : `Wybrano ${pliki.length} zdjęcia.`;
@@ -96,11 +134,13 @@ document.addEventListener('change', (event) => {
 
         const img = document.createElement('img');
         img.alt = '';
-        img.style.width = '100%';
-        img.style.height = 'auto';
-        img.style.borderRadius = '12px';
+        img.className = 'podglad-wyboru-zdjecie';
         img.src = URL.createObjectURL(plik);
+        // `error`, NIE TYLKO `load` — plik z nagłówkiem image/jpeg, którego
+        // treść jest uszkodzona, nie ładuje się nigdy, a adres bez tego
+        // zostawałby zarezerwowany aż do zamknięcia dokumentu.
         img.addEventListener('load', () => URL.revokeObjectURL(img.src), { once: true });
+        img.addEventListener('error', () => URL.revokeObjectURL(img.src), { once: true });
         pojemnik.appendChild(img);
     }
 });
@@ -148,8 +188,16 @@ window.addEventListener('livewire-upload-error', (zdarzenie) => {
     pole.textContent = komunikat;
 
     // Podgląd miniatury dorysowany przy wyborze pliku kłamałby: zdjęcia
-    // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu.
-    document.getElementById(`${input.id}-podglad`)?.replaceChildren();
+    // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu — i zwalniamy
+    // jego object URL, z tego samego powodu co przy zwykłym polu plików
+    // wyżej (issue #742): usunięcie z DOM-u samo z siebie niczego nie
+    // zwalnia.
+    const pojemnikBladu = document.getElementById(`${input.id}-podglad`);
+
+    if (pojemnikBladu) {
+        zwolnijPodgladObjectUrls(pojemnikBladu);
+        pojemnikBladu.replaceChildren();
+    }
 });
 
 // Kolejna udana wysyłka sprząta po poprzednim błędzie — inaczej czerwony
@@ -199,6 +247,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const obraz = okno.querySelector('.lightbox-obraz');
+    const status = okno.querySelector('.lightbox-status');
+    const ponowPrzycisk = okno.querySelector('.lightbox-ponow');
+
+    /*
+     * ADRES, O KTÓRY WŁAŚNIE „WALCZYMY" (issue #743).
+     *
+     * Zawsze wartość PO przypisaniu do `obraz.src` — przeglądarka rozwija ją
+     * do pełnego adresu, więc porównanie `obraz.src === biezacyAdres` w
+     * handlerach `load`/`error` działa niezależnie od tego, czy link miał
+     * adres względny czy bezwzględny.
+     *
+     * PO CO TO W OGÓLE: jedno `<img>` obsługuje KAŻDE kolejne otwarte
+     * zdjęcie. Błąd albo dokończone wczytanie poprzedniego żądania, które
+     * dojdzie z opóźnieniem PO otwarciu następnego zdjęcia (albo po
+     * zamknięciu i ponownym otwarciu tego samego), nie może nadpisać stanu
+     * zdjęcia, które człowiek widzi teraz — dlatego każdy handler sprawdza
+     * `obraz.src === biezacyAdres`, zanim cokolwiek zmieni.
+     */
+    let biezacyAdres = null;
+
+    function pokazWczytywanie() {
+        obraz.hidden = true;
+        ponowPrzycisk.hidden = true;
+        status.hidden = false;
+        status.textContent = 'Wczytywanie zdjęcia…';
+    }
+
+    function pokazBlad() {
+        obraz.hidden = true;
+        status.hidden = false;
+        status.textContent = 'Nie udało się wczytać zdjęcia. Spróbuj ponownie.';
+        ponowPrzycisk.hidden = false;
+    }
+
+    function pokazGotowe() {
+        obraz.hidden = false;
+        ponowPrzycisk.hidden = true;
+        status.hidden = true;
+        status.textContent = '';
+    }
 
     document.addEventListener('click', (zdarzenie) => {
         const link = zdarzenie.target.closest('a[data-powieksz]');
@@ -217,10 +305,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
         zdarzenie.preventDefault();
 
-        obraz.src = link.getAttribute('href');
+        pokazWczytywanie();
         obraz.alt = link.dataset.alt || '';
+        obraz.src = link.getAttribute('href');
+        biezacyAdres = obraz.src;
 
         okno.showModal();
+    });
+
+    obraz.addEventListener('load', () => {
+        if (obraz.src !== biezacyAdres) {
+            return;
+        }
+
+        pokazGotowe();
+    });
+
+    obraz.addEventListener('error', () => {
+        // `obraz.src` startuje pusty w HTML źródłowym — samo usunięcie
+        // atrybutu przy zamknięciu (niżej) też potrafi odpalić `error`
+        // w niektórych przeglądarkach. Bez `biezacyAdres` nie ma czego
+        // pokazywać: dialog jest wtedy i tak zamknięty.
+        if (!biezacyAdres || obraz.src !== biezacyAdres) {
+            return;
+        }
+
+        pokazBlad();
+    });
+
+    ponowPrzycisk.addEventListener('click', () => {
+        if (!biezacyAdres) {
+            return;
+        }
+
+        // Ponowienie ma WYKONAĆ PRÓBĘ FAKTYCZNIE, nie tylko pokazać
+        // wczytywanie: samo przypisanie tego samego `src` przeglądarka
+        // czasem traktuje jako no-op i nie wysyła nowego żądania. Doklejony
+        // znacznik czasu wymusza prawdziwe kolejne pobranie za każdym razem.
+        const bazowyAdres = biezacyAdres.split('#')[0].split('?')[0];
+        const laczik = bazowyAdres.includes('?') ? '&' : '?';
+
+        pokazWczytywanie();
+        obraz.src = bazowyAdres + laczik + '_ponow=' + Date.now();
+        biezacyAdres = obraz.src;
     });
 
     // Kliknięcie w tło zamyka. To jest DODATEK do przycisku „Zamknij”,
@@ -235,8 +362,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Po zamknięciu zwalniamy zdjęcie z pamięci. Przy przeglądaniu feedu
     // z wieloma dużymi zdjęciami inaczej zostają wszystkie naraz.
     okno.addEventListener('close', () => {
+        // Zdarzenie close jest kolejkowane. Jeśli w tym czasie otwarto
+        // następne zdjęcie, poprzednie zamknięcie nie może go wyczyścić.
+        if (okno.open) {
+            return;
+        }
+
+        biezacyAdres = null;
         obraz.removeAttribute('src');
         obraz.alt = '';
+        pokazGotowe();
     });
 })();
 
@@ -261,91 +396,114 @@ document.addEventListener('DOMContentLoaded', () => {
 
     kontener.hidden = false;
 
-    let blokada = null;
+    // Stan blokady (issue #739: zerowanie po automatycznym zwolnieniu)
+    // mieszka w ./wake-lock-gotowania.js, osobno testowalnym module bez
+    // DOM-u i bez prawdziwego navigator.wakeLock. Tu zostaje wyłącznie
+    // okablowanie DOM-u i treść komunikatów.
+    const kontroler = utworzKontrolerWakeLock(
+        () => navigator.wakeLock.request('screen'),
+        (aktywna) => {
+            if (aktywna) {
+                // Jawny komunikat, że tak się dzieje — issue wymaga tego
+                // wprost, nie samego działającego przełącznika bez
+                // wyjaśnienia.
+                status.textContent = 'Ekran nie zgaśnie, dopóki jesteś na tej stronie.';
 
-    const wlacz = async () => {
-        try {
-            blokada = await navigator.wakeLock.request('screen');
+                return;
+            }
 
-            // Jawny komunikat, że tak się dzieje — issue wymaga tego wprost,
-            // nie samego działającego przełącznika bez wyjaśnienia.
-            status.textContent = 'Ekran nie zgaśnie, dopóki jesteś na tej stronie.';
+            // Zdarzenie „nieaktywna” ma dwa różne powody, więc dwa różne
+            // teksty: zwykłe wyłączenie przełącznikiem milczy (checkbox
+            // sam pokazuje swój stan), a zwolnienie, którego człowiek NIE
+            // zażądał (automatyczne albo odmowa API), mówi prawdę
+            // o TERAŹNIEJSZYM stanie ekranu, żeby nikt nie wrócił do
+            // kuchni ufając zgaszonemu ekranowi mimo zaznaczonego
+            // przełącznika.
+            status.textContent = checkbox.checked
+                ? 'Ekran może teraz zgasnąć — ta karta była przez chwilę w tle.'
+                : '';
 
-            blokada.addEventListener('release', () => {
-                // Przeglądarka sama zwalnia blokadę (np. zmiana karty) —
-                // komunikat ma mówić prawdę o TERAZNIEJSZYM stanie, żeby
-                // nikt nie wrócił do kuchni ufając zgaszonemu ekranowi.
-                status.textContent = checkbox.checked
-                    ? 'Ekran może teraz zgasnąć — ta karta była przez chwilę w tle.'
-                    : '';
-            });
-        } catch {
-            // Np. system oszczędza baterię i odmawia blokady. Cicho
-            // odznaczamy checkbox zamiast straszyć komunikatem o czymś,
-            // na co nie ma wpływu z tego miejsca.
+            if (!checkbox.checked) {
+                return;
+            }
+
+            // Awaria `request()` (np. oszczędzanie baterii): przełącznik
+            // wygląda na zaznaczony, ale blokady nie ma — odznaczamy go,
+            // żeby stan na ekranie mówił prawdę.
             checkbox.checked = false;
             status.textContent = 'Nie udało się wyłączyć usypiania ekranu w tej przeglądarce.';
-        }
-    };
-
-    const wylacz = () => {
-        blokada?.release();
-        blokada = null;
-        status.textContent = '';
-    };
+        },
+    );
 
     // Możliwość wyłączenia (issue) — ten sam checkbox włącza i wyłącza.
     checkbox.addEventListener('change', () => {
         if (checkbox.checked) {
-            wlacz();
+            kontroler.wlacz();
         } else {
-            wylacz();
+            kontroler.wylacz();
         }
     });
 
-    // Powrót z tła: przeglądarka zdążyła zwolnić blokadę, ale checkbox
-    // wciąż jest zaznaczony — odzyskujemy ją automatycznie, żeby nie trzeba
-    // było odznaczać i zaznaczać ręcznie po każdym zerknięciu w inną kartę.
+    /*
+     * POWRÓT Z TŁA (issue #739). Przeglądarka zdążyła zwolnić blokadę
+     * automatycznie (np. zmiana karty), ale checkbox wciąż jest
+     * zaznaczony — odzyskujemy ją, żeby nie trzeba było odznaczać
+     * i zaznaczać ręcznie po każdym zerknięciu w inną kartę.
+     *
+     * `kontroler.jestAktywna()` MUSI wrócić do `false` po automatycznym
+     * zwolnieniu, żeby ten warunek kiedykolwiek był prawdziwy — to
+     * dokładnie ta własność, której brakowało przed poprawką (stara
+     * zmienna nigdy nie wracała do `null` po zdarzeniu `release`, więc to
+     * odzyskanie nigdy się nie uruchamiało).
+     */
     document.addEventListener('visibilitychange', () => {
-        if (document.visibilityState === 'visible' && checkbox.checked && blokada === null) {
-            wlacz();
+        if (document.visibilityState === 'visible' && checkbox.checked && !kontroler.jestAktywna()) {
+            kontroler.wlacz();
         }
     });
 })();
 
-// --- Tryb gotowania: minutniki przy krokach (issue #24) --------------------
+// --- Tryb gotowania: minutniki przy krokach (issue #24, #751, #740, #755) --
 
 /*
- * Baza bez JS to samo zdanie w Blade („ustaw sobie kuchenny minutnik na…”).
- * To tutaj jest DOKŁADKA: licznik w tej samej karcie, z dźwiękiem i wibracją
- * na koniec, żeby nie trzeba było sięgać po osobny minutnik.
+ * Baza bez JS to samo zdanie w Blade (ustaw sobie kuchenny minutnik na...).
+ * To tutaj jest DOKLADKA: licznik w tej samej karcie, z dzwiekiem i wibracja
+ * na koniec, zeby nie trzeba bylo siegac po osobny minutnik.
+ *
+ * Cala arytmetyka (zegar monotoniczny -- issue #751; zapis/odczyt stanu
+ * w sessionStorage na przetrwanie przeladowania -- issue #740) mieszka
+ * w ./minutnik-krok.js, osobno testowalnym module bez DOM-u. Tu zostaje
+ * wylacznie okablowanie DOM-u.
  */
 document.querySelectorAll('.cook-timer').forEach((blok) => {
     const przycisk = blok.querySelector('.cook-timer-start');
+    const anuluj = blok.querySelector('.cook-timer-anuluj');
     const odliczanie = blok.querySelector('.cook-timer-odliczanie');
     const komunikat = blok.querySelector('.cook-timer-komunikat');
     const etykieta = blok.dataset.timerEtykieta ?? '';
     const sekundyCalkiem = parseInt(blok.dataset.timerSekundy ?? '', 10);
+    const recipeSlug = blok.dataset.timerRecipe ?? '';
+    const krok = blok.dataset.timerKrok ?? '';
 
-    if (!przycisk || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
+    if (!przycisk || !anuluj || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
         return;
     }
 
-    przycisk.hidden = false;
+    const klucz = kluczStanu(recipeSlug, krok);
 
-    let pozostalo = sekundyCalkiem;
+    // Callback moze wrocic z opoznieniem po usnieciu karty. Liczymy czas do
+    // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
+    // wywolanie setInterval oznacza dokladnie jedna sekunde.
     let interwal = null;
 
     const pokaz = (sekundy) => {
-        const minuty = Math.floor(sekundy / 60);
-        const reszta = sekundy % 60;
-        odliczanie.textContent = `${minuty}:${String(reszta).padStart(2, '0')}`;
+        odliczanie.textContent = formatMinutySekundy(sekundy);
     };
 
     /*
-     * Krótki sygnał przez Web Audio API zamiast pliku dźwiękowego — ten
-     * artefakt musi działać bez dodatkowego zasobu do pobrania, a „beep”
-     * z oscylatora kosztuje zero bajtów transferu.
+     * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
+     * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
+     * z oscylatora kosztuje zero bajtow transferu.
      */
     const zagraj = () => {
         try {
@@ -362,28 +520,26 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
             oscylator.stop(kontekst.currentTime + 0.6);
             oscylator.addEventListener('ended', () => kontekst.close());
         } catch {
-            // Brak dźwięku nie może wywalić reszty minutnika — wibracja
-            // i komunikat tekstowy niżej działają od niego niezależnie.
+            // Brak dzwieku nie moze wywalic reszty minutnika -- wibracja
+            // i komunikat tekstowy nizej dzialaja od niego niezaleznie.
         }
     };
 
-    przycisk.addEventListener('click', () => {
-        if (interwal !== null) {
-            return;
-        }
+    const zatrzymajOdliczanie = () => {
+        window.clearInterval(interwal);
+        interwal = null;
+        sessionStorage.removeItem(klucz);
+    };
 
-        przycisk.disabled = true;
-        odliczanie.hidden = false;
-        pokaz(pozostalo);
-        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+    const uruchomOdliczanie = (terminMonotoniczny) => {
+        pokaz(pozostaloSekund(terminMonotoniczny, performance.now()));
 
         interwal = window.setInterval(() => {
-            pozostalo -= 1;
-            pokaz(Math.max(pozostalo, 0));
+            const pozostalo = pozostaloSekund(terminMonotoniczny, performance.now());
+            pokaz(pozostalo);
 
             if (pozostalo <= 0) {
-                window.clearInterval(interwal);
-                interwal = null;
+                zatrzymajOdliczanie();
                 zagraj();
 
                 if ('vibrate' in navigator) {
@@ -392,11 +548,68 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
                 komunikat.textContent = 'Czas minął!';
                 przycisk.textContent = 'Uruchom minutnik jeszcze raz';
+                przycisk.hidden = false;
                 przycisk.disabled = false;
-                pozostalo = sekundyCalkiem;
+                anuluj.hidden = true;
             }
         }, 1000);
+    };
+
+    przycisk.addEventListener('click', () => {
+        if (interwal !== null) {
+            return;
+        }
+
+        przycisk.hidden = true;
+        anuluj.hidden = false;
+        odliczanie.hidden = false;
+        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+
+        const terminMonotoniczny = performance.now() + sekundyCalkiem * 1000;
+        // Zapis PRZED startem -- zeby nawigacja albo oznaczenie kroku
+        // (oba przeladowuja strone -- issue #740) mialy co odczytac,
+        // nawet jesli czlowiek kliknął "Nastepny krok" sekunde po starcie.
+        sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000));
+        uruchomOdliczanie(terminMonotoniczny);
     });
+
+    // Swiadome anulowanie (issue #755) -- ten sam odliczany krok da sie
+    // zatrzymac, zamiast czekac na dzwiek albo opuszczac tryb gotowania.
+    anuluj.addEventListener('click', () => {
+        if (interwal === null) {
+            return;
+        }
+
+        zatrzymajOdliczanie();
+        odliczanie.hidden = true;
+        anuluj.hidden = true;
+        przycisk.hidden = false;
+        przycisk.disabled = false;
+        przycisk.textContent = 'Uruchom minutnik w tej przeglądarce';
+        komunikat.textContent = 'Minutnik anulowany.';
+    });
+
+    /*
+     * PRZETRWANIE PRZELADOWANIA (issue #740). Nawigacja "Poprzedni/
+     * Nastepny krok" i oznaczenie kroku jako zrobiony to pelne
+     * przeladowania strony (patrz CookingModeController -- pierwsze to
+     * GET, drugie to POST z przekierowaniem). Oba zeruja caly stan
+     * JavaScriptu, laczenie z performance.now(). Jesli w sessionStorage
+     * czeka nieprzeterminowany termin TEGO kroku, wracamy do odliczania
+     * od razu, zamiast pokazywac przycisk startowy, jakby minutnik
+     * nigdy nie ruszyl.
+     */
+    const zapisanyStan = odczytajStan(sessionStorage.getItem(klucz), Date.now(), performance.now());
+
+    if (zapisanyStan) {
+        przycisk.hidden = true;
+        anuluj.hidden = false;
+        odliczanie.hidden = false;
+        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+        uruchomOdliczanie(zapisanyStan.terminMonotoniczny);
+    } else {
+        przycisk.hidden = false;
+    }
 });
 // --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------
 
@@ -559,3 +772,216 @@ for (const blok of document.querySelectorAll('[data-podziel-sie]')) {
         });
     }
 }
+
+/* ==========================================================================
+   BŁĄD FORMULARZA MA BYĆ WIDOCZNY OD RAZU — bez szukania go wzrokiem.
+   ==========================================================================
+
+   ZDARZENIE, KTÓRE TO WYWOŁAŁO (10 września 2026)
+   63-letnia osoba wypełniała rejestrację na komputerze. Formularz odbił jej
+   nazwę użytkownika. Podsumowanie błędów stoi na górze formularza — ale ona
+   po wysłaniu została w tym samym miejscu, w którym kliknęła przycisk, czyli
+   na dole. Nie zobaczyła ani podsumowania, ani czerwonego tekstu przy polu
+   wyżej; zobaczyła dwa duże czerwone pudła obok siebie (zaznaczone zgody)
+   i uznała, że problem jest tam.
+
+   DWIE RZECZY, KTÓRE TU ROBIMY:
+   1. po wysłaniu z błędem przewijamy do podsumowania i ustawiamy na nim
+      fokus — czytnik ekranu przeczyta je od razu (`role="alert"`,
+      `tabindex="-1"` są już w komponencie);
+   2. zaznaczenie wyboru NATYCHMIAST zdejmuje z niego czerwień i chowa
+      komunikat — bez tego człowiek poprawia błąd i nadal widzi czerwone
+      pudło, dopóki nie wyśle formularza jeszcze raz.
+
+   JavaScript jest tu dodatkiem, nie warunkiem: bez niego podsumowanie stoi
+   na górze, a przy przycisku „Załóż konto" jest zdanie mówiące, że coś
+   zostało do poprawienia (AGENTS.md §5 pkt 3 — żadnego martwego przycisku).
+   Przewijanie szanuje `prefers-reduced-motion`.
+   ========================================================================== */
+(function bledyFormularzaWidoczne() {
+    const podsumowanie = document.querySelector('.error-summary');
+
+    if (podsumowanie) {
+        const bezRuchu = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+        podsumowanie.scrollIntoView({ behavior: bezRuchu ? 'auto' : 'smooth', block: 'center' });
+
+        // Fokus PO przewinięciu: `focus()` sam przewija skokowo, a przy
+        // `block: 'center'` chcemy, żeby człowiek zobaczył też to, co jest
+        // nad podsumowaniem — czyli że jest na górze formularza.
+        window.setTimeout(() => podsumowanie.focus({ preventScroll: true }), bezRuchu ? 0 : 400);
+    }
+
+    document.querySelectorAll('.field.has-error .choice input[type="checkbox"]').forEach((pole) => {
+        pole.addEventListener('change', () => {
+            if (!pole.checked) {
+                return;
+            }
+
+            const grupa = pole.closest('.field');
+
+            if (grupa === null) {
+                return;
+            }
+
+            grupa.classList.remove('has-error');
+            grupa.querySelectorAll('.field-error').forEach((komunikat) => {
+                komunikat.hidden = true;
+            });
+        });
+    });
+})();
+
+/* ==========================================================================
+   NAZWA KONTA PODPOWIADANA Z IMIENIA — decyzja właściciela z 10 września.
+   ==========================================================================
+
+   DLACZEGO DWA POLA ZOSTAJĄ
+   Zewnętrzny audyt 60+ wskazał, że rejestracja każe wymyślić dwa podobne
+   pojęcia naraz: imię widoczne dla innych i nazwę, która trafia do adresu
+   profilu. Właściciel rozstrzygnął, żeby oba pola zostały — adres profilu ma
+   być świadomym wyborem, a nie czymś, co człowiek odkrywa po fakcie — ale
+   żeby nazwa była PODPOWIADANA z imienia i dała się nadpisać.
+
+   AUTORYTETEM JEST PHP, NIE TEN KOD
+   Prawdziwą normalizację robi `App\Support\NazwaUzytkownika::znormalizuj()`
+   przy wysłaniu formularza. Tutaj jest tylko podpowiedź w polu, więc
+   rozjazd między tą transliteracją a tamtą jest NIESZKODLIWY: serwer i tak
+   ułoży nazwę po swojemu. Dlatego świadomie nie przepisuję tu całej tablicy
+   znaków — to byłoby drugie źródło prawdy, które rozjedzie się przy pierwszej
+   zmianie reguły.
+
+   PRZESTAJEMY PODPOWIADAĆ, GDY CZŁOWIEK RUSZY POLE SAM. Nadpisywanie tego,
+   co ktoś wpisał ręcznie, jest gorsze niż brak podpowiedzi — a przy 65-latce
+   wyglądałoby jak usterka („kasuje mi to, co piszę").
+
+   Bez JavaScriptu nic się nie psuje: pole zostaje puste, a wpisany w nie
+   dowolny zapis („Basia z Podkarpacia") i tak przechodzi, bo serwer wybacza.
+   ========================================================================== */
+(function podpowiedzNazweKonta() {
+    const imie = document.getElementById('f-display_name');
+    const nazwa = document.getElementById('f-username');
+
+    if (imie === null || nazwa === null) {
+        return;
+    }
+
+    // Formularz przyszedł z błędem i pole jest już wypełnione? Nie ruszamy —
+    // to jest albo wybór człowieka, albo wartość znormalizowana przez serwer.
+    let wlasnyWybor = nazwa.value.trim() !== '';
+
+    nazwa.addEventListener('input', () => {
+        wlasnyWybor = true;
+    });
+
+    const zImienia = (tekst) => tekst
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '')      // ą→a, ć→c, ę→e, ó→o, ś→s, ź→z, ż→z
+        .replace(/ł/g, 'l').replace(/Ł/g, 'L') // „ł" nie rozkłada się na znak bazowy
+        .toLowerCase()
+        .replace(/[\s.\-'’]+/g, '_')
+        .replace(/[^a-z0-9_]/g, '')
+        .replace(/_+/g, '_')
+        .replace(/^_|_$/g, '')
+        .slice(0, 40);
+
+    imie.addEventListener('input', () => {
+        if (wlasnyWybor) {
+            return;
+        }
+
+        nazwa.value = zImienia(imie.value);
+    });
+})();
+
+// --- Menu konta w pasku górnym: Esc i kliknięcie obok ----------------------
+
+/*
+ * WSZYSTKO PONIŻEJ JEST DODATKIEM, NIE WARUNKIEM (issue #344, D-053).
+ *
+ * Menu przy awatarze to `<details>` (`components/layout.blade.php`), więc
+ * przychodzi z serwera KOMPLETNE: otwiera je kliknięcie albo dotknięcie
+ * w przycisk, zamyka drugie kliknięcie w ten sam przycisk, a klawiatura
+ * obsługuje je jak każdy inny `<summary>`. Przy wyłączonym albo
+ * niedociągniętym skrypcie działa to bez zmian i nie zostaje tu ani jeden
+ * martwy przycisk.
+ *
+ * Dokładamy dokładnie dwie rzeczy, których `<details>` sam nie robi, a które
+ * człowiek zna z każdego innego menu:
+ *
+ *  1. Esc zamyka otwarte menu i wraca fokusem na przycisk. Bez tego jedyną
+ *     drogą powrotu jest przejście Tabem przez trzy pozycje.
+ *  2. Kliknięcie albo dotknięcie POZA menu zamyka je. Bez tego otwarte menu
+ *     zostaje na ekranie i przykrywa róg strony — a przy mniej pewnej ręce
+ *     „trafić z powrotem dokładnie w ten sam przycisk" jest dokładnie tym
+ *     wysiłkiem, którego chcemy oszczędzić.
+ *
+ * Hover świadomie NIE otwiera menu (AGENTS.md §5): drżenie ręki zamyka je
+ * w trakcie celowania, a na dotyku hover nie istnieje w ogóle.
+ */
+for (const menu of document.querySelectorAll('details.topbar-konto')) {
+    const przycisk = menu.querySelector('summary');
+
+    document.addEventListener('keydown', (zdarzenie) => {
+        if (zdarzenie.key !== 'Escape' || !menu.open) {
+            return;
+        }
+
+        menu.open = false;
+        // Fokus wraca na przycisk, a nie na początek strony — inaczej
+        // zamknięcie menu klawiaturą gubi miejsce, w którym się było.
+        przycisk?.focus();
+    });
+
+    document.addEventListener('click', (zdarzenie) => {
+        if (menu.open && !menu.contains(zdarzenie.target)) {
+            menu.open = false;
+        }
+    });
+}
+
+/* ==========================================================================
+   KREATOR PRZEPISU: FOKUS PO SKOKU DO INNEGO KROKU (issue #747)
+   ==========================================================================
+
+   Podsumowanie błędów w kreatorze potrafi wskazywać pole z kroku, którego
+   aktualny render w ogóle nie zawiera — `wire:click="jumpToError(...)"`
+   w `recipe-wizard.blade.php` przełącza `$step` po stronie serwera i prosi
+   o fokus na właściwym polu zdarzeniem `kreator-fokus-pole`. Sam przełącznik
+   kroku nie wystarczy: w chwili, w której PHP o tym decyduje, przeglądarka
+   jeszcze nie ma nowego DOM-u — element pojawia się dopiero po tym, jak
+   Livewire przerenderuje komponent i zdarzenie faktycznie dotrze tutaj.
+
+   `Livewire.on` rejestrujemy dopiero po `livewire:init`, żeby nie zależeć
+   od kolejności `@vite` kontra `@livewireScripts` w layoucie — a jeśli
+   Livewire zdążył już wystartować (bo ten skrypt wczytał się później),
+   `window.Livewire` istnieje i można podłączyć się od razu.
+   ========================================================================== */
+(function fokusPoSkokuKreatora() {
+    const podlacz = () => {
+        window.Livewire.on('kreator-fokus-pole', ({ pole }) => {
+            // Livewire kończy morph DOM-u przed doręczeniem zdarzenia
+            // słuchaczom zarejestrowanym przez `Livewire.on`, ale
+            // `requestAnimationFrame` daje przeglądarce jedną klatkę na
+            // domalowanie układu — bez tego `scrollIntoView` na elemencie
+            // z `display: none` przed przemalowaniem czasem nic nie robi.
+            requestAnimationFrame(() => {
+                const cel = document.getElementById(pole);
+
+                if (!cel) {
+                    return;
+                }
+
+                const bezRuchu = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                cel.scrollIntoView({ behavior: bezRuchu ? 'auto' : 'smooth', block: 'center' });
+                cel.focus({ preventScroll: true });
+            });
+        });
+    };
+
+    if (window.Livewire) {
+        podlacz();
+    } else {
+        document.addEventListener('livewire:init', podlacz);
+    }
+})();

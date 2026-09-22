@@ -46,8 +46,10 @@ class SecuritySettingsController extends Controller
         ], [
             'current_password.required' => 'Wpisz obecne hasło.',
             'password.required' => 'Wpisz nowe hasło.',
-            'password.confirmed' => 'Oba nowe hasła muszą być takie same.',
-            'password.min' => 'Nowe hasło musi mieć co najmniej 10 znaków.',
+            // KAŻDE ZDANIE KOŃCZY SIĘ POLECENIEM. Same „muszą być takie same"
+            // i „musi mieć 10 znaków" mówią tylko, co jest źle.
+            'password.confirmed' => 'Oba nowe hasła muszą być takie same. Wpisz jeszcze raz to samo w obu polach.',
+            'password.min' => 'Nowe hasło musi mieć co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu.',
             'password.uncompromised' => 'To hasło pojawiło się już w wyciekach danych z innych serwisów. Wybierz inne.',
         ]);
 
@@ -57,7 +59,8 @@ class SecuritySettingsController extends Controller
             return back()->withErrors(['current_password' => 'To hasło jest nieprawidłowe.']);
         }
 
-        $user->forceFill(['password' => Hash::make($data['password'])])->save();
+        // Jedna nazwana droga do hasła — `password` jest poza `$fillable`.
+        $user->assignPassword($data['password'])->save();
 
         // Rotacja sesji (issue #12): stare sesje — te, w których mogła siedzieć
         // osoba, przez którą hasło było zmieniane — przestają działać od razu.

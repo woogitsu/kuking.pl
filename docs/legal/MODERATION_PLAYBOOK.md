@@ -17,7 +17,7 @@ Krótka, ludzka wersja — pisana tak, żeby 65-latek zrozumiał ją bez czytani
 > Kuking to miejsce dla ludzi, którzy naprawdę gotują. Chcemy, żeby było tu miło i bezpiecznie. Dlatego prosimy:
 >
 > 1. **Bądź sobą.** Publikuj pod prawdziwym imieniem lub pseudonimem, ale nie podszywaj się pod inną osobę.
-> 2. **Publikuj to, co zrobiłeś lub napisałeś sam.** Jeśli korzystasz z cudzego przepisu, napisz to własnymi słowami i podaj, skąd go masz. Nie wklejaj przepisów żywcem z książek czy stron internetowych.
+> 2. **Publikuj własne przepisy i teksty.** Jeśli korzystasz z cudzego przepisu, napisz to własnymi słowami i podaj, skąd go masz. Nie wklejaj przepisów żywcem z książek czy stron internetowych.
 > 3. **Publikuj swoje zdjęcia.** Nie wrzucaj zdjęć znalezionych w internecie jako swoje.
 > 4. **Szanuj innych.** Bez obrażania, wyzwisk, nękania i mowy nienawiści — nawet w komentarzach "w żartach".
 > 5. **Bez treści dla dorosłych.** Kuking jest o jedzeniu, nie o nagości ani przemocy.
@@ -46,7 +46,7 @@ Krótka, ludzka wersja — pisana tak, żeby 65-latek zrozumiał ją bez czytani
 | Niebezpieczna porada zdrowotna/żywieniowa | "Soda oczyszcza z raka", niebezpieczne przetwory bez zasad bezpieczeństwa | Ukrycie treści; wyjaśnienie wpisujesz w pole „Wiadomość do użytkownika” przy decyzji — rzeczowo, bez oskarżania | Przy uporczywym powtarzaniu → blokada czasowa | Ukryć. Serwis nie umie dopiąć „kontekstu” do treści: pod treścią, która zostaje widoczna, moderator może najwyżej napisać zwykły komentarz, jak każdy inny użytkownik | Tak, rzeczowo, bez oceniania |
 | Nieletni na koncie | Wpis/profil sugerujący wiek poniżej 16 lat | Zawieszenie konta do wyjaśnienia — **profil zostaje widoczny** | Potwierdzone → trwałe zamknięcie konta (blokada), z informacją | Ukryć pojedyncze treści; profilu nie da się ukryć osobno | Tak, z wyjaśnieniem zasad wieku |
 | Reklama alkoholu | Post promujący markę alkoholu (nie: przepis zawierający alkohol jako składnik) | Usunięcie posta reklamowego | Powtórka → ostrzeżenie, potem blokada | Usunąć | Tak |
-| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 6** | Natychmiastowe zgłoszenie do organów | Usunąć — usunięcie jest miękkie, wiersz i zdjęcie zostają w bazie jako dowód | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. Poza tym nie kontaktuj się — patrz sekcja 6 |
+| CSAM / seksualizacja dzieci | Jakakolwiek treść tego typu | **Zero tolerancji — patrz sekcja 6** | Natychmiastowe zgłoszenie do organów | Usunąć — usunięcie jest miękkie, wiersz i zdjęcie zostają w bazie jako dowód | **Powiadomienie wychodzi automatycznie przy KAŻDEJ decyzji.** Wybierz podstawę **„Krzywdzenie dzieci — usuwamy natychmiast”** i zostaw „Wiadomość do użytkownika” PUSTĄ — pójdzie wtedy samo neutralne zdanie domyślne. **Nie wybieraj „Treść niezgodna z prawem”**: przy tej podstawie formularz NIE PRZYJMIE pustej wiadomości (`required_if`), a to jest ostatnia chwila, w której chcesz walczyć z walidacją. Poza tym nie kontaktuj się — patrz sekcja 6 |
 | Groźby / zagrożenie życia | Wypowiedź wskazująca na realne zagrożenie życia (własnego lub cudzego) | **Zgłoszenie do organów — patrz sekcja 6** | — | Ukryć treść. Kopia robi się sama: ukrycie zmienia tylko status, wiersz zostaje w bazie i nic go nie kasuje | Ostrożnie, priorytet to bezpieczeństwo, nie moderacja. Powiadomienie do autora i tak wyjdzie automatycznie |
 
 ### Czego panel moderacji NIE potrafi — czytaj razem z tabelą wyżej
@@ -55,7 +55,8 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 
 - **Jedno zgłoszenie = JEDNA decyzja.** Pilnuje tego indeks `moderation_actions_one_per_report` w bazie, nie tylko formularz. „Usunięcie treści **i** ostrzeżenie" to w panelu jedna decyzja: wybierasz `Usuń treść`, a ostrzeżenie mieści się w polu „Wiadomość do użytkownika". Drugiej decyzji do tego samego zgłoszenia nie zapiszesz.
 - **Zawieszenie konta niczego nie chowa.** Konto zawieszone czyta serwis dalej, a jego profil, wpisy i przepisy są publicznie widoczne tak samo jak wcześniej — zawieszenie odbiera wyłącznie prawo do publikowania. Profil znika z serwisu dopiero przy blokadzie trwałej.
-- **Długość zawieszenia wybierasz z listy: 1, 7 albo 30 dni albo bezterminowo.** Innych wartości nie ma. Zawieszenie z terminem zdejmuje się samo; „bezterminowo" trwa do decyzji człowieka.
+- **Długość zawieszenia wybierasz z listy: bez zawieszenia (pozycja domyślna), 1, 7 albo 30 dni, własny termin albo bezterminowo.** Własny termin to liczba dni od 1 do 365, którą wpisujesz w polu pod listą — przy każdym innym wyborze ta liczba jest ignorowana i nie musisz jej czyścić. Zawieszenie z terminem zdejmuje się samo; „bezterminowo" trwa do decyzji człowieka.
+- **Brak wyboru NIE znaczy „bezterminowo".** Do września 2026 znaczył — czyli pomyłka przez zaniechanie dawała najsurowszą karę, jaką panel potrafi wydać. Dziś domyślnie zaznaczone jest „Bez zawieszenia", a decyzja „Zawieś konto" bez wybranego terminu nie przechodzi: formularz pyta, na jak długo, i nie traci przy tym tego, co już wpisałeś.
 - **Powiadomienie o decyzji wychodzi zawsze i automatycznie** — przy ukryciu, usunięciu, ostrzeżeniu, zawieszeniu i blokadzie. Nie da się „ukarać po cichu". Puste pole „Wiadomość do użytkownika" znaczy tylko tyle, że pójdzie zdanie domyślne.
 - **Panel nie pokazuje historii wcześniejszych kar autora.** Kolumna „Eskalacja" mówi „2. wystąpienie", „powtórka" — ale kolejka zgłoszeń tego nie liczy i nie wyświetla. Dziś to pamięć moderatora, nie funkcja produktu.
 - **Ukryty PRZEPIS jest dla autora zamrożony.** Autor go zobaczy pod jego adresem, ale nie otworzy edycji (`RecipeStatusTransitions::BY_AUTHOR`: wiersz `hidden` jest pusty). Więc „ukryj i daj szansę poprawy" działa dla wpisu, a dla przepisu — nie. Przy prawach autorskich albo poproś o nową wersję przepisu, albo zdejmij ukrycie na czas poprawy.
@@ -82,7 +83,7 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 | Rola | Może |
 |---|---|
 | **Użytkownik** | Zgłaszać treści/konta, blokować innych użytkowników, odwoływać się od decyzji dotyczącej jego konta/treści |
-| **Moderator** | Przeglądać kolejkę zgłoszeń, ukrywać/usuwać i przywracać treść, wysyłać ostrzeżenia, zawieszać konta (1, 7, 30 dni albo bezterminowo), **blokować konta trwale**, rozpatrywać odwołania, odrzucać zgłoszenia z uzasadnieniem |
+| **Moderator** | Przeglądać kolejkę zgłoszeń, ukrywać/usuwać i przywracać treść, wysyłać ostrzeżenia, zawieszać konta (1, 7, 30 dni, własny termin 1-365 dni albo bezterminowo), **blokować konta trwale**, rozpatrywać odwołania, odrzucać zgłoszenia z uzasadnieniem |
 | **Admin** | Dziś **dokładnie to samo co moderator** — z jednym wyjątkiem w drodze: rozstrzyganie odwołań przechodzi na samego administratora (D-039). Do czasu scalenia tamtej zmiany ta kolumna opisuje stan bez wyjątków |
 
 **UWAGA: to nie jest podział uprawnień, tylko podział obowiązków do uzgodnienia między ludźmi.** W kodzie role `moderator` i `admin` mają identyczne możliwości — cały panel stoi za jednym pytaniem `isModerator()`, a `User::isAdmin()` nie jest dziś użyte nigdzie. Konkretnie:
@@ -149,6 +150,22 @@ Rekomendacja przy 1–2 osobach: **jedna osoba nie powinna być jednocześnie mo
    w bazie). Kolejka `/admin/odwolania` pokazuje termin przy każdej sprawie
    i wyróżnia te po terminie. Dni roboczych liczymy bez weekendów; świąt
    system nie zna, więc to cel operacyjny, nie zobowiązanie co do godziny.
+
+   **KOLEJKA SAMA SIĘ ZGŁASZA (D-060, od 10 września 2026).** Nowe odwołanie
+   tworzy **powiadomienie w serwisie dla kont z rolą `admin`** — czyli dla
+   tych, które mogą sprawę zamknąć (D-039). W powiadomieniu stoi termin
+   odpowiedzi. Moderator bez tej roli powiadomienia nie dostaje (nie może
+   zamknąć sprawy), ale widzi przy pozycji „Odwołania" w menu panelu
+   **licznik tego, co czeka** — tak samo jak przy „Zgłoszeniach", „Sygnałach
+   automatu", „Wiadomościach do nas" i „Bez odpowiedzi".
+
+   **POCZTA — TYLKO NA TERMIN, NIE NA KAŻDE ODWOŁANIE.** Listu w chwili
+   złożenia odwołania nie ma (uzasadnienie: D-060 — wiadro 300 listów na dobę
+   dzielone z rejestracjami, D-047). Raz na dobę o 07:10 chodzi natomiast
+   `kuking:pilnuj-terminow-odwolan`: **jeden** list, i tylko wtedy, gdy któreś
+   otwarte odwołanie ma termin odpowiedzi w progu (2 dni robocze,
+   `moderation.appeal_reminder_working_days`) albo już PO terminie. List mówi,
+   ile spraw wisi i do kiedy — bez treści odwołania i bez nazw ludzi.
 7. Cofnięcie decyzji **realnie ją cofa**: treść wraca do stanu sprzed ukrycia
    (szkic zostaje szkicem), konto wraca do aktywnego. Odwołanie, po którym nic
    się nie zmienia, nie jest odwołaniem.
@@ -229,7 +246,7 @@ Ton: uprzejmy, konkretny, bez pouczania, bez emocji, po polsku, zrozumiały dla 
 
 ### 4.4 Zawieszenie konta (blokada czasowa)
 
-Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta osoba dostanie obok, ma tytuł „Twoje konto jest zawieszone do [data]", a „blokada" znaczy w tym serwisie coś innego i ostatecznego (szablon 4.5). Długość wybierasz z listy: 1, 7 albo 30 dni, albo bezterminowo. **Zawieszenie bezterminowe nie zdejmie się samo** — wtedy nie pisz „po tym czasie konto odblokuje się samo", bo nie ma żadnego „po tym czasie".
+Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta osoba dostanie obok, ma tytuł „Twoje konto jest zawieszone do [data]", a „blokada" znaczy w tym serwisie coś innego i ostatecznego (szablon 4.5). Długość wybierasz z listy: 1, 7 albo 30 dni, własny termin (1-365 dni) albo bezterminowo — a „Bez zawieszenia" jest pozycją domyślną i znaczy dokładnie to, co mówi. **Zawieszenie bezterminowe nie zdejmie się samo** — wtedy nie pisz „po tym czasie konto odblokuje się samo", bo nie ma żadnego „po tym czasie".
 
 > Cześć [imię/nick],
 >
@@ -296,7 +313,7 @@ Mów „zawiesiliśmy", nie „zablokowaliśmy" — powiadomienie, które ta oso
 - Konto założone <24h **i** publikujące link zewnętrzny w pierwszym poście → automatyczne oznaczenie do przeglądu (nie automatyczne usunięcie — unikać false positives dla nowych, prawdziwych użytkowników).
 - >3 identyczne lub niemal identyczne komentarze w ciągu 10 minut → automatyczne ograniczenie (throttle) konta + oznaczenie do przeglądu.
 - Nowe konto z linkiem w bio do domeny niezwiązanej z gotowaniem (sklep, kurs, "zarabianie") → wyższy priorytet. Uwaga: **kolejki triage dziś nie ma.** Statusy `triage` i `reviewing` istnieją w bazie, ale żaden kod ich nie nadaje — zgłoszenie idzie z `open` prosto do `resolved` albo `rejected`, a zakładka „W trakcie" w panelu jest z tego powodu zawsze pusta.
-- Perceptual hash wykorzystany do wykrywania masowego wgrywania tego samego zdjęcia przez różne konta w krótkim czasie → sygnał farmy kont. Kolumna `media.perceptual_hash` jest w schemacie od pierwszej migracji, ale **nic jej dziś nie wypełnia** — pipeline zdjęć jej nie liczy. To jest więc pełne zadanie do zrobienia, nie „włączenie" czegoś gotowego.
+- Perceptual hash wykorzystany do wykrywania masowego wgrywania tego samego zdjęcia przez różne konta w krótkim czasie → sygnał farmy kont. **W bazie nie ma dziś na to ani jednej kolumny.** `media.perceptual_hash` stała w schemacie od pierwszej migracji mediów, nikt jej nigdy nie wypełniał i została usunięta jako martwa (migracja `2026_09_12_100000_usun_martwa_kolumne_perceptual_hash`, `docs/DATABASE.md`). To jest więc pełne zadanie do zrobienia — liczenie skrótu w potoku zdjęć, kolumna i zapytanie — a nie „włączenie" czegoś gotowego.
 
 ### Rate limity — co jest ustawione, a co dopiero postulujemy
 
@@ -338,6 +355,29 @@ Pełna lista techniczna: `SECURITY_BASELINE.md`.
 | **Cudze zdjęcie podpisane jako własne** | Usunięcie + wiadomość do autora (szablon 4.1). Właściciela oryginału serwis powiadomi sam tylko wtedy, gdy zgłosił rzecz formularzem „Zgłoś treść niezgodną z prawem" i podał adres e-mail; po zwykłym „Zgłoś" pod zdjęciem nie dostanie nic i trzeba napisać do niego ręcznie. |
 | **CSAM (treści przedstawiające seksualne wykorzystywanie dzieci)** | **Procedura zero-tolerancji — patrz niżej, osobno.** |
 
+### 7.0 Podstawa decyzji — pole, którego ten dokument długo nie opisywał
+
+Od wdrożenia Art. 17 DSA **każda** decyzja moderacyjna wymaga wybrania
+**podstawy z zamkniętej listy**; panel nie przyjmie decyzji bez niej
+(`Wybierz podstawę decyzji — autor treści zobaczy ją w powiadomieniu`).
+Lista i odwzorowanie na punkty `resources/legal/zasady.md` stoją w jednym
+miejscu: `app/Domain/Moderation/PodstawaDecyzji.php`. Nie wpisuj własnych
+kodów — kod spoza listy nie dostanie numeru punktu i autor treści dowie się
+tylko ogólnika.
+
+Dwie podstawy zachowują się inaczej niż reszta i warto to wiedzieć ZANIM
+zaczniesz wypełniać formularz:
+
+| Podstawa | Kiedy | Co robi z formularzem |
+|---|---|---|
+| **Treść niezgodna z prawem** | gdy powołujesz się na przepis, nie na punkt zasad | **wymusza wiadomość do autora** — pusta nie przejdzie (`ModerationController::decide()`, `required_if`) |
+| **Krzywdzenie dzieci — usuwamy natychmiast** | ścieżka zero-tolerancji z §7.1 | wiadomość może zostać pusta; wychodzi neutralne zdanie domyślne |
+
+Pozostałe podstawy wskazują konkretny punkt zasad (1–9) i same wstawiają go
+do powiadomienia. Że każdy z tych punktów naprawdę istnieje w `zasady.md`
+i tak samo się nazywa, pilnuje
+`UzasadnienieDecyzjiTest::test_kazdy_punkt_z_listy_istnieje_w_zasadach`.
+
 ### 7.1 Procedura zero-tolerancji — CSAM i zagrożenie życia
 
 To jedyna sytuacja, w której **nie stosujemy** standardowej ścieżki "ostrzeżenie → blokada". Działamy natychmiast.
@@ -368,7 +408,7 @@ Przy 1–2 osobach moderacja treści wrażliwych (zwłaszcza zdjęć i opisów) 
   - filtrowanie oczywistego spamu (linki afiliacyjne wg listy domen) — automatyczne ukrycie do przeglądu, nie wymaga pełnej analizy człowieka za każdym razem,
   - proste rate-limity (sekcja 5) — działają bez udziału moderatora,
   - szablony odpowiedzi (sekcja 4) — nie pisać za każdym razem od nowa.
-  **Z tej listy działa dziś jedno: rate-limity** (`config/kuking.php` → `kuking.limits`) i szablony, które właśnie czytasz. Wykrywania duplikatów zdjęć nie ma (`media.perceptual_hash` nikt nie wypełnia), listy domen spamerskich ani automatycznego ukrywania do przeglądu nie ma wcale — całą kolejkę przegląda dziś człowiek, sztuka po sztuce.
+  **Z tej listy działa dziś jedno: rate-limity** (`config/kuking.php` → `kuking.limits`) i szablony, które właśnie czytasz. Wykrywania duplikatów zdjęć nie ma (kolumnę `media.perceptual_hash` usunięto jako nigdy niewypełnianą — patrz sekcja wyżej), listy domen spamerskich ani automatycznego ukrywania do przeglądu nie ma wcale — całą kolejkę przegląda dziś człowiek, sztuka po sztuce.
 - **Co NIE powinno nigdy trafiać do pełnej automatyzacji bez człowieka:** decyzje o blokadzie trwałej konta, każda sprawa P0 (CSAM/zagrożenie życia — wymaga świadomej decyzji człowieka o zgłoszeniu do organów), odwołania.
 - **Wsparcie:** jeśli moderator natrafi na szczególnie ciężką treść (CSAM, przemoc), **nie zostawiaj tego bez rozmowy** — nawet krótka wymiana z drugą osobą w zespole po fakcie pomaga. To nie jest slabość, to standard branżowy w trust & safety.
 

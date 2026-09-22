@@ -18,6 +18,10 @@ class PostPolicy
 {
     public function view(?User $user, Post $post): bool
     {
+        if ($post->kind === Post::KIND_QUESTION && ! config('kuking.questions.enabled', false)) {
+            return false;
+        }
+
         if (! $post->isPublished()) {
             return $user !== null && $user->getKey() === $post->author_id;
         }

@@ -10,35 +10,28 @@ use Illuminate\Support\Facades\Artisan;
 use Tests\TestCase;
 
 /**
- * Ekran prywatności nie obiecuje listu, którego nikt nie wysyła — G08.
+ * Ekran prywatności obiecuje dokładnie to, co serwis naprawdę robi — G08.
  *
- * CO BYŁO NIE TAK
- * Pole wyboru mówiło: „Jeden e-mail tygodniowo, nigdy więcej" — w czasie
- * teraźniejszym, jakby to się działo. Nie działo się: w całym repozytorium
- * nie ma ani polecenia, ani zadania w harmonogramie, które wysyłałoby
- * podsumowanie tygodnia. Kolumna `wants_weekly_digest` zapisywała zgodę
- * i na tym się kończyło.
+ * HISTORIA TEGO PLIKU JEST JEGO UZASADNIENIEM
+ * Wcześniej pole wyboru mówiło „Jeden e-mail tygodniowo, nigdy więcej"
+ * w czasie teraźniejszym, a w całym repozytorium nie było ani polecenia, ani
+ * zadania w harmonogramie, które wysyłałoby cokolwiek. Poprawką był dopisek
+ * „Tych listów jeszcze nie wysyłamy", a ten test pilnował PARY: dopóki nie
+ * ma czym wysyłać, tekst ma ostrzegać.
  *
- * CZEGO TU CELOWO NIE ZROBIONO
- * Pole wyboru NIE zostało usunięte. Digest stoi w
- * `docs/product/RETENTION_LOOPS.md` (pętla 9) jako funkcja MVP i jedyny
- * kanał docierający do ludzi, którzy nie zaglądają codziennie —
- * wykasowanie go byłoby wycięciem funkcji z planu, a nie naprawą usterki.
- * Zgoda jest już opt-in (`default false`, migracja
- * `2026_09_07_400000_default_weekly_digest_to_off`), więc nikt nie jest
- * zapisany bez pytania. Zmienił się sam TEKST — z obietnicy na prawdę.
+ * **Ten dzień właśnie nadszedł** (issue #11, `docs/DECISIONS.md` D-057).
+ * Polecenie `kuking:wyslij-podsumowania` istnieje, zadanie w harmonogramie
+ * chodzi codziennie o 08:30, więc ostrzeżenie stało się nieprawdą w drugą
+ * stronę — i test odwrócił się razem z rzeczywistością zamiast zniknąć.
  *
- * DRUGA POŁOWA TEGO PLIKU JEST WAŻNIEJSZA OD PIERWSZEJ
- * Zdanie „jeszcze nie wysyłamy" jest prawdziwe DZIŚ. W dniu, w którym
- * digest ruszy, stanie się kłamstwem w drugą stronę — a nikt o tym nie
- * pamięta w miesiąc po fakcie. Test niżej pilnuje tej pary: dopóki nie ma
- * czym wysyłać, tekst ma ostrzegać; gdy pojawi się polecenie albo zadanie
- * w harmonogramie, test padnie i przypomni, że tekst trzeba zaktualizować.
- *
- * TEGO PLIKU NIE MA W CZĘŚCI O SAMEJ ZGODZIE — pilnuje jej osobno
- * `ZgodaNaPrzegladNieJestDomyslnaTest` (rejestracja nie zapisuje nikogo,
- * `DEFAULT` w bazie jest wyłączony, ekran ustawień nadal pozwala się
- * zapisać). Tutaj chodzi wyłącznie o to, czy TEKST mówi prawdę.
+ * DLACZEGO NIE SKASOWALIŚMY GO, SKORO SAM TAK RADZIŁ
+ * Bo wartość tego pliku nigdy nie leżała w jednym zdaniu, tylko w PILNOWANIU
+ * PARY „tekst na ekranie" ↔ „kod, który go spełnia". Ta para istnieje dalej
+ * i dalej potrafi się rozjechać, tylko teraz w przeciwną stronę: gdyby ktoś
+ * usunął wysyłkę (albo tylko wpis w harmonogramie), ekran prywatności dalej
+ * obiecywałby list, którego nikt nie wyśle — czyli dokładnie usterka G08,
+ * od której się zaczęło. Skasowanie testu byłoby wyrzuceniem czujnika
+ * dlatego, że wykrył zdarzenie, do którego był zbudowany.
  */
 class ObietnicaTygodniowegoMailaTest extends TestCase
 {
@@ -50,8 +43,10 @@ class ObietnicaTygodniowegoMailaTest extends TestCase
      * Świadomie NIE ma tu samego „tydzień": `kuking:wac` liczy Weekly
      * Active Cooks co tydzień i nie ma nic wspólnego z wysyłaniem listów.
      * Test, który zapala się na cudzej nazwie, przestaje cokolwiek znaczyć.
+     *
+     * @var list<string>
      */
-    private const SLOWA_WYSYLKI = ['digest', 'podsumowanie'];
+    private const SLOWA_WYSYLKI = ['digest', 'podsumowanie', 'podsumowania'];
 
     /** @return list<string> */
     private function nadawcyPodsumowania(): array
@@ -79,28 +74,44 @@ class ObietnicaTygodniowegoMailaTest extends TestCase
         return array_values(array_unique($trafienia));
     }
 
-    public function test_ekran_prywatnosci_mowi_ze_listow_jeszcze_nie_ma(): void
+    public function test_ekran_prywatnosci_nie_mowi_juz_ze_listow_nie_ma(): void
     {
         $odpowiedz = $this->actingAs($this->user('czytelnik'))->get(route('settings.privacy'));
 
         $odpowiedz->assertOk();
-        $odpowiedz->assertSee('Tych listów jeszcze nie wysyłamy', escape: false);
+        $odpowiedz->assertDontSee('Tych listów jeszcze nie wysyłamy', escape: false);
+        $odpowiedz->assertSee('Jeden e-mail tygodniowo', escape: false);
     }
 
     /**
-     * Para, którą trzeba trzymać razem: jeśli powstanie coś, co wysyła
-     * podsumowanie, tekst na ekranie prywatności PRZESTAJE być prawdziwy.
+     * Druga połowa pary: skoro ekran obiecuje list, musi istnieć coś, co go
+     * wysyła. Ten test pada, gdy ktoś usunie polecenie albo wpis
+     * w harmonogramie i zostawi obietnicę bez pokrycia.
      */
-    public function test_gdy_powstanie_wysylka_podsumowan_tekst_trzeba_poprawic(): void
+    public function test_obietnica_ma_pokrycie_w_kodzie_ktory_wysyla(): void
     {
-        $nadawcy = $this->nadawcyPodsumowania();
-
-        $this->assertSame(
+        $this->assertNotSame(
             [],
-            $nadawcy,
-            'Coś zaczęło wysyłać podsumowania tygodnia ('.implode(', ', $nadawcy).'), '
-            .'więc ekran prywatności nie może już mówić „Tych listów jeszcze nie wysyłamy”. '
-            .'Popraw tekst w resources/views/pages/settings/privacy.blade.php i usuń ten test.',
+            $this->nadawcyPodsumowania(),
+            'Ekran prywatności obiecuje tygodniowe podsumowanie, ale nic go już nie wysyła: '
+            .'nie ma ani polecenia, ani zadania w harmonogramie. Albo przywróć wysyłkę, '
+            .'albo popraw tekst w resources/views/pages/settings/privacy.blade.php.',
+        );
+    }
+
+    public function test_zadanie_w_harmonogramie_nie_moze_sie_nakladac(): void
+    {
+        $zadanie = collect(app(Schedule::class)->events())
+            ->first(fn ($e) => str_contains(mb_strtolower($e->description ?? ''), 'podsumowania'));
+
+        $this->assertNotNull($zadanie, 'Brak zadania `kuking:wyslij-podsumowania` w harmonogramie.');
+
+        // `withoutOverlapping()` nie jest tu ostrożnością: znacznik
+        // `weekly_digest_sent_at` stawiany jest DOPIERO PO pętli, więc dwa
+        // przebiegi naraz wysłałyby część listów podwójnie.
+        $this->assertNotEmpty(
+            $zadanie->withoutOverlapping,
+            'Zadanie wysyłające podsumowania musi mieć `withoutOverlapping()`.',
         );
     }
 }

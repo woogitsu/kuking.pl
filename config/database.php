@@ -88,6 +88,8 @@ return [
 
         'pgsql' => [
             'driver' => 'pgsql',
+            // Eloquent wysyła daty bez offsetu; sesja musi czytać je w UTC (#693).
+            'timezone' => 'UTC',
             'url' => env('DB_URL'),
             'host' => env('DB_HOST', '127.0.0.1'),
             'port' => env('DB_PORT', '5432'),

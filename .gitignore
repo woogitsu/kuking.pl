@@ -23,6 +23,10 @@
 /storage/dostepnosc.json
 # To samo dla automatu wydajności i SEO (Lighthouse, issue #26).
 /storage/wydajnosc.json
+# I dla audytu martwych przycisków (D-053) — pełna lista adresów z kodami.
+/storage/martwe-przyciski.json
+# Pomiary i zrzuty rzeczywistych kroków kreatora przepisu.
+/storage/kroki-kreatora/
 /storage/pail
 /vendor
 _ide_helper.php

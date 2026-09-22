@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\ZapisyWpisu;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Posts\Actions\EditPost;
 use App\Domain\Posts\Actions\PublishPost;
+use App\Domain\Posts\SasiedniWpisAutora;
 use App\Domain\Tags\TagSuggester;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Media;
@@ -39,12 +41,29 @@ class PostController extends Controller
         private readonly StoreUploadedImage $storeImage,
         private readonly PublishComment $publishComment,
         private readonly TagSuggester $tagSuggester,
+        private readonly SasiedniWpisAutora $sasiedniWpis,
+        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
     ) {}
 
-    public function create(): View
+    public function create(Request $request): View
     {
-        return view('pages.posts.create', [
-            'tagNames' => (array) old('tag_names', []),
+        $question = $request->routeIs('questions.create');
+        abort_if($question && ! config('kuking.questions.enabled'), 404);
+        $tagNames = (array) old('tag_names', []);
+        // Puste stare wejście też jest decyzją: po usunięciu ostatniego
+        // tagu lub błędzie walidacji nie przywracamy wyboru z adresu.
+        if (! $request->session()->hasOldInput()) {
+            $slug = $request->query('tag');
+            if (is_string($slug) && $slug !== '' && mb_strlen($slug) <= 200) {
+                $tag = Tag::query()->where('slug', $slug)->first()?->tagKanoniczny();
+                if ($tag?->isActive()) {
+                    $tagNames = [$tag->name];
+                }
+            }
+        }
+
+        return view($question ? 'pages.questions.create' : 'pages.posts.create', [
+            'tagNames' => $tagNames,
             'sugestieTagow' => $this->sugestieDlaZapytania(),
             'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
@@ -100,6 +119,8 @@ class PostController extends Controller
 
     public function store(Request $request): RedirectResponse
     {
+        $question = $request->routeIs('questions.store');
+        abort_if($question && ! config('kuking.questions.enabled'), 404);
         $user = $request->user();
 
         // ZDJECIA WGRYWAMY PRZED WALIDACJA RESZTY — I TO JEST CALY SENS C1.
@@ -120,16 +141,28 @@ class PostController extends Controller
         // Cena: zdjecia nieprzypiete do niczego, gdy ktos zamknie karte
         // zamiast poprawic blad — sprzata je `kuking:sprzataj-osierocone-zdjecia`
         // po dobie karencji.
+        $bladRozmiaruZdjecia = 'Jedno ze zdjęć waży za dużo. Wybierz ponownie wszystkie nowe zdjęcia — każde do '
+            .LimityZdjec::maksMegabajtowDoKomunikatu().' MB.';
+
         $request->validate([
-            'photos' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
-            'photos.*' => ['file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
+            'photos' => ['nullable', 'array', 'max:'.($question ? 1 : LimityZdjec::maksZdjecNaWysylke())],
+            'photos.*' => ['file', new ObslugiwaneZdjecie(komunikatZaDuzyPlik: $bladRozmiaruZdjecia), 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'media_ids' => ['nullable', 'array', 'max:'.LimityZdjec::maksZdjecNaWysylke()],
             'media_ids.*' => ['uuid'],
         ], [
             'photos.*.image' => 'Ten plik nie wygląda na zdjęcie. Wybierz plik JPG, PNG lub WebP.',
-            'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
-            'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
+            'photos.*.max' => $bladRozmiaruZdjecia,
+            'photos.max' => $question ? 'Do pytania wybierz jedno zdjęcie.' : LimityZdjec::komunikatZaDuzoZdjec(),
         ]);
+
+        if ($question && $request->filled('usun_zdjecie')) {
+            $mediaIds = Media::query()->whereIn('id', (array) $request->input('media_ids', []))
+                ->where('owner_id', $user->getKey())->whereDoesntHave('posts')
+                ->pluck('id')->reject(fn (string $id): bool => $id === $request->input('usun_zdjecie'))->values()->all();
+
+            return redirect()->route('questions.create')
+                ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $this->tagiZFormularza($request)));
+        }
 
         try {
             $mediaIds = $this->zebranZdjecia($request, $user);
@@ -152,7 +185,7 @@ class PostController extends Controller
             // Fragment `#tagi` w adresie, żeby przeglądarka wróciła w miejsce,
             // gdzie ta osoba faktycznie pracuje, a nie na górę formularza
             // z tekstem i zdjęciami nad sekcją tagów (R1 §6.1).
-            $powrot = redirect(url()->previous().'#tagi')
+            $powrot = redirect(url()->previous().($question ? '#f-tagi' : '#tagi'))
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames));
 
             return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
@@ -166,9 +199,13 @@ class PostController extends Controller
         // co trafia do starego wejscia, musi zostac tutaj.
         $walidator = Validator::make($request->all(), [
             'body' => ['nullable', 'string', 'max:4000'],
-            'visibility' => ['required', 'in:public,followers,private'],
+            'visibility' => $question ? ['exclude'] : ['required', 'in:public,followers,private'],
+            'title' => $question ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
+            'title.required' => 'Napisz pytanie w tytule.',
+            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
+            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
             // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
@@ -191,7 +228,7 @@ class PostController extends Controller
                 author: $user,
                 body: $data['body'] ?? null,
                 mediaIds: $mediaIds,
-                visibility: $data['visibility'],
+                visibility: $question ? Post::VISIBILITY_PUBLIC : $data['visibility'],
                 tagNames: $tagNames,
                 ip: $request->ip(),
                 // Wygląd zdjęć ustawia się DOPIERO PO publikacji, na osobnym
@@ -199,6 +236,7 @@ class PostController extends Controller
                 // powstaje więc zawsze jako „zwykle".
                 displayMode: Post::DISPLAY_NORMAL,
                 kluczWyslania: $this->kluczZZadania($request),
+                questionTitle: $question ? $data['title'] : null,
             );
         } catch (BladDlaCzlowieka $e) {
             // Formularz zachowuje wpisany tekst — poprawne dane nigdy nie giną
@@ -207,7 +245,8 @@ class PostController extends Controller
             // na aliasy) — komunikat trafia pod pole, którego naprawdę
             // dotyczy, żeby „Poprawne dane nigdy nie znikają" nie zgubiło
             // się w złym miejscu ekranu.
-            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow() ? 'tagi' : 'photos';
+            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow()
+                || ($question && str_contains($e->getMessage(), '3 tagi')) ? 'tagi' : 'photos';
 
             return back()
                 ->withInput($this->wejscieBezPlikowITagow($request, $mediaIds, $tagNames))
@@ -222,6 +261,10 @@ class PostController extends Controller
         // drugie kliknięcie nie jest pomyłką człowieka. Komunikat mówi wprost,
         // że nic się nie zepsuło, i pokazuje drogę do wpisu OSOBNEGO, gdyby
         // ktoś naprawdę chciał dodać drugi.
+        if ($question) {
+            return redirect()->route('questions.show', $post)->with('status',
+                $post->wasRecentlyCreated ? 'Pytanie opublikowane.' : 'To pytanie jest już opublikowane. Drugie kliknięcie nie dodało go ponownie.');
+        }
         if (! $post->wasRecentlyCreated) {
             return redirect()->route('posts.show', $post)->with(
                 'status',
@@ -381,8 +424,11 @@ class PostController extends Controller
                 return [$tagNames, LimityTagow::komunikatTagJuzDodany()];
             }
 
-            if (count($tagNames) >= LimityTagow::maksTagowNaWpis()) {
-                return [$tagNames, LimityTagow::komunikatZaDuzoTagow()];
+            $routePost = $request->route('post');
+            $question = $request->routeIs('questions.store')
+                || ($request->routeIs('posts.update') && $routePost instanceof Post && $routePost->kind === Post::KIND_QUESTION);
+            if (count($tagNames) >= ($question ? 3 : LimityTagow::maksTagowNaWpis())) {
+                return [$tagNames, $question ? 'Do pytania dodaj najwyżej 3 tagi.' : LimityTagow::komunikatZaDuzoTagow()];
             }
 
             $tagNames[] = $nowa;
@@ -446,18 +492,88 @@ class PostController extends Controller
         return $wszystkie;
     }
 
-    public function show(Request $request, Post $post): View
+    public function show(Request $request, Post $post): View|RedirectResponse
     {
+        if ($request->routeIs('questions.show')) {
+            abort_unless(config('kuking.questions.enabled') && $post->kind === Post::KIND_QUESTION, 404);
+        }
         $this->authorize('view', $post);
 
         $post->load([
             'author.profile.avatar',
             'media',
-            'recipe:id,title,slug',
+            'tags:id,slug,name,status',
+            /*
+             * KOLUMNY, KTÓRYCH WIDOK NAPRAWDĘ UŻYWA — a nie te trzy, które
+             * wyglądają na wystarczające (issue #447).
+             *
+             * Było `recipe:id,title,slug`. Zawężenie do trzech kolumn gubiło
+             * dwie, których widok potrzebuje, i żadna z nich nie zgłaszała się
+             * błędem:
+             *
+             *   `hero_media_id` — bez niej relacja `heroMedia` nie ma po czym
+             *   trafić w wiersz i zwraca `null`. Karta pyta
+             *   `$post->recipe?->heroMedia` i po cichu nie rysuje zdjęcia.
+             *   Wpis z przepisu NIE MA własnych zdjęć z założenia (#368), więc
+             *   tracił jedyne, jakie miał: strona wpisu „Bigos z cukinii”
+             *   miała na produkcji ZERO obrazków, przy zdjęciu widocznym na tej
+             *   samej karcie w strumieniu.
+             *
+             *   `visibility` — bez niej karta bierze widoczność WPISU, a ta
+             *   dla wpisu z przepisu jest zawsze `public` (bramką jest przepis,
+             *   `Post::scopeZWidocznymPrzepisem()`). Strona pisała więc
+             *   autorowi „· publicznie” także pod przepisem, który widzą
+             *   wyłącznie jego obserwujący. Przed tym ostrzega komentarz przy
+             *   `post-card.blade.php:60` — karta była zabezpieczona, ten
+             *   kontroler nie.
+             *
+             * Reguła na przyszłość: zawężenie kolumn musi obejmować KLUCZE OBCE
+             * relacji, które będą dociągane dalej. Brak klucza nie jest błędem
+             * — jest cichym `null`.
+             */
+            'recipe:id,title,slug,hero_media_id,visibility',
+            'recipe.heroMedia',
             // Komentarze NIE SĄ tu ładowane (patrz niżej): rosną z popularnością
             // treści bez górnej granicy, więc idą osobnym, paginowanym
             // zapytaniem. `->load()` wciągał je wszystkie naraz.
         ]);
+
+        /*
+         * WPIS, KTÓRY JEST SAMYM WSKAZANIEM PRZEPISU, NIE MA WŁASNEJ STRONY.
+         *
+         * Zgłoszenie właściciela z 12 września: „klikam na bigos z cukinii,
+         * przekierowuje mnie na to okno gdzie jest info Ula bigos napisz
+         * komentarz itp a nie ma przepisu ani zdjęcia. Muszę szukać i klikać
+         * w bigos z cukinii żeby przejść do przepisu… To nie ma sensu”.
+         *
+         * Taki wpis zakłada `kuking:dopisz-wpisy-przepisow` (#368) po to, żeby
+         * przepis w ogóle wszedł do strumienia. Własnej treści nie ma żadnej,
+         * a wszystko, co ta strona potrafiła pokazać — zdjęcie i komentarze —
+         * stoi na stronie przepisu, i to lepiej: ze składnikami i krokami.
+         *
+         * PRZEKIEROWANIE, A NIE 404 I NIE USUNIĘCIE TRASY: adres wpisu mógł już
+         * ktoś komuś wysłać (karta ma przycisk „Podziel się”). Ma działać
+         * dalej — tylko prowadzić tam, gdzie jest danie.
+         *
+         * WPIS Z KOMENTARZEM NIE JEST „SAMYM PRZEPISEM” (`jestSamymPrzepisem`)
+         * i tu nie wchodzi: ma już coś własnego — rozmowę ludzi — więc
+         * zostaje przy swojej stronie. Ta strona pokazuje mu teraz zdjęcie
+         * przepisu i jego prawdziwą widoczność (poprawka w `load()` wyżej).
+         */
+        if ($post->jestSamymPrzepisem() && $post->recipe !== null) {
+            return redirect()->route('recipes.show', $post->recipe->slug);
+        }
+
+        // Liczba zapisów i stan „mam to w zeszycie" (issue #275, D-081).
+        //
+        // Tutaj JEDNYM ODDZIELNYM zapytaniem, a nie kolumną w SELECT-cie jak
+        // w feedzie: ten ekran dostaje wpis z wiązania trasy, więc nie ma
+        // zapytania, do którego dałoby się kolumnę dołożyć. Jeden wpis to
+        // jeden ekran, więc to zapytanie jest STAŁE — nie jest to N+1.
+        // Reguły są te same, bo `doliczDoWpisu()` woła to samo `dolicz()`,
+        // co feed; gdyby ekran wpisu liczył po swojemu, ta sama liczba
+        // znaczyłaby dwie różne rzeczy na dwóch ekranach.
+        $this->zapisy->doliczDoWpisu($post, $request->user());
 
         // Jak przy przepisie — te same dwa powody: blokady (issue #41)
         // i paginacja wątków.
@@ -470,6 +586,17 @@ class PostController extends Controller
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
+        if ($post->kind === Post::KIND_QUESTION) {
+            $answerCount = $post->comments()->widoczneDla($request->user())->whereNull('comments.body_removed_at')->count();
+            $post->setAttribute('comments_count', $answerCount);
+
+            return view('pages.questions.show', [
+                'komentarze' => $komentarze,
+                'komentarzyRazem' => $answerCount,
+                'post' => $post,
+            ]);
+        }
+
         return view('pages.posts.show', [
             'komentarze' => $komentarze,
             'komentarzyRazem' => $komentarze->total(),
@@ -479,6 +606,11 @@ class PostController extends Controller
             // innego to dodatkowe zapytanie bez żadnego zastosowania.
             'toPierwszyWpis' => $request->user()?->getKey() === $post->author_id
                 && $post->author->posts()->published()->count() === 1,
+            // „Kolejne zdjęcie" (issue: nawigacja jak w Garnku) — dwa proste
+            // zapytania, oba po indeksie `posts_author_published_idx`.
+            // Widoczność liczy `SasiedniWpisAutora`, nie ten kontroler.
+            'poprzedniWpis' => $this->sasiedniWpis->poprzedni($post, $request->user()),
+            'nastepnyWpis' => $this->sasiedniWpis->nastepny($post, $request->user()),
         ]);
     }
 
@@ -494,27 +626,35 @@ class PostController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
+        // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
+        // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
+        // pola (czyli każdy spoza naszego formularza, który zawsze wysyła
+        // puste) kończył się błędem „Undefined array key", czyli 500 zamiast
+        // komentarza.
+        $parentId = $data['parent_id'] ?? null;
+
         try {
             $this->publishComment->handle(
                 author: $request->user(),
                 subject: $post,
                 body: $data['body'],
-                // `?? null`, bo `validate()` NIE zwraca klucza, którego
-                // w żądaniu nie było — a `parent_id` jest `nullable`.
-                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
-                // formularza, który zawsze wysyła puste) kończył się błędem
-                // „Undefined array key", czyli 500 zamiast komentarza.
-                //
                 // `widoczneDla()` — audyt W7-06. Bez tego można było podać
                 // UUID komentarza ukrytego przez blokadę i podpiąć się pod
                 // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
                 // kontrolerów jest kilka.
-                parent: ($data['parent_id'] ?? null) === null
+                parent: $parentId === null
                     ? null
                     : $post->allComments()
                         ->widoczneDla($request->user())
-                        ->whereKey($data['parent_id'])
+                        ->whereKey($parentId)
                         ->first(),
+                // ISSUE #761: `$parentId !== null` mówi akcji domenowej, że
+                // formularz WSKAZAŁ konkretnego rodzica. Bez tego rozróżnienia
+                // "rodzic nieznaleziony" (`null` powyżej) i "brak parent_id"
+                // (też `null`) wyglądają identycznie, a odpowiedź pod
+                // zniknięty/ukryty/obcy komentarz publikowała się po cichu
+                // jako nowy komentarz główny.
+                parentRequested: $parentId !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
@@ -533,13 +673,16 @@ class PostController extends Controller
     public function edit(Request $request, Post $post): View
     {
         $this->authorize('update', $post);
+        abort_if($post->kind === Post::KIND_QUESTION && ! config('kuking.questions.enabled'), 404);
 
         return view('pages.posts.edit', [
             'post' => $post,
             // Lista robocza tagów: to, co ktoś zdążył zmienić w tym
             // formularzu (`old()`), a jeśli to pierwsze wejście na ekran —
             // tagi, które wpis ma już dziś.
-            'tagNames' => (array) old('tag_names', $post->tags->pluck('name')->all()),
+            'tagNames' => old('_tag_form_post_id') === (string) $post->getKey()
+                ? (array) old('tag_names', [])
+                : $post->tags->filter(fn (Tag $tag): bool => $tag->pivot->dodany_recznie === true)->pluck('name')->all(),
             'sugestieTagow' => $this->sugestieDlaZapytania(),
         ]);
     }
@@ -547,6 +690,13 @@ class PostController extends Controller
     public function update(Request $request, Post $post): RedirectResponse
     {
         $this->authorize('update', $post);
+        $question = $post->kind === Post::KIND_QUESTION;
+        abort_if($question && ! config('kuking.questions.enabled'), 404);
+
+        // Zakres old input pochodzi z autoryzowanej trasy, nie z podrobionego
+        // pola. Brak tag_names[] oznacza usunięcie całej ręcznej listy tylko
+        // w tym konkretnym formularzu; cudzy formularz nie zeruje tagów.
+        $request->merge(['_tag_form_post_id' => (string) $post->getKey()]);
 
         $tagNames = $this->tagiZFormularza($request);
 
@@ -555,7 +705,7 @@ class PostController extends Controller
         if ($this->toAkcjaTagow($request)) {
             [$tagNames, $bladTagow] = $this->zastosujAkcjeTagow($request, $tagNames);
 
-            $powrot = redirect(url()->previous().'#tagi')
+            $powrot = redirect(url()->previous().($question ? '#f-tagi' : '#tagi'))
                 ->withInput($request->except('tag_names') + ['tag_names' => $tagNames]);
 
             return $bladTagow === null ? $powrot : $powrot->withErrors(['tagi' => $bladTagow]);
@@ -564,8 +714,12 @@ class PostController extends Controller
         $data = $request->validate([
             'body' => ['nullable', 'string', 'max:4000'],
             'visibility' => ['required', 'in:public,followers,private'],
+            'title' => $question ? ['required', 'string', 'min:10', 'max:180'] : ['exclude'],
         ], [
             'body.max' => 'Ten wpis jest za długi. Zmieść się w 4000 znakach.',
+            'title.required' => 'Napisz pytanie w tytule.',
+            'title.min' => 'Rozwiń pytanie do co najmniej 10 znaków.',
+            'title.max' => 'Skróć tytuł pytania do 180 znaków.',
             'visibility.required' => 'Zaznacz, kto ma widzieć ten wpis.',
             // `in` mówi, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — trzy opcje z ekranu, wprost.
@@ -578,17 +732,18 @@ class PostController extends Controller
                 body: $data['body'] ?? null,
                 visibility: $data['visibility'],
                 tagNames: $tagNames,
+                questionTitle: $question ? $data['title'] : null,
             );
         } catch (BladDlaCzlowieka $e) {
             // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
             // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md). Ten sam rozdział
             // pola błędu co w `store()` — patrz komentarz tam.
-            $pole = $e->getMessage() === LimityTagow::komunikatZaDuzoTagow() ? 'tagi' : 'body';
+            $pole = in_array($e->getMessage(), [LimityTagow::komunikatZaDuzoTagow(), 'Do pytania dodaj najwyżej 3 tagi, także te wpisane w opisie.'], true) ? 'tagi' : 'body';
 
             return back()->withInput()->withErrors([$pole => $e->getMessage()]);
         }
 
-        return redirect()->route('posts.show', $post)->with('status', 'Wpis zapisany.');
+        return redirect($post->url())->with('status', $question ? 'Pytanie zapisane.' : 'Wpis zapisany.');
     }
 
     public function destroy(Request $request, Post $post): RedirectResponse

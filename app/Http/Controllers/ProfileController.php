@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\ZapisyWpisu;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
+use App\Models\Tag;
 use App\Support\Czas;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +25,8 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
+    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+
     public function show(Request $request, string $username): View
     {
         // Adres profilu bez rozróżniania wielkości liter (audyt A25).
@@ -55,6 +60,18 @@ class ProfileController extends Controller
         $rok = (int) $request->query('rok', 0);
         $rok = $rok >= 1990 && $rok <= 2999 ? $rok : null;
 
+        $zeszytySzyny = $this->zeszytyDoSzyny($owner, $viewer, $isOwner);
+        $tagiSzyny = $isOwner ? collect() : $this->tagiDoSzyny($owner, $viewer, $isOwner);
+        // Zdjęcia uzupełniają wyłącznie pustą szynę cudzego profilu. Ten sam
+        // filtr co archiwum chroni treści prywatne i dla obserwujących.
+        $zdjeciaSzyny = ! $isOwner && $zeszytySzyny->isEmpty() && $tagiSzyny->isEmpty()
+            ? $owner->posts()->published()
+                ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+                ->whereHas('media', fn ($query) => $query->where('status', Media::STATUS_READY))
+                ->with(['media' => fn ($query) => $query->where('status', Media::STATUS_READY)])
+                ->latest('published_at')->latest('id')->limit(3)->get()
+            : collect();
+
         return view('pages.profile.show', [
             'profile' => $profile,
             'owner' => $owner,
@@ -68,6 +85,13 @@ class ProfileController extends Controller
             // ani jednego wpisu byłby linkiem do pustej strony.
             'lata' => $tab === 'wszystko' ? $this->lataZWpisami($owner, $viewer, $isOwner) : collect(),
             'rok' => $rok,
+            // PRAWA SZYNA PROFILU (issue #205) — dwie listy, obie policzone
+            // TUTAJ, nie w widoku. Filtr widoczności jest regułą domenową
+            // i musi stać w jednym miejscu z filtrem list wyżej; przeniesiony
+            // do Blade byłby drugą implementacją tej samej granicy.
+            'zeszytySzyny' => $zeszytySzyny,
+            'tagiSzyny' => $tagiSzyny,
+            'zdjeciaSzyny' => $zdjeciaSzyny,
             'recipes' => $tab === 'przepisy'
                 ? $owner->recipes()
                     ->published()
@@ -81,7 +105,21 @@ class ProfileController extends Controller
             'cookedEvents' => $tab === 'ugotowane'
                 ? $owner->cookedEvents()
                     ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
-                    ->with(['recipe.author.profile', 'media'])
+                    // `user.profile.avatar` — karta wykonania
+                    // (`components/cooked-card.blade.php`) czyta
+                    // `$event->user` (awatar, nazwa) i
+                    // `$event->user->profile->username` (odnośnik do profilu).
+                    // Doładowany był tylko AUTOR PRZEPISU, nie OSOBA, KTÓRA
+                    // GOTOWAŁA — a to na tej zakładce jest treść główna.
+                    //
+                    // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                    // `ANALYZE`): 52 zapytania na dwunastu kartach, z czego 22 to
+                    // para `profiles` + `users` powtórzona na każdą kartę.
+                    // Po zmianie: 30.
+                    // `RecipeController::show()` dociągał to samo od dawna
+                    // (galeria „Komu wyszło"); ta zakładka była jedynym
+                    // miejscem z tą samą kartą i bez tego `with()`.
+                    ->with(['user.profile.avatar', 'recipe.author.profile', 'media'])
                     ->paginate(12)
                     ->withQueryString()
                 : null,
@@ -96,6 +134,81 @@ class ProfileController extends Controller
                 'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
             ],
         ]);
+    }
+
+    /**
+     * Zeszyty pokazywane w prawej szynie profilu (issue #205).
+     *
+     * WŁASNY PROFIL: wszystkie zeszyty, także prywatne — to są dane tej samej
+     * osoby, która patrzy.
+     *
+     * CUDZY PROFIL: wyłącznie zeszyty PUBLICZNE i wyłącznie wtedy, gdy zeszyt
+     * tej osoby w ogóle wolno otworzyć. Warunki są dokładnie te, które ma
+     * `CollectionPolicy::view()` — konto dostępne jako autor, brak blokady
+     * w którąkolwiek stronę, `visibility = public`. Powtarzamy je tutaj nie
+     * dlatego, że Policy nie działa, tylko dlatego, że Policy pilnuje WEJŚCIA
+     * NA ADRES zeszytu, a nie zapytania budującego listę — to są dwie różne
+     * drogi i naprawienie jednej nie naprawia drugiej (ta sama uwaga co przy
+     * `tylkoWidoczne()` wyżej). Bez tego szyna wypisywałaby nazwy zeszytów,
+     * które po kliknięciu dają 403.
+     *
+     * GOŚĆ NIE DOSTAJE NICZEGO, bo `/zeszyt/{id}` leży za `auth` — lista
+     * odnośników prowadzących na ekran logowania jest gorsza niż jej brak.
+     *
+     * `limit(5)` i `->get()`: koszt tej szyny nie rośnie z liczbą zeszytów.
+     *
+     * @return Collection<int, \App\Models\Collection>
+     */
+    private function zeszytyDoSzyny($owner, $viewer, bool $isOwner): Collection
+    {
+        if ($viewer === null) {
+            return collect();
+        }
+
+        if (! $isOwner && (! $owner->jestDostepnyJakoAutor() || $viewer->hasBlockRelationWith($owner))) {
+            return collect();
+        }
+
+        return $owner->collections()
+            ->when(! $isOwner, fn ($query) => $query->where('visibility', 'public'))
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->limit(5)
+            ->get();
+    }
+
+    /**
+     * Tagi z wpisów tej osoby — odpowiedź na „co ona właściwie gotuje"
+     * (issue #205, prawa szyna cudzego profilu).
+     *
+     * WIDOCZNOŚĆ LICZY SIĘ TAK SAMO JAK PRZY LIŚCIE WPISÓW. Tag jest
+     * etykietą wpisu, więc lista tagów policzona bez filtra zdradzałaby
+     * ZAWARTOŚĆ wpisów prywatnych — dokładnie ten sam kształt wycieku co
+     * tytuł przepisu w liście wykonań (patrz `tylkoZWidocznychPrzepisow()`).
+     * Dlatego podzapytanie przechodzi przez `published()` i przez ten sam
+     * `tylkoWidoczne()`, którym idzie archiwum obok.
+     *
+     * BEZ SORTOWANIA PO LICZBIE WPISÓW, alfabetycznie. „Najczęstszy tag tej
+     * osoby" jest miarą aktywności, a `AGENTS.md` §12 nie chce liczników
+     * aktywności wyeksponowanych w interfejsie — a przy okazji sortowanie
+     * po liczniku wymagałoby agregatu, którego ta szyna nie potrzebuje.
+     *
+     * Jedno zapytanie, `limit(6)` — koszt nie rośnie z liczbą wpisów.
+     *
+     * @return Collection<int, Tag>
+     */
+    private function tagiDoSzyny($owner, $viewer, bool $isOwner): Collection
+    {
+        return Tag::query()
+            ->aktywne()
+            ->whereHas('posts', function ($query) use ($owner, $viewer, $isOwner): void {
+                $query->where('posts.author_id', $owner->getKey())->published();
+
+                $this->tylkoWidoczne($query, $owner, $viewer, $isOwner);
+            })
+            ->orderBy('name')
+            ->limit(6)
+            ->get();
     }
 
     /** @return Paginator<int, Post> */
@@ -115,8 +228,16 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            ->with(['media', 'author.profile.avatar'])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            // 'tags:id,slug,name,status' — patrz komentarz w
+            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
+            // gdy relacja jest już doładowana, więc bez tego archiwum
+            // profilu nie miałoby żadnych chipów tematów.
+            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name,status'])
+            ->withVisibleCommentCount($viewer)
+            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
+            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
+            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->latest('published_at')
             ->latest('id')
             ->paginate(12)
@@ -164,6 +285,10 @@ class ProfileController extends Controller
      */
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
+        if ($query->getModel() instanceof Post) {
+            $query->enabledKinds();
+        }
+
         if ($isOwner) {
             return;
         }

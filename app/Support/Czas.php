@@ -55,6 +55,40 @@ final class Czas
     }
 
     /**
+     * Data wpisu w strumieniu: BEZ ROKU, dopóki wpis jest z tego roku.
+     *
+     * Decyzja właściciela z 12 września 2026, podjęta po pomiarze główki
+     * karty wpisu. Całą robotę zrobiło tam skrócenie przycisku menu do
+     * trzech kropek; data dokłada do tego 0–1 wiersza przy czcionce 100%,
+     * i to właśnie te 0–1 wiersza są tu kupowane świadomie, za cenę roku.
+     *
+     * DLACZEGO NIE „3 GODZINY TEMU"
+     * Bo to jest archiwum, do którego ludzie wracają — „2 lata temu" nie
+     * mówi, kiedy. Zysk wobec krótkiej daty: 0–1 wiersza, czyli żaden.
+     *
+     * DLACZEGO ROK ZOSTAJE PRZY STARSZYCH WPISACH
+     * Bo „12 września" bez roku przy wpisie sprzed dwóch lat to nie skrót,
+     * tylko nieprawda podana bez ostrzeżenia. Próg liczymy w strefie
+     * CZŁOWIEKA (`lokalnie`), nie w UTC: przez pierwsze dwie godziny
+     * polskiej doby 1 stycznia w UTC jest jeszcze 31 grudnia, więc wpis
+     * sprzed chwili gubiłby rok albo go dostawał, zależnie od godziny.
+     *
+     * GDZIE TEGO NIE UŻYWAMY: ekrany moderacji, odwołań, wiadomości
+     * i eksportu danych. Tam data jest dowodem w sprawie albo terminem, po
+     * którym coś się kończy — pełna data kosztuje jedno słowo i zostaje.
+     */
+    public static function dataWpisu(?CarbonInterface $moment): string
+    {
+        if ($moment === null) {
+            return '';
+        }
+
+        $tenSamRok = self::lokalnie($moment)->year === self::lokalnie(now())->year;
+
+        return self::data($moment, $tenSamRok ? 'j F, H:i' : 'j F Y, H:i');
+    }
+
+    /**
      * Dzisiejsza DATA w strefie człowieka, jako `Y-m-d`.
      *
      * Nie `now()->toDateString()`. To drugie liczy dzień w `app.timezone`,
@@ -65,6 +99,34 @@ final class Czas
     public static function dzisiajData(): string
     {
         return self::lokalnie(now())->toDateString();
+    }
+
+    /**
+     * PONIEDZIAŁEK tygodnia, w którym mieści się ten moment, jako `Y-m-d`
+     * w strefie człowieka.
+     *
+     * PO CO ODDZIELNA METODA, A NIE `now()->startOfWeek()` NA MIEJSCU
+     * Bo `now()` liczy w `app.timezone`, czyli w UTC (patrz komentarz klasy),
+     * a poniedziałek w UTC zaczyna się w Polsce w niedzielę o 22:00 albo
+     * 23:00. Tygodniowe podsumowanie wysyłane w poniedziałek o 00:30 czasu
+     * polskiego trafiłoby więc do tygodnia POPRZEDNIEGO — a ten tydzień jest
+     * kluczem, po którym baza rozpoznaje „ta osoba ma już ten okres
+     * obsłużony" (`weekly_digest_sends`, D-077). Pomyłka o dwie godziny
+     * znaczy tu dwa listy w jednym tygodniu albo brak listu, nie
+     * przesuniętą etykietę na ekranie.
+     *
+     * DLACZEGO DATA PONIEDZIAŁKU, A NIE NUMER TYGODNIA ISO
+     * Numer tygodnia sam z siebie nie jest identyfikatorem: `2026-12-28`
+     * należy do tygodnia 1 **roku 2027**, więc numer wymaga pary
+     * (rok ISO, tydzień) i pierwszego dnia, w którym ktoś dołoży ją nie po
+     * kolei, klucz przestaje być unikalny. Data poniedziałku jest jedną
+     * kolumną typu `date`, porównywalną, sortowalną i czytelną w zrzucie
+     * bazy — a `date_trunc('week', …)` w PostgreSQL znaczy dokładnie to samo
+     * (tygodnie Postgresa zaczynają się w poniedziałek).
+     */
+    public static function poczatekTygodniaData(?CarbonInterface $moment = null): string
+    {
+        return self::lokalnie($moment ?? now())->startOfWeek(CarbonInterface::MONDAY)->toDateString();
     }
 
     /**

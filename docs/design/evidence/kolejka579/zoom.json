@@ -1,0 +1,56 @@
+[
+  {
+    "typ": "wpisy",
+    "theme": "light",
+    "zoom": 2,
+    "width": 320,
+    "dpr": 2,
+    "scroll": 320,
+    "tab": "PASS"
+  },
+  {
+    "typ": "wpisy",
+    "theme": "dark",
+    "zoom": 2,
+    "width": 320,
+    "dpr": 2,
+    "scroll": 320,
+    "tab": "PASS"
+  },
+  {
+    "typ": "przepisy",
+    "theme": "light",
+    "zoom": 2,
+    "width": 320,
+    "dpr": 2,
+    "scroll": 320,
+    "tab": "PASS"
+  },
+  {
+    "typ": "przepisy",
+    "theme": "dark",
+    "zoom": 2,
+    "width": 320,
+    "dpr": 2,
+    "scroll": 320,
+    "tab": "PASS"
+  },
+  {
+    "typ": "ugotowane",
+    "theme": "light",
+    "zoom": 2,
+    "width": 320,
+    "dpr": 2,
+    "scroll": 320,
+    "tab": "PASS"
+  },
+  {
+    "typ": "ugotowane",
+    "theme": "dark",
+    "zoom": 2,
+    "width": 320,
+    "dpr": 2,
+    "scroll": 320,
+    "tab": "PASS"
+  }
+]

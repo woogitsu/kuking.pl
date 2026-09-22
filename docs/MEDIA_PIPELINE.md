@@ -45,6 +45,13 @@ na zdjęcie" — komuś, kto właśnie zrobił zdjęcie telefonem.
 Pilnuje tego `ObiecujemyTylkoFormatyKtoreUmiemyTest`. Wartość atrybutu `accept`
 w formularzach bierze się z tej samej listy, przez `LimityZdjec::atrybutAccept()`.
 
+Plik HEIC/HEIF, który mimo to trafi na serwer, jest rozpoznawany po magic
+bytes (`mime_content_type()`, nie po rozszerzeniu) i dostaje własny, polski
+komunikat mówiący CO ZROBIĆ, oraz własny kod powodu w sygnale
+`photo_upload_failed` (`heic_unsupported`, `App\Support\RozpoznanieZdjecia`) —
+patrz **D-064** w `docs/DECISIONS.md` po pełną decyzję (czy dokładać libheif
+do obrazu Dockera) i rachunek kosztu za nią stojący.
+
 ### Ile to kosztuje pamięci
 
 Zmierzone: szczyt RSS procesu przy przetworzeniu jednego zdjęcia razem z trzema
@@ -82,12 +89,84 @@ Usuwać:
 
 ## Warianty
 
-Propozycja:
+W tle (`ProcessUploadedImage`, lista w `config/kuking.php`,
+`kuking.media.variants`):
 - thumb 320 px;
 - feed 960 px;
 - large 1600 px.
 
-WebP/AVIF, z fallbackiem zgodnym z support matrix.
+Wszystkie trzy warianty są kodowane do WebP z jakością 82
+(`ProcessUploadedImage::handle()`, `toWebp(quality: 82)`). AVIF jest
+obsługiwanym formatem wejściowym, ale pipeline nie generuje wariantów AVIF
+ani zestawu alternatywnych formatów wyjściowych.
+
+### `podglad` — 640 px, robiony SYNCHRONICZNIE (issue #430)
+
+Wgranie zdjęcia i publikacja wpisu to **jedno żądanie**, więc w chwili
+pierwszego renderu strony wpisu wariantów z kolejki nie ma jeszcze żadnych —
+nie z przeciążenia, tylko z kolejności. Autorka widziała przez to napis
+„Twoje zdjęcie się jeszcze przygotowuje" zamiast swojego obiadu, i to nie
+w rzadkim przypadku, tylko zawsze.
+
+`App\Domain\Media\PodgladOdRazu` robi więc jeden wariant 640 px jeszcze
+w `StoreUploadedImage`, zanim powstanie wiersz `media`. Trafia do
+`metadata.variants.podglad` i do **publicznego** bucketu wariantów, tak samo
+jak każdy inny wariant — czyli przekodowany do WebP, a więc bez EXIF-u.
+
+**Nie pokazujemy oryginału i nie ma takiego planu.** Zmierzone 12.09.2026 dla
+zdjęcia 4032×3024 (12,2 Mpx) z telefonu:
+
+| co                | rozmiar     |
+|-------------------|-------------|
+| oryginał          | 6 438 105 B |
+| wariant `podglad` |    62 974 B |
+| wariant `feed`    |   177 404 B |
+
+Oryginał waży 102 razy więcej od podglądu i niesie EXIF. Przeglądarka na
+stronie wpisu pobiera tuż po publikacji **66,8 kB** łącznie (zmierzone
+w Chromium, 320–414 px).
+
+**Górny próg megapikseli** (`kuking.media.podglad.max_megapixels`, domyślnie
+25) nie jest ostrożnością na zapas, tylko granicą pamięci kontenera web.
+Zmierzone szczyty RSS procesu przy robieniu podglądu: 12,2 Mpx → 101 MB,
+24,5 Mpx → 154 MB, 49,9 Mpx → 239 MB. libgd alokuje bitmapę **poza**
+licznikiem PHP, więc `memory_limit` tego nie zatrzyma — proces znika zabity
+przez OOM kontenera, bez wyjątku i bez śladu w dzienniku (patrz
+`docker/php.ini`). Kontener web ma 1 GB na wszystkie procesy PHP-FPM naraz.
+Powyżej progu podglądu nie ma i zdjęcie czeka na workera, który ma własną
+pamięć (`QUEUE_MEMORY`).
+
+Ustawienie progu na 0 wyłącza podgląd w całości, bez wdrożenia — serwis
+zachowuje się wtedy tak jak przed #430.
+
+`ProcessUploadedImage` **zachowuje** `podglad` przy zapisie swoich wariantów.
+Nie jest to uprzejmość: `KasujZdjecie` chodzi po `metadata.variants` i nie ma
+innego uchwytu do tego pliku, więc zgubienie wpisu zostawiłoby w publicznym
+buckecie sierotę, której nie kasuje ani usunięcie wpisu, ani wymazanie konta.
+Po przetworzeniu podgląd zostaje w `srcset` jako kandydat między `thumb`
+(320) a `feed` (960) — zmierzone: telefon 320 px pobiera dzięki temu 66,8 kB
+zamiast 178,6 kB.
+
+Ten sam uchwyt jest potrzebny wariantom, które **dopiero powstają** (#601).
+`metadata.variants` zapisuje się dopiero z ostatnim wariantem, razem ze
+statusem `ready`, a `put()` idą do bucketu jeden po drugim — więc zadanie
+przerwane w połowie (wyjątek albo `$timeout`, który ubija proces sygnałem,
+bez `catch`) zostawiało pliki, których `KasujZdjecie` nie umiało nazwać.
+Dlatego job zapisuje policzone z góry klucze wariantów **przed pętlą**, pod
+`Media::METADANE_WARIANTY_W_TRAKCIE`, i `KasujZdjecie` sprząta także tę
+listę; po sukcesie lista znika. Lista jest osobna od `variants`, bo
+`wariantDoSerwowania()` pokazałaby po niej zdjęcie pod nazwą wariantu,
+którego plik może jeszcze nie istnieć. Pilnuje tego
+`tests/Feature/PrzerwanePrzetwarzanieNieZostawiaSierotyTest.php`.
+
+### Co wolno pokazać
+
+Bramką widoków **nie jest status wiersza**, tylko istnienie wariantu:
+`Media::maWariantDoPokazania()`. Reguła brzmi: pokazujemy wyłącznie to, co
+wyszło z naszego kodera. Oryginał nie jest wariantem, `Media::url()` go nie
+zna, `MediaController` serwuje wyłącznie klucze z `wariantDoSerwowania()`,
+a trasa `media.show` przyjmuje wyłącznie nazwy z białej listy. Status
+`deleted` nie przechodzi nigdy, nawet z kompletem wariantów.
 
 ## Oryginał
 
@@ -102,7 +181,7 @@ MediaController
         ↓
 DostepDoZdjecia  →  Policy treści NADRZĘDNEJ (Recipe/Post/CookedEvent/Profile/RecipeStep)
         ↓
-302 → https://<bucket>/media/...?X-Amz-Signature=...   (ważne 5 minut)
+302 → https://<bucket>/media/...?X-Amz-Signature=...   (do 5 minut; publiczne do 60)
 ```
 
 **Bajty nie idą przez PHP.** Przez PHP idzie wyłącznie decyzja.
@@ -163,14 +242,18 @@ siedzi jeszcze lokalizacja GPS kuchni.
 
 | kiedy | `Cache-Control` |
 |---|---|
-| zdjęcie widoczne dla niezalogowanego | `public, max-age=300` |
+| zdjęcie publiczne, odczyt bez Cookie/Authorization i bez logowania | `public, max-age=1800` |
 | wszystko inne, razem z odmową | `private, no-store` |
 
 Wspólny cache wolno dopuścić wyłącznie dla odpowiedzi, która jest taka sama
 dla każdego — czyli dla zdjęcia, które i tak zobaczyłby ktoś bez konta.
-`max-age` równa się ważności podpisu (`kuking.media.signed_url_minutes`), bo
-jest górnym ograniczeniem na to, jak długo przełączenie przepisu na prywatny
-może nie dojść do skutku.
+`max-age` wynosi połowę ważności podpisu. Decyzja właściciela z 20.09.2026
+(#597): podpis zdjęcia publicznego trwa do 60 minut
+(`kuking.media.public_signed_url_minutes`), chronionego do 5 minut
+(`kuking.media.signed_url_minutes`). Odpowiedź zalogowanego zawsze ma
+`private, no-store`, także przy publicznym zdjęciu. Podpis sprzed zmiany
+widoczności nie jest unieważniany; z cache bajtów okno może sięgnąć 90 minut.
+Kontrola, reguły i granice pomiaru: `docs/infra/CLOUDFLARE_CACHE_597_610.md`.
 
 **Ten nagłówek chroni SAM ADRES, nie treść, do której on prowadzi — chyba że
 adres niesie tę regułę dalej (audyt zewnętrzny N02).** Nagłówek `Cache-Control`
@@ -267,6 +350,32 @@ konta ktoś dokończyć musi.
 ## Storage
 
 Kod biznesowy korzysta z Laravel Filesystem.
+### Sterownik dysków R2 to `r2`, nie `s3` (issue #120)
+
+Wbudowany sterownik `s3` wysyła `x-amz-acl` przy **każdym** zapisie, także
+wtedy, gdy nikt o widoczność nie prosił — `AwsS3V3Adapter::upload()` liczy ACL
+zawsze i przy braku widoczności wypada `private`. Na R2 ten nagłówek jest
+nieobsługiwany dla `PutObject`, a Cloudflare nie gwarantuje, jak na niego
+zareaguje. Zależała od tego prywatność oryginałów, czyli plików z pełnym
+EXIF-em.
+
+Dyski `r2`, `r2_publiczne`, `r2_legacy` i `r2_eksporty` chodzą więc na własnym
+sterowniku (`app/Support/Storage/R2Adapter.php`, rejestrowanym w
+`AppServiceProvider`), który:
+
+- zapisuje przez `PutObject` bez `ACL` i bez `Grant*` (powyżej 16 MB —
+  multipartem, też bez ACL: paczki RODO bywają większe niż zdjęcie),
+- kopiuje bez `GetObjectAcl`,
+- rzuca wyjątek przy `setVisibility()`, `getVisibility()` i przy zapisie
+  z jawnie podaną widocznością — bo ciche nic byłoby powtórzeniem błędu,
+  który to zgłoszenie naprawia.
+
+Poza tym jest to ten sam dysk co dotąd: ten sam `S3Client`, te same `url()`
+i `temporaryUrl()`. Kod biznesowy nic o tej zmianie nie wie i nie musi.
+
+Że prawdziwy bucket R2 przyjmie takie żądanie, **nie jest** sprawdzone z tego
+repozytorium — patrz `docs/infra/BRAMKA_R2.md`.
+
 
 Dzięki temu:
 ```text

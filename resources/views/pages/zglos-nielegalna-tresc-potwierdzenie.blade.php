@@ -9,12 +9,12 @@
     <h1>Przyjęliśmy Twoje zgłoszenie</h1>
 
     @if($numer)
-        <div class="card">
+        <div class="sekcja-strony">
             <p class="mt-0">Numer sprawy:</p>
             <p class="kod-do-przepisania">{{ $numer }}</p>
             <p class="mb-0">
-                Warto go zapisać. Jeśli podałeś adres e-mail, wysłaliśmy tam
-                potwierdzenie z tym samym numerem.
+                Warto go zapisać. Jeśli w zgłoszeniu był adres e-mail, wysłaliśmy
+                tam potwierdzenie z tym samym numerem.
             </p>
         </div>
     @endif

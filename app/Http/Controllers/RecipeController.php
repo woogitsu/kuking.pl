@@ -7,13 +7,17 @@ namespace App\Http\Controllers;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Recipes\Actions\PublishRecipe;
+use App\Domain\Recipes\CoMoznaDopisac;
 use App\Domain\Recipes\StepTimer;
+use App\Domain\Recipes\TekstNaWiersze;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Recipe;
 use App\Models\Unit;
 use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\LimityTekstuPrzepisu;
 use App\Support\LimityZdjec;
+use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -25,19 +29,32 @@ use Illuminate\View\View;
 /**
  * Przepisy.
  *
- * Dodawanie przepisu ma DWIE drogi i obie są prawdziwe:
+ * DODAWANIE I DOPISYWANIE TO OD #364 DWIE RÓŻNE RZECZY
  *
- *  1. `/dodaj/przepis` — kreator trzykrokowy z autosave'em szkicu
- *     (komponent Livewire `recipe-wizard`, docs/FLOWS_AND_SCREENS.md).
- *     Wymaga JavaScriptu.
- *  2. `/dodaj/przepis/jedna-strona` — ten sam formularz na jednej stronie,
- *     zwykły POST, zero JavaScriptu. To NIE jest ustępstwo ani zaszłość:
- *     przy słabym zasięgu skrypt się nie dociąga, a użytkownik zostaje
- *     z martwym formularzem (AGENTS.md → „JavaScript jest ulepszeniem”).
+ * Do 11 września 2026 były jedną: `/dodaj/przepis` pokazywał przy ośmiu
+ * składnikach i trzech krokach około 89 kontrolek, bo kazał rozstrzygnąć
+ * strukturę przepisu, zanim pozwolił cokolwiek napisać. Właściciel wkleił
+ * wtedy listę składników do pola „Krótko o przepisie" — nie z niezrozumienia
+ * podpisu, tylko dlatego, że formularz nie słuchał. Rozdzielenie wygląda tak:
  *
- * Obie drogi kończą się w tej samej akcji domenowej `PublishRecipe`, więc
- * reguły („szkic da się zapisać z samym tytułem”, „publikacja wymaga
- * składnika i kroku”) są jedne, nie dwie.
+ *  1. `/dodaj/przepis` — DODAWANIE. Sześć rzeczy: zdjęcie, tytuł, składniki
+ *     (jedno pole, jeden na wiersz, NIEOBOWIĄZKOWE), przygotowanie (jedno
+ *     pole, pusta linia = nowy krok), kto ma widzieć, Opublikuj. Zwykły POST,
+ *     bez JavaScriptu.
+ *  2. `/przepisy/{slug}/szczegoly` — DOPISYWANIE, kreator w trzech krokach
+ *     (komponent Livewire `recipe-wizard`). Wymaga JavaScriptu.
+ *  3. `/przepisy/{slug}/edycja` — to samo dopisywanie na jednej stronie,
+ *     zwykłym POST-em. Droga bez skryptu, więc kreator nie jest jedyna.
+ *
+ * BAZA SIĘ NIE ZMIENIŁA. Oba pola tekstowe z punktu 1 serwer rozbija
+ * z powrotem na `recipe_ingredients` i `recipe_steps`
+ * (`App\Domain\Recipes\TekstNaWiersze`), więc przeliczanie porcji
+ * i szukanie po składnikach działają dalej.
+ *
+ * Wszystkie drogi kończą się w tej samej akcji domenowej `PublishRecipe`,
+ * więc reguły („szkic da się zapisać z samym tytułem”, „publikacja wymaga
+ * kroku, ale NIE wymaga składnika” — zgoda właściciela z #364) są jedne,
+ * nie trzy.
  */
 class RecipeController extends Controller
 {
@@ -48,39 +65,114 @@ class RecipeController extends Controller
     ) {}
 
     /**
-     * Kreator trzykrokowy. `?szkic={uuid}` wraca do niedokończonego szkicu.
+     * Ekran dodawania przepisu — sześć rzeczy i koniec (issue #364).
+     *
+     * `?szkic={uuid}` prowadzi do KREATORA, nie tutaj, i to jest świadome:
+     * szkic bywa już rozpisany na grupy składników, uwagi i minutniki,
+     * a ekran dodawania takich pól nie ma. Wciągnięcie go w dwa pola
+     * tekstowe skasowałoby po cichu to, co człowiek już wpisał — czyli
+     * dokładnie to, czego AGENTS.md §5 zabrania. Tak linkuje `/dodaj`
+     * („Dokończ: …") i tak ma zostać.
      */
     public function create(Request $request): View
     {
         $draftId = $request->query('szkic');
-        $draft = null;
 
         // Str::isUuid, bo kolumna id jest typu uuid — byle jaki tekst
         // w adresie wywaliłby zapytanie, a nie dał czytelnego 404.
         if (is_string($draftId) && Str::isUuid($draftId)) {
             $draft = Recipe::where('status', Recipe::STATUS_DRAFT)->findOrFail($draftId);
             $this->authorize('update', $draft);
+
+            return $this->wizard($request, $draft);
         }
 
+        return view('pages.recipes.create', [
+            'kluczWyslania' => $this->kluczDlaFormularza(),
+        ]);
+    }
+
+    /**
+     * Klucz wysłania dla świeżo renderowanego formularza przepisu.
+     *
+     * `old()` pierwsze: po nieudanej walidacji (za długi tytuł, za duże
+     * zdjęcie) formularz wystawia się od nowa i klucz musi zostać ten sam —
+     * inaczej ochrona znika po pierwszym błędzie, czyli dokładnie tam, gdzie
+     * człowiek klika „Opublikuj" drugi raz.
+     */
+    private function kluczDlaFormularza(): ?string
+    {
+        // Wyłącznik awaryjny mechanizmu — `config/kuking.php`, sekcja
+        // `formularze` (tam stoi całe uzasadnienie i skutek wyłączenia).
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
+        $stary = old('klucz_wyslania');
+
+        return is_string($stary) && Str::isUuid($stary) ? $stary : (string) Str::uuid7();
+    }
+
+    /**
+     * Klucz wysłania z żądania. Wartość niebędąca UUID-em schodzi do `null`,
+     * czyli do „zapisz normalnie" — zawodzimy otwarcie, nie zamknięcie
+     * (ADR §4.3).
+     */
+    private function kluczZZadania(Request $request): ?string
+    {
+        // Wyłącznik awaryjny — TA SAMA bramka, co przy renderowaniu
+        // formularza. Bez niej wyłącznik działa tylko w połowie: karta
+        // otwarta PRZED przełączeniem nadal niesie klucz w DOM-ie i odsyła
+        // go, więc częściowy indeks dalej obowiązuje.
+        if (! (bool) config('kuking.formularze.klucz_wyslania_wlaczony')) {
+            return null;
+        }
+
+        $klucz = $request->input('klucz_wyslania');
+
+        return is_string($klucz) && Str::isUuid($klucz) ? $klucz : null;
+    }
+
+    /**
+     * „Dopisz szczegóły" w trzech krokach — kreator na ISTNIEJĄCYM przepisie.
+     *
+     * UUID w adresie to nie autoryzacja: wejście idzie przez Policy, tak samo
+     * jak edycja na jednej stronie.
+     */
+    public function details(Request $request, Recipe $recipe): View
+    {
+        $this->authorize('update', $recipe);
+
+        return $this->wizard($request, $recipe);
+    }
+
+    /**
+     * Wszystkie szczegóły na jednej stronie — droga bez JavaScriptu.
+     *
+     * Adres `/dodaj/przepis/jedna-strona` zostaje, bo ludzie mają go
+     * w zakładkach i w historii przeglądarki, a formularz dalej publikuje
+     * przepis zwykłym POST-em. Nie jest już jednak DOMYŚLNĄ drogą dodawania
+     * i nie linkuje do niego ani `/dodaj`, ani ekran dodawania.
+     */
+    public function createSimple(): View
+    {
+        return view('pages.recipes.szczegoly', [
+            'units' => Unit::orderBy('name')->get(),
+            'recipe' => null,
+            'kluczWyslania' => $this->kluczDlaFormularza(),
+        ]);
+    }
+
+    private function wizard(Request $request, Recipe $recipe): View
+    {
         return view('pages.recipes.wizard', [
-            'draft' => $draft,
+            'draft' => $recipe,
             'drafts' => $request->user()
                 ->recipes()
                 ->where('status', Recipe::STATUS_DRAFT)
                 ->orderByDesc('updated_at')
                 ->limit(5)
                 ->get(),
-        ]);
-    }
-
-    /**
-     * Formularz na jednej stronie — droga bez JavaScriptu.
-     */
-    public function createSimple(): View
-    {
-        return view('pages.recipes.create', [
-            'units' => Unit::orderBy('name')->get(),
-            'recipe' => null,
         ]);
     }
 
@@ -113,25 +205,59 @@ class RecipeController extends Controller
                 steps: $this->withStepPhotos($request, $user, $data['steps']),
                 publish: $request->input('action') !== 'draft',
                 ip: $request->ip(),
+                kluczWyslania: $this->kluczZZadania($request),
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['title' => $e->getMessage()]);
+        }
+
+        /*
+         * DRUGIE KLIKNIĘCIE „OPUBLIKUJ" — to jest TEN SAM przepis, nie nowy.
+         *
+         * `wasRecentlyCreated` jest fałszem, gdy `PublishRecipe` odbiło się
+         * o `recipes_one_per_klucz_wyslania` i oddało przepis z pierwszego
+         * wysłania. Komunikat mówi to wprost, bo człowiek, który kliknął
+         * dwa razy, niepokoi się właśnie o to, czy nie ma teraz dwóch
+         * przepisów — i wcześniej naprawdę miał.
+         */
+        if (! $recipe->wasRecentlyCreated) {
+            return redirect()
+                ->route($recipe->isPublished() ? 'recipes.show' : 'recipes.edit', $recipe)
+                ->with('status', 'Ten przepis już zapisaliśmy — to jest on. Drugie kliknięcie nie założyło drugiego przepisu.');
         }
 
         if (! $recipe->isPublished()) {
             return redirect()->route('recipes.edit', $recipe)->with('status', 'Szkic zapisany. Możesz wrócić do niego, kiedy chcesz.');
         }
 
-        return redirect()->route('recipes.show', $recipe)->with('status',
-            'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
-        );
+        /*
+         * KOMUNIKAT MÓWI O „DOPISZ SZCZEGÓŁY" TYLKO WTEDY, GDY JEST CO
+         * DOPISAĆ (D-053 — bez martwego przycisku).
+         *
+         * Przepis dodany z ekranu sześciu rzeczy ma pustych kilkanaście pól
+         * i zaproszenie jest wtedy prawdziwe. Przepis wysłany z pełnego
+         * formularza, w którym wypełniono wszystko, nie ma już czego dopisać
+         * — i zdanie kierujące go do formularza bez ani jednego pustego pola
+         * byłoby tym samym, co przycisk, który po kliknięciu nic nie robi.
+         */
+        $potwierdzenie = match ($recipe->visibility) {
+            'private' => 'Przepis zapisany. Widzisz go tylko Ty.',
+            'followers' => 'Przepis opublikowany dla osób, które Cię obserwują.',
+            default => 'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
+        };
+
+        if (CoMoznaDopisac::jest($recipe)) {
+            $potwierdzenie .= ' Możesz jeszcze dopisać szczegóły — wybierz „Dopisz szczegóły”.';
+        }
+
+        return redirect()->route('recipes.show', $recipe)->with('status', $potwierdzenie);
     }
 
     public function edit(Request $request, Recipe $recipe): View
     {
         $this->authorize('update', $recipe);
 
-        return view('pages.recipes.create', [
+        return view('pages.recipes.szczegoly', [
             'units' => Unit::orderBy('name')->get(),
             // `steps.media`, bo formularz pokazuje zdjęcie, które krok już ma
             // — bez tego byłoby to jedno zapytanie na wiersz (N+1), czyli
@@ -168,6 +294,10 @@ class RecipeController extends Controller
                 author: $user,
                 attributes: [
                     ...$data['recipe'],
+                    // Pochodzenie przepisu jest od #364 NIEOBOWIĄZKOWE, więc
+                    // żądanie bez tego pola nie może po cichu przestawić
+                    // „rodzinny" na „mój własny". Brak pola = bez zmiany.
+                    'source_type' => $data['recipe']['source_type'] ?? $recipe->source_type,
                     'hero_media_id' => $heroMediaId,
                     'source_scan_media_id' => $scanMediaId,
                 ],
@@ -246,6 +376,23 @@ class RecipeController extends Controller
                 'author.profile.avatar',
                 'replies' => fn ($query) => $query->widoczneDla($request->user()),
                 'replies.author.profile.avatar',
+                // TO NIE JEST NADMIAROWE, CHOĆ PRZEPIS STOI OBOK W `$model`.
+                //
+                // Pod każdym komentarzem i każdą odpowiedzią widok pyta
+                // `@can('delete', $comment)`. `CommentPolicy::delete()` woła
+                // `Comment::notifiableUserId()`, a ta `Comment::subject()`,
+                // czyli `$this->post ?? $this->recipe ?? $this->cookedEvent`.
+                // Relacja nie była doładowana, więc KAŻDY komentarz szedł po
+                // swój przepis osobnym zapytaniem — mimo że wszystkie
+                // komentarze na tej stronie dotyczą jednego, już wczytanego.
+                //
+                // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                // `ANALYZE`): 41 zapytań przy 5 komentarzach na stronie, 61 przy
+                // 15 i 81 przy 25 — jedno na komentarz i jedno na odpowiedź.
+                // Dwie linijki niżej zamieniają to na dwa zapytania niezależne
+                // od liczby komentarzy: 33 przy każdym rozmiarze strony.
+                'recipe',
+                'replies.recipe',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
@@ -269,8 +416,10 @@ class RecipeController extends Controller
         $cookedEvents = $model->cookedEvents()
             ->widoczneDla($request->user())
             ->with(['user.profile.avatar', 'media'])
-            ->paginate(12, ['*'], 'wykonania')
-            ->withQueryString();
+            ->paginate(12, ['*'], 'wykonania');
+
+        PaginationLinks::preserveOtherPage($komentarze, $cookedEvents);
+        PaginationLinks::preserveOtherPage($cookedEvents, $komentarze);
 
         return view('pages.recipes.show', [
             'recipe' => $model,
@@ -299,11 +448,8 @@ class RecipeController extends Controller
             // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
             // więc dane dla wyszukiwarek zostają bez zmian.
             'cookedCount' => $cookedEvents->total(),
-            // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
-            // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
-            // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
-            // gwiazdek nie ma i nie będzie, bo są abstrakcją, a zdanie
-            // „dziesięć z dwunastu osób zrobi to ponownie" rozumie każdy.
+            // #666: każde wykonanie może mieć osobną odpowiedź, także od tej samej osoby.
+            // Liczniki opisujemy jako wykonania i odpowiedzi, bez deduplikacji kucharzy.
             // Czy oglądający obserwuje autora — jedno zapytanie, żeby przycisk
             // „Obserwuj" na stronie przepisu pokazywał prawdziwy stan
             // (UI kit v2, ekran 02).
@@ -346,27 +492,31 @@ class RecipeController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
+        // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
+        // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
+        // pola (czyli każdy spoza naszego formularza, który zawsze wysyła
+        // puste) kończył się błędem „Undefined array key", czyli 500 zamiast
+        // komentarza.
+        $parentId = $data['parent_id'] ?? null;
+
         try {
             $this->publishComment->handle(
                 author: $request->user(),
                 subject: $model,
                 body: $data['body'],
-                // `?? null`, bo `validate()` NIE zwraca klucza, którego
-                // w żądaniu nie było — a `parent_id` jest `nullable`.
-                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
-                // formularza, który zawsze wysyła puste) kończył się błędem
-                // „Undefined array key", czyli 500 zamiast komentarza.
-                //
                 // `widoczneDla()` — audyt W7-06. Bez tego można było podać
                 // UUID komentarza ukrytego przez blokadę i podpiąć się pod
                 // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
                 // kontrolerów jest kilka.
-                parent: ($data['parent_id'] ?? null) === null
+                parent: $parentId === null
                     ? null
                     : $model->comments()
                         ->widoczneDla($request->user())
-                        ->whereKey($data['parent_id'])
+                        ->whereKey($parentId)
                         ->first(),
+                // ISSUE #761: patrz komentarz przy tym samym parametrze
+                // w PostController::comment().
+                parentRequested: $parentId !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
@@ -391,24 +541,31 @@ class RecipeController extends Controller
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'min:3', 'max:180'],
-            'summary' => ['nullable', 'string', 'max:2000'],
+            'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
+            'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
             'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
             'visibility' => ['required', 'in:public,followers,private'],
-            'source_type' => ['required', 'in:own,family,adaptation,external'],
-            'source_person' => ['nullable', 'string', 'max:120'],
-            'source_note' => ['nullable', 'string', 'max:2000'],
-            'source_url' => ['nullable', 'url', 'max:2000'],
+            /*
+             * `nullable`, nie `required` (issue #364). Ekran dodawania nie
+             * pyta „ten przepis jest…" — to jedno z dziewięciu kółek wyboru,
+             * które z niego wyleciały. Brak pola znaczy „mój własny"
+             * (`PublishRecipe` stawia `Recipe::SOURCE_OWN`), a formularz
+             * szczegółów pyta dalej i dalej przysyła wartość.
+             */
+            'source_type' => ['nullable', 'in:own,family,adaptation,external'],
+            'source_person' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_person']],
+            'source_note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_note']],
+            'source_url' => ['nullable', 'url', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
             'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'ingredients' => ['nullable', 'array', 'max:'.Recipe::MAX_INGREDIENTS],
-            'ingredients.*.text' => ['nullable', 'string', 'max:240'],
-            'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],
-            'ingredients.*.note' => ['nullable', 'string', 'max:300'],
+            'ingredients.*.text' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.text']],
+            'ingredients.*.group_name' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.group_name']],
+            'ingredients.*.note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.note']],
             // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
             // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
             // nie przychodzi wcale.
@@ -421,7 +578,7 @@ class RecipeController extends Controller
             // JEST autoryzacją: `PublishRecipe` dopasowuje je wyłącznie do
             // kroków tego przepisu, więc cudzy identyfikator nic nie daje.
             'steps.*.id' => ['nullable', 'uuid'],
-            'steps.*.instruction' => ['nullable', 'string', 'max:4000'],
+            'steps.*.instruction' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['steps.*.instruction']],
             // Człowiek wpisuje MINUTY, bo tak myśli o gotowaniu. Sekundy
             // (`recipe_steps.timer_seconds`, `data-timer-sekundy` w trybie
             // gotowania) liczy `StepTimer` w warstwie domenowej — tu stoi
@@ -433,6 +590,25 @@ class RecipeController extends Controller
             // `StoreUploadedImage` w zapisie, ten sam limit rozmiaru.
             'steps.*.photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'steps.*.remove_photo' => ['nullable', 'boolean'],
+
+            /*
+             * DWA POLA Z EKRANU DODAWANIA (issue #364).
+             *
+             * Wchodzą TYM SAMYM POST-em co tablice `ingredients` i `steps`
+             * z formularza szczegółów i nie kłócą się z nimi: rozstrzyga to,
+             * które pole W OGÓLE PRZYSZŁO w żądaniu (niżej). Dzięki temu
+             * jedna trasa `recipes.store` obsługuje oba ekrany i obie kończą
+             * w tej samej akcji domenowej.
+             *
+             * Granice są wysokie celowo. Nie są miarą tego, „ile przepis
+             * powinien mieć" — od tego są `Recipe::MAX_INGREDIENTS`
+             * i `MAX_STEPS`, sprawdzane po rozbiciu na wiersze i mówiące
+             * wprost, ile wierszy jest za dużo. Te dwie liczby mają tylko
+             * odciąć wklejenie całej książki kucharskiej, zanim zacznie
+             * chodzić parser.
+             */
+            'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
+            'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ], [
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
             'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
@@ -455,9 +631,9 @@ class RecipeController extends Controller
             'visibility.in' => 'Zaznacz, kto ma widzieć ten przepis: wszyscy, obserwujący czy tylko Ty.',
             'source_type.required' => 'Zaznacz, skąd jest ten przepis.',
             'source_type.in' => 'Zaznacz, skąd jest ten przepis: Twój własny, rodzinny, adaptacja czy z zewnątrz.',
-            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — samo imię wystarczy.',
+            'source_person.max' => 'To pole jest za długie. Zostaw najwyżej 120 znaków — wystarczy krótka wzmianka, na przykład „od mamy”.',
             'source_note.max' => 'Historia przepisu jest za długa. Zostaw najwyżej 2000 znaków.',
-            'source_url.url' => 'Ten adres strony wygląda na niepełny. Powinien zaczynać się od https://',
+            'source_url.url' => 'Ten adres strony wygląda na niepełny. Wklej go jeszcze raz z paska przeglądarki — powinien zaczynać się od https://',
             // Te trzy komunikaty są celowo IDENTYCZNE jak w komponencie
             // `recipe-wizard` (droga z JavaScriptem) — to jest ten sam
             // formularz na jednej stronie, więc ma mówić to samo (issue #86,
@@ -480,6 +656,8 @@ class RecipeController extends Controller
             'steps.*.timer_minutes.min' => StepTimer::KOMUNIKAT_UJEMNY,
             'steps.*.timer_minutes.max' => StepTimer::KOMUNIKAT_ZA_DUZO,
             'steps.*.photo.max' => LimityZdjec::komunikatZaDuzyPlik(),
+            'skladniki_tekst.max' => 'Lista składników jest bardzo długa. Zostaw najwyżej 30 000 znaków — resztę dopisz po opublikowaniu.',
+            'przygotowanie_tekst.max' => 'Opis przygotowania jest bardzo długi. Zostaw najwyżej 120 000 znaków — resztę dopisz po opublikowaniu.',
         ]);
 
         // BUDŻET ZDJĘĆ KROKÓW — sprawdzany PRZED wgraniem czegokolwiek.
@@ -503,22 +681,33 @@ class RecipeController extends Controller
             ]);
         }
 
-        return [
-            'recipe' => [
-                'title' => $data['title'],
-                'summary' => $data['summary'] ?? null,
-                'servings' => $data['servings'] ?? null,
-                'prep_minutes' => $data['prep_minutes'] ?? null,
-                'cook_minutes' => $data['cook_minutes'] ?? null,
-                'difficulty' => $data['difficulty'] ?? null,
-                'visibility' => $data['visibility'],
-                'source_type' => $data['source_type'],
-                'source_person' => $data['source_person'] ?? null,
-                'source_note' => $data['source_note'] ?? null,
-                'source_url' => $data['source_url'] ?? null,
-                'family_since_year' => $data['family_since_year'] ?? null,
-            ],
-            'ingredients' => array_values(array_map(
+        /*
+         * SKŁADNIKI I KROKI — Z JEDNEGO POLA TEKSTOWEGO ALBO Z WIERSZY.
+         *
+         * Rozstrzyga OBECNOŚĆ pola w żądaniu, nie jego pustość. Ekran
+         * dodawania wysyła `skladniki_tekst` zawsze, także pusty — i pusty
+         * ma znaczyć „bez składników", bo właściciel zgodził się na przepis
+         * bez ani jednego (#364). Gdyby rozstrzygała pustość, wyczyszczenie
+         * pola po cichu zostawiałoby stare wiersze i przepis kłamałby listą,
+         * której autor już nie widzi.
+         *
+         * Formularz szczegółów tych dwóch pól nie ma w ogóle, więc idzie
+         * drugą gałęzią — tą samą, co przed #364, co do wiersza.
+         */
+        $zTekstu = $request->exists('skladniki_tekst');
+        $krokiZTekstu = $request->exists('przygotowanie_tekst');
+
+        if ($zTekstu) {
+            $ingredients = TekstNaWiersze::skladniki($data['skladniki_tekst'] ?? null);
+
+            if (count($ingredients) > Recipe::MAX_INGREDIENTS) {
+                throw ValidationException::withMessages([
+                    'skladniki_tekst' => 'To bardzo dużo składników — zmieść się w '
+                        .Recipe::MAX_INGREDIENTS.' wierszach. Sprawdź, czy nie trafił tu przez pomyłkę opis przygotowania.',
+                ]);
+            }
+        } else {
+            $ingredients = array_values(array_map(
                 static fn (array $row): array => [
                     'text' => $row['text'] ?? '',
                     'group_name' => $row['group_name'] ?? null,
@@ -526,14 +715,45 @@ class RecipeController extends Controller
                     'no_amount' => (bool) ($row['no_amount'] ?? false),
                 ],
                 $data['ingredients'] ?? [],
-            )),
-            // KOLEJNOŚĆ WIERSZY ZOSTAJE TAKA, JAK PRZYSZŁA W POST-CIE, a każdy
-            // wiersz niesie SWOJĄ tożsamość, swój minutnik i swoje zdjęcie.
-            // Pozycja w bazie bierze się z miejsca wiersza w tej tablicy
-            // (`PublishRecipe::syncSteps`), więc przestawienie wierszy
-            // przestawia kroki — i przestawia je RAZEM z ich zdjęciami, bo
-            // zdjęcie jest rozwiązywane po `id`, nie po pozycji.
-            //
+            ));
+        }
+
+        if ($krokiZTekstu) {
+            $steps = array_map(
+                static fn (array $row): array => [
+                    'id' => null,
+                    'instruction' => $row['instruction'],
+                    'timer_minutes' => null,
+                    'media_id' => null,
+                    'remove_media' => false,
+                ],
+                TekstNaWiersze::kroki($data['przygotowanie_tekst'] ?? null),
+            );
+
+            /*
+             * BŁĄD PRZY POLU, A NIE NAD CAŁYM FORMULARZEM (AGENTS.md §5).
+             *
+             * Bez tego pusty opis przygotowania wracał z `PublishRecipe`
+             * jako `BladDlaCzlowieka` i lądował pod kluczem `title` — czyli
+             * zdanie „Opisz przynajmniej jeden krok" świeciło na czerwono
+             * przy NAZWIE przepisu, którą człowiek wypełnił poprawnie.
+             * Reguła zostaje ta sama i dalej pilnuje jej akcja domenowa;
+             * tu stoi tylko po to, żeby komunikat trafił tam, gdzie jest
+             * robota do zrobienia.
+             */
+            if ($steps === [] && $request->input('action') !== 'draft') {
+                throw ValidationException::withMessages([
+                    'przygotowanie_tekst' => 'Napisz, co się po kolei robi — bez tego nikt nie ugotuje tego przepisu. Wystarczy jedno zdanie.',
+                ]);
+            }
+
+            if (count($steps) > Recipe::MAX_STEPS) {
+                throw ValidationException::withMessages([
+                    'przygotowanie_tekst' => 'To bardzo dużo kroków — zmieść się w '
+                        .Recipe::MAX_STEPS.' krokach. Pusta linijka zaczyna nowy krok, więc sprawdź, czy nie ma ich za dużo.',
+                ]);
+            }
+        } else {
             // KLUCZE ZOSTAJĄ TAKIE, JAK W ŻĄDANIU — bez `array_values()`.
             // Po nich `withStepPhotos()` szuka pliku (`steps.3.photo`)
             // i po nich adresuje komunikat błędu, a widok wypisuje go przez
@@ -543,7 +763,7 @@ class RecipeController extends Controller
             // cudzym wierszem. Kolejność zapisu bierze się z kolejności
             // elementów tablicy, nie z wartości kluczy, więc numeracja
             // pozycji w bazie na tym nie traci.
-            'steps' => array_map(
+            $steps = array_map(
                 static fn (array $row): array => [
                     'id' => $row['id'] ?? null,
                     'instruction' => $row['instruction'] ?? '',
@@ -560,7 +780,26 @@ class RecipeController extends Controller
                     'remove_media' => (bool) ($row['remove_photo'] ?? false),
                 ],
                 $data['steps'] ?? [],
-            ),
+            );
+        }
+
+        return [
+            'recipe' => [
+                'title' => $data['title'],
+                'summary' => $data['summary'] ?? null,
+                'servings' => $data['servings'] ?? null,
+                'prep_minutes' => $data['prep_minutes'] ?? null,
+                'cook_minutes' => $data['cook_minutes'] ?? null,
+                'difficulty' => $data['difficulty'] ?? null,
+                'visibility' => $data['visibility'],
+                'source_type' => $data['source_type'] ?? null,
+                'source_person' => $data['source_person'] ?? null,
+                'source_note' => $data['source_note'] ?? null,
+                'source_url' => $data['source_url'] ?? null,
+                'family_since_year' => $data['family_since_year'] ?? null,
+            ],
+            'ingredients' => $ingredients,
+            'steps' => $steps,
         ];
     }
 

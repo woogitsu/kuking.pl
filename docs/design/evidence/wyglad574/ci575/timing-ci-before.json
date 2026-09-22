@@ -1,0 +1,290 @@
+[
+  {
+    "rep": 0,
+    "path": "/home",
+    "complete": true,
+    "summary": [
+      {
+        "opis": "summary „Aa · Wygląd\"",
+        "geometria": {
+          "klasa": "",
+          "rodzic": "szybki-wyglad",
+          "ramka": {
+            "x": 95.515625,
+            "y": 490.46875,
+            "width": 200.484375,
+            "height": 105.796875,
+            "top": 490.46875,
+            "right": 296,
+            "bottom": 596.265625,
+            "left": 95.515625
+          },
+          "topbar": {
+            "x": 12,
+            "y": -42845,
+            "width": 296,
+            "height": 326,
+            "top": -42845,
+            "right": 308,
+            "bottom": -42519,
+            "left": 12
+          },
+          "bottomNav": {
+            "x": 8,
+            "y": 364.265625,
+            "width": 304,
+            "height": 232.375,
+            "top": 364.265625,
+            "right": 312,
+            "bottom": 596.640625,
+            "left": 8
+          },
+          "scrollPaddingTop": "16px",
+          "scrollPaddingBottom": "16px"
+        },
+        "pokrycieTopbar": 0,
+        "pokrycieBottomNav": 1
+      }
+    ]
+  },
+  {
+    "rep": 0,
+    "path": "/ustawienia/profil",
+    "complete": true,
+    "summary": [
+      {
+        "opis": "summary „Aa · Wygląd\"",
+        "geometria": {
+          "klasa": "",
+          "rodzic": "szybki-wyglad",
+          "ramka": {
+            "x": 95.515625,
+            "y": 490.75,
+            "width": 200.484375,
+            "height": 105.796875,
+            "top": 490.75,
+            "right": 296,
+            "bottom": 596.546875,
+            "left": 95.515625
+          },
+          "topbar": {
+            "x": 12,
+            "y": -10903,
+            "width": 296,
+            "height": 326,
+            "top": -10903,
+            "right": 308,
+            "bottom": -10577,
+            "left": 12
+          },
+          "bottomNav": {
+            "x": 8,
+            "y": 363.546875,
+            "width": 304,
+            "height": 232.375,
+            "top": 363.546875,
+            "right": 312,
+            "bottom": 595.921875,
+            "left": 8
+          },
+          "scrollPaddingTop": "16px",
+          "scrollPaddingBottom": "16px"
+        },
+        "pokrycieTopbar": 0,
+        "pokrycieBottomNav": 1
+      }
+    ]
+  },
+  {
+    "rep": 1,
+    "path": "/home",
+    "complete": true,
+    "summary": [
+      {
+        "opis": "summary „Aa · Wygląd\"",
+        "geometria": {
+          "klasa": "",
+          "rodzic": "szybki-wyglad",
+          "ramka": {
+            "x": 95.515625,
+            "y": 490.46875,
+            "width": 200.484375,
+            "height": 105.796875,
+            "top": 490.46875,
+            "right": 296,
+            "bottom": 596.265625,
+            "left": 95.515625
+          },
+          "topbar": {
+            "x": 12,
+            "y": -42845,
+            "width": 296,
+            "height": 326,
+            "top": -42845,
+            "right": 308,
+            "bottom": -42519,
+            "left": 12
+          },
+          "bottomNav": {
+            "x": 8,
+            "y": 364.265625,
+            "width": 304,
+            "height": 232.375,
+            "top": 364.265625,
+            "right": 312,
+            "bottom": 596.640625,
+            "left": 8
+          },
+          "scrollPaddingTop": "16px",
+          "scrollPaddingBottom": "16px"
+        },
+        "pokrycieTopbar": 0,
+        "pokrycieBottomNav": 1
+      }
+    ]
+  },
+  {
+    "rep": 1,
+    "path": "/ustawienia/profil",
+    "complete": true,
+    "summary": [
+      {
+        "opis": "summary „Aa · Wygląd\"",
+        "geometria": {
+          "klasa": "",
+          "rodzic": "szybki-wyglad",
+          "ramka": {
+            "x": 95.515625,
+            "y": 547.75,
+            "width": 200.484375,
+            "height": 105.796875,
+            "top": 547.75,
+            "right": 296,
+            "bottom": 653.546875,
+            "left": 95.515625
+          },
+          "topbar": {
+            "x": 12,
+            "y": -10898,
+            "width": 296,
+            "height": 326,
+            "top": -10898,
+            "right": 308,
+            "bottom": -10572,
+            "left": 12
+          },
+          "bottomNav": {
+            "x": 8,
+            "y": 368.546875,
+            "width": 304,
+            "height": 232.375,
+            "top": 368.546875,
+            "right": 312,
+            "bottom": 600.921875,
+            "left": 8
+          },
+          "scrollPaddingTop": "16px",
+          "scrollPaddingBottom": "16px"
+        },
+        "pokrycieTopbar": 0,
+        "pokrycieBottomNav": 0.5
+      }
+    ]
+  },
+  {
+    "rep": 2,
+    "path": "/home",
+    "complete": true,
+    "summary": [
+      {
+        "opis": "summary „Aa · Wygląd\"",
+        "geometria": {
+          "klasa": "",
+          "rodzic": "szybki-wyglad",
+          "ramka": {
+            "x": 95.515625,
+            "y": 430.46875,
+            "width": 200.484375,
+            "height": 105.796875,
+            "top": 430.46875,
+            "right": 296,
+            "bottom": 536.265625,
+            "left": 95.515625
+          },
+          "topbar": {
+            "x": 12,
+            "y": -42845,
+            "width": 296,
+            "height": 326,
+            "top": -42845,
+            "right": 308,
+            "bottom": -42519,
+            "left": 12
+          },
+          "bottomNav": {
+            "x": 8,
+            "y": 364.265625,
+            "width": 304,
+            "height": 232.375,
+            "top": 364.265625,
+            "right": 312,
+            "bottom": 596.640625,
+            "left": 8
+          },
+          "scrollPaddingTop": "16px",
+          "scrollPaddingBottom": "16px"
+        },
+        "pokrycieTopbar": 0,
+        "pokrycieBottomNav": 1
+      }
+    ]
+  },
+  {
+    "rep": 2,
+    "path": "/ustawienia/profil",
+    "complete": true,
+    "summary": [
+      {
+        "opis": "summary „Aa · Wygląd\"",
+        "geometria": {
+          "klasa": "",
+          "rodzic": "szybki-wyglad",
+          "ramka": {
+            "x": 95.515625,
+            "y": 490.75,
+            "width": 200.484375,
+            "height": 105.796875,
+            "top": 490.75,
+            "right": 296,
+            "bottom": 596.546875,
+            "left": 95.515625
+          },
+          "topbar": {
+            "x": 12,
+            "y": -10776,
+            "width": 296,
+            "height": 326,
+            "top": -10776,
+            "right": 308,
+            "bottom": -10450,
+            "left": 12
+          },
+          "bottomNav": {
+            "x": 8,
+            "y": 490.546875,
+            "width": 304,
+            "height": 232.375,
+            "top": 490.546875,
+            "right": 312,
+            "bottom": 722.921875,
+            "left": 8
+          },
+          "scrollPaddingTop": "16px",
+          "scrollPaddingBottom": "16px"
+        },
+        "pokrycieTopbar": 0,
+        "pokrycieBottomNav": 1
+      }
+    ]
+  }
+]

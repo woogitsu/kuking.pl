@@ -24,6 +24,18 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 
 ## 2. Architektura
 
+> ⚠️ **SPROSTOWANIE, 9 września 2026.** Skrzynka „środowisko PRODUCTION"
+> niżej pokazywała trzy osobne serwisy (`web`/`worker`/`scheduler`) i bazę
+> z „Backups: Daily + Weekly" oraz „PITR: włączone (~4 tyg.)". **Nieprawda.**
+> Zmierzone connectorem Railway tego dnia: produkcja to **jeden** serwis
+> aplikacyjny, `kuking.pl`, uruchamiany komendą
+> `/usr/local/bin/kuking-entrypoint all` (serwer HTTP + kolejka + harmonogram
+> w jednym kontenerze). Trzy-serwisowy podział to `PRODUCTION_SPLIT_SERVICES`
+> w `.railway/railway.ts` — stan DOCELOWY, do którego `railway config apply`
+> nigdy nie zostało uruchomione. Backupy i PITR nie istnieją wcale: to
+> funkcje planu Pro, a Kuking jest na Free/Hobby (D-043, `docs/DECISIONS.md`).
+> Diagram niżej pokazuje stan faktyczny.
+
 ```text
                           ┌──────────────────────────┐
                           │      UŻYTKOWNIK          │
@@ -38,7 +50,7 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
 ║                        CLOUDFLARE  (plan Free)                             ║
 ║                                                                            ║
 ║   DNS (strefa kuking.pl)  •  TLS na krawędzi  •  HSTS  •  Brotli           ║
-║   WAF Managed Rules       •  Rate limiting /logowanie, /rejestracja        ║
+║   WAF Managed Rules       •  Rate limiting /login, /register               ║
 ║                                                                            ║
 ║   ┌────────────────────────────────┐   ┌────────────────────────────────┐  ║
 ║   │  CACHE RULES (aplikacja)       │   │  CACHE RULES (media) WYCOFANE  │  ║
@@ -76,32 +88,35 @@ staging, PR → środowisko preview), a infrastruktura jest opisana w
                     │                          + S3 API (zapis wariantów)
 ╔═══════════════════▼════════════════════════════════════╪═══════════════════╗
 ║                RAILWAY   region europe-west4-drams3a (Amsterdam)           ║
-║                projekt: kuking                                             ║
+║                projekt: ideal-exploration (nazwa nadana przez Railway)     ║
 ║                                                                            ║
-║  ┌─ środowisko PRODUCTION ─────────────────────────────┼────────────────┐  ║
-║  │                                                     │                │  ║
-║  │  ┌──────────────┐  ┌──────────────┐  ┌───────────────────────────┐  │  ║
-║  │  │   web        │  │   worker     │  │   scheduler               │  │  ║
-║  │  │ FrankenPHP   │  │ queue:work   │  │ schedule:work             │  │  ║
-║  │  │ + Caddy      │  │              │  │                           │  │  ║
-║  │  │ :8080        │  │ przetwarza   │  │ digesty, sitemapy,        │  │  ║
-║  │  │ /health      │  │ zdjęcia,     │  │ sprzątanie                │  │  ║
-║  │  │              │  │ maile,       │  │                           │  │  ║
-║  │  │ pre-deploy:  │  │ eksporty     │  │ DOKŁADNIE 1 replika       │  │  ║
-║  │  │ migrate      │  │              │  │                           │  │  ║
-║  │  │ --force      │  │ 1 GB RAM     │  │ 512 MB RAM                │  │  ║
-║  │  │ 1 GB RAM     │  │ drain 120 s  │  │ restart: ALWAYS           │  │  ║
-║  │  └──────┬───────┘  └──────┬───────┘  └─────────┬─────────────────┘  │  ║
-║  │         │                 │                    │                    │  ║
-║  │         └─────────────────┴────────────────────┘                    │  ║
-║  │                           │  prywatna sieć (Wireguard)              │  ║
-║  │                           │  *.railway.internal — 0 zł egress       │  ║
-║  │                  ┌────────▼──────────────────────┐                  │  ║
-║  │                  │      postgres  (PG 18)        │                  │  ║
-║  │                  │  dane • sesje • cache • queue │                  │  ║
-║  │                  │  Backups: Daily + Weekly      │                  │  ║
-║  │                  │  PITR: włączone (~4 tyg.)     │                  │  ║
-║  │                  └───────────────────────────────┘                  │  ║
+║  ┌─ środowisko PRODUCTION ─────────────────────────────────────────────┐  ║
+║  │   ┌─────────────────────────────────────────────────────────────┐   │  ║
+║  │   │            kuking.pl — JEDEN serwis, tryb `all`             │   │  ║
+║  │   │            FrankenPHP + Caddy · :8080 · /health             │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │                 pętla kolejki (queue:work)                  │   │  ║
+║  │   │                 harmonogram (schedule:work)                 │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │        pre-deploy: migrate --force --no-interaction         │   │  ║
+║  │   │               1 replika, region europe-west4                │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │         ⚠ tryb `all` jest kruchy: padnięcie procesu         │   │  ║
+║  │   │          ubija stronę i kolejkę razem — patrz §10           │   │  ║
+║  │   └─────────────────────────────────────────────────────────────┘   │  ║
+║  │                                  │                                  │  ║
+║  │                                  ▼                                  │  ║
+║  │   ┌─────────────────────────────────────────────────────────────┐   │  ║
+║  │   │                      Postgres (PG 18)                       │   │  ║
+║  │   │                dane • sesje • cache • queue                 │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │               Backups: BRAK (plan Free/Hobby)               │   │  ║
+║  │   │                PITR: BRAK (plan Free/Hobby)                 │   │  ║
+║  │   │                                                             │   │  ║
+║  │   │            Jedyna planowana kopia: zrzut z #193             │   │  ║
+║  │   │             DZIŚ: nie istnieje żadna kopia bazy             │   │  ║
+║  │   │             (decyzja D-043, docs/DECISIONS.md)              │   │  ║
+║  │   └─────────────────────────────────────────────────────────────┘   │  ║
 ║  └─────────────────────────────────────────────────────────────────────┘  ║
 ║                                                                            ║
 ║  ┌─ STAGING (staging.kuking.pl) ──┐  ┌─ PREVIEW pr-123 (efemeryczne) ──┐  ║
@@ -148,6 +163,25 @@ To założenie było nieprawdziwe i kosztowałoby wyciek danych osobowych
 w tabeli zgodności oznaczony jako NIEOBSŁUGIWANY dla `PutObject`. Publiczność
 w R2 jest cechą BUCKETU: własnej domeny albo `r2.dev`. Prefiks nie jest
 granicą uprawnień — jest tylko fragmentem nazwy klucza.
+
+### Aplikacja nie wysyła już ACL wcale (issue #120, 9 września 2026)
+
+Samo niepodawanie widoczności nie wystarczało: wbudowany sterownik `s3`
+liczył ACL **zawsze** (`AwsS3V3Adapter::upload()`), a przy braku podanej
+widoczności wypadało `private`. Nagłówek szedł więc do R2 przy każdym
+zapisie, a prywatność oryginałów zależała od tego, jak Cloudflare zareaguje
+na nagłówek, którego nie obsługuje — czyli od zachowania niegwarantowanego.
+
+Dyski `r2`, `r2_publiczne`, `r2_legacy` i `r2_eksporty` mają dziś
+`driver => 'r2'` — własny sterownik (`app/Support/Storage/R2Adapter.php`),
+który nie wysyła ani `x-amz-acl`, ani `x-amz-grant-*`, i nigdy nie woła
+`GetObjectAcl`/`PutObjectAcl`. Pilnuje tego `ZapisDoR2BezAclTest`, na
+prawdziwym, podpisanym żądaniu HTTP — bo w `Storage::fake()` nagłówki nie
+istnieją.
+
+**To jest połowa bramki #120 — ta, którą da się zrobić kodem.** Druga połowa
+(dwanaście dowodów na prawdziwym R2) jest w `docs/infra/BRAMKA_R2.md`
+i należy do właściciela.
 
 Bucket wystawiony pod `cdn.kuking.pl` wystawiał więc CAŁĄ zawartość, razem
 z `incoming/`. A adres oryginału dawał się wyprowadzić z publicznego adresu
@@ -196,6 +230,7 @@ ma rozstrzygnąć, czy potrzebny jest cache decyzji.
 **Czego kod nie załatwia:** zdjęcie klucza `url` z konfiguracji NIE zdejmuje
 domeny z bucketu po stronie Cloudflare. Dopóki `cdn.kuking.pl` tam wskazuje,
 stare adresy działają dalej — to jest **issue #120** i należy do właściciela.
+Lista kontrolna z miejscem na datę: `docs/infra/BRAMKA_R2.md`.
 
 W aplikacji odpowiadają im dyski `r2` i `r2_publiczne`
 (`config/filesystems.php`), a w `railway.ts` zmienne `R2_BUCKET`
@@ -262,7 +297,7 @@ Railway wprowadziłoby trzecie proxy w łańcuchu, co komplikuje nagłówki
 |---|---|---|---|
 | Domena | `kuking.pl`, `www` | `staging.kuking.pl` | `*.up.railway.app` |
 | Gałąź | `main` | `staging` | gałąź PR-a |
-| Serwisy | web + worker + scheduler + postgres | web (`APP_ROLE=all`) + postgres | web (`APP_ROLE=all`) + postgres |
+| Serwisy | `kuking.pl` (tryb `all`) + `Postgres` — **stan dziś, 9 IX 2026**; `web` + `worker` + `scheduler` + `postgres` to cel `.railway/railway.ts`, `railway config apply` jeszcze nie uruchomione (D-043) | web (`APP_ROLE=all`) + postgres | web (`APP_ROLE=all`) + postgres |
 | Baza | **własna** | **własna** | **własna**, tworzona z kopii staginu |
 | Sekrety | **własne** | **własne, nieprodukcyjne** | dziedziczone ze **staginu** |
 | R2 | `kuking-media` | `kuking-media-staging` | `kuking-media-staging` (wspólny) |
@@ -590,13 +625,18 @@ dla obu — inaczej `www` dałoby błąd TLS **przed** wykonaniem przekierowania
 
 ### Cache Rules
 
+**Aktualizacja #597/#610, 20.09.2026:** instrukcja i wyłączone projekty reguł
+są w [CLOUDFLARE_CACHE_597_610.md](CLOUDFLARE_CACHE_597_610.md).
+To nie jest potwierdzenie stanu panelu. HTML gościa pozostaje niegotowy do
+cache (sesja i CSRF). Reguły zdjęć wymagają odbioru stagingu.
+
 **Co cache'ować:**
 
 | Reguła | Warunek | Akcja |
 |---|---|---|
 | Assety Vite | `starts_with(http.request.uri.path, "/build/")` | Cache eligible, Edge TTL **1 rok**, Browser TTL 1 rok |
 | Statyka PWA | ścieżka w `/favicon.ico`, `/robots.txt`, `/manifest.webmanifest` | Edge TTL 1 godz. |
-| Media (osobna strefa hosta) | `http.host == "cdn.kuking.pl"` | **Cache Everything**, Edge TTL 30 dni, **Smart Tiered Cache ON** |
+| Zdjęcia przez aplikację (projekt #597) | `/zdjecia/{media}/{wariant}`, bez stanu klienta | Respektuj origin, przy braku nagłówka BYPASS; odbiór według dokumentu powyżej |
 
 Pliki Vite mają hash w nazwie (`app-a1b2c3.js`), więc roczny TTL jest bezpieczny —
 nowy build to nowa nazwa.
@@ -607,10 +647,11 @@ nowy build to nowa nazwa.
 Gdy którykolwiek warunek:
     starts_with(http.request.uri.path, "/livewire/")
  or starts_with(http.request.uri.path, "/api/")
- or http.request.uri.path in {"/logowanie" "/rejestracja" "/wyloguj"}
+ or http.request.uri.path in {"/login" "/register" "/logout"}
  or starts_with(http.request.uri.path, "/konto/")
  or starts_with(http.request.uri.path, "/ustawienia/")
- or http.cookie contains "kuking_session"
+ or http.cookie ne ""
+ or any(http.request.headers["authorization"][*] ne "")
  or http.request.method != "GET"
 Wtedy: Bypass cache
 ```
@@ -629,7 +670,7 @@ cache'owane.
 ### WAF i rate limiting
 
 - **Cloudflare Managed Ruleset** — ON (plan Free).
-- **Rate limiting** na `/logowanie` i `/rejestracja`: np. 10 żądań / 10 min / IP.
+- **Rate limiting** na `/login` i `/register`: np. 10 żądań / 10 min / IP.
   Plan Free daje ograniczoną liczbę reguł — jeśli mieści się tylko jedna, ustaw ją
   na logowanie (ochrona przed credential stuffing).
 - **Bot Fight Mode** — ON, ale **sprawdź, czy nie blokuje uploadu** na `cdn.kuking.pl`.
@@ -694,8 +735,29 @@ Włącz **2FA na GitHubie, Railway i Cloudflare** — to najsłabsze ogniwo cał
 > wygrywa. Ta sekcja zostaje jako uzasadnienie architektoniczne (dlaczego
 > trzy warstwy, nie jedna) i punkt odniesienia dla decyzji z dnia wdrożenia.
 
-Railway daje trzy niezależne warstwy. **Używamy wszystkich trzech**, bo każda
-chroni przed czymś innym.
+> ## ⚠️ DWIE Z TRZECH WARSTW OPISANYCH NIŻEJ NIE ISTNIEJĄ NA NASZYM PLANIE
+>
+> **Sprostowanie z 9 września 2026 (D-043, sprawdzone przez właściciela
+> w panelu).** Volume Backups i PITR są funkcjami planu **Pro**; Kuking jest
+> na Free i przechodzi na Hobby. Panel na tych planach nawet nie pokazuje tej
+> zakładki, więc instrukcji „Ustaw teraz: Daily + Weekly + Enable PITR"
+> niżej **NIE DA SIĘ wykonać** — a dawała się odhaczyć, i to jest gorsze
+> niż jej brak.
+>
+> Zostaje **jedna** warstwa: zrzut logiczny poza Railwayem. Nie jest więc
+> „ostatnią linią obrony", tylko **jedyną**. Zbudowana w issue #193
+> (`docker/kopia/`), z procedurą i listą czynności właściciela w
+> [`KOPIE_I_ODTWORZENIE.md`](KOPIE_I_ODTWORZENIE.md) §7.
+>
+> **Nie działa też „na schedulerze", jak mówi akapit „Offsite" niżej.**
+> `docker/php.ini` wyłącza `proc_open`, bez którego `pg_dump` z PHP nie
+> wystartuje, więc zrzut mieszka w OSOBNYM serwisie Railway w obrazie bez
+> PHP (D-043). Tabela niżej zostaje jako uzasadnienie architektoniczne
+> i jako opis stanu po ewentualnym przejściu na plan Pro.
+
+Railway daje trzy niezależne warstwy. **Docelowo używamy wszystkich trzech**,
+bo każda chroni przed czymś innym — dziś dostępna jest tylko trzecia
+(patrz ramka wyżej).
 
 | Warstwa | Co to | Chroni przed | Nie chroni przed |
 |---|---|---|---|
@@ -808,6 +870,36 @@ już wątpliwości.
 | **Smoke test po deployu** | czy deploy nie zepsuł ścieżek użytkownika | `deploy.yml`, job `verify` |
 | **Metryki Railway** | CPU, RAM, sieć per serwis | wbudowane, przeglądaj co tydzień |
 
+> ⚠️ **SPROSTOWANIE, 10 września 2026 (audyt monitoringu, issue #33).**
+> Tabela wyżej opisuje stan DOCELOWY. Sprawdzone w kodzie i w panelach tego
+> dnia — stan FAKTYCZNY:
+>
+> - **Sentry nie jest zainstalowany** (`composer.json` nie ma
+>   `sentry/sentry-laravel` — `composer install` w środowisku pracy odbija
+>   się od uwierzytelnienia GitHuba, D-041). Zamiast niego działa kanał
+>   `blad_webhook` (Discord/Slack, `docs/infra/MONITORING_BLEDOW.md`) —
+>   **jeśli** właściciel ustawił `LOG_BLAD_WEBHOOK_URL` w Railway. Bez tego
+>   kroku kanał jest martwy i nikt nie dostaje niczego.
+> - **Zewnętrzny uptime NIE JEST założony.** Trasa `/health` istnieje i jest
+>   gotowa do monitorowania (patrz instrukcja krok po kroku niżej w tej
+>   sekcji) — konto UptimeRobot/Better Stack to jedyny krok, którego repo nie
+>   ma prawa zrobić za właściciela.
+> - **PostHog nie jest wpięty.** Rekomendacja „nie teraz" i warunki powrotu:
+>   `docs/DECISIONS.md` D-063.
+> - **Alert na zaległości w kolejce ISTNIEJE od tego audytu** — bullet niżej
+>   w „Czego brakuje" był aktualny do dziś; `/health` sprawdza teraz
+>   `failed_jobs` (sprawdzenie `kolejka`) i, przy skonfigurowanym webhooku,
+>   dzwoni na niego automatycznie (`HealthController::powiadomWebhook()`),
+>   z ograniczeniem częstotliwości, żeby trwająca awaria nie zalała kanału.
+>   Bez zewnętrznej usługi typu Sentry — czyta wyłącznie `failed_jobs`,
+>   niczego nie zmienia w kolejce.
+> - **`/health` sprawdza też pocztę** (na produkcji: czy `MAIL_MAILER`
+>   ma czym wysłać — `App\Support\Poczta`, ta sama klasa co
+>   `kuking:sprawdz-poczte`) i Turnstile (D-050) — obie z tego samego powodu:
+>   żadna z tych awarii nie rzuca wyjątku, którego złapałby mechanizm
+>   raportujący błędy 500, więc bez `/health` nikt by się o nich nie
+>   dowiedział.
+
 ### Dlaczego zewnętrzny uptime monitor jest obowiązkowy
 
 **Railway odpytuje `/health` tylko przy deployu i NIE monitoruje go później.**
@@ -831,12 +923,15 @@ cały łańcuch: DNS → Cloudflare → Railway → aplikacja → baza.
 
 ### Czego brakuje, a warto dodać w fazie beta
 
-- **Alert na zaległości w kolejce.** Rosnąca liczba rekordów w `jobs` albo
-  jakikolwiek wpis w `failed_jobs` = zdjęcia użytkowników nie są przetwarzane,
-  a strona wygląda na sprawną. To najbardziej podstępna awaria w tym systemie.
-  Zaimplementuj jako zadanie schedulera raportujące do Sentry.
+- ~~Alert na zaległości w kolejce.~~ **Zrobione 10 września 2026 (issue #33)
+  bez Sentry:** `/health` sprawdza `failed_jobs` i, przy skonfigurowanym
+  `LOG_BLAD_WEBHOOK_URL`, dzwoni na kanał błędów. Nadal brakuje alertu na
+  rosnącą liczbę rekordów w `jobs` (kolejka, która nie zaczęła jeszcze
+  padać, tylko rośnie) — to zostaje realną luką, bo wymaga progu, który
+  trzeba by dopiero wybrać z danymi produkcyjnymi w ręku.
 - **PostHog** — analityka produktowa (retencja, ścieżka publikacji przepisu).
-  Instancja **EU** (`eu.i.posthog.com`) ze względu na RODO.
+  Instancja **EU** (`eu.i.posthog.com`) ze względu na RODO. Rekomendacja
+  „nie teraz" i warunki powrotu: `docs/DECISIONS.md` D-063.
 - Dashboard w Grafanie — **dopiero gdy będzie co obserwować.**
 
 ---

@@ -136,40 +136,51 @@ Zgłaszający nigdy nie dowiaduje się, kogo i jak ukarano — patrz
 
 ## Mapa ekranów MVP
 
+> **Poprawione 12 września 2026.** Ta mapa miała 29 adresów, angielskich
+> i nigdy nieistniejących — znalazł to `docs/AUDYT_2026-09.md` (B3, #5 i #6):
+> z 29 pozycji istniało 5, a cztery ekrany administracyjne nie miały żadnego
+> odpowiednika w kodzie. Adresy niżej pochodzą z `php artisan route:list`,
+> nie z zgadywania nazw.
+
 Public:
 - `/`
-- `/discover`
-- `/search`
+- `/odkryj`
+- `/szukaj`
 - `/@username`
-- `/recipes/{slug}`
-- `/posts/{id}`
-- `/help`
-- `/legal/*`
+- `/przepisy/{recipe}`
+- `/wpisy/{post}`
+- `/pomoc`
+- `/prywatnosc`, `/regulamin`, `/zasady` — dokumenty prawne (nie ma wspólnego prefiksu `/legal/*`)
 
 Auth:
 - `/login`
 - `/register`
-- `/forgot-password`
-- `/verify-email`
+- `/nie-pamietam-hasla`
+- `/potwierdz-email`
 
 App:
 - `/home`
-- `/add`
-- `/posts/create`
-- `/recipes/create`
-- `/recipes/{id}/edit`
-- `/recipes/{id}/cook`
-- `/collections`
-- `/notifications`
-- `/zgloszenia`, `/zgloszenia/{id}` — własne zgłoszenia i karta sprawy
-- `/settings/profile`
-- `/settings/accessibility`
-- `/settings/privacy`
-- `/settings/data`
+- `/dodaj`
+- `/dodaj/zdjecie`
+- `/dodaj/przepis`
+- `/przepisy/{recipe}/edycja`
+- `/przepisy/{recipe}/gotuj`
+- `/zeszyt`
+- `/powiadomienia`
+- `/zgloszenia`, `/zgloszenia/{report}` — własne zgłoszenia i karta sprawy
+- `/ustawienia/profil`
+- `/ustawienia/zdjecie` — zdjęcie profilowe (osobny, krótki ekran; skróty prowadzą tu z własnego profilu)
+- `/ustawienia/czytelnosc`
+- `/ustawienia/prywatnosc`
+- `/ustawienia/twoje-dane`
 
 Admin:
-- `/admin/reports`
-- `/admin/content`
-- `/admin/users`
-- `/admin/moderation-actions`
-- `/admin/audit`
+- `/admin/zgloszenia`
+- `/admin/odwolania`
+- `/admin/bez-odpowiedzi`
+- `/admin/kuking-na-dzis`
+- `/admin/tagi-promowane`
+- `/admin/uzytkownicy`
+- `/admin/wiadomosci`
+- `/admin/sygnaly`
+- `/admin/kolaz-powitalny`

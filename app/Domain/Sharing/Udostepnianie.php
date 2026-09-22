@@ -21,15 +21,17 @@ use Illuminate\Support\Str;
  * a autor jest przekonany, że coś wysłał. Dlatego o tym, czy przycisk
  * w ogóle istnieje, decyduje jedno miejsce.
  *
- * TA KLASA NIE POWTARZA ANI JEDNEGO WARUNKU WIDOCZNOŚCI.
+ * O OBECNOŚCI PRZYCISKU DECYDUJE WYŁĄCZNIE GATE.
  * Pyta `Gate` o `view` z widzem `null`, czyli dokładnie o to, co zobaczy
  * ktoś, kto dostanie link i nie ma u nas konta. To jest ten sam wzorzec,
  * co w `App\Domain\Media\DostepDoZdjecia` i z tego samego powodu:
  * powtarzającą się przyczyną błędów w tym repozytorium jest „reguła
  * istnieje poprawnie w jednej warstwie, a druga implementuje ją inaczej".
- * Gdyby stało tu własne `match ($visibility)`, ban autora naprawiony
+ * Gdyby decyzję o przycisku podejmował własny `match ($visibility)`, ban autora naprawiony
  * w `PostPolicy` nie naprawiałby się w przycisku wysyłania — i nikt by
  * tego nie zauważył, bo widoczny przycisk nie wywala żadnego testu.
+ * `match` w wyjaśnieniu dla autora dobiera tylko opis ustawienia po odmowie
+ * Gate. Nie przyznaje dostępu ani nie decyduje o obecności przycisku.
  *
  * DLACZEGO „GOŚĆ", A NIE „TEN, KTO KLIKA"
  * Adres wysłany na WhatsAppie trafia do kogokolwiek — także do osoby bez
@@ -75,8 +77,13 @@ final class Udostepnianie
                 .'Opublikuj go, a pojawi się tu przycisk „Podziel się”.';
         }
 
-        return "Ten {$rzecz} widzą tylko wybrane osoby, więc wysłany adres pokazałby im pustą stronę. "
-            .'Zmień widoczność na „wszyscy”, jeśli chcesz go komuś wysłać.';
+        return match ($tresc->visibility) {
+            'private' => "Ten {$rzecz} widzisz tylko Ty. "
+                .'Zmień widoczność na „wszyscy”, jeśli chcesz udostępnić go przez przycisk „Podziel się”.',
+            'followers' => "Ten {$rzecz} widzisz Ty oraz osoby, które Cię obserwują. "
+                .'Zmień widoczność na „wszyscy”, jeśli chcesz udostępnić go przez przycisk „Podziel się”.',
+            default => "Ten {$rzecz} nie jest teraz dostępny dla osób bez zalogowania, więc przycisk „Podziel się” jest niedostępny.",
+        };
     }
 
     /** Adres, który dostanie odbiorca. Zawsze bezwzględny i bez parametrów. */
@@ -84,7 +91,7 @@ final class Udostepnianie
     {
         return $tresc instanceof Recipe
             ? route('recipes.show', $tresc)
-            : route('posts.show', $tresc);
+            : $tresc->url();
     }
 
     /**
@@ -98,6 +105,10 @@ final class Udostepnianie
     {
         if ($tresc instanceof Recipe) {
             return $tresc->title;
+        }
+
+        if ($tresc instanceof Post && $tresc->kind === Post::KIND_QUESTION) {
+            return (string) $tresc->title;
         }
 
         return $tresc->author->displayName().' na Kuking';

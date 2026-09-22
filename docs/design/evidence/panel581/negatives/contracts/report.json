@@ -1,0 +1,52 @@
+[
+  {
+    "case": "licznik",
+    "source": "resources/views/components/licznik-kolejki.blade.php",
+    "backup": "/home/mateusz/panel581-contracts-b95ldpyx/licznik",
+    "md5": "8118b8e295e96258849acc594d39d1e5",
+    "mtime_ns": 1789491161607646200,
+    "baseline": 0,
+    "negative": 1,
+    "restored": 0
+  },
+  {
+    "case": "powrot",
+    "source": "resources/views/components/layout.blade.php",
+    "backup": "/home/mateusz/panel581-contracts-b95ldpyx/powrot",
+    "md5": "c73be1f676c2b77378de134b38c3dc3d",
+    "mtime_ns": 1789492380168227000,
+    "baseline": 0,
+    "negative": 1,
+    "restored": 0
+  },
+  {
+    "case": "rama",
+    "source": "resources/views/components/layout.blade.php",
+    "backup": "/home/mateusz/panel581-contracts-b95ldpyx/rama",
+    "md5": "c73be1f676c2b77378de134b38c3dc3d",
+    "mtime_ns": 1789492380168227000,
+    "baseline": 0,
+    "negative": 1,
+    "restored": 0
+  },
+  {
+    "case": "margines",
+    "source": "resources/css/marka-panel.css",
+    "backup": "/home/mateusz/panel581-contracts-b95ldpyx/margines",
+    "md5": "4deaad0af4fbcc2de1663fbff6fef73d",
+    "mtime_ns": 1789498049309966700,
+    "baseline": 0,
+    "negative": 1,
+    "restored": 0
+  },
+  {
+    "case": "margines-dodatkowy-selektor",
+    "source": "resources/css/marka-panel.css",
+    "backup": "/home/mateusz/panel581-contracts-b95ldpyx/margines-dodatkowy-selektor",
+    "md5": "4deaad0af4fbcc2de1663fbff6fef73d",
+    "mtime_ns": 1789498049309966700,
+    "baseline": 0,
+    "negative": 1,
+    "restored": 0
+  }
+]

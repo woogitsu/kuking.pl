@@ -111,7 +111,7 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 | **Inwestycja** | Drugi rok tej samej potrawy → „gotujesz to od 2026, 11 razy” → archiwum staje się cenniejsze |
 | **Koszt / kiedy** | M / V1 (archiwum po miesiącach: MVP) |
 | **Miara** | `CTR kafla wspomnienia`, `powtórne wpisy tej samej potrawy`, **`% ukrytych wspomnień`** (jeśli >10%, mechanika jest zbyt nachalna) |
-| **Jak się psuje** | Wspomnienie boli (osoba zmarła, trudny okres). **Obowiązkowo `Ukryj to wspomnienie` + globalny wyłącznik w `/settings/privacy`. Nigdy nie przypominamy cudzych treści.** |
+| **Jak się psuje** | Wspomnienie boli (osoba zmarła, trudny okres). **Obowiązkowo `Ukryj to wspomnienie` + globalny wyłącznik w `/ustawienia/prywatnosc`. Nigdy nie przypominamy cudzych treści.** |
 
 ### Pętla 8 — Pytanie do autora → autorytet → więcej publikacji
 

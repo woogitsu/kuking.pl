@@ -50,18 +50,76 @@ class LogotypIMarkaTest extends TestCase
     {
         $html = $this->get(route('landing'))->assertOk()->getContent();
 
-        // Rozbicie na dwa elementy jest częścią logotypu: „.pl" ma kolor marki.
-        $this->assertStringContainsString('KuKing<span class="wordmark-tld">.pl</span>', $html);
+        /*
+         * Rozbicie na TRZY elementy jest częścią logotypu: „King" i „.pl"
+         * mają kolor marki, „Ku" zostaje w kolorze tekstu.
+         *
+         * Akcent wędrował: najpierw był na „KING" w wersaliku „KUKING",
+         * D-015 przeniosło go na „.pl", a 11 września właściciel poprosił,
+         * żeby wrócił także na „King". Wersalik w środku nazwy jest przez
+         * cały ten czas ten sam — do „KUKING" nie wracamy i pilnuje tego
+         * test niżej.
+         */
+        $this->assertStringContainsString(
+            'Ku<span class="wordmark-king">King</span><span class="wordmark-tld">.pl</span>',
+            $html,
+        );
+    }
+
+    public function test_kropka_pl_nie_ma_koloru_marki_a_king_ma(): void
+    {
+        $css = $this->bezKomentarzy((string) file_get_contents(resource_path('css/app.css')));
+
+        /*
+         * PO CO TO PILNOWAĆ. Logotyp ma JEDEN akcent — „King". „Ku" i „.pl"
+         * są w kolorze tekstu. Przez jeden dzień kolor miały obie części
+         * i właściciel, zobaczywszy to na ekranie, poprosił o zgaszenie
+         * „.pl". To jest rozstrzygnięcie o znaku, nie sprzątanie kodu:
+         * bez testu wróci przy pierwszym „ujednolićmy akcenty w marce",
+         * bo klasa `wordmark-tld` dalej stoi w znaczniku i sama się prosi
+         * o kolor.
+         *
+         * Czytamy plik BEZ komentarzy, bo komentarz nad regułą cytuje całą
+         * tę historię razem z „.pl" i `--color-brand` w jednym akapicie.
+         */
+        $this->assertDoesNotMatchRegularExpression(
+            '~\.wordmark-tld[^{]*\{[^}]*--color-brand~s',
+            $css,
+            '„.pl" w logotypie znów dostało kolor marki — ma być czarne jak „Ku".',
+        );
+
+        // Druga połowa tej samej zasady: gdyby ktoś „zgasił" cały logotyp,
+        // pierwsza asercja dalej by przechodziła.
+        $this->assertMatchesRegularExpression(
+            '~\.wordmark-king[^{]*\{[^}]*--color-brand~s',
+            $css,
+            '„King" w logotypie stracił kolor marki — znak został bez akcentu.',
+        );
     }
 
     public function test_stary_zapis_wersalikami_zniknal(): void
     {
         $html = $this->get(route('landing'))->assertOk()->getContent();
 
-        // Pytamy o KONKRETNY element logotypu, nie o słowo „KUKING" gdziekolwiek
-        // na stronie — to drugie trafiałoby w teksty marketingowe i w tablicę
-        // „kuKINGi na dziś", która ma zostać (D-009).
-        $this->assertStringNotContainsString('wordmark-king', $html);
+        /*
+         * Pytamy o KONKRETNY kształt starego logotypu, nie o słowo „KUKING"
+         * gdziekolwiek na stronie — to drugie trafiałoby w teksty
+         * marketingowe i w tablicę „kuKINGi na dziś", która ma zostać
+         * (D-009).
+         *
+         * ZMIANA Z 11 WRZEŚNIA: `wordmark-king` przestało być zakazane, bo
+         * właściciel poprosił o powrót koloru na „King" — i klasa wróciła
+         * razem z nim. Zakazany zostaje sam WERSALIK, przez `KU<span`, czyli
+         * początek starego zapisu „KU|KING". Nowy znacznik ma „King" pisane
+         * normalnie, więc ten wzorzec go nie łapie, a stary łapie nadal.
+         *
+         * CZEGO TU CELOWO NIE MA, I DLACZEGO. Pierwsza wersja tej zmiany
+         * dokładała drugi wzorzec, `>KING<`, jako „drugą połowę" starego
+         * zapisu. Oblewała — bo `x-kuking-word` renderuje `ku<strong>KING
+         * </strong>`, czyli zapis o CZŁOWIEKU, który ma zostać (D-009).
+         * Strażnik trafiał dokładnie w to, przed czym ostrzega akapit wyżej:
+         * pytał o słowo gdziekolwiek na stronie zamiast o element logotypu.
+         */
         $this->assertStringNotContainsString('KU<span', $html);
     }
 
@@ -140,7 +198,7 @@ class LogotypIMarkaTest extends TestCase
         // wszędzie tam SVG jest osobnym dokumentem i `currentColor` znaczy
         // czerń. Kolory MUSZĄ tu być wpisane wprost. To jest odwrotna zasada
         // niż w komponencie i łatwo je pomylić.
-        $this->assertStringContainsString('#B3401F', $svg);
+        $this->assertStringContainsString('#BE3025', $svg);
         $this->assertStringNotContainsString('currentColor', $svg);
 
         // Favicon w ciemnym motywie ma brać jaśniejszy odcień — `prefers-color-scheme`
@@ -184,7 +242,7 @@ class LogotypIMarkaTest extends TestCase
         // Ten plik idzie do programów graficznych i na drukarkę, gdzie kolor
         // ustawia człowiek. Łatwo pomylić te dwie zasady, stąd osobny test.
         $this->assertStringContainsString('currentColor', $mono);
-        $this->assertStringNotContainsString('#B3401F', $mono);
+        $this->assertStringNotContainsString('#BE3025', $mono);
 
         // Bez połysku i uśmiechu: przy jednym kolorze te linie zlewają się
         // z tłem garnka i znak robi się plamą. Naklejka ma 20 mm.

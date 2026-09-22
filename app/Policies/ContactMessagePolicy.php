@@ -46,4 +46,26 @@ class ContactMessagePolicy
     {
         return $user->isModerator();
     }
+
+    /**
+     * Wysłanie ODPOWIEDZI POCZTĄ do osoby, która napisała (D-058).
+     *
+     * OSOBNA ZDOLNOŚĆ, NIE `handle()`, mimo że dziś odpowiada na oba
+     * pytania tak samo. Powód jest w tym, czym te dwie rzeczy są:
+     * `handle()` zmienia NASZĄ notatkę i NASZ stan kolejki — skutek nie
+     * wychodzi poza panel. Ta zdolność wypuszcza list na adres e-mail
+     * człowieka, którego nie da się już odwołać. Zrównanie ich znaczyłoby,
+     * że dnia, w którym powstanie rola „stażysta moderacji" z prawem do
+     * porządkowania kolejki, dostanie ona razem z nią prawo do pisania
+     * z adresu `kontakt@kuking.pl` do ludzi z zewnątrz — i nikt by tego
+     * nie zauważył, bo to byłaby jedna zmiana w jednej metodzie.
+     *
+     * Sam zakres jest na razie ten sam: moderator i administrator (D-012 —
+     * zespół to jedna, najwyżej dwie osoby). Rozdzielone jest MIEJSCE,
+     * w którym ta decyzja się zapisuje.
+     */
+    public function reply(User $user, ContactMessage $wiadomosc): bool
+    {
+        return $user->isModerator();
+    }
 }

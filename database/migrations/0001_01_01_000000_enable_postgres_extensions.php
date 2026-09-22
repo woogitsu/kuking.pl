@@ -20,6 +20,21 @@ use Illuminate\Support\Facades\Schema;
  */
 return new class extends Migration
 {
+    /**
+     * ŚWIADOMIE PUSTY `down()` — deklaracja, nie przeoczenie.
+     *
+     * Ta stała nie jest ozdobą: czyta ją
+     * `tests/Feature/KazdaMigracjaMaWycofanieTest.php`, który każdy inny pusty
+     * `down()` w repozytorium oblewa. Dzięki temu „nie ma czego cofać" trzeba
+     * NAPISAĆ, a nie tylko pomyśleć — a nowa migracja bez wycofania nie
+     * przemknie przez CI pod pretekstem „przecież tamta też jest pusta".
+     */
+    public const WYCOFANIE_NIC_NIE_ROBI = 'Rozszerzeń PostgreSQL (pgcrypto, pg_trgm, unaccent) nie '
+        .'zdejmujemy przy wycofaniu: `DROP EXTENSION` przewróciłby się o każdy indeks, każdą kolumnę '
+        .'i każdą funkcję, która z nich korzysta, a w wariancie CASCADE skasowałby je razem z nimi. '
+        .'Rozszerzenie zostawione w bazie nie przeszkadza niczemu — `CREATE EXTENSION IF NOT EXISTS` '
+        .'w `up()` przyjmie je z powrotem bez zmian.';
+
     public function up(): void
     {
         if (! $this->isPostgres()) {

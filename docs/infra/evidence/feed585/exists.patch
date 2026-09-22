@@ -1,0 +1,31 @@
+--- a/app/Domain/Feed/FollowingFeed.php
++++ b/app/Domain/Feed/FollowingFeed.php
+@@ -36,15 +36,12 @@
+     {
+         $perPage ??= (int) config('kuking.feed.page_size');
+ 
+-        $followedIds = $viewer->following()->pluck('users.id')->all();
+-
+-        // Własne wpisy też są w feedzie — inaczej po pierwszej publikacji
+-        // użytkownik widzi pustkę i myśli, że nic się nie zapisało.
+-        $authorIds = array_values(array_unique([...$followedIds, $viewer->getKey()]));
+-
+         return Post::query()
+             ->published()
+-            ->whereIn('author_id', $authorIds)
++            ->where(fn ($query) => $query
++                ->where('posts.author_id', $viewer->getKey())
++                ->orWhereExists($viewer->following()->selectRaw('1')
++                    ->whereColumn('users.id', 'posts.author_id')->toBase()))
+             // Wpisy "tylko dla obserwujących" widzi obserwujący i autor.
+             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+             // TEGO TU NIE BYŁO, a `isEmptyFor()` kilkanaście linijek niżej
+@@ -115,7 +112,7 @@
+     {
+         return Post::query()
+             ->published()
+-            ->whereIn('author_id', $viewer->following()->pluck('users.id')->all())
++            ->whereExists($viewer->following()->selectRaw('1')->whereColumn('users.id', 'posts.author_id')->toBase())
+             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+             ->tylkoOdAktywnychAutorow()
+             // TEN SAM WARUNEK CO W `paginate()` (issue #368) i z tego samego

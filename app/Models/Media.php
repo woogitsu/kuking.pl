@@ -15,9 +15,30 @@ use Illuminate\Support\Facades\Log;
 /**
  * Metadane zdjęcia. Sam plik żyje w object storage pod `object_key`.
  *
- * Widoki NIGDY nie pokazują zdjęcia, które nie jest `ready` — dzięki temu
- * niezweryfikowany plik (albo taki z jeszcze nieusuniętym GPS-em z EXIF)
- * nie wycieka na stronę.
+ * CO WOLNO POKAZAĆ — ZMIANA REGUŁY, 12 września 2026 (issue #430, D-???)
+ *
+ * Do tego dnia stało tu: „widoki NIGDY nie pokazują zdjęcia, które nie jest
+ * `ready`". Reguła była zapisana przez STAN WIERSZA, a chroniła co innego —
+ * BAJTY: chodziło o to, żeby na stronę nie trafił plik przysłany przez
+ * użytkownika, z nietkniętym EXIF-em. `ready` było tylko skrótem myślowym na
+ * „ten plik przeszedł już przez nasz koder".
+ *
+ * Skrót przestał być prawdziwy, odkąd `StoreUploadedImage` robi wariant
+ * `podglad` SYNCHRONICZNIE, jeszcze w żądaniu wgrywającym: istnieje wtedy
+ * wariant przepuszczony przez nasz koder (czyli bez EXIF-u), a wiersz stoi
+ * dalej na `pending`. Reguła po staremu kazałaby ukryć plik, który jest
+ * bezpieczny — i to jest dokładnie usterka #430: autorka widziała napis
+ * zamiast własnego zdjęcia.
+ *
+ * DZIŚ REGUŁA BRZMI: pokazujemy wyłącznie to, co WYSZŁO Z NASZEGO KODERA,
+ * czyli wariant zapisany w `metadata.variants`. Oryginał nie jest tam nigdy
+ * i nie ma drogi, którą mógłby tam trafić — `url()` go nie zna,
+ * `MediaController` serwuje wyłącznie klucze z `wariantDoSerwowania()`,
+ * a `DostepDoZdjecia` pyta o to samo. Nowa reguła jest WĘŻSZA od poprzedniej
+ * (mówi o bajtach, nie o etykiecie stanu) i nie ma w niej wyjątku dla
+ * właściciela.
+ *
+ * @see maWariantDoPokazania()
  */
 class Media extends Model
 {
@@ -36,6 +57,32 @@ class Media extends Model
 
     public const STATUS_REJECTED = 'rejected';
 
+    /**
+     * Zdjęcie PRZEJĘTE DO SKASOWANIA — już nie do przypięcia (D-083).
+     *
+     * To nie znaczy „skasowane", tylko „kasowanie trwa": wiersz zostaje,
+     * dopóki nie zniknie ostatni plik, i jest jedynym uchwytem do ponowienia
+     * — dokładnie ta sama rola, jaką wiersz `media` pełni przy wymazywaniu
+     * konta (`EraseAccountData`). Wartość dopuszcza `media_status_check` od
+     * pierwszej migracji tabeli, więc schemat nie wymagał zmiany.
+     */
+    public const STATUS_DELETED = 'deleted';
+
+    /**
+     * Klucze plików, które `ProcessUploadedImage` DOPIERO ZAPISUJE (#601).
+     *
+     * `KasujZdjecie` chodzi po `metadata.variants`, a ta tablica powstaje
+     * dopiero po ostatnim wariancie. Między pierwszym `put()` a końcem
+     * zadania pliki leżą już w publicznym buckecie, a w bazie nie ma pod nie
+     * żadnego klucza — więc nie kasuje ich ani usunięcie wpisu, ani wymazanie
+     * konta. Ta lista jest tym brakującym uchwytem i znika po sukcesie.
+     *
+     * Nie nazywa się `variants`, bo `wariantDoSerwowania()` pokazałoby po
+     * niej zdjęcie w połowie przetwarzania — pod nazwą wariantu, którego plik
+     * może jeszcze nie istnieć.
+     */
+    public const METADANE_WARIANTY_W_TRAKCIE = 'warianty_w_trakcie';
+
     protected $fillable = [
         'owner_id',
         'disk',
@@ -48,7 +95,6 @@ class Media extends Model
         'status',
         'alt_text',
         'checksum_sha256',
-        'perceptual_hash',
         'metadata',
     ];
 
@@ -82,6 +128,56 @@ class Media extends Model
     public function isReady(): bool
     {
         return $this->status === self::STATUS_READY;
+    }
+
+    /**
+     * Czy jest już COKOLWIEK, co wolno pokazać na stronie (issue #430).
+     *
+     * To jest bramka widoków i bramka `DostepDoZdjecia` — ta sama, jedna.
+     * NIE pyta o status, tylko o to, czy istnieje wariant, czyli plik, który
+     * wyszedł z naszego kodera. Dlaczego akurat tak, patrz docblock klasy.
+     *
+     * `pending` i `processing` PRZECHODZĄ, gdy jest już `podglad` — i po to
+     * ta metoda powstała. `rejected` też przechodzi, jeśli podgląd zdążył
+     * powstać: przetwarzanie w tle padło, ale zdjęcie autorki jest i da się
+     * je pokazać, a pokazanie go jest bliżej prawdy niż zdanie „nie udało
+     * się przygotować" pod obrazkiem, który istnieje.
+     *
+     * `deleted` NIE PRZECHODZI NIGDY, nawet z kompletem wariantów. Ten status
+     * znaczy „kasowanie trwa" (D-083): pliki właśnie znikają, wiersz jest
+     * tylko uchwytem do ponowienia. Serwis powiedział już komuś „skasowane"
+     * i od tej chwili nie wolno tych bajtów pokazać ani razu więcej.
+     */
+    public function maWariantDoPokazania(string $variant = 'feed'): bool
+    {
+        return $this->status !== self::STATUS_DELETED
+            && $this->wariantDoSerwowania($variant) !== null;
+    }
+
+    /**
+     * Klucz PUBLICZNEGO wariantu, policzony z klucza oryginału.
+     *
+     * JEDNO MIEJSCE, BO LICZĄ TO DWA (issue #430). Wariant `podglad` powstaje
+     * w `StoreUploadedImage` (synchronicznie, przy wgraniu), a `thumb`, `feed`
+     * i `large` w `ProcessUploadedImage` (w tle). Obie strony muszą wyliczyć
+     * TĘ SAMĄ ścieżkę, bo obie piszą do tego samego prefiksu i obie te pliki
+     * kasuje potem `KasujZdjecie`, chodząc po `metadata.variants`.
+     *
+     * Gdyby każda liczyła po swojemu, rozjazd nie wywaliłby żadnego testu od
+     * razu — dałby pliki-sieroty w publicznym buckecie, których nic już nigdy
+     * nie skasuje, bo nie ma ich pod żadnym kluczem w bazie.
+     *
+     * Zamiana prefiksu `incoming/` (prywatny bucket oryginałów) na `media/`
+     * (bucket publiczny), a nie przepisywanie całej ścieżki — dzięki temu
+     * stare wiersze, zapisane jeszcze pod `media/`, liczą się bez zmian.
+     */
+    public static function kluczPublicznegoWariantu(string $objectKey, string $nazwaWariantu): string
+    {
+        $publicznyKlucz = str_starts_with($objectKey, 'incoming/')
+            ? 'media/'.substr($objectKey, strlen('incoming/'))
+            : $objectKey;
+
+        return preg_replace('/\.[^.]+$/', '', $publicznyKlucz)."_{$nazwaWariantu}.webp";
     }
 
     /**
@@ -168,12 +264,76 @@ class Media extends Model
 
     public function width(string $variant = 'feed'): ?int
     {
-        return $this->warianty()[$variant]['width'] ?? $this->width;
+        return $this->wymiar($variant, 'width') ?? $this->width;
     }
 
     public function height(string $variant = 'feed'): ?int
     {
-        return $this->warianty()[$variant]['height'] ?? $this->height;
+        return $this->wymiar($variant, 'height') ?? $this->height;
+    }
+
+    /**
+     * Czy ten KONKRETNY wariant naprawdę istnieje — bez podstawiania innego.
+     *
+     * `wariantDoSerwowania()` celowo podstawia zamiennik, bo do pokazania
+     * czegokolwiek lepszy jest zły rozmiar niż pusta ramka. `srcset` jest
+     * jedynym miejscem, które potrzebuje odpowiedzi DOSŁOWNEJ: wypisanie tam
+     * czterech nazw wariantów, z których istnieje jedna, dałoby cztery
+     * kandydatury wskazujące na ten sam plik i przeglądarka nie miałaby
+     * z czego wybierać.
+     */
+    public function maWariant(string $nazwa): bool
+    {
+        return isset($this->warianty()[$nazwa]['key']);
+    }
+
+    /**
+     * Zapis JEDNEGO wariantu z metadanych, albo `null`.
+     *
+     * Istnieje po to, żeby `ProcessUploadedImage` mógł przenieść `podglad`
+     * do nowej listy wariantów, nie sięgając po `metadata` gołą ręką:
+     * `metadata` to JSONB i dla analizy statycznej jest wartością o nieznanym
+     * kształcie. Kształt opisuje jedno miejsce — `warianty()` — i wszystko,
+     * co czyta warianty, ma iść przez nie.
+     *
+     * @return array{key?: string, width?: int, height?: int}|null
+     */
+    public function wariant(string $nazwa): ?array
+    {
+        return $this->warianty()[$nazwa] ?? null;
+    }
+
+    /**
+     * Wymiar TEGO, CO NAPRAWDĘ PÓJDZIE DO PRZEGLĄDARKI (issue #430).
+     *
+     * Kolejność jest ta sama co w `wariantDoSerwowania()` i to jest cały
+     * powód, dla którego ta metoda istnieje. Wcześniej przy braku żądanego
+     * wariantu wracały tu `width`/`height` z KOLUMN, czyli wymiary oryginału
+     * — a `src` wskazywał tymczasem na wariant podstawiony. Dopóki
+     * niegotowych zdjęć nie pokazywano wcale, nie miało to znaczenia.
+     *
+     * Od #430 ma, i to widoczne: kolumny opisują plik PRZED obrotem z EXIF-u,
+     * a wariant jest już obrócony. Dla zdjęcia z telefonu trzymanego pionowo
+     * (`Orientation` 6 albo 8) atrybuty `width`/`height` mówiłyby więc
+     * 4032×3024 o obrazku, który jest 3024×4032 — i karta skakałaby
+     * o połowę ekranu w chwili, w której zdjęcie się wczyta. Przy powiększonym
+     * tekście na telefonie to jest skok na cały ekran.
+     *
+     * Na kolumny spadamy dopiero, gdy nie ma ŻADNEGO wariantu — wtedy nic
+     * się nie wczyta i jedyne, do czego te liczby służą, to kształt ramki
+     * zastępczej.
+     */
+    private function wymiar(string $variant, string $ktory): ?int
+    {
+        $warianty = $this->warianty();
+
+        if (isset($warianty[$variant][$ktory])) {
+            return $warianty[$variant][$ktory];
+        }
+
+        $wybrany = $this->wariantDoSerwowania($variant);
+
+        return $wybrany === null ? null : ($warianty[$wybrany['nazwa']][$ktory] ?? null);
     }
 
     /**

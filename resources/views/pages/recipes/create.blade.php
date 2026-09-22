@@ -1,430 +1,148 @@
-@php
-    /* Nazwy klas pełne, nie przez `use` — ten plik trzyma tę konwencję od
-       początku (`\App\Models\Recipe::DIFFICULTY_LABELS` niżej). */
-    $isEdit = $recipe !== null;
-    $action = $isEdit ? route('recipes.update', $recipe->slug) : route('recipes.store');
+{{--
+    DODAWANIE PRZEPISU — SZEŚĆ RZECZY I KONIEC (issue #364).
 
-    $oldIngredients = old('ingredients', $isEdit ? $recipe->ingredients->map(fn ($i) => ['text' => $i->ingredient_text, 'group_name' => $i->group_name, 'note' => $i->note, 'no_amount' => $i->no_amount])->all() : []);
+    Co tu było wcześniej: formularz, na którym przepis o ośmiu składnikach
+    i trzech krokach pokazywał ~89 kontrolek (9 pól u góry, 9 kółek wyboru,
+    siedem pól NA KAŻDY składnik, pięć na każdy krok). Właściciel zmierzył to
+    na sobie — „zbyt skomplikowane dla mnie, 32-latka, a co dopiero dla
+    seniora" — i to nie była przesada: wkleił listę składników do pola
+    „Krótko o przepisie", bo formularz kazał decydować o strukturze, zanim
+    pozwolił cokolwiek napisać. Człowiek OBCHODZI wtedy formularz, zamiast go
+    wypełniać, a to jest usterka kolejności pytań, nie usterka pola.
 
-    /*
-     * KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ (audyt zewnętrzny T12/T24).
-     *
-     * `id` to identyfikator kroku, który JUŻ ISTNIEJE w bazie. Wraca do
-     * serwera ukrytym polem, bo zdjęcia przypiętego do kroku przeglądarka nie
-     * umie wysłać drugi raz — plik, którego człowiek nie wybrał w TYM
-     * żądaniu, po prostu nie istnieje w POST-cie.
-     *
-     * Bez tego identyfikatora serwer musiałby dopasowywać zdjęcia PO POZYCJI
-     * kroku w bazie. A pozycja w bazie NIE JEST numerem wiersza formularza:
-     * puste wiersze są przy zapisie pomijane, więc wyczyszczenie kroku
-     * drugiego przesuwa wszystkie następne o jedno miejsce w górę i zdjęcie
-     * „obierz ziemniaki" ląduje przy „wyjmij z piekarnika". Nikt tego nie
-     * zgłosi, bo to nie wygląda na awarię — przepis po prostu kłamie obrazkiem.
-     *
-     * `old('steps')` zwraca dokładnie to, co przyszło POST-em, razem z `id`,
-     * więc po nieudanej walidacji wiersze wracają w TEJ SAMEJ kolejności,
-     * z tymi samymi identyfikatorami i tymi samymi minutnikami.
-     */
-    $oldSteps = old('steps', $isEdit
-        ? $recipe->steps->map(fn ($s) => [
-            'id' => $s->getKey(),
-            'instruction' => $s->instruction,
-            // Baza trzyma sekundy (tego czyta tryb gotowania), człowiek
-            // wpisuje minuty. Jeden przelicznik, ten sam co przy zapisie.
-            'timer_minutes' => \App\Domain\Recipes\StepTimer::minutesFromSeconds($s->timer_seconds),
-        ])->all()
-        : []);
+    Zostaje sześć rzeczy, w tej kolejności:
 
-    /*
-     * Kroki z bazy pod ich identyfikatorami — po to, żeby pokazać zdjęcie,
-     * które dany krok JUŻ MA. Szukamy po `id` z wiersza, nie po numerze
-     * wiersza: to ta sama reguła, co przy zapisie.
-     */
-    $krokiWBazie = $isEdit ? $recipe->steps->keyBy(fn ($s) => (string) $s->getKey()) : collect();
+        zdjęcie · tytuł · składniki · przygotowanie · kto ma widzieć · Opublikuj
 
-    /*
-     * Trzy pierwsze puste wiersze składników i kroków są od razu widoczne —
-     * pusta lista z jednym przyciskiem „Dodaj składnik” jest mniej zrozumiała
-     * niż gotowe pola do wypełnienia.
-     *
-     * Sufit z `Recipe::MAX_*`, bo „liczba wierszy + 1" bez granicy renderuje
-     * o jeden wiersz WIĘCEJ, niż przyjmuje walidacja — przy pełnym przepisie
-     * formularz odbijałby własny POST komunikatem o zbyt wielu krokach.
-     */
-    $ingredientRows = min(\App\Models\Recipe::MAX_INGREDIENTS, max(3, count($oldIngredients) + 1));
-    $stepRows = min(\App\Models\Recipe::MAX_STEPS, max(3, count($oldSteps) + 1));
-@endphp
+    SKŁADNIKI SĄ NIEOBOWIĄZKOWE — ZGODA WŁAŚCICIELA Z 11.09.2026.
+    Przepis wolno opublikować bez ani jednego składnika. To nie jest
+    przeoczenie ani luka w walidacji i nie wolno tego „naprawić": pilnuje tego
+    test `DodawaniePrzepisuSzescKontrolekTest`, żeby za pół roku nikt nie
+    uznał, że zgoda była przypadkiem.
 
-<x-layout :title="$isEdit ? 'Edytuj przepis' : 'Dodaj przepis'" :noindex="true">
-    <h1>{{ $isEdit ? 'Edytuj przepis' : 'Dodaj przepis' }}</h1>
+    BAZA SIĘ NIE ZMIENIA. Oba pola tekstowe serwer rozbija z powrotem na
+    `recipe_ingredients` i `recipe_steps` (`App\Domain\Recipes\TekstNaWiersze`),
+    więc przeliczanie porcji i szukanie po składnikach działają dalej.
+
+    RESZTA NIE ZNIKA, TYLKO PRZESTAJE STAĆ NA DRODZE. Krótko o przepisie,
+    porcje, czasy, trudność, „po kim", historia, rok, źródło, grupy
+    składników, uwagi, „Bez ilości", zdjęcia do kroków i przestawianie wierszy
+    są na ekranie „Dopisz szczegóły" (`pages/recipes/szczegoly.blade.php`
+    oraz kreator w trzech krokach) — PO opublikowaniu i nieobowiązkowo.
+--}}
+<x-layout title="Dodaj przepis" :noindex="true">
+    <x-zakladki-dodawania aktywna="przepis" />
+
+    <h1>Dodaj przepis</h1>
     <p class="mb-5">
-        Wszystko jest na jednej stronie — nie musisz nic przewijać ani szukać.
-        Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego,
-        kiedy zechcesz.
+        Wystarczy zdjęcie, nazwa i to, co robisz. Resztę — porcje, czasy, historię
+        przepisu — dopiszesz później, jeśli zechcesz.
     </p>
-
-    @if(! $isEdit)
-        {{-- Ten formularz jest DROGĄ BEZ JAVASCRIPTU i taki zostaje.
-             Kreator w krokach jest wygodniejszy, ale wymaga skryptu,
-             więc nigdy nie może być jedyną drogą (AGENTS.md, punkt 5). --}}
-        <p class="field-help mb-5">
-            Wolisz przechodzić to krok po kroku, z zapisywaniem po drodze?
-            <a href="{{ route('recipes.create') }}">Otwórz kreator w trzech krokach</a>.
-        </p>
-    @endif
 
     <x-error-summary />
 
-    <form method="POST" action="{{ $action }}" enctype="multipart/form-data">
+    {{-- Jeden panel na cały formularz, bez sekcji: przy sześciu rzeczach nie
+         ma czego rozdzielać nagłówkami (docs/design/ROLE_KART.md — cztery
+         mocne obwódki na ekranie nie odróżniają już niczego). --}}
+    <form class="panel-formularza" id="formularz-przepisu" method="POST"
+          action="{{ route('recipes.store') }}" enctype="multipart/form-data">
         @csrf
-        @if($isEdit) @method('PUT') @endif
 
-        {{-- ---------------------------------------------------------------
-             1. O przepisie
-        ---------------------------------------------------------------- --}}
-        <section class="form-section card">
-            <h2 class="form-section-title">1. O przepisie</h2>
+        {{-- TOŻSAMOŚĆ TEGO WYSŁANIA (ADR docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md).
+             Dwa kliknięcia „Opublikuj" na wolnym łączu mają dać JEDEN przepis,
+             a nie drugi pod adresem z doklejoną dwójką.
 
-            <x-field name="title" label="Nazwa przepisu" required
-                     :value="$isEdit ? $recipe->title : null"
-                     placeholder="Rosół babci Zofii" />
+             Zwykłe ukryte pole, bez JavaScriptu. Nazwa bez fragmentu „token",
+             inaczej pole ginie na ekranie 419 (ADR §1.4.4). --}}
+        @if(($kluczWyslania ?? null) !== null)
+            <input type="hidden" name="klucz_wyslania" value="{{ $kluczWyslania }}">
+        @endif
 
-            {{-- Duży obszar wyboru zdjęcia. Natywne pole pliku jest schowane
-                 dla oka (D-035) — rysowało angielskie „Choose File / No file
-                 chosen" w polskim formularzu. Zostaje pod klawiaturą i w
-                 drzewie dostępności (`.visually-hidden`), klikalna jest
-                 etykieta, a `<input>` MUSI stać bezpośrednio przed nią, bo
-                 obwódkę fokusu rysuje reguła sąsiedztwa w
-                 resources/css/ekran-dodawania.css. --}}
-            <div class="field @error('hero_photo') has-error @enderror">
-                <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">Zdjęcie gotowego dania</span>
-                <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
-                       aria-describedby="f-hero_photo-help">
-                <label class="pole-zdjecia" for="f-hero_photo">
-                    <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                    <span class="pole-zdjecia-tytul" id="f-hero_photo-tytul">Dodaj zdjęcie</span>
-                    <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
+        {{-- 1. ZDJĘCIE.
+             Natywne pole pliku jest schowane dla oka (D-035) — rysowało
+             angielskie „Choose File / No file chosen" w polskim formularzu.
+             Zostaje pod klawiaturą i w drzewie dostępności, klikalna jest
+             etykieta, a `<input>` MUSI stać bezpośrednio przed nią, bo
+             obwódkę fokusu rysuje reguła sąsiedztwa w
+             resources/css/ekran-dodawania.css. --}}
+        <div class="field @error('hero_photo') has-error @enderror">
+            <span class="pole-zdjecia-nazwa" id="f-hero_photo-etykieta">Zdjęcie gotowego dania</span>
+            <input class="visually-hidden pole-zdjecia-input" id="f-hero_photo" type="file" name="hero_photo"
+                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                   aria-labelledby="f-hero_photo-etykieta f-hero_photo-tytul"
+                   aria-describedby="f-hero_photo-help">
+            <label class="pole-zdjecia" for="f-hero_photo">
+                <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
+                <span class="pole-zdjecia-tytul" id="f-hero_photo-tytul">Dodaj zdjęcie</span>
+                <span class="field-help" id="f-hero_photo-help">To zdjęcie zobaczą ludzie na liście przepisów.</span>
+            </label>
+            @error('hero_photo')<span class="field-error">{{ $message }}</span>@enderror
+        </div>
+
+        {{-- 2. TYTUŁ --}}
+        <x-field name="title" label="Nazwa przepisu" required
+                 placeholder="Rosół babci Zofii" />
+
+        {{-- 3. SKŁADNIKI — jedno pole, jeden składnik na wiersz.
+
+             „Pisz tak, jak mówisz" stoi w kreatorze od początku, a stało obok
+             siedmiu pól na jeden składnik. Teraz jest prawdą: cały wiersz
+             idzie do bazy tak, jak go człowiek napisał (D-017 — składnik jest
+             wolnym tekstem, bo „tyle, żeby ciasto było miękkie" nie ma pola
+             na ilość). --}}
+        <x-field name="skladniki_tekst" label="Składniki" type="textarea" :rows="8"
+                 placeholder="1 kurczak, najlepiej zagrodowy
+2 marchewki
+pietruszka
+sól do smaku"
+                 help="Każdy składnik w osobnej linijce. Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”. Nie musisz nic przeliczać na gramy. To pole możesz zostawić puste i dopisać składniki później." />
+
+        {{-- 4. PRZYGOTOWANIE — jedno pole, pusta linia rozdziela kroki. --}}
+        <x-field name="przygotowanie_tekst" label="Przygotowanie" type="textarea" :rows="10" required
+                 placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny.
+
+Wrzuć warzywa i gotuj na małym ogniu trzy godziny.
+
+Posól na końcu."
+                 help="Pisz spokojnie, po swojemu. Zostaw pustą linijkę tam, gdzie zaczyna się nowa czynność — zrobimy z tego osobne kroki." />
+
+        {{-- 5. KTO MA WIDZIEĆ — dwie opcje, bo to jest pytanie o prywatność,
+             a nie o ustawienia. Trzecia możliwość („tylko obserwujący")
+             została, ale na ekranie „Dopisz szczegóły": przy pierwszej
+             publikacji rozstrzyga się „pokazać czy schować", a nie komu
+             dokładnie. --}}
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-visibility"
+                  @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
+            <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
+            <div class="choice-grid">
+                <label class="choice">
+                    <input type="radio" name="visibility" value="public" @checked(old('visibility', 'public') === 'public')>
+                    <span><span class="choice-label">Wszyscy</span><span class="choice-help">Także osoby bez konta. Przepis może pojawić się w Google.</span></span>
                 </label>
-                @error('hero_photo')<span class="field-error">{{ $message }}</span>@enderror
-            </div>
-
-            <x-field name="summary" label="Krótko o przepisie" type="textarea" :rows="3"
-                     :value="$isEdit ? $recipe->summary : null"
-                     help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
-
-            <div class="siatka-pol">
-                <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
-                         :value="$isEdit ? $recipe->servings : null" :min="0.5" :max="999" :step="0.5" />
-                <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric"
-                         :value="$isEdit ? $recipe->prep_minutes : null" :min="0" :max="10080" />
-                <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric"
-                         :value="$isEdit ? $recipe->cook_minutes : null" :min="0" :max="10080" />
-            </div>
-
-            <fieldset class="border-0 p-0 mt-6">
-                <legend class="font-bold mb-3">Jak trudny jest ten przepis?</legend>
-                <div class="choice-grid">
-                    @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
-                        <label class="choice">
-                            <input type="radio" name="difficulty" value="{{ $value }}"
-                                   @checked(old('difficulty', $isEdit ? $recipe->difficulty : null) === $value)>
-                            <span class="choice-label">{{ $label }}</span>
-                        </label>
-                    @endforeach
-                </div>
-            </fieldset>
-
-            <fieldset class="border-0 p-0 mt-6">
-                <legend class="font-bold mb-3">Kto ma widzieć ten przepis?</legend>
-                <div class="choice-grid">
-                    <label class="choice">
-                        <input type="radio" name="visibility" value="public" @checked(old('visibility', $isEdit ? $recipe->visibility : 'public') === 'public')>
-                        <span><span class="choice-label">Wszyscy</span><span class="choice-help">Także osoby bez konta. Przepis może pojawić się w Google.</span></span>
-                    </label>
-                    <label class="choice">
-                        <input type="radio" name="visibility" value="followers" @checked(old('visibility', $isEdit ? $recipe->visibility : null) === 'followers')>
-                        <span><span class="choice-label">Tylko osoby, które mnie obserwują</span></span>
-                    </label>
-                    <label class="choice">
-                        <input type="radio" name="visibility" value="private" @checked(old('visibility', $isEdit ? $recipe->visibility : null) === 'private')>
-                        <span><span class="choice-label">Tylko ja</span><span class="choice-help">Twój prywatny zeszyt.</span></span>
-                    </label>
-                </div>
-                @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
-            </fieldset>
-        </section>
-
-        {{-- ---------------------------------------------------------------
-             2. Skąd ten przepis — to jest serce Kuking, nie metadana
-        ---------------------------------------------------------------- --}}
-        <section class="form-section card">
-            <h2 class="form-section-title">2. Skąd ten przepis</h2>
-            <p class="meta mb-4">
-                To najczęściej czytana część przepisu. Ludzie chcą wiedzieć, po kim on jest.
-            </p>
-
-            <fieldset class="border-0 p-0">
-                <legend class="font-bold mb-3">Ten przepis jest…</legend>
-                <div class="choice-grid">
-                    @foreach(\App\Models\Recipe::SOURCE_LABELS as $value => $label)
-                        <label class="choice">
-                            <input type="radio" name="source_type" value="{{ $value }}"
-                                   @checked(old('source_type', $isEdit ? $recipe->source_type : 'own') === $value)>
-                            <span class="choice-label">{{ $label }}</span>
-                        </label>
-                    @endforeach
-                </div>
-                @error('source_type')<span class="field-error">{{ $message }}</span>@enderror
-            </fieldset>
-
-            <x-field name="source_person" label="Po kim ten przepis" :value="$isEdit ? $recipe->source_person : null"
-                     placeholder="po mamie, Halinie"
-                     help="Zostanie podpisany nad tytułem: „przepis Haliny, spisany przez Ciebie”." />
-
-            <x-field name="source_note" label="Historia tego przepisu" type="textarea" :rows="4"
-                     :value="$isEdit ? $recipe->source_note : null"
-                     help="Skąd go znasz, kiedy się go gotuje, co Ci się z nim wiąże. To zostaje w rodzinie." />
-
-            <x-field name="family_since_year" label="W rodzinie od roku" type="number" inputmode="numeric"
-                     :value="$isEdit ? $recipe->family_since_year : null" :min="1850" :max="2100"
-                     placeholder="1974" />
-
-            {{-- Ten sam wzorzec co przy „Zdjęcie gotowego dania" wyżej: pole
-                 pliku schowane dla oka (D-035), klikalna etykieta, `<input>`
-                 bezpośrednio przed nią. --}}
-            <div class="field @error('source_scan') has-error @enderror">
-                <span class="pole-zdjecia-nazwa" id="f-source_scan-etykieta">Zdjęcie starej kartki albo zeszytu</span>
-                <input class="visually-hidden pole-zdjecia-input" id="f-source_scan" type="file" name="source_scan"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       aria-labelledby="f-source_scan-etykieta f-source_scan-tytul"
-                       aria-describedby="f-source_scan-help">
-                <label class="pole-zdjecia" for="f-source_scan">
-                    <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                    <span class="pole-zdjecia-tytul" id="f-source_scan-tytul">Dodaj zdjęcie</span>
-                    <span class="field-help" id="f-source_scan-help">
-                        Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie.
-                    </span>
+                <label class="choice">
+                    <input type="radio" name="visibility" value="private" @checked(old('visibility') === 'private')>
+                    <span><span class="choice-label">Tylko ja</span><span class="choice-help">Twój prywatny zeszyt. Zmienisz to, kiedy zechcesz.</span></span>
                 </label>
-                @error('source_scan')<span class="field-error">{{ $message }}</span>@enderror
             </div>
+            <x-blad-grupy name="visibility" />
+        </fieldset>
 
-            <x-field name="source_url" label="Adres strony, z której jest przepis" type="url"
-                     :value="$isEdit ? $recipe->source_url : null"
-                     help="Podaj, jeśli przepis pochodzi z bloga albo innej strony. Nie publikuj cudzych treści bez zgody." />
-        </section>
+        {{-- 6. OPUBLIKUJ. Jeden przycisk, bo jedna decyzja.
 
-        {{-- ---------------------------------------------------------------
-             3. Składniki
-        ---------------------------------------------------------------- --}}
-        <section class="form-section card">
-            <h2 class="form-section-title">3. Składniki</h2>
-            <p class="meta mb-4">
-                Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”.
-                Nie musisz nic przeliczać na gramy. Puste wiersze zostaną pominięte.
-                {{-- Zdanie o grupach stoi RAZ, nad całą listą, a nie przy
-                     każdym wierszu. Przy dziesięciu składnikach ta sama
-                     podpowiedź powtórzona dziesięć razy jest już nie
-                     pomocą, tylko ścianą tekstu — a czytnik ekranu
-                     przeczytałby ją przy każdym polu. --}}
-                Grupę wypełnij tylko wtedy, gdy przepis ma osobne części, na przykład „Ciasto” i „Nadzienie”.
-            </p>
-
-            @for($i = 0; $i < $ingredientRows; $i++)
-                <div class="field">
-                    <label for="f-ingredients-{{ $i }}-text">Składnik {{ $i + 1 }}</label>
-                    <input class="field-input" id="f-ingredients-{{ $i }}-text"
-                           name="ingredients[{{ $i }}][text]" type="text" maxlength="240"
-                           value="{{ $oldIngredients[$i]['text'] ?? '' }}"
-                           @if($i === 0) placeholder="1 kurczak, najlepiej zagrodowy" @endif>
-                    @error("ingredients.$i.text")<span class="field-error">{{ $message }}</span>@enderror
-
-                    {{--
-                        GRUPA SKŁADNIKÓW — „Ciasto”, „Farsz”, „Do podania”
-                        (D-033). Ta sama nazwa pola co w kreatorze
-                        (`ingredients[i][group_name]`), więc przepis
-                        przechodzi między obiema drogami zapisu bez zmiany —
-                        a bez tego pola formularz BEZ JavaScriptu kasowałby
-                        przy edycji grupy wpisane w kreatorze (AGENTS.md §5:
-                        ważna funkcja działa bez skryptu).
-
-                        NIEOBOWIĄZKOWE I PUSTE Z DEFINICJI. Składnik bez grupy
-                        to normalny przypadek — tak wygląda większość
-                        przepisów — więc pole nie ma gwiazdki, nie ma
-                        `required`, nie podświetla się na czerwono i nie
-                        pojawia się w podsumowaniu błędów, gdy zostanie puste.
-
-                        Ręczna rozpiska zamiast `x-field` z tego samego
-                        powodu, co przy minutniku kroku niżej: `name` musi
-                        mieć nawiasy (`ingredients[0][group_name]`), a `id`
-                        i klucz błędu kropki — PHP zamienia kropki w nazwie
-                        pola na podkreślenia i tablica `ingredients` nigdy by
-                        się nie złożyła.
-                    --}}
-                    <label class="mt-3" for="f-ingredients-{{ $i }}-group_name">
-                        Grupa składników <span class="meta">(nieobowiązkowe)</span>
-                    </label>
-                    <input class="field-input" id="f-ingredients-{{ $i }}-group_name"
-                           name="ingredients[{{ $i }}][group_name]" type="text" maxlength="120"
-                           value="{{ $oldIngredients[$i]['group_name'] ?? '' }}"
-                           @if($i === 0) placeholder="Ciasto" @endif>
-                    @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
-
-                    {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
-                         checkbox, działa bez JavaScriptu. Nieobowiązkowy
-                         i domyślnie wyłączony: ma znaczenie dopiero przy
-                         przeliczaniu przepisu na inną liczbę porcji. --}}
-                    <label class="choice mt-2">
-                        <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
-                               @checked($oldIngredients[$i]['no_amount'] ?? false)>
-                        <span>
-                            <span class="choice-label">Bez ilości</span>
-                            <span class="choice-help">Na przykład „do smaku”, „ile weźmie”, „szczypta”.</span>
-                        </span>
-                    </label>
-                </div>
-            @endfor
-
-            <p class="field-help">
-                @unless($isEdit && $recipe->isPublished())
-                    Potrzebujesz więcej wierszy? Zapisz szkic — po zapisaniu pojawi się kolejne puste pole.
-                @endunless
-                W <a href="{{ route('recipes.create') }}">kreatorze w trzech krokach</a> wiersze
-                dodaje się i usuwa od razu, bez zapisywania.
-            </p>
-        </section>
-
-        {{-- ---------------------------------------------------------------
-             4. Przygotowanie
-        ---------------------------------------------------------------- --}}
-        <section class="form-section card" id="f-steps">
-            <h2 class="form-section-title">4. Przygotowanie</h2>
-            <p class="meta mb-4">
-                Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku.
-                Przy każdym kroku możesz dopisać, ile minut ma trwać, i dodać zdjęcie —
-                jedno i drugie jest nieobowiązkowe.
-            </p>
-            @error('steps')<p class="field-error">{{ $message }}</p>@enderror
-
-            @for($i = 0; $i < $stepRows; $i++)
-                @php
-                    $idKroku = $oldSteps[$i]['id'] ?? null;
-                    $zdjecieKroku = $idKroku === null ? null : $krokiWBazie->get((string) $idKroku)?->media;
-                @endphp
-                <fieldset class="wizard-row">
-                    <legend class="font-bold mb-3">Krok {{ $i + 1 }}</legend>
-
-                    {{-- Tożsamość tego kroku. Wraca niezmieniona, żeby zdjęcie
-                         zostało przy SWOIM kroku także po wyczyszczeniu innego
-                         wiersza i po nieudanej walidacji. --}}
-                    <input type="hidden" name="steps[{{ $i }}][id]" value="{{ $idKroku }}">
-
-                    <div class="field">
-                        <label for="f-steps-{{ $i }}-instruction">Co się robi w tym kroku</label>
-                        <textarea class="field-input" id="f-steps-{{ $i }}-instruction"
-                                  name="steps[{{ $i }}][instruction]" rows="3"
-                                  @if($i === 0) placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny." @endif
-                        >{{ $oldSteps[$i]['instruction'] ?? '' }}</textarea>
-                        @error("steps.$i.instruction")<span class="field-error">{{ $message }}</span>@enderror
-                    </div>
-
-                    {{-- Ręczna rozpiska, a nie `x-field`, i to jest świadome.
-                         `x-field` liczy atrybut `name` z tej samej wartości,
-                         z której liczy `id` i klucz błędu — a tu te dwie
-                         rzeczy MUSZĄ się różnić: PHP zamienia kropki w nazwie
-                         pola na podkreślenia, więc pole nazwane
-                         `steps.0.timer_minutes` przyszłoby jako
-                         `steps_0_timer_minutes` i nie trafiłoby do tablicy
-                         `steps`. Nawiasy w `name`, kropki w `id` i w `@error`
-                         — dokładnie tak, jak stojące wyżej pola składników. --}}
-                    <div class="field">
-                        <label for="f-steps-{{ $i }}-timer_minutes">
-                            Ile minut ma trwać ten krok? <span class="meta">(nieobowiązkowe)</span>
-                        </label>
-                        <span class="field-help" id="f-steps-{{ $i }}-timer_minutes-help">
-                            Wpisz liczbę minut — na przykład 45. Przy gotowaniu pokażemy wtedy:
-                            „Ustaw sobie kuchenny minutnik na 45 minut”.
-                            Zostaw puste, jeśli ten krok nie potrzebuje odliczania.
-                        </span>
-                        <input class="field-input" id="f-steps-{{ $i }}-timer_minutes"
-                               type="number" inputmode="numeric" name="steps[{{ $i }}][timer_minutes]"
-                               min="0" max="{{ \App\Domain\Recipes\StepTimer::MAX_MINUTES }}" step="1"
-                               value="{{ $oldSteps[$i]['timer_minutes'] ?? '' }}"
-                               aria-describedby="f-steps-{{ $i }}-timer_minutes-help">
-                        @error("steps.$i.timer_minutes")<span class="field-error">{{ $message }}</span>@enderror
-                    </div>
-
-                    <div class="field @error("steps.$i.photo") has-error @enderror">
-                        <span class="pole-zdjecia-nazwa" id="f-steps-{{ $i }}-photo-etykieta">Zdjęcie do tego kroku <span class="meta">(nieobowiązkowe)</span></span>
-
-                        @if($zdjecieKroku)
-                            {{-- Zdjęcie, które ten krok już ma. Zostaje przy nim
-                                 samo — nie trzeba go wybierać drugi raz. --}}
-                            <span class="krok-zdjecie">
-                                <x-photo :media="$zdjecieKroku" variant="thumb" :zoom="false"
-                                         class="krok-zdjecie-obraz"
-                                         :alt="'Zdjęcie przy kroku '.($i + 1)"
-                                         sizes="160px" />
-                            </span>
-                            <label class="choice mt-2">
-                                <input type="checkbox" name="steps[{{ $i }}][remove_photo]" value="1">
-                                <span>
-                                    <span class="choice-label">Usuń to zdjęcie</span>
-                                    <span class="choice-help">Zaznacz i zapisz przepis. Krok zostanie bez zdjęcia.</span>
-                                </span>
-                            </label>
-                        @endif
-
-                        {{-- Duży obszar wyboru zdjęcia — patrz komentarz przy
-                             polu „Zdjęcie gotowego dania" wyżej w tym pliku.
-                             Atrybuty pola (`id`, `name`, `accept`,
-                             `aria-describedby`) są NIEZMIENIONE: to ten sam
-                             identyfikator kroku w `name`, po którym serwer
-                             i tak szuka pliku (komentarz na górze pliku,
-                             „KAŻDY WIERSZ KROKU NIESIE SWOJĄ TOŻSAMOŚĆ").
-                             Doszło tylko `aria-labelledby` i kolejność
-                             wymuszona przez regułę fokusu (D-035). --}}
-                        <input class="visually-hidden pole-zdjecia-input" id="f-steps-{{ $i }}-photo" type="file"
-                               name="steps[{{ $i }}][photo]"
-                               accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                               aria-labelledby="f-steps-{{ $i }}-photo-etykieta f-steps-{{ $i }}-photo-tytul"
-                               aria-describedby="f-steps-{{ $i }}-photo-help">
-                        <label class="pole-zdjecia" for="f-steps-{{ $i }}-photo">
-                            <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                            <span class="pole-zdjecia-tytul" id="f-steps-{{ $i }}-photo-tytul">{{ $zdjecieKroku ? 'Zmień zdjęcie' : 'Dodaj zdjęcie' }}</span>
-                            <span class="field-help" id="f-steps-{{ $i }}-photo-help">
-                                Przydaje się tam, gdzie trudno opisać słowami — jak zawinąć ciasto,
-                                jak gęsty ma być sos. Za jednym razem można dodać najwyżej
-                                {{ \App\Support\LimityZdjec::maksZdjecKrokowNaZapis() }}
-                                {{-- Odmiana liczebnika z JEDNEGO miejsca (issue #86) — inaczej
-                                     zmiana limitu dawałaby „5 zdjęcia do kroków". --}}
-                                {{ \App\Support\Odmiana::rzeczownik(\App\Support\LimityZdjec::maksZdjecKrokowNaZapis(), 'zdjęcie', 'zdjęcia', 'zdjęć') }}
-                                do kroków.
-                            </span>
-                        </label>
-                        @error("steps.$i.photo")<span class="field-error">{{ $message }}</span>@enderror
-                    </div>
-                </fieldset>
-            @endfor
-        </section>
-
+             „Zapisz szkic" tu nie stoi i to jest świadome: przy sześciu
+             rzeczach szkic jest wyborem bez treści — a przepis schowany
+             wybiera się wyżej, kółkiem „Tylko ja", i wtedy jest normalnym,
+             skończonym przepisem, a nie czymś niedokończonym. --}}
         <div class="form-actions">
-            <button class="btn btn-primary" type="submit" name="action" value="publish">
-                {{ $isEdit && $recipe->isPublished() ? 'Zapisz zmiany' : 'Opublikuj przepis' }}
-            </button>
-            {{-- „Zapisz szkic" tylko dla przepisu, który JESZCZE nie jest
-                 opublikowany. Przy opublikowanym ten przycisk nie ma sensu:
-                 nie ma stanu roboczego, do którego można by wrócić, a jego
-                 nazwa obiecuje prywatny zapis, którym nie jest.
-
-                 Serwer i tak nie pozwoli opróżnić opublikowanego przepisu
-                 (PublishRecipe: warunek `$bedziePubliczny`) — ale przycisk,
-                 który zawsze kończy się błędem, jest gorszy niż jego brak. --}}
-            @unless($isEdit && $recipe->isPublished())
-                <button class="btn btn-secondary" type="submit" name="action" value="draft">Zapisz szkic</button>
-            @endunless
+            <button class="btn btn-primary" type="submit" name="action" value="publish">Opublikuj</button>
             <a class="btn btn-quiet" href="{{ route('home') }}">Nie teraz</a>
         </div>
     </form>
+
+    <p class="field-help mt-8">
+        Po opublikowaniu dopiszesz resztę: porcje, czasy, po kim jest ten przepis
+        i jego historię. Nic z tego nie jest potrzebne teraz.
+    </p>
 </x-layout>
