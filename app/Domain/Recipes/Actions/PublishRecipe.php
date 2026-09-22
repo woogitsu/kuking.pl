@@ -21,6 +21,7 @@ use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Zapis przepisu — szkicu albo publikacji.
@@ -116,6 +117,14 @@ final class PublishRecipe
                 'Ten przepis został ukryty przez moderację i nie można go teraz zmieniać. '
                 .'Jeśli uważasz, że to pomyłka, napisz do nas: '.config('kuking.community.contact_email'),
             );
+        }
+
+        // Policy nie może być wyłącznie ochroną kontrolera. Tę akcję woła
+        // także kreator Livewire, a w przyszłości mogą wołać ją zadania lub
+        // importy. Jawny aktor pilnuje konkretnego istniejącego przepisu,
+        // zanim odczytamy jego relacje albo zaczniemy transakcję zapisu.
+        if ($existing !== null) {
+            Gate::forUser($author)->authorize('update', $existing);
         }
 
         $cleanIngredients = $this->cleanIngredients($ingredients);
@@ -230,7 +239,6 @@ final class PublishRecipe
             );
 
             $payload = [
-                'author_id' => $author->getKey(),
                 'title' => $title,
                 'summary' => $this->nullIfBlank($attributes['summary'] ?? null),
                 'servings' => $attributes['servings'] ?? null,
@@ -248,6 +256,7 @@ final class PublishRecipe
             ];
 
             if ($existing === null) {
+                $payload['author_id'] = $author->getKey();
                 $payload['klucz_wyslania'] = $klucz;
                 $payload['slug'] = $this->slugs->handle($title);
                 $payload['status'] = $publish ? Recipe::STATUS_PUBLISHED : Recipe::STATUS_DRAFT;
