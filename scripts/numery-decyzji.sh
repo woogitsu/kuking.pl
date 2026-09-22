@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# STRAŻNIK NUMERACJI DECYZJI — ZAPALA SIĘ PRZED SCALENIEM, NIE PO (D-233).
+# STRAŻNIK NUMERACJI DECYZJI — ZAPALA SIĘ PRZED SCALENIEM, NIE PO (D-235).
 #
 # ─────────────────────────────────────────────────────────────────────────
 #  PO CO TO ISTNIEJE, SKORO JEST `NumeryDecyzjiMajaWpisyTest`
@@ -151,6 +151,67 @@ if [ "${1:-}" = "--kontrola-ujemna" ]; then
     done
 
     printf "${ZIELONY}✓ Kontrola ujemna: strażnik wykrył i NAZWAŁ wszystkie trzy usterki.${RESET}\n"
+
+    # --- Kontrola międzygałęziowa na PRAWDZIWYM repozytorium ---------------
+    #
+    # Dwie rzeczy naraz, bo każda bez drugiej jest pół-dowodem:
+    #  (a) WŁASNA gałąź zdalna NIE jest kolizją — regresja z 22 września,
+    #      kiedy strażnik po pierwszym pchnięciu blokował każde następne;
+    #  (b) CUDZA gałąź z tym samym numerem JEST kolizją i zostaje nazwana.
+    # Samo (a) przeszłoby też na strażniku, który w ogóle nie patrzy na
+    # gałęzie; samo (b) — na tym, który blokuje wszystko.
+    GIT_KAT="$KATALOG/git"
+    mkdir -p "$GIT_KAT"
+    # Bezwzględnie, bo niżej zmieniamy katalog, a `$0` bywa względne.
+    SKRYPT_ABS="$(cd "$(dirname "$0")" && pwd)/$(basename "$0")"
+    (
+        set -e
+        cd "$GIT_KAT"
+        git init -q --bare origin.git
+        git init -q -b main praca
+        cd praca
+        git config user.email kontrola@kuking.test
+        git config user.name kontrola
+        mkdir -p docs scripts
+        cp "$SKRYPT_ABS" scripts/
+        printf '## D-001 — na main\n\ntresc\n' > docs/DECISIONS.md
+        git add -A && git commit -qm main
+        git remote add origin ../origin.git
+        git push -q origin main
+        git checkout -qb moja
+        printf '\n## D-002 — moja\n\ntresc\n' >> docs/DECISIONS.md
+        git commit -qam moja
+        git push -q -u origin moja
+    ) >/dev/null 2>&1 || { printf "${CZERWONY}✗ Kontrola ujemna: nie udało się zbudować repozytorium próbnego.${RESET}\n"; exit 1; }
+
+    WYNIK=$(cd "$GIT_KAT/praca" && git fetch -q origin && bash "scripts/$(basename "$0")" 2>&1)
+    if [ $? -ne 0 ]; then
+        printf "${CZERWONY}✗ Kontrola ujemna: WŁASNA gałąź zdalna została zgłoszona jako kolizja.${RESET}\n"
+        printf '%s\n' "$WYNIK"
+        exit 1
+    fi
+
+    (
+        set -e
+        cd "$GIT_KAT/praca"
+        git checkout -q -b obca main
+        printf '\n## D-002 — cudza, ten sam numer\n\ntresc\n' >> docs/DECISIONS.md
+        git commit -qam obca
+        git push -q origin obca
+        git checkout -q moja
+        git branch -q -D obca
+        git fetch -q origin
+    ) >/dev/null 2>&1 || { printf "${CZERWONY}✗ Kontrola ujemna: nie udało się dołożyć cudzej gałęzi.${RESET}\n"; exit 1; }
+
+    WYNIK=$(cd "$GIT_KAT/praca" && bash "scripts/$(basename "$0")" 2>&1)
+    KOD=$?
+    if [ "$KOD" -eq 0 ] || ! printf '%s' "$WYNIK" | grep -q 'origin/obca'; then
+        printf "${CZERWONY}✗ Kontrola ujemna: kolizja z CUDZĄ gałęzią nie została zgłoszona z nazwą gałęzi.${RESET}\n"
+        printf '%s\n' "$WYNIK"
+        exit 1
+    fi
+
+    printf "${ZIELONY}✓ Kontrola ujemna: własna gałąź zdalna przechodzi, cudza z tym samym numerem pada z nazwą.${RESET}\n"
     exit 0
 fi
 
@@ -202,10 +263,34 @@ else
     else
         KOLIZJE=0
 
+        # WŁASNA GAŁĄŹ ZDALNA NIE JEST „CUDZĄ REZERWACJĄ".
+        #
+        # Pierwsza wersja tego skryptu pomijała tylko `origin/main` i `HEAD`.
+        # Przechodziło to do PIERWSZEGO pchnięcia gałęzi — a przy drugim
+        # `origin/<ta-gałąź>` niosła już numery tej samej gałęzi, więc strażnik
+        # zgłaszał kolizję gałęzi Z SAMĄ SOBĄ i blokował każde kolejne
+        # pchnięcie. Zmierzone 22 września na własnej gałęzi tego zmiany:
+        # „Numer D-234 D-235 D-236 jest już rezerwacją gałęzi
+        # origin/claude/new-session-zu9wwx".
+        #
+        # Pomijamy więc i upstream, i `origin/<bieżąca-gałąź>` — oba, bo
+        # gałąź bez ustawionego upstreamu (`git push` bez `-u`) ma tylko
+        # to drugie. Regresję łapie `--kontrola-ujemna`.
+        WLASNA_UPSTREAM=$(git rev-parse --abbrev-ref --symbolic-full-name '@{upstream}' 2>/dev/null || true)
+        WLASNA_BIEZACA=$(git branch --show-current 2>/dev/null || true)
+
         for ref in $(git for-each-ref --format='%(refname:short)' refs/remotes 2>/dev/null); do
             case "$ref" in
                 "$BAZOWA"|*/HEAD) continue ;;
             esac
+
+            if [ -n "$WLASNA_UPSTREAM" ] && [ "$ref" = "$WLASNA_UPSTREAM" ]; then
+                continue
+            fi
+
+            if [ -n "$WLASNA_BIEZACA" ] && [ "$ref" = "origin/$WLASNA_BIEZACA" ]; then
+                continue
+            fi
 
             # Numery, które TA gałąź dokłada ponad `main` — cudze rezerwacje.
             CUDZE=$(comm -23 <(numery_z_ref "$ref") <(printf '%s\n' "$NA_BAZOWEJ"))
