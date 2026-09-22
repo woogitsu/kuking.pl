@@ -2,13 +2,14 @@
 # Bez sieci: funkcja zastępuje KAŻDE wywołanie curl w rzeczywistym skrypcie.
 set -euo pipefail
 curl() {
-    local url="${!#}" code=200 headers=$'HTTP/2 200\r\n' target='' format='' output=''
+    local url="${!#}" code=200 headers=$'HTTP/2 200\r\n' target='' format='' output='' dump='' body=''
     local -a args=("$@")
     local i
     for ((i=0; i<${#args[@]}; i++)); do
         case "${args[i]}" in
             -w) format="${args[i+1]}" ;;
             -o) output="${args[i+1]}" ;;
+            -D) dump="${args[i+1]}" ;;
         esac
     done
     case "$url" in
@@ -63,11 +64,37 @@ curl() {
                     printf -v headers '%sx-padding: %100000s\r\n\r\n' "$headers" 'x' ;;
             esac ;;
         https://example.invalid/build/manifest.json) headers+=$'cache-control: immutable\r\n\r\n' ;;
-        https://example.invalid/) headers+=$'cf-ray: fixture\r\nx-content-type-options: nosniff\r\nx-frame-options: DENY\r\n\r\n' ;;
+        # Hashowane zasoby Vite wskazane przez stronę główną (#809). Domyślnie
+        # poprawne: HTTP 200, właściwy Content-Type, roczny cache immutable.
+        # Scenariusze `asset-*` psują dokładnie jedną z tych rzeczy naraz.
+        https://example.invalid/build/assets/app-fixture123.css)
+            headers+=$'content-type: text/css; charset=utf-8\r\ncache-control: public,max-age=31536000,immutable\r\n\r\n'
+            body='.kuking{color:#151714}'
+            case "$SCENARIO" in
+                asset-css-404) code=404; headers=$'HTTP/2 404\r\n\r\n'; body='' ;;
+                asset-css-typ) headers=$'HTTP/2 200\r\ncontent-type: text/html\r\ncache-control: public,max-age=31536000,immutable\r\n\r\n' ;;
+                asset-css-cache) headers=$'HTTP/2 200\r\ncontent-type: text/css\r\ncache-control: no-store\r\n\r\n' ;;
+                asset-css-pusty) body='' ;;
+            esac ;;
+        https://example.invalid/build/assets/app-fixture456.js)
+            headers+=$'content-type: text/javascript; charset=utf-8\r\ncache-control: public,max-age=31536000,immutable\r\n\r\n'
+            body='console.log(1)' ;;
+        https://example.invalid/)
+            headers+=$'cf-ray: fixture\r\nx-content-type-options: nosniff\r\nx-frame-options: DENY\r\n\r\n'
+            body='<html><head><link rel="stylesheet" href="/build/assets/app-fixture123.css"><script src="/build/assets/app-fixture456.js"></script></head><body>Kuking</body></html>'
+            case "$SCENARIO" in
+                strona-bez-assetow) body='<html><head></head><body>Kuking</body></html>' ;;
+            esac ;;
         https://cdn.example.invalid/) code=404 ;;
         *) printf 'NIEZNANE ŻĄDANIE ATRAPY\n' >&2; return 99 ;;
     esac
-    [[ "$output" == /dev/null ]] || printf '%s' "$headers"
+    [[ -z "$dump" ]] || printf '%s' "$headers" > "$dump"
+    if [[ -n "$output" && "$output" != /dev/null ]]; then
+        # Prawdziwy curl kładzie do pliku z `-o` TREŚĆ, nie nagłówki.
+        printf '%s' "$body" > "$output"
+    elif [[ "$output" != /dev/null && -z "$dump" ]]; then
+        printf '%s' "$headers"
+    fi
     format="${format//\%\{http_code\}/$code}"
     format="${format//\%\{redirect_url\}/$target}"
     printf '%b' "$format"
