@@ -1,0 +1,83 @@
+# Granice widocznosci tresci. Cena przeoczenia: tresc prywatna albo konta
+# zbanowanego wychodzi do obcych.
+nazwa: odkrywanie pokazuje wylacznie wpisy publiczne
+plik: app/Models/Post.php
+zamien: $query->enabledKinds()->published()->where('visibility', self::VISIBILITY_PUBLIC);
+na: $query->enabledKinds()->published();
+oczekuj: Failed asserting|prywatn
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/FeedTest.php
+ocena:
+---
+nazwa: serwis nie promuje tresci kont nieaktywnych
+plik: app/Models/Post.php
+zamien: $query->whereHas('author', fn ($autor) => $autor->where('status', User::STATUS_ACTIVE));
+na: $query->whereHas('author', fn ($autor) => $autor->whereNotNull('status'));
+oczekuj: Failed asserting|zawieszon
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/FeedTest.php
+ocena:
+---
+nazwa: komentarz konta zbanowanego nie wraca na liste ani do licznika
+plik: app/Models/Comment.php
+zamien: $query->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+na: $query->whereHas('author', fn ($autor) => $autor->whereNotNull('status'))
+oczekuj: Failed asserting|licznik
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KomentarzeGranicaStatusuAutoraTest.php
+ocena:
+---
+nazwa: komentarz ukryty przez moderacje nie wraca zakresem
+plik: app/Models/Comment.php
+zamien: ->where('comments.status', self::STATUS_PUBLISHED);
+na: ->whereNotNull('comments.status');
+oczekuj: Failed asserting|moderacje
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KomentarzePolicyZgadzaSieZListaTest.php
+ocena:
+---
+nazwa: galeria Komu wyszlo wycina wykonania kont zbanowanych
+plik: app/Models/CookedEvent.php
+zamien: $query->whereHas('user', fn ($kucharz) => $kucharz->dostepnyJakoAutor());
+na: $query->whereHas('user', fn ($kucharz) => $kucharz->whereNotNull('status'));
+oczekuj: Failed asserting|liczb
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UgotowalemGranicaStatusuKucharzaTest.php
+ocena:
+---
+nazwa: jedno zrodlo listy statusow ukrywajacych tresc
+plik: app/Models/User.php
+zamien: $query->whereNotIn('status', self::STATUSY_UKRYWAJACE_TRESC);
+na: $query->whereIn('status', self::STATUSY_UKRYWAJACE_TRESC);
+oczekuj: Failed asserting|widoczn
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UsunieteKontoTresciZostajaWidoczneTest.php
+ocena:
+---
+# ROZSTRZYGNIETE 20.09.2026. Mutacja przezyla takze CALY pakiet.
+# Werdykt: DZIURA W POKRYCIU, ale NIE w gwarancji prywatnosci — i ta roznica
+# jest tu cala.
+#
+# `published()` w scopeZWidocznymPrzepisem jest NADMIAROWE dla wszystkich
+# procz autora przepisu. Recipe::scopeWidoczneDla juz wymusza publikacje:
+#   - gosc (Recipe.php:249): published()->where('visibility','public')
+#   - zalogowany, CUDZY przepis (Recipe.php:281): galaz `cudze` wola published()
+#   - zalogowany, WLASNY przepis (Recipe.php:279): published() CELOWO nie
+#     obowiazuje, bo autor ma widziec wlasny szkic (komentarz w Recipe.php:271)
+#
+# Skutek mutacji ogranicza sie wiec do jednego przypadku: wpis autora
+# wskazujacy JEGO WLASNY nieopublikowany przepis zostaje w jego wlasnym
+# strumieniu zamiast z niego zniknac. Nikt obcy nie zobaczy przez to ani
+# jednego cudzego szkicu — gwarancja #368 stoi na drugiej warstwie.
+#
+# Do zrobienia: asercja na ten waski przypadek. NIE zglaszac jako luki
+# w prywatnosci, bo nia nie jest.
+nazwa: wpis wskazujacy cudzy przepis znika razem z tym przepisem
+plik: app/Models/Post.php
+zamien: $przepis->published()->widoczneDla($widz);
+na: $przepis->widoczneDla($widz);
+oczekuj: Failed asserting|ukryt
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/FeedTagowNiePokazujeCudzegoPrzepisuTest.php
+ocena: DZIURA W POKRYCIU (waski przypadek: wlasny nieopublikowany przepis autora) — nie luka w prywatnosci
+---
+nazwa: powiadomienie od sprawcy zbanowanego znika z listy i licznika
+plik: app/Models/Notification.php
+zamien: ->whereIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
+na: ->whereNotIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
+oczekuj: Failed asserting|licznik
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/PowiadomieniaWidocznoscTest.php
+ocena:

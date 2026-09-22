@@ -1,0 +1,139 @@
+# Wczesne sprawdzenie sekretu `KUKING_DEMO_HASLO`.
+#
+# PO CO TO ISTNIEJE
+# `DemoSeeder` bierze hasło kont demonstracyjnych z `KUKING_DEMO_HASLO`
+# (`config/kuking.php`, klucz `kuking.demo.haslo`). Celowo NIE ma wartości
+# domyślnej — decyzja właściciela z 20.09.2026 i strażnik
+# `PoswiadczeniaPozaRepozytoriumTest` (R47): hasła nie ma w repozytorium.
+# Gdy zmiennej brakuje, seeder LOSUJE hasło na każdy zasiew.
+#
+# Skrypty przeglądarkowe (`scripts/port-projektu.mjs`,
+# `scripts/kafel-dodawania.mjs`, `scripts/dostepnosc.mjs` i pozostałe) logują
+# się na konto demonstracyjne stałym hasłem. Wylosowane hasło w bazie i stałe
+# hasło w skrypcie to logowanie, które nie przechodzi.
+#
+# DLACZEGO SPRAWDZENIE JEST TUTAJ, A NIE „SAMO WYJDZIE"
+# Bo samo NIE wychodziło. Brak zmiennej objawiał się dopiero po kilkunastu
+# minutach — po `composer install`, `npm ci`, pobraniu Chromium, buildzie
+# i zasiewie — jako `page.waitForURL: Timeout 15000ms exceeded` na kroku
+# logowania (`port-projektu.mjs:254`, `kafel-dodawania.mjs:464`). Usterka
+# wyglądała na kruchość czasową przeglądarki i była tak diagnozowana więcej
+# niż raz, a nie miała z czasem nic wspólnego.
+#
+# Ten krok stoi ZARAZ PO `checkout`, przed jakąkolwiek instalacją: job pada
+# w kilkanaście sekund i mówi wprost, czego brakuje i gdzie to ustawić.
+#
+# DWA RÓŻNE POWODY BRAKU, DWA RÓŻNE KOMUNIKATY
+# Repozytorium jest czasowo PUBLICZNE, a GitHub nie przekazuje sekretów
+# przebiegom z pull requestów z forka. Brak sekretu znaczy więc co innego
+# w PR-ze z forka (stan oczekiwany, nic do naprawienia w konfiguracji)
+# niż w PR-ze z gałęzi tego repozytorium (sekret naprawdę nie jest ustawiony
+# albo stracił zasięg). Jeden komunikat na oba przypadki zamieniłby jedną
+# mylącą czerwień na drugą — dlatego wejście `fork` i dwie różne treści.
+#
+# WARTOŚĆ NIGDY NIE TRAFIA DO LOGU. Sprawdzamy wyłącznie, czy łańcuch jest
+# niepusty — nie wypisujemy go, nie liczymy długości, nie pokazujemy skrótu.
+name: Hasło kont demonstracyjnych
+description: Sprawdza, czy sekret `KUKING_DEMO_HASLO` dotarł do joba, zanim job zacznie cokolwiek instalować.
+
+inputs:
+  haslo:
+    # Wejście, a nie `env` — wewnątrz composite action kontekst `env` to
+    # środowisko akcji, nie workflow (to samo zastrzeżenie stoi
+    # w `.github/actions/php/action.yml`). Sekret podaje wołający job.
+    description: Zawartość sekretu repozytorium `KUKING_DEMO_HASLO`.
+    required: true
+  fork:
+    description: '"true", gdy przebieg pochodzi z pull requesta z forka — wtedy brak sekretu jest stanem oczekiwanym.'
+    required: false
+    default: 'false'
+
+runs:
+  using: composite
+  steps:
+    - name: Sekret hasła kont demonstracyjnych
+      shell: bash
+      env:
+        KUKING_DEMO_HASLO: ${{ inputs.haslo }}
+        Z_FORKA: ${{ inputs.fork }}
+      run: |
+        set -uo pipefail
+
+        if [ -n "${KUKING_DEMO_HASLO:-}" ]; then
+          echo "KUKING_DEMO_HASLO: obecny. Konta demonstracyjne dostaną hasło z sekretu."
+          exit 0
+        fi
+
+        if [ "${Z_FORKA:-false}" = "true" ]; then
+          echo "::error title=PR z forka nie dostaje sekretu KUKING_DEMO_HASLO::To zachowanie GitHuba, nie usterka repozytorium. Ten job wymaga hasła kont demonstracyjnych i nie da się go przeprowadzić z forka."
+          cat >&2 <<'KOMUNIKAT'
+
+        ────────────────────────────────────────────────────────────────────
+         PR Z FORKA: SEKRET KUKING_DEMO_HASLO NIE ZOSTAŁ PRZEKAZANY
+        ────────────────────────────────────────────────────────────────────
+
+        To NIE jest błąd konfiguracji repozytorium. GitHub nie przekazuje
+        sekretów repozytorium przebiegom wywołanym przez pull request
+        z forka — sekret `KUKING_DEMO_HASLO` jest ustawiony, ale ten
+        konkretny przebieg go nie widzi.
+
+        Ten job zasiewa bazę `DemoSeeder`-em i loguje się w przeglądarce na
+        konto demonstracyjne, więc bez hasła nie ma czego mierzyć.
+
+        CO Z TYM ZROBIĆ
+        Przenieś gałąź do tego repozytorium i otwórz PR z niej — wszystkie
+        PR-y robocze tego projektu idą właśnie tak. Alternatywnie opiekun
+        może uruchomić przebieg z gałęzi repozytorium ręcznie
+        (`workflow_dispatch`).
+
+        CZEGO NIE ROBIĆ
+        Nie wpisuj hasła do repozytorium, do `.env.example`, do workflowu ani
+        do żadnego logu, żeby „obejść" ten komunikat. Dokładnie po to hasło
+        stąd wyjęto (PoswiadczeniaPozaRepozytoriumTest / R47).
+        ────────────────────────────────────────────────────────────────────
+
+        KOMUNIKAT
+          exit 1
+        fi
+
+        echo "::error title=Brak sekretu KUKING_DEMO_HASLO::Ten job zasiewa bazę i loguje się w przeglądarce — bez hasła kont demonstracyjnych logowanie nie przejdzie."
+
+        cat >&2 <<'KOMUNIKAT'
+
+        ────────────────────────────────────────────────────────────────────
+         BRAK SEKRETU REPOZYTORIUM: KUKING_DEMO_HASLO
+        ────────────────────────────────────────────────────────────────────
+
+        Ten job robi `php artisan migrate:fresh --seed` i loguje się
+        w przeglądarce na konto demonstracyjne.
+
+        CO SIĘ STANIE BEZ TEJ ZMIENNEJ
+        `DemoSeeder` nie ma wartości domyślnej (i mieć nie będzie — hasło nie
+        wraca do repozytorium, patrz PoswiadczeniaPozaRepozytoriumTest / R47).
+        Bez niej losuje hasło na każdy zasiew, a skrypty przeglądarkowe logują
+        się swoim stałym hasłem. Logowanie nie przechodzi, a job pada dopiero
+        kilkanaście minut później komunikatem, który o haśle nie mówi ani
+        słowa:
+
+            page.waitForURL: Timeout 15000ms exceeded
+
+        Dlatego ten krok zatrzymuje job TERAZ, a nie tam.
+
+        CO ZROBIĆ
+        Ustaw sekret repozytorium (Settings → Secrets and variables →
+        Actions → New repository secret):
+
+            Nazwa:    KUKING_DEMO_HASLO
+            Wartość:  hasło kont demonstracyjnych
+
+        Jeśli sekret istnieje, a ten komunikat i tak się pojawił: sprawdź, czy
+        przebieg nie idzie ze środowiska z własną listą sekretów i czy nazwa
+        zgadza się co do znaku.
+
+        Wartości NIE wpisuj do repozytorium, do `.env.example`, do tego pliku
+        ani do żadnego logu.
+        ────────────────────────────────────────────────────────────────────
+
+        KOMUNIKAT
+
+        exit 1
