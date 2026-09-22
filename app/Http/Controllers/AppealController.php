@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\FileAppeal;
+use App\Domain\Security\LimitProbHasla;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\ModerationAction;
 use App\Models\User;
@@ -51,7 +52,10 @@ use Illuminate\View\View;
  */
 class AppealController extends Controller
 {
-    public function __construct(private readonly FileAppeal $zloz) {}
+    public function __construct(
+        private readonly FileAppeal $zloz,
+        private readonly LimitProbHasla $limit,
+    ) {}
 
     /**
      * Formularz odwołania od konkretnej decyzji.
@@ -122,17 +126,40 @@ class AppealController extends Controller
             'body.min' => 'Napisz trochę więcej — kilka zdań wystarczy, ale jedno słowo nam nie pomoże.',
         ]);
 
+        // TEN FORMULARZ SPRAWDZA HASŁO, więc chodzi po TYCH SAMYCH TRZECH
+        // KOSZYKACH CO `/login` (`App\Domain\Security\LimitProbHasla`).
+        //
+        // Sam `throttle:appeal` (5/60 min) tego nie załatwiał, bo liczy się
+        // po ADRESIE, a `config/kuking.php` → `login_limits` mówi wprost, że
+        // licznik przywiązany do adresu nie widzi ataku rozproszonego po
+        // wielu adresach na jedno konto. Zmierzone przed tą zmianą: 60 prób
+        // hasła do jednego konta z 60 różnych adresów — ZERO odmów, podczas
+        // gdy `/login` blokuje przy piętnastej. Był to więc drugi, słabszy
+        // wjazd do tej samej wyroczni — i jedyny z tych trzech, który nie
+        // ma nawet Turnstile.
+        $adres = (string) $request->ip();
+
+        $this->limit->zatrzymajJesliZaDuzo($data['login'], $adres);
+
         $osoba = User::findByLogin($data['login']);
 
         // Komunikat jednakowy dla złego loginu i złego hasła — inaczej ten
         // formularz byłby wygodnym sprawdzaczem, czy dane konto istnieje
         // (ta sama zasada co w LoginController).
         if ($osoba === null || ! Hash::check($data['password'], (string) $osoba->password)) {
+            $this->limit->zapiszNieudanaProbe($data['login'], $adres);
+
             throw ValidationException::withMessages([
                 'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy nazwa i hasło są wpisane poprawnie. '
                     .'Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła” — to działa także przy zablokowanym koncie.',
             ]);
         }
+
+        // DOBRE HASŁO CZYŚCI PARĘ I KONTO, NIGDY ADRES — ta sama reguła
+        // i to samo uzasadnienie co w `LoginController` (`KluczeLimitow`).
+        // Bez tego osoba, która pomyliła hasło trzy razy, a za czwartym
+        // trafiła, nadal siedziałaby przy pełnym liczniku.
+        $this->limit->wyczyscPoUdanej($data['login'], $adres);
 
         $decyzja = $this->ostatniaDecyzjaDoOdwolania($osoba);
 

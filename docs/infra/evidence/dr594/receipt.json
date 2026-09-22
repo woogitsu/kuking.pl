@@ -1,0 +1,43 @@
+{
+  "date_utc": "20260920T173937Z",
+  "source": "kuking_flota_gpt_dr_baza_source",
+  "target": "proba_odtworzenia_gpt_dr_baza_20260920t173937z",
+  "identity": "kuking_flota_gpt_dr_baza_source|kuking|127.0.0.1|55439",
+  "postgres": "PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0, 64-bit",
+  "database_bytes": 2747324095,
+  "load_before": [
+    32.05712890625,
+    26.96044921875,
+    19.68017578125
+  ],
+  "scope": "wyłącznie lokalne dane syntetyczne",
+  "backup": {
+    "seconds": 32.316588349000085,
+    "exit_code": 0,
+    "marks": {
+      "dump_start": 0.026621209020959213,
+      "dump_end": 30.2486781370244
+    }
+  },
+  "dump_seconds": 30.22205692800344,
+  "archive_bytes": 427148807,
+  "restore": {
+    "seconds": 66.72655394900357,
+    "exit_code": 0,
+    "marks": {
+      "restore_start": 7.1292232669948135,
+      "restore_end": 64.06692784000188,
+      "verification_end": 66.69028563599568
+    }
+  },
+  "restore_seconds": 56.93770457300707,
+  "verification_seconds": 2.6233577959937975,
+  "content_verification_seconds": 76.5394215050037,
+  "content_equal": true,
+  "tables_compared": 50,
+  "load_after": [
+    32.365234375,
+    28.98095703125,
+    21.6796875
+  ]
+}

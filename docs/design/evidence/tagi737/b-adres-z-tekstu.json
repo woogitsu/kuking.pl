@@ -1,0 +1,16 @@
+{
+  "nazwa": "odnosnik powstaje z samego tekstu, a nie z relacji wpisu",
+  "plik": "app/Support/LinkiWTekscie.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "57c16ba16495ad9e44977e353a069515",
+  "md5_po_mutacji": "100bc8cbf5cf9f56c5d60f92284a5dea",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "/tag/roladda",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-19T22:13:25Z"
+}

@@ -63,6 +63,15 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'docs/research/',
         'docs/zlecenia/',
         'docs/design/system-v3.1/',
+        // Dzienniki i inwentarze floty: zapisują przebieg pracy, a nie obietnice
+        // produktu. Backticki niosą tam ścieżki systemu plików i fragmenty
+        // cudzych API — `/c/.../Codex`, `/Users/matma/…/.git/worktrees/…`,
+        // `/merge`, `/logs`, `/v2.1/email` — których skaner nie odróżni od
+        // adresu na kuking.pl. Wykluczenie zawęża ZAKRES strażnika, nie osłabia
+        // go: dokumenty produktu w `docs/product/` i `docs/design/` dalej muszą
+        // wskazywać trasy, które istnieją. Sprawdzone 21.09.2026 — dwanaście
+        // zgłoszeń z tego katalogu, żadne nie było adresem naszego serwisu.
+        'docs/flota/',
     ];
 
     private const WYKLUCZONE_Z_TRAS_PLIKI = [
@@ -92,8 +101,11 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         '/polityka-prywatnosci' => 'cytat wewnątrz zdania ostrzegającego „nie /polityka-prywatnosci" (FACEBOOK_LOGIN_URUCHOMIENIE.md)',
         '/przepisy' => 'przykład stylu adresu (AGENTS.md, SKILL.md) — prawdziwa trasa ma parametr',
         '/przepisy/' => 'przykład stylu adresu — prawdziwa trasa ma parametr',
+        '/przepisy/{fork}/oryginal' => 'ekran zaproponowany w projekcie #23 (docs/product/MOJA_WERSJA_PROJEKT_23.md), decyzja właściciela nie zapadła — trasy nie ma i nie ma jej być przed tą decyzją',
+        '/przepisy/{oryginal}/moja-wersja' => 'tryb tworzenia zaproponowany w projekcie #23 (docs/product/MOJA_WERSJA_PROJEKT_23.md), decyzja właściciela nie zapadła — trasy nie ma i nie ma jej być przed tą decyzją',
         '/pytania' => 'dział jawnie opisany jako jeszcze niezbudowany, issue #372 (BRAND_EXTENDED.md)',
         '/tag' => 'nieformalne odwołanie do prefiksu tras tagów',
+        '/tag/przetwory' => 'realny wzorzec tag/{tag} z przykładową wartością (AUDYT_COLD_START_29_2026-09-20.md)',
         '/tag/zupa' => 'realny wzorzec tag/{tag} z przykładową wartością',
         '/tag/zupy' => 'realny wzorzec tag/{tag} z przykładową wartością',
         '/temat/{slug}' => 'propozycja z dokumentu decyzyjnego, nie zbudowana trasa',
@@ -125,6 +137,9 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'scripts', 'docs', 'decyzje', 'config', 'tests', 'research',
         '_work', '_temp', '.npm', '.cache', 'actions-runner-kuking-03',
         'setup-php', 'linux', 'livewire', 'favicon', 'manifest', 'incoming',
+        // katalog domowy Windows w cytowanej ścieżce lokalnej (worktree,
+        // klon repozytorium), nigdy adres tego serwisu
+        'Users',
         // polecenia/skille Claude Code, cytowane w dokumentacji jak trasy
         'code-review', 'simplify', 'security-review', 'fewer-permission-prompts',
         'loop', 'init', 'run', 'permissions', 'slack',

@@ -21,8 +21,8 @@ use Symfony\Component\HttpFoundation\Response;
  *
  * Wariantu „serwer oddaje plik po nagłówku od aplikacji" (`X-Accel-Redirect`)
  * NIE MA I NIE BĘDZIE: przed PHP stoi Caddy, nie nginx, a Caddy takiego
- * mechanizmu nie zna. Stąd 302 na adres podpisany kluczem S3, ważny kilka
- * minut — konfiguracja `kuking.media.signed_url_minutes`.
+ * mechanizmu nie zna. Stąd 302 na adres podpisany kluczem S3, ważny do 5
+ * minut dla treści chronionej lub do 60 dla publicznej (#597).
  *
  * ODMOWA TO 404, NIE 403
  * I ma wyglądać dokładnie tak samo jak zdjęcie, którego nie ma. 403 na cudzym
@@ -71,24 +71,29 @@ class MediaController extends Controller
 
         abort_if($wybrany === null, 404);
 
-        // Czy to zdjęcie zobaczyłby ktoś NIEZALOGOWANY. To jest jedyne
+        // Czy to zdjęcie zobaczyłby ktoś NIEZALOGOWANY. To pierwsze
         // pytanie, które rozstrzyga o nagłówku cache: odpowiedź wspólną dla
         // wszystkich wolno trzymać we wspólnym cache, odpowiedź zależną od
         // tego, kto pyta — nie wolno nigdzie. Zdjęcie przepisu „followers"
         // z `public, max-age` w cache Cloudflare byłoby tym samym wyciekiem,
         // który ta zmiana naprawia, tylko o warstwę wyżej.
         $publiczne = $decyzja->dlaAnonima;
+        // Publiczność treści wyznacza termin podpisu; tożsamość żądającego
+        // osobno wyznacza możliwość współdzielenia odpowiedzi.
+        $wspolnyCache = $publiczne && $widz === null
+            && ! $request->headers->has('Cookie') && $request->cookies->count() === 0
+            && ! $request->headers->has('Authorization');
 
         $dysk = Storage::disk($media->variantsDisk());
 
-        $naglowki = $publiczne
+        $naglowki = $wspolnyCache
             ? [
                 // Krótko, nie „na rok". Widoczność treści potrafi się zmienić
                 // w każdej chwili — autor przełącza przepis na prywatny, ktoś
                 // kogoś blokuje, moderator ukrywa wpis. `max-age` jest górnym
                 // ograniczeniem na to, jak długo taka zmiana może nie dojść
                 // do skutku.
-                'Cache-Control' => 'public, max-age='.$this->sekundyCache(),
+                'Cache-Control' => 'public, max-age='.$this->sekundyCache($publiczne),
             ]
             : [
                 // `no-store`, nie samo `private`: `private` pozwala jeszcze
@@ -114,7 +119,7 @@ class MediaController extends Controller
         return redirect()->away(
             $dysk->temporaryUrl(
                 $wybrany['klucz'],
-                now()->addMinutes($this->minutyWaznosci()),
+                now()->addMinutes($this->minutyWaznosci($publiczne)),
                 // BEZ TEGO `Cache-Control` chroni tylko PRZEKIEROWANIE, nie
                 // treść, do której ono prowadzi (audyt zewnętrzny N02).
                 // `temporaryUrl()` bez trzeciej opcji podpisuje adres tak samo
@@ -135,9 +140,11 @@ class MediaController extends Controller
         );
     }
 
-    private function minutyWaznosci(): int
+    private function minutyWaznosci(bool $publiczne): int
     {
-        return max(1, (int) config('kuking.media.signed_url_minutes'));
+        $key = $publiczne ? 'public_signed_url_minutes' : 'signed_url_minutes';
+
+        return min($publiczne ? 60 : 5, max(1, (int) config('kuking.media.'.$key)));
     }
 
     /**
@@ -159,8 +166,8 @@ class MediaController extends Controller
      * `ZdjeciaChronioneNieWyciekajaTest`, i pilnuje REGUŁY (krócej niż
      * podpis), nie tej konkretnej liczby.
      */
-    private function sekundyCache(): int
+    private function sekundyCache(bool $publiczne): int
     {
-        return max(1, intdiv(60 * $this->minutyWaznosci(), 2));
+        return max(1, intdiv(60 * $this->minutyWaznosci($publiczne), 2));
     }
 }

@@ -79,6 +79,9 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class ApplySecurityHeaders
 {
+    /** Znacznik na żądaniu: „podpis dla tego żądania już powstał". */
+    private const KLUCZ_PODPISU = 'kuking_csp_nonce';
+
     public function handle(Request $request, Closure $next): Response
     {
         // PODPIS MUSI POWSTAĆ PRZED `$next()`, NIE PO.
@@ -88,13 +91,60 @@ class ApplySecurityHeaders
         // strona zostałaby bez skryptów, bez żadnego błędu w logu. To jest
         // dokładnie ten rodzaj awarii, którego nie widać na oczy, więc
         // pilnuje go osobny test (PolitykaBezpieczenstwaTest).
-        $nonce = Vite::useCspNonce();
+        // JEDEN PODPIS NA ŻĄDANIE — ANI ZERO, ANI DWA.
+        //
+        // Ta klasa stoi w stosie DWA RAZY: raz globalnie (drugi wpis, zaraz
+        // za `NormalizeForwardedFor` — patrz bootstrap/app.php) i raz w
+        // grupie `web`. Gdyby warstwa wewnętrzna generowała własny podpis,
+        // w HTML-u byłby inny ciąg niż w nagłówku warstwy zewnętrznej
+        // i strona zostałaby bez skryptów, bez jednej linijki w logu.
+        //
+        // ZNACZNIK SIEDZI NA `$request`, NIE W `Vite::cspNonce()`, i to jest
+        // POPRAWKA BŁĘDU, nie kosmetyka. Pierwsza wersja tej naprawy czytała
+        // `Vite::cspNonce()` i brała go, gdy już istniał. W `php artisan
+        // serve` (proces na żądanie) wyglądało to poprawnie, ale `Vite` żyje
+        // tak długo jak APLIKACJA: przy długo żyjącym procesie — pakiet
+        // testowy, w przyszłości Octane — ten sam podpis wracałby w KAŻDEJ
+        // kolejnej odpowiedzi. Nonce, który się nie zmienia, jest
+        // `unsafe-inline` napisanym trudniej; pilnuje tego
+        // `PolitykaBezpieczenstwaTest::test_podpis_jest_inny_przy_kazdym_zadaniu`.
+        //
+        // Worek atrybutów `$request` żyje dokładnie jedno żądanie, a Laravel
+        // przepuszcza przez cały potok TEN SAM obiekt żądania — więc obie
+        // warstwy trafiają na ten sam wpis, a następne żądanie zaczyna
+        // z pustym.
+        $nonce = $request->attributes->get(self::KLUCZ_PODPISU);
+
+        if (! is_string($nonce)) {
+            $nonce = Vite::useCspNonce();
+            $request->attributes->set(self::KLUCZ_PODPISU, $nonce);
+        }
 
         $response = $next($request);
 
+        // Sekret w ścieżce może wyjść jako document.referrer NASTĘPNEJ
+        // strony, mimo że na obecnej nie ma beacona. Ta sama klasyfikacja
+        // chroni obie drogi, także gdy analityka jest wyłączona. Robimy to
+        // przed powrotem dla własnego CSP i obu warstw middleware.
+        $mayExposeReferrerPath = AnalitykaCloudflare::wolnoNaTejStronie($request);
+        if (! $mayExposeReferrerPath) {
+            $response->headers->set('Referrer-Policy', 'no-referrer');
+        }
+
+        // WARSTWA WEWNĘTRZNA JUŻ TO ZROBIŁA. Na zwykłej stronie odpowiedź
+        // przechodzi przez grupę `web`, więc wywołanie globalne widzi tu
+        // gotowy komplet i nie dokłada nic — żadnego drugiego nagłówka,
+        // żadnego drugiego podpisu. Dalej idzie tylko to, co grupy `web`
+        // nigdy nie zobaczyło: 404 z routera, 419, 429, 413 i 503.
+        if ($response->headers->has('Content-Security-Policy')) {
+            return $response;
+        }
+
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        if ($mayExposeReferrerPath) {
+            $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        }
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 

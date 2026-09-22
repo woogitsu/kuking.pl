@@ -3,7 +3,7 @@
     "private": true,
     "type": "module",
     "scripts": {
-        "build": "node scripts/kontrast-marki.mjs && node --test scripts/pwa-install.test.mjs scripts/panel-komunikat.test.mjs scripts/wyglad-komunikat.test.mjs resources/js/tagi-w-opisie.test.mjs && vite build",
+        "build": "node scripts/kontrast-marki.mjs && node --test scripts/pwa-install.test.mjs scripts/panel-komunikat.test.mjs scripts/wyglad-komunikat.test.mjs resources/js/tagi-w-opisie.test.mjs resources/js/licznik-znakow.test.mjs resources/js/minutnik-krok.test.mjs resources/js/wake-lock-gotowania.test.mjs && vite build",
         "dev": "vite",
         "sprawdz:marke": "node scripts/kontrast-marki.mjs"
     },
@@ -13,7 +13,7 @@
         "axe-core": "^4.13.0",
         "concurrently": "^10.0.3",
         "laravel-vite-plugin": "^3.1",
-        "lighthouse": "^13.4.1",
+        "lighthouse": "^13.5.0",
         "playwright": "^1.63.0",
         "railway": "^3.11.0",
         "tailwindcss": "^4.0.0",
