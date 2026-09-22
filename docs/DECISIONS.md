@@ -4903,6 +4903,33 @@ Ta decyzja NIE jest „nigdy" — jest „nie bez tych trzech rzeczy naraz":
   `docs/MEDIA_PIPELINE.md`, `config/kuking.php` (komentarz przy
   `accepted_mime_types`).
 
+### Aktualizacja 20 września 2026 — obietnica bez pokrycia poprawiona (#119 follow-up)
+
+Ta decyzja **nie jest otwierana na nowo**: HEIC nadal jest odrzucany, `libheif`
+nadal nie wchodzi do obrazu Dockera. Poprawiono wyłącznie TEKST komunikatu
+z §3 pkt 2, po pomiarze stanowiska `gpt/heic-format`
+(`docs/research/heic-119/RAPORT.md`).
+
+Znaleziony błąd: komunikat obiecywał **bezwarunkowo**, że wysłanie HEIC do
+siebie e-mailem da JPG („wyślij najpierw do siebie e-mailem — przyjdzie jako
+JPG"). Apple (support.apple.com/pl-pl/116944) opisuje to jako zależne od
+sposobu udostępniania i możliwości odbiorcy — „może" zostać wysłane w formacie
+zgodnym, nie „zostanie". Naprawiono `App\Support\RozpoznanieZdjecia::komunikatHeic()`:
+wynik dla TEGO zdjęcia nazwany jako niepewny („telefon czasem sam zamienia
+je wtedy na JPG, ale zależy to od modelu telefonu"), z prostą alternatywą
+(wybrać inne, gotowe zdjęcie), i osobno, jasno opisane ustawienie na
+PRZYSZŁOŚĆ, które nie przerabia zdjęcia już zrobionego. Nie zastąpiono jednej
+niepewnej obietnicy inną równie pewną — żadna sprawdzona na 100% droga
+konwersji ISTNIEJĄCEGO pliku nie jest znana (patrz RAPORT.md §5: Mail,
+„Duplikuj" i zewnętrzny konwerter odradzane jako pewniki).
+
+Drugi błąd, drobniejszy: polska pomoc Apple podaje etykietę „Najbardziej
+zgodne" (rodzaj nijaki), a komunikat (i ten wpis w §3 pkt 1 wyżej) miał
+błędną odmianę „Najbardziej zgodny". Poprawiono w obu miejscach.
+
+Test regresyjny (RED przed poprawką, GREEN po):
+`tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php::test_komunikat_heic_nie_obiecuje_bezwarunkowo_konwersji_mailem`.
+
 ### Co CZEKA na właściciela (opisane, nie wykonane)
 
 - **Pomiar na prawdziwym iPhonie** (§3, §6 pkt 2) — nie do wykonania z tego
