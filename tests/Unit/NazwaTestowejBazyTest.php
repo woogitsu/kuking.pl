@@ -101,20 +101,198 @@ class NazwaTestowejBazyTest extends TestCase
         );
     }
 
-    public function test_brak_pliku_git_daje_domyslna_nazwe(): void
+    /**
+     * ────────────────────────────────────────────────────────────────────────
+     *  SEDNO: KOPIA REPOZYTORIUM BEZ `.git` TO NIE JEST GŁÓWNY CHECKOUT
+     * ────────────────────────────────────────────────────────────────────────
+     *
+     * Runtime floty (`_wspolne/przygotuj-runtime.sh`) przegrywa worktree
+     * rsynkiem z `--exclude '.git'`, więc w katalogu, w którym NAPRAWDĘ chodzą
+     * testy, pliku `.git` NIE MA. Do 2026-09-20 funkcja traktowała ten
+     * przypadek jak główny checkout i zwracała gołe `kuking_test` — czyli
+     * KAŻDE stanowisko floty dostawało tę samą bazę, choć komentarz nad
+     * funkcją obiecywał unikalność. Zmierzone: trzy różne katalogi runtime
+     * dostawały `kuking_test`, `kuking_race` i `proba_wycofania` co do znaku.
+     *
+     * Skutkiem nie był wcale jeden zepsuty test, tylko fałszywa czerwień
+     * z kontencji: cudze `RefreshDatabase` zrzucało schemat w trakcie
+     * czyjegoś przebiegu i każdy, kto to zobaczył, musiał najpierw udowodnić,
+     * że to nie jego wina.
+     *
+     * Ten test oblewa dokładnie wtedy, gdy dwa stanowiska dostaną tę samą
+     * nazwę bazy — i o to w nim chodzi. Bez niego naprawa jest jednorazowa.
+     */
+    public function test_dwa_stanowiska_bez_pliku_git_dostaja_dwie_rozne_bazy(): void
     {
-        $katalog = $this->tymczasowyKatalogRepo();
-        // Celowo bez `.git` w ogóle — np. kod rozpakowany z archiwum,
-        // nie sklonowany. Funkcja ma się wtedy zachować jak dla głównego
-        // checkoutu, nie wybuchnąć.
-        $this->assertSame('kuking_test', kuking_nazwa_testowej_bazy($katalog));
+        // Dokładnie to, co robi runtime floty: katalog repozytorium jest,
+        // pliku `.git` nie ma, bo rsync go wykluczył.
+        $stanowiskoA = $this->tymczasowyKatalogRepo('r49-trasy-run');
+        $stanowiskoB = $this->tymczasowyKatalogRepo('zaleglosci-zgloszen-run');
+
+        $this->assertNotSame(
+            kuking_nazwa_testowej_bazy($stanowiskoA),
+            kuking_nazwa_testowej_bazy($stanowiskoB),
+            'Dwa stanowiska floty dostały tę samą bazę testową — wrócił issue #66.',
+        );
+
+        // Bazy wyścigów i wycofania liczą sufiks TĄ SAMĄ funkcją, więc
+        // zderzają się dokładnie tak samo. Sprawdzamy je wprost, żeby
+        // następny refaktor nie naprawił jednej reguły i zostawił dwie.
+        $this->assertNotSame(
+            kuking_nazwa_bazy_wyscigow($stanowiskoA),
+            kuking_nazwa_bazy_wyscigow($stanowiskoB),
+            'Dwa stanowiska floty dostały tę samą bazę wyścigów.',
+        );
+
+        $this->assertNotSame(
+            kuking_nazwa_bazy_wycofania($stanowiskoA),
+            kuking_nazwa_bazy_wycofania($stanowiskoB),
+            'Dwa stanowiska floty dostały tę samą bazę próby wycofania.',
+        );
     }
 
-    private function tymczasowyKatalogRepo(): string
+    /**
+     * Ta sama rodzina co wyżej, tylko od strony `tests/skrypty/proba-odtworzenia.sh`:
+     * skrypt liczy SUFIKS jako `substr(nazwa, strlen('kuking_test'))` i podstawia
+     * awaryjne `_glowny`, gdy wyjdzie pusto. Pusty sufiks w runtime znaczy więc
+     * `kuking_zrodlo_proby_glowny` u WSZYSTKICH naraz.
+     */
+    public function test_kopia_bez_pliku_git_daje_niepusty_sufiks_dla_skryptow(): void
     {
-        $katalog = sys_get_temp_dir().'/kuking-nazwa-bazy-'.bin2hex(random_bytes(8));
+        $stanowisko = $this->tymczasowyKatalogRepo('bazy-stanowisk-run');
+
+        $sufiks = substr(kuking_nazwa_testowej_bazy($stanowisko), strlen('kuking_test'));
+
+        $this->assertNotSame(
+            '',
+            $sufiks,
+            'Pusty sufiks wpycha wszystkie stanowiska w jedną bazę `kuking_zrodlo_proby_glowny`.',
+        );
+    }
+
+    public function test_kopia_bez_pliku_git_daje_ta_sama_nazwe_za_kazdym_razem(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('powtarzalne-run');
+
+        $this->assertSame(
+            kuking_nazwa_testowej_bazy($stanowisko),
+            kuking_nazwa_testowej_bazy($stanowisko),
+            'Nazwa bazy musi być stabilna, inaczej każdy przebieg zostawia nową bazę do sprzątania.',
+        );
+    }
+
+    public function test_kopia_bez_pliku_git_daje_bezpieczny_identyfikator(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('stanowisko-z-kropka.i-mysln1kiem');
+
+        $this->assertMatchesRegularExpression(
+            '/^kuking_test_[a-zA-Z0-9_]+$/',
+            kuking_nazwa_testowej_bazy($stanowisko),
+        );
+    }
+
+    /**
+     * WARTOŚĆ Z `naprawa/baza-proby-per-runtime` PONAD `#920`: dwa stanowiska
+     * o TEJ SAMEJ nazwie katalogu, ale w różnych katalogach nadrzędnych —
+     * realny układ floty, gdy dwa runtime'y albo dwie kopie repo nazywają się
+     * tak samo (`…/kuking.pl`, `…/agent-run`). Sama nazwa katalogu by tu nie
+     * wystarczyła — dopiero skrót PEŁNEJ ścieżki rozróżnia te dwa przypadki.
+     * Bez tego testu naprawa #920 mogłaby się cofnąć do wersji „nazwa
+     * katalogu bez skrótu" i nikt by tego nie zauważył na dwóch pozostałych
+     * testach (które używają różnych nazw katalogów).
+     */
+    public function test_ta_sama_nazwa_katalogu_w_dwoch_miejscach_daje_dwie_rozne_bazy(): void
+    {
+        $stanowiskoA = $this->tymczasowyKatalogRepo('kuking-flota-run');
+        $stanowiskoB = $this->tymczasowyKatalogRepo('kuking-flota-run');
+
+        $this->assertNotSame(
+            $stanowiskoA,
+            $stanowiskoB,
+            'Fixture testu musi dać dwie różne ścieżki — inaczej test niczego nie sprawdza.',
+        );
+
+        $this->assertNotSame(
+            kuking_nazwa_testowej_bazy($stanowiskoA),
+            kuking_nazwa_testowej_bazy($stanowiskoB),
+            'Dwa katalogi o tej samej nazwie w różnych miejscach dostały tę samą bazę.',
+        );
+    }
+
+    /**
+     * WARTOŚĆ Z `naprawa/baza-proby-per-runtime` PONAD `#920`: ten sam
+     * katalog osiągnięty dwoma różnymi zapisami ścieżki (kończący ukośnik,
+     * `/podkatalog/..`) musi dać TĘ SAMĄ bazę. `tests/bootstrap.php` woła
+     * funkcję z `__DIR__` (bez ukośnika), a skrypty powłoki bywają mniej
+     * dyscyplinowane — gdyby te dwa zapisy dawały dwie bazy, jeden runtime
+     * rozjechałby się sam ze sobą między kolejnymi przebiegami. Zachowanie
+     * dziś zapewnia `realpath()` wewnątrz `kuking_nazwa_testowej_bazy()` —
+     * ten test czyni ten kontrakt jawnym, żeby przyszły refaktor (np. zamiana
+     * `realpath()` na coś tańszego) nie zepsuł go po cichu.
+     */
+    public function test_rozne_zapisy_tej_samej_sciezki_daja_ta_sama_nazwe(): void
+    {
+        $stanowisko = $this->tymczasowyKatalogRepo('normalizacja-run');
+        mkdir($stanowisko.'/podkatalog');
+
+        $nazwaKanoniczna = kuking_nazwa_testowej_bazy($stanowisko);
+
+        $this->assertSame(
+            $nazwaKanoniczna,
+            kuking_nazwa_testowej_bazy($stanowisko.'/'),
+            'Kończący ukośnik nie może zakładać drugiej bazy dla tego samego katalogu.',
+        );
+
+        $this->assertSame(
+            $nazwaKanoniczna,
+            kuking_nazwa_testowej_bazy($stanowisko.'/podkatalog/..'),
+            '"/podkatalog/.." musi się znormalizować do tego samego katalogu, nie do nowej bazy.',
+        );
+
+        rmdir($stanowisko.'/podkatalog');
+    }
+
+    /**
+     * PostgreSQL obcina identyfikatory do 63 bajtów BEZ OSTRZEŻENIA — a dwie
+     * nazwy obcięte do tej samej wartości to znowu jedna baza dla dwóch
+     * stanowisk, czyli ten sam błąd tylnymi drzwiami. Najdłuższy przedrostek
+     * w repozytorium to `kuking_zrodlo_proby` z `tests/skrypty/proba-odtworzenia.sh`.
+     */
+    public function test_nazwa_miesci_sie_w_limicie_identyfikatora_postgresa(): void
+    {
+        $dlugaNazwa = str_repeat('bardzo-dlugie-stanowisko-floty-', 5).'run';
+
+        $sufiks = substr(
+            kuking_nazwa_testowej_bazy($this->tymczasowyKatalogRepo($dlugaNazwa)),
+            strlen('kuking_test'),
+        );
+
+        $this->assertLessThanOrEqual(
+            63,
+            strlen('kuking_zrodlo_proby'.$sufiks),
+            'Nazwa przekracza 63 bajty — Postgres obetnie ją po cichu i dwa stanowiska mogą trafić w jedną bazę.',
+        );
+    }
+
+    /**
+     * Zakłada tymczasowy katalog repozytorium. Gdy podasz `$nazwa`, katalog
+     * dostaje ją jako ostatni segment ścieżki — bo od 2026-09-20 to właśnie
+     * nazwa katalogu współtworzy nazwę bazy i test musi móc nią sterować.
+     */
+    private function tymczasowyKatalogRepo(?string $nazwa = null): string
+    {
+        $koperta = sys_get_temp_dir().'/kuking-nazwa-bazy-'.bin2hex(random_bytes(8));
+        $katalog = $nazwa === null ? $koperta : $koperta.'/'.$nazwa;
+
         mkdir($katalog, 0o777, true);
+
         $this->tmpDoUsuniecia[] = $katalog;
+
+        if ($katalog !== $koperta) {
+            // Kopertę usuwamy PO katalogu w środku, stąd doklejenie na koniec
+            // listy — a nigdy nie jest nią `/tmp`, bo ma własny, losowy człon.
+            $this->tmpDoUsuniecia[] = $koperta;
+        }
 
         return $katalog;
     }

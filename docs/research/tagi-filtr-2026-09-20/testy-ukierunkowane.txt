@@ -1,0 +1,437 @@
+
+   PASS  Tests\Unit\FiltrWulgaryzmowBezMartwychHaselTest
+  ✓ kontrola z drugiej strony niewinne tagi przechodza                   0.07s  
+
+   PASS  Tests\Unit\FiltrWulgaryzmowZgodnyZeZrodlemTest
+  ✓ zadne haslo nie blokuje istniejacej nazwy tagu                       0.03s  
+
+   PASS  Tests\Unit\InlineTagTokensTest
+  ✓ wydobywa wylacznie cale tokeny with data set "początek środek koniec i dedup"
+  ✓ wydobywa wylacznie cale tokeny with data set "nawiasy cudzysłów nowa linia"
+  ✓ wydobywa wylacznie cale tokeny with data set " n f c i n f d"
+  ✓ wydobywa wylacznie cale tokeny with data set "slug"
+  ✓ wydobywa wylacznie cale tokeny with data set " u r l i środek słowa"
+  ✓ wydobywa wylacznie cale tokeny with data set "niedozwolony cały token"
+  ✓ wydobywa wylacznie cale tokeny with data set "bez ucinania długiego tokenu"
+  ✓ wydobywa wylacznie cale tokeny with data set "cyfra jest dozwolona"
+  ✓ wydobywa wylacznie cale tokeny with data set "pusty"
+
+   PASS  Tests\Feature\EditQuestionTest
+  ✓ edit cannot bypass three tag limit and rolls back title              0.51s  
+  ✓ too many inline tags points to tags and preserves draft              0.05s  
+
+   PASS  Tests\Feature\EdycjaWpisuTest
+  ✓ autor zapisuje zmiane tekstu widocznosci i tagow                     0.04s  
+
+   PASS  Tests\Feature\FeedTagowNieGubiKolumnPrzepisuTest
+  ✓ feed tagow pokazuje zdjecie przepisu pod wpisem ktory wlasnych zdje… 0.12s  
+  ✓ feed tagow nie pisze publicznie pod przepisem tylko dla obserwujacy… 0.08s  
+  ✓ feed tagow nie dociaga zdjecia przepisu osobnym zapytaniem na kazdy… 0.13s  
+
+   PASS  Tests\Feature\FeedTagowNiePokazujeCudzegoPrzepisuTest
+  ✓ przepis tylko dla obserwujacych nie wchodzi do strumienia tagow obc… 0.05s  
+  ✓ tytul i zdjecie cudzego przepisu nie pojawiaja sie na stronie tagu   0.07s  
+  ✓ autor swoj wlasny przepis w strumieniu tagow dalej widzi             0.05s  
+  ✓ sam ukryty przepis to dla strumienia tagow brak tresci               0.05s  
+
+   PASS  Tests\Feature\IdempotencjaWpisuTest
+  ✓ dodanie tagu nie zuzywa klucza                                       0.06s  
+
+   PASS  Tests\Feature\JednoSlowoNaTagiTest
+  ✓ spis tagow nie mowi o tematach                                       0.04s  
+  ✓ strona pojedynczego tagu nie mowi o tematach                         0.04s  
+  ✓ ustawienia obserwowanych tagow nie mieszaja dwoch slow               0.04s  
+  ✓ detektor odmian naprawde lapie slowo temat                           0.01s  
+
+   PASS  Tests\Feature\KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest
+  ✓ wejscie do zdjecia konczy sie ekranem z obiema mozliwosciami with d… 0.06s  
+  ✓ wejscie do zdjecia konczy sie ekranem z obiema mozliwosciami with d… 0.04s  
+
+   PASS  Tests\Feature\KompozycjaZainteresowanTest
+  ✓ kafle renderuja wszystkie promowane tagi jako natywny formularz      0.04s  
+
+   PASS  Tests\Feature\LiterowkaNieGubiWynikuTest
+  ✓ literowka znajduje dlugi tag                                         0.02s  
+
+[N03 /tag] malo (2 wpisy): 14 zapytan, duzo (30 wpisow x 3 zdjecia): 14 zapytan
+
+   PASS  Tests\Feature\MiniaturyBezWachlarzaZapytanTest
+  ✓ strona tagu nie ma wachlarza zapytan na zdjecia                      0.21s  
+
+   PASS  Tests\Feature\NotatkiTagowFormularzeNiezalezneTest
+  ✓ invalid note stays in submitted row                                  0.07s  
+  ✓ invalid first note stays in submitted row                            0.07s  
+
+   PASS  Tests\Feature\OnboardingZnajdzZnajomychTest
+  ✓ ekran ma pole do szukania znajomej osoby                             0.04s  
+  ✓ szukanie po nazwie uzytkownika znajduje osobe i pozwala ja zaobserw… 0.05s  
+  ✓ szukanie po imieniu dziala tym samym mechanizmem co wyszukiwarka lu… 0.05s  
+  ✓ brak wynikow mowi co zrobic a nie tylko ze nic nie ma                0.04s  
+  ✓ zbyt krotka fraza pokazuje uczciwy komunikat a nie brak wynikow      0.03s  
+  ✓ zbanowana osoba nie wychodzi w wynikach                              0.05s  
+  ✓ zawieszona osoba nie wychodzi w wynikach                             0.04s  
+  ✓ konto w trakcie usuwania nie wychodzi w wynikach                     0.05s  
+  ✓ blokada dziala w obie strony                                         0.05s  
+  ✓ wlasne konto nie pojawia sie we wlasnych wynikach                    0.04s  
+  ✓ wynikow jest najwyzej piec a nie pelna lista                         0.07s  
+  ✓ szukanie na tym kroku nie zapisuje zadnego sygnalu                   0.04s  
+  ✓ krok da sie pominac mimo dodanego szukania                           0.05s  
+  ✓ bez szukania ekran wyglada jak dawniej bez sekcji wynikow            0.03s  
+
+   PASS  Tests\Feature\PanelUzywaTypografiiMarkiTest
+  ✓ akapit wprowadzajacy panelu ma rozmiar z systemu with data set "tag… 0.04s  
+
+   PASS  Tests\Feature\PodpowiedziNaPelnymSlownikuTest
+  ✓ pojecia ogolne istnieja jako tagi                                    0.22s  
+  ✓ slowa grupy 50 plus znajduja tagi                                    0.16s  
+
+   PASS  Tests\Feature\PodpowiedziTagowEndpointTest
+  ✓ wiecej podpowiedzi nie dodaje zapytania na kazdy licznik             0.04s  
+  ✓ wymaga konta i krotkiej frazy tekstowej                              0.03s  
+  ✓ zwraca tylko jawny kontrakt i publiczne wpisy bez mutacji            0.04s  
+  ✓ ukryta dokladna nazwa nie wycieka i nie proponuje duplikatu          0.02s  
+  ✓ dokladny slug jest pierwszy bez duplikatu takze gdy ma 40 znakow     0.05s  
+  ✓ dluzsze zapytanie nie pozwala utworzyc za dlugiej nazwy              0.03s  
+  ✓ licznik respektuje blokady statusy i prywatny przepis wlasciciela    0.07s  
+
+   PASS  Tests\Feature\PolecaneTagiWSzukajTest
+  ✓ polecane tagi maja prawdziwa kolejnosc opisy i dzialajace adresy     0.25s  
+  ✓ pusty stan nie wymysla tagow i nie zastepuje wynikow                 0.05s  
+
+=== WYNIKI POMIARU #858 (Twoje tagi) ===
+Tagów:  10 | pierwsze otwarcie:  31.2 KB /  10 pól | lista otwarta do końca:  31.2 KB /  10 pól | czas:  17.28 ms
+Tagów:  40 | pierwsze otwarcie:  36.8 KB /  20 pól | lista otwarta do końca:  45.1 KB /  40 pól | czas:  12.81 ms
+Tagów: 100 | pierwsze otwarcie:  37.6 KB /  20 pól | lista otwarta do końca:  73.0 KB / 100 pól | czas:  15.90 ms
+========================================
+
+
+   PASS  Tests\Feature\PomiarTagow858Test
+  ✓ 858 pomiar rozmiaru i struktury listy tagow                          0.23s  
+
+   PASS  Tests\Feature\PorzadkiWArkuszuKartyTest
+  ✓ chipsy z tagami maja zadeklarowane wciecie boczne                    0.01s  
+  ✓ blok tagow stoi na karcie wpisu jako jej wlasne dziecko              0.04s  
+
+   PASS  Tests\Feature\PostQuestionSchemaTest
+  ✓ question uses existing media tags and comments                       0.03s  
+
+   PASS  Tests\Feature\ProfilZdjeciaSzynyTest
+  ✓ tagi i publiczny zeszyt kazde osobno maja pierwszenstwo              0.22s  
+
+   PASS  Tests\Feature\PublishQuestionTest
+  ✓ three distinct tags are allowed and repeated inline tag counts once  0.03s  
+  ✓ combined manual and inline tag limit rolls back new tags             0.03s  
+
+   PASS  Tests\Feature\QuestionFormTest
+  ✓ tag actions work before title is written without publishing          0.04s  
+  ✓ validation preserves title body and tags                             0.04s  
+
+   PASS  Tests\Feature\QuestionIndexTest
+  ✓ hidden tag is not exposed by filter                                  0.02s  
+
+   PASS  Tests\Feature\QuestionListTest
+  ✓ tag filter only returns questions assigned to an active tag          0.03s  
+
+   PASS  Tests\Feature\RejestracjaOnboardingKopiaTest
+  ✓ rejestracja zapowiada ze kolejne kroki sa opcjonalne                 0.02s  
+  ✓ pierwszy krok onboardingu mowi ze konto juz istnieje i krok jest op… 0.18s  
+  ✓ kontrakt pomin zostaje widoczne na pierwszym kroku onboardingu       0.16s  
+
+   PASS  Tests\Feature\ScalanieTagowTest
+  ✓ zrodlo zostaje w bazie ze statusem scalony                           0.02s  
+  ✓ nazwa zrodla staje sie aliasem celu                                  0.02s  
+  ✓ wpisy przechodza na tag kanoniczny                                   0.04s  
+  ✓ wpis z obydwoma tagami konczy z jednym                               0.03s  
+  ✓ obserwujacy przechodza na tag kanoniczny                             0.04s  
+  ✓ aliasy zrodla prowadza do celu                                       0.03s  
+  ✓ alias rowny nazwie celu znika                                        0.02s  
+  ✓ promocja przechodzi na tag kanoniczny                                0.02s  
+  ✓ gdy promowane oba zostaje pozycja celu                               0.02s  
+  ✓ scalenie w scalony tag idzie do kanonicznego                         0.03s  
+  ✓ nie da sie scalic tagu z samym soba                                  0.01s  
+  ✓ baza nie pozwala usunac tagu kanonicznego ze scalonymi               0.02s  
+
+   PASS  Tests\Feature\SlownikTagowTest
+  ✓ slownik ma spodziewana skale                                         0.02s  
+  ✓ zadna nazwa kanoniczna nie powtarza sie                              0.02s  
+  ✓ aliasy nie koliduja z nazwami ani ze soba                            0.01s  
+  ✓ nazwy i aliasy miesza sie w kolumnach                                0.02s  
+  ✓ kazdy tag ma znana kategorie                                         0.01s  
+  ✓ slownik nie obiecuje zdrowia i nie reklamuje marek                   0.02s  
+  ✓ kontrola granicy slowa w zakazach                                    0.01s  
+  ✓ transliteracje nazw nie wchodza na cudze nazwy                       0.01s  
+
+   PASS  Tests\Feature\SlownikTagowV11Test
+  ✓ aliasy do istniejacych tagow trafiaja do bazy                        0.16s  
+  ✓ nowe pojecia i techniki sa w bazie                                   0.14s  
+  ✓ v11 nie zabiera niczego z poprzedniej wersji                         0.13s  
+  ✓ wpisanie nowego aliasu w formularzu prowadzi do tagu kanonicznego    0.15s  
+
+   PASS  Tests\Feature\SpisTematowTest
+  ✓ pusty temat pokazuje prawdziwa zerowa liczbe i ten sam pusty stan c… 0.04s  
+  ✓ tag ukryty i scalony nie pojawia sie na spisie                       0.03s  
+
+[#205 /@profil] malo (2 tagi, 2 zeszyty): 29 zapytan, duzo (30 tagow, 20 zeszytow): 29 zapytan
+
+   PASS  Tests\Feature\SzynaBezWachlarzaZapytanTest
+  ✓ szyna profilu nie rosnie z liczba tagow i zeszytow                   0.21s  
+
+   PASS  Tests\Feature\SzynaKolejneEkranyTest
+  ✓ cudzy profil ma w szynie tagi i publiczne zeszyty                    0.06s  
+  ✓ cudzy profil nie pokazuje w szynie prywatnego zeszytu ani tagu z pr… 0.06s  
+  ✓ tag z wpisu dla obserwujacych widzi obserwujacy                      0.06s  
+
+   PASS  Tests\Feature\TagCollageTest
+  ✓ wybiera piec osob bez zapasu ktory zaslanialby starszych autorow     0.17s  
+  ✓ remisy dat rozstrzyga id wpisu a potem deterministyczny wybor zdjec… 0.05s  
+  ✓ deduplikuje medium i nie miesza rodzicow miedzy tagami               0.04s  
+  ✓ wymaga publicznego opublikowanego wpisu takze dla wlasciciela        0.09s  
+  ✓ odrzuca nieaktywnych autorow i niegotowe media                       0.08s  
+  ✓ niedostepny przepis jest odfiltrowany przed wyborem autora           0.08s  
+  ✓ blokady wpisu i przepisu w obie strony poprzedzaja wybor             0.06s  
+  ✓ puste wejscie i ukryte lub scalone tagi nie daja zdjec               0.05s  
+  ✓ batch dwa i trzydziesci tagow ma stala liczbe zapytan z relacjami    0.20s  
+
+   PASS  Tests\Feature\TagPlacePagesTest
+  ✓ tag header links to preselected form and public photo post           0.06s  
+  ✓ empty tag offers a selected tag without fake photo                   0.03s  
+  ✓ directory cards have public photos and editorial notes are escaped   0.07s  
+  ✓ directory uses no photo when only private post has one               0.05s  
+  ✓ rendering thirty promoted collages does not add queries per card     0.33s  
+
+   PASS  Tests\Feature\TagPreselectionTest
+  ✓ selected tag survives real login and is rendered as form input       0.06s  
+  ✓ merged tag uses only an active canonical destination                 0.06s  
+  ✓ unknown hidden and malformed tags are not created or selected        0.09s  
+  ✓ removing last tag does not restore it from return url                0.06s  
+  ✓ validation keeps user selection including an empty selection         0.06s  
+  ✓ selected tag can be published through the existing form              0.05s  
+
+   PASS  Tests\Feature\TagPublicStatsPagesTest
+  ✓ pages publish only stats above both thresholds with data set "both…  0.09s  
+  ✓ pages publish only stats above both thresholds with data set "too f… 0.09s  
+  ✓ pages publish only stats above both thresholds with data set "too f… 0.09s  
+  ✓ thresholds are read from configuration on both pages                 0.08s  
+  ✓ alphabet pagination and promoted union keep their meaning            0.10s  
+  ✓ index query cost does not grow per tag                               0.11s  
+
+   PASS  Tests\Feature\TagPublicStatsTest
+  ✓ liczy unikalne zdjecia i autorow a nie wpisy                         0.05s  
+  ✓ nie liczy prywatnych szkicow ukrytych i usunietych wpisow            0.07s  
+  ✓ wymaga aktywnego autora i gotowego medium                            0.04s  
+  ✓ przepis musi byc dostepny gosciowi                                   0.05s  
+  ✓ usuniety autor i niegotowe media nie podbijaja statystyk             0.06s  
+  ✓ batch ma jedno zapytanie dla dwoch i trzydziestu tagow               0.20s  
+  ✓ puste wejscie nie pyta bazy a duplikaty i ukryte tagi daja zera      0.03s  
+
+   PASS  Tests\Feature\TagSeederZeSlownikaTest
+  ✓ caly slownik trafia do bazy                                          0.18s  
+  ✓ kategoria techniczna jest zapisana                                   0.19s  
+  ✓ wpisanie aliasu daje tag kanoniczny                                  0.16s  
+  ✓ podpowiedz znajduje tag przez alias                                  0.19s  
+  ✓ stary pusty tag zostaje scalony w kanoniczny                         0.19s  
+  ✓ tag z wpisem nie jest scalany                                        0.17s  
+  ✓ tag utworzony przez czlowieka nie jest scalany                       0.17s  
+  ✓ tag promowany nie jest scalany                                       0.16s  
+  ✓ tag obserwowany nie jest scalany                                     0.18s  
+  ✓ drugie uruchomienie nic nie zmienia                                  0.24s  
+  ✓ seeder nie zmienia slugu istniejacego tagu                           0.16s  
+  ✓ kontrola wpis z tagiem naprawde powstaje                             0.03s  
+
+   PASS  Tests\Feature\TagiAtomowyZapisTest
+  ✓ awaria usuwania nie pozostawia czesciowego zapisu                    0.97s  
+
+   PASS  Tests\Feature\TagiFiltrIDoladowanieTest
+  ✓ 858 doladowanie rozszerza zakres a zapis obejmuje obie porcje        0.62s  
+  ✓ 858 tag ukryty przez filtr nie traci obserwowania                    0.06s  
+  ✓ 858 zaznaczenie przezywa zmiane filtra                               0.06s  
+  ✓ 858 odznaczenie widocznego tagu nadal usuwa obserwowanie             0.06s  
+  ✓ 858 filtr ma widoczna etykiete                                       0.04s  
+  ✓ 858 zero wynikow mowi co zrobic                                      0.06s  
+  ✓ 858 pokaz wszystkie tagi czysci filtr i zostawia wybor               0.07s  
+  ✓ 858 przycisk doladowania mowi ile pozycji dojdzie                    0.08s  
+  ✓ 858 po odmowie walidacji nadal da sie doladowac                      0.09s  
+  ✓ 858 krotka lista nie ma przycisku doladowania                        0.04s  
+  ✓ 858 filtr ignoruje polskie znaki                                     0.06s  
+  ✓ 858 doladowanie i filtr niczego nie zapisuja                         0.07s  
+  ✓ 858 doladowanie z obcym tokenem nie wnosi cudzego zakresu            0.10s  
+
+   PASS  Tests\Feature\TagiInlineMigracjaEksportTest
+  ✓ rollback odmawia dla inline takze w usunietym miekko wpisie          0.04s  
+  ✓ rollback i ponowna migracja sa bezstratne dla recznych               0.03s  
+  ✓ eksport wlasnego prywatnego wpisu zawiera obydwa pochodzenia bez cu… 0.06s  
+
+   PASS  Tests\Feature\TagiInlinePochodzenieTest
+  ✓ wpisany lub wklejony token publikuje sie bez wyboru sugestii         0.06s  
+  ✓ zmiana tokenow zachowuje reczne i nie zamienia inline na reczne      0.06s  
+  ✓ reczny i inline maja niezalezne przejscia oraz poprawna kolejnosc    0.06s  
+  ✓ slug alias i scalony slug prowadza do kanonicznej nazwy              0.06s  
+  ✓ limit dotyczy kanonicznej unii a nie liczby aliasow                  0.05s  
+  ✓ limit unii cofa body pivoty i tworzenie nowych tagow                 0.04s  
+  ✓ limit szesciu inline nie zostawia wpisu ani tagow                    0.04s  
+  ✓ hidden zostaje przy dotychczasowym wpisie ale nie jest nowym powiaz… 0.09s  
+  ✓ historyczny pivot domyslnie reczny i media nie znikaja przy fallbac… 0.05s  
+  ✓ publiczna karta pomija link hidden ale zachowuje body i aktywny tag  0.06s  
+  ✓ idempotencja publikacji nie zmienia pochodzenia                      0.04s  
+  ✓ usuniete wszystkie reczne tagi nie wracaja do formularza po bledzie  0.10s  
+  ✓ old input obcego formularza nie usuwa ani nie podmienia recznych ta… 0.06s  
+  ✓ blad innego wpisu nie zeruje listy i marker jest ustalany serwerowo  0.05s  
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #0          0.03s  
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #1          0.03s  
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #2          0.04s  
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #3          0.03s  
+  ✓ scalenie samego zrodla zachowuje pozycje i false                     0.03s  
+
+   PASS  Tests\Feature\TagiObserwowanieIntegralnoscTest
+  ✓ 854 stary formularz nie usuwa nowego obserwowania                    0.06s  
+  ✓ 854 stary formularz nie cofa nowszego odznaczenia                    0.05s  
+  ✓ 854 pusty wybor usuwa tylko poczatkowe obserwowania                  0.05s  
+  ✓ 854 stary formularz nie zdejmuje ponownie rozpoczetej relacji        0.05s  
+  ✓ 854 brak podpisu podmiana i formularz cudzego konta nie zmieniaja r… 0.05s  
+  ✓ 857 powtorzenia zachowuja dokladny czas a nowa relacja ma nowy       0.06s  
+  ✓ 857 ponowny onboarding zachowuje date                                0.04s  
+  ✓ 853 ukrycie po otwarciu nie dodaje nieaktywnego i nie kasuje popraw… 0.05s  
+  ✓ 853 scalenie po otwarciu nie odtwarza zrodla                         0.06s  
+  ✓ 853 mozna zdjac istniejacy ukryty tag i dodac aktywny                0.04s  
+  ✓ 855 usuniety wybor nie kasuje pozostalych a ponowienie nie niszczy…  0.07s  
+  ✓ 855 pusty wybor po odmowie nie przywraca zaznaczen z bazy            0.04s  
+  ✓ 859 opis i trzy zrodla sa zgodne                                     0.18s  
+  ✓ 861 rozmiar i format odcinaja zapytania a granica sprawdza istnieni… 0.12s  
+  ✓ 861 powtorzenia i pusty wybor sa poprawne                            0.08s  
+  ✓ 861 lista ponad 250 tagow nie dostaje arbitralnego limitu            0.20s  
+
+   PASS  Tests\Feature\TagiObserwowanieTest
+  ✓ onboarding zapisuje tagi do bazy a nie do sesji                      0.06s  
+  ✓ pominiecie kroku nie blokuje onboardingu                             0.03s  
+  ✓ onboarding pokazuje tylko tagi promowane                             0.05s  
+  ✓ niewybrany promowany tag nie da sie podstawic                        0.03s  
+  ✓ onboarding bez promowanych tagow pokazuje zachete do pominiecia      0.04s  
+  ✓ tag da sie zaobserwowac i odobserwowac bez javascriptu               0.04s  
+  ✓ dwukrotne klikniecie obserwuj nie wywala bledu                       0.03s  
+  ✓ scalonego tagu nie da sie zaczac obserwowac                          0.03s  
+  ✓ gosc nie obserwuje tagow                                             0.02s  
+  ✓ strona tagu pokazuje wpisy z tego tagu                               0.06s  
+  ✓ strona tagu jest otwarta dla gosci                                   0.04s  
+  ✓ tag nie omija ustawien prywatnosci                                   0.07s  
+  ✓ obserwujacy widzi wpis dla obserwujacych                             0.07s  
+  ✓ zablokowana osoba nie wyplywa przez tag                              0.06s  
+  ✓ scalony tag przekierowuje do kanonicznego                            0.02s  
+  ✓ ukryty tag nie ma publicznej strony                                  0.02s  
+  ✓ feed pokazuje wpisy z obserwowanych tagow                            0.09s  
+  ✓ wpis z dwoma obserwowanymi tagami wystepuje w feedzie raz            0.08s  
+  ✓ wpisy obserwowanych ludzi sa wazniejsze niz tagi                     0.08s  
+  ✓ tag bez wpisow nie daje pustego ekranu                               0.08s  
+  ✓ tag w feedzie nie omija prywatnosci ani blokady                      0.09s  
+  ✓ ekran twoje tagi zapisuje wybor                                      0.06s  
+  ✓ zapis ustawien nie gubi daty obserwowania                            0.05s  
+  ✓ ekran pozwala odznaczyc tag spoza listy promowanej                   0.07s  
+
+   PASS  Tests\Feature\TagiPromowaneAdminTest
+  ✓ moderator widzi panel                                                0.06s  
+  ✓ zwykly uzytkownik dostaje 404 nie 403                                0.04s  
+  ✓ gosc trafia na logowanie                                             0.02s  
+  ✓ zwykly uzytkownik nie moze dodac tagu do promowanych                 0.04s  
+  ✓ zwykly uzytkownik nie moze usunac promocji                           0.05s  
+  ✓ zwykly uzytkownik nie moze zmienic notatki                           0.04s  
+  ✓ moderator dodaje istniejacy tag do promowanych                       0.04s  
+  ✓ dodanie nieistniejacego tagu pokazuje czytelny blad                  0.03s  
+  ✓ dodanie juz promowanego tagu pokazuje blad                           0.04s  
+  ✓ nowo dodany tag trafia na koniec listy                               0.04s  
+  ✓ moderator zapisuje notatke                                           0.04s  
+  ✓ moderator zmienia kolejnosc                                          0.04s  
+  ✓ moderator usuwa tag z promowanych bez kasowania tagu                 0.04s  
+  ✓ panel pokazuje promowane tagi w kolejnosci                           0.04s  
+
+   PASS  Tests\Feature\TagiPromowaneZListyGospodarzaTest
+  ✓ kontrola kazda nazwa z listy jest w slowniku                         0.15s  
+  ✓ na pustej liscie seeder wpisuje liste startowa                       0.16s  
+  ✓ notatki trafiaja do bazy bez zmian                                   0.19s  
+  ✓ seeder nie przywraca tagu zdjetego przez gospodarza                  0.21s  
+  ✓ seeder nie nadpisuje zmian gospodarza                                0.18s  
+  ✓ seeder nie tworzy tagow pod promocje                                 0.03s  
+  ✓ onboarding pokazuje liste startowa                                   0.24s  
+
+   PASS  Tests\Feature\TagiSchematTest
+  ✓ nowy tag od razu zna swoj identyfikator                              0.02s  
+  ✓ wielkosc liter i biale znaki nie tworza nowego tagu                  0.01s  
+  ✓ zurek i zurek z polskimi znakami to dwa rozne tagi                   0.02s  
+  ✓ dwa tagi o tej samej znormalizowanej nazwie sa odrzucane przez baze  0.02s  
+  ✓ niepoprawny status jest odrzucany przez check w bazie                0.02s  
+  ✓ status merged bez celu scalenia jest odrzucany przez check w bazie   0.02s  
+  ✓ kanonicznego tagu nie da sie skasowac gdy sa do niego scalone tagi   0.02s  
+  ✓ niepoprawny slug jest odrzucany przez check w bazie                  0.02s  
+  ✓ alias prowadzi do tagu kanonicznego                                  0.02s  
+  ✓ ten sam alias nie moze wskazywac dwoch roznych tagow                 0.02s  
+  ✓ tag bez promocji nie jest na liscie promowanych                      0.02s  
+  ✓ promowane tagi wychodza w kolejnosci pozycji                         0.02s  
+  ✓ promocja znika razem z tagiem                                        0.02s  
+  ✓ promocja pilnuje nieujemnej pozycji                                  0.02s  
+  ✓ post tags ma klucz glowny na parze                                   0.02s  
+  ✓ tag follows ma klucz glowny na parze                                 0.02s  
+  ✓ limity tagow czytaja z configu                                       0.01s  
+  ✓ dlugosc tagu jest liczona po normalizacji                            0.01s  
+  ✓ niedozwolone znaki w nazwie tagu sa odrzucane                        0.01s  
+  ✓ filtr wulgaryzmow lapie cale slowo                                   0.01s  
+  ✓ filtr wulgaryzmow nie lapie slowa ktore tylko zawiera zakazany ciag  0.01s  
+  ✓ seeder tworzy duza baze tagow i jest idempotentny                    0.21s  
+  ✓ seeder dodaje zurek z aliasem zurek                                  0.17s  
+  ✓ seeder nie wprowadza zadnego wulgaryzmu                              0.17s  
+
+   PASS  Tests\Feature\TagiWTresciWpisuTest
+  ✓ tag przypiety do wpisu jest odnosnikiem w tresci                     0.10s  
+  ✓ slowo z kratka ktore nie jest tagiem wpisu zostaje tekstem           0.06s  
+  ✓ tag ukryty nie jest odnosnikiem ani chipsem                          0.06s  
+  ✓ html autora pozostaje tekstem obok odnosnika do tagu                 0.06s  
+  ✓ tag poza skrocona zapowiedzia nie jest w niej odnosnikiem            0.12s  
+
+   PASS  Tests\Feature\TagiWpisowTest
+  ✓ wpis da sie oznaczyc tagami                                          0.05s  
+  ✓ wpis bez tagow dalej da sie opublikowac                              0.05s  
+  ✓ nowy tag powstaje w bazie                                            0.05s  
+  ✓ istniejacy tag jest uzywany ponownie a nie duplikowany               0.04s  
+  ✓ alias prowadzi do tagu kanonicznego zamiast tworzyc nowy             0.04s  
+  ✓ duplikat wpisany dwa razy liczy sie jako jeden tag                   0.04s  
+  ✓ szesciu tagow odrzuca publikacje i nie gubi tekstu                   0.05s  
+  ✓ wulgarna nazwa nowego tagu jest cicho pomijana                       0.04s  
+  ✓ niepoprawna nazwa tagu jest cicho pomijana                           0.03s  
+  ✓ szukaj tagu nie publikuje wpisu                                      0.03s  
+  ✓ wynik sprawdzenia tagu jest widoczny bez javascriptu                 0.05s  
+  ✓ komunikat o juz dodanym tagu jest widoczny bez javascriptu           0.05s  
+  ✓ sekcja awaryjna jest zwinieta gdy nie ma czego pokazac               0.04s  
+  ✓ dodaj tag dodaje do listy roboczej bez publikacji                    0.03s  
+  ✓ dodaj ten sam tag drugi raz pokazuje komunikat i nie dubluje         0.03s  
+  ✓ dodaj szosty tag jest odrzucany z komunikatem                        0.03s  
+  ✓ usun tag zdejmuje go z listy roboczej                                0.02s  
+  ✓ bledna widocznosc nie gubi wpisanych tagow                           0.02s  
+  ✓ edycja wpisu zapisuje nowe tagi                                      0.04s  
+  ✓ edycja wpisu usuwa tag ktorego juz nie ma na liscie                  0.03s  
+  ✓ ekran edycji pokazuje dzisiejsze tagi wpisu                          0.04s  
+  ✓ edycja odrzuca szesciu tagow                                         0.04s  
+
+   PASS  Tests\Feature\TekstyNiePrzypisujaPlciTest
+  ✓ notatki promowanych tagow nie przypisuja czytelnikowi plci           0.02s  
+
+   PASS  Tests\Feature\TrafnoscWyszukiwarkiTest
+  ✓ podpowiedzi tagow ida tym samym operatorem                           0.03s  
+
+   PASS  Tests\Feature\WazneAkcjeMajaPrawdziwyFormularzTest
+  ✓ obserwowanie tagu to prawdziwy formularz                             0.05s  
+
+   PASS  Tests\Feature\WynikiSzukaniaLudziBezWachlarzaZapytanTest
+  ✓ onboarding szukajac ludzi tez nie ma wachlarza zapytan               0.14s  
+
+   PASS  Tests\Feature\Wyscigi\ResolveTagsForPostRaceTest
+  ✓ dwa niemal jednoczesne wpisy z nowym tagiem nie tworza duplikatu an… 0.02s  
+  ✓ wstawienie tuz przed insertem firstorcreate nie konczy sie bledem    0.02s  
+
+   PASS  Tests\Feature\ZeroWpisowWSpisieTagowTest
+  ✓ wlasny niepubliczny wpis nie podnosi licznika ale jest wyjasniony w… 0.09s  
+  ✓ wlasny niepubliczny wpis nie podnosi licznika ale jest wyjasniony w… 0.09s  
+  ✓ gosc i obca osoba nie widza ani wpisu ani wyjasnienia                0.07s  
+  ✓ publiczny wpis liczy sie i nie wywoluje wyjasnienia                  0.07s  
+  ✓ szkic nie pokazuje sie i nie wywoluje wyjasnienia                    0.05s  
+  ✓ moderator nie dostaje wyjasnienia o cudzym wpisie                    0.06s  
+
+  Tests:    308 passed (50330 assertions)
+  Duration: 22.07s
+

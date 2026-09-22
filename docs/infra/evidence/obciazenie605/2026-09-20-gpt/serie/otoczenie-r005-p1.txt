@@ -1,0 +1,74 @@
+# Otoczenie serii r005-p1 — 2026-09-20T17:49:59Z
+# progi bramki: obce <= 18 rdzeni, PSI cpu some avg10 <= 25, spokój 60s
+
+## uptime przed bramką
+ 19:49:59 up 1 day, 23:16,  1 user,  load average: 26.77, 29.01, 24.72
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+1630056  624  1.2       00:16 chrome-headless
+1633079 64.8  0.5       00:01 chrome-headless
+1553227 57.7  1.1       06:27 php
+1563649 56.2  1.1       05:45 php
+1575837 56.2  1.0       04:35 php
+1566667 56.0  1.1       05:29 php
+1569500 55.5  1.0       05:15 php
+1573235 54.9  1.0       04:55 php
+1633115 53.5  0.1       00:00 postgres
+1594690 52.5  0.9       02:44 php
+1598203 51.4  0.9       02:28 php
+1623133 50.9  0.7       00:40 php
+1599980 50.4  0.9       02:17 php
+1632962 49.1  0.3       00:01 php
+1630063 28.9  1.5       00:16 chrome-headless
+1433327 19.1  0.4       17:31 chrome-headless
+1433195 17.0  0.7       17:33 node
+1433279 12.3  0.1       17:32 php
+1633102  7.2  0.1       00:00 postgres
+1633057  7.1  0.1       00:01 postgres
+1519550  6.1  0.1       08:45 php
+1433347  5.0  0.4       17:31 chrome-headless
+1629953  4.5  0.3       00:17 node
+1615873  3.9  0.4       01:20 Runner.Worker
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 10
+Runner.Worker (aktywne joby): 3
+
+## kontenery
+kuking-gpt-obciazenie-app kuking:ci-4c811cc7bff365fb8f86d87eabac93b7738a45cd Up 9 minutes (healthy)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 47 hours
+bramka: cisza przerwana po 6s (obce 18.51 rdzeni, PSI 18.58, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 18.08 rdzeni, PSI 18.66, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 19.14 rdzeni, PSI 19.62, runnery kuking: brak)
+bramka: cisza przerwana po 8s (obce 18.09 rdzeni, PSI 17.11, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 18.66 rdzeni, PSI 18.13, runnery kuking: brak)
+bramka: 30s/300s, obce 18.03 rdzeni z 24, PSI 18.47, runnery kuking: brak, cisza 0s/60s
+bramka: cisza przerwana po 3s (obce 21.43 rdzeni, PSI 19.77, runnery kuking: brak)
+bramka: 60s/300s, obce 19.66 rdzeni z 24, PSI 27.35, runnery kuking: brak, cisza 0s/60s
+bramka: cisza przerwana po 4s (obce 18.77 rdzeni, PSI 21.10, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 18.96 rdzeni, PSI 22.71, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 18.14 rdzeni, PSI 24.10, runnery kuking: brak)
+bramka: 90s/300s, obce 13.56 rdzeni z 24, PSI 20.79, runnery kuking: brak, cisza 3s/60s
+bramka: cisza przerwana po 5s (obce 18.77 rdzeni, PSI 18.29, runnery kuking: brak)
+bramka: cisza przerwana po 2s (obce 18.25 rdzeni, PSI 17.83, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 18.89 rdzeni, PSI 17.50, runnery kuking: brak)
+bramka: cisza przerwana po 4s (obce 19.36 rdzeni, PSI 18.53, runnery kuking: brak)
+bramka: 120s/300s, obce 16.36 rdzeni z 24, PSI 21.98, runnery kuking: brak, cisza 3s/60s
+bramka: cisza przerwana po 4s (obce 18.40 rdzeni, PSI 19.63, runnery kuking: brak)
+bramka: cisza przerwana po 3s (obce 18.43 rdzeni, PSI 19.94, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 18.02 rdzeni, PSI 18.87, runnery kuking: brak)
+bramka: cisza przerwana po 4s (obce 18.42 rdzeni, PSI 16.93, runnery kuking: brak)
+bramka: cisza przerwana po 2s (obce 18.61 rdzeni, PSI 16.56, runnery kuking: brak)
+bramka: 150s/300s, obce 15.00 rdzeni z 24, PSI 15.02, runnery kuking: brak, cisza 3s/60s
+bramka: cisza przerwana po 4s (obce 18.77 rdzeni, PSI 14.29, runnery kuking: brak)
+bramka: cisza przerwana po 1s (obce 18.30 rdzeni, PSI 14.96, runnery kuking: brak)
+bramka: 180s/300s, obce 15.90 rdzeni z 24, PSI 7.36, runnery kuking: brak, cisza 25s/60s
+bramka: 210s/300s, obce 17.06 rdzeni z 24, PSI 6.73, runnery kuking: brak, cisza 55s/60s
+bramka OTWARTA po 214s: obce <= 18 rdzeni, PSI <= 25 i ZERO pracujących runnerów kuking przez 60s
+
+## uptime po otwarciu bramki, tuż przed serią
+ 19:53:43 up 1 day, 23:19,  1 user,  load average: 21.06, 26.21, 24.62
+
+## uptime po serii i po 60 s wybiegu
+ 19:56:47 up 1 day, 23:23,  1 user,  load average: 17.02, 22.42, 23.44

@@ -27,7 +27,8 @@ final class QuestionController extends Controller
         $questions = $list->query($request->user(), $filter === 'bez-odpowiedzi', $tag?->slug)
             ->cursorPaginate((int) config('kuking.feed.page_size'))
             ->withQueryString();
+        $unansweredCount = $list->query($request->user(), true, $tag?->slug)->count();
 
-        return view('pages.questions.index', compact('questions', 'filter', 'tag'));
+        return view('pages.questions.index', compact('questions', 'filter', 'tag', 'unansweredCount'));
     }
 }

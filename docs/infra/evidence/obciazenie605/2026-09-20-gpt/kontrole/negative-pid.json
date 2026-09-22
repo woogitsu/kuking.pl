@@ -1,0 +1,16 @@
+{
+  "nazwa": "Próbnik: zmiana PID",
+  "plik": "scripts/probnik-obciazenia-605.sh",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "9db8dbda3011f6b5cdb794ba8f3fc3fd",
+  "md5_po_mutacji": "a1a55cdeb30c92e3a01ef86455566888",
+  "mutacja_weszla": true,
+  "liczba_podmian": 2,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Zmiana PID nie może udawać",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T18:34:27Z"
+}

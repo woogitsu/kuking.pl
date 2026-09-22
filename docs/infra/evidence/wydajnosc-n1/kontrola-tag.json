@@ -1,0 +1,16 @@
+{
+  "nazwa": "strona tagu bez doladowania przepisu",
+  "plik": "app/Http/Controllers/TagController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "c0d03ab217024ca285cfd803531bf612",
+  "md5_po_mutacji": "5c4576be4ca4f771a96a072f8f87fe05",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "N\\+1",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-19T22:41:43Z"
+}

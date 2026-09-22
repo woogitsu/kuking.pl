@@ -251,4 +251,54 @@ class CommentEditTest extends TestCase
 
         $this->assertSoftDeleted($comment);
     }
+
+    /**
+     * Issue #760: widok rozpoznawał usunięcie PO TREŚCI (porównanie z
+     * dosłownym „Komentarz usunięty."), nie po `body_removed_at` — dokładnie
+     * to pole, którego już pilnuje `CommentPolicy::update()`. Człowiek, który
+     * naprawdę napisał to zdanie jako swój komentarz, tracił w widoku
+     * przyciski Popraw/Usuń, choć Policy mu ich nie odbierała.
+     *
+     * Kontrola dodatnia: `test_usuniety_komentarz_z_odpowiedziami_zostawia_slad_i_nie_rozsypuje_watku`
+     * wyżej pokazuje, że naprawdę usunięty komentarz nadal dostaje ten sam
+     * placeholder w treści — ten test dowodzi tylko, że sam tekst już o tym
+     * nie decyduje.
+     */
+    public function test_zwykly_komentarz_o_tresci_placeholdera_nie_jest_traktowany_jak_usuniety(): void
+    {
+        $autorWpisu = $this->user('kucharka760');
+        $autorKomentarza = $this->user('gadatliwy760');
+        $post = Post::factory()->create(['author_id' => $autorWpisu->getKey()]);
+
+        $rodzic = Comment::create([
+            'author_id' => $autorKomentarza->getKey(),
+            'post_id' => $post->getKey(),
+            'body' => 'Komentarz usunięty.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+
+        $this->assertNull($rodzic->body_removed_at, 'Test zakłada, że ten wiersz NIE ma znacznika usunięcia.');
+
+        // Autor w oknie 15 minut nadal widzi Popraw i Usuń.
+        $jegoWidok = $this->actingAs($autorKomentarza)->get(route('posts.show', $post));
+        $jegoWidok->assertOk();
+        $jegoWidok->assertSee(route('comments.update', $rodzic), false);
+        $jegoWidok->assertSee(route('comments.destroy', $rodzic), false);
+
+        // Odpowiedź jest tą samą kolizją — ta sama poprawka, ta sama asercja.
+        $odpowiadajacy = $this->user('odpowiadajacy760');
+        $odpowiedz = Comment::create([
+            'author_id' => $odpowiadajacy->getKey(),
+            'post_id' => $post->getKey(),
+            'parent_id' => $rodzic->getKey(),
+            'body' => 'Komentarz usunięty.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+
+        $this->assertNull($odpowiedz->body_removed_at);
+
+        $jegoWidokOdpowiedzi = $this->actingAs($odpowiadajacy)->get(route('posts.show', $post));
+        $jegoWidokOdpowiedzi->assertSee(route('comments.update', $odpowiedz), false);
+        $jegoWidokOdpowiedzi->assertSee(route('comments.destroy', $odpowiedz), false);
+    }
 }

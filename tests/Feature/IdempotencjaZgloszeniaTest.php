@@ -12,6 +12,7 @@ use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
+use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
 
 /**
@@ -38,6 +39,19 @@ use Tests\TestCase;
 class IdempotencjaZgloszeniaTest extends TestCase
 {
     use RefreshDatabase;
+
+    private function numerZPotwierdzenia(TestResponse $response): string
+    {
+        $response->assertRedirect();
+        $this->withCookie((string) config('session.cookie'), session()->getId());
+        $confirmation = $this->get($response->headers->get('Location'))->assertOk();
+        $number = $confirmation->viewData('numer');
+        $this->assertIsString($number);
+        $this->assertNotSame('', $number);
+        $confirmation->assertSee($number);
+
+        return $number;
+    }
 
     private function kluczZFormularza(string $html): ?string
     {
@@ -182,12 +196,12 @@ class IdempotencjaZgloszeniaTest extends TestCase
 
         $pierwsze = $this->post(route('zglos.nielegalna.store'), $tresc);
 
-        // Numer trzeba odczytać ZARAZ po żądaniu: sesja testowa jest jedna
-        // i drugie żądanie nadpisze w niej tę wartość.
-        $numerPierwszy = $pierwsze->getSession()->get('numer');
+        // Odczytujemy numer z rzeczywistego ekranu tego wysłania, nie z
+        // historycznego pola flash, którego odświeżenie nie zachowywało.
+        $numerPierwszy = $this->numerZPotwierdzenia($pierwsze);
 
         $drugie = $this->post(route('zglos.nielegalna.store'), $tresc);
-        $numerDrugi = $drugie->getSession()->get('numer');
+        $numerDrugi = $this->numerZPotwierdzenia($drugie);
 
         $drugie->assertSessionHasNoErrors();
 
@@ -249,7 +263,7 @@ class IdempotencjaZgloszeniaTest extends TestCase
             'klucz_wyslania' => $klucz,
         ]);
 
-        $numerPierwszy = $pierwsze->getSession()->get('numer');
+        $numerPierwszy = $this->numerZPotwierdzenia($pierwsze);
 
         // Ta sama wartość klucza, ale zupełnie inne zgłoszenie i inna osoba.
         $obce = $this->post(route('zglos.nielegalna.store'), [

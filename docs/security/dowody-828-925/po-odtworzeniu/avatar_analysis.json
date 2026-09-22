@@ -1,0 +1,16 @@
+{
+  "nazwa": "avatar_analysis",
+  "plik": "app/Jobs/PrzeanalizujAwatar.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "caf75ae73311695f3de82a2301b99d08",
+  "md5_po_mutacji": "2f370036c3d04cef244371c8a17ec59c",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Not to contain: CONTROLLED_FOREIGN_EXCEPTION",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T19:37:50Z"
+}

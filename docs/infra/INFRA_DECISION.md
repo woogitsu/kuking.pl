@@ -625,13 +625,18 @@ dla obu — inaczej `www` dałoby błąd TLS **przed** wykonaniem przekierowania
 
 ### Cache Rules
 
+**Aktualizacja #597/#610, 20.09.2026:** instrukcja i wyłączone projekty reguł
+są w [CLOUDFLARE_CACHE_597_610.md](CLOUDFLARE_CACHE_597_610.md).
+To nie jest potwierdzenie stanu panelu. HTML gościa pozostaje niegotowy do
+cache (sesja i CSRF). Reguły zdjęć wymagają odbioru stagingu.
+
 **Co cache'ować:**
 
 | Reguła | Warunek | Akcja |
 |---|---|---|
 | Assety Vite | `starts_with(http.request.uri.path, "/build/")` | Cache eligible, Edge TTL **1 rok**, Browser TTL 1 rok |
 | Statyka PWA | ścieżka w `/favicon.ico`, `/robots.txt`, `/manifest.webmanifest` | Edge TTL 1 godz. |
-| Media (osobna strefa hosta) | `http.host == "cdn.kuking.pl"` | **Cache Everything**, Edge TTL 30 dni, **Smart Tiered Cache ON** |
+| Zdjęcia przez aplikację (projekt #597) | `/zdjecia/{media}/{wariant}`, bez stanu klienta | Respektuj origin, przy braku nagłówka BYPASS; odbiór według dokumentu powyżej |
 
 Pliki Vite mają hash w nazwie (`app-a1b2c3.js`), więc roczny TTL jest bezpieczny —
 nowy build to nowa nazwa.
@@ -645,7 +650,8 @@ Gdy którykolwiek warunek:
  or http.request.uri.path in {"/login" "/register" "/logout"}
  or starts_with(http.request.uri.path, "/konto/")
  or starts_with(http.request.uri.path, "/ustawienia/")
- or http.cookie contains "kuking_session"
+ or http.cookie ne ""
+ or any(http.request.headers["authorization"][*] ne "")
  or http.request.method != "GET"
 Wtedy: Bypass cache
 ```

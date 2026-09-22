@@ -23,6 +23,14 @@ final class LinkiWTekscie
             $adres = 'https://'.$adres;
         }
 
+        // Polskie/Unicode znaki w ŚCIEŻCE, ZAPYTANIU i FRAGMENCIE do postaci
+        // procentowej (issue #763) — `FILTER_VALIDATE_URL` niżej akceptuje
+        // tylko RFC 3986, więc `https://…/żurek` bez tego kroku był zwykłym
+        // tekstem, mimo że `https://…/%C5%BCurek` (ten sam cel) już linkiem
+        // był. DOMENA (host) celowo zostaje nietknięta — Unicode w hoście to
+        // osobna decyzja o IDNA, nie ta poprawka.
+        $adres = self::procentowoZakodujSciezkeIZapytanie($adres);
+
         $czesci = parse_url($adres);
         if ($czesci === false || ! in_array(strtolower($czesci['scheme'] ?? ''), ['http', 'https'], true)
             || isset($czesci['user']) || isset($czesci['pass']) || empty($czesci['host'])
@@ -31,6 +39,53 @@ final class LinkiWTekscie
         }
 
         return $adres;
+    }
+
+    /**
+     * Koduje WYŁĄCZNIE bajty spoza ASCII (`\x80`–`\xFF`) w ścieżce, zapytaniu
+     * i fragmencie adresu — nigdy w schemacie ani w hoście.
+     *
+     * Dlaczego nie `rawurlencode()` całego adresu: to zakodowałoby też `/`,
+     * `?`, `&`, `=`, `#`, zmieniając strukturę adresu, nie tylko jego treść.
+     * Dlaczego bez podwójnego kodowania: istniejące `%XX` składa się
+     * wyłącznie z bajtów ASCII (`%`, cyfry, litery A–F), więc wzorzec
+     * `[\x80-\xFF]+` nigdy go nie dotyka — `%C5%BC` na wejściu wychodzi
+     * niezmienione.
+     *
+     * Jeśli `parse_url()` nie potrafi rozpoznać hosta (np. adres bez
+     * schematu), zwraca oryginalny tekst bez zmian — dalsze sprawdzenia
+     * w `bezpiecznyAdres()` i tak go odrzucą.
+     */
+    private static function procentowoZakodujSciezkeIZapytanie(string $adres): string
+    {
+        $czesci = parse_url($adres);
+        if ($czesci === false || empty($czesci['scheme']) || empty($czesci['host'])) {
+            return $adres;
+        }
+
+        $koduj = static fn (string $wartosc): string => preg_replace_callback(
+            '/[\x80-\xFF]+/',
+            static fn (array $m): string => rawurlencode($m[0]),
+            $wartosc,
+        ) ?? $wartosc;
+
+        $wynik = $czesci['scheme'].'://';
+        if (isset($czesci['user'])) {
+            $wynik .= $czesci['user'].(isset($czesci['pass']) ? ':'.$czesci['pass'] : '').'@';
+        }
+        $wynik .= $czesci['host'];
+        if (isset($czesci['port'])) {
+            $wynik .= ':'.$czesci['port'];
+        }
+        $wynik .= $koduj($czesci['path'] ?? '');
+        if (isset($czesci['query'])) {
+            $wynik .= '?'.$koduj($czesci['query']);
+        }
+        if (isset($czesci['fragment'])) {
+            $wynik .= '#'.$koduj($czesci['fragment']);
+        }
+
+        return $wynik;
     }
 
     public static function wewnetrzny(string $adres): bool
