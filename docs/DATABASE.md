@@ -654,12 +654,29 @@ użytkownik nadal dostaje 404 z `EnsureUserIsModerator`, zanim dotrze do
 sprawdzenia 2FA. Moderator bez potwierdzonego 2FA widzi jasny ekran
 z przyciskiem do włączenia (403), nie ścianę.
 
-**Rollback:** `down()` zdejmuje CHECK i wszystkie cztery kolumny. To NIE jest
-bezstratne — każde konto z włączonym 2FA traci zapisany sekret i kody
-zapasowe, czyli wraca do logowania samym hasłem. To świadomy powrót do stanu
-SPRZED tej zmiany (nikt nie zostaje zablokowany — wymóg drugiego składnika
-znika razem z danymi, które go przechowywały), sensowny wyłącznie jako
-awaryjne wyłączenie całej funkcji, nie jako operacja codzienna.
+**Rollback: ODMAWIA, gdy ktokolwiek ma 2FA potwierdzone** (D-233, zasada
+D-088). `down()` zdejmuje CHECK i wszystkie cztery kolumny, więc każde konto
+z włączonym 2FA traci sekret i kody zapasowe — bezpowrotnie, bo sekret jest
+zaszyfrowany i nie ma go skąd odtworzyć.
+
+Stało tu wcześniej, że to „świadomy powrót do stanu sprzed tej zmiany,
+nikt nie zostaje zablokowany". To prawda i dlatego właśnie jest groźne:
+cofnięcie nie wybija nikogo z serwisu, tylko po cichu ZDEJMUJE OCHRONĘ.
+Cykl `rollback` → `migrate` (czyli to, co robi `migrate:refresh`) zostawia
+kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika — konto
+moderatora, o którym właściciel wie, że jest chronione dwoma składnikami,
+wraca do samego hasła i nikt się o tym nie dowiaduje.
+
+Dlatego `down()` liczy `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją, **zanim** wykona cokolwiek
+niszczącego — także zanim zdejmie CHECK. Świadome cofnięcie przepuszcza
+zmienna `KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`.
+
+Sam sekret **bez** potwierdzenia nie blokuje niczego: to konto w trakcie
+włączania 2FA, które po prostu zaczyna włączanie od nowa. Na świeżym
+środowisku cofnięcie działa bez pytania, więc `migrate:refresh` w CI
+i u dewelopera chodzi jak dotąd. Pilnuje tego
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php`.
 
 **Zgubiony telefon i kody zapasowe naraz — jak wrócić do konta.** Serwis nie
 ma dziś SMTP, więc nie ma samoobsługowego „wyślij link odzyskiwania".

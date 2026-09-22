@@ -51,15 +51,27 @@ use Illuminate\Support\Facades\Schema;
  * `confirmed_at` byłby stanem bez znaczenia i blokowałby dostęp do panelu
  * bez możliwości podania jakiegokolwiek kodu.
  *
- * ROLLBACK
- * Bezpieczny dla schematu, ale NIE dla kont z włączonym 2FA: `down()` kasuje
- * wszystkie cztery kolumny, czyli każde konto traci zapisany sekret i kody
- * zapasowe. Każdy moderator z włączonym 2FA wraca do logowania samym hasłem
- * — to jest świadomy powrót do stanu SPRZED tej zmiany, nie utrata dostępu:
- * nikt nie zostaje zablokowany, bo wymóg drugiego składnika znika razem
- * z kolumnami, które go przechowywały. Wycofanie tej migracji ma sens
- * wyłącznie jako awaryjne zdjęcie całej funkcji (np. błąd w bibliotece TOTP),
- * nie jako codzienna operacja.
+ * ROLLBACK — ODMAWIA, gdy jakiekolwiek konto ma 2FA potwierdzone (D-233, D-088)
+ * `down()` kasuje wszystkie cztery kolumny, więc każde konto traci sekret TOTP
+ * i kody zapasowe — bezpowrotnie, bo sekret jest zaszyfrowany i nie da się go
+ * odtworzyć z niczego innego.
+ *
+ * Stało tu wcześniej, że „nikt nie zostaje zablokowany, bo wymóg drugiego
+ * składnika znika razem z kolumnami". To prawda i dlatego właśnie jest groźne:
+ * cofnięcie nie wybija nikogo z serwisu — po cichu ZDEJMUJE ochronę. Cykl
+ * `rollback` → `migrate`, który CI wykonuje jako `migrate:refresh`, zostawia
+ * kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika. Konto
+ * moderatora, o którym właściciel wie, że jest chronione dwoma składnikami,
+ * wraca do samego hasła i nikt się o tym nie dowiaduje. To jest dokładnie
+ * „przywracanie stanu groźnego" z zasady D-088.
+ *
+ * Dlatego liczy się `two_factor_confirmed_at IS NOT NULL`, a nie sam sekret:
+ * sekret zapisany bez potwierdzenia to konto W TRAKCIE włączania 2FA (ekran
+ * pokazuje sekret przed wpisaniem pierwszego kodu). Taki stan nie jest
+ * ochroną, którą można stracić — człowiek po prostu zaczyna włączanie od nowa.
+ *
+ * Na świeżym środowisku, gdzie nikt 2FA nie potwierdził, cofnięcie działa bez
+ * pytania — więc `migrate:refresh` w CI i u dewelopera chodzi jak dotąd.
  */
 return new class extends Migration
 {
@@ -89,6 +101,46 @@ return new class extends Migration
 
     public function down(): void
     {
+        // STRAŻNIK PRZED CICHYM ZDJĘCIEM DRUGIEGO SKŁADNIKA (D-233, D-088).
+        // MUSI stać przed KAŻDĄ operacją niżej — także przed zdjęciem CHECK-a,
+        // nie tylko przed `dropColumn`. Sprawdzenie po fakcie chroniłoby sam
+        // komunikat, nie dane (ten sam błąd kolejności, którego pilnuje
+        // `CofniecieMigracjiNieKasujeZeszytowTest`).
+        //
+        // `DB::table()`, nie surowe SQL: to sprawdzenie ma działać na każdym
+        // sterowniku, bo `dropColumn` niżej wykonuje się bezwarunkowo, a nie
+        // tylko pod `isPostgres()`.
+        $zPotwierdzonym = DB::table('users')->whereNotNull('two_factor_confirmed_at')->count();
+
+        if ($zPotwierdzonym > 0 && getenv('KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK') !== '1') {
+            // `getenv()`, NIE `env()`. Na produkcji konfiguracja jest zbuforowana
+            // (`config:cache`), a wtedy `env()` zwraca `null` — furtka nie
+            // zadziałałaby dokładnie tam, gdzie jest potrzebna.
+            //
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „1 kont"
+            // to nie polszczyzna, a jedno konto jest stanem prawdopodobniejszym
+            // niż pięć. Mianownik przed dwukropkiem nie odmienia się wcale,
+            // więc zdanie jest poprawne dla 1, 2, 5 i 22.
+            throw new RuntimeException(
+                'Liczba kont z potwierdzoną weryfikacją dwuetapową: '.$zPotwierdzonym.'. '.
+                'Cofnięcie tej migracji skasuje ich sekrety TOTP i kody zapasowe — bezpowrotnie, '.
+                'bo sekret jest zaszyfrowany i nie ma go skąd odtworzyć. Te konta nie zostaną '.
+                'zablokowane: wrócą do logowania SAMYM HASŁEM, po cichu i bez ostrzeżenia dla '.
+                'ich właścicieli. Przy koncie moderatora albo administratora to jest zdjęcie '.
+                "ochrony, nie porządki (D-233, zasada D-088).\n\n".
+                "CO ZROBIĆ:\n".
+                '  - jeśli cofasz z powodu awaryjnego rollbacku WDROŻENIA (obraz aplikacji), nie '.
+                'cofaj TEJ migracji — kod sprzed niej nie zna tych kolumn i działa z nimi bez '.
+                'zmian (rollback obrazu i rollback bazy to dwie różne decyzje);'."\n".
+                '  - jeśli naprawdę trzeba cofnąć SCHEMAT, najpierw powiadom te konta, że drugi '.
+                "składnik przestanie działać, i zapisz listę:\n".
+                "      SELECT id, email FROM users WHERE two_factor_confirmed_at IS NOT NULL;\n".
+                '    po powrocie na tę wersję schematu każde z nich musi włączyć 2FA OD NOWA — '.
+                "starych sekretów nie da się przywrócić;\n".
+                '  - dopiero wtedy uruchom ponownie z KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1.',
+            );
+        }
+
         if ($this->isPostgres()) {
             DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS users_two_factor_confirmed_requires_secret_check');
         }
