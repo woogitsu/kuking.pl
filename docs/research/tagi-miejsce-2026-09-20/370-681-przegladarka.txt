@@ -1,0 +1,27 @@
+### Result
+{"javascript":false,"catalogueNavigation":true,"guestCTA":true,"matrix":[{"path":"/tag/pomiar-42","width":320,"scale":100,"overflow":false,"images":5},{"path":"/tag/pomiar-42","width":320,"scale":140,"overflow":false,"images":5},{"path":"/tag/pomiar-42","width":390,"scale":100,"overflow":false,"images":5},{"path":"/tag/pomiar-42","width":390,"scale":140,"overflow":false,"images":5},{"path":"/tag/pomiar-42","width":768,"scale":100,"overflow":false,"images":5},{"path":"/tag/pomiar-42","width":768,"scale":140,"overflow":false,"images":5},{"path":"/tag/pomiar-42","width":1440,"scale":100,"overflow":false,"images":5},{"path":"/tag/pomiar-42","width":1440,"scale":140,"overflow":false,"images":5},{"path":"/tagi","width":320,"scale":100,"overflow":false,"images":5},{"path":"/tagi","width":320,"scale":140,"overflow":false,"images":5},{"path":"/tagi","width":390,"scale":100,"overflow":false,"images":5},{"path":"/tagi","width":390,"scale":140,"overflow":false,"images":5},{"path":"/tagi","width":768,"scale":100,"overflow":false,"images":5},{"path":"/tagi","width":768,"scale":140,"overflow":false,"images":5},{"path":"/tagi","width":1440,"scale":100,"overflow":false,"images":5},{"path":"/tagi","width":1440,"scale":140,"overflow":false,"images":5}]}
+### Ran Playwright code
+```js
+await (﻿async page => {
+ const context=await page.context().browser().newContext({javaScriptEnabled:false});
+ const p=await context.newPage(); const rows=[];
+ try {
+  for(const path of ['/tag/pomiar-42','/tagi']) {
+   await p.goto('http://127.0.0.1:8647'+path);
+   for(const width of [320,390,768,1440]) for(const scale of [100,140]) {
+    await p.setViewportSize({width,height:900});
+    await p.evaluate(scale=>document.documentElement.dataset.textScale=String(scale),scale);
+    const result=await p.evaluate(()=>({overflow:document.documentElement.scrollWidth>innerWidth+1,images:[...document.querySelectorAll('.tag-welcome img, .tag-directory-card img')].length}));
+    if(result.overflow||!result.images)throw Error(JSON.stringify({path,width,scale,result}));
+    rows.push({path,width,scale,...result});
+   }
+  }
+  await p.locator('.tag-directory-card[href$="/tag/pomiar-42"]').click();
+  if(!p.url().endsWith('/tag/pomiar-42'))throw Error('Kafel nie prowadzi do tagu');
+  await p.getByRole('link',{name:'Dodaj wpis z tym tagiem',exact:true}).click();
+  if(!p.url().includes('/login'))throw Error('Gość nie trafia do logowania');
+  return {javascript:false,catalogueNavigation:true,guestCTA:true,matrix:rows};
+ }finally{await context.close();}
+}
+)(page);
+```

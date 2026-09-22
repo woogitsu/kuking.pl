@@ -208,7 +208,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         // Ten sam kod zapasowy drugi raz — już go nie ma w bazie.
         $this->post(route('login.two_factor.store'), ['backup_code' => 'ABCD-1234'])
-            ->assertSessionHasErrors('code');
+            ->assertSessionHasErrors('backup_code');
 
         $this->assertGuest();
     }
@@ -399,7 +399,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $this->post(route('logout'));
         $this->post('/login', ['login' => 'basia@example.com', 'password' => 'haslo-testowe-123']);
         $this->post(route('login.two_factor.store'), ['backup_code' => 'ABCD-1234'])
-            ->assertSessionHasErrors('code');
+            ->assertSessionHasErrors('backup_code');
         $this->assertGuest();
     }
 
