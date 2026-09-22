@@ -325,7 +325,7 @@
                             <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
-                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" />
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -623,7 +623,7 @@
                 <x-confirm-button
                     :action="route('recipes.destroy', $recipe->slug)"
                     label="Usuń ten przepis"
-                    question="Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne." />
+                    :question="'Na pewno usunąć przepis „'.$recipe->title.'”? Wykonania i komentarze innych osób też przestaną być widoczne.'" />
             </div>
         @endif
 

@@ -4749,6 +4749,7 @@
 .confirm-question {
     margin: 0 0 var(--spacing-3);
     font-weight: 600;
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------
