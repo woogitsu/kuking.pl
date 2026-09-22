@@ -79,10 +79,28 @@
                  WYDAJNOŚĆ: to jest pierwsza rzecz, jaką ładuje gość.
                  Wariant `thumb` (320 px), nie `feed` ani oryginał — największy
                  kafel ma na paśmie 1040 px około 230 px szerokości, więc 320 px
-                 starcza także przy gęstszym ekranie. `loading="lazy"` na
-                 wszystkich czterech, bo poniżej 64rem kolaż jest ukryty:
-                 przeglądarka nie pobiera wtedy ani jednego z tych plików,
-                 czyli telefon nie płaci za obrazki, których nie zobaczy.
+                 starcza także przy gęstszym ekranie.
+
+                 `loading="lazy"` stało tu z uzasadnieniem, że poniżej 64rem
+                 kolaż jest ukryty, więc przeglądarka nie pobiera ani jednego
+                 z tych plików. TO UZASADNIENIE JEST NIEPRAWDZIWE od
+                 13 września 2026: `marka-ekrany.css` (`@layer marka`) ustawia
+                 `.hero-kolaz-blok { display: block }` bezwarunkowo i bije
+                 regułę ukrywającą z `strony-publiczne.css`. Zmierzone
+                 20 września 2026 przy oknie 320×568 na liście żądań
+                 sieciowych: telefon pobiera WSZYSTKIE CZTERY kafle.
+                 Pełny opis, tabela pomiarów i kontrola ujemna stoją przy
+                 regule w `resources/css/strony-publiczne.css`.
+
+                 Atrybut zostaje, ale NIE DLATEGO, że coś odsuwa: kolaż ma
+                 górę na 891 px przy oknie 320×568, czyli poniżej pierwszego
+                 ekranu, a mimo to wszystkie cztery pliki są pobierane BEZ
+                 PRZEWIJANIA, przy pierwszym wczytaniu. Chromium ładuje
+                 `lazy` z zapasem odległości liczonym w setkach pikseli i ten
+                 zapas obejmuje tu cały kolaż. Ile ten atrybut naprawdę
+                 oszczędza na tej stronie — nie zmierzono; dopóki nie zostanie
+                 zmierzone, nie należy pisać, że oszczędza cokolwiek.
+
                  `decoding="async"` zdejmuje dekodowanie z wątku układu. --}}
             @if($kolaz->isNotEmpty())
                 @php
