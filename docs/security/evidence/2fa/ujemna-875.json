@@ -1,0 +1,16 @@
+{
+  "nazwa": "875 niejednoznaczne znaki",
+  "plik": "app/Domain/Security/TwoFactorAuthenticator.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "7b379a459e64e81d2877d3aca1a73ed8",
+  "md5_po_mutacji": "ce205f83a3d1c1b942c78f1e535c4b0e",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Kod ma mieć dwie grupy po pięć jednoznacznych znaków",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:47:10Z"
+}

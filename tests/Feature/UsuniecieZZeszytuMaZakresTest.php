@@ -110,7 +110,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
     }
 
     /**
-     * PRZEPISANY ŚWIADOMIE PRZY SKŁADANIU DWÓCH DRÓG (#775, D-230).
+     * PRZEPISANY ŚWIADOMIE PRZY SKŁADANIU DWÓCH DRÓG (#775, D-241).
      *
      * W postaci z gałęzi `flota/scal-zeszyt-775` ta scena wymagała na stronie
      * przepisu `<details class="confirm">` — pytania „czy na pewno ze
@@ -179,7 +179,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
     }
 
     /**
-     * KONTROLA DODATNIA (D-230): gdyby ktoś kiedyś wrócił do formularza bez
+     * KONTROLA DODATNIA (D-241): gdyby ktoś kiedyś wrócił do formularza bez
      * ujawnionego zakresu, ta scena ma to złapać — inaczej strażnik wyżej
      * mierzyłby przypadkiem coś, co akurat przeszło.
      *

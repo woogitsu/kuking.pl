@@ -948,6 +948,15 @@
                     @if(is_array($powrotPoAkcji) && isset($powrotPoAkcji['akcja'], $powrotPoAkcji['etykieta']))
                         <form class="flash-powrot" method="POST" action="{{ $powrotPoAkcji['akcja'] }}">
                             @csrf
+                            {{-- Ukryte pola drogi powrotu, gdy akcja ich potrzebuje.
+                                 Powrót po wyjęciu z zeszytu ich NIE potrzebuje
+                                 (D-241): zeszyt, notatkę i datę zapisu zna
+                                 zapamiętane w sesji wyjęcie, więc przycisk
+                                 „Przywróć do zeszytu" wysyła sam adres, a mimo
+                                 to rzecz wraca tam, skąd zeszła. --}}
+                            @foreach(($powrotPoAkcji['pola'] ?? []) as $nazwa => $wartosc)
+                                <input type="hidden" name="{{ $nazwa }}" value="{{ $wartosc }}">
+                            @endforeach
                             <button class="btn btn-secondary" type="submit" data-rola="powrot-po-akcji">{{ $powrotPoAkcji['etykieta'] }}</button>
                         </form>
                     @endif

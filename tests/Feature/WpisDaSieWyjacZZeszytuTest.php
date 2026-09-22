@@ -52,7 +52,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
      * (`ZapisyWpisu::dolicz()` / `doliczDoWpisu()`), wraz z nazwą przycisku,
      * która ma na nich stać.
      *
-     * NAZWA ZALEŻY OD EKRANU, BO ZALEŻY OD ZAKRESU (D-230). W środku
+     * NAZWA ZALEŻY OD EKRANU, BO ZALEŻY OD ZAKRESU (D-231). W środku
      * konkretnego zeszytu wyjmujemy z TEGO zeszytu, więc przycisk nazywa się
      * „Usuń z tego zeszytu". Poza zeszytem nie ma „tego zeszytu", do którego
      * dałoby się odnieść, więc zakres jest globalny i przycisk nazywa się
@@ -80,11 +80,11 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         $this->assertStringContainsString('Rosół na niedzielę.', $html, "Ekran „{$ekran}” nie pokazuje wcale tego wpisu.");
 
         // ...a poza zeszytem ten stan widać dodatkowo jako zdanie „Masz to
-        // w zeszycie". W samym zeszycie tego zdania CELOWO nie ma (D-230):
+        // w zeszycie". W samym zeszycie tego zdania CELOWO nie ma (D-231):
         // prowadzi do listy zeszytów, a człowiek stojący W zeszycie już wie,
         // że wpis tam leży.
         if ($ekran === 'zeszyt') {
-            $this->assertStringNotContainsString('Masz to w zeszycie', $html, 'W zeszycie odnośnik stanu nie ma już stać (D-230).');
+            $this->assertStringNotContainsString('Masz to w zeszycie', $html, 'W zeszycie odnośnik stanu nie ma już stać (D-231).');
         } else {
             $this->assertStringContainsString('Masz to w zeszycie', $html, "Ekran „{$ekran}” nie pokazuje stanu zapisu.");
         }
@@ -103,7 +103,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
     }
 
     /**
-     * DOKŁADNIE JEDNA DROGA WYJĘCIA NA EKRAN — TO JEST SEDNO D-230.
+     * DOKŁADNIE JEDNA DROGA WYJĘCIA NA EKRAN — TO JEST SEDNO D-231.
      *
      * #789 (przycisk globalny wszędzie) i #776 (przycisk lokalny w zeszycie)
      * powstały równolegle i nie wiedziały o sobie. Złożone wprost dawały na
@@ -125,7 +125,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
             1,
             $formularze,
             sprintf(
-                'Ekran „%s” pokazuje %d dróg wyjęcia wpisu z zeszytu zamiast jednej. Dwie prawie identyczne nazwy o różnym zasięgu są dla tej grupy gorsze niż brak którejkolwiek (D-230).',
+                'Ekran „%s” pokazuje %d dróg wyjęcia wpisu z zeszytu zamiast jednej. Dwie prawie identyczne nazwy o różnym zasięgu są dla tej grupy gorsze niż brak którejkolwiek (D-231).',
                 $ekran,
                 count($formularze),
             ),
@@ -293,7 +293,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         // CO SIĘ STAŁO — po polsku i bez dwuznaczności: wpis wyszedł
         // z zeszytu, a nie z serwisu. I droga powrotu naprawdę PRZYWRACA,
         // a nie zapisuje od nowa: `remove()` oddaje zdjęte wiersze razem
-        // z notatką, `restore()` odkłada je tam, skąd zeszły (D-230), więc
+        // z notatką, `restore()` odkłada je tam, skąd zeszły (D-241), więc
         // komunikat może obiecać przywrócenie, nie samo „zapisz ponownie".
         $odpowiedz->assertSessionHas('status', fn (string $tekst) => str_contains($tekst, 'wyjęty z zeszytu')
             && str_contains($tekst, 'Nie usunęliśmy go z serwisu')
@@ -316,7 +316,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         $this->assertSame(1, $basia->defaultCollection()->posts()->count());
 
         // …a etykieta mówi „przywróć", nie „zapisz ponownie", bo to jest
-        // teraz prawda: wraca ten sam wiersz, nie nowy (D-230).
+        // teraz prawda: wraca ten sam wiersz, nie nowy (D-241).
         $przycisk = (new DOMXPath($powrot->ownerDocument))->query('.//button', $powrot)?->item(0);
         $this->assertInstanceOf(DOMElement::class, $przycisk);
         $this->assertStringContainsString('Przywróć do zeszytu', $przycisk->textContent);
@@ -377,7 +377,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
     }
 
     /**
-     * WSZYSTKIE formularze wyjęcia tego wpisu — bo sednem D-230 jest ICH
+     * WSZYSTKIE formularze wyjęcia tego wpisu — bo sednem D-231 jest ICH
      * LICZBA, a metoda oddająca „pierwszy trafiony" zielenieje tak samo przy
      * jednym przycisku, jak przy dwóch.
      *

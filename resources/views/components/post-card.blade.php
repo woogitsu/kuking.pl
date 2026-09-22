@@ -527,7 +527,7 @@
             --}}
             @if($zapisy->czyZapisany($post))
                 {{--
-                    JEDNA DROGA WYJĘCIA NA EKRAN, NIGDY DWIE (D-230).
+                    JEDNA DROGA WYJĘCIA NA EKRAN, NIGDY DWIE (D-231).
 
                     Dwie prace powstały równolegle i obie miały rację:
                     #789 dało przycisk wyjęcia wszędzie tam, gdzie widać stan
