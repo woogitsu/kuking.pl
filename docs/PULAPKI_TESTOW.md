@@ -526,7 +526,37 @@ Polecenie diagnostyczne, którego kodu wyjścia nikt nie sprawdza, jest
 kolejnym źródłem tej samej pułapki. `MSYS_NO_PATHCONV=1` rozwiązuje ten
 konkretny przypadek; sprawdzanie kodu wyjścia rozwiązuje całą klasę.
 
-## 11. Strażnik CSS czytający ŹRÓDŁO mierzy inny arkusz, niż dostaje przeglądarka
+## 11. Niedopasowana atrapa HTTP domyślnie wychodzi do prawdziwej sieci
+
+`Http::fake(['api.example/*' => ...])` podstawia tylko pasujący adres. Bez
+dodatkowej blokady literówka w domenie albo nowy endpoint może ominąć atrapę
+i uruchomić prawdziwy transport podczas testów. Wynik zaczyna wtedy zależeć od
+sieci, cudzej usługi i sekretów stanowiska, a test może nawet zmienić dane poza
+izolowanym środowiskiem.
+
+Dlatego `Tests\TestCase::setUp()` włącza globalnie
+`Http::preventStrayRequests()`. Każdy test używający fasady Laravela musi jawnie
+podstawić wszystkie dozwolone adresy. Pilnuje tego
+`TestyNieWychodzaDoSieciTest`: niedopasowany loopback kończy się
+`StrayRequestException`, a dopasowane żądanie nadal przechodzi i ma sprawdzony
+adres, metodę oraz dane.
+
+Granice tej ochrony są równie ważne jak sama ochrona:
+
+- `Http::fake()` bez mapy i wildcard `Http::fake(['*' => ...])` nadal akceptują
+  każdy adres — używaj ich tylko wtedy, gdy test naprawdę nie rozstrzyga celu;
+- osobna instancja `Illuminate\Http\Client\Factory` nie dziedziczy ustawienia
+  fasady i musi dostać własne `preventStrayRequests()`;
+- blokada obejmuje klienta HTTP Laravela, nie ręczny Guzzle, SDK storage, cURL,
+  proces powłoki ani przeglądarkę;
+- uruchamiamy ją po `parent::setUp()`, więc chroni kod wykonywany przez test,
+  ale nie żądanie wykonane w trakcie samego bootowania aplikacji.
+
+Nie naprawiaj brakującej atrapy przez globalne `Http::fake()` ani
+`allowStrayRequests()`. Dopisz najwęższy wzorzec adresu i zachowaj asercję
+pełnego URL-u, metody oraz danych tam, gdzie są częścią kontraktu.
+
+## 12. Strażnik CSS czytający ŹRÓDŁO mierzy inny arkusz, niż dostaje przeglądarka
 
 Ta pułapka jest odmianą §10 („stan stanowiska udaje wynik pomiaru"), ale
 stanowiskiem jest tu **budowanie arkusza**. Między `resources/css/*.css`
