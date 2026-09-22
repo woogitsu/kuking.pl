@@ -49,8 +49,19 @@ const KUKING_RODZINY_CHRONIONE = [
     '/^(postgres|template0|template1)$/',
 ];
 
-/** Ogólna rodzina baz jednorazowych, niezwiązana z konkretnym skryptem. */
-const KUKING_RODZINY_JEDNORAZOWE = ['/_pomiar$/', '/^kuking_qa_/'];
+/**
+ * Ogólna rodzina baz jednorazowych, niezwiązana z konkretnym skryptem.
+ *
+ * `kuking_port_*` to rodzina baz portowych z `ci.yml` (`kuking_port_pomiar`,
+ * `kuking_port_panel`, `kuking_port_referrer`). Sam `kuking_port_pomiar`
+ * przechodził już przez `/_pomiar$/`, ale job `dostepnosc` podaje krokowi
+ * axe-core także `kuking_port_referrer` (#1052), który na `_pomiar` się nie
+ * kończy — i strażnik odrzucał go razem z całą rodziną. Wpisujemy tu RODZINĘ,
+ * nie pojedynczą nazwę, bo następna baza portowa miałaby dokładnie ten sam
+ * problem. Rodziny chronione są sprawdzane WCZEŚNIEJ, więc ten wzorzec nie
+ * może przepuścić ani `kuking`, ani `kuking_test*`, ani `railway*`.
+ */
+const KUKING_RODZINY_JEDNORAZOWE = ['/_pomiar$/', '/^kuking_qa_/', '/^kuking_port_/'];
 
 /**
  * Czy na tej bazie wolno postawić dane pomiarowe.
