@@ -79,6 +79,8 @@ use Tests\TestCase;
  * zgłosić naruszenie. Kontrola dodatnia jest tu wbudowana w strażnika,
  * a nie zrobiona raz ręcznie obok — bo ręczna nie wraca przy następnej
  * zmianie.
+ *
+ * @bez-kontroli-dodatniej Nosi własną kontrolę dodatnią w środku — test_skan_naprawde_czyta_konfiguracje_i_oblewa_na_podstawionej przepuszcza PODSTAWIONE, zepsute phpunit.xml i ci.yml przez te same funkcje orzekające i wymaga naruszenia, więc dowód „umie powiedzieć nie" chodzi w każdej baterii, nie tylko w kroku kontroli negatywnych.
  */
 class TestyChodzaNaPostgresieTest extends TestCase
 {

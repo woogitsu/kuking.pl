@@ -8,7 +8,11 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
 
-/** Pomiar całej sondy i rzeczywistego kroku workflow; transport i CLI są atrapami. */
+/**
+ * Pomiar całej sondy i rzeczywistego kroku workflow; transport i CLI są atrapami.
+ *
+ * @bez-kontroli-dodatniej assertSame(1, $count) wymaga dokładnie jednego kroku usuwania w preview.yml, więc zgubiony albo przeredagowany krok daje czerwień, nie cichą zieleń.
+ */
 final class SondaWdrozeniaTest extends TestCase
 {
     #[DataProvider('probeCases')]
