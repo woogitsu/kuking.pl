@@ -1,10 +1,10 @@
 ﻿# Pomiar feedu #585
 
-Baza kodu: `f77bd4d7f16e93469b9a731f80c41e6b151e7faf`. Pomiary lokalne: 16 września 2026. Status: wykonano pomiary i regresje opisane poniżej; końcowe review, pełny hook, PR i CI pozostają do wykonania. Nie zmieniono zapytań ani konfiguracji produkcji. Issues #585 i #609 pozostają otwarte.
+Baza kodu: `f77bd4d7f16e93469b9a731f80c41e6b151e7faf`. Pomiary lokalne: 16 września 2026. Status zweryfikowany 20 września 2026: pakiet scalono 16 września w PR #628 jako `e951554cfd3f86147b95fb60606912c1650493f8`; CI PR i main zakończyło się sukcesem. Issues #585 i #609 zamknięto 16 września. Decyzja #609 pozostawia `pluck` + `whereIn`, co potwierdza odczyt kodu na `4c811cc7bff365fb8f86d87eabac93b7738a45cd`. Nie zmieniono zapytań ani konfiguracji produkcji w ramach tego pakietu. Poniższe czasy są historycznym pomiarem z 16 września, nie nowym benchmarkiem.
 
 ## Wniosek
 
-Nie ma podstaw do zastąpienia obecnego IN wariantem EXISTS lub JOIN. W badanych scenariuszach EXISTS był wolniejszy, a JOIN nie dawał spójnej przewagi. Na wzbogaconym zbiorze wykryto koszt kompilacji PostgreSQL JIT; to konkretna hipoteza do walidacji w #609, nie dowód potrzeby zmiany architektury ani zgoda na globalne wyłączenie JIT.
+Nie ma podstaw do zastąpienia obecnego IN wariantem EXISTS lub JOIN. W badanych scenariuszach EXISTS był wolniejszy, a JOIN nie dawał spójnej przewagi. Na wzbogaconym zbiorze wykryto koszt kompilacji PostgreSQL JIT; to konkretna hipoteza przekazana przez decyzję #609 do walidacji w #605, nie dowód potrzeby zmiany architektury ani zgoda na globalne wyłączenie JIT.
 
 ## Środowisko i dane
 
@@ -68,8 +68,8 @@ Wszystkie wymienione artefakty są w `evidence/feed585/`. Starsze odbiory pozost
 
 ## Dostarczenie i ograniczenia
 
-Nie wykonano jeszcze pełnego hooka, wysyłki, CI ani końcowego review. Nie zamknięto issues. Wynik przekazano do #609 w komentarzu https://github.com/woogitsu/kuking.pl/issues/609#issuecomment-5699810245 .
+Odbiór dostarczenia sprawdzono 20.09.2026 przez historię gita i GitHub: [PR #628](https://github.com/woogitsu/kuking.pl/pull/628) ma status MERGED (16.09.2026, 15:46:51 UTC), 12 zakończonych sukcesem kontroli CI oraz trzy pominięte zadania ręcznego preview. [CI main 35117632571](https://github.com/woogitsu/kuking.pl/actions/runs/35117632571) ma wynik success dla SHA scalenia. Opis PR potwierdza pełny hook zakończony kodem 0 [pomiar cudzy: opis PR #628]; nie uruchomiono go ponownie w tej korekcie. Zgłoszenia [#585](https://github.com/woogitsu/kuking.pl/issues/585) i [#609](https://github.com/woogitsu/kuking.pl/issues/609) są zamknięte; #609 zapisuje decyzję pozostawienia IN, dynamicznego licznika komentarzy oraz przeniesienia dalszej walidacji JIT do #605.
 
 Brak pomiaru produkcji, ruchu mieszanego, nasycenia i transferu zdjęć. Syntetyczny zbiór i współdzielony host ograniczają wnioskowanie. Pomiary nie dowodzą potrzeby Go, Redis/Dragonfly ani przepisywania feedu. Brak przewagi kandydatów jest prawidłowym wynikiem benchmarku.
 
-Końcowe niezależne review narzędzi: brak nowych blokerów poprawności i odtwarzalności; recenzent sprawdził 12 prób, liczniki oraz zgodność hashów sześciu skryptów z final585-runner.json. Wskazane stare statusy raportu usunięto w powyższej konsolidacji. Pełny hook i CI nadal nie są wykonane.
+Końcowe niezależne review narzędzi: brak nowych blokerów poprawności i odtwarzalności; recenzent sprawdził 12 prób, liczniki oraz zgodność hashów sześciu skryptów z final585-runner.json. To historyczny odbiór opisany w pakiecie #628 [pomiar cudzy: opis PR #628]. Nieaktualny status dostarczenia skorygowano 20.09.2026 na podstawie źródeł powyżej; wniosek benchmarku pozostaje bez zmian.

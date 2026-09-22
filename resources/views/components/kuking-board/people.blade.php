@@ -71,6 +71,13 @@
                                 @auth
                                     <form method="POST" action="{{ route('social.follow', $person->profile->username) }}">
                                         @csrf
+                                        {{-- #793 rozszerzone na relacje: tablica
+                                             dnia stoi na stronie powitalnej
+                                             i w szynie startowej, więc wisi
+                                             otwarta dłużej niż większość
+                                             ekranów. Nazwa w adresie mogła przez
+                                             ten czas zmienić właściciela. --}}
+                                        <input type="hidden" name="oczekiwany_id" value="{{ $person->getKey() }}">
                                         <button class="btn btn-secondary" type="submit">Obserwuj</button>
                                     </form>
                                 @else

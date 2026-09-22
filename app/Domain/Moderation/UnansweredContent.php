@@ -34,6 +34,28 @@ final class UnansweredContent
         return $this->withoutResponse($this->eligiblePosts($host), 'post_id', 'posts', 'author_id');
     }
 
+    /**
+     * Utrwalony nośnik pierwszego wkładu, tylko jeśli odbiorca ma do niego dostęp.
+     * Odpowiedź lub usunięcie nośnika nie promuje kolejnego wpisu.
+     *
+     * @param  list<string>  $authors
+     * @return array<string, string>
+     */
+    public function firstPostIds(User $host, array $authors): array
+    {
+        if ($authors === []) {
+            return [];
+        }
+
+        return $this->eligiblePosts($host)
+            ->whereIn('author_id', $authors)
+            ->whereExists(fn (QueryBuilder $events) => $events->selectRaw('1')->from('first_post_events')
+                ->whereColumn('first_post_events.author_id', 'posts.author_id')
+                ->whereColumn('first_post_events.post_id', 'posts.id'))
+            ->pluck('id', 'author_id')
+            ->all();
+    }
+
     /** Pytanie czeka na główną odpowiedź innej osoby, widoczną dla pytającego.
      * @return Builder<Post>
      */
