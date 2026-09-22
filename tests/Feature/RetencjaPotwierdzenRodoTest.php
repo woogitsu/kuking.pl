@@ -139,13 +139,18 @@ class RetencjaPotwierdzenRodoTest extends TestCase
     {
         $this->assertSame(36, (int) config('kuking.potwierdzenia_rodo.retention_months'));
 
-        // JEDYNY KLUCZ CONFIGU, JAKI TA SPRAWA DOSTAJE. Przełącznik
-        // „włącz/wyłącz kasowanie" byłby bezterminowością pod inną nazwą —
-        // ten sam powód, dla którego `AuditLogEntry::NIGDY_NIE_KASUJ` nie
-        // mieszka w configu.
-        $this->assertNull(
-            config('kuking.potwierdzenia_rodo.enabled'),
-            'W configu pojawił się przełącznik kasowania potwierdzeń RODO.',
+        // PRZEŁĄCZNIK KASOWANIA ISTNIEJE I DOMYŚLNIE JEST WYŁĄCZONY.
+        //
+        // Autor tej zmiany świadomie przełącznika nie dał i pilnował tego
+        // asercją, że w configu go NIE MA — argumentując, że wyłącznik
+        // retencji jest bezterminowością pod inną nazwą. Właściciel
+        // rozstrzygnął inaczej: samo liczenie terminu zostaje, ale
+        // nieodwracalne kasowanie dowodu obsługi żądania RODO czeka na opinię
+        // prawną co do okresu 36 miesięcy. Ten test pilnuje teraz DRUGIEJ
+        // strony tej decyzji — że domyślnie nic nie ginie.
+        $this->assertFalse(
+            config('kuking.potwierdzenia_rodo.kasowanie_wlaczone'),
+            'Kasowanie potwierdzeń RODO jest włączone domyślnie, a miało czekać na opinię prawną.',
         );
 
         $stare = $this->potwierdzenie(zakonczono: '2022-01-15');
@@ -158,10 +163,39 @@ class RetencjaPotwierdzenRodoTest extends TestCase
         Artisan::call('kuking:sprzataj-potwierdzenia-rodo');
         $wyjscie = Artisan::output();
 
-        $this->assertStringContainsString('Skasowano 1 potwierdzeń', $wyjscie);
+        // Wyłączone kasowanie NADAL liczy i mówi, ile wierszy czekałoby —
+        // po to, żeby w dniu opinii prawnej widać było skalę.
+        $this->assertStringContainsString('WYŁĄCZONE do czasu opinii prawnej', $wyjscie);
+        $this->assertStringContainsString('Do skasowania: 1 potwierdzeń', $wyjscie);
         $this->assertStringContainsString('Pominięto z powodu udokumentowanego wstrzymania', $wyjscie);
         $this->assertStringContainsString(': 1.', $wyjscie);
+        $this->assertDatabaseHas('potwierdzenia_zadan_rodo', ['numer' => $stare]);
+    }
+
+    #[Test]
+    public function test_wlaczony_przelacznik_naprawde_kasuje(): void
+    {
+        // Druga strona przełącznika. Bez tego testu „wyłączone" mogłoby
+        // znaczyć „zepsute" — a wtedy opinia prawna niczego by nie odblokowała.
+        config(['kuking.potwierdzenia_rodo.kasowanie_wlaczone' => true]);
+
+        $stare = $this->potwierdzenie(zakonczono: '2022-01-15');
+        $wstrzymane = $this->potwierdzenie(
+            zakonczono: '2022-01-15',
+            wstrzymanieDo: Carbon::today()->addYear()->toDateString(),
+            wstrzymanieSprawa: 'Sygn. akt I C 123/25',
+        );
+
+        Artisan::call('kuking:sprzataj-potwierdzenia-rodo');
+        $wyjscie = Artisan::output();
+
+        $this->assertStringNotContainsString('WYŁĄCZONE', $wyjscie);
+        $this->assertStringContainsString('Skasowano 1 potwierdzeń', $wyjscie);
         $this->assertDatabaseMissing('potwierdzenia_zadan_rodo', ['numer' => $stare]);
+
+        // Wstrzymanie udokumentowaną sprawą broni wiersza także przy
+        // włączonym kasowaniu — inaczej przełącznik kasowałby za dużo.
+        $this->assertDatabaseHas('potwierdzenia_zadan_rodo', ['numer' => $wstrzymane]);
     }
 
     #[Test]

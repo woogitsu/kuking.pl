@@ -31,7 +31,24 @@ class SprzatajPotwierdzeniaRodo extends Command
             ? max(1, (int) $this->option('miesiace'))
             : (int) config('kuking.potwierdzenia_rodo.retention_months');
 
-        $naSucho = (bool) $this->option('na-sucho');
+        // KASOWANIE WYŁĄCZONE = LICZYMY, ALE NIE KASUJEMY (decyzja właściciela,
+        // `config/kuking.php` → `potwierdzenia_rodo.kasowanie_wlaczone`).
+        //
+        // Nie kończymy tu wcześniej i nie pomijamy zadania w harmonogramie:
+        // przebieg „na sucho" codziennie pokazuje w logu, ile wierszy czekałoby
+        // na skasowanie, więc w dniu opinii prawnej widać skalę, a włączenie
+        // jest zmianą jednej zmiennej środowiskowej, nie wdrożeniem kodu.
+        //
+        // `--na-sucho` nadal działa jak dawniej i nadal wygrywa.
+        $kasowanieWlaczone = (bool) config('kuking.potwierdzenia_rodo.kasowanie_wlaczone');
+        $naSucho = (bool) $this->option('na-sucho') || ! $kasowanieWlaczone;
+
+        if (! $kasowanieWlaczone) {
+            $this->warn(
+                'Kasowanie potwierdzeń RODO jest WYŁĄCZONE do czasu opinii prawnej '
+                .'(KUKING_POTWIERDZENIA_RODO_KASOWANIE). Poniższe liczby są wyłącznie policzone.',
+            );
+        }
 
         $wynik = $sprzataj->posprzataj($miesiace, $naSucho);
 

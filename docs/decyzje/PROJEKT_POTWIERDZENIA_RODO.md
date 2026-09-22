@@ -300,15 +300,36 @@ Każdy krok jest osobny, bo każdy ma inny moment, w którym może się okazać 
    pisma), który nadal należy do właściciela. Do jego wykonania numer
    powstaje, ale nie dociera do nikogo, więc wariant z §3.2 działa dziś tylko
    po naszej stronie.
-4. ~~**Zlecić automat retencji**~~ — **ZROBIONE 21.09.2026.**
-   `kuking:sprzataj-potwierdzenia-rodo`
-   (`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`), codziennie o 05:00:
-   36 miesięcy od `zakonczono`, `subMonthsNoOverflow` (A6-04), z pominięciem
-   wierszy z `wstrzymanie_do` w przyszłości i ze sprawami w toku poza
-   kandydatami. Klucz `kuking.potwierdzenia_rodo.retention_months` — **jedyny,
-   jaki ta sprawa dostaje**; przełącznika włączającego kasowanie nie ma i nie
-   będzie, bo wyłącznik retencji jest bezterminowością pod inną nazwą. Obie
-   kontrole dodatnie (naprawdę kasuje / naprawdę omija wstrzymane) stoją
+4. ~~**Zlecić automat retencji**~~ — **ZROBIONE 21.09.2026**, ale
+   **KASOWANIE JEST WYŁĄCZONE DO OPINII PRAWNEJ** (decyzja właściciela,
+   22.09.2026). `kuking:sprzataj-potwierdzenia-rodo`
+   (`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`), codziennie
+   o 05:20: 36 miesięcy od `zakonczono`, `subMonthsNoOverflow` (A6-04),
+   z pominięciem wierszy z `wstrzymanie_do` w przyszłości i ze sprawami
+   w toku poza kandydatami.
+
+   **Co zmieniła decyzja właściciela.** Pierwotna wersja tego kroku nie dawała
+   przełącznika i uzasadniała to tak: *wyłącznik retencji jest bezterminowością
+   pod inną nazwą*. Argument zostaje w mocy jako zasada i dlatego przełącznik
+   **nie jest** furtką na stałe — jest wstrzymaniem na czas jednej,
+   nierozstrzygniętej kwestii. Okres 36 miesięcy nie został potwierdzony przez
+   prawnika, a błąd w stronę kasowania jest **nieodwracalny**: skasowanego
+   dowodu wykonania art. 17 nie da się odtworzyć. Błąd w drugą stronę (dowód
+   poleży dłużej) kasuje jedno uruchomienie komendy.
+
+   Klucze w `config/kuking.php`:
+   - `kuking.potwierdzenia_rodo.retention_months` — okres, bez zmian;
+   - `kuking.potwierdzenia_rodo.kasowanie_wlaczone` — **domyślnie `false`**,
+     zmienna `KUKING_POTWIERDZENIA_RODO_KASOWANIE`.
+
+   Przy `false` zadanie **nadal chodzi codziennie i nadal liczy kandydatów**,
+   tylko niczego nie kasuje i mówi to wprost w logu — żeby w dniu opinii
+   prawnej widać było skalę, a włączenie było zmianą jednej zmiennej, nie
+   wdrożeniem kodu. **WŁĄCZAĆ DOPIERO PO OPINII PRAWNEJ** potwierdzającej
+   okres.
+
+   Kontrole dodatnie po obu stronach przełącznika (wyłączony liczy i nie
+   kasuje / włączony naprawdę kasuje i nadal omija wstrzymane) stoją
    w `tests/Feature/RetencjaPotwierdzenRodoTest.php`.
 5. **Uruchomić backfill** istniejących wpisów `account.*` do potwierdzeń
    (osobna, jednorazowa komenda z `--dry-run`, do zaprojektowania w tym samym

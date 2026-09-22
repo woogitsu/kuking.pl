@@ -179,14 +179,19 @@ ScheduledArtisanCommand::artisan('kuking:sprzataj-zmiany-adresu')
 // miesięcy od `zakonczono`, z pominięciem wierszy z obowiązującym
 // `wstrzymanie_do`. Sprawy w toku nie są kandydatem w ogóle.
 //
-// 05:00, NIE 04:50 — o 04:50 startuje sprzątanie wygasłych żądań zmiany
-// adresu (wyżej), a w roli `all` harmonogram chodzi w JEDNYM procesie razem
-// z serwerem, więc dwa zadania o tej samej godzinie blokują pętlę jedno po
-// drugim. Cała ta lista jest rozsunięta co dziesięć minut.
-// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-potwierdzenia-rodo'))
+// 05:20, a nie 05:00 jak w pierwotnej wersji tej zmiany: o 05:00 stoi już
+// sprzątanie wygasłych zaproszeń, a o 05:10 sprzątanie sesji. W roli `all`
+// harmonogram chodzi w JEDNYM procesie razem z serwerem, więc dwa zadania
+// o tej samej godzinie blokują pętlę jedno po drugim — cała ta lista jest
+// świadomie rozsunięta co dziesięć minut i to zadanie też musi być.
+//
+// ScheduledArtisanCommand::artisan(), nie `Schedule::call()` — niezerowy kod
+// wyjścia ma dojść do harmonogramu jako porażka (#835, uzasadnienie przy
+// pierwszym zadaniu). Samo `Artisan::call()` zwraca liczbę, a CallbackEvent
+// rozpoznaje jako porażkę wyłącznie `false`.
+ScheduledArtisanCommand::artisan('kuking:sprzataj-potwierdzenia-rodo')
     ->name('kuking:sprzataj-potwierdzenia-rodo')
-    ->dailyAt('05:00')
+    ->dailyAt('05:20')
     ->withoutOverlapping();
 
 // 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest

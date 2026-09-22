@@ -2770,16 +2770,22 @@ oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
 **Retencja: 36 miesięcy od `zakonczono`** —
 `config('kuking.potwierdzenia_rodo.retention_months')`, egzekwuje
 `kuking:sprzataj-potwierdzenia-rodo`
-(`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`, codziennie o 05:00).
+(`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo`, codziennie o 05:20).
 Pomija wiersze z `wstrzymanie_do` w przyszłości; sprawy w toku (`zakonczono IS
 NULL`) nie są kandydatem w ogóle, bo kasowanie otwartej sprawy zamieniłoby
 retencję w sprzątanie dowodów zaniedbania. Próg liczony
 `subMonthsNoOverflow`, nie `subMonths` (A6-04) — przepełnienie daty przesuwa go
 w stronę nowszych wierszy i kasuje dowód wykonania art. 17 przed czasem.
-**To jedyny klucz configu, jaki ta sprawa dostaje**; przełącznika
-włączającego kasowanie nie ma i nie będzie, bo wyłącznik retencji jest
-bezterminowością pod inną nazwą. Obie kontrole dodatnie —  że automat naprawdę
-kasuje i naprawdę omija wstrzymane — w `tests/Feature/RetencjaPotwierdzenRodoTest.php`.
+**KASOWANIE JEST DZIŚ WYŁĄCZONE** — `kuking.potwierdzenia_rodo.kasowanie_wlaczone`
+domyślnie `false` (zmienna `KUKING_POTWIERDZENIA_RODO_KASOWANIE`), decyzja
+właściciela z 22.09.2026: okres 36 miesięcy czeka na opinię prawną, a błąd
+w stronę kasowania jest nieodwracalny. Przy `false` zadanie nadal chodzi
+i nadal liczy kandydatów, tylko niczego nie kasuje i mówi to w logu. Pierwotna
+wersja tej zmiany przełącznika nie miała i uzasadniała to tym, że wyłącznik
+retencji jest bezterminowością pod inną nazwą — zasada zostaje w mocy, dlatego
+to jest wstrzymanie na czas jednej kwestii, a nie furtka na stałe. Kontrole
+dodatnie po obu stronach przełącznika — wyłączony liczy i nie kasuje, włączony
+kasuje i nadal omija wstrzymane — w `tests/Feature/RetencjaPotwierdzenRodoTest.php`.
 
 **Rollback:** `down()` kasuje tabelę, ale **odmawia**, gdy stoi w niej choć
 jeden wiersz z wypełnionym `zakonczono` — to dowód obsługi żądania, którego nie
