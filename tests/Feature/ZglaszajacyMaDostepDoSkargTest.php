@@ -55,6 +55,11 @@ class ZglaszajacyMaDostepDoSkargTest extends TestCase
     private function decyzjaNaZgloszeniuPrawnym(string $akcja, array $atrybutyZgloszenia = []): array
     {
         $moderator = $this->moderator();
+        if (! array_key_exists('target_id', $atrybutyZgloszenia)) {
+            $post = Post::factory()->create(['author_id' => $this->user()->getKey()]);
+            $atrybutyZgloszenia['target_id'] = $post->getKey();
+        }
+
         $zgloszenie = $this->zgloszeniePrawne($atrybutyZgloszenia);
 
         $this->actingAs($moderator)

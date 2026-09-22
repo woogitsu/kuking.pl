@@ -201,7 +201,11 @@ class ZgloszenieNielegalnejTresciTest extends TestCase
             ])
             ->assertSessionHasNoErrors();
 
-        $this->assertSame(Report::STATUS_REJECTED, $zgloszenie->refresh()->status);
+        $this->assertSame(Report::STATUS_RESOLVED, $zgloszenie->refresh()->status);
+        $this->assertSame(
+            ModerationAction::ACTION_TARGET_UNAVAILABLE,
+            ModerationAction::where('report_id', $zgloszenie->getKey())->sole()->action,
+        );
     }
 
     public function test_brak_uzasadnienia_albo_oswiadczenia_zatrzymuje_zgloszenie(): void
