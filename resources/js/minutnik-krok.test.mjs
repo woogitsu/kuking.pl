@@ -1,0 +1,54 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
+
+test('pozostaloSekund liczy z zegara monotonicznego, nie ze zegara sciennego (issue #751)', () => {
+    // Start minutnika: 5 minut = 300 sekund, na dowolnym punkcie zegara
+    // monotonicznego (nie zero -- performance.now() rzadko zaczyna od zera).
+    const start = 123456;
+    const termin = start + 300_000;
+
+    // Naprawde minelo 100 sekund monotonicznego czasu -- zostalo 200.
+    assert.equal(pozostaloSekund(termin, start + 100_000), 200);
+
+    // KLUCZOWY DOWOD: gdyby liczenie oparto na Date.now() (zegarze sciennym),
+    // korekta NTP w trakcie odliczania natychmiast zmienialaby wynik, mimo
+    // ze naprawde uplynelo dokladnie tyle samo czasu. Ta funkcja w ogole
+    // nie widzi zegara sciennego -- przyjmuje wylacznie odczyty zegara
+    // monotonicznego, wiec korekta zegara systemowego nie ma tu jak wejsc.
+    assert.equal(pozostaloSekund(termin, start + 100_000), 200);
+
+    // Nie schodzi ponizej zera, gdy termin juz minal.
+    assert.equal(pozostaloSekund(termin, start + 999_000), 0);
+});
+
+test('formatMinutySekundy pokazuje sekundy zawsze na dwoch cyfrach', () => {
+    assert.equal(formatMinutySekundy(0), '0:00');
+    assert.equal(formatMinutySekundy(5), '0:05');
+    assert.equal(formatMinutySekundy(65), '1:05');
+    assert.equal(formatMinutySekundy(3661), '61:01');
+});
+
+test('kluczStanu rozroznia przepis i krok, zeby minutniki sie nie mieszaly', () => {
+    assert.notEqual(kluczStanu('zupa', 1), kluczStanu('zupa', 2));
+    assert.notEqual(kluczStanu('zupa', 1), kluczStanu('kotlety', 1));
+});
+
+test('odczytajStan po przeladowaniu liczy nowy termin wzgledem SWIEZEGO performance.now() (issue #740)', () => {
+    const zapis = zapiszStan(300, /* terminEpoka */ 1_000_000 + 200_000);
+
+    // Strona zaladowala sie ponownie: performance.now() zaczyna od zera,
+    // a od zapisania stanu minelo (na zegarze sciennym) 50 sekund.
+    const stan = odczytajStan(zapis, /* terazEpoka */ 1_050_000, /* terazMonotoniczny */ 0);
+
+    assert.ok(stan);
+    // Zostalo 150 sekund odliczania (200 - 50) -- i to wzgledem NOWEGO
+    // punktu zerowego zegara monotonicznego tej strony, nie starego.
+    assert.equal(pozostaloSekund(stan.terminMonotoniczny, 0), 150);
+});
+
+test('odczytajStan zwraca null, gdy zapis jest pusty, uszkodzony albo termin juz minal', () => {
+    assert.equal(odczytajStan(null, 0, 0), null);
+    assert.equal(odczytajStan('{niepoprawny json', 0, 0), null);
+    assert.equal(odczytajStan(zapiszStan(60, 1000), /* terazEpoka */ 5000, 0), null);
+});

@@ -1,6 +1,12 @@
 # Panel moderacji — port marki #581
 
 Status: **podstawowy port wdrożony; odbiór całości częściowy**.
+
+[Ponowny odbiór lokalny floty z 20 września 2026](PANEL_ODBIOR_FLOTY_581_2026_09_20.md):
+600 konfiguracji kompozycji, 51 dodatkowych przypadków, 16 pomiarów bez
+skryptów i 4393 testy PHP zaliczone na podstawie 4c811cc7. Bez zmian aplikacji;
+nie zastępuje to brakującego odbioru produkcyjnego.
+
 Pierwotna gałąź fix/581-marka-panelu miała podstawę ac5ff9d7716d000318870a2120522fdd7930303a.
 PR #587 został scalony. [Odbiór produkcyjny dziewięciu sekcji na Alfa 0.45 / e30492c](https://github.com/woogitsu/kuking.pl/issues/581#issuecomment-5704855089)
 potwierdził nową oprawę i wskazał długą nawigację mobilną jako pozostałe tarcie.

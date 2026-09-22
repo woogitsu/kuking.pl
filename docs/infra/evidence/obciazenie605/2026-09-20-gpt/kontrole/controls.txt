@@ -1,0 +1,28 @@
+Pojedyncze żądanie:
+  ✓ poprawna odpowiedź kończy się statusem 200 i powodem „ok”
+  ✓ brak odpowiedzi kończy się limitem bezczynności
+  ✓ odpowiedź urwana po nagłówkach kończy zadanie zamiast je zawieszać
+  ✓ nagłówki bez zakończenia body kończą się limitem bezczynności
+  ✓ powolne fragmenty bez końca padają na całkowitym deadline, nie na bezczynności
+  ✓ wolna, ale skończona odpowiedź w granicach deadline’u jest poprawna
+  ✓ anulowanie sygnałem kończy żądanie natychmiast
+  ✓ żądanie z już przerwanym sygnałem nie jest w ogóle wysyłane
+  ✓ bezpiecznik nie pozwala skierować przyrządu poza localhost
+  ✓ zerwane żądania nie zostawiają gniazd, a zamknięcie agenta domyka pulę
+Cała seria:
+  ✓ seria z urwanymi i sączonymi odpowiedziami domyka się, liczy błędy i sprząta gniazda
+  ✓ żądania porzucone przez limit w locie wchodzą do mianownika odsetka błędów
+  ✓ przerwanie serii sygnałem zapisuje oznaczony wynik i zamyka gniazda
+Kontrole ujemne (fizyczne):
+  ✓ kontrola ujemna: bez rozpoznania odpowiedzi urwanej po nagłówkach → sprawdzenie OBLEWA
+  ✓ kontrola ujemna: bez kompletu obsługi zerwanego strumienia (stan z 0e5d2707) → sprawdzenie OBLEWA
+  ✓ kontrola ujemna: bez całkowitego deadline’u → sprawdzenie OBLEWA
+  ✓ kontrola ujemna: bez anulowania sygnałem → sprawdzenie OBLEWA
+  ✓ kontrola ujemna: liczenie wyłącznie poprawnych odpowiedzi → zerowy odsetek błędów, sprawdzenie OBLEWA
+  ✓ kontrola ujemna: porzucone poza mianownikiem → zaniżony odsetek błędów, sprawdzenie OBLEWA
+  ✓ kontrola ujemna: literówka w liczbowej opcji zatrzymuje bieg zamiast dawać pusty „udany” pomiar
+  ✓ oryginalny generator ma tę samą sumę MD5 co przed kontrolami ujemnymi
+
+Zdane sprawdzenia: 21
+PASS: korpus rotuje; odrzucenie nie udaje publikacji; zmienione bajty zatrzymują pomiar
+PASS: próbnik mierzy pełne okna tego samego procesu i jawnie odrzuca reset licznika
