@@ -1,0 +1,77 @@
+# TRIAZ dziewiatki, ktora przezyla CELOWANY test.
+# Tu ta sama mutacja idzie na CALY pakiet (bez dwoch plikow czerwonych
+# na tej maszynie niezaleznie od zmian). Rozstrzygniecie:
+#   ZABITA  -> gwarancji pilnuje INNY test: blad katalogu, nie dziura
+#   PRZEZYLA -> albo strażnik nie strzeże, albo mutacja bez znaczenia
+
+nazwa: serwis nie promuje tresci kont nieaktywnych
+plik: app/Models/Post.php
+zamien: $query->whereHas('author', fn ($autor) => $autor->where('status', User::STATUS_ACTIVE));
+na: $query->whereHas('author', fn ($autor) => $autor->whereNotNull('status'));
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: komentarz ukryty przez moderacje nie wraca zakresem
+plik: app/Models/Comment.php
+zamien: ->where('comments.status', self::STATUS_PUBLISHED);
+na: ->whereNotNull('comments.status');
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: wpis wskazujacy cudzy przepis znika razem z tym przepisem
+plik: app/Models/Post.php
+zamien: $przepis->published()->widoczneDla($widz);
+na: $przepis->widoczneDla($widz);
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: rozstrzygniecie zgloszenia nie jest polem formularza
+plik: app/Models/Report.php
+zamien:         'illegality_explanation',
+na:         'illegality_explanation',\n        'resolved_by',\n        'resolved_at',
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: po wymazaniu konta adres e-mail jest zanonimizowany
+plik: app/Domain/Users/Actions/EraseAccountData.php
+zamien: 'email' => $this->anonimowyEmail($fresh),
+na: 'email' => $fresh->email,
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: uzywane zdjecie nie daje sie skasowac sprzataczowi
+plik: app/Domain/Media/KasujZdjecie.php
+zamien: if (DB::table($tabela)->where($kolumna, $zdjecie->getKey())->exists()) {
+na: if (! DB::table($tabela)->where($kolumna, $zdjecie->getKey())->exists()) {
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: zdjecie niegotowe nie jest serwowane
+plik: app/Domain/Media/DostepDoZdjecia.php
+zamien: return $zdjecie->maWariantDoPokazania();
+na: return true;
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: nieopublikowany przepis nie przyjmuje wykonania
+plik: app/Domain/Recipes/Actions/RecordCookedEvent.php
+zamien: if (! $recipe->isPublished()) {
+na: if ($recipe->isPublished() && false) {
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
+---
+nazwa: klucz wyslania jest zawezony do kucharza
+plik: app/Domain/Recipes/Actions/RecordCookedEvent.php
+zamien: ->where('user_id', $cook->getKey())
+na: ->whereNotNull('user_id')
+oczekuj: FAILURES|Errors|Failures
+polecenie: vendor/bin/phpunit --no-coverage --exclude-filter (ProbaOdtworzenia|StandardoweWiadomosciMarki)
+ocena:
