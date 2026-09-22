@@ -18,7 +18,7 @@
     ani po przesunięciu palcem — dla części naszych użytkowników to jedyna
     droga do funkcji (AGENTS.md §5).
 --}}
-@props(['post', 'showQuestionTitle' => true])
+@props(['post', 'showQuestionTitle' => true, 'zeszyt' => null])
 @php $author = $post->author; @endphp
 <article class="card post-card">
     <div class="post-card-head">
@@ -526,18 +526,63 @@
                 w zeszycie, nie robi nic i nie jest błędem.
             --}}
             @if($zapisy->czyZapisany($post))
-                <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
-                    <x-ikona nazwa="book" :rozmiar="22" />
-                    Masz to w zeszycie
-                </a>
-                <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
-                    @csrf
-                    @method('DELETE')
-                    <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-zeszytu">
-                        <x-ikona nazwa="save" :rozmiar="22" />
-                        Usuń z zeszytu
-                    </button>
-                </form>
+                {{--
+                    JEDNA DROGA WYJĘCIA NA EKRAN, NIGDY DWIE (D-231).
+
+                    Dwie prace powstały równolegle i obie miały rację:
+                    #789 dało przycisk wyjęcia wszędzie tam, gdzie widać stan
+                    zapisu (zakres globalny), #776 — przycisk wyjęcia z TEGO
+                    zeszytu, gdy karta stoi w środku zeszytu (zakres lokalny).
+                    Złożone wprost dawały na ekranie zeszytu DWA przyciski
+                    o prawie tych samych nazwach i różnym zasięgu; dla grupy
+                    50+ to gorsze niż brak którejkolwiek drogi.
+
+                    Rozstrzygnięcie: ZAKRES WYBIERA EKRAN, NIE CZŁOWIEK.
+                    W środku konkretnego zeszytu widać wyłącznie „Usuń z tego
+                    zeszytu" (`collection_id` = ten zeszyt). Poza zeszytem —
+                    w strumieniu, na profilu, w wyszukiwarce, na stronie wpisu
+                    — widać wyłącznie „Usuń z zeszytu" (zakres globalny), bo
+                    tam nie ma „tego zeszytu", do którego można by się odnieść.
+                --}}
+                @if($zeszyt !== null && auth()->id() === $zeszyt->owner_id)
+                    {{--
+                        W ŚRODKU ZESZYTU: ZAKRES LOKALNY, BEZ ODNOŚNIKA OBOK.
+
+                        Odnośnik „Masz to w zeszycie" prowadzi do listy
+                        zeszytów — stojąc W zeszycie, człowiek już wie, że wpis
+                        tam leży, więc odnośnik nie niesie tu żadnego stanu,
+                        a stałby pierwszy pod palcem. Zostaje sam przycisk.
+
+                        Ryzyko „drugie kliknięcie »Zapisuję« samo się cofnie"
+                        (issue #43) nie dotyczy tego ekranu: nikt nie zapisuje
+                        wpisu z wnętrza zeszytu, w którym ten wpis już leży.
+
+                        `collection_id` WSKAZUJE TEN JEDEN ZESZYT (issue #775):
+                        usuwa stąd, nie ze wszystkich własnych zeszytów.
+                    --}}
+                    <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
+                        @csrf
+                        @method('DELETE')
+                        <input type="hidden" name="collection_id" value="{{ $zeszyt->getKey() }}">
+                        <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-tego-zeszytu">
+                            <x-ikona nazwa="save" :rozmiar="22" />
+                            Usuń z tego zeszytu
+                        </button>
+                    </form>
+                @else
+                    <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
+                        <x-ikona nazwa="book" :rozmiar="22" />
+                        Masz to w zeszycie
+                    </a>
+                    <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-zeszytu">
+                            <x-ikona nazwa="save" :rozmiar="22" />
+                            Usuń z zeszytu
+                        </button>
+                    </form>
+                @endif
             @else
                 <form method="POST" action="{{ route('collections.save-post', $post) }}">
                     @csrf

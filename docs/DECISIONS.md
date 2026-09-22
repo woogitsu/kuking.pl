@@ -4903,6 +4903,33 @@ Ta decyzja NIE jest „nigdy" — jest „nie bez tych trzech rzeczy naraz":
   `docs/MEDIA_PIPELINE.md`, `config/kuking.php` (komentarz przy
   `accepted_mime_types`).
 
+### Aktualizacja 20 września 2026 — obietnica bez pokrycia poprawiona (#119 follow-up)
+
+Ta decyzja **nie jest otwierana na nowo**: HEIC nadal jest odrzucany, `libheif`
+nadal nie wchodzi do obrazu Dockera. Poprawiono wyłącznie TEKST komunikatu
+z §3 pkt 2, po pomiarze stanowiska `gpt/heic-format`
+(`docs/research/heic-119/RAPORT.md`).
+
+Znaleziony błąd: komunikat obiecywał **bezwarunkowo**, że wysłanie HEIC do
+siebie e-mailem da JPG („wyślij najpierw do siebie e-mailem — przyjdzie jako
+JPG"). Apple (support.apple.com/pl-pl/116944) opisuje to jako zależne od
+sposobu udostępniania i możliwości odbiorcy — „może" zostać wysłane w formacie
+zgodnym, nie „zostanie". Naprawiono `App\Support\RozpoznanieZdjecia::komunikatHeic()`:
+wynik dla TEGO zdjęcia nazwany jako niepewny („telefon czasem sam zamienia
+je wtedy na JPG, ale zależy to od modelu telefonu"), z prostą alternatywą
+(wybrać inne, gotowe zdjęcie), i osobno, jasno opisane ustawienie na
+PRZYSZŁOŚĆ, które nie przerabia zdjęcia już zrobionego. Nie zastąpiono jednej
+niepewnej obietnicy inną równie pewną — żadna sprawdzona na 100% droga
+konwersji ISTNIEJĄCEGO pliku nie jest znana (patrz RAPORT.md §5: Mail,
+„Duplikuj" i zewnętrzny konwerter odradzane jako pewniki).
+
+Drugi błąd, drobniejszy: polska pomoc Apple podaje etykietę „Najbardziej
+zgodne" (rodzaj nijaki), a komunikat (i ten wpis w §3 pkt 1 wyżej) miał
+błędną odmianę „Najbardziej zgodny". Poprawiono w obu miejscach.
+
+Test regresyjny (RED przed poprawką, GREEN po):
+`tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php::test_komunikat_heic_nie_obiecuje_bezwarunkowo_konwersji_mailem`.
+
 ### Co CZEKA na właściciela (opisane, nie wykonane)
 
 - **Pomiar na prawdziwym iPhonie** (§3, §6 pkt 2) — nie do wykonania z tego
@@ -15057,6 +15084,15 @@ zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
 stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
 Trasy nie kasujemy.
 
+> **Sprostowane 20 września 2026 — patrz D-231.** Zdanie „przycisk stoi
+> wszędzie tam, gdzie widać »Masz to w zeszycie«" przestało być prawdziwe na
+> JEDNYM ekranie: w środku konkretnego zeszytu nie ma już ani odnośnika „Masz
+> to w zeszycie", ani przycisku „Usuń z zeszytu" — stoi tam wyłącznie „Usuń
+> z tego zeszytu" o zakresie lokalnym. Poza zeszytem wszystko poniżej zostaje
+> bez zmian. Reszta D-224 — brak potwierdzenia przed akcją, droga powrotu po
+> niej, brak JavaScriptu, granica ostrzejsza niż Policy — obowiązuje dalej.
+> Zmienił się też sam komunikat: nazywa teraz FAKTYCZNY zakres (D-231).
+
 Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
 w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
 więc drugie kliknięcie (norma w tej grupie, issue #43) niczego nie zabiera.
@@ -15109,3 +15145,318 @@ produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
 zakresu statystyk o prywatne treści ani ranking.
 
 Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
+
+## D-227 — PostgreSQL 18 jest wymaganiem, nie preferencją
+
+Data: 20 września 2026. Decyzja właściciela.
+
+**Co zdecydowano.** Wymagana wersja PostgreSQL to **18** — lokalnie, w CI
+i na produkcji. Wcześniej `AGENTS.md` mówił „lokalnie i w CI wystarczy 16+".
+
+**Dlaczego.** Szesnastka opisywała stan, którego już nigdzie nie ma: CI stawia
+`postgres:18-alpine` w sześciu usługach, produkcja ma 18, lokalny klaster
+18.6. Reguła, która dopuszcza konfigurację nieistniejącą u nikogo, nie chroni
+przed niczym — a przy tym usypia: każdy czyta ją jako „przetestowane na 16".
+
+**Numer.** Ta decyzja nosiła najpierw D-223. Po awarii 20.09 o ten sam
+numer stanęły trzy różne rozstrzygnięcia z trzech odzyskanych gałęzi, a
+`NumeryDecyzjiMajaWpisyTest` łapie duplikat numeru dopiero PO scaleniu —
+czyli wtedy, gdy odnośniki w kodzie już wskazują na dwie decyzje naraz.
+Numer przyznano tej pracy, która ma najmniej odnośników z zewnątrz:
+tutaj dwa, oba w `DEPLOYMENT_RUNBOOK.md`. Strażnik martwych reguł CSS
+zostaje przy D-223, bo jego numer siedzi w jedenastu miejscach i w nazwie
+katalogu dowodów `docs/design/evidence/kaskada223/`.
+
+**Kolejność zmiany jest częścią decyzji.** Najpierw reguła w `AGENTS.md`
+(`68099722`), dopiero potem próg w strażniku R60 (`d2ffccac`). Odwrotna
+kolejność uczyłaby, że regułę wolno wyprzedzić testem — a `AGENTS.md` jest
+jedynym źródłem prawdy projektu.
+
+**Zakres.** Zmienione cztery miejsca stawiające wymóg: tabela stacku
+w `AGENTS.md` i jej kopia w `README.md`, wymagania uruchomienia w `README.md`
+oraz wymagania własnego runnera w `docs/infra/CI_BEZ_ACTIONS.md`.
+
+**Czego świadomie NIE zmieniono.** Zapisów o POMIARACH wykonanych na 16.13
+(`SearchQuery`, `ProgPodobienstwa`, migracja z 9 września) ani notek „od
+PostgreSQL 17…" w migracjach i `docs/DATABASE.md`. To są fakty o silniku
+i cudze pomiary — przepisanie ich na 18 sfałszowałoby czyjś wynik.
+
+**Skutek dla runbooka.** `DEPLOYMENT_RUNBOOK.md` §6.3 zachowuje wariant „weź
+17 i zrób upgrade in-place", ale **wyłącznie jako drogę awaryjną odtworzenia
+po awarii**, gdy dostawca nie oferuje 18 w danej chwili. Nie jest to
+dopuszczalny stan docelowy, a upgrade staje się wtedy zadaniem do domknięcia.
+Procedurę trzymamy, bo improwizowanie jej w kryzysie kosztuje więcej niż
+zapisanie z góry.
+
+**Dowód, że próg nie jest martwą liczbą.** Podbicie go na chwilę na 19 oblewa
+strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
+„18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
+
+## D-231 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
+
+Dwie prace powstały równolegle i nie wiedziały o sobie. #789 (D-224) dało
+przycisk wyjęcia wszędzie tam, gdzie widać stan zapisu, o zakresie GLOBALNYM
+(wszystkie zeszyty widza). #776 dało przycisk wyjęcia o zakresie LOKALNYM
+(`collection_id`), ale tylko wtedy, gdy karta stoi w środku zeszytu, którego
+widz jest właścicielem. Złożone wprost renderowały się OBOK SIEBIE: na ekranie
+zeszytu stały dwa przyciski o prawie identycznych nazwach — „Usuń z zeszytu"
+i „Usuń z tego zeszytu" — i różnym zasięgu. Dla grupy 50+ to gorsze niż brak
+którejkolwiek drogi: zły wybór kosztuje tu dane w zeszytach, o których nikt
+w tym momencie nie myślał.
+
+**Zakres wybiera EKRAN, nie człowiek.**
+
+1. W środku konkretnego zeszytu, gdy widz jest jego właścicielem, stoi
+   wyłącznie **„Usuń z tego zeszytu"** — `collection_id` wskazuje ten zeszyt,
+   zapis w pozostałych zeszytach zostaje razem z notatką i datą (#775).
+   Odnośnik „Masz to w zeszycie" w tym miejscu znika: prowadzi do listy
+   zeszytów, a człowiek stojący W zeszycie już wie, że wpis tam leży.
+2. Poza zeszytem — w strumieniu, na profilu, w wyszukiwarce, na stronie wpisu
+   i na stronie przepisu — stoi wyłącznie **„Usuń z zeszytu"** o zakresie
+   globalnym, obok odnośnika „Masz to w zeszycie" (D-224). Nie ma tam „tego
+   zeszytu", do którego dałoby się odnieść.
+3. **Nigdy oba naraz.** Dowodem jest scena
+   `WpisDaSieWyjacZZeszytuTest::test_na_ekranie_jest_dokladnie_jedna_droga_wyjecia`
+   — liczy formularze wyjęcia na obu ekranach i sprawdza, że nazwa tej drugiej
+   drogi nie pada tam wcale.
+
+**Potwierdzenie PRZED akcją nie wraca.** #775 dokładało na stronie przepisu
+`x-confirm-button` z pytaniem „czy na pewno ze wszystkich zeszytów". D-224
+rozstrzygnęło odwrotnie i to rozstrzygnięcie zostaje: wyjęcie z zeszytu jest
+odwracalne, a pytanie przed każdą odwracalną czynnością uczy odklikiwania
+i psuje wagę pytań przy rzeczach naprawdę nieodwracalnych (kasowanie wpisu,
+kasowanie zeszytu). Strona przepisu wraca więc do zwykłego formularza DELETE.
+
+**Ale zarzut #775 był słuszny i jest spełniony inaczej.** Brzmiał „usuwa ze
+wszystkich zeszytów BEZ UJAWNIENIA ZAKRESU", nie „usuwa bez pytania". Zakres
+nazywa więc komunikat PO akcji, i nazywa go LICZBĄ FAKTYCZNĄ:
+`SavePostToCollection::remove()` i `SaveRecipeToCollection::remove()` oddają,
+z ilu zeszytów naprawdę wyjęto.
+
+- zakres lokalny: „Wpis wyjęty z zeszytu „Obiady". Nie usunęliśmy go
+  z serwisu — możesz go zapisać ponownie."
+- zakres globalny, kilka zeszytów: „Wpis wyjęty z 3 Twoich zeszytów. …"
+- zakres globalny, jeden zeszyt: „Wpis wyjęty z zeszytu. …" — bo zdanie
+  o „wszystkich Twoich zeszytach" przy jednym zeszycie straszy bez powodu,
+  a straszenie bez powodu uczy ignorowania komunikatów tak samo jak pytanie
+  bez powodu.
+
+**Droga powrotu wraca TAM, SKĄD WYJĘTO.** „Zapisz ponownie" (D-224) dostaje
+`pola` — po wyjęciu lokalnym niesie `collection_id` tego zeszytu. Bez tego
+cofnięcie odkładałoby wpis do zeszytu DOMYŚLNEGO, czyli cicho przenosiłoby go
+gdzie indziej; cofnięcie ma przywracać stan, nie tworzyć nowy.
+
+**Nazwy.** „Usuń z zeszytu" i „Usuń z tego zeszytu" nigdy nie stoją razem,
+więc jedna nie jest pułapką na drugą, a ekran zawsze niesie kontekst. Trzecie
+słowo na tę samą czynność („Wyjmij") byłoby złamaniem `BRAND_EXTENDED.md` §3.
+
+**D-081 zostaje w mocy** — tablica „kuKINGi na dziś" dalej świadomie nie
+dolicza stanu zeszytu.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/ZeszytUsuwaZapisanyWpisTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`scripts/wyjecie-z-zeszytu.mjs`.
+
+
+## D-230 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-231, 21 września 2026)
+
+*Ta decyzja nosiła najpierw numer D-229. Straciła go, bo tego samego dnia
+dwaj agenci floty niezależnie dostali od właściciela informację, że „pierwszy
+wolny numer to D-229" — jeden z nich (gałąź `gpt-n1-powiadomienia`) zajął go
+jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 14 w
+`gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
+D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
+
+Dwie gałęzie floty rozwiązały ten sam spór (#775) inaczej i obie miały rację
+w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
+z pytaniem „czy na pewno ze wszystkich zeszytów", ale nie dotknęła
+`post-card.blade.php` — na karcie wpisu poza zeszytem nie było żadnej drogi
+wyjęcia (`WpisDaSieWyjacZZeszytuTest` obalał to na 4 z 12 scen). `jedna-droga`
+dała tę drogę wszędzie i rozstrzygnęła D-231 (jeden przycisk na ekran, zakres
+wybiera ekran, licznik zeszytów w komunikacie), ale przy okazji cofnęła
+pytanie przed akcją na stronie przepisu — bo D-224 uznało wyjęcie z zeszytu za
+w pełni odwracalne.
+
+**Właściciel rozstrzygnął: żadna z tych prac osobno nie zamyka #775, razem
+zamykają.** Bierzemy oba mechanizmy:
+
+1. **Z `jedna-droga`**: drogę wyjęcia na każdym ekranie pokazującym „Masz to
+   w zeszycie" (D-231 bez zmian) — `post-card.blade.php` dostaje przycisk
+   lokalny w środku zeszytu i globalny poza nim, liczbę zeszytów w komunikacie
+   (`Odmiana::rzeczownik()`), i „Zapisz ponownie" jako drogę powrotu, która
+   wraca DOKŁADNIE tam, skąd wyjęto (`pola['collection_id']`).
+2. **Z `zeszyty`**: `<x-confirm-button>` na stronie przepisu, jedynym ekranie
+   o zasięgu GLOBALNYM (wyjmuje ze WSZYSTKICH zeszytów naraz).
+
+**Dlaczego pytanie wraca tylko tam.** D-224 miało rację, że pytanie przed
+KAŻDĄ odwracalną czynnością uczy odklikiwania. Ale wyjęcie globalne nie jest
+w pełni odwracalne: `SavePostToCollection::remove()` i
+`SaveRecipeToCollection::remove()` wołają `detach()`, który kasuje wiersz
+pivotu RAZEM z `note` (`withPivot(['note'])`). „Zapisz ponownie" przywraca
+sam fakt bycia w zeszycie — nie treść notatki, która przy nim stała. To jest
+różnica jakościowa, nie kosmetyczna: przy zasięgu lokalnym (jeden, wybrany
+zeszyt) ryzyko jest małe i znane z kontekstu ekranu, ale przy zasięgu
+globalnym człowiek może stracić notatki w zeszytach, o których w tej chwili
+nie myśli. Stąd pytanie PRZED akcją zostaje wyłącznie na ekranie globalnym,
+a lokalne wyjęcie (D-231) zostaje jednym kliknięciem bez pytania.
+
+**Komunikat po akcji przestaje obiecywać więcej, niż daje.** Obie gałęzie
+pisały po usunięciu „Nie usunęliśmy go z serwisu — możesz go zapisać
+ponownie", co sugerowało pełną odwracalność. Nowe brzmienie
+(`CollectionController::komunikatPoWyjeciu()`):
+
+- zakres lokalny: „{Przepis/Wpis} wyjęty z zeszytu „{nazwa}”. Możesz zapisać
+  go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, N zeszytów: „{Przepis/Wpis} wyjęty z {N} Twoich zeszytów.
+  Możesz zapisać go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, jeden zeszyt: „{Przepis/Wpis} wyjęty z zeszytu. Możesz
+  zapisać go ponownie, ale notatka przy nim już nie wróci."
+
+Zachowanie się nie zmienia — `remove()` i `detach()` robią dokładnie to samo,
+co przed tą decyzją. Zmienia się wyłącznie zdanie: mówi teraz, co się NIE
+wraca, zamiast sugerować, że wraca wszystko.
+
+**Testy dwóch gałęzi wzajemnie się wykluczały** (`zeszyty` wymagała
+`<details class="confirm">` na stronie przepisu, `jedna-droga` wymagała jego
+braku) — złożone dają jeden zestaw sprawdzający stan docelowy:
+`UsuniecieZZeszytuMaZakresTest::test_strona_przepisu_pyta_przed_usunieciem_i_nazywa_zakres_po_akcji`
+zastępuje obie sprzeczne sceny i dokłada kontrolę dodatnią
+(`test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia`).
+`WpisDaSieWyjacZZeszytuTest` (issue #776, D-231) zostaje bez zmian zachowania
+— dotyczy wyłącznie wpisów (Post), których ekran przepisu (Recipe) nie
+obejmuje.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`resources/views/pages/recipes/show.blade.php`,
+`app/Http/Controllers/CollectionController.php`.
+
+## D-233 — Rejestr potwierdzeń RODO tak, automatyczne kasowanie wpisów NIE (#1222 nie dotyczy)
+
+22 września 2026, jawna decyzja właściciela przy odbiorze gałęzi
+`naprawa/minimalne-potwierdzenie-rodo`. Gałąź robiła dwie rzeczy: zakładała
+rejestr potwierdzeń obsługi żądań RODO z zapisem **atomowym, w tej samej
+transakcji co skutek**, i włączała **automatyczne kasowanie tych wpisów po 36
+miesiącach, domyślnie, bez przełącznika**. Właściciel przyjmuje pierwszą część
+i wstrzymuje drugą.
+
+Autor gałęzi uzasadniał brak przełącznika zdaniem „wyłącznik retencji to
+bezterminowość pod inną nazwą”. Argument zostaje zapisany, bo jest sensowny
+i bo za tydzień ktoś wyprowadzi go ponownie. Nie przeważa jednak dwóch rzeczy.
+Po pierwsze, **okresu nie potwierdził prawnik**: 36 miesięcy to analogia do
+dokumentacji sprawy moderacyjnej (art. 442¹ k.c., D-057 i ADR_RETENCJE §4), nie
+ustalenie dla tej kategorii. Po drugie, kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby” nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą” — czyli nie jest znana nawet długość drogi odzysku.
+
+Wyłączenie stoi na dwóch niezależnych barierach, żeby nie zdejmowała go jedna
+pomyłka: `kuking.potwierdzenia_rodo.retencja_wlaczona` jest `false`, a zadanie
+`kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte w `routes/console.php`**.
+`retention_months` jest `null`, nie 36, więc samo przestawienie flagi nie
+uruchamia kasowania według okresu, którego nikt nie potwierdził. Komenda
+istnieje i jest przetestowana; `--na-sucho` działa mimo wyłączenia, bo tym mają
+zostać przygotowane dane historyczne.
+
+Ta decyzja **nie cofa** niczego, co gałąź zrobiła dobrze: dziewięciu ograniczeń
+CHECK, braku ekranu dla tej tabeli (osobny test skanuje trasy i widoki),
+zapamiętania zakresu żądania **przed** anonimizacją ani atomowości zapisu.
+Wyłączenie ma być zdjęte świadomie, po potwierdzeniu okresu — droga w trzech
+krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
+i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
+
+Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
+(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
+
+Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
+że domyślnie nic się nie kasuje i że po jawnym włączeniu automat działa.
+
+## D-238 — Cofnięcie migracji 2FA ODMAWIA, zamiast po cichu zdjąć drugi składnik (DB-01, 22 września 2026)
+
+**Data:** 22 września 2026 · **Naprawa znaleziska z audytu** (DB-01 z
+`docs/AUDYT_2026-09-13.md`, gałąź `claude/laughing-edison-sz4k69`) ·
+Status: **obowiązuje**
+
+### Co było zepsute
+
+`down()` migracji `2026_09_06_120000_add_two_factor_to_users_table` kasowało
+bezwarunkowo cztery kolumny: `two_factor_secret`, `two_factor_backup_codes`,
+`two_factor_confirmed_at`, `two_factor_last_used_at` — a wcześniej zdejmowało
+CHECK `users_two_factor_confirmed_requires_secret_check`.
+
+Sekret TOTP jest zaszyfrowany i nie ma go skąd odtworzyć. Kody zapasowe są
+trzymane wyłącznie jako skróty. Po cofnięciu nie da się przywrócić ani
+jednego, ani drugiego.
+
+### Dlaczego to nie było „świadome", tylko przeoczone
+
+Migracja **broniła się własnym komentarzem**: „nikt nie zostaje zablokowany,
+bo wymóg drugiego składnika znika razem z kolumnami, które go przechowywały".
+To samo zdanie stało w `docs/DATABASE.md`. I ono jest prawdziwe — dlatego
+właśnie było groźne.
+
+> Cofnięcie nie wybija nikogo z serwisu. Ono ZDEJMUJE OCHRONĘ.
+
+Cykl `rollback` → `migrate`, który CI wykonuje jako `migrate:refresh`,
+zostawia kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika.
+Konto moderatora, o którym właściciel wie, że jest chronione dwoma
+składnikami, wraca do logowania samym hasłem — bez błędu, bez komunikatu,
+bez śladu. Moderator widzi zgłoszenia, cudze ukryte treści i odwołania;
+`docs/SECURITY_PRIVACY_LEGAL.md` obiecuje „MFA obowiązkowe dla adminów".
+
+To jest dokładnie „przywracanie stanu groźnego" z zasady **D-088**, tylko
+w postaci trudniejszej do zauważenia niż w #287: tam cofnięcie po cichu
+zmieniało ZNACZENIE decyzji człowieka, tu po cichu USUWA jego zabezpieczenie.
+Objaw jest ten sam — brak śladu błędu.
+
+### Ile było takich strażników przed tą naprawą
+
+W `database/migrations/` odmowę miało już kilkanaście migracji, a w
+`tests/Feature/` stało **dziewiętnaście** testów `Cofniecie*` — m.in. dziennik
+zgód, zaproszenia, zgłoszenia prawne, odwołania zgłaszających, tożsamość
+Google, tożsamość Facebooka, skala tekstu, znacznik odebrania dostępu,
+zeszyty, kolaż powitalny, numer sprawy, sygnały automatu i wiadomości.
+
+Dla 2FA — czyli dla najbardziej wrażliwej z tych wartości — **nie było ani
+jednego**. Nie dlatego, że ktoś to rozważył i odrzucił: przeciwnie,
+komentarz przy migracji pokazuje, że ryzyko było zauważone i uznane za
+akceptowalne, zanim powstała zasada D-088.
+
+### Rozstrzygnięcie
+
+`down()` liczy konta z `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją — **przed jakąkolwiek operacją
+niszczącą**, także przed zdjęciem CHECK-a. Świadome cofnięcie przepuszcza
+`KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`, zgodnie z konwencją furtek z
+`KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY` i `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE`
+(`getenv()`, nie `env()` — na produkcji konfiguracja bywa zbuforowana).
+
+**Granica jest przy POTWIERDZENIU, nie przy sekrecie.** Sekret zapisany bez
+`confirmed_at` to konto w trakcie włączania 2FA — ekran włączenia pokazuje
+sekret, zanim człowiek wpisze pierwszy kod. To nie jest ochrona, którą można
+stracić; człowiek zaczyna włączanie od nowa. Gdyby strażnik liczył sam
+sekret, jedno porzucone włączanie blokowałoby rollback na stałe.
+
+Na świeżym środowisku cofnięcie działa bez pytania, więc `migrate:refresh`
+w `scripts/check.sh` i w CI chodzi jak dotąd.
+
+### Czego ta decyzja NIE zmienia
+
+Nie zmienia schematu, zachowania logowania ani niczego, co widzi użytkownik.
+Kolumny, CHECK i limit prób zostają bez zmian. Zmienia się wyłącznie to, co
+`down()` robi, gdy ktoś ma 2FA naprawdę włączone.
+
+### Dowód
+
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php` — pięć przypadków, obie
+strony granicy: odmowa z danymi nietkniętymi po niej, świeże środowisko bez
+pytania, sam sekret bez potwierdzenia nieblokujący, furtka przepuszczająca
+oraz kolejność (strażnik przed zdjęciem CHECK-a i przed `dropColumn`).
+
+Kontrola ujemna: na kodzie sprzed tej naprawy **oblewają dwa przypadki z
+pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i to
+jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
