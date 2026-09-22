@@ -257,8 +257,19 @@ class ProcessUploadedImage implements ShouldQueue
      *
      * Dekodowanie zdjęcia 45 Mpx i budowa trzech wariantów w GD to jest realnie
      * ten kawałek serwisu, który potrafi nie zmieścić się w limicie czasu
-     * i pamięci workera (`--memory=384`). Bez tego hooka takie zdjęcie zostaje
-     * w stanie przejściowym bez końca.
+     * i pamięci workera. Bez tego hooka takie zdjęcie zostaje w stanie
+     * przejściowym bez końca.
+     *
+     * LICZBY, O KTÓRE TU CHODZI (stało tu `--memory=384`, którego w tym
+     * repozytorium nie ma — patrz D-064 §2):
+     *   - `docker/entrypoint.sh` — `queue:work --memory="${QUEUE_MEMORY:-700}"`,
+     *     MIĘKKI limit Laravela: kończy proces MIĘDZY jobami, więc nie ratuje
+     *     joba, który przekroczył pamięć w środku. Ten hook ratuje.
+     *   - `.railway/railway.ts` — kontener `worker` ma `memoryBytes: 1024 * MB`,
+     *     twardy limit Railway (OOM-kill powyżej). To jest realny sufit.
+     *   - `docker/php.ini` — `memory_limit=256M`, licznik PHP, który NIE widzi
+     *     bufora GD: zmierzony szczyt RSS dla 50 Mpx to 452 MB przy liczniku
+     *     pokazującym 28 MB (`docs/MEDIA_PIPELINE.md`).
      */
     public function failed(?\Throwable $e): void
     {
