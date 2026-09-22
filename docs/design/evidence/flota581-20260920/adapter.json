@@ -1,0 +1,27 @@
+[
+  {
+    "file": "scripts/panel-marki-run.mjs",
+    "originalSha256": "9197af043b79fcadadc7dda3be8e91ec24549fa908b35d01794c656989ebe9c5",
+    "adaptedSha256": "54061309a82d4702e4aba0da8f053b9138fdc098a75a99a78cc1b2fecaa3050d"
+  },
+  {
+    "file": "scripts/fixtures/panel-marki.php",
+    "originalSha256": "2d1c262173ebeb700ba10394225777b4a07af8b853d721b755cf22af4c15d4f5",
+    "adaptedSha256": "c8974c5ce327c7b49a94ecc888cf94c1096dfc51d25a54f21b82204b33f362ce"
+  },
+  {
+    "file": "scripts/fixtures/panel-stany.php",
+    "originalSha256": "9c8f2dde4a4244ee7f4a9d3186eba02d29a2ffada2f82ffbc8303be67ad3ceb1",
+    "adaptedSha256": "e1d33cfc249784c849b84cfa553b0b089dcfb944af67b473fbec039ff7e0fa1a"
+  },
+  {
+    "file": "scripts/panel-validation-isolation.mjs",
+    "originalSha256": "f073ae9e073f63568705af7f978660eeac881c302eeb279d5578b0264f97760f",
+    "adaptedSha256": "d154f47f990a4c7d6bfabcfd4a47ac4f0a9b502b2650979f767db3c640232ed8"
+  },
+  {
+    "file": "scripts/panel-validation-snapshot.php",
+    "originalSha256": "7875f540f66815231c1cbf93e7955c571552b77b1afb7a5cba209fb0e67747bd",
+    "adaptedSha256": "1f1397d5f629258ed06c8ee14337924b59d80d45c637560b1b323bf860cc5d4a"
+  }
+]

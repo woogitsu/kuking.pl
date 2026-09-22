@@ -75,6 +75,14 @@ final class OdpowiedzDlaZglaszajacego
      */
     public static function skutek(ModerationAction $decyzja): array
     {
+        if ($decyzja->action === ModerationAction::ACTION_TARGET_UNAVAILABLE) {
+            return [
+                'naglowek' => 'Nie mogliśmy ocenić wskazanej treści.',
+                'reszta' => 'W chwili rozpatrywania zgłoszenia nie była już dostępna albo nie udało się jej jednoznacznie odnaleźć. '
+                    .'Nie zapisaliśmy ani nie wykonaliśmy sankcji wobec autora.',
+            ];
+        }
+
         if (in_array($decyzja->action, self::AKCJE_ZDEJMUJACE_TRESC, true)) {
             return [
                 'naglowek' => 'Uznaliśmy Twoje zgłoszenie za zasadne.',

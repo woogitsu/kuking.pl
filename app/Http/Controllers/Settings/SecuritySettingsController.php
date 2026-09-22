@@ -40,6 +40,9 @@ class SecuritySettingsController extends Controller
 
     public function updatePassword(Request $request, CancelEmailChange $anuluj): RedirectResponse
     {
+        // Kontekst ustala obsługiwana akcja, nie wartość przysłana z formularza.
+        $request->merge(['_wiersz' => 'zmiana']);
+
         $data = $request->validate([
             'current_password' => ['required', 'string'],
             'password' => ['required', 'string', 'confirmed', Password::min(10)->uncompromised()],
@@ -56,7 +59,8 @@ class SecuritySettingsController extends Controller
         $user = $request->user();
 
         if (! Hash::check($data['current_password'], $user->password)) {
-            return back()->withErrors(['current_password' => 'To hasło jest nieprawidłowe.']);
+            return back()->withErrors(['current_password' => 'Wpisz poprawne obecne hasło.'])
+                ->withInput(['_wiersz' => 'zmiana']);
         }
 
         // Jedna nazwana droga do hasła — `password` jest poza `$fillable`.
@@ -94,6 +98,8 @@ class SecuritySettingsController extends Controller
 
     public function logoutOtherSessions(Request $request): RedirectResponse
     {
+        $request->merge(['_wiersz' => 'wyloguj']);
+
         $data = $request->validate([
             'password' => ['required', 'string'],
         ], [
@@ -103,7 +109,8 @@ class SecuritySettingsController extends Controller
         $user = $request->user();
 
         if (! Hash::check($data['password'], $user->password)) {
-            return back()->withErrors(['password' => 'To hasło jest nieprawidłowe.']);
+            return back()->withErrors(['password' => 'Wpisz poprawne hasło, żeby wylogować inne urządzenia.'])
+                ->withInput(['_wiersz' => 'wyloguj']);
         }
 
         $user->invalidateSessions($request->session()->getId());

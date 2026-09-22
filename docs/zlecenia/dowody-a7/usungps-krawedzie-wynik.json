@@ -1,0 +1,24 @@
+{
+  "generated_at_utc": "2026-09-09T16:47:02+00:00",
+  "php": "8.4.24",
+  "usungps_sha256": "54d91d53eed90f34287ca1591448e6adcb42c45fce4e19bbb41a7c87202b8672",
+  "cases": {
+    "png_exif_after_idat": {"gps_removed": true, "same_length": true, "all_crc_ok": true, "readable": true},
+    "webp_odd_chunk_before_exif": {"gps_removed": true, "same_length": true, "readable": true},
+    "jpeg_non_exif_app1_before_exif": {"gps_removed": true, "xmp_preserved": true, "same_length": true, "readable": true},
+    "png_big_endian_tiff": {"gps_removed": true, "same_length": true, "all_crc_ok": true},
+    "png_exif_and_ztxt_known_limit": {"exif_gps_removed": true, "ztxt_decodes": true, "ztxt_still_contains_lat": true, "ztxt_still_contains_lon": true},
+    "png_truncated_exif_chunk": {"threw": false, "changed": false, "same_length": true},
+    "png_declared_length_beyond_file": {"threw": false, "unchanged": true},
+    "png_tiff_offset_crosses_into_idat": {
+      "before_all_crc_ok": true,
+      "before_readable": true,
+      "idat_first_24_changed": true,
+      "idat_first_24_zeroed": true,
+      "after_all_crc_ok": false,
+      "after_idat_crc_ok": false,
+      "after_readable": false,
+      "same_length": true
+    }
+  }
+}

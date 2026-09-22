@@ -231,6 +231,46 @@ class DalszeWynikiWyszukiwaniaTest extends TestCase
         }
     }
 
+    /**
+     * Issue #738 — `q` MUSI być tekstem, zanim trafi do `trim((string) ...)`.
+     * `/szukaj?q[]=pierogi` (i zagnieżdżona wersja `q[nazwa]=pierogi`) dają
+     * tablicę: bez straży typu PHP rzuca ostrzeżeniem „Array to string
+     * conversion", które w tym repo staje się wyjątkiem i kończy się 500 na
+     * publicznym, niezalogowanym endpoincie. Kontrola ujemna: przywrócenie
+     * gołego `trim((string) $request->query('q', ''))` sprawia, że ten test
+     * oblewa odpowiedzią 500 zamiast 200.
+     */
+    public function test_tablicowe_q_nie_daje_bledu_500_i_nie_uruchamia_wyszukiwania(): void
+    {
+        foreach ([
+            ['q' => ['pierogi']],
+            ['q' => ['nazwa' => 'pierogi']],
+            ['q' => [['pierogi']]],
+        ] as $parametry) {
+            $response = $this->get(route('search').'?'.http_build_query($parametry))->assertOk();
+            // Tablicowe q jest równoważne brakowi q — pusty ekran „Szukaj",
+            // nie fikcyjna fraza „Array" i żadne wyszukiwanie w bazie.
+            $this->assertSame('', $response->viewData('phrase'));
+            $this->assertFalse($response->viewData('zaKrotka'));
+        }
+    }
+
+    /**
+     * Kontrola dodatnia do testu wyżej: zwykła fraza (w tym z polskim znakiem)
+     * nadal działa normalnie i nie jest myląco traktowana jak tablica.
+     */
+    public function test_zwykla_fraza_i_polskie_znaki_w_q_dzialaja_normalnie(): void
+    {
+        $author = $this->user('autor_q_tekstowego');
+        $recipe = Recipe::factory()->create(['author_id' => $author->id, 'title' => 'Żurek']);
+
+        foreach (['Żurek', 'zurek'] as $fraza) {
+            $response = $this->get(route('search', ['q' => $fraza]))->assertOk();
+            $this->assertSame($fraza, $response->viewData('phrase'));
+            $this->assertSame([$recipe->id], $response->viewData('recipes')->modelKeys());
+        }
+    }
+
     /** @return list<string> */
     private function links(string $html, string $label): array
     {

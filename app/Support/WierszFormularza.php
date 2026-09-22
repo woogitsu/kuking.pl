@@ -55,9 +55,29 @@ final class WierszFormularza
      */
     public static function jestAktywny(int|string $wiersz): bool
     {
+        $aktywny = self::aktywnyWiersz();
+
+        return $aktywny !== null && $aktywny === (string) $wiersz;
+    }
+
+    /**
+     * Identyfikator wiersza, który naprawdę wrócił z błędem — albo `null`,
+     * gdy żaden formularz w pętli nie został wysłany.
+     *
+     * `_wiersz` to zwykłe pole HTML: nic nie stoi na przeszkodzie, żeby
+     * żądanie przesłało je jako tablicę (`_wiersz[]=coś`), a kontroler,
+     * który waliduje `collection_id` czy `note`, nie ma powodu walidować
+     * ukrytego pola pomocniczego. `old(self::POLE)` wraca wtedy z sesji
+     * jako `array`, a `(string) $tablica` rzuca `TypeError` w PHP 8 — co
+     * wywalało render CAŁEJ strony po nieudanej walidacji (issue #745)
+     * zamiast pokazać błąd przy polu. Wartość nieskalarna nie pasuje do
+     * ŻADNEGO wiersza — traktujemy ją jak brak `_wiersz`.
+     */
+    public static function aktywnyWiersz(): ?string
+    {
         $aktywny = old(self::POLE);
 
-        return $aktywny !== null && (string) $aktywny === (string) $wiersz;
+        return is_scalar($aktywny) ? (string) $aktywny : null;
     }
 
     /**

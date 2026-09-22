@@ -1,0 +1,16 @@
+{
+  "nazwa": "Wejście do pytań bez odpowiedzi",
+  "plik": "resources/views/pages/questions/index.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "3b81c83222cf957e36359d7160e26bb3",
+  "md5_po_mutacji": "c737219298994a7471dc8212d92cc6dc",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "DOMElement|Czeka na odpowiedź",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:36:02Z"
+}

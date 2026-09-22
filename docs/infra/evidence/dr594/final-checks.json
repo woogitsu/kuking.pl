@@ -1,0 +1,14 @@
+{
+  "dr594-pomiar.py": "syntax OK",
+  "dr594-sprawdz.py": "syntax OK",
+  "dr594-kontrole.sh": "syntax OK",
+  "kuking_flota_gpt_dr_baza_source": {
+    "generator_exit": 3,
+    "expected_refusal": true
+  },
+  "proba_odtworzenia_gpt_dr_baza_20260920t173937z": {
+    "generator_exit": 3,
+    "expected_refusal": true
+  },
+  "null_address_refused": true
+}
