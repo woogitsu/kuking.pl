@@ -1,0 +1,8 @@
+{
+  "identity_before_drop": "proba_odtworzenia_gpt_dr_baza_20260920t173937z|kuking|127.0.0.1|55439",
+  "restored_database_removed": true,
+  "baseline_and_corrupted_targets_absent": true,
+  "source_retained": "kuking_flota_gpt_dr_baza_source",
+  "artifact_directory": "/home/mateusz/flota/gpt-dr-baza-artifacts/20260920T173937Z",
+  "reason": "Synthetic source and encrypted local archive retained for repeat measurement; restored target removed after verification."
+}

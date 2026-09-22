@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Feed\HeroKolaz;
+use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\HeroPick;
 use App\Models\Media;
 use App\Models\Post;
@@ -188,6 +189,102 @@ class KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest extends TestCase
         [, $zdjecie] = $this->wpisZeZdjeciem($autor, ['visibility' => Post::VISIBILITY_FOLLOWERS]);
 
         $this->assertSame([], app(HeroKolaz::class)->dopuszczZdjecia([(string) $zdjecie->getKey()]));
+    }
+
+    /**
+     * ZAPOWIEDŹ PRZEPISU NIE MA CZYM WEJŚĆ DO KOLAŻU — granica ZMIERZONA,
+     * a nie założona (przegląd po #941).
+     *
+     * Kolaż filtruje wpisy bez `Post::scopeZWidocznymPrzepisem()`, więc
+     * z daleka wygląda jak kolejne miejsce, przez które zapowiedź przepisu
+     * „tylko dla obserwujących" (#368, na stałe `public`) wychodzi do
+     * nieznajomych. Nie wychodzi, i to z dwóch niezależnych powodów:
+     *
+     *  1. Taki wpis powstaje BEZ ani jednego własnego zdjęcia
+     *     (`WpisWskazujacyPrzepis::dopisz()`), a dobór automatyczny pyta
+     *     `whereHas('media', status = ready)` — zapowiedź nie wchodzi już
+     *     do zapasu, z którego kolaż wybiera.
+     *  2. Kolaż rysuje WYŁĄCZNIE `$post->media`, czyli własne zdjęcia wpisu.
+     *     Zdjęcia głównego przepisu nie czyta nigdzie — inaczej niż karta
+     *     w strumieniu (`post-card.blade.php`), która czyta je świadomie.
+     *
+     * Dlatego bramka przepisu byłaby tu warunkiem bez pracy do wykonania,
+     * a ten test pilnuje obu powodów naraz: bramki ZAPISU (panel nie
+     * dopuści zdjęcia przepisu), listy kandydatów w panelu, wyniku
+     * `doKolazu()` i wreszcie tego, co widzi gość na stronie powitalnej.
+     */
+    public function test_zapowiedz_cudzego_przepisu_nie_wnosi_zdjecia_do_kolazu(): void
+    {
+        $basia = $this->user('basia');
+
+        // KONTROLA DODATNIA: zwykłe publiczne zdjęcie tej samej osoby,
+        // żeby asercje niżej nie przechodziły na pustym kolażu.
+        [, $publiczne] = $this->wpisZeZdjeciem($basia);
+
+        $przepis = app(PublishRecipe::class)->handle(
+            author: $basia,
+            attributes: ['title' => 'Bigos z kapusty kiszonej', 'visibility' => 'followers', 'source_type' => 'own'],
+            ingredients: [['text' => 'kapusta kiszona']],
+            steps: [['instruction' => 'Gotuj powoli, przez trzy godziny.']],
+            publish: true,
+        );
+
+        $zdjeciePrzepisu = Media::factory()->create(['owner_id' => $basia->getKey()]);
+        $przepis->forceFill(['hero_media_id' => $zdjeciePrzepisu->getKey()])->save();
+
+        /** @var Post $zapowiedz */
+        $zapowiedz = Post::query()->where('recipe_id', $przepis->getKey())->firstOrFail();
+
+        $this->assertSame(
+            Post::VISIBILITY_PUBLIC,
+            $zapowiedz->visibility,
+            'Zapowiedź przepisu nie jest publiczna — wtedy odcinałby ją zwykły filtr widoczności wpisu '
+            .'i ten test przechodziłby z niewłaściwego powodu.',
+        );
+        $this->assertTrue(
+            $zapowiedz->media()->doesntExist(),
+            'Zapowiedź przepisu ma własne zdjęcie — wtedy powód 1 z opisu tego testu już nie obowiązuje '
+            .'i kolaż potrzebuje bramki przepisu.',
+        );
+
+        // BRAMKA ZAPISU: gospodarz nie wskaże zdjęcia przepisu w panelu.
+        $this->assertSame(
+            [],
+            app(HeroKolaz::class)->dopuszczZdjecia([(string) $zdjeciePrzepisu->getKey()]),
+            'Panel kolażu dopuścił zdjęcie główne przepisu „tylko dla obserwujących".',
+        );
+
+        // LISTA KANDYDATÓW: zapowiedź nie ma czym być kandydatem.
+        $kandydaci = app(HeroKolaz::class)->kandydaci()->map(fn (Post $wpis) => (string) $wpis->getKey())->all();
+
+        $this->assertNotEmpty($kandydaci, 'Panel nie ma żadnych kandydatów — asercja niżej nie mierzyłaby wtedy niczego.');
+        $this->assertNotContains((string) $zapowiedz->getKey(), $kandydaci);
+
+        // FILTR WYŚWIETLENIA.
+        $wKolazu = $this->idZdjecWKolazu();
+
+        $this->assertContains(
+            (string) $publiczne->getKey(),
+            $wKolazu,
+            'Kolaż nie pokazał nawet zwykłego publicznego zdjęcia — asercje niżej nie mówiłyby wtedy '
+            .'o przepisie, tylko o pustym kolażu.',
+        );
+        $this->assertNotContains(
+            (string) $zdjeciePrzepisu->getKey(),
+            $wKolazu,
+            'Zdjęcie główne przepisu „tylko dla obserwujących" weszło do kolażu na stronie powitalnej.',
+        );
+
+        // I to samo na wyrenderowanej stronie, dla gościa — bo to on ją widzi.
+        $html = $this->get(route('landing'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            $publiczne->url('thumb'),
+            $html,
+            'Strona powitalna nie pokazała nawet publicznego zdjęcia — kontrola dodatnia dla widoku.',
+        );
+        $this->assertStringNotContainsString((string) $zdjeciePrzepisu->getKey(), $html);
+        $this->assertStringNotContainsString('Bigos z kapusty kiszonej', $html);
     }
 
     public function test_szkic_i_wpis_schowany_nie_wchodza_do_kolazu(): void

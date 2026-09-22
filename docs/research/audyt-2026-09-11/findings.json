@@ -1,0 +1,152 @@
+{
+  "repository": "woogitsu/kuking.pl",
+  "commit": "8fa3cc9475c8deda02da819e7b8bb5ad1a8f5648",
+  "date": "2026-09-11",
+  "subagents_used": false,
+  "full_local_application_tests_run": false,
+  "production_modified": false,
+  "findings": [
+    {
+      "id": "A01",
+      "priority": "P1",
+      "title": "Zapis przepisu i historii nie jest atomowy",
+      "files": [
+        "app/Domain/Recipes/Actions/PublishRecipe.php",
+        "app/Domain/Recipes/Actions/SnapshotRecipeVersion.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A02",
+      "priority": "P1",
+      "title": "Eksport może utknąć pomiędzy commitem a wysłaniem zadania",
+      "files": [
+        "app/Http/Controllers/Settings/DataSettingsController.php",
+        "app/Console/Commands/CleanUpDataExports.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A03",
+      "priority": "P2",
+      "title": "Scheduler może uznać niezerowy kod komendy za sukces",
+      "files": [
+        "routes/console.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A04",
+      "priority": "P2",
+      "title": "Niejasny kontrakt edycji publikacji przy publish=false",
+      "files": [
+        "app/Domain/Recipes/Actions/PublishRecipe.php",
+        "app/Domain/Recipes/RecipeStatusTransitions.php",
+        "app/Http/Controllers/RecipeController.php"
+      ],
+      "requires_http_reachability_confirmation": true
+    },
+    {
+      "id": "A05",
+      "priority": "P2",
+      "title": "Snapshot nie obejmuje pełnego stanu przepisu",
+      "files": [
+        "app/Domain/Recipes/Actions/SnapshotRecipeVersion.php",
+        "app/Domain/Recipes/Actions/PublishRecipe.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A06",
+      "priority": "P2",
+      "title": "GET wypisania z newslettera zmienia zgodę",
+      "files": [
+        "app/Http/Controllers/PodsumowanieTygodniaController.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A07",
+      "priority": "P2",
+      "title": "Stary link ponownego zapisu może odwrócić późniejsze wypisanie",
+      "files": [
+        "app/Domain/Digest/OdnosnikWypisania.php",
+        "app/Http/Controllers/PodsumowanieTygodniaController.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A08",
+      "priority": "P2",
+      "title": "Cache PWA zatrzymuje stary manifest i stare zasoby",
+      "files": [
+        "public/sw.js"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A09",
+      "priority": "P2",
+      "title": "Paginacja komentarzy nie ogranicza liczby odpowiedzi",
+      "files": [
+        "app/Http/Controllers/RecipeController.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A10",
+      "priority": "P2",
+      "title": "Kontrola dostępu do obrazu powtarza kosztowne zapytania",
+      "files": [
+        "app/Domain/Media/DostepDoZdjecia.php",
+        "app/Http/Controllers/MediaController.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A11",
+      "priority": "P2",
+      "title": "Sprzątanie eksportów stale wraca do wyczyszczonych rekordów",
+      "files": [
+        "app/Console/Commands/CleanUpDataExports.php"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A12",
+      "priority": "P2",
+      "title": "Testy race nie są blokującą bramką jakości",
+      "files": [
+        ".github/workflows/ci.yml"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A13",
+      "priority": "P3",
+      "title": "README nie odpowiada rzeczywistemu trybowi CI",
+      "files": [
+        "README.md",
+        ".github/workflows/ci.yml"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A14",
+      "priority": "P3",
+      "title": "Sprzeczna deklaracja licencji projektu",
+      "files": [
+        "composer.json",
+        "LICENSE"
+      ],
+      "requires_http_reachability_confirmation": false
+    },
+    {
+      "id": "A15",
+      "priority": "P3",
+      "title": "23 ostrzeżenia częściowego zasłaniania fokusu",
+      "files": [],
+      "requires_http_reachability_confirmation": false
+    }
+  ]
+}

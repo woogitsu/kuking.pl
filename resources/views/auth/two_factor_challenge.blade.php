@@ -57,7 +57,7 @@
         Hierarchię niesie KOLEJNOŚĆ i stan `<details>`, nie zepchnięcie
         w dół warstwy.
     --}}
-    <details class="sekcja-strony mt-5">
+    <details class="sekcja-strony mt-5" @if($errors->has('backup_code')) open @endif>
         <summary class="btn btn-secondary inline-flex">Nie mam dostępu do telefonu</summary>
         <div class="mt-4">
             <p>
