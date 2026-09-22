@@ -95,11 +95,17 @@ use Tests\TestCase;
  * Gwarancja brzmi więc nie „dziś nie ma zaszytego hasła", tylko
  * **„dopisanie go wymaga wpisu do rejestru", czyli wejścia drzwiami**.
  *
- * Jeden wpis rejestru poszedł dalej i jest ZMIERZONY, nie obiecany:
- * `DemoSeeder` zaszywa hasło konta moderatora demo, a powodem jest
- * „ten seeder odmawia na produkcji". To zdanie sprawdza
- * `test_seeder_z_zaszytym_haslem_odmawia_na_produkcji`, odpalając seeder
- * ze środowiskiem przestawionym na `production`.
+ * WPIS O `DemoSeeder` ZNIKŁ 20.09.2026 — I TO JEST WAŻNIEJSZE NIŻ SAM WPIS.
+ * Seeder zaszywał hasło konta moderatora demo, a powodem wpisu było „ten
+ * seeder odmawia na produkcji". Powód był ZMIERZONY, nie obiecany, i mimo to
+ * właściciel kazał hasło wyjąć: bramka jest zabezpieczeniem, a nieobecność
+ * sekretu jest brakiem tego, co można wynieść. Drugie nie wymaga niczyjej
+ * czujności. Hasło bierze się teraz z `KUKING_DEMO_HASLO`, a bez niej jest
+ * losowane na każdy przebieg.
+ *
+ * `test_seeder_z_zaszytym_haslem_odmawia_na_produkcji` ZOSTAJE pod swoją
+ * nazwą, bo mierzy bramkę produkcyjną, a nie hasło — a bramka jest dalej
+ * jedyną rzeczą stojącą między danymi demo a żywym serwisem.
  *
  * ═══════════════════════════════════════════════════════════════════════
  *  PUŁAPKA 2 Z `docs/PULAPKI_TESTOW.md`: SKAN BEZ TRAFIEŃ PRZECHODZI
@@ -196,11 +202,6 @@ class PoswiadczeniaPozaRepozytoriumTest extends TestCase
         'database/factories/UserFactory.php' => [
             'haslo-testowe-123' => 'Fabryka modelu — kod wyłącznie testowy, nie zakłada żadnego konta '
                 .'poza bazą testową.',
-        ],
-        'database/seeders/DemoSeeder.php' => [
-            'haslo-testowe-123' => 'Konta demo (w tym moderator demo) zakładane poza produkcją. Powód JEST ZMIERZONY: '
-                .'`test_seeder_z_zaszytym_haslem_odmawia_na_produkcji` odpala ten seeder ze środowiskiem '
-                .'`production` i sprawdza, że nie powstaje ani jedno konto.',
         ],
     ];
 
@@ -590,10 +591,13 @@ class PoswiadczeniaPozaRepozytoriumTest extends TestCase
 
         $this->assertSame([], $bledy, "Hasła zaszyte w kodzie:\n- ".implode("\n- ", $bledy));
 
-        // Zmierzone 20.09.2026: dwa trafienia, oba w rejestrze. Zero znaczy,
-        // że wyrażenie przestało cokolwiek łapać — patrz kontrola dodatnia.
+        // Zmierzone 20.09.2026: JEDNO trafienie, w rejestrze. Było dwa, aż
+        // właściciel kazał wyjąć hasło z `DemoSeeder` — próg schodzi razem
+        // z rzeczywistością, bo próg trzymany powyżej stanu faktycznego
+        // oblewa zawsze i uczy obchodzenia strażnika, nie pilnowania kodu.
+        // Zero nadal znaczy, że wyrażenie przestało cokolwiek łapać.
         $this->assertGreaterThanOrEqual(
-            2,
+            1,
             $sprawdzonych,
             'Skan nie znalazł ani jednego znanego literału hasła — wyrażenie albo lista plików przestały działać.',
         );
@@ -897,8 +901,22 @@ class PoswiadczeniaPozaRepozytoriumTest extends TestCase
 
         $this->assertArrayHasKey('database/factories/UserFactory.php', $zaszyte);
         $this->assertContains('haslo-testowe-123', $zaszyte['database/factories/UserFactory.php']);
-        $this->assertArrayHasKey('database/seeders/DemoSeeder.php', $zaszyte);
-        $this->assertContains('haslo-testowe-123', $zaszyte['database/seeders/DemoSeeder.php']);
+
+        /*
+         * KONTROLA WSTECZNA PO DECYZJI Z 20.09.2026.
+         *
+         * `DemoSeeder` był tu drugą kotwicą, dopóki zaszywał hasło konta
+         * moderatora demo. Właściciel kazał je wyjąć, więc ta sama linia
+         * zmienia kierunek: pilnuje teraz, że hasło NIE WRÓCIŁO. Kotwica
+         * dodatnia i asercja regresyjna w jednym miejscu, bo jedno wyrażenie
+         * odpowiada na oba pytania — a rozdzielenie ich pozwoliłoby jednemu
+         * zzielenieć po cichu, gdy drugie przestanie działać.
+         */
+        $this->assertArrayNotHasKey(
+            'database/seeders/DemoSeeder.php',
+            $zaszyte,
+            'Hasło wróciło do DemoSeedera — decyzja właściciela z 20.09.2026 mówi, że ma je dawać KUKING_DEMO_HASLO.',
+        );
 
         // KONTROLA Z DRUGIEJ STRONY — wyrażenie liczy LITERAŁ, nie słowo:
         // `TrescZalazkowaSeeder` woła `Hash::make(Str::random(64))` i to

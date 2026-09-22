@@ -1,0 +1,13 @@
+=== r005-p1 (5 rps, 120s), próba 1/2 — 17:49:59Z
+  -> SKAŻONY (zostaje w dowodach), powtarzam
+=== r005-p2 (5 rps, 120s), próba 2/2 — 17:57:17Z
+  -> CZYSTY: 5 rps ok, p50=51 p95=1021.1 p99=1146.5, błąd=0%, w locie szczyt=5, generator=0.02 rdzenia, obce mediana=13.88 max=18.5 rdzeni
+=== r015-p1 (15 rps, 120s), próba 1/2 — 18:01:51Z
+  -> CZYSTY: 15 rps ok, p50=679.6 p95=2750.5 p99=3218.1, błąd=0%, w locie szczyt=45, generator=0.025 rdzenia, obce mediana=11.61 max=17.55 rdzeni
+=== r030-p1 (30 rps, 120s), próba 1/2 — 18:06:54Z
+  -> CZYSTY: 8.37 rps ok, p50=9744.9 p95=19641.6 p99=33359, błąd=72.1%, w locie szczyt=609, generator=0.037 rdzenia, obce mediana=6.34 max=7.2 rdzeni
+=== r060-p1 (60 rps, 120s), próba 1/2 — 18:11:58Z
+  -> CZYSTY: 4.53 rps ok, p50=9337.1 p95=19554.4 p99=56190.7, błąd=92.4%, w locie szczyt=1236, generator=0.079 rdzenia, obce mediana=8.07 max=9.56 rdzeni
+=== r120-p1 (120 rps, 120s), próba 1/2 — 18:17:01Z
+  -> CZYSTY: 0 rps ok, p50=None p95=None p99=None, błąd=100%, w locie szczyt=2474, generator=0.184 rdzenia, obce mediana=7.92 max=9.38 rdzeni
+=== rampa zakończona — 18:22:05Z

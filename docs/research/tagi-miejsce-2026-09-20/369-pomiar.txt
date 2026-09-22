@@ -1,0 +1,28 @@
+### Result
+{"javascript":false,"authenticated":false,"rows":[{"fixtureAuthors":2,"publiclyIdentifiableAuthors":2,"pages":1,"statistic":"Pokaż, co gotujesz — dodaj swój wpis."},{"fixtureAuthors":3,"publiclyIdentifiableAuthors":3,"pages":1,"statistic":"Publicznie: 5 zdjęć od 3 osób."},{"fixtureAuthors":5,"publiclyIdentifiableAuthors":5,"pages":1,"statistic":"Publicznie: 5 zdjęć od 5 osób."},{"fixtureAuthors":10,"publiclyIdentifiableAuthors":10,"pages":1,"statistic":"Publicznie: 10 zdjęć od 10 osób."},{"fixtureAuthors":42,"publiclyIdentifiableAuthors":42,"pages":3,"statistic":"Publicznie: 42 zdjęcia od 42 osób."}]}
+### Ran Playwright code
+```js
+await (async page => {
+  const context=await page.context().browser().newContext({javaScriptEnabled:false});
+  const probe=await context.newPage();
+  const rows=[];
+  try {
+    for(const count of [2,3,5,10,42]) {
+      let url='http://127.0.0.1:8647/tag/pomiar-'+count, pages=0, statistic=null;
+      const authors=new Set();
+      while(url) {
+        const response=await probe.goto(url);
+        if(response.status()!==200)throw Error('HTTP '+response.status());
+        pages++;
+        if(pages===1)statistic=(await probe.locator('[data-tag-public-stats]').innerText()).trim();
+        for(const href of await probe.locator('article.post-card .author-name').evaluateAll(a=>a.map(x=>x.href)))authors.add(href);
+        const more=probe.getByRole('link',{name:'Pokaż więcej wpisów',exact:true});
+        url=await more.count()?await more.getAttribute('href'):null;
+        if(pages>10)throw Error('Paginacja nie kończy się');
+      }
+      rows.push({fixtureAuthors:count,publiclyIdentifiableAuthors:authors.size,pages,statistic});
+    }
+    return {javascript:false,authenticated:false,rows};
+  }finally{await context.close();}
+})(page);
+```

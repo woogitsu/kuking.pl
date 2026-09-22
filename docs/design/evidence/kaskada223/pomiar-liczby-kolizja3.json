@@ -1,0 +1,2342 @@
+[
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/320/bez",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 282,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 196,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 136,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/320/nasze-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 247,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 161,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/320/korzen-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(224px, 100%), 1fr))",
+    "ulSzer": 249,
+    "ulWys": 427,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 249,
+        "wys": 149,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 179,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/320/korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 458,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 246,
+        "wys": 160,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 190,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/320/nasze-140+korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 246,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 229,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 28
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/360/bez",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 183,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 2,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 196,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 136,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 181,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/360/nasze-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 247,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 161,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/360/korzen-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(224px, 100%), 1fr))",
+    "ulSzer": 289,
+    "ulWys": 395,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 265,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 179,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/360/korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 423,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 283,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 190,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/360/nasze-140+korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 286,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 229,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/1280/bez",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 83,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 196,
+        "wys": 83,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 136,
+        "wys": 83,
+        "x": 331,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 483,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/1280/nasze-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 104,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 247,
+        "wys": 104,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 161,
+        "wys": 104,
+        "x": 382,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 559,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/1280/korzen-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(224px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 117,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 265,
+        "wys": 117,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 179,
+        "wys": 117,
+        "x": 406,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 607,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/1280/korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 125,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 283,
+        "wys": 125,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 190,
+        "wys": 125,
+        "x": 426,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 640,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/rosol-babci-zofi/1280/nasze-140+korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 156,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 359,
+        "wys": 156,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 229,
+        "wys": 156,
+        "x": 502,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 755,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/320/bez",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 282,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 185,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 137,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/320/nasze-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 231,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 164,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/320/korzen-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(224px, 100%), 1fr))",
+    "ulSzer": 249,
+    "ulWys": 395,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 249,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 182,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/320/korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 458,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 246,
+        "wys": 160,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 193,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/320/nasze-140+korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 246,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 232,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 28
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/360/bez",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 183,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 2,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 185,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 137,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 182,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/360/nasze-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 231,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 164,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/360/korzen-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(224px, 100%), 1fr))",
+    "ulSzer": 289,
+    "ulWys": 395,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 249,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 182,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/360/korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 423,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 266,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 193,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/360/nasze-140+korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 286,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 232,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/1280/bez",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 83,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 185,
+        "wys": 83,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 137,
+        "wys": 83,
+        "x": 320,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 473,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/1280/nasze-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(160px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 104,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 231,
+        "wys": 104,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 164,
+        "wys": 104,
+        "x": 366,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 546,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/1280/korzen-140",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(224px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 117,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 249,
+        "wys": 117,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 182,
+        "wys": 117,
+        "x": 390,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 594,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/1280/korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 125,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 266,
+        "wys": 125,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 193,
+        "wys": 125,
+        "x": 409,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 626,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "stan-obecny-10rem/chleb-pszenno-zy/1280/nasze-140+korzen-150",
+    "wariant": "stan-obecny-10rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(240px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 156,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 335,
+        "wys": 156,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 232,
+        "wys": 156,
+        "x": 478,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 734,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/320/bez",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 282,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 196,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 136,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/320/nasze-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 247,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 161,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/320/korzen-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(156.8px, 100%), 1fr))",
+    "ulSzer": 249,
+    "ulWys": 427,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 249,
+        "wys": 149,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 179,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/320/korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 458,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 246,
+        "wys": 160,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 190,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/320/nasze-140+korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 320,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 246,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 229,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 28
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/360/bez",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 183,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 2,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 196,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 136,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 181,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/360/nasze-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 247,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 161,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/360/korzen-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(156.8px, 100%), 1fr))",
+    "ulSzer": 289,
+    "ulWys": 395,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 265,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 179,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/360/korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 423,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 283,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 190,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/360/nasze-140+korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 360,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 286,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 229,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/1280/bez",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 83,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 196,
+        "wys": 83,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 136,
+        "wys": 83,
+        "x": 331,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 483,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/1280/nasze-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 104,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 247,
+        "wys": 104,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 161,
+        "wys": 104,
+        "x": 382,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 559,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/1280/korzen-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(156.8px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 117,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 265,
+        "wys": 117,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 179,
+        "wys": 117,
+        "x": 406,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 607,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/1280/korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 125,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 283,
+        "wys": 125,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 190,
+        "wys": 125,
+        "x": 426,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 640,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/rosol-babci-zofi/1280/nasze-140+korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "rosol-babci-zofii",
+    "szerokosc": 1280,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 156,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 260 min Czas",
+        "szer": 359,
+        "wys": 156,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "6 porcji Ilość",
+        "szer": 229,
+        "wys": 156,
+        "x": 502,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Łatwy Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 755,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/320/bez",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 282,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 185,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 137,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/320/nasze-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 262,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 231,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 164,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/320/korzen-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(156.8px, 100%), 1fr))",
+    "ulSzer": 249,
+    "ulWys": 395,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 249,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 182,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/320/korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 458,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 246,
+        "wys": 160,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 193,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/320/nasze-140+korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 320,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 246,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 246,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 232,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 28
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/360/bez",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 183,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 2,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 185,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 137,
+        "wys": 83,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 182,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/360/nasze-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 302,
+    "ulWys": 343,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 231,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 164,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 29,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/360/korzen-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(156.8px, 100%), 1fr))",
+    "ulSzer": 289,
+    "ulWys": 395,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 249,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 182,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 35,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/360/korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 423,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 266,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 193,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/360/nasze-140+korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 360,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 286,
+    "ulWys": 564,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 1,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 286,
+        "wys": 205,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 232,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 37,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/1280/bez",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "bez",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 83,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 185,
+        "wys": 83,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 137,
+        "wys": 83,
+        "x": 320,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 134,
+        "wys": 83,
+        "x": 473,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/1280/nasze-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "nasze-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(112px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 104,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "16px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 231,
+        "wys": 104,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 164,
+        "wys": 104,
+        "x": 366,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 158,
+        "wys": 104,
+        "x": 546,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/1280/korzen-140",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "korzen-140",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(156.8px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 117,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "22.4px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 249,
+        "wys": 117,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 182,
+        "wys": 117,
+        "x": 390,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 176,
+        "wys": 117,
+        "x": 594,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/1280/korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 125,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 266,
+        "wys": 125,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 193,
+        "wys": 125,
+        "x": 409,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 187,
+        "wys": 125,
+        "x": 626,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  },
+  {
+    "klucz": "wymuszone-7rem/chleb-pszenno-zy/1280/nasze-140+korzen-150",
+    "wariant": "wymuszone-7rem",
+    "slug": "chleb-pszenno-zytni-na-zakwasie",
+    "szerokosc": 1280,
+    "pismo": "nasze-140+korzen-150",
+    "display": "flex",
+    "trackList": "repeat(auto-fit, minmax(min(168px, 100%), 1fr))",
+    "ulSzer": 1041,
+    "ulWys": 156,
+    "ulPrzepelnienie": 0,
+    "kolumnWRzedzie": 3,
+    "korzenFont": "24px",
+    "userTextScale": "1.4",
+    "kafle": [
+      {
+        "tekst": "Około 80 min Czas",
+        "szer": 335,
+        "wys": 156,
+        "x": 119,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "1 porcja Ilość",
+        "szer": 232,
+        "wys": 156,
+        "x": 478,
+        "przepelnienie": 0
+      },
+      {
+        "tekst": "Średni Poziom",
+        "szer": 224,
+        "wys": 156,
+        "x": 734,
+        "przepelnienie": 0
+      }
+    ],
+    "przewijaniePoziome": 0
+  }
+]

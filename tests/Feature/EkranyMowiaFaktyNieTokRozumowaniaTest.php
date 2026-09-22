@@ -174,8 +174,9 @@ class EkranyMowiaFaktyNieTokRozumowaniaTest extends TestCase
 
     public function test_potwierdzenie_nie_opowiada_o_tym_jak_to_dziala_u_nas(): void
     {
-        $html = $this->withSession(['kontakt_odpowiedz_na' => 'basia@example.test'])
-            ->get(route('kontakt.potwierdzenie'))
+        $html = $this->followingRedirects()->post(route('kontakt.store'), [
+            'kind' => 'blad', 'message' => 'Nie działa dodawanie zdjęcia.', 'contact_email' => 'basia@example.test',
+        ])
             ->assertOk()
             ->getContent();
 
@@ -191,8 +192,9 @@ class EkranyMowiaFaktyNieTokRozumowaniaTest extends TestCase
 
     public function test_potwierdzenie_nadal_mowi_ze_mamy_wiadomosc_i_gdzie_odpiszemy(): void
     {
-        $html = $this->withSession(['kontakt_odpowiedz_na' => 'basia@example.test'])
-            ->get(route('kontakt.potwierdzenie'))
+        $html = $this->followingRedirects()->post(route('kontakt.store'), [
+            'kind' => 'blad', 'message' => 'Nie działa dodawanie zdjęcia.', 'contact_email' => 'basia@example.test',
+        ])
             ->assertOk()
             ->getContent();
 
@@ -207,7 +209,9 @@ class EkranyMowiaFaktyNieTokRozumowaniaTest extends TestCase
 
     public function test_potwierdzenie_bez_adresu_dalej_mowi_ze_nie_ma_jak_odpisac(): void
     {
-        $html = $this->get(route('kontakt.potwierdzenie'))->assertOk()->getContent();
+        $html = $this->followingRedirects()->post(route('kontakt.store'), [
+            'kind' => 'blad', 'message' => 'Nie działa dodawanie zdjęcia.',
+        ])->assertOk()->getContent();
 
         // Kontrola dodatnia dla drugiej gałęzi warunku (pułapka 3b — każda
         // gałąź potrzebuje własnego sprawdzenia).
