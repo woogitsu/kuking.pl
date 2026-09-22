@@ -77,6 +77,7 @@ class PostMediaController extends Controller
         );
 
         $this->arrange->handle(
+            actor: $request->user(),
             post: $post,
             orderedMediaIds: $przesuniete['kolejnosc'],
             displayMode: $dane['display_mode'] ?? $post->display_mode ?? Post::DISPLAY_NORMAL,
