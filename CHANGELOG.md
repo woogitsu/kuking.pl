@@ -25,6 +25,7 @@
 
 - Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
 - Kafel pokazuje dostępne publiczne zdjęcie wpisu i jego autora. Gdy zdjęcia brakuje, pozostaje czytelna nazwa, licznik wpisów i znak Kuking.
+- Kontrola przed wysłaniem zmian (`scripts/check.sh`) umie puścić baterię testów na kilku rdzeniach — `KUKING_TESTY_ROWNOLEGLE=6` skróciło ją z 310 do 105 sekund przy tych samych 4402 testach. Domyślnie nadal chodzi szeregowo: w pomiarze z 21 września równoległy przebieg wykonał jedną asercję mniej (83721 wobec 83722) i przyczyna pozostaje niewyjaśniona, więc zrównoleglenie jest świadomym wyborem, a nie zachowaniem domyślnym. Nic z tego nie zmienia działania serwisu.
 
 ## Alfa 0.66 — porządek w rozmowach i przygotowanie Poradźcie
 

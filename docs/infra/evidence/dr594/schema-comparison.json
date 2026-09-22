@@ -1,0 +1,15 @@
+{
+  "kuking_flota_gpt_dr_baza_source": {
+    "raw_sha256": "fa6c2d7db026166c2adc56ed1a4cb08d92f54fabeeb6ddf7fee713cf46d2db9c",
+    "normalized_sha256": "8e680228c81ac5d1e3ff379db9ce2d9db33cf94ef03771dc69c9638b7946736a",
+    "literal_array_casts_normalized": 37
+  },
+  "proba_odtworzenia_gpt_dr_baza_20260920t173937z": {
+    "raw_sha256": "8e680228c81ac5d1e3ff379db9ce2d9db33cf94ef03771dc69c9638b7946736a",
+    "normalized_sha256": "8e680228c81ac5d1e3ff379db9ce2d9db33cf94ef03771dc69c9638b7946736a",
+    "literal_array_casts_normalized": 0
+  },
+  "equal_after_literal_cast_normalization": true,
+  "all_literal_casts_equal_in_postgres": true,
+  "normalization": "Only pg_dump random restrict tokens and explicit varchar[] -> text[] literal array casts; no constraints or indexes removed."
+}

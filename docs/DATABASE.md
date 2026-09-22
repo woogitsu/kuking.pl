@@ -17,14 +17,17 @@ za mało — rollback trzeba URUCHOMIĆ, i robią to dwie różne rzeczy:
 
 | Narzędzie | Co mierzy | Ile trwa |
 |---|---|---|
-| `./scripts/proba-wycofania.sh` | podnosi 76 migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej z 76 głębokości z osobna | kilka minut |
+| `./scripts/proba-wycofania.sh` | podnosi KOMPLET migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej głębokości z osobna | kilka minut |
 | `tests/Feature/KazdaMigracjaMaWycofanieTest.php` | że każda migracja MA własny, niepusty `down()`; świadoma pustka musi być zadeklarowana stałą `WYCOFANIE_NIC_NIE_ROBI` z uzasadnieniem | ułamek sekundy, w każdym `php artisan test` |
 
 Skrypt schodzi do zera na PUSTEJ bazie, więc nie mierzy zachowania `down()`
 przy danych — tego pilnują osobne testy odmowy (`CofniecieMigracji*Test`),
 po jednym na strażnika z D-088. Stan zmierzony 12 września 2026: 76 z 76
-migracji wycofuje się i wraca, a schemat po cyklu jest identyczny ze wzorcem
-na każdej głębokości.
+migracji wycofuje się i wraca. **Zmierzone ponownie 19 września 2026 na
+`b34c2973`: 82 z 82**, schemat po cyklu identyczny ze wzorcem na każdej
+z 82 głębokości. Liczba migracji rośnie przy każdej zmianie schematu, więc
+nie ma jej ani w progu skryptu, ani w progu
+`KazdaMigracjaMaWycofanieTest` — obydwa są celowo niższe od stanu dnia.
 
 ## Tabele MVP
 
@@ -35,9 +38,18 @@ Konto:
 - password;
 - status;
 - `role varchar(20) NOT NULL DEFAULT 'user'` — `user` \| `moderator` \|
-  `admin`. **Bez CHECK-a w bazie**: wartości pilnuje `App\Models\User`
-  (stałe `ROLE_*`) i jedyna droga nadania roli, komenda `kuking:nadaj-role`,
-  która zapisuje zmianę do `audit_log` (`user.role_changed`, D-039).
+  `admin`. **CHECK jest w bazie**: `users_role_check`
+  (`CHECK (role IN ('user','moderator','admin'))`), założony razem z tabelą
+  w migracji `0001_01_01_000001_create_users_table`, obok
+  `users_status_check` i `users_text_scale_check`. Do 19 września 2026 stało
+  tu zdanie „**Bez CHECK-a w bazie**" — nieprawdziwe od pierwszego dnia
+  projektu i groźne właśnie dlatego, że nikt go nie sprawdzał: czytelnik
+  planujący czwartą rolę wychodził z założenia, że wystarczy dopisać stałą
+  w PHP, a baza odrzuci mu `INSERT` bez migracji. Wartości pilnuje więc baza,
+  a warstwa PHP dokłada nazwy i drogę: stałe `ROLE_*` w `App\Models\User`
+  i jedyna droga nadania roli, komenda `kuking:nadaj-role`, która zapisuje
+  zmianę do `audit_log` (`user.role_changed`, D-039). Dołożenie roli to
+  **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
@@ -1311,6 +1323,23 @@ To zestaw PHP trim poza NUL, którego PostgreSQL nie dopuszcza w tekście.
 Długość liczymy w znakach, także polskich, nie w bajtach; varchar(180)
 ogranicza również surowy tytuł przed trim. Nie normalizujemy środka tytułu.
 
+**`kind` i `title` SĄ w `Post::$fillable`** — i to `posts_kind_title_check`
+jest powodem, dla którego wolno je tam trzymać. Zakaz z AGENTS.md §7 dotyczy
+kolumn niosących STAN KONTA albo uprawnienie (`users.status`, `users.role`,
+`users.email`); `kind` i `title` niosą treść wpisu, a jedyny sposób, w jaki
+hurtowe przypisanie mogłoby tu zaszkodzić — pytanie bez tytułu albo danie
+z tytułem — baza odrzuca sama, na każdej drodze zapisu. To jest ogólna
+zasada, nie wyjątek dla tej jednej tabeli: **kolumna wolno-przypisywalna
+hurtem to taka, której wszystkie dopuszczalne kombinacje z innymi kolumnami
+pilnuje ograniczenie w bazie.** Powiązania między kolumnami, które o tym
+decydują, są w tym dokumencie wypisane przy każdej tabeli z osobna —
+`comments_single_target_check`, `collection_items_single_target_check`,
+`appeals_appellant_identity_check`, `users_data_erased_at_check`,
+`users_status_expires_at_check`, `recipe_ingredients_no_amount_check`,
+`tags_merged_consistency_check`, trzy CHECK-i celu w `reports` i komplety
+„rozpatrzone/obsłużone" w `appeals`, `contact_messages`
+i `contact_message_replies`.
+
 Dotychczasowe wpisy otrzymują `dish` i NULL bez zmiany treści, widoczności,
 relacji ani `recipe_id`. Nie ma wariantu `kind=recipe` ani drugiej tabeli.
 Konfiguracja `kuking.questions.enabled` (`KUKING_QUESTIONS_ENABLED`, domyślnie
@@ -1668,6 +1697,12 @@ składnika nie. `NULL` jest stanem normalnym.
 weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
 przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
 „ile weźmie".
+
+**Prezentacja (#878, decyzja właściciela z 20 września 2026):** flaga nie
+określa sposobu dozowania. Widok pokazuje wyłącznie tekst składnika i uwagę
+autora, bez automatycznego „do smaku” ani „bez podanej ilości”. Autor wpisuje
+„do smaku”, „ile weźmie” lub inne określenie w nazwie składnika. To zmienia
+dawne kryterium prezentacji z #44, nie CHECK ani znaczenie zapisanej flagi.
 
 Kolumna weszła **przed** funkcją, która jej używa, i to jest jedyny powód,
 dla którego istnieje już teraz: dopisanie jej dziś kosztuje jedną linijkę,
@@ -2405,7 +2440,15 @@ rozstrzyga człowiek.
 Decyzje moderatorów.
 
 **`action varchar(40) NOT NULL`** — co moderator zrobił: `no_action`, `hide`,
-`unhide`, `remove`, `warn`, `suspend`, `ban`. **Bez CHECK-a w bazie**, bo
+`unhide`, `remove`, `warn`, `suspend`, `ban`, albo wewnętrzny wynik
+`target_unavailable`. Ten ostatni nie jest wyborem w formularzu: powstaje
+wyłącznie wtedy, gdy moderator świadomie wybiera „Bez działania”, a wskazany
+cel zniknął lub nie dał się ustalić przed pierwszą decyzją. Wtedy sprawa jest
+zamknięta jako `resolved`, ale nie zapisujemy sankcji ani nie twierdzimy, że
+oceniliśmy treść. Próba `hide`, `remove`, `warn`, `suspend` albo `ban` zostawia
+sprawę otwartą i wraca z błędem, zamiast tworzyć pozorną decyzję.
+
+**Bez CHECK-a w bazie**, bo
 dopuszczalna wartość zależy od `target_type` (konta nie da się „ukryć",
 zdjęcia nie da się „usunąć" osobno od wpisu) — macierz `target_type` →
 dozwolone działania trzyma `App\Models\ModerationAction::DOZWOLONE`, a CHECK
@@ -3347,7 +3390,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
 | `contact_email` | Tylko dla GOŚCIA. Dla zalogowanego zostaje `NULL` — jego adres jest już na koncie, a kopiowanie go tutaj byłoby powielaniem danych osobowych bez powodu (RODO, minimalizacja). Odpowiedni adres podaje `ContactMessage::adresDoOdpowiedzi()`. |
-| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. Kontroler przycina (`NapiszDoNasController::oczyscSciezke()`): adres z cudzego serwisu i fraza wyszukiwania w `?q=` do bazy nie trafiają. |
+| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
 | `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` (przez `num_nonnulls()`) wymusza komplet: status inny niż `new` MUSI mieć oba, a `new` — żadnego. Bez tego retencja nie miałaby od czego liczyć i wiersz zostawałby w bazie na zawsze. |
@@ -3587,6 +3630,124 @@ zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
 nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
+
+### sessions
+
+Tabela sterownika sesji Laravela (`SESSION_DRIVER=database` — wartość
+**domyślna** w `config/session.php`, ta sama w `.env.example`, w `docker/php.ini`
+i w `.railway/railway.ts`). Zakłada ją domyślna migracja frameworka
+`0001_01_01_000001_create_users_table`, nie nasza.
+
+**Jest tu opisana, chociaż nie jest naszą tabelą — i to jest cała rzecz.**
+Do 21.09.2026 `docs/DATABASE.md` nie wspominał o niej ani razu, a leżą w niej
+dane osobowe. Sześć kolejnych audytów prywatności czytało ten dokument jako
+spis danych i żaden nie zauważył, że serwis trzyma adres IP zalogowanego
+człowieka — bo nikt tej tabeli nie „dodawał", więc nikt nie przeszedł ścieżki
+„migracja + test + `docs/DATABASE.md`", która takie rzeczy wyłapuje
+(badanie RZ-01, 21.09.2026). Cisza w dokumencie nie znaczyła, że nic tam nie ma.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | Identyfikator sesji z ciasteczka, `varchar` PRIMARY KEY. Nadaje go framework, nie my. |
+| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. |
+| `ip_address` | **ZGRUBNY adres IP, nie dokładny** (RZ-01). IPv4 bez ostatniego oktetu (`203.0.113.0`), IPv6 obcięty do `/48` (`2001:db8:1234::`). Zapisuje go `App\Support\Sesja\UchwytSesjiBezPelnegoAdresu` — nasze nadpisanie `DatabaseSessionHandler::ipAddress()`, zarejestrowane w `AppServiceProvider`. `varchar(45)` (długość na pełny IPv6) zostaje ze schematu frameworka. |
+| `user_agent` | **Pełny nagłówek `User-Agent`, do 500 znaków** — obcina go framework, nie my. To jest niezły odcisk palca przeglądarki i **dana osobowa**, gdy stoi obok `user_id`. Nie maskujemy go: to osobna decyzja, nie porządek przy okazji. |
+| `payload` | Zawartość sesji (`text`, base64 + `serialize`). Jedyna kolumna, którą obejmuje `SESSION_ENCRYPT` — patrz niżej. |
+| `last_activity` | Uniksowy znacznik czasu (`integer`, nie `timestamptz`), aktualizowany przy każdym zapisie sesji. Po nim liczy się retencja. |
+
+```sql
+CREATE TABLE sessions (
+    id            varchar(255) PRIMARY KEY,
+    user_id       uuid NULL,
+    ip_address    varchar(45) NULL,
+    user_agent    text NULL,
+    payload       text NOT NULL,
+    last_activity integer NOT NULL
+);
+
+CREATE INDEX sessions_user_id_index ON sessions (user_id);
+CREATE INDEX sessions_last_activity_index ON sessions (last_activity);
+```
+
+#### `SESSION_ENCRYPT` NIE zasłania adresu ani przeglądarki
+
+To jest pułapka, na którą łatwo wejść przy czytaniu `.railway/railway.ts`
+(planuje `SESSION_ENCRYPT: "true"`). Flaga szyfruje **wyłącznie kolumnę
+`payload`**. `ip_address` i `user_agent` są dokładane OBOK, jako osobne
+kolumny, przez `DatabaseSessionHandler::addRequestInformation()`, i zostają
+jawne niezależnie od niej. Kto weźmie zrzut tej tabeli, dostaje parę
+(`user_id`, zgrubny adres, pełny `User-Agent`).
+
+#### Dlaczego adres jest zgrubny, a nie dokładny i nie pusty
+
+Po `App\Http\Middleware\NormalizeForwardedFor` `$request->ip()` zwraca
+**prawdziwy adres człowieka** zza łańcucha Cloudflare → Railway → kontener,
+czyli adres domowy albo komórkowy, a nie adres infrastruktury. RZ-01 ustaliło
+przy tym, że **nic tej kolumny nie czyta**: jedyne odwołania do tabeli
+w całym `app/` to dwa `->delete()` po `user_id` i deklaracja nazwy tabeli.
+Nie ma wykrywania przejęcia sesji ani ekranu „Twoje aktywne urządzenia".
+
+Pełna precyzja nie ma więc dziś odbiorcy, a ma koszt. Zgrubny adres zostawia
+tyle, ile wystarcza przy incydencie na ręczne pytanie „czy te sesje szły
+z jednego miejsca, czy z pół świata"; wyzerowanie kolumny zamknęłoby tę drogę
+bez powrotu i jest osobną decyzją, której nikt nie podjął.
+
+**Uczciwa granica: zamaskowany adres NADAL jest daną osobową**, gdy leży obok
+`user_id` — u operatora, który deleguje abonentowi całe `/48`, ta maska nie
+zabiera nic. Zmiana zmniejsza szkodę przy wycieku; **nie znosi obowiązku
+opisania tego przetwarzania w polityce prywatności**, którego ten dokument nie
+zastępuje i którego nie wolno domknąć zmianą w kodzie.
+
+#### Retencja — twarda, nie loteryjna
+
+`kuking:sprzataj-sesje` (`App\Domain\Compliance\PrzedawnioneSesje`), co noc
+o 05:10: kasuje wiersze bez aktywności od `config('kuking.sessions.retention_days')`
+dni (domyślnie 7), **nigdy jednak krócej niż `SESSION_LIFETIME`** — wiersz
+młodszy niż czas życia sesji należy do sesji ŻYWEJ, a jego skasowanie to
+wylogowanie człowieka w środku pracy.
+
+Do 21.09.2026 kasowała tu wyłącznie loteria frameworka
+(`config/session.php` → `'lottery' => [2, 100]`, czyli `gc()` przy 2% żądań).
+Przy małym ruchu wiersz leżał dłużej niż `lifetime`, bez żadnej gwarantowanej
+górnej granicy — `sessions` była jedyną tabelą z danymi osobowymi bez nocnego
+zadania. **Loteria zostaje włączona obok**, świadomie: dwa mechanizmy o różnych
+trybach awarii (loteria czyści przy ruchu nawet po śmierci harmonogramu,
+zadanie czyści co noc nawet bez ruchu).
+
+#### Czego tu świadomie nie ma i co zostało zrobione z wierszami sprzed zmiany
+
+**Nie ma migracji nadpisującej adresy, które już leżały w tabeli** — i to jest
+decyzja, nie przeoczenie. Powody, w kolejności ważności:
+
+1. **Te wiersze znikają same, bez żadnej destrukcyjnej operacji.**
+   `addRequestInformation()` przepisuje `ip_address` przy KAŻDYM zapisie sesji,
+   więc adres w sesji żywej zostaje zamaskowany przy pierwszym żądaniu po
+   wdrożeniu. Sesja, do której nikt nie wraca, wygasa i zabiera ją
+   `kuking:sprzataj-sesje`. Po okresie retencji nie zostaje ani jeden
+   niezamaskowany adres.
+2. **`down()` takiej migracji nie umiałby nic przywrócić.** `AGENTS.md` wymaga
+   działającego wycofania; migracja nadpisująca dane jest nieodwracalna
+   z definicji, a nieodwracalna migracja udająca odwracalną jest gorsza niż
+   jej brak.
+3. **Kasowanie i nadpisywanie danych na produkcji wymaga osobnej, jawnej zgody
+   właściciela** (zasady floty). Zatwierdzone zostało maskowanie zapisu, nie
+   operacja na istniejących wierszach.
+
+Gdyby właściciel zdecydował inaczej, jest to bezpieczne: jednorazowy
+`UPDATE sessions SET ip_address = …` nikogo nie wylogowuje (kolumny nie czyta
+ani framework, ani nasz kod), ale jest nieodwracalny i dlatego ma być osobną,
+wyraźną decyzją, a nie skutkiem ubocznym tej zmiany.
+
+Nie ma też ekranu „aktywne urządzenia" ani wykrywania przejęcia sesji —
+gdyby kiedyś powstały, będą czytały ZGRUBNY adres i to trzeba wiedzieć przed
+projektowaniem takiego ekranu.
+
+**Rollback.** Ta zmiana **nie dotyka schematu** — nie ma czego wycofywać
+migracją. Wycofanie samego zachowania to zdjęcie rejestracji
+`Session::extend('database', …)` z `AppServiceProvider` (wracają pełne adresy)
+oraz zdjęcie zadania z `routes/console.php` (wraca sama loteria). Adresy
+zamaskowane w międzyczasie **nie wracają** do pełnej postaci i wrócić nie mogą.
+
 
 ## V1 / V2
 

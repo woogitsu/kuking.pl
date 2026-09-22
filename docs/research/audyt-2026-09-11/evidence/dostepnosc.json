@@ -1,0 +1,269 @@
+{
+  "data": "2026-09-11T06:28:51.798Z",
+  "chromium": "153.0.8010.12",
+  "warianty": [
+    "jasny",
+    "ciemny",
+    "tekst 140%",
+    "320 px"
+  ],
+  "naruszen": 0,
+  "blokujacych": 0,
+  "ekranow": 39,
+  "zbadanych": 39,
+  "wyniki": [],
+  "uklad": {
+    "szerokosci": [
+      320,
+      360,
+      414,
+      768,
+      900,
+      1280
+    ],
+    "skale": [
+      null,
+      140,
+      "przegladarka-200"
+    ],
+    "ekranow": 44,
+    "zmierzonych": 44,
+    "przepelnien": 0,
+    "przepelnienia": []
+  },
+  "karuzelaBezJs": {
+    "slajdow": 3,
+    "droga": [
+      1,
+      2,
+      3
+    ],
+    "powrot": [
+      2,
+      1
+    ],
+    "przewinieteTasma": 572,
+    "przewinietaStrona": 0,
+    "dotarloDoKonca": true,
+    "wrocilo": true,
+    "przewijaSieTasmaNieStrona": true
+  },
+  "wyborZdjeciaBezJs": {
+    "krokowTabem": 4,
+    "doszloTabem": true,
+    "etykiet": 1,
+    "display": "block",
+    "visibility": "visible",
+    "obrys": "solid",
+    "gruboscObrysu": 3,
+    "zostajeWDrzewie": true,
+    "jednaEtykieta": true,
+    "widocznyFokusNaObszarze": true
+  },
+  "wyrownanieBelki": {
+    "szerokosci": [
+      1024,
+      1280,
+      1512
+    ],
+    "rozjazdow": 0,
+    "rozjazdy": [],
+    "niespojnychSzerokosci": 0,
+    "niespojneSzerokosci": []
+  },
+  "focusNotObscured": {
+    "szerokosci": [
+      320,
+      360,
+      414
+    ],
+    "skale": [
+      null,
+      140,
+      "przegladarka-200"
+    ],
+    "naruszen": 0,
+    "naruszenia": [],
+    "ostrzezen": 23,
+    "ostrzezenia": [
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / tekst 140%",
+        "nakladka": ".topbar",
+        "kontrolka": "a [aria-label=\"Powiększ zdjęcie: Garnek z rosołem w trakcie gotowania\"]",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / tekst 140%",
+        "nakladka": ".topbar",
+        "kontrolka": "a [aria-label=\"Powiększ zdjęcie: Talerz gotowego rosołu z makaronem\"]",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „A\n        \n            Dodaj zdjęcie teg\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 03:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 02:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 01:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „10 września 2026, 23:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „10 września 2026, 08:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „8 września 2026, 08:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "wpis (przykładowy)",
+        "wariant": "320 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 02:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / tekst 140%",
+        "nakladka": ".topbar",
+        "kontrolka": "a [aria-label=\"Powiększ zdjęcie: Garnek z rosołem w trakcie gotowania\"]",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / tekst 140%",
+        "nakladka": ".topbar",
+        "kontrolka": "a [aria-label=\"Powiększ zdjęcie: Talerz gotowego rosołu z makaronem\"]",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „A\n        \n            Dodaj zdjęcie teg\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 03:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 02:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 01:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „10 września 2026, 23:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „10 września 2026, 08:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „8 września 2026, 08:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "wpis (przykładowy)",
+        "wariant": "360 px / czcionka przeglądarki 200%",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "a „11 września 2026, 02:25\"",
+        "pokrycie": 0.5
+      },
+      {
+        "ekran": "ustawienia profilu",
+        "wariant": "414 px",
+        "nakladka": ".bottom-nav",
+        "kontrolka": "textarea#f-bio „Dwoje dzieci i praca na etacie. Szukam p\"",
+        "pokrycie": 0.25
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "414 px / tekst 140%",
+        "nakladka": ".topbar",
+        "kontrolka": "a [aria-label=\"Powiększ zdjęcie: Garnek z rosołem w trakcie gotowania\"]",
+        "pokrycie": 0.25
+      },
+      {
+        "ekran": "tablica",
+        "wariant": "414 px / tekst 140%",
+        "nakladka": ".topbar",
+        "kontrolka": "a [aria-label=\"Powiększ zdjęcie: Talerz gotowego rosołu z makaronem\"]",
+        "pokrycie": 0.25
+      }
+    ]
+  },
+  "tablicaDnia": {
+    "szerokosci": [
+      1280,
+      1512
+    ],
+    "rozjazdow": 0,
+    "rozjazdy": []
+  },
+  "liczbyProfilu": {
+    "szerokosci": [
+      360,
+      1280,
+      1512
+    ],
+    "rozjazdow": 0,
+    "rozjazdy": []
+  }
+}

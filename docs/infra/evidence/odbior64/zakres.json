@@ -1,0 +1,234 @@
+﻿{
+    "data_odczytu":  "2026-09-20T19:51:17.1794224Z",
+    "baza":  "4c811cc7bff365fb8f86d87eabac93b7738a45cd",
+    "metoda":  "rg -l, Markdown docs/infra i STAN_SESJI*.md w kuking-flota; numery #595/#599/#594/#193/#605/#601 oraz PRODUCTION_SPLIT_SERVICES, jedno dekodowanie, podział usług, harmonogram alarmów; deduplikacja SHA256",
+    "trafione_pliki":  2185,
+    "unikalne_wersje":  45,
+    "wersje":  [
+                   {
+                       "sha256":  "F3A6D40229D17B1BDEE6BD1BC7955CFF3F5C49A9194ADD327D26047E829C9837",
+                       "liczba_kopii":  3,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\_wspolne\\STAN_SESJI_CZESC7.md"
+                   },
+                   {
+                       "sha256":  "E4C93CE830FFF7BEE80E71251F4A4D971D1E769678CA8E886E164819106D7CCD",
+                       "liczba_kopii":  3,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\_wspolne\\STAN_SESJI_CZESC5.md"
+                   },
+                   {
+                       "sha256":  "BBAAD27DC9FDD81BED517E72FED5182147C83123D58422C1117168224F81947E",
+                       "liczba_kopii":  3,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\_wspolne\\STAN_SESJI_CZESC4.md"
+                   },
+                   {
+                       "sha256":  "2071CBA0B898A060EF34157C2C541164C75744C1A27CE081966932EBCB9B36CD",
+                       "liczba_kopii":  3,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\_wspolne\\STAN_SESJI.md"
+                   },
+                   {
+                       "sha256":  "F409359D5696A2F570DCBEE19A4C4FDDD78EAB21EC88773A3F9A52C994291649",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\PRZEKAZANIE_PRAC_OPERACYJNYCH_2026_09_18.md"
+                   },
+                   {
+                       "sha256":  "47E8A80CB1332A29522E67D52910C5B91A2775AD7E4B7DEEF5D021AF203322E4",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\PRZEKAZANIE_PRAC_OPERACYJNYCH_2026_09_17.md"
+                   },
+                   {
+                       "sha256":  "2DD43BE8DE9930A65C9A9079565534165FECE079528C17EBE292591E06F3CD85",
+                       "liczba_kopii":  126,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\POCZTA_URUCHOMIENIE.md"
+                   },
+                   {
+                       "sha256":  "4549011103DFB552E0886DEF574E33D6647FB183FF60FEB5471FC86CE9E5A1E1",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\PLAN_TECHNICZNY_614.md"
+                   },
+                   {
+                       "sha256":  "AFA3017389A77AB1554E34F44CEF842635672A5005078275CDD2FBBE9F6FCF05",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\ODBIOR_JEDNEGO_DEKODOWANIA_601.md"
+                   },
+                   {
+                       "sha256":  "77D27D6BCD1396A9B525BF03AF98A29BC3E63E4A99FFF887669EF89D1EB54F29",
+                       "liczba_kopii":  126,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\MONITORING_BLEDOW.md"
+                   },
+                   {
+                       "sha256":  "1E4C01EC3ED7DF06E013636BFB77CA89E5401B433C20FCB9551064EE41CA1BE5",
+                       "liczba_kopii":  126,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\LOKALIZACJA_DANYCH_R2.md"
+                   },
+                   {
+                       "sha256":  "6FBEDACFA925DD7B08166AE463AAB6020CA5F30F6EECCDDEFC39543EC4703476",
+                       "liczba_kopii":  125,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\KOPIE_I_ODTWORZENIE.md"
+                   },
+                   {
+                       "sha256":  "8C6F97BB2D2FBEDD93FAEB56860669FC4CB0206CC303F9ADF90779AE754B43DC",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\JEDNO_DEKODOWANIE_601.md"
+                   },
+                   {
+                       "sha256":  "CC5FF581722DD7BD9B57E01D2794C2221EF2B16035FC8A77466AF9EB2F3B1529",
+                       "liczba_kopii":  125,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\INFRA_DECISION.md"
+                   },
+                   {
+                       "sha256":  "7561C4655DE7BBFE73DA81D2151610C261BBD9655BC3F18CE5629AF664DBC899",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\evidence\\obciazenie605\\PRZYGOTOWANIE.md"
+                   },
+                   {
+                       "sha256":  "836DAAD4CF5E4FBF43D0CC91F2C1B94DCD440037D28FE6CB8BBC93476A96F144",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\evidence\\obciazenie605\\prog-25mpx-a-podglad.md"
+                   },
+                   {
+                       "sha256":  "1EFD10C7608FB675CD82797D3C25825C5DF79285C0D8D2E22976E71AFE706821",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\evidence\\obciazenie605\\ODTWORZENIE_ZAWIESZENIA.md"
+                   },
+                   {
+                       "sha256":  "8E16F0ECFD49AC0D116D2B93F7837B98CF1FA151C8592CE759359EA4CBF6140E",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\evidence\\obciazenie605\\METODA.md"
+                   },
+                   {
+                       "sha256":  "CB791C0B318AAAC08053058B6237D3548FEB009245E855D83F869D2C813B93EF",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\evidence\\media601\\batch-20260916T145809-db8cb5-report.md"
+                   },
+                   {
+                       "sha256":  "E5BE28339B81310157F8742DA7845B8DE5E3B68839F13C5EF8C0CE1FFDB56371",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\DYSK_UPLOADOW_LIVEWIRE_608.md"
+                   },
+                   {
+                       "sha256":  "3738B3062BC39FF80454191C213D4C679F8870727F0E3670DD08F5FBFE790B7C",
+                       "liczba_kopii":  123,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\DEPLOYMENT_RUNBOOK.md"
+                   },
+                   {
+                       "sha256":  "38F9F3074ADDE572DB8CE0342ABC962CD6AFAAC460259E7456D63CB1547BB7A1",
+                       "liczba_kopii":  127,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-ci-architektura\\docs\\infra\\BRAMKA_R2.md"
+                   },
+                   {
+                       "sha256":  "41A9021C47201D46E99929EB703FEC112E83DAE3810576C2E773710B3913E592",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-analityka-piksel\\docs\\infra\\POCZTA_URUCHOMIENIE.md"
+                   },
+                   {
+                       "sha256":  "9F304FA2C2CA86123AB6403DE409E1E5B12757119263027340E8BC89DD5E6A75",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-dr-baza\\docs\\infra\\KOPIE_I_ODTWORZENIE.md"
+                   },
+                   {
+                       "sha256":  "A3307CE405E6CCADD6B527DB2152DC3200036395DCCEE73AC2D6D1B48639F291",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-dr-zdjecia\\docs\\infra\\LOKALIZACJA_DANYCH_R2.md"
+                   },
+                   {
+                       "sha256":  "09FADCB3651F375EC169A99788A4FB83D9DD61BBEF14539034C1EACBF0010A33",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-dr-zdjecia\\docs\\infra\\KOPIE_I_ODTWORZENIE.md"
+                   },
+                   {
+                       "sha256":  "8F8FCCBFBAC1E0CCA6A59CDFE19E6CDD76E26E8C8F189F495ADC362D75E91C4D",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-dr-baza\\docs\\infra\\evidence\\dr594\\RAPORT.md"
+                   },
+                   {
+                       "sha256":  "0D2F4D6FDA8CE26C9E05D9697DF1AC938CE1732BFCFC3C61584DF5F27EDD0214",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-dr-baza\\docs\\infra\\DR594_RUNBOOK_LOKALNY.md"
+                   },
+                   {
+                       "sha256":  "ECA5EAA7BDF420590FFFA003B055CAAB5E1F06BF2CACA03EDA58328AB783AD7F",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-dr-zdjecia\\docs\\infra\\DR_ZDJEC_617_602.md"
+                   },
+                   {
+                       "sha256":  "F48D45EFE36C7D1563CEC5F6BCA946AE8F9D24A00457FB9B8BE8B82417461D7A",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-cloudflare-cache\\docs\\infra\\INFRA_DECISION.md"
+                   },
+                   {
+                       "sha256":  "9FC112FB72D7E6FB8D839F54BF28B036DEADB57B1C6061C8A378960F325AEA04",
+                       "liczba_kopii":  2,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-cloudflare-cache\\docs\\infra\\DEPLOYMENT_RUNBOOK.md"
+                   },
+                   {
+                       "sha256":  "1B216963B40E7902A5743DD84444289C72148AEE2AF2EE8861F8E6AE5A8B480A",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-pomiar-feedu-i-budzetu\\docs\\infra\\POMIAR_FEEDU_585.md"
+                   },
+                   {
+                       "sha256":  "9F1CB50231A131810D4B3A89079A18DC1BA3CCE5E4BB7967E5CD357A7F514836",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-pomiar-feedu-i-budzetu\\docs\\infra\\ODBIOR_POMIAROW_585_598_2026_09_20.md"
+                   },
+                   {
+                       "sha256":  "BE5E8B170C60183574A083048B190A0563B5BEDD84B87898D79B233FB87C8E2E",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-obciazenie\\docs\\infra\\evidence\\obciazenie605\\2026-09-20-gpt\\WARUNKI_JIT.md"
+                   },
+                   {
+                       "sha256":  "BC72DFD2972BFFE01399F67E690C4D733D82B2936D4BE85B8FBB3322E4962BA6",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-obciazenie\\docs\\infra\\evidence\\obciazenie605\\2026-09-20-gpt\\RAPORT.md"
+                   },
+                   {
+                       "sha256":  "8D4458D60B2697E24A33BEF285FFA3F3D2C3B08417FA4BA87FA831A9256E46AB",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-obciazenie\\docs\\infra\\evidence\\obciazenie605\\2026-09-20-gpt\\ODTWORZENIE_KORPUSU.md"
+                   },
+                   {
+                       "sha256":  "1FB4B749C06FB775B85264EFB7DE541772CE2113EAED4F06D71E265767352652",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-monitoring\\docs\\infra\\MONITORING_ODBIOR_2026_09_20.md"
+                   },
+                   {
+                       "sha256":  "4BBFC438BF45F23FC421CD2BE0DC5B32D849B5363F7010D2C51E5F49B2C92620",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-monitoring\\docs\\infra\\MONITORING_BLEDOW.md"
+                   },
+                   {
+                       "sha256":  "C53D6F9823B4AF61355C2EBF216054C59E0FD9DD1FC90FB60B001CDA6E55FAD8",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-odbior-wdrozen\\docs\\infra\\ODBIOR_WDROZEN_568_601_2026_09_20.md"
+                   },
+                   {
+                       "sha256":  "1ADF47FF3C4AFE4AF55BDF5DAF67A5804AB10ECC838BE44FAEC26C9AAD63DF90",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\prog-postgresa\\docs\\infra\\DEPLOYMENT_RUNBOOK.md"
+                   },
+                   {
+                       "sha256":  "2B6BA803447F0AC6FF6C01F0DDB21DE115C2A7B480C5A402EBF25D6454852BB5",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-rozbicie-uslug\\docs\\infra\\ROZDZIELENIE_ROL_595_600_POMIARY.md"
+                   },
+                   {
+                       "sha256":  "44D1B9A12E8F14B9B24E353942AAC4B6A8D24916C163C9FDA937CB8D69B6BF3A",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-rozbicie-uslug\\docs\\infra\\ROZDZIELENIE_ROL_595_600.md"
+                   },
+                   {
+                       "sha256":  "10C90E347BBE8260B77B264B101D95CFE208F37FCC0D27BDD5CD9788472CD503",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-redis-ha\\docs\\infra\\REDIS_HA_DECYZJE_603_604.md"
+                   },
+                   {
+                       "sha256":  "3B5F40FAAF9409F221394195B8C42FFC37055B50CD90162F2F9D556ABE2A645E",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-harmonogram\\docs\\infra\\INFRA_DECISION.md"
+                   },
+                   {
+                       "sha256":  "359765271F1BB8ECE790FE4B133EA51049429571D579FB1459B9BA32B74BA63F",
+                       "liczba_kopii":  1,
+                       "przyklad":  "C:/Users/matma/Documents/kuking-flota\\gpt-harmonogram\\docs\\infra\\DEPLOYMENT_RUNBOOK.md"
+                   }
+               ]
+}

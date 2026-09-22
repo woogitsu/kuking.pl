@@ -230,13 +230,21 @@ class Sledztwo914PomiarPanoluOdwolanTest extends TestCase
      */
     public function test_bez_wygasniecia_throttla_migawki_sa_identyczne(): void
     {
+        $this->freezeTime();
+
         $admin = $this->admin();
         $autor = $this->user('autor914b');
         $odwolanie = $this->zbudujOdwolanie($autor, $admin);
 
         DB::table('users')->where('id', $admin->getKey())->update(['ostatnio_widziany_at' => now()]);
+        // Bez odświeżenia actingAs przekazałoby trackerowi stare null,
+        // mimo że fixture w bazie jest już wewnątrz okna throttla.
+        $admin->refresh();
 
         $przed = $this->migawkaPelna();
+
+        // Przejście sekundy ujawnia zbędny zapis; nadal nie mija 15 minut.
+        $this->travel(2)->seconds();
 
         $this->actingAs($admin)
             ->from(route('admin.appeals'))
