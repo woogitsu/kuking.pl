@@ -59,11 +59,79 @@ final class SavePostToCollection
         return $collection;
     }
 
-    public function remove(User $user, Post $post): void
+    /**
+     * Wyjęcie wpisu z zeszytu — bliźniak `SaveRecipeToCollection::remove()`.
+     *
+     * Ta sama wada i ta sama naprawa co przy przepisie (issue #775): wiersz
+     * `collection_items` niesie kolumnę `note`, a kasowanie po wszystkich
+     * zeszytach naraz zabierało ją bez ostrzeżenia i bez możliwości odtworzenia.
+     * Uzasadnienie w komplecie stoi przy przepisie — tu nie powtarzamy go
+     * drugi raz, żeby nie rozjechało się między bliźniakami.
+     *
+     * @return list<array{collection_id: string, note: ?string, created_at: ?string}>
+     */
+    public function remove(User $user, Post $post, ?Collection $collection = null): array
     {
-        $user->collections()->each(
-            fn (Collection $collection) => $collection->posts()->detach($post->getKey()),
-        );
+        $zeszyty = $collection !== null
+            ? $user->collections()->whereKey($collection->getKey())->get()
+            : $user->collections()->get();
+
+        $zdjete = [];
+
+        foreach ($zeszyty as $zeszyt) {
+            $wiersz = $zeszyt->posts()->whereKey($post->getKey())->first();
+
+            if ($wiersz === null) {
+                continue;
+            }
+
+            $zdjete[] = [
+                'collection_id' => (string) $zeszyt->getKey(),
+                'note' => $wiersz->pivot->note,
+                'created_at' => $wiersz->pivot->created_at === null
+                    ? null
+                    : (string) $wiersz->pivot->created_at,
+            ];
+
+            $zeszyt->posts()->detach($post->getKey());
+        }
+
+        return $zdjete;
+    }
+
+    /**
+     * Droga powrotu — bliźniak `SaveRecipeToCollection::restore()`.
+     *
+     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     */
+    public function restore(User $user, Post $post, array $zdjete): int
+    {
+        $wrocilo = 0;
+
+        foreach ($zdjete as $pozycja) {
+            $zeszyt = $user->collections()->whereKey($pozycja['collection_id'] ?? null)->first();
+
+            if ($zeszyt === null) {
+                continue;
+            }
+
+            if ($zeszyt->posts()->whereKey($post->getKey())->exists()) {
+                continue;
+            }
+
+            try {
+                $zeszyt->posts()->attach($post->getKey(), [
+                    'note' => $pozycja['note'] ?? null,
+                    'created_at' => $pozycja['created_at'] ?? now(),
+                ]);
+            } catch (UniqueConstraintViolationException) {
+                continue;
+            }
+
+            $wrocilo++;
+        }
+
+        return $wrocilo;
     }
 
     /** Czy ta osoba ma już ten wpis w którymkolwiek ze swoich zeszytów. */

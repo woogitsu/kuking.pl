@@ -321,9 +321,50 @@
                     --}}
                     <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                     @if($isSaved)
+                        {{--
+                            WYJĘCIE MÓWI, SKĄD WYJMUJE (issue #775).
+
+                            Ten formularz wysyłał samo DELETE, bez wskazania
+                            zeszytu — a akcja po drugiej stronie kasowała
+                            przepis ze WSZYSTKICH zeszytów tej osoby. Człowiek
+                            z pięcioma zeszytami klikał „Usuń z zeszytu”
+                            i tracił pięć wierszy razem z notatkami własnymi,
+                            nie widząc nigdzie, że tak się stanie.
+
+                            Są dwa przypadki i różni je to, czy w ogóle jest
+                            co ujawniać:
+
+                             • JEDEN ZESZYT — wiadomo, z którego wyjmujemy,
+                               więc mówimy to wprost i wysyłamy `collection_id`.
+                               Nic poza tym zeszytem nie zostanie ruszone,
+                               nawet gdyby przepis trafił do kolejnego między
+                               narysowaniem strony a kliknięciem;
+
+                             • KILKA ZESZYTÓW — nie wiadomo, o który chodzi,
+                               więc zakres zostaje szeroki, ale STOI NAPISANY
+                               NAD PRZYCISKIEM, a nie dopiero w komunikacie po
+                               fakcie. `aria-describedby` wiąże to zdanie
+                               z przyciskiem, żeby czytnik ekranu przeczytał
+                               je razem z nim, a nie osobno gdzieś wyżej.
+
+                            Napis na przycisku zostaje ten sam w obu gałęziach.
+                            Zakres niosą `collection_id` i zdanie obok, nie
+                            etykieta — dzięki temu ekran zeszytu może nazwać
+                            swój przycisk po swojemu, a ta strona nie musi się
+                            o to spierać.
+                        --}}
+                        @php $zeszytyTegoPrzepisu = $zeszytyZPrzepisem ?? collect(); @endphp
                         <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
                             @csrf @method('DELETE')
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
+                            @if($zeszytyTegoPrzepisu->count() === 1)
+                                <input type="hidden" name="collection_id" value="{{ $zeszytyTegoPrzepisu->first()->id }}">
+                                <p class="pomoc" id="zakres-wyjecia-{{ $recipe->getKey() }}">Masz ten przepis w zeszycie „{{ $zeszytyTegoPrzepisu->first()->name }}”.</p>
+                            @elseif($zeszytyTegoPrzepisu->count() > 1)
+                                <p class="notice" id="zakres-wyjecia-{{ $recipe->getKey() }}">Uwaga: ten przepis leży w {{ $zeszytyTegoPrzepisu->count() }} Twoich zeszytach, a ten przycisk zdejmie go ze wszystkich Twoich zeszytów — razem z notatkami. Po usunięciu pokażemy przycisk „Przywróć do zeszytu”.</p>
+                            @endif
+                            <button class="btn btn-secondary" type="submit"
+                                @if($zeszytyTegoPrzepisu->isNotEmpty()) aria-describedby="zakres-wyjecia-{{ $recipe->getKey() }}" @endif
+                            ><x-ikona nazwa="save" /> Usuń z zeszytu</button>
                         </form>
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
