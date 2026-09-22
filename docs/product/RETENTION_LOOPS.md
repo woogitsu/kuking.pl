@@ -2,6 +2,17 @@
 
 > Rozwija `docs/PRODUCT.md` (North Star = Weekly Active Cooks) i `docs/SEO_ANALYTICS_GROWTH.md`. Zakłada mechaniki z `SOUL.md` i operacje z `COLD_START.md`.
 
+## Pierwszy wkład: zdarzenie jednorazowe (#1009)
+
+Powitanie pierwszego dostępnego wpisu ma jeden utrwalony nośnik na autora.
+Prywatne wpisy nie zużywają pierwszeństwa; followers kwalifikuje się tylko
+wtedy, gdy skonfigurowany gospodarz ma dostęp. Bez gospodarza kwalifikuje
+się publiczny wpis, ale nie wysyłamy alertu. Zmiana gospodarza, usunięcie
+powiadomienia lub wpisu nie rozpoczyna powitania ponownie. Panel nie nadaje
+pierwszeństwa kolejnemu wpisowi po odpowiedzi na pierwszy i nie pokazuje
+utrwalonego nośnika osobie bez dostępu. Odtworzenie historii nie wysyła
+zaległych alertów; brakujących fizycznie danych nie zgadujemy.
+
 ## 1. Zasada: powrót ma mieć powód, nie przypomnienie
 
 Trzy rodzaje powodów powrotu, w kolejności siły:
@@ -111,7 +122,7 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 | **Inwestycja** | Drugi rok tej samej potrawy → „gotujesz to od 2026, 11 razy” → archiwum staje się cenniejsze |
 | **Koszt / kiedy** | M / V1 (archiwum po miesiącach: MVP) |
 | **Miara** | `CTR kafla wspomnienia`, `powtórne wpisy tej samej potrawy`, **`% ukrytych wspomnień`** (jeśli >10%, mechanika jest zbyt nachalna) |
-| **Jak się psuje** | Wspomnienie boli (osoba zmarła, trudny okres). **Obowiązkowo `Ukryj to wspomnienie` + globalny wyłącznik w `/settings/privacy`. Nigdy nie przypominamy cudzych treści.** |
+| **Jak się psuje** | Wspomnienie boli (osoba zmarła, trudny okres). **Obowiązkowo `Ukryj to wspomnienie` + globalny wyłącznik w `/ustawienia/prywatnosc`. Nigdy nie przypominamy cudzych treści.** |
 
 ### Pętla 8 — Pytanie do autora → autorytet → więcej publikacji
 

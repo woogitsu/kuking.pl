@@ -83,8 +83,14 @@ class KolejkaSygnalowFormularzeNiezalezneTest extends TestCase
             ])
             ->assertSessionHasErrors('note');
 
-        $kolejka = $this->actingAs($moderator)->get(route('admin.sygnaly'))->assertOk();
+        // Kolejne żądanie musi odczytać tę samą sesję JSON, jak przeglądarka.
+        $kolejka = $this->withCookie(config('session.cookie'), session()->getId())
+            ->actingAs($moderator)->get(route('admin.sygnaly'))->assertOk();
         $html = (string) $kolejka->getContent();
+
+        $kolejka->assertSee('class="error-summary"', false)
+            ->assertSee('role="alert"', false)
+            ->assertSee('Sprawdź formularz');
 
         // Notatka WRACA dokładnie raz — we WŁASNYM polu drugiej grupy
         // (AGENTS.md §5: poprawne dane nigdy nie znikają, a nawet te za

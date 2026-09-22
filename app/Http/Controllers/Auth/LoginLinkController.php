@@ -218,7 +218,7 @@ class LoginLinkController extends Controller
             // D-056 zabrania zdradzać. Zostaje opis, który jest prawdziwy
             // w obu listach i nie zależy od koloru: JEDEN przycisk.
             'Jeśli na adres '.AdresEmail::maska($adres).' jest konto w Kuking, wysłaliśmy tam '
-            .'wiadomość z jednym przyciskiem — otwórz ją na tym samym telefonie albo komputerze. '
+            .'wiadomość z jednym przyciskiem — możesz ją otworzyć także na innym telefonie albo komputerze. '
             .'Nie ma jej po kilku minutach? Sprawdź folder „Spam”. A jeśli nie masz jeszcze konta, '
             .'załóż je: '.route('register'),
         );

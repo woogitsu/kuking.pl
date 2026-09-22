@@ -28,7 +28,9 @@
     wyrenderuje się wtedy bez stylów — szara, ale w pełni czytelna: nagłówek,
     akapity i link są zwykłym HTML-em. To jest gorszy wygląd, nie utrata treści.
 
-    Zmienne: $tytul, $naglowek, $akapity (lista), $adresPowrotu (opcjonalny).
+    Zmienne: $tytul, $naglowek, $akapity (lista), $adresPowrotu (opcjonalny),
+    $etykietaPowrotu (opcjonalna — domyślnie „Spróbuj jeszcze raz”; przy 4xx
+    powtórzenie tego samego adresu nic nie da i przycisk nie ma tego obiecywać).
 --}}
 @php
     $nonce = \Illuminate\Support\Facades\Vite::cspNonce();
@@ -41,20 +43,27 @@
     <meta name="robots" content="noindex, nofollow">
     <title>{{ $tytul }} — Kuking</title>
     <style @if($nonce) nonce="{{ $nonce }}" @endif>
+        * { box-sizing: border-box; }
+
         body {
             margin: 0;
-            padding: 0;
-            background: #FAF6F0;
-            color: #2B241D;
-            font-family: Georgia, 'Times New Roman', serif;
-            font-size: 19px;
+            padding: 24px 16px;
+            background: #F3F4F1;
+            color: #151714;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", Arial, sans-serif;
+            font-size: 1.125rem;
             line-height: 1.6;
         }
 
         main {
             max-width: 38rem;
             margin: 0 auto;
-            padding: 3rem 1.25rem;
+            padding: clamp(20px, 5vw, 40px);
+            background: #FFFFFF;
+            border: 1px solid #DDE0D8;
+            border-radius: 24px;
+            overflow-wrap: anywhere;
+            box-shadow: 0 8px 24px rgba(21, 23, 20, .05);
         }
 
         .znak {
@@ -63,14 +72,14 @@
             font-size: 1.25rem;
             font-weight: bold;
             letter-spacing: 0.01em;
-            color: #B3401F;
+            color: #BE3025;
         }
 
         h1 {
             margin: 0 0 1.5rem;
             font-size: 2rem;
             line-height: 1.25;
-            color: #2B241D;
+            color: #151714;
         }
 
         p {
@@ -86,17 +95,20 @@
            trafia na nią ktoś już zdenerwowany. */
         .powrot a {
             display: inline-block;
-            padding: 0.9rem 1.75rem;
+            scroll-margin-block: 8px;
+            padding: 14px 20px;
             min-height: 48px;
             box-sizing: border-box;
-            background: #B3401F;
+            background: #BE3025;
             color: #FFFFFF;
             text-decoration: none;
-            border-radius: 8px;
+            border-radius: 14px;
             font-family: Arial, Helvetica, sans-serif;
             font-size: 1.125rem;
             font-weight: bold;
         }
+        .powrot a:hover { background: #9D241B; }
+        .powrot a:focus-visible { outline: 3px solid #155EEF; outline-offset: 4px; }
     </style>
 </head>
 <body>
@@ -113,7 +125,7 @@
 
     @if(! empty($adresPowrotu))
         <p class="powrot">
-            <a href="{{ $adresPowrotu }}">Spróbuj jeszcze raz</a>
+            <a href="{{ $adresPowrotu }}">{{ $etykietaPowrotu ?? 'Spróbuj jeszcze raz' }}</a>
         </p>
     @endif
 

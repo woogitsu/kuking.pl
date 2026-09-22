@@ -1,0 +1,26 @@
+
+  ⨯
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\ZeszytNiedostepneZapisyTest > usuniete miekko tresc…   
+  Expected: Zeszyt kontrolny Ten zeszyt widzisz tylko Ty. W tym zeszycie nic jeszcze nie ma Poszukaj przepisów Usuń ten zeszyt Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu. Tak, usuń ten zeszyt
+
+  To contain: 2 zapisy nie są dla Ciebie dostępne
+
+  at tests/Feature/ZeszytNiedostepneZapisyTest.php:187
+    183▕             1 => '1 zapis nie jest dla Ciebie dostępny',
+    184▕             2 => '2 zapisy nie są dla Ciebie dostępne',
+    185▕             5 => '5 zapisów nie jest dla Ciebie dostępnych',
+    186▕         };
+  ➜ 187▕         $this->assertStringContainsString($expected, $text);
+    188▕         $this->assertStringNotContainsString('W tym zeszycie nic jeszcze nie ma', $text);
+    189▕         foreach ($secrets as $secret) {
+    190▕             $this->assertStringNotContainsString($secret, $text);
+    191▕         }
+
+  1   tests/Feature/ZeszytNiedostepneZapisyTest.php:187
+  2   tests/Feature/ZeszytNiedostepneZapisyTest.php:141
+
+
+  Tests:    1 failed (5 assertions)
+  Duration: 0.95s
+

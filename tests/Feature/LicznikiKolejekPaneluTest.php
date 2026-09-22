@@ -139,7 +139,7 @@ class LicznikiKolejekPaneluTest extends TestCase
         // Nazwę kolejki niesie tekst odnośnika, licznik dokłada resztę zdania:
         // czytnik ekranu czyta całą pozycję jako „Odwołania, 2 czekają".
         $this->assertMatchesRegularExpression(
-            '/Odwołania\s*<span class="badge licznik-kolejki">\s*<span aria-hidden="true">2<\/span>\s*'
+            '/Odwołania(?:<\/span>)?\s*<span class="badge licznik-kolejki">\s*<span aria-hidden="true">2<\/span>\s*'
             .'<span class="visually-hidden">2 czekają<\/span>/u',
             (string) $tresc,
             'Liczba w plakietce musi mieć obok siebie pełny opis dla czytnika ekranu, '

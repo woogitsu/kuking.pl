@@ -1,6 +1,6 @@
 # Analityka produktowa — Kuking.pl
 
-Wszystkie zapytania SQL w tym dokumencie zostały uruchomione i zweryfikowane na prawdziwym `database/schema_mvp.sql` (PostgreSQL, lokalny test z realnymi danymi) — nie są to zgadywane składnie.
+Wszystkie zapytania SQL w tym dokumencie zostały uruchomione i zweryfikowane na prawdziwym `database/reference/schema_mvp.sql` (PostgreSQL, lokalny test z realnymi danymi) — nie są to zgadywane składnie.
 
 ---
 
@@ -116,7 +116,7 @@ Usunięte miękko rekordy (`deleted_at IS NOT NULL`) są wykluczone z `posts`/`r
 
 Reguła „kto się liczy" mieszka w jednym miejscu w kodzie — `App\Domain\Analytics\CookEligibility` — i jest tam, nie tutaj, źródłem prawdy: to SQL niżej jest opisem tamtej klasy, nie odwrotnie.
 
-### 2.2 Zapytanie SQL — WAC tygodniowo (zweryfikowane na `schema_mvp.sql`)
+### 2.2 Zapytanie SQL — WAC tygodniowo (zweryfikowane na `database/reference/schema_mvp.sql`)
 
 ```sql
 WITH wykluczeni_uzytkownicy AS (
@@ -211,7 +211,7 @@ WHERE activity_at >= date_trunc('week', now())
 
 Komenda `php artisan kuking:wac` liczy dokładnie to pierwsze zapytanie (wszystkie tygodnie, opcjonalnie ograniczone do `--tygodnie=N` najnowszych) — `App\Domain\Analytics\WeeklyActiveCooks`.
 
-Obie wersje przetestowane na lokalnej instancji PostgreSQL z realnym `schema_mvp.sql` i przykładowymi wierszami — zwracają poprawne wyniki (3 aktywnych „cooków” w tygodniu testowym dla 3 różnych typów aktywności).
+Obie wersje przetestowane na lokalnej instancji PostgreSQL z realnym `database/reference/schema_mvp.sql` i przykładowymi wierszami — zwracają poprawne wyniki (3 aktywnych „cooków” w tygodniu testowym dla 3 różnych typów aktywności).
 
 **Uwaga operacyjna:** to zapytanie liczy WAC bezpośrednio z Postgresa (nie z PostHog) — bo wszystkie trzy źródła prawdy (`posts`, `recipes`, `cooked_events`) już tam są i to jedyne miejsce ze 100% kompletnością (PostHog może gubić zdarzenia przy błędach sieci/adblockerach po stronie klienta). North Star **nigdy nie powinien zależeć wyłącznie od trackingu klienckiego** — licz go z bazy produkcyjnej (np. nocny job materializujący wynik do tabeli `metrics_weekly_snapshots`, czytany przez dashboard), a PostHog trzymaj do zdarzeń zachowania (lejki, porzucenia, UX), gdzie kompletność 100% nie jest krytyczna.
 
@@ -389,7 +389,7 @@ Zgodnie z `docs/SECURITY_PRIVACY_LEGAL.md` („Minimalizować tracking. Nie wysy
 
 **Tryb bez cookies / Do Not Track:**
 - `respect_dnt: true` w konfiguracji PostHog — użytkownik z nagłówkiem `DNT: 1` nie jest trackowany zdarzeniowo.
-- Tryb cookieless PostHog (`cookieless_mode`) rozważony jako **domyślny** dla ruchu niezalogowanego (strony publiczne: `/`, `/discover`, `/@username`, `/recipes/{slug}`) — pozwala liczyć unikalnych odwiedzających przez prywatność-zachowujący hash po stronie serwerów PostHog, bez potrzeby bannera cookies na stronach czysto publicznych. Po zalogowaniu (produkt wymaga konta do głównych akcji) możliwy pełny tracking zdarzeniowy z jasną informacją w `docs/SECURITY_PRIVACY_LEGAL.md`/polityce prywatności.
+- Tryb cookieless PostHog (`cookieless_mode`) rozważony jako **domyślny** dla ruchu niezalogowanego (strony publiczne: `/`, `/odkryj`, `/@username`, `/przepisy/{slug}`) — pozwala liczyć unikalnych odwiedzających przez prywatność-zachowujący hash po stronie serwerów PostHog, bez potrzeby bannera cookies na stronach czysto publicznych. Po zalogowaniu (produkt wymaga konta do głównych akcji) możliwy pełny tracking zdarzeniowy z jasną informacją w `docs/SECURITY_PRIVACY_LEGAL.md`/polityce prywatności.
 
 **Retencja danych w PostHog:** ustawić politykę retencji zdarzeń surowych (np. 12–14 miesięcy — wystarczające do porównań rok do roku bez nieskończonego gromadzenia), z agregatami (tygodniowe snapshoty WAC, retencji) trzymanymi bezterminowo w Postgresie (nie podlegają tej samej presji minimalizacji, bo są **zagregowane**, nie per-user).
 
@@ -447,5 +447,5 @@ Rekomendacja: zostać przy PostHog (self-hosted, jeśli koszt cloud będzie prob
 ## Źródła
 
 - [How to do cookieless tracking with PostHog](https://posthog.com/tutorials/cookieless-tracking)
-- Pliki wewnętrzne projektu: `docs/SEO_ANALYTICS_GROWTH.md`, `docs/PRODUCT.md`, `docs/SECURITY_PRIVACY_LEGAL.md`, `docs/MEDIA_PIPELINE.md`, `docs/ARCHITECTURE.md`, `database/schema_mvp.sql`
-- Wszystkie zapytania SQL w tym dokumencie: zweryfikowane uruchomieniem na lokalnej instancji PostgreSQL 16 z realnym `schema_mvp.sql` i przykładowymi danymi (środowisko sesji, wrzesień 2026)
+- Pliki wewnętrzne projektu: `docs/SEO_ANALYTICS_GROWTH.md`, `docs/PRODUCT.md`, `docs/SECURITY_PRIVACY_LEGAL.md`, `docs/MEDIA_PIPELINE.md`, `docs/ARCHITECTURE.md`, `database/reference/schema_mvp.sql`
+- Wszystkie zapytania SQL w tym dokumencie: zweryfikowane uruchomieniem na lokalnej instancji PostgreSQL 16 z realnym `database/reference/schema_mvp.sql` i przykładowymi danymi (środowisko sesji, wrzesień 2026)

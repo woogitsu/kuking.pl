@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Route;
 use Illuminate\Testing\TestResponse;
 use ReflectionClass;
 use RuntimeException;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 /**
@@ -23,6 +24,7 @@ use Tests\TestCase;
 final class StronyBleduPoPolskuTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     private const TEKST_WPISU = 'Rosół na niedzielę, z kaczki od sąsiada. Gotował się cztery godziny i wyszedł złoty.';
 
@@ -39,7 +41,13 @@ final class StronyBleduPoPolskuTest extends TestCase
         // Najpierw dowód, że cokolwiek się wyrenderowało.
         $this->assertGreaterThan(500, mb_strlen($odpowiedz->getContent() ?: ''));
 
-        $odpowiedz->assertSee('Nie znaleźliśmy tej strony');
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): to zdanie jest
+        // też `<title>` i `<meta>` tej strony, więc asercja na całej odpowiedzi
+        // przechodziła również po skasowaniu nagłówka widocznego dla człowieka.
+        $this->assertStringContainsString(
+            'Nie znaleźliśmy tej strony',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         // Belka Kuking i droga powrotu — czyli layout serwisu, nie goła strona.
         $odpowiedz->assertSee('Przejdź do treści');
         $odpowiedz->assertSee('Strona główna');
@@ -54,7 +62,15 @@ final class StronyBleduPoPolskuTest extends TestCase
         $odpowiedz = $this->get('/_test/403');
 
         $odpowiedz->assertStatus(403);
-        $odpowiedz->assertSee('Ta strona nie jest dla Ciebie');
+
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1b) — dokładnie
+        // z tego samego powodu co przy 404 wyżej: zdanie z nagłówka jest też
+        // `<title>` tej strony, więc asercja na całej odpowiedzi przechodziła
+        // po skasowaniu `<h1>`. Zmierzone 12.09.2026.
+        $this->assertStringContainsString(
+            'Ta strona nie jest dla Ciebie',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         $this->assertBezAngielskiego($odpowiedz);
     }
 
@@ -65,7 +81,14 @@ final class StronyBleduPoPolskuTest extends TestCase
         $odpowiedz = $this->get('/_test/429');
 
         $odpowiedz->assertStatus(429);
-        $odpowiedz->assertSee('Za dużo prób');
+
+        // Na treści ekranu — „Za dużo prób" jest też `<title>` tej strony
+        // (pułapka 1b, zmierzone 12.09.2026: po skasowaniu `<h1>` asercja
+        // na całej odpowiedzi nadal przechodziła).
+        $this->assertStringContainsString(
+            'Za dużo prób',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         $this->assertBezAngielskiego($odpowiedz);
     }
 
@@ -79,19 +102,31 @@ final class StronyBleduPoPolskuTest extends TestCase
         $odpowiedz = $this->get('/_test/500');
 
         $odpowiedz->assertStatus(500);
-        $odpowiedz->assertSee('Coś się u nas zepsuło');
+
+        // Na treści ekranu — tytuł karty przeglądarki tej strony brzmi tak
+        // samo jak nagłówek (`errors/500.blade.php` podaje jedno i drugie
+        // do `errors/_prosty`), więc asercja na całej odpowiedzi przechodziła
+        // po podmianie samego nagłówka. Zmierzone 12.09.2026.
+        $this->assertStringContainsString(
+            'Coś się u nas zepsuło',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
+
+        // „Czegoś nie ma" zostaje na CAŁYM dokumencie — komunikat wyjątku ma
+        // nie wyjść nigdzie, także w `<title>` czy w `<meta>` (pułapka 1b).
         $odpowiedz->assertDontSee('awaria testowa');
         $this->assertBezAngielskiego($odpowiedz);
     }
 
-    public function test_503_mowi_ze_wrocimy(): void
+    public function test_503_mowi_co_zrobic_bez_obietnicy_terminu(): void
     {
         $widok = $this->view('errors.503', ['exception' => null]);
 
         $tresc = (string) $widok;
 
         $this->assertGreaterThan(200, mb_strlen($tresc));
-        $widok->assertSee('Wrócimy dziś');
+        $this->assertStringContainsString('Spróbuj otworzyć stronę później.', $this->trescEkranu($tresc));
+        $widok->assertDontSee('Wrócimy dziś');
         $this->assertStringNotContainsString('Service Unavailable', $tresc);
         $this->assertStringNotContainsString('Be right back', $tresc);
     }
@@ -117,7 +152,13 @@ final class StronyBleduPoPolskuTest extends TestCase
 
         $this->assertGreaterThan(500, mb_strlen($odpowiedz->getContent() ?: ''));
 
-        $odpowiedz->assertSee('Ta strona była otwarta zbyt długo');
+        // Na treści ekranu — nagłówek 419 jest też `<title>` tej strony
+        // (pułapka 1b, zmierzone 12.09.2026: po podmianie `<h1>` asercja na
+        // całej odpowiedzi nadal przechodziła).
+        $this->assertStringContainsString(
+            'Nie udało się wysłać formularza',
+            $this->trescEkranu((string) $odpowiedz->getContent()),
+        );
         $odpowiedz->assertSee('Twój tekst jest na miejscu');
         $odpowiedz->assertSee('Wyślij jeszcze raz');
 
@@ -207,6 +248,14 @@ final class StronyBleduPoPolskuTest extends TestCase
      *    jedną rzecz, wyłącznie na korzyść właściciela skrzynki: wyłącza
      *    wysyłkę. Droga POWROTNA (`podsumowanie/wracam/*`) świadomie tu nie
      *    wchodzi, bo klika ją człowiek na naszej stronie.
+     *  * `wejdz/facebook/odebranie-dostepu` — powiadomienie „ta osoba
+     *    odebrała nam dostęp" wysyła SERWER FACEBOOKA (pole `Deauthorize
+     *    callback URL` w panelu Meta): bez sesji, bez ciasteczka, bez
+     *    żadnego kontekstu przeglądarki, więc tokenu nie ma skąd wziąć.
+     *    Autentyczność potwierdza PODPIS `signed_request` liczony na
+     *    sekrecie aplikacji i porównywany przez `hash_equals` — czyli
+     *    dowód mocniejszy niż token z sesji, bo nie da się go wytworzyć
+     *    bez sekretu (issue #259, `FacebookDeauthorizeController`).
      */
     public function test_zadna_trasa_poza_wymienionymi_nie_jest_wyjeta_spod_csrf(): void
     {
@@ -222,7 +271,7 @@ final class StronyBleduPoPolskuTest extends TestCase
         $wyjatki = array_values(array_unique([...$wlasne, ...$globalne]));
 
         $this->assertSame(
-            ['_csp', 'podsumowanie/wypisz/*'],
+            ['_csp', 'podsumowanie/wypisz/*', 'wejdz/facebook/odebranie-dostepu'],
             $wyjatki,
             'Ktoś dopisał trasę do wyjątków od CSRF. Jeśli to świadoma decyzja, '
             .'dopisz ją do listy w komentarzu nad tym testem — razem z powodem, '

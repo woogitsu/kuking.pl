@@ -5,12 +5,29 @@
     <p class="mb-5">
         Wybierz rozmiar, przy którym czyta Ci się wygodnie. Ustawienie zapisze się na Twoim koncie —
         będzie takie samo na telefonie, tablecie i komputerze.
+        Poniżej 100% zmniejszamy też odstępy. Przyciski pozostają wygodne do dotknięcia.
     </p>
 
-    <form class="card" method="POST" action="{{ route('settings.accessibility') }}">
+    @php
+        /*
+         * Podpisy idą z konfiguracji (`kuking.text.scale_labels`), a nie
+         * z łańcucha `@if` w Blade. Przy siedmiu rozmiarach ten łańcuch był
+         * nie do przeczytania, a dyrektywa Blade przyklejona do tekstu bez
+         * odstępu w ogóle się nie kompiluje — pułapka, na której już raz
+         * stanęliśmy. Zapasowe `?? $scale.'%'` jest po to, żeby brak podpisu
+         * pokazał się jako liczba, a nie jako pusty wiersz; testu to nie
+         * zastępuje, bo procent w tym miejscu to usterka, tylko widoczna.
+         */
+        $podpisy = (array) config('kuking.text.scale_labels');
+    @endphp
+
+    <form class="panel-formularza" method="POST" action="{{ route('settings.accessibility') }}">
         @csrf @method('PUT')
 
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-text_scale"
+                  @error('text_scale') tabindex="-1" aria-invalid="true" aria-describedby="f-text_scale-error" @enderror>
             <legend class="font-bold mb-3">Rozmiar tekstu</legend>
             <div class="stack-tight">
                 @foreach($scales as $scale)
@@ -23,13 +40,13 @@
                                 Rosół na niedzielę wyszedł złoty.
                             </span>
                             <span class="choice-help">
-                                @if($scale === 100) Zwykły @elseif($scale === 112) Trochę większy @elseif($scale === 125) Duży @else Bardzo duży @endif
+                                {{ $podpisy[$scale] ?? $scale.'%' }}
                             </span>
                         </span>
                     </label>
                 @endforeach
             </div>
-            @error('text_scale')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="text_scale" />
         </fieldset>
 
         <div class="form-actions">
@@ -58,9 +75,12 @@
         się na Twoim koncie, tak samo jak rozmiar tekstu.
     </p>
 
-    <form class="card" method="POST" action="{{ route('theme.update') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('theme.update') }}">
         @csrf
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-theme"
+                  @error('theme') tabindex="-1" aria-invalid="true" aria-describedby="f-theme-error" @enderror>
             <legend class="font-bold mb-3">Wygląd</legend>
             <div class="stack-tight">
                 @foreach($themeOptions as $option)
@@ -72,7 +92,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('theme')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="theme" />
         </fieldset>
 
         <div class="form-actions">
@@ -80,7 +100,7 @@
         </div>
     </form>
 
-    <section class="card mt-8">
+    <section class="ramka-pomocnicza mt-8">
         <h2>Można jeszcze więcej</h2>
         <p class="mb-0">
             Jeśli to wciąż za mało, powiększ całą stronę w przeglądarce:

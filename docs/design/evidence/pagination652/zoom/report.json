@@ -1,0 +1,54 @@
+[
+  {
+    "theme": "light",
+    "first": "wykonania",
+    "second": "komentarze",
+    "url": "http://127.0.0.1:8052/przepisy/zupa-paginacja-652?wykonania=2&komentarze=2",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "screenshot": "light-wykonania-to-komentarze.png",
+    "pass": true
+  },
+  {
+    "theme": "light",
+    "first": "komentarze",
+    "second": "wykonania",
+    "url": "http://127.0.0.1:8052/przepisy/zupa-paginacja-652?komentarze=2&wykonania=2",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "screenshot": "light-komentarze-to-wykonania.png",
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "first": "wykonania",
+    "second": "komentarze",
+    "url": "http://127.0.0.1:8052/przepisy/zupa-paginacja-652?wykonania=2&komentarze=2",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "screenshot": "dark-wykonania-to-komentarze.png",
+    "pass": true
+  },
+  {
+    "theme": "dark",
+    "first": "komentarze",
+    "second": "wykonania",
+    "url": "http://127.0.0.1:8052/przepisy/zupa-paginacja-652?komentarze=2&wykonania=2",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "screenshot": "dark-komentarze-to-wykonania.png",
+    "pass": true
+  }
+]

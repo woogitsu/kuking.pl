@@ -1,0 +1,228 @@
+{
+ "UWAGA": "NIE JEST TO WYNIK POMIAROWY. Kontrola działania przyrządu zdjęta 18.09.2026 ok. 11:30 przy load average 12-15 pochodzącym od CUDZYCH procesów na tej maszynie (self-hosted runner CI, pełne `php artisan test` w worktree Codeksa, pętla kopii Subagenta A, zestawy Playwrighta). Liczb bezwzględnych z tego pliku NIE WOLNO cytować ani porównywać z load581. Wartość tego pliku to dowód, że wszystkie 14 scenariuszy mieszanki działa, oraz KOLEJNOŚĆ kosztu tras — nie ich wydajność.",
+ "seria": "kontrola-pelna",
+ "baza": "http://127.0.0.1:8605",
+ "start": "2026-09-18T09:30:32.393Z",
+ "zadany_rps": 5,
+ "czas_s": 30,
+ "trwanie_s": 30,
+ "razem": {
+  "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+  "zadan": 149,
+  "poprawnych": 149,
+  "porzuconych_przez_limit": 0,
+  "przepustowosc_rps": 4.97,
+  "blad_procent": 0,
+  "p50": 65.6,
+  "p95": 1163.6,
+  "p99": 1361.5
+ },
+ "w_locie_szczyt": 6,
+ "w_locie_mediana": 2,
+ "koszt_generatora": {
+  "cpu_user_s": 0.79,
+  "cpu_system_s": 0.12,
+  "cpu_rdzenie_srednio": 0.03,
+  "maxrss_mb": 80
+ },
+ "endpointy": {
+  "anon_landing": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 8,
+   "poprawnych": 8,
+   "blad_procent": 0,
+   "p50": 439.5,
+   "p95": 474.1,
+   "p99": 474.1,
+   "max": 474,
+   "statusy": {
+    "200": 8
+   }
+  },
+  "anon_profil": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 4,
+   "poprawnych": 4,
+   "blad_procent": 0,
+   "p50": 88.2,
+   "p95": 118.4,
+   "p99": 118.4,
+   "max": 118,
+   "statusy": {
+    "200": 4
+   }
+  },
+  "anon_przepis": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 27,
+   "poprawnych": 27,
+   "blad_procent": 0,
+   "p50": 48.4,
+   "p95": 81.9,
+   "p99": 220.9,
+   "max": 221,
+   "statusy": {
+    "200": 27
+   }
+  },
+  "anon_tag": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 7,
+   "poprawnych": 7,
+   "blad_procent": 0,
+   "p50": 79.6,
+   "p95": 93.1,
+   "p99": 93.1,
+   "max": 93,
+   "statusy": {
+    "200": 7
+   }
+  },
+  "anon_wpis": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 7,
+   "poprawnych": 7,
+   "blad_procent": 0,
+   "p50": 40.5,
+   "p95": 61.3,
+   "p99": 61.3,
+   "max": 61,
+   "statusy": {
+    "200": 7
+   }
+  },
+  "komentarz": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 8,
+   "poprawnych": 8,
+   "blad_procent": 0,
+   "p50": 38.9,
+   "p95": 57.3,
+   "p99": 57.3,
+   "max": 57,
+   "statusy": {
+    "302": 8
+   }
+  },
+  "szukaj": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 17,
+   "poprawnych": 17,
+   "blad_procent": 0,
+   "p50": 557,
+   "p95": 896.5,
+   "p99": 896.5,
+   "max": 896,
+   "statusy": {
+    "200": 17
+   }
+  },
+  "ugotowalem": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 1,
+   "poprawnych": 1,
+   "blad_procent": 0,
+   "p50": 49.9,
+   "p95": 49.9,
+   "p99": 49.9,
+   "max": 50,
+   "statusy": {
+    "302": 1
+   }
+  },
+  "upload": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 2,
+   "poprawnych": 2,
+   "blad_procent": 0,
+   "p50": 263,
+   "p95": 263,
+   "p99": 263,
+   "max": 263,
+   "statusy": {
+    "302": 2
+   }
+  },
+  "zal_discover": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 9,
+   "poprawnych": 9,
+   "blad_procent": 0,
+   "p50": 540.2,
+   "p95": 686.7,
+   "p99": 686.7,
+   "max": 687,
+   "statusy": {
+    "200": 9
+   }
+  },
+  "zal_feed": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 17,
+   "poprawnych": 17,
+   "blad_procent": 0,
+   "p50": 1039.2,
+   "p95": 1198.9,
+   "p99": 1198.9,
+   "max": 1199,
+   "statusy": {
+    "200": 17
+   }
+  },
+  "zal_feed_str2": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 8,
+   "poprawnych": 8,
+   "blad_procent": 0,
+   "p50": 1163.6,
+   "p95": 1380.9,
+   "p99": 1380.9,
+   "max": 1381,
+   "statusy": {
+    "200": 8
+   }
+  },
+  "zal_zeszyt": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 4,
+   "poprawnych": 4,
+   "blad_procent": 0,
+   "p50": 60.2,
+   "p95": 66.3,
+   "p99": 66.3,
+   "max": 66,
+   "statusy": {
+    "200": 4
+   }
+  },
+  "zdjecie": {
+   "uwaga": "pomiar na głośnej maszynie (load average 12-15 od cudzych procesów) — kontrola działania przyrządu, NIE wynik",
+   "zadan": 30,
+   "poprawnych": 30,
+   "blad_procent": 0,
+   "p50": 46.5,
+   "p95": 60.8,
+   "p99": 88.3,
+   "max": 88,
+   "statusy": {
+    "200": 30
+   }
+  }
+ },
+ "mieszanka": {
+  "anon_landing": 8,
+  "anon_przepis": 14,
+  "anon_wpis": 7,
+  "anon_tag": 4,
+  "anon_profil": 2,
+  "zal_feed": 14,
+  "zal_feed_str2": 4,
+  "zal_discover": 4,
+  "zal_zeszyt": 3,
+  "szukaj": 8,
+  "zdjecie": 25,
+  "komentarz": 4,
+  "ugotowalem": 2,
+  "upload": 1
+ }
+}

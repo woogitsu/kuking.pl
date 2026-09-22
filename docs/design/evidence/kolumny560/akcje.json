@@ -1,0 +1,52 @@
+[
+  {
+    "width": 320,
+    "theme": "light",
+    "lightbox": true,
+    "escapeFocus": true,
+    "readMore": "http://127.0.0.1:8033/wpisy/01a0a39c-dede-71a9-9bb9-c946ec120df7"
+  },
+  {
+    "width": 320,
+    "theme": "dark",
+    "lightbox": true,
+    "escapeFocus": true,
+    "readMore": "http://127.0.0.1:8033/wpisy/01a0a39c-dede-71a9-9bb9-c946ec120df7"
+  },
+  {
+    "width": 1440,
+    "theme": "light",
+    "lightbox": true,
+    "escapeFocus": true,
+    "readMore": "http://127.0.0.1:8033/wpisy/01a0a39c-dede-71a9-9bb9-c946ec120df7"
+  },
+  {
+    "width": 1440,
+    "theme": "dark",
+    "lightbox": true,
+    "escapeFocus": true,
+    "readMore": "http://127.0.0.1:8033/wpisy/01a0a39c-dede-71a9-9bb9-c946ec120df7"
+  },
+  {
+    "width": 320,
+    "noJS": {
+      "cards": 9,
+      "active": false,
+      "columns": "264px",
+      "width": 320,
+      "scroll": 320
+    },
+    "readMore": true
+  },
+  {
+    "width": 1440,
+    "noJS": {
+      "cards": 9,
+      "active": false,
+      "columns": "480px 480px",
+      "width": 1440,
+      "scroll": 1440
+    },
+    "readMore": true
+  }
+]

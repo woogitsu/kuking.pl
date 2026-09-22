@@ -27,8 +27,11 @@ final class PodsumowanieKolejkiAutomatu extends Notification implements ShouldQu
 {
     use Queueable;
 
+    // Stare obiekty kolejki nie zawierają okresu; nie zgadujemy go przy odczycie.
+    private ?int $godzin = null;
+
     /**
-     * @param  int  $nowe  oznaczenia z ostatniej doby
+     * @param  int  $nowe  oznaczenia z okresu podsumowania
      * @param  int  $czekaja  wszystko, co stoi otwarte w kolejce
      * @param  array<string, int>  $wedlugSygnalu  powód (etykieta po polsku) → ile
      */
@@ -36,7 +39,10 @@ final class PodsumowanieKolejkiAutomatu extends Notification implements ShouldQu
         private readonly int $nowe,
         private readonly int $czekaja,
         private readonly array $wedlugSygnalu,
-    ) {}
+        int $godzin = 24,
+    ) {
+        $this->godzin = $godzin;
+    }
 
     /** @return list<string> */
     public function via(object $notifiable): array
@@ -46,10 +52,16 @@ final class PodsumowanieKolejkiAutomatu extends Notification implements ShouldQu
 
     public function toMail(object $notifiable): MailMessage
     {
+        $okres = match ($this->godzin) {
+            null => 'W okresie objętym podsumowaniem',
+            1 => 'W ciągu ostatniej godziny',
+            default => 'W ciągu ostatnich '.$this->godzin.' godzin',
+        };
+
         $list = (new MailMessage)
-            ->subject('Kuking: '.$this->nowe.' '.$this->odmiana($this->nowe).' w kolejce automatu')
+            ->subject('Kuking: nowe oznaczenia automatu ('.$this->nowe.')')
             ->greeting('Dzień dobry.')
-            ->line('W ciągu ostatniej doby automat oznaczył **'.$this->nowe.'** '
+            ->line($okres.' automat oznaczył **'.$this->nowe.'** '
                 .$this->odmiana($this->nowe).' do przejrzenia.');
 
         foreach ($this->wedlugSygnalu as $etykieta => $ile) {
@@ -59,8 +71,7 @@ final class PodsumowanieKolejkiAutomatu extends Notification implements ShouldQu
         $list
             ->line('W kolejce czeka łącznie **'.$this->czekaja.'**.')
             ->action('Otwórz kolejkę automatu', route('admin.sygnaly'))
-            ->line('Wszystkie te treści są w serwisie widoczne normalnie, a ich autorzy '
-                .'o niczym nie wiedzą. Automat niczego nie ukrywa ani nie blokuje.')
+            ->line('Automat sam nie ukrywa treści ani nie blokuje kont.')
             ->salutation('Kuking');
 
         return $list;

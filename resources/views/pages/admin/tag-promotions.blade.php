@@ -15,7 +15,7 @@
 
     <h1>Tagi promowane</h1>
 
-    <p class="lead">
+    <p class="text-lead">
         Ta lista zastępuje dawne Tematy. Nowe konto widzi ją zaraz po
         założeniu, a strona główna układa z niej pierwsze wpisy dla osoby,
         która jeszcze nikogo nie obserwuje. „Temat tygodnia" i sezonowe okazje (Wigilia,
@@ -24,7 +24,7 @@
 
     <x-error-summary />
 
-    <form class="card mb-6" method="POST" action="{{ route('admin.tag-promotions.store') }}">
+    <form class="panel-formularza mb-6" method="POST" action="{{ route('admin.tag-promotions.store') }}">
         @csrf
 
         <x-field
@@ -49,7 +49,9 @@
     @else
         <ol class="stack lista-naga">
             @foreach($promowane as $tag)
-                <li class="card">
+                {{-- `sekcja-strony`, nie `panel-formularza`, mimo pola w środku: notatka
+                     jest nieobowiązkowa, a wypełnienia wymaga formularz wyżej. --}}
+                <li class="sekcja-strony">
                     <div class="flex items-center justify-between gap-3">
                         <strong>{{ $tag->name }}</strong>
                         <a href="{{ route('tags.show', $tag) }}">Zobacz stronę tagu</a>
@@ -58,10 +60,12 @@
                     <form method="POST" action="{{ route('admin.tag-promotions.update', $tag) }}" class="mt-3">
                         @csrf
                         @method('PUT')
+                        <input type="hidden" name="_wiersz" value="{{ $tag->getKey() }}">
 
                         <x-field
                             name="note"
-                            label="Notatka (nieobowiązkowo)"
+                            :wiersz="$tag->getKey()"
+                            label="Notatka"
                             :value="$tag->promotion?->note"
                             help="Np. „Temat tygodnia: rozgrzewające zupy na jesień”."
                         />

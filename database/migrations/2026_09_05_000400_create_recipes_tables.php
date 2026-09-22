@@ -54,7 +54,10 @@ return new class extends Migration
             $table->string('source_type', 20)->default('own');
             $table->text('source_url')->nullable();
 
-            // "Po kim ten przepis" — np. "po mamie, Halinie".
+            // "Od kogo albo skąd masz ten przepis" — np. "od mamy",
+            // "z gazety Przyjaciółka". Wolny tekst, pokazywany DOSŁOWNIE:
+            // żaden widok nie ma prawa dokleić przed nim przyimka, bo odmiany
+            // dowolnego ciągu znaków nie da się policzyć (Recipe::attributionLine()).
             $table->string('source_person', 120)->nullable();
 
             // "Skąd ten przepis" — historia, wspomnienie. Pokazywane PRZED

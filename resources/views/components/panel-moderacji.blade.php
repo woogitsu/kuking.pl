@@ -20,22 +20,22 @@
     i odwołania…") — dopisujemy się do istniejącego nazewnictwa, zamiast
     wymyślać czwarte słowo na to samo miejsce.
 
-    KOLOR: `--color-accent`, ten sam token, którym menu boczne oznacza
-    sekcję „Panel moderacji" (`.side-nav-moderacja-lista`) — jedno
-    oznaczenie, widziane w dwóch miejscach, nie dwa różne.
+    Port #581: nazwę trybu i tarczę zachowujemy, a neutralna powierzchnia
+    i typografia łączą pasek z nową ramą panelu. Czerwień oznacza wybór
+    w nawigacji; alarmy zachowują osobne znaczenie.
 
     UŻYCIE: `<x-panel-moderacji ekran="Zgłoszenia" />` zaraz po otwarciu
     `<x-layout>`, przed `<h1>` ekranu. `<title>` strony dostaje ten sam
     dopisek osobno, przez `title="… — Panel moderacji"` przekazane
     do `<x-layout>` na każdym z tych ekranów.
 --}}
-<div class="panel-pasek">
+<div class="panel-pasek marka-panel-naglowek">
     {{-- Bez `class="…"` na `<x-ikona>`: komponent ma już wpisane na sztywno
          `class="ikona"` w swoim znaczniku, a druga taka atrybucja z
          `$attributes` ląduje w HTML-u jako DRUGI, zduplikowany atrybut
          `class` — przeglądarka honoruje tylko pierwszy i po cichu pomija
          drugi (zmierzone `DOMDocument::getAttribute()`), więc taka klasa
-         nigdy by się nie zastosowała. Kolor akcentu nadaje niżej sam
+         nigdy by się nie zastosowała. Kolor nadaje niżej sam
          `.panel-pasek` — ikona bierze go przez zwykłe dziedziczenie
          `color`/`currentColor`, tak samo jak w `.side-nav-moderacja-lista`. --}}
     <x-ikona nazwa="shield" :rozmiar="22" />

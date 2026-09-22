@@ -1,9 +1,9 @@
 /*
  * Kuking.pl — tokeny systemu designu (Tailwind CSS 4, konfiguracja CSS-first)
  * ---------------------------------------------------------------------------
- * Wszystkie kontrasty kolorów są policzone i udokumentowane w DESIGN_SYSTEM.md
- * (skrypt: agents/ux/contrast.py). Nie zmieniaj wartości hex bez ponownego
- * przeliczenia — zwłaszcza par tekst/tło opisanych w sekcji 1.3 tamtego pliku.
+ * Bieżącą paletę opisuje docs/design/NOWY_STYL.md. Kontrasty par tokenów
+ * sprawdza scripts/kontrast-marki.mjs przy budowaniu assetów. Pomiar w
+ * przeglądarce pozostaje konieczny dla rzeczywiście renderowanych elementów.
  *
  * Ten plik ma zostać zaimportowany jako pierwszy plik CSS aplikacji, np.:
  *   resources/css/app.css:  @import "./tokens.css";
@@ -19,17 +19,17 @@
    ========================================================================== */
 @theme {
   /* --- Kolory: powierzchnie i tekst --- */
-  --color-surface: #FAF6F0;
+  --color-surface: #F3F4F1;
   --color-surface-raised: #FFFFFF;
-  --color-surface-sunken: #F1EBE1;
-  --color-border: #E4DACB;
-  --color-border-strong: #8A7A63;
-  --color-ink: #2B241D;
-  --color-ink-muted: #5C5347;
+  --color-surface-sunken: #ECEEE9;
+  --color-border: #DDE0D8;
+  --color-border-strong: #737A70;
+  --color-ink: #151714;
+  --color-ink-muted: #555E53;
   --color-ink-inverse: #FFFFFF;
   /* Podkład marki: hero, blok „Skąd ten przepis". Nie jest to `--color-brand`
      rozjaśnione — to osobna rola, przeliczona na kontrast. */
-  --color-surface-brand-wash: #F7E9E2;
+  --color-surface-brand-wash: #F9EBE7;
   /* Przyciemnienie pod tekstem leżącym NA zdjęciu. Gradient, nie płaska
      warstwa: przy płaskiej tekst nad jasnym daniem gubi kontrast, a nad
      ciemnym robi się brudny. */
@@ -50,17 +50,17 @@
      odcień jako TŁO przycisku z białym tekstem nie daje 4.5:1 — dlatego przycisk
      primary w dark mode używa osobnego, przyciemnionego --color-brand-solid
      (patrz DESIGN_SYSTEM.md §1.3, wiersz „biały / brand-solid"). */
-  --color-brand: #B3401F;
-  --color-brand-dark: #8C3018;
-  --color-brand-tint: #F5E4DC;
+  --color-brand: #BE3025;
+  --color-brand-dark: #9D241B;
+  --color-brand-tint: #FBE9E5;
   /* Tekst NA --color-brand-tint. Ten token brakował, choć jego odpowiedniki
      istnieją dla akcentu, błędu i sukcesu (--color-*-tint-ink) — i właśnie
      dlatego bieżąca pozycja nawigacji miała w trybie ciemnym kontrast 2.32.
      55 policzonych par tej jednej nie objęło, bo w trybie jasnym była
      poprawna (issue #26). */
-  --color-brand-tint-ink: #8C3018;      /* na brand-tint: 6.67:1 */
-  --color-brand-solid: #B3401F;
-  --color-brand-solid-hover: #8C3018;
+  --color-brand-tint-ink: #9D241B;      /* Kontrast: scripts/kontrast-marki.mjs. */
+  --color-brand-solid: #BE3025;
+  --color-brand-solid-hover: #9D241B;
 
   /* --- Kolory: akcent (odznaki typu „Ugotowałem”) --- */
   --color-accent: #7A5C10;
@@ -122,22 +122,23 @@
      wtedy wiersze. System projektowy v3.1. */
   --leading-title-wiele: 1.3;
 
-  /* --- Spacing (baza 4px) — NIE skalowane przez text-scale, celowo --- */
-  --spacing-1: 0.25rem;   /* 4px */
-  --spacing-2: 0.5rem;    /* 8px */
-  --spacing-3: 0.75rem;   /* 12px */
-  --spacing-4: 1rem;      /* 16px */
-  --spacing-5: 1.25rem;   /* 20px */
-  --spacing-6: 1.5rem;    /* 24px */
-  --spacing-8: 2rem;      /* 32px */
-  --spacing-10: 2.5rem;   /* 40px */
-  --spacing-12: 3rem;     /* 48px */
-  --spacing-16: 4rem;     /* 64px */
-  --spacing-20: 5rem;     /* 80px */
+  /* --- Odstępy: mniejsze ustawienia zagęszczają układ; od 100% baza zostaje --- */
+  --spacing: calc(0.25rem * var(--user-layout-scale, 1));
+  --spacing-1: calc(0.25rem * var(--user-layout-scale, 1));   /* 4px */
+  --spacing-2: calc(0.5rem * var(--user-layout-scale, 1));    /* 8px */
+  --spacing-3: calc(0.75rem * var(--user-layout-scale, 1));   /* 12px */
+  --spacing-4: calc(1rem * var(--user-layout-scale, 1));      /* 16px */
+  --spacing-5: calc(1.25rem * var(--user-layout-scale, 1));   /* 20px */
+  --spacing-6: calc(1.5rem * var(--user-layout-scale, 1));    /* 24px */
+  --spacing-8: calc(2rem * var(--user-layout-scale, 1));      /* 32px */
+  --spacing-10: calc(2.5rem * var(--user-layout-scale, 1));   /* 40px */
+  --spacing-12: calc(3rem * var(--user-layout-scale, 1));     /* 48px */
+  --spacing-16: calc(4rem * var(--user-layout-scale, 1));     /* 64px */
+  --spacing-20: calc(5rem * var(--user-layout-scale, 1));     /* 80px */
   /* 96px. PRZYGOTOWANY, NIEUŻYWANY — pasy strony powitalnej wzięły
      `--spacing-12` i `--spacing-20`. Zostaje, bo paczka v3.1 ma go w skali
      i przy kolejnej przenoszonej regule nie chcemy wpisywać liczby z palca. */
-  --spacing-24: 6rem;
+  --spacing-24: calc(6rem * var(--user-layout-scale, 1));
 
   /* --- Radius --- */
   --radius-sm: 0.5rem;    /* 8px  — plakietki, chipy */
@@ -147,14 +148,22 @@
   --radius-pill: 999px;   /* avatar, tagi okrągłe */
 
   /* --- Cień (barwiony w stronę ink, nie czysta czerń) --- */
-  --shadow-card: 0 1px 2px rgba(43,36,29,.06), 0 6px 16px rgba(43,36,29,.08);
-  --shadow-card-hover: 0 2px 4px rgba(43,36,29,.08), 0 10px 24px rgba(43,36,29,.12);
-  --shadow-popover: 0 8px 24px rgba(43,36,29,.16);
+  --shadow-card: 0 1px 2px rgba(21,23,20,.04), 0 8px 24px rgba(21,23,20,.05);
+  --shadow-card-hover: 0 2px 4px rgba(21,23,20,.06), 0 12px 28px rgba(21,23,20,.09);
+  --shadow-popover: 0 8px 24px rgba(21,23,20,.16);
 
   /* --- Kontrolki: rozmiary minimalne --- */
-  --control-height-min: 3rem;       /* 48px — przyciski, pola, elementy BottomNav */
-  --control-height-touch: 3.75rem;  /* 60px — pozycje BottomNav (zapas ponad minimum) */
+  --control-height-min: 3rem;       /* 48px — przyciski, elementy BottomNav */
+  --control-height-touch: max(48px, calc(3.75rem * var(--user-layout-scale, 1)));  /* 60px — pozycje BottomNav (zapas ponad minimum) */
   --hit-area-min: 2.75rem;          /* 44px — checkbox/radio obszar klikalny */
+
+  /* POLA DO WPISYWANIA — OSOBNE MINIMUM I W PIKSELACH (issue #365).
+     Uzasadnienie obu liczb stoi przy `.field-input` niżej w tym pliku; tu
+     tylko to, co decyduje o jednostce: wysokość pola istnieje dla ekranu
+     i dla palca, a te nie rosną, gdy ktoś powiększy czcionkę w przeglądarce
+     (D-082, D-107). Pismo w polu zostaje typograficzne — `--text-body`. */
+  --pole-wysokosc-min: max(48px, calc(64px * var(--user-layout-scale, 1)));        /* jednowierszowe: 16 px ponad przycisk */
+  --pole-wielowierszowe-min: calc(176px * var(--user-layout-scale, 1)); /* „Napisz kilka słów" — ok. 5 wierszy */
 
   /* --- Czas przejść (system projektowy v3.1) ---------------------------
      Dotąd `150ms` było wklejane wprost w każdą regułę `transition`. Token
@@ -201,14 +210,51 @@
 
      `--container-wide` i `--container-ultra` zostają na razie w pliku, ale
      NIC ich już nie używa — były sufitem, którego układ nigdy nie dotykał.
+
+     ─────────────────────────────────────────────────────────────────────
+     RAMA TO SUFIT OGRANICZONY DOSTĘPNYM OBSZAREM, NIE SAMA LICZBA (#365)
+     ─────────────────────────────────────────────────────────────────────
+     Decyzja właściciela: „zamiast stałe piksele, nie lepiej dać % dostępnego
+     obszaru?". Każda rama liczy się więc tak samo:
+
+         min(sufit, 100% dostępnego obszaru)
+
+     a margines boczny robi wcięcie (`--container-margines` na `.app-body`,
+     `.topbar-inner` i `.site-footer-inner`), więc SZEROKOŚĆ TREŚCI to
+     dokładnie `min(sufit − margines, 100% − margines)`.
+
+     UCZCIWIE O SKUTKU: przy `box-sizing: border-box` i `width: 100%`, które
+     te trzy warstwy mają od #294, jest to zapis tego, co przeglądarka robiła
+     i przedtem — zmierzone 11 września na `/`, `/home` i `/przepisy/…` przy
+     1280 i 1920 px: 0 px różnicy. Zyskiem jest to, że ograniczenie stoi
+     w JEDNYM miejscu i widać je w wartości, a nie wynika z tego, że ktoś
+     pamiętał dopisać `width: 100%`. Sufit da się od dziś podnieść w jednym
+     tokenie (`--sufit-*`), nie w czterech `calc()`.
+
+     CZEGO TA ZMIANA NIE ROBI I DLACZEGO: nie podnosi samego sufitu (1424 px).
+     Nadwyżka szerszego okna nie ma dziś gdzie pójść — trzecia kolumna
+     `.app-body` to SZTYWNE `var(--container-rail)` (kształt tej linii
+     sprawdza `tests/Feature/PanelSzerokiTelefonTest.php`), więc cała
+     nadwyżka wpadłaby w kolumnę środkową, której `.app-main` i tak przycina
+     do 45rem — czyli pustka przeniosłaby się z prawej krawędzi na ŚRODEK
+     strony. Pustkę po prawej zamyka co innego: ekran przepisu, który wreszcie
+     używa kolumny szyny (patrz `.app-body-tresc-z-szyna` w `app.css`).
      ------------------------------------------------------------------- */
-  --container-strona: calc(
+
+  /* Margines boczny ramy — jedna nazwa dla liczby, która stała dotąd jako
+     `--spacing-6` w czterech miejscach (rama, belka, stopka, komunikaty). */
+  --container-margines: var(--spacing-6);   /* 24px */
+
+  --sufit-strona: calc(
     var(--container-sidenav) + var(--spacing-8) + var(--container-content)
-    + 2 * var(--spacing-6)
+    + 2 * var(--container-margines)
   );                           /* 1040px — dwie kolumny (64rem–80rem) */
-  --container-strona-z-szyna: calc(
-    var(--container-strona) + var(--spacing-8) + var(--container-rail)
-  );
+  --container-strona: min(var(--sufit-strona), 100%);
+
+  --sufit-strona-z-szyna: calc(
+    var(--sufit-strona) + var(--spacing-8) + var(--container-rail)
+  );                           /* 1424px */
+  --container-strona-z-szyna: min(var(--sufit-strona-z-szyna), 100%);
 
   /* Ta sama liczba pod nazwą z systemu projektowego v3.1. Reguły przeniesione
      z paczki mówią `--container-strona-szeroka`; nie przepisujemy ich, bo
@@ -218,9 +264,45 @@
      nie używa. Zostaje na wejście kolejnych — usunięcie go i dopisanie za
      tydzień to ta sama praca dwa razy. */
   --container-strona-szeroka: var(--container-strona-z-szyna);                           /* 1424px — trzy kolumny (od 80rem) */
-  --container-strona-solo: calc(
-    var(--container-content) + 2 * var(--spacing-6)
-  );                           /* 768px — gość: bez nawigacji i bez szyny */
+
+  --sufit-strona-solo: calc(
+    var(--container-content) + 2 * var(--container-margines)
+  );                           /* 768px — gość na ekranie BEZ szyny */
+  --container-strona-solo: min(var(--sufit-strona-solo), 100%);
+
+  /* 1152px — gość na ekranie Z SZYNĄ (D-122). Gość nie ma nawigacji bocznej,
+     więc jego szeroki układ to dwie kolumny, nie trzy: treść + prawa szyna.
+     Liczone z tych samych składników co `--container-strona-z-szyna`, tylko
+     bez `--container-sidenav` i bez jednego odstępu — 720 + 32 + 352 + 2×24. */
+  --sufit-strona-solo-z-szyna: calc(
+    var(--sufit-strona-solo) + var(--spacing-8) + var(--container-rail)
+  );
+  /* `calc(min(…))`, a nie samo `min(…)`: ta rama ma być LICZONA ze składników,
+     a nie wpisana liczbą — pilnuje tego `tests/Feature/SzynaGosciaTest.php`.
+     `calc()` jest tu opakowaniem, nie działaniem; wartość jest ta sama, co
+     w trzech ramach wyżej. */
+  --container-strona-solo-z-szyna: calc(
+    min(var(--sufit-strona-solo-z-szyna), 100%)
+  );
+
+  /* PANEL MODERACJI MA WŁASNĄ RAMĘ — I TO JEST JEDYNA RAMA, KTÓREJ SUFIT
+     NIE JEST KOLUMNĄ DO CZYTANIA (zgłoszenie właściciela, 11 września:
+     „dla admina i moderatora jest wąskie, przez co informacje trzeba
+     przewijać, zrób dla admina i moderatora 100% szerokości").
+
+     Reguła „45rem na kolumnę tekstu" istnieje po to, żeby wiersz dało się
+     przeczytać. Tabela kont ma siedem kolumn i nie jest wierszem tekstu:
+     zwężona nie zyskuje nic, a traci kolumnę „Stan konta", po którą moderator
+     w ogóle na tę listę wchodzi.
+
+     Sufit w PIKSELACH, nie w `rem` (D-082, D-107): to jest liczba dla EKRANU,
+     nie dla pisma — w `rem` podwoiłaby się razem z korzeniem przy czcionce
+     przeglądarki 200%, a monitor od tego nie urósł. 1920 px to najszerszy
+     ekran, na którym ten panel realnie stoi; powyżej wiersz tabeli przestaje
+     się skanować wzrokiem od lewej do prawej. Margines boczny robi wcięcie
+     `.app-body`, więc „100%" nie znaczy „przyklejone do krawędzi". */
+  --sufit-panel: 1920px;
+  --container-panel: min(var(--sufit-panel), 100%);
 }
 
 /* =============================================================================
@@ -250,21 +332,21 @@
    ========================================================================== */
 :root[data-theme="dark"],
 .blok-ciemny {
-  --color-surface: #1E1A16;
-  --color-surface-raised: #2A241E;
-  --color-surface-sunken: #14110E;
-  --color-border: #382F27;
-  --color-border-strong: #8C7D68;
-  --color-ink: #F5EFE6;
-  --color-ink-muted: #C9BEB0;
+  --color-surface: #151714;
+  --color-surface-raised: #222620;
+  --color-surface-sunken: #10120F;
+  --color-border: #373D34;
+  --color-border-strong: #929A8C;
+  --color-ink: #F4F5F1;
+  --color-ink-muted: #CBD0C6;
   --color-ink-inverse: #FFFFFF;
 
-  --color-brand: #F2986A;
-  --color-brand-dark: #A63F1F;
-  --color-brand-tint: #3A2418;
-  --color-brand-tint-ink: #F2986A;   /* na brand-tint: 6.55:1 */
-  --color-brand-solid: #C1502A;
-  --color-brand-solid-hover: #A63F1F;
+  --color-brand: #FF9586;
+  --color-brand-dark: #A92B21;
+  --color-brand-tint: #3C2722;
+  --color-brand-tint-ink: #FFAA9E;   /* Kontrast: scripts/kontrast-marki.mjs. */
+  --color-brand-solid: #C83B2E;
+  --color-brand-solid-hover: #A92B21;
 
   --color-accent: #E3B341;
   --color-accent-tint: #E3B341;
@@ -284,7 +366,7 @@
   /* Tryb ciemny NIE jest odwróceniem jasnego — to osobna paleta o tej samej
      strukturze ról. Podkład marki i przyciemnienie pod zdjęciem mają tu własne
      wartości, nie przeliczone z jasnych. */
-  --color-surface-brand-wash: #2E211A;
+  --color-surface-brand-wash: #302620;
   --scrim-ink: #000000;
   --scrim-gradient: linear-gradient(
     to top,
@@ -321,12 +403,136 @@
 }
 
 /* =============================================================================
+   2.1 WARSTWY POWIERZCHNI — sześć ról, nie jeden biały prostokąt
+   -----------------------------------------------------------------------------
+   Do 11 września 2026 klasa `.card` niosła 126 różnych ról naraz. Ta sama
+   powierzchnia — podniesione tło, obwódka, promień, cień — była jednocześnie
+   kartą wpisu, sekcją strony, blokiem prawej szyny, panelem formularza,
+   ramką z wyjaśnieniem i kaflem, w który się klika.
+
+   Skutek dawał się zobaczyć na ekranie „Napisz do nas": karta z wyjaśnieniem,
+   formularz i karta „Co się stanie dalej" miały ten sam kolor, ten sam cień
+   i ten sam promień, choć tylko jedna z tych trzech rzeczy wymagała od
+   człowieka czegokolwiek. Gdy wszystko na ekranie ma tę samą rangę, nic jej
+   nie ma — a najbardziej traci na tym ktoś, kto czyta wolniej albo powiększa
+   tekst, bo skanowanie wzrokiem przestaje być skrótem.
+
+   ILE OSI DZIELI KTÓRĄ PARĘ — POLICZONE, NIE OBIECANE
+   Nie jest prawdą, że każda para warstw rozchodzi się na dwóch osiach naraz,
+   i nie ma być. Pełna macierz różnic stoi w `docs/design/ROLE_KART.md`; tu
+   trzy rzeczy, które z niej wynikają:
+
+   1. Warstwy 1, 3 i 4 mają IDENTYCZNY kolor i różni je wyłącznie cień.
+      To jest świadome i wcześniej rozstrzygnięte przy szynie: karta unosi się,
+      bo jest treścią, po którą ktoś przyszedł, a szyna i sekcja stoją płasko.
+      Warstwy 3 i 4 są wręcz identyczne — nazwy są różne, bo różne są role.
+   2. Największą odległość mają te warstwy, które NAPRAWDĘ stają obok siebie
+      na jednym ekranie: panel formularza i ramka pomocnicza rozchodzą się na
+      wszystkich pięciu osiach. To jest ta różnica, dla której cała ta zmiana
+      powstała.
+   3. Żadna z tych różnic NIE NIESIE INFORMACJI potrzebnej do obsługi ekranu.
+      Co jest formularzem, mówi nagłówek i etykieta pola; warstwa tylko
+      podkreśla. Dlatego zakaz „kolor jedynym nośnikiem informacji" jest tu
+      spełniony niezależnie od tego, ile osi dzieli daną parę.
+
+   Hierarchia musi działać także w motywie ciemnym, gdzie cienie są prawie
+   niewidoczne — tam różnicę między warstwą 1 a 3 widać przez samą jasność
+   powierzchni (`surface-raised` #2A241E na `surface` #1E1A16), a między
+   warstwą 5 a resztą przez wgłębienie (#14110E).
+
+   DLACZEGO TA REGUŁA MA DWA SELEKTORY, A NIE SAMO `:root`
+   Zmienna z `var()` jest podstawiana na elemencie, NA KTÓRYM STOI
+   DEKLARACJA — potomkowie dziedziczą już gotową wartość. Gdyby te tokeny
+   stały wyłącznie na `:root`, `--warstwa-tresc-tlo` zostałoby policzone
+   z jasnej palety i ciemny pas na stronie powitalnej (`.blok-ciemny`,
+   który przestawia paletę na własnym kontenerze, a nie na <html>) dostałby
+   w środku białe karty. Ta lista selektorów musi więc być TAKA SAMA jak przy
+   palecie ciemnej wyżej, i stać PO niej.
+   ========================================================================== */
+:root,
+.blok-ciemny {
+  /* --- 1. KARTA TREŚCI — wpis, przepis, wykonanie, komentarz ---
+     Jedyna warstwa, która unosi się nad stroną. To jest rzecz, po którą ktoś
+     tu przyszedł. Klasa: `.card`. */
+  --warstwa-tresc-tlo: var(--color-surface-raised);
+  --warstwa-tresc-obwodka: var(--color-border);
+  --warstwa-tresc-promien: var(--radius-xl);
+  --warstwa-tresc-cien: var(--shadow-card);
+  --warstwa-tresc-wciecie: var(--spacing-5);
+
+  /* --- 2. PANEL FORMULARZA — jedyna rzecz na ekranie do wypełnienia ---
+     Unosi się jak karta treści i dodatkowo ma MOCNĄ obwódkę — tę samą, którą
+     mają pola formularza, więc panel i jego wnętrze mówią jednym językiem.
+     Na ekranie formularza to jest cel wizyty, a wszystko wokół schodzi do
+     warstwy 5. Klasa: `.panel-formularza`. */
+  --warstwa-panel-tlo: var(--color-surface-raised);
+  --warstwa-panel-obwodka: var(--color-border-strong);
+  --warstwa-panel-promien: var(--radius-xl);
+  --warstwa-panel-cien: var(--shadow-card);
+  --warstwa-panel-wciecie: var(--spacing-6);
+
+  /* --- 3. SEKCJA STRONY — blok landingu, tablica dnia, ekran potwierdzenia ---
+     Ma własne tło i obwódkę, żeby było widać, gdzie się zaczyna i kończy, ale
+     nie unosi się: sekcja jest RAMĄ dla treści, nie treścią. Klasa:
+     `.sekcja-strony`. */
+  --warstwa-sekcja-tlo: var(--color-surface-raised);
+  --warstwa-sekcja-obwodka: var(--color-border);
+  --warstwa-sekcja-promien: var(--radius-xl);
+  --warstwa-sekcja-cien: none;
+  --warstwa-sekcja-wciecie: var(--spacing-5);
+
+  /* --- 4. BLOK PRAWEJ SZYNY ---
+     Rozstrzygnięte wcześniej i NIE do cofnięcia: promień TEN SAM co karta
+     wpisu (dwa różne promienie w jednym rzędzie czyta się jako
+     niedokończone), cień zdjęty, bo szyna nie powtarza kolumny głównej.
+     Tokeny nazywają ten stan, zamiast zostawiać go w jednej regule
+     `.szyna-blok` w app.css. */
+  --warstwa-szyna-tlo: var(--color-surface-raised);
+  --warstwa-szyna-obwodka: var(--color-border);
+  --warstwa-szyna-promien: var(--radius-xl);
+  --warstwa-szyna-cien: none;
+  --warstwa-szyna-wciecie: var(--spacing-5);
+
+  /* --- 5. RAMKA POMOCNICZA — wyjaśnienie, ostrzeżenie, „co dalej" ---
+     WGŁĘBIONA, nie podniesiona, i bez cienia. Odwraca kierunek względem
+     warstw 1–3: to jest tekst obok głównej rzeczy, a nie główna rzecz.
+     Mniejszy promień niż karta jest tu bezpieczny, bo ramka pomocnicza nigdy
+     nie stoi w jednym RZĘDZIE z kartą ani z szyną — stoi nad nią albo pod nią.
+     Klasa: `.ramka-pomocnicza`. */
+  /* JEDNA POLICZONA GRANICA TEJ WARSTWY: `--color-success` (#1E7B3E) na tym
+     tle daje 4.47:1, czyli o 0.03 PONIŻEJ progu 4.5:1. Zmierzone na 21
+     ekranach w obu motywach: dziś nie ma w serwisie ani jednego takiego
+     węzła — zieleń występuje wyłącznie jako `--color-success-tint-ink` na
+     własnej plakietce (6.95:1) i jako obwódka. Ale utility `.text-success`
+     JEST w zbudowanym arkuszu, więc dopisanie go do tekstu w ramce zepsułoby
+     kontrast od razu i po cichu. W ramce pomocniczej potwierdzenie pisze się
+     plakietką (`.flash`, `.notice`), nie samym kolorem tekstu. */
+  --warstwa-pomocnicza-tlo: var(--color-surface-sunken);
+  --warstwa-pomocnicza-obwodka: var(--color-border);
+  --warstwa-pomocnicza-promien: var(--radius-lg);
+  --warstwa-pomocnicza-cien: none;
+  --warstwa-pomocnicza-wciecie: var(--spacing-5);
+
+  /* --- 6. KAFEL AKCJI — cała powierzchnia jest odnośnikiem ---
+     Wygląda jak karta treści, ale ma mocną obwódkę, bo to jest KONTROLKA:
+     obwódka kontrolki musi mieć 3:1 względem tła (WCAG 1.4.11), a
+     `--color-border` jest linią dekoracyjną i tego progu nie ma.
+     Klasa: `.kafel-akcji`. */
+  --warstwa-kafel-tlo: var(--color-surface-raised);
+  --warstwa-kafel-obwodka: var(--color-border-strong);
+  --warstwa-kafel-promien: var(--radius-xl);
+  --warstwa-kafel-cien: var(--shadow-card);
+  --warstwa-kafel-wciecie: var(--spacing-5);
+}
+
+/* =============================================================================
    3. WARSTWA BASE — reset typografii, skala tekstu użytkownika, focus, redukcja ruchu
    ========================================================================== */
 @layer base {
   :root {
     /* Domyślny mnożnik skali tekstu użytkownika — 100% */
     --user-text-scale: 1;
+    --user-layout-scale: min(1, var(--user-text-scale));
 
     /* Jawnie `light`, NIE `light dark` (docs/DECISIONS.md, D-019). Wartość
        `light dark` każe przeglądarce dobrać pola formularza i paski
@@ -338,11 +544,11 @@
     color-scheme: light;
   }
 
-  /* Ustawienie „Powiększ tekst" z /settings/accessibility — 4 kroki,
-     niezależne od zoomu przeglądarki. Skaluje WYŁĄCZNIE typografię
-     (tokeny --text-...), nigdy odstępów, promieni ani wysokości kontrolek,
-     dzięki czemu przyciski (min-height, nie height) najwyżej robią się
-     wyższe przy zawijaniu tekstu — layout się nie psuje.
+  /* Ustawienie rozmiaru tekstu — wartości zgodne z konfiguracją,
+     niezależne od zoomu przeglądarki. Skaluje typografię
+     (tokeny --text-...), a poniżej 100% również odstępy i zapas kontrolek
+     przez --user-layout-scale (D-219), z minimum dotykowym 48 px.
+     Powyżej 100% większy tekst naturalnie zwiększa potrzebną wysokość.
 
      TA LISTA MUSI ZGADZAĆ SIĘ Z `config('kuking.text.scales')`. Pilnuje tego
      `SkalaTekstuDzialaTest`, bo rozjazd jest tu niewidoczny w kodzie i milczy:
@@ -354,6 +560,9 @@
      koncie i NIE ROBIŁA NIC. Odwrotnie, 150 było martwe: CHECK w migracji
      `users` dopuszcza tylko 90–140, więc ta wartość nie miała jak powstać.
      100 nie ma reguły i mieć nie musi — to wartość domyślna `--user-text-scale`. */
+  :root[data-text-scale="70"] { --user-text-scale: 0.7; }
+  :root[data-text-scale="80"] { --user-text-scale: 0.8; }
+  :root[data-text-scale="90"] { --user-text-scale: 0.9; }
   :root[data-text-scale="112"] { --user-text-scale: 1.12; }
   :root[data-text-scale="125"] { --user-text-scale: 1.25; }
   :root[data-text-scale="140"] { --user-text-scale: 1.4; }
@@ -542,6 +751,38 @@
       transform var(--czas-szybki) ease-out;
   }
 
+  /* NAPIS PRZYCISKU OWINIĘTY JEDNYM ELEMENTEM — TEN `<span>` NIE JEST PUSTY.
+
+     Nie kasuj go przy sprzątaniu „niepotrzebnych" opakowań. Reguła niżej
+     wygląda na nic nierobiącą (`min-width: 0` to wartość, którą element flex
+     i tak dostaje w kolumnie), ale jej zadaniem jest UNIEŚĆ NAZWĘ KLASY —
+     ta nazwa jest tu jedynym śladem, po co ten `<span>` w ogóle stoi
+     w `landing.blade.php`, i jedynym miejscem, gdzie wolno dopisać dalsze
+     właściwości napisu, gdy będą potrzebne.
+
+     DLACZEGO (issue #353). `.btn` wyżej jest `inline-flex`, więc KAŻDY kawałek
+     tekstu między elementami inline staje się osobnym elementem flex.
+     `Zostań <x-kuking-word/> — to darmowe` to trzy węzły, czyli trzy niezależne
+     elementy flex rozdzielone `gap`, a `overflow-wrap: anywhere` (kilka linijek
+     wyżej — obrona przed wypchnięciem strony w bok) łamie każdy z nich
+     w ŚRODKU WYRAZU, bo każdy z osobna jest za wąski.
+
+     Zmierzone w Chromium, przycisk w ramce 320 px, `font-size: 24px`:
+       bez `<span>`: 3 elementy flex, napis rozrzucony na 5 kawałków w 5
+                     wierszach („ — to " / „ZoskuKIN" / „darmow" / „tań Giem"
+                     / „e"), wysokość przycisku 114 px;
+       ze `<span>`:  1 element flex, 2 wiersze łamane na spacjach
+                     („Zostań kuKINGiem" / „ — to darmowe"), wysokość 84 px.
+
+     Przycisk z ikoną (`<x-ikona/> Ugotowałem`) to POPRAWNE dwa elementy flex —
+     ikona i podpis mają stać obok siebie z `gap`. Tam `btn-napis` nie wchodzi.
+
+     Strażnikiem jest `tests/Feature/PrzyciskiNieRozbijajaNapisuTest.php`:
+     liczy bezpośrednie węzły tekstowe w każdym `.btn` w wyrenderowanym HTML-u. */
+  .btn-napis {
+    min-width: 0;
+  }
+
   /* Wciśnięty. Jeden piksel w dół — tyle wystarczy, żeby palec dostał
      potwierdzenie, i za mało, żeby układ drgnął. Przy `prefers-reduced-motion`
      przejście i tak jest wyłączone w warstwie base. */
@@ -552,6 +793,11 @@
   .btn[aria-disabled="true"] {
     opacity: 0.55;
     cursor: not-allowed;
+    /* `.btn:active:not(:disabled)` wyklucza tylko `:disabled`, a `<span>`
+       z `aria-disabled` przechodzi tym selektorem — bez tej deklaracji
+       wyłączony przycisk drgał przy naciśnięciu jak działający i nie robił
+       nic. Martwy przycisk, który udaje żywy (AGENTS.md §5 punkt 3). */
+    transform: none;
   }
   /* Halo pod pierścieniem fokusu — patrz DESIGN_SYSTEM.md §1.4.
      Konieczne na przyciskach z kolorowym tłem (primary/danger), bo bezpośredni
@@ -574,9 +820,49 @@
      „Ugotowałem", „Zapisz w zeszycie", akcje pod wpisem — czyli praktycznie
      wszystkich, po których ktoś chodzi klawiaturą. */
   .card .btn:focus-visible,
-  .post-card .btn:focus-visible {
+  .post-card .btn:focus-visible,
+  .panel-formularza .btn:focus-visible,
+  .sekcja-strony .btn:focus-visible,
+  .kafel-akcji .btn:focus-visible {
     box-shadow:
       0 0 0 2px var(--color-surface-raised),
+      0 0 0 5px var(--color-focus);
+  }
+
+  /* POLE FORMULARZA W RAMCE POMOCNICZEJ ODWRACA SIĘ.
+
+     `.field-input` ma tło `--color-surface-sunken` — dokładnie to samo, które
+     ma ramka pomocnicza. Pole w takiej ramce zniknęłoby więc jako powierzchnia
+     i zostałaby po nim sama obwódka. Dotyczy to realnego miejsca: kodu
+     zapasowego w `<details>` na ekranie drugiego kroku logowania.
+
+     Wgłębienie w ramce daje więc tło PODNIESIONE — kierunek ten sam
+     („pole jest inne niż to, na czym leży"), tylko odwrócony. Obwódka pola
+     na tym tle: 4.16:1 (próg 3:1), tekst: 15.30:1. */
+  .ramka-pomocnicza .field-input {
+    background-color: var(--color-surface-raised);
+  }
+
+  /* TA SAMA CHOROBA CO WYŻEJ, DRUGI SKŁADNIK: przycisk drugorzędny na hoverze.
+
+     `.btn-secondary:hover` bierze `--color-surface-sunken` — dokładnie tło
+     ramki pomocniczej. Przycisk „Zaloguj się kodem zapasowym" albo „Zmień
+     zdjęcie" znikał więc pod kursorem jako powierzchnia i zostawała po nim
+     sama obwódka. Skutek jest kosmetyczny, bo hover i tak nie ma prawa niczego
+     nieść (`AGENTS.md` §5) — ale to jest ta sama usterka, którą reguła wyżej
+     naprawia dla pola, więc naprawia się ją w tym samym miejscu, a nie przy
+     następnym zgłoszeniu. */
+  .ramka-pomocnicza .btn-secondary:hover:not(:disabled) {
+    background-color: var(--color-surface-raised);
+  }
+
+  /* Ramka pomocnicza jest WGŁĘBIONA, więc jej halo jest trzecim kolorem —
+     ani tłem strony, ani tłem karty. Gdyby brała halo karty, przycisk
+     „Napisz do nas" w bloku wyjaśnienia dostałby wokół siebie białą obwódkę
+     na beżowym tle. Kontrast pierścienia na tym tle: 4.57:1 (próg 3:1). */
+  .ramka-pomocnicza .btn:focus-visible {
+    box-shadow:
+      0 0 0 2px var(--color-surface-sunken),
       0 0 0 5px var(--color-focus);
   }
 
@@ -685,6 +971,51 @@
     margin-top: 0;
   }
 
+  /* ...ALE „PIERWSZE DZIECKO" FORMULARZA PRAWIE NIGDY NIE JEST POLEM (#433).
+     ─────────────────────────────────────────────────────────────────────
+     Reguła wyżej miała zdjąć pustkę nad pierwszą etykietą i nie zdejmowała
+     jej w formularzu, czyli dokładnie tam, gdzie było zgłoszenie. Powód:
+     `@csrf` renderuje `<input type="hidden" name="_token">`, a `@method()`
+     drugie takie pole. Ukryte pole JEST elementem, więc `:first-child` trafia
+     w nie, nie w `.field` — i 24 px marginesu dalej doklejało się do wcięcia
+     panelu.
+
+     ZMIERZONE w Chromium na `/przepisy/{slug}`, formularz „Napisz komentarz":
+     od pierwszego piksela wnętrza panelu do pierwszego piksela etykiety było
+     24 px (i 48 px przy czcionce przeglądarki 200%) PONAD wcięciem panelu,
+     które samo ma 24 px — czyli nad napisem „Napisz komentarz" stało 48 px
+     pustki przy czcionce zwykłej. Po tej regule: 0 px ponad wcięciem.
+
+     JEST JEDEN UKŁAD, W KTÓRYM UKRYTE POLE ROZDZIELA DWA WIDOCZNE — i dlatego
+     reguła nie jest jedna, tylko dwie.
+
+     W większości formularzy (`auth/reset-password`, `admin/uzytkownicy`,
+     `admin/sygnaly`, formularz odpowiedzi w komentarzach) `.field` stojące
+     zaraz po ukrytym polu jest PIERWSZYM widocznym elementem formularza
+     i zdjęcie mu marginesu jest poprawne. Ale ekrany `errors/419`
+     i `errors/429` odtwarzają CUDZY formularz w pętli: pole długie wychodzi
+     jako `<div class="field">`, każde inne jako `<input type="hidden">`, oba
+     na tym samym poziomie. Formularz o dwóch polach długich przedzielonych
+     krótkim renderuje więc `.field`, ukryte, `.field` — i sama reguła z `+`
+     zdjęłaby DRUGIEMU polu odstęp, który ma tam być. To nie jest hipoteza
+     o przyszłości: tak wygląda dziś odbicie z formularza przepisu.
+
+     Druga reguła oddaje te 24 px z powrotem. `.field ~` znaczy „gdzieś
+     wcześniej wśród rodzeństwa stało już pole", czyli dokładnie „to nie jest
+     pierwsze pole formularza". Świadomie zwykłym `~` i `+`, a nie przez
+     `:not()` z selektorem złożonym: ten drugi jest z poziomu 4 i na starszym
+     Safari unieważniłby całą regułę razem z nią.
+
+     Ten sam warunek co przy `:first-child`: MIĘDZY polami dalej jest 24 px.
+     Znika wyłącznie odstęp wyciekający na krawędź kontenera. */
+  input[type="hidden"] + .field {
+    margin-top: 0;
+  }
+
+  .field ~ input[type="hidden"] + .field {
+    margin-top: var(--spacing-6);
+  }
+
   /* Przycisk zaraz po polu dostaje ten sam odstęp, jaki pola mają między
      sobą.
 
@@ -715,12 +1046,36 @@
 
      Przejście koloru obwódki jest z tokenu, więc `prefers-reduced-motion`
      wyłącza je w warstwie base. */
+  /* POLE DO WPISYWANIA JEST WYŻSZE NIŻ PRZYCISK — I LICZONE W PIKSELACH.
+     ─────────────────────────────────────────────────────────────────────
+     Zgłoszenie właściciela (11 września, przy #365): pola są za małe.
+     Dotąd pole brało `--control-height-min`, czyli minimum PRZYCISKU (48 px).
+     Przycisk się klika, a w pole się patrzy i pisze — przy 18 px pisma
+     i wcięciu 12 px zostawało dokładnie tyle, ile liter, więc pole wyglądało
+     jak wciśnięte między etykietę a podpowiedź.
+
+     ZMIENIA SIĘ WCIĘCIE, NIE TYLKO MINIMUM — i to jest tu cała różnica.
+     Zmierzone przed poprawką na `/register` (Chromium, czcionka zwykła):
+     pole miało 56 px WYSOKOŚCI SAMO Z SIEBIE (18 px pisma × 1,6 interlinii
+     + 2 × 12 px wcięcia + 2 × 2 px obwódki), czyli minimum 48 px nie dotykało
+     go nigdy i podniesienie samego minimum nie dałoby ani jednego piksela.
+     Wcięcie pionowe idzie więc z `--spacing-3` na `--spacing-4` (12 → 16 px),
+     a minimum na 64 px jako dolna granica, gdy pismo jest małe.
+
+     Pismo ZOSTAJE typograficzne (`--text-body`, 18 px minimum
+     z docs/UX_50_PLUS.md) i dalej rośnie ze skalą tekstu z ustawień.
+
+     W PIKSELACH, NIE W `rem` (D-082, D-107). Wysokość pola istnieje dla
+     ekranu i dla palca; `3.5rem` przy czcionce przeglądarki 200% zrobiłoby
+     112 px na jedno pole, a formularz rejestracji przestałby się mieścić na
+     telefonie. Minimum jest MINIMUM: gdy pismo urośnie, pole i tak urośnie
+     razem z nim, bo wysokość liczy się z `line-height` i wcięcia. */
   .field-input {
     display: block;
     width: 100%;
     min-width: 0;
-    min-height: var(--control-height-min);
-    padding: var(--spacing-3) var(--spacing-4);
+    min-height: var(--pole-wysokosc-min);
+    padding: var(--spacing-4);
     font-family: var(--font-sans);
     font-size: var(--text-body);
     line-height: var(--leading-body);
@@ -730,13 +1085,95 @@
     border-radius: var(--radius-md);
     transition: border-color var(--czas-szybki) ease-out;
   }
+  /* Pole wielowierszowe („Napisz kilka słów", „Jak to zrobić") — ta sama
+     zasada co wyżej, ta sama jednostka. `8rem` przy czcionce przeglądarki
+     200% wymuszało 256 px pustego pola, czyli więcej, niż potrzebuje pięć
+     wierszy z atrybutu `rows`; 176 px to o 48 px więcej niż dotąd przy
+     czcionce zwykłej i o 80 px MNIEJ przy podwojonej. */
   textarea.field-input {
-    min-height: 8rem;
+    min-height: var(--pole-wielowierszowe-min);
     resize: vertical;
   }
   .field-input::placeholder {
     color: var(--color-ink-muted);
     opacity: 1;
+  }
+  /* PODPOWIEDŹ NALEŻY DO ETYKIETY, A ODSTĘP POD NIĄ NALEŻY DO POLA (#433).
+     ─────────────────────────────────────────────────────────────────────
+     Zgłoszenie właściciela ze zrzutu z telefonu: „żadnego [miejsca] między
+     «też jest w porządku» a polem do pisania". Zmierzone w Chromium na
+     formularzu „Napisz komentarz": etykieta → podpowiedź 8 px, podpowiedź →
+     pole **0 px**. Odstęp stał więc tam, gdzie oddziela rzeczy powiązane
+     (etykietę od jej własnego wyjaśnienia), a znikał tam, gdzie miał
+     oddzielać — podpis dotykał obwódki pola grubej na 2 px w mocnym kolorze.
+
+     STRONĘ PARY WYBIERA D-154: odstęp deklaruje blok DOLNY, jako
+     `margin-top`. Górna strona (`.field-help`) zostaje z własnym marginesem
+     do etykiety i niczego nie deklaruje pod sobą.
+
+     REGUŁA WISI NA SĄSIEDZTWIE, NIE NA KLASIE — dokładnie jak w D-158.
+     `.field-input { margin-top: … }` bez warunku rozsunęłoby etykietę i pole
+     w KAŻDYM polu serwisu, także w kilkudziesięciu, które podpowiedzi nie
+     mają i o które nikt się nie zgłaszał. Odstęp istnieje po to, żeby pole
+     odkleiło się od PODPOWIEDZI, więc warunkiem jest podpowiedź stojąca
+     bezpośrednio nad nim.
+
+     WARTOŚĆ Z TOKENU, POŁOWA ODSTĘPU MIĘDZY POLAMI. `--spacing-3` to 12 px,
+     a między polami jest 24 px — dzięki temu pole razem z etykietą
+     i podpowiedzią dalej czyta się jako JEDEN blok, a nie jako trzy osobne.
+     Rytm w środku pola: 8 px (etykieta → podpowiedź), 12 px (podpowiedź →
+     pole), 24 px do następnego pola. Token, nie piksel, więc przy czcionce
+     przeglądarki 200% rośnie do 24 px razem z pismem — to odstęp
+     typograficzny, nie fizyczne minimum dla palca (D-082, D-107).
+
+     ODSTĘP NALEŻY SIĘ PODPISOWI, NIE PODPOWIEDZI (#445).
+     ─────────────────────────────────────────────────────────────────────
+     Do 12 września stało w tym miejscu zdanie „ZGŁOSZONE, NIETKNIĘTE: pole
+     BEZ podpowiedzi dalej ma etykietę dosłownie na sobie (zmierzone 0 px,
+     np. «Nowe hasło» na /ustawienia)". Dwie rzeczy w nim były nieprawdziwe
+     i obie zostają tu zapisane, bo obie łatwo powtórzyć:
+
+     * NIE BYŁO 0 px, tylko 8 px. Odstęp brał się z `label { margin-bottom:
+       var(--spacing-2) }` w warstwie base — z reguły, która nie wie, co pod
+       etykietą stoi, więc daje to samo 8 px podpowiedzi i polu.
+     * „Nowe hasło" na `/ustawienia/bezpieczenstwo` MA podpowiedź, czyli
+       było akurat jednym z pól z odstępem 12 px. Pola bez podpowiedzi to na
+       tym ekranie „Obecne hasło" i „Powtórz nowe hasło".
+
+     Usterka jest za to prawdziwa i jest dokładnie tą, którą nazywa #445.
+     Przy 8 px podpis stał od pola dokładnie tak daleko, jak od własnego
+     wyjaśnienia — rzecz odrębna i rzecz powiązana w tej samej odległości —
+     a pole BEZ podpowiedzi dostawało odstęp MNIEJSZY (8 px) niż pole
+     z podpowiedzią (12 px pod nią). Odstęp przed polem nie zależy od tego,
+     czy ktoś dopisał podpowiedź; należy się podpisowi i jest ten sam.
+
+     ZMIERZONE w Chromium, „dół etykiety → góra ramki pola", pola bez
+     podpowiedzi, przy 320 / 360 / 390 / 414 px (wszystkie cztery tak samo):
+
+         czcionka zwykła                8 → 12 px
+         czcionka przeglądarki 200%    16 → 24 px
+
+     POLE Z PODPISEM I PODPOWIEDZIĄ NIE DOSTAJE OBU ODSTĘPÓW NARAZ — i to
+     jest warunek tej poprawki, nie jej skutek uboczny. Obie reguły wiszą na
+     SĄSIEDZTWIE (D-158), a bezpośrednim sąsiadem pola jest albo podpowiedź,
+     albo etykieta, nigdy oboje; wartość jest przy tym JEDNA, w jednej
+     deklaracji, więc nie ma czego zsumować. Zmierzone po zmianie: pole
+     z podpowiedzią ma dalej rytm 8 / 12 px, nie 12 / 12 i nie 24.
+
+     DOLNY MARGINES ETYKIETY (8 px z warstwy base) ZLEWA SIĘ Z TYM
+     MARGINESEM, nie sumuje: `.field` jest zwykłym blokiem, więc marginesy
+     stykających się sąsiadów schodzą do większego z dwóch. Zmierzone po
+     zmianie: 12 px, nie 20 px.
+
+     ETYKIETA SCHOWANA PRZED OKIEM NIE DOSTAJE NIC — `:not(.visually-hidden)`.
+     Na `/admin/kuking-na-dzis` podpis pola notatki istnieje wyłącznie dla
+     czytnika ekranu i jest wyjęty z układu; 12 px pustki w każdym wierszu
+     listy byłoby odstępem pod napisem, którego nie widać. `:not()` z JEDNĄ
+     klasą, czyli z poziomu 3 — selektor złożony w środku jest z poziomu 4
+     i na starszym Safari unieważniłby całą regułę razem z nią. */
+  .field > label:not(.visually-hidden) + .field-input,
+  .field-help + .field-input {
+    margin-top: var(--spacing-3);
   }
   .field-help {
     display: block;
@@ -764,13 +1201,183 @@
     border-color: var(--color-danger);
   }
 
-  /* --- Karta --- */
+  /* --- Warstwy powierzchni: sześć klas, sześć ról (sekcja 2.1) -----------
+
+     Każda z nich bierze WSZYSTKO z tokenów `--warstwa-*`. Reguła projektu
+     brzmi „wszystko przez `var(--…)`" i tu ma konkretny powód: gdyby te
+     wartości stały w klasach, tryb ciemny i ciemny pas na stronie powitalnej
+     musiałyby mieć własne nadpisania każdej z sześciu klas.
+
+     Czego tu NIE MA i nie ma być: klasy pomocniczej „bez cienia" albo „tło
+     wgłębione". Rola jest nazwana w jednym miejscu — w nazwie klasy — więc
+     następna osoba wie, CZYM ta powierzchnia jest, a nie tylko jak wygląda. */
+
+  /* 1. Karta treści: wpis, przepis, wykonanie, komentarz.
+     `--radius-xl` zamiast dawnego `--radius-lg`: karta wpisu i blok szyny
+     miały je od dawna jako nadpisania, a plain `.card` obok nich 16px.
+     Trzy różne promienie w jednej kolumnie czytały się jako niedokończone. */
   .card {
-    background-color: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-card);
-    padding: var(--spacing-5);
+    background-color: var(--warstwa-tresc-tlo);
+    border: 1px solid var(--warstwa-tresc-obwodka);
+    border-radius: var(--warstwa-tresc-promien);
+    box-shadow: var(--warstwa-tresc-cien);
+    padding: var(--warstwa-tresc-wciecie);
+  }
+
+  /* 2. Panel formularza: jedyna rzecz na ekranie, którą trzeba wypełnić. */
+  .panel-formularza {
+    background-color: var(--warstwa-panel-tlo);
+    border: 1px solid var(--warstwa-panel-obwodka);
+    border-radius: var(--warstwa-panel-promien);
+    box-shadow: var(--warstwa-panel-cien);
+    padding: var(--warstwa-panel-wciecie);
+  }
+
+  /* 2a. ZWINIĘTY `<details>` NIE JEST PANELEM — D-126 w stanie, którego Blade
+     nie widzi.
+
+     D-126 mówi: panel formularza nie pojawia się tam, gdzie w danym stanie
+     ekranu nie ma czego wypełnić. Na czterech ekranach (`errors/419`,
+     `errors/429`, zmiana adresu e-mail, odpowiedź w panelu moderacji) warstwę
+     wybiera `@class([...])` — bo tam stan zna SERWER w chwili renderowania.
+
+     Na `/zeszyt` tak się nie da i dlatego ten przypadek został w D-126
+     nazwany otwartym: „Załóż nowy zeszyt" to `<details class="panel-formularza">`,
+     a o tym, czy pola są widoczne, decyduje atrybut `open`, który człowiek
+     przestawia KLIKNIĘCIEM, już po wyjściu odpowiedzi z serwera. Zmierzone
+     w Chromium przed tą regułą: zwinięty i rozwinięty blok miały tę samą
+     obwódkę `#8A7A63`, ten sam cień i to samo wcięcie 24 px — czyli mocna
+     obwódka kontrolki otaczała sam przycisk, przez większość czasu życia
+     ekranu.
+
+     Warstwę wybiera więc ARKUSZ, bo tylko on czyta stan `[open]` na żywo
+     i robi to bez JavaScriptu — `<details>` przełącza się sam, a reguła
+     idzie za nim w tej samej klatce.
+
+     Wartości biorą się w całości z tokenów warstwy 3, a nie z „panelu bez
+     obwódki": siódma, połowiczna sygnatura (wcięcie panelu plus obwódka
+     sekcji) byłaby dokładnie tym, przed czym broni komentarz nad tym blokiem
+     — „czego tu NIE MA i nie ma być: klasy pomocniczej »bez cienia«". Zwinięty
+     blok jest sekcją z przyciskiem w środku i tak wygląda. */
+  details.panel-formularza:not([open]) {
+    background-color: var(--warstwa-sekcja-tlo);
+    border-color: var(--warstwa-sekcja-obwodka);
+    border-radius: var(--warstwa-sekcja-promien);
+    box-shadow: var(--warstwa-sekcja-cien);
+    padding: var(--warstwa-sekcja-wciecie);
+  }
+
+  /* 3. Sekcja strony: blok landingu, tablica dnia, ekran potwierdzenia. */
+  .sekcja-strony {
+    background-color: var(--warstwa-sekcja-tlo);
+    border: 1px solid var(--warstwa-sekcja-obwodka);
+    border-radius: var(--warstwa-sekcja-promien);
+    box-shadow: var(--warstwa-sekcja-cien);
+    padding: var(--warstwa-sekcja-wciecie);
+  }
+
+  /* 5. Ramka pomocnicza: wyjaśnienie, ostrzeżenie, „co się stanie dalej".
+     Warstwa 4 (blok szyny) mieszka w `app.css` razem z resztą szyny. */
+  .ramka-pomocnicza {
+    background-color: var(--warstwa-pomocnicza-tlo);
+    border: 1px solid var(--warstwa-pomocnicza-obwodka);
+    border-radius: var(--warstwa-pomocnicza-promien);
+    box-shadow: var(--warstwa-pomocnicza-cien);
+    padding: var(--warstwa-pomocnicza-wciecie);
+  }
+
+  /* 6. Kafel akcji: cała powierzchnia jest odnośnikiem.
+     `display: block` i zdjęte podkreślenie stoją TUTAJ, a nie w widoku jako
+     `block no-underline text-inherit`: kafel bez nich nie jest kaflem, więc
+     nie ma powodu, żeby trzy klasy pomocnicze jechały z nim przez wszystkie
+     widoki i żeby dało się jedną z nich zapomnieć. */
+  .kafel-akcji {
+    display: block;
+    background-color: var(--warstwa-kafel-tlo);
+    border: 1px solid var(--warstwa-kafel-obwodka);
+    border-radius: var(--warstwa-kafel-promien);
+    box-shadow: var(--warstwa-kafel-cien);
+    padding: var(--warstwa-kafel-wciecie);
+    color: inherit;
+    text-decoration: none;
+  }
+
+  /* Hover NIE jest tu jedynym sygnałem, że to odnośnik — jest nim mocna
+     obwódka i tytuł w środku. To jest dodatek dla myszy, zgodny z regułą
+     „żadna ważna funkcja nie wymaga hovera". */
+  .kafel-akcji:hover {
+    background-color: var(--color-surface-sunken);
+    box-shadow: var(--shadow-card-hover);
+  }
+
+  /* --- RYTM PIONOWY: DWIE POWIERZCHNIE W KOLUMNIE GŁÓWNEJ NIE STYKAJĄ SIĘ ---
+
+     ZGŁOSZENIE WŁAŚCICIELA: „trzeba zrobić miejsce pomiędzy logowaniem Google
+     fb a normalnym". Na `/register` karta „Nie chcesz wymyślać hasła?"
+     kończyła się, a karta formularza zaczynała się dokładnie w tym samym
+     miejscu — zmierzone w Chromium: 0 px, przy 360 i przy 1280 px, także
+     przy czcionce przeglądarki 200%. Dwie osobne drogi wejścia wyglądały jak
+     jeden zlepiony blok. To samo było na `/login` (ten sam komponent
+     `x-wejscia-zewnetrzne` nad tym samym panelem) i — czego zgłoszenie nie
+     wymieniało, a pomiar pokazał — na `/ustawienia/profil`, gdzie panel
+     formularza stykał się ze skrótem o zdjęciu profilowym.
+
+     DLACZEGO `.stack` TU NIE ZADZIAŁAŁ, CHOĆ ISTNIEJE
+     Rytm pionowy w tym projekcie JEST: `.stack > * + *` (`app.css`) daje
+     `--spacing-5` każdemu kolejnemu dziecku. Tylko że `.stack` trzeba
+     NAŁOŻYĆ na kontener, a kolumna główna żadnego kontenera nie ma —
+     `{{ $slot }}` stoi wprost w `<main class="app-main">`
+     (`components/layout.blade.php`), więc karty na `/register` i `/login` są
+     bezpośrednimi dziećmi `<main>`. Dopisanie `.stack` do tych ekranów
+     znaczyłoby owinięcie każdego widoku z osobna nowym `<div>`-em, czyli
+     poprawkę w jednym widoku po drugim — a przy okazji zmieniłoby odstępy
+     WSZYSTKICH pozostałych dzieci `<main>` (nagłówka, akapitów, przycisków),
+     nie tylko dwóch kart. `.stack` zostaje tym, czym jest: rytmem LISTY
+     wewnątrz komponentu.
+
+     CO TA REGUŁA MÓWI
+     Dwie sąsiadujące POWIERZCHNIE — sześć warstw z sekcji 2.1 plus
+     podsumowanie błędów, które też jest blokiem z własnym tłem i obwódką —
+     stojące bezpośrednio w kolumnie głównej dostają między siebie odstęp.
+     Nie „karta Google i formularz rejestracji", tylko każda taka para: bo
+     usterka nie była własnością tych dwóch kart, tylko brakiem reguły.
+
+     DLACZEGO `--spacing-6`, A NIE LICZBA Z PALCA
+     1. To jest rytm, którym ta kolumna już mówi: `.app-main > h1` ma
+        `margin-bottom: var(--spacing-6)`, a sama karta wejść Google
+        i Facebooka ma nad sobą `mt-6`. Odstęp pod nią jest teraz taki sam
+        jak nad nią.
+     2. Na `/login` obie drogi równorzędne wobec hasła — wejście kontem
+        (D-113) nad formularzem i logowanie linkiem (D-056) pod nim — stoją
+        po tej zmianie w JEDNAKOWEJ odległości od panelu. Równorzędność
+        z D-127 widać wtedy także w odstępie, nie tylko w warstwie.
+     3. Token, nie piksel: `--spacing-6` to `1.5rem`, więc przy czcionce
+        przeglądarki 200% odstęp rośnie do 48 px razem z pismem. To jest
+        druga strona D-082/D-107: tam minima były FIZYCZNE (palec nie rośnie
+        od powiększenia czcionki), tu odstęp jest TYPOGRAFICZNY — oddziela
+        bloki tekstu, więc ma rosnąć razem z tekstem.
+
+     CZEGO TA REGUŁA NIE ROBI
+     Nie dotyka wyglądu żadnej karty — ani tła, ani obwódki, ani cienia, ani
+     promienia. Rozdziela wyłącznie ODSTĘPEM.
+
+     UTILITY DALEJ WYGRYWA I TAK MA BYĆ. `mt-8` na ekranach ustawień (32 px)
+     i `mt-5` w „Napisz do nas" leżą w `@layer utilities`, która
+     w Tailwindzie 4 stoi PO `components` — więc widok, który świadomie prosi
+     o inny odstęp, dostaje swój. Ta reguła jest wartością domyślną kolumny,
+     nie sufitem.
+
+     MARGINESY SIĘ ZLEWAJĄ I TO JEST POTRZEBNE. `.error-summary` ma własne
+     `margin-bottom: var(--spacing-8)`; gdy stoi między kartą wejść
+     a formularzem (stan po nieudanej walidacji), sąsiadujące marginesy
+     zlewają się do większego z nich, a nie sumują. */
+  .app-main .marka-wejscie-karta
+    > :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)
+    + :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary),
+  .app-main
+    > :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)
+    + :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary) {
+    margin-top: var(--spacing-6);
   }
 
   /* --- Pusty stan (system projektowy v3.1) ---------------------------
@@ -851,14 +1458,33 @@
     margin: 0;
     padding-left: var(--spacing-6);
   }
-  .error-summary a {
+  .error-summary a,
+  .error-summary button.error-summary-link {
     color: var(--color-danger-tint-ink);
     font-weight: 700;
+  }
+  /*
+   * Odnośnik do pola z INNEGO kroku kreatora (issue #747) musi najpierw
+   * przełączyć krok, więc nie może być zwykłym `<a href="#...">` — cel nie
+   * istnieje w bieżącym HTML, dopóki Livewire nie przerenderuje kroku.
+   * Wygląda jak pozostałe odnośniki podsumowania, żeby człowiek nie musiał
+   * zgadywać, że jedno jest linkiem, a drugie przyciskiem.
+   */
+  .error-summary button.error-summary-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    text-align: left;
   }
 
   /* --- Kroki kreatora (WizardSteps) --- */
   .wizard-steps {
     display: flex;
+    flex-wrap: wrap;
     align-items: center;
     gap: var(--spacing-3);
     margin-bottom: var(--spacing-4);

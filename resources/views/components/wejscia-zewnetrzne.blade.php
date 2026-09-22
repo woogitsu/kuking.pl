@@ -10,23 +10,23 @@
     formularzem. Druga wymaga listy dostawców, a nie jednego wpisanego
     na sztywno, i to jest ten komponent.
 
-    ═══ CZEGO TU DZIŚ NIE MA I DLACZEGO ═══
+    ═══ FACEBOOK DOSZEDŁ 11.09 I NIE JEST KOPIĄ GOOGLE'A ═══
 
-    FACEBOOKA NIE MA, BO NIE MA GO W KODZIE. Sprawdzone 11.09:
-    `app/Support/` ma tylko `Google.php`, `routes/web.php` nie ma ani jednej
-    trasy `wejdz/facebook`, `TozsamoscZewnetrzna` zna jedną stałą
-    (`DOSTAWCA_GOOGLE`), a ograniczenie w bazie dopuszcza jedną wartość —
-    `private const DOSTAWCY = ['google']` w migracji
-    `create_tozsamosci_zewnetrzne_table`.
+    Do 11.09 stało tu, że Facebooka nie ma, bo nie ma go w kodzie, i że
+    dorysowanie przycisku byłoby MARTWYM PRZYCISKIEM (D-053). Kod powstał
+    (issue #259), więc Facebook wchodzi tu jedną linijką w tablicy
+    `$dostawcy` — dokładnie tak, jak ta lista zapowiadała.
 
-    Dorysowanie przycisku Facebooka byłoby więc MARTWYM PRZYCISKIEM, a tego
-    zakazuje D-053 — i zakazuje słusznie: 65-latka, która kliknie i wróci
-    na tę samą stronę bez słowa wyjaśnienia, nie próbuje drugi raz. Znak
-    Facebooka też świadomie nie wchodzi do `x-logo-dostawcy`: zasób, którego
-    nic nie renderuje, przy następnym czytaniu wygląda jak zapomniany kod.
+    Z ekranu wyglądają identycznie i to jest w porządku: człowiek ma wybrać
+    serwis, który zna, a nie zrozumieć różnicę. Różnica jest po naszej
+    stronie i jest duża — **Facebook nie mówi, czy adres e-mail jest
+    potwierdzony**, więc tamta droga nigdy nie łączy się z istniejącym
+    kontem po adresie i zakłada konto z adresem NIEPOTWIERDZONYM (D-098,
+    `FacebookLoginController`). Widok o tym nie musi wiedzieć; wie o tym
+    kontroler i wie baza.
 
-    Facebook wejdzie tu jedną linijką w tablicy `$dostawcy` razem z PR-em
-    z issue #259 — i to jest cały sens tej listy.
+    Czego tu nadal NIE MA: trzeciego dostawcy. Gdy kiedyś dojdzie, dojdzie
+    tak samo — jedną linijką i znakiem w `x-logo-dostawcy`.
 
     ═══ JEDEN DOSTAWCA CZY DWA — UKŁAD ROBI TO SAM ═══
 
@@ -59,13 +59,22 @@
     i kontrolerowi — więc nie da się dojść do stanu „przycisk jest, droga
     nie działa".
 --}}
-@props(['naglowek' => 'Masz konto Google? Wejdź jednym kliknięciem'])
+@props(['naglowek' => 'Masz konto Google albo Facebooka? Zaloguj się przez nie'])
 
 @php
     /**
      * Dostawcy, których droga NAPRAWDĘ dziś działa. Kolejność w tablicy jest
-     * kolejnością na ekranie: Google pierwszy, bo jest jedyny — a gdy dojdzie
-     * Facebook (#259), właściciel chciał go po prawej.
+     * kolejnością na ekranie: Google po lewej, Facebook po prawej — prośba
+     * właściciela z 11.09, wypisana tutaj, żeby następna osoba nie
+     * przestawiła tego „dla porządku alfabetycznego".
+     *
+     * Każdy wpis wchodzi POD WARUNKIEM, że jego droga działa, i pyta o to
+     * JEDNO miejsce na dostawcę (`App\Support\Google::dziala()`,
+     * `App\Support\Facebook::dziala()`) — to samo, o które pyta kontroler.
+     * Dzięki temu nie da się dojść do stanu „przycisk jest, droga nie
+     * działa", czyli do martwego przycisku z D-053. Bez kluczy dostawcy
+     * jego przycisku po prostu nie ma, a gdy nie działa ŻADEN — nie ma
+     * całego bloku (patrz `@if` niżej).
      */
     $dostawcy = [];
 
@@ -75,6 +84,15 @@
             'nazwa' => 'Google',
             'napis' => 'Wejdź kontem Google',
             'adres' => route('google.start'),
+        ];
+    }
+
+    if (\App\Support\Facebook::dziala()) {
+        $dostawcy[] = [
+            'znak' => 'facebook',
+            'nazwa' => 'Facebooka',
+            'napis' => 'Wejdź kontem Facebooka',
+            'adres' => route('facebook.start'),
         ];
     }
 
@@ -102,7 +120,7 @@
 @endphp
 
 @if($dostawcy !== [])
-    <div class="card mt-6">
+    <div class="sekcja-strony mt-6">
         <h2>{{ $naglowek }}</h2>
         <p>
             Nie musisz wymyślać ani pamiętać hasła. Przeniesiemy Cię
@@ -118,7 +136,8 @@
         </p>
         <p class="meta">
             Dostajemy tylko Twój adres e-mail i imię. Nie bierzemy zdjęcia,
-            nie bierzemy listy kontaktów i nie mamy dostępu do Twojej poczty.
+            nie bierzemy listy znajomych ani kontaktów, nie mamy dostępu do Twojej
+            poczty i nigdy nic nie napiszemy na Twojej tablicy.
         </p>
     </div>
 @endif

@@ -1,0 +1,61 @@
+{
+    "backup":  "/tmp/kuking551-negatywy-sdco2fuj",
+    "database":  "kuking_final_20260913",
+    "port":  55439,
+    "results":  [
+                    {
+                        "name":  "visibility",
+                        "file":  "app/Http/Controllers/ProfileController.php",
+                        "negative_exit":  1,
+                        "restored_bytes_mtime":  true,
+                        "md5":  "69288ecfacb5e8f30ec42ecdad4d99be",
+                        "mtime_ns":  1789420512516518750,
+                        "positive_exit":  0
+                    },
+                    {
+                        "name":  "limit",
+                        "file":  "app/Http/Controllers/ProfileController.php",
+                        "negative_exit":  1,
+                        "restored_bytes_mtime":  true,
+                        "md5":  "69288ecfacb5e8f30ec42ecdad4d99be",
+                        "mtime_ns":  1789420512516518750,
+                        "positive_exit":  0
+                    },
+                    {
+                        "name":  "published",
+                        "file":  "app/Http/Controllers/ProfileController.php",
+                        "negative_exit":  1,
+                        "restored_bytes_mtime":  true,
+                        "md5":  "69288ecfacb5e8f30ec42ecdad4d99be",
+                        "mtime_ns":  1789420512516518750,
+                        "positive_exit":  0
+                    },
+                    {
+                        "name":  "tags_priority",
+                        "file":  "app/Http/Controllers/ProfileController.php",
+                        "negative_exit":  1,
+                        "restored_bytes_mtime":  true,
+                        "md5":  "69288ecfacb5e8f30ec42ecdad4d99be",
+                        "mtime_ns":  1789420512516518750,
+                        "positive_exit":  0
+                    },
+                    {
+                        "name":  "image",
+                        "file":  "resources/views/components/szyna-profilu.blade.php",
+                        "negative_exit":  1,
+                        "restored_bytes_mtime":  true,
+                        "md5":  "2127c38b1391de4b1bfca8376e6ab728",
+                        "mtime_ns":  1789420485478143900,
+                        "positive_exit":  0
+                    },
+                    {
+                        "name":  "link",
+                        "file":  "resources/views/components/szyna-profilu.blade.php",
+                        "negative_exit":  1,
+                        "restored_bytes_mtime":  true,
+                        "md5":  "2127c38b1391de4b1bfca8376e6ab728",
+                        "mtime_ns":  1789420485478143900,
+                        "positive_exit":  0
+                    }
+                ]
+}

@@ -1,0 +1,102 @@
+{
+  "cel": "Brak #666 nr 3 — oglad w przegladarce zamiast odczytu HTML curl-em",
+  "kryterium": "zrzut strony przepisu z widocznym \"1 wykonanie\" przy 320 i 1440 px w obu motywach, odczytowo, bez logowania i bez zapisu",
+  "wykonano": "2026-09-19T13:07:31.830Z",
+  "tryb": "wylacznie odczyt: GET bez sesji, bez logowania, bez POST, bez klikniec zapisujacych",
+  "motywCiemny": "atrybut data-theme=\"dark\" ustawiony na <html> w DOM po wczytaniu strony — jedyna sciezka aktywacji wg resources/css/tokens.css (D-019). NIE uzyto POST /motyw.",
+  "podpowiedzWygladu": "localStorage[\"kuking-wyglad-poznany\"]=\"1\" przed wczytaniem — wg resources/js/szybki-wyglad.js l.198",
+  "wyniki": [
+    {
+      "konfiguracja": "light-320",
+      "url": "https://kuking.pl/przepisy/bigos-z-cukinii",
+      "status": 200,
+      "htmlDataTheme": null,
+      "bodyBackground": "rgb(243, 244, 241)",
+      "naglowekSekcji": "Komu wyszło",
+      "tekstLicznika": "1 wykonanie",
+      "licznikWidoczny": true,
+      "licznikPrzykryty": false,
+      "boundingBox": {
+        "x": 215,
+        "y": 469.9375,
+        "width": 93,
+        "height": 24.796875
+      },
+      "wersjaStopki": "Alfa 0.67",
+      "shaStopki": "ab91185",
+      "poziomyOverflow": false,
+      "podpowiedzWygladuWidoczna": false,
+      "zrzut": "light-320.png",
+      "PASS": true
+    },
+    {
+      "konfiguracja": "light-1440",
+      "url": "https://kuking.pl/przepisy/bigos-z-cukinii",
+      "status": 200,
+      "htmlDataTheme": null,
+      "bodyBackground": "rgb(243, 244, 241)",
+      "naglowekSekcji": "Komu wyszło",
+      "tekstLicznika": "1 wykonanie",
+      "licznikWidoczny": true,
+      "licznikPrzykryty": false,
+      "boundingBox": {
+        "x": 1187,
+        "y": 502.046875,
+        "width": 93,
+        "height": 24.796875
+      },
+      "wersjaStopki": "Alfa 0.67",
+      "shaStopki": "ab91185",
+      "poziomyOverflow": false,
+      "podpowiedzWygladuWidoczna": false,
+      "zrzut": "light-1440.png",
+      "PASS": true
+    },
+    {
+      "konfiguracja": "dark-320",
+      "url": "https://kuking.pl/przepisy/bigos-z-cukinii",
+      "status": 200,
+      "htmlDataTheme": "dark",
+      "bodyBackground": "rgb(21, 23, 20)",
+      "naglowekSekcji": "Komu wyszło",
+      "tekstLicznika": "1 wykonanie",
+      "licznikWidoczny": true,
+      "licznikPrzykryty": false,
+      "boundingBox": {
+        "x": 215,
+        "y": 469.9375,
+        "width": 93,
+        "height": 24.796875
+      },
+      "wersjaStopki": "Alfa 0.67",
+      "shaStopki": "ab91185",
+      "poziomyOverflow": false,
+      "podpowiedzWygladuWidoczna": false,
+      "zrzut": "dark-320.png",
+      "PASS": true
+    },
+    {
+      "konfiguracja": "dark-1440",
+      "url": "https://kuking.pl/przepisy/bigos-z-cukinii",
+      "status": 200,
+      "htmlDataTheme": "dark",
+      "bodyBackground": "rgb(21, 23, 20)",
+      "naglowekSekcji": "Komu wyszło",
+      "tekstLicznika": "1 wykonanie",
+      "licznikWidoczny": true,
+      "licznikPrzykryty": false,
+      "boundingBox": {
+        "x": 1187,
+        "y": 502.046875,
+        "width": 93,
+        "height": 24.796875
+      },
+      "wersjaStopki": "Alfa 0.67",
+      "shaStopki": "ab91185",
+      "poziomyOverflow": false,
+      "podpowiedzWygladuWidoczna": false,
+      "zrzut": "dark-1440.png",
+      "PASS": true
+    }
+  ]
+}

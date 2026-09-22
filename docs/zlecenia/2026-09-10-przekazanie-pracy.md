@@ -975,8 +975,10 @@ Do listy z 14.7 zmiany:
 - **Google Cloud Console** — `docs/infra/DEPLOYMENT_RUNBOOK.md` krok 8D. Bez
   kluczy przycisku nie ma na ekranie logowania. Trzy zakresy, wszystkie
   „non-sensitive", więc bez weryfikacji przez Google.
-- **Meta** — `docs/infra/FACEBOOK_LOGIN_URUCHOMIENIE.md`. **App Review NIE jest
-  potrzebny** dla `public_profile` i `email`; wbrew temu, co zakładaliśmy.
+- **Meta — historyczne założenie sprostowane 16.09 (#618).** Przy wdrożeniu
+  z 12.09 właściciel zgłosił zatwierdzony App Review. Aktualna instrukcja:
+  `docs/infra/DEPLOYMENT_RUNBOOK.md`, krok 8E. Nie stosuj dawnego zapewnienia
+  tego zlecenia o braku potrzeby przeglądu.
 - **Kopia bazy — nadal cztery czynności i nadal ZERO kopii.** To jest jedyna
   pozycja na tej liście, przy której utrata bazy jest bezpowrotna.
 - Bez zmian: #204 (piksel śledzący w EmailLabs), #120 (bramka R2), Composer na

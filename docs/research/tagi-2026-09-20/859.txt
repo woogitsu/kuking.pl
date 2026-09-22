@@ -1,0 +1,29 @@
+
+── Kontrola ujemna: 859 ──
+  plik:     resources/views/pages/settings/tags.blade.php
+  MD5 przed: cbb5aa8446d905fd8f5fd1b82264d1af
+  oczekuję:  dopóki nikogo nie obserwujesz
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 cbb5aa8446d905fd8f5fd1b82264d1af → 214f17b663cf3ac1330ae56c35342a5c.
+  różnica:
+         <h1>Twoje tagi</h1>
+
+         <p class="text-lead">
+    -        Gdy nie ma wpisów od obserwowanych osób, pokazujemy wpisy z Twoich tagów. Jeśli i tam jest pusto, zobaczysz najnowsze publiczne wpisy.
+    +        Tagi działają, dopóki nikogo nie obserwujesz. Jeśli i tam jest pusto, zobaczysz najnowsze publiczne wpisy.
+         </p>
+
+         <x-error-summary />
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „dopóki nikogo nie obserwujesz” wystąpił w wyjściu.
+            Tagi działają, dopóki nikogo nie obserwujesz. Jeśli i tam jest pusto, zobaczysz najnowsze publiczne wpisy.\n
+    ' [UTF-8](length: 26454) does not contain "dopóki nikogo nie obserwujesz" [UTF-8](length: 30).
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 859
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/_tagi-dowody/859.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

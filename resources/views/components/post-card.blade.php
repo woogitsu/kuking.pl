@@ -18,26 +18,92 @@
     ani po przesunięciu palcem — dla części naszych użytkowników to jedyna
     droga do funkcji (AGENTS.md §5).
 --}}
-@props(['post'])
+@props(['post', 'showQuestionTitle' => true])
 @php $author = $post->author; @endphp
 <article class="card post-card">
     <div class="post-card-head">
-        <a href="{{ route('profile.show', $author->profile->username) }}" aria-hidden="true" tabindex="-1">
+        {{-- KLASA NA `<a>`, NIE TYLKO NA AWATARZE W ŚRODKU.
+
+             `.post-card-head` jest `display: flex`, więc elementem flex tego
+             rzędu jest TEN `<a>`, a nie `<x-avatar>` w nim. `.avatar` ma
+             własne `flex: none` (`app.css`), ale to zdanie o awatarze, nie
+             o jego opakowaniu — bez klasy niżej `<a>` dostaje domyślne
+             `flex-shrink: 1` i kurczy się przy długiej nazwie autorki,
+             plakietce i przycisku „Więcej" w jednym wierszu. Wtedy
+             `max-width: 100%` (preflight Tailwinda) dociska SZEROKOŚĆ zdjęcia
+             do zwężonego `<a>`, a `height: 52px` zostaje — i twarz jest
+             ściśnięta w poziomie. Dotyczy to wariantu ze zdjęciem (`<img>`);
+             wariant z inicjałem (`<span>`) nie ma `max-width` i się nie zgniata.
+
+             Ta sama choroba i to samo lekarstwo co przy
+             `.kuking-board-avatar` (`app.css`) — tam stoi ten sam komentarz. --}}
+        <a class="post-card-awatar" href="{{ route('profile.show', $author->profile->username) }}" aria-hidden="true" tabindex="-1">
             <x-avatar :user="$author" :size="52" />
         </a>
-        <div class="min-w-0">
+        {{-- KOLUMNA Z NAZWĄ AUTORA I DATĄ — WŁASNA KLASA, NIE NARZUTKA `min-w-0`.
+
+             `min-w-0` mówiło tylko tyle, że tę kolumnę wolno ścisnąć — i przy
+             czcionce przeglądarki 200% ściskała się do ZERA: awatar (52 px
+             z widoku), odstępy i przycisk menu (96 px, bo `--control-height-min`
+             to 3rem) nie mieszczą się wtedy w karcie szerokiej na 256 px, a
+             jedynym elementem, który wolno zwęzić, była właśnie ta kolumna.
+             Nazwa i data rozsypywały się na słup pojedynczych liter — główka
+             wysoka na 5588 px zamiast 330 px (zmierzone,
+             `scripts/glowka-karty-wpisu.mjs`).
+
+             Klasa niesie teraz obie połowy zdania naraz: „wolno Cię ścisnąć"
+             ORAZ „liczysz się w tym rzędzie za 96 px, a przy bardzo dużej
+             czcionce bierzesz cały rząd". Reguła i pomiary siedzą przy
+             `.post-card-tozsamosc` w `resources/css/app.css`. --}}
+        <div class="post-card-tozsamosc">
             <a class="author-name" href="{{ route('profile.show', $author->profile->username) }}">{{ $author->displayName() }}</a>
             <p class="meta m-0">
-                <a href="{{ $post->url() }}" class="link-jak-tekst">
-                    <time datetime="{{ $post->published_at?->toIso8601String() }}">{{ \App\Support\Czas::dataLubNic($post->published_at, 'j F Y, H:i') }}</time>
-                </a>
+                {{-- `adresTresci()`, nie `url()`: wpis, który jest samym
+                     wskazaniem przepisu, nie ma własnej treści — jego strona to
+                     nagłówek i pusto. Data prowadzi więc tam, gdzie jest danie
+                     (#447). Kanoniczny adres wpisu zostaje `url()` i idzie do
+                     udostępniania. --}}
+                {{-- SZKIC NIE MA DATY PUBLIKACJI — I NIE MA PRAWA MIEĆ TU
+                     ODNOŚNIKA BEZ NAPISU (D-053).
+
+                     `published_at` szkicu jest `null`, a `Czas::dataWpisu(null)`
+                     zwraca pusty łańcuch. Do tej poprawki karta renderowała
+                     wtedy `<a href="…"><time datetime=""></time></a>` — odnośnik
+                     z zerową treścią: oko widzi w tym wierszu dziurę, a czytnik
+                     ekranu ogłasza „odnośnik" i nie umie powiedzieć, dokąd.
+                     Zmierzone przez `ObchodEkranowNieZostawiaMartwegoPrzyciskuTest`
+                     na własnym szkicu autora (`/wpisy/{szkic}`).
+
+                     Zamiast pustego przycisku stoi tu zdanie, które mówi, co to
+                     jest — bo to jedyna informacja, jakiej człowiek w tym
+                     miejscu potrzebuje: ten wpis jeszcze nie wyszedł. --}}
+                @if($post->published_at === null)
+                    <span class="badge">Szkic — jeszcze nieopublikowany</span>
+                @else
+                    <a href="{{ $post->adresTresci() }}" class="link-jak-tekst">
+                        <time datetime="{{ $post->published_at->toIso8601String() }}">{{ \App\Support\Czas::dataWpisu($post->published_at) }}</time>
+                    </a>
+                @endif
                 {{-- Widoczność przy dacie, tak jak w kicie (ekran 01: „2 godz.
                      temu · publicznie"). Także dla wpisu publicznego: autor ma
                      wiedzieć jednym spojrzeniem, kto to widzi, a nie dopiero
                      po wejściu w edycję. --}}
-                @if($post->visibility === 'followers')
+                {{-- WPIS WSKAZUJĄCY PRZEPIS PYTA O WIDOCZNOŚĆ PRZEPISU
+                     (issue #368). Taki wpis ma `visibility = 'public'` na
+                     stałe i to nie jest jego widoczność, tylko brak własnego
+                     zawężenia — bramką jest przepis
+                     (`Post::scopeZWidocznymPrzepisem()`). Bez tego pytania
+                     karta napisałaby autorowi „publicznie" pod przepisem,
+                     który widzą wyłącznie jego obserwujący.
+
+                     `?->` i `??`: ekrany, które doładowują sam
+                     `recipe:id,title,slug` bez kolumny `visibility`,
+                     dostałyby `null` — wtedy zostaje widoczność wpisu, czyli
+                     zachowanie sprzed tej zmiany. --}}
+                @php $widocznosc = $post->recipe?->visibility ?? $post->visibility; @endphp
+                @if($widocznosc === 'followers')
                     · <span class="badge">Tylko dla obserwujących</span>
-                @elseif($post->visibility === 'private')
+                @elseif($widocznosc === 'private')
                     · <span class="badge">Tylko dla mnie</span>
                 @else
                     · <span>publicznie</span>
@@ -62,10 +128,59 @@
                 W środku siedzą rzeczy, po które NIE sięga się odruchowo —
                 dlatego zeszły z paska akcji pod spodem: tam zostają tylko
                 „Ugotowałem" i komentarze.
+
+                SAME KROPKI — NAZWANY WYJĄTEK OD „IKONA NIGDY SAMA"
+                (decyzja właściciela z 12 września 2026, `AGENTS.md` §5,
+                `docs/UX_50_PLUS.md`). To jest ODWRÓCENIE decyzji z 11
+                września i odwracamy je świadomie, z zapisanym ryzykiem.
+
+                CO BYŁO PRZEDTEM I DLACZEGO SIĘ ZMIENIŁO. 11 września
+                dołożyliśmy tu widoczny napis „Więcej", bo `AGENTS.md` §5
+                żąda, żeby ikona nie była jedynym opisem ważnej akcji,
+                a `docs/UX_50_PLUS.md` wymienia wzorzec „`♡ ⋮ ↗` bez
+                podpisów" jako słaby. Argument był i jest prawdziwy: za tymi
+                kropkami stoją „Edytuj wpis" i „Usuń wpis".
+
+                Właściciel dostał to ryzyko wprost i wybrał kropki, z powodem,
+                który nie jest estetyczny: **to jest utrwalony wzorzec
+                z Facebooka**, a nasza grupa spędziła tam lata. Dla niej same
+                kropki w rogu wpisu nie są zagadką do rozwiązania, tylko
+                znakiem, który już zna. Reguła ogólna zostaje — zmienia się
+                o jeden nazwany wyjątek, opisany w `AGENTS.md` §5
+                i w `docs/UX_50_PLUS.md`. Wyjątek dotyczy WYŁĄCZNIE tego
+                jednego menu i nie znosi zasady nigdzie indziej.
+
+                CO SIĘ NIE ZMIENIA, I TO JEST CAŁA RÓŻNICA MIĘDZY TĄ ZMIANĄ
+                A STANEM SPRZED 11 WRZEŚNIA:
+
+                1. `aria-label` ZOSTAJE — czytnik ekranu dalej mówi „Więcej
+                   przy tym wpisie". Nic nie ginie osobie, która nie widzi
+                   kropek. WCAG 2.2 AA 2.5.3 (Label in Name) mówi o nazwie
+                   dostępnej WOBEC widocznego napisu; tutaj widocznego napisu
+                   nie ma w ogóle, więc kryterium nie ma czego naruszyć —
+                   inaczej niż wtedy, gdyby napis był i się rozjeżdżał.
+                2. Ikona idzie z `components/ikona.blade.php` (`more`), a nie
+                   ze znaku `···` wpisanego z klawiatury. Kształt jest wtedy
+                   nasz, a nie czcionki systemu, i ma `aria-hidden`
+                   oraz `focusable="false"` z jednego miejsca.
+                3. Cel dotknięcia zostaje 48 × 48 px — patrz
+                   `.post-card-menu > summary` w `resources/css/app.css`.
+                   ZNIKA NAPIS, NIE PRZYCISK. Obwódka też zostaje: bez niej
+                   trzy kropki wyglądają na ozdobę, a nie na rzecz, którą się
+                   naciska.
+                4. Menu dalej jest `<details>`, więc otwiera się bez
+                   JavaScriptu (AGENTS.md §5).
+
+                CO TO REALNIE ODDAJE GŁÓWCE KARTY (zmierzone, Chromium 1194,
+                własny profil autora, trzy długości nazwy): przycisk schodzi
+                ze 125,6 px do 48 px przy czcionce 100% i z 225,1 px do 96 px
+                przy czcionce przeglądarki 200%. Przy 200% kolumna z nazwą
+                i datą miała DO TEJ ZMIANY szerokość 0 px na każdej mierzonej
+                szerokości okna (320–414 px) — sam ten przycisk zjadał kartę.
             --}}
             <details class="post-card-menu">
                 <summary aria-label="Więcej przy tym wpisie">
-                    <span aria-hidden="true">···</span>
+                    <x-ikona nazwa="more" :rozmiar="24" class="post-card-menu-ikona" />
                 </summary>
                 <div class="post-card-menu-tresc">
                     <a href="{{ $post->url() }}">Otwórz wpis</a>
@@ -102,8 +217,86 @@
         @endauth
     </div>
 
+    {{--
+        DŁUGI WPIS POKAZUJE SIĘ NA KARCIE W SKRÓCIE (issue #354)
+
+        Jeden wpis z przepisem — lista składników i kroki — wypełniał na
+        telefonie cały ekran i wypychał wszystko poniżej. Pod nim nie było
+        widać ani dna karty, ani następnego wpisu; feed przestawał być feedem.
+
+        Skracamy NA SERWERZE i dajemy zwykły odnośnik do strony wpisu. Nie
+        rozwijamy treści w miejscu (`<details>`): rozwinięcie przesuwa
+        wszystko poniżej, a przy 50+ to realny koszt — człowiek gubi miejsce,
+        w którym czytał. Na stronie wpisu i tak są komentarze oraz całe
+        zdjęcie, więc to tam prowadzi „Czytaj dalej".
+
+        Próg (wiersze I znaki), powód rezygnacji z `-webkit-line-clamp`
+        i sposób cięcia po całych wyrazach: `App\Support\ZapowiedzWpisu`.
+
+        NA STRONIE SAMEGO WPISU NIE SKRACAMY — I TO NIE JEST DROBIAZG.
+        Ta sama karta stoi w feedzie i na `pages/posts/show.blade.php`.
+        Gdyby skracała także tam, całej treści nie dałoby się przeczytać
+        NIGDZIE, a „Czytaj dalej" prowadziłoby na stronę, na której człowiek
+        już stoi — czyli byłoby martwym przyciskiem (D-053). Warunek pyta
+        o trasę, a nie o dodatkowy parametr komponentu, bo dzięki temu
+        żaden z ośmiu widoków używających karty nie musi o niczym pamiętać.
+    --}}
+    {{--
+        TAGI WPISU LICZYMY RAZ, PRZED TREŚCIĄ (issue #737)
+
+        Tej samej listy potrzebują dwie rzeczy: `#tag` w treści, który ma być
+        odnośnikiem, i chipsy pod zdjęciem. Gdyby każda liczyła ją u siebie,
+        rozjechałyby się przy pierwszej zmianie reguły „co pokazujemy".
+
+        ŹRÓDŁEM ADRESU JEST RELACJA WPISU, NIE TEKST. Adres złożony z tego, co
+        ktoś napisał, prowadziłby przy literówce albo przy `#2024` na stronę,
+        której nie ma — a odnośnik do pustki jest gorszy niż jego brak.
+        Kluczem mapy jest znormalizowana nazwa (`Tag::kluczTokenu()`) ORAZ
+        slug: dokładnie te dwie drogi, którymi `ResolveTagsForPost::resolve()`
+        dopasowuje token do istniejącego tagu przy ZAPISIE. Ukryte relacje
+        pozostają w modelu; publiczna karta nie linkuje do nich.
+    --}}
+    @php
+        $tagiDoPokazania = $post->relationLoaded('tags')
+            ? $post->tags->where('status', \App\Models\Tag::STATUS_ACTIVE)
+            : collect();
+
+        $adresyTagow = [];
+        foreach ($tagiDoPokazania as $tagWpisu) {
+            $adresyTagow[$tagWpisu->kluczTokenu()] = route('tags.show', $tagWpisu);
+        }
+        foreach ($tagiDoPokazania as $tagWpisu) {
+            $adresyTagow[$tagWpisu->slug] ??= route('tags.show', $tagWpisu);
+        }
+    @endphp
+
+    @if($showQuestionTitle && $post->kind === \App\Models\Post::KIND_QUESTION)
+        <h2 class="post-card-body"><a href="{{ $post->url() }}">{{ $post->title }}</a></h2>
+    @endif
     @if($post->body)
-        <div class="post-card-body">{{ $post->body }}</div>
+        @php
+            $wpisZTrasy = request()->route('post');
+            $naStronieTegoWpisu = request()->routeIs('posts.show', 'questions.show')
+                && $wpisZTrasy instanceof \App\Models\Post
+                && $wpisZTrasy->is($post);
+
+            $skracamy = ! $naStronieTegoWpisu && \App\Support\ZapowiedzWpisu::czyZaDluga($post->body);
+        @endphp
+
+        <div class="post-card-body">{{ \App\Support\LinkiWTekscie::render($skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body, $adresyTagow) }}</div>
+
+        @if($skracamy)
+            {{-- Odnośnik, nie przycisk: czytnik ekranu ogłasza go jako
+                 odnośnik, klawiatura go łapie, a bez skryptu działa tak samo
+                 jak ze skryptem. `aria-label` zaczyna się od widocznego
+                 napisu (WCAG 2.2 AA 2.5.3), bo w feedzie tych odnośników
+                 jest tyle, ile skróconych wpisów — samo „Czytaj dalej" nie
+                 mówi, przy którym wpisie stoi. Ten sam wzorzec co przy
+                 menu „Więcej" wyżej. --}}
+            <p class="post-card-czytaj-dalej">
+                <a href="{{ $post->url() }}" aria-label="Czytaj dalej — cały wpis od {{ $author->displayName() }}">Czytaj dalej</a>
+            </p>
+        @endif
     @endif
 
     {{--
@@ -123,7 +316,25 @@
         domyślnej w bazie, więc trafia w tę samą gałąź co zawsze i wygląda
         dokładnie jak wczoraj — bez migracji danych.
     --}}
-    @if($post->media->isNotEmpty())
+    {{-- ZDJĘCIE WPISU WSKAZUJĄCEGO PRZEPIS JEST ZDJĘCIEM PRZEPISU
+         (issue #368). Taki wpis powstaje bez `body` i bez ani jednego
+         własnego zdjęcia — świadomie, bo wpis ma PROWADZIĆ do przepisu,
+         a nie go duplikować. Gdyby zdjęcie było kopiowane przy publikacji,
+         wymiana zdjęcia głównego w przepisie zostawiłaby w strumieniu stare.
+         Tu nie ma czego synchronizować: karta czyta relację.
+
+         Warunek `media->isEmpty()`, a nie „czy jest przepis": wpis „ugotowane
+         z przepisu" ma i przepis, i WŁASNE zdjęcie dania — i to własne
+         zdjęcie ma wygrać, bo pokazuje, co ugotował TEN człowiek. --}}
+    @if($post->media->isEmpty() && $post->recipe?->heroMedia)
+        <div class="photo-grid">
+            <a href="{{ route('recipes.show', $post->recipe->slug) }}">
+                <x-photo :media="$post->recipe->heroMedia"
+                         :zoom="false"
+                         :alt="$post->recipe->heroMedia->alt_text ?: 'Zdjęcie do przepisu: '.$post->recipe->title" />
+            </a>
+        </div>
+    @elseif($post->media->isNotEmpty())
         @switch($post->trybWyswietlaniaZdjec())
             @case(\App\Models\Post::DISPLAY_CAROUSEL)
                 <x-karuzela-zdjec :post="$post" />
@@ -162,7 +373,7 @@
         ekranach, które tagów nie doładowują (np. `PostController::show`,
         zakładka „Ugotowane" na profilu). Odwołanie się do relacji wprost
         odpaliłoby tam osobne zapytanie PER WPIS — `TagController`
-        i `App\Domain\Feed\TagFeed` już ładowały `tags:id,slug,name` na
+        i `App\Domain\Feed\TagFeed` już ładowały `tags:id,slug,name,status` na
         zapas, więc ten warunek tylko bierze to, co jest, i nigdzie nic
         nie dociąga po cichu.
 
@@ -171,9 +382,9 @@
         żadnego nowego CSS, więc rozmiar dotyku i kontrast mają policzone
         pokrycie od pierwszego dnia.
     --}}
-    @if($post->relationLoaded('tags') && $post->tags->isNotEmpty())
-        <nav class="chipsy post-card-tagi" aria-label="Tematy tego wpisu">
-            @foreach($post->tags as $tag)
+    @if($tagiDoPokazania->isNotEmpty())
+        <nav class="chipsy post-card-tagi" aria-label="Tagi tego wpisu">
+            @foreach($tagiDoPokazania as $tag)
                 <a class="chip" href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
             @endforeach
         </nav>
@@ -218,12 +429,15 @@
             @endif
         @endauth
 
-        <a class="btn btn-secondary" href="{{ $post->url() }}">
+        {{-- Ten sam powód co przy dacie: komentarze wpisu, który jest samym
+             przepisem, stoją na stronie przepisu (`recipes.comment`), a nie
+             pod pustym wpisem. --}}
+        <a class="btn btn-secondary" href="{{ $post->adresTresci().($post->kind === \App\Models\Post::KIND_QUESTION ? '#komentarze' : '') }}">
             <x-ikona nazwa="chat" :rozmiar="22" />
             @if(($post->comments_count ?? 0) > 0)
-                Komentarze ({{ $post->comments_count }})
+                {{ $post->kind === \App\Models\Post::KIND_QUESTION ? 'Odpowiedzi' : 'Komentarze' }} ({{ $post->comments_count }})
             @else
-                Napisz komentarz
+                {{ $post->kind === \App\Models\Post::KIND_QUESTION ? 'Napisz odpowiedź' : 'Napisz komentarz' }}
             @endif
         </a>
 
@@ -263,24 +477,67 @@
                 w miejscu akcji, tak jak ekran przepisu robi to od dawna
                 (`recipes/show.blade.php`, `$isSaved`).
 
-                STAN JEST ZDANIEM, NIE DRUGIM PRZYCISKIEM — I TO JEST CELOWE.
-                Ekran przepisu zamienia w tym miejscu przycisk na „Usuń
-                z zeszytu". Tutaj nie, bo karta stoi w feedzie: podwójne
-                kliknięcie w grupie 50+ to norma, nie pomyłka (issue #43),
-                a przycisk kasujący pod tym samym palcem zabierałby z zeszytu
-                to, co ktoś właśnie do niego włożył. Zostaje odnośnik do
-                zeszytu — bo „wyjąć z zeszytu można w samym zeszycie" i to się
-                nie zmieniło.
+                STAN JEST ZDANIEM **ORAZ** PRZYCISKIEM WYJŚCIA (audyt L1,
+                decyzja właściciela z 20 września 2026).
+
+                Stał tu wcześniej akapit „STAN JEST ZDANIEM, NIE DRUGIM
+                PRZYCISKIEM" — z odesłaniem „wyjąć z zeszytu można w samym
+                zeszycie". Tego zdania nie dało się wykonać: ekran zeszytu
+                renderuje TĘ SAMĄ kartę, więc nie było tam żadnego przycisku
+                wyjęcia (`docs/AUDYT_2026-09.md`, wiersz L1). Trasa
+                `collections.unsave-post` istniała, była otestowana i nie miała
+                ANI JEDNEGO wywołania w `resources/`. Człowiek, który odłożył
+                wpis przez pomyłkę, nie miał w całym serwisie drogi wyjścia.
+                Właściciel rozstrzygnął: przycisk stoi wszędzie tam, gdzie
+                widać „Masz to w zeszycie" — czyli i w zeszycie, i na karcie.
+
+                OBAWA O PODWÓJNE KLIKNIĘCIE ZOSTAJE ZAADRESOWANA UKŁADEM, NIE
+                BRAKIEM PRZYCISKU. Powód tamtej decyzji był prawdziwy (podwójne
+                kliknięcie w grupie 50+ to norma, nie pomyłka — issue #43), więc
+                pod palcem, który właśnie kliknął „Zapisuję", NIE MA przycisku
+                kasującego: w tym samym miejscu paska stoi dalej odnośnik „Masz
+                to w zeszycie", a „Usuń z zeszytu" jest dopiero NASTĘPNYM celem.
+                Drugie kliknięcie w to samo miejsce otwiera więc zeszyt, tak jak
+                przed tą zmianą, i niczego nie zabiera.
+
+                BEZ POTWIERDZENIA I BEZ JavaScriptu. To jest zwykły formularz
+                `DELETE` (zwykły `<form method="POST">` z podmianą metody), więc działa tak samo ze skryptem
+                i bez niego — żadnego martwego przycisku (AGENTS.md §5, D-053).
+                Potwierdzenia (`<x-confirm-button>`) świadomie NIE dokładamy:
+                wyjęcie z zeszytu nie kasuje żadnej treści i cofa się jednym
+                kliknięciem, a `.flash` po akcji podaje przycisk „Zapisz
+                ponownie" (`components/layout.blade.php`). Pytanie „czy na
+                pewno" trzymamy dla rzeczy nieodwracalnych — kasowania wpisu,
+                kasowania zeszytu — żeby nie straciło wagi. Ekran przepisu
+                wyjmuje z zeszytu tak samo, jednym przyciskiem bez pytania
+                (`recipes/show.blade.php`), i ta sama czynność ma się tu
+                zachowywać tak samo.
+
+                NAZWA JEST TA SAMA CO PRZY PRZEPISIE: „Usuń z zeszytu".
+                `BRAND_EXTENDED.md` §3 zabrania synonimów — jedna czynność,
+                jedna nazwa. Audyt proponował „Wyjmij z zeszytu"; drugie słowo
+                na tę samą rzecz byłoby dokładnie tym, przed czym tamta reguła
+                stoi.
 
                 Ekran, który `czy_zapisany` nie dolicza, dostaje „Zapisuję" jak
                 dawniej. Zapis jest idempotentny, więc drugie kliknięcie daje
                 dokładnie ten sam skutek co pierwsze (`SavePostToCollection`).
+                Wyjęcie też: drugie `DELETE` na wpisie, którego już nie ma
+                w zeszycie, nie robi nic i nie jest błędem.
             --}}
             @if($zapisy->czyZapisany($post))
                 <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
                     <x-ikona nazwa="book" :rozmiar="22" />
                     Masz to w zeszycie
                 </a>
+                <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
+                    @csrf
+                    @method('DELETE')
+                    <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-zeszytu">
+                        <x-ikona nazwa="save" :rozmiar="22" />
+                        Usuń z zeszytu
+                    </button>
+                </form>
             @else
                 <form method="POST" action="{{ route('collections.save-post', $post) }}">
                     @csrf
@@ -290,6 +547,7 @@
                     </button>
                 </form>
             @endif
+            <x-wybor-zeszytu :action="route('collections.save-post', $post)" :wiersz="'wpis-'.$post->getKey()" :content="$post" />
         @endauth
 
         {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).

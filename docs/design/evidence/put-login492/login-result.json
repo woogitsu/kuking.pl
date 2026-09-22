@@ -1,0 +1,121 @@
+{
+  "source": "609328b53b6e87d99fbf178f46dbb2157feeeed7",
+  "functional_completed": 3,
+  "functional_assertions": [
+    "real SMTP capture",
+    "real form POST and CSRF",
+    "GET confirmation token retained",
+    "POST login token removed and authenticated DB session increased",
+    "reuse guest GET lacks confirmation token"
+  ],
+  "matrix_complete": false,
+  "expiry": {
+    "expiry": "controlled expires_at update in dedicated fixture",
+    "postStatus": 302,
+    "db": {
+      "tokens": 0,
+      "sessions": 0
+    },
+    "rows": [
+      {
+        "theme": "light",
+        "width": 390,
+        "overflow": false
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "overflow": false
+      },
+      {
+        "theme": "dark",
+        "width": 390,
+        "overflow": false
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "overflow": false
+      }
+    ]
+  },
+  "limitations": [
+    "initial dark filenames used prefers-color-scheme but app uses own theme; these are light renders",
+    "dark expired screenshots changed data-theme only and are diagnostic, not normal UI theme receipt",
+    "fourth email same account limited; no bypass",
+    "initial hidden-input wait error printed local synthetic token to tool output; token subsequently expired and deleted; no token in evidence files",
+    "Final receipt includes actual UI theme for form and expired states only; no claim every intermediate login state was rendered in both themes"
+  ],
+  "visual_ui": {
+    "results": [
+      {
+        "theme": "light",
+        "width": 390,
+        "state": "form",
+        "actualTheme": "light",
+        "overflow": false,
+        "heading": "Wy\u015blij mi link do zalogowania"
+      },
+      {
+        "theme": "light",
+        "width": 390,
+        "state": "expired",
+        "actualTheme": "light",
+        "overflow": false,
+        "heading": "Ten link ju\u017c nie dzia\u0142a"
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "state": "form",
+        "actualTheme": "light",
+        "overflow": false,
+        "heading": "Wy\u015blij mi link do zalogowania"
+      },
+      {
+        "theme": "light",
+        "width": 1440,
+        "state": "expired",
+        "actualTheme": "light",
+        "overflow": false,
+        "heading": "Ten link ju\u017c nie dzia\u0142a"
+      },
+      {
+        "theme": "dark",
+        "width": 390,
+        "state": "form",
+        "actualTheme": "dark",
+        "overflow": false,
+        "heading": "Wy\u015blij mi link do zalogowania"
+      },
+      {
+        "theme": "dark",
+        "width": 390,
+        "state": "expired",
+        "actualTheme": "dark",
+        "overflow": false,
+        "heading": "Ten link ju\u017c nie dzia\u0142a"
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "state": "form",
+        "actualTheme": "dark",
+        "overflow": false,
+        "heading": "Wy\u015blij mi link do zalogowania"
+      },
+      {
+        "theme": "dark",
+        "width": 1440,
+        "state": "expired",
+        "actualTheme": "dark",
+        "overflow": false,
+        "heading": "Ten link ju\u017c nie dzia\u0142a"
+      }
+    ],
+    "themeMethod": "actual theme form submit",
+    "requestsForMail": 0,
+    "all_png_reviewed": true,
+    "findings": "No visible clipping or unreadable controls in these eight states"
+  }
+}

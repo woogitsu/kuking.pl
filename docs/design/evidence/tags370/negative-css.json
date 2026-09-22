@@ -1,0 +1,19 @@
+{
+  "before": {
+    "md5": "b6f502c23bca128c520e766ba52e4dcc",
+    "mtime_ns": 1789709443864113342
+  },
+  "backup": "/tmp/kuking370-css-negative-9w6d62cn/marka-tagi.css",
+  "negative": {
+    "exit": 1,
+    "output": "[{\"width\":344,\"height\":258},{\"width\":344,\"height\":258},{\"width\":344,\"height\":524},{\"width\":344,\"height\":260},{\"width\":344,\"height\":790}]\nnode:internal/modules/run_main:123\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: COLLAGE_ASPECT_RATIO\n    at file:///mnt/c/Users/matma/Documents/Codex/kuking-370/output/browser370/ratio.mjs:4:433 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '=='\n}\n\nNode.js v20.20.2\n"
+  },
+  "restored": {
+    "md5": "b6f502c23bca128c520e766ba52e4dcc",
+    "mtime_ns": 1789709443864113342
+  },
+  "positive": {
+    "exit": 0,
+    "output": "[{\"width\":344,\"height\":258},{\"width\":344,\"height\":258},{\"width\":344,\"height\":258},{\"width\":344,\"height\":258},{\"width\":344,\"height\":258}]\n"
+  }
+}

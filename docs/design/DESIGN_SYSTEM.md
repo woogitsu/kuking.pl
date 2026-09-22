@@ -1,5 +1,15 @@
 # System designu Kuking.pl
 
+> Aktualna integracja palety: [NOWY_STYL.md](NOWY_STYL.md). Tabele kolorów,
+> obliczenia kontrastu i opis wyboru fontu poniżej są historyczne. Bieżące
+> wartości czyta `scripts/kontrast-marki.mjs` z `resources/css/tokens.css`;
+> aplikacja używa lokalnego Inter z systemowym stosem zastępczym.
+> Kierunek marki: [KONSTYTUCJA_MARKI.md](../brand/KONSTYTUCJA_MARKI.md).
+> Nadrzędne pozostają AGENTS.md i jawne decyzje właściciela; D-206–D-211
+> rozstrzygają port kompozycji. Makieta nie jest specyfikacją funkcji backendu.
+> Historyczne liczby kontrastu w §1 i uzasadnienie dawnego fontu w §2.2
+> nie są wynikiem pomiaru obecnej aplikacji.
+
 Wersja robocza — Laravel 13 + Blade + Livewire 4 + Alpine.js + Tailwind CSS 4 (CSS-first, `@theme`).
 Zgodność z `docs/UX_50_PLUS.md`, `docs/BRAND.md`, `docs/PRODUCT.md`, `docs/FLOWS_AND_SCREENS.md` i prototypem w `prototype/`.
 
@@ -13,7 +23,7 @@ python3 agents/ux/contrast.py agents/ux/pairs_dark.json
 python3 agents/ux/contrast.py agents/ux/pairs_extra.json
 ```
 
-Wynik na dziś: **wszystkie 55 sprawdzonych par przechodzi próg WCAG 2.2 AA** (4.5:1 dla tekstu, 3:1 dla dużego tekstu i elementów UI). `pairs_light.json` celowo nie zawiera pary „pierścień fokusu na tle przycisku kolorowego” — to nie jest przeoczenie, tylko świadoma decyzja: taka para nigdy nie występuje w renderowanym UI dzięki technice „halo” opisanej w 1.4 (surowe liczby dla niej podane są tam osobno, do wglądu).
+Historyczny wynik dawnej palety: **wszystkie 55 sprawdzonych par przechodzi próg WCAG 2.2 AA** (4.5:1 dla tekstu, 3:1 dla dużego tekstu i elementów UI). `pairs_light.json` celowo nie zawiera pary „pierścień fokusu na tle przycisku kolorowego” — to nie jest przeoczenie, tylko świadoma decyzja: taka para nigdy nie występuje w renderowanym UI dzięki technice „halo” opisanej w 1.4 (surowe liczby dla niej podane są tam osobno, do wglądu).
 
 ---
 
@@ -169,13 +179,22 @@ Zaimplementowane w `tokens.css` w klasie `.btn:focus-visible` oraz ogólnie dla 
 | `--text-title` | 28px | Tytuł **przepisu** (mobile) — zwykły wpis nie ma pola tytułu i nie używa tego tokenu w tej roli: wpis w tym serwisie to „zdjęcie + kilka słów” (decyzja właściciela, `docs/DECISIONS.md` D-030) |
 | `--text-title-lg` | 36px | Tytuł strony głównej, hero (desktop) — skaluje się płynnie `clamp(28px, 4vw, 36px)` |
 
-`line-height`: 1.55 dla body, 1.4 dla tytułów ≥28px (dłuższe wiersze potrzebują mniej, krótkie tytuły są czytelne przy niższym line-height).
+Tekst ciągły zachowuje rytm około 1,55–1,65. Krótkie nagłówki kompozycji
+mają ciaśniejszą interlinię właściwą komponentowi; np. kafel publikacji
+używa 28 px i 1,2 przy skali domyślnej. Nie wymuszamy 1,4 na wszystkich
+tytułach. Dokładne reguły portu stoją w `resources/css/marka-rama.css`.
 
 Długość wiersza: kontener treści ograniczony do `max-width: 42rem–48rem` (≈ 65–75 znaków przy 18–20px) — patrz `--container-content` w tokenach.
 
 ### 2.2 Font
 
-**Wybór: stos systemowy, bez webfontu.**
+**Aktualnie: lokalny Inter z systemowym stosem zastępczym.** Pliki `latin`
+i `latin-ext` oraz `font-display: swap` opisuje `resources/css/fonts.css`.
+Wszystkie rodziny tekstu używają jednej rodziny bezszeryfowej. Wyjątki
+techniczne dla poczty, eksportu i samodzielnych awarii opisuje konstytucja.
+
+Poniższy stos i jego uzasadnienie dokumentują **dawny wybór bez webfontu**,
+nie instrukcję usunięcia Inter:
 
 ```css
 --font-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Noto Sans", "Liberation Sans", Arial, sans-serif;
@@ -189,9 +208,9 @@ Uzasadnienie:
 
 **Rozważona alternatywa (do decyzji właściciela produktu):** `Atkinson Hyperlegible` (Braille Institute) — font zaprojektowany specjalnie pod niską ostrość wzroku, wyraźnie odróżnia znaki podobne (l/I/1, O/0). Nie wdrożony w MVP, bo wymaga webfontu (koszt sieciowy + zależność od Google Fonts). **Do testu A/B po becie**, jeśli badania z użytkownikami 60+ wskażą problem z czytelnością liter podobnych.
 
-### 2.3 Skala tekstu użytkownika (`text_scale`: 100/112/125/150%)
+### 2.3 Skala tekstu użytkownika (`text_scale`: 70/80/90/100/112/125/140%)
 
-Mechanizm: atrybut na `<html>`, ustawiany w `/settings/accessibility` i zapisywany po stronie użytkownika (cookie/DB), niezależny od zoomu przeglądarki.
+Mechanizm: atrybut na `<html>`, ustawiany w `/ustawienia/czytelnosc` i zapisywany po stronie użytkownika (cookie/DB), niezależny od zoomu przeglądarki.
 
 ```html
 <html lang="pl" data-text-scale="125">
@@ -201,12 +220,21 @@ Mechanizm: atrybut na `<html>`, ustawiany w `/settings/accessibility` i zapisywa
 :root { --user-text-scale: 1; }
 :root[data-text-scale="112"] { --user-text-scale: 1.12; }
 :root[data-text-scale="125"] { --user-text-scale: 1.25; }
-:root[data-text-scale="150"] { --user-text-scale: 1.5; }
+:root[data-text-scale="140"] { --user-text-scale: 1.4; }
 ```
 
-Tokeny typografii są zdefiniowane jako `calc(<baza> * var(--user-text-scale))`, więc **skaluje się WYŁĄCZNIE tekst**, nie: wysokość przycisków (min. 48px zostaje 48px — przycisk po prostu robi się wyższy, jeśli tekst zawinie się na 2 linie, dzięki `min-height` a nie `height`), nie: odstępy (`--space-*`), nie: promienie zaokrągleń, nie: szerokość kontenera. Dzięki temu 150% nie rozwala layoutu — psuje najwyżej estetykę (dopuszczalne), nigdy nie ucina treści.
+Pełna lista ustawień stoi w `config/kuking.php` (`text.scales`); przykład
+powyżej pokazuje powiększenia. Własny wybór mniejszego tekstu nie obniża
+standardu domyślnego 18 px. Tokeny tekstowe mnożymy przez
+`--user-text-scale`; odstępy i promienie nie są mnożone przez to ustawienie.
+Kontrolka ma `min-height` i padding, aby mogła urosnąć po zawinięciu tekstu.
+Skala aplikacji 140% nie zastępuje osobnego odbioru przy czcionce
+przeglądarki 200% oraz szerokości 320 px. Sam mechanizm skalowania nie
+dowodzi, że układ pozostaje używalny — trzeba sprawdzić render.
 
-Zasada projektowa dla każdego komponentu: **żadna wysokość ani szerokość nie może być `height:` na sztywno w px dla elementu zawierającego tekst** — zawsze `min-height` + padding, żeby zawinięcie tekstu przy 150% nie obcinało napisu.
+Element zawierający tekst nie może mieć sztywnej wysokości obcinającej
+zawinięte wiersze. Używamy `min-height` i paddingu; również szerokość musi
+pozwalać zmieścić powiększony tekst bez utraty treści lub funkcji.
 
 ---
 
@@ -222,6 +250,11 @@ Reguła: min. odstęp między akcją zwykłą a destrukcyjną = `--space-8` (32p
 
 `--radius-sm: 8px` (plakietki, chipy), `--radius-md: 12px` (przyciski, pola), `--radius-lg: 16px` (karty), `--radius-pill: 999px` (avatar, tag okrągły).
 
+To bazowe tokeny, nie nakaz jednakowego promienia wszystkich komponentów.
+Port marki używa około 14 px dla przycisków oraz 24–26 px dla głównych
+powierzchni przy domyślnej skali. Obowiązujące role opisuje konstytucja;
+wartości rodzin komponentów stoją także w `resources/css/marka-rama.css`.
+
 ### 3.3 Cień
 
 Ciepły, nie czarny — cień barwiony w stronę `ink`, żeby pasował do palety:
@@ -236,6 +269,47 @@ W dark mode cienie są niemal niewidoczne na ciemnym tle — separacja kart odby
 ```css
 --shadow-card-dark: 0 1px 2px rgba(0,0,0,.3), 0 6px 16px rgba(0,0,0,.35);
 ```
+
+### 3.5 Warstwy powierzchni — sześć ról, nie jeden biały prostokąt
+
+Do 11 września 2026 klasa `.card` niosła **126 różnych ról naraz**: była
+jednocześnie kartą wpisu, sekcją strony, blokiem prawej szyny, panelem
+formularza, ramką z wyjaśnieniem i kaflem, w który się klika. Skutek dawał się
+zobaczyć na `/napisz-do-nas`: wyjaśnienie, formularz i „Co się stanie dalej"
+miały ten sam kolor, cień i promień, choć tylko jedna z tych trzech rzeczy
+czegokolwiek wymagała.
+
+| # | Rola | Klasa | Tło | Obwódka | Promień | Cień |
+|---|---|---|---|---|---|---|
+| 1 | Karta treści | `.card` | podniesione | cienka | `--radius-xl` | tak |
+| 2 | Panel formularza | `.panel-formularza` | podniesione | **mocna** | `--radius-xl` | tak |
+| 3 | Sekcja strony | `.sekcja-strony` | podniesione | cienka | `--radius-xl` | **nie** |
+| 4 | Blok prawej szyny | `.card .szyna-blok` | podniesione | cienka | `--radius-xl` | **nie** |
+| 5 | Ramka pomocnicza | `.ramka-pomocnicza` | **wgłębione** | cienka | `--radius-lg` | **nie** |
+| 6 | Kafel akcji | `.kafel-akcji` | podniesione | **mocna** | `--radius-xl` | tak |
+
+Wartości stoją w tokenach `--warstwa-*` (`resources/css/tokens.css`, sekcja 2.1),
+nie w klasach — inaczej tryb ciemny i `.blok-ciemny` wymagałyby sześciu
+osobnych nadpisań każdej klasy.
+
+**Warstwy 3 i 4 są celowo identyczne wizualnie**, a warstwy 1, 3 i 4 różni
+wyłącznie cień — to jest wcześniejsze rozstrzygnięcie o szynie, nie
+przeoczenie. Największą odległość mają te warstwy, które naprawdę stają obok
+siebie na jednym ekranie: panel formularza i ramka pomocnicza rozchodzą się na
+wszystkich pięciu osiach. Pełna macierz różnic: [`ROLE_KART.md`](ROLE_KART.md).
+
+Żadna z tych różnic nie niesie informacji potrzebnej do obsługi ekranu — co
+jest formularzem, mówi nagłówek i etykieta pola — więc §8 punkt 9 („kolor nigdy
+jedynym nośnikiem informacji") jest spełniony niezależnie od tego, ile osi
+dzieli daną parę. W motywie ciemnym, gdzie cienie są prawie niewidoczne,
+różnicę niesie jasność powierzchni.
+
+Warstwa 1 zmieniła promień z `--radius-lg` na `--radius-xl`: karta wpisu i blok
+szyny miały go od dawna jako nadpisania, a zwykła `.card` obok nich 16 px —
+trzy różne promienie w jednej kolumnie czytały się jako niedokończone.
+
+Pełny inwentarz (co dostało którą warstwę i dlaczego) oraz pomiar „przed i po":
+[`ROLE_KART.md`](ROLE_KART.md). Miarę hierarchii liczy `scripts/warstwy-pomiar.mjs`.
 
 ### 3.4 Focus ring
 
@@ -259,7 +333,9 @@ W dark mode cienie są niemal niewidoczne na ciemnym tle — separacja kart odby
 
 Wspólne reguły:
 - min. wysokość **48px** (`min-height`, nie `height`), padding poziomy min. 16px.
-- **zawsze tekst**, nigdy sama ikona. Ikona może towarzyszyć tekstowi, nigdy go zastępować.
+- Ważna akcja ma widoczny tekst. Jawne wyjątki z AGENTS.md dotyczą menu
+  trzech kropek na karcie wpisu oraz przełącznika motywu w stopce (D-051).
+  Nie rozszerzamy ich na inne kontrolki; nazwa dostępna pozostaje wymagana.
 - stan `disabled`: obniżona opacity + **zawsze towarzyszący komunikat** dlaczego (np. pod przyciskiem: „Dodaj zdjęcie, żeby opublikować” — nigdy cichy, niewyjaśniony `disabled`).
 - odstęp między `primary`/`secondary` a `danger` ≥ `--space-8`.
 
@@ -286,25 +362,67 @@ Wspólne reguły:
 
 ## 5. Inwentarz komponentów
 
-Dla każdego: cel, stany, warianty, twarde zasady a11y. Kod Blade dla najważniejszych 12 — patrz `COMPONENTS_BLADE.md`.
+Dla każdego: cel, stany, warianty, zasady dostępności. Nazwy opisują role;
+nie każda jest osobnym komponentem Blade. `COMPONENTS_BLADE.md` i prototypy
+są materiałem projektowym, nie dowodem bieżącego zachowania. Zmiana funkcji
+wymaga sprawdzenia aktualnego widoku, akcji domenowej i decyzji produktu.
 
 ### `AppShell`
-Układ nadrzędny. Mobile: `TopBar` (sticky) + treść + `BottomNav` (sticky dół, `padding-bottom` na `<body>` żeby nic się nie chowało pod nawigacją). Desktop (≥1024px): `TopBar` + dwukolumnowy układ `SideNav` (lewa, 240px) + kolumna treści (max 720px, wyśrodkowana) — **nigdy więcej niż 2 kolumny główne**, nigdy „ściana kafelków”. `BottomNav` ukryty na desktopie (`SideNav` go zastępuje).
+Rama według D-206 i D-207: osobny, pływający nagłówek oraz treść z opcjonalną
+prawą szyną. Zwykły użytkownik nie ma lewego `SideNav`. Dla szerokiego Startu
+punktem odniesienia jest 1120 px: 750 px treści, 40 px odstępu i 330 px szyny.
+Nie jest to nakaz szerokości każdego formularza. Na telefonie treść przechodzi
+do jednej kolumny; pięć pozycji dolnej nawigacji zastępuje menu desktop.
+Odstępy uwzględniają rzeczywistą wysokość pasków i safe area. Przyklejenie
+paska ustępuje dostępowi do powiększonej treści i widocznego fokusu.
 
 ### `TopBar`
-Logo/wordmark „KUKING” (link do `/home`), na mobile menu ukryte (zastąpione `BottomNav`), na desktop pozioma nawigacja. Sticky, `border-bottom` `--color-border`. Wysokość min. 64px.
+Garnek i logotyp „KuKing.pl” w odrębnej, zaokrąglonej powierzchni odsuniętej
+od krawędzi okna. Na desktopie Start / Odkrywaj / Mój zeszyt, osobno Szukaj,
+Powiadomienia i dostęp do konta. Stan gościa zachowuje wejścia do logowania
+i rejestracji. Nie zastępujemy garnka literą K ani nie usuwamy podpisu
+Powiadomienia dla zgodności z makietą. Wysokość rośnie wraz z zawartością.
 
 ### `BottomNav`
-Dokładnie 5 pozycji, stałe, zawsze te same, zawsze z tekstem pod ikoną: **Start | Szukaj | Dodaj | Moje | Profil**. `Dodaj` wizualnie wyróżniony (kolor brand) jako główna akcja produktu. `aria-current="page"` na aktywnej pozycji. Fixed bottom, `role="navigation"` + `aria-label="Dolna nawigacja"`. Wysokość elementu klikalnego min. 60px (spełnia 48px+ z zapasem).
+Dokładnie 5 pozycji: **Start | Szukaj | Dodaj | Moje | Profil**, z widocznymi
+podpisami. Pływająca, zaokrąglona powierzchnia; `Dodaj` wyróżnia ciemny plus.
+Aktywny stan ma `aria-current="page"` i wyróżnienie niezależne od koloru.
+Obszar nawigacji ma nazwę dostępną, ważne cele minimum 48 px. Przy dużym
+tekście nie utrzymujemy przyklejenia kosztem zasłaniania treści.
 
-### `SideNav` (desktop)
-Pionowy odpowiednik `BottomNav` + dodatkowe pozycje (Powiadomienia, Kolekcje, Ustawienia). Te same etykiety tekstowe co mobile — spójność mentalnego modelu.
+### Nawigacja panelu moderacji
+Panel zachowuje własną nawigację roboczą i kontrolę uprawnień (D-206).
+Nie przenosimy jej do zwykłej ramy użytkownika.
+
+### Kompozycje Startu i publicznego powitania
+
+Start (D-207): krótkie „Dzień dobry” z nazwą z profilu, bez zgadywania
+odmiany; pytanie „Co dziś gotujesz?” oraz przyciski Dodaj zdjęcie / Dodaj
+przepis stoją w ciemnym kaflu z pierścieniem. Prawą szynę zaczyna ciemny
+wstęp, po nim osobne powierzchnie rzeczywistych osób i dań.
+
+Publiczne powitanie (D-208): otwarte kroki 01–03 z dużym tytułem „Zdjęcie.
+Kilka słów. I rozmowa przy okazji.”, bezpośrednio potem ciemny blok
+„Ugotowałem / Twój przepis. Czyjś dobry obiad.”, następnie tablica i wpisy.
+Fotografia pochodzi z publicznego kolażu i ma podpis autora; bez dostępnej
+fotografii blok jest tekstowy. Na telefonie kroki układają się pionowo.
+Nie odtwarzamy fikcyjnych osób, liczników ani symulowanych operacji z HTML.
 
 ### `PostCard`
-Awatar + nazwa + czas → treść (kilka słów) → **duże zdjęcie** (aspect-ratio 4:3, `object-fit: cover`, nigdy tekst nałożony bez podkładu) → akcje (`Ugotowałem` / `Komentuj` / `Zapisz`, zawsze z tekstem) → licznik komentarzy jako link. Stan: zwykły, zapisany (ikona + stan `aria-pressed`), własny post (dodatkowo „Edytuj”/„Usuń” w menu z widocznym tekstem, nie tylko `⋮`).
+Awatar, nazwa i czas → kilka słów → duże zdjęcie → rzeczywiste akcje wpisu.
+Kadrowanie respektuje wybrany tryb zdjęcia; nie wymuszamy 4:3 na każdej
+fotografii. Karta jest jasna w jasnym motywie, ma miękki cień i zaokrąglenia
+według konstytucji. Menu otwierają same trzy kropki z nazwą dostępną
+„Więcej przy tym wpisie” oraz celem 48 × 48 px (wyjątek AGENTS.md).
+Pozycje menu i pozostałe ważne akcje zachowują widoczne opisy oraz kontrolę
+uprawnień. „Ugotowałem” odnosi się do wykonania przepisu, nie polubienia wpisu.
 
 ### `RecipeCard`
-Jak `PostCard`, dodatkowo: czas przygotowania, porcje, poziom trudności, licznik „X osób ugotowało” + % „zrobię ponownie”. CTA `Ugotowałem` zawsze widoczne bez przewijania na mobile (nad zwijaniem, jeśli karta jest w liście — pełny widok na `recipe.html`).
+Karta listy (`resources/views/components/recipe-card.blade.php`) zawiera
+miniaturę, tytuł, pochodzenie i liczbę wykonań, jeżeli istnieją. Nie jest
+pełnym widokiem przepisu. Akcja „Ugotowałem” i szczegóły przygotowania
+należą do widoku przepisu; nie wymagamy dodania wszystkich metadanych ani
+tej akcji do każdej miniatury na podstawie dawnego prototypu.
 
 ### `CookedCard`
 Wpis „Ugotowałem” w obrębie widoku przepisu: zdjęcie wykonania + komentarz + faktyczny czas + odznaka „zrobię ponownie: tak/nie”. Wizualnie odróżniony od oryginalnego przepisu (subtelna ramka `accent`), ale nie osobny, oderwany komponent — żyje pod przepisem w sekcji „Jak wyszło innym?”.
@@ -315,7 +433,11 @@ Awatar **128 px** (na profilu to zdjęcie osoby, o której jest cała strona, ni
 
 Liczniki: pięć wierszy „liczba + odmieniony podpis" („2 wpisy", „1 przepis", „5 obserwujących") w JEDNEJ kolumnie, każdy wiersz min. 48 px — dwa z nich (obserwujący, obserwowani) są odnośnikami do listy osób i mają podkreślony podpis, bo kolor nie może być jedynym sygnałem (WCAG 1.4.1). Odmianę liczy `App\Support\Odmiana`; formy stoją w jednym miejscu, w składniku `x-licznik-profilu`. **Nie dwie kolumny:** kolumna treści tej karty ma zmierzone 229–373 px (przy 1280 px zabiera miejsce prawa szyna), więc druga kolumna łamie wyrazy w środku — a `@media (min-width: …)` mierzy okno, nie tę kartę.
 
-Własny profil dokłada dokładnie trzy rzeczy: przycisk „Zmień/Dodaj zdjęcie profilowe" pod awatarem (cała kolumna awatara jest JEDNYM odnośnikiem — D-054), „Zmień swój profil", „Dodaj zdjęcie" i „Wyloguj się". Cudzy profil dostaje w tym samym miejscu „Obserwuj" / „Zgłoś" / „Zablokuj" — to jeden widok dla obu przypadków, więc każda zmiana układu wymaga sprawdzenia z obu stron.
+Nagłówek profilu jest grafitową powierzchnią z rzeczywistym awatarem,
+nazwą i opisem. Własny profil udostępnia zmianę zdjęcia i profilu, dodanie
+zdjęcia oraz wylogowanie; cudzy — czynności obserwowania i ochrony zgodne
+z uprawnieniami. Nie usuwamy tych funkcji, aby odtworzyć statyczną makietę.
+Każda zmiana układu wymaga sprawdzenia własnego i cudzego profilu.
 
 Czego tu nie ma: żadnego porównania z innymi osobami, żadnego miejsca w tabeli (`AGENTS.md` §12).
 
@@ -345,7 +467,7 @@ Mały tekst + ikona przy formularzu: „Szkic zapisany” (stan spoczynkowy) / �
 | `CookedButton` | Ugotowałem (zawsze primary, główna konwersja) | prowadzi do formularza „Ugotowałem”, nie do modala z jednym kliknięciem — bo wymaga zdjęcia/komentarza |
 | `SaveToCollection` | Zapisz / Zapisano (toggle) + wybór kolekcji | rozwijane menu z tekstowymi nazwami kolekcji, `combobox`/`listbox` z klawiaturą |
 | `ConfirmDialog` | ostrzegawczy (info) / destrukcyjny (danger) | `role="alertdialog"`, fokus przenoszony do dialogu przy otwarciu i z powrotem do wywołującego przycisku po zamknięciu, `Esc` zamyka, tło nieklikalne (nie „lekki” overlay bez blokady). **Nigdy modal na modalu** |
-| `Toast` | info/success/danger, auto-znikający | `aria-live="polite"` (success/info) lub `assertive` (danger), czas wyświetlania min. 5s LUB do ręcznego zamknięcia — nigdy krócej niż da się przeczytać przy 150% skali tekstu |
+| `Toast` | info/success/danger, auto-znikający | `aria-live="polite"` (success/info) lub `assertive` (danger), czas wyświetlania min. 5s LUB do ręcznego zamknięcia — nigdy krócej niż da się przeczytać przy powiększonym tekście |
 | `Pagination` | „Pokaż więcej” (przycisk) | **nigdy infinite scroll bez alternatywy** — przycisk ładuje kolejną porcję, zachowuje pozycję scrolla, ogłasza `aria-live="polite"` „Załadowano 10 kolejnych wpisów” |
 | `Skeleton` | placeholder ładowania | `aria-hidden="true"` (nie czytany przez SR), zastępowany treścią z `aria-live` przy gotowości jeśli ładowanie >1s |
 
@@ -398,7 +520,7 @@ Minimalna, funkcjonalna, nigdy dekoracyjna dla samej dekoracji:
 
 Niepodlegające dyskusji w review kodu i designu:
 
-1. **Nigdy** ikona jako jedyny opis akcji — zawsze towarzyszący tekst.
+1. Ważna akcja ma widoczny opis; obowiązują wyłącznie jawne wyjątki AGENTS.md: menu trzech kropek karty i przełącznik motywu stopki. Nazwa dostępna pozostaje wymagana.
 2. **Nigdy** hover, swipe, long-press ani gest od krawędzi jako jedyny sposób dotarcia do ważnej funkcji.
 3. **Nigdy** infinite scroll bez alternatywy — zawsze przycisk „Pokaż więcej” + zachowana pozycja.
 4. **Nigdy** karuzele (auto-przewijające się lub wymagające swipe'a do zobaczenia treści).
@@ -414,7 +536,7 @@ Niepodlegające dyskusji w review kodu i designu:
 
 ## 9. Decyzje wymagające właściciela produktu
 
-- Czy webfont `Atkinson Hyperlegible` wart jest testu A/B po becie (patrz 2.2), czy zostajemy przy stosie systemowym na stałe.
+- Ewentualny test innego fontu po badaniach czytelności wymaga nowej decyzji; aktualnym wyborem jest lokalny Inter, nie oczekiwanie na wybór między fontami.
 - Docelowa treść tekstu przy `disabled` dla każdego konkretnego formularza (np. dokładne brzmienie „Dodaj zdjęcie, żeby opublikować” vs inne warianty) — copywriting per-ekran.
 - Czy `CookedCard` w widoku przepisu ma limit wyświetlanych wpisów domyślnie (np. 5 + „Pokaż więcej”) — wpływa na wydajność i długość strony przy popularnych przepisach.
 - Polityka soft-delete dla `ConfirmDialog` usuwania wpisu/konta (okres na cofnięcie) — wspomniana w `UX_50_PLUS.md` jako „preferować”, nie doprecyzowana liczbowo.

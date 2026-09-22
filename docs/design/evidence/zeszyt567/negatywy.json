@@ -1,0 +1,38 @@
+[
+  {
+    "mutation": "bez-przepisow",
+    "source": "app/Http/Controllers/CollectionController.php",
+    "backup": "/home/mateusz/kuking-local/neg567-6opeu9ob/bez-przepisow/CollectionController.php",
+    "negative_exit": 1,
+    "restored_md5": "96bace264eed19370a7769b39f3e4dec",
+    "mtime_restored": true,
+    "positive_exit": 0
+  },
+  {
+    "mutation": "strona-przepisow",
+    "source": "app/Http/Controllers/CollectionController.php",
+    "backup": "/home/mateusz/kuking-local/neg567-6opeu9ob/strona-przepisow/CollectionController.php",
+    "negative_exit": 1,
+    "restored_md5": "96bace264eed19370a7769b39f3e4dec",
+    "mtime_restored": true,
+    "positive_exit": 0
+  },
+  {
+    "mutation": "strona-wpisow",
+    "source": "app/Http/Controllers/CollectionController.php",
+    "backup": "/home/mateusz/kuking-local/neg567-6opeu9ob/strona-wpisow/CollectionController.php",
+    "negative_exit": 1,
+    "restored_md5": "96bace264eed19370a7769b39f3e4dec",
+    "mtime_restored": true,
+    "positive_exit": 0
+  },
+  {
+    "mutation": "usuniete-miekko",
+    "source": "app/Http/Controllers/CollectionController.php",
+    "backup": "/home/mateusz/kuking-local/neg567-6opeu9ob/usuniete-miekko/CollectionController.php",
+    "negative_exit": 1,
+    "restored_md5": "96bace264eed19370a7769b39f3e4dec",
+    "mtime_restored": true,
+    "positive_exit": 0
+  }
+]

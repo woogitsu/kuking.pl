@@ -34,11 +34,34 @@
     // obrazka na ślepo.
     'image' => null,
     'ogType' => 'website',
+    /*
+     * `szynaWTresci` — TEN EKRAN UŻYWA KOLUMNY SZYNY OD ŚRODKA (issue #365).
+     *
+     * Zwykły ekran z szyną podaje `<x-slot:rail>` i dostaje osobny
+     * `<aside class="app-rail">` ZA `<main>`. Strona przepisu nie może tego
+     * zrobić: jej blok „Ugotowałem / Zapisuję / Gotuję" musi stać w kodzie
+     * PRZED składnikami, bo na telefonie kolumn nie ma i to kolejność w kodzie
+     * decyduje, co człowiek czyta najpierw. Slot renderuje się za całym
+     * `<main>`, czyli za krokami i komentarzami — a tam ta akcja już raz
+     * leżała i została stamtąd wyciągnięta (`EkranPrzepisuWedlugKituTest`).
+     *
+     * Dlatego ten ekran zostawia blok w `<main>`, a `<main>` dostaje OBIE
+     * kolumny: czytania i szyny. Rozkłada je siatka samego ekranu
+     * (od D-210 własna kompozycja przepisu i profilu). Profil wykorzystuje
+     * pełną szerokość dla nagłówka i liczb, a szynę ma obok archiwum poniżej.
+     * Layout robi tu dwie rzeczy i tylko te:
+     * dokłada klasę `app-body-tresc-z-szyna` na ramę i — u gościa — liczy tę
+     * ramę, belkę oraz stopkę z szerszego tokenu, tak samo jak dla ekranu
+     * z prawdziwą szyną (D-122). Bez tego gość ogląda przepis na stronie
+     * zwiniętej do 768 px przy monitorze 1920 px.
+     */
+    'szynaWTresci' => false,
 ])
 
 @php
     $user = auth()->user();
-    $scale = $user?->text_scale ?? 100;
+    $guestScale = (int) request()->cookie(config('kuking.text.cookie'), 100);
+    $scale = $user?->text_scale ?? (in_array($guestScale, config('kuking.text.scales'), true) ? $guestScale : 100);
     // Jasny/ciemny wygląd (docs/DECISIONS.md, D-019). Zalogowany ma wybór
     // na koncie; gość — w ciasteczku (ThemeController). Brak jednego
     // i drugiego znaczy jasny, bo to jest teraz DOMYŚLNY motyw serwisu,
@@ -105,8 +128,18 @@
     //  Liczby czytamy tylko dla moderatora — zwykły użytkownik nie ma w menu
     //  ani jednej pozycji panelu, więc nie ma po co sięgać nawet do cache.
     $kolejki = $user?->isModerator() === true
-        ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby()
+        ? app(\App\Domain\Moderation\KolejkiPanelu::class)->liczby($user)
         : [];
+
+    // Suma, nie `array_sum($kolejki)` — nazwy kolejek
+    // wypisane wprost, żeby nowy klucz w `KolejkiPanelu`
+    // (np. licznik czegoś, co nie jest kolejką do
+    // przejrzenia) nie doliczał się tu po cichu.
+    $czekaWPanelu = ($kolejki['bez_odpowiedzi'] ?? 0)
+        + ($kolejki['zgloszenia'] ?? 0)
+        + ($kolejki['sygnaly'] ?? 0)
+        + ($kolejki['odwolania'] ?? 0)
+        + ($kolejki['wiadomosci'] ?? 0);
 
     // ------------------------------------------------------------------
     //  KARTA DO WYSŁANIA RODZINIE (issue #14)
@@ -159,6 +192,55 @@
     // zdjęcia doklejony do zapasowego logo 1200×630 i przycina kartę źle.
     // Stąd ten sam warunek `isReady()`, nie sam fakt, że `$image` istnieje.
     $ogImageGotowe = $image !== null && $image->isReady();
+
+    // ------------------------------------------------------------------
+    //  CZY TEN EKRAN MA PRAWĄ SZYNĘ (D-122)
+    //
+    //  Zgłoszenie właściciela: „niektóre podstrony jak napisz do nas jest
+    //  bardzo wąskie, gdzie po prawej i lewej można coś dodać na kompie".
+    //  Arkusz zwijał układ gościa do JEDNEJ kolumny 768 px na każdej
+    //  szerokości, a uzasadniał to zdaniem „gość nie ma nawigacji bocznej
+    //  ani szyny" — druga połowa była nieprawdą od 7 września 2026. Slot
+    //  `rail` podawały m.in. `/szukaj`, `/napisz-do-nas` i `/@nazwa`.
+    //  Od D-210 profil ma szynę wewnętrzną poniżej szerokiego nagłówka.
+    //  Skutek dawnego układu: osoba, która pisze „nie mogę się zalogować"
+    //  z komputera, czytała blok „Nie możesz się zalogować" POD CAŁYM
+    //  formularzem, na stronie wąskiej na 768 px przy monitorze 1920 px.
+    //
+    //  LICZY SIĘ TREŚĆ SLOTU, NIE SAM SLOT. `<x-slot:rail>` bywa podany
+    //  i pusty: dawniej `x-szyna-profilu` na CUDZYM profilu oglądanym przez gościa
+    //  nie wypisuje ani jednego bloku (blok z liczbami jest pod `@auth`,
+    //  a tagi i zeszyty mogą nie istnieć). Sam `isset($rail)` dałby wtedy
+    //  gościowi drugą kolumnę szeroką na 352 px, w której nic nie stoi —
+    //  a pusta kolumna wygląda na usterkę układu, nie na wybór.
+    //
+    //  TA ZMIENNA WYBIERA WYŁĄCZNIE KLASĘ UKŁADU. Samo `<aside class=
+    //  "app-rail">` renderuje się dalej pod `@isset($rail)`, czyli tak jak
+    //  przed tą zmianą: pusty slot daje pusty `<aside>` pod treścią, który
+    //  nic nie zajmuje i niczego nie przesuwa. Zwężenie tego warunku do
+    //  `$maSzyne` byłoby osobną zmianą (znikłby też pusty `<aside>` na
+    //  ekranach zalogowanego, np. `/zeszyt` bez ostatnio zapisanych) —
+    //  i jest tu świadomie NIEZROBIONE, bo dotyczy ekranów, których
+    //  zgłoszenie właściciela nie obejmowało.
+    //
+    //  Komentarze HTML wycinamy jak `ComponentSlot::hasActualContent()`
+    //  w Laravelu — slot złożony z samego komentarza jest pusty.
+    $maSzyne = isset($rail)
+        && trim((string) preg_replace('/<!--.*?-->/s', '', (string) $rail)) !== '';
+
+    //  SZEROKA RAMA GOŚCIA: ZA SZYNĘ LICZY SIĘ TAKŻE SZYNA OD ŚRODKA (#365).
+    //
+    //  Belka, stopka i rama biorą u gościa szerszy token wtedy, gdy obok
+    //  treści NAPRAWDĘ coś stoi — wszystko jedno, czy jest to `<aside>` ze
+    //  slotu `rail`, czy kolumna szyny zajęta przez sam ekran
+    //  (`szynaWTresci`: przepis oraz profil). Dwie liczby na jedną krawędź
+    //  to rozjazd, którego potem nikt nie umie wytłumaczyć — stąd JEDEN
+    //  warunek na trzy warstwy.
+    //
+    //  Rama SIATKI dostaje osobną klasę, bo to dwa różne układy:
+    //  `app-body-solo-z-szyna` robi drugą kolumnę dla `<aside>`,
+    //  a `app-body-tresc-z-szyna` oddaje obie kolumny `<main>`.
+    $szerokaRama = $maSzyne || $szynaWTresci;
 @endphp
 
 <!DOCTYPE html>
@@ -166,6 +248,7 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="kuking-service-worker" content="/sw.js?v={{ rawurlencode(config('kuking.wersja.commit') ?: \App\Support\Wersja::etykieta()) }}">
     <title>{{ $pageTitle }}</title>
 
     @if($description)
@@ -207,7 +290,7 @@
     <meta name="twitter:card" content="{{ $ogImageGotowe ? 'summary_large_image' : 'summary' }}">
 
     <link rel="canonical" href="{{ url()->current() }}">
-    <meta name="theme-color" content="#B3401F">
+    <meta name="theme-color" content="#151714">
 
     <link rel="icon" href="{{ asset('icons/kuking-mark.svg') }}" type="image/svg+xml">
     <link rel="apple-touch-icon" href="{{ asset('icons/kuking-icon-192.png') }}">
@@ -256,7 +339,11 @@
         rozwija encje w wartościach atrybutów, więc beacon widzi poprawny
         JSON, a my nie renderujemy niczego surowego.
     --}}
-    @if(\App\Support\AnalitykaCloudflare::wlaczona())
+    {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
+         adres e-mail (`/nowe-haslo/{token}?email=…`). Odczytany beacon usuwa
+         query, ale zostawia ścieżkę. Osobny nagłówek no-referrer chroni
+         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie. --}}
+    @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
                 data-cf-beacon='{{ \App\Support\AnalitykaCloudflare::konfiguracjaBeacona() }}'></script>
@@ -267,11 +354,39 @@
 {{-- `uklad-solo` steruje szerokością belki i stopki dla gościa — musi iść
      w parze z `app-body-solo` na siatce niżej. Jedna klasa na <body>, bo
      belka i stopka stoją POZA `.app-body` i inaczej nie mają skąd wiedzieć,
-     że ta strona nie ma ani nawigacji bocznej, ani szyny. --}}
-<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo' }} @endguest">
+     że ta strona nie ma nawigacji bocznej.
+
+     `uklad-solo-z-szyna` DOCHODZI do `uklad-solo`, nie zastępuje jej (D-122):
+     od 80rem belka i stopka biorą wtedy szerszy sufit, bo tyle ma treść
+     z szyną obok. Poniżej 80rem szyna leci pod treścią i szerokość jest ta
+     sama co bez niej — dlatego druga klasa nic tam nie robi. --}}
+<body class="@guest {{ $powitalny ? 'uklad-powitalny' : 'uklad-solo'.($szerokaRama ? ' uklad-solo-z-szyna' : '') }} @endguest" data-marka="kuking-2026">
     <a class="skip-link" href="#tresc">Przejdź do treści</a>
 
-    <header class="topbar">
+    {{--
+        PASEK CHOWA SIĘ PRZY PRZEWIJANIU W DÓŁ — TAKŻE PO ZALOGOWANIU.
+
+        Do 19 września 2026 atrybut stał pod `@guest`, bo prośba z 15 września
+        mówiła o pasku „z logo, logowaniem i rejestracją", czyli o widoku
+        gościa (`docs/design/PASEK_PRZEWIJANIE.md`). Zalogowana osoba miała
+        więc pasek przypięty na stałe i zgłosiła to jako rozjazd: ten sam
+        serwis zachowywał się inaczej po zalogowaniu, bez żadnego powodu
+        widocznego dla człowieka.
+
+        Po zalogowaniu pasek niesie WIĘCEJ niż u gościa — wyszukiwarkę,
+        licznik powiadomień i menu konta — więc na telefonie zabiera
+        odpowiednio więcej ekranu i tym bardziej warto go oddać treści.
+        Nic z tego nie znika bezpowrotnie: ruch w górę przywraca pasek, a
+        `scripts/pasek-przewijany.mjs` pilnuje tego pomiarem, teraz w obu
+        stanach zalogowania.
+
+        Trzy zabezpieczenia w `resources/js/pasek-przewijany.js` działają bez
+        zmian i to one sprawiają, że rozszerzenie zakresu jest bezpieczne:
+        pasek nie chowa się przy początku strony, przy fokusie wewnątrz
+        (czyli podczas nawigacji Tabem) ani przy otwartym menu — a menu konta
+        to właśnie `details[open]`.
+    --}}
+    <header class="topbar marka-topbar" data-pasek-przewijany>
         <div class="topbar-inner">
             <a class="wordmark" href="{{ $user ? route('home') : route('landing') }}">
                 {{-- Znak wklejony wprost, nie przez <img> — inaczej nie
@@ -279,7 +394,7 @@
                 <x-kuking-mark :rozmiar="36" />
                 {{-- Logotyp rozbity na dwa elementy jest dla czytnika ekranu
                      dwoma osobnymi napisami. Podajemy mu jeden, całą nazwę. --}}
-                <span aria-hidden="true">KuKing<span class="wordmark-tld">.pl</span></span>
+                <span aria-hidden="true">Ku<span class="wordmark-king">King</span><span class="wordmark-tld">.pl</span></span>
                 <span class="visually-hidden">Kuking — strona główna</span>
             </a>
 
@@ -314,15 +429,54 @@
                 </form>
             @endauth
 
+
+            @auth
+                @unless($wTrybiePanelu)
+                    <nav class="marka-nawigacja" aria-label="Nawigacja główna — komputer">
+                        <a href="{{ route('home') }}" @if(request()->routeIs('home', 'landing')) aria-current="page" @endif>Start</a>
+                        <a href="{{ route('discover') }}" @if(request()->routeIs('discover')) aria-current="page" @endif>Odkrywaj</a>
+                        <a href="{{ route('collections.index') }}" @if(request()->routeIs('collections.*')) aria-current="page" @endif>Mój zeszyt</a>
+                    </nav>
+                @endunless
+            @endauth
+
             <div class="topbar-actions">
                 @auth
-                    {{-- Powiadomienia zostają TEKSTEM, choć kit ma tu samą
-                         ikonę dzwonka. „Ikona nigdy sama" jest twardą zasadą
-                         tego produktu (AGENTS.md §5), a dzwonek bez podpisu
-                         jest dla części naszych odbiorców po prostu nieczytelny.
-                         Na desktopie ta sama pozycja stoi jeszcze raz na dole
-                         nawigacji bocznej, tak jak w kicie. --}}
-                    <a class="btn btn-quiet" href="{{ route('notifications.index') }}">
+                    <a class="btn btn-quiet marka-szukaj-link" href="{{ route('search') }}"><x-ikona nazwa="search" :rozmiar="20" /> Szukaj</a>
+                    {{--
+                        Powiadomienia zostają TEKSTEM, choć kit ma tu samą
+                        ikonę dzwonka. „Ikona nigdy sama" jest twardą zasadą
+                        tego produktu (AGENTS.md §5), a dzwonek bez podpisu
+                        jest dla części naszych odbiorców po prostu nieczytelny.
+
+                        `topbar-mobile-only` — POZYCJA ZNIKA Z BELKI TAM, GDZIE
+                        WIDAĆ NAWIGACJĘ BOCZNĄ, I TYLKO TAM.
+
+                        Od 64rem `.side-nav` niesie DOKŁADNIE tę samą pozycję:
+                        ten sam napis, ten sam adres i ten sam licznik
+                        nieprzeczytanych (`side-nav-dol` niżej w tym pliku).
+                        Na desktopie „Powiadomienia" były więc na ekranie
+                        dwa razy. Nic nie ubywa: poniżej 64rem, gdzie
+                        `.side-nav` ma `display: none`, ten egzemplarz zostaje
+                        jedynym i pokazuje się bez zmian.
+
+                        DLACZEGO TO JEST KONIECZNE, A NIE KOSMETYCZNE
+                        Od 80rem belka stoi w tej samej trzykolumnowej siatce
+                        co treść, a jej trzecia kolumna ma zmierzone 352 px
+                        i jest zapełniona co do piksela: „Powiadomienia" 176 +
+                        „Dodaj" 95 + dawny awatar 40 + odstępy = 352. Menu
+                        konta z widocznym napisem (issue #344) potrzebuje tam
+                        138 px zamiast 40 — kolumna rosła kosztem kolumny
+                        środkowej i pole „Szukaj" przestawało stać nad tekstem,
+                        który przeszukuje (zmierzone: 739 zamiast 872 przy
+                        1280 px, czyli 133 px za wąsko; `scripts/dostepnosc.mjs`,
+                        „Wyrównanie belki do siatki treści"). Sprawdzone: nawet
+                        sam awatar ze strzałką i BEZ napisu przekraczał tę
+                        kolumnę o 19 px. Czegokolwiek się tam nie dołoży,
+                        miejsce musi się wziąć z rzeczy, która stoi obok
+                        drugi raz.
+                    --}}
+                    <a class="btn btn-quiet topbar-mobile-only marka-powiadomienia-link" href="{{ route('notifications.index') }}">
                         Powiadomienia
                         @if($unread > 0)
                             <span class="badge badge-cooked">{{ $unread }}</span>
@@ -346,15 +500,81 @@
                     --}}
                     <a class="btn btn-primary topbar-desktop-only" href="{{ route('add') }}">Dodaj</a>
 
-                    {{-- Awatar prowadzi na własny profil. W kicie jest tu menu
-                         rozwijane; menu, które bez skryptu nie otwiera się
-                         wcale, byłoby ozdobą udającą przycisk, więc na razie
-                         jest to zwykły odnośnik. Podpis dla czytnika ekranu,
-                         bo sam obrazek nie mówi, dokąd prowadzi. --}}
-                    <a class="topbar-awatar topbar-desktop-only" href="{{ route('profile.show', $user->profile->username) }}">
-                        <x-avatar :user="$user" :size="40" />
-                        <span class="visually-hidden">Mój profil</span>
-                    </a>
+                    {{--
+                        MENU KONTA PRZY AWATARZE (issue #344).
+
+                        CO BYŁO WCZEŚNIEJ I DLACZEGO TO NIE WYSTARCZAŁO
+                        Zwykły odnośnik na własny profil, z klasą
+                        `topbar-desktop-only` i podpisem schowanym w
+                        `visually-hidden`. Komentarz w tym miejscu mówił, że
+                        menu „bez skryptu nie otwiera się wcale" — i to była
+                        pomyłka co do faktów: `<details>` otwiera się bez
+                        jednej linijki JavaScriptu i ten sam wzorzec stoi
+                        w tym repozytorium od dawna przy karcie wpisu
+                        (`components/post-card.blade.php`). Idziemy dokładnie
+                        tą samą drogą.
+
+                        AWATAR PRZESTAJE BYĆ `topbar-desktop-only`
+                        Na telefonie `.side-nav` ma `display: none`
+                        (`resources/css/app.css:1173`), a pasek dolny niesie
+                        pięć pozycji i szóstej mieć nie może (AGENTS.md §5).
+                        Bez tego menu jedyną drogą do Ustawień i do wylogowania
+                        był własny profil — czyli trzeba było wiedzieć, że
+                        obsługa konta stoi pod cudzą nazwą (D-168). Teraz
+                        wejście jest tam, gdzie człowiek go szuka: przy swoim
+                        zdjęciu, na każdym ekranie.
+
+                        IKONA NIGDY NIE JEST SAMA (AGENTS.md §5)
+                        W `<summary>` stoi awatar, WIDOCZNY napis „Moje konto"
+                        i strzałka. Sam awatar — nawet z podpisem dla czytnika
+                        ekranu — byłby obrazkiem, po którym nie widać, że coś
+                        się pod nim kryje. `aria-label` powtarza widoczny napis
+                        i dokłada rolę (WCAG 2.5.3: nazwa dostępna musi
+                        zawierać to, co widać).
+
+                        BEZ HOVERA I BEZ SKRYPTU
+                        Menu otwiera kliknięcie albo dotknięcie, nigdy
+                        najechanie myszą: przy mniej pewnej ręce hover zamyka
+                        menu w trakcie celowania, a na dotyku nie istnieje
+                        w ogóle. Zamykanie klawiszem Esc i kliknięciem obok
+                        dokłada `resources/js/app.js` — jako DODATEK. Bez
+                        skryptu menu nadal otwiera się i zamyka tym samym
+                        przyciskiem, więc nie ma tu martwego przycisku (D-053).
+
+                        WYLOGOWANIE ZOSTAJE POST-em Z TOKENEM CSRF
+                        Ten sam składnik co w nawigacji bocznej i na własnym
+                        profilu (`components/wyloguj.blade.php`). Odnośnik GET
+                        wylogowywałby człowieka z podglądu linku albo
+                        z prefetchu przeglądarki — także wewnątrz menu.
+                    --}}
+                    <details class="topbar-konto">
+                        {{-- NAPIS BRZMI „Konto", A NIE „Moje konto" — i to jest
+                             pomiar, nie skrót myślowy. Na telefonie 390 px
+                             w belce zostaje 358 px na logotyp (159),
+                             „Powiadomienia" (176) i ten przycisk. „Moje konto"
+                             ze strzałką ma 194 px i zrzuca przycisk do
+                             TRZECIEGO wiersza belki, spychając kafelek
+                             dodawania — główną akcję serwisu — o 59 px niżej.
+                             „Konto" ma 138 px i mieści się obok „Powiadomień"
+                             w jednym wierszu. Przy własnym zdjęciu i strzałce
+                             jedno słowo mówi to samo. --}}
+                        <summary class="topbar-konto-przycisk" aria-label="Konto — menu: profil, ustawienia, wylogowanie">
+                            <x-avatar :user="$user" :size="40" />
+                            <span class="topbar-konto-napis">Konto</span>
+                            <x-ikona nazwa="chevron" :rozmiar="20" class="topbar-konto-strzalka" />
+                        </summary>
+                        {{-- Lista, nie zbiór `<div>`-ów: czytnik ekranu zapowiada
+                             „3 pozycje", więc człowiek wie, ile ich jest, zanim
+                             zacznie je przechodzić. --}}
+                        <ul class="topbar-konto-tresc">
+                            <li><a href="{{ route('profile.show', $user->profile->username) }}">Mój profil</a></li>
+                            <li><a href="{{ route('settings.index') }}">Ustawienia</a></li>
+                            @if($user->isModerator() && ! $wTrybiePanelu)
+                                <li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>
+                            @endif
+                            <li><x-wyloguj class="topbar-konto-wyjscie" formClass="topbar-konto-wyjscie-formularz">Wyloguj się</x-wyloguj></li>
+                        </ul>
+                    </details>
                 @else
                     <a class="btn btn-quiet" href="{{ route('login') }}">Zaloguj się</a>
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto</a>
@@ -373,8 +593,19 @@
              niżej, jeden znacznik stanu czytany przez dwa selektory w CSS.
              Panel moderacji nie ma slotu `rail` i nigdy go mieć nie będzie,
              więc od 80rem nie rezerwujemy dla niego pustej trzeciej kolumny
-             (issue #294, punkt 2 — patrz uzasadnienie w app.css). --}}
-        <div class="app-body @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo' }} @endguest" @if($wTrybiePanelu) data-tryb-panelu @endif>
+             (issue #294, punkt 2 — patrz uzasadnienie w app.css).
+
+             `app-body-solo-z-szyna` DOCHODZI do `app-body-solo` na ekranie
+             gościa, który naprawdę ma czym wypełnić szynę (D-122). Obie klasy
+             stoją razem, bo `app-body-solo` znaczy „układ gościa, bez
+             nawigacji bocznej" i czyta to także `ekran-profilu.css`.
+
+             `app-body-tresc-z-szyna` idzie POZA `@guest`, bo dotyczy obu:
+             zalogowanemu oddaje trzecią kolumnę (dotąd pustą), gościowi —
+             drugą. Ekran, który ją podaje, nie ma `<aside class="app-rail">`
+             i mieć nie będzie; kolumnę szyny zajmuje jego własna siatka
+             (`szynaWTresci` wyżej, issue #365). --}}
+        <div class="app-body marka-rama @if($maSzyne) marka-rama-z-szyna @endif @guest {{ $powitalny ? 'app-body-powitalny' : 'app-body-solo'.($maSzyne ? ' app-body-solo-z-szyna' : '') }} @endguest @if($szynaWTresci) app-body-tresc-z-szyna @endif" @if($wTrybiePanelu) data-tryb-panelu data-marka-panel @endif>
             @auth
                 {{--
                     NAWIGACJA BOCZNA WEDŁUG KITU (ekran 01).
@@ -435,8 +666,13 @@
                             Bez `aria-current`: to nie jest bieżący ekran.
                         --}}
                         <a class="side-nav-item side-nav-powrot" href="{{ route('home') }}">
-                            <x-ikona nazwa="home" /> Wróć do Kuking
+                            <x-ikona nazwa="home" /> <span class="marka-panel-nav-etykieta">Wróć do Kuking</span>
                         </a>
+                        <button type="button" class="side-nav-item panel-menu-przelacznik" hidden
+                            data-panel-menu-przelacznik aria-expanded="true" aria-controls="panel-menu-tresc">
+                            <span>Nawigacja panelu</span>
+                        </button>
+                        <div id="panel-menu-tresc" class="panel-menu-tresc" data-panel-menu-tresc>
                     @else
                         <ul class="stack-tight list-none p-0 m-0">
                             <li><a class="side-nav-item" href="{{ route('home') }}" @if(request()->routeIs('home')) aria-current="page" @endif><x-ikona nazwa="home" /> Start</a></li>
@@ -475,10 +711,10 @@
                             grupa" PRZED pierwszą pozycją, a nie jako dalszy ciąg
                             po „Profil".
 
-                            WYRÓŻNIENIE JEST CELOWO STONOWANE: `--color-accent`
-                            (oliwkowy/musztardowy — token już używany np. w
-                            `.notice`), NIGDY `--color-danger`. To miejsce PRACY
-                            moderatora, nie alarm.
+                            Tryb wyróżnia osobna powierzchnia nawigacji i nazwa
+                            panelu. Port #581 zachowuje tę granicę bez dawnego
+                            musztardowego tła; czerwień wskazuje bieżącą pozycję,
+                            a nie stan alarmowy.
 
                             `aria-current="page"` zostaje bez zmian na każdej
                             pozycji — `.side-nav-item[aria-current="page"]` ma
@@ -490,11 +726,39 @@
                              kreska „oddzielam się od tego, co wyżej" nie ma czego
                              oddzielać) bierze się z `[data-tryb-panelu]` na
                              `<nav>` wyżej — patrz app.css. --}}
+                        {{--
+                            POZA PANELEM MENU POKAZUJE JEDNO WEJŚCIE, NIE DZIEWIĘĆ
+                            POZYCJI (zgłoszenie właściciela: „po co w menu cały
+                            panel moderacji i pod spodem przycisk »Otwórz panel
+                            moderacji«?").
+
+                            Miał rację: to była ta sama rzecz powiedziana dwa razy.
+                            Dziewięć pozycji panelu stało w zwykłym menu obok
+                            „Profil" i „Powiadomienia", a pod nimi przycisk, który
+                            prowadził DOKŁADNIE tam, gdzie prowadziła pierwsza
+                            z nich. Menu serwisu rosło o dziewięć wierszy pracy,
+                            której się w tym miejscu nie wykonuje.
+
+                            Teraz: poza panelem jedno wejście, w panelu pełna lista.
+                            Kolejki wchodzi się przeglądać z panelu, nie z ekranu
+                            własnego profilu.
+
+                            LICZBA NIE ZNIKA — SUMUJE SIĘ. Plakietka przy wejściu
+                            pokazuje, ile rzeczy czeka we WSZYSTKICH pięciu
+                            kolejkach razem. Gdyby jej nie było, moderator
+                            straciłby jedyny sygnał „jest robota", jaki miał poza
+                            panelem, a to jest dokładnie ten rodzaj cichej straty,
+                            którego AGENTS.md zabrania. Rozbicie na kolejki czeka
+                            w panelu, jedno kliknięcie dalej.
+                        --}}
+
+
+                        @if($wTrybiePanelu)
                         <div class="side-nav-moderacja" role="group" aria-labelledby="side-nav-moderacja-naglowek">
                             <h2 class="side-nav-moderacja-naglowek" id="side-nav-moderacja-naglowek">Panel moderacji</h2>
                             <ul class="side-nav-moderacja-lista stack-tight list-none p-0 m-0">
-                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> Bez odpowiedzi <x-licznik-kolejki :ile="$kolejki['bez_odpowiedzi'] ?? 0" /></a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> Zgłoszenia <x-licznik-kolejki :ile="$kolejki['zgloszenia'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.unanswered') }}" @if(request()->routeIs('admin.unanswered')) aria-current="page" @endif><x-ikona nazwa="clock" /> <span class="marka-panel-nav-etykieta">Bez odpowiedzi</span> <x-licznik-kolejki :ile="$kolejki['bez_odpowiedzi'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.reports') }}" @if(request()->routeIs('admin.reports')) aria-current="page" @endif><x-ikona nazwa="shield" /> <span class="marka-panel-nav-etykieta">Zgłoszenia</span> <x-licznik-kolejki :ile="$kolejki['zgloszenia'] ?? 0" /></a></li>
                                 {{-- Odwołania dostają ikonę „chat", a nie wagę szalkową: odwołanie
                                      to pismo od człowieka, a nie wyrok. Zestaw ikon nie ma szalek
                                      i nie dokładam ich tutaj — nowy kształt to zmiana w komponencie
@@ -505,24 +769,28 @@
                                      okaże się niczym. Ikona „filter", bo to jest sito, a nie
                                      tarcza: nic tu nikogo nie chroni, dopóki człowiek nie
                                      przeczyta. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> Sygnały automatu <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> Odwołania <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
-                                <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tablica na dziś</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.sygnaly') }}" @if(request()->routeIs('admin.sygnaly')) aria-current="page" @endif><x-ikona nazwa="filter" /> <span class="marka-panel-nav-etykieta">Sygnały automatu</span> <x-licznik-kolejki :ile="$kolejki['sygnaly'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.appeals') }}" @if(request()->routeIs('admin.appeals')) aria-current="page" @endif><x-ikona nazwa="chat" /> <span class="marka-panel-nav-etykieta">Odwołania</span> <x-licznik-kolejki :ile="$kolejki['odwolania'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.daily-board') }}" @if(request()->routeIs('admin.daily-board')) aria-current="page" @endif><x-ikona nazwa="pin" /> <span class="marka-panel-nav-etykieta">Tablica na dziś</span></a></li>
+                                {{-- Kolaż na stronie powitalnej — ten sam rodzaj wyboru
+                                     redakcyjnego co tablica na dziś, ale ikona „image",
+                                     bo tu wybiera się ZDJĘCIA, nie osoby i wpisy. --}}
+                                <li><a class="side-nav-item" href="{{ route('admin.hero-kolaz') }}" @if(request()->routeIs('admin.hero-kolaz')) aria-current="page" @endif><x-ikona nazwa="image" /> <span class="marka-panel-nav-etykieta">Kolaż na powitanie</span></a></li>
                                 {{-- Tagi promowane (D-021) — ten sam rodzaj wyboru redakcyjnego
                                      co tablica na dziś, stąd ta sama ikona. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> Tagi promowane</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.tag-promotions') }}" @if(request()->routeIs('admin.tag-promotions')) aria-current="page" @endif><x-ikona nazwa="pin" /> <span class="marka-panel-nav-etykieta">Tagi promowane</span></a></li>
                                 {{-- Wiadomości z „Napisz do nas" — ta sama ikona „chat"
                                      co odwołania, bo to też jest pismo od człowieka,
                                      a nie sprawa do rozstrzygnięcia. Osobna pozycja,
                                      nie zakładka w Zgłoszeniach: to jest inna kolejka
                                      i inna praca (patrz `WiadomosciController`). --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> Wiadomości do nas <x-licznik-kolejki :ile="$kolejki['wiadomosci'] ?? 0" /></a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.contact') }}" @if(request()->routeIs('admin.contact*')) aria-current="page" @endif><x-ikona nazwa="chat" /> <span class="marka-panel-nav-etykieta">Wiadomości do nas</span> <x-licznik-kolejki :ile="$kolejki['wiadomosci'] ?? 0" /></a></li>
                                 {{-- Konta użytkowników — ekran do WGLĄDU, nie do zarządzania
                                      rolami (te nadaje `kuking:nadaj-role` z powłoki, D-039).
                                      Ostatni w sekcji, bo to jest miejsce, do którego wchodzi
                                      się z pytaniem („kim jest ta osoba"), a nie kolejka, którą
                                      trzeba dziś opróżnić — kolejki zostają na górze. --}}
-                                <li><a class="side-nav-item" href="{{ route('admin.users') }}" @if(request()->routeIs('admin.users*')) aria-current="page" @endif><x-ikona nazwa="users" /> Użytkownicy</a></li>
+                                <li><a class="side-nav-item" href="{{ route('admin.users') }}" @if(request()->routeIs('admin.users*')) aria-current="page" @endif><x-ikona nazwa="users" /> <span class="marka-panel-nav-etykieta">Użytkownicy</span></a></li>
                             </ul>
 
                             {{--
@@ -552,12 +820,18 @@
                                 bieżącego ekranu, bo w trybie panelu w ogóle znika
                                 (a poza nim żaden ekran serwisu nim nie jest).
                             --}}
-                            @unless($wTrybiePanelu)
-                                <a class="side-nav-item side-nav-wejscie" href="{{ route('admin.reports') }}">
-                                    <x-ikona nazwa="shield" /> Otwórz panel moderacji
-                                </a>
-                            @endunless
                         </div>
+                        @else
+                            {{-- Bez `role="group"` i bez `<h2>`: grupa jednego
+                                 elementu nie jest grupą, a nagłówek „Panel
+                                 moderacji" nad odnośnikiem „Otwórz panel
+                                 moderacji" to ta sama nazwa dwa razy pod rząd —
+                                 czytnik ekranu przeczytałby ją obie. --}}
+                            <a class="side-nav-item side-nav-wejscie" href="{{ route('admin.reports') }}">
+                                <x-ikona nazwa="shield" /> Otwórz panel moderacji
+                                <x-licznik-kolejki :ile="$czekaWPanelu" />
+                            </a>
+                        @endif
                     @endif
 
                     {{--
@@ -588,7 +862,21 @@
                                 <span class="visually-hidden">nieprzeczytanych</span>
                             @endif
                         </a></li>
-                        <li><a class="side-nav-item" href="{{ route('settings.accessibility') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
+                        {{-- Napis „Ustawienia" prowadzi na EKRAN O TYM TYTULE
+                             (`settings.index`), a nie na „Czytelność".
+
+                             Do 12 września 2026 stało tu `settings.accessibility`,
+                             bo rozdroża nie było — i D-168 przyjęło to jako
+                             koszt świadomy, mniejszy niż jeden napis o dwóch
+                             różnych celach. Rozdroże powstało (issue #344),
+                             więc koszt znika: to samo słowo, ten sam ekran,
+                             tu i w rzędzie akcji własnego profilu.
+
+                             `routeIs('settings.*')` zostaje bez zmian —
+                             `settings.index` też wpada w ten wzorzec, więc
+                             pozycja jest podświetlona na każdym ekranie
+                             ustawień, łącznie z samym rozdrożem. --}}
+                        <li><a class="side-nav-item" href="{{ route('settings.index') }}" @if(request()->routeIs('settings.*')) aria-current="page" @endif><x-ikona nazwa="settings" /> Ustawienia</a></li>
                         {{-- „Napisz do nas" także tutaj, nie tylko w stopce.
                              Osoba, która się gubi, gubi się na górze ekranu,
                              a nie na jego dole — a stopka na desktopie bywa
@@ -603,6 +891,9 @@
                              `components/wyloguj.blade.php`. --}}
                         <li><x-wyloguj class="side-nav-item side-nav-wyloguj"><x-ikona nazwa="logout" /> Wyloguj się</x-wyloguj></li>
                     </ul>
+                    @if($wTrybiePanelu)
+                        </div>
+                    @endif
                 </nav>
             @endauth
 
@@ -632,7 +923,43 @@
                     @if(session('status'))
                         <p class="flash">{{ session('status') }}</p>
                     @endif
+                    {{--
+                        DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
+                        `docs/AUDYT_2026-09.md`).
+
+                        Wyjęcie wpisu z zeszytu jest odwracalne, więc NIE pytamy
+                        „czy na pewno" przed kliknięciem — pytanie przed każdą
+                        odwracalną czynnością uczy odklikiwania i psuje wagę
+                        pytań przy czynnościach naprawdę nieodwracalnych.
+                        Zamiast tego po akcji stoi tu jedno kliknięcie powrotu.
+
+                        Komunikat ZOSTAJE osobnym `<p class="flash">` — nie
+                        wkładamy przycisku do środka akapitu: `.flash` jest
+                        czytany wprost przez kilka testów jako `<p>` i jako
+                        zdanie dla czytnika ekranu. Przycisk stoi pod nim,
+                        w tym samym obszarze `aria-live`, więc czytnik ogłasza
+                        najpierw co się stało, a potem co można z tym zrobić.
+
+                        Formularz, nie odnośnik: to jest zapis, czyli zmiana
+                        stanu. `GET`-em zmiany stanu nie robimy (CSRF, prefetch
+                        przeglądarki, historia).
+                    --}}
+                    @php $powrotPoAkcji = session('status_powrot'); @endphp
+                    @if(is_array($powrotPoAkcji) && isset($powrotPoAkcji['akcja'], $powrotPoAkcji['etykieta']))
+                        <form class="flash-powrot" method="POST" action="{{ $powrotPoAkcji['akcja'] }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit" data-rola="powrot-po-akcji">{{ $powrotPoAkcji['etykieta'] }}</button>
+                        </form>
+                    @endif
                 </div>
+                {{-- Zapis do zeszytu wraca także na strumień bez formularza.
+                     Sam worek walidacji nie pokazuje tam błędu (issue #473). --}}
+                @php
+                    $collectionError = session('errors')?->first('collection_id');
+                @endphp
+                @if($collectionError)
+                    <p id="blad-wyboru-zeszytu" class="notice" role="alert">{{ $collectionError }}</p>
+                @endif
 
                 {{--
                     Stan zawieszenia widoczny na KAŻDYM ekranie (issue #40).
@@ -661,7 +988,13 @@
                     </div>
                 @endif
 
-                {{ $slot }}
+                @if($wTrybiePanelu)
+                    <div class="marka-panel-tresc">
+                        {{ $slot }}
+                    </div>
+                @else
+                    {{ $slot }}
+                @endif
             </main>
 
             @isset($rail)
@@ -695,7 +1028,7 @@
 
         <footer class="site-footer">
             <div class="site-footer-inner">
-                <p class="site-footer-haslo">Kuking — gotujemy po swojemu.</p>
+                <p class="site-footer-haslo"><x-kuking-word /> — gotujemy po swojemu.</p>
 
                 {{-- Licznik kuKINGów (#38) przeniesiony z płaskiej stopki do
                      poziomu z hasłem — tu jest jego miejsce: mówi, ilu nas
@@ -745,7 +1078,7 @@
                     <nav class="site-footer-grupa" aria-label="O serwisie">
                         <p class="site-footer-naglowek" aria-hidden="true">O serwisie</p>
                         <ul>
-                            <li><a href="{{ route('about') }}">O Kuking</a></li>
+                            <li><a href="{{ route('about') }}">O <x-kuking-word /></a></li>
                             <li><a href="{{ route('rules') }}">Zasady</a></li>
                         </ul>
                     </nav>
@@ -968,8 +1301,22 @@
         <dialog id="powiekszenie" class="lightbox" aria-label="Powiększone zdjęcie">
             <img class="lightbox-obraz" src="" alt="">
 
-            {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
+            {{--
+                Stan wczytywania/błędu dużego wariantu (issue #743).
+
+                Dialog otwiera się PRZED zakończeniem pobierania — jeśli duży
+                plik nie dojdzie albo się nie zdekoduje, ten region (nie samo
+                zepsute `<img>` przeglądarki) mówi po polsku co się stało
+                i daje działającą akcję. `role="status"` + `aria-live="polite"`,
+                żeby czytnik ekranu ogłosił zmianę bez przenoszenia fokusu —
+                fokus zostaje w dialogu, gdzie już jest (pułapka focusu
+                `showModal()`).
+            --}}
+            <p class="lightbox-status" role="status" aria-live="polite" hidden></p>
+
             <form method="dialog" class="lightbox-akcje">
+                <button type="button" class="btn btn-secondary lightbox-ponow" hidden>Spróbuj ponownie</button>
+                {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
                 <button class="btn btn-secondary" type="submit">Zamknij</button>
             </form>
         </dialog>
@@ -1025,6 +1372,8 @@
         </nav>
         @endif
     @endauth
+
+    <x-szybki-wyglad :scale="$scale" :theme="$theme" />
 
     @if($livewire)
         @livewireScripts

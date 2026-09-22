@@ -1,0 +1,34 @@
+{
+  "backup": "/home/mateusz/kuking371-negative-7vlt_a3d",
+  "positiveExit": 0,
+  "results": [
+    {
+      "mutation": "question-null",
+      "exit": 1,
+      "detected": true,
+      "restoredMd5": "685eb9ed5e1052a391ebc7e07b1f2ad4",
+      "restoredMtimeNs": 1789722076552316400
+    },
+    {
+      "mutation": "dish-title",
+      "exit": 1,
+      "detected": true,
+      "restoredMd5": "685eb9ed5e1052a391ebc7e07b1f2ad4",
+      "restoredMtimeNs": 1789722076552316400
+    },
+    {
+      "mutation": "rollback-guard",
+      "exit": 1,
+      "detected": true,
+      "restoredMd5": "685eb9ed5e1052a391ebc7e07b1f2ad4",
+      "restoredMtimeNs": 1789722076552316400
+    },
+    {
+      "mutation": "database-default",
+      "exit": 2,
+      "detected": true,
+      "restoredMd5": "685eb9ed5e1052a391ebc7e07b1f2ad4",
+      "restoredMtimeNs": 1789722076552316400
+    }
+  ]
+}

@@ -1,0 +1,16 @@
+[
+  {
+    "code": "419",
+    "status": "readback",
+    "mismatches": [],
+    "private": true,
+    "steps": 3
+  },
+  {
+    "code": "429",
+    "status": "readback",
+    "mismatches": [],
+    "private": true,
+    "steps": 3
+  }
+]

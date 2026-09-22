@@ -1,0 +1,13 @@
+{
+  "negative_exit": 1,
+  "positive_exit": 0,
+  "backup": "/home/mateusz/kuking585-data-negative-2afs4yf3/comment.json",
+  "restored_record": "01a0aac1-9332-732b-a3c5-85466956b5bf",
+  "counts": {
+    "authors": 2100,
+    "posts": 50000,
+    "comments": 800,
+    "saves": 800,
+    "linked_recipes": 100
+  }
+}

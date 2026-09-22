@@ -1,0 +1,22 @@
+[
+  {
+    "name": "unsafe-scroll",
+    "before": "c27163865e531ae479da5a5b37da3c40",
+    "mtimeBefore": 1789482885073449274,
+    "mutated": "b0fbc7773a9ee339a2338dd54e7704d5",
+    "negativeExit": 1,
+    "restored": "c27163865e531ae479da5a5b37da3c40",
+    "mtimeRestored": 1789482885073449274,
+    "positiveExit": 0
+  },
+  {
+    "name": "pointer-move",
+    "before": "c27163865e531ae479da5a5b37da3c40",
+    "mtimeBefore": 1789482885073449274,
+    "mutated": "04ac474f68a69d62fc96668f4486b791",
+    "negativeExit": 1,
+    "restored": "c27163865e531ae479da5a5b37da3c40",
+    "mtimeRestored": 1789482885073449274,
+    "positiveExit": 0
+  }
+]

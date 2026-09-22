@@ -1,0 +1,12 @@
+[
+  {
+    "case": "locked",
+    "exit": 2
+  },
+  {
+    "case": "wrong_viewer",
+    "exit": 1,
+    "restored_md5": "5c3b9d2ae6b90b071997f9e3c60cc59f",
+    "mtime_ns": 1789562905000000000
+  }
+]

@@ -72,7 +72,17 @@ class CofniecieMigracjiNieWlaczaWspomnienTest extends TestCase
 
         $wyjatek = $this->cofnijOczekujacOdmowy();
 
-        $this->assertStringContainsString('1 kont ma wyłączone wspomnienia', $wyjatek->getMessage());
+        // JEDNO konto, nie pięć: liczba stoi na końcu zdania, za
+        // rzeczownikiem w mianowniku, więc jedynka jest tu poprawna po polsku
+        // i wolno ją zamrozić w teście (D-132).
+        $this->assertStringContainsString(
+            'Liczba kont z wyłączonymi wspomnieniami (memories_enabled = false): 1.',
+            $wyjatek->getMessage(),
+        );
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('1 kont ma wyłączone', $wyjatek->getMessage());
+
         $this->assertStringContainsString('CO ZROBIĆ', $wyjatek->getMessage());
 
         // NAJWAŻNIEJSZA ASERCJA: decyzja człowieka jest NADAL wyłączeniem.
@@ -100,8 +110,20 @@ class CofniecieMigracjiNieWlaczaWspomnienTest extends TestCase
 
         $wyjatek = $this->cofnijOczekujacOdmowy();
 
-        $this->assertStringContainsString('1 wpisów jest schowanych', $wyjatek->getMessage());
-        $this->assertStringContainsString('0 kont ma wyłączone wspomnienia', $wyjatek->getMessage());
+        // JEDEN wpis, nie pięć — i drugi licznik ma stać na zerze, bo ta
+        // gałąź warunku dotyczy wyłącznie schowanego wpisu.
+        $this->assertStringContainsString(
+            'Liczba schowanych wpisów (hide_as_memory = true): 1.',
+            $wyjatek->getMessage(),
+        );
+        $this->assertStringContainsString(
+            'Liczba kont z wyłączonymi wspomnieniami (memories_enabled = false): 0.',
+            $wyjatek->getMessage(),
+        );
+
+        // Stare, niegramatyczne formy nie mają prawa wrócić.
+        $this->assertStringNotContainsString('1 wpisów jest schowanych', $wyjatek->getMessage());
+        $this->assertStringNotContainsString('0 kont ma wyłączone', $wyjatek->getMessage());
 
         $this->assertTrue($wpis->fresh()->hide_as_memory, 'Schowany wpis wrócił do „pokazuj" mimo odmowy rollbacku.');
         $this->assertSame(1, $this->iloscKolumn('posts', 'hide_as_memory'));

@@ -1,0 +1,16 @@
+[
+  {
+    "source": "resources/js/panel-menu.js",
+    "failure": "P581_MENU_MOBILE_ZWINIETE {}",
+    "restoredMd5": "8ab46f4208ca31e76cdb31d6d20eb2b6",
+    "restoredMtimeNs": "1789603697002542129",
+    "positive": true
+  },
+  {
+    "source": "resources/css/marka-panel.css",
+    "failure": "P581_MENU_MOBILE_ZWINIETE {}",
+    "restoredMd5": "b6a31b77e29d750766ec19b90d731737",
+    "restoredMtimeNs": "1789604704607902200",
+    "positive": true
+  }
+]

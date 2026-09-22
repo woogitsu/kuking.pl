@@ -113,13 +113,13 @@ final class Google
      * Zdanie DLA WŁAŚCICIELA (dziennik, runbook) o tym, czego brakuje.
      * Użytkownika to nie dotyczy — on po prostu nie widzi przycisku.
      *
-     * SYGNAŁU W `/health` JESZCZE NIE MA i to jest świadome odłożenie, nie
-     * przeoczenie. `HealthController` przerabia równolegle inne zlecenie
-     * (#253/#255), a dwóch agentów w jednym pliku kosztuje więcej niż jeden
-     * dzień bez tego sygnału. Brak kluczy niczego nie psuje: przycisku po
-     * prostu nie ma na ekranie, hasło i link e-mail działają jak dziś.
-     * Sygnał ma dojść jednym `check('google', ...)` obok tego od Turnstile,
-     * z tym zdaniem jako uzasadnieniem — uzasadnienie, dlaczego jest
+     * TO ZDANIE IDZIE TEŻ NA `/health` — od 12 września 2026. Produkcja
+     * z funkcją włączoną i bez kluczy oddaje `status: degraded` z powodem
+     * `google_bez_kluczy` (`HealthController::sprawdzWejscieGoogle()`,
+     * `check('google', ...)` obok tego od Turnstile). Publicznie widać sam
+     * kod; to zdanie trafia wyłącznie do serwerowego logu. Wcześniej sygnał
+     * był tu zapowiedziany jako odłożony i przez dwa dni był jedyną luką
+     * w kodzie tej funkcji (issue #258). Uzasadnienie, dlaczego jest
      * potrzebny, stoi w D-069 (rozstrzygnięcie o wyłączniku).
      */
     public static function komunikatBrakuKluczy(): string

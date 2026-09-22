@@ -1,0 +1,122 @@
+/*
+ * EKRAN „ŚWIEŻO Z KUKING" (`/odkryj`) — KOLUMNA CZYTANIA I KOLUMNA SZYNY
+ * ---------------------------------------------------------------------------
+ * ZGŁOSZENIE WŁAŚCICIELA: „https://kuking.pl/odkryj tu się zepsuło albo nie
+ * było naprawione, prawa kolumna pusta wszystko na środku".
+ *
+ * ZMIERZONE PRZED POPRAWKĄ (Chromium, dane demo, konto moderatora):
+ *
+ *   okno   ekran      rama    kolumna czytania   kolumna szyny   pustka z prawej
+ *   1920   /odkryj    1424    720                PUSTA           656 px
+ *   1920   /          1424    720                352             272 px
+ *   1512   /odkryj    1424    720                PUSTA           452 px
+ *   1512   /          1424    720                352              68 px
+ *
+ * Gość miał do tego całą stronę zwiniętą do 768 px, bo ekran bez szyny bierze
+ * `--container-strona-solo` (D-122).
+ *
+ * CO TU STAJE I DLACZEGO TO NIE JEST WYPEŁNIACZ
+ * Tablica „kuKINGi na dziś" — ta, która JUŻ BYŁA na tym ekranie, tylko
+ * w kolumnie czytania. `/odkryj` i `/` to dwie zakładki jednej listy
+ * (`feed-tabs` w `pages/home.blade.php`), a na `/` tablica siedzi w szynie od
+ * etapu D kitu (`szyna-startowa.blade.php`). Ta sama rzecz stała więc w dwóch
+ * bliźniaczych ekranach w dwóch różnych miejscach. Nic nowego nie dochodzi
+ * i nic nie znika — blok przesuwa się w bok.
+ *
+ * OSOBNY PLIK, NIE SEKCJA W `app.css` — z tego samego powodu, dla którego
+ * osobne pliki mają ekrany wyszukiwania, profilu i dodawania: nad tym samym
+ * arkuszem pracuje dziś kilka gałęzi naraz i wspólny plik znaczy, że jedna
+ * przepisuje reguły drugiej.
+ *
+ * JEDNA RZECZ ZOSTAJE W `app.css` I NIE DA SIĘ TEGO UNIKNĄĆ: wyjątek
+ * `.app-body-tresc-z-szyna .app-main > :not(...)`. Ta reguła przycina do
+ * `--container-content` wszystko, co `<main>` niesie POZA siatką ekranu,
+ * i musi znać nazwę tej siatki. Jest tam dopisana obok `.przepis-uklad`.
+ */
+
+@layer components {
+
+  /* --- ODSTĘP POD NAGŁÓWKIEM STRONY -------------------------------------
+
+     `tokens.css` daje go regułą `.app-main > h1` — świadomie wąską, opisaną
+     tam zdaniem „nagłówek strony ZAWSZE jest bezpośrednim dzieckiem
+     `<main class="app-main">`". Od tej zmiany na `/odkryj` już nie jest:
+     między `<main>` a nagłówkiem stoi siatka ekranu, bo tablica dnia musi
+     być BEZPOŚREDNIM dzieckiem siatki, żeby `grid-column` w ogóle jej
+     dotyczył.
+
+     Bez tej reguły nagłówek „Świeżo z Kuking" dotykał wstępu pod sobą
+     (zmierzone: odstęp 24 → 0 px) — czyli wracała dokładnie ta usterka,
+     którą właściciel zgłosił 9 września. Wartość jest tym samym tokenem,
+     nie przepisaną liczbą.
+
+     NIE W `tokens.css`: tamta reguła ma jeden selektor dla całego serwisu
+     i nie jest miejscem na wyjątek jednego ekranu. Ekran, który zrobi to
+     samo co ten, dopisze sobie taką linijkę u siebie — albo będzie to już
+     trzeci przypadek i wtedy warto poszerzyć regułę w tokenach.
+     -------------------------------------------------------------------- */
+
+  .odkryj-uklad > h1 {
+    margin-bottom: var(--spacing-6);
+  }
+
+  /* --- SIATKA EKRANU ----------------------------------------------------
+
+         [ nagłówek, wstęp, karty wpisów, „Pokaż więcej" ]  [ TABLICA DNIA ]
+                        45rem — bez zmian                        22rem
+
+     KOD ZOSTAJE W KOLEJNOŚCI TELEFONU. Tablica jest w drzewie tam, gdzie
+     była: po wstępie, PRZED wpisami. Siatka przenosi ją tylko w bok, więc
+     czytnik ekranu i klawiatura chodzą tak samo jak przedtem. To jest powód,
+     dla którego ten ekran NIE używa `<x-slot:rail>`: slot renderuje się
+     w kodzie ZA całym `<main>`, czyli pod czternastoma kartami wpisów
+     i przyciskiem „Pokaż więcej" — na telefonie tablica zniknęłaby z ekranu.
+     Ten sam zabieg i ten sam powód co na stronie przepisu (`.przepis-uklad`
+     w `app.css`, issue #365).
+
+     KOLUMNA TEKSTU NIE ROŚNIE. `minmax(0, var(--container-content))` — ta
+     sama liczba, którą `.app-main` daje każdemu innemu ekranowi. Rośnie rama
+     i to, co OBOK; wiersz na 1400 px jest nieczytelny niezależnie od wieku
+     czytelnika (docs/UX_50_PLUS.md).
+
+     `grid-row: 1 / span 999`, A NIE `1 / -1` — `-1` wskazuje ostatnią linię
+     siatki JAWNEJ, a jawnych wierszy tu nie ma; tablica zostałaby w wierszu
+     pierwszym i rozepchnęła go do swojej wysokości, zostawiając kilkaset
+     pikseli dziury pod nagłówkiem. Ta sama pułapka i to samo obejście co
+     w `.przepis-uklad`.
+
+     TYLKO OD 80rem — czyli tam, gdzie kolumna szyny w ogóle istnieje. Niżej
+     (telefon, tablet) i przy czcionce przeglądarki podkręconej do 200% (wtedy
+     80rem to 2560 px i próg się nie załapuje) zostaje jeden ciąg w kolejności
+     z kodu: nagłówek, wstęp, tablica dnia, wpisy. Nic się nie chowa.
+     -------------------------------------------------------------------- */
+
+  @media (min-width: 80rem) {
+    .odkryj-uklad {
+      display: grid;
+      grid-template-columns: minmax(0, var(--container-content)) var(--container-rail);
+      column-gap: var(--spacing-8);
+      /* Rytm pionowy robią marginesy samych bloków — tak jak przed zmianą,
+         gdy stały w zwykłym ciągu. `row-gap` dołożyłby do nich drugi odstęp. */
+      row-gap: 0;
+      align-items: start;
+    }
+
+    .odkryj-uklad > * {
+      grid-column: 1;
+    }
+
+    .odkryj-szyna {
+      grid-column: 2;
+      grid-row: 1 / span 999;
+      align-self: start;
+    }
+
+    /* Tablica ma `mb-6` na potrzeby ciągu jednokolumnowego (na telefonie
+       oddziela ją od pierwszego wpisu). W kolumnie szyny nie ma pod nią nic,
+       więc ten margines byłby samą dziurą u dołu strony. */
+    .odkryj-szyna > * {
+      margin-bottom: 0;
+    }
+  }
+}

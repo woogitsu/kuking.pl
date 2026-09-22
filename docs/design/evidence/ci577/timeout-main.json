@@ -1,0 +1,55 @@
+{
+  "run": {
+    "id": 34975700310,
+    "head_sha": "91c8b4106fb96b4447ecc5db8ae39eb94996b49d",
+    "status": "completed",
+    "conclusion": "cancelled",
+    "html_url": "https://github.com/woogitsu/kuking.pl/actions/runs/34975700310"
+  },
+  "job": {
+    "id": 104402800738,
+    "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+    "started_at": "2026-09-15T13:38:27Z",
+    "completed_at": "2026-09-15T14:04:04Z",
+    "conclusion": "cancelled"
+  },
+  "steps": [
+    {
+      "name": "Port projektu — układ i kontrola ujemna",
+      "started_at": "2026-09-15T13:38:57Z",
+      "completed_at": "2026-09-15T14:03:25Z",
+      "conclusion": "success"
+    },
+    {
+      "name": "Trzy kroki kreatora przy dużym tekście",
+      "started_at": "2026-09-15T14:03:25Z",
+      "completed_at": "2026-09-15T14:03:41Z",
+      "conclusion": "cancelled"
+    }
+  ],
+  "annotations": [
+    {
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The job has exceeded the maximum execution time of 25m0s"
+    },
+    {
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The operation was canceled."
+    }
+  ],
+  "railway": {
+    "id": 6460017818,
+    "statuses": [
+      {
+        "state": "inactive",
+        "created_at": "2026-09-15T14:04:12Z"
+      },
+      {
+        "state": "in_progress",
+        "created_at": "2026-09-15T13:32:59Z"
+      }
+    ]
+  }
+}

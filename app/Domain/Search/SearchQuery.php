@@ -137,7 +137,7 @@ final class SearchQuery
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
 
@@ -146,6 +146,13 @@ final class SearchQuery
         }
 
         $needle = $this->normalize($phrase);
+
+        // Metaznaki LIKE (`%`, `_`, znak ucieczki `\`) z frazy MUSZĄ zostać
+        // dosłownym tekstem, nie operatorem wzorca (issue #753). Wyłącznie
+        // dla trzech gałęzi `LIKE` niżej — pierwsza gałąź trigramowa (`<%`)
+        // dostaje `$needle` BEZ ucieczki, bo to nie jest LIKE i cytowanie
+        // zepsułoby dopasowanie podobieństwa/sortowanie po nim.
+        $literalnie = $this->uciecznijLike($needle);
 
         // Bez tego gałąź trigramowa niżej milczy przy literówkach — patrz
         // komentarz przy zniesionej stałej wyżej.
@@ -176,9 +183,9 @@ final class SearchQuery
             ->withCount(['cookedEvents' => fn ($q) => $q->widoczneDla($widz)])
             ->whereRaw('recipes.id IN ('.self::KANDYDACI_SQL.')', [
                 $needle,
-                '%'.$needle.'%',
-                '%'.$needle.'%',
-                '%'.$needle.'%',
+                '%'.$literalnie.'%',
+                '%'.$literalnie.'%',
+                '%'.$literalnie.'%',
             ])
             // Filtr „Do 30 minut" (UI kit v2, ekran 03).
             //
@@ -216,6 +223,8 @@ final class SearchQuery
                 [$needle, $needle],
             )
             ->orderByDesc('published_at')
+            ->orderBy('recipes.id')
+            ->offset(max(0, $offset))
             ->limit($limit)
             ->get();
     }
@@ -239,7 +248,7 @@ final class SearchQuery
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Profile>
      */
-    public function people(string $phrase, ?User $widz = null, int $limit = 20): Collection
+    public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
 
@@ -248,6 +257,11 @@ final class SearchQuery
         }
 
         $needle = $this->normalize($phrase);
+
+        // Metaznaki LIKE dosłownie — patrz komentarz w recipes() (issue #753).
+        // Ta metoda nie ma gałęzi trigramowej, więc CAŁY `$needle` idzie
+        // wyłącznie przez wersję po ucieczce.
+        $literalnie = $this->uciecznijLike($needle);
 
         // Ta metoda nie używa ŻADNEGO operatora trigramowego — dopasowuje
         // przez `LIKE`, a `similarity()` niżej tylko porządkuje wynik i progu
@@ -258,14 +272,37 @@ final class SearchQuery
         ProgPodobienstwa::ustaw();
 
         return Profile::query()
-            ->with(['user', 'avatar'])
+            // `user.profile.avatar`, A NIE SAMO `user` — I NIE JEST TO
+            // POWTÓRNE ŁADOWANIE TEGO SAMEGO WIERSZA DLA OZDOBY.
+            //
+            // Oba ekrany korzystające z tej metody (`/szukaj`, zakładka
+            // „Ludzie", i krok onboardingu „znasz już kogoś tutaj?") rysują
+            // zdjęcie komponentem `<x-avatar :user="$profil->user" />`.
+            // Komponent przyjmuje KONTO i sam wraca po profil
+            // (`$user?->profile`, potem `zdjecieDoPokazania()` → `avatar`),
+            // a wynikiem tej metody są PROFILE — więc doładowany tu `avatar`
+            // siedzi na innej instancji niż ta, po którą sięga komponent,
+            // i nie oszczędza ani jednego zapytania.
+            //
+            // Zmierzone przed poprawką (`WynikiSzukaniaLudziBezWachlarzaZapytanTest`):
+            // 16 zapytań przy 2 osobach i 34 przy 20 — dokładnie jedno
+            // `select * from profiles where user_id = ?` na każdą wypisaną
+            // osobę. Przy kontach ze zdjęciem profilowym dochodziło drugie,
+            // po wiersz `media`.
+            //
+            // `avatar` na profilu-korzeniu ZOSTAJE: to jest kod domenowy,
+            // a nie widok, i nie ma prawa zakładać, że każdy przyszły
+            // odbiorca sięgnie po zdjęcie okrężną drogą przez konto.
+            // Kosztuje to jedno zapytanie na CAŁĄ stronę wyników, nie jedno
+            // na osobę.
+            ->with(['user.profile.avatar', 'avatar'])
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'profiles.user_id'))
-            ->where(function ($query) use ($needle): void {
+            ->where(function ($query) use ($literalnie): void {
                 $query
-                    ->whereRaw('display_name_search LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('username_search LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('speciality_search LIKE ?', ['%'.$needle.'%']);
+                    ->whereRaw('display_name_search LIKE ?', ['%'.$literalnie.'%'])
+                    ->orWhereRaw('username_search LIKE ?', ['%'.$literalnie.'%'])
+                    ->orWhereRaw('speciality_search LIKE ?', ['%'.$literalnie.'%']);
             })
             // Tu `similarity` ZOSTAJE (issue #187 zmieniło tylko przepisy).
             // Dopasowanie idzie przez `LIKE`, więc zbiór wyników nie zależy
@@ -274,6 +311,8 @@ final class SearchQuery
             // się tu na czym odbyć. Zmiana bez zmierzonego powodu byłaby
             // zmianą kolejności wyników za darmo.
             ->orderByRaw('similarity(profiles.display_name_search, ?) DESC', [$needle])
+            ->orderBy('profiles.user_id')
+            ->offset(max(0, $offset))
             ->limit($limit)
             ->get();
     }
@@ -328,5 +367,23 @@ final class SearchQuery
     private function normalize(string $phrase): string
     {
         return mb_strtolower(Str::ascii(mb_substr($phrase, 0, 120)));
+    }
+
+    /**
+     * Cytuje metaznaki operatora LIKE, żeby fraza użytkownika trafiała do
+     * `LIKE` jako dosłowny tekst, nie jako wzorzec (issue #753).
+     *
+     * PostgreSQL bierze `\` jako domyślny znak ucieczki dla `LIKE` — dlatego
+     * najpierw trzeba podwoić SAM znak ucieczki, inaczej `\` z frazy
+     * uciekałby przypadkowo następny znak wstawiony przez tę metodę.
+     * Kolejność (najpierw `\`, potem `%` i `_`) jest tu obowiązkowa.
+     *
+     * Używać WYŁĄCZNIE dla parametrów `LIKE`. Operator trigramowy `<%`
+     * i funkcje `similarity()`/`word_similarity()` mają dostawać frazę
+     * bez tej ucieczki — to nie jest LIKE i cytowanie zmieniłoby dopasowanie.
+     */
+    private function uciecznijLike(string $wartosc): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $wartosc);
     }
 }

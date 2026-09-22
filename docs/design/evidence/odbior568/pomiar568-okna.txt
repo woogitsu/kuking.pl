@@ -1,0 +1,14 @@
+# Pomiar okien wyszukiwarki #568 — scena LOKALNA, 450 pasujacych przepisow
+# Kod: 8a2ecb2a91bec7f7fef0f40e9d1c59b8c4735257 (zawiera merge #592 = 2144a114)
+# Baza kuking_odbior568_claude na 127.0.0.1:55439, parametry przez zmienne srodowiska.
+# Chodzenie po RZECZYWISTYCH odnosnikach wyjetych z HTML (DOMXPath), nie po recznie zlozonych adresach.
+
+okno 1 | od_przepisu=0 | pokazano=200 | zapytan=8 | czas=177.6 ms | url=http://127.0.0.1:8568/szukaj?q=Kalarepa&sekcja=przepisy&ile=200
+okno 2 | od_przepisu=200 | pokazano=200 | zapytan=8 | czas=159.2 ms | url=http://127.0.0.1:8568/szukaj?q=Kalarepa&sekcja=przepisy&ile=200&od_przepisu=200&od_osoby=0
+okno 3 | od_przepisu=400 | pokazano=50 | zapytan=8 | czas=144.8 ms | url=http://127.0.0.1:8568/szukaj?q=Kalarepa&sekcja=przepisy&ile=200&od_przepisu=400&od_osoby=0
+
+# Okna rozlaczne (assertSame([], array_intersect(...)) po kazdym kroku)
+# Suma okien = dokladnie 450 identyfikatorow (assertEqualsCanonicalizing)
+# Podzial: 200 + 200 + 50
+# Liczba zapytan SQL na zadanie jest STALA (8) niezaleznie od przesuniecia — zadnego COUNT ani N+1.
+# Czas to pomiar w tescie HTTP Laravela, nie pomiar produkcyjny.

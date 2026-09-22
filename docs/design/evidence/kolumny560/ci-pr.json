@@ -1,0 +1,94 @@
+{
+  "run": {
+    "id": 34936291390,
+    "head_sha": "2b221f3ae97f03b0a24d68e375b3abc70be0e7b4",
+    "status": "completed",
+    "conclusion": "success",
+    "html_url": "https://github.com/woogitsu/kuking.pl/actions/runs/34936291390"
+  },
+  "jobs": [
+    {
+      "id": 104274803968,
+      "name": "Zakres zmiany",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:17:40Z",
+      "completed_at": "2026-09-15T06:17:47Z"
+    },
+    {
+      "id": 104274843028,
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:17:50Z",
+      "completed_at": "2026-09-15T06:41:06Z"
+    },
+    {
+      "id": 104274843049,
+      "name": "Pint (styl kodu)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:18:22Z",
+      "completed_at": "2026-09-15T06:18:54Z"
+    },
+    {
+      "id": 104274843060,
+      "name": "Larastan (analiza statyczna)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:17:50Z",
+      "completed_at": "2026-09-15T06:18:20Z"
+    },
+    {
+      "id": 104274843065,
+      "name": "Build assetów (Vite)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:19:32Z",
+      "completed_at": "2026-09-15T06:19:52Z"
+    },
+    {
+      "id": 104274843090,
+      "name": "Audyt zależności",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:17:50Z",
+      "completed_at": "2026-09-15T06:18:06Z"
+    },
+    {
+      "id": 104274843099,
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:18:08Z",
+      "completed_at": "2026-09-15T06:27:00Z"
+    },
+    {
+      "id": 104274843171,
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:18:56Z",
+      "completed_at": "2026-09-15T06:19:31Z"
+    },
+    {
+      "id": 104274843189,
+      "name": "Build obrazu (weryfikacja)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:19:54Z",
+      "completed_at": "2026-09-15T06:24:26Z"
+    },
+    {
+      "id": 104274843208,
+      "name": "Testy (PostgreSQL 18)",
+      "status": "completed",
+      "conclusion": "success",
+      "started_at": "2026-09-15T06:24:28Z",
+      "completed_at": "2026-09-15T06:30:54Z"
+    }
+  ],
+  "kolumny": [
+    "2026-09-15T06:29:48.5882306Z Zwarte kolumny: 24 konfiguracje PASS"
+  ]
+}

@@ -114,7 +114,7 @@ class SzynaBezWachlarzaZapytanTest extends TestCase
      * Rośnie liczba zeszytów I liczba rzeczy w nich — czyli dokładnie to,
      * co rośnie u człowieka korzystającego z serwisu przez rok.
      */
-    public function test_szyna_ekranu_moje_nie_rosnie_z_zawartoscia_zeszytow(): void
+    public function test_ostatnie_zapisy_nie_rosna_z_zawartoscia_zeszytow(): void
     {
         $malo = $this->user('moje_szyna_malo');
         $this->wyposazZeszyty($malo, zeszytow: 1, rzeczyNaZeszyt: 2);

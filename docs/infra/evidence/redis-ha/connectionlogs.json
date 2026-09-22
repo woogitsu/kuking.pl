@@ -1,0 +1,30 @@
+{
+  "deploymentId": "04d9b308-074a-4fcd-81e0-2b242bc6b2d7",
+  "serviceId": "200d68a6-24b0-46f3-bd7a-924cd00e532e",
+  "environmentId": "ea146c13-dc55-4a4f-a386-0835f650f9ce",
+  "status": "SUCCESS",
+  "deploy": [
+    {
+      "timestamp": "2026-09-20T17:25:47.546118674Z",
+      "severity": "info",
+      "message": "  2026-09-20 17:25:38 Running [kuking:budzet-polaczen] {\"message\":\"kuking:budzet-polaczen\",\"context\":{\"stan\":\"spokojny\",\"zajete_serwer\":2,\"zajete_baza\":2,\"aktywne\":1,\"bezczynne\":1,\"w_transakcji\":0,\"dostepne\":497,\"max_connections\":500,\"budzet_szczytowy\":16,\"prog_ostrzegawczy\":50},\"level\":200,\"level_name\":\"INFO\",\"channel\":\"production\",\"datetime\":\"2026-09-20T17:25:38.708326+00:00\",\"extra\":{}}",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    },
+    {
+      "timestamp": "2026-09-20T18:25:58.117337607Z",
+      "severity": "info",
+      "message": "  2026-09-20 18:25:48 Running [kuking:budzet-polaczen] {\"message\":\"kuking:budzet-polaczen\",\"context\":{\"stan\":\"spokojny\",\"zajete_serwer\":2,\"zajete_baza\":2,\"aktywne\":1,\"bezczynne\":1,\"w_transakcji\":0,\"dostepne\":497,\"max_connections\":500,\"budzet_szczytowy\":16,\"prog_ostrzegawczy\":50},\"level\":200,\"level_name\":\"INFO\",\"channel\":\"production\",\"datetime\":\"2026-09-20T18:25:48.272327+00:00\",\"extra\":{}}",
+      "attributes": [
+        {
+          "key": "level",
+          "value": "\"info\""
+        }
+      ]
+    }
+  ]
+}

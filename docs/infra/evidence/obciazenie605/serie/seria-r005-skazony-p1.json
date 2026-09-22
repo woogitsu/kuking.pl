@@ -1,0 +1,228 @@
+{
+ "UWAGA": "STOPIEŃ SKAŻONY — NIE JEST TO WYNIK POMIAROWY. Odrzucony przez bramkę obciążenia (reguła w METODA.md §6.4). Powód: CI dwóch PR-ów koordynatora (#676, #677) na runnerach `kuking`. Plik zostaje w dowodach jako dowód, że bramka odrzuca to, co ma odrzucać — a nie po to, żeby cytować z niego liczby. Werdykt i statystyki obcego obciążenia: werdykt-<nazwa>.json.",
+ "seria": "r005-p1",
+ "baza": "http://127.0.0.1:8605",
+ "start": "2026-09-18T10:28:41.190Z",
+ "zadany_rps": 5,
+ "czas_s": 120,
+ "trwanie_s": 120.4,
+ "razem": {
+  "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+  "zadan": 600,
+  "poprawnych": 600,
+  "porzuconych_przez_limit": 0,
+  "przepustowosc_rps": 4.98,
+  "blad_procent": 0,
+  "p50": 71.6,
+  "p95": 1131.9,
+  "p99": 1260.8
+ },
+ "w_locie_szczyt": 6,
+ "w_locie_mediana": 2,
+ "koszt_generatora": {
+  "cpu_user_s": 2.95,
+  "cpu_system_s": 0.49,
+  "cpu_rdzenie_srednio": 0.029,
+  "maxrss_mb": 93
+ },
+ "endpointy": {
+  "anon_landing": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 51,
+   "poprawnych": 51,
+   "blad_procent": 0,
+   "p50": 422.2,
+   "p95": 500.6,
+   "p99": 556.7,
+   "max": 557,
+   "statusy": {
+    "200": 51
+   }
+  },
+  "anon_profil": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 16,
+   "poprawnych": 16,
+   "blad_procent": 0,
+   "p50": 86.6,
+   "p95": 395.7,
+   "p99": 395.7,
+   "max": 396,
+   "statusy": {
+    "200": 16
+   }
+  },
+  "anon_przepis": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 71,
+   "poprawnych": 71,
+   "blad_procent": 0,
+   "p50": 49,
+   "p95": 106.1,
+   "p99": 127.6,
+   "max": 128,
+   "statusy": {
+    "200": 71
+   }
+  },
+  "anon_tag": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 22,
+   "poprawnych": 22,
+   "blad_procent": 0,
+   "p50": 73,
+   "p95": 111.8,
+   "p99": 162.2,
+   "max": 162,
+   "statusy": {
+    "200": 22
+   }
+  },
+  "anon_wpis": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 40,
+   "poprawnych": 40,
+   "blad_procent": 0,
+   "p50": 46.9,
+   "p95": 104.9,
+   "p99": 244.2,
+   "max": 244,
+   "statusy": {
+    "200": 40
+   }
+  },
+  "komentarz": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 20,
+   "poprawnych": 20,
+   "blad_procent": 0,
+   "p50": 51.8,
+   "p95": 130.6,
+   "p99": 130.6,
+   "max": 131,
+   "statusy": {
+    "302": 20
+   }
+  },
+  "szukaj": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 48,
+   "poprawnych": 48,
+   "blad_procent": 0,
+   "p50": 512.3,
+   "p95": 649.6,
+   "p99": 920.2,
+   "max": 920,
+   "statusy": {
+    "200": 48
+   }
+  },
+  "ugotowalem": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 14,
+   "poprawnych": 14,
+   "blad_procent": 0,
+   "p50": 41.4,
+   "p95": 81.9,
+   "p99": 81.9,
+   "max": 82,
+   "statusy": {
+    "302": 14
+   }
+  },
+  "upload": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 11,
+   "poprawnych": 11,
+   "blad_procent": 0,
+   "p50": 310.1,
+   "p95": 727.6,
+   "p99": 727.6,
+   "max": 728,
+   "statusy": {
+    "302": 11
+   }
+  },
+  "zal_discover": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 24,
+   "poprawnych": 24,
+   "blad_procent": 0,
+   "p50": 495.9,
+   "p95": 575.6,
+   "p99": 647.2,
+   "max": 647,
+   "statusy": {
+    "200": 24
+   }
+  },
+  "zal_feed": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 87,
+   "poprawnych": 87,
+   "blad_procent": 0,
+   "p50": 1066.6,
+   "p95": 1259.8,
+   "p99": 1621.1,
+   "max": 1621,
+   "statusy": {
+    "200": 87
+   }
+  },
+  "zal_feed_str2": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 17,
+   "poprawnych": 17,
+   "blad_procent": 0,
+   "p50": 1089.1,
+   "p95": 1425.2,
+   "p99": 1425.2,
+   "max": 1425,
+   "statusy": {
+    "200": 17
+   }
+  },
+  "zal_zeszyt": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 24,
+   "poprawnych": 24,
+   "blad_procent": 0,
+   "p50": 52.9,
+   "p95": 68.9,
+   "p99": 136.8,
+   "max": 137,
+   "statusy": {
+    "200": 24
+   }
+  },
+  "zdjecie": {
+   "uwaga": "stopień skażony, odrzucony przez bramkę — NIE cytować",
+   "zadan": 155,
+   "poprawnych": 155,
+   "blad_procent": 0,
+   "p50": 47.3,
+   "p95": 104.3,
+   "p99": 322.6,
+   "max": 326,
+   "statusy": {
+    "200": 155
+   }
+  }
+ },
+ "mieszanka": {
+  "anon_landing": 8,
+  "anon_przepis": 14,
+  "anon_wpis": 7,
+  "anon_tag": 4,
+  "anon_profil": 2,
+  "zal_feed": 14,
+  "zal_feed_str2": 4,
+  "zal_discover": 4,
+  "zal_zeszyt": 3,
+  "szukaj": 8,
+  "zdjecie": 25,
+  "komentarz": 4,
+  "ugotowalem": 2,
+  "upload": 1
+ }
+}

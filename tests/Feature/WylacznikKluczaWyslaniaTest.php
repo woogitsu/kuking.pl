@@ -110,10 +110,10 @@ class WylacznikKluczaWyslaniaTest extends TestCase
 
     /**
      * I druga połowa kontroli: że tę wartość naprawdę czyta kod, a nie tylko
-     * `config()`. Trzy formularze, jedno sprawdzenie — gdyby któryś czytał
+     * `config()`. Cztery formularze, jedno sprawdzenie — gdyby któryś czytał
      * własną stałą (tak było przed tą zmianą), ten test by go złapał.
      */
-    public function test_przy_wlaczonym_mechanizmie_wszystkie_trzy_formularze_niosa_klucz(): void
+    public function test_przy_wlaczonym_mechanizmie_wszystkie_cztery_formularze_niosa_klucz(): void
     {
         config([self::KLUCZ_KONFIGURACJI => true]);
 
@@ -132,9 +132,13 @@ class WylacznikKluczaWyslaniaTest extends TestCase
             $this->kluczZFormularza($this->get(route('zglos.nielegalna'))->getContent()),
             'Formularz zgłoszenia nie wystawił ukrytego pola, choć mechanizm jest włączony.',
         );
+        $this->assertNotNull(
+            $this->kluczZFormularza($this->actingAs($osoba)->get(route('recipes.create'))->getContent()),
+            'Formularz „Dodaj przepis" nie wystawił ukrytego pola, choć mechanizm jest włączony.',
+        );
     }
 
-    public function test_wylaczony_mechanizm_zdejmuje_ukryte_pole_ze_wszystkich_trzech_formularzy(): void
+    public function test_wylaczony_mechanizm_zdejmuje_ukryte_pole_ze_wszystkich_czterech_formularzy(): void
     {
         config([self::KLUCZ_KONFIGURACJI => false]);
 
@@ -152,6 +156,41 @@ class WylacznikKluczaWyslaniaTest extends TestCase
         $this->assertNull(
             $this->kluczZFormularza($this->get(route('zglos.nielegalna'))->getContent()),
             'Formularz zgłoszenia dalej wystawia ukryte pole przy wyłączonym mechanizmie.',
+        );
+        $this->assertNull(
+            $this->kluczZFormularza($this->actingAs($osoba)->get(route('recipes.create'))->getContent()),
+            'Formularz „Dodaj przepis" dalej wystawia ukryte pole przy wyłączonym mechanizmie.',
+        );
+    }
+
+    public function test_wylaczony_mechanizm_przywraca_zachowanie_sprzed_d027_dla_przepisu(): void
+    {
+        config([self::KLUCZ_KONFIGURACJI => false]);
+
+        $osoba = $this->user('przepisujaca');
+
+        // Formularz nie ma już ukrytego pola, więc przeglądarka nie ma czego
+        // odesłać — wysyłamy dokładnie to, co wysłałaby ona.
+        $tresc = [
+            'title' => 'Rosół babci Zofii',
+            'visibility' => 'public',
+            'skladniki_tekst' => "kura\nmarchew",
+            'przygotowanie_tekst' => 'Zagotuj wodę.',
+        ];
+
+        $this->actingAs($osoba)->post(route('recipes.store'), $tresc);
+        $drugie = $this->actingAs($osoba)->post(route('recipes.store'), $tresc);
+
+        $drugie->assertSessionHasNoErrors();
+
+        // DWA przepisy, i to jest tu POPRAWNY wynik — wyłącznik ma przywrócić
+        // zachowanie sprzed ochrony, z duplikatami włącznie.
+        $this->assertSame(2, Recipe::query()->count(), 'Wyłącznik nie przywrócił zachowania sprzed ochrony przepisu.');
+
+        $this->assertSame(
+            0,
+            Recipe::query()->whereNotNull('klucz_wyslania')->count(),
+            'Kolumna dostała wartość, choć formularz nie wysyłał klucza.',
         );
     }
 

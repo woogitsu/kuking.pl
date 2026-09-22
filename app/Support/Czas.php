@@ -55,6 +55,40 @@ final class Czas
     }
 
     /**
+     * Data wpisu w strumieniu: BEZ ROKU, dopóki wpis jest z tego roku.
+     *
+     * Decyzja właściciela z 12 września 2026, podjęta po pomiarze główki
+     * karty wpisu. Całą robotę zrobiło tam skrócenie przycisku menu do
+     * trzech kropek; data dokłada do tego 0–1 wiersza przy czcionce 100%,
+     * i to właśnie te 0–1 wiersza są tu kupowane świadomie, za cenę roku.
+     *
+     * DLACZEGO NIE „3 GODZINY TEMU"
+     * Bo to jest archiwum, do którego ludzie wracają — „2 lata temu" nie
+     * mówi, kiedy. Zysk wobec krótkiej daty: 0–1 wiersza, czyli żaden.
+     *
+     * DLACZEGO ROK ZOSTAJE PRZY STARSZYCH WPISACH
+     * Bo „12 września" bez roku przy wpisie sprzed dwóch lat to nie skrót,
+     * tylko nieprawda podana bez ostrzeżenia. Próg liczymy w strefie
+     * CZŁOWIEKA (`lokalnie`), nie w UTC: przez pierwsze dwie godziny
+     * polskiej doby 1 stycznia w UTC jest jeszcze 31 grudnia, więc wpis
+     * sprzed chwili gubiłby rok albo go dostawał, zależnie od godziny.
+     *
+     * GDZIE TEGO NIE UŻYWAMY: ekrany moderacji, odwołań, wiadomości
+     * i eksportu danych. Tam data jest dowodem w sprawie albo terminem, po
+     * którym coś się kończy — pełna data kosztuje jedno słowo i zostaje.
+     */
+    public static function dataWpisu(?CarbonInterface $moment): string
+    {
+        if ($moment === null) {
+            return '';
+        }
+
+        $tenSamRok = self::lokalnie($moment)->year === self::lokalnie(now())->year;
+
+        return self::data($moment, $tenSamRok ? 'j F, H:i' : 'j F Y, H:i');
+    }
+
+    /**
      * Dzisiejsza DATA w strefie człowieka, jako `Y-m-d`.
      *
      * Nie `now()->toDateString()`. To drugie liczy dzień w `app.timezone`,

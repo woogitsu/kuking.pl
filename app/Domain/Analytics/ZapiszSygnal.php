@@ -59,6 +59,14 @@ final class ZapiszSygnal
 
     public const SEARCH_PERFORMED = 'search_performed';
 
+    public const PWA_PROMPT_SHOWN = 'pwa_prompt_shown';
+
+    public const PWA_INSTALL_REQUESTED = 'pwa_install_requested';
+
+    public const PWA_PROMPT_DISMISSED = 'pwa_prompt_dismissed';
+
+    public const PWA_INSTALLED = 'pwa_installed';
+
     /**
      * Tygodniowe podsumowanie WPUSZCZONE DO KOLEJKI (issue #11, D-057;
      * przemianowany przy D-078, audyt 10.09.2026 ustalenie MAIL-03).

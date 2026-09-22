@@ -1,0 +1,19 @@
+{
+  "before": [
+    "fb16ae6b9940a9aa8deb3d287c4e201e",
+    1789690554370268900
+  ],
+  "backup": "/tmp/kuking370-order-fqdhwivg/index.blade.php",
+  "negative": {
+    "exit": 1,
+    "output": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-370-form-tests/phpunit.xml\n\n...\u001b[41;37mF\u001b[0m......                                                        10 / 10 (100%)\n\nTime: 00:00.992, Memory: 133.00 MB\n\nThere was 1 failure:\n\n1) Tests\\Feature\\SpisTematowTest::test_tematy_promowane_sa_w_osobnej_sekcji_w_kolejnosci_gospodarza\nKolejno\u015b\u0107 kart musi odpowiada\u0107 pozycji gospodarza.\nFailed asserting that two strings are identical.\n--- Expected\n+++ Actual\n@@ @@\n-'http://localhost/tag/zupy'\n+'http://localhost/tag/salatki'\n\n/home/mateusz/kuking-370-form-tests/tests/Feature/SpisTematowTest.php:163\n\n\u001b[37;41mFAILURES!\u001b[0m\n\u001b[37;41mTests: 10\u001b[0m\u001b[37;41m, Assertions: 47\u001b[0m\u001b[37;41m, Failures: 1\u001b[0m\u001b[37;41m.\u001b[0m\n\n[#273 /tagi] malo (2 tematy x 3 wpisy): 4 zapytan, duzo (20 tematow x 3 wpisy): 4 zapytan\n"
+  },
+  "restored": [
+    "fb16ae6b9940a9aa8deb3d287c4e201e",
+    1789690554370268900
+  ],
+  "positive": {
+    "exit": 0,
+    "output": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-370-form-tests/phpunit.xml\n\n..........                                                        10 / 10 (100%)\n\nTime: 00:00.998, Memory: 133.00 MB\n\n\u001b[30;42mOK (10 tests, 55 assertions)\u001b[0m\n\n[#273 /tagi] malo (2 tematy x 3 wpisy): 4 zapytan, duzo (20 tematow x 3 wpisy): 4 zapytan\n"
+  }
+}

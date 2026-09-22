@@ -120,11 +120,12 @@ mkdir -p ~/actions-runner && cd ~/actions-runner
    `self-hosted,Linux,X64,woogitsu,i5-10400f,nvidia-gtx1070`** — workflowy
    Kuking szukają dokładnie tego zestawu.
 
-   Same domyślne `self-hosted,Linux,X64` **nie wystarczą**: job z takim
-   runnerem nigdy nie wystartuje, bo `runs-on` wymaga wszystkich sześciu
-   etykiet. Ten wymóg istnieje po to, żeby joby nie trafiały na starą pulę
-   WSL-ową (`woogitsu-wsl-DOM-NEW-01`–`04`), która ma tylko `self-hosted`,
-   `Linux`, `X64`, `wsl2`, `woogitsu`.
+   Same domyślne `self-hosted,Linux,X64` **nie wystarczą**, gdy zmienna
+   `CI_RUNS_ON` wymienia komplet sześciu etykiet: job z takim runnerem nigdy
+   wtedy nie wystartuje. Komplet ustawia się po to, żeby joby nie trafiały na
+   starą pulę WSL-ową (`woogitsu-wsl-DOM-NEW-01`–`04`), która ma tylko
+   `self-hosted`, `Linux`, `X64`, `wsl2`, `woogitsu` — a dziś, przy zmiennej
+   ustawionej na samo `self-hosted`, właśnie na nią trafiają (patrz Krok 1).
 
 4. Uruchom jako usługę, żeby przeżył restart maszyny:
 
@@ -140,30 +141,150 @@ W panelu GitHuba runner powinien pokazać się jako **Idle**.
 
 ## Włączenie CI w repozytorium
 
-### Krok 1 — nic do ustawiania
+### Krok 1 — ustaw zmienną repozytorium `CI_RUNS_ON`
 
-Runnera **nie wybiera już żadna zmienna repozytorium.** Każdy job ma wpisany
-zestaw etykiet:
+Runnera **wybiera zmienna repozytorium `CI_RUNS_ON`** (D-121). Każdy job
+w `deploy.yml`, `preview.yml`, `railway-iac.yml` i większość jobów w `ci.yml`
+ma dokładnie to samo:
 
 ```yaml
-runs-on: [self-hosted, Linux, X64, woogitsu, i5-10400f, nvidia-gtx1070]
+runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 ```
 
-Etykiety, nie nazwa runnera: nazwa przypięłaby job do jednej maszyny, więc
-jej awaria zatrzymywałaby całe CI. Zmienna `CI_RUNNER` nie jest już przez nic
-czytana — jeśli gdzieś jeszcze istnieje, można ją usunąć.
+**Wyjątek od 21.09.2026 (zawężony tego samego dnia):** JEDEN job w `ci.yml`,
+`port_funkcje` („Port marki — rodziny ekranów, zoom i kreator"), czyta osobną
+zmienną, `CI_RUNS_ON_BROWSER`, tym samym wzorcem. Powód i pełne uzasadnienie
+stoją w nagłówku `.github/workflows/ci.yml`, blok „JOB PRZEGLĄDARKOWY
+`port_funkcje`" — własne runnery zaczęły dzielić maszynę z flotą agentów,
+a `port_funkcje` (najdłuższy job w CI, medianą 51 s, ale maksimum 1638 s na
+25 przebiegach) pod tym obciążeniem padł na `main` z `TimeoutError`.
+Pierwsza wersja tej decyzji przełączyła PIĘĆ jobów (`assets`, `port_panelu`,
+`port_marki`, `port_funkcje`, `dostepnosc`) — właściciel to cofnął po
+zobaczeniu kosztu w minutach (pięć jobów = 66 min na przebieg = tylko
+7 przebiegów z puli ~500 minut; sam `port_funkcje` = 27 min = ok. 18
+przebiegów). Pozostałe cztery joby wróciły na `CI_RUNS_ON`. Ten dokument
+opisuje mechanizm `CI_RUNS_ON`; mechanizm `CI_RUNS_ON_BROWSER` jest z nim
+identyczny, tylko dotyczy jednego, węższego joba.
 
-**Skutek, który trzeba znać:** te joby nie mają już zapasu w runnerach
-GitHuba. Gdy cała pula `woogitsu-linux-01`–`woogitsu-linux-10` jest offline,
-przebiegi stoją w kolejce bez końca, a CI jest bramką deployu (Railway ma
-„Wait for CI") — stoi wtedy także wdrożenie.
+Bez tej zmiennej joby idą na `ubuntu-latest`. Żeby trafiły na własną pulę,
+ustaw w **Settings** → **Secrets and variables** → **Actions** →
+**Variables**:
 
-### Krok 2 — odkomentowanie wyzwalaczy
+```text
+CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]
+```
 
-W `.github/workflows/ci.yml` na górze pliku jest zakomentowany blok `on:`
-i tymczasowe `on: workflow_dispatch:`. Zamień je: odkomentuj oryginalny blok,
-usuń `workflow_dispatch`. To samo w `deploy.yml` i `preview.yml`, gdy dojdzie
-do wdrożenia.
+Wartość jest **tablicą JSON**, bo `fromJSON` dostaje ją w całości — pojedyncza
+etykieta to `"self-hosted"` (z cudzysłowami), a nie `self-hosted`.
+
+Komplet etykiet, a nie nazwa runnera: nazwa przypięłaby job do jednej maszyny,
+więc jej awaria zatrzymywałaby całe CI. Zmienna `CI_RUNNER` (z D-028) nie jest
+przez nic czytana — jeśli gdzieś jeszcze istnieje, można ją usunąć; to `CI_RUNS_ON`
+jest tą żywą.
+
+**Skutek, który trzeba znać:** dopóki zmienna wskazuje własną pulę, a cała pula
+`woogitsu-linux-01`–`woogitsu-linux-10` jest offline, przebiegi stoją w kolejce
+bez końca, a CI jest bramką deployu (Railway ma „Wait for CI") — stoi wtedy także
+wdrożenie. Wyjście awaryjne to **skasowanie zmiennej**: joby wracają wtedy na
+`ubuntu-latest` bez PR-a i bez przeglądu. Po to ten zapas istnieje.
+
+**Czego ten dokument nie powie:** jaka jest DZIŚ wartość zmiennej. Zmienna żyje
+w ustawieniach repozytorium i z kodu jej nie widać. Ostatni pomiar — 11 września
+2026, przebieg CI nr 661 — mówi `labels: ["self-hosted"]`,
+`runner_name: kuking-wsl-DOM-NEW-02`, czyli zmienna stoi na **samym**
+`self-hosted` i joby lądują na starej puli WSL-owej. Ustawienie jej na komplet
+sześciu etykiet jest czynnością właściciela w ustawieniach repozytorium, nie
+zmianą w kodzie.
+
+#### Decyzja właściciela z 12 września 2026: zmienna ZOSTAJE na samym `self-hosted`
+
+**To jest wybór, nie przeoczenie.** D-121 zostawiło właścicielowi trzy drogi —
+komplet sześciu etykiet, skasowanie zmiennej albo świadome zostawienie stanu
+zastanego. **12 września 2026 właściciel wybrał trzecią: nie zmieniamy niczego.**
+
+Ten akapit istnieje po to, żeby przy następnej awarii CI nikt nie szukał nie tam.
+Stan „przebiegi chodzą na starej puli WSL" wygląda **dokładnie tak samo** jak
+przeoczenie, więc bez tego zapisu każdy kolejny czytelnik sprawdzałby to od
+początku i szukał usterki w `runs-on:`, gdzie jej nie ma. Powodu decyzji ten
+dokument nie zgaduje — zapisuje **wybór i jego koszt**.
+
+**Przyjęty koszt, nazwany po imieniu:**
+
+1. **Przebiegi idą na starą pulę WSL** (`kuking-wsl-DOM-NEW-01`–`-03`), a to są
+   **trzy rejestracje na JEDNEJ maszynie**, nie trzy maszyny: katalogi
+   `/home/mateusz/actions-runner-kuking-0N` w jednym systemie, pod jednym
+   użytkownikiem. Wspólne mają jeden katalog domowy, jedno `/usr/local/bin`,
+   jedną systemową instalację PHP, jeden cache Playwrighta, jednego demona
+   Dockera i jeden dysk — pełna lista w tabeli „Co jeszcze na tej maszynie jest
+   wspólne" niżej.
+2. **To ta sama maszyna, która dała wyścig o binarkę Composera z #262** — kod
+   wyjścia 126 i `composer: /usr/bin/env: bad interpreter: Text file busy`,
+   zmierzone na przebiegu 34473498102 z 10.09.2026. Ten jeden wyścig jest od
+   11.09.2026 zamknięty **konstrukcyjnie** (każdy job dostaje własny katalog na
+   binarki narzędzi) i poprawka działa na obu pulach — ale zamknięty jest
+   **jeden plik**, nie współdzielenie maszyny. Reszta wspólnych zasobów z tabeli
+   niżej zostaje na swoim miejscu.
+3. **Dziewięć jobów `ci.yml` startuje naraz, a trzy rejestracje wykonują
+   najwyżej trzy joby jednocześnie** (jeden runner robi jeden job naraz), więc
+   przebieg szereguje się na tury zamiast rozłożyć się na pulę
+   `woogitsu-linux-01`–`woogitsu-linux-10`.
+4. **Cała pula to jedna maszyna**, więc jej wyłączenie albo restart zatrzymuje
+   całe CI, a przez „Wait for CI" także wdrożenie na Railway.
+
+**Co trzeba zrobić, żeby to zmienić** — obie drogi są czynnością w ustawieniach
+repozytorium (Settings → Secrets and variables → Actions → Variables), żadna
+nie jest zmianą w kodzie i żadna nie przechodzi przez PR:
+
+| Cel | Co ustawić | Co się wtedy dzieje |
+|---|---|---|
+| **Nowa pula** `woogitsu-linux-01`–`-10` | `CI_RUNS_ON = ["self-hosted","Linux","X64","woogitsu","i5-10400f","nvidia-gtx1070"]` — **tablica JSON w całości**, bo `fromJSON` dostaje całą wartość; pojedyncza etykieta to `"self-hosted"` z cudzysłowami, a nie `self-hosted` | Joby proszą o komplet sześciu etykiet, więc stara pula WSL (ma tylko `self-hosted`, `Linux`, `X64`, `wsl2`, `woogitsu`) przestaje je wpuszczać. Runner bez kompletu etykiet nie wystartuje ani razu |
+| **Runnery GitHuba** | **skasować zmienną** `CI_RUNS_ON` | `fromJSON(vars.CI_RUNS_ON \|\| '"ubuntu-latest"')` schodzi na wartość domyślną, czyli `ubuntu-latest`; żaden self-hosted wtedy nie pracuje. Repozytorium jest prywatne, więc minuty są płatne — pełny przebieg `ci.yml` to dziewięć jobów, orientacyjnie 25-35 minut maszynowych z puli 2 000 minut organizacji |
+
+**Po czym poznać, że decyzję trzeba odwrócić** — sygnał jest jeden i konkretny:
+**pierwsza po 12.09.2026 awaria z rodziny „jedna maszyna, trzy rejestracje".**
+Poznaje się ją po którymkolwiek z trzech objawów:
+
+- job pada z kodem **126** i `Text file busy` przy pliku wykonywalnym **spoza**
+  `/usr/local/bin` (to jedno miejsce jest już wyjęte z gry poprawką z #262 —
+  każde inne znaczy, że wyścig przeniósł się na kolejny wspólny plik);
+- w logu stoi `No space left on device` albo narzędzie melduje brak pliku,
+  którego zapis padł, a **ten sam commit przechodzi lokalnie** (jeden dysk na
+  trzy rejestracje — pułapka 8b w `../PULAPKI_TESTOW.md`);
+- dziewięć jobów jednego przebiegu `ci.yml` rusza w turach: **ostatni startuje
+  ponad 15 minut po starcie przebiegu**, a w „Set up job" każdego z nich stoi
+  `Runner name: kuking-wsl-…`.
+
+**Jeden taki przypadek wystarczy**, bo zerowym było #262. Wtedy nie szukaj
+usterki w workflow — powiedz właścicielowi, że sygnał padł, bo przełączenie puli
+jest jego czynnością, i podaj mu wartość z tabeli wyżej.
+
+**Dlaczego ten sygnał da się zauważyć bez pamiętania o nim:** stoi w tabeli
+„Gdy coś nie działa" niżej, czyli tam, gdzie się trafia, szukając przyczyny
+czerwonego CI — a nie tam, gdzie trzeba by najpierw pamiętać, że taka decyzja
+w ogóle zapadła. Drugi egzemplarz tego odsyłacza jest w nagłówku
+`.github/workflows/ci.yml`, przy zmierzonej wartości zmiennej.
+
+### Krok 2 — wyzwalacze są już włączone, nic nie odkomentowujesz
+
+W `.github/workflows/ci.yml` blok `on:` jest **aktywny**: `push` i `pull_request`
+na `main` i `staging`, obok nich `workflow_dispatch`. `workflow_dispatch`
+**zostaje** — pozwala puścić przebieg ręcznie (Actions → CI → Run workflow) bez
+pustego commita, co przydaje się przy pierwszym uruchomieniu i przy sprawdzaniu,
+czy problem nie był chwilowy. Powód stoi przy nim w komentarzu w `ci.yml`.
+
+**Pozostałe trzy workflow-y też chodzą same.** Sprawdzone parserem YAML
+12 września 2026, plik po pliku: `deploy.yml` ma `deployment_status`
+i `workflow_dispatch`, `preview.yml` ma `pull_request` (opened, synchronize,
+reopened) i `workflow_dispatch`, `railway-iac.yml` ma sam `pull_request`
+(opened, synchronize, reopened, closed) na ścieżkach `.railway/**` i na własnym
+pliku — ręcznego wyzwalacza tam nie ma. **W żadnym z tych plików nie ma dziś
+zakomentowanego bloku `on:`.**
+
+Do 12.09.2026 stało tu zdanie odwrotne — że te trzy pliki czekają na włączenie.
+Była to nieprawda tej samej klasy co ta z D-165: kazała zrobić rzecz, której nie
+ma do zrobienia, a przy okazji mówiła, że deploy i preview nie chodzą, choć
+chodzą. Zgodności tego akapitu ze stanem bloków `on:` pilnuje teraz
+`../../tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`.
 
 ### Krok 3 — pierwszy przebieg
 
@@ -202,13 +323,14 @@ który nie powstaje, i nic by się nie zdeployowało (`DECISIONS.md` D-010).
 
 | Objaw | Przyczyna |
 |---|---|
-| Job stoi w „Queued" bez końca | Runner offline albo brakuje etykiety. Sprawdź `sudo ./svc.sh status` i czy runner ma WSZYSTKIE sześć: `self-hosted`, `Linux`, `X64`, `woogitsu`, `i5-10400f`, `nvidia-gtx1070`. Brak jednej wystarcza, żeby job nigdy nie wystartował |
+| Job stoi w „Queued" bez końca | Runner offline albo brakuje etykiety, której żąda `CI_RUNS_ON`. Sprawdź `sudo ./svc.sh status` i czy runner ma wszystkie etykiety z tej zmiennej — przy komplecie to `self-hosted`, `Linux`, `X64`, `woogitsu`, `i5-10400f`, `nvidia-gtx1070`; brak jednej wystarcza, żeby job nigdy nie wystartował. Wyjście awaryjne: skasuj `CI_RUNS_ON`, joby wrócą na `ubuntu-latest` |
 | „could not find driver" | Brak `php8.4-pgsql`. `sudo apt install php8.4-pgsql` i restart usługi runnera |
 | Testy padają na połączeniu z bazą | Docker nie działa albo usługa `postgres` nie wstała. `docker ps` w trakcie przebiegu |
 | „permission denied" przy Dockerze | Użytkownik runnera nie jest w grupie `docker`: `sudo usermod -aG docker $USER`, potem restart usługi |
 | Job trwa bardzo długo za pierwszym razem | Normalne — Composer i npm budują cache. Kolejne przebiegi są znacznie szybsze |
 | „Failed to install browsers → exit 100" w jobie dostępności | `apt-get update` na tej maszynie kończy się niezerowo, bo w liście źródeł siedzi PPA `ppa.setup-php.com/ondrej/php`, które od 9 września 2026 zwraca 404 na plik Release dla Ubuntu „resolute". CI już apta nie woła (patrz niżej), ale każde ręczne `sudo apt update` na tej maszynie też będzie krzyczeć. Usuń martwe źródło: `sudo rm /etc/apt/sources.list.d/*setup-php*` (albo `ondrej-*`) i sprawdź `sudo apt update` |
 | Job pada z kodem **126** na `composer install`, bez ani jednego wyniku testu, a w logu jest `composer: /usr/bin/env: bad interpreter: Text file busy` | Dwa joby naraz na tej samej maszynie: jeden nadpisuje binarkę Composera, drugi ją w tej chwili wykonuje. Pełny opis, sposób rozpoznania i co z tym zrobiono — sekcja „Text file busy" niżej (issue #262) |
+| Kod **126** z `Text file busy` przy pliku **spoza** `/usr/local/bin`; albo `No space left on device` przy commicie, który lokalnie przechodzi; albo dziewięć jobów `ci.yml` rusza w turach — ostatni ponad 15 minut po starcie przebiegu, a w „Set up job" stoi `Runner name: kuking-wsl-…` | **To jest sygnał do odwrócenia decyzji z 12.09.2026** o zostawieniu `CI_RUNS_ON` na samym `self-hosted`: przebiegi chodzą wtedy na trzech rejestracjach JEDNEJ maszyny. Nie szukaj usterki w workflow — powiedz właścicielowi, bo przełączenie puli jest jego czynnością. Co dokładnie ustawić: „Krok 1" → „Decyzja właściciela z 12 września 2026" |
 
 ---
 
@@ -322,7 +444,7 @@ ukrywa wyścig i uczy, że czerwone CI się powtarza, a nie czyta).
 - **Zmierzone przy okazji, do decyzji właściciela:** joby proszą dziś
   o **jedną etykietę** — `runs-on` widziane w API to `["self-hosted"]`, czyli
   zmienna repozytorium `CI_RUNS_ON` jest ustawiona na `self-hosted`, a nie na
-  komplet sześciu etykiet z `ci.yml`. Skutek jest taki, że przebiegi trafiają
+  komplet sześciu etykiet z Kroku 1. Skutek jest taki, że przebiegi trafiają
   na starą pulę WSL-ową (`kuking-wsl-DOM-NEW-01`–`-03`) — trzy rejestracje na
   jednej maszynie — dokładnie tak, jak ostrzega nagłówek `ci.yml`. Poprawka
   z #262 działa na obu pulach, ale rozrzedzenie jobów na więcej maszyn wymaga
@@ -400,5 +522,8 @@ przed deployem    "Wait for CI" w Railway
 
 ## Referencje
 
-`CI_BEZ_ACTIONS.md` (porównanie opcji) · `../DECISIONS.md` D-010 ·
-`.github/workflows/ci.yml` · `Dockerfile` (źródło listy rozszerzeń PHP) · issue #4
+`CI_BEZ_ACTIONS.md` (porównanie opcji) · `../DECISIONS.md` D-010, D-028, D-121 ·
+`.github/workflows/ci.yml` · `Dockerfile` (źródło listy rozszerzeń PHP) · issue #4 ·
+issue #342 · `../../tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`
+(strażnik: ten dokument i komentarze w `ci.yml` mają mówić o mechanizmie wyboru
+runnera to samo, co naprawdę stoi w `runs-on:`)

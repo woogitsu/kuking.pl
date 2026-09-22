@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Domain\Tags\TagCollage;
+use App\Domain\Tags\TagPublicStats;
 use App\Models\Post;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
@@ -27,10 +29,14 @@ use Illuminate\View\View;
  */
 class TagController extends Controller
 {
-    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+    public function __construct(
+        private readonly ZapisyWpisu $zapisy = new ZapisyWpisu,
+        private readonly TagPublicStats $publicStats = new TagPublicStats,
+        private readonly TagCollage $collage = new TagCollage,
+    ) {}
 
     /**
-     * Spis wszystkich tematów (#273, druga połowa — D-026 dała słownik,
+     * Spis wszystkich tagów (#273, druga połowa — D-026 dała słownik,
      * ta strona daje do niego wejście; pełne uzasadnienie kolejności
      * w `docs/DECISIONS.md`, D-087).
      *
@@ -43,12 +49,12 @@ class TagController extends Controller
      * wpisów albo obserwujących — to byłby ranking, którego zakazuje
      * `AGENTS.md`.
      */
-    public function index(): View
+    public function index(Request $request): View
     {
         // JEDNO domknięcie, użyte w obu sekcjach, żeby liczba wpisów nigdy
         // nie rozjechała się między „Polecane" a „Wszystkie" — ten sam
         // zakres, który komentarz `Post::scopeTylkoOdAktywnychAutorow()`
-        // wymienia wprost jako przeznaczony m.in. dla feedu tematów.
+        // wymienia wprost jako przeznaczony m.in. dla feedu tagów.
         //
         // ŚWIADOMIE NIE `Post::widoczneDla($widz)` (jak w `show()` niżej):
         // ten zakres liczy się PER WIDZ (blokady, obserwowanie), więc na
@@ -67,7 +73,7 @@ class TagController extends Controller
             ->withCount(['posts' => $liczPubliczneWpisy])
             ->get();
 
-        $tematy = Tag::query()
+        $tagi = Tag::query()
             ->aktywne()
             ->withCount(['posts' => $liczPubliczneWpisy])
             ->orderBy('name')
@@ -76,7 +82,14 @@ class TagController extends Controller
 
         return view('pages.tags.index', [
             'polecane' => $polecane,
-            'tematy' => $tematy,
+            'tagi' => $tagi,
+            'collages' => $this->collage->forTags(
+                array_unique(array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys())),
+                $request->user(),
+            ),
+            'publicStats' => $this->publicStats->forTags(
+                array_merge($polecane->modelKeys(), $tagi->getCollection()->modelKeys()),
+            ),
         ]);
     }
 
@@ -110,8 +123,32 @@ class TagController extends Controller
             // Strona tagu POLECA treść nieznajomym, tak jak „Świeżo z Kuking":
             // konto pod sankcją nie ma być z niej promowane (audyt A5).
             ->tylkoOdAktywnychAutorow()
-            ->with(['author.profile.avatar', 'media', 'tags:id,slug,name'])
-            ->withCount(['comments' => fn ($query) => $query->widoczneDla($widz)])
+            ->with([
+                'author.profile.avatar',
+                'media',
+                'tags:id,slug,name,status',
+                // ZMIERZONE, NIE ZAŁOŻONE (pomiar N+1, `scripts/pomiar-n1.php`).
+                // `components/post-card.blade.php` czyta z wpisu WSKAZUJĄCEGO
+                // PRZEPIS trzy rzeczy: widoczność (`$post->recipe?->visibility`),
+                // tytuł z odnośnikiem i — gdy wpis nie ma własnych zdjęć —
+                // zdjęcie główne przepisu. Bez tej linijki każda z tych rzeczy
+                // szła osobnym `select * from recipes where id = ?`.
+                //
+                // Pomiar na stronie tagu (10 000 wpisów, po `ANALYZE`):
+                // 25 / 31 / 36 zapytań przy 5 / 15 / 25 wpisach na stronie —
+                // czyli jedno zapytanie na każdy wpis wskazujący przepis.
+                // Po tej zmianie liczba jest TA SAMA przy 5, 15 i 25 wierszach: 23.
+                //
+                // Ten sam zestaw kolumn co w `FollowingFeed`, `DiscoverFeed`
+                // i `TagFeed` (issue #368) i z tego samego powodu: kolumna
+                // pominięta w selekcie wraca jako `null`, więc karta po cichu
+                // napisałaby „publicznie" pod przepisem widocznym tylko dla
+                // obserwujących. Strona tagu była JEDYNYM z czterech strumieni
+                // wpisów bez tego `with()`.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+            ])
+            ->withVisibleCommentCount($widz)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
             // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
@@ -123,6 +160,9 @@ class TagController extends Controller
 
         return view('pages.tags.show', [
             'tag' => $tag,
+            'collage' => $this->collage->forTags([$tag->getKey()], $widz)[$tag->getKey()],
+            'tagNote' => $tag->promotion?->note,
+            'publicStats' => $this->publicStats->forTags([$tag->getKey()])[$tag->getKey()],
             'posts' => $wpisy,
             'obserwowany' => $widz !== null && $widz->isFollowingTag($tag),
         ]);

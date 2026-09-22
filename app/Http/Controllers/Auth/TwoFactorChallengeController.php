@@ -11,7 +11,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\RateLimiter;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 /**
@@ -46,18 +46,31 @@ class TwoFactorChallengeController extends Controller
             return redirect()->route('login');
         }
 
-        $data = $request->validate([
+        $field = $request->has('backup_code') ? 'backup_code' : 'code';
+        // Odkładamy wyłącznie błędy. Walidacja przez wyjątek zachowywała
+        // także code/backup_code w old input (sekrety drugiego składnika).
+        $validator = Validator::make($request->only(['code', 'backup_code']), [
             'code' => ['nullable', 'string'],
             'backup_code' => ['nullable', 'string'],
+        ], [
+            'code.string' => 'Wpisz sześciocyfrowy kod z aplikacji.',
+            'backup_code.string' => 'Wpisz niewykorzystany kod zapasowy.',
         ]);
 
+        if ($validator->fails()) {
+            return back()->withErrors($validator)->withInput([]);
+        }
+
+        $data = $validator->validated();
         $kod = trim((string) ($data['code'] ?? ''));
         $kodZapasowy = trim((string) ($data['backup_code'] ?? ''));
 
         if ($kod === '' && $kodZapasowy === '') {
-            throw ValidationException::withMessages([
-                'code' => 'Wpisz sześciocyfrowy kod z aplikacji albo jeden z kodów zapasowych.',
-            ]);
+            return back()->withErrors([
+                $field => $field === 'backup_code'
+                    ? 'Wpisz niewykorzystany kod zapasowy.'
+                    : 'Wpisz sześciocyfrowy kod z aplikacji albo jeden z kodów zapasowych.',
+            ])->withInput([]);
         }
 
         // Limit liczony PO KONCIE, nie po adresie IP — kod ma sześć cyfr,
@@ -70,9 +83,9 @@ class TwoFactorChallengeController extends Controller
             $sekundy = RateLimiter::availableIn($throttleKey);
             $minuty = max(1, (int) ceil($sekundy / 60));
 
-            throw ValidationException::withMessages([
-                'code' => "Za dużo prób. Spróbuj ponownie za {$minuty} min.",
-            ]);
+            return back()->withErrors([
+                $field => "Za dużo prób. Spróbuj ponownie za {$minuty} min.",
+            ])->withInput([]);
         }
 
         $poprawny = false;
@@ -88,9 +101,11 @@ class TwoFactorChallengeController extends Controller
         if (! $poprawny) {
             RateLimiter::hit($throttleKey, $decayMinuty * 60);
 
-            throw ValidationException::withMessages([
-                'code' => 'Kod jest nieprawidłowy albo już wykorzystany. Sprawdź godzinę w telefonie i spróbuj ponownie.',
-            ]);
+            return back()->withErrors([
+                $field => $field === 'backup_code'
+                    ? 'Ten kod nie pozwala się zalogować. Wpisz inny niewykorzystany kod zapasowy.'
+                    : 'Kod jest nieprawidłowy albo już wykorzystany. Sprawdź godzinę w telefonie i spróbuj ponownie.',
+            ])->withInput([]);
         }
 
         RateLimiter::clear($throttleKey);

@@ -12,5 +12,5 @@ Ten plik to skrót; przy jakiejkolwiek rozbieżności obowiązuje `AGENTS.md`.
 - Nie proponuj: mikroserwisów, SPA, Redisa, GraphQL, osobnego search engine.
 - Nie proponuj `status` ani `role` w `$fillable` modelu User.
 - Nie proponuj infinite scrolla — paginacja to przycisk „Pokaż więcej”.
-- Nie proponuj ikony bez podpisu tekstowego jako jedynej ważnej akcji.
+- Ikony i widoczne podpisy: stosuj AGENTS.md, w tym jawny wyjątek menu trzech kropek na karcie wpisu.
 - Nie proponuj SQLite w testach — schemat wymaga PostgreSQL.

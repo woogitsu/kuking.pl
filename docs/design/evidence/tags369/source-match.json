@@ -1,0 +1,18 @@
+{
+  "files": 2824,
+  "additionalSynced": [
+    ".github/ISSUE_TEMPLATE/bug.yml",
+    ".github/ISSUE_TEMPLATE/feature.yml",
+    ".github/copilot-instructions.md",
+    ".github/dependabot.yml",
+    ".github/pull_request_template.md",
+    ".github/workflows/ci.yml",
+    ".github/workflows/deploy.yml",
+    ".github/workflows/preview.yml",
+    ".github/workflows/railway-iac.yml",
+    "CHANGELOG.md",
+    "resources/css/app.css",
+    "resources/views/pages/tags/index.blade.php"
+  ],
+  "differences": []
+}

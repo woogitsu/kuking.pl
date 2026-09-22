@@ -52,8 +52,12 @@ return new class extends Migration
         }
 
         if ((string) config('filesystems.disks.r2_legacy.bucket') === '') {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1
+            // zdjęć" to nie polszczyzna, a jedno zdjęcie jest stanem
+            // prawdopodobniejszym niż pięć. Mianownik przed dwukropkiem nie
+            // odmienia się wcale, więc zdanie jest poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                "W bazie jest {$ile} zdjęć zapisanych przed rozdzieleniem bucketów R2. "
+                'Liczba zdjęć zapisanych przed rozdzieleniem bucketów R2: '.$ile.'. '
                 .'Ich pliki leżą w starym, wspólnym buckecie, a nazwa `r2` wskazuje teraz nowy, '
                 ."prywatny.\n\n"
                 ."Ustaw AWS_LEGACY_BUCKET na nazwę STAREGO bucketu i uruchom migrację ponownie.\n"

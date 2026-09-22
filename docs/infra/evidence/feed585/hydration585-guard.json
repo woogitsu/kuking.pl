@@ -1,0 +1,40 @@
+{
+  "following": {
+    "first": [
+      "b097690c-d2b4-4688-a2e6-43e07a48bbd4",
+      "c3a020fd-af63-427c-b07f-96b8797bb2fd"
+    ],
+    "second": [
+      "b3d3eec5-4455-40fc-a630-11f8abaca651",
+      "8bd6d1fc-1f15-4477-9331-29dc51c33784"
+    ],
+    "back": [
+      "b097690c-d2b4-4688-a2e6-43e07a48bbd4",
+      "c3a020fd-af63-427c-b07f-96b8797bb2fd"
+    ]
+  },
+  "discover": {
+    "first": [
+      "01a0aa9a-bd9e-7298-bfce-c8f1a2d093bc",
+      "01a0aa9a-bd9f-72d0-a8a4-5e8324a9e744"
+    ],
+    "second": [
+      "ef6f742a-7c7f-465f-ad59-38dc02f1077e",
+      "b097690c-d2b4-4688-a2e6-43e07a48bbd4"
+    ],
+    "back": [
+      "01a0aa9a-bd9e-7298-bfce-c8f1a2d093bc",
+      "01a0aa9a-bd9f-72d0-a8a4-5e8324a9e744"
+    ]
+  },
+  "negative": {
+    "exit": 1,
+    "message": "Pomiar przerwany: Pomiar wymaga dokładnie jednego zapytania hydratacji wpisów."
+  },
+  "restoration": {
+    "md5": "7b776c46a9e6397b9665cb5ea5c28e1a",
+    "mtime_ns": 1789570514782592900,
+    "backup": "/home/mateusz/kuking585-hydration-i4hxkc3j/pomiar-feedu.php",
+    "positive_exit": 0
+  }
+}

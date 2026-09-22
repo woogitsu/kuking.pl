@@ -63,8 +63,25 @@ część, którą skala naprawdę zmieniła.
 
 ## 3. Sygnały wdrożone DZIŚ
 
-Wszystkie trzy opisują zachowanie **jednego konta wobec jego własnej treści**.
-Żaden nie porównuje kont między sobą.
+Sygnałów jest **cztery**, w kolejności pilności (`Report::WAGA`):
+
+| sygnał | waga | opisany w |
+|---|---:|---|
+| `automat_model` | **4** | §8 — ocena modelem OpenAI |
+| `automat_wzorzec` | 3 | §3.1 |
+| `automat_odnosnik` | 2 | §3.2 |
+| `automat_powtorzenie` | 1 | §3.3 |
+
+**`automat_model` stoi najwyżej i dotyczy INNEJ klasy treści** niż pozostałe
+trzy: nienawiści, przemocy, treści seksualnych i samookaleczenia (D-055).
+Do 20 września ta sekcja wymieniała tylko trzy sygnały z wagami 3–2–1 —
+moderator czytający listę nie wiedział, że istnieje cięższy. Pełny opis tej
+drogi jest w §8; tutaj stoi, bo **tu się patrzy, żeby wiedzieć, co automat
+potrafi podnieść**. Zgodności listy z kodem pilnuje
+`DokumentyPrawneNieKlamiaTest::test_procedura_wymienia_kazdy_sygnal_automatu`.
+
+Trzy sygnały opisane niżej w §3.1–3.3 opisują zachowanie **jednego konta
+wobec jego własnej treści**. Żaden z nich nie porównuje kont między sobą.
 
 ### 3.1. Znany wzorzec ogłoszenia (`automat_wzorzec`, waga 3)
 
@@ -306,6 +323,16 @@ podsumowanie jest zbiorcze, a listy natychmiastowe ograniczone do dwóch
 kategorii.
 
 ### 8.6. Wymagania techniczne
+
+**Dziennik awarii (#828, #925):** cztery granice — transport OpenAI,
+przygotowanie zdjęcia, analiza treści i analiza awatara — korzystają ze
+wspólnego `App\Moderacja\ExceptionContext`. Z wyjątku zostaje tylko nazwa
+klasy; etap jest stałą podaną przez nasz kod. Nie zapisujemy wiadomości,
+niezatwierdzonego kodu wyjątku, stosu ani poprzedniego wyjątku. Mogą zawierać
+tekst, zdjęcie, adres z parametrami albo sekret. Osobna gałąź błędnej
+odpowiedzi HTTP zachowuje dotychczasowy status liczbowy, bez jej ciała.
+Awaria nadal oznacza brak wyniku analizy, nie sankcję dla autora.
+Testy i ograniczenia pomiaru: `docs/security/DZIENNIK_WYJATKOW_828_925.md`.
 
 - klucz przez `env()` (`OPENAI_MODERATION_KEY`); **brak klucza = funkcja
   wyłączona** — `KlientOpenAI::oceniamy()` oddaje `false`, żadne żądanie nie

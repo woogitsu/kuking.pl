@@ -1,0 +1,110 @@
+[
+  {
+    "mode": "normal",
+    "theme": "light",
+    "zoom": 2,
+    "photos": 3,
+    "width": 320,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "normal",
+    "theme": "dark",
+    "zoom": 2,
+    "photos": 3,
+    "width": 320,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "normal",
+    "theme": "light",
+    "zoom": 2,
+    "photos": 3,
+    "width": 768,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "normal",
+    "theme": "dark",
+    "zoom": 2,
+    "photos": 3,
+    "width": 768,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "carousel",
+    "theme": "light",
+    "zoom": 2,
+    "photos": 3,
+    "width": 320,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "carousel",
+    "theme": "dark",
+    "zoom": 2,
+    "photos": 3,
+    "width": 320,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "carousel",
+    "theme": "light",
+    "zoom": 2,
+    "photos": 3,
+    "width": 768,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "carousel",
+    "theme": "dark",
+    "zoom": 2,
+    "photos": 3,
+    "width": 768,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "collage",
+    "theme": "light",
+    "zoom": 2,
+    "photos": 3,
+    "width": 320,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "collage",
+    "theme": "dark",
+    "zoom": 2,
+    "photos": 3,
+    "width": 320,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "collage",
+    "theme": "light",
+    "zoom": 2,
+    "photos": 3,
+    "width": 768,
+    "overflow": false,
+    "font": "25.2px"
+  },
+  {
+    "mode": "collage",
+    "theme": "dark",
+    "zoom": 2,
+    "photos": 3,
+    "width": 768,
+    "overflow": false,
+    "font": "25.2px"
+  }
+]

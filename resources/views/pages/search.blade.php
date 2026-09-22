@@ -30,7 +30,7 @@
         pole, ZANIM w nie klikną. Ikona więc DOCHODZI do istniejącego pola,
         etykieta i tekst pomocy zostają bez zmian.
     --}}
-    <form class="card wyszukiwarka-formularz" method="GET" action="{{ route('search') }}">
+    <form class="panel-formularza" method="GET" action="{{ route('search') }}">
         <div class="field">
             <label for="f-q">Czego szukasz?</label>
             <span class="field-help" id="f-q-help">
@@ -72,13 +72,32 @@
 
     @if($phrase === '')
         <p class="meta">Wpisz coś w pole powyżej i kliknij „Szukaj”.</p>
+        <section class="marka-szukaj-tagi" aria-labelledby="polecane-tagi-title">
+            <h2 id="polecane-tagi-title">Polecane tagi</h2>
+            @if($promowaneTagi->isNotEmpty())
+                <ul class="lista-naga marka-szukaj-siatka">
+                    @foreach($promowaneTagi as $tag)
+                        <li class="marka-szukaj-tag">
+                            <h3>{{ $tag->name }}</h3>
+                            @if(filled($tag->promotion?->note))
+                                <p>{{ $tag->promotion?->note }}</p>
+                            @endif
+                            <a class="marka-szukaj-tag-link" href="{{ route('tags.show', $tag) }}" aria-label="Zobacz tag: {{ $tag->name }}">Zobacz tag</a>
+                        </li>
+                    @endforeach
+                </ul>
+            @else
+                <p>Nie ma jeszcze polecanych tagów.</p>
+            @endif
+            <p><a class="btn btn-secondary marka-szukaj-wszystkie" href="{{ route('tags.index') }}">Wszystkie tagi</a></p>
+        </section>
         {{--
             Ekran wyszukiwania bez frazy nie może kończyć się na samej
             instrukcji — to ślepy zaułek (docs/product/SOUL.md 4.11: pusty
             stan to zaproszenie, nie ściana). Ten sam odnośnik używa już
             `kuking-board.blade.php` i `tags/show.blade.php` w tej samej roli.
         --}}
-        <p class="meta">Nie wiesz, od czego zacząć? Zajrzyj do <a href="{{ route('discover') }}">Świeżo z Kuking</a>.</p>
+        <p class="meta">Nie wiesz, od czego zacząć? Zajrzyj do <a href="{{ route('discover') }}">Świeżo z <x-kuking-word /></a>.</p>
     @elseif($zaKrotka)
         {{--
             Osobny, uczciwy tekst — nie „Nic nie znaleźliśmy" (SearchController
@@ -94,7 +113,7 @@
                 && (! $szukaLudzi || $people->isEmpty());
         @endphp
 
-        @if($nicNieMa)
+        @if($nicNieMa && $odPrzepisu === 0 && $odOsoby === 0)
             {{--
                 Tekst domyślnej gałęzi (przepisy/wszystko) jest dosłownym
                 cytatem z docs/brand/COPY_STYLE.md §6 „Puste stany" — ten
@@ -122,8 +141,21 @@
                 @if($section !== 'ludzie')
                     <a class="btn btn-primary" href="{{ route('recipes.create') }}">Dodaj taki przepis</a>
                 @endif
-                <a class="btn btn-quiet" href="{{ route('discover') }}">Zajrzyj do Świeżo z Kuking</a>
+                <a class="btn btn-quiet" href="{{ route('discover') }}">Zajrzyj do Świeżo z <x-kuking-word /></a>
             </p>
+        @endif
+
+        @if($odPrzepisu > 0)
+            <p><a class="btn btn-quiet" href="{{ route('search', $poczatekPrzepisow) }}">Wróć do początku przepisów</a></p>
+            @if($recipes->isEmpty())
+                <p>W tym zakresie nie ma już przepisów. Wróć do początku wyników.</p>
+            @endif
+        @endif
+        @if($odOsoby > 0)
+            <p><a class="btn btn-quiet" href="{{ route('search', $poczatekOsob) }}">Wróć do początku osób</a></p>
+            @if($people->isEmpty())
+                <p>W tym zakresie nie ma już osób. Wróć do początku wyników.</p>
+            @endif
         @endif
 
         @if($szukaPrzepisow && $recipes->isNotEmpty())
@@ -132,7 +164,11 @@
             @endif
 
             <p class="meta">
-                @if($jestWiecej ?? false)
+                @if($odPrzepisu > 0 && $recipes->count() === 1)
+                    Pokazujemy przepis {{ $odPrzepisu + 1 }}.
+                @elseif($odPrzepisu > 0)
+                    Pokazujemy przepisy {{ $odPrzepisu + 1 }}–{{ $odPrzepisu + $recipes->count() }}.
+                @elseif($jestWiecej ?? false)
                     Pokazujemy {{ $recipes->count() }} {{ \App\Support\Odmiana::rzeczownik($recipes->count(), 'przepis', 'przepisy', 'przepisów') }}. Jest ich więcej.
                 @else
                     Znaleziono {{ $recipes->count() }} {{ \App\Support\Odmiana::rzeczownik($recipes->count(), 'przepis', 'przepisy', 'przepisów') }}.
@@ -149,7 +185,7 @@
                      wyniki muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
                 <p class="text-center">
                     <a class="btn btn-quiet"
-                       href="{{ route('search', ['q' => $phrase, 'sekcja' => $section, 'ile' => $nastepneIle]) }}">
+                       href="{{ route('search', $nastepnePrzepisy) }}">
                         Pokaż więcej przepisów
                     </a>
                 </p>
@@ -162,7 +198,11 @@
             @endif
 
             <p class="meta">
-                @if($jestWiecejOsob ?? false)
+                @if($odOsoby > 0 && $people->count() === 1)
+                    Pokazujemy osobę {{ $odOsoby + 1 }}.
+                @elseif($odOsoby > 0)
+                    Pokazujemy osoby {{ $odOsoby + 1 }}–{{ $odOsoby + $people->count() }}.
+                @elseif($jestWiecejOsob ?? false)
                     Pokazujemy {{ $people->count() }} {{ \App\Support\Odmiana::rzeczownik($people->count(), 'osobę', 'osoby', 'osób') }}. Jest ich więcej.
                 @else
                     Znaleziono {{ $people->count() }} {{ \App\Support\Odmiana::rzeczownik($people->count(), 'osobę', 'osoby', 'osób') }}.
@@ -185,7 +225,7 @@
                      muszą być osiągalne bez JavaScriptu (AGENTS.md). --}}
                 <p class="text-center">
                     <a class="btn btn-quiet"
-                       href="{{ route('search', ['q' => $phrase, 'sekcja' => $section, 'ile' => $nastepneIle]) }}">
+                       href="{{ route('search', $nastepneOsoby) }}">
                         Pokaż więcej osób
                     </a>
                 </p>

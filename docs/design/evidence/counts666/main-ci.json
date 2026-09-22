@@ -1,0 +1,78 @@
+{
+  "sha": "bdc56b8cf9b664eda104b628d85149b08d84d8d9",
+  "run": 35319937744,
+  "jobs": [
+    {
+      "id": 105519968766,
+      "name": "Zakres zmiany",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011248,
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011253,
+      "name": "Panel marki — puste i pełne widoki",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03"
+    },
+    {
+      "id": 105520011282,
+      "name": "Port marki — rodziny ekranów, zoom i kreator",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-02"
+    },
+    {
+      "id": 105520011304,
+      "name": "Build obrazu (weryfikacja)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011305,
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011316,
+      "name": "Pint (styl kodu)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011322,
+      "name": "Audyt zależności",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011326,
+      "name": "Larastan (analiza statyczna)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011327,
+      "name": "Testy (PostgreSQL 18)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011348,
+      "name": "Build assetów (Vite)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-01"
+    },
+    {
+      "id": 105520011395,
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "conclusion": "success",
+      "runner": "kuking-wsl-DOM-NEW-03"
+    }
+  ]
+}

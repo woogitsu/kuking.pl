@@ -37,7 +37,7 @@ Zaznacz, jeśli dotyczy tego PR-a. Jeśli PR nie zmienia UI, zaznacz wszystko ja
 | 2 | **Widoczny focus** | To samo co #1, patrz na pierścień. | Pierścień wyraźny na KAŻDYM tle (w tym na przyciskach `primary`/`danger` — technika halo z `DESIGN_SYSTEM.md` §1.4), nigdy niewidoczny/ledwo widoczny. |
 | 3 | **200% zoom** | Ctrl/Cmd + „+” trzy razy w przeglądarce (do 200%) na desktopie. | Brak poziomego scrolla strony; tekst się zawija, nie ucina; przyciski nadal klikalne całą powierzchnią. |
 | 4 | **320px szerokości** | DevTools → responsive mode → szerokość 320px (najmniejszy powszechny telefon). | `BottomNav` czytelny (5 pozycji nie ściśnięte do nieczytelności), karty się nie łamią, żadna treść nie wychodzi poza ekran. |
-| 5 | **Powiększona czcionka systemowa/produktowa** | Ustaw `data-text-scale="150"` na `<html>` w DevTools (Elements → edytuj atrybut) LUB w `/settings/accessibility` wybierz 150%. | Tekst rośnie, przyciski (min-height) najwyżej robią się wyższe, nic nie jest ucięte ani nienachodzące. |
+| 5 | **Powiększona czcionka systemowa/produktowa** | Ustaw `data-text-scale="150"` na `<html>` w DevTools (Elements → edytuj atrybut) LUB w `/ustawienia/czytelnosc` wybierz 150%. | Tekst rośnie, przyciski (min-height) najwyżej robią się wyższe, nic nie jest ucięte ani nienachodzące. |
 | 6 | **Screen reader smoke — NVDA (Windows)** | Uruchom NVDA (Ctrl+Alt+N), przejdź przez ekran klawiszem Tab i strzałkami w trybie przeglądania. | Każdy przycisk ogłasza swój cel (nie „przycisk” bez nazwy); nagłówki (`H` w NVDA) tworzą logiczną strukturę; formularz ogłasza etykietę+błąd razem. |
 | 7 | **Screen reader smoke — VoiceOver (macOS/iOS)** | Cmd+F5 (macOS) lub potrójne kliknięcie bocznego przycisku (iOS), VO+strzałki / przesunięcie palcem. | To samo co #6; dodatkowo: `aria-live` (toast, autosave) ogłasza się samoczynnie bez przenoszenia fokusu. |
 | 8 | **Windows High Contrast (forced-colors)** | Windows: Ustawienia → Ułatwienia dostępu → Kontrast → włącz motyw kontrastowy. Chrome/Edge respektują `forced-colors: active`. | Obramowania przycisków/pól nadal widoczne (nie znikają przy usunięciu kolorowych teł); pierścień fokusu nadal widoczny. |
@@ -108,10 +108,10 @@ npm install -D pa11y-ci
   },
   "urls": [
     "http://localhost:8000/",
-    "http://localhost:8000/discover",
-    "http://localhost:8000/add",
-    "http://localhost:8000/posts/create",
-    "http://localhost:8000/recipes/create"
+    "http://localhost:8000/odkryj",
+    "http://localhost:8000/dodaj",
+    "http://localhost:8000/dodaj/zdjecie",
+    "http://localhost:8000/dodaj/przepis"
   ]
 }
 ```

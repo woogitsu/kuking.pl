@@ -1,0 +1,51 @@
+{
+ "seria": "r005-p2",
+ "zadany_rps": 5,
+ "werdykt": "SKAZONY",
+ "regula_skazenia": "wersja 18.09.2026, ustalona przed rampą. Skażony, gdy KTÓREKOLWIEK z: (1) przebicia w >=3 % próbek ORAZ seria >=2 s pod rząd; (2) jakakolwiek seria >=5 s pod rząd; (3) choć jedna próbka z pracującym Runner.Worker runnera kuking.",
+ "prog_rdzeni": 18.0,
+ "prog_psi": 25.0,
+ "probek_pod_obciazeniem": 92,
+ "probek_z_przebiciem": 3,
+ "udzial_przebic_procent": 3.3,
+ "najdluzsze_przebicie_s": 1,
+ "obce_obciazenie_rdzenie": {
+  "min": 6.61,
+  "mediana": 11.86,
+  "p95": 17.74,
+  "max": 18.72
+ },
+ "psi_cpu_some_avg10": {
+  "min": 1.25,
+  "mediana": 3.5,
+  "p95": 12.62,
+  "max": 12.74
+ },
+ "wlasne_stanowisko_rdzenie": {
+  "min": 0.106,
+  "mediana": 0.175,
+  "p95": 0.543,
+  "max": 0.708
+ },
+ "generator_rdzenie": {
+  "min": 0.008,
+  "mediana": 0.024,
+  "p95": 0.039,
+  "max": 0.055
+ },
+ "okno_pod_obciazeniem": {
+  "od": "2026-09-18T10:33:29Z",
+  "do": "2026-09-18T10:35:29Z"
+ },
+ "probek_w_wybiegu_po_zdjeciu_obciazenia": 39,
+ "przyczyna_skazenia": "CI dwóch PR-ów koordynatora (#676 i #677) na wszystkich czterech runnerach `kuking` (01-04), plus runnery lockstate-02 i metro-03. W czołówce CPU jedenaście procesów headless_shell i sześć chrome-headless — zadania „Panel marki\" (~17 min) i „Testy (PostgreSQL 18)\" (~9 min). Przyczyna ustalona przez koordynatora, nie zgadywana z loadavg.",
+ "uwaga": "Skażenie GRANICZNE i tak je czytać: trzy POJEDYNCZE sekundy ponad progiem na 92 próbki (3,3 % wobec odcięcia 3,0 %), najdłuższe przebicie 1 s, obce obciążenie mediana 11,9 rdzenia, PSI mediana 3,5 %. Ten przebieg był w istocie spokojny i odrzuciła go arytmetyka limbu procentowego, a nie stwierdzona interferencja. REGUŁY NIE ZMIENIAM PO ZOBACZENIU WYNIKU — poluzowanie odcięcia teraz byłoby dobieraniem wyników, przed czym ta sama reguła ma chronić. Jeśli reguła ma być poprawiona (np. „3 % ORAZ choć jedno przebicie >= 2 s\"), to przed kolejnymi przebiegami i dla wszystkich tak samo.",
+ "status_stopnia": "DO POWTÓRZENIA",
+ "limby_ktore_zadzialaly": [
+  "limb 3: pracujący Runner.Worker runnera kuking (ustalone poza przyrządem)"
+ ],
+ "runnery_mierzone_per_probka": false,
+ "podstawa_limbu_3": "Limb 3 (pracujący Runner.Worker runnera kuking) NIE jest tu policzony z próbek: pole `runnery_kuking_pracujace` dodano do próbnika PO tych dwóch przebiegach. Podstawa: (a) migawka otoczenia w chwili bramki pokazuje 9 (p1) i 8 (p2) aktywnych procesów Runner.Worker na całym hoście, (b) koordynator zweryfikował w trakcie obu przebiegów, że pracowały wszystkie cztery runnery `kuking` — CI PR-ów #676 i #677. To jest ustalenie z cudzego odczytu, nie z mojego przyrządu, i tak ma być czytane. Od kolejnych stopni limb 3 jest mierzony przy KAŻDEJ próbce.",
+ "bez_limbu_3_werdykt_bylby": "CZYSTY",
+ "ograniczenie_ktorego_bramka_NIE_usuwa": "Wspólna przepustowość pamięci i wspólny cache L3. Nawet przy wolnych rdzeniach cudze procesy podnoszą opóźnienia dostępu do pamięci. To jest pomiar na maszynie współdzielonej — dotyczy KAŻDEJ liczby."
+}

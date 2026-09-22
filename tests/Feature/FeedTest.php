@@ -8,11 +8,13 @@ use App\Domain\Feed\FollowingFeed;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 class FeedTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     public function test_feed_pokazuje_wpisy_obserwowanych_chronologicznie(): void
     {
@@ -64,24 +66,31 @@ class FeedTest extends TestCase
         // ekran 01) — czyli stoi tam, gdzie się go używa. Test pyta więc
         // o zakładkę, a nie o dawną nazwę pozycji w menu.
         //
-        // Zakładka nazywała się „Odkrywaj" do issue #38. To słowo jest na
-        // liście zakazanych (`docs/brand/BRAND_EXTENDED.md` §2.1 — „Explore"
-        // po polsku; `COPY_STYLE.md` §5 wymienia je wśród nazw odrzuconych),
-        // więc test pilnuje teraz OBU rzeczy naraz: że zakładka istnieje pod
-        // nową nazwą i że stara nie wróciła. Sam `assertSee('Świeżo
-        // z Kuking')` by nie wystarczył — ta nazwa pada na tym ekranie także
-        // w pustej tablicy dnia, więc przechodziłby przy skasowanej zakładce.
+        // D-207: desktop ma Odkrywaj; ponizszy test nadal sprawdza osobna zakladke feedu.
         $odpowiedz = $this->actingAs($nowy)
             ->get(route('home'))
             ->assertOk()
-            ->assertDontSee('Odkrywaj')
-            ->assertSee('na dziś')
-            ->assertSee('Jutro będzie tu ktoś inny.');
+            ->assertSee('Co dobrego u innych?')
+            ->assertSee('Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.');
 
+        // Nazwa serwisu w etykiecie zakładki jest zapisana dwukolorowo
+        // (`docs/brand/GLOS_MARKI.md` §2), więc w HTML-u nie ma napisu
+        // „Kuking" — jest komponent `x-kuking-word`. Wzór pyta o zakładkę
+        // razem z tym komponentem: sam „Świeżo z" przechodziłby też wtedy,
+        // gdyby ktoś wyjął nazwę z etykiety.
+        //
+        // `<span class="tab-napis">` jest w tym wzorze OPCJONALNY. Etykieta
+        // musi być owinięta jednym elementem, bo inaczej flex przycina spację
+        // przed nazwą i człowiek czyta „Świeżo zkuKING" — ale pilnuje tego
+        // `ZakladkaNieGubiSpacjiPrzedNazwaTest`, i to jest jego jedyne
+        // zadanie. Ten test pyta o co innego: czy zakładka w ogóle jest
+        // i czy prowadzi do właściwego ekranu. Gdyby wymagał tu konkretnego
+        // opakowania, oblewałby przy każdej zmianie kształtu etykiety
+        // i podawałby przy tym mylny powód.
         $this->assertMatchesRegularExpression(
-            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*Świeżo z Kuking\s*</a>~u',
+            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*(?:<span class="tab-napis">)?Świeżo z <span class="kuking-word">~u',
             (string) $odpowiedz->getContent(),
-            'Zakładka prowadząca do „Świeżo z Kuking" zniknęła ze strony głównej.',
+            'Zakładka prowadząca do „Świeżo z kuKING" zniknęła ze strony głównej.',
         );
 
         // Propozycja osoby to KONKRETNY człowiek z odnośnikiem do profilu —
@@ -146,10 +155,16 @@ class FeedTest extends TestCase
         $ktos = $this->user('ktos');
         Post::factory()->create(['author_id' => $ktos->getKey(), 'body' => 'Rosol na niedziele']);
 
-        $this->get('/')
-            ->assertOk()
-            ->assertSee('Pokaż, co dziś ugotowałeś')
-            ->assertSee('Rosol na niedziele');
+        $strona = $this->get('/')->assertOk();
+
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): hasło strony
+        // powitalnej jest jednocześnie jej `<title>` i `<meta>`, więc asercja
+        // na całej odpowiedzi przechodziła też po skasowaniu nagłówka z pasa
+        // powitalnego.
+        $tresc = $this->trescEkranu((string) $strona->getContent());
+
+        $this->assertStringContainsString('Pokaż, co dziś ugotowałeś', $tresc);
+        $this->assertStringContainsString('Rosol na niedziele', $tresc);
     }
 
     public function test_wpisy_prywatne_nie_wychodza_w_odkrywaniu(): void

@@ -280,7 +280,16 @@ class SygnalyController extends Controller
 
         // `with('media')`, NIE zapytanie na wpis: przy dwudziestu oznaczeniach
         // z jednego konta to jest różnica między dwoma zapytaniami a dwudziestoma
-        // jednym. Pilnuje tego `KolejkaSygnalowBezWachlarzaZapytanTest`.
+        // jednym. Pilnuje tego
+        // `KolejkiModeracjiBezWachlarzaZapytanTest::test_kolejka_sygnalow_automatu_nie_ma_wachlarza_zapytan`.
+        //
+        // NAZWA TEGO TESTU BYŁA TU WCZEŚNIEJ ZMYŚLONA. Stało
+        // „Pilnuje tego `KolejkaSygnalowBezWachlarzaZapytanTest`" — klasy
+        // o tej nazwie nie było w repozytorium ani jednego dnia. Zdanie
+        // o teście, którego nie ma, czyta się jak pomiar, a jest deklaracją
+        // zamiaru; po nim nikt już tego ekranu nie mierzy, bo „przecież jest
+        // test". Odkąd to piszemy: nazwa testu w komentarzu obowiązuje tak
+        // samo jak liczba w pomiarze.
         foreach (Post::query()->with('media')->whereIn('id', $wpisy)->get() as $wpis) {
             $podglady['post:'.$wpis->getKey()] = [
                 'adres' => $wpis->url(),

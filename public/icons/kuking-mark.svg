@@ -26,14 +26,14 @@
   <title>Kuking</title>
 
   <style>
-    .znak { fill: #B3401F; stroke: #B3401F; }
+    .znak { fill: #BE3025; stroke: #BE3025; }
     .polysk { stroke: #FFFFFF; }
 
     @media (prefers-color-scheme: dark) {
       /* Ten sam odcień, którego interfejs używa jako --color-brand w trybie
-         ciemnym. Czerwień #B3401F na czarnym pasku przeglądarki znika. */
-      .znak { fill: #F2986A; stroke: #F2986A; }
-      .polysk { stroke: #2A241E; }
+         ciemnym. Czerwień #BE3025 na czarnym pasku przeglądarki znika. */
+      .znak { fill: #FF9586; stroke: #FF9586; }
+      .polysk { stroke: #222620; }
     }
   </style>
 

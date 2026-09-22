@@ -104,7 +104,11 @@
     @if($recipe->source_note || $recipe->source_person || $recipe->source_url)
         <h2>Skąd ten przepis</h2>
         <div class="karta">
-            @if($recipe->source_person)<p>Od: {{ $recipe->source_person }}</p>@endif
+            {{-- „Skąd:" zamiast dawnego „Od:" — ta sama etykieta co przy polu
+                 w formularzu i ten sam nagłówek co na stronie przepisu. Forma
+                 z dwukropkiem jest odporna na odmianę: działa dla „od mamy",
+                 dla „Nasze smaki" i dla „z gazety Przyjaciółka" jednakowo. --}}
+            @if($recipe->source_person)<p>Skąd: {{ $recipe->source_person }}</p>@endif
             @if($recipe->family_since_year)<p>W rodzinie od {{ $recipe->family_since_year }} roku.</p>@endif
             @if($recipe->source_note)<p>{{ $recipe->source_note }}</p>@endif
             @if($recipe->source_url)<p>Źródło: {{ $recipe->source_url }}</p>@endif

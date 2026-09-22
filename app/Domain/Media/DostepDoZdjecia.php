@@ -111,6 +111,7 @@ final class DostepDoZdjecia
         ['recipes', 'hero_media_id'],
         ['recipes', 'source_scan_media_id'],
         ['recipe_steps', 'media_id'],
+        ['hero_picks', 'media_id'],
     ];
 
     /**
@@ -136,6 +137,7 @@ final class DostepDoZdjecia
         'profiles' => ['avatar_media_id'],
         'recipes' => ['hero_media_id', 'source_scan_media_id'],
         'recipe_steps' => ['media_id'],
+        'hero_picks' => ['media_id'],
     ];
 
     /**
@@ -216,16 +218,30 @@ final class DostepDoZdjecia
     }
 
     /**
-     * STAN INNY NIŻ `ready` TO ODMOWA DLA KAŻDEGO, RÓWNIEŻ DLA WŁAŚCICIELA
-     * (AGENTS.md §7). Nie chodzi o autoryzację, tylko o to, co leży pod
-     * spodem: dopóki `ProcessUploadedImage` nie przekodował pliku, w EXIF-ie
-     * siedzi jeszcze pełna lokalizacja GPS kuchni. Wyjątek dla właściciela
-     * wyglądałby niewinnie i byłby pierwszym krokiem do serwowania
-     * oryginałów tą trasą.
+     * ODMOWA, DOPÓKI NIE MA CZEGO SERWOWAĆ — DLA KAŻDEGO, RÓWNIEŻ DLA
+     * WŁAŚCICIELA. Nie chodzi o autoryzację, tylko o to, co leży pod spodem.
+     *
+     * DO 12 WRZEŚNIA 2026 STAŁO TU `isReady()` (issue #430). Uzasadnienie
+     * brzmiało: „dopóki `ProcessUploadedImage` nie przekodował pliku,
+     * w EXIF-ie siedzi jeszcze pełna lokalizacja GPS kuchni". Zdanie o EXIF-ie
+     * jest dalej prawdziwe i dalej obowiązuje — ale mówi o ORYGINALE, a tą
+     * trasą oryginał nie wychodzi NIGDY i nie ma jak wyjść: `MediaController`
+     * serwuje wyłącznie klucze z `Media::wariantDoSerwowania()`, czyli
+     * wyłącznie to, co zapisano w `metadata.variants`, a tam trafia tylko
+     * wynik naszego kodera.
+     *
+     * `isReady()` było więc skrótem na „istnieje już przekodowany plik"
+     * i przestało być prawdziwe, odkąd `PodgladOdRazu` robi wariant `podglad`
+     * synchronicznie, przy wgraniu: plik bezpieczny (bez EXIF-u) istnieje,
+     * a wiersz stoi jeszcze na `pending`. Ta bramka odmawiałaby wtedy dostępu
+     * do zdjęcia autorce, której zdjęcie to jest — czyli usterka #430.
+     *
+     * Pytamy dziś WPROST o to, o co chodziło od początku: czy jest już
+     * wariant. Wyjątku dla właściciela jak nie było, tak nie ma.
      */
     private function gotoweDoSerwowania(Media $zdjecie): bool
     {
-        return $zdjecie->isReady();
+        return $zdjecie->maWariantDoPokazania();
     }
 
     /**
@@ -370,6 +386,31 @@ final class DostepDoZdjecia
                 ->all(),
 
             'recipe_steps' => RecipeStep::query()->where('media_id', $id)->get()->all(),
+
+            /*
+             * KOLAŻ W HERO — rodzicem jest WPIS, przy którym zdjęcie wisi,
+             * a nie wiersz `hero_picks`.
+             *
+             * I JEST TO ŚWIADOMIE ZERO NOWEGO DOSTĘPU. Wskazanie zdjęcia do
+             * kolażu nie jest zgodą na jego pokazanie i nie ma prawa być
+             * własną drogą wejścia: gdyby `HeroPick` dostał tu własną Policy
+             * mówiącą „to jest na stronie powitalnej, więc widzi to każdy",
+             * zdjęcie przełączone na prywatne wyciekałoby spod bezpośredniego
+             * adresu jeszcze długo po tym, jak zniknęłoby z kolażu.
+             *
+             * `hero_picks.post_id` wskazuje ten sam wpis, który dla tego
+             * zdjęcia oddaje już `post_media` wyżej — więc ta gałąź nie
+             * poszerza niczego, tylko domyka listę. Jest tu, bo obie listy
+             * odwołań muszą się zgadzać co do joty (pilnują tego
+             * `ZdjeciaChronioneNieWyciekajaTest` i
+             * `AutoryzacjaZdjeciaJednymPrzejsciemTest`), a tabela pominięta
+             * w jednej z nich znaczy zdjęcie bez rodzica — błąd cichy
+             * w obie strony.
+             */
+            'hero_picks' => Post::query()
+                ->whereIn('id', DB::table('hero_picks')->where('media_id', $id)->pluck('post_id'))
+                ->get()
+                ->all(),
         };
     }
 }

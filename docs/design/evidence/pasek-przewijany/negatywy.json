@@ -1,0 +1,18 @@
+[
+  {
+    "name": "ukrywanie",
+    "before": "4fae4b4fd95ea3526421f8459984c4eb",
+    "changed": "a0386015cd1fc83bcd91b31645a5073e",
+    "restored": "4fae4b4fd95ea3526421f8459984c4eb",
+    "mtime_restored": true,
+    "negative_exit": 1
+  },
+  {
+    "name": "powrot",
+    "before": "be3eab8c3e0804c7868e0986750e9a4f",
+    "changed": "850ea4f626a275f96ba0b899673b9287",
+    "restored": "be3eab8c3e0804c7868e0986750e9a4f",
+    "mtime_restored": true,
+    "negative_exit": 1
+  }
+]

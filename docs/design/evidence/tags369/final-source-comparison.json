@@ -1,0 +1,46 @@
+{
+  "app/Domain/Tags/TagPublicStats.php": {
+    "exact": true,
+    "normalized": true,
+    "current_sha256": "7f29d5237acf868a1b0dc2b29a689313ff307e7ac1a26dc5026c069db0bdc519"
+  },
+  "resources/views/components/tag-public-stats.blade.php": {
+    "exact": true,
+    "normalized": true,
+    "current_sha256": "003eca0d7f48decdf47679a8883669b8a155320daebdec3a9136755ad72b0c32"
+  },
+  "tests/Feature/TagPublicStatsPagesTest.php": {
+    "exact": true,
+    "normalized": true,
+    "current_sha256": "af64b6ed93b875ae8248607f8cda70e145ab5edd5c7d01b090d895056334c6be"
+  },
+  "tests/Feature/TagPublicStatsTest.php": {
+    "exact": true,
+    "normalized": true,
+    "current_sha256": "84c5d87af84dfcbfecda426903fcdb23ea516c825b068b3cb0b35e865306d800"
+  },
+  "app/Http/Controllers/TagController.php": {
+    "exact": true,
+    "normalized": true,
+    "current_sha256": "35d61a9477088e314e568881c1dec58919afd0656a5408647f37a27fcda726ee"
+  },
+  "config/kuking.php": {
+    "exact": false,
+    "normalized": true,
+    "current_sha256": "ee748f5e2194c4dfb8257be0c92938836d9be9c8ba308fffdfaa06e6481282e9"
+  },
+  "resources/css/app.css": {
+    "exact": true,
+    "current_sha256": "9100f295200444d74374ef0165f5439ac4650b0be89389557b91339a8eba4b68"
+  },
+  "resources/views/pages/tags/index.blade.php": {
+    "exact": false,
+    "normalized": true,
+    "current_sha256": "6c3812ba0ed0218370003c214706d3d602bfdec3a36faa46f4c503a459d515b3"
+  },
+  "resources/views/pages/tags/show.blade.php": {
+    "exact": true,
+    "normalized": true,
+    "current_sha256": "fcc70a46aa2b55840c27a1cb5d1816a73e2fdea20b9521b81e9b2743e0cfc4fa"
+  }
+}

@@ -1,0 +1,53 @@
+{
+  "label": "<label class=\"pole-zdjecia\" for=\"f-source_scan\">\n                    <span class=\"pole-zdjecia-ikona\"><svg class=\"ikona\" width=\"32\" height=\"32\" viewBox=\"0 0 24 24\" fill=\"none\" stroke=\"currentColor\" stroke-width=\"1.8\" stroke-linecap=\"round\" stroke-linejoin=\"round\" aria-hidden=\"true\" focusable=\"false\"><rect x=\"3\" y=\"4\" width=\"18\" height=\"16\" rx=\"2\"></rect><circle cx=\"9\" cy=\"9\" r=\"2\"></circle><path d=\"m5 18 5-5 3 3 2-2 4 4\"></path></svg>\n</span>\n                    <span class=\"pole-zdjecia-tytul\" id=\"f-source_scan-tytul\">Dodaj zdjęcie</span>\n                    <span class=\"field-help\" id=\"f-source_scan-help\">\n                        Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie.\n                    </span>\n                </label>",
+  "rect": {
+    "top": 617.8515625,
+    "bottom": 1011.625,
+    "height": 393.7734375
+  },
+  "viewport": 900,
+  "visibleSamples": [
+    {
+      "x": 45,
+      "y": 629.8515625
+    },
+    {
+      "x": 45,
+      "y": 641.8515625
+    },
+    {
+      "x": 45,
+      "y": 653.8515625
+    },
+    {
+      "x": 45,
+      "y": 665.8515625
+    },
+    {
+      "x": 45,
+      "y": 677.8515625
+    },
+    {
+      "x": 45,
+      "y": 689.8515625
+    },
+    {
+      "x": 45,
+      "y": 701.8515625
+    },
+    {
+      "x": 45,
+      "y": 713.8515625
+    },
+    {
+      "x": 45,
+      "y": 893.8515625
+    }
+  ],
+  "outline": "rgb(110, 168, 255) solid 3px",
+  "shadow": "none",
+  "before": "rgb(244, 245, 241) none 3px",
+  "after": "rgb(244, 245, 241) none 3px",
+  "fileChooserMultiple": false,
+  "fileChooserOpened": true
+}

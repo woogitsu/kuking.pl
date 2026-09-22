@@ -1,0 +1,68 @@
+PASS poziome/pojedyncze light 320 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 320 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 320 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 320 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 360 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 390 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 390 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+ZOOM_TAB_OK zdjecia-poziome/pojedyncze 1/1
+PASS poziome/pojedyncze light 390 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 390 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 414 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 414 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 414 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 414 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 768 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 768 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 768 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 768 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 1440 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 1440 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+ZOOM_TAB_OK zdjecia-poziome/pojedyncze 1/1
+PASS poziome/pojedyncze light 1440 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze light 1440 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 320 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 320 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 320 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 320 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 360 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 360 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 360 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 360 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 390 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 390 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+ZOOM_TAB_OK zdjecia-poziome/pojedyncze 1/1
+PASS poziome/pojedyncze dark 390 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 390 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 414 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 414 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 414 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 414 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 768 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 768 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 768 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 768 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 1440 16 70 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 1440 16 100 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+ZOOM_TAB_OK zdjecia-poziome/pojedyncze 1/1
+PASS poziome/pojedyncze dark 1440 16 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+PASS poziome/pojedyncze dark 1440 32 140 Tab 1/1, Enter/Escape, kliknięcie, dotyk
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: BRAK_SYSTEMOWEGO_FOKUSU {"focus":true,"top":288.5,"bottom":336.5,"left":32,"right":185.0625,"width":390,"height":900,"forced":true,"outline":"none","outlineWidth":3,"outlineColor":"rgba(5, 0, 73, 0.8)"}
+    at visibleFocus (file:///home/mateusz/kuking-photo561-runtime/scripts/fokus-zdjec.mjs:39:21)
+    at async file:///home/mateusz/kuking-photo561-runtime/scripts/fokus-zdjec.mjs:71:9 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

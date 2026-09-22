@@ -43,6 +43,17 @@ final class PublishComment
     private const NIE_MOZNA_KOMENTOWAC = 'Tu nie da się teraz dodać komentarza. '
         .'Odśwież stronę — zobaczysz, co jest w tym miejscu dostępne.';
 
+    /**
+     * Przestrzeń blokad doradczych tej akcji.
+     *
+     * PostgreSQL ma jedną, globalną przestrzeń blokad doradczych na całą
+     * bazę. Pierwszy argument `pg_advisory_xact_lock(int, int)` dzieli ją na
+     * części — ta liczba jest nasza i oznacza „wysłanie komentarza". Bez niej
+     * hasz treści mógłby trafić w blokadę założoną w zupełnie innej sprawie
+     * i dwie niepowiązane operacje czekałyby na siebie bez powodu.
+     */
+    private const PRZESTRZEN_BLOKAD = 8301;
+
     public function __construct(private readonly NotifyUser $notify) {}
 
     public function handle(
@@ -50,11 +61,37 @@ final class PublishComment
         Post|Recipe|CookedEvent $subject,
         string $body,
         ?Comment $parent = null,
+        bool $parentRequested = false,
     ): Comment {
         $body = trim($body);
 
         if ($body === '') {
             throw new BladDlaCzlowieka('Napisz coś, zanim wyślesz komentarz.');
+        }
+
+        /*
+         * ISSUE #761: RODZIC PODANY, ALE NIE DA SIĘ GO UŻYĆ, TO ODMOWA —
+         * NIE CICHA ZAMIANA W KOMENTARZ GŁÓWNY.
+         *
+         * Kontrolery szukają rodzica przez `whereKey($parentId)->widoczneDla($viewer)`
+         * i przekazują `null`, gdy nic nie znajdą — DOKŁADNIE to samo `null`,
+         * które oznacza "formularz nowego komentarza, bez rodzica w ogóle".
+         * Te dwa przypadki są nierozróżnialne bez dodatkowej informacji, więc
+         * odpowiedź wysłana pod zniknięty/ukryty/zablokowany/obcy identyfikator
+         * publikowała się po cichu jako nowy komentarz główny: "Komentarz
+         * dodany" wychodziło, tyle że tekst trafiał w inne miejsce rozmowy,
+         * niż zakładał autor.
+         *
+         * `$parentRequested` niesie tę utraconą informację — kontroler mówi
+         * "w żądaniu był `parent_id`", nie tylko "oto rodzic, jakiego znalazłem".
+         * Sprawdzenie stoi TUTAJ, jak reszta granic rodzica niżej, z tego
+         * samego powodu: kontrolerów jest kilka, a czwarty by o tym zapomniał.
+         * Ten sam neutralny komunikat co przy blokadzie — nie zdradza, czy
+         * powodem jest usunięcie, ukrycie moderacyjne, blokada czy zwykła
+         * literówka w adresie.
+         */
+        if ($parent === null && $parentRequested) {
+            throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
         }
 
         $subjectOwner = $this->ownerOf($subject);
@@ -122,6 +159,51 @@ final class PublishComment
          * czego ten serwis ma nie robić.
          */
         $comment = DB::transaction(function () use ($author, $subject, $subjectOwner, $body, $parent, $parentId): Comment {
+            /*
+             * DWA KLIKNIĘCIA „WYŚLIJ" TO JEDEN KOMENTARZ — BLOKADA W BAZIE,
+             * NIE `exists()` W PHP (D-079, audyt podwójnego wysłania
+             * z 12 września 2026).
+             *
+             * Zmierzone przed zmianą: dwa identyczne żądania dawały DWA
+             * wiersze w `comments` i DWA powiadomienia u autora treści.
+             * Podwójne kliknięcie na wolnym łączu jest w grupie 50+ normą,
+             * nie pomyłką — to samo zdanie stoi w
+             * `IdempotentnyZapisDoZeszytuTest` od issue #43.
+             *
+             * DLACZEGO NIE `klucz_wyslania`, JAK PRZY WPISIE I „UGOTOWAŁEM".
+             * Bo klucz musi przyjechać z formularza, a formularz komentarza
+             * jest JEDEN dla trzech ekranów (`components/comment-thread`)
+             * i nie ma miejsca na własne pole bez zmiany tego komponentu.
+             * Reguła żyje więc w warstwie domenowej — tam, gdzie i tak
+             * kończą wszystkie trzy kontrolery.
+             *
+             * DLACZEGO BLOKADA DORADCZA, A NIE `lockForUpdate()` NA WPISIE.
+             * Blokada na wierszu treści serializowałaby WSZYSTKIE komentarze
+             * pod jednym wpisem i wprowadzałaby nową kolejność blokad do
+             * transakcji, która zaraz potem dotyka `comments`, `users`
+             * i `notifications` (D-079 §1, D-093 — zakleszczenia w tym
+             * repozytorium brały się dokładnie z takich nowych kolejności).
+             * Blokada doradcza jest we własnej przestrzeni, nie dotyka
+             * żadnego wiersza i jest wąska: czekają na siebie wyłącznie dwa
+             * wysłania o tej samej tożsamości, czyli ta sama osoba z tym
+             * samym zdaniem w tym samym miejscu.
+             *
+             * SAMA BLOKADA NIE PILNUJE NICZEGO — pilnuje dopiero
+             * REWALIDACJA POD NIĄ (D-079 §2). Drugie żądanie czeka, aż
+             * pierwsze zatwierdzi transakcję, i dopiero wtedy pyta bazę,
+             * czy taki komentarz już jest.
+             */
+            $this->zablokujToWyslanie($author, $subject, $parentId, $body);
+
+            $juzJest = $this->komentarzZTegoSamegoWyslania($author, $subject, $parentId, $body);
+
+            if ($juzJest !== null) {
+                // Ten sam komentarz, jedno powiadomienie. Oddajemy wiersz
+                // z pierwszego wysłania — dla kontrolera to ta sama droga
+                // co zwykle, tyle że `wasRecentlyCreated` jest fałszem.
+                return $juzJest;
+            }
+
             $comment = Comment::create([
                 'author_id' => $author->getKey(),
                 'post_id' => $subject instanceof Post ? $subject->getKey() : null,
@@ -140,6 +222,7 @@ final class PublishComment
                     'comment_id' => $comment->getKey(),
                     'excerpt' => mb_substr($body, 0, 120),
                     'url' => $this->urlFor($subject),
+                    'question_answer' => $subject instanceof Post && $subject->kind === Post::KIND_QUESTION && $parentId === null,
                 ],
             );
 
@@ -173,9 +256,95 @@ final class PublishComment
          * praca dla workera, nie dla żądania, w którym ktoś czeka na swój
          * komentarz pod cudzym zdjęciem.
          */
+        if (! $comment->wasRecentlyCreated) {
+            // Drugie kliknięcie: komentarz jest jeden i został już raz
+            // przeanalizowany. Druga analiza porównywałaby go sama ze sobą.
+            return $comment;
+        }
+
         PrzeanalizujTresc::dlaKomentarza($comment);
 
         return $comment;
+    }
+
+    /**
+     * Blokada na TOŻSAMOŚCI WYSŁANIA — ta sama osoba, ta sama treść, to samo
+     * miejsce, ten sam wątek.
+     *
+     * Trzyma się do końca transakcji (`_xact_`), więc nie da się jej zgubić
+     * przez wyjątek ani przez zapomniane zwolnienie. Przestrzeń (pierwszy
+     * argument) jest nasza i tylko nasza — dzięki niej hasz treści nie może
+     * przypadkiem trafić w blokadę założoną gdzie indziej.
+     *
+     * Numer przestrzeni stoi w zapytaniu WPROST, a nie jako parametr:
+     * PostgreSQL musi rozstrzygnąć, którą wersję `pg_advisory_xact_lock`
+     * wołamy, a placeholder bez typu mu tego nie mówi. To stała klasy,
+     * nie wartość z żądania, więc nie ma tu czego wstrzyknąć.
+     *
+     * Na sterowniku innym niż PostgreSQL nie robimy nic: `hashtext`
+     * i blokady doradcze są postgresowe, a testy tego repozytorium chodzą
+     * na PostgreSQL (AGENTS.md §6). Rewalidacja niżej działa wtedy dalej —
+     * słabiej, ale nie fałszywie.
+     */
+    private function zablokujToWyslanie(User $author, Post|Recipe|CookedEvent $subject, ?string $parentId, string $body): void
+    {
+        if ($this->oknoSekund() <= 0) {
+            return;
+        }
+
+        if (DB::connection()->getDriverName() !== 'pgsql') {
+            return;
+        }
+
+        $tozsamosc = implode('|', [
+            (string) $author->getKey(),
+            $subject::class,
+            (string) $subject->getKey(),
+            $parentId ?? '-',
+            hash('sha256', $body),
+        ]);
+
+        DB::selectOne(
+            'SELECT pg_advisory_xact_lock('.self::PRZESTRZEN_BLOKAD.', hashtext(?))',
+            [$tozsamosc],
+        );
+    }
+
+    /**
+     * Komentarz z TEGO SAMEGO wysłania, jeśli już powstał.
+     *
+     * Okno czasowe jest tym, co odróżnia podwójne kliknięcie od napisania
+     * tego samego zdania ponownie za tydzień — uzasadnienie długości okna
+     * stoi przy `kuking.formularze.okno_powtorzenia_komentarza_sekund`.
+     */
+    private function komentarzZTegoSamegoWyslania(User $author, Post|Recipe|CookedEvent $subject, ?string $parentId, string $body): ?Comment
+    {
+        $okno = $this->oknoSekund();
+
+        if ($okno <= 0) {
+            return null;
+        }
+
+        $kolumna = match (true) {
+            $subject instanceof Post => 'post_id',
+            $subject instanceof Recipe => 'recipe_id',
+            $subject instanceof CookedEvent => 'cooked_event_id',
+        };
+
+        return Comment::query()
+            ->where('author_id', $author->getKey())
+            ->where($kolumna, $subject->getKey())
+            ->where('body', $body)
+            ->where('created_at', '>=', now()->subSeconds($okno))
+            ->when($parentId === null, fn ($q) => $q->whereNull('parent_id'))
+            ->when($parentId !== null, fn ($q) => $q->where('parent_id', $parentId))
+            ->orderBy('created_at')
+            ->first();
+    }
+
+    private function oknoSekund(): int
+    {
+        return (int) config('kuking.formularze.okno_powtorzenia_komentarza_sekund');
     }
 
     /**

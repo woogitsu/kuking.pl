@@ -1,0 +1,60 @@
+KONTROLE UJEMNE — pakiet #581 (domknięcie portu panelu moderacji)
+Data (UTC): 2026-09-19T06:44:17Z
+Kopia wykonawcza: /home/mateusz/kuking-581d
+Baza: 127.0.0.1:55439 / kuking_581d_tests (wyłącznie lokalna, do wyrzucenia)
+Kopie bajtów poza repozytorium: /home/mateusz/kontrola-ujemna-581/kopie
+Metoda: psujemy to, czego pilnuje regresja → test ma OBLAĆ na właściwej
+        asercji → przywracamy `cp -p`, po każdym MD5 i mtime.
+        Nigdy `git checkout --`, nigdy `git stash` (pułapki 8 i 8c).
+
+KOPIA  resources/views/pages/admin/sygnaly.blade.php  md5=8b42a830eeba0245a78c093694f138c9
+KOPIA  resources/views/pages/admin/tag-promotions.blade.php  md5=29670fbdd775a7943204bd06b8de877e
+KOPIA  resources/views/pages/admin/bez-odpowiedzi-inne.blade.php  md5=5ff4b397a17466714b0c4adf5e345180
+
+KONTROLA DODATNIA PRZED SABOTAŻAMI: ZIELONO
+    Tests:    7 passed (39 assertions)
+
+--- 1. Sygnały automatu: wraca martwa klasa `lead`
+    plik: resources/views/pages/admin/sygnaly.blade.php
+    test: PanelUzywaTypografiiMarkiTest
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „nie ma rozmiaru wprowadzenia z systemu marki”: tak
+    Tests:    1 failed, 2 passed (18 assertions)
+    przywrócone: md5=8b42a830eeba0245a78c093694f138c9 mtime_zgodny=True md5_zgodny=True
+
+--- 2. Tagi promowane: wraca martwa klasa `lead`
+    plik: resources/views/pages/admin/tag-promotions.blade.php
+    test: PanelUzywaTypografiiMarkiTest
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „nie ma rozmiaru wprowadzenia z systemu marki”: tak
+    Tests:    1 failed, 2 passed (18 assertions)
+    przywrócone: md5=29670fbdd775a7943204bd06b8de877e mtime_zgodny=True md5_zgodny=True
+
+--- 3. Pasek panelu znów nazywa ekran ogólnie
+    plik: resources/views/pages/admin/bez-odpowiedzi-inne.blade.php
+    test: PanelNazywaEkranTakSamoWszedzieTest
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „nazywa ekran inaczej niż nagłówek”: tak
+    Tests:    2 failed, 2 passed (18 assertions)
+    przywrócone: md5=5ff4b397a17466714b0c4adf5e345180 mtime_zgodny=True md5_zgodny=True
+
+--- 4. Tytuł karty znów ogólny
+    plik: resources/views/pages/admin/bez-odpowiedzi-inne.blade.php
+    test: PanelNazywaEkranTakSamoWszedzieTest
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „nie nazywa ekranu tak samo co nagłówek”: tak
+    Tests:    2 failed, 2 passed (16 assertions)
+    przywrócone: md5=5ff4b397a17466714b0c4adf5e345180 mtime_zgodny=True md5_zgodny=True
+
+--- 5. Znika CAŁY pasek panelu z ekranu rodziny (kontrola drugiego stopnia)
+    plik: resources/views/pages/admin/bez-odpowiedzi-inne.blade.php
+    test: PanelNazywaEkranTakSamoWszedzieTest
+    wynik: OBLAŁ (powód: asercja)
+    komunikat zawiera oczekiwaną frazę „stracił pasek panelu”: tak
+    Tests:    3 failed, 1 passed (15 assertions)
+    przywrócone: md5=5ff4b397a17466714b0c4adf5e345180 mtime_zgodny=True md5_zgodny=True
+
+KONTROLA DODATNIA PO WSZYSTKICH SABOTAŻACH: ZIELONO
+    Tests:    7 passed (39 assertions)
+
+RAZEM: 5 z 5 kontrol ujemnych oblało na właściwej asercji i wróciło bajt w bajt.
