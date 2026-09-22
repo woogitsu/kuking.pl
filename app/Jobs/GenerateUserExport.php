@@ -154,7 +154,7 @@ class GenerateUserExport implements ShouldQueue
             }
 
             try {
-                Storage::disk($disk)->writeStream($objectKey, $stream);
+                $written = Storage::disk($disk)->writeStream($objectKey, $stream);
             } catch (Throwable $e) {
                 // Zawinięte w typ, który `reasonFor()` rozpozna nawet po tym,
                 // jak `failed()` odtworzy joba od nowa z ładunku kolejki —
@@ -164,6 +164,10 @@ class GenerateUserExport implements ShouldQueue
                 if (is_resource($stream)) {
                     fclose($stream);
                 }
+            }
+
+            if ($written === false) {
+                throw new DataExportStorageFailure('Nie udało się zapisać paczki w magazynie plików.');
             }
 
             $bytes = (int) filesize($this->tempZip);
