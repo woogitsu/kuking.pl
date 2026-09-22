@@ -40,6 +40,7 @@
    z nich dopisuje własne klasy do @layer components, żadny nie nadpisuje
    klasy z innego. */
 @import "./ekran-wyszukiwania.css";
+@import "./ekran-tagi.css";
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";

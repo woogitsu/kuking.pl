@@ -1647,6 +1647,34 @@ return [
         'ustawienia' => '30,10',
 
         /*
+         * PRZEGLĄDANIE „TWOICH TAGÓW" — filtr i „Pokaż kolejne…" na ekranie
+         * `/ustawienia/tagi` (#858, decyzja właściciela z 20.09.2026, punkt 1).
+         *
+         * Szkoda z nadużycia: żadna widoczna dla innych, dokładnie jak reszta
+         * grupy `ustawienia` — to czyste odczyty, żadna z tych dróg nie
+         * dotyka relacji obserwowania (`TagFollowController::przegladaj()`).
+         *
+         * DLACZEGO NIE ZOSTAJE W GRUPIE `ustawienia`. Bo dzieliła z nią
+         * budżet 30/10 razem z ZAPISEM — a szukanie właściwego tagu to nie
+         * jedno kliknięcie: wpisz frazę, popraw literówkę, doładuj kolejną
+         * porcję, wpisz inną frazę. Kilkanaście takich kroków w jednej
+         * sesji to normalne przeglądanie listy stu kilkudziesięciu tagów,
+         * a nie próba obejścia czegokolwiek — i to ono zjadało budżet
+         * zapisu, więc człowiek, który dużo szukał, tracił możliwość
+         * ZAPISANIA wyniku. Zapis zostaje przy 30/10 bez zmian: jego
+         * ochrona się nie rozluźnia, dostaje tylko własny, nietknięty koszyk.
+         *
+         * SKĄD 300 NA 10 MINUT. Hojny budżet dla czystego odczytu, celowo
+         * o rząd wielkości większy niż `ustawienia` — bo to jest właśnie
+         * ten limit, który ma PRZESTAĆ przeszkadzać normalnemu przeglądaniu.
+         * Osobny koszyk nie zwalnia z reguły „poprawne dane nigdy nie
+         * znikają" (#858, punkt 2): nawet przy tym budżecie ktoś kiedyś go
+         * wyczerpie, a wtedy 429 na tej trasie ma oddać zaznaczenia z powrotem
+         * (`App\Support\OdzyskiwalneDane`), nie pokazać pusty formularz.
+         */
+        'tagi_przegladanie' => '300,10',
+
+        /*
          * POWIADOMIENIA — kliknięcie „Zobacz" przy pojedynczym powiadomieniu.
          *
          * Szkoda z nadużycia: żadna. Jeden UPDATE znacznika `read_at` na
