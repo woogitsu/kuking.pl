@@ -98,7 +98,7 @@ Masz też prawo złożyć skargę do **Prezesa Urzędu Ochrony Danych Osobowych 
 
 ## 5. Pliki cookies i podobne technologie
 
-- Używamy technicznie niezbędnych plików cookies (np. do utrzymania sesji logowania) — te nie wymagają Twojej zgody, bo bez nich serwis nie mógłby działać.
+- Używamy technicznie niezbędnych plików cookies — te nie wymagają Twojej zgody, bo bez nich serwis nie mógłby działać albo nie pamiętałby Twoich ustawień. Stawiamy je w trzech celach: **utrzymanie sesji logowania**, **ochrona formularzy** przed nadużyciem oraz **zapamiętanie Twoich ustawień wyglądu** — wielkości tekstu (`kuking_text_scale`) i jasnego albo ciemnego motywu (`motyw`). Dwa ostatnie powstają dopiero przy zmianie ustawienia, są ważne rok i nie służą ani statystyce, ani reklamie.
 - **Nie używamy żadnych plików cookies do statystyk ani do reklam.** Dlatego nie pytamy Cię o zgodę na cookies i nie zasłaniamy serwisu banerem — nie ma na co jej udzielać.
 - **Dlaczego banera nie ma, chociaż mamy zewnętrzną statystykę odwiedzin.** Zgody wymaga zapisanie czegoś na Twoim urządzeniu albo sięgnięcie po to, co już tam leży — a nie sam fakt, że coś liczymy. Narzędzie, którego używamy (Cloudflare Web Analytics, sekcja 3), nie robi ani jednego, ani drugiego: nie stawia pliku cookie, nie zapisuje nic w pamięci przeglądarki i nie zostawia na Twoim sprzęcie żadnego znaku rozpoznawczego. To, co zbiera, jest liczbą odsłon, a nie profilem osoby. Gdybyśmy kiedykolwiek sięgnęli po narzędzie, które cokolwiek na Twoim urządzeniu zapisuje, zapytamy Cię o zgodę — zanim to się stanie, a nie potem.
 - Nie używamy plików cookies do reklam ukierunkowanych ani nie sprzedajemy danych o Twoim zachowaniu reklamodawcom.
