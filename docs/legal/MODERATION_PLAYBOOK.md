@@ -80,11 +80,11 @@ Kolejka `/admin/zgloszenia` sortuje `priorytet ASC, created_at DESC, id DESC`. P
 
 Jak podział z tabeli wyżej przekłada się na to, co robi kod:
 
-| SLA | Kategorie `Report::REASONS` | W narzędziu |
-|---|---|---|
-| P0 | „Dotyczy dziecka" (`minor`), „Treść nieprzyzwoita" (`sexual`) | P0 — pierwsze w kolejce, **alarm pocztą** do moderacji |
-| P1 | `harassment`, `hate`, `personal_data`, `scam` | P1 — nad zwykłą kolejką; tu też każde zgłoszenie **prawne**, bo niesie termin z art. 16 ust. 5 |
-| P2 i P3 | `spam`, `copyright`, `dangerous_advice`, `impersonation`, `other` | P2 — zwykła kolejka, bez plakietki |
+| SLA | Kategorie `Report::REASONS` | W narzędziu | Dowód |
+|---|---|---|---|
+| P0 | „Dotyczy dziecka" (`minor`), „Treść nieprzyzwoita" (`sexual`) | Pierwsze w kolejce, **alarm pocztą** do moderacji | `KolejkaModeracjiStawiaPilneNaGorzeTest` — kolejność i alarm; reguła w `app/Domain/Moderation/PriorytetSprawy.php` |
+| P1 | `harassment`, `hate`, `personal_data`, `scam` | Nad zwykłą kolejką; tu też każde zgłoszenie **prawne**, bo niesie termin z art. 16 ust. 5 | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zgloszenie_prawne_o_zwyklej_kategorii_wyprzedza_te_sama_kategorie_bez_terminu` |
+| P2 i P3 | `spam`, `copyright`, `dangerous_advice`, `impersonation`, `other` | Zwykła kolejka, bez plakietki | `KolejkaModeracjiStawiaPilneNaGorzeTest::test_zwykla_sprawa_nie_dostaje_plakietki` |
 
 **Czego kod nie umie odczytać z kategorii — i co dalej zostaje na Tobie:**
 
