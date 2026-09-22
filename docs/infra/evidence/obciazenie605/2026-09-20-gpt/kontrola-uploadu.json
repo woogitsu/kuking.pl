@@ -1,0 +1,82 @@
+[
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case0.jpg",
+    "bajty": 12036636,
+    "status": 302,
+    "ms": 789,
+    "cel": "http://127.0.0.1:8605/wpisy/01a0bfef-8d34-70f0-b023-57e93f143037",
+    "blad": null,
+    "source_file": "photo-1.jpg"
+  },
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case1.jpg",
+    "bajty": 8191862,
+    "status": 302,
+    "ms": 475,
+    "cel": "http://127.0.0.1:8605/wpisy/01a0bfef-8f5f-7028-83ae-24a8294fccc7",
+    "blad": null,
+    "source_file": "photo-2.jpg"
+  },
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case2.jpg",
+    "bajty": 4062344,
+    "status": 302,
+    "ms": 418,
+    "cel": "http://127.0.0.1:8605/wpisy/01a0bfef-9133-70bf-a70b-0d076842fd56",
+    "blad": null,
+    "source_file": "photo-3.jpg"
+  },
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case3.jpg",
+    "bajty": 3557662,
+    "status": 302,
+    "ms": 83,
+    "cel": "http://127.0.0.1:8605/wpisy/01a0bfef-91ae-7046-aa17-ae10871bf6d3",
+    "blad": null,
+    "source_file": "photo-4.jpg"
+  },
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case4.jpg",
+    "bajty": 2747561,
+    "status": 302,
+    "ms": 237,
+    "cel": "http://127.0.0.1:8605/wpisy/01a0bfef-92df-71b0-8f96-1e39e8ffbcae",
+    "blad": null,
+    "source_file": "photo-5.jpg"
+  },
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case5.jpg",
+    "bajty": 300,
+    "status": 302,
+    "ms": 46,
+    "cel": "http://127.0.0.1:8605/zeszyt",
+    "blad": null,
+    "source_file": "truncated.jpg"
+  },
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case6.jpg",
+    "bajty": 2747579,
+    "status": 302,
+    "ms": 249,
+    "cel": "http://127.0.0.1:8605/wpisy/01a0bfef-946b-7251-8eb9-1defd9fe9174",
+    "blad": null,
+    "source_file": "odd-exif.jpg"
+  },
+  {
+    "nr": 0,
+    "plik": "kuking-b605-case7.jpg",
+    "bajty": 2747597,
+    "status": 302,
+    "ms": 548,
+    "cel": "http://127.0.0.1:8605/wpisy/01a0bfef-96c8-7096-9d21-f5dec84c241f",
+    "blad": null,
+    "source_file": "orientation-6.jpg"
+  }
+]

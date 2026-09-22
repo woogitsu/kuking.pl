@@ -1,0 +1,30 @@
+
+── Kontrola ujemna: Próbnik: zmiana PID ──
+  plik:     scripts/probnik-obciazenia-605.sh
+  MD5 przed: 9db8dbda3011f6b5cdb794ba8f3fc3fd
+  oczekuję:  Zmiana PID nie może udawać
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 2 podmian, MD5 9db8dbda3011f6b5cdb794ba8f3fc3fd → a1a55cdeb30c92e3a01ef86455566888.
+  różnica:
+         RDZENIE_KONT="$(awk -v a="$CPU_USEC" -v b="$poprzedni_cpu" -v dt="$DT" 'BEGIN{if(dt>0)printf "%.3f",(a-b)/1e6/dt; else print 0}')"
+         # Po wymianie procesu nie ma wspólnego okna liczników. Null oznacza
+         # brak pomiaru; zero udawałoby bezczynność, a różnica mogłaby być ujemna.
+    -    RDZENIE_WEB="$(awk -v pid="$PID_WEB" -v prev="$poprzedni_pid_web" -v a="$WEB_T" -v b="$poprzedni_web" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(pid>0 && pid==prev && dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print "null"}')"
+    -    RDZENIE_WRK="$(awk -v pid="$PID_WORKER" -v prev="$poprzedni_pid_worker" -v a="$WRK_T" -v b="$poprzedni_worker" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(pid>0 && pid==prev && dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print "null"}')"
+    +    RDZENIE_WEB="$(awk -v pid="$PID_WEB" -v prev="$poprzedni_pid_web" -v a="$WEB_T" -v b="$poprzedni_web" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(pid>0 && 1==1 && dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print "null"}')"
+    +    RDZENIE_WRK="$(awk -v pid="$PID_WORKER" -v prev="$poprzedni_pid_worker" -v a="$WRK_T" -v b="$poprzedni_worker" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(pid>0 && 1==1 && dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print "null"}')"
+         RDZENIE_HOST="$(awk -v a="$HOST_T" -v b="$poprzedni_host" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0)printf "%.2f",(a-b)/hz/dt; else print 0}')"
+         RDZENIE_GEN="$(awk -v a="$GEN_T" -v b="$poprzedni_gen" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0 && a>=b)printf "%.3f",(a-b)/hz/dt; else print 0}')"
+         SAMO="$(awk -v a="$SAM_T" -v b="$poprzedni_sam" -v dt="$DT" -v hz="$TAKTY" 'BEGIN{if(dt>0)printf "%.3f",(a-b)/hz/dt; else print 0}')"
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Zmiana PID nie może udawać” wystąpił w wyjściu.
+    AssertionError [ERR_ASSERTION]: Zmiana PID nie może udawać poprawnej dodatniej różnicy
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — Próbnik: zmiana PID
+  zapis: /home/mateusz/flota/gpt-obciazenie-private/negative-pid.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

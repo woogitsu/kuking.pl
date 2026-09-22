@@ -1,0 +1,16 @@
+{
+  "nazwa": "limit wydatków",
+  "plik": "scripts/ai-pilots/Budget.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "df6433b9fdf9cd190f71e0126b472def",
+  "md5_po_mutacji": "3cdfec79ed6e8c42770b6dcf614f11d5",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Failed asserting that exception",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:59:07Z"
+}

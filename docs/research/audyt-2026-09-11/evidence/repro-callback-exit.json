@@ -1,0 +1,22 @@
+{
+    "scope": "Isolated Laravel 13.x callback-result contract, not full scheduler execution",
+    "integer_failure_reported_as_success": true,
+    "cases": [
+        {
+            "callback_result": 0,
+            "event_exit_code": 0
+        },
+        {
+            "callback_result": 1,
+            "event_exit_code": 0
+        },
+        {
+            "callback_result": 2,
+            "event_exit_code": 0
+        },
+        {
+            "callback_result": false,
+            "event_exit_code": 1
+        }
+    ]
+}

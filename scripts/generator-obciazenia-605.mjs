@@ -39,6 +39,7 @@
  */
 
 import http from 'node:http';
+import { createHash } from 'node:crypto';
 import { readFile, writeFile } from 'node:fs/promises';
 import { readFileSync, realpathSync, statSync } from 'node:fs';
 import { basename } from 'node:path';
@@ -374,7 +375,7 @@ async function przygotuj() {
 // media — prawdziwe wgrania 12/24/48 Mpx ścieżką produktową
 // -----------------------------------------------------------------------------
 
-function multipart(pola, plik) {
+function multipart(pola, plik, mime = 'image/jpeg') {
   const granica = '----kuking605' + Math.random().toString(36).slice(2);
   const czesci = [];
   for (const [k, v] of Object.entries(pola)) {
@@ -382,7 +383,7 @@ function multipart(pola, plik) {
   }
   czesci.push(Buffer.from(
     `--${granica}\r\nContent-Disposition: form-data; name="photos[]"; filename="${basename(plik)}"\r\n`
-    + 'Content-Type: image/jpeg\r\n\r\n',
+    + `Content-Type: ${mime}\r\n\r\n`,
   ));
   czesci.push(readFileSync(plik));
   czesci.push(Buffer.from(`\r\n--${granica}--\r\n`));
@@ -519,9 +520,23 @@ async function seria() {
   const bezczynnoscSerii = liczba('bezczynnosc', 20000, { min: 1 });
   const calkowitySerii = liczba('calkowity', 30000, { min: 1 });
   const katalog = opcje.zdjecia ?? '/home/mateusz/kuking-b605-run/zdjecia';
-  // Do uploadu w serii świadomie najmniejszy plik: 48 Mpx przy każdym wgraniu
-  // zamieniłby test mieszany w test jednego zadania w tle.
-  const plikUpload = `${katalog}/kuking-b605-12mpx.jpg`;
+  // Korpus jest jawny, sprawdzony przed napływem i odtwarzalny po SHA-256.
+  // Bez opcji zachowujemy historyczny scenariusz pojedynczego JPEG.
+  const uploadFiles = opcje.korpus
+    ? JSON.parse(readFileSync(opcje.korpus, 'utf8'))
+    : [{ path: `${katalog}/kuking-b605-12mpx.jpg`, mime: 'image/jpeg', expected: 'accepted' }];
+  if (!Array.isArray(uploadFiles) || uploadFiles.length === 0) throw new Error('Korpus musi zawierać co najmniej jeden plik.');
+  if (opcje.korpus) {
+    for (const file of uploadFiles) {
+      if (!['accepted', 'rejected'].includes(file.expected) || !['image/jpeg', 'image/png', 'image/webp'].includes(file.mime)) {
+        throw new Error('Podaj mime oraz expected: accepted albo rejected dla każdego pliku korpusu.');
+      }
+      const hash = createHash('sha256').update(readFileSync(file.path)).digest('hex');
+      if (hash !== file.sha256) throw new Error(`Sprawdź sumę SHA-256 pliku ${basename(file.path)}.`);
+    }
+  }
+  let uploadIndex = 0;
+  const uploadStats = uploadFiles.map(file => ({ plik: basename(file.path), sha256: file.sha256 ?? null, oczekiwane: file.expected, wyslanych: 0, zgodnych: 0, statusy: {} }));
 
   const cele = manifest.cele;
   if (!cele.media.length) {
@@ -583,6 +598,8 @@ async function seria() {
     const wybierz = (t) => (t.length ? t[(i * 7919) % t.length] : null);
 
     let cfg;
+    let uploadFile = null;
+    let uploadStat = null;
     switch (scenariusz) {
       case 'anon_landing': cfg = { sciezka: '/' }; break;
       case 'anon_przepis': cfg = { sciezka: wybierz(cele.przepisy) }; break;
@@ -629,11 +646,14 @@ async function seria() {
         break;
       }
       case 'upload': {
-        const { dane, typ } = multipart({ _token: sesja.token, visibility: 'public', body: `Wpis z serii ${nazwa} nr ${i}` }, plikUpload);
+        const fileIndex = uploadIndex++ % uploadFiles.length;
+        uploadFile = uploadFiles[fileIndex];
+        uploadStat = uploadStats[fileIndex];
+        const { dane, typ } = multipart({ _token: sesja.token, visibility: 'public', body: `Wpis z serii ${nazwa} nr ${i}` }, uploadFile.path, uploadFile.mime);
         cfg = {
           sciezka: '/dodaj/zdjecie', metoda: 'POST', ciasteczka: sesja.ciasteczka, dane,
           bezczynnoscMs: 60000, calkowityMs: 90000,
-          naglowki: { 'content-type': typ, 'content-length': dane.length },
+          naglowki: { 'content-type': typ, 'content-length': dane.length, referer: BAZA + '/dodaj/zdjecie' },
         };
         break;
       }
@@ -665,7 +685,19 @@ async function seria() {
     // po zapisie). 429 NIE jest awarią serwera, tylko zadziałaniem limitu —
     // ale w `blad_procent` i tak jest błędem, bo nie jest odpowiedzią na pytanie
     // „ile serwis obsłużył". Rozbicie na `statusy` pokazuje, ile z błędów to 429.
-    dodaj(scenariusz, odp.ms, odp.powod === 'ok' ? (odp.status || 'blad') : odp.powod, odp.status === 200 || odp.status === 302);
+    let success = odp.status === 200 || odp.status === 302;
+    if (uploadFile && opcje.korpus) {
+      const destination = odp.location ? new URL(odp.location, BAZA) : null;
+      const accepted = destination?.origin === adres.origin && /^\/wpisy\/[0-9a-f-]{36}$/.test(destination.pathname);
+      const rejected = destination?.origin === adres.origin && destination.pathname === '/dodaj/zdjecie';
+      success = odp.powod === 'ok' && odp.status === 302 && (uploadFile.expected === 'accepted' ? accepted : rejected);
+    }
+    if (uploadStat) {
+      uploadStat.wyslanych += 1;
+      uploadStat.zgodnych += success ? 1 : 0;
+      uploadStat.statusy[odp.status] = (uploadStat.statusy[odp.status] ?? 0) + 1;
+    }
+    dodaj(scenariusz, odp.ms, odp.powod === 'ok' ? (odp.status || 'blad') : odp.powod, success);
     dodajPowod(scenariusz, odp.powod ?? 'blad');
   };
 
@@ -895,6 +927,7 @@ async function seria() {
       cpu_rdzenie_srednio: Math.round(((cpu.user + cpu.system) / 1e6 / trwanieNaplywu) * 1000) / 1000,
       maxrss_mb: Math.round(zasoby.maxRSS / 1024),
     },
+    uploady: uploadStats,
     endpointy,
     mieszanka: Object.fromEntries(MIESZANKA),
   };

@@ -115,7 +115,7 @@ final class KlientOpenAI
             // a dziennik błędów nie jest miejscem na treści użytkowników.
             Log::warning('Ocena treści modelem nie doszła do skutku.', [
                 'czego' => $czego,
-                'blad' => $blad->getMessage(),
+                ...ExceptionContext::forStage($blad, 'openai_transport'),
             ]);
 
             return null;

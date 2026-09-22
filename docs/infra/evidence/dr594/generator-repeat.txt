@@ -1,0 +1,6 @@
+Timing is on.
+SET
+Time: 1.118 ms
+Time: 3.978 ms
+psql:scripts/dr594-dane.sql:14: ERROR:  Dane próby już istnieją. Nie uruchamiaj generatora ponownie.
+CONTEXT:  PL/pgSQL function inline_code_block line 8 at RAISE
