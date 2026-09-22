@@ -1,0 +1,81 @@
+Pomiar N+1 i wplywu ANALYZE - Kuking.pl
+Drzewo: origin/main 61686213 (+ trzy poprawki with()).
+Baza: PostgreSQL 18, 127.0.0.1:55439, baza kuking_perf_claude.
+Fixture budowany w transakcji i WYCOFYWANY po pomiarze.
+Przyrzad: scripts/pomiar-n1.php. Kazda liczba to mediana z 3 pomiarow po rozgrzewce.
+'przed' = kod z 61686213, 'po' = ten sam kod z trzema poprawkami with().
+Przebieg BEZ ANALYZE ma statement_timeout 10 s; '>10000 ms' znaczy: nie skonczylo sie.
+Przebieg bez ANALYZE mierzony tylko przy domyslnym rozmiarze strony (15).
+
+==== ZBIOR DUZY: {'autorow': 1000, 'wpisow': 10000, 'zdjecNaWpis': 3, 'przepisow': 1000, 'komentarzy': 200, 'wykonan': 300, 'obserwowanych': 60, 'tagow': 20, 'zdjec': 30000}
+     ANALYZE trwal: 281.9 ms (przebieg 'przed'), 310 ms (przebieg 'po')
+
+  -- wierszy na stronie: 15
+  sciezka                                zap.przed  zap.po  ms bez ANALYZE  ms po ANALYZE  ms po poprawce
+  strumien obserwowanych (/home)                38      38           145.1          120.7           132.2
+  strona przepisu (/przepisy/{slug})            61      33            89.0           88.7            59.6
+  profil (/@{username})                         46      46           179.2           84.2            83.2
+  profil - przepisy                             34      34           135.1           32.3            32.7
+  profil - ugotowane                            53      30           263.5           55.4            36.9
+  wyszukiwarka (/szukaj?q=pierogi)              36      36          1025.4           81.3            75.7
+  strona tagu (/tag/{slug})                     31      23       >10000 ms          133.9           113.2
+  odkrywanie (/odkryj)                          32      32          8327.1          128.3           113.6
+
+  -- wierszy na stronie: 5
+  sciezka                                zap.przed  zap.po  ms bez ANALYZE  ms po ANALYZE  ms po poprawce
+  strumien obserwowanych (/home)                38      38            brak           90.4            95.9
+  strona przepisu (/przepisy/{slug})            41      33            brak           57.2            58.7
+  profil (/@{username})                         46      46            brak           83.3            82.7
+  profil - przepisy                             34      34            brak           33.1            27.6
+  profil - ugotowane                            52      30            brak           60.2            45.1
+  wyszukiwarka (/szukaj?q=pierogi)              36      36            brak           89.4            84.8
+  strona tagu (/tag/{slug})                     25      23            brak           82.2            80.8
+  odkrywanie (/odkryj)                          32      32            brak           94.3            83.1
+
+  -- wierszy na stronie: 25
+  sciezka                                zap.przed  zap.po  ms bez ANALYZE  ms po ANALYZE  ms po poprawce
+  strumien obserwowanych (/home)                38      38            brak          177.9           137.9
+  strona przepisu (/przepisy/{slug})            81      33            brak          109.7            82.6
+  profil (/@{username})                         46      46            brak           81.5            76.9
+  profil - przepisy                             34      34            brak           37.2            30.6
+  profil - ugotowane                            52      30            brak           54.5            40.3
+  wyszukiwarka (/szukaj?q=pierogi)              36      36            brak          112.3            82.7
+  strona tagu (/tag/{slug})                     36      23            brak          158.2           138.1
+  odkrywanie (/odkryj)                          32      32            brak          184.6           130.9
+
+==== ZBIOR MALY: {'autorow': 100, 'wpisow': 1000, 'zdjecNaWpis': 3, 'przepisow': 100, 'komentarzy': 20, 'wykonan': 30, 'obserwowanych': 6, 'tagow': 20, 'zdjec': 3000}
+     ANALYZE trwal: 106.7 ms (przebieg 'przed'), 127.2 ms (przebieg 'po')
+
+  -- wierszy na stronie: 15
+  sciezka                                zap.przed  zap.po  ms bez ANALYZE  ms po ANALYZE  ms po poprawce
+  strumien obserwowanych (/home)                38      38           103.8           87.9            90.3
+  strona przepisu (/przepisy/{slug})            61      33            69.4           87.7            74.1
+  profil (/@{username})                         46      46            80.2           73.5            97.1
+  profil - przepisy                             34      34            31.6           31.1            55.6
+  profil - ugotowane                            52      30            46.4           51.4            53.3
+  wyszukiwarka (/szukaj?q=pierogi)              36      36            80.7           52.1            60.5
+  strona tagu (/tag/{slug})                     31      23            93.3           87.7            87.0
+  odkrywanie (/odkryj)                          32      32            96.8           77.6            90.5
+
+  -- wierszy na stronie: 5
+  sciezka                                zap.przed  zap.po  ms bez ANALYZE  ms po ANALYZE  ms po poprawce
+  strumien obserwowanych (/home)                38      38            brak           63.9            65.9
+  strona przepisu (/przepisy/{slug})            41      33            brak           52.4            46.2
+  profil (/@{username})                         46      46            brak           83.9            99.0
+  profil - przepisy                             34      34            brak           30.0            39.7
+  profil - ugotowane                            52      30            brak           53.4            49.3
+  wyszukiwarka (/szukaj?q=pierogi)              36      36            brak           49.1            54.8
+  strona tagu (/tag/{slug})                     25      23            brak           59.7            54.1
+  odkrywanie (/odkryj)                          32      32            brak           58.4            53.6
+
+  -- wierszy na stronie: 25
+  sciezka                                zap.przed  zap.po  ms bez ANALYZE  ms po ANALYZE  ms po poprawce
+  strumien obserwowanych (/home)                38      38            brak          126.5           123.0
+  strona przepisu (/przepisy/{slug})            71      33            brak           83.0            72.4
+  profil (/@{username})                         46      46            brak           78.9            77.2
+  profil - przepisy                             34      34            brak           27.4            32.5
+  profil - ugotowane                            52      30            brak           47.8            41.9
+  wyszukiwarka (/szukaj?q=pierogi)              36      36            brak           43.8            58.3
+  strona tagu (/tag/{slug})                     36      23            brak          121.2           116.6
+  odkrywanie (/odkryj)                          32      32            brak          109.6           114.6
+

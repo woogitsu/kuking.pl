@@ -1,0 +1,30 @@
+
+   PASS  Tests\Feature\DalszeWynikiWyszukiwaniaTest
+  ✓ link przechodzi przez trzy okna przepisow bez powtorzen              1.88s
+  ✓ link przechodzi od rosnacej listy do nastepnego okna                 0.36s
+  ✓ link pokazuje osobe poza pierwszymi dwustu                           1.07s
+  ✓ dalsze szybkie przepisy zachowuja filtr i prywatnosc                 0.28s
+  ✓ przesuniecie przepisow nie przesuwa osob i pozwala wrocic            0.39s
+  ✓ puste dalsze okno pozwala wrocic do istniejacych wynikow             0.06s
+  ✓ powrot osob zachowuje dalsze okno przepisow                          0.18s
+  ✓ dalsze osoby pomijaja blokady w obie strony                          0.22s
+  ✓ blokada w obie strony jest stosowana przed przesunieciem             0.15s
+  ✓ nieprawidlowe przesuniecia nie powoduja bledu ani utraty pierwszych… 0.09s
+
+   PASS  Tests\Feature\GraniceOkienWyszukiwaniaTest
+  ✓ dokladnie dwiescie wynikow nie daje odnosnika dalej                  0.25s
+  ✓ dwiescie jeden wynikow daje okno z jednym przepisem                  0.30s
+  ✓ zero wynikow daje pusty stan bez odnosnikow okien                    0.04s
+  ✓ brak frazy z przesunieciem nie mowi o zakresie                       0.03s
+  ✓ przesuniecie z obcej sekcji jest ignorowane                          0.09s
+  ✓ krotka fraza z przesunieciem nie udaje pustego zakresu               0.05s
+
+   PASS  Tests\Feature\JednoDekodowanieZdjeciaTest
+  ✓ jedno dekodowanie zachowuje bajty wszystkich wariantow
+
+   PASS  Tests\Feature\PrzerwanePrzetwarzanieNieZostawiaSierotyTest
+  ✓ zadanie przerwane w polowie zostawia klucze ktore kasowanie znajdzi… 0.12s
+  ✓ po udanym zadaniu lista w trakcie znika                              0.16s
+
+  Tests:    19 passed (462 assertions)
+  Duration: 10.46s
