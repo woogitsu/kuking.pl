@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature\Visibility;
 
 use App\Domain\Posts\SasiedniWpisAutora;
+use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Media;
 use App\Models\Post;
@@ -252,6 +253,126 @@ class PostSasiedniWpisTest extends TestCase
 
         $this->assertStringNotContainsString('Poprzedni wpis', $html);
         $this->assertStringNotContainsString('Następny wpis', $html);
+    }
+
+    // -----------------------------------------------------------------
+    // KONTROLA UJEMNA 3 — zapowiedź cudzego przepisu nie jest sąsiadem
+    // -----------------------------------------------------------------
+
+    /**
+     * Wpis wskazujący przepis (issue #368) jest NA STAŁE `public`, bo
+     * widoczność ma trzymać PRZEPIS, a nie jego zapowiedź
+     * (`WpisWskazujacyPrzepis::dopisz()`). `widoczneDla()` pyta o widoczność
+     * WPISU, więc taką zapowiedź przepuszcza — i nawigacja „kolejne zdjęcie"
+     * podawała obcemu człowiekowi adres wpisu stojącego za przepisem
+     * „tylko dla obserwujących". Brakowało `zWidocznymPrzepisem($widz)`,
+     * tak samo jak w feedzie tagów (#941).
+     *
+     * CO DOKŁADNIE WYCIEKAŁO. Nie sam przepis — `RecipePolicy` trzyma.
+     * Wejście w taki odnośnik przekierowuje na `recipes.show`, czyli wydaje
+     * SLUG przepisu, a slug to jego tytuł. A gdy pod zapowiedzią stoi choć
+     * jeden komentarz, przekierowania już nie ma (`jestSamymPrzepisem()`)
+     * i strona wpisu wypisuje tytuł przepisu wprost.
+     *
+     * KOLEJNOŚĆ W ARCHIWUM JEST CZĘŚCIĄ TESTU. Zapowiedź stoi NA KOŃCU,
+     * a nie w środku: gdyby stała w środku, wyciek przesłoniłby kontrolę
+     * dodatnią — zamiast „za dużo" widać by było „nie to, co trzeba" —
+     * i czerwień nie mówiłaby o tym, o czym ma mówić.
+     */
+    public function test_zapowiedz_cudzego_przepisu_nie_staje_sie_sasiadem(): void
+    {
+        [, $zapowiedz, $starszy, $nowszy] = $this->archiwumZZapowiedziaPrzepisu();
+
+        $html = $this->get(route('posts.show', $nowszy))->assertOk()->getContent();
+
+        // KONTROLA DODATNIA: nawigacja w ogóle działa i wstecz podaje zwykły
+        // publiczny wpis tej samej osoby. Bez tej asercji test przechodziłby
+        // także wtedy, gdyby nawigacji nie było wcale.
+        $this->assertStringContainsString(
+            route('posts.show', $starszy),
+            $html,
+            'Nawigacja nie podała nawet zwykłego publicznego wpisu tej samej osoby — asercja niżej '
+            .'nie mówiłaby wtedy o bramce przepisu, tylko o braku nawigacji.',
+        );
+        $this->assertStringContainsString('Poprzedni wpis', $html);
+
+        $this->assertStringNotContainsString(
+            route('posts.show', $zapowiedz),
+            $html,
+            'Nawigacja „kolejne zdjęcie" podała gościowi adres zapowiedzi przepisu '
+            .'„tylko dla obserwujących". Wejście w ten adres przekierowuje na przepis, '
+            .'czyli wydaje jego tytuł w slugu.',
+        );
+
+        // To samo przy zapytaniu domenowym, nie przez widok: to ono jest
+        // bramką, a widok tylko rysuje to, co dostanie.
+        $sasiedni = app(SasiedniWpisAutora::class);
+
+        $this->assertTrue(
+            $sasiedni->poprzedni($nowszy, null)?->is($starszy) ?? false,
+            'Zapytanie domenowe nie oddało nawet zwykłego poprzednika — kontrola dodatnia dla drogi domenowej.',
+        );
+
+        $this->assertNull(
+            $sasiedni->nastepny($nowszy, null),
+            'Następnym wpisem dla gościa została zapowiedź przepisu „tylko dla obserwujących".',
+        );
+    }
+
+    /**
+     * Poprawka nie ma prawa odciąć autora od własnego archiwum — „poprawne
+     * dane nigdy nie znikają" (AGENTS.md §5) obowiązuje także dla przepisu
+     * schowanego przed resztą świata. `zWidocznymPrzepisem()` ma tę furtkę
+     * wpisaną świadomie (patrz jego docblock).
+     */
+    public function test_autor_dalej_ma_wlasna_zapowiedz_wsrod_sasiadow(): void
+    {
+        [$basia, $zapowiedz, , $nowszy] = $this->archiwumZZapowiedziaPrzepisu();
+
+        $sasiad = app(SasiedniWpisAutora::class)->nastepny($nowszy, $basia);
+
+        $this->assertNotNull($sasiad, 'Autor stracił sąsiadów w swoim własnym archiwum.');
+        $this->assertTrue(
+            $sasiad->is($zapowiedz),
+            'Bramka przepisu odcięła autorowi jego własną zapowiedź — to jego dane, ma je widzieć.',
+        );
+    }
+
+    /**
+     * Archiwum Basi: dwa zwykłe wpisy ze zdjęciem, a na końcu zapowiedź
+     * przepisu „tylko dla obserwujących". Widzem jest GOŚĆ — to jedyna
+     * konfiguracja, w której ten wyciek widać; obserwującemu przepis
+     * należy się zgodnie z ustawieniem.
+     *
+     * @return array{0: User, 1: Post, 2: Post, 3: Post}
+     */
+    private function archiwumZZapowiedziaPrzepisu(): array
+    {
+        $basia = $this->user('basia');
+
+        $starszy = $this->wpisZeZdjeciem($basia, ['published_at' => now()->subDays(2)]);
+        $nowszy = $this->wpisZeZdjeciem($basia, ['published_at' => now()->subDay()]);
+
+        $przepis = app(PublishRecipe::class)->handle(
+            author: $basia,
+            attributes: ['title' => 'Bigos z kapusty kiszonej', 'visibility' => 'followers', 'source_type' => 'own'],
+            ingredients: [['text' => 'kapusta kiszona']],
+            steps: [['instruction' => 'Gotuj powoli, przez trzy godziny.']],
+            publish: true,
+        );
+
+        /** @var Post $zapowiedz */
+        $zapowiedz = Post::query()->where('recipe_id', $przepis->getKey())->firstOrFail();
+        $zapowiedz->forceFill(['published_at' => now()])->save();
+
+        $this->assertSame(
+            Post::VISIBILITY_PUBLIC,
+            $zapowiedz->visibility,
+            'Zapowiedź przepisu nie jest publiczna — wtedy odciąłby ją zwykły filtr widoczności wpisu '
+            .'i ten test przechodziłby z niewłaściwego powodu.',
+        );
+
+        return [$basia, $zapowiedz->refresh(), $starszy, $nowszy];
     }
 
     // -----------------------------------------------------------------

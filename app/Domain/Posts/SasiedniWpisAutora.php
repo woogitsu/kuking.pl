@@ -19,6 +19,18 @@ use Illuminate\Database\Eloquent\Builder;
  * Żadnego algorytmu: AGENTS.md §8 chce chronologicznego feedu, a ta sama
  * zasada dotyczy każdej innej kolejności wpisów w serwisie.
  *
+ * TRZECI ZAKRES TO `zWidocznymPrzepisem($widz)` (issue #368, #941).
+ * Wpis, który jest samym wskazaniem przepisu, ma `visibility = 'public'`
+ * na stałe — to nie jest jego widoczność, tylko brak własnego zawężenia,
+ * bo bramką jest PRZEPIS (`WpisWskazujacyPrzepis::dopisz()`).
+ * `widoczneDla()` pyta o widoczność WPISU, więc taką zapowiedź
+ * przepuszczało — i nawigacja podawała obcemu człowiekowi adres wpisu
+ * stojącego za przepisem „tylko dla obserwujących”. Sam przepis trzyma
+ * `RecipePolicy`, ale wejście w ten adres przekierowuje na `recipes.show`
+ * (`PostController::show()`), czyli wydaje SLUG przepisu — a slug to jego
+ * tytuł. Gdy pod zapowiedzią stoi choć jeden komentarz, przekierowania
+ * nie ma i strona wypisuje tytuł wprost.
+ *
  * WIDOCZNOŚĆ JEST TU CAŁYM RYZYKIEM, WIĘC NIE WYMYŚLAMY JEJ OD NOWA.
  * Kandydatów szuka się przez `Post::scopeWidoczneDla()` (blokady w OBIE
  * strony + widoczność public/followers/private, własne wpisy zawsze) ORAZ
@@ -99,6 +111,7 @@ final class SasiedniWpisAutora
             ->where('author_id', $post->author_id)
             ->published()
             ->widoczneDla($widz)
+            ->zWidocznymPrzepisem($widz)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
     }
 }
