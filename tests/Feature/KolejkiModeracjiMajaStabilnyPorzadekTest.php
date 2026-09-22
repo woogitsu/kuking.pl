@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\PriorytetSprawy;
 use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Models\Report;
@@ -60,6 +61,43 @@ use Tests\TestCase;
  * i rozstrzygnięcie odwołania to właśnie UPDATE — czyli codzienna praca
  * moderatora przestawia stertę tej samej tabeli, po której chodzi jego
  * kolejka.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  CO SIĘ ZMIENIŁO PO DOŁOŻENIU PRIORYTETU (22 września 2026)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Kolejka zgłoszeń sortuje dziś `priorytet ASC, created_at DESC, id DESC`
+ * (`App\Domain\Moderation\PriorytetSprawy`), więc zdanie „najnowsze na
+ * górze" przestało obowiązywać W CAŁEJ KOLEJCE. Trzeba to powiedzieć wprost,
+ * bo stara gwarancja była świadoma i udokumentowana, a nie przypadkowa.
+ *
+ * DLACZEGO UPADŁA. Obiecywała porządek, którego nie da się obronić przy
+ * spamie: on przychodzi falami, więc „najnowsze na górze" znaczyło w praktyce
+ * „im gorszy dzień, tym głębiej leży rzecz najcięższa". Zmierzone przed
+ * zmianą, w `KolejkaModeracjiStawiaPilneNaGorzeTest`: zgłoszenie „Dotyczy
+ * dziecka" sprzed dwóch dni pod trzydziestoma zgłoszeniami spamu z ostatniej
+ * godziny, czyli na DRUGIEJ stronie kolejki.
+ *
+ * CO JĄ ZASTĘPUJE — DWIE OBIETNICE ZAMIAST JEDNEJ:
+ *
+ *  1. „Najnowsze na górze" obowiązuje WEWNĄTRZ jednego priorytetu i jest tam
+ *     nietknięte. Mierzą to trzy testy niżej: wszystkie ich zgłoszenia mają
+ *     `reason = 'spam'`, czyli jeden priorytet, więc mierzą DOKŁADNIE to, co
+ *     mierzyły wcześniej — i przechodzą bez zmiany treści;
+ *  2. stabilne stronicowanie zostaje bez żadnego osłabienia: remis dalej
+ *     rozstrzyga `id`, tylko teraz w ramach wagi. Mierzy to test
+ *     `test_kolejka_zgloszen_dzieli_sie_na_strony_stabilnie_takze_przy_mieszanych_priorytetach`,
+ *     dopisany razem z priorytetem — bo to jest właśnie ten warunek, którego
+ *     nowy pierwszy człon `ORDER BY` mógłby nie spełnić.
+ *
+ * Czego ta zmiana NIE zrobiła: nie odwróciła kierunku WEWNĄTRZ wagi.
+ * Odrzucona gałąź `claude/priorytet-w-kolejce-moderacji` proponowała
+ * `priorytet ASC, created_at ASC, id ASC` — najstarsze na górze, „bliżej
+ * terminu". To jest osobna decyzja, z własną ceną (góra kolejki przestaje
+ * się odświeżać), i bez dowodu, że jej potrzebujemy. Jedna zmiana naraz.
+ *
+ * Kolejki ODWOŁAŃ ta zmiana nie dotyczy w ogóle: `appeals` nie ma kategorii,
+ * ma termin liczony od złożenia i dalej sortuje się najstarszymi na górze.
  */
 class KolejkiModeracjiMajaStabilnyPorzadekTest extends TestCase
 {
@@ -134,6 +172,62 @@ class KolejkiModeracjiMajaStabilnyPorzadekTest extends TestCase
         sort($oczekiwany);
 
         $this->assertPorzadek($oczekiwany, $zebrane, 'odwołań', 'najstarsze na górze');
+    }
+
+    /**
+     * STABILNE STRONICOWANIE PRZEŻYWA DOŁOŻENIE PRIORYTETU.
+     *
+     * Nowy pierwszy człon `ORDER BY` jest dokładnie tym, co mogłoby zepsuć
+     * obietnicę z góry tego pliku: gdyby priorytet liczył się inaczej przy
+     * różnych planach zapytania albo gdyby remis wewnątrz wagi przestał być
+     * rozstrzygany po `id`, pozycje znów zaczęłyby przeskakiwać między
+     * stronami — tylko że tym razem po CICHU, bo kolejność na pierwszej
+     * stronie wyglądałaby sensownie.
+     *
+     * Trzy kategorie, po jednej z każdej wagi, wymieszane w czasie:
+     * `minor` (P0), `scam` (P1) i `spam` (P2). Oczekiwany porządek liczymy
+     * w PHP z tej samej stałej, z której baza buduje swój `CASE`.
+     */
+    public function test_kolejka_zgloszen_dzieli_sie_na_strony_stabilnie_takze_przy_mieszanych_priorytetach(): void
+    {
+        $moderator = $this->moderator();
+        $zglaszajaca = $this->user('zglaszajacamix');
+
+        $powody = ['minor', 'scam', 'spam'];
+        $wstawione = [];
+
+        for ($i = 0; $i < self::ILE; $i++) {
+            $zgloszenie = Report::create([
+                'reporter_id' => $zglaszajaca->getKey(),
+                'target_type' => 'post',
+                'target_id' => (string) Str::uuid(),
+                'reason' => $powody[$i % 3],
+                'status' => Report::STATUS_OPEN,
+            ]);
+
+            // Czas REMISUJE PARAMI wewnątrz każdej wagi — bez remisu ten
+            // test nie sprawdziłby tego, po co powstał: rozstrzygnięcia
+            // po `id` w ramach wagi.
+            $chwila = now()->subMinutes(intdiv($i, 6));
+            $zgloszenie->forceFill(['created_at' => $chwila, 'updated_at' => $chwila])->save();
+
+            $wstawione[] = $zgloszenie;
+        }
+
+        $this->przestawSterte('reports');
+
+        // Oczekiwany porządek liczymy tak, jak ma sortować baza:
+        // `priorytet ASC, created_at DESC, id DESC`.
+        usort($wstawione, static function (Report $a, Report $b): int {
+            return [PriorytetSprawy::dla($a), -$a->created_at->getTimestamp(), 0] <=> [PriorytetSprawy::dla($b), -$b->created_at->getTimestamp(), 0]
+                ?: strcmp((string) $b->getKey(), (string) $a->getKey());
+        });
+
+        $oczekiwany = array_map(static fn (Report $r): string => (string) $r->getKey(), $wstawione);
+
+        $zebrane = $this->przejdzStrony(route('admin.reports'), $moderator, 'reports');
+
+        $this->assertPorzadek($oczekiwany, $zebrane, 'zgłoszeń', 'najpilniejsze na górze, wewnątrz wagi najnowsze');
     }
 
     /**

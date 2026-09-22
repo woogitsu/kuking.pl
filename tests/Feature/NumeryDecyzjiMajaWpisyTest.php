@@ -127,7 +127,7 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
     private const WZORZEC_NAGLOWKA = '/^## D-(\d{3})\b/m';
 
     /**
-     * JEDYNY PLIK POZA SKANEM — TEN.
+     * PLIKI POZA SKANEM — TRZY, I WSZYSTKIE MÓWIĄ O NUMERACJI.
      *
      * Wyszło to na pierwszym uruchomieniu i jest właśnie tym, co ten test ma
      * łapać: docblock wyżej OPOWIADA historię D-066 i D-067, stoi w nim lista
@@ -141,12 +141,35 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
      * MÓWIĄCY O NUMERACJI nie, bo mówi też o numerach, których celowo nie ma.
      * Ten plik jest w całości tekstem drugiego rodzaju.
      *
-     * Cena, świadoma: gdyby ktoś kiedyś napisał tutaj prawdziwy odnośnik do
-     * decyzji, wymknąłby się kontroli. Jest to jeden znany plik na 964, a nie
-     * cały katalog — i nie ma w nim czego uzasadniać numerem decyzji, bo cała
-     * reguła, której pilnuje, stoi w `AGENTS.md` §2, nie w dzienniku.
+     * Cena, świadoma: gdyby ktoś kiedyś napisał w którymś z nich prawdziwy
+     * odnośnik do decyzji, wymknąłby się kontroli. Są to trzy znane pliki na
+     * 964, a nie cały katalog.
+     *
+     * 22 września 2026 doszły dwa, oba z D-235 (strażnik numeracji przed
+     * scaleniem) i oba z tego samego powodu, co pierwszy:
+     *
+     *  • `scripts/numery-decyzji.sh` — wymienia numery ZMIERZONYCH kolizji
+     *    („o D-223 biło się sześć gałęzi, o D-226 trzy, o D-227 dwie"),
+     *    numery legalnie puste w akapicie o `--nastepny-wolny` oraz D-501
+     *    w kontroli ujemnej. Żaden z nich nie jest uzasadnieniem czegokolwiek
+     *    w tym skrypcie — wszystkie są DANYMI o numeracji;
+     *  • `tests/Feature/NumeracjaDecyzjiMaJedenFormatTest.php` — opowiada
+     *    historię `## D-1009-ROBOCZA` (czytanego jako D-100, numer bez wpisu)
+     *    i „## Uzupełnienie #369". Ten plik cytuje też D-235 NAPRAWDĘ, jako
+     *    swoje uzasadnienie, i to jest cena wyjątku wprost: tamten jeden
+     *    odnośnik przestaje podlegać kontroli.
+     *
+     * Granica zostaje ta sama, co przy `docs/`: plik MÓWIĄCY O NUMERACJI jest
+     * poza skanem, bo mówi też o numerach, których celowo nie ma. Nie wpisuj
+     * tu pliku, który po prostu cytuje decyzję.
+     *
+     * @var list<string>
      */
-    private const POZA_SKANEM = 'tests/Feature/NumeryDecyzjiMajaWpisyTest.php';
+    private const POZA_SKANEM = [
+        'tests/Feature/NumeryDecyzjiMajaWpisyTest.php',
+        'tests/Feature/NumeracjaDecyzjiMaJedenFormatTest.php',
+        'scripts/numery-decyzji.sh',
+    ];
 
     /**
      * WYJĄTKI — para „plik => numery z INNEJ numeracji", nie plik i nie numer.
@@ -315,7 +338,7 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
 
             $skrot = $this->skrot($plik);
 
-            if ($skrot === self::POZA_SKANEM) {
+            if (in_array($skrot, self::POZA_SKANEM, true)) {
                 continue;
             }
 

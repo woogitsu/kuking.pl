@@ -15023,9 +15023,17 @@ katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
 
-## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+## D-233 — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
-Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
+**Ta decyzja nosiła najpierw nagłówek `## D-1009-ROBOCZA`** i czekała na numer
+(„numer ostateczny przydziela koordynator przy scalaniu"). Numer nadano
+22 września, regułą z D-235. Zapis roboczy trzeba było zdjąć z dwóch powodów:
+czytało się go jako D-100 — numer, który w tym dzienniku NIE MA wpisu, więc
+odnośnik do niego byłby martwy — a dla `NumeryDecyzjiMajaWpisyTest` nagłówek
+w tym kształcie był NIEWIDOCZNY (wzorzec `^## D-(\d{3})\b` nie dopasowuje
+`D-1009`), czyli wpis nie liczył się ani jako istniejący, ani jako duplikat.
+
+Właściciel rozstrzygnął
 wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
 odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
 pełna gwarancja zaczyna się od wdrożenia.
@@ -15095,7 +15103,12 @@ klienta nie wystawia sesji. Ta decyzja nie dopuszcza cache HTML z sesją
 ani nie ustala opóźnienia ukrycia HTML. Projekt reguł, bramka i ograniczenia:
 `docs/infra/CLOUDFLARE_CACHE_597_610.md`. Konfiguracji Cloudflare nie zmieniono.
 
-## Uzupełnienie #369 — Próg prezentacji publicznej aktywności (20 września 2026)
+## D-234 — Próg prezentacji publicznej aktywności (uzupełnienie #369, 20 września 2026)
+
+**Ten wpis wisiał na końcu dziennika jako „Uzupełnienie #369", bez numeru.**
+Numer nadano 22 września, regułą z D-235. Wpis bez numeru nie jest wpisem
+pomocniczym — jest wpisem, na który nie da się powołać z kodu, bo cały
+mechanizm odnośników w tym repozytorium stoi na numerze.
 
 Właściciel zatwierdził pozostawienie **5 zdjęć / 3 osób wyłącznie jako progu
 prezentacji publicznej aktywności, bez obietnicy anonimowości**. Nie jest to
@@ -15109,3 +15122,118 @@ produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
 zakresu statystyk o prywatne treści ani ranking.
 
 Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
+
+## D-235 — Numer decyzji bierze się po sprawdzeniu gałęzi, nie po `main` (22 września 2026)
+
+**Numeracja NIE jest rozjechana — jest uzgodniona**, i to jest punkt wyjścia
+tej decyzji, a nie jej wniosek. Właściciel potwierdził przydziały: **D-223**
+kaskada, **D-227** #1164 (`flota/prog-postgresa`), **D-228** #966, **D-229**
+#1180, **D-230** #1168. Ten sam numer widoczny na kilkunastu gałęziach to ta
+sama decyzja rozniesiona przez scalenia, nie spór.
+
+Jest więc czego pilnować, a nie co naprawiać. **Nie
+przenumerowujemy cudzych, niescalonych gałęzi** — one są w robocie u innych
+sesji.
+
+### Co było naprawdę zepsute — dwie rzeczy, obie na `main`
+
+Dwa wpisy stały poza formatem, więc były dla strażników NIEWIDOCZNE:
+`## D-1009-ROBOCZA` (między D-222 a D-224, czytany jako D-100 — numer, który
+wpisu nie ma) oraz wiszące na końcu `## Uzupełnienie #369`, bez numeru w
+ogóle. Taki wpis nie liczy się ani jako istniejący, ani jako duplikat, a
+odnośnik do niego z kodu byłby martwy. Dostały numery: D-233 i D-234.
+
+### Jedna kolizja, która jest kolizją
+
+**#1222 (`naprawa/skladnik-bez-ilosci-jeden-kontrakt`) wziął D-227**, należący
+do #1164. Zmierzone: obie gałęzie mają własny wpis `## D-227` i osobno obie
+są zielone. Poprawia to **ta strona, która wzięła numer cudzy** — kto następny
+dotknie #1222, przestawia jego wpis na pierwszy wolny numer powyżej D-231
+(sesja #8 zmierzyła, że D-232 jest wolny). Nie ruszamy #1164.
+
+### Reguła
+
+Numer bierze się **po sprawdzeniu wszystkich gałęzi zdalnych**, nie po samym
+`main`: numer wzięty wczoraj na cudzej gałęzi jest zajęty, choć na `main` go
+jeszcze nie ma. Podpowiedź (`--nastepny-wolny`) oddaje numer o jeden wyższy
+niż najwyższy użyty gdziekolwiek, a **nie pierwszą wolną lukę**. Luki niosą
+informację: D-067, D-070, D-073, D-074 są zarezerwowane, D-084, D-086, D-094
+puste świadomie i na stałe, a D-108…D-112 to odstęp od numeracji systemu
+projektowego v3.1. Reguła „pierwsza wolna luka" oddaje tu D-067 — zmierzone.
+
+Ta decyzja bierze D-233…D-236 i zostawia D-231 oraz D-232 nietknięte.
+
+### Mechanizm
+
+`scripts/numery-decyzji.sh` (w `scripts/check.sh`, czyli przed PR-em) zgłasza
+duplikat w pliku, nagłówek poza formatem oraz **kolizję międzygałęziową**:
+numer dołożony na tej gałęzi ponad `origin/main`, który dokłada też inna
+gałąź zdalna. To jest ta kontrola, której `NumeryDecyzjiMajaWpisyTest`
+wykonać nie może — tamten czyta jeden plik w jednym drzewie, więc obie strony
+sporu o D-227 widzi zielone aż do scalenia drugiej. Sprawdzone na prawdziwych
+danych: podstawiony D-230 zapala się z nazwą gałęzi `flota/scal-zeszyt-775`.
+
+Skrypt **niczego nie przenumerowuje sam**. Przy kolizji nazywa gałąź i
+zostawia rozstrzygnięcie człowiekowi, bo „kto ustępuje" jest ustaleniem
+właściciela, a nie funkcją treści pliku. Ma własną kontrolę ujemną
+(`--kontrola-ujemna`). Bez dostępu do gałęzi zdalnych kontrola
+międzygałęziowa kończy się jawnym ostrzeżeniem, nie cichą zielenią.
+
+Format nagłówka pilnuje osobno `NumeracjaDecyzjiMaJedenFormatTest`.
+
+## D-236 — Kolejka moderacji czyta się od rzeczy, która nie może czekać (22 września 2026)
+
+Kolejka `/admin/zgloszenia` sortowała `created_at DESC, id DESC`. Zmierzone:
+zgłoszenie „Dotyczy dziecka" sprzed dwóch dni leży pod trzydziestoma
+zgłoszeniami spamu z ostatniej godziny, czyli na DRUGIEJ stronie — a spam
+jest jedyną kategorią przychodzącą falami, więc im gorszy dzień, tym głębiej
+schodzi rzecz najcięższa. Osobno: alarm mailowy istniał WYŁĄCZNIE po stronie
+automatu (D-055), więc model podejrzewający treść seksualną z udziałem
+dziecka budził moderatora listem, a człowiek, który to samo zgłosił
+przyciskiem, nie budził nikogo. Cichsza była droga, na której ktoś to już
+zobaczył.
+
+**Priorytet liczy się z danych, nie jest wpisywany.** `PriorytetSprawy`
+czyta `reason` (kategoria wybrana przez zgłaszającego) i `source`
+(zgłoszenie prawne ma podłogę na P1, bo niesie termin z DSA art. 16 ust. 5).
+Lista P0 to DOKŁADNIE ta sama para, którą za pilną uznaje automat
+(`KategorieModeracji::PILNE`): treść seksualna i wszystko, co dotyczy
+dziecka. Jedna definicja „pilnego" na cały serwis.
+
+**Bez kolumny i bez migracji.** Wartość idzie do `ORDER BY CASE`, tak samo
+jak `Report::WAGA` w kolejce automatu: to jest reguła produktu, nie fakt
+o wierszu. Zmiana listy kategorii ma być jedną linijką i jednym czerwonym
+testem, a nie migracją przepisującą historyczne wiersze na nową skalę.
+
+**Sprzeczność z `KolejkiModeracjiMajaStabilnyPorzadekTest` rozstrzygnięta
+świadomie.** Gwarancja „najnowsze na górze" upada W CAŁEJ KOLEJCE, bo
+obiecywała porządek nie do obronienia przy falach spamu. Zastępują ją dwie
+węższe: wewnątrz jednego priorytetu porządek jest NIETKNIĘTY (najnowsze na
+górze, remis po `id`), a stabilne stronicowanie zostaje bez osłabienia —
+mierzy to dopisany test przy mieszanych priorytetach. Kierunku wewnątrz wagi
+NIE odwracamy, choć odrzucona gałąź `claude/priorytet-w-kolejce-moderacji`
+to proponowała: to osobna decyzja, bez dowodu i z ceną (góra kolejki
+przestaje się odświeżać). Kolejki odwołań zmiana nie dotyczy.
+
+**Alarm zostaje pocztą i nie dokłada kanału.** `AlarmujOPilnymZgloszeniu`
+woła obie drogi zgłoszenia (społecznościową i prawną, bo ta druga działa bez
+konta) i wysyła list tylko przy P0, na ten sam `alarm_email` co alarm
+automatu; pusty adres znaczy „bez poczty" i jest normalnym stanem lokalnie.
+List NIE niesie treści zgłoszonej ani pola `details` — to niesprawdzony tekst
+od dowolnej osoby, a poczta idzie przez zewnętrznego dostawcę.
+
+**Czego świadomie NIE zbudowano.** Kolumny `priorytet` z ręczną zmianą przez
+moderatora, oznaczenia „P0 nieprzejrzane" w pasku panelu i historii sankcji
+autora — wszystkie trzy były w odrzuconej gałęzi. Historia sankcji nie wchodzi
+do priorytetu, bo na pytanie „czy to może poczekać do jutra" odpowiada rodzaj
+szkody, a nie kartoteka osoby; recydywa jest argumentem przy DECYZJI.
+Kosztowałaby przy tym dwa zapytania na pozycję ekranu, bo `reports` nie ma
+kolumny z autorem zgłoszonej treści.
+
+**Czego priorytet nie twierdzi.** Że sprawa jest tym, czym nazwał ją
+zgłaszający — nikt tej treści jeszcze nie obejrzał. Zmienia wyłącznie
+kolejność czytania i wysyła jeden list: nie ukrywa treści, nie ogranicza jej
+zasięgu i nie powiadamia autora.
+
+Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
+i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.

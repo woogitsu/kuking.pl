@@ -72,6 +72,25 @@
 
     @forelse($reports as $report)
         <article class="card mb-5">
+            {{--
+                PILNOŚĆ WIDAĆ NAD KATEGORIĄ, NIE POD NIĄ.
+
+                Kolejność w bazie ustawia sprawy tak, żeby najpilniejsze były
+                pierwsze — ale sam porządek tego nie MÓWI. Moderator, który
+                wchodzi na drugą stronę albo na zakładkę „Wszystkie", widzi
+                listę bez początku i nie ma skąd wiedzieć, czy to, na co
+                patrzy, jest ciężkie, czy zwykłe.
+
+                Napis, nie sam kolor (`docs/UX_50_PLUS.md`): kolor jest tu
+                dodatkiem do zdania, a nie jedynym nośnikiem różnicy.
+            --}}
+            @php($priorytet = \App\Domain\Moderation\PriorytetSprawy::dla($report))
+            @if($napisPriorytetu = \App\Domain\Moderation\PriorytetSprawy::napis($priorytet))
+                <p class="meta mt-0 mb-2">
+                    <strong class="priorytet priorytet-{{ $priorytet }}">{{ $napisPriorytetu }}</strong>
+                </p>
+            @endif
+
             <h2 class="mt-0 text-title-sm">{{ $report->reasonLabel() }}</h2>
             <p class="meta">
                 {{ $report->target_type }}@if($report->target_id) · {{ $report->target_id }}@endif ·

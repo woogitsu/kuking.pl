@@ -32,6 +32,33 @@ open
 → resolved / rejected
 ```
 
+## Kolejność w kolejce — priorytet (D-236)
+
+`/admin/zgloszenia` sortuje `priorytet ASC, created_at DESC, id DESC`.
+Priorytet **liczy się z danych** (`App\Domain\Moderation\PriorytetSprawy`),
+nie ma kolumny w bazie i nie da się go wpisać ręcznie.
+
+| Priorytet | Skąd | Napis na karcie |
+|---|---|---|
+| **P0** — nie może czekać | `reason` ∈ `minor`, `sexual` — ta sama para, co `KategorieModeracji::PILNE` | „Nie może czekać" |
+| **P1** — na dziś | `reason` ∈ `scam`, `harassment`, `hate`, `personal_data`, `dangerous_advice`; **oraz podłoga** dla `source = legal_notice` (termin z DSA art. 16 ust. 5) | „Na dziś" |
+| **P2** — kolejka | reszta (`spam`, `impersonation`, `copyright`, `other`) | bez plakietki |
+
+Wewnątrz jednego priorytetu porządek jest ten sam co zawsze: najnowsze na
+górze, remis rozstrzygany po `id` (stabilne stronicowanie —
+`KolejkiModeracjiMajaStabilnyPorzadekTest`).
+
+**Kategorię wybiera zgłaszający i nikt jej jeszcze nie sprawdził.** Priorytet
+zmienia WYŁĄCZNIE kolejność czytania i wysyła jeden list — nie ukrywa treści,
+nie ogranicza jej zasięgu i nie powiadamia autora.
+
+**Alarm pocztą przy P0.** `AlarmujOPilnymZgloszeniu` woła obie drogi
+zgłoszenia (społecznościową i prawną, bo ta druga działa bez konta) i wysyła
+`PilneZgloszenieOdCzlowieka` na `kuking.moderation.model.alarm_email` — ten
+sam adres, co alarm automatu (D-055). Pusty adres znaczy „bez poczty" i jest
+normalnym stanem lokalnie oraz w testach. List nie niesie treści zgłoszonej
+ani pola `details`.
+
 ## Akcje
 
 - no action;
