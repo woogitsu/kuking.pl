@@ -89,6 +89,7 @@ class KontaktPotwierdzeniaTest extends TestCase
         config(['logging.channels.blad_webhook.url' => 'https://example.test/webhook']);
         Log::shouldReceive('channel')->with('blad_webhook')->times(4)->andReturnSelf();
         Log::shouldReceive('error')->times(4);
+        $this->pozwolNaKontekstKorelacji();
         foreach (['bledny@example.test', null] as $old) {
             $key = (string) Str::uuid7();
             $this->send($old, ['klucz_wyslania' => $key]);
@@ -105,6 +106,7 @@ class KontaktPotwierdzeniaTest extends TestCase
         config(['logging.channels.blad_webhook.url' => 'https://example.test/webhook']);
         Log::shouldReceive('channel')->with('blad_webhook')->once()->andReturnSelf();
         Log::shouldReceive('error')->once();
+        $this->pozwolNaKontekstKorelacji();
         $key = (string) Str::uuid7();
         $this->send(null, ['klucz_wyslania' => $key]);
         $this->send(null, ['klucz_wyslania' => $key]);
@@ -148,5 +150,35 @@ class KontaktPotwierdzeniaTest extends TestCase
         $this->actingAs($this->user('drugie'));
         $this->assertStringNotContainsString('Mamy Twoją wiadomość', $this->screen($url));
         $this->assertStringNotContainsString('Mamy Twoją wiadomość', $this->screen(route('kontakt.potwierdzenie', ['potwierdzenie' => ['zly']])));
+    }
+
+    /**
+     * PRZEPUSZCZA KONTEKST KORELACJI PRZEZ ATRAPĘ DZIENNIKA.
+     *
+     * `Log::shouldReceive()` podmienia CAŁY `LogManager` na ścisłą atrapę
+     * Mockery: każda metoda bez zadeklarowanego oczekiwania rzuca
+     * `BadMethodCallException`. Te dwa testy deklarują `channel()` i
+     * `error()`, bo o nie im chodzi — ale `CorrelateRequest`
+     * (`bootstrap/app.php`, grupa `web`) woła przy KAŻDYM żądaniu jeszcze
+     * `shareContext()`, `sharedContext()`, `withoutContext()` oraz
+     * `flushSharedContext()`, żeby identyfikator żądania dożył do
+     * wyrenderowania strony błędu.
+     *
+     * Bez tych zgód pierwszy `$this->send(...)` kończył się HTTP 500
+     * z „Received …LogManager::shareContext(), but no expectations were
+     * specified" — czyli test mierzył własną atrapę, nie formularz kontaktu.
+     *
+     * `byDefault()` jest tu istotne: to ZGODA, nie oczekiwanie. Liczbę
+     * wywołań pilnują `times(4)` i `once()` wyżej, i mają dalej pilnować —
+     * gdyby te cztery metody były zwykłymi oczekiwaniami, każda zmiana
+     * liczby żądań w teście zmieniałaby też jego wynik z powodu, o który
+     * temu testowi nie chodzi.
+     */
+    private function pozwolNaKontekstKorelacji(): void
+    {
+        Log::shouldReceive('shareContext')->andReturnSelf()->byDefault();
+        Log::shouldReceive('sharedContext')->andReturn([])->byDefault();
+        Log::shouldReceive('withoutContext')->andReturnSelf()->byDefault();
+        Log::shouldReceive('flushSharedContext')->andReturnSelf()->byDefault();
     }
 }
