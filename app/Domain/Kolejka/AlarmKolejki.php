@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Domain\Kolejka;
 
+use App\Domain\Monitoring\AlarmMemory;
 use App\Logging\WebhookBleduHandler;
 use Illuminate\Support\Carbon;
-use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\Log;
 use Throwable;
 
@@ -82,7 +82,7 @@ final class AlarmKolejki
             return false;
         }
 
-        $zapis = Cache::get(self::KLUCZ);
+        $zapis = app(AlarmMemory::class)->get(self::KLUCZ);
         // Bez kanału i bez wcześniejszego alarmu nie tworzymy pamięci.
         // Istniejący alarm nadal obserwujemy: spokój unieważnia jego ciszę
         // także wtedy, gdy wysłanie odwołania jest chwilowo wyłączone.
@@ -98,12 +98,12 @@ final class AlarmKolejki
         $pamiec['stan'] = $stan;
 
         if ($spokojny && $pamiec['dostarczony_o'] === 0) {
-            Cache::forget(self::KLUCZ);
+            app(AlarmMemory::class)->forget(self::KLUCZ);
 
             return false;
         }
 
-        Cache::put(self::KLUCZ, $pamiec, $this->pamiec());
+        app(AlarmMemory::class)->put(self::KLUCZ, $pamiec, $this->pamiec());
         if (! $this->kanalWlaczony()) {
             return false;
         }
@@ -123,7 +123,7 @@ final class AlarmKolejki
         $przyjeto = $this->kanalPrzyjal($tresc);
 
         if ($spokojny && $przyjeto) {
-            Cache::forget(self::KLUCZ);
+            app(AlarmMemory::class)->forget(self::KLUCZ);
 
             return true;
         }
@@ -137,7 +137,7 @@ final class AlarmKolejki
         }
         // Porażka nie nadpisuje przyjętego alarmu ani nie odtwarza ciszy
         // zakończonego epizodu. Odwołujemy ostatni PRZYJĘTY stan.
-        Cache::put(self::KLUCZ, $pamiec, $this->pamiec());
+        app(AlarmMemory::class)->put(self::KLUCZ, $pamiec, $this->pamiec());
 
         return $przyjeto;
     }
