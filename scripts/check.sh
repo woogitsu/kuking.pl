@@ -167,9 +167,9 @@ fi
 # BAZA: DOKŁADNIE ta sama, co w kroku axe wyżej, i DOKŁADNIE własna baza
 # `dostepnosc.mjs` — nie `kuking_test_*`. Rodzina `kuking_test*` to bazy
 # `php artisan test` liczone w `tests/nazwa-bazy.php` (worktree o nazwie
-# `a11y` dostaje DOKŁADNIE `kuking_test_a11y`), a bezpiecznik z D-226
+# `a11y` dostaje DOKŁADNIE `kuking_test_a11y`), a bezpiecznik z D-241 (#966)
 # ODMAWIA na niej startu. Tu strażnik tylko czyta, ale ma czytać to, co
-# zasiał krok wyżej — a ten po D-226 sieje w `kuking_a11y`.
+# zasiał krok wyżej — a ten po D-241 sieje w `kuking_a11y`.
 #
 # Idzie przez `kaskada-kontrola-polecenie.sh`, nie przez gołe `node …mjs`:
 # zawężenie `--tylko` ma JEDNO miejsce, wspólne z bramką CI i z kontrolą
