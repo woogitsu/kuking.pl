@@ -1,0 +1,10 @@
+PASS  Tests\Feature\ZrodloZewnetrzneWDanychStrukturalnychTest
+  ✓ adres zrodla zewnetrznego stoi w is based on                         0.07s
+  ✓ pusty adres nie zostawia pustego is based on                         0.05s
+  ✓ adres przy innym zrodle niz zewnetrzne nie idzie do danych           0.06s
+  ✓ przepis prywatny nie oddaje zadnych danych strukturalnych            0.05s
+  ✓ adres nie wchodzi do autora                                          0.07s
+  ✓ adres nigdzie nie udaje nazwanej encji                               0.07s
+
+  Tests:    4394 passed (83703 assertions)
+  Duration: 296.27s
