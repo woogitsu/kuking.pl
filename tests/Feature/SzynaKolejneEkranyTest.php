@@ -43,7 +43,8 @@ class SzynaKolejneEkranyTest extends TestCase
         @$dom->loadHTML('<?xml encoding="UTF-8">'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
         $xpath = new \DOMXPath($dom);
 
-        $szyna = $xpath->query("//aside[contains(concat(' ', normalize-space(@class), ' '), ' app-rail ')]")->item(0);
+        $klasaSzyny = str_contains(parse_url($url, PHP_URL_PATH) ?: '', '/@') ? 'marka-profil-szyna' : 'app-rail';
+        $szyna = $xpath->query("//aside[contains(concat(' ', normalize-space(@class), ' '), ' {$klasaSzyny} ')]")->item(0);
 
         $this->assertNotNull($szyna, "Ekran {$url}: brak <aside class=\"app-rail\"> — szyna nie ma gdzie stanąć.");
 
@@ -150,7 +151,7 @@ class SzynaKolejneEkranyTest extends TestCase
 
     // --- ZESZYT (/zeszyt i /zeszyt/{id}) ---------------------------------
 
-    public function test_moje_ma_w_szynie_ostatnio_odlozone(): void
+    public function test_moje_ma_w_tresci_glownej_ostatnio_odlozone(): void
     {
         $ja = $this->user('zbieracz');
         $autor = $this->user('autor_przepisu');
@@ -163,7 +164,17 @@ class SzynaKolejneEkranyTest extends TestCase
         $wpis = Post::factory()->for($autor, 'author')->create(['body' => 'Placki na niedzielę']);
         $zeszyt->posts()->attach($wpis->getKey(), ['created_at' => now()]);
 
-        $szyna = $this->szyna(route('collections.index'), $ja);
+        $html = $this->strona(route('collections.index'), $ja);
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($dom);
+        $sekcje = $xpath->query('//main//section[contains(@class,"marka-zeszyt-ostatnie")]');
+        $this->assertSame(1, $sekcje->length);
+        $this->assertSame(1, $xpath->query('//section[contains(@class,"marka-zeszyt-ostatnie")]')->length);
+        $this->assertSame(0, $xpath->query('//aside//*[contains(@class,"marka-zeszyt-ostatnie")]')->length);
+        $this->assertSame(1, $xpath->query('preceding-sibling::div[contains(@class,"marka-zeszyty")]', $sekcje->item(0))->length);
+        $this->assertSame(1, $xpath->query('following-sibling::details[contains(@class,"panel-formularza")]', $sekcje->item(0))->length);
+        $szyna = $dom->saveHTML($sekcje->item(0));
 
         $this->assertStringContainsString('Ostatnio odłożone', $szyna);
         $this->assertStringContainsString('Barszcz z uszkami', $szyna);
@@ -178,7 +189,7 @@ class SzynaKolejneEkranyTest extends TestCase
         );
     }
 
-    public function test_szyna_moje_nie_pokazuje_tresci_ktorej_juz_nie_wolno_ogladac(): void
+    public function test_ostatnie_zapisy_nie_pokazuja_tresci_ktorej_juz_nie_wolno_ogladac(): void
     {
         $ja = $this->user('zbieracz2');
         $autor = $this->user('autor2');
@@ -273,7 +284,6 @@ class SzynaKolejneEkranyTest extends TestCase
 
         $ekrany = [
             route('profile.show', 'kolejnosc'),
-            route('collections.index'),
             route('collections.show', $zeszyt),
             route('add'),
             route('kontakt'),
@@ -283,7 +293,8 @@ class SzynaKolejneEkranyTest extends TestCase
             $html = $this->strona($url, $ja);
 
             $tresc = strpos($html, 'id="tresc"');
-            $szyna = strpos($html, 'class="app-rail"');
+            $klasaSzyny = str_contains(parse_url($url, PHP_URL_PATH) ?: '', '/@') ? 'marka-profil-szyna' : 'app-rail';
+            $szyna = strpos($html, 'class="'.$klasaSzyny.'"');
 
             $this->assertIsInt($tresc, "Ekran {$url}: brak <main id=\"tresc\">.");
             $this->assertIsInt($szyna, "Ekran {$url}: brak <aside class=\"app-rail\">.");

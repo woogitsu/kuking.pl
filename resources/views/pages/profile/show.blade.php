@@ -1,5 +1,6 @@
 @php $p = $profile; @endphp
 <x-layout
+    :szynaWTresci="true"
     :title="$p->display_name.' (@'.$p->username.')'"
     :description="$p->bio ?: $p->display_name.' gotuje w Kuking.'"
     :noindex="$stats['posts'] === 0 && $stats['recipes'] === 0"
@@ -28,28 +29,10 @@
         @endif
     </x-slot:head>
 
-    {{--
-        PRAWA SZYNA (issue #205). Treść i uzasadnienie: `szyna-profilu`.
+    {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
+         wpisów, przepisów i wykonań, i to one mają się unosić. --}}
+    <header class="sekcja-strony mb-6 marka-profil marka-profil-kompozycja blok-ciemny">
 
-        Slot stoi TUTAJ, na górze pliku, a mimo to w gotowym dokumencie
-        `<aside class="app-rail">` renderuje się PO `<main>` — Blade wstawia
-        zawartość slotu tam, gdzie ten slot stoi w LAYOUCIE. Kolejność `Tab`
-        i czytnika ekranu się więc nie zmienia (ten sam mechanizm co przy
-        spisie ustawień, #209), i dlatego nie ma tu żadnego CSS-owego `order`.
-    --}}
-    <x-slot:rail>
-        <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny" :tagi="$tagiSzyny" />
-    </x-slot:rail>
-
-    <header class="card mb-6">
-        {{--
-            UKŁAD Z KITU (UI kit v2, ekran 04): awatar i kolumna z imieniem
-            razem, LICZNIKI POD OPISEM — nie osobnym pełnoszerokim wierszem
-            pod całym nagłówkiem, jak dawniej. `.profil-glowka-tresc`
-            w ekran-profilu.css robi z tego siatkę (awatar | treść) i wraca
-            do jednej kolumny poniżej `--breakpoint-md`, żeby przy 320 px
-            awatar nie ściskał opisu do wąskiego paska tekstu.
-        --}}
         <div class="profil-glowka-tresc">
             {{--
                 WŁASNY AWATAR JEST ODNOŚNIKIEM DO USTAWIENIA ZDJĘCIA.
@@ -73,16 +56,10 @@
                 zdjęciem potrawy. Dwa podobnie brzmiące „dodaj zdjęcie" jeden
                 pod drugim byłyby gorsze niż dłuższa nazwa.
 
-                ROZMIAR 128 px, NIE 88: na profilu awatar jest zdjęciem
-                CZŁOWIEKA, o którym jest cała strona, a nie znaczkiem przy
-                cudzym wpisie — i miejsce na niego jest, bo kolumna awatara
-                i tak musi pomieścić przycisk pod nim. Prośba właściciela
-                brzmiała dosłownie: „zdjęcie profilowe może brać więcej
-                miejsca, bo jest na to miejsce".
             --}}
             @if($isOwner)
                 <a class="profil-awatar-zmiana" href="{{ route('settings.avatar') }}">
-                    <x-avatar :user="$owner" :size="128" />
+                    <x-avatar :user="$owner" :size="170" />
                     {{--
                         PODPIS WYGLĄDA JAK AKCJA, BO JEST AKCJĄ.
 
@@ -111,10 +88,36 @@
                     </span>
                 </a>
             @else
-                <x-avatar :user="$owner" :size="128" />
+                <x-avatar :user="$owner" :size="170" />
             @endif
             <div class="min-w-0">
-                <h1 class="m-0 mb-1">{{ $p->display_name }}</h1>
+                {{--
+                    NAZWA I `@nazwa` W JEDNYM WIERSZU, DOPÓKI SIĘ MIESZCZĄ.
+
+                    Zgłoszenie właściciela (#435) brzmiało dosłownie: „Mój profil
+                    jest miejsce by dać @woogitsu obok Mateusz”. Do tej zmiany
+                    `@nazwa` stała osobnym akapitem pod nazwą — czyli brała cały
+                    wiersz główki po to, żeby powiedzieć kilkanaście znaków,
+                    a główka na telefonie i tak nie mieści się na ekranie.
+
+                    `flex-wrap` w `.profil-tozsamosc`, a nie sztywny wiersz:
+                    `display_name` ma `max:100`, a `username` swoje 30 — przy
+                    długiej nazwie albo przy czcionce przeglądarki 200% `@nazwa`
+                    ma prawo zejść pod spod i schodzi. Wspólna linia pisma robi
+                    `align-items: baseline`.
+
+                    PLAKIETKA KONTA PRZYKŁADOWEGO SCHODZI POD TĘ PARĘ, a nie
+                    stoi między nazwą a `@nazwą`: inaczej nie da się ich
+                    złożyć w jeden wiersz. Kolejność czytania zostaje
+                    sensowna — najpierw kto to jest, potem czym to konto jest.
+                --}}
+                <div class="profil-tozsamosc">
+                    <h1 class="m-0">{{ $p->display_name }}</h1>
+                    <p class="meta m-0">
+                        &#64;{{ $p->username }}
+                        @if($p->region) · {{ $p->region }} @endif
+                    </p>
+                </div>
                 @if($owner->isSeeded())
                     {{-- `waga="glosna"`: profil jest JEDYNYM miejscem, gdzie
                          ta plakietka wolno stoi głośno — wszędzie indziej
@@ -132,14 +135,10 @@
                     --}}
                     <p class="notice">
                         To konto jest przykładowe: nie ma za nim prawdziwej osoby.
-                        Treści dodała redakcja Kuking, żeby na początek było tu
+                        Treści dodała redakcja <x-kuking-word />, żeby na początek było tu
                         co poczytać.
                     </p>
                 @endif
-                <p class="meta m-0 mb-3">
-                    &#64;{{ $p->username }}
-                    @if($p->region) · {{ $p->region }} @endif
-                </p>
                 @if($p->speciality)
                     <p class="m-0 mb-3"><span class="badge badge-cooked">Zna się na: {{ $p->speciality }}</span></p>
                 @endif
@@ -147,42 +146,8 @@
                     <p class="whitespace-pre-line mb-4">{{ $p->bio }}</p>
                 @endif
 
-                {{--
-                    LICZNIKI: PIĘĆ RÓWNYCH WIERSZY, NIE RZĄD ZAWIJANY DO
-                    KOŃCA WIERSZA.
 
-                    Do tej zmiany było tu pięć pozycji w kontenerze
-                    `flex-wrap`, więc szerokość każdej brała się z długości
-                    podpisu, a wiersze wychodziły „3 + 2" albo „2 + 3"
-                    zależnie od okna i skali tekstu. Właściciel nazwał to
-                    wprost: nieczytelne i niesymetryczne.
 
-                    Teraz każdy licznik to jeden wiersz „liczba + odmieniony
-                    podpis" („2 wpisy"), wszystkie zaczynają się w tej samej
-                    linii i mają tę samą wysokość. Dlaczego JEDNA kolumna,
-                    a nie dwie — z pomiarem szerokości tej karty: komentarz
-                    przy `.profil-liczniki` w `ekran-profilu.css`.
-
-                    Kolejność w HTML zostaje ta sama co dawniej, bo to ona
-                    decyduje o kolejności czytania i `Tab`.
-
-                    §12: to są liczby o WŁASNEJ treści tej osoby, bez
-                    porównania z kimkolwiek. Nie ma tu miejsca w tabeli,
-                    nie ma „więcej niż 80% kuKINGów" i nie będzie.
-                --}}
-                <ul class="profil-liczniki" aria-label="Liczby tego profilu">
-                    <x-licznik-profilu rodzaj="wpisy" :ile="$stats['posts']" />
-                    <x-licznik-profilu rodzaj="przepisy" :ile="$stats['recipes']" />
-                    <x-licznik-profilu rodzaj="ugotowania" :ile="$stats['cooked']" />
-                    <x-licznik-profilu
-                        rodzaj="obserwujacy"
-                        :ile="$stats['followers']"
-                        :href="route('social.followers', $p->username)" />
-                    <x-licznik-profilu
-                        rodzaj="obserwowani"
-                        :ile="$stats['following']"
-                        :href="route('social.following', $p->username)" />
-                </ul>
             </div>
         </div>
 
@@ -190,11 +155,48 @@
             @if($isOwner)
                 <a class="btn btn-secondary" href="{{ route('settings.profile') }}">Zmień swój profil</a>
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj zdjęcie</a>
-                {{-- WYLOGOWANIE NA TELEFONIE MA TYLKO TĘ DROGĘ.
-                     `.side-nav` ma `display: none` poniżej 64rem, a pasek
-                     dolny nie ma pozycji „Ustawienia" — własny profil jest
-                     więc jedynym ekranem z obsługą konta w zasięgu kciuka.
-                     Ten sam składnik co w nawigacji bocznej. --}}
+                {{--
+                    USTAWIENIA I WYLOGOWANIE: NA TELEFONIE TO JEDYNA DROGA
+                    (issue #344).
+
+                    `.side-nav` ma `display: none` poniżej 64rem
+                    (`resources/css/app.css:1173`), a pasek dolny niesie pięć
+                    pozycji — Start, Szukaj, Dodaj, Moje, Profil — i szóstej
+                    mieć nie może (AGENTS.md §5). Awatar w pasku górnym jest
+                    `topbar-desktop-only`. Własny profil jest więc jedynym
+                    ekranem, z którego człowiek z telefonem dochodzi do
+                    obsługi konta.
+
+                    DLACZEGO OSOBNY NAPIS „Ustawienia", SKORO OBOK JEST JUŻ
+                    „Zmień swój profil"
+                    Bo to nie jest to samo słowo. `/ustawienia/profil` NIESIE
+                    spis wszystkich ekranów ustawień (`x-ustawienia-nawigacja`),
+                    więc technicznie dało się tam dojść i wcześniej — ale
+                    tylko wtedy, gdy ktoś ZGADŁ, że pod „Zmień swój profil"
+                    stoi też czytelność, prywatność, hasło i usunięcie konta.
+                    Człowiek, który szuka „Ustawień", szuka napisu
+                    „Ustawienia". Zgadywanie jest tu kosztem, a nie krokiem.
+
+                    DLACZEGO WŁAŚNIE `settings.index`
+                    Bo pod tym samym napisem stoi to samo miejsce na
+                    komputerze: pozycja „Ustawienia" w nawigacji bocznej
+                    prowadzi na `route('settings.index')`
+                    (`components/layout.blade.php`). Do 12 września 2026
+                    oba te miejsca celowały w `settings.accessibility`, czyli
+                    w ekran o nagłówku „Czytelność" — D-168 zapisało to jako
+                    koszt przyjęty świadomie, bo rozdroża `/ustawienia`
+                    w serwisie nie było, a dwa różne cele dla jednego napisu
+                    byłyby gorsze niż jeden cel dziwny. Rozdroże powstało
+                    (issue #344), więc napis i nagłówek ekranu wreszcie mówią
+                    to samo słowo.
+
+                    NIE JEST TO MARTWY PRZYCISK (D-053): trasa istnieje, jest
+                    w tej samej grupie `auth` co reszta ustawień, a ekran, na
+                    który prowadzi, jest spisem wszystkich dziewięciu.
+                --}}
+                <a class="btn btn-secondary" href="{{ route('settings.index') }}">Ustawienia</a>
+                {{-- Ten sam składnik co w nawigacji bocznej — POST z tokenem
+                     CSRF, nigdy odnośnik GET. --}}
                 <x-wyloguj />
             {{--
                 KONTO WYMAZANE (`erased`, D-022) NIE PRZYJMUJE ŻADNEJ AKCJI.
@@ -224,18 +226,36 @@
                 @if($isFollowing)
                     <form method="POST" action="{{ route('social.unfollow', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- Ta sama ochrona co przy blokadzie niżej (#793):
+                             nazwa w adresie mogła między wyrenderowaniem tej
+                             strony a kliknięciem trafić do kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                     </form>
-                @else
+                @elseif($owner->isActive())
                     <form method="POST" action="{{ route('social.follow', $p->username) }}">
                         @csrf
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-primary" type="submit">Obserwuj</button>
                     </form>
+                @else
+                    {{-- #780: konto zawieszone przechodzi `jestWidocznyJakoOsoba()`
+                         (zawieszenie jest tymczasowe, karta osoby ma zostać),
+                         ale `UserPolicy::follow()` wymaga `isActive()` i zawsze
+                         odmawia. Przycisk „Obserwuj", który zawsze kończy się
+                         błędem, jest martwym przyciskiem (D-053) — widok
+                         i Policy mówiłyby co innego, a człowiek dowiadywałby
+                         się dopiero po kliknięciu. --}}
+                    <p class="mb-0">To konto jest teraz zawieszone. Nie można go obserwować, dopóki zawieszenie nie zostanie zdjęte.</p>
                 @endif
                 <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $p->username]) }}">Zgłoś</a>
                 @if($hasBlocked)
                     <form method="POST" action="{{ route('social.unblock', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- #793: nazwa użytkownika w adresie mogła między
+                             wyrenderowaniem strony a kliknięciem trafić do
+                             kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
@@ -243,7 +263,8 @@
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'" />
+                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
                 <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
@@ -251,6 +272,13 @@
         </div>
     </header>
 
+    <div class="marka-profil-statystyki">
+        <x-liczby-profilu :stats="$stats" :username="$p->username" />
+    </div>
+
+    @php $maSzyneProfilu = $isOwner || $zeszytySzyny->isNotEmpty() || $tagiSzyny->isNotEmpty() || $zdjeciaSzyny->isNotEmpty(); @endphp
+    <div class="marka-profil-dol {{ $maSzyneProfilu ? 'marka-profil-dol-z-szyna' : '' }}">
+    <div class="marka-profil-archiwum">
     <nav class="tabs" aria-label="Zakładki profilu">
         <a class="tab" href="{{ route('profile.show', $p->username) }}" @if($tab === 'wszystko') aria-current="page" @endif>Wszystko</a>
         <a class="tab" href="{{ route('profile.show', ['username' => $p->username, 'zakladka' => 'przepisy']) }}" @if($tab === 'przepisy') aria-current="page" @endif>Przepisy</a>
@@ -263,7 +291,7 @@
                            :action="$isOwner ? 'Dodaj pierwsze zdjęcie' : null"
                            :href="$isOwner ? route('posts.create') : null">
                 @if($isOwner)
-                    Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok będziesz mogła tu wrócić i zobaczyć, co wtedy gotowałaś.
+                    Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj.
                 @endif
             </x-empty-state>
         @else
@@ -336,4 +364,12 @@
             <x-show-more :paginator="$cookedEvents" czego="wykonań" />
         @endif
     @endif
+    </div>
+    @if($maSzyneProfilu)
+        <aside class="marka-profil-szyna" aria-label="Skróty i podpowiedzi profilu">
+            <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny" :zdjecia="$zdjeciaSzyny"
+                :tagi="$tagiSzyny" :stats="$stats" />
+        </aside>
+    @endif
+    </div>
 </x-layout>

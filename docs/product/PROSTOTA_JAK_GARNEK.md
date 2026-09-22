@@ -159,8 +159,8 @@ zmieniać.
 | Mechanika Garnka | Co mamy u nas | Wniosek |
 |---|---|---|
 | Jedna oś czasu, zero folderów i albumów | Feed obserwowanych chronologiczny + „Świeżo z Kuking” chronologiczne (`app/Domain/Feed/FollowingFeed.php`, `DiscoverFeed.php`) | **Mamy to samo, tylko inaczej nazwane.** Zero rankingu, zero algorytmu — to samo zdanie co w AGENTS.md §8 i SOUL.md §4.12. |
-| Strona zdjęcia to jeden ekran bez klikania w cokolwiek | Karta wpisu (`post-card.blade.php`) już pokazuje autora, tekst, zdjęcie i licznik komentarzy w feedzie; strona wpisu (`posts/show.blade.php`) dokłada tylko akcje właściciela i pełny wątek komentarzy | **Mamy to samo, tylko inaczej zorganizowane.** Treść jest widoczna bez klikania (w karcie); klik otwiera „więcej”, nie „resztę treści”. |
-| Nawigacja „kolejne >” po archiwum autora prosto ze strony zdjęcia | Brak. Strona wpisu (`posts/show.blade.php`) nie ma odnośnika do poprzedniego/następnego wpisu tego samego autora — trzeba wrócić do jego profilu | **Warto uprościć — konkretnie tak:** patrz ranking, poz. 4. (Nie proponujemy tego jako zaimplementowany element tego PR-a — plik `posts/show.blade.php` jest poza zakresem tej pracy.) |
+| Strona zdjęcia to jeden ekran bez klikania w cokolwiek | Karta wpisu (`post-card.blade.php`) już pokazuje autora, tekst, zdjęcie i licznik komentarzy w feedzie; strona wpisu (`pages/posts/show.blade.php`) dokłada tylko akcje właściciela i pełny wątek komentarzy | **Mamy to samo, tylko inaczej zorganizowane.** Treść jest widoczna bez klikania (w karcie); klik otwiera „więcej”, nie „resztę treści”. |
+| Nawigacja „kolejne >” po archiwum autora prosto ze strony zdjęcia | Brak. Strona wpisu (`pages/posts/show.blade.php`) nie ma odnośnika do poprzedniego/następnego wpisu tego samego autora — trzeba wrócić do jego profilu | **Warto uprościć — konkretnie tak:** patrz ranking, poz. 4. (Nie proponujemy tego jako zaimplementowany element tego PR-a — plik `pages/posts/show.blade.php` jest poza zakresem tej pracy.) |
 | Prawa szyna na stronie zdjęcia: nick, awatar, „archiwum”, „ulubieni”, „+ dodaj do ulubionych” | Autor i awatar stoją w nagłówku karty z linkiem do profilu; „Obserwuj” jest wyłącznie na stronie profilu, nie na stronie wpisu | **Warto uprościć — konkretnie tak:** patrz ranking, poz. 5. |
 | Górna belka: pięć odnośników i nic więcej | Belka + nawigacja boczna/dolna (5 pozycji, zgodnie z `docs/UX_50_PLUS.md`) + stopka z 8–9 odnośnikami w 4 grupach + 9 ekranów ustawień | **Świadomie inaczej, w większości bez wyjścia.** Stopka niesie odnośniki wymagane prawem (Regulamin, Prywatność, „Zgłoś nielegalną treść” — DSA art. 16, RODO) i drogę do własnych zgłoszeń (DSA art. 16 ust. 4–5) — Garnek nie musiał tego mieć. Reszta (9 ekranów ustawień) wynika z tego, że Kuking ma więcej stanu na koncie (2FA, prywatność, eksport danych) niż serwis z 2007 r. |
 | Fotofora — zbiory tematyczne, lista alfabetyczna z licznikiem | Tagi (D-021), zamknięta lista ok. 30, własna strona `/tag/{slug}`, ale **bez** strony zbiorczej listującej wszystkie tagi | **Warto uprościć — konkretnie tak:** patrz ranking, poz. 3 i 7. To jest ten sam pomysł pod inną nazwą (D-021 wprost: „to jest ten sam rodzaj wyboru redakcyjnego”), ale brakuje mu wejścia. |
@@ -168,7 +168,7 @@ zmieniać.
 | Krótkie komplementy w komentarzach („pychotka”) | Cztery nazwane akcje (`Ugotowałem`/`Zapisuję`/`Ładne!`/`Pytanie`) zamiast jednego serca; komentarz nadal wolny tekst | **Świadomie inaczej, bo:** SOUL.md §4.8 — nazwana czynność niesie więcej niż lajk, a „Ugotowałem” jest ważniejsze niż komplement (AGENTS.md §1). To jest rozszerzenie Garnka, nie komplikacja bez powodu. |
 | Brak liczników popularności, brak rankingu osób | Liczba obserwujących ukryta/dyskretna, „Ładne!” niewidoczne publicznie, zero „top kuKINGi tygodnia” | **Mamy to samo, świadomie.** AGENTS.md §12 — zakaz publicznych rankingów jest anty-wzorcem wymienionym wprost, nie przeoczeniem. |
 | Zero moderacji widocznej dla użytkownika | Panel moderacji, zgłoszenia, odwołania, sygnały automatu, kolejka „bez odpowiedzi” — 6 ekranów admina + widoczne dla użytkownika: „Zgłoś”, „Zgłoś nielegalną treść”, „Twoje zgłoszenia”, powiadomienia o decyzji z uzasadnieniem | **Świadomie inaczej, bo musi być.** DSA (art. 14, 16, 17, 20) wymaga mechanizmu zgłaszania, uzasadnienia decyzji i odwołania — to nie istniało w prawie 2007 r. Nie proponujemy niczego z tego do uproszczenia. |
-| Brak prywatności wpisów (wszystko publiczne) | Trzy poziomy widoczności na każdym wpisie: wszyscy / obserwujący / tylko ja | **Świadomie inaczej, bo musi być.** RODO i zwykła przyzwoitość wobec osoby, która chce zdjęcia rodzinnego przepisu bez publikowania go całemu internetowi. Jedno dodatkowe pole w formularzu (`posts/create.blade.php`), nie ekran. |
+| Brak prywatności wpisów (wszystko publiczne) | Trzy poziomy widoczności na każdym wpisie: wszyscy / obserwujący / tylko ja | **Świadomie inaczej, bo musi być.** RODO i zwykła przyzwoitość wobec osoby, która chce zdjęcia rodzinnego przepisu bez publikowania go całemu internetowi. Jedno dodatkowe pole w formularzu (`pages/posts/create.blade.php`), nie ekran. |
 | „Fotoblog” = jedna, płaska rzecz | U nas: wpisy, przepisy, wykonania (`Ugotowałem`), kolekcje/Zeszyt, tagi — pięć różnych obiektów z osobnymi ekranami | **Świadomie inaczej, bo Kuking robi więcej niż fotoblog.** Rodzinne przepisy z historią i podpisem autora (SOUL.md §4.3) to główna, nieskopiowalna przewaga produktu — Garnek nie miał w ogóle pojęcia „przepis” jako osobnego obiektu z wersjami. Ale liczba osobnych „miejsc” (Zeszyt, Archiwum, Tagi, zakładki profilu) jest realnym kosztem orientacji — patrz ranking, poz. 8. |
 | Odmiana liczebników nie istniała (albo była błędna) w ówczesnych serwisach | `App\Support\Odmiana` — poprawna polska odmiana wszędzie („3 przepisy”, „12 osób”) | **Świadomie inaczej, bo musi być.** To nie jest komplikacja, to poprawna polszczyzna — jej brak byłby błędem, nie prostotą. |
 
@@ -224,11 +224,11 @@ z tego PR-a, tylko celujący w `route('posts.show', $post)`.
 ### Warto zrobić, umiarkowany koszt (dni, kilka plików, wymaga decyzji projektowej co do miejsca)
 
 **4. Nawigacja „poprzedni / następny wpis tego samego autora” na stronie
-wpisu.** Co: pod treścią (albo w prawej szynie) `posts/show.blade.php`
+wpisu.** Co: pod treścią (albo w prawej szynie) `pages/posts/show.blade.php`
 dwa odnośniki liczone z `Post::where('author_id', ...)->where('published_at', '<'/'>', ...)->first()`
 — zapytanie tanie przy indeksie na `(author_id, published_at)`, który już
 istnieje (feed z niego korzysta). Odtwarza dokładnie Garnkowe „kolejne >”
-z miniaturą. Ryzyko: `posts/show.blade.php` jest plikiem, w którym „pracują
+z miniaturą. Ryzyko: `pages/posts/show.blade.php` jest plikiem, w którym „pracują
 inni” (poza zakresem tego PR-a) — to jest issue do zgłoszenia, nie do
 zrobienia teraz. Jak sprawdzić po zrobieniu: test feature z trzema wpisami
 tego samego autora, klik „następny” prowadzi do środkowego wpisu, na
@@ -237,8 +237,8 @@ najstarszym nie ma „poprzedni”.
 **5. Przycisk „Obserwuj”/„Przestań obserwować” bezpośrednio na stronie
 wpisu**, nie tylko na profilu autora. Odtwarza Garnkowe „+ dodaj do
 ulubionych” w prawej szynie strony zdjęcia. Co: formularz identyczny jak
-w `profile/show.blade.php` (linie ok. 223–234), przeniesiony do komponentu
-współdzielonego i wstawiony do `posts/show.blade.php`. Ryzyko: duplikacja
+w `pages/profile/show.blade.php` (linie ok. 223–234), przeniesiony do komponentu
+współdzielonego i wstawiony do `pages/posts/show.blade.php`. Ryzyko: duplikacja
 logiki widoczności przycisku (obserwuje/nie obserwuje/zablokowany), jeśli
 zrobione bez wydzielenia komponentu — **rozwiązanie: nowy komponent
 `x-obserwuj-przycisk` używany w obu miejscach**, żeby nie rozjechały się dwie
@@ -307,7 +307,7 @@ Wybraliśmy akurat to uproszczenie z trzech powodów:
    zera.**
 2. **Dane już istniały i częściowo już były ładowane.** `Post::tags()`
    istnieje od dawna, autor wybiera do pięciu tagów przy publikacji
-   (`x-tagi-formularz` w `posts/create.blade.php`), a `TagController::show()`
+   (`x-tagi-formularz` w `pages/posts/create.blade.php`), a `TagController::show()`
    i `App\Domain\Feed\TagFeed` **już** eager-loadowały `tags:id,slug,name` —
    po prostu nic z tego nie renderowało się na karcie. To jest odtworzenie
    zapomnianego kawałka istniejącej funkcji, nie nowa funkcja.

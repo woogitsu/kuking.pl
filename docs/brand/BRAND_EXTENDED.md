@@ -26,6 +26,10 @@ Test kontrolny dla każdego napisu: *czy Basia (61) przeczyta to raz i będzie w
 | Powiadomienia | **Powiadomienia** | „aktywność", „notyfikacje", „alerty" | — |
 | Wyszukiwanie | **Szukaj** | „Explore", „Odkrywaj", „Discover" | — |
 | Konto | **Konto** | „ustawienia profilu twórcy" | — |
+| Dział, w którym prosi się innych o radę | **Poradźcie** | „Forum", „Pytania" (jako napis na ekranie), „Q&A", „Hotline", „off-topic" | Nazwa własna, czasownik użyty jak w „Ugotowałem" — świadome odstępstwo od testu 3 z §3. Warunek z D-147: pod nagłówkiem **musi** stać zdanie „Ktoś to już robił i chętnie powie, jak." Dział jeszcze nie zbudowany (issue #372); adres zostaje `/pytania`. D-163. |
+
+D-207: „Odkrywaj” jest zaakceptowaną etykietą komputerowej nawigacji do
+publicznego strumienia. Nie zastępuje nazwy wyszukiwarki „Szukaj”.
 
 ### 1.2 Akcje (etykiety przycisków)
 
@@ -129,12 +133,12 @@ Dodatkowo:
 | Kontekst | Dobrze | Źle | Dlaczego źle |
 |---|---|---|---|
 | Ekran główny | **Co dziś ugotowałeś?** | „Odkryj tysiące inspiracji kulinarnych" | Obietnica bazy danych, nie rozmowy. Kuking nie jest bazą. |
-| Rejestracja | **Załóż konto. Zajmie minutę.** | „Dołącz do społeczności pasjonatów gotowania!" | Wykrzyknik, „pasjonaci" wyklucza tych, którzy po prostu gotują obiad. |
+| Rejestracja | **Załóż konto.** | „Dołącz do społeczności pasjonatów gotowania!" | Wykrzyknik, „pasjonaci" wyklucza tych, którzy po prostu gotują obiad. Dopisek „Zajmie minutę" wyjęty 11.09.2026: obietnica z miarą, której nie mierzymy. |
 | Pierwszy wpis | **Wystarczy zdjęcie i kilka słów.** | „Stwórz swój pierwszy content!" | Żargon + presja tworzenia. |
 | Zeszyt | **Twój zeszyt z przepisami.** | „Zarządzaj swoją biblioteką treści" | Zarządzanie to praca, nie kuchnia. |
 | Ugotowałem | **Ktoś to naprawdę ugotował.** | „Zobacz oceny i recenzje użytkowników" | „Recenzja" i „użytkownik" to język serwisu zakupowego. |
 | Przepis | **Pomidorowa z własnych pomidorów** | „TOP 10 NAJLEPSZYCH ZUP 2026!!!" | Clickbait; tracimy zaufanie w jednym nagłówku. |
-| Eksport danych | **Pobierz wszystko, co dodałeś.** | „Eksport danych w formacie JSON zgodnie z RODO" | Prawdziwe, ale nieczytelne. Szczegół techniczny idzie pod spód, małym drukiem. |
+| Eksport danych | **Pobierz swoje dane.** | „Eksport danych w formacie JSON zgodnie z RODO" | Prawdziwe, ale nieczytelne. Szczegół techniczny idzie pod spód, małym drukiem. |
 | Strona o nas | **Prowadzimy to na własną rękę.** | „Kuking to innowacyjna platforma social foodtech" | — |
 | Onboarding, koniec | **Gotowe.** | „Świetnie! Jesteś gotowy na kulinarną przygodę!" | Dwa wykrzykniki i metafora, której nikt nie prosił. |
 | Pusty Zeszyt | **Zeszyt jest pusty.** | „Ojej, tu jeszcze nic nie ma :(" | Emotikon, bezradność. |
@@ -186,7 +190,7 @@ Dodatkowo:
 **Po długiej przerwie (maks. raz na kwartał)**
 > Temat: Twój zeszyt czeka
 >
-> Dawno Cię tu nie było i to zupełnie w porządku. Wszystko, co dodałeś, jest na miejscu.
+> Dawno Cię tu nie było i to zupełnie w porządku. Wszystko jest na miejscu.
 >
 > `[ Zajrzyj do swoich dań ]`
 

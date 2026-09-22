@@ -1,0 +1,57 @@
+[
+  {
+    "case": "bez-modulu",
+    "file": "resources/js/landing-wpisy.js",
+    "before": "a8464d1d11f433fd08a439e7c75faf00",
+    "restored": "a8464d1d11f433fd08a439e7c75faf00",
+    "mtimeRestored": true,
+    "negativeExit": 1,
+    "positiveExit": 0,
+    "expected": "TRYB_KOLUMN",
+    "message": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: TRYB_KOLUMN\n\nfalse !== true\n\n    at inspect (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:37:16)\n    at async measureColumns (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:47:20)\n    at async file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/checks560.mjs:4:105 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  },
+  {
+    "case": "wysokosc-wiersza",
+    "file": "resources/css/app.css",
+    "before": "b76956bda95984fbdda6a12819508a5b",
+    "restored": "b76956bda95984fbdda6a12819508a5b",
+    "mtimeRestored": true,
+    "negativeExit": 1,
+    "positiveExit": 0,
+    "expected": "PUSTA_PRZERWA",
+    "message": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: PUSTA_PRZERWA 643.53125\n    at inspect (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:42:34)\n    at async measureColumns (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:47:20)\n    at async file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/checks560.mjs:4:105 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  },
+  {
+    "case": "bez-obserwacji-kart",
+    "file": "resources/js/landing-wpisy.js",
+    "before": "a8464d1d11f433fd08a439e7c75faf00",
+    "restored": "a8464d1d11f433fd08a439e7c75faf00",
+    "mtimeRestored": true,
+    "negativeExit": 1,
+    "positiveExit": 0,
+    "expected": "PUSTA_PRZERWA",
+    "message": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: PUSTA_PRZERWA -10.75\n    at inspect (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:42:34)\n    at async measureColumns (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:47:20)\n    at async file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/checks560.mjs:4:105 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  },
+  {
+    "case": "liczba-trackow",
+    "file": "resources/js/landing-wpisy.js",
+    "before": "a8464d1d11f433fd08a439e7c75faf00",
+    "restored": "a8464d1d11f433fd08a439e7c75faf00",
+    "mtimeRestored": true,
+    "negativeExit": 1,
+    "positiveExit": 0,
+    "expected": "KOLUMNY_PO_ZMIANIE_OKNA",
+    "message": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: KOLUMNY_PO_ZMIANIE_OKNA\n\n2 !== 1\n\n    at inspect (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:34:16)\n    at async measureColumns (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:47:20)\n    at async file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/checks560.mjs:4:204 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: 2,\n  expected: 1,\n  operator: 'strictEqual',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  },
+  {
+    "case": "bez-odstepu-fokusu",
+    "file": "resources/css/app.css",
+    "before": "b76956bda95984fbdda6a12819508a5b",
+    "restored": "b76956bda95984fbdda6a12819508a5b",
+    "mtimeRestored": true,
+    "negativeExit": 1,
+    "positiveExit": 0,
+    "expected": "FOKUS_ZASLONIETY",
+    "message": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: FOKUS_ZASLONIETY 2\n    at measureColumns (file:///home/mateusz/kuking-work560/scripts/zwarte-kolumny.mjs:66:9)\n    at async file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/checks560.mjs:4:105 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  }
+]

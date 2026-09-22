@@ -9,6 +9,7 @@ use App\Models\LoginLinkToken;
 use App\Models\User;
 use App\Notifications\LinkDoLogowania;
 use App\Support\AdresEmail;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -33,32 +34,73 @@ use Throwable;
  *  KOMU LINKU NIE WYSYŁAMY (i nie mówimy o tym pytającemu)
  * ────────────────────────────────────────────────────────────────────────
  *
- *  1. NA ADRES BEZ KONTA — nie ma dokąd.
+ *  1. NA ADRES BEZ KONTA — nie ma dokąd. TAKI ADRES DOSTAJE ZA TO
+ *     ZAPROSZENIE DO ZAŁOŻENIA KONTA (D-085, sekcja niżej): wiadomość
+ *     z linkiem prowadzącym na dokończenie zakładania konta. Do 10 września
+ *     2026 nie dostawał NICZEGO i to był błąd, o który odbiła się prawdziwa
+ *     osoba — patrz `WyslijZaproszenieDoRejestracji`.
  *  2. NA KONTO ZAMKNIĘTE (`STATUSY_ZAMKNIETEGO_KONTA`: zablokowane,
  *     zgłoszone do usunięcia, wymazane). Tam nie wpuszcza także hasło
  *     (`LoginController`), a link, który wchodzi tam, gdzie hasło nie wchodzi,
  *     byłby obejściem blokady moderacyjnej. Osoba zablokowana ma na ekranie
  *     logowania powód i drogę odwoławczą (#10) — i to jest jej droga.
- *  3. NA KONTO MODERATORA ALBO ADMINISTRATORA — wprost z zakresu issue #25:
+ *  3. NA KONTO Z NIEPOTWIERDZONYM ADRESEM (issue #317) — taki adres
+ *     dostaje ZA TO list z ustawieniem nowego hasła, nie wejście na konto.
+ *     Link wysłany na adres, którego nikt nie potwierdził, wpuszczałby
+ *     właściciela skrzynki na konto ZAŁOŻONE PRZEZ KOGOŚ INNEGO na ten
+ *     adres — przejęcie z wyprzedzeniem, ta sama droga, którą po swojej
+ *     stronie zamyka D-069 reguła 2 dla wejścia kontem Google. Ustawienie
+ *     hasła jest jedyną drogą, która wpuszcza właściciela skrzynki
+ *     i jednocześnie WYRZUCA napastnika. Szczegóły:
+ *     `WyslijOdzyskanieKonta`.
+ *  4. NA KONTO MODERATORA ALBO ADMINISTRATORA — wprost z zakresu issue #25:
  *     „konta moderatorów i administratorów wykluczone, tam obowiązuje hasło
  *     + 2FA". To są konta z władzą nad cudzą treścią i cudzymi danymi;
  *     przeniesienie ich bezpieczeństwa na skrzynkę pocztową byłoby
  *     rozluźnieniem, którego `EnsureModeratorHasTwoFactor` nie widzi, bo
  *     tamten middleware pilnuje panelu, a nie wejścia do serwisu.
  *
- * Cisza wobec pytającego jest w każdym z tych trzech przypadków konieczna
+ * Cisza wobec pytającego jest w każdym z tych przypadków konieczna
  * — inaczej formularz odpowiadałby na pytania „czy tu jest konto",
  * „czy zostało zablokowane" i „czy ta osoba jest moderatorem". Żeby cisza
  * nie zamieniła się w pułapkę, ekran po wysłaniu MÓWI WPROST (dla wszystkich
  * jednakowo), że kont obsługi serwisu ta droga nie obejmuje — czyli moderator
- * czyta wyjaśnienie, nie czekając na list, który nie przyjdzie.
+ * czyta wyjaśnienie, nie czekając na wiadomość, która nie przyjdzie.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  ADRES BEZ KONTA: ZAPROSZENIE DO ZAŁOŻENIA KONTA (D-085)
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * Przypadek pierwszy z listy wyżej ma od 10 września 2026 własne dokończenie
+ * i to jest jedyna rzecz, którą ta klasa robi PONAD wystawienie linku:
+ * przekazuje prośbę do `WyslijZaproszenieDoRejestracji`.
+ *
+ * DLACZEGO TU, A NIE W KONTROLERZE. Bo wybór między „link do logowania"
+ * i „zaproszenie do rejestracji" zapada na podstawie jednej rzeczy — czy na
+ * tym adresie jest konto — a to jest jedyna informacja, której kontroler NIE
+ * MA PRAWA ZOBACZYĆ. Gdyby rozgałęzienie stało w kontrolerze, obecność konta
+ * musiałaby przejść przez jego kod, a każda taka wartość jest o jeden `if`
+ * od trafienia na ekran w postaci innego komunikatu. Kontroler dostaje więc
+ * dalej JEDNĄ odpowiedź `bool` o jednym znaczeniu: „czy zajęłam jeden list
+ * z dobowego budżetu".
+ *
+ * Ubocznym, ale ważnym skutkiem jest to, że budżet dobowy poczty
+ * (`login_link.dzienny_budzet`) zajmuje się TERAZ W OBU PRZYPADKACH
+ * jednakowo — czyli znika znane ryzyko z D-056 („kto ustawi się na ostatniej
+ * jednostce budżetu, wyczyta jeden bit o cudzym koncie").
  */
 final class WyslijLinkDoLogowania
 {
+    public function __construct(
+        private readonly WyslijZaproszenieDoRejestracji $zaproszenia = new WyslijZaproszenieDoRejestracji,
+        private readonly WyslijOdzyskanieKonta $odzyskanie = new WyslijOdzyskanieKonta,
+    ) {}
+
     /**
      * @param  string  $adres  adres e-mail wpisany w formularz, jeszcze
      *                         nieznormalizowany
-     * @return bool czy list NAPRAWDĘ poszedł (do rozliczenia budżetu poczty
+     * @return bool czy wiadomość NAPRAWDĘ poszła — link do logowania albo
+     *              zaproszenie do rejestracji (do rozliczenia budżetu poczty
      *              i tylko do tego — patrz komentarz klasy)
      */
     public function handle(string $adres, ?string $ip = null): bool
@@ -74,31 +116,48 @@ final class WyslijLinkDoLogowania
             ->where('email', User::normalizeEmail($adres))
             ->first();
 
+        // ADRES BEZ KONTA IDZIE DALEJ, NIE DO KOSZA (D-085). Zaproszenie
+        // wysyła osobna akcja; ta oddaje jej odpowiedź bez zmian, bo znaczy
+        // ona dokładnie to samo: „czy poszła jedna wiadomość".
+        if ($user === null) {
+            return $this->zaproszenia->handle($adres, $ip);
+        }
+
         if (! $this->wolnoWyslac($user)) {
             return false;
+        }
+
+        // ADRES NIEPOTWIERDZONY NIE DOSTAJE LINKU WCHODZĄCEGO NA KONTO
+        // (issue #317). Dostaje list z ustawieniem nowego hasła — pełne
+        // uzasadnienie w `WyslijOdzyskanieKonta`, w skrócie: konto założone
+        // na cudzy adres jest u nas kontem w pełni sprawnym, więc link
+        // wysłany na ten adres wpuszczałby jego właściciela na KONTO
+        // NAPASTNIKA, a napastnikowi zostawiał hasło i otwarte sesje.
+        //
+        // ROZGAŁĘZIENIE STOI TUTAJ, NIE W KONTROLERZE — z tego samego
+        // powodu co rozgałęzienie na zaproszenie (D-085): kontroler nie ma
+        // prawa zobaczyć, czy konto istnieje i w jakim jest stanie, bo
+        // każda taka wartość jest o jeden `if` od trafienia na ekran.
+        // Wychodzi stąd `bool` o jednym, niezmienionym znaczeniu: „czy
+        // zajęłam jeden list z dobowego budżetu".
+        if (! $user->hasVerifiedEmail()) {
+            return $this->odzyskanie->handle($user, $ip);
         }
 
         $token = LoginLinkToken::nowyToken();
         $minut = max(1, (int) config('kuking.login_link.waznosc_minut'));
 
-        $wiersz = DB::transaction(function () use ($user, $token, $minut): LoginLinkToken {
-            // Kasujemy i zakładamy od nowa, zamiast aktualizować w miejscu.
-            // Nowa prośba to nowy token, więc link z poprzedniego listu
-            // przestaje działać w tej samej chwili — i o to chodzi
-            // (`user_id` jest unikalne, więc bez tego zapis by się odbił).
-            LoginLinkToken::query()->where('user_id', $user->getKey())->delete();
+        $wiersz = $this->wymienToken($user, $token, $minut);
 
-            $wiersz = new LoginLinkToken;
-            $wiersz->user_id = $user->getKey();
-            // W BAZIE LĄDUJE SKRÓT. Token jawny żyje w zmiennej lokalnej
-            // i wychodzi wyłącznie do listu.
-            $wiersz->token_hash = LoginLinkToken::skrot($token);
-            $wiersz->created_at = now();
-            $wiersz->expires_at = now()->addMinutes($minut);
-            $wiersz->save();
-
-            return $wiersz;
-        });
+        // `null` znaczy „wymiana tokenu się nie odbyła" — konto zniknęło pod
+        // blokadą albo wyścig z drugą prośbą odbił się o unikalność
+        // `user_id`. Wychodzimy TĄ SAMĄ furtką, którą wychodzi adres bez
+        // konta: bez listu, bez wpisu w dzienniku, bez zajmowania budżetu.
+        // Kontroler oddaje wtedy dokładnie ten sam komunikat, co dla adresu,
+        // na którym konta nie ma — a o to w całej tej klasie chodzi.
+        if ($wiersz === null) {
+            return false;
+        }
 
         // Wpis w dzienniku PRZED wysyłką: prośba o wejście na konto jest
         // zdarzeniem bezpieczeństwa (AGENTS.md §7 — piąte z pięciu pytań),
@@ -166,6 +225,129 @@ final class WyslijLinkDoLogowania
     public function posprzatajPrzedawnione(): int
     {
         return LoginLinkToken::query()->where('expires_at', '<', now())->delete();
+    }
+
+    /**
+     * Wymiana tokenu: stary out, nowy in — POD BLOKADĄ WIERSZA KONTA.
+     *
+     * ══════════════════════════════════════════════════════════════════
+     *  DLACZEGO BLOKADA (ustalenie AUTH-02 / RACE-02, 10.09.2026; D-075)
+     * ══════════════════════════════════════════════════════════════════
+     *
+     * Bez niej dwie prośby naraz obie przechodziły `DELETE` (kasując zero
+     * wierszy, bo każda widziała już posprzątane) i obie szły do `INSERT`.
+     * `login_link_tokens.user_id` jest unikalne, więc druga odbijała się
+     * o constraint — i sam constraint jest tu DOBRY, brakowało serializacji.
+     *
+     * Ten wyjątek był problemem bezpieczeństwa, nie tylko brzydkim błędem.
+     * Powstać mógł WYŁĄCZNIE tam, gdzie konto istnieje: dla adresu bez konta
+     * `handle()` kończy się, zanim dojdzie do zapisu. Zmierzone w tym
+     * repozytorium przed poprawką: para równoległych próśb oddawała **500
+     * dla adresu z kontem i 302 dla adresu bez konta** — czyli formularz
+     * zaprojektowany jako nieodróżnialny (D-056) odpowiadał na pytanie
+     * „kto ma konto w Kuking". A po ludzkiej stronie tego samego wyścigu
+     * stoi zwykły dwuklik „Wyślij", czyli scenariusz TYPOWY dla osoby 60+,
+     * dla której ta droga jest drogą podstawową, nie awaryjną.
+     *
+     * ══════════════════════════════════════════════════════════════════
+     *  KOLEJNOŚĆ: KONTO NAJPIERW — JEDNA W CAŁYM REPOZYTORIUM
+     * ══════════════════════════════════════════════════════════════════
+     *
+     * Blokujemy wiersz `users`, a nie wiersz tokenu, bo wiersza tokenu może
+     * NIE BYĆ — a `SELECT ... FOR UPDATE` na nieistniejącym wierszu nie
+     * blokuje niczego i nie powstrzyma drugiego `INSERT`-a. Konto istnieje
+     * zawsze i jest wspólne dla obu próśb, więc jest jedyną rzeczą, na
+     * której da się je ustawić w kolejce.
+     *
+     * KOLEJNOŚĆ „KONTO NAJPIERW" JEST WSPÓLNA DLA CAŁEGO REPOZYTORIUM
+     * i musi taka zostać: dwie różne kolejności blokad to zakleszczenie,
+     * które PostgreSQL rozwiązuje zabiciem jednego z żądań. Tę samą
+     * kolejność bierze poprawka wyścigu przy zmianie adresu e-mail
+     * (`App\Domain\Users\ZamekKonta`, ustalenie AUTH-01 / RACE-01) — na
+     * dzień tego commita jeszcze niescalona, więc blokada siedzi tutaj,
+     * a nie we wspólnym zamku. Uzasadnienie tego wyboru i co zrobić po
+     * scaleniu tamtej gałęzi: D-075.
+     *
+     * Blokada stoi PRZED `DELETE`, nie po nim. Wzięta po skasowaniu nie
+     * serializowałaby niczego, bo oba żądania zdążyłyby już skasować zero
+     * wierszy i zostałby dokładnie ten sam wyścig na `INSERT`.
+     *
+     * ══════════════════════════════════════════════════════════════════
+     *  DLACZEGO MIMO BLOKADY ŁAPIEMY WYJĄTEK
+     * ══════════════════════════════════════════════════════════════════
+     *
+     * Blokada powinna wystarczyć. Ale obietnica „z tego formularza nie da
+     * się sprawdzić, kto ma konto" nie może zależeć od tego, że blokada
+     * nigdy nie zawiedzie — a zawieść może z powodów spoza tej metody:
+     * przyszły drugi punkt wystawiający token, komenda konsolowa, seeder,
+     * wywołanie tej akcji wewnątrz cudzej transakcji. Konflikt sprowadzamy
+     * więc do `null`, czyli do tej samej neutralnej odpowiedzi, którą
+     * dostaje adres bez konta. To jest ta sama konstrukcja co przy
+     * `ReportContent` i `ZglosNielegalnaTresc`.
+     *
+     * Transakcja wokół tego wszystkiego jest przy okazji tym, co ratuje
+     * połączenie: w PostgreSQL odrzucony `INSERT` unieważnia CAŁĄ
+     * transakcję i każde następne zapytanie w niej dostaje 25P02. Bez
+     * własnej transakcji akcja wołana wewnątrz cudzej rozbijałaby ją
+     * zamiast po cichu odpuścić.
+     *
+     * @return LoginLinkToken|null nowy wiersz albo `null`, gdy wymiana się
+     *                             nie odbyła (konta już nie ma, przestało
+     *                             być wpuszczalne, albo wyścig o unikalność)
+     */
+    private function wymienToken(User $user, string $token, int $minut): ?LoginLinkToken
+    {
+        try {
+            return DB::transaction(function () use ($user, $token, $minut): ?LoginLinkToken {
+                // ŚWIEŻY ODCZYT KONTA POD BLOKADĄ, nie model z zewnątrz.
+                // Blokada serializuje, ale nie mówi żądaniu, które czekało,
+                // że świat się w tym czasie zmienił. Konto mogło między
+                // odczytem po adresie a wejściem pod blokadę zostać
+                // zablokowane albo dostać rolę moderatora — a link, który
+                // wchodzi tam, gdzie hasło nie wchodzi, byłby obejściem
+                // blokady moderacyjnej (patrz komentarz klasy).
+                $swiezy = User::query()->whereKey($user->getKey())->lockForUpdate()->first();
+
+                if (! $this->wolnoWyslac($swiezy)) {
+                    return null;
+                }
+
+                // Kasujemy i zakładamy od nowa, zamiast aktualizować
+                // w miejscu. Nowa prośba to nowy token, więc link
+                // z poprzedniego listu przestaje działać w tej samej chwili
+                // — i o to chodzi.
+                LoginLinkToken::query()->where('user_id', $user->getKey())->delete();
+
+                $wiersz = new LoginLinkToken;
+                $wiersz->user_id = $user->getKey();
+                // W BAZIE LĄDUJE SKRÓT. Token jawny żyje w zmiennej lokalnej
+                // i wychodzi wyłącznie do listu.
+                $wiersz->token_hash = LoginLinkToken::skrot($token);
+                $wiersz->created_at = now();
+                $wiersz->expires_at = now()->addMinutes($minut);
+                $wiersz->save();
+
+                return $wiersz;
+            });
+        } catch (UniqueConstraintViolationException $e) {
+            // DRUGA PROŚBA WYGRAŁA WYŚCIG. Ważny link na to konto już
+            // istnieje i już poszedł listem — czyli człowiek dostanie
+            // dokładnie to, o co prosił, tylko z tego drugiego żądania.
+            // Cicho odpuszczamy; głośno byłoby tu 500, a 500 zdarzałoby się
+            // wyłącznie tam, gdzie konto istnieje.
+            //
+            // W DZIENNIKU BEZ ADRESU I BEZ TOKENU (SECURITY_BASELINE §7) —
+            // sam fakt, że blokada nie wystarczyła, jest wart zapisania, bo
+            // znaczy, że token wystawia coś jeszcze poza tą metodą.
+            Log::warning('Konflikt przy wymianie tokenu logowania linkiem — blokada wiersza konta nie wystarczyła.', [
+                'wyjatek' => $e::class,
+                'co_dalej' => 'Odpowiedź dla człowieka jest z założenia taka sama jak dla adresu bez konta '
+                    .'(D-075). Jeśli ten wpis się powtarza, poszukaj drugiego miejsca zapisującego '
+                    .'`login_link_tokens` — powinno być jedno.',
+            ]);
+
+            return null;
+        }
     }
 
     private function wolnoWyslac(?User $user): bool

@@ -1,0 +1,34 @@
+[
+  {
+    "nazwa": "brak-sekcji-json",
+    "plik": "scripts/dostepnosc.mjs",
+    "ujemnyExit": 1,
+    "dodatniExit": 0,
+    "md5": "5c54ee586fd6453fc5f889953d388ed3",
+    "mtimePrzywrocony": true
+  },
+  {
+    "nazwa": "brak-kodu-bledu",
+    "plik": "scripts/dostepnosc.mjs",
+    "ujemnyExit": 1,
+    "dodatniExit": 0,
+    "md5": "5c54ee586fd6453fc5f889953d388ed3",
+    "mtimePrzywrocony": true
+  },
+  {
+    "nazwa": "liczba-zamiast-kompletnosci",
+    "plik": "scripts/dostepnosc.mjs",
+    "ujemnyExit": 1,
+    "dodatniExit": 0,
+    "md5": "5c54ee586fd6453fc5f889953d388ed3",
+    "mtimePrzywrocony": true
+  },
+  {
+    "nazwa": "brak-formularza-na-liscie",
+    "plik": "scripts/fixtures/oauth-dostepnosc.mjs",
+    "ujemnyExit": 1,
+    "dodatniExit": 0,
+    "md5": "eb82ab22685672c06cce00e5f802b47b",
+    "mtimePrzywrocony": true
+  }
+]

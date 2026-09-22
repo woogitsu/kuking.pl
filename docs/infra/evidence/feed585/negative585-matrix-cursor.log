@@ -1,0 +1,59 @@
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-feed585-runtime/phpunit.xml
+
+[41;37mF[0m[41;37mF[0m[41;37mF[0m                                                                 3 / 3 (100%)
+
+Time: 00:00.890, Memory: 121.00 MB
+
+There were 3 failures:
+
+1) Tests\Feature\PomiarFeeduGraniceTest::test_macierz_widocznosci_ma_jawne_id_i_niezerowe_liczniki
+Failed asserting that two arrays are identical.
+--- Expected
++++ Actual
+@@ @@
+ Array &0 [
+-    0 => '10000000-0000-4000-8000-000000000040',
+-    1 => '10000000-0000-4000-8000-000000000030',
+-    2 => '10000000-0000-4000-8000-000000000020',
+-    3 => '10000000-0000-4000-8000-000000000010',
++    0 => '10000000-0000-4000-8000-000000000010',
++    1 => '10000000-0000-4000-8000-000000000020',
++    2 => '10000000-0000-4000-8000-000000000030',
++    3 => '10000000-0000-4000-8000-000000000040',
+ ]
+
+/home/mateusz/kuking-feed585-runtime/tests/Feature/PomiarFeeduGraniceTest.php:87
+
+2) Tests\Feature\PomiarFeeduGraniceTest::test_kursor_przechodzi_remis_w_obie_strony_bez_duplikatow
+Failed asserting that two arrays are identical.
+--- Expected
++++ Actual
+@@ @@
+ Array &0 [
+-    0 => '10000000-0000-4000-8000-000000000005',
+-    1 => '10000000-0000-4000-8000-000000000004',
++    0 => '10000000-0000-4000-8000-000000000001',
++    1 => '10000000-0000-4000-8000-000000000002',
+ ]
+
+/home/mateusz/kuking-feed585-runtime/tests/Feature/PomiarFeeduGraniceTest.php:121
+
+3) Tests\Feature\PomiarFeeduGraniceTest::test_wlasne_wpisy_nie_wylaczaja_stanu_pustego_feedu_obserwowanych
+Failed asserting that two arrays are identical.
+--- Expected
++++ Actual
+@@ @@
+ Array &0 [
+-    0 => '10000000-0000-4000-8000-000000000003',
+-    1 => '10000000-0000-4000-8000-000000000001',
++    0 => '10000000-0000-4000-8000-000000000001',
++    1 => '10000000-0000-4000-8000-000000000003',
+ ]
+
+/home/mateusz/kuking-feed585-runtime/tests/Feature/PomiarFeeduGraniceTest.php:157
+
+[37;41mFAILURES![0m
+[37;41mTests: 3[0m[37;41m, Assertions: 9[0m[37;41m, Failures: 3[0m[37;41m.[0m

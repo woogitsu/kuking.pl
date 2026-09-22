@@ -1,0 +1,26 @@
+{
+  "backup": "/home/mateusz/kuking-local/negative548-8olgy3ty",
+  "cases": [
+    {
+      "file": "app/Models/RecipeStep.php",
+      "negative_exit": 1,
+      "restored_md5": "6667264cbd55f90b027176c81a5294f3",
+      "mtime_restored": true,
+      "positive_exit": 0
+    },
+    {
+      "file": "resources/views/pages/recipes/cooking.blade.php",
+      "negative_exit": 1,
+      "restored_md5": "970dcc86966eb8b5a3c45c1fa3b80397",
+      "mtime_restored": true,
+      "positive_exit": 0
+    },
+    {
+      "file": "resources/views/components/recipe-wizard.blade.php",
+      "negative_exit": 1,
+      "restored_md5": "7cf2910d105c9fe85c7fb5d8c175d452",
+      "mtime_restored": true,
+      "positive_exit": 0
+    }
+  ]
+}

@@ -100,7 +100,7 @@ class WykonczenieProduktuTest extends TestCase
         $this->get(route('recipes.show', $przepis->slug))
             ->assertOk()
             ->assertSee('Jeszcze nikt tego nie gotował')
-            ->assertSee('Będziesz pierwsza albo pierwszy?', escape: false);
+            ->assertSee('Twoje wykonanie będzie pierwsze.', escape: false);
     }
 
     // ---------------------------------------------------------------
@@ -125,7 +125,7 @@ class WykonczenieProduktuTest extends TestCase
         // zgodziliśmy: gwiazdek nie ma i nie będzie.
         $this->get(route('recipes.show', $przepis->slug))
             ->assertOk()
-            ->assertSee('2 z 3 osób zrobi to ponownie', escape: false);
+            ->assertSee('Zrobię ponownie: 2 z 3 odpowiedzi', escape: false);
     }
 
     public function test_ponizej_trzech_ocen_nie_pokazujemy_werdyktu(): void
@@ -143,7 +143,8 @@ class WykonczenieProduktuTest extends TestCase
         // „0 z 1 osoby zrobi to ponownie" potrafiłoby zabić przepis.
         $this->get(route('recipes.show', $przepis->slug))
             ->assertOk()
-            ->assertDontSee('zrobi to ponownie', escape: false);
+            ->assertDontSee('Zrobię ponownie:', escape: false)
+            ->assertDontSee('odpowiedzi: „Zrobię ponownie”', escape: false);
     }
 
     // ---------------------------------------------------------------

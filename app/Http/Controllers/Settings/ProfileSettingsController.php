@@ -79,18 +79,40 @@ class ProfileSettingsController extends Controller
         $usernameRules[] = new UsernameNotTaken($user->getKey());
 
         $data = $request->validate([
-            'display_name' => ['required', 'string', 'min:2', 'max:100'],
+            'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')],
             'username' => $usernameRules,
             'bio' => ['nullable', 'string', 'max:500'],
             'region' => ['nullable', 'string', 'max:80'],
             'speciality' => ['nullable', 'string', 'max:120'],
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
+            'display_name.min' => 'To imię jest za krótkie. Wpisz co najmniej dwie litery — na przykład „Basia”.',
+            'display_name.max' => 'To imię jest za długie. Zmieść się w :max znakach.',
+            /*
+             * `username.required` DOPISANE PRZY PRZEGLĄDZIE KOMUNIKATÓW.
+             *
+             * Bez niego wypadał szablon ogólny: „Pole «nazwa użytkownika»
+             * jest wymagane. Uzupełnij je, żeby wysłać formularz." Zdanie
+             * było nie tylko puste, ale w połowie przypadków NIEPRAWDZIWE:
+             * normalizacja wyżej zamienia „!!" albo same emoji w pusty ciąg,
+             * więc człowiek, który COŚ wpisał, czytał, że pola nie wypełnił.
+             * Nowe zdanie mówi, co wpisać, i pasuje do obu sytuacji.
+             */
+            'username.required' => 'Wpisz nazwę, która ma być w adresie Twojego profilu — na przykład imię i miejscowość: basia z podkarpacia.',
             // Do `regex` i `min` dochodzi się już tylko wtedy, gdy z wpisanego
             // tekstu nie da się nic ułożyć — patrz komentarz przy normalizacji.
-            'username.regex' => 'Z tego, co wpisałeś, nie da się ułożyć nazwy do adresu. Wpisz imię albo imię i miejscowość.',
+            'username.regex' => 'Z tej nazwy nie da się ułożyć adresu. Wpisz imię albo imię i miejscowość.',
+            'username.min' => 'Ta nazwa jest za krótka. Wpisz co najmniej trzy znaki — na przykład imię i miejscowość: basia z podkarpacia.',
+            'username.max' => 'Ta nazwa jest za długa. Zmieść się w 40 znakach.',
             'username.unique' => 'Ta nazwa jest już zajęta.',
             'bio.max' => 'Ten opis jest za długi. Zmieść się w 500 znakach.',
+            /*
+             * DWA OSTATNIE — bo szablon ogólny nazywał te pola inaczej niż
+             * ekran. Na ekranie stoi „Skąd jesteś" i „Na czym się znasz",
+             * a komunikat mówił o polu „region" i „specjalność kulinarna".
+             */
+            'region.max' => 'To jest za długie. Napisz krócej, mieszcząc się w 80 znakach — wystarczy sama miejscowość albo region.',
+            'speciality.max' => 'To jest za długie. Napisz krócej, mieszcząc się w 120 znakach — wystarczy kilka słów.',
         ]);
 
         $profile->update($data);

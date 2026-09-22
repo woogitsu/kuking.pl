@@ -16,9 +16,11 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 
 /**
@@ -173,9 +175,29 @@ class User extends Authenticatable implements MustVerifyEmailContract
      * `email_verified_at` z tego samego powodu: potwierdzenie adresu ma
      * pochodzić z kliknięcia w link, nie z pola w formularzu.
      * Pilnuje tego `AdresEmailPozaMasowymPrzypisaniemTest`.
+     *
+     * `password` WYSZŁO STĄD Z TEGO SAMEGO POWODU, co `email`.
+     *
+     * Stało tu do 12 września 2026 — jako jedyna kolumna poświadczenia
+     * w całym repozytorium, która dawała się ustawić masowym przypisaniem.
+     * Argument, który wyprowadził stąd adres (issue #195), stosuje się do
+     * hasła bez jednej zmiany, i to MOCNIEJ: przestawiony adres daje
+     * przejęcie konta dopiero po „nie pamiętam hasła", a przestawione hasło
+     * daje je od razu. Cztery z pięciu miejsc, które hasło zapisują, i tak
+     * nie korzystały z masowego przypisania (`forceFill`), więc na liście
+     * stało ono wyłącznie dla dwóch miejsc ZAKŁADAJĄCYCH konto.
+     *
+     * Hasło zapisują teraz wyłącznie jawne, nazwane drogi:
+     *  - `assignPassword()` niżej (rejestracja, zmiana hasła, reset),
+     *  - `App\Domain\Users\Actions\EraseAccountData` (anonimizacja, D-022)
+     *    — jednym `forceFill()` razem z resztą kasowanych pól, bo to jest
+     *    jedna, atomowa operacja na koncie, a nie ustawianie hasła.
+     *
+     * Pilnuje tego `WrazliweKolumnyPozaMasowymPrzypisaniemTest` (kategoria
+     * „poświadczenia" jest tam NIETYKALNA — żaden wpis w rejestrze jej nie
+     * odblokuje).
      */
     protected $fillable = [
-        'password',
         'locale',
         'text_scale',
         'theme',
@@ -299,8 +321,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
             // Kiedy poszło OSTATNIE tygodniowe podsumowanie (issue #11).
             // Poza `$fillable` z tego samego powodu co `ostatnio_widziany_at`
             // wyżej: zapisuje to WYŁĄCZNIE komenda wysyłkowa
-            // (`App\Domain\Digest\OdbiorcyDigestu::oznaczWyslane()`), nigdy
-            // formularz. Masowe przypisanie z żądania pozwalałoby przestawić
+            // (`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()`, a przy
+            // liście próbnym `::oznaczWyslane()`), nigdy formularz. Masowe przypisanie z żądania pozwalałoby przestawić
             // cudzy znacznik i albo wyprosić kogoś z tygodniowej wysyłki,
             // albo — cofając datę — wysłać mu drugi list w tym samym
             // tygodniu, wbrew obietnicy „nigdy więcej niż jeden".
@@ -681,11 +703,36 @@ class User extends Authenticatable implements MustVerifyEmailContract
             return $istniejaca;
         }
 
-        return $this->collections()->create([
-            'name' => $this->wolnaNazwaDomyslnegoZeszytu(),
-            'visibility' => 'private',
-            'is_default' => true,
-        ]);
+        try {
+            // Osobna transakcja daje PostgreSQL savepoint, gdy wywołująca
+            // akcja już jest w transakcji. Bez niego złapane 23505 zostawia
+            // całe zewnętrzne połączenie w stanie „transaction aborted”.
+            return DB::transaction(fn (): Collection => $this->collections()->create([
+                'name' => $this->wolnaNazwaDomyslnegoZeszytu(),
+                'visibility' => 'private',
+                'is_default' => true,
+            ]));
+        } catch (UniqueConstraintViolationException $e) {
+            // Obsługujemy WYŁĄCZNIE wyścig o jeden domyślny zeszyt. Kolizja
+            // nazwy ani przyszła inna reguła unikalności nie może zniknąć pod
+            // pozornie udanym zapisem.
+            if (! self::naruszonoIndeksDomyslnegoZeszytu($e)) {
+                throw $e;
+            }
+
+            return $this->collections()->where('is_default', true)->first() ?? throw $e;
+        }
+    }
+
+    private static function naruszonoIndeksDomyslnegoZeszytu(UniqueConstraintViolationException $e): bool
+    {
+        for ($wyjatek = $e; $wyjatek !== null; $wyjatek = $wyjatek->getPrevious()) {
+            if (str_contains($wyjatek->getMessage(), 'collections_one_default_per_owner_idx')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -800,7 +847,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
-        $this->notify(new UstawienieNowegoHasla($token));
+        $this->notify(new UstawienieNowegoHasla($token, now()->addMinutes((int) config(
+            'auth.passwords.'.config('auth.defaults.passwords').'.expire', 60,
+        ))));
     }
 
     public function sendEmailVerificationNotification(): void
@@ -850,6 +899,228 @@ class User extends Authenticatable implements MustVerifyEmailContract
             'email' => $email,
             'email_verified_at' => $potwierdzony ? now() : null,
         ]);
+    }
+
+    /**
+     * Ustawienie hasła — JEDYNA droga, którą hasło trafia na wiersz `users`
+     * poza anonimizacją konta.
+     *
+     * `password` jest poza `$fillable` (patrz komentarz przy tablicy), więc
+     * `create()`, `update()` i `firstOrCreate()` po prostu go nie widzą.
+     * Ta metoda robi to jawnie i pod nazwą, którą widać w code review —
+     * dokładnie tak, jak `assignEmail()` robi to z adresem, a `suspend()`,
+     * `ban()` i `markForDeletion()` ze statusem.
+     *
+     * PRZYJMUJE HASŁO JAWNE, NIE SKRÓT. Gdyby przyjmowała skrót, każde
+     * wywołanie musiałoby pamiętać o `Hash::make()` — a wywołanie, które
+     * zapomni, zapisuje hasło jawnym tekstem i wygląda przy tym identycznie.
+     * Skrót liczy `Hash::make()` tutaj, w jednym miejscu.
+     *
+     * NIE ZAPISUJE — tak samo jak `assignEmail()`. Rejestracja składa cały
+     * nowy wiersz naraz (kolumna jest NOT NULL, więc hasło musi być przy
+     * pierwszym `save()`), a zmiana hasła zapisuje je razem z wygaszeniem
+     * pozostałych sesji, w jednej transakcji.
+     */
+    public function assignPassword(string $hasloJawne): static
+    {
+        return $this->forceFill(['password' => Hash::make($hasloJawne)]);
+    }
+
+    /**
+     * Powiązania z kontami u dostawców zewnętrznych (D-098).
+     *
+     * Relacja, nie kolumny — pełne uzasadnienie w migracji
+     * `create_tozsamosci_zewnetrzne_table` i w D-098. W skrócie: właściciel
+     * zamówił DWÓCH dostawców (Google i Facebook), a przy dwóch byłyby
+     * cztery kolumny na `users` i dwa osobne CHECK-i „obie kolumny albo
+     * żadna".
+     */
+    public function tozsamosciZewnetrzne(): HasMany
+    {
+        return $this->hasMany(TozsamoscZewnetrzna::class, 'user_id');
+    }
+
+    /**
+     * Powiązanie konta z kontem Google — JEDYNA droga, którą identyfikator
+     * z Google trafia do bazy (issue #258, D-069, D-098).
+     *
+     * `TozsamoscZewnetrzna` MA PUSTE `$fillable` i to jest najważniejsze
+     * zdanie w tym miejscu. Ten sam powód co przy `email` (issue #195),
+     * `status` i `role` (AGENTS.md §7), tylko konsekwencje są jeszcze
+     * bardziej wprost: kto założy komuś wiersz z własnym identyfikatorem
+     * Google, ten wchodzi na jego konto jednym kliknięciem. Gdyby te pola
+     * stały na liście masowego przypisania, dowolny dzisiejszy i przyszły
+     * `create($request->all())` — także taki, który o Google w ogóle nie
+     * myśli — byłby przejęciem konta.
+     *
+     * ZAPISUJE OD RAZU, w odróżnieniu od `assignEmail()`. Powiązanie nigdy
+     * nie powstaje „razem z czymś innym w jednej transakcji": albo dokładamy
+     * je do konta, które już istnieje (po potwierdzeniu przez człowieka), albo
+     * do konta zakładanego przez `ZalozKonto`, które woła to jawnie.
+     *
+     * DRUGIE WOŁANIE DLA TEGO SAMEGO KONTA ODBIJA SIĘ O BAZĘ
+     * (`UNIQUE (dostawca, user_id)`) i to jest zachowanie poprawne: jedno
+     * konto Kuking ma najwyżej jedno konto Google. Kontroler pyta wcześniej
+     * `hasGoogleConnected()`, więc do wyjątku dochodzi tylko przy wyścigu —
+     * a wyścig ma się skończyć odmową, nie drugim powiązaniem.
+     */
+    public function connectGoogle(string $sub): void
+    {
+        $this->polaczZDostawca(TozsamoscZewnetrzna::DOSTAWCA_GOOGLE, $sub);
+    }
+
+    /**
+     * Powiązanie konta z kontem Facebooka (issue #259, D-098).
+     *
+     * Ta metoda jest bliźniaczo podobna do `connectGoogle()` i to jest cała
+     * jej treść — RÓŻNICA NIE LEŻY W ZAPISIE, LEŻY W TYM, KTO WOLNO JĄ
+     * ZAWOŁAĆ. Przy Google wolno po potwierdzeniu adresu przez Google
+     * i jednym kliknięciu człowieka na naszym ekranie (D-069, reguła 3).
+     * Przy Facebooku ta droga NIE ISTNIEJE, bo Facebook nie mówi, czy adres
+     * jest potwierdzony: powiązanie powstaje albo przy zakładaniu NOWEGO
+     * konta, albo gdy o nie poprosi człowiek JUŻ ZALOGOWANY na swoje konto
+     * Kuking. Adres e-mail z Facebooka nie łączy nigdy i z niczym — pełny
+     * wywód w `FacebookLoginController` i w D-098.
+     *
+     * DRUGIE WOŁANIE DLA TEGO SAMEGO KONTA ODBIJA SIĘ O BAZĘ
+     * (`UNIQUE (dostawca, user_id)`) i to jest zachowanie poprawne.
+     */
+    public function connectFacebook(string $identyfikator): void
+    {
+        $this->polaczZDostawca(TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK, $identyfikator);
+    }
+
+    /**
+     * Zapis wiersza powiązania — jedno miejsce dla wszystkich dostawców.
+     *
+     * `private`, żeby nazwa dostawcy nie mogła przyjść z zewnątrz: publiczne
+     * `polaczZDostawca($request->input('dostawca'), ...)` byłoby obejściem
+     * całej zamkniętej listy dostawców, której pilnuje CHECK w bazie.
+     */
+    private function polaczZDostawca(string $dostawca, string $identyfikator): void
+    {
+        $tozsamosc = new TozsamoscZewnetrzna;
+
+        $tozsamosc->forceFill([
+            'user_id' => $this->getKey(),
+            'dostawca' => $dostawca,
+            'identyfikator' => $identyfikator,
+            'connected_at' => now(),
+        ])->save();
+
+        // Relacja mogła zostać już wczytana (ekran ustawień, ten sam obiekt
+        // w jednym żądaniu) — bez tego `hasGoogleConnected()`
+        // i `hasFacebookConnected()` odpowiadałyby ze stanu sprzed zapisu.
+        $this->unsetRelation('tozsamosciZewnetrzne');
+    }
+
+    public function hasGoogleConnected(): bool
+    {
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
+            ->exists();
+    }
+
+    /**
+     * Odnotowanie, że człowiek odebrał nam dostęp u dostawcy (issue #259).
+     *
+     * NIE KASUJE WIERSZA i to jest tu najważniejsze. Kto wszedł do Kuking
+     * wyłącznie kontem Facebooka i nigdy nie ustawił hasła, straciłby przez
+     * skasowanie jedyną drogę wejścia, jaką zna — przez kliknięcie
+     * w ustawieniach Facebooka, którego skutków nikt mu nie zapowiedział.
+     * Znacznik mówi „uśpione", nie „nie było".
+     *
+     * Zwraca liczbę zmienionych wierszy, żeby wołający wiedział, czy było co
+     * oznaczać — powiadomienie o odebraniu dostępu może przyjść dla
+     * identyfikatora, którego u nas nie ma, i to nie jest awaria.
+     */
+    public function oznaczOdebranieDostepu(string $dostawca): int
+    {
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', $dostawca)
+            ->whereNull('dostep_odebrany_at')
+            ->update(['dostep_odebrany_at' => now()]);
+    }
+
+    /**
+     * Powrót po odebraniu dostępu: człowiek znów dał zgodę u dostawcy, więc
+     * znacznik gaśnie.
+     *
+     * Odmowa wejścia komuś, kto WŁAŚNIE na nowo przeszedł przez ekran zgody
+     * dostawcy, byłaby karą za skorzystanie z własnych ustawień.
+     */
+    public function cofnijOdebranieDostepu(string $dostawca): void
+    {
+        $this->tozsamosciZewnetrzne()
+            ->where('dostawca', $dostawca)
+            ->whereNotNull('dostep_odebrany_at')
+            ->update(['dostep_odebrany_at' => null]);
+    }
+
+    /** Czy powiązanie z tym dostawcą jest uśpione (dostęp odebrany u dostawcy). */
+    public function dostepOdebranyU(string $dostawca): bool
+    {
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', $dostawca)
+            ->whereNotNull('dostep_odebrany_at')
+            ->exists();
+    }
+
+    public function hasFacebookConnected(): bool
+    {
+        return $this->tozsamosciZewnetrzne()
+            ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK)
+            ->exists();
+    }
+
+    /**
+     * Konto powiązane z tym kontem Google — albo `null`.
+     *
+     * Pytamy po `sub`, NIGDY po adresie e-mail. Adres u Google da się
+     * zmienić, a w Google Workspace da się nadać komuś innemu adres osoby,
+     * która odeszła z firmy; `sub` jest trwały. Adres służy dokładnie raz,
+     * przy pierwszym połączeniu, i to za zgodą człowieka (D-069).
+     *
+     * Baza gwarantuje najwyżej jeden pasujący wiersz —
+     * `UNIQUE (dostawca, identyfikator)`.
+     */
+    public static function findByGoogleSub(string $sub): ?self
+    {
+        if (trim($sub) === '') {
+            return null;
+        }
+
+        return self::query()
+            ->whereHas('tozsamosciZewnetrzne', static fn ($q) => $q
+                ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_GOOGLE)
+                ->where('identyfikator', $sub))
+            ->first();
+    }
+
+    /**
+     * Konto powiązane z tym kontem Facebooka — albo `null`.
+     *
+     * Pytamy po identyfikatorze konta u Facebooka, NIGDY po adresie e-mail,
+     * i przy Facebooku to nie jest ostrożność, a jedyna dopuszczalna droga:
+     * adres z Facebooka nie ma dowodu potwierdzenia, więc rozpoznanie po nim
+     * byłoby przejęciem konta na życzenie (D-098). Identyfikator jest przy
+     * tym „App-Scoped": Meta obiecuje, że jest inny dla każdej aplikacji,
+     * więc poza Kuking do niczego nie służy.
+     *
+     * Baza gwarantuje najwyżej jeden pasujący wiersz —
+     * `UNIQUE (dostawca, identyfikator)`.
+     */
+    public static function findByFacebookId(string $identyfikator): ?self
+    {
+        if (trim($identyfikator) === '') {
+            return null;
+        }
+
+        return self::query()
+            ->whereHas('tozsamosciZewnetrzne', static fn ($q) => $q
+                ->where('dostawca', TozsamoscZewnetrzna::DOSTAWCA_FACEBOOK)
+                ->where('identyfikator', $identyfikator))
+            ->first();
     }
 
     /**
@@ -998,6 +1269,12 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function invalidateSessions(?string $exceptSessionId = null): void
     {
+        // Sesja może odtworzyć się z ciasteczka „zapamiętaj mnie” (#584).
+        // Token należy do konta, więc wyjątek dla bieżącej SESJI nie jest
+        // wyjątkiem dla starego ciasteczka: po utracie tej sesji trzeba się
+        // zalogować ponownie. Nie dotykamy guarda moderatora ani jego cookies.
+        $this->forceFill(['remember_token' => Str::random(60)])->save();
+
         // OCZEKUJĄCY LINK DO LOGOWANIA GINIE RAZEM Z SESJAMI (issue #25, D-056).
         //
         // Ta linijka stoi PRZED wyjściem na `session.driver` niżej i to nie

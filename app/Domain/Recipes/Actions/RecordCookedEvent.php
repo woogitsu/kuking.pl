@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Actions;
 
+use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
-use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
@@ -25,6 +25,32 @@ use Illuminate\Support\Facades\Gate;
  *  - powiadomienie autora jest OBOWIĄZKOWĄ częścią tej operacji, nie dodatkiem;
  *  - nie wymagamy zdjęcia ani żadnego pola — wystarczy sam fakt ugotowania;
  *  - ta sama osoba może zrobić to dowolnie wiele razy dla tego samego przepisu.
+ *
+ * TRZY PRZYPADKI, W KTÓRYCH POWIADOMIENIE MIMO TO NIE POWSTAJE — WYPISANE,
+ * BO SŁOWO „ZAWSZE" BEZ WYPISANYCH GRANIC JEST NIESPRAWDZALNE
+ * ---------------------------------------------------------------------
+ * Wszystkie trzy odcina `NotifyUser`, żeby nie trzeba było o nich pamiętać
+ * w dwunastu miejscach, i wszystkie trzy są zmierzone w
+ * `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`, każdy z kontrolą
+ * dodatnią obok:
+ *
+ *  1. AUTOR UGOTOWAŁ WŁASNY PRZEPIS. `RecipePolicy::cook()` na to pozwala
+ *     (ludzie gotują swoje przepisy i chcą mieć ślad), ale wiadomość o
+ *     własnej akcji nie niesie żadnej informacji.
+ *  2. KONTO AUTORA JEST ZAMKNIĘTE — `banned`, `pending_delete` albo `erased`
+ *     (`User::mozeCzytac()`). Przy dwóch pierwszych wykonanie i tak nie
+ *     powstaje, bo przepis takiego konta jest niewidoczny; przy `erased`
+ *     powstaje i ZOSTAJE (to dorobek kucharza), a powiadomienia nie ma, bo
+ *     nie ma komu go przeczytać. ZAWIESZENIE TU NIE WCHODZI: zawieszony
+ *     autor powiadomienie dostaje.
+ *  3. MIĘDZY AUTOREM A KUCHARZEM JEST BLOKADA, w którąkolwiek stronę — ale
+ *     wtedy `Gate::denies('cook')` wyżej i tak nie dopuszcza wykonania, więc
+ *     ten warunek w `NotifyUser` jest dla tej ścieżki drugą linią, nie
+ *     pierwszą.
+ *
+ * Czego na tej liście NIE MA i mieć nie ma: ustawienia użytkownika. Jedyna
+ * zgoda, jaką człowiek tu przestawia, dotyczy TYGODNIOWEGO LISTU
+ * (`users.wants_weekly_digest`) i powiadomień w serwisie nie dotyka.
  *
  * JEDNO WYSŁANIE FORMULARZA TO JEDNO WYKONANIE I JEDNO POWIADOMIENIE (ADR
  * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`, wariant A3).
@@ -100,18 +126,27 @@ final class RecordCookedEvent
             throw new BladDlaCzlowieka('Nie można dodać wykonania do tego przepisu.');
         }
 
-        $ownedMedia = Media::query()
-            ->where('owner_id', $cook->getKey())
-            ->whereIn('id', $mediaIds)
-            ->pluck('id')
-            ->all();
-
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $ip
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $klucz, $ip
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip
             ): CookedEvent {
+                /*
+                 * ZDJĘCIA WYBIERANE POD BLOKADĄ, W TEJ SAMEJ TRANSAKCJI
+                 * (issue #285, D-083).
+                 *
+                 * Ta sama luka co w `PublishPost`: własność sprawdzana PRZED
+                 * transakcją, zwykłym `SELECT`-em, a przypięcie kilka linijek
+                 * dalej. Sprzątacz osieroconych zdjęć mieścił się w środku
+                 * razem z kasowaniem plików, a `cooked_event_media.media_id`
+                 * kasuje się kaskadowo — więc wykonanie zostawało bez zdjęcia
+                 * i bez pliku. „Ugotowałem" jest w tym produkcie ważniejsze
+                 * niż lajk, a zdjęcie z tego wykonania bywa jedynym, jakie
+                 * ta osoba ma.
+                 */
+                $ownedMedia = ZdjeciaDoPrzypiecia::zablokuj((string) $cook->getKey(), $mediaIds);
+
                 $event = CookedEvent::create([
                     'user_id' => $cook->getKey(),
                     'recipe_id' => $recipe->getKey(),

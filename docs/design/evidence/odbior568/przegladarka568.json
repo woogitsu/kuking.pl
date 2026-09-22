@@ -1,0 +1,51 @@
+{
+  "co": "Odbiór #568 — rzeczywista przeglądarka na scenie LOKALNEJ (nie produkcja)",
+  "kiedy": "2026-09-19",
+  "kod": "8a2ecb2a91bec7f7fef0f40e9d1c59b8c4735257 (zawiera merge #592 = 2144a114)",
+  "scena": {
+    "serwer": "php artisan serve --host=127.0.0.1 --port=8568 --no-reload",
+    "baza": "kuking_568_browser_claude na 127.0.0.1:55439, parametry przez zmienne środowiska",
+    "dane": "450 publicznych przepisów „Kalarepa pieczona z czosnkiem” jednego autora + 4 profile; dane demonstracyjne, zero danych produkcyjnych",
+    "skala_i_motyw": "ustawiane atrybutami dokumentu data-text-scale i data-theme — to NIE jest dowód zapisu preferencji przez formularz"
+  },
+  "przeplyw_rzeczywistymi_klikniecami": [
+    {"krok": 1, "url": "/szukaj?q=Kalarepa&sekcja=przepisy&ile=200", "komunikat": "Pokazujemy 200 przepisów. Jest ich więcej.", "kart": 200, "odnosnik_dalej": "…&od_przepisu=200&od_osoby=0"},
+    {"krok": 2, "akcja": "kliknięcie „Pokaż więcej przepisów”", "komunikat": "Pokazujemy przepisy 201–400.", "kart": 200, "odnosnik_dalej": "…&od_przepisu=400&od_osoby=0", "powrot": 1},
+    {"krok": 3, "akcja": "kliknięcie „Pokaż więcej przepisów”", "komunikat": "Pokazujemy przepisy 401–450.", "kart": 50, "odnosnik_dalej": null, "powrot": 1},
+    {"krok": 4, "akcja": "Tab na „Wróć do początku przepisów” i Enter z klawiatury", "wynik_url": "?q=Kalarepa&sekcja=przepisy&ile=200&od_przepisu=0&od_osoby=0", "komunikat": "Pokazujemy 200 przepisów. Jest ich więcej.", "kart": 200, "powrot": 0}
+  ],
+  "fokus_powrotu_320_ciemny_140": {
+    "focus_visible": true,
+    "outline_style": "none",
+    "box_shadow": "rgb(21, 23, 20) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+    "uwaga": "sam outline jest none — pierścień robi box-shadow; pomiar wyłącznie outline dałby fałszywy negatyw",
+    "obejrzano_zrzut": true,
+    "zrzut_zarchiwizowany": false,
+    "uwaga_o_zrzucie": "zrzut obejrzano w sesji odbiorowej; NIE zostal zapisany do repozytorium — to jest slabsza warstwa dowodu niz plik PNG w evidence/",
+    "pulapka": "odczyt stylu bezpośrednio po Tab trafia w trwającą przejściówkę CSS i pokazuje box-shadow jako przezroczysty"
+  },
+  "macierz_okna_201_400": {
+    "mierzone": "scrollWidth - clientWidth na dokumencie i body (przepełnienie poziome) oraz obliczony font body",
+    "warianty": [
+      {"szerokosc": 320, "motyw": "light", "skala": 100, "przepelnienie_px": 0, "font": "18px"},
+      {"szerokosc": 320, "motyw": "light", "skala": 140, "przepelnienie_px": 0, "font": "25.2px"},
+      {"szerokosc": 320, "motyw": "dark", "skala": 100, "przepelnienie_px": 0, "font": "18px"},
+      {"szerokosc": 320, "motyw": "dark", "skala": 140, "przepelnienie_px": 0, "font": "25.2px"},
+      {"szerokosc": 768, "motyw": "light", "skala": 100, "przepelnienie_px": 0, "font": "18px"},
+      {"szerokosc": 768, "motyw": "light", "skala": 140, "przepelnienie_px": 0, "font": "25.2px"},
+      {"szerokosc": 768, "motyw": "dark", "skala": 100, "przepelnienie_px": 0, "font": "18px"},
+      {"szerokosc": 768, "motyw": "dark", "skala": 140, "przepelnienie_px": 0, "font": "25.2px"},
+      {"szerokosc": 1440, "motyw": "light", "skala": 100, "przepelnienie_px": 0, "font": "18px"},
+      {"szerokosc": 1440, "motyw": "light", "skala": 140, "przepelnienie_px": 0, "font": "25.2px"},
+      {"szerokosc": 1440, "motyw": "dark", "skala": 100, "przepelnienie_px": 0, "font": "18px"},
+      {"szerokosc": 1440, "motyw": "dark", "skala": 140, "przepelnienie_px": 0, "font": "25.2px"}
+    ],
+    "wynik": "12/12 bez przepełnienia poziomego"
+  },
+  "czego_ten_pomiar_NIE_dowodzi": [
+    "nie jest to pomiar rzeczywistego zoomu przeglądarki 200% — mierzona była skala tekstu",
+    "nie jest to pomiar produkcji: na produkcji nie istnieje zapytanie z ponad 200 trafieniami",
+    "nie sprawdzono zapisu preferencji wyglądu przez formularz ani stanów zalogowanych",
+    "nie sprawdzono fizycznego telefonu ani czytnika ekranu"
+  ]
+}

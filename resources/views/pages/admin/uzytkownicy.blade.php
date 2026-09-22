@@ -131,14 +131,22 @@
     </p>
 
     @if($uzytkownicy->total() === 0)
-        <p class="card">
+        {{--
+            `<x-empty-state>`, nie akapit — rozstrzygnięcie właściciela z 11.09
+            (issue #367). Ten sam komponent stoi obok, w „Tagach promowanych";
+            dwa różne kształty pustego stanu w jednym panelu to dwie rzeczy do
+            nauczenia się zamiast jednej.
+
+            BEZ `action` I `href` — i to nie jest niedoróbka. Pusta lista kont
+            nie ma sensownej akcji: moderator nie zakłada kont za ludzi. Martwy
+            przycisk jest zakazany (D-053), a komponent działa bez niego.
+        --}}
+        <x-empty-state :title="$filtry['szukaj'] !== '' ? 'Nie znaleźliśmy takiego konta' : 'Tu nic nie ma'">
             @if($filtry['szukaj'] !== '')
-                Nie znaleźliśmy konta pasującego do „{{ $filtry['szukaj'] }}”. Spróbuj krótszego fragmentu
+                Nic nie pasuje do „{{ $filtry['szukaj'] }}”. Spróbuj krótszego fragmentu
                 nazwy albo adresu.
-            @else
-                Tu nic nie ma.
             @endif
-        </p>
+        </x-empty-state>
     @else
         {{-- `tabindex="0"` — kontener przewijany musi dać się złapać
              klawiaturą (WCAG 2.1.1). `role="region"` z podpisem, żeby czytnik

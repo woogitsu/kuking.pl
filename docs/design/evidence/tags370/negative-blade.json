@@ -1,0 +1,19 @@
+{
+  "before": {
+    "md5": "6a6d7ea6ee8607d36f1dcecd355164f6",
+    "mtime_ns": 1789690725346287100
+  },
+  "backup": "/tmp/kuking370-blade-negative-re_hpuiz/show.blade.php",
+  "negative": {
+    "exit": 1,
+    "output": "node:internal/modules/run_main:123\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: TAG_PRESELECTION_MISSING\n+ actual - expected\n\n+ null\n- 'odbior-kolaz-5'\n    at file:///mnt/c/Users/matma/Documents/Codex/kuking-370/output/browser370/preselection.mjs:2:217 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: null,\n  expected: 'odbior-kolaz-5',\n  operator: 'strictEqual'\n}\n\nNode.js v20.20.2\n"
+  },
+  "restored": {
+    "md5": "6a6d7ea6ee8607d36f1dcecd355164f6",
+    "mtime_ns": 1789690725346287100
+  },
+  "positive": {
+    "exit": 0,
+    "output": "PASS selected tag and guest login destination\n"
+  }
+}

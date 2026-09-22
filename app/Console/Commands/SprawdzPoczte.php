@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Models\MailFailure;
 use App\Support\Poczta;
 use Illuminate\Console\Command;
 use Illuminate\Mail\Message;
@@ -309,7 +310,7 @@ class SprawdzPoczte extends Command
             // trudno zgadnąć z kodu błędu.
             if ($konto !== '' && preg_match('/^\d+\..+\.smtp$/', $konto) !== 1) {
                 $ostrzezenia[] = 'EMAILLABS_SMTP_ACCOUNT to `'.$konto.'`, a panel EmailLabs podaje tę wartość w kształcie '
-                    .'`1.nazwa.smtp`. Jeśli wkleiłeś login SMTP zamiast nazwy konta, API odrzuci wysyłkę.';
+                    .'`1.nazwa.smtp`. Jeśli w tym polu jest login SMTP zamiast nazwy konta, API odrzuci wysyłkę.';
             }
 
             if (config('services.emaillabs.tracking')) {
@@ -478,6 +479,39 @@ class SprawdzPoczte extends Command
         if ($czekajace > 50 && ! $przezKolejke) {
             $this->warn('  Kolejka rośnie. Jeśli worker nie chodzi, listy będą się w niej odkładać i nikt tego nie zauważy.');
         }
+
+        $this->stanPrzepadlychListow();
+    }
+
+    /**
+     * Listy, które PRZEPADŁY — czyli to, co `failed_jobs` wyżej liczy razem
+     * z przetwarzaniem zdjęć i eksportami (issue #234, D-062).
+     *
+     * Dwa wiersze, nie tabela: pełną listę z kategorią odmowy i instrukcją
+     * „co zrobić" wypisuje `kuking:nieudane-listy`. Tutaj chodzi tylko o to,
+     * żeby człowiek diagnozujący pocztę nie musiał się domyślać, że taka
+     * komenda istnieje.
+     */
+    private function stanPrzepadlychListow(): void
+    {
+        try {
+            $nieodhaczone = MailFailure::query()->nieodhaczone()->count();
+        } catch (Throwable) {
+            // Tabeli może jeszcze nie być (kod wdrożony przed migracją).
+            // To nie jest powód, żeby przewracać diagnostykę poczty.
+            return;
+        }
+
+        if ($nieodhaczone === 0) {
+            $this->line('  Listów, które przepadły: 0');
+
+            return;
+        }
+
+        $this->newLine();
+        $this->warn('  Listy, które PRZEPADŁY i nikt tego nie odhaczył: '.$nieodhaczone);
+        $this->line('  To wiadomości do ludzi, które nie wyszły i już nie wyjdą. Przeczytaj, co i dlaczego:');
+        $this->line('    php artisan kuking:nieudane-listy');
     }
 
     private function wyslij(string $adres, string $temat, string $tresc, bool $przezKolejke): void
@@ -548,7 +582,7 @@ class SprawdzPoczte extends Command
                 'Wygeneruj klucz (hasło SMTP) od nowa w panelu dostawcy i wklej go w Railway.',
                 'Sprawdź, czy na końcu wartości nie ma spacji — kopiowanie z panelu lubi ją dokleić.',
                 'Po zmianie zmiennej ZRESTARTUJ serwis: konfiguracja jest zapiekana przy starcie kontenera.',
-                'Klucz „do wysyłki” to zwykle inny klucz niż „do API” — sprawdź, że wziąłeś ten pierwszy.',
+                'Klucz „do wysyłki” to zwykle inny klucz niż „do API” — sprawdź, czy w konfiguracji jest ten pierwszy.',
                 'Przy EmailLabs po API: dane SMTP (login i hasło z sekcji „Konta SMTP”) NIE działają na API. '
                     .'Potrzebne są dwa klucze z Konto → Ustawienia → API: EMAILLABS_APP_KEY i EMAILLABS_SECRET_KEY.',
             ],
@@ -572,8 +606,8 @@ class SprawdzPoczte extends Command
                 'Serwer przyjął połączenie, ale odrzucił NADAWCĘ.',
                 'W panelu dostawcy domena `'.$this->domenaNadawcy().'` musi mieć status „zweryfikowana”.',
                 'Rekordy SPF i DKIM w Cloudflare muszą być „DNS only” (szara chmurka), nie „Proxied” — proxowanie psuje weryfikację.',
-                'Rekordy DNS rozchodzą się nawet kilkadziesiąt minut. Jeśli dodałeś je przed chwilą, poczekaj i powtórz.',
-                'Sprawdź, czy MAIL_FROM_ADDRESS jest z tej samej domeny, którą zweryfikowałeś.',
+                'Rekordy DNS rozchodzą się nawet kilkadziesiąt minut. Jeśli doszły przed chwilą, poczekaj i powtórz.',
+                'Sprawdź, czy MAIL_FROM_ADDRESS jest z tej samej domeny co zweryfikowana.',
             ],
 
             $this->zawiera($komunikat, ['rate limit', 'too many', '429', 'quota', 'sending limit', 'daily limit']) => [

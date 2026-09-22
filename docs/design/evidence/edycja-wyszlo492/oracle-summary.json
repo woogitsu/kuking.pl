@@ -1,0 +1,2080 @@
+[
+  {
+    "stage": "edit",
+    "status": 200,
+    "url": "http://127.0.0.1:8033/przepisy/lokalny-szkic-odbioru-publikacji/edycja"
+  },
+  {
+    "stage": "edit",
+    "theme": "light",
+    "zoom": 2,
+    "geometry": {
+      "width": 320,
+      "scroll": 320
+    },
+    "tab": [
+      {
+        "id": "0",
+        "key": "0",
+        "type": "",
+        "name": "",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 137.21875,
+            "y": 434.9609375,
+            "w": 158.421875,
+            "h": 27,
+            "bottom": 461.9609375
+          },
+          {
+            "x": 12,
+            "y": 469.671875,
+            "w": 182.5234375,
+            "h": 27,
+            "bottom": 496.671875
+          }
+        ],
+        "hits": [
+          {
+            "x": 216.4296875,
+            "y": 448.4609375,
+            "ok": true,
+            "hit": "A"
+          },
+          {
+            "x": 103.26171875,
+            "y": 483.171875,
+            "ok": true,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "1",
+        "key": "1",
+        "type": "text",
+        "name": "title",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.5078125,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.5703125
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.0390625,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "2",
+        "key": "2",
+        "type": "file",
+        "name": "hero_photo",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 617.6953125,
+            "w": 246,
+            "h": 315.6484375,
+            "bottom": 933.34375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 775.51953125,
+            "ok": false,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "3",
+        "key": "3",
+        "type": "textarea",
+        "name": "summary",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.71875,
+            "w": 246,
+            "h": 176,
+            "bottom": 604.71875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.71875,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "4",
+        "key": "4",
+        "type": "number",
+        "name": "servings",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.34375,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.40625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "5",
+        "key": "5",
+        "type": "number",
+        "name": "prep_minutes",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.59375,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.65625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "6",
+        "key": "6",
+        "type": "number",
+        "name": "cook_minutes",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.34375,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.40625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "7",
+        "key": "radio:difficulty",
+        "type": "radio",
+        "name": "difficulty",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 629.4296875,
+            "w": 24,
+            "h": 24,
+            "bottom": 653.4296875
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 641.4296875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "12",
+        "key": "radio:visibility",
+        "type": "radio",
+        "name": "visibility",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.8046875,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.8046875
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.8046875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "13",
+        "key": "radio:source_type",
+        "type": "radio",
+        "name": "source_type",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.75,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.75
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.75,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "17",
+        "key": "17",
+        "type": "text",
+        "name": "source_person",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.5390625,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.6015625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.0703125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "18",
+        "key": "18",
+        "type": "textarea",
+        "name": "source_note",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.7890625,
+            "w": 246,
+            "h": 192.25,
+            "bottom": 621.0390625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 524.9140625,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "19",
+        "key": "19",
+        "type": "number",
+        "name": "family_since_year",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.6640625,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.7265625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.1953125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "20",
+        "key": "20",
+        "type": "file",
+        "name": "source_scan",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 617.8515625,
+            "w": 246,
+            "h": 393.7734375,
+            "bottom": 1011.625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 814.73828125,
+            "ok": false,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "21",
+        "key": "21",
+        "type": "url",
+        "name": "source_url",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.6875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.75
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.21875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "22",
+        "key": "22",
+        "type": "text",
+        "name": "ingredients[0][text]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.5546875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.6171875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.0859375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "23",
+        "key": "23",
+        "type": "text",
+        "name": "ingredients[0][group_name]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 578.7421875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 653.8046875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 616.2734375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "24",
+        "key": "24",
+        "type": "checkbox",
+        "name": "ingredients[0][no_amount]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 454.203125,
+            "w": 24,
+            "h": 24,
+            "bottom": 478.203125
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 466.203125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "25",
+        "key": "25",
+        "type": "text",
+        "name": "ingredients[1][text]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.6796875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.7421875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.2109375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "26",
+        "key": "26",
+        "type": "text",
+        "name": "ingredients[1][group_name]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 578.3671875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 653.4296875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 615.8984375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "27",
+        "key": "27",
+        "type": "checkbox",
+        "name": "ingredients[1][no_amount]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.828125,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.828125
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.828125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "28",
+        "key": "28",
+        "type": "text",
+        "name": "ingredients[2][text]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.3046875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.3671875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.8359375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "29",
+        "key": "29",
+        "type": "text",
+        "name": "ingredients[2][group_name]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 578.4921875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 653.5546875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 616.0234375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "30",
+        "key": "30",
+        "type": "checkbox",
+        "name": "ingredients[2][no_amount]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.953125,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.953125
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.953125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "31",
+        "key": "31",
+        "type": "",
+        "name": "",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 68.9140625,
+            "y": 431.3671875,
+            "w": 140.5078125,
+            "h": 30.5,
+            "bottom": 461.8671875
+          },
+          {
+            "x": 37,
+            "y": 470.4296875,
+            "w": 177.6171875,
+            "h": 30.5,
+            "bottom": 500.9296875
+          }
+        ],
+        "hits": [
+          {
+            "x": 139.16796875,
+            "y": 446.6171875,
+            "ok": true,
+            "hit": "A"
+          },
+          {
+            "x": 125.80859375,
+            "y": 485.6796875,
+            "ok": true,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "32",
+        "key": "32",
+        "type": "textarea",
+        "name": "steps[0][instruction]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.765625,
+            "w": 210,
+            "h": 176,
+            "bottom": 604.765625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.765625,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "33",
+        "key": "33",
+        "type": "number",
+        "name": "steps[0][timer_minutes]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.265625,
+            "w": 210,
+            "h": 75.0625,
+            "bottom": 503.328125
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.796875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "34",
+        "key": "34",
+        "type": "checkbox",
+        "name": "steps[0][remove_photo]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 73,
+            "y": 453.9140625,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.9140625
+          }
+        ],
+        "hits": [
+          {
+            "x": 85,
+            "y": 465.9140625,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "35",
+        "key": "35",
+        "type": "file",
+        "name": "steps[0][photo]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 470.578125,
+            "w": 210,
+            "h": 710.609375,
+            "bottom": 1181.1875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 825.8828125,
+            "ok": false,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "36",
+        "key": "36",
+        "type": "textarea",
+        "name": "steps[1][instruction]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.875,
+            "w": 210,
+            "h": 176,
+            "bottom": 604.875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.875,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "37",
+        "key": "37",
+        "type": "number",
+        "name": "steps[1][timer_minutes]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.375,
+            "w": 210,
+            "h": 75.0625,
+            "bottom": 503.4375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.90625,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "38",
+        "key": "38",
+        "type": "file",
+        "name": "steps[1][photo]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 656.625,
+            "w": 210,
+            "h": 710.609375,
+            "bottom": 1367.234375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 1011.9296875,
+            "ok": false
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "39",
+        "key": "39",
+        "type": "textarea",
+        "name": "steps[2][instruction]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.921875,
+            "w": 210,
+            "h": 176,
+            "bottom": 604.921875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.921875,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "40",
+        "key": "40",
+        "type": "number",
+        "name": "steps[2][timer_minutes]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.421875,
+            "w": 210,
+            "h": 75.0625,
+            "bottom": 503.484375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.953125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "41",
+        "key": "41",
+        "type": "file",
+        "name": "steps[2][photo]",
+        "focusVisible": true,
+        "outline": "rgb(21, 94, 239) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 656.671875,
+            "w": 210,
+            "h": 710.609375,
+            "bottom": 1367.28125
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 1011.9765625,
+            "ok": false
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "42",
+        "key": "42",
+        "type": "submit",
+        "name": "action",
+        "focusVisible": true,
+        "outline": "rgb(255, 255, 255) none 3px",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "rects": [
+          {
+            "x": 37,
+            "y": 436.28125,
+            "w": 221.8828125,
+            "h": 59.5,
+            "bottom": 495.78125
+          }
+        ],
+        "hits": [
+          {
+            "x": 147.94140625,
+            "y": 466.03125,
+            "ok": true,
+            "hit": "BUTTON"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "43",
+        "key": "43",
+        "type": "",
+        "name": "",
+        "focusVisible": true,
+        "outline": "rgb(21, 23, 20) none 3px",
+        "shadow": "rgb(255, 255, 255) 0px 0px 0px 2px, rgb(21, 94, 239) 0px 0px 0px 5px",
+        "rects": [
+          {
+            "x": 37,
+            "y": 507.78125,
+            "w": 153.015625,
+            "h": 59.5,
+            "bottom": 567.28125
+          }
+        ],
+        "hits": [
+          {
+            "x": 113.5078125,
+            "y": 537.53125,
+            "ok": true,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      }
+    ]
+  },
+  {
+    "stage": "edit",
+    "status": 200,
+    "url": "http://127.0.0.1:8033/przepisy/lokalny-szkic-odbioru-publikacji/edycja"
+  },
+  {
+    "stage": "edit",
+    "theme": "dark",
+    "zoom": 2,
+    "geometry": {
+      "width": 320,
+      "scroll": 320
+    },
+    "tab": [
+      {
+        "id": "0",
+        "key": "0",
+        "type": "",
+        "name": "",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 137.21875,
+            "y": 434.9609375,
+            "w": 158.421875,
+            "h": 27,
+            "bottom": 461.9609375
+          },
+          {
+            "x": 12,
+            "y": 469.671875,
+            "w": 182.5234375,
+            "h": 27,
+            "bottom": 496.671875
+          }
+        ],
+        "hits": [
+          {
+            "x": 216.4296875,
+            "y": 448.4609375,
+            "ok": true,
+            "hit": "A"
+          },
+          {
+            "x": 103.26171875,
+            "y": 483.171875,
+            "ok": true,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "1",
+        "key": "1",
+        "type": "text",
+        "name": "title",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.5078125,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.5703125
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.0390625,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "2",
+        "key": "2",
+        "type": "file",
+        "name": "hero_photo",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 617.6953125,
+            "w": 246,
+            "h": 315.6484375,
+            "bottom": 933.34375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 775.51953125,
+            "ok": false,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "3",
+        "key": "3",
+        "type": "textarea",
+        "name": "summary",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.71875,
+            "w": 246,
+            "h": 176,
+            "bottom": 604.71875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.71875,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "4",
+        "key": "4",
+        "type": "number",
+        "name": "servings",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.34375,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.40625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "5",
+        "key": "5",
+        "type": "number",
+        "name": "prep_minutes",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.59375,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.65625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "6",
+        "key": "6",
+        "type": "number",
+        "name": "cook_minutes",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.34375,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.40625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "7",
+        "key": "radio:difficulty",
+        "type": "radio",
+        "name": "difficulty",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 629.4296875,
+            "w": 24,
+            "h": 24,
+            "bottom": 653.4296875
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 641.4296875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "12",
+        "key": "radio:visibility",
+        "type": "radio",
+        "name": "visibility",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.8046875,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.8046875
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.8046875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "13",
+        "key": "radio:source_type",
+        "type": "radio",
+        "name": "source_type",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.75,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.75
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.75,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "17",
+        "key": "17",
+        "type": "text",
+        "name": "source_person",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.5390625,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.6015625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.0703125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "18",
+        "key": "18",
+        "type": "textarea",
+        "name": "source_note",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.7890625,
+            "w": 246,
+            "h": 192.25,
+            "bottom": 621.0390625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 524.9140625,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "19",
+        "key": "19",
+        "type": "number",
+        "name": "family_since_year",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.6640625,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.7265625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.1953125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "20",
+        "key": "20",
+        "type": "file",
+        "name": "source_scan",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 617.8515625,
+            "w": 246,
+            "h": 393.7734375,
+            "bottom": 1011.625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 814.73828125,
+            "ok": false,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "21",
+        "key": "21",
+        "type": "url",
+        "name": "source_url",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.6875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.75
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.21875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "22",
+        "key": "22",
+        "type": "text",
+        "name": "ingredients[0][text]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.5546875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.6171875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.0859375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "23",
+        "key": "23",
+        "type": "text",
+        "name": "ingredients[0][group_name]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 578.7421875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 653.8046875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 616.2734375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "24",
+        "key": "24",
+        "type": "checkbox",
+        "name": "ingredients[0][no_amount]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 454.203125,
+            "w": 24,
+            "h": 24,
+            "bottom": 478.203125
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 466.203125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "25",
+        "key": "25",
+        "type": "text",
+        "name": "ingredients[1][text]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.6796875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.7421875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 466.2109375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "26",
+        "key": "26",
+        "type": "text",
+        "name": "ingredients[1][group_name]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 578.3671875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 653.4296875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 615.8984375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "27",
+        "key": "27",
+        "type": "checkbox",
+        "name": "ingredients[1][no_amount]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.828125,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.828125
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.828125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "28",
+        "key": "28",
+        "type": "text",
+        "name": "ingredients[2][text]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 428.3046875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 503.3671875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.8359375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "29",
+        "key": "29",
+        "type": "text",
+        "name": "ingredients[2][group_name]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 37,
+            "y": 578.4921875,
+            "w": 246,
+            "h": 75.0625,
+            "bottom": 653.5546875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 616.0234375,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "30",
+        "key": "30",
+        "type": "checkbox",
+        "name": "ingredients[2][no_amount]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 453.953125,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.953125
+          }
+        ],
+        "hits": [
+          {
+            "x": 67,
+            "y": 465.953125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "31",
+        "key": "31",
+        "type": "",
+        "name": "",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 68.9140625,
+            "y": 431.3671875,
+            "w": 140.5078125,
+            "h": 30.5,
+            "bottom": 461.8671875
+          },
+          {
+            "x": 37,
+            "y": 470.4296875,
+            "w": 177.6171875,
+            "h": 30.5,
+            "bottom": 500.9296875
+          }
+        ],
+        "hits": [
+          {
+            "x": 139.16796875,
+            "y": 446.6171875,
+            "ok": true,
+            "hit": "A"
+          },
+          {
+            "x": 125.80859375,
+            "y": 485.6796875,
+            "ok": true,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "32",
+        "key": "32",
+        "type": "textarea",
+        "name": "steps[0][instruction]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.765625,
+            "w": 210,
+            "h": 176,
+            "bottom": 604.765625
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.765625,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "33",
+        "key": "33",
+        "type": "number",
+        "name": "steps[0][timer_minutes]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.265625,
+            "w": 210,
+            "h": 75.0625,
+            "bottom": 503.328125
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.796875,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "34",
+        "key": "34",
+        "type": "checkbox",
+        "name": "steps[0][remove_photo]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 73,
+            "y": 453.9140625,
+            "w": 24,
+            "h": 24,
+            "bottom": 477.9140625
+          }
+        ],
+        "hits": [
+          {
+            "x": 85,
+            "y": 465.9140625,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "35",
+        "key": "35",
+        "type": "file",
+        "name": "steps[0][photo]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 470.578125,
+            "w": 210,
+            "h": 710.609375,
+            "bottom": 1181.1875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 825.8828125,
+            "ok": false,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "36",
+        "key": "36",
+        "type": "textarea",
+        "name": "steps[1][instruction]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.875,
+            "w": 210,
+            "h": 176,
+            "bottom": 604.875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.875,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "37",
+        "key": "37",
+        "type": "number",
+        "name": "steps[1][timer_minutes]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.375,
+            "w": 210,
+            "h": 75.0625,
+            "bottom": 503.4375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.90625,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "38",
+        "key": "38",
+        "type": "file",
+        "name": "steps[1][photo]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 656.625,
+            "w": 210,
+            "h": 710.609375,
+            "bottom": 1367.234375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 1011.9296875,
+            "ok": false
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "39",
+        "key": "39",
+        "type": "textarea",
+        "name": "steps[2][instruction]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.921875,
+            "w": 210,
+            "h": 176,
+            "bottom": 604.921875
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 516.921875,
+            "ok": true,
+            "hit": "TEXTAREA"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "40",
+        "key": "40",
+        "type": "number",
+        "name": "steps[2][timer_minutes]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 428.421875,
+            "w": 210,
+            "h": 75.0625,
+            "bottom": 503.484375
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 465.953125,
+            "ok": true,
+            "hit": "INPUT"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "41",
+        "key": "41",
+        "type": "file",
+        "name": "steps[2][photo]",
+        "focusVisible": true,
+        "outline": "rgb(110, 168, 255) solid 3px",
+        "shadow": "none",
+        "rects": [
+          {
+            "x": 55,
+            "y": 656.671875,
+            "w": 210,
+            "h": 710.609375,
+            "bottom": 1367.28125
+          }
+        ],
+        "hits": [
+          {
+            "x": 160,
+            "y": 1011.9765625,
+            "ok": false
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "42",
+        "key": "42",
+        "type": "submit",
+        "name": "action",
+        "focusVisible": true,
+        "outline": "rgb(255, 255, 255) none 3px",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "rects": [
+          {
+            "x": 37,
+            "y": 436.28125,
+            "w": 221.8828125,
+            "h": 59.5,
+            "bottom": 495.78125
+          }
+        ],
+        "hits": [
+          {
+            "x": 147.94140625,
+            "y": 466.03125,
+            "ok": true,
+            "hit": "BUTTON"
+          }
+        ],
+        "height": 900
+      },
+      {
+        "id": "43",
+        "key": "43",
+        "type": "",
+        "name": "",
+        "focusVisible": true,
+        "outline": "rgb(244, 245, 241) none 3px",
+        "shadow": "rgb(34, 38, 32) 0px 0px 0px 2px, rgb(110, 168, 255) 0px 0px 0px 5px",
+        "rects": [
+          {
+            "x": 37,
+            "y": 507.78125,
+            "w": 153.015625,
+            "h": 59.5,
+            "bottom": 567.28125
+          }
+        ],
+        "hits": [
+          {
+            "x": 113.5078125,
+            "y": 537.53125,
+            "ok": true,
+            "hit": "A"
+          }
+        ],
+        "height": 900
+      }
+    ]
+  }
+]

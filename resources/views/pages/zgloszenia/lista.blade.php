@@ -13,7 +13,7 @@
     <h1>Twoje zgłoszenia</h1>
 
     <p class="mb-5">
-        To są sprawy, które nam zgłosiłeś. Przy każdej piszemy, na czym stoi
+        To są sprawy, które do nas trafiły od Ciebie. Przy każdej piszemy, na czym stoi
         i co postanowiliśmy. Numer sprawy podaj, jeśli będziesz do nas pisać.
     </p>
 
@@ -33,7 +33,7 @@
                         wysłane {{ \App\Support\Czas::data($zgloszenie->created_at, 'j F Y') }}
                     </p>
 
-                    <p>Powód, który wybrałeś: {{ $zgloszenie->reasonLabel() }}.</p>
+                    <p>Wybrany powód: {{ $zgloszenie->reasonLabel() }}.</p>
 
                     @if($zgloszenie->jestRozstrzygniete() && $decyzja !== null)
                         @php

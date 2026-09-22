@@ -29,19 +29,24 @@
         --}}
         <p class="mb-5">
             Ten ekran jest dla osób, które <strong>już mają konto w Kuking</strong>.
-            Podaj adres e-mail, którym je zakładałaś albo zakładałeś — wyślemy na niego
-            wiadomość z jednym przyciskiem, a po kliknięciu wejdziesz na konto bez
-            wpisywania hasła.
+            Podaj adres e-mail z tego konta — wyślemy na niego
+            wiadomość z linkiem. Otwórz go, a na stronie kliknij „Zaloguj mnie”.
+            Przy potwierdzonym adresie hasła nie trzeba wpisywać.
+            Jeśli adres konta nie był potwierdzony, wiadomość poprosi najpierw o ustawienie hasła.
         </p>
 
         <p class="notice mb-5">
+            {{-- BEZ „zajmuje minutę": to obietnica z miarą, której nikt nie
+                 mierzy. Skreślona, a nie zastąpiona inną liczbą — informacja,
+                 dla której to zdanie tu stoi, brzmi „to nie jest ten formularz,
+                 w którym jesteś", i ta zostaje w całości. --}}
             Nie masz jeszcze konta? <a href="{{ route('register') }}">Załóż konto</a> —
-            to inny formularz i zajmuje minutę.
+            to inny formularz.
         </p>
 
         <x-error-summary />
 
-        <form class="card" method="POST" action="{{ route('login.link.send') }}">
+        <form class="panel-formularza" method="POST" action="{{ route('login.link.send') }}">
             @csrf
             <x-field name="email" label="Twój adres e-mail" type="email" required autocomplete="email"
                      help="Ten sam, na który przychodzą wiadomości z Kuking." />
@@ -54,9 +59,9 @@
         </form>
 
         <p class="notice mt-6">
-            <strong>Co się stanie dalej?</strong> Przyjdzie wiadomość „Twój link do zalogowania w Kuking”.
-            Otwórz ją i kliknij zielony przycisk. Możesz to zrobić na telefonie, nawet jeśli prosiłaś
-            o link na komputerze. Link działa przez pół godziny i tylko raz.
+            <strong>Co się stanie dalej?</strong> Przy potwierdzonym adresie przyjdzie wiadomość „Twój link do zalogowania w Kuking”.
+            Otwórz ją i kliknij przycisk „Zaloguj mnie w Kuking”, a na stronie potwierdź przyciskiem „Zaloguj mnie”. Możesz to zrobić na telefonie, nawet jeśli o link
+            prosisz z komputera. Link działa przez pół godziny i tylko raz.
         </p>
 
         <p class="mt-5">

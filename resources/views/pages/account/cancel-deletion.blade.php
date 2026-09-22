@@ -9,7 +9,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('account.delete.cancel.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('account.delete.cancel.store') }}">
         @csrf
 
         <x-field name="login" label="Adres e-mail albo nazwa użytkownika" required

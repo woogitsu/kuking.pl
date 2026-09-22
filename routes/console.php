@@ -174,6 +174,103 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
     ->dailyAt('04:50')
     ->withoutOverlapping();
 
+// 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest
+// cała reszta tej listy (uzasadnienie odstępów wyżej).
+// Wygasłe zaproszenia do założenia konta (D-085): w wierszu leży adres e-mail
+// osoby, która NIE MA u nas konta. `WyslijZaproszenieDoRejestracji` sprząta przy
+// okazji każdej prośby, więc to jest siatka bezpieczeństwa na dni bez ruchu —
+// i to ona daje polityce prywatności prawo napisać „najwyżej dobę".
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
+    ->name('kuking:sprzataj-zaproszenia')
+    ->dailyAt('05:00')
+    ->withoutOverlapping();
+
+// 05:10 — dziesięć minut po zaproszeniach, tak jak rozsunięta jest cała reszta
+// tej listy (uzasadnienie odstępów wyżej).
+// Retencja tabeli `sessions` (RZ-01): `config('kuking.sessions.retention_days')`
+// dni od ostatniej aktywności, nigdy mniej niż `SESSION_LIFETIME`.
+//
+// DLACZEGO TO ZADANIE JEST POTRZEBNE, SKORO LARAVEL SPRZĄTA SESJE SAM
+// Bo „sam" znaczy `config/session.php` → `'lottery' => [2, 100]`, czyli
+// `gc()` przy dwóch procentach żądań. To jest sprzątanie probabilistyczne
+// i zależne od ruchu — przy małym ruchu wiersz z adresem IP i pełnym
+// `User-Agent` leży dłużej niż `lifetime`, bez żadnej gwarantowanej górnej
+// granicy. Każda inna tabela z danymi osobowymi ma tu swoje nocne zadanie
+// i twardą liczbę; `sessions` była jedyną bez.
+//
+// LOTERIA ZOSTAJE WŁĄCZONA — to nie jest przeoczenie. Dwa mechanizmy mają
+// różne tryby awarii: loteria czyści przy ruchu nawet po śmierci
+// harmonogramu, zadanie czyści co noc nawet bez ruchu.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprzataj-sesje'))
+    ->name('kuking:sprzataj-sesje')
+    ->dailyAt('05:10')
+    ->withoutOverlapping();
+
+// CZUJKA KOPII BAZY (issue #193, decyzja D-043).
+//
+// Kopię robi OSOBNY serwis Railway w obrazie bez PHP (`docker/kopia/`) — nie
+// ta aplikacja i nie ten harmonogram. `pg_dump` z PHP wymaga `proc_open`,
+// wyłączonego w `docker/php.ini`, i tego nie ruszamy.
+//
+// To zadanie robi drugą rzecz, której tamten serwis zrobić NIE MOŻE: pilnuje,
+// czy on w ogóle jeszcze chodzi. Serwis kopii alarmuje, gdy jego przebieg się
+// nie udał — ale nie zaalarmuje, gdy przebiegu NIE BYŁO (skasowany serwis,
+// wyłączony harmonogram, wyczerpany limit konta, wygasły token). Kod, który
+// wtedy nie chodzi, nie może o sobie donieść. #193 nazywa to najgorszym
+// możliwym stanem: „myślisz, że masz kopię".
+//
+// 06:15 UTC, czyli 07:15/08:15 w Polsce: kopia startuje 02:17 UTC
+// (`.railway/railway.ts`, serwis `kopia-bazy`), więc o tej godzinie wynik
+// nocy jest już znany, a właściciel widzi alarm przy pierwszej kawie,
+// nie w środku nocy.
+//
+// Dopóki bucket R2 nie istnieje, komenda mówi „czujka wyłączona" i nie dzwoni
+// nigdzie — umowa „brak zmiennej = zero efektu", ta sama co przy
+// `LOG_BLAD_WEBHOOK_URL`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
+    ->name('kuking:sprawdz-kopie')
+    ->dailyAt('06:15')
+    ->withoutOverlapping();
+
+// Budżet połączeń PostgreSQL (issue #598). Wyczerpanie `max_connections` jest
+// awarią SKOKOWĄ: dopóki zostaje jedno wolne miejsce, `/health` odpowiada
+// „baza działa" — bo właśnie to miejsce zajął. Po wyczerpaniu nie łączy się
+// nikt, łącznie z administratorem. Dlatego pomiar jest OSOBNY od `/health`.
+//
+// CO GODZINĘ, a nie raz na dobę jak czujka kopii: brak kopii to stan, który
+// trwa i poczeka do rana, a wyciek połączeń narasta w ciągu godzin i o świcie
+// jest już po wszystkim. Powtórzeń pilnuje `AlarmPolaczen`
+// (`kuking.polaczenia.cisza_godzin`), żeby stan trwający dobę nie dał
+// dwudziestu czterech identycznych wiadomości.
+//
+// Minuta 25, a nie 00: o pełnej godzinie tyka już licznik społeczności
+// i zdejmowanie kar. Pomiar liczby połączeń wykonany dokładnie wtedy, gdy
+// harmonogram sam otwiera swoje, mierzyłby po części własny hałas.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
+    ->name('kuking:budzet-polaczen')
+    ->hourlyAt(25)
+    ->withoutOverlapping();
+
+// Czujka kolejki (issue #599). Pole `kolejka` w `/health` liczy WSZYSTKIE
+// wiersze `failed_jobs`, więc od 9 września 2026 świeci nieprzerwanie przez
+// cztery stare zadania — i nie odróżni piątej awarii od czwartej. Ta czujka
+// pyta o ZDARZENIE (co padło w oknie kilku godzin) i mierzy zaległość
+// najstarszego gotowego zadania, czyli jedyny sygnał, który zauważa MARTWEGO
+// workera. Proces, który nie chodzi, nie zgłasza żadnego błędu.
+//
+// CO KWADRANS: martwy worker to zatrzymane potwierdzenia adresu, resety hasła
+// i przetwarzanie zdjęć. Godzina ciszy przy rejestracji nowej osoby jest
+// różnicą między „wolno" a „nie działa". Powtórzeń pilnuje `AlarmKolejki`.
+// `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
+Schedule::call(fn () => Artisan::call('kuking:sprawdz-kolejke'))
+    ->name('kuking:sprawdz-kolejke')
+    ->everyFifteenMinutes()
+    ->withoutOverlapping();
+
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
 // każdą odsłonę jest dokładnie tym, czego ta komenda ma nie dopuścić.
@@ -259,11 +356,14 @@ Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
 //  * Daleko od nocnego bloku sprzątania (03:20-04:50), który potrafi trzymać
 //    pętlę harmonogramu przez dłuższą chwilę.
 //
-// `withoutOverlapping()` jest tu obowiązkowe i nie jest ostrożnością na
-// zapas: wstawienie stu dwudziestu listów do kolejki razem ze zbudowaniem
-// ich treści trwa dłużej niż jedno przejście pętli harmonogramu, a dwa
-// przebiegi naraz wysłałyby część listów podwójnie — znacznik
-// `weekly_digest_sent_at` stawiany jest dopiero PO pętli.
+// `withoutOverlapping()` zostaje, ale NIE JEST OCHRONĄ PRZED DUPLIKATEM
+// i nie wolno go tak czytać (audyt QUEUE-01, D-077). Zapobiega dwóm
+// przebiegom JEDNOCZEŚNIE — a wysyłkę dwa razy tego samego listu powodował
+// przebieg KOLEJNY, uruchomiony po tym, jak poprzedni padł w połowie.
+// Przed tym broni bariera w bazie: `UNIQUE (user_id, week_start)`
+// w `weekly_digest_sends`, zajmowana PRZED każdym `Mail::queue()`
+// (`App\Domain\Digest\OdbiorcyDigestu::zarezerwuj()`). Blokada
+// harmonogramu oszczędza tu więc pracę i zapytania, nie listy.
 //
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
 Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))

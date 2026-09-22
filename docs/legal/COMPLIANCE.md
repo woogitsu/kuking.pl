@@ -17,7 +17,7 @@ Kuking.pl to **hosting service** świadczący usługę **online platform** (umo�
 | Art. 11 | Punkt kontaktowy dla organów (państw członkowskich, Komisji, Rady ds. Usług Cyfrowych) | Adres e-mail + wskazany język komunikacji (polski, ewentualnie angielski) publikowany łatwo dostępnie |
 | Art. 12 | Punkt kontaktowy dla użytkowników (odbiorców usługi) | Ten sam lub osobny e-mail; **nie może to być wyłącznie bot/formularz bez możliwości bezpośredniego kontaktu** — musi umożliwiać szybką, bezpośrednią komunikację |
 | Art. 13 | Przedstawiciel prawny w UE | Nie dotyczy — operator jest w Polsce, czyli w UE. Istotne tylko, gdyby operator przeniósł się poza UE |
-| Art. 14 | Regulamin (terms and conditions) — jasny, zrozumiały, w prostym języku, informacje o polityce moderacji, wykorzystaniu narzędzi automatycznych, prawach użytkownika | Regulamin musi jasno opisać zasady moderacji treści (patrz `REGULAMIN_DRAFT.md`); dla serwisu z użytkownikami 50+ obowiązek "plain language" jest tu wyjątkowo ważny merytorycznie, nie tylko formalnie |
+| Art. 14 | Regulamin (terms and conditions) — jasny, zrozumiały, w prostym języku, informacje o polityce moderacji, wykorzystaniu narzędzi automatycznych, prawach użytkownika | Regulamin musi jasno opisać zasady moderacji treści (patrz `resources/legal/regulamin.md`); dla serwisu z użytkownikami 50+ obowiązek "plain language" jest tu wyjątkowo ważny merytorycznie, nie tylko formalnie |
 | Art. 15 | Sprawozdawczość przejrzystości dla dostawców usług pośrednich (co najmniej raz w roku) | **Mikro/małe przedsiębiorstwa są zwolnione** (Art. 19) — patrz niżej |
 | Art. 16 | Mechanizm zgłaszania i działania (notice and action) dla nielegalnych treści | **Obowiązkowy niezależnie od wielkości.** Musi być: elektroniczny, łatwo dostępny, przyjazny użytkownikowi, umożliwiać wskazanie dokładnej lokalizacji treści i wyjaśnienie dlaczego treść jest nielegalna. Formularz "Zgłoś" w Kuking musi to spełniać |
 | Art. 17 | Uzasadnienie decyzji (statement of reasons) | **Obowiązkowy niezależnie od wielkości**, dla usług hostingu. Przy każdym usunięciu/ukryciu/ograniczeniu treści lub zawieszeniu konta z powodu nielegalności lub naruszenia regulaminu → użytkownik musi dostać jasne uzasadnienie (podstawa, fakty, czy decyzja była zautomatyzowana, informacja o możliwości odwołania). Musi też trafiać do unijnej bazy DSA Transparency Database, jeśli dotyczy platformy online (nie tylko czystego hostingu) — [do weryfikacji, czy przy zwolnieniu z Art. 19 ten obowiązek zgłaszania do bazy nadal obowiązuje w pełnym zakresie; praktyka wskazuje, że tak, bo Art. 17 jest w Sekcji 2, nie 3] |
@@ -82,6 +82,7 @@ Kuking.pl (operator) jest **administratorem danych** (data controller) dla danyc
 | Logi bezpieczeństwa (audit log, próby logowania, IP) | IP, user agent, timestamp, typ zdarzenia | Art. 6(1)(f) — uzasadniony interes (bezpieczeństwo, wykrywanie nadużyć) | Krótka — rekomendacja 90 dni dla logów ogólnych, dłużej tylko dla zdarzeń związanych z aktywnym incydentem bezpieczeństwa |
 | Powiadomienia in-app | treść powiadomienia, status przeczytania | Art. 6(1)(b) | Do usunięcia/przeczytania + rozsądny bufor |
 | Analityka produktowa (PostHog) | zdarzenia UI, w miarę możliwości bez identyfikatorów bezpośrednich | Art. 6(1)(f) — uzasadniony interes, **o ile** spełnione warunki testu równoważenia i **niezależnie** od wymogu zgody na poziomie ePrivacy dla cookies/localStorage (patrz sekcja 5) | Krótka, rekomendacja 6–14 miesięcy, zagregowane dane bez limitu |
+| Analityka odwiedzin (Cloudflare Web Analytics, **wdrożone** 10.09.2026 — D-092) | adres odsłoniętej strony i adres źródła wejścia (oba **bez query stringu** — skrypt czyści `search`, `hash`, `username` i `password`), rodzaj i wersja przeglądarki, czasy wczytania (Web Vitals), kraj doliczany przez Cloudflare z samego połączenia; **bez** ciasteczek, **bez** zapisu na urządzeniu, identyfikator odsłony losowany w pamięci na jedno wczytanie strony | Art. 6(1)(f) — uzasadniony interes (wiedza, czy serwis komukolwiek się przydaje); ePrivacy/PKE nie wchodzi w grę, bo nie ma zapisu ani odczytu na urządzeniu (sekcja 5.5) | Po stronie Cloudflare, agregaty bez limitu; my nie trzymamy kopii |
 | Błędy aplikacji (Sentry) | stack trace, czasem fragmenty requestu — **ryzyko wycieku PII w treści błędu** | Art. 6(1)(f) — uzasadniony interes (utrzymanie usługi) | Rekomendacja 30–90 dni; **skonfigurować scrubbing PII w Sentry (data scrubbing rules) przed startem** |
 | Newsletter/e-mail transakcyjny (reset hasła, powiadomienia) | e-mail, treść wiadomości | Art. 6(1)(b) dla e-maili transakcyjnych; Art. 6(1)(a) zgoda dla e-maili marketingowych, jeśli takie się pojawią | Jak konto / do wycofania zgody |
 
@@ -190,7 +191,7 @@ Regulamin musi jasno określić, na jakiej podstawie Kuking może:
 **Rekomendacja minimalnej licencji:**
 > "Publikując treść, udzielasz Kuking niewyłącznej, nieodpłatnej licencji na jej przechowywanie, przetwarzanie techniczne (np. zmniejszanie zdjęć, generowanie miniatur) oraz publiczne udostępnianie w ramach funkcji serwisu i tak długo, jak długo treść jest opublikowana lub jak wymaga tego prawo (np. kopie zapasowe). Licencja wygasa z chwilą usunięcia treści, z zastrzeżeniem kopii technicznych/zapasowych usuwanych zgodnie z Polityką Prywatności. Zachowujesz pełnię praw autorskich do swoich treści."
 
-Ten fragment trafi do `REGULAMIN_DRAFT.md` — ale **finalne brzmienie licencji musi zatwierdzić prawnik**, to jeden z najczęściej kwestionowanych zapisów regulaminów UGC.
+Ten fragment trafi do `resources/legal/regulamin.md` — ale **finalne brzmienie licencji musi zatwierdzić prawnik**, to jeden z najczęściej kwestionowanych zapisów regulaminów UGC.
 
 ### 3.4 Wizerunek (Art. 81 ustawy o prawie autorskim i prawach pokrewnych)
 
@@ -231,6 +232,7 @@ Do 9 listopada 2024 r. obowiązywał Art. 173 ustawy Prawo telekomunikacyjne. Od
 | Cookie preferencji technicznych bez śledzenia (np. zapamiętany rozmiar czcionki, jeśli w cookie a nie w koncie) | `text_scale` — ale to już jest w kolumnie `users.text_scale`, czyli **serwerowo, nie w cookie** — dobre rozwiązanie, unika problemu | **Nie**, jeśli trzymane po stronie konta, nie w cookie/localStorage |
 | Analityka produktowa (PostHog) | zdarzenia UI, identyfikator sesji/użytkownika | **Tak, w standardowym podejściu** — Polska (UODO) nie wydała własnych wytycznych zwalniających analitykę z obowiązku zgody (w przeciwieństwie do np. Francji/CNIL, Włoch/Garante, Hiszpanii/AEPD, które mają wąskie wyjątki dla zagregowanej, ściśle statystycznej analityki pierwszej strony) |
 | Analityka bez identyfikatorów i bez zapisu na urządzeniu (np. agregacja server-side, brak cookie/localStorage, brak fingerprinting) | Konfiguracja PostHog w trybie **bez person profiles**, bez cookie, z wyłączonym autocapture identyfikującym urządzenie | **Można argumentować, że nie** — bo obowiązek dotyczy "przechowywania/dostępu do informacji na urządzeniu końcowym", a nie samego faktu zbierania zdarzeń serwerowo. To jednak wymaga **rygorystycznej konfiguracji technicznej** i nadal może podlegać RODO (jeśli dane są w jakikolwiek sposób powiązane z osobą, np. przez adres IP niehashowany) |
+| **Analityka faktycznie wdrożona w Kuking: Cloudflare Web Analytics** (D-092) | skrypt `static.cloudflareinsights.com/beacon.min.js` — sprawdzone przez pobranie i odczytanie pliku (sha256 `08c4fd72…`, wersja JS `2026.9.1`): **zero** wystąpień `cookie` (także w wariancie z wielkiej litery), **zero** `localStorage`, **zero** `sessionStorage`, **zero** `indexedDB`, **zero** `setItem`/`getItem` | **Nie** — nic nie jest zapisywane na urządzeniu ani z niego odczytywane w rozumieniu ePrivacy/PKE. Patrz 5.5 |
 | Sentry (błędy) | zwykle nie zapisuje cookie na urządzeniu użytkownika, dane wysyłane są z serwera/przeglądarki do Sentry przy wystąpieniu błędu | Zasadniczo nie wymaga zgody cookies (nie jest to "storage" na urządzeniu w typowej konfiguracji), ale wymaga podstawy RODO (uzasadniony interes) i minimalizacji PII w payloadzie |
 
 ### 5.3 Jak zrobić PostHog bez banera zgody — realistyczna ocena
@@ -251,6 +253,24 @@ Jest to **możliwe technicznie, ale ryzykowne prawnie bez pewności**, bo Polska
 - Osobna, łatwo dostępna możliwość **zmiany decyzji później** (link w stopce "Ustawienia cookies").
 - Duża czcionka, prosty język — spójnie z resztą UX dla grupy 50+.
 
+### 5.5 Co ostatecznie wdrożono — Cloudflare Web Analytics, bez banera (D-092, 10.09.2026)
+
+Sekcje 5.2–5.4 powstały, gdy kandydatem był **PostHog**, a pytanie brzmiało „czy da się go skonfigurować tak, żeby nie wymagał zgody". Odpowiedź w 5.3 była: da się, ale to ryzykowne. **Ta ocena zostaje w mocy dla PostHoga i nie została podważona** — wdrożono jednak co innego, więc wypada napisać wprost, dlaczego 5.3 tutaj nie zabrania.
+
+Różnica jest jedna i jest istotna. Rekomendacja z 5.3 broniła przed **cichym rozjechaniem się dokumentu z rzeczywistością**: „PostHog bez identyfikatorów" to KONFIGURACJA, a konfigurację da się cofnąć jednym przełącznikiem w cudzym panelu — i wtedy polityka prywatności przestaje być prawdziwa, a nikt się o tym nie dowiaduje. W beaconie Cloudflare nie ma czego przestawiać, i to jest **zmierzone, nie wzięte ze strony dostawcy**: w pobranym `beacon.min.js` nie występuje ani jedno odwołanie do `document.cookie`, `localStorage`, `sessionStorage`, `indexedDB`, `setItem` ani `getItem` — słowo „cookie" nie pada w tym pliku w żadnej postaci. Kodu, który nie ma czym zapisać na urządzeniu, nie da się do tego namówić przełącznikiem w cudzym panelu. **Brak ciasteczek jest tu właściwością narzędzia, nie jego ustawieniem** — dokładnie tak samo jak przy odrzuconym Plausible, i z mocniejszym pomiarem (Plausible przynajmniej ODCZYTYWAŁ `localStorage`, żeby sprawdzić flagę `plausible_ignore`; ten beacon nie zagląda tam wcale).
+
+Warunek 1 z listy w 5.3 (brak trwałych identyfikatorów po stronie klienta) jest więc spełniony z definicji: identyfikator odsłony powstaje z `crypto.randomUUID()` w pamięci karty i ginie razem z nią, bo nie ma go gdzie odłożyć. Warunek 3 (tylko dane statystyczne, bez profilu osoby) — z braku technicznej możliwości zrobienia inaczej; skrypt dodatkowo **czyści adresy przed wysłaniem**: usuwa query string, fragment oraz login i hasło z URL-a (funkcja `cleanLocation`), więc identyfikator z linku typu `?utm_id=…` do Cloudflare nie dojedzie. Warunek 2 (brak zapisanego IP) leży po stronie dostawcy i my go nie zmierzymy — ale ma tu inny ciężar niż przy jakimkolwiek innym kandydacie: **Cloudflare widzi IP każdego żądania do kuking.pl od pierwszego dnia**, bo jest naszym CDN-em i WAF-em przed Railwayem (`docs/infra/INFRA_DECISION.md`; `bootstrap/app.php` ma zaufane proxy właśnie z tego powodu). Włączenie statystyk nie stworzyło nowego przepływu danych do nowego podmiotu — i dlatego w polityce prywatności **nie doszedł ani nowy dostawca, ani trzeci akapit o przekazywaniu poza EOG**: Cloudflare, Inc. stoi tam od Turnstile'a (D-050), na podstawie EU-US Data Privacy Framework i standardowych klauzul umownych. Dopisany został **nowy cel** przetwarzania przy tym samym dostawcy, zgodnie z obietnicą, którą polityka sama sobie składa.
+
+Zachowanie skryptu zostało sprawdzone przez pobranie i odczytanie pliku, a nie przyjęte ze strony marketingowej dostawcy — bo to samo zdanie stoi w dokumencie publikowanym pod `/prywatnosc`. Wynik, wersja pliku i porównanie z odrzuconymi kandydatami (Plausible, Umami): `docs/DECISIONS.md`, D-092.
+
+Pozycja z listy zadań (sekcja 9, P1) „baner cookies LUB potwierdzona konfiguracja bez-zgodowa" jest tym samym **zamknięta wariantem drugim**. Warunek jego utrzymania jest jeden i trzeba go pilnować: **gdyby doszło narzędzie, które cokolwiek na urządzeniu zapisuje albo odczytuje, wraca obowiązek zgody i wraca temat banera z 5.4** — polityka prywatności obiecuje wprost, że zapytamy, zanim to się stanie.
+
+Czego to **nie** przesądza — trzy rzeczy, wypisane, żeby nie wyglądały na przesądzone:
+
+1. **Podstawy RODO.** Zbieranie danych o odsłonach nadal opiera się na uzasadnionym interesie (Art. 6(1)(f)) i podlega prawu sprzeciwu z Art. 21 — to jest osobna warstwa od ePrivacy i sekcja 5 jej nie zastępuje.
+2. **Ciasteczek stawianych przez samo proxy Cloudflare** (np. bot management). To warstwa sieciowa, która stoi przed serwisem niezależnie od tej decyzji i **nie została tu zmierzona** — beacon nie dokłada do niej nic, ale zdanie „na urządzeniu nie ma żadnego ciasteczka Cloudflare" nie jest zdaniem, które ten pomiar uprawnia napisać. Do sprawdzenia osobno, przy przeglądzie konfiguracji Cloudflare.
+3. **Automatycznego wstrzykiwania beacona.** Cloudflare umie wstrzyknąć ten sam skrypt w locie, na ruchu przechodzącym przez proxy. Ta opcja **musi zostać wyłączona**: my stawiamy znacznik w layoucie, więc wstrzyknięcie dałoby dwa beacony na stronę (podwójne liczenie) i wersję, której nie widzą ani recenzja, ani testy CSP. Czynność właściciela, zapisana w D-092 i w `.env.example`.
+
 ---
 
 ## 6. Dostępność (European Accessibility Act / ustawa o dostępności produktów i usług)
@@ -266,27 +286,110 @@ Jest to **możliwe technicznie, ale ryzykowne prawnie bez pewności**, bo Polska
 
 Priorytety: **P0 = blokujące start**, **P1 = zrobić w pierwszych tygodniach**, **P2 = ważne, ale nie blokujące**.
 
-| Priorytet | Zadanie | Wymaga prawnika? |
+**Jak czytać kolumnę „Dowód" — to jest reguła tej listy, nie ozdoba.**
+Każdy wiersz ma dokładnie jedną z trzech rzeczy:
+
+- **nazwę testu albo `plik:linia`** — twierdzenie jest pilnowane przez kod
+  i odhaczasz je, patrząc na zielony przebieg, nie na własną pamięć;
+- **`DO SPRAWDZENIA PRZEZ CZŁOWIEKA:`** — czego kod nie potrafi sprawdzić
+  i co trzeba zobaczyć samemu, z podaniem GDZIE;
+- **`BRAK:`** — rzecz nie istnieje. Wiersz zostaje, bo brak jest informacją.
+
+Punkt bez dowodu jest gorszy niż brak punktu, bo daje złudzenie sprawdzenia.
+Pilnuje tego `DokumentyPrawneNieKlamiaTest::test_kazdy_wiersz_listy_gotowosci_ma_dowod`.
+
+| Priorytet | Zadanie | Dowód | Wymaga prawnika? |
+|---|---|---|---|
+| P0 | Regulamin opublikowany na `/regulamin` (patrz `resources/legal/regulamin.md`) z licencją treści, zasadami moderacji, punktami kontaktowymi (Art. 11, 12, 14 DSA) | `DokumentyPrawneNieKlamiaTest` — dokument jest żywą stroną, bez placeholderów i bez narzędzi, których nie używamy | **Tak — finalna wersja** |
+| P0 | Polityka prywatności opublikowana na `/prywatnosc` (patrz `resources/legal/polityka-prywatnosci.md`) z pełną tabelą celów/podstaw/retencji | `DokumentyPrawneNieKlamiaTest`, `PolitykaPrywatnosciWymieniaKazdaUslugeTest` | **Tak — finalna wersja** |
+| P0 | Formularz „Zgłoś" spełniający Art. 16 DSA (elektroniczny, jasny, wskazanie lokalizacji i powodu) | `routes/web.php:978` (`/zglos/{type}/{id}`), `ZgloszenieNielegalnejTresciTest` | Nie, ale warto konsultacyjnie |
+| P0 | Uzasadnienie decyzji moderacyjnej (Art. 17 DSA) — zamknięta lista podstaw, każda wskazuje punkt zasad | `app/Domain/Moderation/PodstawaDecyzji.php`, `UzasadnienieDecyzjiTest::test_kazdy_punkt_z_listy_istnieje_w_zasadach` | Nie |
+| P0 | Wiek minimalny 16 lat wymagany oświadczeniem przy rejestracji | `app/Http/Controllers/Auth/RegisterController.php:132` — `'age_confirmed' => ['accepted']` | Nie |
+| P0 | Mechanizm eksportu i usunięcia konta działający end-to-end | `DataExportTest`, `AccountDeletionPurgeTest`, `AccountDeletionCancellationTest` | Nie |
+| P0 | Kanał błędów nie wynosi danych osobowych | `BladTrafiaNaWebhookBezDanychOsobowychTest` — **pilnowane testem, nie trzeba sprawdzać ręcznie** | Nie |
+| P0 | Procedura zgłaszania do organów przy CSAM/zagrożeniu życia (Art. 18 DSA) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` ścieżka opisana w `MODERATION_PLAYBOOK.md` §7.1, ale sam dokument zostawia w niej `[do weryfikacji z prawnikiem]` — potwierdzić właściwy organ **przed startem, nie w trakcie incydentu** | **Tak — potwierdzić ścieżkę zgłoszeniową** |
+| P0 | DPA/umowy powierzenia z **realnymi** odbiorcami danych: Railway, Cloudflare (R2, Turnstile, Web Analytics), OpenAI, dostawca poczty, a przy logowaniu zewnętrznym Google i Meta | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` lista odbiorców jest zweryfikowana wobec kodu (patrz §7.2), ale **czy umowy są podpisane, widać wyłącznie w panelach dostawców i w szafie z umowami** | **Tak — przegląd umów** |
+| P0 | Rejestr czynności przetwarzania (Art. 30 RODO) sporządzony | `BRAK:` takiego dokumentu nie ma w repozytorium ani nigdzie indziej, o czym wiadomo | **Tak — przegląd** |
+| P0 | Cloudflare Web Analytics: statystyka pozostaje bezciasteczkowa | `AnalitykaBezCiasteczekTest`, `WdrozenieAnalitykiOdwiedzinTest` — od tego zależy wiersz P1 o banerze niżej | Nie |
+| P0 | OpenAI: treść wpisu i pomniejszone zdjęcie wychodzą poza EOG — granica opisana w polityce i egzekwowana w kodzie | `app/Moderacja/KlientOpenAI.php`, polityka §„Przekazywanie poza EOG"; `PolitykaPrywatnosciWymieniaKazdaUslugeTest` | **Tak — podstawa przekazania** |
+| P0 | Logowanie kontem Google i Facebookiem: zakres danych zgodny z polityką | `PolitykaPrywatnosciWymieniaKazdaUslugeTest`; `/health` na produkcji potwierdza, że obie drogi są włączone | **Tak — rola Meta jako osobnego administratora** |
+| P0 | `SESSION_SECURE_COOKIE` ustawione na produkcji | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` w repozytorium stoi `.env.example:47 SESSION_SECURE_COOKIE=false` (wartość lokalna). Wartości produkcyjnej nie widać z kodu — odczytać w panelu Railway | Nie |
+| P0 | `zadania_nieudane` w `/health` wyjaśnione przed wpuszczeniem ludzi | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` `/health` mówi `degraded` wyłącznie na kolejce; tabeli `failed_jobs` nie da się odczytać bez konsoli produkcyjnej (#713 A1). Nie kasować bez zrozumienia przyczyny | Nie |
+| P1 | Baner cookies — niepotrzebny, dopóki statystyka jest bezciasteczkowa (D-092); wrócić do tematu przy zmianie dostawcy albo dołożeniu identyfikatorów | `AnalitykaBezCiasteczekTest` — gdy padnie, ten wiersz staje się P0 | **Tak, przy zmianie dostawcy** |
+| P1 | Szablon zgłoszenia naruszenia do UODO + szablon powiadomienia użytkowników przygotowany z wyprzedzeniem | `BRAK:` szablonów nie ma w repozytorium | Zalecane |
+| P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` retencja danych w aplikacji jest egzekwowana siedmioma komendami (§7.3), ale kopie zapasowe rządzą się osobnym cyklem — #193, #594 | Nie |
+| P1 | Weryfikacja aktualnego statusu ustawy krajowej wdrażającej DSA i roli UKE jako koordynatora | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` stan prawny zmienia się poza repozytorium | **Tak** |
+| P1 | Uproszczony wewnętrzny system odwołań od decyzji moderacyjnych (dobrowolnie, mimo zwolnienia z Art. 20 DSA) | `app/Http/Controllers/AppealController.php`, `app/Http/Controllers/ReporterAppealController.php` — odwołania działają dla autora treści i dla zgłaszającego | Nie |
+| P1 | Rozstrzygnąć obrazek liczący otwarcia listów u dostawcy poczty (EmailLabs) i wyłączyć go po jego stronie (patrz 7.1) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` wyłącznik jest w panelu dostawcy, nie w kodzie (#204, #713 A3) | **Tak** |
+| P2 | Ocena, czy skanowanie zdjęć pod kątem CSAM (hash-matching) rodzi dodatkowe obowiązki RODO/DPIA | `BRAK:` takiego skanowania nie ma; ocena dopiero przed ewentualnym wdrożeniem | **Tak, przed wdrożeniem** |
+| P2 | Test WCAG 2.1 AA na kluczowych ekranach (rejestracja, publikacja, profil) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` automat axe chodzi w CI, ale nie zastępuje odsłuchu czytnika ekranu ani fizycznego urządzenia (#713 C1, C2) | Nie |
+| P2 | Polityka wobec zdjęć z rozpoznawalnymi osobami trzecimi w tle (wizerunek) w regulaminie | `BRAK:` regulamin tego nie rozstrzyga | Zalecane skonsultować |
+| P2 | Rejestr podprocesorów (transparency) utrzymywany na bieżąco | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` lista odbiorców w §7.2 jest punktem wyjścia; rejestr publiczny to decyzja właściciela | Nie |
+
+### 7.2 Kto naprawdę dostaje dane — lista zweryfikowana wobec kodu
+
+Ta lista powstała z odczytu kodu 20 września 2026 i zastępuje domysły.
+Każda pozycja to **realny kanał wyjścia danych poza ten serwer**.
+
+| Odbiorca | Co do niego trafia | Gdzie to widać w kodzie |
 |---|---|---|
-| P0 | Regulamin opublikowany na `/regulamin` (patrz `REGULAMIN_DRAFT.md`) z licencją treści, zasadami moderacji, punktami kontaktowymi (Art. 11, 12, 14 DSA) | **Tak — finalna wersja** |
-| P0 | Polityka prywatności opublikowana na `/prywatnosc` (patrz `POLITYKA_PRYWATNOSCI_DRAFT.md`) z pełną tabelą celów/podstaw/retencji | **Tak — finalna wersja** |
-| P0 | Formularz "Zgłoś" spełniający Art. 16 DSA (elektroniczny, jasny, wskazanie lokalizacji i powodu) | Nie, ale warto konsultacyjnie |
-| P0 | Szablon uzasadnienia decyzji moderacyjnej (Art. 17 DSA) wdrożony w produkcie | Nie |
-| P0 | Procedura zgłaszania do organów ścigania przy CSAM/zagrożeniu życia (Art. 18 DSA) — kontakt do odpowiedniej jednostki (Policja / Dyżurnet.pl) | **Tak — potwierdzić ścieżkę zgłoszeniową** |
-| P0 | Wiek minimalny 16 lat wymagany oświadczeniem przy rejestracji | Nie |
-| P0 | DPA/umowy powierzenia z Railway, Cloudflare R2, Sentry, PostHog, dostawcą e-mail — podpisane, region UE wybrany wszędzie gdzie możliwe | **Tak — przegląd umów** |
-| P0 | Rejestr czynności przetwarzania (Art. 30 RODO) sporządzony | **Tak — przegląd** |
-| P0 | Mechanizm eksportu i usunięcia konta działający end-to-end (w tym backupy uwzględnione w polityce retencji) | Nie |
-| P0 | Sentry: reguły scrubbingu PII skonfigurowane przed pierwszym prawdziwym użytkownikiem | Nie |
-| P1 | Baner cookies (jeśli PostHog w standardowej konfiguracji z identyfikatorami) LUB potwierdzona prawnie konfiguracja bez-zgodowa | **Tak, jeśli wariant bez banera** |
-| P1 | Szablon zgłoszenia naruszenia do UODO + szablon powiadomienia użytkowników przygotowany z wyprzedzeniem | Zalecane |
-| P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | Nie |
-| P1 | Weryfikacja aktualnego statusu ustawy krajowej wdrażającej DSA i roli UKE jako koordynatora (może się zmienić między wrześniem a datą startu) | **Tak** |
-| P1 | Uproszczony wewnętrzny system odwołań od decyzji moderacyjnych (dobrowolnie, mimo zwolnienia z Art. 20 DSA) | Nie |
-| P2 | Ocena, czy skanowanie zdjęć pod kątem CSAM (hash-matching) rodzi dodatkowe obowiązki RODO/DPIA | **Tak, przed wdrożeniem takiego skanowania** |
-| P2 | Test WCAG 2.1 AA na kluczowych ekranach (rejestracja, publikacja, profil) | Nie |
-| P2 | Polityka wobec zdjęć z rozpoznawalnymi osobami trzecimi w tle (wizerunek) w regulaminie | Zalecane skonsultować |
-| P2 | Rejestr podprocesorów (transparency) utrzymywany na bieżąco | Nie |
+| Railway | cała aplikacja i baza | hosting — poza repozytorium |
+| Cloudflare R2 | zdjęcia i ich warianty | `config/filesystems.php` |
+| Cloudflare Turnstile | adres IP i cechy przeglądarki przy **siedmiu** formularzach | `config/kuking.php` → `turnstile.miejsca`; pilnuje `RozjazdyAudytuZgodnosciTest::test_polityka_wymienia_kazdy_formularz_za_turnstile` |
+| Cloudflare Web Analytics | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | `app/Support/AnalitykaCloudflare.php`; bezciasteczkowe — `AnalitykaBezCiasteczekTest` |
+| OpenAI | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | `app/Moderacja/KlientOpenAI.php` |
+| Dostawca poczty (EmailLabs) | adres e-mail odbiorcy i treść listu | `config/mail.php`, `app/Domain/Security/DziennyBudzetListow.php` |
+| Google | przy logowaniu kontem Google: potwierdzenie tożsamości, e-mail, imię | `app/Http/Controllers/SocialController.php` |
+| Meta | przy logowaniu Facebookiem — Meta jest tu **osobnym administratorem** | `app/Http/Controllers/SocialController.php` |
+
+**Sentry i PostHog nie są na tej liście, bo ich w tym projekcie nie ma i nigdy
+nie było.** Do 19 września lista gotowości wymagała wobec nich umów i konfiguracji
+— czyli blokowała start warunkami niemożliwymi do spełnienia. Pilnuje tego teraz
+`DokumentyPrawneNieKlamiaTest::test_dokument_wewnetrzny_nie_wymienia_narzedzi_ktorych_nie_uzywamy`.
+
+### 7.3 Retencja — siedem komend, nie dwie
+
+| co | okres | komenda |
+|---|---|---|
+| powiadomienia | 3 miesiące | `kuking:sprzataj-powiadomienia` |
+| sygnały produktowe | 90 dni | `kuking:sprzataj-sygnaly` |
+| dziennik audytu | 12 miesięcy | `kuking:sprzataj-audyt` |
+| sprawy moderacyjne | 36 miesięcy | `kuking:sprzataj-sprawy-moderacyjne` |
+| paczki z danymi | 7 dni | `kuking:sprzataj-eksporty` |
+| zdjęcia nieprzypięte | — | `kuking:sprzataj-osierocone-zdjecia` |
+| konta po karencji | 30 dni | `kuking:usun-wygasle-konta` |
+
+Istnienie każdej z nich pilnuje
+`DokumentyPrawneNieKlamiaTest::test_komendy_wymienione_w_procedurach_istnieja`.
+
+### 7.1 Luki, które zniknęły z dokumentów widocznych dla ludzi (11 września 2026)
+
+Regulamin i polityka prywatności nosiły pod ostatnim paragrafem notatkę autora
+do samego siebie — *„Czego w tym dokumencie jeszcze nie ma, a będzie: …"* —
+a w sekcji „Źródła" odsyłacz do tego pliku i nawias `[numer artykułu do
+potwierdzenia]`. Właściciel kazał je usunąć: dokument, który sam o sobie mówi
+„tego tu jeszcze nie ma", czyta się jak brudnopis, a nie jak wiążąca umowa.
+
+**Usunięcie noty nie wypełnia obowiązku, tylko przestaje o nim przypominać.**
+Dlatego to, czego noty dotyczyły, jest spisane tutaj — razem z tym, co przy
+okazji okazało się już nieaktualne.
+
+| Czego dotyczyła nota | Podstawa prawna | Stan na dziś | Gdzie ta sprawa żyje teraz |
+|---|---|---|---|
+| Tożsamość i adres podmiotu prowadzącego serwis (regulamin) | DSA Art. 11–12; art. 5 ustawy o świadczeniu usług drogą elektroniczną; RODO Art. 13 ust. 1 lit. a | **To nie jest już luka.** Dane spółki, KRS, NIP, REGON i adres stoją w §1 regulaminu i w §1 polityki od 8 września 2026 — nota była nieaktualna | `config/kuking.php` (`kuking.podmiot`), pilnuje tego `DokumentyPrawneNieKlamiaTest::test_tozsamosc_administratora_zgadza_sie_z_konfiguracja` |
+| Dostawca poczty (polityka) | RODO Art. 13 ust. 1 lit. e — kategorie odbiorców | **To nie jest już luka.** EmailLabs (Vercom S.A.) stoi w tabeli dostawców w §3 polityki razem z miejscem przechowywania danych — nota była nieaktualna | Tabela w §3 polityki, pilnuje jej `PolitykaPrywatnosciWymieniaKazdaUslugeTest` |
+| Liczba dni, przez które usunięte dane żyją w kopiach zapasowych | RODO Art. 13 ust. 2 lit. a — okres przechowywania | **Luka otwarta.** Okres nie jest ustalony z dostawcą hostingu | Opisane wyżej: sekcja 2.8 i wiersz P1 w checkliście („Ustalenie i udokumentowanie polityki retencji backupów"). Sama polityka mówi o tym dalej wprost w §7 pkt 4 — to zdanie o stanie usługi, nie notatka, i zostaje |
+| Dokładny numer artykułu PKE odpowiadającego dawnemu Art. 173 Prawa telekomunikacyjnego | Ustawa Prawo komunikacji elektronicznej (2024) | **Luka otwarta.** Polityka wymienia teraz samą ustawę i przedmiot regulacji, bez numeru artykułu — numeru nie zgadujemy | Opisane wyżej: sekcja 5.1 |
+| Czy obrazek liczący otwarcia listów, dokładany przez dostawcę poczty, wymaga od nas czegoś więcej niż rzetelnej informacji | Art. 5 ust. 3 dyrektywy 2002/58/WE i odpowiadające przepisy PKE (dostęp do informacji w urządzeniu końcowym); RODO Art. 6 | **Luka otwarta.** Do 11 września 2026 pytanie stało wyłącznie w polityce, w zdaniu „to zostaje do potwierdzenia" — nigdzie indziej nie było zapisane | Nowy wiersz P1 w checkliście wyżej. Sam fakt — że dostawca to robi i że wyłączamy to po jego stronie — zostaje w §3 polityki |
+
+Odsyłacz *„Zobacz pełną listę źródeł w `COMPLIANCE.md`"* zniknął z obu
+dokumentów bez zamiennika: ten plik jest w repozytorium, a nie na stronie, więc
+czytelnik regulaminu nie ma jak go otworzyć i nie wie, czym jest. Same sekcje
+„Źródła" zostają — podstawa prawna podana w dokumencie jest dla czytelnika
+wartością, a nie notatką redakcyjną.
+
+Powrotu notatek roboczych do dokumentów widocznych dla ludzi pilnuje
+`DokumentyPrawneNieKlamiaTest::test_brak_notatek_roboczych_o_pisaniu_dokumentu`.
 
 ### Rzeczy, które wymagają prawnika przed publikacją — podsumowanie
 1. Finalna treść regulaminu i polityki prywatności (licencja treści to najczęściej kwestionowany zapis).

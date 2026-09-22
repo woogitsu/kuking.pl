@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domain\Media\Actions\PrzypnijAwatar;
 use App\Domain\Media\Actions\StoreUploadedImage;
 use App\Domain\Media\KasujZdjecie;
 use App\Exceptions\BladDlaCzlowieka;
@@ -50,6 +51,7 @@ class AvatarSettingsController extends Controller
     public function __construct(
         private readonly StoreUploadedImage $storeImage,
         private readonly KasujZdjecie $kasujZdjecie,
+        private readonly PrzypnijAwatar $przypnijAwatar,
     ) {}
 
     public function edit(Request $request): View
@@ -99,7 +101,21 @@ class AvatarSettingsController extends Controller
         // sieci do R2 doklejony do żądania, które właśnie przyjęło i zapisało
         // kilkumegabajtowy plik. `destroy()` taką obietnicę składa wprost
         // i tam ta cena jest do zapłacenia.
-        $profile->update(['avatar_media_id' => $zdjecie->getKey()]);
+        //
+        // SAMO PRZYPIĘCIE IDZIE POD BLOKADĄ WIERSZA `media` (D-103,
+        // dokończenie D-083). Przedtem stała tu goła aktualizacja profilu,
+        // bez transakcji i bez blokady: między wgraniem pliku a zapisem
+        // kolumny sprzątacz osieroconych zdjęć mógł przejąć ten wiersz
+        // i skasować pliki. `profiles.avatar_media_id` ma
+        // `ON DELETE SET NULL` (migracja `2026_09_05_000200_create_profiles_table`),
+        // więc kolumna wracała po cichu do `null` — bez wyjątku i bez wpisu
+        // w logu. Człowiek widział „Zdjęcie zapisane." i puste miejsce po
+        // awatarze.
+        try {
+            $this->przypnijAwatar->handle($user, $zdjecie);
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withErrors(['avatar' => $e->getMessage()]);
+        }
 
         // DRUGA PARA OCZU NA ZDJĘCIU PROFILOWYM (issue #237). Zlecenie idzie
         // PO zapisaniu wiersza profilu, bo zadanie sprawdza, czy to zdjęcie
@@ -131,7 +147,20 @@ class AvatarSettingsController extends Controller
 
         // Odpięcie PRZED kasowaniem — inaczej `KasujZdjecie::jestUzywane()`
         // zobaczy własny wiersz `profiles.avatar_media_id` i słusznie odmówi.
-        $profile->update(['avatar_media_id' => null]);
+        //
+        // ODPIĘCIE JEST WARUNKOWE (D-103). Przedtem kolumna zerowała się
+        // bezwarunkowo, na podstawie `$profile->avatar` odczytanego wyżej —
+        // czyli akcja ufała modelowi podanemu z zewnątrz (D-079 §3). Kto
+        // miał tę stronę otwartą w drugiej karcie i w międzyczasie wgrał
+        // NOWE zdjęcie, tracił je przez kliknięcie „Usuń zdjęcie": zerowała
+        // się kolumna wskazująca już na nowe zdjęcie, więc po dobie karencji
+        // zabierał je sprzątacz osieroconych zdjęć razem z plikami.
+        if (! $this->przypnijAwatar->odepnij($request->user(), $zdjecie)) {
+            return redirect()
+                ->route('settings.avatar')
+                ->with('status', 'Zdjęcie profilowe zmieniło się w międzyczasie — nic nie usunęliśmy. '
+                    .'Sprawdź, które zdjęcie masz teraz, i kliknij „Usuń zdjęcie” jeszcze raz, jeśli nadal chcesz je usunąć.');
+        }
 
         // PLIKI LECĄ OD RAZU, A NIE PRZEZ SPRZĄTANIE OSIEROCONYCH.
         //

@@ -10,6 +10,7 @@ use App\Models\ModerationAction;
 use App\Models\Notification;
 use App\Models\Report;
 use App\Models\User;
+use App\Support\WierszFormularza;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -55,8 +56,14 @@ class TerminZawieszeniaTest extends TestCase
     {
         return $this->actingAs($moderator)
             ->from(route('admin.reports'))
+            // `_wiersz` tak, jak wysyła go prawdziwy formularz (issue #243,
+            // `App\Support\WierszFormularza`): bez niego `old()` po nieudanej
+            // walidacji nie wie, KTÓRE zgłoszenie naprawdę wróciło z błędem,
+            // i nie pokazuje niczego z powrotem — nawet na stronie z jednym
+            // zgłoszeniem, jak w tym pliku.
             ->post(route('admin.reports.decide', $zgloszenie), array_merge([
                 'reason_code' => 'obrazanie-nekanie',
+                WierszFormularza::POLE => (string) $zgloszenie->id,
             ], $dane));
     }
 
@@ -279,7 +286,7 @@ class TerminZawieszeniaTest extends TestCase
         // Błąd jest widoczny NIE TYLKO przy polu: nad listą stoi
         // podsumowanie (UX_50_PLUS.md) — jedno na ekran, nie jedno na każde
         // z dwudziestu pięciu zgłoszeń.
-        $kolejka->assertSee('Jednej rzeczy jeszcze brakuje');
+        $kolejka->assertSee('Sprawdź formularz');
         $this->assertSame(
             1,
             substr_count((string) $kolejka->getContent(), 'class="error-summary"'),

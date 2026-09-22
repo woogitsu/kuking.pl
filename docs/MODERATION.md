@@ -240,6 +240,14 @@ z kolejnych. Komenda odmawia odebrania roli OSTATNIEMU czynnemu
 administratorowi i zapisuje każdą zmianę w `audit_log`
 (`user.role_changed`).
 
+Zmiana roli i wpis audytu zatwierdzają się w jednej transakcji. Równoległe
+polecenia serializuje `ChangeUserRole`: wspólna blokada ról poprzedza blokadę
+konta, a status, poprzednia rola i liczba pozostałych czynnych administratorów
+są sprawdzane ponownie po oczekiwaniu. Pytanie o potwierdzenie nie trzyma
+transakcji. To ochrona przed równoległymi degradacjami, nie nowa blokada
+zawieszenia, bana ani usunięcia konta. Zakres i pomiar:
+[`OSTATNI_ADMINISTRATOR_1016.md`](security/OSTATNI_ADMINISTRATOR_1016.md).
+
 **Jak moderator zamyka sprawę** — `/admin/odwolania`: widzi słowa
 odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, którą ta
 osoba wtedy dostała. Wybiera „podtrzymuję" albo „cofam" i **musi** napisać

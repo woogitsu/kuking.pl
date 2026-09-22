@@ -28,7 +28,14 @@ ma być po prostu wyjątkowo czytelny i spokojny.
 
 To jest **działająca aplikacja Laravel 13**, nie sam blueprint.
 
-Co już działa i jest pokryte testami (72 testy, PostgreSQL):
+Aktualny interfejs: **Alfa 0.9** — pełny port ramy, nawigacji, typografii
+i komponentów do istniejących ekranów Laravel. Standard opisuje
+[konstytucja marki](docs/brand/KONSTYTUCJA_MARKI.md), zakres
+[mapa portu](docs/design/PORT_PROJEKTU.md), a dowody i ograniczenia
+[raport odbioru Alfa 0.9](docs/design/WERYFIKACJA_ALFA_09.md).
+
+Co już działa i jest pokryte testami (3631 testów PostgreSQL,
+[CI z 13 września 2026](https://github.com/woogitsu/kuking.pl/actions/runs/34734757204)):
 
 - konto, logowanie e-mailem **albo nazwą użytkownika**, reset hasła, weryfikacja e-maila,
 - onboarding (zainteresowania → osoby → gotowe), z możliwością pominięcia każdego kroku,
@@ -59,17 +66,26 @@ i zakładka Issues.
 | Warstwa | Wybór |
 |---|---|
 | Backend | Laravel 13 |
-| PHP | 8.4 |
-| UI | Blade + Livewire 4 + Alpine.js |
-| CSS | Tailwind CSS 4 (CSS-first, `@theme`) |
-| Baza | PostgreSQL 18 |
+| PHP | 8.4 (minimum frameworka: 8.3) |
+| UI | Blade + Alpine.js; Livewire 4 w kreatorze przepisu |
+| CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) |
+| Baza | PostgreSQL 18 (lokalnie i w CI wystarczy 16+) |
 | Kolejka | Laravel database queue |
 | Hosting | Railway |
-| DNS / CDN / zdjęcia | Cloudflare + R2 |
-| Wyszukiwarka | PostgreSQL `pg_trgm` + `unaccent` |
-| Monitoring | Sentry |
-| Analityka | PostHog (EU) |
+| DNS / CDN / storage | Cloudflare + R2 |
+| Wyszukiwarka | PostgreSQL: `pg_trgm` + `unaccent` |
+| Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) |
+| Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) |
 | Mobile | PWA |
+
+Ta tabela jest **kopią pierwszych dwóch kolumn** tabeli z [`AGENTS.md` §3](./AGENTS.md#3-stack-i-czego-nie-wolno-dokładać)
+i musi się z nią zgadzać co do znaku — pilnuje tego
+`tests/Feature/TabelaStackuMowiPrawdeTest.php`. Tam stoi też trzecia kolumna,
+„Gdzie to sprawdzić”, mówiąca, gdzie każdej z tych rzeczy szukać w repozytorium.
+Powód, dla którego zgodność pilnuje test, a nie uważność: obie kopie mówiły przez
+miesiące to samo nieprawdziwe zdanie — „Monitoring | Sentry”, przy Sentrym,
+którego w projekcie nigdy nie było. Poprawienie jednej bez drugiej zostawiłoby
+tę nieprawdę na stronie tytułowej repozytorium.
 
 Decyzja architektoniczna: **modularny monolit**. Uzasadnienie i ścieżka skalowania
 w [`docs/ARCHITECTURE.md`](./docs/ARCHITECTURE.md).
@@ -100,7 +116,8 @@ php artisan serve
 ```
 
 Konta demo: `basia@example.test`, `marek@example.test`, `ania@example.test`,
-moderator `moderacja@example.test` — hasło `haslo-testowe-123`.
+moderator `moderacja@example.test`. Hasło ustawia `KUKING_DEMO_HASLO`;
+bez tej zmiennej seeder losuje je na każdy przebieg i wypisuje na koniec.
 
 ### Testy i kontrola przed wysłaniem
 

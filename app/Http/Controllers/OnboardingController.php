@@ -5,8 +5,11 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Feed\DailyBoard;
+use App\Domain\Search\SearchQuery;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Requests\TagSelection;
 use App\Models\Profile;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
@@ -25,9 +28,20 @@ use Illuminate\View\View;
  */
 class OnboardingController extends Controller
 {
+    /**
+     * Ile trafień wyszukiwarki pokazujemy najwyżej na tym kroku.
+     *
+     * Celowo dużo mniej niż na `/szukaj` (tam 20). Ten krok ma pomóc
+     * odnaleźć JEDNĄ konkretną, znaną osobę — nie przeglądać listę.
+     * Przy popularnym imieniu wolimy powiedzieć „wpisz dokładniej", niż
+     * dołożyć stronicowanie, które zamieniłoby to w katalog ludzi.
+     */
+    private const WYNIKI_WYSZUKIWANIA = 5;
+
     public function __construct(
         private readonly DailyBoard $board,
         private readonly FollowUser $followUser,
+        private readonly SearchQuery $search,
     ) {}
 
     /**
@@ -50,47 +64,68 @@ class OnboardingController extends Controller
 
     public function saveInterests(Request $request): RedirectResponse
     {
-        // `max:` NA SAMEJ TABLICY, NIE TYLKO NA JEJ ELEMENTACH.
-        //
-        // Bez tego jedno żądanie mogło podać dowolnie długą listę, a reguła
-        // `exists:tags,id` wykonuje OSOBNE zapytanie dla KAŻDEGO elementu —
-        // dziesięć tysięcy pozycji w formularzu to dziesięć tysięcy zapytań,
-        // zanim kontroler cokolwiek zdecyduje. Limit żądań na trasie tego nie
-        // łapie, bo to jedno żądanie.
-        //
-        // Pięćdziesiąt, a nie dokładnie tyle, ile pokazuje ekran: lista
-        // promowanych tagów jest w rękach gospodarza i ma prawo urosnąć,
-        // a próg ma odcinać nadużycie, nie normalny wybór.
-        $dane = $request->validate([
-            'tags' => ['nullable', 'array', 'max:50'],
-            'tags.*' => ['string', 'exists:tags,id'],
-        ]);
-
-        // TO JEST CAŁY SENS TEJ ZMIANY (issue #31, kontynuowane przez D-021).
-        //
-        // Odpowiedź idzie DO BAZY, nie do sesji, gdzie ginęłaby po
-        // zakończeniu kroku. Marnowalibyśmy najcenniejsze dane, jakie mamy
-        // przy cold starcie — padają w jedynym momencie, w którym człowiek
-        // chętnie odpowiada na pytania o siebie, i decydują o tym, czy jego
-        // pierwszy feed będzie pusty.
-        $wybrane = array_values(array_intersect(
-            $dane['tags'] ?? [],
-            Tag::promowane()->pluck('id')->all(),
-        ));
-
-        if ($wybrane !== []) {
-            $request->user()->followedTags()->syncWithoutDetaching(
-                array_fill_keys($wybrane, ['created_at' => now()]),
-            );
-        }
+        $selected = app(TagSelection::class)->validate($request, 50);
+        app(UpdateTagFollows::class)->follow($request->user(), $selected, promotedOnly: true);
 
         return redirect()->route('onboarding.people');
     }
 
+    /**
+     * Krok „kogo obserwować" — i, od tego zadania, „znasz już kogoś tutaj?"
+     * (`docs/research/MIGRACJA_Z_GARNKA.md` §3.1).
+     *
+     * Wyszukiwanie idzie DOKŁADNIE przez `SearchQuery::people()` — tę samą
+     * klasę, której używa `SearchController` na `/szukaj`. Żadnej drugiej
+     * wyszukiwarki, żadnych nowych reguł widoczności: kto jest zbanowany,
+     * zawieszony, w trakcie usuwania konta albo zablokował/został
+     * zablokowany przez tego widza, ten tam już dziś nie wychodzi —
+     * `SearchQuery` filtruje to samo dla każdego wywołania.
+     *
+     * `q` jest parametrem GET, nie POST: to zwykłe wyszukiwanie w treści
+     * strony, więc działa jako link do zapisania i wraca poprawnie po
+     * cofnięciu się przeglądarką — zgodnie z AGENTS.md §5 (ważne rzeczy
+     * bez JavaScriptu).
+     *
+     * NIC Z TEGO NIE ZAPISUJEMY. W przeciwieństwie do `/szukaj`, ten krok
+     * świadomie NIE woła `ZapiszSygnal` — nie ma dziś decyzji produktowej,
+     * że warto mierzyć to osobno, a `docs/research/MIGRACJA_Z_GARNKA.md`
+     * §3.1 wprost preferuje rozwiązanie bez nowego zapisu.
+     */
     public function people(Request $request): View
     {
+        // Ten sam kontrakt co na `/szukaj` (issue #738): parametr GET może
+        // być tablicą (`q[]=...`). Nie wolno rzutować go na tekst, bo PHP
+        // zgłasza wtedy „Array to string conversion”, a ekran kończy na 500.
+        // Nietekstowe `q` znaczy dokładnie to samo co brak frazy.
+        $qSurowe = $request->query('q', '');
+        $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
+
+        // Ten sam próg co `SearchController` — MUSI się zgadzać z tym,
+        // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
+        // w ogóle nie odpytuje bazy), inaczej ekran pokazałby „nic nie
+        // znaleźliśmy" tam, gdzie baza w ogóle nie została zapytana.
+        $zaKrotka = $phrase !== '' && mb_strlen($phrase) < 2;
+
+        $wynikiWyszukiwania = null;
+
+        if ($phrase !== '' && ! $zaKrotka) {
+            $user = $request->user();
+
+            $wynikiWyszukiwania = $this->search
+                ->people($phrase, $user, self::WYNIKI_WYSZUKIWANIA + 1)
+                // Szukającego samego siebie nie ma sensu proponować mu
+                // do zaobserwowania — `FollowUser` i tak by to odrzucił,
+                // ale checkbox przy własnym koncie byłby mylący.
+                ->reject(fn (Profile $profil) => $profil->user_id === $user->getKey())
+                ->values();
+        }
+
         return view('pages.onboarding.people', [
             'people' => $this->board->peopleToFollow($request->user(), 8),
+            'phrase' => $phrase,
+            'zaKrotka' => $zaKrotka,
+            'wynikiWyszukiwania' => $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA),
+            'jestWiecejWynikow' => ($wynikiWyszukiwania?->count() ?? 0) > self::WYNIKI_WYSZUKIWANIA,
         ]);
     }
 
@@ -109,9 +144,45 @@ class OnboardingController extends Controller
         $request->validate([
             'follow' => ['nullable', 'array', 'max:20'],
             'follow.*' => ['string'],
+            // `oczekiwani[nazwa] => id` — patrz niżej. Ten sam sufit co na
+            // `follow`: to lista sparowana z tamtą, nie osobne wejście.
+            'oczekiwani' => ['nullable', 'array', 'max:20'],
+            'oczekiwani.*' => ['string'],
         ]);
 
         $user = $request->user();
+
+        // NAZWA UŻYTKOWNIKA W FORMULARZU TO NIE AUTORYZACJA (#793).
+        //
+        // Ten krok wskazuje osoby NAZWAMI (`follow[]`), a nazwę da się
+        // zwolnić zmianą w Ustawieniach i od razu ponownie zająć —
+        // `UsernameNotTaken` sprawdza tylko aktualne zajęcie, nie historię.
+        // Ekran onboardingu potrafi stać otwarty bardzo długo (to jest krok,
+        // który ludzie przerywają i wracają do niego), więc okno między
+        // wyrenderowaniem listy a jej wysłaniem jest tu SZERSZE niż
+        // gdziekolwiek indziej. A jedno żądanie zakłada relacje z wieloma
+        // osobami naraz, więc pomyłka nie jest pojedyncza, tylko seryjna.
+        //
+        // `SocialController::assertToTaSamaOsoba()` nie da się tu użyć:
+        // tamta metoda broni JEDNEJ osoby wskazanej adresem trasy, a tu
+        // wskazań jest wiele i żadne nie jest w adresie. Kształt jest za to
+        // ten sam — ukryte pole z identyfikatorem osoby widzianej w chwili
+        // renderowania, sparowane z nazwą, i OPCJONALNE (starsze wywołania
+        // i istniejące testy go nie wysyłają).
+        //
+        // Klucze po `mb_strtolower`, bo `Profile::poNazwie()` nie rozróżnia
+        // wielkości liter — inaczej para rozjeżdżałaby się na samym zapisie
+        // nazwy i ochrona po cichu przestawałaby działać.
+        $oczekiwani = [];
+
+        foreach ($request->input('oczekiwani', []) as $nazwa => $id) {
+            $oczekiwani[mb_strtolower((string) $nazwa)] = (string) $id;
+        }
+
+        // Nazwy, które między wyrenderowaniem a wysłaniem zmieniły
+        // właściciela. Człowiek MUSI o nich usłyszeć: cicho pominięte
+        // zaznaczenie wygląda dokładnie jak zaznaczenie, którego nie było.
+        $zmieniloWlasciciela = [];
 
         foreach ($request->input('follow', []) as $username) {
             // Bez rozróżniania wielkości liter, tak samo jak profil
@@ -119,6 +190,14 @@ class OnboardingController extends Controller
             $target = Profile::poNazwie($username)?->user;
 
             if ($target === null) {
+                continue;
+            }
+
+            $oczekiwanyId = $oczekiwani[mb_strtolower((string) $username)] ?? null;
+
+            if ($oczekiwanyId !== null && (string) $target->getKey() !== $oczekiwanyId) {
+                $zmieniloWlasciciela[] = (string) $username;
+
                 continue;
             }
 
@@ -137,7 +216,20 @@ class OnboardingController extends Controller
             }
         }
 
-        return redirect()->route('onboarding.done');
+        $dalej = redirect()->route('onboarding.done');
+
+        if ($zmieniloWlasciciela === []) {
+            return $dalej;
+        }
+
+        // Komunikat mówi, CO ZROBIĆ, a nie tylko że coś poszło nie tak
+        // (docs/UX_50_PLUS.md). Onboarding się NIE cofa i nie gubi reszty
+        // zaznaczeń — pozostałe osoby są już zaobserwowane, a ta jedna
+        // wymaga świadomego powtórzenia wyboru, bo to już ktoś inny.
+        return $dalej->with('status', count($zmieniloWlasciciela) === 1
+            ? 'Nazwa „'.$zmieniloWlasciciela[0].'” należy teraz do innej osoby, więc jej nie zaobserwowaliśmy. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować tę osobę, znajdź ją w wyszukiwarce i kliknij „Obserwuj” na jej profilu.'
+            : 'Te nazwy należą teraz do innych osób, więc ich nie zaobserwowaliśmy: '.implode(', ', $zmieniloWlasciciela).'. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować te osoby, znajdź je w wyszukiwarce i kliknij „Obserwuj” na ich profilach.',
+        );
     }
 
     public function done(Request $request): View

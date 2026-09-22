@@ -8,15 +8,24 @@
 <x-layout title="Kod z aplikacji" :noindex="true">
     <h1>Wpisz kod z aplikacji</h1>
 
-    <p class="mb-5">
+    {{--
+        Kontrakt projektowy 60+ (docs/research/AUDYT_60_PLUS.md, ranking pkt 1
+        listy „Co dopisać", pozycja 10; test regresyjny:
+        DwuetapowaKodKopiaTest). Pole ma `autocomplete="one-time-code"`
+        i nie blokuje wklejania — instrukcja obok NIE MOŻE znów nakazywać
+        wyłącznie „przepisać", bo promuje trudniejszą poznawczo drogę,
+        której formularz wcale nie wymaga.
+    --}}
+    <p class="mb-5 instrukcja-2fa">
         Twoje hasło jest poprawne. To konto ma włączoną weryfikację dwuetapową — otwórz aplikację
         uwierzytelniającą w telefonie (na przykład Google Authenticator, Aegis albo 1Password)
-        i przepisz sześciocyfrowy kod, który tam widzisz.
+        i wpisz albo wklej sześciocyfrowy kod, który tam widzisz. Jeśli telefon albo przeglądarka
+        sama podpowiada ten kod, możesz po prostu wybrać podpowiedź zamiast go przepisywać.
     </p>
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('login.two_factor.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('login.two_factor.store') }}">
         @csrf
 
         <x-field name="code" label="Sześciocyfrowy kod z aplikacji" required
@@ -27,7 +36,28 @@
         </div>
     </form>
 
-    <details class="card mt-5">
+    {{--
+        SEKCJA, NIE RAMKA POMOCNICZA — rozstrzygnięcie właściciela z 11.09
+        (D-127, issue #367).
+
+        Do tego dnia stała tu ramka wgłębiona, z uzasadnieniem: „gdyby i ona
+        miała mocną obwódkę, kod z aplikacji i kod zapasowy wyglądałyby na
+        równorzędne". Rozważone i ODRZUCONE, bo mierzy nie tę rzecz, co trzeba.
+
+        W środku jest PEŁNA, SAMODZIELNA DROGA DO KONTA: własny `<form>`,
+        własne pole i własny przycisk „Zaloguj się". Warstwa wgłębiona mówi
+        wizualnie „to jest coś obok" — a człowiek, który stracił telefon, jest
+        w najgorszym momencie kontaktu z serwisem i akurat wtedy to zdanie jest
+        nieprawdziwe. Strukturalnie to ta sama sytuacja, którą rozstrzyga D-056
+        dla logowania linkiem: droga równorzędna nigdy nie schodzi na warstwę
+        wgłębioną.
+
+        Kod z aplikacji zostaje metodą pierwszego wyboru i widać to bez
+        wgłębienia: stoi wyżej, jest rozwinięty, a ten blok trzeba otworzyć.
+        Hierarchię niesie KOLEJNOŚĆ i stan `<details>`, nie zepchnięcie
+        w dół warstwy.
+    --}}
+    <details class="sekcja-strony mt-5" @if($errors->has('backup_code')) open @endif>
         <summary class="btn btn-secondary inline-flex">Nie mam dostępu do telefonu</summary>
         <div class="mt-4">
             <p>

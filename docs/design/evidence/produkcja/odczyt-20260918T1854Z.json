@@ -1,0 +1,27 @@
+{
+  "odczyt_utc": "2026-09-18T18:55:25Z",
+  "metoda": "HTTP GET bez sesji, bez zapisu, bez konta",
+  "strony": [
+    {"adres": "/", "http": 200, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/ciasto", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/odkryj", "http": 200, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/ciasto", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/tagi", "http": 200, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/ciasto|https://kuking.pl/tag/sernik", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/tag/ciasto", "http": 200, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/ciasto", "tag_public_stats": "Pokaż, co gotujesz — dodaj swój wpis.", "tag_collage": "tag-collage--1"},
+    {"adres": "/tag/sernik", "http": 200, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/sernik", "tag_public_stats": "Pokaż, co gotujesz — dodaj swój wpis.", "tag_collage": ""},
+    {"adres": "/tag/obiad", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/obiad", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/tag/zupy", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/zupy", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/tag/deser", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/deser", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/tag/cukinia", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/cukinia", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/tag/bigos", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "https://kuking.pl/tag/bigos", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/szukaj?sekcja=przepisy", "http": 200, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/przepisy", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/przepisy/bigos-z-cukinii", "http": 200, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/przepisy/rolada-kawowa", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/zeszyt", "http": 302, "redirect": "https://kuking.pl/login", "etap": "", "wydanie": "", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/admin/zgloszenia", "http": 302, "redirect": "https://kuking.pl/login", "etap": "", "wydanie": "", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/admin/uzytkownicy", "http": 302, "redirect": "https://kuking.pl/login", "etap": "", "wydanie": "", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/admin", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/admin/tagi", "http": 404, "redirect": "", "etap": "Alfa 0.67", "wydanie": "wydanie 18 września 2026, 20:53 · 3f315b3", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/ustawienia/2fa", "http": 302, "redirect": "https://kuking.pl/login", "etap": "", "wydanie": "", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""},
+    {"adres": "/health", "http": 200, "redirect": "", "etap": "", "wydanie": "", "odnosniki_tagow": "", "tag_public_stats": "", "tag_collage": ""}
+  ]
+}

@@ -46,6 +46,42 @@
   }
 
   /* -------------------------------------------------------------------
+     NAZWA I `@nazwa` W JEDNYM WIERSZU (#435).
+
+     Zgłoszenie właściciela: „Mój profil jest miejsce by dać @woogitsu obok
+     Mateusz”. `@nazwa` brała cały wiersz główki, a główka na telefonie
+     i tak wychodzi poza ekran.
+
+     `flex-wrap`, NIE sztywny wiersz i nie `float`: `display_name` ma
+     `max:100`, więc przy długiej nazwie „obok” przestaje istnieć i `@nazwa`
+     ma zejść pod spod — zamiast wypychać stronę w bok albo nachodzić na
+     nazwę. To samo dzieje się przy czcionce przeglądarki 200%.
+
+     `align-items: baseline`, nie `center`: nazwa jest w `h1` (większa),
+     `@nazwa` w `.meta` (mniejsza). Wyśrodkowanie w pionie ustawiłoby je
+     względem środków pudełek, a człowiek czyta linię pisma.
+
+     `gap` tylko poziomy (`0 var(--spacing-2)`): pionowy odstęp między
+     wierszami po zawinięciu robi już wysokość wiersza nagłówka.
+     ------------------------------------------------------------------- */
+  .profil-tozsamosc {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    gap: 0 var(--spacing-2);
+    min-width: 0;
+    margin-bottom: var(--spacing-3);
+  }
+
+  /* Bez tego najdłuższe słowo nazwy dyktuje szerokość elastycznego dziecka
+     i wypycha stronę w bok — przy 320 px i czcionce 200% wystarczy do tego
+     jedno długie nazwisko. */
+  .profil-tozsamosc > * {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* -------------------------------------------------------------------
      WŁASNY AWATAR JAKO DROGA DO ZDJĘCIA PROFILOWEGO.
 
      Cała kolumna awatara jest jednym odnośnikiem: obrazek (128 px) i akcja
@@ -80,7 +116,12 @@
        W PRZYCISKU zostaje wyśrodkowany — to robi `.btn`. */
     align-items: flex-start;
     gap: var(--spacing-3);
-    max-width: min(11rem, 100%);
+
+    /* Na telefonie kolumna awatara stoi NAD tekstem, a nie obok niego —
+       więc nie ma czego zwężać, a 11rem łamało napis „Zmień zdjęcie
+       profilowe” na trzy wiersze i podbijało główkę (#435). Próg 11rem
+       wraca razem z układem dwukolumnowym, niżej — przy `@media`. */
+    max-width: 100%;
 
     /* Bez podkreślenia: nośnikiem informacji „to jest do kliknięcia" jest
        teraz obrys przycisku pod awatarem, a nie kolor (WCAG 1.4.1). */
@@ -93,6 +134,22 @@
      tylko szerokość i odstęp. */
   .profil-awatar-zmiana-akcja {
     width: 100%;
+  }
+
+  /* PRÓG 11rem OBOWIĄZUJE DOPIERO OD UKŁADU DWUKOLUMNOWEGO — i stoi
+     PO regule bazowej, nie przed nią. Ta sama specyficzność znaczy, że
+     wygrywa ta niżej w pliku; `@media` przed `max-width: 100%` byłoby
+     martwe na każdej szerokości (ZMIERZONE 12.09.2026: pierwsza wersja tej
+     poprawki zdjęła próg także przy 1280 px, choć „wyglądała” na
+     ograniczoną do telefonów).
+
+     Powyżej 48rem kolumna awatara stoi OBOK tekstu i jej szerokość dyktuje
+     przycisk — bez progu zabierałby połowę karty. Poniżej stoi NAD tekstem
+     i zwężanie jej nic nie daje, a łamie napis na trzy wiersze (#435). */
+  @media (min-width: 48rem) {
+    .profil-awatar-zmiana {
+      max-width: min(11rem, 100%);
+    }
   }
 
   /* -------------------------------------------------------------------
@@ -155,10 +212,16 @@
      jednym rzutem oka. `flex-wrap` zostawia jej prawo złamać się na dwa
      wiersze przy dużym tekście.
 
-     `min-height: 3rem` to produktowe 48 px celu kliknięcia
-     (UX_50_PLUS.md) — dwie z pięciu pozycji są odnośnikami do listy osób.
-     W `rem`, więc przy powiększonym tekście cel rośnie razem z nim; nic
-     tu nie może wypchnąć strony w bok, bo to wymiar pionowy.
+     48 px CELU KLIKNIĘCIA DOSTAJĄ TE POZYCJE, W KTÓRE DA SIĘ KLIKNĄĆ
+     — czyli dwie z pięciu („obserwujących” i „obserwuje” prowadzą do listy
+     osób). Trzy pozostałe są zwykłym tekstem i do tej zmiany brały te same
+     48 px bez powodu: `min-height` na wszystkich pięciu dawało 269 px
+     samych liczników w główce, która przy 390 px ma 952 px wysokości i nie
+     mieści się na ekranie (#435). Reguła z `AGENTS.md` §5 mówi o CELU
+     DOTKNIĘCIA, a nie o wysokości każdego wiersza tekstu.
+
+     Próg jest w `rem`, więc przy powiększonym tekście cel rośnie razem
+     z nim; nic tu nie może wypchnąć strony w bok, bo to wymiar pionowy.
 
      Odstęp między liczbą a podpisem daje `gap`, nie margines: spacja
      w HTML między nimi zostaje CELOWO (czytnik ekranu i kopiowanie
@@ -169,8 +232,11 @@
     align-items: baseline;
     align-content: center;
     gap: 0 var(--spacing-2);
-    min-height: 3rem;
     min-width: 0;
+  }
+
+  a.profil-licznik-pole {
+    min-height: 3rem;
   }
 
   /* Dwa liczniki relacji są odnośnikami do listy osób, trzy pozostałe nie —
@@ -185,6 +251,43 @@
   a.profil-licznik-pole .stat-label {
     text-decoration: underline;
   }
+
+  /* --- LICZBY O OSOBIE: JEDEN EGZEMPLARZ (D-210 zastąpiło D-091) ---------
+
+     Stał tu komplet reguł dla układu D-091: liczby wypisane w dokumencie
+     DWA RAZY (karta + prawa szyna) i para reguł, która od 80rem pokazywała
+     egzemplarz w szynie, a chowała ten w karcie. D-210 ten układ zniosło —
+     dziś `pages/profile/show.blade.php` woła `x-liczby-profilu` RAZ,
+     z `wariant="karta"`, a `x-szyna-profilu` bloku z liczbami nie wysyła.
+
+     Reguły zostały tu po tamtej zmianie i obie kłamały, każda inaczej:
+
+       `.profil-liczby-szyna`        — tej klasy nie nosi już żaden element,
+                                       więc czytelnik arkusza widział wariant,
+                                       którego w serwisie nie ma;
+       `.profil-liczby-w-szynie`     — klasę wypisuje wyłącznie gałąź
+                                       `$wariant === 'szyna'`, a tego wariantu
+                                       nie podaje ani jedno wywołanie;
+       `.app-body…  .profil-liczby-karta { display: none }` przy 80rem
+                                       — selektor PASOWAŁ do elementu, tylko
+                                       wartość do skutku nie dochodziła:
+                                       `marka-profil.css` ustawia tej samej
+                                       liście `display: grid` w `@layer marka`,
+                                       a `marka` stoi w porządku warstw
+                                       (`app.css`, linia 1) ZA `components`.
+                                       Zmierzone przez `getComputedStyle` na
+                                       ułożonym profilu przy 1440 i 1280 px:
+                                       `display` = `grid`, nie `none`.
+
+     Ta ostatnia była najgroźniejsza: kto czytał sam arkusz, wnioskował, że
+     na szerokim ekranie liczb w karcie NIE MA — a są, i to jedyne, jakie
+     tam stoją. Każda „poprawka" wychodząca z tego założenia zabrałaby je
+     z profilu całkiem. Reguła przykryta kaskadą nie jest widoczna w tekście
+     pliku; widać ją dopiero na ułożonej stronie.
+
+     Położenie i wygląd jedynej listy liczb określa dziś
+     `marka-profil.css` (`.marka-profil-statystyki .profil-liczby-karta`).
+     --------------------------------------------------------------------- */
 
   /* Nagłówki miesięcy w archiwum („archive-title" w kicie) i odstęp lat
      nad nimi (`.lata-archiwum`) już mają właściwy rozmiar i odstęp z

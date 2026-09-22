@@ -1,0 +1,12 @@
+{
+  "source": "resources/css/marka-tablica-publiczna.css",
+  "mutation": "Usuniecie min-width i overflow-wrap z podtytulu",
+  "negative_exit": 1,
+  "negative_error": "file:///tmp/kuking-final-20260913/scripts/tablica-publiczna-font.mjs:28\n    if (result.scroll > width + 1 || result.right > width || result.x < 0) throw new Error('NAGLOWEK_TABLICY_OVERFLOW ' + JSON.stringify(result));\n                                                                                 ^\n\nError: NAGLOWEK_TABLICY_OVERFLOW {\"viewport\":320,\"scroll\":419,\"root\":32,\"body\":50.4,\"x\":40,\"right\":419.28125,\"width\":379.28125,\"headingFont\":100.8}\n    at file:///tmp/kuking-final-20260913/scripts/tablica-publiczna-font.mjs:28:82\n\nNode.js v20.20.2\n",
+  "positive_exit": 0,
+  "positive_output": "FONT_TABLICY_OK 12\n",
+  "backup": "/tmp/font557-neg-hh7jspub/marka-tablica-publiczna.css",
+  "md5_before": "f48489d6b4d53b16d81785f38f5811e6",
+  "md5_after": "f48489d6b4d53b16d81785f38f5811e6",
+  "mtime_restored": true
+}

@@ -51,7 +51,7 @@
 
         <x-error-summary />
 
-        <form class="card" method="POST" action="{{ route('posts.media.update', $post) }}">
+        <form class="panel-formularza" method="POST" action="{{ route('posts.media.update', $post) }}">
             @csrf
 
             {{-- Po publikacji „Zapisz" ma zaprowadzić do WPISU, a nie z powrotem

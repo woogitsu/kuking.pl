@@ -25,7 +25,6 @@
 
     <p class="mt-5">
         Nie pamiętasz hasła? <a href="{{ route('password.request') }}">Ustaw nowe</a>.
-        Jeśli nic nie pomaga, napisz do nas: {{ config('kuking.community.contact_email') }} —
-        odpisuje człowiek.
+        Jeśli nadal nie możesz się zalogować, napisz do nas: {{ config('kuking.community.contact_email') }}.
     </p>
 </x-layout>

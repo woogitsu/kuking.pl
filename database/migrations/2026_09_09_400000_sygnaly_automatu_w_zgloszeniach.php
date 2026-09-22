@@ -143,8 +143,13 @@ return new class extends Migration
                 ->count();
 
             if ($rozstrzygniete > 0 && getenv(self::FURTKA) !== '1') {
+                // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1
+                // rozstrzygniętych oznaczeń" to nie polszczyzna, a jedno
+                // oznaczenie jest stanem prawdopodobniejszym niż pięć.
+                // Mianownik przed dwukropkiem nie odmienia się wcale, więc
+                // zdanie jest poprawne dla 1, 2, 5 i 22.
                 throw new RuntimeException(
-                    'W bazie jest '.$rozstrzygniete.' rozstrzygniętych oznaczeń automatu. '
+                    'Liczba rozstrzygniętych oznaczeń automatu w bazie: '.$rozstrzygniete.'. '
                     .'Ich skasowanie zabrałoby powód, dla którego moderator podjął decyzję — '
                     .'a to jest dokument potrzebny przy odwołaniu. Zrób kopię tabeli `reports`, '
                     .'a potem powtórz z '.self::FURTKA.'=1.',

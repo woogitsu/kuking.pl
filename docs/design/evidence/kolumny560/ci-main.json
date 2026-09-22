@@ -1,0 +1,72 @@
+{
+  "run": {
+    "id": 34938070574,
+    "head_sha": "bc76db12dc1e628a37325491bb7b2d4a0246401d",
+    "status": "completed",
+    "conclusion": "success",
+    "run_attempt": 2,
+    "html_url": "https://github.com/woogitsu/kuking.pl/actions/runs/34938070574"
+  },
+  "jobs": [
+    {
+      "id": 104288023282,
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288023983,
+      "name": "Zakres zmiany",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288024419,
+      "name": "Build obrazu (weryfikacja)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288024490,
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288024514,
+      "name": "Larastan (analiza statyczna)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288024528,
+      "name": "Pint (styl kodu)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288024575,
+      "name": "Audyt zależności",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288024641,
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288024694,
+      "name": "Testy (PostgreSQL 18)",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 104288065105,
+      "name": "Build assetów (Vite)",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ]
+}

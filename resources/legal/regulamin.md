@@ -1,12 +1,12 @@
 # Regulamin Kuking.pl
 
-> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.** Nie zawiera terminów ani procedur, których serwis nie umie dziś wykonać. Dokument nie był weryfikowany przez prawnika.
+> **Ten dokument opisuje stan serwisu na 7 września 2026 i jest aktualizowany razem z nim.**
 
 ---
 
 ## W skrócie
 
-Kuking to serwis, w którym pokazujesz, co ugotowałeś, zapisujesz swoje przepisy i poznajesz innych, którzy naprawdę gotują. Możesz publikować zdjęcia i przepisy, komentować, obserwować innych i zgłaszać treści, które Ci przeszkadzają. Musisz mieć ukończone 16 lat. Publikujesz tylko swoje treści (własne zdjęcia, przepisy własnymi słowami) i szanujesz innych użytkowników. Zachowujesz prawa do tego, co publikujesz — udzielasz nam tylko zgody potrzebnej do tego, żeby serwis mógł to pokazywać. W każdej chwili możesz pobrać swoje dane i usunąć konto.
+Kuking to serwis, w którym pokazujesz, co gotujesz, zapisujesz swoje przepisy i poznajesz innych, którzy naprawdę gotują. Możesz publikować zdjęcia i przepisy, komentować, obserwować innych i zgłaszać treści, które Ci przeszkadzają. Musisz mieć ukończone 16 lat. Publikujesz tylko swoje treści (własne zdjęcia, przepisy własnymi słowami) i szanujesz innych użytkowników. Zachowujesz prawa do tego, co publikujesz — udzielasz nam tylko zgody potrzebnej do tego, żeby serwis mógł to pokazywać. W każdej chwili możesz pobrać swoje dane i usunąć konto.
 
 ---
 
@@ -25,7 +25,7 @@ Adres **biuro@samsufi.pl** jest jednocześnie:
 Kuking to serwis społecznościowy dla osób, które gotują. Pozwala:
 - publikować zdjęcia dań i krótkie wpisy,
 - publikować przepisy (składniki, kroki, zdjęcia),
-- oznaczać, że ugotowałeś dany przepis ("Ugotowałem"),
+- oznaczać wykonanie danego przepisu ("Ugotowałem"),
 - obserwować innych użytkowników i przeglądać ich publiczne treści,
 - komentować i odpowiadać na komentarze,
 - zapisywać przepisy w swoich kolekcjach,
@@ -75,7 +75,7 @@ Nie sprzedajemy Twoich treści osobom trzecim ani nie udzielamy im licencji na T
 - Możesz opublikować przepis na danie, które ktoś inny już opisał — sam sposób przygotowania potrawy (lista składników i kroków) nie jest niczyją własnością.
 - **Nie możesz** skopiować cudzego opisu słowo w słowo z bloga, książki czy innego serwisu. Napisz przepis własnymi słowami.
 - Jeśli przepis pochodzi z zewnętrznego źródła (bloga, książki, innej osoby), oznacz to i — jeśli to możliwe — podaj link do źródła.
-- Przepisy rodzinne ("po mamie", "po babci") możesz publikować swobodnie, jeśli sam je spisałeś własnymi słowami.
+- Przepisy rodzinne ("po mamie", "po babci") możesz publikować swobodnie, jeśli spisujesz je własnymi słowami.
 
 ### 5.4 Zdjęcia i wizerunek innych osób
 
@@ -120,7 +120,7 @@ Zawsze, gdy to możliwe, **wyjaśnimy powód decyzji** i poinformujemy, jak się
 
 Jeśli nie zgadzasz się z naszą decyzją, masz **6 miesięcy** od otrzymania informacji o niej na złożenie odwołania — przyciskiem „Odwołaj się" przy powiadomieniu o decyzji albo pisząc na **kontakt@kuking.pl**. Ponownie przeanalizujemy sprawę i odpowiemy w ciągu 7 dni roboczych.
 
-Serwis prowadzi jedna osoba, więc nie obiecujemy, że Twoje odwołanie rozpatrzy ktoś inny niż autor pierwszej decyzji — obiecujemy natomiast, że tej samej decyzji nie da się podtrzymać od razu: przez pierwsze 24 godziny nie można potwierdzić własnego rozstrzygnięcia, żeby „podtrzymuję" nie było odruchem. Cofnięcie własnej decyzji działa natychmiast.
+Serwis prowadzi jedna osoba, więc Twoje odwołanie rozpatrzy zwykle autor pierwszej decyzji. Podtrzymać własną decyzję może najwcześniej **po 24 godzinach** od jej podjęcia — cofnąć ją może od razu.
 
 Możesz też zgłosić sprawę do organów nadzorujących zgodność z prawem: w sprawach danych osobowych — do Prezesa Urzędu Ochrony Danych Osobowych (UODO), w sprawach związanych z Rozporządzeniem o usługach cyfrowych — do Prezesa Urzędu Komunikacji Elektronicznej (Koordynator ds. Usług Cyfrowych).
 
@@ -145,10 +145,7 @@ Ten Regulamin podlega prawu polskiemu. Spory rozstrzygają sądy właściwe wed�
 
 ---
 
-*Czego w tym dokumencie jeszcze nie ma, a będzie: tożsamości i adresu osoby prowadzącej serwis. Dokument nie był weryfikowany przez prawnika.*
-
 ## Źródła
 
 - Regulation (EU) 2022/2065 (Digital Services Act) — Art. 14 (Terms and conditions), Art. 16–18 (notice and action, statement of reasons)
 - Ustawa z dnia 4 lutego 1994 r. o prawie autorskim i prawach pokrewnych — Art. 1, Art. 81
-- Zobacz pełną listę źródeł w `COMPLIANCE.md`

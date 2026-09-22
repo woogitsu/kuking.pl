@@ -13,6 +13,7 @@ use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Poczta\BezpiecznyKomunikat;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Carbon;
@@ -324,9 +325,50 @@ class GenerateUserExport implements ShouldQueue
             'cookedCount' => count($data['ugotowalem']),
             'photoCount' => $photos->count(),
             'photosStillProcessing' => $photos->stillProcessingCount(),
+            // Zdjęcia, które do paczki NIE WEJDĄ NIGDY (issue #692) — inna
+            // wiadomość niż „jeszcze się przetwarzają", więc osobne zmienne,
+            // a nie jedna suma: widok pisze o nich dwa różne zdania.
+            'photosRejected' => $photos->rejectedCount(),
+            'photosDeleted' => $photos->deletedCount(),
+            'savedOtherRecipeCount' => $this->savedOtherRecipeCount($user),
             'displayName' => $user->profile?->display_name,
             'generatedAt' => $generatedAt,
         ])->render());
+    }
+
+    /**
+     * Ile CUDZYCH przepisów leży w zeszycie tej osoby.
+     *
+     * Spis treści mówi o ograniczeniu, które dotyczy wyłącznie cudzych
+     * przepisów w zeszycie (tytuł, autor, notatka i data zapisania, bez
+     * składników i kroków). Bez tej liczby zdanie o ograniczeniu wychodziło
+     * także na koncie z pustym zeszytem — a wtedy opisuje coś, czego
+     * w paczce nie ma. To ta sama zasada, co przy katalogach: paczka mówi
+     * o tym, co w niej JEST.
+     *
+     * Własny przepis odłożony do własnego zeszytu NIE liczy się tutaj:
+     * jego pełną treść paczka niesie w katalogu `przepisy/`, więc żadne
+     * ograniczenie go nie dotyczy.
+     *
+     * Liczymy z bazy, a nie z `dane.json`: tam autor jest nazwą wyświetlaną,
+     * a dwie osoby mogą mieć tę samą nazwę.
+     *
+     * `whereNull('recipes.deleted_at')` jest tu KONIECZNE, nie ostrożnościowe.
+     * `Recipe` ma `SoftDeletes`, a złączenie omija globalny zakres modelu —
+     * bez tego warunku przepis skasowany liczyłby się tutaj, choć
+     * `CollectUserExportData::collections()` (zwykły Eloquent) już go do
+     * paczki nie wkłada. Zdanie o ograniczeniu wychodziłoby wtedy na koncie,
+     * w którego paczce nie ma ani jednego cudzego przepisu — czyli dokładnie
+     * ta usterka, którą ten warunek miał usunąć.
+     */
+    private function savedOtherRecipeCount(User $user): int
+    {
+        return (int) $user->collections()
+            ->join('collection_items', 'collection_items.collection_id', '=', 'collections.id')
+            ->join('recipes', 'recipes.id', '=', 'collection_items.recipe_id')
+            ->where('recipes.author_id', '!=', $user->getKey())
+            ->whereNull('recipes.deleted_at')
+            ->count();
     }
 
     private function addReadme(ZipArchive $zip, User $user, ExportPhotoPlan $photos, Carbon $generatedAt): void
@@ -337,6 +379,10 @@ class GenerateUserExport implements ShouldQueue
             'recipeCount' => $user->recipes()->count(),
             'photoCount' => $photos->count(),
             'photosStillProcessing' => $photos->stillProcessingCount(),
+            // Patrz komentarz przy `addIndex()` wyżej — oba pliki paczki
+            // mówią o brakach to samo i biorą to z tego samego miejsca.
+            'photosRejected' => $photos->rejectedCount(),
+            'photosDeleted' => $photos->deletedCount(),
             'contactEmail' => config('kuking.community.contact_email'),
         ])->render();
 
@@ -483,9 +529,20 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable $e) {
             // Paczka JEST gotowa i widać ją w ustawieniach — nie cofamy statusu
             // tylko dlatego, że poczta chwilowo nie działa.
+            // KOMUNIKAT PRZECHODZI PRZEZ REDAKCJĘ, NIE SUROWY.
+            //
+            // To jest wyjątek z WYSYŁKI LISTU, więc jego komunikat buduje
+            // transport, a nie my — a transport przy odrzuconym odbiorcy
+            // wkleja w tekst JEGO ADRES („550 5.1.1 <basia@wp.pl>: Recipient
+            // address rejected"). Dziennik aplikacji nie jest miejscem na
+            // adresy (AGENTS.md §7); ta sama redakcja, którą robi
+            // `ZapiszNieudanyList` na tym samym rodzaju tekstu, a `Wyslij…`
+            // z `App\Domain\Security` rozwiązuje jeszcze ostrzej — samą
+            // nazwą klasy.
             Log::warning('Paczka z danymi gotowa, ale e-mail nie wyszedł', [
                 'data_export_id' => $export->getKey(),
-                'error' => $e->getMessage(),
+                'wyjatek' => $e::class,
+                'error' => BezpiecznyKomunikat::z($e->getMessage()),
             ]);
         }
     }

@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace App\Exceptions;
 
+use App\Support\LimityTekstuPrzepisu;
 use App\Support\OdzyskiwalneDane;
 use Illuminate\Http\Request;
-use Illuminate\Support\Arr;
 
 /**
  * To, co człowiek zdążył wpisać, zanim sesja zdążyła wygasnąć (issue #81).
@@ -78,11 +78,17 @@ use Illuminate\Support\Arr;
 final class OdzyskanyFormularz
 {
     /**
-     * Bezpiecznik na wielkość odpowiedzi. Przy formularzu przepisu pól bywa
-     * kilkadziesiąt, ale gdyby ktoś wysłał żądanie z tysiącami kluczy,
-     * strona odzyskiwania nie ma prawa urosnąć do megabajtów.
+     * Dawny limit sumy nie mieścił poprawnego przepisu (51 × 4000 znaków).
+     * Zostaje dla innych tras i pojedynczego pola; przepis ma budżet wyliczony
+     * ze swoich granic. Niezależnie ograniczamy pola, nazwy i bajty danych
+     * po escapowaniu z rezerwą na markup; nie jest to pomiar całego layoutu.
      */
     private const LIMIT_ZNAKOW = 200_000;
+
+    private const LIMIT_BAJTOW_NAZWY = 256;
+
+    // Rezerwa na markup jednego pola (w tym label/help), poza jego wartością.
+    private const NARZUT_POLA = 2048;
 
     /**
      * @param  list<array{nazwa: string, wartosc: string, dlugi: bool}>  $pola
@@ -101,11 +107,20 @@ final class OdzyskanyFormularz
         $pola = [];
         $znakow = 0;
         $obciete = false;
+        $przepis = in_array($request->route()?->getName(), ['recipes.store', 'recipes.update'], true);
+        $limitZnakow = $przepis ? LimityTekstuPrzepisu::maksZnakowFormularza() : self::LIMIT_ZNAKOW;
+        $limitPol = LimityTekstuPrzepisu::maksPol();
+        // Jedna litera daje najwyżej 6 bajtów po e() (np. cudzysłów), także
+        // dla UTF-8. Nazwa i narzut są osobne: to nie suma samych wartości.
+        // Rozmiar CAŁEJ odpowiedzi (z layoutem) mierzy regresja HTTP.
+        $limitBajtow = 6 * $limitZnakow + $limitPol * (self::LIMIT_BAJTOW_NAZWY * 6 + self::NARZUT_POLA);
+        $bajtow = strlen(e($request->fullUrl()));
+        $odwiedzone = 0;
 
         // Deny-by-default: poza trasami treści `zZadania()` zwraca pustą
         // tablicę, `maCoOdzyskac()` daje `false`, a ekran 419 pokazuje samą
         // informację o wygasłej sesji. Tak ma być na logowaniu i na 2FA.
-        foreach (Arr::dot(OdzyskiwalneDane::zZadania($request)) as $klucz => $wartosc) {
+        foreach (self::splaszcz(OdzyskiwalneDane::zZadania($request), '', $odwiedzone, $obciete, $limitPol * 2) as $klucz => $wartosc) {
             $klucz = (string) $klucz;
 
             if (OdzyskiwalneDane::jestWrazliwe($klucz) || ! self::daSieOdlozyc($wartosc)) {
@@ -118,28 +133,40 @@ final class OdzyskanyFormularz
                 continue;
             }
 
-            $znakow += mb_strlen($tekst);
+            $dlugosc = mb_strlen($tekst);
+            $znakow += $dlugosc;
+            $nazwa = self::nazwaPolaHtml($klucz);
+            $bajtow += strlen(e($tekst)) + strlen(e($nazwa)) + self::NARZUT_POLA;
 
-            if ($znakow > self::LIMIT_ZNAKOW) {
+            if ($dlugosc > self::LIMIT_ZNAKOW || $znakow > $limitZnakow
+                || count($pola) >= $limitPol || strlen($nazwa) > self::LIMIT_BAJTOW_NAZWY
+                || $bajtow > $limitBajtow) {
                 $obciete = true;
                 break;
             }
 
             $pola[] = [
-                'nazwa' => self::nazwaPolaHtml($klucz),
+                'nazwa' => $nazwa,
                 'wartosc' => $tekst,
                 // „Długi" znaczy: to jest tekst, który człowiek pisał, a nie
                 // ustawienie z listy. Tylko taki pokazujemy na wierzchu —
                 // po to, żeby było WIDAĆ, że nic nie zginęło.
-                'dlugi' => mb_strlen($tekst) >= 60 || str_contains($tekst, "\n"),
+                'dlugi' => $dlugosc >= 60 || str_contains($tekst, "\n"),
             ];
         }
 
         $pliki = [];
 
         foreach ($request->allFiles() as $nazwa => $plik) {
+            $nazwa = is_array($plik) ? $nazwa.'[]' : (string) $nazwa;
+            $bajtow += strlen(e($nazwa)) + self::NARZUT_POLA;
+            if (count($pola) + count($pliki) >= $limitPol
+                || strlen($nazwa) > self::LIMIT_BAJTOW_NAZWY || $bajtow > $limitBajtow) {
+                $obciete = true;
+                break;
+            }
             $pliki[] = [
-                'nazwa' => is_array($plik) ? $nazwa.'[]' : (string) $nazwa,
+                'nazwa' => $nazwa,
                 'wiele' => is_array($plik),
             ];
         }
@@ -156,6 +183,34 @@ final class OdzyskanyFormularz
     public function maCoOdzyskac(): bool
     {
         return $this->pola !== [];
+    }
+
+    /**
+     * Czy na odzyskanym formularzu jest cokolwiek WIDAĆ.
+     *
+     * `maCoOdzyskac()` mówi „coś odłożyliśmy", ale krótkie wartości wracają
+     * jako `<input type="hidden">` — człowiek ich nie widzi i nie może ich
+     * poprawić. Przy komentarzu „Wygląda pysznie!" (16 znaków) i bez zdjęcia
+     * cały odzyskany formularz to ukryte pola plus jeden przycisk.
+     *
+     * Czyta to warstwa powierzchni w `errors/419` i `errors/429`: mocna
+     * obwódka panelu formularza znaczy „tu się coś wpisuje", więc na takim
+     * ekranie byłaby obietnicą bez pokrycia — ta sama klasa błędu co martwy
+     * przycisk (D-053). Wtedy blok jest sekcją, nie panelem.
+     *
+     * Próg „długiego" pola ustawia `zZadania()`: 60 znaków albo znak nowej
+     * linii. Pliki liczą się zawsze, bo `<input type="file">` jest widoczny
+     * (pusty, ale widoczny — wartości do niego wpisać się nie da).
+     */
+    public function maWidocznePola(): bool
+    {
+        foreach ($this->pola as $pole) {
+            if ($pole['dlugi'] === true) {
+                return true;
+            }
+        }
+
+        return $this->maPliki();
     }
 
     /**
@@ -188,6 +243,27 @@ final class OdzyskanyFormularz
     private static function daSieOdlozyc(mixed $wartosc): bool
     {
         return is_string($wartosc) || is_int($wartosc) || is_float($wartosc) || is_bool($wartosc);
+    }
+
+    /** Spłaszczamy leniwie: tysiące kluczy i głęboka tablica nie tworzą kopii Arr::dot(). */
+    private static function splaszcz(array $dane, string $prefix, int &$odwiedzone, bool &$obciete, int $limit, int $glebokosc = 0): \Generator
+    {
+        foreach ($dane as $klucz => $wartosc) {
+            $nazwa = $prefix.(string) $klucz;
+            if (++$odwiedzone > $limit || $glebokosc > 8 || strlen($nazwa) > self::LIMIT_BAJTOW_NAZWY) {
+                $obciete = true;
+
+                return;
+            }
+            if (is_array($wartosc)) {
+                yield from self::splaszcz($wartosc, $nazwa.'.', $odwiedzone, $obciete, $limit, $glebokosc + 1);
+                if ($obciete) {
+                    return;
+                }
+            } else {
+                yield $nazwa => $wartosc;
+            }
+        }
     }
 
     /** `ingredients.0.text` → `ingredients[0][text]` */

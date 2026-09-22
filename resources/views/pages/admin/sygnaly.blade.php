@@ -3,6 +3,19 @@
 
     <h1>Sygnały automatu</h1>
 
+    {{-- Błąd ukrytego identyfikatora grupy też musi być widoczny.
+         Nie tworzymy odnośnika do ukrytego pola autor. --}}
+    @if($errors->any())
+        <div class="error-summary" role="alert" tabindex="-1">
+            <p class="error-summary-title">Sprawdź formularz</p>
+            <ul>
+                @foreach($errors->all() as $blad)
+                    <li>{{ $blad }}</li>
+                @endforeach
+            </ul>
+        </div>
+    @endif
+
     {{--
         PIERWSZE ZDANIE MÓWI, CZEGO TA LISTA NIE ZNACZY.
 
@@ -11,7 +24,7 @@
         niczym. Przy fali nowych kont ta różnica decyduje o tym, jak człowiek
         po drugiej stronie ekranu traktuje sto pozycji dziennie.
     --}}
-    <p class="lead">
+    <p class="text-lead">
         Treści, przy których automat podniósł rękę. <strong>Nikt ich nie zgłosił</strong>, nic się
         z nimi nie stało i ich autorzy o niczym nie wiedzą — są widoczne w serwisie tak samo jak
         wszystko inne. Automat niczego nie ukrywa i nie blokuje; to Ty decydujesz, czy jest tu coś do zrobienia.
@@ -120,8 +133,12 @@
             <form class="mt-4" method="POST" action="{{ route('admin.sygnaly.dismiss') }}">
                 @csrf
                 <input type="hidden" name="autor" value="{{ $kluczGrupy }}">
+                {{-- Identyfikator TEGO wiersza (issue #243): bez niego `id` pola
+                     notatki i `old()` po nieudanej walidacji dubluje się na całą
+                     stronę — patrz `App\Support\WierszFormularza`. --}}
+                <input type="hidden" name="{{ \App\Support\WierszFormularza::POLE }}" value="{{ $kluczGrupy }}">
 
-                <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2"
+                <x-field name="note" label="Notatka wewnętrzna" type="textarea" :rows="2" :wiersz="$kluczGrupy"
                          help="Zostaje w logu moderacji. Autor treści jej nie zobaczy — przy tej decyzji nie dostaje żadnego powiadomienia." />
 
                 <button class="btn btn-primary mt-5" type="submit">

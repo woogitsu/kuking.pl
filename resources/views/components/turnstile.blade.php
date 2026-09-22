@@ -38,7 +38,12 @@
 @props(['miejsce'])
 
 @if(\App\Support\Turnstile::dziala($miejsce))
-    @php($blad = $errors->first(\App\Support\Turnstile::POLE))
+    @php
+        $blad = $errors->first(\App\Support\Turnstile::POLE);
+        // Ten sam jawny wybór co w layoucie: konto, ciasteczko, domyślnie jasny.
+        $motyw = auth()->user()?->theme ?? request()->cookie(config('kuking.theme.cookie'));
+        $motyw = $motyw === 'dark' ? 'dark' : 'light';
+    @endphp
 
     <div class="field @if($blad !== '') has-error @endif"
          id="f-{{ \App\Support\Turnstile::POLE }}">
@@ -50,8 +55,8 @@
         <div class="cf-turnstile"
              data-sitekey="{{ \App\Support\Turnstile::kluczPubliczny() }}"
              data-language="pl"
-             data-theme="light"
-             data-size="normal"></div>
+             data-theme="{{ $motyw }}"
+             data-size="compact"></div>
 
         <noscript>
             <div class="notice">

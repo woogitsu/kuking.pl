@@ -1,0 +1,112 @@
+{
+ "data": "2026-09-18",
+ "metoda": "GET HTTP bez sesji, wylacznie odczyt; bez zapisu, bez konta, bez danych demonstracyjnych",
+ "user_agent": "kuking-odbior-A/1.0 (read-only)",
+ "produkcja_sha": "55877e2b5c0aff04d93e6db75f079c7e61d4df5d",
+ "wniosek": "Zero publicznych tagow na produkcji: brak odnosnikow /tag/ na wszystkich sprawdzonych powierzchniach, pusty stan /tagi i /szukaj, 404 na probach bezposrednich.",
+ "strony": [
+  {
+   "url": "https://kuking.pl/",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/@izazpodlasia",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/@on_the_plate",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/@ulalala",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/odkryj",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/przepisy/bigos-z-cukinii",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/szukaj?sekcja=przepisy",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/tagi",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/wpisy/01a08f53-75fc-714d-9828-af759b1024af",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/wpisy/01a0a698-349d-72aa-b7fb-a44cffd7374a",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  },
+  {
+   "url": "https://kuking.pl/wpisy/01a0a6af-4aea-7230-9b41-8c6d4b694eee",
+   "http": 200,
+   "odnosniki_do_tagu": [],
+   "wersja": "Alfa 0.65",
+   "sha_ze_stopki": "55877e2"
+  }
+ ],
+ "proby_bezposrednie_tagow": [
+  {
+   "url": "https://kuking.pl/tag/obiad",
+   "http": 404
+  },
+  {
+   "url": "https://kuking.pl/tag/zupy",
+   "http": 404
+  },
+  {
+   "url": "https://kuking.pl/tag/deser",
+   "http": 404
+  },
+  {
+   "url": "https://kuking.pl/tag/cukinia",
+   "http": 404
+  },
+  {
+   "url": "https://kuking.pl/tag/bigos",
+   "http": 404
+  }
+ ],
+ "cytaty": {
+  "/tagi": "<p class=\"empty-state-title\">Tagi jeszcze sie nie pojawily</p>",
+  "/szukaj?sekcja=przepisy": "<h2 id=\"polecane-tagi-title\">Polecane tagi</h2> + <p>Nie ma jeszcze polecanych tagow.</p>"
+ }
+}

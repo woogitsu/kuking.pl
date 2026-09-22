@@ -16,6 +16,11 @@ use Illuminate\Database\Eloquent\SoftDeletes;
 
 /**
  * Wpis: zdjęcie + kilka słów. Główna jednostka treści w Kuking.
+ *
+ * Kolumny z migracji SQL add_kind_and_title_to_posts (Larastan nie odczytuje ALTER TABLE).
+ *
+ * @property string $kind
+ * @property string|null $title
  */
 class Post extends Model
 {
@@ -24,6 +29,15 @@ class Post extends Model
 
     use HasUuids;
     use SoftDeletes;
+
+    public const KIND_DISH = 'dish';
+
+    public const KIND_QUESTION = 'question';
+
+    protected $attributes = [
+        'kind' => self::KIND_DISH,
+        'title' => null,
+    ];
 
     public const STATUS_DRAFT = 'draft';
 
@@ -48,7 +62,18 @@ class Post extends Model
     /** Siatka: wszystkie zdjęcia na jednym ekranie. */
     public const DISPLAY_COLLAGE = 'collage';
 
+    /**
+     * `kind` NIE JEST TU CELOWO — patrz `oznaczJakoPytanie()` niżej.
+     *
+     * `title` ZOSTAJE, i to też jest decyzja, a nie przeoczenie: tytuł jest
+     * TREŚCIĄ, którą pisze autor, a nie polem sterującym. Sam z siebie nie
+     * otwiera żadnej furtki, bo CHECK `posts_kind_title_check` nie przyjmie
+     * tytułu przy daniu — a `kind = 'question'` nie da się już podrzucić
+     * hurtem. Tytuł podstawiony do `Post::create()` daniu odbija się więc
+     * o bazę, zamiast po cichu wejść.
+     */
     protected $fillable = [
+        'title',
         'author_id',
         'body',
         'visibility',
@@ -106,7 +131,8 @@ class Post extends Model
     public function tags(): BelongsToMany
     {
         return $this->belongsToMany(Tag::class, 'post_tags')
-            ->withPivot('position')
+            ->using(PostTag::class)
+            ->withPivot('position', 'dodany_recznie')
             ->orderBy('post_tags.position');
     }
 
@@ -132,6 +158,18 @@ class Post extends Model
     // Zakresy
     // ---------------------------------------------------------------------
 
+    /** Licznik kart: ślad usunięcia zachowuje rozmowę, ale nie jest odpowiedzią.
+     * @param  Builder<Post>  $query
+     */
+    public function scopeWithVisibleCommentCount(Builder $query, ?User $viewer): void
+    {
+        $query->withCount(['comments' => fn (Builder $comments) => $comments
+            ->widoczneDla($viewer)
+            ->where(fn (Builder $counted) => $counted
+                ->whereNull('comments.body_removed_at')
+                ->orWhere('posts.kind', self::KIND_DISH))]);
+    }
+
     /** @param  Builder<Post>  $query */
     public function scopePublished(Builder $query): void
     {
@@ -141,7 +179,17 @@ class Post extends Model
     /** @param  Builder<Post>  $query */
     public function scopePubliclyVisible(Builder $query): void
     {
-        $query->published()->where('visibility', self::VISIBILITY_PUBLIC);
+        $query->enabledKinds()->published()->where('visibility', self::VISIBILITY_PUBLIC);
+    }
+
+    /** Flaga publikacji działu nie usuwa danych ani nie filtruje operacji utrzymaniowych.
+     * @param  Builder<Post>  $query
+     */
+    public function scopeEnabledKinds(Builder $query): void
+    {
+        if (! config('kuking.questions.enabled', false)) {
+            $query->where('posts.kind', self::KIND_DISH);
+        }
     }
 
     /**
@@ -153,7 +201,7 @@ class Post extends Model
      * — dotyczy relacji między dwiema osobami. Ten zakres odpowiada na inne
      * pytanie: „czy ta treść ma prawo być POLECANA nieznajomym". Pierwsze
      * obowiązuje wszędzie, drugie tylko tam, gdzie serwis sam podsuwa treść:
-     * „Świeżo z Kuking", wyszukiwarka, tablica na dziś, feed tematów.
+     * „Świeżo z Kuking", wyszukiwarka, tablica na dziś, feed tagów.
      *
      * Rozdzielenie ma konkretny skutek: zawieszony autor dalej widzi własne
      * wpisy i dalej działa bezpośredni link, ale serwis przestaje je
@@ -180,18 +228,74 @@ class Post extends Model
     }
 
     /**
+     * Wpisy, których PRZEPIS wolno dziś pokazać temu widzowi — czyli wpisy
+     * bez przepisu (zwykłe „co dziś ugotowałem") ORAZ wpisy wskazujące
+     * przepis, który jest opublikowany, nieusunięty i widoczny dla widza.
+     *
+     * PO CO TO JEST (issue #368)
+     * Opublikowany przepis dostaje od `PublishRecipe` wpis wskazujący go
+     * przez `posts.recipe_id` — z `body = null` i BEZ własnych zdjęć. Wpis
+     * niczego z przepisu NIE KOPIUJE: tytuł i zdjęcie karta bierze z relacji
+     * `$post->recipe`. Gdyby kopiował, usunięcie przepisu, ukrycie go przez
+     * moderację, zmiana widoczności i zmiana tytułu byłyby CZTEREMA
+     * miejscami do rozjechania się i czterema hakami „przenieś zmianę
+     * na wpis".
+     *
+     * Ten zakres jest ceną za tę decyzję i jednocześnie całą jej obsługą:
+     * jeden warunek w zapytaniu załatwia usunięcie (także miękkie), ukrycie
+     * przez moderację ORAZ zawężenie widoczności naraz. Wiersz `posts`
+     * zostaje w bazie nietknięty — po prostu przestaje wychodzić ze
+     * strumienia, dokładnie tak, jak przestaje być widoczny przepis.
+     *
+     * DLACZEGO `whereHas`, A NIE `whereExists` NA SUROWYM `recipes`
+     * Relacja `recipe()` prowadzi do modelu z `SoftDeletes`, więc zapytanie
+     * relacji samo dokłada `recipes.deleted_at is null`. Ręczny `whereExists`
+     * na tabeli wymagałby pamiętania o tym warunku — a to jest dokładnie ten
+     * rodzaj rzeczy, który się zapomina przy drugiej kopii.
+     *
+     * DLACZEGO NIE REUŻYWAMY `Notification::wierszTresciWidoczny()`
+     * Tamten pomocnik odpowiada na to samo pytanie, ale jest prywatny,
+     * zbudowany na surowym `Query\Builder` z aliasem tabeli i wymaga
+     * NIEPUSTEGO widza — a strumienie („Świeżo z Kuking", tablica dnia,
+     * strona powitalna) pytają także za gościa, czyli z `?User = null`.
+     * Kanonicznym odpowiednikiem w warstwie Eloquenta jest
+     * `Recipe::scopeWidoczneDla()` — ta sama tabela prawdy, przypięta
+     * testami `Tests\Feature\Visibility\WidocznoscTestCase` — i to jej
+     * używamy, zamiast zakładać trzecią kopię tej samej reguły.
+     *
+     * JEDEN ŚWIADOMY WYJĄTEK: AUTOR WIDZI SWOJE. `widoczneDla()` przepuszcza
+     * autorowi własną treść niezależnie od widoczności („poprawne dane nigdy
+     * nie znikają", AGENTS.md §5), więc autor zobaczy w swoim feedzie wpis
+     * do własnego przepisu „tylko dla obserwujących", a nawet „tylko dla
+     * mnie". Nikt inny go nie zobaczy. Wybór jest świadomy: własna kopia
+     * reguły widoczności bez tej furtki byłaby czwartym miejscem, w którym
+     * ta sama tabela prawdy może się rozjechać.
+     *
+     * @param  Builder<Post>  $query
+     */
+    public function scopeZWidocznymPrzepisem(Builder $query, ?User $widz): void
+    {
+        $query->where(function (Builder $w) use ($widz): void {
+            $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe', function ($przepis) use ($widz): void {
+                    $przepis->published()->widoczneDla($widz);
+                });
+        });
+    }
+
+    /**
      * Wpisy, które MOŻE zobaczyć konkretna osoba — licząc per autor wiersza.
      *
      * DLACZEGO TO MUSI BYĆ ZAKRES NA MODELU, A NIE POMOCNIK W KONTROLERZE
      * `ProfileController` ma własny filtr widoczności, ale liczy go dla JEDNEGO
-     * właściciela profilu: „czy widz obserwuje TĘ osobę". Na stronie tematu
+     * właściciela profilu: „czy widz obserwuje TĘ osobę". Na stronie tagu
      * wpisy pochodzą od wielu autorów naraz, więc pytanie brzmi inaczej —
      * dla każdego wiersza osobno. Skopiowanie tamtego pomocnika dałoby filtr,
      * który przepuszcza wpisy „tylko dla obserwujących" od osób, których widz
      * nie obserwuje.
      *
      * Kolejność ma znaczenie: NAJPIERW blokada, bezwarunkowo i w obie strony.
-     * Blokada, która działa „w większości miejsc", nie działa — a temat jest
+     * Blokada, która działa „w większości miejsc", nie działa — a strona tagu jest
      * dokładnie tym miejscem, w którym ktoś odcięty wypłynąłby z powrotem.
      *
      * Wzorzec identyczny jak `Recipe::scopeWidoczneDla` (audyt A04). Dwie
@@ -203,6 +307,8 @@ class Post extends Model
      */
     public function scopeWidoczneDla(Builder $query, ?User $widz): void
     {
+        $query->enabledKinds();
+
         if ($widz === null) {
             $query->published()->where('visibility', self::VISIBILITY_PUBLIC);
 
@@ -283,6 +389,47 @@ class Post extends Model
             : self::DISPLAY_NORMAL;
     }
 
+    /**
+     * Uczyń z tego wpisu PYTANIE do działu „Poradźcie".
+     *
+     * DLACZEGO TA METODA ISTNIEJE (a `kind` nie ma go w `$fillable`)
+     * `kind` nie jest treścią — jest polem STERUJĄCYM. Rozstrzyga, do
+     * których strumieni wpis w ogóle trafia (`scopeEnabledKinds`), pod jakim
+     * adresem stoi (`url()`) i czy `PostPolicy` dziś go przepuści. To ta sama
+     * rodzina co `users.status` i `users.role`, których AGENTS.md §7 zabrania
+     * w `$fillable`, i ten sam wzorzec co `ContactMessage::oznaczJako()`:
+     * stan ustawia jawna, nazwana metoda, nigdy pole z żądania.
+     *
+     * Walidacja w `PostController` już dziś odrzuca podrzucone `kind` i ma
+     * tak zostać — ale walidacja broni JEDNEJ drogi i trzyma się wyłącznie
+     * na dyscyplinie: pierwsze `Post::create($request->all())` napisane
+     * kiedykolwiek w przyszłości przewraca ją bez śladu. Dział „Poradźcie"
+     * jest od 19 września włączony na produkcji
+     * (`KUKING_QUESTIONS_ENABLED`), więc „danie zamienione w pytanie" to nie
+     * jest już hipoteza o martwym kodzie: taki wpis wypada z feedu dań,
+     * wchodzi do kolejki nieodpowiedzianych pytań i zmienia swój adres.
+     *
+     * `title` USTAWIA SIĘ TU RAZEM Z `kind`, bo baza nie przyjmuje ich
+     * osobno: CHECK `posts_kind_title_check` wiąże je w jedną wartość
+     * (danie bez tytułu, pytanie z tytułem 10–180 znaków po obcięciu).
+     * Rozdzielenie na dwa kroki dałoby stan pośredni, którego wiersz i tak
+     * nie umie mieć.
+     *
+     * NIE ZAPISUJE — inaczej niż `ContactMessage::oznaczJako()`, bo tam stan
+     * zmienia się na wierszu, który już istnieje. Tutaj `kind` jest
+     * ustawiany przy NARODZINACH wpisu: `PublishPost` robi jeden `save()`
+     * wewnątrz transakcji i na tym jednym zapisie stoi idempotencja
+     * wysłania formularza (`posts_one_per_klucz_wyslania`). Zapis w tej
+     * metodzie byłby drugim, wcześniejszym `INSERT`-em.
+     */
+    public function oznaczJakoPytanie(string $title): static
+    {
+        return $this->forceFill([
+            'kind' => self::KIND_QUESTION,
+            'title' => $title,
+        ]);
+    }
+
     public function isPublished(): bool
     {
         return $this->status === self::STATUS_PUBLISHED && $this->published_at !== null;
@@ -290,6 +437,96 @@ class Post extends Model
 
     public function url(): string
     {
-        return route('posts.show', ['post' => $this->getKey()]);
+        return route($this->kind === self::KIND_QUESTION ? 'questions.show' : 'posts.show', ['post' => $this->getKey()]);
+    }
+
+    /**
+     * Czy ten wpis nie ma NIC własnego — jest wyłącznie wskazaniem przepisu.
+     *
+     * Takie wpisy zakłada `kuking:dopisz-wpisy-przepisow` (#368), żeby przepis
+     * w ogóle pojawił się w strumieniu: bez treści, bez własnych zdjęć,
+     * ze zdjęciem branym z przepisu. Ich strona (`posts.show`) to nagłówek,
+     * pasek „Z przepisu” i komentarze — czyli ekran, na którym nie ma nic,
+     * czego nie ma na stronie przepisu, a strona przepisu ma WŁASNE komentarze
+     * (`recipes.comment`).
+     *
+     * KOMENTARZE SĄ CZĘŚCIĄ WARUNKU, I TO NIE JEST DROBIAZG.
+     * Wpis bez treści, ale Z komentarzem, ma już coś własnego — rozmowę ludzi.
+     * Gdyby warunek jej nie pytał, przekierowanie zostawiłoby tę rozmowę pod
+     * adresem, do którego nic nie prowadzi. Dlatego wpis z komentarzem
+     * zachowuje swoją stronę — i dlatego ta strona musi umieć pokazać
+     * zdjęcie przepisu (issue #447).
+     *
+     * `comments_count` jest używane, GDY JEST POLICZONE. Strumień liczy je
+     * w jednym zapytaniu (`withCount`), więc karta nie dokłada zapytań na
+     * sztukę; pojedynczy ekran wpisu może sobie pozwolić na jedno.
+     */
+    public function jestSamymPrzepisem(): bool
+    {
+        if (! $this->czyJestZapowiedziaPrzepisu()) {
+            return false;
+        }
+
+        $komentarzy = $this->comments_count ?? $this->comments()->count();
+
+        return (int) $komentarzy === 0;
+    }
+
+    /**
+     * Czy ten wpis jest ZAPOWIEDZIĄ przepisu — czyli nie ma własnej treści
+     * ani własnych zdjęć, a jedynym, co niesie, jest wskazanie przepisu.
+     *
+     * TO NIE JEST TO SAMO CO `jestSamymPrzepisem()` I NIE WOLNO ICH SKLEIĆ.
+     * Tamta metoda pyta dodatkowo o komentarze, bo odpowiada na pytanie
+     * „czy ta strona ma jeszcze po co istnieć" — rozmowa pod wpisem jest
+     * treścią własną i sama w sobie wystarcza, żeby strony nie zwijać
+     * przekierowaniem.
+     *
+     * Tu pytanie jest inne: „skąd ten wpis bierze swoją widoczność".
+     * Odpowiedź — z przepisu, bo `WpisWskazujacyPrzepis::dopisz()` zapisuje
+     * `visibility = 'public'` NIE jako decyzję o jawności, tylko jako brak
+     * własnego zawężenia; bramką ma być przepis
+     * (`scopeZWidocznymPrzepisem()`). Dopisanie tu warunku o komentarzach
+     * znaczyłoby, że KTOKOLWIEK odblokowuje cudzy ukryty przepis, pisząc
+     * pod jego zapowiedzią jedno zdanie. Dokładnie tak wyciekał tytuł
+     * przepisu „tylko dla obserwujących" pod bezpośrednim adresem wpisu:
+     * komentarz kasował przekierowanie, a strona wypisywała tytuł, slug
+     * i zdjęcie główne gościowi.
+     */
+    public function czyJestZapowiedziaPrzepisu(): bool
+    {
+        if ($this->recipe_id === null || filled($this->body)) {
+            return false;
+        }
+
+        // `media` bywa tu niezaładowane: ta metoda jest wołana także
+        // z `PostPolicy::view()`, czyli PRZED `load()` w kontrolerze.
+        // `exists()` zamiast pobrania wierszy — potrzebna jest odpowiedź
+        // „czy jest choć jedno", nie same zdjęcia.
+        return $this->relationLoaded('media')
+            ? $this->media->isEmpty()
+            : ! $this->media()->exists();
+    }
+
+    /**
+     * Adres, pod którym stoi TREŚĆ tego wpisu — dla karty w strumieniu.
+     *
+     * Dla zwykłego wpisu to jego własna strona. Dla wpisu, który jest samym
+     * wskazaniem przepisu — strona przepisu, bo tam jest wszystko: zdjęcie,
+     * składniki, kroki i komentarze. Zgłoszenie właściciela z 12 września:
+     * „Muszę szukać i klikać w bigos z cukinii żeby przejść do przepisu…
+     * To nie ma sensu”.
+     *
+     * TO NIE JEST TO SAMO CO `url()` I NIE WOLNO ICH ZAMIENIĆ. `url()` zostaje
+     * KANONICZNYM adresem wpisu — tym, który idzie do udostępniania, do
+     * `<link rel="canonical">` i do danych strukturalnych. Adres wysłany
+     * komuś w wiadomości ma działać po latach, także wtedy, gdy wpis
+     * przestał być „samym przepisem”.
+     */
+    public function adresTresci(): string
+    {
+        return $this->jestSamymPrzepisem() && $this->recipe !== null
+            ? route('recipes.show', $this->recipe->slug)
+            : $this->url();
     }
 }

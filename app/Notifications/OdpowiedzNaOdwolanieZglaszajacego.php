@@ -38,8 +38,8 @@ final class OdpowiedzNaOdwolanieZglaszajacego extends Notification implements Sh
         $utrzymana = $this->odwolanie->status === Appeal::STATUS_UPHELD;
         // Numer bierzemy z powiązanego zgłoszenia, nie z `report_id`:
         // to ta sama wartość, którą zgłaszający dostał w potwierdzeniu odbioru
-        // i w decyzji, a nie druga, wyliczona osobno (D-027 wcześniej wyliczał
-        // ją z UUID-a w pięciu miejscach — i w każdym mógł się rozjechać).
+        // i w decyzji, a nie druga, wyliczona osobno (przed D-029 numer był
+        // wyliczany z UUID-a w pięciu miejscach — i w każdym mógł się rozjechać).
         $numer = $this->odwolanie->report?->numer_sprawy ?? '—';
 
         return (new MailMessage)

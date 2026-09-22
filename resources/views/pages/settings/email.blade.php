@@ -26,7 +26,7 @@
 
     <x-error-summary />
 
-    <section class="card">
+    <section class="sekcja-strony">
         <h2 class="mt-0">Twój adres</h2>
 
         {{-- Adres w całości i dużym drukiem. Człowiek ma tu zobaczyć własną
@@ -64,7 +64,11 @@
     </section>
 
     @if($oczekujaca)
-        <section class="card mt-8">
+        {{-- SEKCJA, nie ramka. D-048 nazywa zmianę adresu ZMIANĄ STANU KONTA,
+             nie edycją profilu — a ten blok niesie termin ważności odnośnika
+             i przycisk „Anuluj zmianę adresu". Stan konta z terminem i akcją
+             nie jest wyjaśnieniem obok głównej rzeczy. --}}
+        <section class="sekcja-strony mt-8">
             <h2 class="mt-0">Zmiana adresu czeka na potwierdzenie</h2>
 
             <p>
@@ -96,7 +100,22 @@
         </section>
     @endif
 
-    <section class="card mt-8">
+    {{-- WARSTWA ZALEŻY OD TEGO, CZY JEST TU CO WYPEŁNIĆ — tak samo jak
+         w `pages/admin/wiadomosc.blade.php`. Gdy poczta nie działa, gałąź
+         `@else` niżej nie ma ani jednego pola ani przycisku, tylko zdanie
+         z adresem kontaktowym. Mocna obwódka obiecywałaby wtedy formularz,
+         którego świadomie nie ma (D-053, zakaz martwego przycisku).
+
+         Dwa inne ekrany rozwiązały to samo inaczej — `auth/forgot-password`
+         i `auth/login-link` trzymają cały panel wewnątrz
+         `@if(Poczta::dziala())`. Tutaj nie da się tak zrobić, bo gałąź
+         zastępcza musi coś powiedzieć: to jedyne miejsce w serwisie,
+         w którym człowiek szuka zmiany adresu. --}}
+    <section @class([
+        'mt-8',
+        'panel-formularza' => $pocztaDziala,
+        'sekcja-strony' => ! $pocztaDziala,
+    ])>
         <h2 class="mt-0">Zmień adres e-mail</h2>
 
         @if($pocztaDziala)
@@ -108,7 +127,7 @@
 
             <p>
                 Na dotychczasowy adres wyślemy od razu wiadomość o tej prośbie. Jeśli
-                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosiłaś/eś o zmianę —
+                kiedykolwiek dostaniesz taką wiadomość, a to nie Ty prosisz o zmianę —
                 zmień hasło.
             </p>
 

@@ -1,0 +1,11 @@
+file:///home/mateusz/kuking-photo561-runtime/scripts/fixtures/karuzela-mieszana.mjs:20
+  if (! warunek) throw new Error(`Karuzela431: ${opis}: ${JSON.stringify(dane)}`);
+                       ^
+
+Error: Karuzela431: utracona ramka D-191: {"slide":1,"width":320,"documentWidth":320,"scrollX":0,"trackScroll":0,"trackHeight":716.890625,"frame":{"width":270,"height":202.5},"fit":"contain","clip":"auto","controls":[{"text":"Poprzednie zdjęcie","width":211.40625,"height":50.5,"left":45,"right":256.40625,"fontSize":18,"clippedText":false},{"text":"Następne zdjęcie","width":196.203125,"height":50.5,"left":45,"right":241.203125,"fontSize":18,"clippedText":false}]}
+    at wymagaj (file:///home/mateusz/kuking-photo561-runtime/scripts/fixtures/karuzela-mieszana.mjs:20:24)
+    at snapshot (file:///home/mateusz/kuking-photo561-runtime/scripts/fixtures/karuzela-mieszana.mjs:118:13)
+    at async zmierzKaruzele (file:///home/mateusz/kuking-photo561-runtime/scripts/fixtures/karuzela-mieszana.mjs:124:11)
+    at async file:///home/mateusz/kuking-photo561-runtime/output/karuzela561-final.mjs:7:7
+
+Node.js v24.19.0

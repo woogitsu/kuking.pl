@@ -1,12 +1,12 @@
 {
     "$schema": "https://getcomposer.org/schema.json",
-    "name": "woogitsu/kuking",
+    "name": "laravel/laravel",
     "type": "project",
-    "description": "Kuking.pl — społeczność ludzi, którzy gotują.",
-    "keywords": ["kuking", "gotowanie", "społeczność", "laravel"],
+    "description": "The skeleton application for the Laravel framework.",
+    "keywords": ["laravel", "framework"],
     "license": "MIT",
     "require": {
-        "php": "^8.4",
+        "php": "^8.3",
         "bacon/bacon-qr-code": "^3.1",
         "intervention/image": "^3.0",
         "laravel/framework": "^13.17",
@@ -16,6 +16,7 @@
         "pragmarx/google2fa": "^9.1"
     },
     "require-dev": {
+        "brianium/paratest": "^7.20",
         "fakerphp/faker": "^1.23",
         "larastan/larastan": "^3.0",
         "laravel/pail": "^1.2.5",

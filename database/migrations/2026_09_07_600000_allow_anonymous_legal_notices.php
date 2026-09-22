@@ -74,8 +74,13 @@ return new class extends Migration
             ->count();
 
         if ($anonimowe > 0) {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1
+            // anonimowych zgłoszeń" to nie polszczyzna, a jedno takie
+            // zgłoszenie jest stanem prawdopodobniejszym niż pięć. Mianownik
+            // przed dwukropkiem nie odmienia się wcale, więc zdanie jest
+            // poprawne dla 1, 2, 5 i 22.
             throw new RuntimeException(
-                "W bazie jest {$anonimowe} anonimowych zgłoszeń prawnych. Przywrócenie starego "
+                'Liczba anonimowych zgłoszeń prawnych w bazie: '.$anonimowe.'. Przywrócenie starego '
                 ."warunku wymagałoby albo wpisania im wymyślonego nazwiska, albo ich skasowania.\n\n"
                 .'Pierwsze jest kłamstwem w kolumnie, drugie niszczy dowód w sprawie, której '
                 .'anonimowość jest wprost przewidziana w art. 16 ust. 2 lit. c DSA. '

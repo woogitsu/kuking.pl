@@ -1,0 +1,110 @@
+[
+  {
+    "width": 320,
+    "path": "/home",
+    "summary": true,
+    "covered": 0,
+    "rect": {
+      "x": 95.515625,
+      "y": 370.46875,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 370.46875,
+      "right": 296,
+      "bottom": 476.265625,
+      "left": 95.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 500.265625,
+      "width": 304,
+      "height": 232.375,
+      "top": 500.265625,
+      "right": 312,
+      "bottom": 732.640625,
+      "left": 8
+    },
+    "visible": true
+  },
+  {
+    "width": 320,
+    "path": "/ustawienia/profil",
+    "summary": true,
+    "covered": 0,
+    "rect": {
+      "x": 95.515625,
+      "y": 370.75,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 370.75,
+      "right": 296,
+      "bottom": 476.546875,
+      "left": 95.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 500.546875,
+      "width": 304,
+      "height": 232.375,
+      "top": 500.546875,
+      "right": 312,
+      "bottom": 732.921875,
+      "left": 8
+    },
+    "visible": true
+  },
+  {
+    "width": 360,
+    "path": "/home",
+    "summary": true,
+    "covered": 0,
+    "rect": {
+      "x": 135.515625,
+      "y": 295.828125,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 295.828125,
+      "right": 336,
+      "bottom": 401.625,
+      "left": 135.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 425.625,
+      "width": 344,
+      "height": 198,
+      "top": 425.625,
+      "right": 352,
+      "bottom": 623.625,
+      "left": 8
+    },
+    "visible": true
+  },
+  {
+    "width": 360,
+    "path": "/ustawienia/profil",
+    "summary": true,
+    "covered": 0,
+    "rect": {
+      "x": 135.515625,
+      "y": 368.828125,
+      "width": 200.484375,
+      "height": 105.796875,
+      "top": 368.828125,
+      "right": 336,
+      "bottom": 474.625,
+      "left": 135.515625
+    },
+    "nav": {
+      "x": 8,
+      "y": 498.625,
+      "width": 344,
+      "height": 198,
+      "top": 498.625,
+      "right": 352,
+      "bottom": 696.625,
+      "left": 8
+    },
+    "visible": true
+  }
+]

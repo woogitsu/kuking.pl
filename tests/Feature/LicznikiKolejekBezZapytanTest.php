@@ -133,20 +133,21 @@ class LicznikiKolejekBezZapytanTest extends TestCase
     public function test_odczyt_licznikow_nie_pyta_bazy_ani_raz(): void
     {
         $kolejki = app(KolejkiPanelu::class);
+        $host = $this->moderator();
 
         $this->napelnijKolejki(2);
         $kolejki->przelicz();
 
-        $maloZapytan = $this->policzZapytania(function () use ($kolejki): void {
-            $liczby = $kolejki->liczby();
+        $maloZapytan = $this->policzZapytania(function () use ($kolejki, $host): void {
+            $liczby = $kolejki->liczby($host);
             $this->assertSame(2, $liczby['odwolania'], 'asercja kontrolna: kolejki naprawdę mają zawartość');
         });
 
         $this->napelnijKolejki(20);
         $kolejki->przelicz();
 
-        $duzoZapytan = $this->policzZapytania(function () use ($kolejki): void {
-            $liczby = $kolejki->liczby();
+        $duzoZapytan = $this->policzZapytania(function () use ($kolejki, $host): void {
+            $liczby = $kolejki->liczby($host);
             $this->assertSame(22, $liczby['odwolania'], 'asercja kontrolna: kolejka naprawdę spuchła');
         });
 

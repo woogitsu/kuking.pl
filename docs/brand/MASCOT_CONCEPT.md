@@ -345,11 +345,11 @@ To najważniejsze ustalenie tego rozdziału. Garnuś jest **widziany, nie słysz
 
 | # | Kontekst | Tekst |
 |---|---|---|
-| 1 | Powitanie po rejestracji | **Dobrze, że jesteś.** Zacznij od jednego zdjęcia — resztę dopiszesz, kiedy będziesz chciał. |
+| 1 | Powitanie po rejestracji | **Dobrze, że jesteś.** Zacznij od jednego zdjęcia — resztę dopiszesz, kiedy zechcesz. |
 | 2 | Pusty feed (Start) | Tu będzie widać, co gotują osoby, które obserwujesz. Na razie nie obserwujesz nikogo. `[ Zobacz, co ugotowano dziś ]` |
 | 3 | Pusty profil / Moje dania | Nie masz jeszcze żadnego dania. Pierwsze zwykle jest najprostsze: zdjęcie i dwa zdania. `[ Dodaj zdjęcie ]` |
 | 4 | Pusty zeszyt / kolekcje | Zeszyt jest pusty. Kiedy zapiszesz przepis, znajdziesz go tutaj — także za rok. |
-| 5 | Błąd uploadu: za duży plik | Nie udało się dodać zdjęcia, ponieważ plik ma ponad 15 MB. Wybierz mniejsze zdjęcie. Tekst, który napisałeś, jest zapisany. |
+| 5 | Błąd uploadu: za duży plik | Nie udało się dodać zdjęcia, ponieważ plik ma ponad 15 MB. Wybierz mniejsze zdjęcie. Twój tekst jest zapisany. |
 | 6 | Błąd uploadu: połączenie | Zdjęcie nie doszło do końca — to zwykle kwestia połączenia. Spróbuj jeszcze raz. Nic nie zginęło. |
 | 7 | Po pierwszej publikacji | **Pierwsze danie jest na stronie.** Od teraz masz je u siebie na stałe. |
 | 8 | Powiadomienie: Ugotowałem | Marek ugotował Twoją pomidorową i dodał zdjęcie. |
@@ -360,7 +360,7 @@ To najważniejsze ustalenie tego rozdziału. Garnuś jest **widziany, nie słysz
 | 13 | Brak wyników szukania | Nic nie znaleźliśmy na „pomidorowa mojej mamy". Spróbuj krótszego hasła, na przykład „pomidorowa". |
 | 14 | Autosave | Szkic zapisany. Możesz zamknąć stronę i wrócić później. |
 | 15 | Potwierdzenie usunięcia | Usunąć to danie? Zniknie z Twojego profilu. Przez 30 dni można je przywrócić. `[ Usuń ]` `[ Zostaw ]` — *[do weryfikacji: 30 dni musi zgadzać się z `docs/SECURITY_PRIVACY_LEGAL.md`]* |
-| 16 | E-mail po długiej przerwie | Dawno Cię tu nie było i to zupełnie w porządku. Twój zeszyt czeka tam, gdzie go zostawiłeś. `[ Zajrzyj do swoich dań ]` — *bez „tęsknimy", bez liczenia dni nieobecności* |
+| 16 | E-mail po długiej przerwie | Dawno Cię tu nie było i to zupełnie w porządku. Twój zeszyt czeka na miejscu. `[ Zajrzyj do swoich dań ]` — *bez „tęsknimy", bez liczenia dni nieobecności* |
 
 Dodatkowo, prace serwisowe: **Robimy porządki na zapleczu. Za kilka minut wszystko wróci. Nic z Twoich rzeczy nie ginie.**
 

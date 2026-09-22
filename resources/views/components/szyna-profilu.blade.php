@@ -1,4 +1,4 @@
-@props(['profile', 'isOwner', 'zeszyty', 'tagi'])
+@props(['profile', 'isOwner', 'zeszyty', 'tagi', 'stats', 'zdjecia' => collect()])
 
 {{--
     Prawa szyna profilu `/@nazwa` (issue #205).
@@ -18,17 +18,6 @@
     wyżej, i drugi taki sam przycisk na jednym ekranie każe się zastanawiać,
     czy to na pewno to samo.
 
-    CZEGO TU NIE MA I NIE BĘDZIE
-    Żadnej liczby obserwujących, żadnego „najaktywniejsi", żadnego miejsca
-    w tabeli. AGENTS.md §12 zakazuje publicznych rankingów użytkowników
-    wprost, a szyna jest dokładnie tym miejscem, w którym ranking wchodzi
-    najłatwiej — bo wygląda niewinnie jako „ciekawostka obok".
-
-    PUSTA SZYNA JEST DOPUSZCZALNYM WYNIKIEM. Cudzy profil bez tagów i bez
-    publicznych zeszytów nie dostaje żadnego bloku. Karta „Ta osoba nie ma
-    jeszcze nic" byłaby wypełniaczem, a przy grupie 50+ każdy element to coś,
-    co trzeba przeczytać i pominąć (issue #205).
-
     PRYWATNOŚĆ. Widok NIE filtruje niczego sam — dostaje z kontrolera
     (`ProfileController::show()`) wyłącznie to, co oglądający i tak ma prawo
     zobaczyć: tagi policzone z wpisów przepuszczonych przez ten sam filtr
@@ -38,13 +27,19 @@
     w tym repozytorium pęka najczęściej.
 --}}
 
+
+
 @if($isOwner)
+    {{-- BEZ „Zajmuje niecałą minutę" przy pierwszym skrócie: obietnica
+         z miarą, której nie mierzymy, a czas zależy od tego, jak szybko pójdzie
+         zdjęcie z telefonu. Podpis mówi teraz, z czego ten wpis się składa —
+         to samo zdanie co w `AGENTS.md` §1. --}}
     <x-szyna-blok tytul="Twoje skróty" id="szyna-skroty" ikona="plus">
         <x-szyna-linki :pozycje="[
             [
                 'href' => route('posts.create'),
                 'nazwa' => 'Dodaj zdjęcie i kilka słów',
-                'podpis' => 'Najprostsza rzecz. Zajmuje niecałą minutę.',
+                'podpis' => 'Najprostsza rzecz. Wystarczy zdjęcie i kilka słów.',
             ],
             [
                 'href' => route('recipes.create'),
@@ -71,6 +66,20 @@
     </x-szyna-blok>
 @endif
 
+@if($zdjecia->isNotEmpty())
+    <x-szyna-blok tytul="Zdjęcia z tej kuchni" id="szyna-zdjecia-profilu" ikona="image">
+        <ul class="marka-profil-zdjecia" aria-label="Ostatnie wpisy ze zdjęciami">
+            @foreach($zdjecia as $wpis)
+                <li>
+                    <img src="{{ $wpis->media->first()->url('thumb') }}" alt=""
+                         width="88" height="88" loading="lazy" decoding="async">
+                    <a href="{{ $wpis->url() }}">Wpis z {{ \App\Support\Czas::data($wpis->published_at, 'j F Y') }}</a>
+                </li>
+            @endforeach
+        </ul>
+    </x-szyna-blok>
+@endif
+
 @if($zeszyty->isNotEmpty())
     <x-szyna-blok
         :tytul="$isOwner ? 'Twoje zeszyty' : 'Zeszyty tej osoby'"
@@ -85,7 +94,7 @@
              jest — ten sam „oracle istnienia", który `ProfileController`
              naprawił już przy licznikach obserwujących. Nazwa zeszytu wystarczy
              do tego, po co ta lista jest: żeby do niego wejść. --}}
-        <x-szyna-linki :pozycje="$zeszyty->map(fn ($zeszyt) => [
+        <x-szyna-linki akcja="Otwórz zeszyt" :pozycje="$zeszyty->map(fn ($zeszyt) => [
             'href' => route('collections.show', $zeszyt),
             'nazwa' => $zeszyt->name,
             'podpis' => $zeszyt->description,

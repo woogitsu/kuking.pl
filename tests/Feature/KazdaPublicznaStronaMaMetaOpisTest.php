@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as RoutingRoute;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -78,6 +79,10 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         'robots' => 'plik tekstowy robots.txt, nie strona HTML',
         'storage.local' => 'serwuje surowy plik z dysku (dev), nie renderuje layoutu',
         'media.show' => 'serwuje binarny wariant zdjęcia, nie stronę HTML',
+        'google.start' => 'samo przekierowanie do Google — nie renderuje żadnego HTML-a (D-069)',
+        'google.callback' => 'powrót z Google, zawsze kończy się przekierowaniem — nie renderuje HTML-a (D-069)',
+        'facebook.start' => 'samo przekierowanie do Facebooka — nie renderuje żadnego HTML-a (#259, D-098)',
+        'facebook.callback' => 'powrót z Facebooka: przekierowanie albo ekran „Facebook nie podał nam adresu" (auth/facebook-bez-adresu.blade.php, noindex) — własnego adresu do zaindeksowania nie ma (#259)',
     ];
 
     /**
@@ -106,13 +111,28 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
         // `resources/views/pages/appeals/reporter.blade.php` ma
         // `:noindex="true"` bezwarunkowo.
         'appeals.reporter' => 'wymaga podpisanego adresu i zgłoszenia; noindex bezwarunkowo w pages/appeals/reporter.blade.php',
+
+        // Oba ekrany drogi przez Google wymagają tożsamości W SESJI, która
+        // przeszła ekran zgody Google (D-069). Czystym GET-em przekierowują
+        // na `/login`, więc nie da się tu z nich zbudować strony. Oba widoki
+        // mają `:noindex="true"` na trasę wprost —
+        // `resources/views/auth/google-finish.blade.php`
+        // i `resources/views/auth/google-link.blade.php`.
+        'google.finish' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-finish.blade.php',
+        'google.link' => 'wymaga tożsamości z Google w sesji; noindex w auth/google-link.blade.php',
+        'facebook.finish' => 'wymaga tożsamości z Facebooka w sesji; noindex w auth/facebook-finish.blade.php',
+        'facebook.link' => 'wymaga tożsamości z Facebooka w sesji i zalogowania; noindex w auth/facebook-link.blade.php',
     ];
 
     public function test_kazda_indeksowalna_strona_publiczna_ma_niepusty_meta_description(): void
     {
+        config(['kuking.questions.enabled' => true]);
+        $question = Post::factory()->question()->create();
         [$autor, $tag, $recipe, $post] = $this->zbudujTresc();
 
         $adresyDlaTras = [
+            'questions.index' => route('questions.index'),
+            'questions.show' => route('questions.show', $question),
             'landing' => route('landing'),
             'discover' => route('discover'),
             'about' => route('about'),
@@ -140,8 +160,15 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             // i zużytego (D-056).
             'login.link' => route('login.link'),
             'login.link.confirm' => route('login.link.confirm', ['token' => 'token-testowy']),
+            // Zaproszenie do założenia konta (D-085) — ta sama rodzina i ta
+            // sama zasada: `noindex`, a byle token renderuje ekran „to
+            // zaproszenie już nie działa" i to jest poprawne 200, bo token
+            // nieistniejący ma wyglądać tak samo jak wygasły i zużyty.
+            'zaproszenie.pokaz' => route('zaproszenie.pokaz', ['token' => 'token-testowy']),
             'password.reset' => route('password.reset', ['token' => 'token-testowy']),
             'search' => route('search'),
+            'links.external' => route('links.external', ['cel' => Crypt::encryptString('https://example.test/przepis')]),
+            'tags.index' => route('tags.index'),
             'tags.show' => route('tags.show', $tag->slug),
             'profile.show' => route('profile.show', $autor->profile->username),
             'social.following' => route('social.following', $autor->profile->username),

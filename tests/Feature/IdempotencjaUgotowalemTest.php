@@ -89,13 +89,12 @@ class IdempotencjaUgotowalemTest extends TestCase
         );
         $this->assertSame(1, DB::table('audit_log')->where('action', 'cooked_event.created')->count());
 
-        // Komunikat mówi o powiadomieniu, więc musi być prawdziwy — liczba
-        // powiadomień jest sprawdzona wyżej, w tym samym teście (§7.2 i §7.3
-        // ADR-u).
+        // Komunikat potwierdza zapis; powiadomienia mają świadome wyjątki.
+        // Ich rzeczywista liczba nadal jest sprawdzona wyżej.
         $drugie->assertSessionHas(
             'status',
-            'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
-            .'Gotowałeś ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+            'To wykonanie już zapisaliśmy. '
+            .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
         );
     }
 

@@ -6,12 +6,21 @@
         samo hasło mu nie wystarczy, żeby się zalogować.
     </p>
 
-    @if(session('status'))
-        <p class="card mb-5" role="status">{{ session('status') }}</p>
-    @endif
+    {{-- KOMUNIKATU ZWROTNEGO TU NIE MA I NIE MA BYĆ.
+
+         Stało tu drugie wypisanie `session('status')`, a `x-layout` wypisuje
+         je już jako `<p class="flash">` w `<div class="komunikaty"
+         aria-live="polite">`. Po każdym `redirect()->with('status', …)`
+         z `TwoFactorSettingsController` (m.in. „Weryfikacja dwuetapowa jest
+         wyłączona.") ten sam tekst pokazywał się DWA RAZY, a czytnik ekranu
+         ogłaszał go dwukrotnie — raz z `aria-live` layoutu, raz z własnego
+         `role="status"`. Przy okazji rozdzielania ról powierzchni wyszło
+         przy tym drugie: komunikat zwrotny nie jest ani kartą, ani
+         wyjaśnieniem obok treści — ma własny wygląd (`.flash`) i własne
+         miejsce. Test: `WarstwyPowierzchniTest`. --}}
 
     @if($wlaczone)
-        <section class="card">
+        <section class="sekcja-strony">
             <h2 class="mt-0">Włączona</h2>
             <p>Przy logowaniu, oprócz hasła, poprosimy Cię o kod z aplikacji uwierzytelniającej.</p>
 
@@ -62,9 +71,9 @@
             </details>
         </section>
     @else
-        <section class="card">
+        <section class="sekcja-strony">
             <h2 class="mt-0">Wyłączona</h2>
-            <p>Włączenie zajmuje mniej niż dwie minuty i wymaga aplikacji uwierzytelniającej w telefonie
+            <p>Włączenie wymaga aplikacji uwierzytelniającej w telefonie
                 (na przykład Google Authenticator, Aegis albo 1Password).</p>
             <a class="btn btn-primary" href="{{ route('settings.two_factor.enable') }}">Włącz weryfikację dwuetapową</a>
         </section>

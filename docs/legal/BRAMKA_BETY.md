@@ -165,14 +165,25 @@ fałszowalny i tak ma być traktowany.
 o `X-Forwarded-For` ani słowem. Do czasu pomiaru na żywej infrastrukturze
 zostaje bezpieczna wartość `1`.
 
-**`X-Forwarded-Host` zostaje zaufany.** Jest podrabialny tak samo jak reszta
-i wpływa na host w adresach z `url()`. Właściwym zamknięciem jest middleware
-`TrustHosts`, którego lista **musi** zawierać `healthcheck.railway.app` —
-inaczej deploy pada na 400 (`.railway/railway.ts`). To osobna zmiana z własnym
-ryzykiem wdrożeniowym i świadomie nie ma jej w tej łatce. Praktyczny zasięg
-jest dziś mniejszy, niż się wydaje: link do ustawienia hasła buduje
-**zakolejkowane** powiadomienie (`UstawienieNowegoHasla implements ShouldQueue`),
-czyli worker bez żądania HTTP, który bierze host z `APP_URL`.
+**`X-Forwarded-Host` NIE JEST JUŻ ZAUFANY — zamknięte 10 września 2026 (S2,
+D-071).** Ten akapit mówił wcześniej, że nagłówek zostaje zaufany, a właściwym
+zamknięciem byłby `TrustHosts` „w osobnej zmianie". Ta zmiana została zrobiona
+i wygląda inaczej, niż tu zapowiadano — na dwa sposoby naraz:
+
+1. `X-Forwarded-Host` **wypadł z bitmaski zaufanych nagłówków**
+   (`bootstrap/app.php`). Nagłówka, którego aplikacja nie czyta, nie da się
+   podstawić — to zamknięcie mocniejsze niż allowlista. Wolno było go wyjąć,
+   bo `Host` przechodzi przez Cloudflare i brzeg Railway nietknięty.
+2. `Host` przechodzi przez `TrustHosts` z jawną listą
+   (`App\Support\ZaufaneHosty`), która **zawiera** `healthcheck.railway.app`
+   — bez tego wpisu deploy pada na 400 i nigdy się nie kończy.
+
+Zapowiedź o mniejszym praktycznym zasięgu była trafna, ale niepełna: reset
+hasła, potwierdzenie adresu i logowanie linkiem faktycznie budują adres
+w workerze z `APP_URL` (`ShouldQueue`), natomiast potwierdzenie **zmiany**
+adresu e-mail powstawało w żądaniu HTTP i tam nagłówek wchodził do listu
+wprost. Wszystkie cztery linki są teraz budowane z konfiguracji
+(`App\Support\AdresKanoniczny`).
 
 **`trustProxies(at: '*')` zostaje.** Wcześniejsze ostrzeżenie „nie usuwać"
 jest nadal aktualne: bez zaufania do `X-Forwarded-Proto` `$request->secure()`
@@ -608,9 +619,18 @@ Zanim ktokolwiek powie „można otwierać":
    konfiguracją a dokumentem zapala `DokumentyPrawneNieKlamiaTest` na czerwono.
    Wcześniej oba dokumenty mówiły „serwis prowadzi osoba fizyczna" i obiecywały
    dane później, co przy RODO art. 13 ust. 1 lit. a było zaniechaniem.
-6. **Działająca skrzynka pocztowa** (§7b). Dziś `MAIL_MAILER=log`: reset hasła
-   nie dochodzi do nikogo. To nie jest brak wygody — to konto tracone
-   bezpowrotnie przy pierwszym zapomnianym haśle.
+6. ~~**Działająca skrzynka pocztowa** (§7b).~~ **ZAMKNIĘTE — sprawdzone
+   na produkcji 20 września 2026.** Stało tu: „Dziś `MAIL_MAILER=log`: reset
+   hasła nie dochodzi do nikogo". To zdanie opisywało `.env.example`, czyli
+   ustawienie LOKALNE, i przestało być prawdą o produkcji. Odczyt
+   `https://kuking.pl/health` pokazuje `poczta: ok`, a jedynym niezdrowym
+   elementem jest `kolejka: zadania_nieudane`.
+
+   Zostawiam ten punkt przekreślony, a nie skasowany, bo jest dowodem na to,
+   po co ta bramka w ogóle powstała: **pozycja bramkująca, która blokuje na
+   rozwiązanym problemie, szkodzi dokładnie tak samo jak pozycja o usłudze,
+   której nigdy nie było**. Jedna każe czekać bez powodu, druga każe odhaczyć
+   niemożliwe — obie uczą, że listy nie trzeba czytać serio.
 7. ~~**Wybór okresów retencji**~~ — **ZAMKNIĘTE, poprawione 9 września.**
    Stało tu: „polityka prywatności nie podaje dziś żadnego okresu poza dwoma,
    które kod egzekwuje". To zdanie zostało z czasu sprzed `ADR_RETENCJE.md`

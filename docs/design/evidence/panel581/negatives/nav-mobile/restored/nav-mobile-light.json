@@ -1,0 +1,10 @@
+{
+  "kind": "nav-mobile",
+  "theme": "light",
+  "width": 768,
+  "height": 900,
+  "scale": 140,
+  "expectedHypothesis": "P581_ROZCIETE_SLOWO_NAWIGACJI",
+  "passed": true,
+  "blockedMethods": []
+}

@@ -3,6 +3,7 @@
          xsi:noNamespaceSchemaLocation="vendor/phpunit/phpunit/phpunit.xsd"
          bootstrap="tests/bootstrap.php"
          colors="true"
+         failOnRisky="true"
 >
     <testsuites>
         <testsuite name="Unit">
@@ -11,7 +12,40 @@
         <testsuite name="Feature">
             <directory>tests/Feature</directory>
         </testsuite>
+        <!--
+            Grupa `dwa-polaczenia` (D-105): testy chodzące na DWÓCH
+            połączeniach do PostgreSQL, bez `RefreshDatabase`, z danymi
+            zatwierdzanymi naprawdę.
+
+            Zestaw jest tu WYMIENIONY, ale niżej WYŁĄCZONY z domyślnego
+            przebiegu (`<groups><exclude>`), więc `php artisan test` ma
+            dokładnie tyle testów co przed D-105. Wymieniony, bo dzięki temu
+            `php artisan test` z opcją `group=dwa-polaczenia` znajduje te pliki bez
+            drugiego pliku konfiguracyjnego — PHPUnit usuwa grupę z listy
+            wykluczonych, gdy podano ją jawnie tą opcją (Merger.php:805).
+
+            NIE URUCHAMIAJ TEJ GRUPY ZWYKŁYM `php artisan test` z tą opcją
+            bez przygotowanej bazy `kuking_race_*`: klasa bazowa odmówi
+            startu. Jedno polecenie, które robi wszystko:
+            `./scripts/testy-dwa-polaczenia.sh`.
+        -->
+        <testsuite name="Dwa">
+            <directory>tests/Dwa</directory>
+        </testsuite>
     </testsuites>
+    <!--
+        Dlaczego grupa jest wyłączona domyślnie, a nie włączona „na próbę":
+        te testy ZATWIERDZAJĄ dane i zakładają blokady na wierszach. Puszczone
+        razem ze zwykłym przebiegiem na tej samej bazie potrafią zawiesić
+        cudzy przebieg (issue #66 z drugiej strony), a ich czerwień —
+        z natury rzadziej powtarzalna niż czerwień zwykłego testu — nie ma
+        prawa blokować pracy nad niepowiązaną zmianą. Koszt i granice: D-105.
+    -->
+    <groups>
+        <exclude>
+            <group>dwa-polaczenia</group>
+        </exclude>
+    </groups>
     <source>
         <include>
             <directory>app</directory>

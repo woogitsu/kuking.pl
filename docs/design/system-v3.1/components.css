@@ -352,7 +352,7 @@
 .field-input {
   display: block;
   width: 100%;
-  min-height: var(--control-height-min);
+  min-height: var(--pole-wysokosc-min);
   padding: var(--spacing-3) var(--spacing-4);
   font-family: var(--font-sans);
   font-size: var(--text-body);
@@ -377,7 +377,7 @@
 .field-input-krotkie{ max-width: 22ch; }
 .field-input-srednie{ max-width: 40ch; }
 
-textarea.field-input { min-height: 7rem; resize: vertical; }
+textarea.field-input { min-height: var(--pole-wielowierszowe-min); resize: vertical; }
 textarea.field-input-dlugie { min-height: 12rem; }
 
 .field-help { display: block; margin-top: var(--spacing-2); font-size: var(--text-help); color: var(--color-ink-muted); }
@@ -481,12 +481,70 @@ textarea.field-input-dlugie { min-height: 12rem; }
    u zwykłego człowieka — zmniejszenie go do ikonki zabiera mu funkcję.
    ========================================================================= */
 
+/* WARSTWA 1 z sześciu — karta treści. Do 11 września 2026 ta jedna klasa
+   niosła wszystkie sześć ról naraz i rysowała się z wartości wpisanych
+   wprost; dziś bierze je z `tokens/warstwy.css`, tak jak w kodzie
+   (`resources/css/tokens.css`). Promień urósł przy tym z `--radius-lg`
+   na `--radius-xl`: karta wpisu i blok szyny miały 24px od dawna jako
+   nadpisania, a `.card` obok nich 16px. */
 .card {
-  background-color: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
-  box-shadow: var(--shadow-card);
-  padding: var(--spacing-5);
+  background-color: var(--warstwa-tresc-tlo);
+  border: 1px solid var(--warstwa-tresc-obwodka);
+  border-radius: var(--warstwa-tresc-promien);
+  box-shadow: var(--warstwa-tresc-cien);
+  padding: var(--warstwa-tresc-wciecie);
+}
+
+/* WARSTWA 2 — panel formularza: jedyna rzecz na ekranie do wypełnienia. */
+.panel-formularza {
+  background-color: var(--warstwa-panel-tlo);
+  border: 1px solid var(--warstwa-panel-obwodka);
+  border-radius: var(--warstwa-panel-promien);
+  box-shadow: var(--warstwa-panel-cien);
+  padding: var(--warstwa-panel-wciecie);
+}
+
+/* WARSTWA 3 — sekcja strony: pas landingu, tablica dnia, ekran
+   potwierdzenia. Ma tło i obwódkę, ale się nie unosi. */
+.sekcja-strony {
+  background-color: var(--warstwa-sekcja-tlo);
+  border: 1px solid var(--warstwa-sekcja-obwodka);
+  border-radius: var(--warstwa-sekcja-promien);
+  box-shadow: var(--warstwa-sekcja-cien);
+  padding: var(--warstwa-sekcja-wciecie);
+}
+
+/* WARSTWA 5 — ramka pomocnicza: wyjaśnienie, ostrzeżenie, „co dalej".
+   Wgłębiona, bez cienia: to jest tekst OBOK głównej rzeczy.
+   (Warstwa 4, blok szyny, stoi niżej przy reszcie szyny.) */
+.ramka-pomocnicza {
+  background-color: var(--warstwa-pomocnicza-tlo);
+  border: 1px solid var(--warstwa-pomocnicza-obwodka);
+  border-radius: var(--warstwa-pomocnicza-promien);
+  box-shadow: var(--warstwa-pomocnicza-cien);
+  padding: var(--warstwa-pomocnicza-wciecie);
+}
+
+/* WARSTWA 6 — kafel akcji: cała powierzchnia jest odnośnikiem. Mocna
+   obwódka, bo to KONTROLKA: obwódka kontrolki musi mieć 3:1 do tła
+   (WCAG 1.4.11), a `--color-border` jest linią dekoracyjną. */
+.kafel-akcji {
+  display: block;
+  background-color: var(--warstwa-kafel-tlo);
+  border: 1px solid var(--warstwa-kafel-obwodka);
+  border-radius: var(--warstwa-kafel-promien);
+  box-shadow: var(--warstwa-kafel-cien);
+  padding: var(--warstwa-kafel-wciecie);
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Hover NIE jest tu jedynym sygnałem, że to odnośnik — jest nim mocna
+   obwódka i tytuł w środku. Dodatek dla myszy, zgodny z regułą „żadna
+   ważna funkcja nie wymaga hovera". */
+.kafel-akcji:hover {
+  background-color: var(--color-surface-sunken);
+  box-shadow: var(--shadow-card-hover);
 }
 
 .strumien { display: flex; flex-direction: column; gap: var(--spacing-6); }
@@ -791,10 +849,11 @@ textarea.field-input-dlugie { min-height: 12rem; }
 /* Moduł szyny. Szyna NIE powtarza kolumny głównej — powtórzenie tej samej
    treści dwa razy na jednym ekranie było problemem nr 4. */
 .szyna-modul {
-  background-color: var(--color-surface-raised);
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-xl);
-  padding: var(--spacing-5);
+  background-color: var(--warstwa-szyna-tlo);
+  border: 1px solid var(--warstwa-szyna-obwodka);
+  border-radius: var(--warstwa-szyna-promien);
+  box-shadow: var(--warstwa-szyna-cien);
+  padding: var(--warstwa-szyna-wciecie);
   margin-bottom: var(--spacing-5);
 }
 .szyna-tytul { font-size: var(--text-body-lg); font-weight: 800; margin: 0 0 var(--spacing-1); }

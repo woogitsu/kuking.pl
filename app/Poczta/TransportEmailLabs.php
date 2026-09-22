@@ -111,6 +111,14 @@ final class TransportEmailLabs extends AbstractTransport
         'x-to', 'x-cc', 'x-bcc',
     ];
 
+    /**
+     * Słowa, po których rozpoznajemy wyczerpany limit w odpowiedzi dostawcy
+     * (issue #234). Małymi literami — porównanie idzie po `mb_strtolower`.
+     *
+     * @var list<string>
+     */
+    private const SLOWA_O_LIMICIE = ['limit', 'quota', 'too many', 'throttl', 'rate exceed', 'przekroczon'];
+
     /** Specyfikacja API: nazwa nadawcy i adresata od 2 do 64 znaków. */
     private const MAKSYMALNA_DLUGOSC_NAZWY = 64;
 
@@ -159,11 +167,16 @@ final class TransportEmailLabs extends AbstractTransport
             // Nie udało się nawet dopytać dostawcy. NIE zakładamy, że list nie
             // poszedł — zakładamy, że nie wiemy, i wywracamy zadanie, żeby
             // ktoś to zobaczył w `queue:failed`.
-            throw new OdmowaEmailLabs(
+            // PRZEJŚCIOWA, choć nie wiemy, czy list wyszedł: zerwane
+            // połączenie prawie zawsze naprawia się samo, a powtórzenie
+            // najwyżej zdubluje list — czyli kosztuje mniej niż potwierdzenie
+            // rejestracji, które nie doszło (issue #234, D-062).
+            throw OdmowaEmailLabs::powodu(
+                PowodOdmowy::PRZEJSCIOWA,
                 'Nie udało się połączyć z API EmailLabs ('.$this->bezSekretow($e->getMessage()).'). '
                 .'Nie wiadomo, czy list wyszedł. Sprawdź, czy kontener ma wyjście na HTTPS '
                 .'i czy adres API jest poprawny.',
-                previous: $e,
+                poprzedni: $e,
             );
         }
 
@@ -390,26 +403,41 @@ final class TransportEmailLabs extends AbstractTransport
         $meta = is_array($tresc['meta'] ?? null) ? $tresc['meta'] : null;
 
         if ($odpowiedz->failed() || $odpowiedz->status() === 207) {
-            throw new OdmowaEmailLabs($this->powod($odpowiedz, $tresc));
+            throw OdmowaEmailLabs::powodu(
+                $this->powodOdmowy($odpowiedz, $tresc),
+                $this->powod($odpowiedz, $tresc),
+                $odpowiedz->status(),
+            );
         }
 
         if ($meta === null) {
-            throw new OdmowaEmailLabs(
+            throw OdmowaEmailLabs::powodu(
+                PowodOdmowy::NIEZNANA,
                 'API EmailLabs odpowiedziało HTTP '.$odpowiedz->status().', ale w odpowiedzi nie ma sekcji `meta`, '
                 .'którą opisuje jego własna specyfikacja. Nie da się stwierdzić, czy list został przyjęty — '
                 .'a zgadywanie „pewnie poszło" jest tu gorsze niż porażka. Sprawdź adres w EMAILLABS_ENDPOINT.',
+                $odpowiedz->status(),
             );
         }
 
         if ((int) ($meta['numberOfErrors'] ?? 0) > 0 || ($tresc['errors'] ?? []) !== []) {
-            throw new OdmowaEmailLabs($this->powod($odpowiedz, $tresc));
+            // HTTP 2xx z błędami w treści: żądanie było poprawne, wiadomości
+            // dostawca nie przyjął. Kategoria wychodzi z kodów błędów, nie
+            // z kodu HTTP — bo ten mówi tu „ok".
+            throw OdmowaEmailLabs::powodu(
+                $this->powodOdmowy($odpowiedz, $tresc),
+                $this->powod($odpowiedz, $tresc),
+                $odpowiedz->status(),
+            );
         }
 
         if ((int) ($meta['numberOfData'] ?? 0) < 1) {
-            throw new OdmowaEmailLabs(
+            throw OdmowaEmailLabs::powodu(
+                PowodOdmowy::NIEZNANA,
                 'API EmailLabs odpowiedziało HTTP '.$odpowiedz->status().' bez błędów, ale i bez ANI JEDNEJ '
                 .'przyjętej wiadomości (`meta.numberOfData` = 0). Nikt nic nie dostanie. '
                 .$this->identyfikator($meta),
+                $odpowiedz->status(),
             );
         }
 
@@ -433,6 +461,95 @@ final class TransportEmailLabs extends AbstractTransport
         }
 
         return is_array($tresc) ? $tresc : [];
+    }
+
+    /**
+     * KATEGORIA odmowy: „nie wyszedł teraz" czy „nie wyjdzie nigdy"
+     * (issue #234, D-062, `PowodOdmowy`).
+     *
+     * Kolejność warunków jest tu regułą, nie przypadkiem:
+     *
+     *  1. NAJPIERW SŁOWA O LIMICIE, potem kody HTTP. Wyczerpany limit dobowy
+     *     przychodzi u dostawców i jako 429, i jako 4xx z komunikatem
+     *     o limicie, i — jak pokazuje specyfikacja EmailLabs — jako HTTP 2xx
+     *     z błędem w `errors[]`. Gdyby kod HTTP rozstrzygał pierwszy,
+     *     wyczerpana pula meldowałaby się jako „trwała odmowa", czyli
+     *     kazałaby właścicielowi szukać usterki w konfiguracji przez cały
+     *     dzień, w którym wystarczyło poczekać do północy.
+     *  2. 429 i 5xx to awaria po TAMTEJ stronie — przejściowa.
+     *  3. Pozostałe 4xx (i 207, czyli „część adresatów odrzucona") to
+     *     odmowa trwała: zły adres, zły klucz, odrzucony nadawca. Powtarzanie
+     *     nie da nic, dopóki człowiek czegoś nie zmieni.
+     *  4. Cokolwiek innego — NIEZNANA. Nie zgadujemy.
+     *
+     * Słowa szukamy w `code`, `title` i `message` dostawcy, czyli w polach
+     * `ErrorObject` ze specyfikacji. Tekst ten służy TYLKO do
+     * zaklasyfikowania i nie wychodzi stąd nigdzie — do komunikatu wyjątku
+     * idzie osobno, przez `powod()`, po redakcji adresów.
+     *
+     * @param  array<string, mixed>  $tresc
+     */
+    private function powodOdmowy(Response $odpowiedz, array $tresc): PowodOdmowy
+    {
+        $status = $odpowiedz->status();
+
+        if ($this->mowiOLimicie($tresc) || $status === 429) {
+            return PowodOdmowy::LIMIT_DOBOWY;
+        }
+
+        if ($status >= 500 || $status === 408) {
+            return PowodOdmowy::PRZEJSCIOWA;
+        }
+
+        if ($status >= 400 || $status === 207) {
+            return PowodOdmowy::TRWALA;
+        }
+
+        // HTTP 2xx z błędami w treści, ale bez słowa o limicie: dostawca
+        // odrzucił konkretną wiadomość, więc powtórzenie odbije się tak samo.
+        return ($tresc['errors'] ?? []) !== [] ? PowodOdmowy::TRWALA : PowodOdmowy::NIEZNANA;
+    }
+
+    /**
+     * Czy w błędach dostawcy stoi cokolwiek o wyczerpanym limicie.
+     *
+     * Lista słów jest krótka i po angielsku, bo API odpowiada po angielsku
+     * (`ErrorObject.title`: „general error name"). `przekroczon` jest tu na
+     * wypadek polskich komunikatów z panelu — kosztuje jedno słowo, a zamyka
+     * przypadek, którego inaczej nikt by nie zauważył.
+     *
+     * @param  array<string, mixed>  $tresc
+     */
+    private function mowiOLimicie(array $tresc): bool
+    {
+        $bledy = is_array($tresc['errors'] ?? null) ? $tresc['errors'] : [];
+        $tekst = '';
+
+        foreach ($bledy as $blad) {
+            if (! is_array($blad)) {
+                continue;
+            }
+
+            foreach (['code', 'title', 'message'] as $pole) {
+                $wartosc = $blad[$pole] ?? null;
+
+                if (is_string($wartosc) || is_int($wartosc)) {
+                    $tekst .= ' '.mb_strtolower((string) $wartosc);
+                }
+            }
+        }
+
+        if ($tekst === '') {
+            return false;
+        }
+
+        foreach (self::SLOWA_O_LIMICIE as $slowo) {
+            if (str_contains($tekst, $slowo)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -539,10 +656,9 @@ final class TransportEmailLabs extends AbstractTransport
             return null;
         }
 
-        $tytul = (string) preg_replace('/\s+/', ' ', trim($tytul));
-        $tytul = (string) preg_replace('/[^\s<>()@,;]+@[^\s<>()@,;]+/', '[adres]', $tytul);
-
-        return mb_substr($tytul, 0, self::MAKSYMALNA_DLUGOSC_TYTULU);
+        // Redakcja stoi w `BezpiecznyKomunikat`, bo tę samą robi teraz
+        // `ZapiszNieudanyList` nad komunikatem DOWOLNEGO transportu (D-062).
+        return BezpiecznyKomunikat::z($tytul, self::MAKSYMALNA_DLUGOSC_TYTULU);
     }
 
     /**
@@ -564,10 +680,7 @@ final class TransportEmailLabs extends AbstractTransport
             return null;
         }
 
-        $tresc = (string) preg_replace('/\s+/', ' ', trim($tresc));
-        $tresc = (string) preg_replace('/[^\s<>()@,;]+@[^\s<>()@,;]+/', '[adres]', $tresc);
-
-        return mb_substr($tresc, 0, self::MAKSYMALNA_DLUGOSC_TYTULU);
+        return BezpiecznyKomunikat::z($tresc, self::MAKSYMALNA_DLUGOSC_TYTULU);
     }
 
     /**

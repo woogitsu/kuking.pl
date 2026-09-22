@@ -44,6 +44,11 @@ final class KasujZdjecie
         ['recipes', 'hero_media_id'],
         ['recipes', 'source_scan_media_id'],
         ['recipe_steps', 'media_id'],
+        // Kolaż w hero strony powitalnej. Zdjęcie wskazane do kolażu jest
+        // UŻYWANE, choć nie wisi przy żadnym własnym wpisie autora — bez tego
+        // wiersza sprzątacz osieroconych uznałby je za niczyje i skasował
+        // plik, a strona powitalna straciłaby kafel bez jednego komunikatu.
+        ['hero_picks', 'media_id'],
     ];
 
     /**
@@ -64,24 +69,89 @@ final class KasujZdjecie
      * udała, więc wiersz, który przetrwał nieudaną próbę, trafi w kolejny
      * przebieg tak samo jak każdy inny — bez żadnej dodatkowej kolejki.
      *
+     * KASOWANIE PLIKÓW IDZIE PO COMMICIE (issue #285, D-083).
+     *
+     * Przedtem cała ta metoda chodziła wewnątrz jednej transakcji otwartej
+     * przez `OsieroconeZdjecia`, a decyzja „nikt tego nie używa" była zwykłym
+     * `SELECT`-em bez blokady. Publikacja wpisu wybierała zdjęcia równie
+     * niezobowiązująco, więc mieściła się w całości między tym sprawdzeniem
+     * a skasowaniem plików: człowiek dostawał opublikowany wpis, a jego
+     * jedyny egzemplarz zdjęcia znikał z R2. I to bez żadnego błędu — bo
+     * `post_media.media_id` ma `ON DELETE CASCADE`, więc świeżo wstawione
+     * powiązanie kasowało się po cichu razem z wierszem `media`.
+     *
+     * Teraz są dwa kroki i granica commitu między nimi, tak jak
+     * w `EraseAccountData`:
+     *
+     *  1. `przejmij()` — krótka transakcja: blokada wiersza, REWALIDACJA pod
+     *     blokadą i znacznik `status = deleted`. Nie ma w niej ani jednego
+     *     wejścia na dysk, więc nikt nie czeka na R2 z założoną blokadą.
+     *  2. dopiero PO jej zatwierdzeniu — pliki, a na samym końcu wiersz.
+     *
+     * Dzięki temu wycofanie transakcji nigdy nie zostawia skasowanego pliku,
+     * a próba przerwana w połowie zostawia wiersz ze znacznikiem: jest z czego
+     * ponowić i nic już tego zdjęcia nie przypnie.
+     *
      * @return bool czy faktycznie skasowano W KOMPLECIE (wiersz i wszystkie pliki)
      */
     public function jesliNieuzywane(Media $zdjecie): bool
     {
-        if ($this->jestUzywane($zdjecie)) {
+        $przejete = $this->przejmij($zdjecie);
+
+        if ($przejete === null) {
             return false;
         }
 
         // Pliki PRZED wierszem. Wiersz bez plików da się jeszcze zauważyć
         // i posprzątać; pliki bez wiersza są dla całej aplikacji niewidoczne
         // i zostają na dysku na zawsze.
-        if (! $this->skasujPliki($zdjecie)) {
+        if (! $this->skasujPliki($przejete)) {
             return false;
         }
 
-        $zdjecie->delete();
+        $przejete->delete();
 
         return true;
+    }
+
+    /**
+     * Przejmuje zdjęcie do skasowania: blokuje wiersz, sprawdza POD BLOKADĄ,
+     * czy nadal nikt go nie używa, i oznacza je jako `deleted`.
+     *
+     * DLACZEGO ŚWIEŻY ODCZYT, A NIE MODEL Z ARGUMENTU (D-079 §3)
+     * Model przyszedł z zapytania, które wybrało kandydatów do sprzątania —
+     * między tamtym `SELECT`-em a tym wywołaniem ktoś mógł zdążyć opublikować
+     * wpis z tym zdjęciem. Sama blokada tego nie powie: ona tylko ustawia
+     * w kolejkę. Odpowiedź daje dopiero pytanie zadane PONOWNIE, już po jej
+     * uzyskaniu.
+     *
+     * Znacznik `deleted` jest tu odpowiednikiem `data_erased_at`
+     * z `EraseAccountData`: zatwierdzoną, widoczną dla innych transakcji
+     * deklaracją „to zdjęcie odchodzi", której `ZdjeciaDoPrzypiecia` już nie
+     * przepuści. Bez niej okno wracałoby natychmiast po zwolnieniu blokady,
+     * a przed skasowaniem plików.
+     *
+     * @return Media|null świeży, przejęty wiersz albo `null`, gdy nie wolno go tknąć
+     */
+    private function przejmij(Media $zdjecie): ?Media
+    {
+        return DB::transaction(function () use ($zdjecie): ?Media {
+            $swieze = Media::query()->whereKey($zdjecie->getKey())->lockForUpdate()->first();
+
+            if ($swieze === null || $this->jestUzywane($swieze)) {
+                return null;
+            }
+
+            // Ponowione sprzątanie tego samego wiersza (poprzednia próba padła
+            // w połowie plików) trafia tu ze znacznikiem już ustawionym — nie
+            // ma czego zapisywać drugi raz.
+            if ($swieze->status !== Media::STATUS_DELETED) {
+                $swieze->status = Media::STATUS_DELETED;
+                $swieze->save();
+            }
+
+            return $swieze;
+        });
     }
 
     public function jestUzywane(Media $zdjecie): bool
@@ -169,6 +239,38 @@ final class KasujZdjecie
                 if (! $this->skasujZKazdegoDysku($zdjecie, $klucz, $dyski)) {
                     $wszystkoSieUdalo = false;
                 }
+            }
+        }
+
+        // WARIANTY ZADANIA, KTÓRE NIE DOBIEGŁO KOŃCA (#601).
+        //
+        // `metadata.variants` powstaje dopiero po ostatnim wariancie, razem
+        // ze statusem `ready`. Zadanie przerwane w połowie — wyjątkiem albo
+        // `$timeout`, który ubija proces bez żadnego `catch` — zostawia
+        // w publicznym buckecie pliki, których nie ma w tamtej tablicy.
+        // `ProcessUploadedImage` zapisuje więc ich klucze OSOBNO, jeszcze
+        // przed pętlą, a tu je sprzątamy. Klucz, pod którym plik nigdy nie
+        // powstał, jest no-opem: `skasujZDysku()` pyta `exists()`.
+        //
+        // Pomijamy klucze obsłużone wyżej — po sukcesie lista jest pusta,
+        // ale wiersz sprzed tej zmiany może mieć obie.
+        $juzSkasowane = [];
+
+        foreach ((array) ($zdjecie->metadata['variants'] ?? []) as $wariant) {
+            if (is_array($wariant) && isset($wariant['key'])) {
+                $juzSkasowane[] = (string) $wariant['key'];
+            }
+        }
+
+        foreach ((array) ($zdjecie->metadata[Media::METADANE_WARIANTY_W_TRAKCIE] ?? []) as $klucz) {
+            if (! is_string($klucz) || $klucz === '' || in_array($klucz, $juzSkasowane, true)) {
+                continue;
+            }
+
+            $doWyczyszczenia[] = $this->publicznyAdres($dyskWariantow, $klucz);
+
+            if (! $this->skasujZKazdegoDysku($zdjecie, $klucz, $dyski)) {
+                $wszystkoSieUdalo = false;
             }
         }
 

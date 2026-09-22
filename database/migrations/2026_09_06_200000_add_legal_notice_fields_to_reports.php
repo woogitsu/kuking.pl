@@ -143,8 +143,13 @@ return new class extends Migration
         $prawne = DB::table('reports')->where('source', 'legal_notice')->count();
 
         if ($prawne > 0 && getenv('KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE') !== '1') {
+            // Rzeczownik PRZED liczbą, liczba na końcu zdania — „jest 1
+            // zgłoszeń" to nie polszczyzna, a jeden wiersz jest tu stanem
+            // znacznie prawdopodobniejszym niż pięć. Mianownik przed
+            // dwukropkiem nie odmienia się wcale, więc zdanie jest poprawne
+            // dla 1, 2, 5 i 22 (ten sam wzorzec co w migracji dziennika zgód).
             throw new RuntimeException(
-                "W tabeli `reports` jest {$prawne} zgłoszeń nielegalnej treści (DSA art. 16). "
+                'Liczba zgłoszeń nielegalnej treści (DSA art. 16) w tabeli `reports`: '.$prawne.'. '
                 .'Cofnięcie tej migracji usunie imię, adres e-mail i uzasadnienie zgłaszającego — '
                 ."zostanie samo `reason`, czyli zgłoszenie bez treści.\n\n"
                 .'To są dane, na podstawie których podjęto decyzje moderacyjne i na które ktoś mógł '

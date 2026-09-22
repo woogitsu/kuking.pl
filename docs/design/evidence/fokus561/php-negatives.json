@@ -1,0 +1,27 @@
+{
+  "backup": "/home/mateusz/kuking561-php-negative-m500lg5f",
+  "cases": [
+    {
+      "case": "proporcja",
+      "negative_exit": 1,
+      "md5": "11f165453ba83b2717f3ba44ea992f75",
+      "mtime_ns": 1789549244141030000,
+      "restored": true
+    },
+    {
+      "case": "minimum",
+      "negative_exit": 1,
+      "md5": "11f165453ba83b2717f3ba44ea992f75",
+      "mtime_ns": 1789549244141030000,
+      "restored": true
+    },
+    {
+      "case": "adres-hero",
+      "negative_exit": 1,
+      "md5": "2d660b6f9ace3bd64bf5a98218f31182",
+      "mtime_ns": 1789548071585473600,
+      "restored": true
+    }
+  ],
+  "positive_exit": 0
+}

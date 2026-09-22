@@ -1,10 +1,23 @@
 <x-layout title="Dodaj zdjęcie" :noindex="true">
+    {{-- Zakładki „Zdjęcie i kilka słów” / „Cały przepis” (issue #366).
+
+         STOJĄ PRZED NAGŁÓWKIEM I TO JEST CAŁA ICH ROBOTA. Osiem z jedenastu
+         drzwi do dodawania prowadzi prosto tutaj — kafel na `/home`, pusty
+         stan feedu, „Dodaj zdjęcie” na profilu, pusty stan profilu, `/tag/…`,
+         pusty stan `/odkryj`, koniec onboardingu i „Dodaj kolejne zdjęcie”
+         pod wpisem. Wchodzący którymikolwiek z nich ma zobaczyć, że jest też
+         druga możliwość, ZANIM zacznie wypełniać ten formularz.
+
+         To odnośnik, nie przełącznik przebudowujący pola: uzasadnienie stoi
+         w komentarzu samego komponentu. --}}
+    <x-zakladki-dodawania aktywna="zdjecie" />
+
     <h1>Dodaj zdjęcie</h1>
     <p class="mb-5">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
+    <form class="panel-formularza" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR
@@ -46,7 +59,7 @@
             @if($zachowane->isNotEmpty())
                 <div class="notice">
                     <strong>Twoje zdjęcia są zachowane.</strong>
-                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co jest zaznaczone na czerwono.
+                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co wypisaliśmy na górze formularza.
                     <ul class="stack-tight lista-naga mt-3">
                         @foreach($zachowane as $zdjecie)
                             <li>
@@ -91,6 +104,9 @@
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
 
+        <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"
+             data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
+             data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
         <x-field
             name="body"
             label="Napisz kilka słów"
@@ -98,8 +114,13 @@
             :rows="5"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
+            <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
+        </div>
 
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-visibility"
+                  @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
             <legend class="font-bold mb-3">Kto ma to widzieć?</legend>
 
             <div class="choice-grid">
@@ -127,10 +148,8 @@
                     </span>
                 </label>
             </div>
-            @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="visibility" />
         </fieldset>
-
-        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Opublikuj</button>
