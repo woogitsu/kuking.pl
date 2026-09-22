@@ -11,13 +11,18 @@ use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\EnsureModeratorHasTwoFactor;
 use App\Http\Middleware\EnsureUserIsModerator;
 use App\Http\Middleware\NormalizeForwardedFor;
+use App\Http\Middleware\PreventRequestForgeryExceptMediaCookie;
+use App\Http\Middleware\PreventSharedSessionCache;
+use App\Http\Middleware\StartSessionExceptAnonymousMedia;
 use App\Logging\QueueCorrelation;
 use App\Support\ZaufaneHosty;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
+use Illuminate\Foundation\Http\Middleware\PreventRequestForgery;
 use Illuminate\Http\Exceptions\ThrottleRequestsException;
 use Illuminate\Http\Request;
+use Illuminate\Session\Middleware\StartSession;
 use Illuminate\Session\TokenMismatchException;
 use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpKernel\Exception\HttpException;
@@ -78,9 +83,47 @@ return Application::configure(basePath: dirname(__DIR__))
         // zmian, gdy nagłówek `Content-Security-Policy` już na niej jest,
         // a podpis bierze z `Vite::cspNonce()`, więc obie warstwy używają
         // TEGO SAMEGO ciągu. Na zwykłej stronie ta warstwa nie robi nic.
+        // TRZECI W STOSIE GLOBALNYM STOI `PreventSharedSessionCache` (#597).
+        //
+        // NA WEJŚCIU pozycja nie ma znaczenia — ta klasa nie czyta ani nie
+        // zmienia żądania. Liczy się WYJŚCIE: w potoku Laravela middleware,
+        // który wchodzi jako n-ty, dotyka odpowiedzi jako n-ty OD KOŃCA.
+        // Stąd „trzeci od góry" znaczy „trzeci od końca na odpowiedzi", czyli
+        // PO grupie `web`, PO routerze i PO module wyjątków. Widzi więc:
+        //
+        //   – `Set-Cookie` dopisane przez `StartSession`
+        //     i `AddQueuedCookiesToResponse` (te stoją WEWNĄTRZ grupy `web`);
+        //   – 404 z ROUTERA, który do grupy `web` nigdy nie dochodzi;
+        //   – 419 z ochrony CSRF i 429 z limitera;
+        //   – 413/503 z globalnych `ValidatePostSize`
+        //     i `PreventRequestsDuringMaintenance`.
+        //
+        // Dokładnie ten sam powód, dla którego `ApplySecurityHeaders` stoi
+        // i tutaj, i w grupie `web`: połowa ekranów błędu do tamtej grupy
+        // nie dociera.
+        //
+        // DLACZEGO NIE PIERWSZY. Bo `NormalizeForwardedFor` ma zostać
+        // PIERWSZY (ustalenie W7-01 / SEC-01 wyżej) i nie ma powodu tego
+        // ruszać: nad `PreventSharedSessionCache` zostają wtedy wyłącznie
+        // dwie klasy, z których ŻADNA nie dokłada ciasteczka ani nagłówka
+        // cache. Przesunięcie na pierwsze miejsce nie zmieniłoby ani jednej
+        // odpowiedzi, a złamałoby ustalenie, które ktoś już raz mierzył.
+        //
+        // CZEGO TA KLASA NIE ROBI: nie usuwa ciasteczek. Odpowiedź z sesją
+        // dalej niesie `Set-Cookie` — zmienia się wyłącznie to, komu wolno
+        // ją przechować. Zakaz jest `private, no-store`, nie samo `private`:
+        // `private` pozwala jeszcze przeglądarce odłożyć odpowiedź na dysk,
+        // a to przy współdzielonym komputerze jest tym samym wyciekiem
+        // o warstwę niżej.
+        //
+        // KASUJE TAKŻE `CDN-Cache-Control`, `Cloudflare-CDN-Cache-Control`
+        // i `Surrogate-Control`. Te nagłówki mają u brzegu PIERWSZEŃSTWO nad
+        // `Cache-Control`, więc samo dopisanie `no-store` do `Cache-Control`
+        // byłoby zakazem, który Cloudflare zignoruje.
         $middleware->prepend([
             NormalizeForwardedFor::class,
             ApplySecurityHeaders::class,
+            PreventSharedSessionCache::class,
             CorrelateRequest::class,
         ]);
 
@@ -186,6 +229,56 @@ return Application::configure(basePath: dirname(__DIR__))
             // `App\Domain\Analytics\ZanotujOstatniaWizyte`.
             AktualizujOstatniaWizyte::class,
         ]);
+
+        // DWIE PODMIANY W GRUPIE `web`, NIE DOPISKI (#597).
+        //
+        // Obie klasy DZIEDZICZĄ po frameworkowych. Gdyby je tylko dopisać,
+        // w stosie stałyby DWIE sesje i DWIE ochrony CSRF: rodzic dalej
+        // zakładałby trwałą sesję i wystawiał `Set-Cookie` przy odczycie
+        // zdjęcia, czyli dokładnie to, co ta zmiana usuwa. Dlatego
+        // `replaceInGroup`, a nie `appendToGroup`.
+        //
+        // `replaceInGroup`, A NIE `replace`: `replace()` działa wyłącznie na
+        // stosie GLOBALNYM (`Middleware::getGlobalMiddleware`), a obie
+        // frameworkowe klasy siedzą w GRUPIE `web`
+        // (`Middleware::getMiddlewareGroups`). `replace()` po cichu nie
+        // zrobiłby nic — nie rzuca błędu, gdy nie trafi.
+        //
+        // KOLEJNOŚĆ W STOSIE ZOSTAJE BEZ ZMIAN. `Kernel::$middlewarePriority`
+        // wymienia `Illuminate\Session\Middleware\StartSession`, a nie naszą
+        // klasę — ale `SortedMiddleware::middlewareNames()` sprawdza też
+        // `class_parents()`, więc podklasa dziedziczy pozycję rodzica.
+        // Sesja nadal wstaje przed `ShareErrorsFromSession`, ochroną CSRF
+        // i `SubstituteBindings`.
+        //
+        // LISTA WYJĄTKÓW CSRF NIŻEJ DZIAŁA DALEJ: `validateCsrfTokens()`
+        // woła `PreventRequestForgery::except()`, a to jest właściwość
+        // STATYCZNA rodzica, wspólna dla podklasy.
+        //
+        // CO SIĘ ZMIENIA POZA ZDJĘCIAMI: NIC.
+        // `StartSessionExceptAnonymousMedia` schodzi z drogi rodzica tylko
+        // przy `GET`/`HEAD` na trasie `media.show`, i to wyłącznie wtedy, gdy
+        // żądanie nie ma ŻADNEGO ciasteczka, nagłówka `Authorization` ani
+        // zalogowanego widza. Każde inne żądanie — HTML, formularz, logowanie,
+        // panel, błędne albo obce ciasteczko — idzie przez `parent::handle()`
+        // bez zmiany. `PreventRequestForgeryExceptMediaCookie` nadpisuje
+        // WYŁĄCZNIE `addCookieToResponse()`, czyli wystawianie ciasteczka
+        // `XSRF-TOKEN`; sama WALIDACJA tokenu (`handle()`, `tokensMatch()`,
+        // `hasValidOrigin()`) zostaje nietknięta w rodzicu. POST bez tokenu
+        // dalej kończy się na 419 — pilnuje tego
+        // `CloudflareCachePrivacyTest::test_post_nadal_wymaga_csrf_po_bezsesyjnym_zdjeciu`,
+        // który świadomie wyłącza testowy skrót `runningUnitTests()`.
+        $middleware->replaceInGroup(
+            'web',
+            StartSession::class,
+            StartSessionExceptAnonymousMedia::class,
+        );
+
+        $middleware->replaceInGroup(
+            'web',
+            PreventRequestForgery::class,
+            PreventRequestForgeryExceptMediaCookie::class,
+        );
 
         $middleware->alias([
             'moderator' => EnsureUserIsModerator::class,

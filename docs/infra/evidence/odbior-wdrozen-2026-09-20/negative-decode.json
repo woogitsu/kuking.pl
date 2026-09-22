@@ -1,0 +1,16 @@
+{
+  "nazwa": "601: dodatkowe dekodowanie prawdziwej fotografii",
+  "plik": "app/Jobs/ProcessUploadedImage.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "ebb79774f22d5f89b6731d7c0b6182d6",
+  "md5_po_mutacji": "fe09bb0f9cda12da135ddaa4fb2224ff",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Job powinien zdekodować fotografię dokładnie raz",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:37:00Z"
+}
