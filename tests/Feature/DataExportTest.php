@@ -7,7 +7,9 @@ namespace Tests\Feature;
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Users\Exports\ExportFileNames;
+use App\Exceptions\DataExportStorageFailure;
 use App\Jobs\GenerateUserExport;
+use App\Jobs\NotifyUserExportReady;
 use App\Mail\DataExportReady;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -17,11 +19,14 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Contracts\Filesystem\Filesystem;
+use Illuminate\Contracts\Queue\Job;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
+use PHPUnit\Framework\AssertionFailedError;
 use Tests\TestCase;
 use ZipArchive;
 
@@ -505,6 +510,7 @@ class DataExportTest extends TestCase
 
         $basia = $this->user('basia', ['display_name' => 'Basia']);
         $export = $this->runExportFor($basia);
+        (new NotifyUserExportReady((string) $export->getKey()))->handle();
 
         Mail::assertSent(DataExportReady::class, function (DataExportReady $mail) use ($basia, $export): bool {
             $rendered = $mail->render();
@@ -534,6 +540,8 @@ class DataExportTest extends TestCase
         try {
             (new GenerateUserExport((string) $export->getKey()))->handle();
             $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
+        } catch (AssertionFailedError $e) {
+            throw $e;
         } catch (\Throwable) {
             // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
         }
@@ -543,6 +551,80 @@ class DataExportTest extends TestCase
         $this->assertSame(DataExport::STATUS_FAILED, $export->status);
         // Kod, nie zdanie (audyt W7-07) — patrz reasonFor() w GenerateUserExport.
         $this->assertSame(DataExport::REASON_STORAGE, $export->failure_reason);
+    }
+
+    /**
+     * REGRESJA #821: `false` z `writeStream` nie może oznaczać paczki jako gotowej.
+     *
+     * Gdy sterownik storage zwróci false bez rzucenia wyjątku, paczka
+     * NIE powstała w magazynie. Eksport nie może wtedy dostać statusu `ready`,
+     * bo użytkownik pobierze pusty plik i uzna, że serwis nic o nim nie ma.
+     */
+    public function test_zwrocenie_false_przez_writestream_nie_oznacza_paczki_jako_gotowej(): void
+    {
+        $basia = $this->user('basia');
+        $export = DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_QUEUED,
+        ]);
+
+        $diskMock = \Mockery::mock(Filesystem::class);
+        $diskMock->shouldReceive('writeStream')->once()->andReturn(false);
+        Storage::set('local', $diskMock);
+
+        try {
+            (new GenerateUserExport((string) $export->getKey()))->handle();
+            $this->fail('Job powinien rzucić DataExportStorageFailure przy false z writeStream.');
+        } catch (AssertionFailedError $e) {
+            throw $e;
+        } catch (\Throwable $e) {
+            $this->assertInstanceOf(DataExportStorageFailure::class, $e);
+        }
+
+        $export->refresh();
+        $this->assertNotSame(DataExport::STATUS_READY, $export->status);
+        $this->assertSame(DataExport::STATUS_FAILED, $export->status);
+        $this->assertSame(DataExport::REASON_STORAGE, $export->failure_reason);
+    }
+
+    /**
+     * REGRESJA #823: awaria przed wyczerpaniem prób (backoff) nie może
+     * oznaczać rekordu jako `failed` ani pozwalać na zamówienie konkurencyjnej
+     * paczki.
+     */
+    public function test_awaria_przed_wyczerpaniem_prob_nie_oznacza_failed_i_nie_pozwala_na_konkurencyjna_paczke(): void
+    {
+        $basia = $this->user('basia');
+        $export = DataExport::create([
+            'user_id' => $basia->getKey(),
+            'status' => DataExport::STATUS_QUEUED,
+        ]);
+
+        config(['kuking.exports.disk' => 'dysk-ktorego-nie-ma']);
+
+        $job = new GenerateUserExport((string) $export->getKey());
+        $mockQueueJob = \Mockery::mock(Job::class);
+        $mockQueueJob->shouldReceive('attempts')->andReturn(1);
+        $job->setJob($mockQueueJob);
+
+        try {
+            $job->handle();
+            $this->fail('Job powinien rzucić wyjątek, żeby kolejka ponowiła próbę.');
+        } catch (AssertionFailedError $e) {
+            throw $e;
+        } catch (\Throwable) {
+            // Wyjątek leci do workera kolejki
+        }
+
+        $export->refresh();
+
+        // Podczas backoffu paczka NIE MOŻE mieć statusu failed (issue #823)
+        $this->assertNotSame(DataExport::STATUS_FAILED, $export->status);
+        $this->assertNull($export->failure_reason);
+
+        // Nie wolno zamówić konkurencyjnej paczki podczas backoffu
+        $this->actingAs($basia)->post(route('settings.data.export'))
+            ->assertSessionHas('status', 'Przygotowanie paczki z Twoimi danymi już trwa. Gotowość sprawdzisz w sekcji „Twoje paczki”.');
     }
 
     public function test_job_nie_zostawia_rekordu_w_stanie_przygotowywania(): void
@@ -583,6 +665,8 @@ class DataExportTest extends TestCase
         try {
             (new GenerateUserExport((string) $export->getKey()))->handle();
             $this->fail('Job powinien rzucić wyjątek, żeby kolejka zapisała porażkę.');
+        } catch (AssertionFailedError $e) {
+            throw $e;
         } catch (\Throwable) {
             // Wyjątek jest pożądany — kolejka musi wiedzieć o porażce.
         }
@@ -711,6 +795,55 @@ class DataExportTest extends TestCase
         (new GenerateUserExport((string) $export->getKey()))->handle();
 
         return $export->refresh();
+    }
+
+    public function test_dwa_szkice_z_prefiksem_uuid_v7_maja_wlasne_pliki_i_odnosniki(): void
+    {
+        $user = $this->user();
+        $recipes = [];
+        foreach (['01a0be00-0000-7000-8000-000000000001', '01a0be00-0000-7000-8000-000000000002'] as $i => $id) {
+            $recipe = Recipe::factory()->create(['id' => $id, 'author_id' => $user->id,
+                'title' => 'Rosół', 'slug' => str_repeat('rosol-', 13).$i, 'status' => Recipe::STATUS_DRAFT]);
+            $recipe->steps()->create(['position' => 1, 'instruction' => 'Instrukcja przepisu numer '.$i]);
+            $recipes[] = $recipe;
+        }
+        $export = $this->runExportFor($user);
+        $files = array_values(array_filter($this->filesInArchive($export), fn ($file) => str_starts_with($file, 'przepisy/')));
+        $this->assertCount(2, $files, 'Dwa szkice muszą pozostać dwoma plikami.');
+        $index = $this->readFromArchive($export, 'index.html');
+        $data = $this->jsonFromArchive($export);
+        foreach ($recipes as $i => $recipe) {
+            $file = ExportFileNames::recipeFile($recipe);
+            $this->assertStringContainsString('Instrukcja przepisu numer '.$i, $this->readFromArchive($export, 'przepisy/'.$file));
+            $this->assertStringContainsString($file, $index);
+            $this->assertContains('przepisy/'.$file, array_column($data['przepisy'], 'plik_do_czytania'));
+            $entry = collect($data['przepisy'])->firstWhere('adres_w_serwisie', $recipe->slug);
+            $this->assertSame('przepisy/'.$file, $entry['plik_do_czytania']);
+            $this->assertSame('Instrukcja przepisu numer '.$i, $entry['kroki'][0]['opis']);
+        }
+    }
+
+    public function test_dwie_paczki_z_prefiksem_uuid_v7_sa_niezalezne_takze_przy_sprzataniu(): void
+    {
+        $user = $this->user();
+        $exports = [];
+        foreach (['01a0be00-0000-7000-8000-000000000011', '01a0be00-0000-7000-8000-000000000012'] as $id) {
+            $export = new DataExport(['user_id' => $user->id, 'status' => 'queued']);
+            $export->id = $id;
+            $export->save();
+            (new GenerateUserExport($id))->handle();
+            $exports[] = $export->refresh();
+        }
+        [$older, $newer] = $exports;
+        $this->assertNotSame($older->object_key, $newer->object_key);
+        foreach ($exports as $export) {
+            $this->actingAs($user)->get($this->downloadUrl($export))->assertOk();
+        }
+        $older->update(['expires_at' => now()->subMinute()]);
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+        Storage::disk('local')->assertMissing($older->object_key);
+        Storage::disk('local')->assertExists($newer->object_key);
+        $this->actingAs($user)->get($this->downloadUrl($newer))->assertOk();
     }
 
     /** Zdjęcie z prawdziwym plikiem na udawanym dysku. */
