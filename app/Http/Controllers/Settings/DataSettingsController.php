@@ -232,7 +232,28 @@ class DataSettingsController extends Controller
         //
         // Ta sama zasada, z tego samego powodu, wiąże domknięcie sprawy
         // z `EraseAccountData` i `CancelAccountDeletion`.
-        DB::transaction(function () use ($user, $zakres, $rejestr): void {
+        // TRANSAKCJA Z POŁĄCZENIA MODELU, NIE Z FASADY `DB` — ŚWIADOMIE.
+        //
+        // KOLIZJA, KTÓREJ GIT NIE ZGŁASZA. Ten sam plik przepisuje #1259
+        // („awaria poczty nie niszczy paczki eksportu"), zdejmując
+        // `use Illuminate\Support\Facades\DB` — słusznie, bo po jego zmianie
+        // jedyne pozostałe użycie fasady w tym pliku (transakcja w metodzie
+        // eksportu) znika razem z nim. Ta metoda i tamta to RÓŻNE metody, więc
+        // scalenie przechodzi BEZ KONFLIKTU, a wynik jest zepsuty: zostaje
+        // wywołanie `DB::` bez importu, czyli
+        //
+        //     Class "App\Http\Controllers\Settings\DB" not found
+        //
+        // przy KAŻDYM zgłoszeniu usunięcia konta. Żadna z gałęzi osobno tego
+        // nie pokazuje i żadne CI nie złapie tego przed scaleniem.
+        //
+        // Pełna nazwa `\Illuminate\…\DB` NIE jest tu rozwiązaniem: `pint`
+        // (reguła `fully_qualified_strict_types`) skraca ją z powrotem do
+        // `DB::`, dopóki import istnieje — sprawdzone, nie przypuszczane.
+        // Połączenie wzięte z modelu nie zależy od żadnego importu, więc działa
+        // niezależnie od kolejności scalania. To ta sama transakcja i to samo
+        // połączenie.
+        $user->getConnection()->transaction(function () use ($user, $zakres, $rejestr): void {
             $user->markForDeletion($zakres);
 
             $rejestr->przyjmijZadanieUsunieciaKonta($user);
