@@ -27,8 +27,10 @@ use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Console\Output\BufferedOutput;
 
 require __DIR__.'/../../bootstrap.php';
 
@@ -75,6 +77,25 @@ DB::statement("SET idle_in_transaction_session_timeout = '".(getenv('KUKING_STAT
 
 try {
     $wartosc = match ($scenariusz) {
+        'nadaj-role' => (function () use ($argumenty): array {
+            // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
+            // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.
+            DB::listen(static function (QueryExecuted $query): void {
+                if (str_contains($query->sql, 'from "users"')
+                    && str_contains($query->sql, '"role" =')
+                    && str_contains($query->sql, '"status" =')
+                    && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
+                    DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+                }
+            });
+            $output = new BufferedOutput;
+            $code = app(Kernel::class)->call('kuking:nadaj-role', [
+                'login' => $argumenty['login'], 'rola' => $argumenty['rola'], '--tak' => true,
+            ], $output);
+
+            return ['code' => $code, 'output' => $output->fetch()];
+        })(),
+
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
