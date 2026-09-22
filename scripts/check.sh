@@ -161,8 +161,15 @@ fi
 #
 # POD TĄ SAMĄ FLAGĄ CO AXE, z tego samego powodu: podnosi przeglądarkę, bazę
 # i przebudowuje arkusz. Stoi PO axe świadomie — `dostepnosc.mjs` zasiewa
-# `kuking_test_a11y`, a strażnik mierzy m.in. `/przepisy/rosol-babci-zofii`
+# `kuking_a11y`, a strażnik mierzy m.in. `/przepisy/rosol-babci-zofii`
 # i na pustej bazie zgłosiłby brak nosiciela zamiast wyniku.
+#
+# BAZA: DOKŁADNIE ta sama, co w kroku axe wyżej, i DOKŁADNIE własna baza
+# `dostepnosc.mjs` — nie `kuking_test_*`. Rodzina `kuking_test*` to bazy
+# `php artisan test` liczone w `tests/nazwa-bazy.php` (worktree o nazwie
+# `a11y` dostaje DOKŁADNIE `kuking_test_a11y`), a bezpiecznik z D-226
+# ODMAWIA na niej startu. Tu strażnik tylko czyta, ale ma czytać to, co
+# zasiał krok wyżej — a ten po D-226 sieje w `kuking_a11y`.
 #
 # Idzie przez `kaskada-kontrola-polecenie.sh`, nie przez gołe `node …mjs`:
 # zawężenie `--tylko` ma JEDNO miejsce, wspólne z bramką CI i z kontrolą
@@ -175,7 +182,7 @@ elif [ ! -f scripts/kaskada-kontrola-polecenie.sh ]; then
     # Nie `ok` i nie cisza: brak przyrządu to brak pomiaru, a nie wynik
     # pozytywny (PULAPKI_TESTOW.md §2).
     zle "Brak scripts/kaskada-kontrola-polecenie.sh — strażnika kaskady NIE zmierzono"
-elif DB_DATABASE=kuking_test_a11y bash scripts/kaskada-kontrola-polecenie.sh >/dev/null 2>&1; then
+elif DB_DATABASE=kuking_a11y bash scripts/kaskada-kontrola-polecenie.sh >/dev/null 2>&1; then
     ok "Żadna reguła z wcześniejszej warstwy nie jest całkowicie przykryta przez późniejszą"
 else
     zle "Martwe reguły CSS albo błąd przyrządu — szczegóły: bash scripts/kaskada-kontrola-polecenie.sh (i storage/kaskada-martwe-reguly.json)"
