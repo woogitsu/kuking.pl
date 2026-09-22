@@ -53,7 +53,7 @@ use Tests\TestCase;
  * DLACZEGO LISTA TABEL JEST LISTĄ WYKLUCZEŃ, A NIE LISTĄ OBJĘTYCH
  * Lista tabel „objętych obowiązkiem" cichłaby przy każdej nowej tabeli:
  * kto jej nie dopisze, ten nie zostanie o nią zapytany. Odwrotnie jest tylko
- * osiem tabel, każda z jawnym powodem (`TABELE_FRAMEWORKA`), a wszystko poza
+ * siedem tabel, każda z jawnym powodem (`TABELE_FRAMEWORKA`), a wszystko poza
  * nimi jest objęte z urzędu. Nowa tabela wchodzi pod obowiązek sama.
  *
  * SKĄD BIERZE SIĘ SCHEMAT
@@ -101,7 +101,7 @@ class DokumentacjaBazyOpisujeSchematTest extends TestCase
     /**
      * Tabele poza obowiązkiem opisu — **z powodem przy każdej**.
      *
-     * Wszystkie osiem zakłada Laravel swoimi migracjami z `0001_01_01_*`
+     * Wszystkie siedem zakłada Laravel swoimi migracjami z `0001_01_01_*`
      * i żadnej z nich nie projektowaliśmy. `docs/DATABASE.md` nosi nagłówek
      * „Model danych" i opisuje NASZE dane; przepisywanie do niego kolumn
      * kolejki zadań byłoby szumem, przez który trudniej znaleźć rzecz ważną.
@@ -109,6 +109,16 @@ class DokumentacjaBazyOpisujeSchematTest extends TestCase
      * Lista jest krótka i ma taka zostać. Dopisanie do niej NASZEJ tabeli to
      * wyłączanie tego testu, a nie sprzątanie — od tego jest próg
      * MIN_KOLUMN_W_ZAKRESIE niżej.
+     *
+     * `sessions` BYŁA na tej liście do 21.09.2026 i została z niej ZDJĘTA.
+     * Tabelę rzeczywiście zakłada Laravel, ale leży w niej para
+     * (`user_id`, adres IP, `User-Agent`) — NASZE dane osobowe, nie techniczne
+     * wnętrzności frameworka. Badanie RZ-01 ustaliło, że sześć kolejnych
+     * audytów prywatności przeoczyło tę tabelę, i nazwało przyczynę: nie było
+     * jej w `docs/DATABASE.md`, bo nikt jej nie „dodawał", więc nikt nie
+     * przeszedł ścieżki „migracja + test + dokument". Wyjątek dla sterownika
+     * frameworka kosztował tu dokładnie to, przed czym ta lista miała chronić.
+     * Kryterium jest więc „czyje to dane", a nie „kto napisał migrację".
      */
     private const TABELE_FRAMEWORKA = [
         'migrations',           // rejestr wykonanych migracji, prowadzi go Laravel
@@ -117,7 +127,6 @@ class DokumentacjaBazyOpisujeSchematTest extends TestCase
         'jobs',                 // kolejka zadań
         'job_batches',          // kolejka zadań
         'failed_jobs',          // kolejka zadań
-        'sessions',             // sterownik sesji
         'password_reset_tokens', // wbudowane resetowanie hasła
     ];
 
@@ -132,7 +141,8 @@ class DokumentacjaBazyOpisujeSchematTest extends TestCase
      *
      * Liczby w nawiasach zmierzone 12.09.2026, progi z zapasem:
      *
-     *  - MIN_TABEL_W_ZAKRESIE = 30 (dziś 41: 49 tabel minus 8 frameworkowych).
+     *  - MIN_TABEL_W_ZAKRESIE = 30 (dziś 42: 49 tabel minus 7 frameworkowych;
+     *    było 41 minus 8, zanim `sessions` zeszła z listy wyłączeń).
      *  - MIN_KOLUMN_W_ZAKRESIE = 100 (dziś 129). To zamek na jedynym wytrychu,
      *    jaki ta konstrukcja ma: wpisaniu naszych tabel do TABELE_FRAMEWORKA
      *    albo zawężeniu TYPY_TEKSTOWE, żeby test zamilkł.

@@ -1,0 +1,39 @@
+
+   FAIL  Tests\Feature\DokumentyMdNieMajaMartwychOdnosnikowTest
+  ✓ odnosniki markdown prowadza do istniejacych celow                    0.25s
+  ⨯ trasy wspominane w dokumentach naprawde istnieja                     0.11s
+  ✓ parser zachowuje parametry rozszerzenia i odrzuca falszywe trasy     0.01s
+
+   PASS  Tests\Feature\JednoDekodowanieZdjeciaTest
+  ✓ jedno dekodowanie zachowuje bajty wszystkich wariantow               0.02s
+
+   PASS  Tests\Feature\PrzerwanePrzetwarzanieNieZostawiaSierotyTest
+  ✓ zadanie przerwane w polowie zostawia klucze ktore kasowanie znajdzi… 0.81s
+  ✓ po udanym zadaniu lista w trakcie znika                              0.16s
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\DokumentyMdNieMajaMartwychOdnosnikowTest > trasy ws…
+  Martwe trasy wspomniane w dokumentach:
+docs/infra/ODBIOR_CZY_PRZYGOTOWANIE_595_599_594_605_601.md: `/Users/matma/Documents/kuking-flota/`
+Failed asserting that two arrays are identical.
+  -Array &0 []
+  +Array &0 [
+  +    0 => 'docs/infra/ODBIOR_CZY_PRZYGOTOWANIE_595_599_594_605_601.md: `/Users/matma/Documents/kuking-flota/`',
+  +]
+
+
+  at tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php:354
+    350▕             $sprawdzone,
+    351▕             'Sprawdzono podejrzanie mało tras w dokumentach — zła ścieżka skanowania?',
+    352▕         );
+    353▕
+  ➜ 354▕         $this->assertSame([], $martwe, "Martwe trasy wspomniane w dokumentach:\n".implode("\n", $martwe));
+    355▕     }
+    356▕
+    357▕     /** @return list<string> */
+    358▕     private function trasyZFragmentu(string $fragment): array
+
+  1   tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php:354
+
+
+  Tests:    1 failed, 5 passed (387 assertions)
+  Duration: 5.63s

@@ -1,0 +1,115 @@
+
+── Kontrola ujemna: pełne pokrycie tekstu #814 ──
+  plik:     scripts/ai-pilots/Pilot.php
+  MD5 przed: cbf18d6f263defebfa44abab49b4c199
+  oczekuję:  Failed asserting that exception
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 cbf18d6f263defebfa44abab49b4c199 → e1857b7bde07d7966ed0d299638011f5.
+  różnica:
+                 $segments[] = ['kind' => $segment['kind'], 'text' => $text];
+                 $cursor = $segment['end'];
+             }
+    -        if ($cursor !== count($tokens) || implode('', array_column($segments, 'text')) !== $source) {
+    +        if (false) {
+                 throw new DomainException('Zachowaj CAŁY opis bez dopisków i pominięć.');
+             }
+
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Failed asserting that exception” wystąpił w wyjściu.
+      Failed asserting that exception of type "DomainException" is thrown.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — pełne pokrycie tekstu #814
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/gpt-ai-piloty/docs/research/ai-pilots/evidence/control-coverage.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: zamknięte pola #814 ──
+  plik:     scripts/ai-pilots/Pilot.php
+  MD5 przed: cbf18d6f263defebfa44abab49b4c199
+  oczekuję:  Failed asserting that exception
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 cbf18d6f263defebfa44abab49b4c199 → 2e68c97178d0749b35be08ab4b3aedd3.
+  różnica:
+             $actual = array_keys($data);
+             sort($actual);
+             sort($expected);
+    -        if ($actual !== $expected) {
+    +        if (false) {
+                 throw new DomainException('Odrzuć odpowiedź z nieznanymi lub brakującymi polami.');
+             }
+         }
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Failed asserting that exception” wystąpił w wyjściu.
+      Failed asserting that exception of type "DomainException" is thrown.
+      Failed asserting that exception of type "DomainException" is thrown.
+      Failed asserting that exception of type "DomainException" is thrown.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — zamknięte pola #814
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/gpt-ai-piloty/docs/research/ai-pilots/evidence/control-fields.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: granica wyjścia #912 ──
+  plik:     scripts/ai-pilots/Transport.php
+  MD5 przed: f778bb96e97f704d17cca8426adc94d3
+  oczekuję:  Limit bajtów nie zatrzymał wysyłki
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 f778bb96e97f704d17cca8426adc94d3 → fba220bb82a33c17338220885de24cc1.
+  różnica:
+
+         public const ENDPOINT = 'https://api.openai.com/v1/responses';
+
+    -    public const MAX_BODY_BYTES = 24000;
+    +    public const MAX_BODY_BYTES = 2400000;
+
+         public function __construct(private Factory $http, private string $key) {}
+
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Limit bajtów nie zatrzymał wysyłki” wystąpił w wyjściu.
+      Limit bajtów nie zatrzymał wysyłki.
+      ➜ 159▕             $this->fail('Limit bajtów nie zatrzymał wysyłki.');
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — granica wyjścia #912
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/gpt-ai-piloty/docs/research/ai-pilots/evidence/control-bytes.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: limit wydatków ──
+  plik:     scripts/ai-pilots/Budget.php
+  MD5 przed: df6433b9fdf9cd190f71e0126b472def
+  oczekuję:  Failed asserting that exception
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 df6433b9fdf9cd190f71e0126b472def → 3cdfec79ed6e8c42770b6dcf614f11d5.
+  różnica:
+                     throw new RuntimeException('Sprawdź uszkodzony licznik budżetu.');
+                 }
+                 $count = (int) $old;
+    -            if ($count >= $limit) {
+    +            if (false) {
+                     throw new RuntimeException('Budżet prób wyczerpany. Nie wykonuj kolejnego żądania.');
+                 }
+                 rewind($file);
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Failed asserting that exception” wystąpił w wyjściu.
+      Failed asserting that exception of type "RuntimeException" is thrown.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — limit wydatków
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/gpt-ai-piloty/docs/research/ai-pilots/evidence/control-budget.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

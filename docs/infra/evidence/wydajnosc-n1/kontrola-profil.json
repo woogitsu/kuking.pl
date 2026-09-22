@@ -1,0 +1,16 @@
+{
+  "nazwa": "zakladka ugotowane bez doladowania osoby gotujacej",
+  "plik": "app/Http/Controllers/ProfileController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "aedf2ca4261a9af8efa37947ff24f664",
+  "md5_po_mutacji": "7bb33af54091e6f7980d4a5fd572bcb3",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "N\\+1",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-19T22:41:49Z"
+}

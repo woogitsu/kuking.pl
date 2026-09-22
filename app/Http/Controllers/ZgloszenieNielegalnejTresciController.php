@@ -8,9 +8,11 @@ use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Models\Recipe;
 use App\Models\Report;
 use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\FormConfirmation;
 use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -38,7 +40,7 @@ use Illuminate\View\View;
  */
 class ZgloszenieNielegalnejTresciController extends Controller
 {
-    public function __construct(private readonly ZglosNielegalnaTresc $zglos) {}
+    public function __construct(private readonly ZglosNielegalnaTresc $zglos, private readonly FormConfirmation $receipts) {}
 
     public function create(): View
     {
@@ -149,14 +151,18 @@ class ZgloszenieNielegalnejTresciController extends Controller
 
         $numer = $zgloszenie->numer_sprawy;
 
-        return redirect()->route('zglos.nielegalna.potwierdzenie')->with('numer', $numer);
+        $receipt = $this->receipts->issue($request, 'zgloszenie', ['number' => $numer]);
+
+        return redirect()->route('zglos.nielegalna.potwierdzenie', ['potwierdzenie' => $receipt]);
     }
 
-    public function confirmation(Request $request): View
+    public function confirmation(Request $request): Response
     {
-        return view('pages.zglos-nielegalna-tresc-potwierdzenie', [
-            'numer' => $request->session()->get('numer'),
-        ]);
+        $receipt = $this->receipts->read($request, 'zgloszenie');
+
+        return response()->view('pages.zglos-nielegalna-tresc-potwierdzenie', [
+            'numer' => $receipt['number'] ?? null,
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     /**

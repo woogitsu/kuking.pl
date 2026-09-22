@@ -1,0 +1,186 @@
+{
+  "wersja": 1,
+  "status": "propozycje redakcyjne do ręcznego wyboru; nie harmonogram publikacji",
+  "zakres": "Polska; orientacyjne zbiory gruntowe i zapasy. Pogoda, region i odmiana przesuwają sezon.",
+  "instrukcja": "TAG_TYGODNIA.md w katalogu docs/product opisuje wybór, edycję i publikację. Ten plik nie jest czytany przez aplikację.",
+  "miesiace": [
+    {
+      "miesiac": 1,
+      "nazwa": "styczeń",
+      "zbiory": ["jarmuż (zależnie od pogody)", "brukselka (zależnie od pogody)"],
+      "zapasy": ["ziemniaki", "marchew", "buraki", "kapusta kiszona", "jabłka", "suszone grzyby"],
+      "codzienne_gotowanie": ["krupnik", "bigos", "pierogi z kapustą", "pieczone jabłka"],
+      "uwaga": "Kuchnia z zapasów i wykorzystanie jedzenia po świętach. Dzień Babci i Dziadka to opcjonalne zaproszenie do rodzinnego przepisu, bez założenia, że każdy ma wnuki.",
+      "propozycje": [
+        {"tag": "krupnik", "notatka": "Kasza, warzywa i garnek krupniku. Pokaż, jak gotuje się go u Ciebie."},
+        {"tag": "bigos", "notatka": "Każdy garnek bigosu jest trochę inny. Napisz, co dodajesz do swojego."},
+        {"tag": "przepis po babci", "notatka": "Masz przepis z rodzinnego zeszytu? Pokaż danie i napisz, skąd go znasz."}
+      ]
+    },
+    {
+      "miesiac": 2,
+      "nazwa": "luty",
+      "zbiory": [],
+      "zapasy": ["buraki", "seler", "ziemniaki", "cebula", "fasola sucha", "ogórki kiszone", "mrożone owoce"],
+      "codzienne_gotowanie": ["zupa ogórkowa", "fasolka po bretońsku", "naleśniki", "placki ziemniaczane"],
+      "uwaga": "Tłusty czwartek sprawdź w kalendarzu danego roku; nie przypada zawsze w lutym. Zwykły obiad pozostaje równorzędnym wyborem.",
+      "propozycje": [
+        {"tag": "zupa ogórkowa", "notatka": "Ogórki ze słoika trafiają do zupy. Pokaż swoją ogórkową."},
+        {"tag": "fasolka po bretońsku", "notatka": "Fasolka na obiad albo na dwa dni. Napisz, jak ją przyprawiasz."},
+        {"tag": "naleśniki", "notatka": "Na słodko czy z wytrawnym farszem? Pokaż swoje naleśniki."}
+      ]
+    },
+    {
+      "miesiac": 3,
+      "nazwa": "marzec",
+      "zbiory": ["pierwszy szczypiorek (zależnie od pogody)"],
+      "zapasy": ["marchew", "pietruszka korzeniowa", "seler", "buraki", "jabłka", "kiszonki"],
+      "codzienne_gotowanie": ["barszcz czerwony", "kotlety ziemniaczane", "pasta jajeczna", "zupa jarzynowa z mrożonki"],
+      "uwaga": "Przednówek nie jest pełnią sezonu na nowalijki. Wielkanoc może przypaść w marcu albo kwietniu; propozycje świąteczne są osobno.",
+      "propozycje": [
+        {"tag": "barszcz czerwony", "notatka": "Barszcz z ziemniakami, fasolą albo uszkami. Pokaż swoją wersję."},
+        {"tag": "pasta jajeczna", "notatka": "Jajka i kilka dodatków na kanapki. Napisz, co dodajesz do pasty."},
+        {"tag": "placki ziemniaczane", "notatka": "Z czym podajesz placki ziemniaczane? Pokaż swój talerz."}
+      ]
+    },
+    {
+      "miesiac": 4,
+      "nazwa": "kwiecień",
+      "zbiory": ["szczypiorek", "rzodkiewka", "szpinak", "rabarbar (początek zależny od pogody)"],
+      "zapasy": ["ziemniaki", "marchew", "buraki", "jabłka"],
+      "codzienne_gotowanie": ["twaróg ze szczypiorkiem", "zupa szczawiowa", "jajka faszerowane", "sałatka jarzynowa"],
+      "uwaga": "Początek zbiorów jest regionalny. Żurek i sałatka jarzynowa pasują także poza Wielkanocą; tag nie ogranicza dania do święta.",
+      "propozycje": [
+        {"tag": "twaróg", "notatka": "Twaróg ze szczypiorkiem albo rzodkiewką. Pokaż, co podajesz do chleba."},
+        {"tag": "sałatka jarzynowa", "notatka": "Sałatka jarzynowa po Twojemu. Napisz, czego w niej nie może zabraknąć."},
+        {"tag": "żurek", "notatka": "Żurek z jajkiem, ziemniakami albo chlebem. Pokaż swój obiad."}
+      ]
+    },
+    {
+      "miesiac": 5,
+      "nazwa": "maj",
+      "zbiory": ["szparagi", "rabarbar", "szczaw", "rzodkiewka", "sałata", "szpinak", "młoda kapusta"],
+      "zapasy": ["ziemniaki z poprzedniego zbioru", "fasola sucha", "domowe przetwory"],
+      "codzienne_gotowanie": ["młoda kapusta z koperkiem", "zupa szczawiowa", "kompot z rabarbaru", "szparagi z jajkiem"],
+      "uwaga": "Majówka może być pretekstem do jedzenia na dworze, ale nie zakładamy dostępu do grilla ani ogrodu.",
+      "propozycje": [
+        {"tag": "młoda kapusta", "notatka": "Młoda kapusta i koperek. Pokaż, z czym podajesz ją na obiad."},
+        {"tag": "rabarbar", "notatka": "Rabarbar do ciasta albo kompotu. Pokaż, co z niego przygotowujesz."},
+        {"tag": "szparagi", "notatka": "Szparagi z patelni, z piekarnika albo w zupie. Pokaż swoją wersję."}
+      ]
+    },
+    {
+      "miesiac": 6,
+      "nazwa": "czerwiec",
+      "zbiory": ["truskawki", "czereśnie", "botwina", "bób", "młode ziemniaki", "koperek", "młoda kapusta"],
+      "zapasy": ["mąka", "kasze", "domowe przetwory"],
+      "codzienne_gotowanie": ["chłodnik", "młode ziemniaki z koperkiem i jajkiem", "pierogi z truskawkami", "botwinka", "bób z masłem"],
+      "uwaga": "Czerwcowy obiad nie musi być świąteczny. Przy chłodnej pogodzie zamiast chłodnika wybierz botwinkę; sprawdź dostępność bobu przed zaproszeniem.",
+      "propozycje": [
+        {"tag": "truskawki", "notatka": "Truskawki w pierogach, cieście albo z makaronem. Pokaż, co dziś z nich robisz."},
+        {"tag": "chłodnik", "notatka": "Chłodnik na ciepły dzień. Napisz, co dodajesz do swojego."},
+        {"tag": "młode ziemniaki", "notatka": "Młode ziemniaki z koperkiem. Pokaż, co podajesz obok."}
+      ]
+    },
+    {
+      "miesiac": 7,
+      "nazwa": "lipiec",
+      "zbiory": ["ogórki gruntowe", "cukinia", "fasolka szparagowa", "bób", "wiśnie", "porzeczki", "maliny", "jagody"],
+      "zapasy": ["kasze", "mąka", "suszone nasiona strączkowe"],
+      "codzienne_gotowanie": ["ogórki małosolne", "pierogi z jagodami", "fasolka szparagowa z bułką tartą", "kompot z wiśni"],
+      "uwaga": "Przetwory to propozycja, nie obowiązek. Bez obietnic bezpieczeństwa przechowywania: kalendarz nie jest instrukcją konserwowania jedzenia.",
+      "propozycje": [
+        {"tag": "ogórki małosolne", "notatka": "Ogórki małosolne do obiadu. Napisz, jakie dodatki wkładasz do słoika."},
+        {"tag": "pierogi z jagodami", "notatka": "Pierogi z jagodami na stole. Pokaż swoje i napisz, z czym je podajesz."},
+        {"tag": "fasolka szparagowa", "notatka": "Fasolka szparagowa z bułką tartą albo inaczej. Pokaż swój obiad."}
+      ]
+    },
+    {
+      "miesiac": 8,
+      "nazwa": "sierpień",
+      "zbiory": ["pomidory", "papryka", "cukinia", "ogórki", "śliwki", "jabłka wczesnych odmian", "gruszki", "jeżyny"],
+      "zapasy": ["tegoroczne dżemy", "ogórki kiszone", "kasze"],
+      "codzienne_gotowanie": ["leczo", "pomidorowa ze świeżych pomidorów", "placki z cukinii", "ciasto ze śliwkami"],
+      "uwaga": "Dożynki mają lokalne terminy. Nie wpisuj jednej daty dla całej Polski.",
+      "propozycje": [
+        {"tag": "leczo", "notatka": "Papryka, pomidory i garnek leczo. Pokaż, jak robisz je u siebie."},
+        {"tag": "pomidory", "notatka": "Pomidory na obiad albo do słoików. Pokaż, co z nich przygotowujesz."},
+        {"tag": "cukinia", "notatka": "Placki, zupa czy cukinia z piekarnika? Pokaż swoje danie."}
+      ]
+    },
+    {
+      "miesiac": 9,
+      "nazwa": "wrzesień",
+      "zbiory": ["śliwki", "jabłka", "gruszki", "dynia", "buraki", "ziemniaki", "grzyby leśne (zależnie od pogody)"],
+      "zapasy": ["ogórki kiszone", "przeciery pomidorowe", "dżemy"],
+      "codzienne_gotowanie": ["knedle ze śliwkami", "powidła", "zupa grzybowa", "placki ziemniaczane"],
+      "uwaga": "Wykopki i zbieranie grzybów zależą od miejsca i pogody. Nie rozpoznajemy grzybów ze zdjęć w ramach akcji redakcyjnej.",
+      "propozycje": [
+        {"tag": "śliwki", "notatka": "Śliwki do knedli, ciasta albo powideł. Pokaż swoją kuchnię we wrześniu."},
+        {"tag": "zupa grzybowa", "notatka": "Zupa grzybowa z makaronem albo ziemniakami. Pokaż swoją wersję."},
+        {"tag": "przetwory", "notatka": "Co zamykasz w słoikach? Pokaż przetwory i napisz, z czego powstały."}
+      ]
+    },
+    {
+      "miesiac": 10,
+      "nazwa": "październik",
+      "zbiory": ["dynia", "kapusta", "buraki", "seler", "por", "jabłka", "gruszki", "orzechy włoskie"],
+      "zapasy": ["ziemniaki", "suszone grzyby", "przetwory owocowe"],
+      "codzienne_gotowanie": ["zupa z dyni", "gołąbki", "szarlotka", "kapuśniak"],
+      "uwaga": "Jesienna kapusta daje pretekst do kiszenia, ale zwykły garnek kapuśniaku jest równie dobrym początkiem rozmowy.",
+      "propozycje": [
+        {"tag": "dynia", "notatka": "Dynia na zupę, do piekarnika albo do placków. Pokaż swoje danie."},
+        {"tag": "gołąbki", "notatka": "Gołąbki z ryżem, kaszą albo innym farszem. Napisz, jak robisz je u siebie."},
+        {"tag": "szarlotka", "notatka": "Jabłka pod kruszonką albo między warstwami ciasta. Pokaż swoją szarlotkę."}
+      ]
+    },
+    {
+      "miesiac": 11,
+      "nazwa": "listopad",
+      "zbiory": ["jarmuż", "brukselka", "por", "późna kapusta"],
+      "zapasy": ["dynia", "ziemniaki", "buraki", "marchew", "jabłka", "kapusta kiszona", "suszone grzyby"],
+      "codzienne_gotowanie": ["kapuśniak", "kasza z sosem grzybowym", "gulasz", "pieczone buraki", "kopytka"],
+      "uwaga": "Gęsina i rogale świętomarcińskie są okazją związaną z 11 listopada, nie opisem codziennego obiadu wszystkich domów. Andrzejki: domowe przekąski bez konkursu.",
+      "propozycje": [
+        {"tag": "kapuśniak", "notatka": "Garnek kapuśniaku na listopadowy obiad. Pokaż, jak gotuje się go u Ciebie."},
+        {"tag": "kasza", "notatka": "Kasza z sosem, warzywami albo grzybami. Pokaż swój obiad."},
+        {"tag": "kopytka", "notatka": "Ziemniaki z poprzedniego obiadu mogą trafić do kopytek. Pokaż, z czym je podajesz."}
+      ]
+    },
+    {
+      "miesiac": 12,
+      "nazwa": "grudzień",
+      "zbiory": ["jarmuż (zależnie od pogody)", "brukselka (zależnie od pogody)"],
+      "zapasy": ["buraki", "kapusta kiszona", "suszone grzyby", "fasola sucha", "jabłka", "suszone owoce", "orzechy"],
+      "codzienne_gotowanie": ["zupa jarzynowa", "pierogi z kapustą i grzybami", "śledzie", "makowiec", "bigos z pozostałej kapusty"],
+      "uwaga": "Wigilia i Boże Narodzenie nie opisują zwyczajów każdego domu. Obok świątecznego gotowania zostaw miejsce na zwykły obiad i wykorzystanie zapasów.",
+      "propozycje": [
+        {"tag": "pierogi", "notatka": "Pierogi na święta albo na zwykły obiad. Pokaż swój farsz i sposób lepienia."},
+        {"tag": "śledzie", "notatka": "Śledzie z cebulą, jabłkiem albo burakami. Pokaż, jak podajesz je u siebie."},
+        {"tag": "zupa jarzynowa", "notatka": "Między przygotowaniami też jest pora na obiad. Pokaż swoją zupę jarzynową."}
+      ]
+    }
+  ],
+  "okazje": [
+    {"id": "babcia-dziadek", "nazwa": "Dzień Babci i Dzień Dziadka", "termin": "21–22 stycznia", "rodzaj_terminu": "stały", "przygotowanie": "Tydzień wcześniej; rodzinny przepis bez zakładania roli babci lub dziadka u odbiorcy.", "propozycje": [{"tag": "przepis po babci", "notatka": "Przepis zapisany czy zapamiętany? Pokaż danie i napisz, od kogo go znasz."}]},
+    {"id": "tlusty-czwartek", "nazwa": "Tłusty czwartek", "termin": "52 dni przed niedzielą Wielkanocy; od końca stycznia do początku marca", "rodzaj_terminu": "ruchomy", "przygotowanie": "Sprawdź datę w kalendarzu bieżącego roku trzy tygodnie wcześniej. Nie kopiuj zeszłorocznego tygodnia.", "propozycje": [{"tag": "pączki", "notatka": "Pączki z domowej kuchni. Pokaż swoje i napisz, czym je nadziewasz."}, {"tag": "faworki", "notatka": "Faworki na talerzu. Pokaż, jak wychodzą z Twojego przepisu."}]},
+    {"id": "wielkanoc", "nazwa": "Wielkanoc", "termin": "Niedziela w marcu lub kwietniu; sprawdź datę w kalendarzu bieżącego roku", "rodzaj_terminu": "ruchomy", "przygotowanie": "Trzy tygodnie wcześniej zaplanuj gotowanie; notatkę o święcie zdejmij po okazji.", "propozycje": [{"tag": "żurek", "notatka": "Żurek na wielkanocnym stole. Pokaż, z czym go podajesz."}, {"tag": "babka", "notatka": "Babka na święta. Napisz, jaki przepis wraca w Twoim domu."}]},
+    {"id": "majowka", "nazwa": "Majówka", "termin": "1–3 maja", "rodzaj_terminu": "stały", "przygotowanie": "W poprzednim tygodniu; danie ma nadawać się też do zrobienia w domowej kuchni.", "propozycje": [{"tag": "sałatka", "notatka": "Sałatka na majówkę w domu albo na dworze. Pokaż, co do niej dodajesz."}]},
+    {"id": "boze-cialo", "nazwa": "Boże Ciało", "termin": "Czwartek 60 dni po Wielkanocy; maj lub czerwiec", "rodzaj_terminu": "ruchomy", "przygotowanie": "Sprawdź datę na początku roku. To okazja do obiadu przy wspólnym stole, bez przypisywania wszystkim jednej potrawy.", "propozycje": [{"tag": "rosół", "notatka": "Rosół na wspólny obiad. Pokaż, co trafia do Twojego garnka."}]},
+    {"id": "dozynki", "nazwa": "Dożynki", "termin": "Zwykle sierpień–wrzesień; termin lokalny", "rodzaj_terminu": "lokalny", "przygotowanie": "Sprawdź termin w danym miejscu, zanim użyjesz notatki. Nie ogłaszaj jednej daty ogólnopolskiej.", "propozycje": [{"tag": "chleb na zakwasie", "notatka": "Domowy chleb na zakwasie. Pokaż bochenek i napisz, z jakiej mąki powstał."}]},
+    {"id": "wykopki", "nazwa": "Wykopki", "termin": "Zwykle wrzesień–październik; zależnie od regionu, odmiany i pogody", "rodzaj_terminu": "lokalny", "przygotowanie": "Sprawdź lokalne zbiory. Zaproponuj potrawę dostępną też bez własnego pola.", "propozycje": [{"tag": "placki ziemniaczane", "notatka": "Ziemniaki na placki. Pokaż, z czym je podajesz w swoim domu."}]},
+    {"id": "marcin", "nazwa": "Dzień św. Marcina", "termin": "11 listopada", "rodzaj_terminu": "stały", "przygotowanie": "Dwa tygodnie wcześniej; gęsina jest propozycją okazjonalną. Rogale świętomarcińskie mają tradycję wielkopolską. Nie nazywaj tak dowolnego rogalika.", "propozycje": [{"tag": "gęś", "notatka": "Gęś na listopadowym stole. Napisz, z jakimi dodatkami ją podajesz."}]},
+    {"id": "andrzejki", "nazwa": "Andrzejki", "termin": "Wieczór 29 listopada", "rodzaj_terminu": "stały", "przygotowanie": "Tydzień wcześniej; zwykłe przekąski do wspólnego stołu, bez nagród i rywalizacji.", "propozycje": [{"tag": "pasta jajeczna", "notatka": "Kanapki na wspólny wieczór. Pokaż swoją pastę jajeczną."}]},
+    {"id": "wigilia", "nazwa": "Wigilia", "termin": "24 grudnia", "rodzaj_terminu": "stały", "przygotowanie": "Trzy tygodnie wcześniej; wybierz jedną potrawę, uwzględnij różnice rodzinne i regionalne.", "propozycje": [{"tag": "pierogi", "notatka": "Pierogi na wigilijny stół. Napisz, jaki farsz robi się w Twoim domu."}]},
+    {"id": "boze-narodzenie", "nazwa": "Boże Narodzenie", "termin": "25–26 grudnia", "rodzaj_terminu": "stały", "przygotowanie": "Dwa tygodnie wcześniej; nie zakładaj, że wszyscy obchodzą święta tak samo.", "propozycje": [{"tag": "makowiec", "notatka": "Makowiec z domowego przepisu. Pokaż swój wypiek i napisz, skąd znasz przepis."}]},
+    {"id": "sylwester", "nazwa": "Sylwester", "termin": "31 grudnia", "rodzaj_terminu": "stały", "przygotowanie": "Po świętach; propozycja na mały stół, bez założenia wystawnego przyjęcia.", "propozycje": [{"tag": "sałatka", "notatka": "Sałatka na ostatni wieczór roku. Pokaż, co przygotowujesz u siebie."}]}
+  ],
+  "zrodla": [
+    {"url": "https://agriculture.ec.europa.eu/farming/crops/fruit-and-vegetables/calendar_pl", "zakres": "Kalendarz sezonowości UE; pomoc do korekty regionalnej, nie gwarancja dat zbiorów.", "sprawdzono": "2026-09-20"},
+    {"url": "https://ncez.pzh.gov.pl/abc-zywienia/zasady-zdrowego-zywienia/sezonowe-warzywa-i-owoce-lato/", "zakres": "Przykłady letnich owoców i warzyw; bez przenoszenia porad zdrowotnych do notatek.", "sprawdzono": "2026-09-20"},
+    {"url": "https://www.gov.pl/web/arimr/powiedzial-bartek-ze-dzis-tlusty-czwartek2", "zakres": "Ruchomy termin tłustego czwartku i tradycja pączków oraz faworków.", "sprawdzono": "2026-09-20"},
+    {"url": "https://www.gov.pl/web/ijhars/rogal-swietomarcinski-chog--najslodszy-symbol-poznania", "zakres": "Tradycja rogali świętomarcińskich 11 listopada i związek z Wielkopolską.", "sprawdzono": "2026-09-20"},
+    {"url": "https://archiwum.nikidw.edu.pl/2021/11/11/na-swietego-marcina-zima-sie-zaczyna/", "zakres": "Tradycja gęsiny na św. Marcina.", "sprawdzono": "2026-09-20"}
+  ],
+  "pochodzenie": "Dobór domowych potraw i wszystkie notatki to propozycje redakcyjne, nie wyniki pomiaru zwyczajów użytkowników ani ranking popularności. Nie są przepisami ani instrukcjami przechowywania. Święta są opcjonalne; terminy ruchome i lokalne potwierdza gospodarz przed publikacją."
+}

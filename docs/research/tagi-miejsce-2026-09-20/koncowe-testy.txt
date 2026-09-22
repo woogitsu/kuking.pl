@@ -1,0 +1,26 @@
+
+   PASS  Tests\Feature\TagPublicStatsPagesTest
+  ✓ pages publish only stats above both thresholds with data set "both…  4.92s
+  ✓ pages publish only stats above both thresholds with data set "too f… 0.10s
+  ✓ pages publish only stats above both thresholds with data set "too f… 0.10s
+  ✓ thresholds are read from configuration on both pages                 0.12s
+  ✓ alphabet pagination and promoted union keep their meaning            0.12s
+  ✓ index query cost does not grow per tag                               0.11s
+
+   PASS  Tests\Feature\TagPublicStatsTest
+  ✓ liczy unikalne zdjecia i autorow a nie wpisy                         0.08s
+  ✓ nie liczy prywatnych szkicow ukrytych i usunietych wpisow            0.10s
+  ✓ wymaga aktywnego autora i gotowego medium                            0.06s
+  ✓ przepis musi byc dostepny gosciowi                                   0.07s
+  ✓ usuniety autor i niegotowe media nie podbijaja statystyk             0.08s
+  ✓ batch ma jedno zapytanie dla dwoch i trzydziestu tagow               0.19s
+  ✓ puste wejscie nie pyta bazy a duplikaty i ukryte tagi daja zera      0.03s
+
+   PASS  Tests\Feature\TagiPrzyOpisieTest
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.06s
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.07s
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.06s
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.05s
+
+  Tests:    17 passed (191 assertions)
+  Duration: 7.22s

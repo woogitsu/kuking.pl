@@ -1,0 +1,34 @@
+
+   FAIL  Tests\Feature\PortMarkiMaWlasnaBramkeCiTest
+  ⨯ pomiary nie pobieraja historii ktora czyta tylko zakres              0.11s
+  ✓ zakres zachowuje historie do porownania z baza                       0.01s
+  ✓ obie grupy sa obowiazkowe a kreator ma przygotowana baze             0.01s
+  ✓ zmiana samego przyrzadu nie pomija pomiarow                          0.01s
+  ✓ job przegladarkowy nie moze byc zielony bez pomiaru                  0.01s
+  ✓ zakres wystawia oba wyjscia na kazdej sciezce                        0.01s
+  ✓ joby przegladarkowe nadal uruchamiaja pomiar                         0.02s
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\PortMarkiMaWlasnaBramkeCiTest > pomiary nie pobiera…
+  port_marki: pełną historię pobiera już zakres; pomiar potrzebuje drzewa i indeksu.
+Failed asserting that '\n
+        with:\n
+          fetch-depth: 0\n
+\n
+' does not match PCRE pattern "/fetch-depth:\s*0\b/".
+
+  at tests/Feature/PortMarkiMaWlasnaBramkeCiTest.php:17
+     13▕         foreach (['port_marki', 'port_funkcje', 'dostepnosc'] as $name) {
+     14▕             $job = $this->job($name);
+     15▕             // Kontrola dodatnia: brak całego checkoutu nie jest oszczędnością.
+     16▕             $this->assertSame(1, preg_match('/uses: actions\/checkout@[^\s]+(?<opcje>.*?)(?=^      - |\z)/ms', $job, $checkout), $name.': brak checkoutu.');
+  ➜  17▕             $this->assertDoesNotMatchRegularExpression('/fetch-depth:\s*0\b/', $checkout['opcje'],
+     18▕                 $name.': pełną historię pobiera już zakres; pomiar potrzebuje drzewa i indeksu.');
+     19▕             $this->assertStringContainsString('needs: zakres', $job);
+     20▕             $this->assertStringContainsString('needs.zakres.outputs.widok', $job);
+     21▕         }
+
+  1   tests/Feature/PortMarkiMaWlasnaBramkeCiTest.php:17
+
+
+  Tests:    1 failed, 6 passed (93 assertions)
+  Duration: 0.99s

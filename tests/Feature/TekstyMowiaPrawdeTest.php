@@ -514,7 +514,7 @@ class TekstyMowiaPrawdeTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $pomocNowegoHasla = $this->pomocPola($bezpieczenstwo, 'password');
+        $pomocNowegoHasla = $this->pomocPola($bezpieczenstwo, 'password-zmiana');
 
         $this->assertNotSame('', $pomocNowegoHasla, 'Nie znalazłem pomocy przy polu nowego hasła.');
         $this->assertStringContainsString('Wymyśl własne', $pomocNowegoHasla);
