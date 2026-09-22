@@ -35,13 +35,55 @@ if command -v pg_isready >/dev/null 2>&1; then
         # katalogu, "kuking_test_<worktree>" w każdym `git worktree`. Nazwa
         # MUSI dokładnie odpowiadać temu, co liczy tests/bootstrap.php —
         # inaczej ten skrypt utworzyłby bazę, na którą testy i tak nie trafią.
+        #
+        # Liczymy ją PRZEZ PHP, wołając wprost
+        # tests/Support/kuking_nazwa_testowej_bazy.php — TEN SAM plik, który
+        # ładuje `tests/bootstrap.php`. Kiedyś ten skrypt miał WŁASNĄ
+        # reimplementację tej reguły w Bashu; dwa niezależne miejsca liczące
+        # to samo mogły się rozjechać przy pierwszej zmianie reguły w jednym
+        # z nich (patrz historia tego pliku i `tests/bootstrap.php`). PHP w
+        # hooku nie jest nową zależnością — ten sam hook niżej i tak
+        # bezwarunkowo woła `php artisan key:generate` / `php artisan
+        # migrate`.
+        #
+        # `tests/Support/kuking_nazwa_testowej_bazy.php` jest CELOWO plikiem
+        # bez efektów ubocznych (brak `require vendor/autoload.php`) — można
+        # go bezpiecznie wywołać w kroku 1., ZANIM krok 2. zainstaluje
+        # `vendor/`.
+        #
+        # Jeśli PHP nie jest dostępny (albo wywołanie się nie powiedzie),
+        # NIE milczymy — awaria hooka startowego po cichu jest gorsza niż
+        # przybliżenie. Spadamy na przybliżenie policzone w samym Bashu, ale
+        # GŁOŚNO o tym informujemy. To przybliżenie odtwarza TYLKO regułę dla
+        # głównego checkoutu i zwykłego `git worktree` (jedyne konteksty, w
+        # których ten hook w ogóle się uruchamia — sesja Claude Code zawsze
+        # startuje w checkoucie albo w `git worktree`, nigdy w drzewie
+        # skopiowanym bez `.git`; takie drzewa produkuje wyłącznie
+        # `_wspolne/przygotuj-runtime.sh` do osobnego katalogu, w którym
+        # żadna sesja nie startuje). Przybliżenie NIE obsługuje i nie musi
+        # obsługiwać trzeciego przypadku dodanego w gałęzi
+        # `naprawa/baza-proby-per-runtime` (drzewo skopiowane bez `.git`) —
+        # ten przypadek nie dotyczy kontekstu, w którym chodzi ten hook.
         baza_testowa="kuking_test"
-        if [ -f .git ]; then
-            wskaznik="$(sed -n 's/^gitdir:[[:space:]]*//p' .git)"
-            if printf '%s' "$wskaznik" | grep -q '/\.git/worktrees/'; then
-                nazwa_worktree="$(basename "$wskaznik")"
-                sufiks="$(printf '%s' "$nazwa_worktree" | tr -c 'a-zA-Z0-9_' '_' | cut -c1-50)"
-                baza_testowa="kuking_test_${sufiks}"
+        wynik_php=""
+        if command -v php >/dev/null 2>&1 && [ -f tests/Support/kuking_nazwa_testowej_bazy.php ]; then
+            wynik_php="$(php -r '
+                require $argv[1];
+                echo kuking_nazwa_testowej_bazy($argv[2]);
+            ' -- tests/Support/kuking_nazwa_testowej_bazy.php "$PWD" 2>/dev/null)" || wynik_php=""
+        fi
+
+        if [ -n "$wynik_php" ]; then
+            baza_testowa="$wynik_php"
+        else
+            echo "UWAGA: nie udało się policzyć nazwy testowej bazy przez PHP (tests/Support/kuking_nazwa_testowej_bazy.php) — używam przybliżenia w Bashu. Przybliżenie NIE obsługuje drzew skopiowanych bez .git (patrz komentarz w tym pliku)."
+            if [ -f .git ]; then
+                wskaznik="$(sed -n 's/^gitdir:[[:space:]]*//p' .git)"
+                if printf '%s' "$wskaznik" | grep -q '/\.git/worktrees/'; then
+                    nazwa_worktree="$(basename "$wskaznik")"
+                    sufiks="$(printf '%s' "$nazwa_worktree" | tr -c 'a-zA-Z0-9_' '_' | cut -c1-50)"
+                    baza_testowa="kuking_test_${sufiks}"
+                fi
             fi
         fi
 

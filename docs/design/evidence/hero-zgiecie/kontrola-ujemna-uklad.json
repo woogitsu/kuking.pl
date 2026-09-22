@@ -1,0 +1,16 @@
+{
+  "nazwa": "odstep nad haslem pierwszego ekranu",
+  "plik": "resources/css/marka-ekrany.css",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "456d9ea2d063247a8283e6e216c041d2",
+  "md5_po_mutacji": "37173101ec4d70b78d36be7674ec348e",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "CTA_PONIZEJ_ZGIECIA",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T10:55:30Z"
+}
