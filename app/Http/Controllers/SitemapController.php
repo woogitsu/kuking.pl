@@ -81,9 +81,32 @@ class SitemapController extends Controller
             // strony nie ogłasza (patrz nagłówek tego pliku: „Puste profile
             // to cienka treść"). Treści tej osoby zostają w mapie osobno,
             // wyżej — bo tam granicą jest autorstwo, nie osoba.
+            // „Co najmniej jedna publiczna treść" znaczy WPIS **ALBO** PRZEPIS.
+            // Stało tu samo `user.posts` i przez to o obecności profilu
+            // w mapie decydowała nie treść autora, tylko zapowiedź.
+            //
+            // Publikacja przepisu zakłada zapowiedź (wpis z `recipe_id`
+            // i pustym `body`), więc dopóki zapowiedź żyje, profil wchodził
+            // do mapy „przy okazji" i wada się nie pokazywała. Wystarczyło
+            // jednak, żeby zapowiedź zniknęła — autor ją skasował albo
+            // moderacja ją ukryła — i profil wypadał z mapy, choć jego
+            // publiczny przepis nadal w niej stał. Mapa ogłaszała wtedy
+            // przepis, ale nie autora, który go napisał.
+            //
+            // To jest wprost wbrew nagłówkowi tego pliku („profile, które
+            // mają co najmniej jedną publiczną treść") i wbrew
+            // `docs/seo/SEO_TECHNICAL.md` §3, wiersz „Profil z ≥1 publiczną
+            // treścią → index, follow".
+            //
+            // Granica zostaje `widocznyJakoOsoba()` (D-022), nie
+            // `dostepnyJakoAutor()` — patrz komentarz wyżej.
             Profile::query()
                 ->whereHas('user', fn ($autor) => $autor->widocznyJakoOsoba())
-                ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
+                ->where(function ($maPubliczonaTresc): void {
+                    $maPubliczonaTresc
+                        ->whereHas('user.posts', fn ($query) => $query->publiclyVisible())
+                        ->orWhereHas('user.recipes', fn ($query) => $query->publiclyVisible());
+                })
                 ->select(['user_id', 'username', 'updated_at'])
                 ->chunkById(500, function ($profiles) use (&$urls): void {
                     foreach ($profiles as $profile) {
