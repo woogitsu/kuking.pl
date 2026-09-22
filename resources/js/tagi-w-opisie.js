@@ -101,11 +101,11 @@ function setup(root, index) {
                 option.addEventListener('pointerdown', e => e.preventDefault()); option.addEventListener('click', () => choose(i)); list.append(option);
             });
             list.hidden = items.length === 0;
-            status.textContent = items.length ? 'Wybierz tag z podpowiedzi albo pisz dalej.' : 'Brak podpowiedzi. Możesz skorzystać z wyszukiwania tagów poniżej.';
+            status.textContent = items.length ? 'Wybierz tag z podpowiedzi albo pisz dalej.' : 'Brak podpowiedzi. Otwórz „Dodaj tag bezpośrednio”, żeby sprawdzić inną nazwę.';
             position();
         } catch (error) {
             if (error.name === 'AbortError' || stamp !== sequence) return;
-            hide(); status.textContent = 'Nie udało się pobrać podpowiedzi. Spróbuj ponownie albo znajdź tag poniżej.';
+            hide(); status.textContent = 'Nie udało się pobrać podpowiedzi. Spróbuj ponownie albo otwórz „Dodaj tag bezpośrednio”.';
         }
     }
     function update() {
