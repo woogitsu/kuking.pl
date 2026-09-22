@@ -210,7 +210,8 @@ class DataSettingsController extends Controller
         $user = $request->user();
 
         if (! Hash::check($data['password'], $user->password)) {
-            return back()->withErrors(['password' => 'To hasło jest nieprawidłowe.']);
+            return back()->withErrors(['password' => 'Wpisz poprawne hasło, żeby potwierdzić usunięcie konta.'])
+                ->withInput($request->only('usun_tresci'));
         }
 
         $zakres = $request->boolean('usun_tresci')

@@ -93,6 +93,12 @@
   }
   .tag-collage > * { position: relative; display: block; min-width: 0; min-height: 48px; border-radius: var(--radius-md); }
   .tag-collage img { position: absolute; inset: 0; display: block; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
+  /* Liczba w nazwie jest SKLEJANA: `components/tag-collage.blade.php` daje
+     `class="tag-collage tag-collage--{{ $photos->count() }}"`, a
+     `Domain\Tags\TagCollage::LIMIT` to 5 — więc osiągalne są 1…5. Napisów
+     „tag-collage--1" ani „--5" nie ma w żadnym widoku i te trzy reguły
+     wyglądają w wyszukiwarce na martwe. Nie są. (Dla 2 i 4 reguły nie ma
+     i tak ma być: obie biorą domyślną siatkę 2 × N.) */
   .tag-collage--1 { grid-template-columns: minmax(0, 1fr); }
   .tag-collage--3 > :first-child, .tag-collage--5 > :first-child { grid-column: 1 / -1; }
   .tag-featured-card > .tag-collage { margin: var(--spacing-3) var(--spacing-3) 0; }

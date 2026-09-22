@@ -1,4 +1,4 @@
-@props(['action', 'wiersz'])
+@props(['action', 'wiersz', 'content' => null])
 @php
     $zeszyty = app(\App\Domain\Collections\ZeszytyDoWyboru::class)->dla(request());
     $aktywny = \App\Support\WierszFormularza::jestAktywny($wiersz);
@@ -39,6 +39,6 @@
                 <p>Nie masz jeszcze zeszytu do wyboru. Załóż go, żeby wybrać miejsce zapisu.</p>
             @endif
         </form>
-        <a class="inline-link mt-3" href="{{ route('collections.index') }}">Załóż nowy zeszyt</a>
+        <a class="inline-link mt-3" href="{{ route('collections.index', $content ? ['save_type' => $content instanceof \App\Models\Recipe ? 'recipe' : 'post', 'save_id' => $content->getKey()] : []) }}">Załóż nowy zeszyt</a>
     </div>
 </details>

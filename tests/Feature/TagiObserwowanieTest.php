@@ -445,8 +445,9 @@ class TagiObserwowanieTest extends TestCase
         $basia = $this->user('basia');
         $basia->followedTags()->attach($zupy->getKey(), ['created_at' => now()]);
 
+        $form = $this->actingAs($basia)->get(route('settings.tags'))->viewData('formScope');
         $this->actingAs($basia)
-            ->put(route('settings.tags.update'), ['tags' => [$ciasta->getKey()]])
+            ->put(route('settings.tags.update'), ['form_scope' => $form, 'tags' => [$ciasta->getKey()]])
             ->assertRedirect(route('settings.tags'));
 
         $this->assertFalse($basia->fresh()->isFollowingTag($zupy));
@@ -461,8 +462,9 @@ class TagiObserwowanieTest extends TestCase
         $dawno = now()->subMonths(3);
         $basia->followedTags()->attach($zupy->getKey(), ['created_at' => $dawno]);
 
+        $form = $this->actingAs($basia)->get(route('settings.tags'))->viewData('formScope');
         $this->actingAs($basia)
-            ->put(route('settings.tags.update'), ['tags' => [$zupy->getKey()]])
+            ->put(route('settings.tags.update'), ['form_scope' => $form, 'tags' => [$zupy->getKey()]])
             ->assertRedirect();
 
         $wiersz = DB::table('tag_follows')
@@ -491,8 +493,9 @@ class TagiObserwowanieTest extends TestCase
         $html = $this->actingAs($basia)->get(route('settings.tags'))->assertOk()->getContent();
         $this->assertStringContainsString('Sernik', $html);
 
+        $form = $this->get(route('settings.tags'))->viewData('formScope');
         $this->actingAs($basia)
-            ->put(route('settings.tags.update'), ['tags' => []])
+            ->put(route('settings.tags.update'), ['form_scope' => $form, 'tags' => []])
             ->assertRedirect();
 
         $this->assertFalse($basia->fresh()->isFollowingTag($spozaListy));

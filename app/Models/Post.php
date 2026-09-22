@@ -463,13 +463,49 @@ class Post extends Model
      */
     public function jestSamymPrzepisem(): bool
     {
-        if ($this->recipe === null || filled($this->body) || $this->media->isNotEmpty()) {
+        if (! $this->czyJestZapowiedziaPrzepisu()) {
             return false;
         }
 
         $komentarzy = $this->comments_count ?? $this->comments()->count();
 
         return (int) $komentarzy === 0;
+    }
+
+    /**
+     * Czy ten wpis jest ZAPOWIEDZIĄ przepisu — czyli nie ma własnej treści
+     * ani własnych zdjęć, a jedynym, co niesie, jest wskazanie przepisu.
+     *
+     * TO NIE JEST TO SAMO CO `jestSamymPrzepisem()` I NIE WOLNO ICH SKLEIĆ.
+     * Tamta metoda pyta dodatkowo o komentarze, bo odpowiada na pytanie
+     * „czy ta strona ma jeszcze po co istnieć" — rozmowa pod wpisem jest
+     * treścią własną i sama w sobie wystarcza, żeby strony nie zwijać
+     * przekierowaniem.
+     *
+     * Tu pytanie jest inne: „skąd ten wpis bierze swoją widoczność".
+     * Odpowiedź — z przepisu, bo `WpisWskazujacyPrzepis::dopisz()` zapisuje
+     * `visibility = 'public'` NIE jako decyzję o jawności, tylko jako brak
+     * własnego zawężenia; bramką ma być przepis
+     * (`scopeZWidocznymPrzepisem()`). Dopisanie tu warunku o komentarzach
+     * znaczyłoby, że KTOKOLWIEK odblokowuje cudzy ukryty przepis, pisząc
+     * pod jego zapowiedzią jedno zdanie. Dokładnie tak wyciekał tytuł
+     * przepisu „tylko dla obserwujących" pod bezpośrednim adresem wpisu:
+     * komentarz kasował przekierowanie, a strona wypisywała tytuł, slug
+     * i zdjęcie główne gościowi.
+     */
+    public function czyJestZapowiedziaPrzepisu(): bool
+    {
+        if ($this->recipe_id === null || filled($this->body)) {
+            return false;
+        }
+
+        // `media` bywa tu niezaładowane: ta metoda jest wołana także
+        // z `PostPolicy::view()`, czyli PRZED `load()` w kontrolerze.
+        // `exists()` zamiast pobrania wierszy — potrzebna jest odpowiedź
+        // „czy jest choć jedno", nie same zdjęcia.
+        return $this->relationLoaded('media')
+            ? $this->media->isEmpty()
+            : ! $this->media()->exists();
     }
 
     /**

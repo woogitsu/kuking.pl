@@ -243,12 +243,18 @@
                         @if($obserwuje ?? false)
                             <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
                                 @csrf @method('DELETE')
+                                {{-- #793 rozszerzone na relacje: strona przepisu
+                                     bywa otwarta godzinami, a nazwa autora
+                                     w adresie mogła w tym czasie zmienić
+                                     właściciela. --}}
+                                <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
                         @else
                             @can('follow', $recipe->author)
                                 <form method="POST" action="{{ route('social.follow', $recipe->author->profile->username) }}">
                                     @csrf
+                                    <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                     <button class="btn btn-secondary" type="submit">Obserwuj</button>
                                 </form>
                             @endcan
@@ -325,7 +331,7 @@
                             <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
-                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" />
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -479,13 +485,8 @@
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
                                 <li>
                                     {{ $ingredient->ingredient_text }}
-                                    {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                         tego sam w tekście składnika (issue #44).
-                                         „Sól do smaku — do smaku” wygląda jak usterka,
-                                         a nie jak informacja. --}}
-                                    @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
-                                        <span class="meta"> — do smaku</span>
-                                    @endif
+                                    {{-- „Bez ilości” nie określa sposobu dozowania.
+                                         Pokazujemy tekst autora bez dopisków (#878). --}}
                                     @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
                                 </li>
                             @endforeach
@@ -629,7 +630,7 @@
                 <x-confirm-button
                     :action="route('recipes.destroy', $recipe->slug)"
                     label="Usuń ten przepis"
-                    question="Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne." />
+                    :question="'Na pewno usunąć przepis „'.$recipe->title.'”? Wykonania i komentarze innych osób też przestaną być widoczne.'" />
             </div>
         @endif
 

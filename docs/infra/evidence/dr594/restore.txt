@@ -1,0 +1,42 @@
+0.011326	[proba] start; baza próbna: proba_odtworzenia_gpt_dr_baza_20260920t173937z; serwer: postgresql://kuking@127.0.0.1:55439/postgres
+0.017004	[proba] ✓ bezpiecznik 1: baza celu "proba_odtworzenia_gpt_dr_baza_20260920t173937z" jest nazwą próbną, serwer nie jest produkcyjny
+0.121783	[proba] ✓ bezpiecznik 3: cel to własny Postgres tego repozytorium (1870cee372ae8b30)
+0.125112	[proba] ✓ zrzut: kuking-20260920-173937Z.dump.cms, 427148807 B
+0.125192	[proba] odszyfrowuję (openssl cms)…
+5.758671	[proba] ✓ odszyfrowane w 6 s (426731512 B)
+6.702000	[proba] ✓ skrót odszyfrowanego zrzutu zgadza się z .meta (ec8f672f2abc7e2f…)
+6.769650	[proba] ✓ archiwum: 50 tabel z danymi, pg_dump 18, pg_restore 18
+7.068259	[proba] założona baza próbna proba_odtworzenia_gpt_dr_baza_20260920t173937z
+7.129156	[proba] ✓ bezpiecznik 2: serwer potwierdza bazę "proba_odtworzenia_gpt_dr_baza_20260920t173937z", pustą (0 tabel)
+7.129223	[proba] pg_restore…
+64.066928	[proba] ✓ pg_restore bez błędu, 57 s
+64.106798	[proba] ✓ tabel w odtworzonej bazie: 50 (w archiwum: 50)
+64.191335	[proba] ✓ wierszy w "users": 50016 (źródło: 50016)
+64.514806	[proba] ✓ wierszy w "posts": 1000088 (źródło: 1000088)
+64.638068	[proba] ✓ wierszy w "recipes": 100041 (źródło: 100041)
+64.776025	[proba] ✓ wierszy w "cooked_events": 2 (źródło: 2)
+65.856717	[proba] ✓ porównano 50 tabel co do jednego wiersza
+65.856823	[proba] ✓ wierszy razem: 5504654 w odtworzonej bazie, 5504654 w źródle
+66.095391	[proba] ✓ migrate:status na odtworzonej bazie: 82 wykonanych, 0 czekających
+66.330139	[proba] ✓ wyzwalacze: 3, wszystkie trzy nazwane obecne i włączone
+66.429478	[proba] ✓ ograniczenia: CHECK 91, UNIQUE 26, klucze obce 71
+66.502292	[proba] ✓ wyzwalacz follows: blokada ma pierwszeństwo przed obserwowaniem
+66.537066	[proba] ✓ wyzwalacz dziennik_zgod: dziennika zgód nie da się zmienić
+66.583925	[proba] ✓ CHECK follows_no_self_check: nie da się obserwować samego siebie
+66.620257	[proba] ✓ UNIQUE na adresie konta: dwa konta z tym samym adresem nie wejdą
+66.654116	[proba] ✓ kontrola dodatnia: zapis dozwolony PRZESZEDŁ (sondy mierzą bariery, nie brak uprawnień)
+66.690185	[proba] ✓ po sondach nie został ani jeden wiersz sondujący
+66.690277
+66.690286	PRÓBA ODTWORZENIA ZALICZONA.
+66.690297	  zrzut:              kuking-20260920-173937Z.dump.cms
+66.690304	  tabel w archiwum:   50
+66.690313	  tabel w bazie:      50
+66.690318	  czas odszyfrowania: 6 s
+66.690321	  czas odtworzenia:   57 s   ← to jest zmierzone RTO tej warstwy
+66.690857	  tabel porównanych:  50   co do jednego wiersza
+66.690926	  wierszy w próbie:   5504654
+66.690937	  wierszy w źródle:   5504654
+66.690946	  migracji wykonanych: 82, czekających: 0
+66.690953
+66.690958	Wpisz te liczby do tabeli w docs/infra/KOPIE_I_ODTWORZENIE.md §5.
+66.690964	Zrzut, którego nikt nie odtworzył, jest obietnicą — ten właśnie przestał nią być.

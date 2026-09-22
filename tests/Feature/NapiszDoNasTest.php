@@ -88,7 +88,7 @@ class NapiszDoNasTest extends TestCase
     {
         $odpowiedz = $this->post(route('kontakt.store'), $this->poprawneDane());
 
-        $odpowiedz->assertRedirect(route('kontakt.potwierdzenie'));
+        $odpowiedz->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
 
         $wiadomosc = ContactMessage::sole();
 
@@ -112,7 +112,7 @@ class NapiszDoNasTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('kontakt.store'), $this->poprawneDane(['contact_email' => null]))
-            ->assertRedirect(route('kontakt.potwierdzenie'));
+            ->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
 
         $wiadomosc = ContactMessage::sole();
 
@@ -135,7 +135,7 @@ class NapiszDoNasTest extends TestCase
 
         $this->actingAs($basia)
             ->post(route('kontakt.store'), $this->poprawneDane(['contact_email' => 'ktos.inny@example.com']))
-            ->assertRedirect(route('kontakt.potwierdzenie'));
+            ->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
 
         $this->assertNull(ContactMessage::sole()->contact_email);
     }
@@ -227,8 +227,8 @@ class NapiszDoNasTest extends TestCase
         $klucz = (string) Str::uuid7();
         $dane = $this->poprawneDane(['klucz_wyslania' => $klucz]);
 
-        $this->post(route('kontakt.store'), $dane)->assertRedirect(route('kontakt.potwierdzenie'));
-        $this->post(route('kontakt.store'), $dane)->assertRedirect(route('kontakt.potwierdzenie'));
+        $this->post(route('kontakt.store'), $dane)->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
+        $this->post(route('kontakt.store'), $dane)->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
 
         $this->assertSame(
             1,
