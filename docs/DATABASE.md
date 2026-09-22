@@ -2116,12 +2116,23 @@ nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
 
 Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
 dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
-obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+obserwowania przez aktualnie skonfigurowanego gospodarza. Gospodarz jest
+rozpoznawany po stabilnym `KUKING_HOST_USER_ID`; przejściowy fallback po
+`KUKING_HOST_USERNAME` działa tylko przy pustym UUID. Zmiana nazwy profilu ani
+przejęcie starej nazwy nie zmienia odbiorcy i nie zmienia wykluczeń WAC.
+Nie wysyła alertów.
 Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
 pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
 odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
 przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
 dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
+Plan przejścia: przed wdrożeniem kodu odczytać UUID aktualnego konta
+gospodarza, ustawić `KUKING_HOST_USER_ID` i dopiero potem zmieniać jego nazwę.
+Nie trzeba przepisywać istniejących relacji ani powiadomień — już przechowują
+UUID. Po potwierdzeniu konfiguracji fallback po nazwie można usunąć osobnym
+wdrożeniem. Błędny, niepusty UUID celowo oznacza brak gospodarza, nie próbę
+odgadnięcia go po nazwie.
 
 ### notifications
 In-app.

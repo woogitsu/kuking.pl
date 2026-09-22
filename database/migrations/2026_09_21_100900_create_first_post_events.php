@@ -38,8 +38,10 @@ return new class extends Migration
     {
         return <<<'SQL'
             WITH host AS (
-                SELECT users.id FROM users JOIN profiles ON profiles.user_id = users.id
-                WHERE lower(profiles.username) = lower(?) LIMIT 1
+                SELECT users.id FROM users LEFT JOIN profiles ON profiles.user_id = users.id
+                WHERE (? <> '' AND users.id::text = ?)
+                   OR (? = '' AND lower(profiles.username) = lower(?))
+                LIMIT 1
             ), proven AS (
                 SELECT DISTINCT ON (n.actor_id) n.actor_id AS author_id, p.id AS post_id
                 FROM notifications n JOIN users u ON u.id = n.actor_id
@@ -75,6 +77,14 @@ return new class extends Migration
 
     private function bindings(): array
     {
-        return [trim((string) config('kuking.community.host_username')), (bool) config('kuking.questions.enabled', false)];
+        $hostUserId = trim((string) config('kuking.community.host_user_id'));
+
+        return [
+            $hostUserId,
+            $hostUserId,
+            $hostUserId,
+            trim((string) config('kuking.community.host_username')),
+            (bool) config('kuking.questions.enabled', false),
+        ];
     }
 };

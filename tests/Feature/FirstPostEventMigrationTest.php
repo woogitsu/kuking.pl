@@ -54,7 +54,13 @@ class FirstPostEventMigrationTest extends TestCase
     {
         $this->migration()->down();
         $host = $this->moderator();
-        config(['kuking.community.host_username' => $host->profile->username]);
+        $staraNazwa = $host->profile->username;
+        config([
+            'kuking.community.host_user_id' => $host->getKey(),
+            'kuking.community.host_username' => $staraNazwa,
+        ]);
+        $host->profile->update(['username' => 'gospodarz_po_zmianie']);
+        $this->user($staraNazwa);
         $public = User::factory()->create();
         $private = User::factory()->create();
         $unseen = User::factory()->create();
