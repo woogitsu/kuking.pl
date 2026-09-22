@@ -1,0 +1,187 @@
+
+   FAIL  Tests\Feature\TagiFiltrIDoladowanieTest
+  ⨯ 858 doladowanie rozszerza zakres a zapis obejmuje obie porcje        0.79s  
+  ⨯ 858 tag ukryty przez filtr nie traci obserwowania                    0.07s  
+  ✓ 858 zaznaczenie przezywa zmiane filtra                               0.08s  
+  ✓ 858 odznaczenie widocznego tagu nadal usuwa obserwowanie             0.06s  
+  ⨯ 858 filtr ma widoczna etykiete                                       0.04s  
+  ⨯ 858 zero wynikow mowi co zrobic                                      0.07s  
+  ⨯ 858 przycisk doladowania mowi ile pozycji dojdzie                    0.07s  
+  ✓ 858 krotka lista nie ma przycisku doladowania                        0.05s  
+  ⨯ 858 filtr ignoruje polskie znaki                                     0.07s  
+  ⨯ 858 doladowanie i filtr niczego nie zapisuja                         0.11s  
+  ⨯ 858 doladowanie z obcym tokenem nie rozszerza zakresu                0.12s  
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 doladowanie rozszer…   
+  Pierwsze otwarcie pokazuje jedną porcję, nie całą listę.
+Failed asserting that actual size 30 matches expected size 20.
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:139
+    135▕             ->pluck('created_at', 'tag_id')->all();
+    136▕         $przed = $daty();
+    137▕ 
+    138▕         $strona = $this->otworz($user);
+  ➜ 139▕         $this->assertCount(self::PORCJA, $this->widoczneTagi($strona),
+    140▕             'Pierwsze otwarcie pokazuje jedną porcję, nie całą listę.');
+    141▕         $this->assertNotContains($wDrugiej->getKey(), $this->widoczneTagi($strona));
+    142▕ 
+    143▕         $strona = $this->poPrzeladowaniu($this->wyslij($strona, ['akcja' => 'wiecej']), $user);
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:139
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 tag ukryty przez fi…   
+  Filtr nie zawęził listy.
+Failed asserting that two arrays are identical.
+   Array &0 [
+       0 => '01a0bfa6-5a7e-72aa-b937-16deeb97b487',
+  +    1 => '01a0bfa6-5a7c-7317-a5c1-191e3ecfaf56',
+   ]
+  
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:179
+    175▕ 
+    176▕         $strona = $this->otworz($user);
+    177▕         $strona = $this->poPrzeladowaniu($this->wyslij($strona, ['akcja' => 'filtruj', 'szukaj' => 'ciasto']), $user);
+    178▕ 
+  ➜ 179▕         $this->assertSame([$ciasto->getKey()], $this->widoczneTagi($strona), 'Filtr nie zawęził listy.');
+    180▕         $this->assertContains($zupa->getKey(), $this->odsylaneTagi($strona),
+    181▕             'Tag schowany przez filtr przestał być wysyłany — zapis by go odobserwował.');
+    182▕ 
+    183▕         $this->wyslij($strona, [], [$ciasto->getKey()])->assertSessionHasNoErrors();
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:179
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 filtr ma widoczna e…   
+  Expected: <!DOCTYPE html>\n
+  <html lang="pl"  >\n
+  <head>\n
+  ... (464 more lines)
+
+  To contain: <label for="f-szukaj">
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:234
+    230▕         $this->promowany('Zupa pomidorowa');
+    231▕ 
+    232▕         $strona = $this->otworz($user);
+    233▕ 
+  ➜ 234▕         $this->assertStringContainsString('<label for="f-szukaj">', $strona);
+    235▕         $this->assertStringContainsString('Szukaj wśród tagów', $strona);
+    236▕     }
+    237▕ 
+    238▕     /** Zero wyników mówi, CO ZROBIĆ, a nie „brak wyników”. */
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:234
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 zero wynikow mowi c…   
+  Failed asserting that two arrays are identical.
+  -Array &0 []
+  +Array &0 [
+  +    0 => '01a0bfa6-5b7e-7011-96e0-e516b0d751c2',
+  +]
+  
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:247
+    243▕ 
+    244▕         $strona = $this->otworz($user);
+    245▕         $strona = $this->poPrzeladowaniu($this->wyslij($strona, ['akcja' => 'filtruj', 'szukaj' => 'kalafior']), $user);
+    246▕ 
+  ➜ 247▕         $this->assertSame([], $this->widoczneTagi($strona));
+    248▕         $this->assertStringContainsString('kalafior', $strona);
+    249▕         // Ekran bez ani jednego wyniku nie może zostawić człowieka bez wyjścia.
+    250▕         $this->assertStringContainsString('Pokaż wszystkie tagi', $strona);
+    251▕     }
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:247
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 przycisk doladowani…   
+  Expected: <!DOCTYPE html>\n
+  <html lang="pl"  >\n
+  <head>\n
+  ... (584 more lines)
+
+  To contain: Pokaż kolejne 5 tagów
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:260
+    256▕         $user = $this->user();
+    257▕         collect(range(1, 25))->each(fn (int $i) => $this->promowany(sprintf('Temat %03d', $i)));
+    258▕ 
+    259▕         $strona = $this->otworz($user);
+  ➜ 260▕         $this->assertStringContainsString('Pokaż kolejne 5 tagów', $strona);
+    261▕ 
+    262▕         $strona = $this->poPrzeladowaniu($this->wyslij($strona, ['akcja' => 'wiecej']), $user);
+    263▕         $this->assertStringNotContainsString('Pokaż kolejne', $strona,
+    264▕             'Na końcu listy zostaje przycisk, po którym nic nie dochodzi.');
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:260
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 filtr ignoruje pols…   
+  Failed asserting that two arrays are identical.
+   Array &0 [
+  -    0 => '01a0bfa6-5c33-737d-af02-6083cbc56688',
+  +    0 => '01a0bfa6-5c34-72b6-8328-fd09702486fb',
+  +    1 => '01a0bfa6-5c33-737d-af02-6083cbc56688',
+   ]
+  
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:286
+    282▕ 
+    283▕         $strona = $this->otworz($user);
+    284▕         $strona = $this->poPrzeladowaniu($this->wyslij($strona, ['akcja' => 'filtruj', 'szukaj' => 'zurek']), $user);
+    285▕ 
+  ➜ 286▕         $this->assertSame([$tag->getKey()], $this->widoczneTagi($strona));
+    287▕     }
+    288▕ 
+    289▕     /**
+    290▕      * Doładowanie i filtrowanie NIE zapisują — to jest przeglądanie.
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:286
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 doladowanie i filtr…   
+  Doładowanie zapisało zmianę, której człowiek nie potwierdził.
+Failed asserting that two arrays are identical.
+   Array &0 [
+       0 => '01a0bfa6-5c75-72ea-b48c-1323e426c309',
+  +    1 => '01a0bfa6-5c77-723f-be17-6b06276902b7',
+   ]
+  
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:302
+    298▕ 
+    299▕         $strona = $this->otworz($user);
+    300▕         $this->wyslij($strona, ['akcja' => 'wiecej'], [$tagi[1]->getKey()])->assertRedirect();
+    301▕ 
+  ➜ 302▕         $this->assertSame([$tagi[0]->getKey()], $user->followedTags()->pluck('tags.id')->all(),
+    303▕             'Doładowanie zapisało zmianę, której człowiek nie potwierdził.');
+    304▕     }
+    305▕ 
+    306▕     /**
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:302
+
+  ────────────────────────────────────────────────────────────────────────────  
+   FAILED  Tests\Feature\TagiFiltrIDoladowanieTest > 858 doladowanie z obcym…   
+  Failed asserting that actual size 30 matches expected size 20.
+
+  at tests/Feature/TagiFiltrIDoladowanieTest.php:324
+    320▕             'form_scope' => $this->polaUkryte($obcyFormularz, 'form_scope'),
+    321▕         ]);
+    322▕ 
+    323▕         $strona = $this->actingAs($user)->get(route('settings.tags'))->assertOk()->getContent();
+  ➜ 324▕         $this->assertCount(self::PORCJA, $this->widoczneTagi($strona));
+    325▕         $this->assertSame([], $user->followedTags()->pluck('tags.id')->all());
+    326▕     }
+    327▕ }
+    328▕
+
+  1   tests/Feature/TagiFiltrIDoladowanieTest.php:324
+
+
+  Tests:    8 failed, 3 passed (45 assertions)
+  Duration: 2.16s
+

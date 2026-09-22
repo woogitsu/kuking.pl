@@ -1,0 +1,151 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-produkcja-liczniki-obciazenie
+Gałąź:            gpt/produkcja-liczniki-obciazenie  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-produkcja-liczniki-obciazenie
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-produkcja-liczniki-obciazenie --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Dziś za "zmierzone" uchodzą dwie liczby, które w rzeczywistości nikt nie
+zmierzył na produkcji. Audyt `WERYFIKACJA_713_492_2026_09_20.md` mówi to
+wprost w dwóch miejscach:
+- B1 (#666, liczniki wykonań): "lokalne 96 konfiguracji, produkcyjne zero
+  i jedno wykonanie" — czyli produkcyjnych 2/5/22 wykonań oraz "N z M
+  odpowiedzi" z realnym procentem NIKT nie widział.
+- B4 (#605, obciążenie): "20 req/s nie jest ustaloną pojemnością
+  produkcji" — przyrząd istnieje, ale przyjętej serii z realną topologią
+  gospodarza i kryteriami ważności nie ma.
+
+Obu tych rzeczy NIE da się zmierzyć z Twojego stanowiska: pierwsza wymaga
+odczytu prawdziwych danych produkcyjnych (kont, wykonań), druga —
+uruchomienia ruchu na realnej topologii produkcyjnej albo jej wiernej
+kopii. Nie masz do tego dostępu i wprost zabrania Ci tego ta instrukcja.
+Twoim zadaniem NIE jest wygenerowanie tych liczb ani upozorowanie pomiaru
+na czymś innym niż produkcja. Twoim zadaniem jest napisać dla właściciela
+dwie gotowe, precyzyjne procedury: jak bezpiecznie ODCZYTAĆ istniejące
+liczniki na produkcji (bez pisania do bazy) oraz jak PRZEPROWADZIĆ i
+ZAAKCEPTOWAĆ serię obciążeniową bez ryzyka dla realnego ruchu.
+
+CO MASZ ZROBIĆ (praca lokalna, w tej sesji):
+
+1. Przeczytaj: sekcje B1 i B4 audytu, powiązane issues #666, macierz #517,
+   #605, oraz `docs/infra/evidence/obciazenie605/PRZYGOTOWANIE.md` i
+   `METODA.md` (przez odczyt plików w repo, bez uruchamiania niczego
+   przeciw produkcji).
+2. Dla B1 — napisz procedurę bezpiecznego ODCZYTU (read-only, jedno
+   zapytanie `SELECT` albo istniejąca komenda `artisan` z flagą tylko do
+   odczytu — sprawdź czy taka już istnieje w `app/Console/Commands`, jeśli
+   nie, tylko WSKAŻ że trzeba by ją napisać i jaki dokładnie SQL/Eloquent
+   powinna wykonać) liczby wykonań danego przepisu na produkcji oraz jak
+   policzyć "N z M odpowiedzi" z realnych danych. Podaj dokładnie, jak
+   uruchomić to bezpiecznie (np. `php artisan tinker --execute=...` przez
+   dostęp właściciela do Railway, NIGDY przez wystawienie bazy na publiczny
+   port).
+3. Dla B4 — napisz procedurę PRZYJĘCIA serii obciążeniowej: jaką topologię
+   trzeba odtworzyć (osobne środowisko staging o zbliżonej konfiguracji,
+   NIE produkcja), jakie warunki brzegowe podać (czas trwania, mix
+   endpointów, obciążenie hosta w tle), jakie kryteria ważności przyjąć
+   (np. p95/p99, error rate, brak wzrostu połączeń DB ponad budżet z
+   `WERYFIKACJA_BUDZETU_POLACZEN_598.md`), i jak zapisać wynik żeby
+   przyszły audyt mógł go nazwać "przyjętą pojemnością produkcji" a nie
+   kolejnym niezobowiązującym numerem. Jawnie napisz, że seria NIE MOŻE iść
+   przeciw prawdziwej produkcji ani przez publiczny port bazy.
+4. KONTROLA DODATNIA: jeśli Twoja procedura opisuje skrypt/komendę do
+   odczytu liczników albo do analizy wyniku obciążenia, przygotuj go
+   LOKALNIE na środowisku deweloperskim z syntetycznymi danymi (np. wstaw
+   testowe rekordy `cooked_events`/wykonań w lokalnej bazie testowej) i
+   pokaż, że skrypt poprawnie zwraca niezerową liczbę, a na pustej bazie
+   zwraca jawne zero, nie fałszywy sukces. Zasada repozytorium: "skan,
+   który nie znajduje żadnego pliku/rekordu, PRZECHODZI" jest błędem —
+   Twój skrypt ma to rozróżniać i to pokazać.
+5. Jeśli którejś części procedury nie da się dokładnie opisać bez wglądu w
+   panel Railway/produkcję (np. dokładny sposób podłączenia narzędzia
+   obciążeniowego do konkretnej topologii) — napisz to wprost jako pełny
+   wynik zadania, z listą brakujących decyzji/dostępów.
+6. Oznaczaj przejęte fakty jako `[pomiar cudzy: źródło]`; własną pracę
+   (odczyt kodu, budowa i test skryptu na danych syntetycznych) jako
+   własny pomiar.
+
+ZAKAZY (dodatkowo do zasad floty):
+- Nie łącz się z produkcyjną bazą ani API w żaden sposób.
+- Nie wystawiaj żadnej bazy na publiczny port.
+- Nie uruchamiaj żadnego narzędzia obciążeniowego przeciw
+  kuking.pl/produkcji.
+- Nie pobieraj i nie kopiuj żadnych danych produkcyjnych, nawet do celów
+  testowych.
+
+WYNIK: plik `docs/infra/procedura-liczniki-obciazenie-<data>.md` w Twoim
+worktree z dwiema procedurami i dowodem kontroli dodatniej. Zacommituj
+lokalnie po polsku. Nie pushuj, nie otwieraj PR.

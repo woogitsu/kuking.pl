@@ -1,0 +1,17 @@
+DODATNIA: pełna kopia przed uszkodzeniem
+DELETE 1
+UJEMNA: brakuje jednego komentarza
+[proba] ODMOWA/PORAŻKA (kod 63)
+        Liczba wierszy NIE ZGADZA SIĘ ze źródłem:
+    comments: w próbie 2000060, w źródle 2000061
+
+        Rozjazd choćby jednej tabeli znaczy, że z tej kopii NIE MA się bazy
+        Kukinga z powrotem — ma się jej część. Przy zrzucie z bazy, do której
+        ktoś pisze w trakcie, uruchom bez --scisle.
+DODATNIA: przywrócenie dokładnego wiersza
+COPY 1
+KONTROLA ZALICZONA: zielony -> jeden brakujący wiersz / kod 63 -> zielony.
+[proba] ✓ porównano 50 tabel co do jednego wiersza
+[proba] ✓ wierszy razem: 5504654 w odtworzonej bazie, 5504654 w źródle
+[proba] ✓ porównano 50 tabel co do jednego wiersza
+[proba] ✓ wierszy razem: 5504654 w odtworzonej bazie, 5504654 w źródle

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\ReportContent;
+use App\Domain\Moderation\CelZgloszenia;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -13,6 +14,7 @@ use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\Report;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -50,7 +52,10 @@ class ReportController extends Controller
             'targetType' => $type,
             'targetId' => $id,
             'target' => $target,
+            'cel' => CelZgloszenia::dla($target),
             'reasons' => Report::REASONS,
+            // Cel „Wróć" — patrz `wracajDo()` (issue #795).
+            'powrot' => $this->wracajDo($target),
         ]);
     }
 
@@ -86,6 +91,14 @@ class ReportController extends Controller
             return back()->withInput()->withErrors(['reason' => $e->getMessage()]);
         }
 
+        // POWRÓT DO SPRAWY, KTÓRA JUŻ ISTNIEJE, NIE JEST PRZYJĘCIEM NOWEJ
+        // (issue #796). `wasRecentlyCreated` odróżnia świeży `INSERT` od
+        // obu dróg powrotu w `ReportContent` — ciepłego `SELECT`-a i odbicia
+        // się o indeks `reports_one_open_per_pair`.
+        if (! $zgloszenie->wasRecentlyCreated) {
+            return $this->powrotDoIstniejacejSprawy($zgloszenie, $data);
+        }
+
         /*
          * ODESŁANIE NA KARTĘ SPRAWY, NIE NA STRONĘ GŁÓWNĄ (issue #10).
          *
@@ -102,6 +115,67 @@ class ReportController extends Controller
             .'Poniżej jest jego numer i stan — napiszemy tutaj, co postanowiliśmy. '
             .'Jeśli chcesz, możesz też zablokować tę osobę: wtedy nie zobaczycie już wzajemnie swoich treści.',
         );
+    }
+
+    /**
+     * ODPOWIEDŹ NA PONOWNE ZGŁOSZENIE TEJ SAMEJ TREŚCI (issue #796).
+     *
+     * CO BYŁO PRZEDTEM
+     * Deduplikacja jest celowa i zostaje — jedna otwarta sprawa na parę
+     * (zgłaszający, treść). Ale odpowiedź była ta sama co przy przyjęciu
+     * nowego zgłoszenia: „Dziękujemy. Zgłoszenie trafiło do nas…". Człowiek,
+     * który wrócił z NOWYM wyjaśnieniem, miał pełne prawo sądzić, że jego
+     * nowy tekst dotarł do moderatora. Nie dotarł: `ReportContent` oddaje
+     * wcześniejszą sprawę bez uwzględnienia nowego `reason`/`details`.
+     *
+     * DWIE RÓŻNE SYTUACJE, DWIE RÓŻNE ODPOWIEDZI
+     *  - nic nowego (podwójne kliknięcie, powrót „czy na pewno wysłałem")
+     *    → karta sprawy i zdanie, że sprawa już u nas jest;
+     *  - nowy powód albo nowy opis → POWRÓT DO FORMULARZA z zachowanym
+     *    tekstem i jawnym zdaniem, czego NIE zapisaliśmy.
+     *
+     * TEKST CZŁOWIEKA NIE ZNIKA (AGENTS.md: poprawne dane nigdy nie giną).
+     * `withInput()` odtwarza w formularzu i powód, i cały opis, więc da się
+     * go skopiować albo poprawić — zamiast porzucać go bez słowa przy
+     * przekierowaniu na kartę sprawy.
+     *
+     * CZEGO TA ZMIANA NIE ROBI
+     * Nie dopisuje uzupełnień do sprawy — to osobna decyzja produktowa,
+     * i naprawa nieprawdziwego potwierdzenia jej nie wymaga. Nie nadpisuje
+     * też po cichu oryginalnego opisu: pierwszy zapis jest dowodem w sprawie.
+     *
+     * @param  array{reason: string, details?: string|null}  $dane
+     */
+    private function powrotDoIstniejacejSprawy(Report $zgloszenie, array $dane): RedirectResponse
+    {
+        $opis = trim((string) ($dane['details'] ?? ''));
+        $wczesniejszy = trim((string) $zgloszenie->details);
+
+        // UZUPEŁNIENIE, A NIE PODWÓJNE KLIKNIĘCIE: inny powód albo niepusty
+        // opis różny od zapisanego. Pusty opis przy ponowieniu NIE jest
+        // nową informacją — nikt niczego nie dopisał.
+        $noweSzczegoly = $dane['reason'] !== $zgloszenie->reason
+            || ($opis !== '' && $opis !== $wczesniejszy);
+
+        if (! $noweSzczegoly) {
+            return redirect()->route('reports.mine.show', $zgloszenie)->with('status',
+                'To zgłoszenie już u nas jest — sprawa '.$zgloszenie->numer_sprawy
+                .' czeka w kolejce. Nie musisz zgłaszać tej treści drugi raz; '
+                .'napiszemy tutaj, co postanowiliśmy.',
+            );
+        }
+
+        // BEZ RODZAJU GRAMATYCZNEGO (`COPY_STYLE.md` §2, pilnuje
+        // `TekstyNiePrzypisujaPlciTest`): „już nam to zgłosiłeś" przypisuje
+        // czytelnikowi płeć. Zdanie przebudowane na rzeczownik, nie na drugą
+        // formę osobową — i wyszło krótsze.
+        $komunikat = 'Zgłoszenie tej treści już u nas jest — sprawa '.$zgloszenie->numer_sprawy
+            .' czeka w kolejce i nic jej nie ubyło. Nowego opisu NIE dopisaliśmy '
+            .'do tej sprawy. Twój tekst został w polu niżej: skopiuj go i wyślij '
+            .'na '.config('kuking.community.contact_email').', podając numer sprawy '
+            .$zgloszenie->numer_sprawy.'.';
+
+        return back()->withInput()->withErrors(['details' => $komunikat]);
     }
 
     /**
@@ -172,6 +246,52 @@ class ReportController extends Controller
             ->get()
             ->keyBy(fn (ModerationAction $decyzja): string => (string) $decyzja->report_id)
             ->all();
+    }
+
+    /**
+     * Dokąd prowadzi „Wróć" (issue #795).
+     *
+     * NIE `url()->previous()`. Ten formularz ma dwa wejścia GET z rzędu:
+     * pierwsze przy otwarciu (Referer to prawdziwa strona źródłowa), drugie
+     * przy odświeżeniu widoku po odrzuconym POST (`back()->withInput()`
+     * w `store()`) — a Laravel zapamiętuje URL BIEŻĄCEGO żądania GET jako
+     * „poprzedni" DOPIERO PO jego obsłużeniu. Skutek: w chwili renderowania
+     * błędu `_previous.url` w sesji nosi jeszcze adres PIERWSZEGO wejścia na
+     * TEN SAM formularz (ustawiony przy jego otwarciu), więc „Wróć" prowadzi
+     * do formularza, nie do zgłaszanej treści — droga donikąd.
+     *
+     * Zamiast zgadywać z Referera (niezaufany, może wskazywać obcy host),
+     * liczymy cel WPROST z AUTORYZOWANEGO `$target` — ten sam obiekt, który
+     * `authorize()` już zatwierdziło w `create()`. To jednocześnie odpowiada
+     * na "obcy host": budujemy `route()` z naszej własnej trasy, więc wynik
+     * zawsze jest adresem w tym serwisie.
+     */
+    private function wracajDo(Model $target): string
+    {
+        return match (true) {
+            $target instanceof Post => route('posts.show', $target),
+            $target instanceof Recipe => route('recipes.show', $target),
+            $target instanceof CookedEvent => route('cooked.show', $target),
+            $target instanceof Comment => $this->wracajDoRodzicaKomentarza($target),
+            // `user` — cel zgłoszenia to profil.
+            $target instanceof User && $target->profile !== null => route('profile.show', $target->profile->username),
+            // Treść, do której nie da się zbudować bezpiecznego linku
+            // (np. komentarz bez zachowanego rodzica) — wewnętrzny fallback,
+            // nigdy niezaufany adres z zewnątrz.
+            default => route('home'),
+        };
+    }
+
+    private function wracajDoRodzicaKomentarza(Comment $comment): string
+    {
+        $rodzic = $comment->subject();
+
+        return match (true) {
+            $rodzic instanceof Post => route('posts.show', $rodzic),
+            $rodzic instanceof Recipe => route('recipes.show', $rodzic),
+            $rodzic instanceof CookedEvent => route('cooked.show', $rodzic),
+            default => route('home'),
+        };
     }
 
     private function resolveTarget(string $type, string $id): Model
