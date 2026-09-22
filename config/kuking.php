@@ -271,13 +271,17 @@ return [
          *   za długo   przełączenie przepisu na prywatny albo zablokowanie
          *              kogoś nie odcina dostępu przez ten cały czas.
          *
-         * `max-age` odpowiedzi dla treści publicznej to POŁOWA tej liczby,
+         * Zdjęcia publiczne mają osobne okno poniżej (#597). `max-age`
+         * ich odpowiedzi to POŁOWA publicznego okna,
          * nie ona sama: przeglądarka cache'uje przekierowanie razem z już
          * podpisanym adresem, więc przy równych wartościach 302 wyjęte
          * z cache w ostatniej sekundzie okna prowadziłoby pod adres, który
          * właśnie wygasa. Szczegóły w `MediaController::sekundyCache()`.
          */
         'signed_url_minutes' => (int) env('KUKING_MEDIA_SIGNED_URL_MINUTES', 5),
+        // Decyzja właściciela #597: wcześniej publiczny podpis może działać
+        // godzinę po zmianie widoczności. Prywatnego okna nie wydłużamy.
+        'public_signed_url_minutes' => (int) env('KUKING_MEDIA_PUBLIC_SIGNED_URL_MINUTES', 60),
 
         // Maksymalna liczba zdjęć w JEDNEJ wysyłce (wpis albo „Ugotowałem").
         //

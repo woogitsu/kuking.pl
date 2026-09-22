@@ -181,7 +181,7 @@ MediaController
         ↓
 DostepDoZdjecia  →  Policy treści NADRZĘDNEJ (Recipe/Post/CookedEvent/Profile/RecipeStep)
         ↓
-302 → https://<bucket>/media/...?X-Amz-Signature=...   (ważne 5 minut)
+302 → https://<bucket>/media/...?X-Amz-Signature=...   (do 5 minut; publiczne do 60)
 ```
 
 **Bajty nie idą przez PHP.** Przez PHP idzie wyłącznie decyzja.
@@ -242,14 +242,18 @@ siedzi jeszcze lokalizacja GPS kuchni.
 
 | kiedy | `Cache-Control` |
 |---|---|
-| zdjęcie widoczne dla niezalogowanego | `public, max-age=300` |
+| zdjęcie publiczne, odczyt bez Cookie/Authorization i bez logowania | `public, max-age=1800` |
 | wszystko inne, razem z odmową | `private, no-store` |
 
 Wspólny cache wolno dopuścić wyłącznie dla odpowiedzi, która jest taka sama
 dla każdego — czyli dla zdjęcia, które i tak zobaczyłby ktoś bez konta.
-`max-age` równa się ważności podpisu (`kuking.media.signed_url_minutes`), bo
-jest górnym ograniczeniem na to, jak długo przełączenie przepisu na prywatny
-może nie dojść do skutku.
+`max-age` wynosi połowę ważności podpisu. Decyzja właściciela z 20.09.2026
+(#597): podpis zdjęcia publicznego trwa do 60 minut
+(`kuking.media.public_signed_url_minutes`), chronionego do 5 minut
+(`kuking.media.signed_url_minutes`). Odpowiedź zalogowanego zawsze ma
+`private, no-store`, także przy publicznym zdjęciu. Podpis sprzed zmiany
+widoczności nie jest unieważniany; z cache bajtów okno może sięgnąć 90 minut.
+Kontrola, reguły i granice pomiaru: `docs/infra/CLOUDFLARE_CACHE_597_610.md`.
 
 **Ten nagłówek chroni SAM ADRES, nie treść, do której on prowadzi — chyba że
 adres niesie tę regułę dalej (audyt zewnętrzny N02).** Nagłówek `Cache-Control`

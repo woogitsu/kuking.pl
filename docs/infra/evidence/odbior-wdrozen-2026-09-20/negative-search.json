@@ -1,0 +1,16 @@
+{
+  "nazwa": "568: utrata przesunięcia przepisów",
+  "plik": "app/Http/Controllers/SearchController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "4a0634d3409166be8ba47ea243befa84",
+  "md5_po_mutacji": "49fd74153085bb59d2a1905538d43e28",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "actual size 200 matches expected size 1",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:37:20Z"
+}
