@@ -5,10 +5,13 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Posts\Actions\PublishPost;
+use App\Exceptions\BladDlaCzlowieka;
+use App\Jobs\PrzeanalizujTresc;
 use App\Models\Media;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -61,6 +64,61 @@ class PostPublishingTest extends TestCase
 
         $response->assertSessionHasErrors('photos');
         $this->assertDatabaseCount('posts', 0);
+    }
+
+    public function test_zdjecie_utracone_przy_rewalidacji_nie_tworzy_pustego_wpisu_ani_skutkow_ubocznych(): void
+    {
+        Queue::fake();
+        $basia = $this->user('basiautracone');
+        $zdjecie = Media::factory()->create([
+            'owner_id' => $basia->getKey(),
+            'status' => Media::STATUS_DELETED,
+        ]);
+
+        try {
+            app(PublishPost::class)->handle(
+                author: $basia,
+                body: null,
+                mediaIds: [(string) $zdjecie->getKey()],
+            );
+            $this->fail('Publikacja pustego wpisu miała zostać odrzucona.');
+        } catch (BladDlaCzlowieka $e) {
+            $this->assertSame(
+                'Wybrane zdjęcie nie jest już dostępne. Wybierz je ponownie albo napisz kilka słów.',
+                $e->getMessage(),
+            );
+        }
+
+        $this->assertDatabaseCount('posts', 0);
+        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('notifications', 0);
+        Queue::assertNotPushed(PrzeanalizujTresc::class);
+    }
+
+    public function test_http_z_usunietym_zdjeciem_wraca_do_formularza_z_uczciwym_bledem(): void
+    {
+        Queue::fake();
+        $basia = $this->user('basiahttp');
+        $zdjecie = Media::factory()->create([
+            'owner_id' => $basia->getKey(),
+            'status' => Media::STATUS_DELETED,
+        ]);
+
+        $response = $this->actingAs($basia)
+            ->from(route('posts.create'))
+            ->post(route('posts.store'), [
+                'media_ids' => [(string) $zdjecie->getKey()],
+                'visibility' => Post::VISIBILITY_PUBLIC,
+            ]);
+
+        $response->assertRedirect(route('posts.create'));
+        $response->assertSessionHasErrors([
+            'photos' => 'Wybrane zdjęcie nie jest już dostępne. Wybierz je ponownie albo napisz kilka słów.',
+        ]);
+        $this->assertDatabaseCount('posts', 0);
+        $this->assertDatabaseCount('audit_log', 0);
+        $this->assertDatabaseCount('notifications', 0);
+        Queue::assertNotPushed(PrzeanalizujTresc::class);
     }
 
     public function test_nieudana_publikacja_nie_gubi_wpisanego_tekstu(): void

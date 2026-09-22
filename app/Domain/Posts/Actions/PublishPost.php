@@ -142,6 +142,18 @@ final class PublishPost
 
                 $orderedMedia = array_slice($orderedMedia, 0, (int) config('kuking.media.max_per_post'));
 
+                // Pierwsza kontrola wyżej widzi tylko identyfikatory z
+                // żądania. Dopiero rewalidacja pod blokadą mówi, czy któreś
+                // zdjęcie nadal wolno przypiąć (issue #1093). Jeśli wszystkie
+                // odpadły, zwykły wpis bez tekstu nadal jest pusty — nie
+                // wolno zapisać pustej karty i dopiero potem powiedzieć, że
+                // publikacja się udała.
+                if ($kind === Post::KIND_DISH && $body === null && $orderedMedia === []) {
+                    throw new BladDlaCzlowieka(
+                        'Wybrane zdjęcie nie jest już dostępne. Wybierz je ponownie albo napisz kilka słów.',
+                    );
+                }
+
                 // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu
                 // wybór nie znaczy nic — karuzela z jednym slajdem i kolaż
                 // z jednym polem to ten sam widok co „zwykle" — więc
