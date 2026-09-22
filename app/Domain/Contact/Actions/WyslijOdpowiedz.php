@@ -97,7 +97,7 @@ final class WyslijOdpowiedz
 
         /*
          |------------------------------------------------------------------
-         | WSPÓLNA PULA POCZTY — rezerwacja przed wysyłką (D-225)
+         | WSPÓLNA PULA POCZTY — rezerwacja przed wysyłką (D-239)
          |------------------------------------------------------------------
          |
          | Wpis przy `limits.kontakt_odpowiedz` w `config/kuking.php` mówił
