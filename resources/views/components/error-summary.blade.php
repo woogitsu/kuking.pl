@@ -16,7 +16,19 @@
 --}}
 @props(['errorBag' => 'default', 'fieldIds' => []])
 @php
-    $formErrors = $errors->getBag($errorBag);
+    // DWA RODZAJE `$errors`, OBA POPRAWNE — nie zakładamy jednego.
+    //
+    // Zwykle `$errors` to współdzielony `ViewErrorBag` Laravela i wtedy
+    // wybieramy z niego worek formularza (`$errorBag`, np. osobne formularze
+    // 2FA na jednym ekranie). Ale wyszukiwarka i onboarding dołączają ten
+    // komponent przez `@include(..., ['errors' => $searchErrors])` z ZWYKŁYM
+    // `MessageBag` z walidatora frazy — bez przekierowania, w miejscu. Ten
+    // nie ma `getBag()`, więc bezwarunkowe wywołanie kończyło się 500 na
+    // KAŻDYM wyszukiwaniu, także dla gościa. Zwykły worek przyjmujemy więc
+    // w całości, tak jak przed wprowadzeniem `$errorBag`.
+    $formErrors = $errors instanceof \Illuminate\Support\ViewErrorBag
+        ? $errors->getBag($errorBag)
+        : $errors;
     // `aktywnyWiersz()` odrzuca `_wiersz` przesłane jako tablica/obiekt
     // zamiast rzutować je wprost na string — inaczej ten sam błąd renderu
     // co w x-field (issue #745), tyle że tu, w podsumowaniu błędów.
