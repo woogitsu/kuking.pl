@@ -376,6 +376,23 @@ class RecipeController extends Controller
                 'author.profile.avatar',
                 'replies' => fn ($query) => $query->widoczneDla($request->user()),
                 'replies.author.profile.avatar',
+                // TO NIE JEST NADMIAROWE, CHOĆ PRZEPIS STOI OBOK W `$model`.
+                //
+                // Pod każdym komentarzem i każdą odpowiedzią widok pyta
+                // `@can('delete', $comment)`. `CommentPolicy::delete()` woła
+                // `Comment::notifiableUserId()`, a ta `Comment::subject()`,
+                // czyli `$this->post ?? $this->recipe ?? $this->cookedEvent`.
+                // Relacja nie była doładowana, więc KAŻDY komentarz szedł po
+                // swój przepis osobnym zapytaniem — mimo że wszystkie
+                // komentarze na tej stronie dotyczą jednego, już wczytanego.
+                //
+                // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                // `ANALYZE`): 41 zapytań przy 5 komentarzach na stronie, 61 przy
+                // 15 i 81 przy 25 — jedno na komentarz i jedno na odpowiedź.
+                // Dwie linijki niżej zamieniają to na dwa zapytania niezależne
+                // od liczby komentarzy: 33 przy każdym rozmiarze strony.
+                'recipe',
+                'replies.recipe',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 

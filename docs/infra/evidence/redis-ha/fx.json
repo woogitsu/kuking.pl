@@ -1,0 +1,7 @@
+{
+  "source": "https://api.nbp.pl/api/exchangerates/rates/a/usd/2026-09-18/?format=json",
+  "retrieved_date": "2026-09-20",
+  "table": "182/A/NBP/2026",
+  "effective_date": "2026-09-18",
+  "usd_pln": 3.7998
+}

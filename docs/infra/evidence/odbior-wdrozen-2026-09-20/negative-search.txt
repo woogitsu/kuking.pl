@@ -1,0 +1,28 @@
+
+── Kontrola ujemna: 568: utrata przesunięcia przepisów ──
+  plik:     app/Http/Controllers/SearchController.php
+  MD5 przed: 4a0634d3409166be8ba47ea243befa84
+  oczekuję:  actual size 200 matches expected size 1
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 4a0634d3409166be8ba47ea243befa84 → 49fd74153085bb59d2a1905538d43e28.
+  różnica:
+             $przepisy = $szukaPrzepisow
+                 // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
+                 // (issue #41). Bez niego blokada kończyła się na widoku i liście.
+    -            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu)
+    +            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, 0)
+                 : collect();
+
+             // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „actual size 200 matches expected size 1” wystąpił w wyjściu.
+      Failed asserting that actual size 200 matches expected size 1.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — 568: utrata przesunięcia przepisów
+  zapis: /mnt/c/Users/matma/Documents/kuking-flota/gpt-odbior-wdrozen/docs/infra/evidence/odbior-wdrozen-2026-09-20/negative-search.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
