@@ -20,11 +20,14 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\SavePostToCollection;
+use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Foundation\Application;
@@ -104,6 +107,19 @@ try {
             author: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             subject: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
             body: $argumenty['tresc'],
+        )->getKey(),
+
+        // Pierwszy zapis do zeszytu (#1095). Te scenariusze celowo wołają
+        // akcje domenowe, a nie przepisany SQL: test ma pęknąć, jeśli wróci
+        // wyścig w User::defaultCollection().
+        'zapisz-przepis' => (string) app(SaveRecipeToCollection::class)->handle(
+            user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            recipe: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+        )->getKey(),
+
+        'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
+            user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),
