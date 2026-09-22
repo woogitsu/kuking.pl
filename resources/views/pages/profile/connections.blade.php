@@ -59,11 +59,19 @@
                                 @csrf @method('DELETE')
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
-                        @else
+                        @elseif($person->isActive())
                             <form method="POST" action="{{ route('social.follow', $personUsername) }}">
                                 @csrf
                                 <button class="btn btn-primary" type="submit">Obserwuj</button>
                             </form>
+                        @else
+                            {{-- #780: `widocznyJakoOsoba()` w kontrolerze zostawia
+                                 konta zawieszone na liście (zawieszenie jest
+                                 tymczasowe), ale `UserPolicy::follow()` wymaga
+                                 `isActive()` i zawsze odmawia. Bez tej gałęzi
+                                 przycisk „Obserwuj" byłby martwy (D-053):
+                                 zawsze kończyłby się błędem po kliknięciu. --}}
+                            <span class="meta">Konto zawieszone — nie można teraz obserwować.</span>
                         @endif
                     @endif
                 </div>
