@@ -106,4 +106,42 @@ abstract class TestCase extends BaseTestCase
 
         return $admin->refresh();
     }
+
+    /**
+     * Okno ważności podpisu S3 (`X-Amz-Expires`) z tolerancją JEDNEJ SEKUNDY.
+     *
+     * DLACZEGO NIE `assertSame('3600', ...)`: w adresie nie ma żadnej z tych
+     * dwóch liczb osobno — jest ich RÓŻNICA, policzona z DWÓCH NIEZALEŻNIE
+     * OBCIĘTYCH ZEGARÓW. `MediaController` wyznacza koniec okna Carbonem
+     * (`now()->addMinutes(...)->getTimestamp()`), a SigV4 odejmuje od niego
+     * własny początek (`SignatureV4::presign()` → `$startTimestamp = time()`).
+     * Oba obcinają ułamek sekundy w dół, i to w dwóch różnych momentach.
+     *
+     * Jeśli między jednym a drugim wywołaniem przeskoczy granica sekundy —
+     * `now()` o 12:00:00.999, `time()` o 12:00:01.001 — różnica wychodzi
+     * 3599 zamiast 3600. Nie jest to usterka podpisu ani zmiana konfiguracji,
+     * tylko błąd pomiaru wpisany w sposób, w jaki ta liczba powstaje.
+     * Dokładnie na tym padł run 35719363702 (PR #1237), na gałęzi, która
+     * zmieniała wyłącznie komentarze w `deploy.yml`.
+     *
+     * Dlaczego tolerancja jest JEDNOSTRONNA (`[$sekundy - 1, $sekundy]`),
+     * a nie `assertEqualsWithDelta(..., 1)`: różnica NIGDY nie może wyjść
+     * większa od zadanej, bo koniec okna liczony jest ZANIM SigV4 odczyta
+     * swój początek. Wartość 3601 oznaczałaby, że okno wydłużyło się samo —
+     * i ma czerwienić, tak samo jak 3500 czy 300. Ta asercja nadal pilnuje
+     * REGUŁY (`kuking.media.*_signed_url_minutes`), gubi wyłącznie tę jedną
+     * sekundę, której żaden z dwóch zegarów i tak nie zna.
+     */
+    protected function assertOknoPodpisu(int $sekundy, mixed $wartosc, string $komunikat = ''): void
+    {
+        $this->assertContains(
+            (int) $wartosc,
+            [$sekundy - 1, $sekundy],
+            $komunikat !== '' ? $komunikat : sprintf(
+                'Podpis deklaruje okno %s s, a ma deklarować %d s (dopuszczalne %d s — '
+                .'obcięcie ułamka sekundy na dwóch zegarach).',
+                var_export($wartosc, true), $sekundy, $sekundy - 1,
+            ),
+        );
+    }
 }

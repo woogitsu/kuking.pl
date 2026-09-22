@@ -50,8 +50,13 @@ class NadanieRoliTest extends TestCase
     {
         $user = $this->user('ula', ['email' => 'ula@kuking.pl']);
 
+        // ADRES W PYTANIU JEST W SKRÓCIE (issue #1026). Komendę uruchamia się
+        // także z konsoli platformy hostingowej, a wszystko, co wypisze,
+        // zostaje w logu tej platformy. `u***@kuking.pl` odpowiada na jedyne
+        // pytanie, jakie właściciel zadaje w tym momencie — login i tak podał
+        // przed chwilą sam.
         $this->artisan('kuking:nadaj-role', ['login' => 'ula@kuking.pl', 'rola' => 'admin'])
-            ->expectsConfirmation('Zmienić rolę konta ula@kuking.pl z „user" na „admin"?', 'no')
+            ->expectsConfirmation('Zmienić rolę konta u***@kuking.pl z „user" na „admin"?', 'no')
             ->assertSuccessful();
 
         $this->assertSame(User::ROLE_USER, $user->refresh()->role);
