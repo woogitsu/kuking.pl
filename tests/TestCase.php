@@ -8,6 +8,7 @@ use App\Domain\Security\TwoFactorAuthenticator;
 use App\Models\Profile;
 use App\Models\User;
 use Illuminate\Foundation\Testing\TestCase as BaseTestCase;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Str;
 
 abstract class TestCase extends BaseTestCase
@@ -28,6 +29,7 @@ abstract class TestCase extends BaseTestCase
         parent::setUp();
 
         $this->withoutVite();
+        Http::preventStrayRequests();
     }
 
     /**
