@@ -18,10 +18,21 @@
                      zapewniało o czymś, czego nie da się sprawdzić, drugie
                      uspokajało zamiast zapraszać. W ich miejsce stoi to, co
                      da się zrobić i co z tego wynika. --}}
+                {{-- Akapit skrócony do jednego zdania, żeby hasło i akcja mieściły
+                     się na pierwszym ekranie przy 320 px i skali tekstu 100%
+                     (wymóg: `STRONA-WWW.md:121`). Przy 320 px poprzednia wersja
+                     zajmowała 8 wierszy i 273 px — sama spychała przycisk poniżej
+                     krawędzi okna. Skrócenie było jedyną drogą, która nie zmniejsza
+                     pisma: 22 px akapitu i 48 px celu dotknięcia zostają nietknięte.
+
+                     Zostaje zdanie, które `docs/brand/GLOS_MARKI.md` §C1
+                     (wiersz 418) wymienia jako wzorcowe (✅) i które mówi,
+                     CO ZROBIĆ. Wypadł opis „to
+                     miejsce dla ludzi, którzy gotują codziennie — w swojej kuchni,
+                     z tego, co jest": tę samą rzecz mówi już nadtytuł „Gotujemy po
+                     swojemu." i opis strony w <head>. --}}
                 <p class="text-lead hero-lead miara">
-                    <x-kuking-word /> to miejsce dla ludzi, którzy gotują codziennie — w swojej
-                    kuchni, z tego, co jest. Wrzuć zdjęcie i kilka słów, a pokażesz je komuś,
-                    kto dziś też gotował.
+                    Wrzuć zdjęcie i kilka słów, a pokażesz je komuś, kto dziś też gotował.
                 </p>
                 <div class="hero-akcje">
                     {{-- `btn-napis` NIE JEST OZDOBNIKIEM — patrz issue #353 i komentarz
@@ -79,10 +90,28 @@
                  WYDAJNOŚĆ: to jest pierwsza rzecz, jaką ładuje gość.
                  Wariant `thumb` (320 px), nie `feed` ani oryginał — największy
                  kafel ma na paśmie 1040 px około 230 px szerokości, więc 320 px
-                 starcza także przy gęstszym ekranie. `loading="lazy"` na
-                 wszystkich czterech, bo poniżej 64rem kolaż jest ukryty:
-                 przeglądarka nie pobiera wtedy ani jednego z tych plików,
-                 czyli telefon nie płaci za obrazki, których nie zobaczy.
+                 starcza także przy gęstszym ekranie.
+
+                 `loading="lazy"` stało tu z uzasadnieniem, że poniżej 64rem
+                 kolaż jest ukryty, więc przeglądarka nie pobiera ani jednego
+                 z tych plików. TO UZASADNIENIE JEST NIEPRAWDZIWE od
+                 13 września 2026: `marka-ekrany.css` (`@layer marka`) ustawia
+                 `.hero-kolaz-blok { display: block }` bezwarunkowo i bije
+                 regułę ukrywającą z `strony-publiczne.css`. Zmierzone
+                 20 września 2026 przy oknie 320×568 na liście żądań
+                 sieciowych: telefon pobiera WSZYSTKIE CZTERY kafle.
+                 Pełny opis, tabela pomiarów i kontrola ujemna stoją przy
+                 regule w `resources/css/strony-publiczne.css`.
+
+                 Atrybut zostaje, ale NIE DLATEGO, że coś odsuwa: kolaż ma
+                 górę na 891 px przy oknie 320×568, czyli poniżej pierwszego
+                 ekranu, a mimo to wszystkie cztery pliki są pobierane BEZ
+                 PRZEWIJANIA, przy pierwszym wczytaniu. Chromium ładuje
+                 `lazy` z zapasem odległości liczonym w setkach pikseli i ten
+                 zapas obejmuje tu cały kolaż. Ile ten atrybut naprawdę
+                 oszczędza na tej stronie — nie zmierzono; dopóki nie zostanie
+                 zmierzone, nie należy pisać, że oszczędza cokolwiek.
+
                  `decoding="async"` zdejmuje dekodowanie z wątku układu. --}}
             @if($kolaz->isNotEmpty())
                 @php
