@@ -10,7 +10,7 @@ use RuntimeException;
 use Tests\TestCase;
 
 /**
- * `migrate:rollback` nie zdejmuje po cichu drugiego składnika (DB-01, D-233).
+ * `migrate:rollback` nie zdejmuje po cichu drugiego składnika (DB-01, D-238).
  *
  * SKĄD TO SIĘ WZIĘŁO
  * Migracja `2026_09_06_120000_add_two_factor_to_users_table` kasowała w `down()`

@@ -51,7 +51,7 @@ use Illuminate\Support\Facades\Schema;
  * `confirmed_at` byłby stanem bez znaczenia i blokowałby dostęp do panelu
  * bez możliwości podania jakiegokolwiek kodu.
  *
- * ROLLBACK — ODMAWIA, gdy jakiekolwiek konto ma 2FA potwierdzone (D-233, D-088)
+ * ROLLBACK — ODMAWIA, gdy jakiekolwiek konto ma 2FA potwierdzone (D-238, D-088)
  * `down()` kasuje wszystkie cztery kolumny, więc każde konto traci sekret TOTP
  * i kody zapasowe — bezpowrotnie, bo sekret jest zaszyfrowany i nie da się go
  * odtworzyć z niczego innego.
@@ -101,7 +101,7 @@ return new class extends Migration
 
     public function down(): void
     {
-        // STRAŻNIK PRZED CICHYM ZDJĘCIEM DRUGIEGO SKŁADNIKA (D-233, D-088).
+        // STRAŻNIK PRZED CICHYM ZDJĘCIEM DRUGIEGO SKŁADNIKA (D-238, D-088).
         // MUSI stać przed KAŻDĄ operacją niżej — także przed zdjęciem CHECK-a,
         // nie tylko przed `dropColumn`. Sprawdzenie po fakcie chroniłoby sam
         // komunikat, nie dane (ten sam błąd kolejności, którego pilnuje
@@ -127,7 +127,7 @@ return new class extends Migration
                 'bo sekret jest zaszyfrowany i nie ma go skąd odtworzyć. Te konta nie zostaną '.
                 'zablokowane: wrócą do logowania SAMYM HASŁEM, po cichu i bez ostrzeżenia dla '.
                 'ich właścicieli. Przy koncie moderatora albo administratora to jest zdjęcie '.
-                "ochrony, nie porządki (D-233, zasada D-088).\n\n".
+                "ochrony, nie porządki (D-238, zasada D-088).\n\n".
                 "CO ZROBIĆ:\n".
                 '  - jeśli cofasz z powodu awaryjnego rollbacku WDROŻENIA (obraz aplikacji), nie '.
                 'cofaj TEJ migracji — kod sprzed niej nie zna tych kolumn i działa z nimi bez '.

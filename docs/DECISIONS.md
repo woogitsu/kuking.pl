@@ -15137,7 +15137,96 @@ zakresu statystyk o prywatne treści ani ranking.
 
 Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
 
-## D-233 — Cofnięcie migracji 2FA ODMAWIA, zamiast po cichu zdjąć drugi składnik (DB-01, 22 września 2026)
+## D-227 — PostgreSQL 18 jest wymaganiem, nie preferencją
+
+Data: 20 września 2026. Decyzja właściciela.
+
+**Co zdecydowano.** Wymagana wersja PostgreSQL to **18** — lokalnie, w CI
+i na produkcji. Wcześniej `AGENTS.md` mówił „lokalnie i w CI wystarczy 16+".
+
+**Dlaczego.** Szesnastka opisywała stan, którego już nigdzie nie ma: CI stawia
+`postgres:18-alpine` w sześciu usługach, produkcja ma 18, lokalny klaster
+18.6. Reguła, która dopuszcza konfigurację nieistniejącą u nikogo, nie chroni
+przed niczym — a przy tym usypia: każdy czyta ją jako „przetestowane na 16".
+
+**Numer.** Ta decyzja nosiła najpierw D-223. Po awarii 20.09 o ten sam
+numer stanęły trzy różne rozstrzygnięcia z trzech odzyskanych gałęzi, a
+`NumeryDecyzjiMajaWpisyTest` łapie duplikat numeru dopiero PO scaleniu —
+czyli wtedy, gdy odnośniki w kodzie już wskazują na dwie decyzje naraz.
+Numer przyznano tej pracy, która ma najmniej odnośników z zewnątrz:
+tutaj dwa, oba w `DEPLOYMENT_RUNBOOK.md`. Strażnik martwych reguł CSS
+zostaje przy D-223, bo jego numer siedzi w jedenastu miejscach i w nazwie
+katalogu dowodów `docs/design/evidence/kaskada223/`.
+
+**Kolejność zmiany jest częścią decyzji.** Najpierw reguła w `AGENTS.md`
+(`68099722`), dopiero potem próg w strażniku R60 (`d2ffccac`). Odwrotna
+kolejność uczyłaby, że regułę wolno wyprzedzić testem — a `AGENTS.md` jest
+jedynym źródłem prawdy projektu.
+
+**Zakres.** Zmienione cztery miejsca stawiające wymóg: tabela stacku
+w `AGENTS.md` i jej kopia w `README.md`, wymagania uruchomienia w `README.md`
+oraz wymagania własnego runnera w `docs/infra/CI_BEZ_ACTIONS.md`.
+
+**Czego świadomie NIE zmieniono.** Zapisów o POMIARACH wykonanych na 16.13
+(`SearchQuery`, `ProgPodobienstwa`, migracja z 9 września) ani notek „od
+PostgreSQL 17…" w migracjach i `docs/DATABASE.md`. To są fakty o silniku
+i cudze pomiary — przepisanie ich na 18 sfałszowałoby czyjś wynik.
+
+**Skutek dla runbooka.** `DEPLOYMENT_RUNBOOK.md` §6.3 zachowuje wariant „weź
+17 i zrób upgrade in-place", ale **wyłącznie jako drogę awaryjną odtworzenia
+po awarii**, gdy dostawca nie oferuje 18 w danej chwili. Nie jest to
+dopuszczalny stan docelowy, a upgrade staje się wtedy zadaniem do domknięcia.
+Procedurę trzymamy, bo improwizowanie jej w kryzysie kosztuje więcej niż
+zapisanie z góry.
+
+**Dowód, że próg nie jest martwą liczbą.** Podbicie go na chwilę na 19 oblewa
+strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
+„18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
+
+## D-233 — Rejestr potwierdzeń RODO tak, automatyczne kasowanie wpisów NIE (#1222 nie dotyczy)
+
+22 września 2026, jawna decyzja właściciela przy odbiorze gałęzi
+`naprawa/minimalne-potwierdzenie-rodo`. Gałąź robiła dwie rzeczy: zakładała
+rejestr potwierdzeń obsługi żądań RODO z zapisem **atomowym, w tej samej
+transakcji co skutek**, i włączała **automatyczne kasowanie tych wpisów po 36
+miesiącach, domyślnie, bez przełącznika**. Właściciel przyjmuje pierwszą część
+i wstrzymuje drugą.
+
+Autor gałęzi uzasadniał brak przełącznika zdaniem „wyłącznik retencji to
+bezterminowość pod inną nazwą”. Argument zostaje zapisany, bo jest sensowny
+i bo za tydzień ktoś wyprowadzi go ponownie. Nie przeważa jednak dwóch rzeczy.
+Po pierwsze, **okresu nie potwierdził prawnik**: 36 miesięcy to analogia do
+dokumentacji sprawy moderacyjnej (art. 442¹ k.c., D-057 i ADR_RETENCJE §4), nie
+ustalenie dla tej kategorii. Po drugie, kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby” nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą” — czyli nie jest znana nawet długość drogi odzysku.
+
+Wyłączenie stoi na dwóch niezależnych barierach, żeby nie zdejmowała go jedna
+pomyłka: `kuking.potwierdzenia_rodo.retencja_wlaczona` jest `false`, a zadanie
+`kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte w `routes/console.php`**.
+`retention_months` jest `null`, nie 36, więc samo przestawienie flagi nie
+uruchamia kasowania według okresu, którego nikt nie potwierdził. Komenda
+istnieje i jest przetestowana; `--na-sucho` działa mimo wyłączenia, bo tym mają
+zostać przygotowane dane historyczne.
+
+Ta decyzja **nie cofa** niczego, co gałąź zrobiła dobrze: dziewięciu ograniczeń
+CHECK, braku ekranu dla tej tabeli (osobny test skanuje trasy i widoki),
+zapamiętania zakresu żądania **przed** anonimizacją ani atomowości zapisu.
+Wyłączenie ma być zdjęte świadomie, po potwierdzeniu okresu — droga w trzech
+krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
+i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
+
+Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
+(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
+
+Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
+że domyślnie nic się nie kasuje i że po jawnym włączeniu automat działa.
+
+## D-238 — Cofnięcie migracji 2FA ODMAWIA, zamiast po cichu zdjąć drugi składnik (DB-01, 22 września 2026)
 
 **Data:** 22 września 2026 · **Naprawa znaleziska z audytu** (DB-01 z
 `docs/AUDYT_2026-09-13.md`, gałąź `claude/laughing-edison-sz4k69`) ·
