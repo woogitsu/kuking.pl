@@ -373,7 +373,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
     private function trasyZFragmentu(string $fragment): array
     {
         // Nie zaczynaj od sufiksu po @parametrze ani nie urywaj na rozszerzeniu.
-        preg_match_all('#(?<![\w/.@{}\-])(/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+(?:/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+)*/?)(?![\w/@{}\-])#u', $fragment, $trafienia);
+        preg_match_all('#(?<![\w/.@{}\-])(/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+(?:/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+)*/?\*?)(?![\w/@{}\-])#u', $fragment, $trafienia);
 
         return $trafienia[1];
     }
@@ -412,6 +412,16 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
 
     private function wygladaNaCosInnegoNizTrase(string $trasa): bool
     {
+        // Wzorzec ścieżki z gwiazdką (`/zdjecia/*` jako Cache Rule w
+        // Cloudflare, `location` w nginx) opisuje ZBIÓR adresów, a nie
+        // pojedynczą trasę Laravela — jego prefiks nie musi sam być trasą.
+        // Prawdziwy adres zdjęć to `zdjecia/{id}/{wariant}`, więc `/zdjecia/*`
+        // jest w dokumencie poprawne. Do 22 września 2026 parser gubił
+        // gwiazdkę i zgłaszał `/zdjecia/` jako martwą trasę.
+        if (str_ends_with($trasa, '*')) {
+            return true;
+        }
+
         $bezSlashy = trim($trasa, '/');
 
         if ($bezSlashy === '' || mb_strlen($bezSlashy) <= 2) {
