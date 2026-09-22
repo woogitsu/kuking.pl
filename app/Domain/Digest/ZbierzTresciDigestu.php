@@ -82,9 +82,9 @@ final class ZbierzTresciDigestu
         /** @var list<string> $identyfikatory */
         $identyfikatory = $odbiorcy->map(fn (User $u): string => (string) $u->getKey())->values()->all();
 
-        $wykonania = $this->wykonania($identyfikatory, $od);
-        [$nowiObserwujacy, $ileObserwujacych] = $this->nowiObserwujacy($identyfikatory, $od);
-        $wpisy = $this->wpisyObserwowanych($identyfikatory, $od);
+        $wykonania = $this->wykonania($identyfikatory, $od, $limit);
+        [$nowiObserwujacy, $ileObserwujacych] = $this->nowiObserwujacy($identyfikatory, $od, $limit);
+        $wpisy = $this->wpisyObserwowanych($identyfikatory, $od, $limit);
 
         $pytanie = $this->pytanieGospodarza();
 
@@ -95,10 +95,10 @@ final class ZbierzTresciDigestu
 
             $tresci[$id] = new TrescDigestu(
                 odbiorca: $odbiorca,
-                wykonania: array_slice($wykonania[$id] ?? [], 0, $limit),
-                nowiObserwujacy: array_slice($nowiObserwujacy[$id] ?? [], 0, $limit),
+                wykonania: $wykonania[$id] ?? [],
+                nowiObserwujacy: $nowiObserwujacy[$id] ?? [],
                 ileNowychObserwujacych: $ileObserwujacych[$id] ?? 0,
-                wpisyObserwowanych: array_slice($wpisy[$id] ?? [], 0, $limit),
+                wpisyObserwowanych: $wpisy[$id] ?? [],
                 pytanieGospodarza: $pytanie,
             );
         }
@@ -129,11 +129,12 @@ final class ZbierzTresciDigestu
      * @param  list<string>  $identyfikatory
      * @return array<string, list<CookedEvent>>
      */
-    private function wykonania(array $identyfikatory, Carbon $od): array
+    private function wykonania(array $identyfikatory, Carbon $od, int $limit): array
     {
-        $wiersze = CookedEvent::query()
+        $ranking = CookedEvent::query()
             ->select('cooked_events.*')
             ->addSelect('recipes.author_id as digest_odbiorca_id')
+            ->selectRaw('row_number() over (partition by recipes.author_id order by cooked_events.cooked_at desc, cooked_events.id desc) as digest_row_number')
             ->join('recipes', 'recipes.id', '=', 'cooked_events.recipe_id')
             ->whereNull('recipes.deleted_at')
             ->whereIn('recipes.author_id', $identyfikatory)
@@ -155,9 +156,15 @@ final class ZbierzTresciDigestu
                             ->whereColumn('blocks.blocked_id', 'recipes.author_id');
                     });
             })
-            ->with(['user.profile', 'recipe:id,title,slug,author_id'])
             ->orderByDesc('cooked_events.cooked_at')
-            ->orderByDesc('cooked_events.id')
+            ->orderByDesc('cooked_events.id');
+
+        $wiersze = CookedEvent::query()
+            ->fromSub($ranking, 'cooked_events')
+            ->where('digest_row_number', '<=', $limit)
+            ->with(['user.profile', 'recipe:id,title,slug,author_id'])
+            ->orderBy('digest_odbiorca_id')
+            ->orderBy('digest_row_number')
             ->get();
 
         $pogrupowane = [];
@@ -179,17 +186,25 @@ final class ZbierzTresciDigestu
      * @param  list<string>  $identyfikatory
      * @return array{0: array<string, list<User>>, 1: array<string, int>}
      */
-    private function nowiObserwujacy(array $identyfikatory, Carbon $od): array
+    private function nowiObserwujacy(array $identyfikatory, Carbon $od, int $limit): array
     {
-        $wiersze = DB::table('follows')
+        $ranking = DB::table('follows')
             ->join('users', 'users.id', '=', 'follows.follower_id')
             ->whereIn('follows.followed_id', $identyfikatory)
             ->where('follows.created_at', '>=', $od)
             // Ta sama granica co lista obserwujących na profilu (D-022):
             // konto zamknięte nie jest pokazywane JAKO OSOBA.
             ->whereNotIn('users.status', User::STATUSY_ZAMKNIETEGO_KONTA)
-            ->orderByDesc('follows.created_at')
-            ->get(['follows.followed_id', 'follows.follower_id']);
+            ->select(['follows.followed_id', 'follows.follower_id'])
+            ->selectRaw('row_number() over (partition by follows.followed_id order by follows.created_at desc, follows.follower_id desc) as digest_row_number')
+            ->selectRaw('count(*) over (partition by follows.followed_id) as digest_total');
+
+        $wiersze = DB::query()
+            ->fromSub($ranking, 'digest_follows')
+            ->where('digest_row_number', '<=', $limit)
+            ->orderBy('followed_id')
+            ->orderBy('digest_row_number')
+            ->get();
 
         if ($wiersze->isEmpty()) {
             return [[], []];
@@ -206,7 +221,7 @@ final class ZbierzTresciDigestu
 
         foreach ($wiersze as $wiersz) {
             $odbiorca = (string) $wiersz->followed_id;
-            $ile[$odbiorca] = ($ile[$odbiorca] ?? 0) + 1;
+            $ile[$odbiorca] = (int) $wiersz->digest_total;
 
             $osoba = $osoby->get((string) $wiersz->follower_id);
 
@@ -221,13 +236,11 @@ final class ZbierzTresciDigestu
     /**
      * Co pokazali ludzie, których adresat obserwuje — chronologicznie.
      *
-     * DWA ZAPYTANIA, NIE JEDNO ZŁĄCZENIE. Złączenie `follows` z `posts`
-     * zwracałoby ten sam wpis tylekroć, ilu odbiorców obserwuje jego autora
-     * — przy pięćdziesięciu odbiorcach i jednym gospodarzu, którego
-     * obserwują wszyscy (`config('kuking.community.host_username')`, każde
-     * nowe konto zaczyna od obserwowania gospodarza), byłoby to pięćdziesiąt
-     * kopii każdego jego wpisu wciągniętych do pamięci PHP. Osobno: raz
-     * relacje, raz wpisy, złączenie w PHP.
+     * Złączenie z `follows` jest celowe: pozwala PostgreSQL policzyć trzy
+     * najnowsze wpisy OSOBNO dla każdego odbiorcy. Ten sam wpis może pojawić
+     * się dla wielu odbiorców, ale `row_number()` odcina każdą partycję
+     * PRZED hydratacją. W pamięci jest więc najwyżej `liczba odbiorców ×
+     * limit`, zamiast całej historii wspólnego gospodarza.
      *
      * BRAMKA PRZEPISU W ZAPYTANIU WSPÓLNYM DLA WSZYSTKICH ODBIORCÓW (#368).
      * To jest jedyna trudność tej metody i warto ją nazwać wprost, bo
@@ -267,19 +280,15 @@ final class ZbierzTresciDigestu
      * @param  list<string>  $identyfikatory
      * @return array<string, list<Post>>
      */
-    private function wpisyObserwowanych(array $identyfikatory, Carbon $od): array
+    private function wpisyObserwowanych(array $identyfikatory, Carbon $od, int $limit): array
     {
-        $relacje = DB::table('follows')
-            ->whereIn('follower_id', $identyfikatory)
-            ->get(['follower_id', 'followed_id']);
-
-        if ($relacje->isEmpty()) {
-            return [];
-        }
-
-        $wpisy = Post::query()
+        $ranking = Post::query()
+            ->select('posts.*')
+            ->addSelect('follows.follower_id as digest_odbiorca_id')
+            ->selectRaw('row_number() over (partition by follows.follower_id order by posts.published_at desc, posts.id desc) as digest_row_number')
+            ->join('follows', 'follows.followed_id', '=', 'posts.author_id')
+            ->whereIn('follows.follower_id', $identyfikatory)
             ->published()
-            ->whereIn('author_id', $relacje->pluck('followed_id')->unique()->all())
             // Widoczność WPISU: „tylko dla obserwujących" wolno pokazać, bo
             // adresat OBSERWUJE autora — prywatne nie, nigdy i nikomu poza
             // autorem.
@@ -305,37 +314,26 @@ final class ZbierzTresciDigestu
             })
             ->tylkoOdAktywnychAutorow()
             ->where('published_at', '>=', $od)
-            ->with(['author.profile', 'recipe:id,title,slug'])
             ->orderByDesc('published_at')
-            ->orderByDesc('id')
+            ->orderByDesc('posts.id');
+
+        $wpisy = Post::query()
+            ->fromSub($ranking, 'posts')
+            ->where('digest_row_number', '<=', $limit)
+            ->with(['author.profile', 'recipe:id,title,slug'])
+            ->orderBy('digest_odbiorca_id')
+            ->orderBy('digest_row_number')
             ->get();
 
         if ($wpisy->isEmpty()) {
             return [];
         }
 
-        /** @var array<string, list<Post>> $wedlugAutora */
-        $wedlugAutora = [];
-
-        foreach ($wpisy as $wpis) {
-            $wedlugAutora[(string) $wpis->author_id][] = $wpis;
-        }
-
         /** @var array<string, list<Post>> $wynik */
         $wynik = [];
 
-        foreach ($relacje as $relacja) {
-            foreach ($wedlugAutora[(string) $relacja->followed_id] ?? [] as $wpis) {
-                $wynik[(string) $relacja->follower_id][] = $wpis;
-            }
-        }
-
-        // Kolejność po scaleniu autorów jest przypadkowa, a feed jest
-        // chronologiczny (AGENTS.md §8) — więc porządkujemy jeszcze raz,
-        // najnowsze pierwsze, tak samo jak na `/home`.
-        foreach ($wynik as $odbiorca => $lista) {
-            usort($lista, static fn (Post $a, Post $b): int => $b->published_at <=> $a->published_at);
-            $wynik[$odbiorca] = $lista;
+        foreach ($wpisy as $wpis) {
+            $wynik[(string) $wpis->getAttribute('digest_odbiorca_id')][] = $wpis;
         }
 
         return $wynik;
