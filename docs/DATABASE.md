@@ -2405,7 +2405,15 @@ rozstrzyga człowiek.
 Decyzje moderatorów.
 
 **`action varchar(40) NOT NULL`** — co moderator zrobił: `no_action`, `hide`,
-`unhide`, `remove`, `warn`, `suspend`, `ban`. **Bez CHECK-a w bazie**, bo
+`unhide`, `remove`, `warn`, `suspend`, `ban`, albo wewnętrzny wynik
+`target_unavailable`. Ten ostatni nie jest wyborem w formularzu: powstaje
+wyłącznie wtedy, gdy moderator świadomie wybiera „Bez działania”, a wskazany
+cel zniknął lub nie dał się ustalić przed pierwszą decyzją. Wtedy sprawa jest
+zamknięta jako `resolved`, ale nie zapisujemy sankcji ani nie twierdzimy, że
+oceniliśmy treść. Próba `hide`, `remove`, `warn`, `suspend` albo `ban` zostawia
+sprawę otwartą i wraca z błędem, zamiast tworzyć pozorną decyzję.
+
+**Bez CHECK-a w bazie**, bo
 dopuszczalna wartość zależy od `target_type` (konta nie da się „ukryć",
 zdjęcia nie da się „usunąć" osobno od wpisu) — macierz `target_type` →
 dozwolone działania trzyma `App\Models\ModerationAction::DOZWOLONE`, a CHECK
