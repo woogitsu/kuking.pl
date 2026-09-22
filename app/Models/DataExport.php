@@ -76,6 +76,7 @@ class DataExport extends Model
         return [
             'completed_at' => 'datetime',
             'expires_at' => 'datetime',
+            'notified_at' => 'datetime',
             'bytes' => 'integer',
         ];
     }

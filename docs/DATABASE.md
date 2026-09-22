@@ -3026,10 +3026,31 @@ przez `App\Jobs\GenerateUserExport` (migracja `2026_09_05_001100_create_data_exp
 | `disk`, `object_key` | Gdzie leży gotowe archiwum — wypełniane dopiero przy `ready`. |
 | `bytes` | Rozmiar gotowego pliku. |
 | `completed_at` | Kiedy paczka była gotowa. |
+| `notified_at` | Nullable `timestamptz`: kiedy transport przyjął list o gotowej paczce. Wpisuje jawnie `NotifyUserExportReady`, poza `$fillable`. Nie jest dowodem odczytania wiadomości. Migracja `2026_09_20_180000_add_notified_at_to_data_exports`. |
 | `expires_at` | Kiedy paczka przestaje być do pobrania — nie trzymamy w storage kopii całego konta bez końca; sprząta `App\Console\Commands\CleanUpDataExports`. |
 | `failure_reason` | Patrz niżej — **kod, nie zdanie**. |
 
 #### `failure_reason` — kod, nie wolny tekst (audyt W7-07)
+
+Od #820 list ma osobne zadanie `NotifyUserExportReady` (3 próby, przerwy
+120 i 300 sekund), z blokadą wiersza paczki i znacznikiem `notified_at`.
+Status `ready` oraz zapis zadania listu zatwierdzają się wspólnie; awaria
+transportu nie zmienia stanu paczki. Znacznik ogranicza duplikaty po ponownym
+doręczeniu zadania, ale nie daje gwarancji pojedynczego doręczenia przy
+zerwaniu połączenia po przyjęciu listu przez dostawcę.
+
+Rollback migracji przechodzi, gdy wszystkie znaczniki są puste. Przy choć
+jednym zapisanym odmawia, żeby cykl down/up nie odtworzył prawa do wysyłki.
+Przed ręcznym wycofaniem: zatrzymać workery, zakończyć lub bezpiecznie usunąć
+zadania `NotifyUserExportReady`, zachować kopię kolumny, wdrożyć poprzedni
+kod i dopiero wtedy usunąć kolumnę. Szczegóły i ograniczenia:
+`docs/infra/EKSPORT_NIEZAWODNOSC.md`.
+
+Prośba `queued` i zadanie budujące paczkę są od #824 jedną transakcją
+na tym samym połączeniu PostgreSQL. `ExportQueue` sprawdza tę zgodność
+z konfiguracją kolejki `database` i zapisuje job przed commitem.
+Podczas backoffu budowania stan pozostaje `processing` (#823), więc indeks
+jednego aktywnego eksportu nadal blokuje konkurencyjną prośbę.
 
 Kolumna jest renderowana wprost na ekranie ustawień
 (`resources/views/pages/settings/data.blade.php`), więc nie może zawierać

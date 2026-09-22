@@ -24,9 +24,9 @@ final class ExportFileNames
             $slug = 'przepis';
         }
 
-        // Krótki fragment identyfikatora na końcu: dwa szkice o tym samym
-        // tytule nie mogą nadpisać sobie plików.
-        return $slug.'-'.Str::substr((string) $recipe->getKey(), 0, 6).'.html';
+        // Prefiks UUID v7 koduje czas. Dopiero pełny identyfikator odróżnia
+        // przepisy o tej samej nazwie utworzone blisko siebie.
+        return $slug.'-'.(string) $recipe->getKey().'.html';
     }
 
     /** Nazwa pliku ZIP, jaką zobaczy człowiek w katalogu Pobrane. */
@@ -42,7 +42,7 @@ final class ExportFileNames
     {
         return sprintf('eksporty/%s/%s-%s',
             $export->user_id,
-            Str::substr((string) $export->getKey(), 0, 8),
+            (string) $export->getKey(),
             self::archiveFile($export),
         );
     }

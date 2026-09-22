@@ -34,6 +34,7 @@
             W środku znajdziesz plik, który wymienia wszystkie granice paczki.
         </p>
 
+        <p>Gotowość sprawdzisz tutaj, w sekcji „Twoje paczki”, także gdy e-mail jeszcze nie dotrze.</p>
         <form method="POST" action="{{ route('settings.data.export') }}">
             @csrf
             <button class="btn btn-primary" type="submit">Przygotuj paczkę z moimi danymi</button>
@@ -46,7 +47,12 @@
                     <li class="mb-4">
                         {{ \App\Support\Czas::data($export->created_at, 'j F Y, H:i') }} —
                         @switch($export->status)
-                            @case('ready') gotowa @break
+                            @case('ready')
+                                @if(isset($downloadUrls[$export->getKey()])) gotowa
+                                @elseif($export->expires_at !== null) wygasła
+                                @else niedostępna
+                                @endif
+                                @break
                             @case('queued') w kolejce @break
                             @case('processing') przygotowujemy @break
                             @case('failed') nie udało się przygotować @break
@@ -58,12 +64,14 @@
                             <a class="btn btn-primary mt-2"
                                href="{{ $downloadUrls[$export->getKey()] }}">Pobierz paczkę</a>
                             <br>
-                            <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y') }}.</span>
+                            <span class="field-help">Do pobrania do {{ \App\Support\Czas::data($export->expires_at, 'j F Y, H:i') }}.</span>
                         @elseif($export->status === 'failed')
                             {{-- Nigdy surowa kolumna: failureReasonLabel() zamienia kod
                                  (App\Models\DataExport::REASONS) na tekst po polsku,
                                  nawet gdy kod jest nieznany albo pusty (audyt W7-07). --}}
                             <br><span class="field-help">{{ $export->failureReasonLabel() }}</span>
+                        @elseif(in_array($export->status, ['ready', 'expired'], true))
+                            <br><span class="field-help">Tej paczki nie można już pobrać. Aby otrzymać nową, wybierz „Przygotuj paczkę z moimi danymi”.</span>
                         @endif
                     </li>
                 @endforeach
