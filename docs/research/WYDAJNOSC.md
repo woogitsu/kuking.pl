@@ -269,6 +269,358 @@ zgrubna, nie zmierzona) daje rząd 150–300 ms na wyszukanie hasła — to już
 zauważalne opóźnienie dla akcji, która ma być natychmiastowa. Zobacz issue
 otwarte w §5.
 
+#### 3.4a AKTUALIZACJA 9 września 2026 — pomiar na dziesięć razy większej bazie i CO Z TEGO WYSZŁO INACZEJ
+
+> Ta sekcja nie poprawia liczb wyżej — one zostają takie, jakie zmierzono.
+> Poprawia **diagnozę**, bo pomiar na większej bazie jej nie potwierdził.
+
+**Warunki.** PostgreSQL 16.13 (ten sam kontener, `SELECT version()`),
+osobna baza `kuking_pomiar_szukania`: **10 000 kont, 40 000 przepisów,
+80 000 wpisów, 80 000 składników, 80 blokad**. Dane z fabryk, tytuły ze
+słownika 150 polskich dań z diakrytykami. Bufory ciepłe (pierwszy przebieg
+odrzucany), mediana z 5 przebiegów `EXPLAIN (ANALYZE, BUFFERS, FORMAT JSON)`,
+`Planning + Execution`. Maszyna dzielona z innymi sesjami — między
+przebiegami widać ±10% rozrzutu, więc liczby poniżej mają sens jako rzędy
+wielkości i jako różnica PRZED/PO mierzona **obok siebie w tej samej sesji**,
+a nie jako wartości bezwzględne z dokładnością do dziesiątej milisekundy.
+
+**Co się nie potwierdziło.**
+
+1. **„`OR` w `WHERE` blokuje indeks trigramowy" — nie jako reguła.**
+   Próba kontrolna to `SearchQuery::people()`, która `OR` ma do dziś: trzy
+   warunki `LIKE` na trzech kolumnach `profiles`. PostgreSQL składa z nich
+   `BitmapOr` z trzech `Bitmap Index Scan` i tabeli nie czyta (7,6 ms przy
+   10 000 profili). Rozstrzyga nie słowo `OR`, tylko to, czy wszystkie
+   człony siedzą na **jednej tabeli**. Stary `recipes()` miał czwarty człon
+   jako skorelowany `EXISTS` na `recipe_ingredients` — takiego składnika
+   `BitmapOr` przyjąć nie może, więc cała alternatywa spadała do `Filter`
+   na pełnym skanie. To jest prawdziwa treść tamtej obserwacji.
+
+2. **„Koszt rośnie z liczbą kont" — nie na tej skali.** Przy 10 000 kont
+   `users` nie steruje niczym: jest budowaną raz stroną `Hash Join`
+   (9 500 wierszy, ~2–3 ms). Plan z §3.4, w którym `users` jest sterownikiem
+   pętli, nie odtworzył się ani razu.
+
+**Co się potwierdziło — objaw, nie mechanizm.** Koszt naprawdę rośnie
+z rozmiarem tabeli `recipes`, tylko z zupełnie innego powodu, niż zgadywało
+issue. Indeksy trigramowe **są używane** (`Bitmap Index Scan` we wszystkich
+czterech gałęziach `UNION ALL`). Problem jest o krok dalej: indeks GIN dla
+operatora `%` jest **stratny**, więc każdy kandydat sprawdzany jest po raz
+drugi na wierszu tabeli — a przy progu podobieństwa 0,12
+(`App\Support\ProgPodobienstwa`) kandydatów jest bardzo dużo:
+
+| fraza | kandydaci z indeksu | zostaje po rechecku | czas gałęzi |
+|---|---:|---:|---:|
+| `pierogi` | 17 644 | 1 783 | 118,8 ms |
+| `żurek` | 24 080 | 776 | 151,2 ms |
+| `ser` | 15 160 | 360 | 105,5 ms |
+| `xyzqva` | 0 | 0 | 0,1 ms |
+
+Czyli: dla frazy, która **cokolwiek** trafia, PostgreSQL przepuszcza przez
+recheck 35–60% tabeli i dla każdego wiersza liczy `kuking_normalize()`
+(`unaccent()` po słowniku) od nowa. Dla frazy, która nie trafia nic
+(`xyzqva`), całe zapytanie kosztuje ~1 ms — więc „koszt niezależny od liczby
+trafień" też nie jest prawdą w tej ostrej formie.
+
+**Drugi, osobny przypadek: fraza 2-znakowa.** `LIKE '%ry%'` nie da się
+obsłużyć indeksem trigramowym (dwa znaki to zero trigramów). Plan spada
+wtedy do `Parallel Seq Scan on recipes`, a na `recipe_ingredients` do skanu
+indeksu oddającego **wszystkie 80 000 wierszy** i rechecku każdego z nich.
+To jedyny zmierzony przypadek, w którym indeks jest naprawdę pomijany —
+i wchodzi w grę, bo `SearchController` przepuszcza frazy od 2 znaków.
+
+**Co z tym zrobiono.** Znormalizowany tekst przeniesiono do kolumn
+generowanych `*_search` (migracja
+`2026_09_09_100000_materialize_search_columns`), a indeksy GIN stoją teraz
+na kolumnach, nie na wyrażeniu. Recheck czyta gotowy tekst, zamiast liczyć
+`unaccent()` raz na wiersz. Zmierzone obok siebie, ta sama baza, ta sama
+sesja, `SearchQuery::recipes()` / `::people()` w całości:
+
+| fraza | przed | po |
+|---|---:|---:|
+| `ser` | 225,5 ms | 149,3 ms |
+| `ry` (2 znaki) | 292,2 ms | 146,9 ms |
+| `pierogi` | 160,0 ms | 119,1 ms |
+| `pierogi z kapusta i grzybami` | 192,5 ms | 154,0 ms |
+| `żurek` | 178,7 ms | 118,6 ms |
+| `gołąbki` | 140,7 ms | 93,6 ms |
+| `sernk` (literówka) | 122,0 ms | 84,0 ms |
+| `xyzqva` (nic nie znajduje) | 1,19 ms | 1,00 ms |
+| `people('ry')` | 67,7 ms | 10,0 ms |
+| `people('pierogi')` | 8,8 ms | 5,3 ms |
+| `people('pierogi z kapusta i grzybami')` | 0,50 ms | **3,12 ms** |
+
+**Jedna pozycja jest gorsza i tak ma zostać zapisane.** Przy długiej frazie
+`people()` przestaje wybierać `BitmapOr` i idzie `Seq Scan on profiles`:
+filtr po kolumnie jest tani, więc kosztorys skanu sekwencyjnego spadł
+PONIŻEJ kosztorysu ścieżki indeksowej i planner zmienił zdanie. 2,5 ms
+różnicy przy 10 000 profili, ale rośnie liniowo z liczbą kont. Zostawione
+świadomie: to samo uproszczenie filtra daje przy frazie 2-znakowej
+67,7 → 10,0 ms, czyli bilans na `people()` jest dodatni.
+
+**Trafność sprawdzona osobno.** 26 fraz × 2 metody (dania, literówki, brak
+diakrytyków, wielkie litery, składniki, imię, nazwa konta, fraza bez trafień,
+frazy 2-znakowe): zbiór wyników i ich kolejność **identyczne co do wiersza**
+przed i po. To jest zmiana kosztu, nie wyszukiwarki.
+
+**Czego ta zmiana NIE naprawia — i dlaczego to osobna sprawa.** Rekordzistą
+w koszcie zostaje recheck 17–24 tysięcy kandydatów, tylko dwa razy tańszy.
+Mechanizm zostaje: liczba kandydatów wynika z progu 0,12 przy operatorze `%`,
+który mierzy podobieństwo do CAŁEGO tytułu. Zmierzony wariant: operator
+`<%` (`word_similarity`, próg domyślny 0,6) na tym samym indeksie GIN daje
+dla `pierogi` **777 wierszy w 7,3 ms zamiast 17 644 kandydatów w 118 ms**,
+zachowuje literówkę (`word_similarity('sernk', 'sernik babci haliny')`
+= 0,67 przy progu 0,6) i wycina śmieci (dzisiejsze `%` przy 0,12 zwraca
+21 „wyników" na frazę `sajgonki z krewetkami`, których w bazie nie ma
+wcale; `<%` zwraca zero w 0,95 ms). To jest jednak zmiana TRAFNOŚCI, czyli
+decyzja produktowa — a `AGENTS.md` §10 mówi wprost, żeby nowych pomysłów
+nie doklejać do niepowiązanego PR-a. Należy jej osobne issue z tymi liczbami.
+
+> **Zrobione:** issue #187, decyzja właściciela i pomiar tego, co ta zmiana
+> gubi — §3.4b niżej. Liczby powyżej zostają takie, jakie zmierzono na tamtej
+> bazie; §3.4b mierzy na własnej i mówi wprost, że korpus jest inny.
+
+#### 3.4b 9 września 2026 — operator `<%` zamiast `%`: CO WYSZUKIWARKA PRZESTAJE ZNAJDOWAĆ (issue #187)
+
+> Ta sekcja nie poprawia liczb z §3.4 ani §3.4a — one zostają. Dokłada pomiar
+> tego, o co §3.4a się tylko otarła: **zmiany TRAFNOŚCI**. Poprzednia zmiana
+> (PR #185) mogła uczciwie napisać „zbiór wyników identyczny co do wiersza".
+> Ta nie może i nie próbuje: z definicji zmienia, co wyszukiwarka znajduje.
+
+**Decyzja właściciela (wiążąca):** przechodzimy z operatora `%` (podobieństwo
+do CAŁEGO tytułu, próg 0,12) na `<%` (`word_similarity` — podobieństwo do
+najlepiej pasującego FRAGMENTU tytułu). Powód: przy 0,12 fraza „sajgonki
+z krewetkami" zwracała wyniki w bazie, w której nie ma ani jednej sajgonki,
+a to wygląda jak zepsuta wyszukiwarka. Zadaniem tego pomiaru nie było
+rozstrzygać wyboru, tylko **pokazać jego cenę**.
+
+**Warunki.** PostgreSQL **16.13** (kontener agenta; produkcja ma 18 —
+ta różnica jest odnotowana, nie ukryta), osobna baza `kuking_pomiar_trafnosc_a845`
+(skasowana po pomiarze): **10 000 kont, 40 000 przepisów, 80 000 składników,
+80 blokad**, 1 446 tagów i 2 542 aliasy ze `TagSeeder`. Tytuły ze słownika
+160 polskich dań × 40 dopełnień, dobierane niezależnym hashem, 40% tytułów to
+samo danie („Pierogi", „Rosół z kury"). Bufory ciepłe, mediana z 5 przebiegów.
+
+⚠️ **Baza z §3.4a już nie istnieje** (poprzedni agent ją posprzątał), a jej
+generator nie jest w repozytorium — korpus jest więc INNY i liczby bezwzględne
+nie są porównywalne z §3.4a (tam „pierogi" dawało 17 644 kandydatów, tu 18 178,
+ale to zbieżność, nie ta sama baza). Porównywalne jest to, co zmierzono
+**obok siebie, w tej samej bazie i sesji**: PRZED kontra PO.
+
+##### Próg: 0,5, a nie domyślne 0,6 — i to jest wynik pomiaru, nie gust
+
+Issue #187 zakładało próg domyślny (0,6). Przy 0,6 z wyszukiwarki znikają
+trafienia, których nikt nie zamawiał — „szybka wyszukiwarka, która przestała
+znajdować rosół, jest gorsza niż wolna". Zmierzone (liczba trafień gałęzi
+trigramowej):
+
+| fraza | word_similarity do celu | `<%` 0,6 | `<%` 0,5 | `<%` 0,4 |
+|---|---:|---:|---:|---:|
+| `rosul` (typowa pisownia „rosuł") | 0,50 do „Rosół" | **0** | 782 | 782 |
+| `piergi` | 0,57 do „Pierogi" | **0** | 1 313 | 1 313 |
+| `kotlet schabowy z ziemniakami` | 0,55 do „Kotlet schabowy …" | 45 | 232 | 232 |
+| `pierogi ruskie babci haliny` | — | 9 | 246 | 246 |
+| `gołombki` | 0,42 do „Gołąbki" | 0 | **0** | 263 |
+
+A tak rośnie śmieć przy schodzeniu z progiem (wiersze NIEZAWIERAJĄCE szukanego
+dania):
+
+| fraza | `%` 0,12 | `<%` 0,6 | `<%` 0,5 | `<%` 0,4 | `<%` 0,3 |
+|---|---:|---:|---:|---:|---:|
+| `pierogi` | 1 485 | 0 | 760 | 4 024 | 4 024 |
+| `sajgonki z krewetkami` | 1 621 | 0 | 0 | 0 | 0 |
+| `tortilla z kurczakiem` | 3 209 | 0 | 0 | 233 | 725 |
+| `kartacze` | 384 | 0 | 0 | 0 | 704 |
+| `żurek` | 0 | 0 | 0 | 0 | 2 150 |
+| `rosół` | 96 | 0 | 0 | 0 | 1 565 |
+
+**Wybrano 0,5.** Odzyskuje literówki, których 0,6 nie przepuszcza, i pełną
+trafność długich fraz, a kanarki z issue (`sajgonki z krewetkami`, `kartacze`,
+`tortilla z kurczakiem`) dalej zwracają zero. Zejście do 0,4 kupuje jedną
+frazę („gołombki") za 3 264 nowe śmieci przy „pierogach" — bilans ujemny.
+
+⚠️ **0,5 leży dokładnie na granicy dla „rosul"** (word_similarity = 0,5000).
+Zmierzone: `<%` porównuje `>=`, mimo że dokumentacja PostgreSQL mówi „greater
+than" — trafienie równe progowi wchodzi. Gdyby to się zmieniło, rosół zniknie
+z wyników; pilnuje tego `TrafnoscWyszukiwarkiTest::test_literowki_nadal_znajduja_przepis`.
+
+##### Tabela różnic — 38 fraz, cały wynik `SearchQuery::recipes()`, nie sama gałąź
+
+„Znika" i „dochodzi" liczone na PEŁNYM zbiorze wyników (wszystkie cztery
+gałęzie razem, filtr widoczności i aktywności autora włączony), nie na
+pierwszej dwudziestce.
+
+| fraza | `%` 0,12 | `<%` 0,5 | znika | dochodzi | co znika (najliczniejsze tytuły) |
+|---|---:|---:|---:|---:|---|
+| `żurek` | 2155 | 2155 | 0 | 0 | — |
+| `zurek` | 2155 | 2155 | 0 | 0 | — |
+| `gołąbki` | 374 | 253 | 121 | 0 | „Golonka w piwie" ×94; „Flaki po góralsku" ×6; „Flaki dla gości" ×5; … +6 tytułów |
+| `golabki` | 374 | 253 | 121 | 0 | jak wyżej (normalizacja daje tę samą frazę) |
+| `rosół` | 839 | 747 | 92 | 0 | „Rogaliki" ×92 |
+| `ROSÓŁ` | 839 | 747 | 92 | 0 | „Rogaliki" ×92 |
+| `pierogi` | 2654 | 1955 | 902 | 203 | „Gęś pieczona" ×101; „Udka z piekarnika" ×93; „Kaczka pieczona" ×92; … +58 tytułów |
+| `sernik` | 1501 | 992 | 519 | 10 | „Drożdżówka z serem" ×92; „Krupnik" ×92; „Makaron z serem" ×88; … +49 tytułów |
+| `bigos` | 493 | 493 | 0 | 0 | — |
+| `barszcz` | 792 | 696 | 96 | 0 | „Bogracz" ×94; „Bogracz jak u babci" ×2 |
+| `makowiec` | 456 | 225 | 231 | 0 | „Makaron z serem" ×88; „Mazurek" ×78; „Mazurek na święta" ×6; … +18 tytułów |
+| `placki ziemniaczane` | 984 | 462 | 522 | 0 | „Ziemniaki z koperkiem" ×96; „Pączki" ×89; „Placek po zbójnicku" ×86; … +72 tytułów |
+| `pierogy` (literówka) | 2633 | 1955 | 890 | 212 | „Gęś pieczona" ×101; „Udka z piekarnika" ×93; „Kaczka pieczona" ×92; … +54 tytułów |
+| `sernk` (literówka) | 816 | 1481 | 0 | 665 | — (nic nie znika; dochodzą „Sernik babci Haliny …" i tytuły „… z serem") |
+| `kotlet schabwy` (literówka) | 1863 | 223 | 1640 | 0 | **„Schabowy" ×95**; **„Kotlety mielone" ×89**; „Schab ze śliwką" ×108; „Kotlety z kaszy" ×93; … +267 tytułów |
+| `gołombki` (literówka) | 485 | 0 | 485 | 0 | **„Gołąbki" ×104**; „Golonka w piwie" ×94; … +79 tytułów |
+| `rosul` (literówka) | 559 | 747 | 92 | 280 | „Rogaliki" ×92 (dochodzą 280 rosołów, których `%` nie znajdowało) |
+| `piergi` (literówka) | 2778 | 1955 | 1046 | 223 | „Gęś pieczona" ×101; „Kaczka pieczona" ×92; … +75 tytułów (same pierogi zostają) |
+| `pierogi z kapustą i grzybami` | 4971 | 288 | 4683 | 0 | „Pierogi z mięsem" ×110; „Kiszona kapusta" ×108; „Uszka z grzybami" ×103; … +880 tytułów |
+| `sernik babci haliny` | 2138 | 830 | 1308 | 0 | „Piernik" ×103; **„Sernik" ×99**; „Bliny" ×91; … +248 tytułów |
+| `zupa krem z dyni` | 3448 | 490 | 2958 | 0 | „Zupa jarzynowa" ×121; „Zupa ogórkowa" ×120; „Zupa cebulowa" ×117; … +462 tytułów |
+| `kotlet schabowy z ziemniakami` | 3167 | 223 | 2944 | 0 | „Zapiekanka ziemniaczana" ×109; **„Schabowy" ×95**; „Ziemniaki z koperkiem" ×96; … +482 tytułów |
+| `żurek na zakwasie z jajkiem` | 3209 | 279 | 2930 | 0 | **„Żurek z białą kiełbasą" ×99**; „Jajecznica na maśle" ×92; „Chleb na zakwasie" ×89; … +625 tytułów |
+| `ciasto drożdżowe z kruszonką` | 1115 | 250 | 865 | 0 | „Zupa krem z dyni" ×102; „Drożdżówka z serem" ×92; **„Bułeczki drożdżowe" ×78**; … +137 tytułów |
+| `pierogi ruskie babci haliny` | 2989 | 316 | 2673 | 0 | **„Pierogi z kapustą i grzybami" ×111**; **„Pierogi z mięsem" ×110**; „Piernik" ×103; … +490 tytułów |
+| `gulasz węgierski z papryką` | 1642 | 210 | 1432 | 0 | „Pasztet z królika" ×114; **„Kasza gryczana z gulaszem" ×95**; „Papryka konserwowa" ×95; … +237 tytułów |
+| `mąka` (składnik) | 4726 | 4575 | 189 | 38 | „Surówka z marchewki" ×93; „Mazurek" ×69; … +8 tytułów |
+| `grzyby suszone` (składnik) | 2885 | 1783 | 1102 | 0 | **„Zupa grzybowa" ×91**; **„Uszka z grzybami" ×100**; „Kiszone ogórki" ×111; … +153 tytułów |
+| `kapusta kiszona` (składnik) | 3135 | 2195 | 940 | 0 | „Kiszone ogórki" ×109; „Kanapki z pastą" ×99; „Kaczka pieczona" ×90; … +136 tytułów |
+| `twaróg` (składnik) | 1492 | 1532 | 0 | 40 | — (dochodzi „Twarożek ze szczypiorkiem …") |
+| `koperek` (składnik) | 2493 | 1992 | 501 | 0 | „Kopytka" ×98; „Kołduny" ×95; „Mazurek" ×78; … +26 tytułów |
+| `ry` (2 znaki) | 7084 | 7000 | 84 | 0 | „Rosół" ×84 |
+| `ka` (2 znaki) | 24359 | 24359 | 0 | 0 | — |
+| `se` (2 znaki) | 4286 | 4286 | 0 | 0 | — |
+| `xyzqva` (bez trafień) | 0 | 0 | 0 | 0 | — |
+| `sajgonki z krewetkami` | 1526 | **0** | 1526 | 0 | „Knedle ze śliwkami" ×103; „Zupa krem z dyni" ×102; … +256 tytułów |
+| `kartacze` | 375 | **0** | 375 | 0 | „Karp smażony" ×102; „Kaczka pieczona" ×92; … +5 tytułów |
+| `tortilla z kurczakiem` | 3050 | **0** | 3050 | 0 | „Żurek z białą kiełbasą" ×99; „Tort bezowy" ×97; … +599 tytułów |
+
+**Co z tego jest realną stratą** (pogrubione wyżej), a nie sprzątaniem:
+
+1. **`gołombki` przestaje znajdować cokolwiek** — 104 gołąbki znikają. Jedyna
+   fraza w tym zestawie, która z pełnego wyniku spada do zera. Cena progu 0,5.
+2. **Literówka w długiej frazie gubi dania pokrewne.** „kotlet schabwy"
+   zostawia same „Kotlety schabowe" — znika „Schabowy" (95), „Kotlety mielone"
+   (89), „Schab ze śliwką" (108). Dla kogoś, kto szukał czegoś schabowego,
+   to zawężenie; dla kogoś, kto szukał kotleta schabowego — porządek.
+3. **Długa fraza nie zaciąga już dań pokrewnych po jednym słowie.**
+   „pierogi ruskie babci haliny" przestaje pokazywać „Pierogi z mięsem"
+   i „Pierogi z kapustą i grzybami". To jest największa pojedyncza zmiana
+   zachowania i **największe ryzyko** tej decyzji: fraza opisowa zamiast
+   dokładnej („pierogi ruskie babci haliny", gdy w bazie są tylko „Pierogi
+   ruskie") zwraca dziś mniej. Rekompensata: te same pierogi znajdzie fraza
+   krótsza („pierogi" → 1 955 wyników), a wyniki nie są już wymieszane
+   z piernikami.
+4. **Składnik wpisany jako fraza gubi tytuły pokrewne.** „grzyby suszone" nie
+   pokazuje już „Zupy grzybowej" ani „Uszek z grzybami", jeśli nie mają
+   dokładnie takiego składnika. Ścieżka po składniku (`recipe_ingredients`)
+   działa bez zmian, więc przepisy Z suszonymi grzybami zostają.
+5. **`ry` gubi „Rosół"** (84 wiersze) — dwuznakowa fraza to zawsze loteria,
+   ale wypada to zapisać.
+
+Reszta „znika" to jednoznaczny śmieć: „rosół" → „Rogaliki", „barszcz" →
+„Bogracz", „gołąbki" → „Golonka w piwie", „sajgonki z krewetkami" → „Knedle
+ze śliwkami".
+
+**Co DOCHODZI** (kolumna „dochodzi" powyżej): to nie jest przypadek.
+`<%` znajduje trafienia, których `%` nie widziało, bo tytuł był za długi:
+„sernk" dostaje 665 nowych wierszy (m.in. wszystkie „Sernik babci Haliny …"),
+„rosul" 280 rosołów, „twaróg" 40 „Twarożków ze szczypiorkiem".
+
+##### Koszt: kandydaci z indeksu, nie tylko czas
+
+Sama gałąź trigramowa (`EXPLAIN (ANALYZE, BUFFERS)`, `enable_seqscan = off`,
+mediana z 3 przebiegów po rozgrzewce):
+
+| fraza | `%` kandydaci → trafienia | `%` ms | `<%` kandydaci → trafienia | `<%` ms |
+|---|---|---:|---|---:|
+| `pierogi` | 18 178 → 2 798 | 62,2 | 2 134 → 2 073 | 9,9 |
+| `żurek` | 20 450 → 987 | 75,6 | 987 → 987 | 4,5 |
+| `zupa krem z dyni` | 19 288 → 3 626 | 92,8 | 573 → 509 | 5,0 |
+| `pierogi z kapustą i grzybami` | 11 600 → 5 249 | 72,6 | 365 → 306 | 7,5 |
+| `sernik` | 12 765 → 1 580 | 45,7 | 1 052 → 1 041 | 4,4 |
+| `sajgonki z krewetkami` | 13 170 → 1 621 | 73,7 | 0 → 0 | 1,4 |
+| `ka` (2 znaki) | 19 013 → 870 | 65,0 | 5 553 → 4 099 | 25,7 |
+
+Recheck stratnego indeksu przestaje być głównym kosztem: przy `%` odrzucał
+5–19 tysięcy wierszy na frazę, przy `<%` **zero albo kilkadziesiąt**.
+
+Całe `SearchQuery::recipes()` (limit 20, przez kod aplikacji, mediana z 5):
+
+| fraza | przed (`%` 0,12) | po (`<%` 0,5) |
+|---|---:|---:|
+| `ser` | 82,9 ms | 59,2 ms |
+| `ry` (2 znaki) | 122,7 ms | 139,7 ms |
+| `pierogi` | 64,4 ms | 60,7 ms |
+| `pierogi z kapusta i grzybami` | 141,2 ms | **27,4 ms** |
+| `żurek` | 104,2 ms | 47,3 ms |
+| `gołąbki` | 62,2 ms | 14,5 ms |
+| `sernk` | 59,9 ms | 36,9 ms |
+| `rosół` | 41,8 ms | 25,4 ms |
+| `sajgonki z krewetkami` | 96,1 ms | **6,1 ms** |
+| `xyzqva` | 3,1 ms | 3,9 ms |
+| `grzyby suszone` | 74,0 ms | 49,9 ms |
+| `placki ziemniaczane` | 52,9 ms | 25,3 ms |
+| `people('pierogi')` | 7,4 ms | 7,0 ms |
+
+**Fraza 2-znakowa nie poprawiła się i nie miała jak** — `LIKE '%ry%'` to zero
+trigramów, więc koszt siedzi w gałęziach `LIKE`, nie w operatorze podobieństwa
+(to samo mówi §3.4a). 122,7 → 139,7 ms mieści się w rozrzucie ±10% maszyny
+dzielonej z innymi sesjami; nie ma tu poprawy ani regresji.
+
+##### Kolejność wyników: `word_similarity`, potem `similarity`
+
+Rozstrzygnięte pomiarem pozycji, nie teorią. Trzy warianty na tym samym
+zbiorze wyników:
+
+| wariant | „pierogi": ile przepisów „Pierogi …" stoi ZA pierwszym „Piernikiem" | „sernk": ile „Pierników" stoi PRZED pierwszym „Sernikiem babci Haliny" |
+|---|---:|---:|
+| a) `similarity` (jak dotąd) | **722** | **6** |
+| c) `word_similarity`, potem `similarity` | 0 | 0 |
+
+Wariant b) (samo `word_similarity`) odpada z innego powodu: wszystkie tytuły
+zawierające całe szukane słowo mają 1,00, więc o kolejności decyduje data —
+przy frazie „żurek" pierwszą dziesiątkę zajmują „Żurek na zakwasie mojej
+mamy" i podobne, a sam „Żurek" spada na dziesiąte miejsce. Wariant c) trzyma
+dokładny tytuł na pozycji 1 tak samo jak dziś, a jednocześnie nie pozwala
+krótkiemu, przypadkowo podobnemu tytułowi („Piernik") wyprzedzić prawdziwych
+trafień. Dlatego wybrano c).
+
+`SearchQuery::people()` zostaje przy `similarity`: dopasowanie idzie tam przez
+`LIKE`, zbiór wyników nie zależy od żadnej miary podobieństwa, a nazwy profili
+są krótkie — nie ma czego naprawiać.
+
+##### Podpowiedzi tagów (`TagSuggester`) — ta sama zmiana, ten sam indeks
+
+Czwarta gałąź podpowiedzi używała `%` z tym samym progiem 0,12. Przeszła na
+`<%` 0,5 razem z wyszukiwarką: dwa progi w dwóch miejscach to rozjazd, który
+w tym repozytorium wychodził już kilka razy. Indeks `tags_name_trgm_idx` stoi
+na wyrażeniu i obsługuje `<%` przez komutator `%>` (`Bitmap Index Scan`,
+0,2 ms) — **żadnej migracji**. Zmierzone na pełnym słowniku (1 446 tagów),
+wpisane → podpowiedzi:
+
+| wpisane | `%` 0,12 | `<%` 0,5 |
+|---|---|---|
+| `pierogy` | pierogi, pierogi ruskie, **piernik**, pierogi z kaszą… | same pierogi (ruskie, z grzybami, z jabłkami, z jagodami…) |
+| `bezglutenowe` | bez glutenu, **ciasto bezowe**, **bezy**, **bez ryb**, **bez soi**… | bez glutenu |
+| `wegetarianskie` | wegetariańskie, wegańskie, **borówki amerykańskie**, **orzechy włoskie** | wegetariańskie |
+| `kotlet schabwy` | kotlet schabowy, kotlety, schab, kotlety rybne… | kotlet schabowy |
+| `zakwas na barszc` | zakwas na barszcz biały, zakwas na żurek, zakwas, barszcz… | zakwas na barszcz biały, zakwas na żurek, chleb na zakwasie |
+| `golombki` | gołąbki, golonka, gołąbki z kaszą… | **— (nic)** |
+| `chleb`, `zupa`, `maka`, `sernik` | — | bez zmian |
+
+Ta sama cena co w wyszukiwarce i w tym samym miejscu: ciężka literówka
+fonetyczna przestaje podpowiadać. 16 z 20 sprawdzonych fraz zmienia listę,
+w 15 przypadkach przez wycięcie podpowiedzi niezwiązanych z wpisanym słowem.
+
+##### Czego ten pomiar NIE obejmuje
+
+- **PostgreSQL 18** (produkcja). Mierzone na 16.13; `word_similarity`
+  i `gin_trgm_ops` są w obu, ale planów na 18 nie sprawdzono.
+- **Prawdziwych fraz użytkowników.** `search_performed` zbiera `query_length`,
+  nie treść frazy (świadomie) — lista 38 fraz jest ułożona ręcznie i to jest
+  jej ograniczenie, mimo że pokrywa kategorie z issue #187.
+- **Wpływu na `people()` poza czasem** — tam nic się nie zmieniło, bo ta
+  metoda nigdy nie używała operatora trigramowego.
+- **Progu innego niż zmierzone** (0,25–0,6 co 0,05). Przy zmianie `PROG`
+  trzeba ten pomiar powtórzyć — jest to jedna liczba w `App\Support\ProgPodobienstwa`.
+
 ### 3.5 Panel moderacji (replika `ModerationController::reports`)
 
 Wzorcowe zapytanie. `WHERE status = 'open'` trafia w indeks częściowy

@@ -7,9 +7,8 @@
   "start_url": "/home",
   "scope": "/",
   "display": "standalone",
-  "orientation": "portrait-primary",
-  "background_color": "#FAF6F0",
-  "theme_color": "#B3401F",
+  "background_color": "#F3F4F1",
+  "theme_color": "#151714",
   "categories": ["food", "social", "lifestyle"],
   "icons": [
     {

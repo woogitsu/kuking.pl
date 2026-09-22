@@ -1,0 +1,325 @@
+/*
+ * Lista kont w panelu moderacji — `/admin/uzytkownicy`.
+ * ---------------------------------------------------------------------------
+ * OSOBNY PLIK, nie dopisek do app.css. Ten sam powód, który app.css podaje
+ * przy arkuszach ekranów z etapu D: nad panelem pracuje w tym samym czasie
+ * kilka zleceń, a wspólny plik znaczy, że jedno nadpisuje drugie przy scalaniu.
+ * Ten arkusz DOPISUJE klasy do @layer components, nie zmienia żadnej cudzej.
+ *
+ * PIERWSZA PRAWDZIWA TABELA W PRODUKCIE. Do tej pory `<table>` żyło wyłącznie
+ * w dokumentach prawnych (`.prose .table-scroll`) i w listach mailowych.
+ * Lista kont musi być tabelą, a nie kartami: przy tysiącu kont moderator
+ * porównuje WIERSZE — datę rejestracji z datą ostatniej wizyty, status
+ * z liczbą wpisów — a karty rozbijają to porównanie na osobne prostokąty.
+ *
+ * ZASADY UX 50+, KTÓRE TA TABELA MUSI SPEŁNIĆ (docs/UX_50_PLUS.md):
+ *
+ *  * tekst po `--text-body` (18 px), nigdy „drobnym drukiem tabelki";
+ *  * przewijanie w poziomie ZAMKNIĘTE W SWOIM KONTENERZE — strona przy 320 px
+ *    nie może jeździć w bok razem z nagłówkiem i menu (WCAG 2.2 AA, 1.4.10
+ *    Reflow). To jest ta sama poprawka, którą `.prose .table-scroll` wprowadził
+ *    dla polityki prywatności, tylko że tam owijanie dokłada kontroler,
+ *    a tu stoi wprost w widoku;
+ *  * kontener przewijany jest SFOKUSOWALNY (`tabindex="0"` w widoku) — samo
+ *    `overflow-x: auto` jest nieosiągalne z klawiatury (axe:
+ *    `scrollable-region-focusable`, WCAG 2.1.1);
+ *  * nagłówek kolumny, który sortuje, jest ODNOŚNIKIEM o wysokości pola
+ *    kliknięcia `--control-height-min` (48 px) — nie ikoną strzałki, nie
+ *    samym `↑`. Kierunek sortowania mówi też tekst dla czytnika ekranu
+ *    (`aria-sort` na `<th>`).
+ */
+
+@layer components {
+
+  /* Pasek filtrów nad tabelą: szukanie, zakres dat, „bez wpisów".
+     Zawija się na wąskim ekranie zamiast ściskać pola. */
+  .filtry-kont {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: flex-end;
+    gap: var(--spacing-4);
+    margin-bottom: var(--spacing-5);
+  }
+
+  /*
+   * BLOK POLA W PASKU FILTRÓW MUSI DAĆ SIĘ ZWĘZIĆ DO SWOJEJ KOLUMNY
+   * (issue #294, trzecie znalezisko — tym razem z CI, Chromium 153).
+   *
+   * `min-width: 0` i `overflow-wrap: anywhere` NIE SĄ TU OZDOBĄ. To ten sam
+   * wzorzec i to samo uzasadnienie, co przy `.szyna-tytul` w app.css
+   * (issue #205): element `flex` ma domyślnie `min-width: auto`, czyli nie
+   * zejdzie poniżej swojej SZEROKOŚCI MINIMALNEJ (min-content) — a tę
+   * wyznacza najdłuższe słowo w środku. Przy podwojonej czcionce
+   * przeglądarki jedno słowo bywa szersze niż cała kolumna treści.
+   *
+   * ZMIERZONE na `/admin/uzytkownicy`, okno 320 px, czcionka przeglądarki
+   * 200% (CDP `Page.setFontSizes` 32 px, tak jak w `scripts/dostepnosc.mjs`),
+   * Chromium 141:
+   *
+   *   * kolumna treści ma 256 px (320 − 2 × 32 px wcięcia `.app-main`);
+   *   * `.filtry-kont` ma 256 px `clientWidth`, ale 287 px `scrollWidth`;
+   *   * blok pola „Szukaj konta" ma 286,59 px i stoi na x = 32…318,59;
+   *   * min-content tego bloku to 286,59 px i wyznacza go DOKŁADNIE JEDNO
+   *     SŁOWO: dopisek `(nieobowiązkowe)` w `<span class="meta">`, przy
+   *     `--text-meta` podwojonym do 32 px. Po usunięciu tego jednego słowa
+   *     z klonu bloku min-content spada do 159,98 px, czyli mieści się
+   *     w kolumnie z zapasem.
+   *
+   * CO TO WYKLUCZA, ŻEBY NIKT NIE SZUKAŁ TAM DRUGI RAZ. `box-sizing` jest
+   * `border-box` wszędzie (zmierzone `getComputedStyle`). `min-width` samego
+   * `.field-input` to `0px` (tokens.css), a min-content pola wejściowego —
+   * 68 px, więc natywny kontrolek NIE JEST tu winny (inaczej niż przy polu
+   * daty wyżej). `padding` nie doklejał się obok `width: 100%`. I nie jest
+   * winna tabela: `table.tabela-kont` wychodzi na raporcie jako `[33…2756]`,
+   * ale stoi w `.tabela-kont-przewijanie` z własnym `overflow-x` i przy
+   * `scrollWidth` dokumentu RÓWNYM `clientWidth` też jest na tej liście —
+   * czyli trafia tam z powodu swojego kontenera, nie z powodu winy.
+   *
+   * DLACZEGO SAM `overflow-wrap: break-word` NIE WYSTARCZYŁ. `.meta` ma go
+   * z app.css i on DZIAŁA — słowo łamie się w układzie. Ale `break-word`
+   * NIE ZMIENIA SZEROKOŚCI MINIMALNEJ elementu; robi to wyłącznie
+   * `anywhere` (CSS Text 3, ta sama różnica jest opisana przy `.szyna-tytul`).
+   * Nierozłamane `(nieobowiązkowe)` dalej dyktowało więc 286,59 px temu,
+   * kto o szerokość pytał — czyli algorytmowi flexa.
+   *
+   * DLACZEGO TEGO NIE BYŁO WIDAĆ LOKALNIE. Prawa krawędź bloku wypadała na
+   * 318,59 px, czyli MIEŚCIŁA SIĘ w oknie 320 px — 30 px przepełnienia
+   * kolumny zjadało prawe wcięcie `.app-main` i `documentElement.scrollWidth`
+   * zostawał 320 px. Na Chromium 153 z CI to samo słowo mierzy ~290 px,
+   * prawa krawędź wypada na 322 px i strona przewija się w bok o dwa piksele
+   * (WCAG 2.2 AA 1.4.10 Reflow). Usterka była ta sama w obu wersjach; tylko
+   * w jednej z nich mieściła się w zapasie wcięcia.
+   *
+   * CZEGO ŚWIADOMIE NIE ZROBILIŚMY: `overflow-x: hidden` na `body`
+   * (zasłania usterkę, nie usuwa), `max-width` wybranego na oko, ani
+   * `bezOznaczenia` na tym polu (usunęłoby to jedno słowo i zostawiło
+   * mechanizm gotowy na następne długie słowo w dowolnej etykiecie filtra).
+   */
+  .filtry-kont .field {
+    margin: 0;
+    flex: 1 1 14rem;
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+
+  /* Pole daty jest wąskie z natury — nie ma powodu, żeby rosło jak szukajka. */
+  .filtry-kont .filtr-data { flex: 0 1 11rem; }
+
+  /*
+   * KONTENER PRZEWIJANY WOKÓŁ POLA DATY (issue #294, dopisek po dołożeniu
+   * panelu do `scripts/dostepnosc.mjs`).
+   *
+   * `<input type="date">` to JEDYNY natywny kontrolek tego typu w serwisie
+   * (`grep type="date"` — tylko ten plik). Przeglądarka rysuje go z trzema
+   * segmentami i ikoną kalendarza i ma WŁASNY, niezależny od CSS próg
+   * szerokości, poniżej którego nie zejdzie — `width: 100%` i `min-width: 0`
+   * na `.field-input` (tokens.css), które w KAŻDYM innym polu tego serwisu
+   * wystarczają, tutaj nic nie zmieniają.
+   *
+   * ZMIERZONE na `/admin/uzytkownicy`, okno 320 px, czcionka przeglądarki
+   * 200% (`Page.setFontSizes` w skrypcie — odpowiednik „Rozmiar czcionki:
+   * bardzo duży" w Chrome, NIE naszej skali tekstu): pole daty samo miało
+   * 376 px, `.filtr-data` kończył się na x=408 — 88 px poza oknem 320 px,
+   * a CAŁA STRONA przewijała się w bok przez ten jeden kontrolek (WCAG 2.2
+   * AA 1.4.10 Reflow).
+   *
+   * TEN SAM WZORZEC co przy tabeli kont niżej (`.tabela-kont-przewijanie`
+   * w tym pliku): treść, która strukturalnie nie zejdzie poniżej pewnej
+   * szerokości, dostaje WŁASNY, kontenerowy scroll zamiast wypychać
+   * dokument. `<input>` jest fokusowalny sam z siebie, więc — inaczej niż
+   * przy tabeli — nie trzeba dokładać `tabindex="0"`: reguła axe
+   * `scrollable-region-focusable` (WCAG 2.1.1) jest spełniona przez sam
+   * kontrolek w środku.
+   */
+  .filtry-kont .filtr-data {
+    max-width: 100%;
+    overflow-x: auto;
+  }
+
+  .filtry-kont-akcje {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+    align-items: center;
+  }
+
+  /*
+   * Kontener przewijany. `max-width: 100%` razem z `overflow-x: auto` sprawia,
+   * że w bok jeździ TABELA, a nie strona.
+   */
+  .tabela-kont-przewijanie {
+    max-width: 100%;
+    overflow-x: auto;
+    /*
+     * `position: relative` NIE JEST TU OZDOBĄ ANI PRZYGOTOWANIEM POD NIC —
+     * to poprawka issue #294 i cała różnica między „tabela jeździ w bok"
+     * a „jeździ w bok CAŁA STRONA".
+     *
+     * `overflow-x: auto` obcina to, co w środku, ale NIE obcina potomków
+     * pozycjonowanych absolutnie, jeśli kontener nie jest dla nich blokiem
+     * zawierającym. A tabela ma takich potomków: każdy wiersz niesie napis
+     * `.visually-hidden` („…kartę konta Ania"), a `.visually-hidden` to
+     * `position: absolute` (app.css). Te napisy ustawiają się względem
+     * NAJBLIŻSZEGO POZYCJONOWANEGO PRZODKA — czyli, bez tej linijki, względem
+     * początkowego bloku zawierającego, w miejscu wyznaczonym przez ich
+     * pozycję statyczną w SZEROKIEJ tabeli. Wychodzą więc daleko za prawą
+     * krawędź okna i rozpychają dokument.
+     *
+     * ZMIERZONE 10 września na `/admin/uzytkownicy`, okno 900 px: cztery takie
+     * napisy stały na x ≈ 1396 i `documentElement.scrollWidth` wynosił 1397 px
+     * przy oknie 900 px. Po ukryciu samych tych czterech napisów: 900 px.
+     * Po dodaniu tej jednej deklaracji: 900 px, przy niezmienionym przewijaniu
+     * tabeli w jej własnym kontenerze (`clientWidth` 686, `scrollWidth` 1306).
+     *
+     * `overflow: hidden` na kontenerze NIE naprawiało tego (nadal 1397) —
+     * bo problemem nie było obcinanie, tylko blok zawierający. Zmierzone.
+     */
+    position: relative;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-lg);
+    background-color: var(--color-surface-raised);
+  }
+
+  /*
+   * `border-collapse: separate`, NIE `collapse` (znalezisko CI — job
+   * „Dostępność (axe-core) i wydajność (Lighthouse)" na PR #306, Chromium
+   * 153, `panel — użytkownicy` / 320 px / czcionka przeglądarki 200%:
+   * `documentElement.scrollWidth` 321 px przy oknie 320 px, jednym pikselem).
+   *
+   * ZMIERZONE PRZED TĄ ZMIANĄ, na Chromium 141 (obraz deweloperski, inna
+   * wersja niż CI): `box-sizing: border-box` jest aktywne WSZĘDZIE (reset
+   * Tailwinda, selektor `*`, sprawdzone wprost `getComputedStyle` w
+   * przeglądarce) — to WYKLUCZA jedną z trzech podejrzewanych przyczyn.
+   * Kontener (`.tabela-kont-przewijanie`) i jego rodzic (`.app-main`) liczą
+   * się co do piksela (256 = 320 − 2×32, arytmetyka na liczbach całkowitych,
+   * bez ułamka) — na Chromium 141 daje to `scrollWidth` RÓWNE `clientWidth`,
+   * zero zapasu. Lokalnie NIE DA SIĘ odtworzyć jednopikselowego przepełnienia
+   * z CI (inna wersja Chromium — patrz przekazanie), więc to nie jest dowód,
+   * że problem zniknął, tylko że nie da się go tu zobaczyć.
+   *
+   * NAJBARDZIEJ PRAWDOPODOBNA PRZYCZYNA, KTÓRĄ TA ZMIANA ZAMYKA: tabela ma
+   * border WYŁĄCZNIE na `border-bottom` komórek (żadnej pionowej krawędzi),
+   * więc `collapse` nie daje tu NIC — nie ma sąsiadujących krawędzi do
+   * złożenia w jedną linię. Ma za to udokumentowaną w spec CSS2.1 (17.6.2)
+   * właściwość uboczną: przy złożonych krawędziach zewnętrzna krawędź
+   * tabeli może wystawać o POŁOWĘ szerokości obramowania POZA nominalny
+   * box tabeli — a to jest DOKŁADNIE ten rodzaj różnicy międzywersyjnej
+   * (subpikselowe zaokrąglenie przy 2× powiększeniu), o który podejrzewał
+   * ten błąd audyt. `separate` (z `border-spacing: 0`, żeby wiersze zostały
+   * dosunięte tak jak dotąd) rysuje każdą krawędź WEWNĄTRZ komórki, nigdy
+   * poza box tabeli — usuwa mechanizm, nie tylko objaw.
+   *
+   * WYGLĄD NIE ZMIENIA SIĘ ANI TROCHĘ: skoro nie ma krawędzi pionowych ani
+   * podwójnych poziomych do złożenia, `collapse` i `separate` rysują tu
+   * dokładnie te same pojedyncze linie pod wierszami.
+   *
+   * SPROSTOWANIE, ten sam dzień, po zmierzeniu sprawy do końca: „najbardziej
+   * prawdopodobna przyczyna" wyżej PRZYCZYNĄ NIE BYŁA. Przepełnienie
+   * z tego samego joba (322 px przy oknie 320 px) siedziało w bloku pola
+   * filtra — patrz `.filtry-kont .field` wyżej w tym pliku, gdzie mechanizm
+   * jest zmierzony, a nie podejrzewany. `table.tabela-kont` wychodzi na
+   * liście winnych z raportu, bo stoi w `.tabela-kont-przewijanie` z własnym
+   * `overflow-x`, i wychodzi tam TAKŻE wtedy, gdy `scrollWidth` dokumentu
+   * jest RÓWNY `clientWidth` (zmierzone) — czyli trafia na tę listę z powodu
+   * swojego kontenera, nie z powodu winy. Deklaracja zostaje: nie szkodzi,
+   * wyglądu nie rusza i zdejmuje z tabeli udokumentowaną w CSS2.1 furtkę do
+   * wystawania poza własny box. Nie jest za to poprawką tej usterki i nie
+   * wolno jej tak czytać, gdy problem wróci.
+   */
+  .tabela-kont {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+  }
+
+  .tabela-kont th,
+  .tabela-kont td {
+    padding: var(--spacing-3) var(--spacing-4);
+    text-align: left;
+    vertical-align: top;
+    border-bottom: 1px solid var(--color-border);
+    /* Bez tego nazwa konta i data łamią się w środku na wąskim ekranie —
+       a wtedy wiersz przestaje się dać przeczytać jednym spojrzeniem. */
+    white-space: nowrap;
+  }
+
+  /* Jedyna kolumna, która MA prawo się łamać: nazwa bywa długa. */
+  .tabela-kont .kolumna-osoba { white-space: normal; min-width: 14rem; }
+
+  .tabela-kont thead th {
+    background-color: var(--color-surface-sunken);
+    font-weight: 700;
+    border-bottom: 2px solid var(--color-border-strong);
+    padding: 0;
+  }
+
+  /* Nagłówek bez sortowania ma ten sam odstęp co odnośnik sortujący —
+     inaczej wiersz nagłówków wygląda na krzywy. */
+  .tabela-kont thead th .naglowek-staly {
+    display: flex;
+    align-items: center;
+    min-height: var(--control-height-min);
+    padding: 0 var(--spacing-4);
+  }
+
+  .tabela-kont thead th a {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-2);
+    min-height: var(--control-height-min);
+    padding: 0 var(--spacing-4);
+    color: var(--color-ink);
+    text-decoration: underline;
+  }
+
+  .tabela-kont thead th a:hover { background-color: var(--color-surface-raised); }
+
+  .tabela-kont tbody tr:last-child td { border-bottom: 0; }
+
+  /* Cichy, drugi wiersz w komórce: `@nazwa`, przyczyna, termin. */
+  .tabela-kont .drobne {
+    display: block;
+    font-size: var(--text-meta);
+    color: var(--color-ink-muted);
+  }
+
+  /*
+   * Plakietka stanu konta. KOLOR NIGDY NIE JEST JEDYNYM NOŚNIKIEM — w środku
+   * stoi słowo („Zawieszone", „Zablokowane"), bo tak wymaga WCAG 1.4.1
+   * i tak samo wymaga zdrowy rozsądek przy odbiorcy 50+.
+   */
+  .stan-konta {
+    display: inline-block;
+    padding: var(--spacing-1) var(--spacing-3);
+    border-radius: var(--radius-sm);
+    font-size: var(--text-meta);
+    font-weight: 700;
+    background-color: var(--color-surface-sunken);
+    color: var(--color-ink);
+  }
+
+  .stan-konta-aktywne { background-color: var(--color-success-tint); color: var(--color-success-tint-ink); }
+  .stan-konta-uwaga   { background-color: var(--color-accent-tint); color: var(--color-accent-tint-ink); }
+  .stan-konta-ciezki  { background-color: var(--color-danger-tint); color: var(--color-danger-tint-ink); }
+
+  /* Karta pojedynczego konta: pary „podpis — wartość". */
+  .dane-konta {
+    display: grid;
+    grid-template-columns: minmax(10rem, auto) minmax(0, 1fr);
+    gap: var(--spacing-2) var(--spacing-5);
+    margin: 0;
+    font-size: var(--text-body);
+  }
+
+  .dane-konta dt { color: var(--color-ink-muted); }
+  .dane-konta dd { margin: 0; }
+
+  @media (max-width: 30rem) {
+    /* Przy 320 px dwie kolumny znaczą dwa słowa na linijkę. Podpis idzie
+       wtedy nad wartością. */
+    .dane-konta { grid-template-columns: minmax(0, 1fr); gap: 0; }
+    .dane-konta dt { margin-top: var(--spacing-3); }
+  }
+}

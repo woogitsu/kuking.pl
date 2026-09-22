@@ -24,7 +24,14 @@
 
     Ekran potwierdzenia zostaje `noindex`: niesie numer sprawy.
 --}}
-<x-layout title="Zgłoś treść niezgodną z prawem">
+{{--
+    Meta description (znalezisko przy okazji issue #191, poza jego pierwotnym
+    zakresem — ta strona jest ŚWIADOMIE indeksowana, patrz uzasadnienie
+    wyżej, więc dokładnie tak samo jak tag i strony prawne cierpiała na
+    brak `description` w `<x-layout>`, tylko nikt tego jeszcze nie zmierzył).
+--}}
+<x-layout title="Zgłoś treść niezgodną z prawem"
+    description="Zgłoś zdjęcie, tekst albo przepis, który łamie prawo. Formularz jest dostępny dla każdego, także bez konta w Kuking.">
     <h1>Zgłoś treść niezgodną z prawem</h1>
 
     <p class="mb-5">
@@ -33,13 +40,19 @@
         Sprawdzimy zgłoszenie i odpiszemy Ci z decyzją.
     </p>
 
-    <div class="card mb-5">
+    <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o coś innego?</h2>
         <p>
             Jeśli treść nie łamie prawa, ale łamie zasady Kuking — jest spamem,
             kogoś obraża albo doradza coś niebezpiecznego — użyj przycisku
             <strong>Zgłoś</strong> pod samą treścią. Ta droga jest szybsza,
             ale wymaga zalogowania.
+        </p>
+        <p>
+            A jeśli chodzi o coś zupełnie innego — coś w Kuking nie działa,
+            masz pomysł albo chcesz nam po prostu coś powiedzieć —
+            <a href="{{ route('kontakt') }}">napisz do nas</a>. Tamta droga nie
+            kończy się decyzją moderatora; to zwykła rozmowa.
         </p>
         <p class="mb-0">
             Nie wiesz, którą wybrać? Wypełnij ten formularz. Przeczytamy każde
@@ -49,7 +62,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('zglos.nielegalna.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('zglos.nielegalna.store') }}">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR
@@ -67,9 +80,12 @@
         <x-field name="target_url" label="Adres strony z tą treścią" required
                  :value="old('target_url')"
                  placeholder="https://kuking.pl/przepis/..."
-                 help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to widziałeś." />
+                 help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to jest." />
 
-        <fieldset class="border-0 p-0 mt-5">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-5" id="f-reason"
+                  @error('reason') tabindex="-1" aria-invalid="true" aria-describedby="f-reason-error" @enderror>
             <legend class="font-bold mb-3">Czego dotyczy zgłoszenie?</legend>
             <div class="stack-tight">
                 @foreach($reasons as $value => $label)
@@ -79,7 +95,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('reason')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="reason" />
         </fieldset>
 
         <x-field name="illegality_explanation" label="Dlaczego uważasz, że ta treść łamie prawo?"
@@ -102,22 +118,25 @@
             najlepszej wiedzy zgłaszającego informacje są prawdziwe i pełne.
         --}}
         <label class="choice mt-5" for="f-good_faith">
-            <input id="f-good_faith" type="checkbox" name="good_faith" value="1" @checked(old('good_faith'))>
+            <input id="f-good_faith" type="checkbox" name="good_faith" value="1"
+                   @error('good_faith') aria-invalid="true" aria-describedby="f-good_faith-error" @enderror @checked(old('good_faith'))>
             <span class="choice-label">
                 Oświadczam, że w dobrej wierze uważam podane informacje za prawdziwe i pełne
             </span>
         </label>
-        @error('good_faith')<span class="field-error">{{ $message }}</span>@enderror
+        <x-blad-grupy name="good_faith" />
+
+        <x-turnstile miejsce="zgloszenie_nielegalnej_tresci" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij zgłoszenie</button>
         </div>
     </form>
 
-    <div class="card mt-5">
+    <div class="ramka-pomocnicza mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <ol class="lista-krokow">
-            <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podałeś adres.</li>
+            <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podasz adres.</li>
             <li>Człowiek z naszego zespołu przeczyta zgłoszenie i sprawdzi treść.</li>
             <li>Napiszemy Ci, co postanowiliśmy — także wtedy, gdy uznamy, że treść zostaje.
                 W takim liście będzie powód i informacja, co możesz zrobić dalej.</li>

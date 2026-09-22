@@ -35,8 +35,12 @@
     flex: 1;
     min-width: 0;
     /* Wyżej i z większym tekstem niż zwykłe `.field-input` — to jest
-       GŁÓWNE pole na tej stronie, nie jedno z wielu w formularzu. */
-    min-height: var(--control-height-touch);
+       GŁÓWNE pole na tej stronie, nie jedno z wielu w formularzu.
+       Liczone OD minimum pola, nie od minimum kontrolki dotykowej: gdy
+       `--pole-wysokosc-min` urosło do 64 px (#365), sztywne
+       `--control-height-touch` (60 px) zostało w tyle i główne pole strony
+       szukania było przez to o 4 px NIŻSZE niż każde zwykłe pole. */
+    min-height: calc(var(--pole-wysokosc-min) + var(--spacing-2));
     padding: 0 var(--spacing-4);
     font-size: var(--text-body-lg);
     border-radius: var(--radius-lg);

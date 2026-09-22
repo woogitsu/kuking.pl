@@ -7,13 +7,13 @@ Celem tej paczki nie jest stworzenie drugiego frontendu obok aplikacji. Repozyto
 | Mockup | Widok / funkcja | Główne elementy do przeniesienia |
 |---|---|---|
 | `01_desktop_feed` | `/home` | AppShell, TopBar, SideNav, composer, PostCard, prawa szyna |
-| `02_desktop_recipe` | `/recipes/{slug}` | RecipeView, hero, stats, ingredients, steps, CookedCard |
-| `03_desktop_search_discover` | `/search` / `/discover` | SearchBox, chips, result cards, filtry |
+| `02_desktop_recipe` | `/przepisy/{recipe}` | RecipeView, hero, stats, ingredients, steps, CookedCard |
+| `03_desktop_search_discover` | `/szukaj` / `/odkryj` | SearchBox, chips, result cards, filtry |
 | `04_desktop_profile` | `/@username` | profil, follow, statystyki, archiwum |
 | `05_mobile_feed` | responsive `/home` | TopBar + BottomNav + PostCard |
 | `06_mobile_recipe` | responsive recipe | sticky/visible CTA `Ugotowałem`, sekcje przepisu |
 | `07_mobile_search` | responsive search | pole wyszukiwania + proste filtry |
-| `08_mobile_add` | `/add` / post create | PhotoPicker, textarea, visibility, publish |
+| `08_mobile_add` | `/dodaj` / `/dodaj/zdjecie` | PhotoPicker, textarea, visibility, publish |
 | `09_mobile_menu_profile` | profil / ustawienia | profil, menu, ustawienia tekstu/czytelności |
 | `10_brand_identity` | referencja | tokeny, logo, komponenty |
 | `11_brand_materials` | referencja | social/PWA/watermark |

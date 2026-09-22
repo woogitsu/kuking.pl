@@ -201,6 +201,54 @@ class PodrobionyNaglowekProxyTest extends TestCase
         }
     }
 
+    // -----------------------------------------------------------------
+    // Zapis adresu, a nie jego wartość
+    // -----------------------------------------------------------------
+
+    /**
+     * REGRESJA ZNALEZIONA URUCHOMIENIEM, NIE CZYTANIEM.
+     *
+     * Pierwsza wersja `adresBezPortu()` cięła wpis na PIERWSZYM dwukropku,
+     * jeżeli tylko widziała w nim kropkę. Dla `::ffff:203.0.113.7` — a tak
+     * podaje adres IPv4 każdy stos nasłuchujący na gnieździe podwójnym —
+     * zostawał z tego pusty ciąg, walidacja go odrzucała i middleware kasował
+     * CAŁY nagłówek. Podszyć się pod nikogo przez to nie było można, ale
+     * limity całego serwisu spadały na jeden wspólny adres brzegu, i to przy
+     * infrastrukturze działającej bez zarzutu. Czytanie kodu tego nie
+     * pokazało; pokazało dopiero podstawienie wartości.
+     *
+     * Dlatego przypadków jest tu kilka i większość podaje TEN SAM adres
+     * w innym zapisie: test na jedną postać przepuściłby dokładnie ten błąd.
+     *
+     * Zapis zmapowany sprowadzamy do postaci czwórkowej — dzięki temu obie
+     * formy dają identyczny `$request->ip()`, czyli JEDEN koszyk limitu.
+     * Gdyby dawały dwa, ta sama osoba miałaby dwa razy więcej prób, niż mówi
+     * `config/kuking.php`.
+     */
+    public function test_kazdy_zapis_adresu_od_infrastruktury_jest_czytany_tak_samo(): void
+    {
+        $zapisy = [
+            'goły IPv4' => [self::PRAWDZIWY, self::PRAWDZIWY],
+            'IPv4 z portem' => [self::PRAWDZIWY.':41234', self::PRAWDZIWY],
+            'IPv4 zapisany jako IPv6' => ['::ffff:'.self::PRAWDZIWY, self::PRAWDZIWY],
+            'IPv4 jako IPv6, w nawiasach i z portem' => ['[::ffff:'.self::PRAWDZIWY.']:41234', self::PRAWDZIWY],
+            'goły IPv6' => ['2001:db8::1', '2001:db8::1'],
+            'IPv6 w nawiasach z portem' => ['[2001:db8::1]:41234', '2001:db8::1'],
+        ];
+
+        foreach ($zapisy as $nazwa => [$naglowek, $oczekiwany]) {
+            // Z podrobionym prefiksem, żeby każdy przypadek sprawdzał obie
+            // rzeczy naraz: odczyt właściwej pozycji i odczyt właściwej formy.
+            $this->assertSame(
+                $oczekiwany,
+                $this->widzianyAdres('9.9.9.9, '.$naglowek),
+                'Adres podany w zapisie „'.$nazwa.'" nie został odczytany. Jeśli w odpowiedzi '
+                .'stoi 127.0.0.1, to middleware skasował cały nagłówek i limity liczą się '
+                .'wspólnie dla wszystkich odwiedzających.',
+            );
+        }
+    }
+
     private function konto(): User
     {
         return $this->user('basia', ['email' => 'basia@example.com']);

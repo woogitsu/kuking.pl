@@ -89,6 +89,18 @@ class ZeszytZapisanychWpisowWydajnoscTest extends TestCase
         // liczba zapytań i tak zostawała mała (eager load), ale liczba
         // wierszy rosła bez końca wraz z zeszytem. Po poprawce strona bierze
         // tylko pierwszą stronę (12 pozycji, tak jak `recipes()` obok).
-        $this->assertLessThanOrEqual(12, $wpisowNaStronie);
+        // DOKŁADNIE dwanaście, nie „najwyżej dwanaście". Górna granica sama
+        // przechodzi też wtedy, gdy strona nie pokazuje NICZEGO — zmierzone:
+        // po zepsuciu filtra widoczności (`->whereRaw('1 = 0')`) strona
+        // oddawała zero wpisów, a asercja `assertLessThanOrEqual` dalej
+        // świeciła zielono. Pełna pierwsza strona jest tu jedyną wartością,
+        // która jednocześnie dowodzi, że limit DZIAŁA (nie 30) i że lista
+        // NIE ZNIKŁA (nie 0).
+        $this->assertSame(
+            (int) config('kuking.collections.saved_posts_page_size'),
+            $wpisowNaStronie,
+            'Zeszyt ma oddać pełną pierwszą stronę zapisanych wpisów: '
+            .'ani wszystkich 30 naraz, ani zera.',
+        );
     }
 }

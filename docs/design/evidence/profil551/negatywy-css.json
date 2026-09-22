@@ -1,0 +1,25 @@
+{
+  "backup": "/tmp/kuking551-css-negatywy-wsf5tz3w",
+  "results": [
+    {
+      "name": "column",
+      "negative_exit": 1,
+      "negative_output": "file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/profile551/measure.mjs:31\n  if(width===1440&&geo.x<geo.archiveRight)throw Error('NO_RIGHT_COLUMN');\n                                                ^\n\nError: NO_RIGHT_COLUMN\n    at file:///mnt/c/Users/matma/Documents/Codex/kuking.pl/output/profile551/measure.mjs:31:49\n\nNode.js v20.20.2\n",
+      "positive_exit": 0,
+      "positive_output": "PASS 1\n",
+      "restored_bytes_mtime": true,
+      "md5": "09823b61781d4e008eb8b40d0bbd5c4d",
+      "mtime_ns": 1789420485478649100
+    },
+    {
+      "name": "thumbnail_click",
+      "negative_exit": 1,
+      "negative_output": "node:internal/modules/run_main:123\n    triggerUncaughtException(\n    ^\n\npage.waitForURL: Timeout 5000ms exceeded.\n=========================== logs ===========================\nwaiting for navigation to \"http://127.0.0.1:8033/wpisy/01a0a1c8-4e26-7202-be01-410dd35c9667\" until \"load\"\n============================================================\n    at /mnt/c/Users/matma/Documents/Codex/kuking.pl/output/profile551/measure.mjs:44:180 {\n  log: [],\n  name: 'TimeoutError'\n}\n\nNode.js v20.20.2\n",
+      "positive_exit": 0,
+      "positive_output": "PASS 1\n",
+      "restored_bytes_mtime": true,
+      "md5": "09823b61781d4e008eb8b40d0bbd5c4d",
+      "mtime_ns": 1789420485478649100
+    }
+  ]
+}

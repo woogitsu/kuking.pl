@@ -1,0 +1,58 @@
+[
+  {
+    "state": "skladniki",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  },
+  {
+    "state": "skladniki",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  },
+  {
+    "state": "przygotowanie",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  },
+  {
+    "state": "przygotowanie",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  },
+  {
+    "state": "podglad",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  },
+  {
+    "state": "podglad",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  },
+  {
+    "state": "opublikowany",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  },
+  {
+    "state": "opublikowany",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "axe": []
+  }
+]

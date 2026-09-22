@@ -1,5 +1,53 @@
 <x-layout :title="$collection->name" :noindex="! $collection->isPublic()">
+    {{--
+        PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
+
+        To jest jedyna czynność, którą naprawdę robi się Z TEGO ekranu —
+        przejście do drugiego zeszytu wymagało do tej pory cofnięcia się
+        na „Moje". Kontroler oddaje tu wyłącznie zeszyty, które oglądający
+        ma prawo otworzyć (`CollectionController::show()`); widok niczego
+        nie filtruje sam.
+
+        Osoba, która ma tylko jeden zeszyt, nie dostaje żadnego bloku —
+        pusta szyna jest lepsza niż karta, która nic nie wnosi.
+    --}}
+    @if($inneZeszyty->isNotEmpty())
+        <x-slot:rail>
+            <x-szyna-blok
+                :tytul="auth()->id() === $collection->owner_id ? 'Twoje inne zeszyty' : 'Inne zeszyty tej osoby'"
+                id="szyna-inne-zeszyty"
+                ikona="book"
+                :wiecej="auth()->id() === $collection->owner_id ? route('collections.index') : null">
+                <x-szyna-linki akcja="Otwórz zeszyt" :pozycje="$inneZeszyty->map(fn ($zeszyt) => [
+                    'href' => route('collections.show', $zeszyt),
+                    'nazwa' => $zeszyt->name,
+                    'podpis' => $zeszyt->description,
+                ])->all()" />
+            </x-szyna-blok>
+        </x-slot:rail>
+    @endif
+
+    <div class="marka-zeszyt">
     <h1>{{ $collection->name }}</h1>
+    @if($saveContext !== [])
+        <section class="panel-formularza mb-5">
+            @if($saveContent)
+                <h2>Dokończ zapis</h2>
+                <p>{{ $saveContent instanceof \App\Models\Recipe ? $saveContent->title : (trim($saveContent->body ?? '') ?: 'Zdjęcie bez opisu') }}</p>
+                <form method="POST" data-dokoncz-zapis action="{{ $saveContent instanceof \App\Models\Recipe ? route('collections.save', $saveContent->slug) : route('collections.save-post', $saveContent) }}">
+                    @csrf
+                    <input type="hidden" name="collection_id" value="{{ $collection->getKey() }}">
+                    <input type="hidden" name="open_collection" value="1">
+                    <button class="btn btn-primary" type="submit">Zapisuję w tym zeszycie</button>
+                </form>
+                <a class="btn btn-secondary mt-3" href="{{ $saveContent->url() }}">Wróć {{ $saveContent instanceof \App\Models\Recipe ? 'do przepisu' : 'do wpisu' }}</a>
+            @else
+                <p>Ta treść nie jest już dostępna. Zeszyt został utworzony, ale niczego w nim nie zapisaliśmy. Poszukaj innego przepisu lub wpisu.</p>
+                <a class="btn btn-secondary" href="{{ route('search') }}">Szukaj</a>
+            @endif
+            <a class="btn btn-secondary mt-3" href="{{ route('collections.show', $collection) }}">Zostaw zeszyt bez tego zapisu</a>
+        </section>
+    @endif
     @if($collection->description)
         <p>{{ $collection->description }}</p>
     @endif
@@ -8,13 +56,13 @@
     </p>
 
     @if($recipes->count() === 0 && ($posts ?? collect())->count() === 0 && ($niewidoczne ?? 0) === 0)
-        <x-empty-state title="W tym zeszycie nic jeszcze nie ma" action="Poszukaj przepisów" :href="route('discover')" />
+        <x-empty-state title="W tym zeszycie nic jeszcze nie ma" action="Poszukaj przepisów" :href="route('search', ['sekcja' => 'przepisy'])" />
     @else
         @if($recipes->count() > 0)
             <h2>Przepisy</h2>
-            <div class="stack">
+            <div class="marka-zeszyt-przepisy">
                 @foreach($recipes as $recipe)
-                    <x-recipe-card :recipe="$recipe" />
+                    <x-recipe-card :recipe="$recipe" uklad="kafel" />
                 @endforeach
             </div>
             <x-show-more :paginator="$recipes" czego="przepisów" />
@@ -37,18 +85,16 @@
             {{--
                 NIE MÓWIMY, CO TU BYŁO — MÓWIMY, ŻE COŚ BYŁO.
 
-                Wpis zapisany, gdy autor pokazywał go obserwującym, znika
+                Zapisana treść, którą autor pokazywał obserwującym, znika
                 po tym, jak przestaniesz go obserwować. Ciche zniknięcie
                 wygląda jak utrata danych („miałam to tu wczoraj"), a pokazanie
                 treści łamie widoczność, którą autor sobie ustawił. Zostaje
                 trzecia droga: powiedzieć ILE, nie mówiąc CZEGO.
             --}}
-            <p class="notice mt-6">
+            <p class="notice mt-6" data-niedostepne-zapisy>
                 {{ $niewidoczne }}
-                {{ \App\Support\Odmiana::rzeczownik($niewidoczne, 'zapisany wpis', 'zapisane wpisy', 'zapisanych wpisów') }}
-                {{ $niewidoczne === 1 ? 'nie jest' : 'nie są' }}
-                już dla Ciebie widoczne — autor zmienił ustawienia albo konto nie jest już dostępne.
-                Nic nie zniknęło z Twojego zeszytu.
+                {{ \App\Support\Odmiana::rzeczownik($niewidoczne, 'zapis nie jest dla Ciebie dostępny', 'zapisy nie są dla Ciebie dostępne', 'zapisów nie jest dla Ciebie dostępnych') }}.
+                Te zapisy nadal są w tym zeszycie.
             </p>
         @endif
     @endif
@@ -58,7 +104,8 @@
             <x-confirm-button
                 :action="route('collections.destroy', $collection)"
                 label="Usuń ten zeszyt"
-                question="Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu." />
+                :question="'Usunąć zeszyt „'.$collection->name.'”? Same przepisy zostaną — znikną tylko z tego zeszytu.'" />
         </div>
     @endif
+    </div>
 </x-layout>

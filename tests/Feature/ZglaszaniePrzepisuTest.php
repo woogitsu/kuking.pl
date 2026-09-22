@@ -72,7 +72,7 @@ class ZglaszaniePrzepisuTest extends TestCase
                 'reason' => 'copyright',
                 'details' => 'Przepis przepisany z książki bez podania źródła.',
             ])
-            ->assertRedirect(route('home'));
+            ->assertRedirectContains('/zgloszenia/');
 
         // Zgłoszenie ma wskazywać na przepis przez jego KLUCZ, nie przez slug —
         // slug może się zmienić, a zgłoszenie musi dalej wskazywać tę treść.

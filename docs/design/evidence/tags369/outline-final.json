@@ -1,0 +1,422 @@
+[
+  {
+    "theme": "light",
+    "name": "index",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 296,
+      "boxHeight": 210.625
+    }
+  },
+  {
+    "theme": "light",
+    "name": "eligible",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-photos",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-people",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "index",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 336,
+      "boxHeight": 171.5625
+    }
+  },
+  {
+    "theme": "light",
+    "name": "eligible",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-photos",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-people",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "index",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 366,
+      "boxHeight": 136.84375
+    }
+  },
+  {
+    "theme": "light",
+    "name": "eligible",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-photos",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-people",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "index",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 390,
+      "boxHeight": 136.84375
+    }
+  },
+  {
+    "theme": "light",
+    "name": "eligible",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-photos",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-people",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "index",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 560,
+      "boxHeight": 97.78125
+    }
+  },
+  {
+    "theme": "light",
+    "name": "eligible",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-photos",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-people",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "index",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 560,
+      "boxHeight": 97.78125
+    }
+  },
+  {
+    "theme": "light",
+    "name": "eligible",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-photos",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "name": "below-people",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "index",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 296,
+      "boxHeight": 210.625
+    }
+  },
+  {
+    "theme": "dark",
+    "name": "eligible",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-photos",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-people",
+    "width": 320,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "index",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 336,
+      "boxHeight": 171.5625
+    }
+  },
+  {
+    "theme": "dark",
+    "name": "eligible",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-photos",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-people",
+    "width": 360,
+    "scroll": 360,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "index",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 366,
+      "boxHeight": 136.84375
+    }
+  },
+  {
+    "theme": "dark",
+    "name": "eligible",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-photos",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-people",
+    "width": 390,
+    "scroll": 390,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "index",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 390,
+      "boxHeight": 136.84375
+    }
+  },
+  {
+    "theme": "dark",
+    "name": "eligible",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-photos",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-people",
+    "width": 414,
+    "scroll": 414,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "index",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 560,
+      "boxHeight": 97.78125
+    }
+  },
+  {
+    "theme": "dark",
+    "name": "eligible",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-photos",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-people",
+    "width": 768,
+    "scroll": 768,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "index",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140",
+    "outline": {
+      "outside": 0,
+      "characters": 61,
+      "radius": 12,
+      "boxWidth": 560,
+      "boxHeight": 97.78125
+    }
+  },
+  {
+    "theme": "dark",
+    "name": "eligible",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-photos",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "name": "below-people",
+    "width": 1440,
+    "scroll": 1440,
+    "scale": "140"
+  }
+]

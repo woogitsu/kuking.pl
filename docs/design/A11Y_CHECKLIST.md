@@ -24,7 +24,7 @@ Zaznacz, jeśli dotyczy tego PR-a. Jeśli PR nie zmienia UI, zaznacz wszystko ja
 - [ ] **200% zoom i 320px szerokości**: brak poziomego przewijania strony, brak ucinania treści.
 - [ ] **`prefers-reduced-motion`**: nowe animacje/przejścia respektują to ustawienie.
 - [ ] **Rozmiar dotykowy**: nowe klikalne elementy ≥ 48×48px (główne akcje) / ≥ 44×44px (pozostałe).
-- [ ] **Automaty przeszły**: axe-core / pa11y / Lighthouse bez nowych błędów (patrz sekcja C) — link do wyniku CI w opisie PR.
+- [ ] **Automaty przeszły**: axe-core (dostępność) i Lighthouse (wydajność, SEO) bez nowych błędów (patrz sekcja C) — link do wyniku CI w opisie PR.
 ```
 
 ---
@@ -37,7 +37,7 @@ Zaznacz, jeśli dotyczy tego PR-a. Jeśli PR nie zmienia UI, zaznacz wszystko ja
 | 2 | **Widoczny focus** | To samo co #1, patrz na pierścień. | Pierścień wyraźny na KAŻDYM tle (w tym na przyciskach `primary`/`danger` — technika halo z `DESIGN_SYSTEM.md` §1.4), nigdy niewidoczny/ledwo widoczny. |
 | 3 | **200% zoom** | Ctrl/Cmd + „+” trzy razy w przeglądarce (do 200%) na desktopie. | Brak poziomego scrolla strony; tekst się zawija, nie ucina; przyciski nadal klikalne całą powierzchnią. |
 | 4 | **320px szerokości** | DevTools → responsive mode → szerokość 320px (najmniejszy powszechny telefon). | `BottomNav` czytelny (5 pozycji nie ściśnięte do nieczytelności), karty się nie łamią, żadna treść nie wychodzi poza ekran. |
-| 5 | **Powiększona czcionka systemowa/produktowa** | Ustaw `data-text-scale="150"` na `<html>` w DevTools (Elements → edytuj atrybut) LUB w `/settings/accessibility` wybierz 150%. | Tekst rośnie, przyciski (min-height) najwyżej robią się wyższe, nic nie jest ucięte ani nienachodzące. |
+| 5 | **Powiększona czcionka systemowa/produktowa** | Ustaw `data-text-scale="150"` na `<html>` w DevTools (Elements → edytuj atrybut) LUB w `/ustawienia/czytelnosc` wybierz 150%. | Tekst rośnie, przyciski (min-height) najwyżej robią się wyższe, nic nie jest ucięte ani nienachodzące. |
 | 6 | **Screen reader smoke — NVDA (Windows)** | Uruchom NVDA (Ctrl+Alt+N), przejdź przez ekran klawiszem Tab i strzałkami w trybie przeglądania. | Każdy przycisk ogłasza swój cel (nie „przycisk” bez nazwy); nagłówki (`H` w NVDA) tworzą logiczną strukturę; formularz ogłasza etykietę+błąd razem. |
 | 7 | **Screen reader smoke — VoiceOver (macOS/iOS)** | Cmd+F5 (macOS) lub potrójne kliknięcie bocznego przycisku (iOS), VO+strzałki / przesunięcie palcem. | To samo co #6; dodatkowo: `aria-live` (toast, autosave) ogłasza się samoczynnie bez przenoszenia fokusu. |
 | 8 | **Windows High Contrast (forced-colors)** | Windows: Ustawienia → Ułatwienia dostępu → Kontrast → włącz motyw kontrastowy. Chrome/Edge respektują `forced-colors: active`. | Obramowania przycisków/pól nadal widoczne (nie znikają przy usunięciu kolorowych teł); pierścień fokusu nadal widoczny. |
@@ -108,10 +108,10 @@ npm install -D pa11y-ci
   },
   "urls": [
     "http://localhost:8000/",
-    "http://localhost:8000/discover",
-    "http://localhost:8000/add",
-    "http://localhost:8000/posts/create",
-    "http://localhost:8000/recipes/create"
+    "http://localhost:8000/odkryj",
+    "http://localhost:8000/dodaj",
+    "http://localhost:8000/dodaj/zdjecie",
+    "http://localhost:8000/dodaj/przepis"
   ]
 }
 ```
@@ -120,78 +120,54 @@ npm install -D pa11y-ci
 npx pa11y-ci
 ```
 
-### Lighthouse CI (śledzenie regresji w czasie, budżet ≥ 95 na kategorię Accessibility)
+### Lighthouse — DZIAŁA, `scripts/wydajnosc.mjs` (issue #26, druga połowa)
+
+**Nie mierzy dostępności.** Kategoria „Accessibility” Lighthouse'a liczy się
+tym samym silnikiem co axe-core wyżej — drugi przebieg dokładałby te same
+naruszenia WCAG, tylko po 8-12 s renderowania strony zamiast ułamka sekundy.
+Ten automat liczy wyłącznie `performance` i `seo`: to, czego axe-core
+z definicji nie mierzy.
 
 ```bash
-npm install -D @lhci/cli
+node scripts/wydajnosc.mjs                  # sam podnosi serwer i bazę
+ADRES=http://127.0.0.1:8123 node scripts/... # gotowy serwer
 ```
 
-```json
-// lighthouserc.json
-{
-  "ci": {
-    "collect": {
-      "url": ["http://localhost:8000/", "http://localhost:8000/recipes/sernik-babci-heleny"],
-      "numberOfRuns": 2
-    },
-    "assert": {
-      "assertions": {
-        "categories:accessibility": ["error", { "minScore": 0.95 }]
-      }
-    },
-    "upload": { "target": "temporary-public-storage" }
-  }
-}
-```
+**8 stron publicznych**, bez logowania — profil mobile, throttling
+symulowany (domyślne ustawienia Lighthouse'a):
 
-```bash
-npx lhci autorun
-```
+| | |
+|---|---|
+| ekrany | powitalna, „Świeżo z Kuking", logowanie, rejestracja, przepis, profil, strona tagu, regulamin |
+| progi | wydajność ≥ 70, SEO ≥ 85 (ustalone z pomiaru lokalnego, nie z głowy — liczby i uzasadnienie w nagłówku pliku) |
 
-### Job CI (GitHub Actions) — propozycja
+Ekran logowania jest liczony do wydajności, ale **nie do SEO** — ma celowy
+`<meta name="robots" content="noindex, nofollow">` (formularz logowania nie
+ma prawa trafić do wyszukiwarki), więc niska ocena SEO tam jest poprawnym
+działaniem, nie usterką.
 
-```yaml
-# .github/workflows/a11y.yml
-name: Dostępność
-on: [pull_request]
+Wynik idzie do **`storage/wydajnosc.json`**, tak samo jak
+`storage/dostepnosc.json` wyżej.
 
-jobs:
-  a11y:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v4
+### Job CI (GitHub Actions) — jest, `.github/workflows/ci.yml`, job `dostepnosc`
 
-      - uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
+Prawdziwy job (nie propozycja) to `dostepnosc` w `.github/workflows/ci.yml`.
+Lighthouse jedzie tam jako KOLEJNY KROK w TYM SAMYM joobie co axe-core, po
+kroku „axe-core (23 ekrany × 4 warianty)” — ten job ma już postawioną bazę,
+PHP, Node i ściągnięte Chromium, więc osobny job powielałby to wszystko od
+zera tylko po to, żeby postawić drugi raz ten sam serwer. Pełne uzasadnienie
+(i to, dlaczego Lighthouse nie potrzebuje własnej przeglądarki) stoi
+w komentarzach przy tym joobie i w nagłówku `scripts/wydajnosc.mjs`.
 
-      - run: composer install --no-interaction --prefer-dist
-      - run: cp .env.example .env && php artisan key:generate
-      - run: php artisan serve --port=8000 &
-        env:
-          APP_ENV: testing
+Job (jak i krok axe-core) uruchamia się **tylko przy zmianach w warstwie
+widoku** (krok „Czy zmieniła się warstwa widoku”) — zmiana w kontrolerze albo
+w migracji go nie odpala.
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-
-      - run: npm ci
-      - run: npx playwright install --with-deps chromium
-
-      - name: Poczekaj na serwer
-        run: npx wait-on http://localhost:8000
-
-      - name: axe-core (Playwright)
-        run: npx playwright test tests/a11y/axe.spec.ts
-
-      - name: pa11y-ci
-        run: npx pa11y-ci
-
-      - name: Lighthouse CI (budżet dostępności ≥ 95)
-        run: npx lhci autorun
-```
-
-Reguła bramkowania: `a11y` jest **wymaganym** checkiem przed merge do `main` (branch protection) — naruszenie axe-core na poziomie `serious`/`critical` blokuje merge; `moderate`/`minor` tworzy komentarz w PR do ręcznej oceny, nie blokuje automatycznie (żeby nie zatrzymywać release'u na fałszywych alarmach), ale wymaga jawnego „zaakceptowano” w review.
+Reguła bramkowania: `dostepnosc` jest wymaganym checkiem CI — naruszenie axe
+na poziomie `critical`/`serious` LUB wynik Lighthouse'a poniżej progu blokuje
+merge. Kryterium scalenia to „zielone ALBO pominięte” (patrz komentarz przy
+jobie „Zakres zmiany” w `ci.yml`), nie samo „zielone” — zmiana wyłącznie
+w dokumentacji pomija ten job w całości.
 
 ---
 

@@ -73,7 +73,16 @@ COPY vite.config.js ./
 COPY resources ./resources
 COPY app ./app
 COPY routes ./routes
+# Pomiar palety jest częścią polecenia budowania assetów.
+COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs
+COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs
+COPY scripts/panel-komunikat.mjs ./scripts/panel-komunikat.mjs
+COPY scripts/panel-komunikat.test.mjs ./scripts/panel-komunikat.test.mjs
 
+# Node pomija nieistniejący plik podany do `--test` zamiast kończyć błędem.
+# Bez tej bramki obraz budował się zielono, uruchamiając 21 zamiast 33 testów.
+RUN test -f scripts/panel-komunikat.mjs \
+ && test -f scripts/panel-komunikat.test.mjs
 RUN npm run build
 # Wynik: /app/public/build/{manifest.json,assets/*}
 
@@ -160,6 +169,24 @@ WORKDIR /app
 COPY --from=vendor  /app/vendor       ./vendor
 COPY . .
 COPY --from=assets  /app/public/build ./public/build
+
+# ZNACZNIK WYDANIA — data i godzina powstania TEGO obrazu, w UTC, ISO-8601.
+#
+# Stopka serwisu pokazuje ją obok skrótu commita (`App\Support\Wersja`).
+# Skrót mówi, CO jest wdrożone; data mówi, KIEDY — a to jest pytanie, które
+# pada częściej i na które siedem znaków szesnastkowych nie odpowiada nikomu
+# bez historii gita pod ręką.
+#
+# DLACZEGO PLIK, A NIE ZMIENNA ŚRODOWISKOWA: Railway nie wstrzykuje czasu
+# wdrożenia — wśród `RAILWAY_*` nie ma takiej zmiennej. Build jest jedynym
+# miejscem, które ten moment zna.
+#
+# DLACZEGO TA WARSTWA, A NIE WYŻEJ: leży za `COPY . .`, więc unieważnia się
+# przy każdej zmianie kodu. Znacznik odpowiada zatem wydaniu, a nie dacie
+# pierwszego builda sprzed tygodnia. Przy ponownym wdrożeniu TEGO SAMEGO
+# commita warstwa może wejść z cache'u i data zostanie stara — i tak ma być:
+# to nadal jest to samo wydanie.
+RUN date -u +%Y-%m-%dT%H:%M:%SZ > /app/bootstrap/wydanie.txt
 
 # Skrypty Composera dopiero teraz — mają już pełne drzewo aplikacji.
 # artisan package:discover zapisuje bootstrap/cache/packages.php (nie zależy od env).

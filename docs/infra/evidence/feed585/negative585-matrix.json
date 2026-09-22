@@ -1,0 +1,20 @@
+{
+  "mutations": [
+    {
+      "mutation": "author",
+      "exit": 1
+    },
+    {
+      "mutation": "recipe",
+      "exit": 1
+    },
+    {
+      "mutation": "cursor",
+      "exit": 1
+    }
+  ],
+  "positive_exit": 0,
+  "backup": "/home/mateusz/kuking585-exists-uuqwjpva/FollowingFeed.php",
+  "restored_md5": "5c3b9d2ae6b90b071997f9e3c60cc59f",
+  "restored_mtime_ns": 1789562905000000000
+}

@@ -1,0 +1,24 @@
+{
+  "database": "kuking_585_benchmark",
+  "port": 55439,
+  "authors": 2100,
+  "viewers": [
+    {
+      "email": "scale585-viewer-10@example.test",
+      "follows": 10
+    },
+    {
+      "email": "scale585-viewer-100@example.test",
+      "follows": 100
+    },
+    {
+      "email": "scale585-viewer-500@example.test",
+      "follows": 500
+    },
+    {
+      "email": "scale585-viewer-2000@example.test",
+      "follows": 2000
+    }
+  ],
+  "posts": 50000
+}

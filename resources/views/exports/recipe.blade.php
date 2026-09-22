@@ -52,22 +52,34 @@
 
     @if($recipe->ingredients->isNotEmpty())
         <h2>Składniki</h2>
-        @php $grupa = null; @endphp
-        <ul class="skladniki">
-            @foreach($recipe->ingredients as $item)
-                @if($item->group_name !== $grupa)
-                    @php $grupa = $item->group_name; @endphp
-                    @if($grupa)
-                        <li><strong>{{ $grupa }}</strong></li>
-                    @endif
-                @endif
-                {{-- Dokładnie tak, jak człowiek to wpisał („2 szklanki mąki”). --}}
-                <li>
-                    {{ $item->ingredient_text }}
-                    @if($item->note)<span class="podpis"> — {{ $item->note }}</span>@endif
-                </li>
-            @endforeach
-        </ul>
+        {{--
+            Grupy („Ciasto”, „Farsz”) układa `App\Domain\Recipes\GrupySkladnikow`
+            — ten sam kod, co na stronie przepisu. Wcześniej stała tu druga
+            kopia tej reguły: nagłówek pojawiał się przy KAŻDEJ zmianie
+            wartości, więc lista z przeplotem („Ciasto, Farsz, Ciasto”)
+            dawała w pliku dwa nagłówki „Ciasto”, a na stronie jeden.
+            Eksport ma pokazywać ten sam przepis, co serwis — to jest kopia
+            własnych danych człowieka, a nie druga wersja przepisu.
+
+            Nagłówek grupy jest tu prawdziwym `<h3>` pod `<h2>Składniki`,
+            a nie pogrubioną pozycją listy: pogrubione `<li>` udaje nagłówek
+            dla oka i nie istnieje dla czytnika ekranu, a przy okazji liczy
+            się jako składnik, którego nie ma w żadnej kuchni.
+        --}}
+        @foreach(\App\Domain\Recipes\GrupySkladnikow::ulozyc($recipe->ingredients) as $grupa)
+            @if($grupa['nazwa'] !== null)
+                <h3>{{ $grupa['nazwa'] }}</h3>
+            @endif
+            <ul class="skladniki">
+                @foreach($grupa['skladniki'] as $item)
+                    {{-- Dokładnie tak, jak człowiek to wpisał („2 szklanki mąki”). --}}
+                    <li>
+                        {{ $item->ingredient_text }}
+                        @if($item->note)<span class="podpis"> — {{ $item->note }}</span>@endif
+                    </li>
+                @endforeach
+            </ul>
+        @endforeach
     @endif
 
     @if($recipe->steps->isNotEmpty())
@@ -92,7 +104,11 @@
     @if($recipe->source_note || $recipe->source_person || $recipe->source_url)
         <h2>Skąd ten przepis</h2>
         <div class="karta">
-            @if($recipe->source_person)<p>Od: {{ $recipe->source_person }}</p>@endif
+            {{-- „Skąd:" zamiast dawnego „Od:" — ta sama etykieta co przy polu
+                 w formularzu i ten sam nagłówek co na stronie przepisu. Forma
+                 z dwukropkiem jest odporna na odmianę: działa dla „od mamy",
+                 dla „Nasze smaki" i dla „z gazety Przyjaciółka" jednakowo. --}}
+            @if($recipe->source_person)<p>Skąd: {{ $recipe->source_person }}</p>@endif
             @if($recipe->family_since_year)<p>W rodzinie od {{ $recipe->family_since_year }} roku.</p>@endif
             @if($recipe->source_note)<p>{{ $recipe->source_note }}</p>@endif
             @if($recipe->source_url)<p>Źródło: {{ $recipe->source_url }}</p>@endif

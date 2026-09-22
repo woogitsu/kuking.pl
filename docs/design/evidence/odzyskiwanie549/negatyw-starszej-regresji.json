@@ -1,0 +1,8 @@
+{
+  "backup": "/home/mateusz/kuking-local/negative549-old-7gyiwyzr/419.blade.php",
+  "mutation": "Stary H1 w prawdziwym Blade, zaktualizowany StronyBleduPoPolskuTest",
+  "negative_exit": 1,
+  "restored_md5": "997d57ee3b3d76050d24290c0406c7f6",
+  "mtime_restored": true,
+  "positive_exit": 0
+}

@@ -1,0 +1,29 @@
+[
+  {
+    "case": "touch",
+    "md5": "27a88ef754185d9f712623142c1d1942",
+    "mtime_ns": 1789506452001122422,
+    "backup": "/home/mateusz/skala589-php-40_q57y0",
+    "negative": 1,
+    "restored": true,
+    "positive": 0
+  },
+  {
+    "case": "pole",
+    "md5": "27a88ef754185d9f712623142c1d1942",
+    "mtime_ns": 1789506452001122422,
+    "backup": "/home/mateusz/skala589-php-40_q57y0",
+    "negative": 1,
+    "restored": true,
+    "positive": 0
+  },
+  {
+    "case": "padding",
+    "md5": "27a88ef754185d9f712623142c1d1942",
+    "mtime_ns": 1789506452001122422,
+    "backup": "/home/mateusz/skala589-php-40_q57y0",
+    "negative": 1,
+    "restored": true,
+    "positive": 0
+  }
+]

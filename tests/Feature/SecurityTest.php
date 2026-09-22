@@ -44,17 +44,50 @@ class SecurityTest extends TestCase
         $basia = $this->user('basia');
 
         // Klasyczny mass assignment: ktoś dokłada pola do formularza profilu.
+        //
+        // `assertSessionHasNoErrors` jest tu KONTROLĄ, nie ozdobą: bez niej
+        // test przechodziłby także wtedy, gdyby żądanie odpadło na walidacji
+        // — a wtedy `role` i `status` zostają nietknięte z zupełnie innego
+        // powodu niż ten, o który ten test pyta.
         $this->actingAs($basia)->put(route('settings.profile'), [
             'display_name' => 'Basia',
             'username' => 'basia',
             'role' => User::ROLE_ADMIN,
             'status' => User::STATUS_BANNED,
-        ]);
+        ])->assertSessionHasNoErrors();
 
         $basia = $basia->fresh();
 
         $this->assertSame(User::ROLE_USER, $basia->role);
         $this->assertSame(User::STATUS_ACTIVE, $basia->status);
+
+        // A TO JEST WŁAŚCIWY POMIAR REGUŁY Z AGENTS.md §7.
+        //
+        // Asercje wyżej mierzą jeden kontroler, który tabeli `users` w ogóle
+        // nie dotyka (`ProfileSettingsController::update()` zapisuje wyłącznie
+        // `$profile`). Zmierzone wprost: po dopisaniu `status` i `role` do
+        // `User::$fillable` ten test przechodził bez mrugnięcia — pilnował
+        // więc kontrolera, a nie reguły, którą cytuje.
+        //
+        // Regułą jest to, że masowe przypisanie NIGDY nie ustawia stanu konta,
+        // niezależnie od tego, który kontroler je woła. Eloquent bez trybu
+        // strict po prostu odrzuca pola poza `$fillable`, więc widać to na
+        // wartościach — dopisanie ich do listy zapala tę asercję.
+        $basia->update([
+            'role' => User::ROLE_ADMIN,
+            'status' => User::STATUS_BANNED,
+        ]);
+
+        $this->assertSame(
+            User::ROLE_USER,
+            $basia->fresh()->role,
+            'Rolę da się ustawić masowym przypisaniem — `role` wróciło do $fillable (AGENTS.md §7).',
+        );
+        $this->assertSame(
+            User::STATUS_ACTIVE,
+            $basia->fresh()->status,
+            'Status konta da się ustawić masowym przypisaniem — zmiana stanu konta ma być jawną, nazwaną metodą.',
+        );
     }
 
     public function test_tresc_uzytkownika_jest_escapowana(): void

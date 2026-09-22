@@ -1,0 +1,63 @@
+[
+  {
+    "name": "integrated2-positive",
+    "expected": null,
+    "exit": 0,
+    "matched": true,
+    "safeCode": null
+  },
+  {
+    "name": "integrated2-negative-target",
+    "expected": "ERROR_LINK_TARGET",
+    "exit": 1,
+    "matched": true,
+    "safeCode": "ERROR_LINK_TARGET"
+  },
+  {
+    "name": "target",
+    "restoredMD5AndMtime": true
+  },
+  {
+    "name": "integrated2-restored-target",
+    "expected": null,
+    "exit": 0,
+    "matched": true,
+    "safeCode": null
+  },
+  {
+    "name": "integrated2-negative-anchors",
+    "expected": "ERROR_LINK_COMPLETENESS",
+    "exit": 1,
+    "matched": true,
+    "safeCode": "ERROR_LINK_COMPLETENESS"
+  },
+  {
+    "name": "anchors",
+    "restoredMD5AndMtime": true
+  },
+  {
+    "name": "integrated2-restored-anchors",
+    "expected": null,
+    "exit": 0,
+    "matched": true,
+    "safeCode": null
+  },
+  {
+    "name": "integrated2-negative-inline",
+    "expected": "INLINE_ERRORS",
+    "exit": 1,
+    "matched": true,
+    "safeCode": "INLINE_ERRORS"
+  },
+  {
+    "name": "inline",
+    "restoredMD5AndMtime": true
+  },
+  {
+    "name": "integrated2-restored-inline",
+    "expected": null,
+    "exit": 0,
+    "matched": true,
+    "safeCode": null
+  }
+]

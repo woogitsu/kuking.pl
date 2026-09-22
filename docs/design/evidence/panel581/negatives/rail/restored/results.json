@@ -1,0 +1,26 @@
+{
+  "kind": "rail",
+  "expectedHypothesis": "P581_ROZCIETE_SLOWO_NAWIGACJI",
+  "rows": [
+    {
+      "kind": "rail",
+      "theme": "light",
+      "width": 1440,
+      "height": 900,
+      "scale": 140,
+      "expectedHypothesis": "P581_ROZCIETE_SLOWO_NAWIGACJI",
+      "passed": true,
+      "blockedMethods": []
+    },
+    {
+      "kind": "rail",
+      "theme": "dark",
+      "width": 1440,
+      "height": 900,
+      "scale": 140,
+      "expectedHypothesis": "P581_ROZCIETE_SLOWO_NAWIGACJI",
+      "passed": true,
+      "blockedMethods": []
+    }
+  ]
+}

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Domain\Media\OrientacjaZdjecia;
+use App\Domain\Media\PodgladOdRazu;
 use App\Models\Media;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -100,7 +102,7 @@ class ProcessUploadedImage implements ShouldQueue
             // Intervention ma własny dekoder, który EXIF CZYTA, i domyślnie
             // orientuje obraz sam (`Config::$autoOrientation = true`,
             // `Drivers/Gd/Decoders/BinaryImageDecoder.php`). Nasze
-            // `applyOrientation()` obracało go wtedy po raz drugi.
+            // `OrientacjaZdjecia` obracała go wtedy po raz drugi.
             //
             // WYŁĄCZAMY BIBLIOTEKĘ, A NIE USUWAMY WŁASNEGO OBROTU, i to
             // jest świadomy wybór między dwiema poprawkami:
@@ -117,14 +119,73 @@ class ProcessUploadedImage implements ShouldQueue
             // która wrzuci danie do góry nogami, nie zgłosi błędu — po
             // prostu przestanie wrzucać zdjęcia.
             $manager = ImageManager::gd(autoOrientation: false);
-            $variants = [];
+
+            // ZACZYNAMY OD PODGLĄDU, KTÓRY JUŻ JEST (issue #430).
+            //
+            // `metadata.variants` jest niżej NADPISYWANE w całości, więc bez
+            // tej linii wariant `podglad` — zrobiony synchronicznie przy
+            // wgraniu — wypadłby z metadanych, a jego plik ZOSTAŁBY
+            // w publicznym buckecie na zawsze: `KasujZdjecie` chodzi właśnie
+            // po `metadata.variants` i nie ma innego sposobu, żeby się o nim
+            // dowiedzieć. Byłaby to sierota, której nie kasuje ani usunięcie
+            // wpisu, ani wymazanie konta (RODO).
+            //
+            // Podgląd zostaje też dlatego, że jest uczciwym kandydatem
+            // w `srcset`: 640 px między `thumb` (320) a `feed` (960).
+            //
+            // Stoi PIERWSZY w tablicy i to też ma znaczenie: gdy zadanie
+            // padnie w połowie, `Media::url()` bierze „pierwszy lepszy
+            // wygenerowany wariant", czyli właśnie jego.
+            $variants = array_filter([
+                PodgladOdRazu::NAZWA => $media->wariant(PodgladOdRazu::NAZWA),
+            ]);
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
 
-            foreach (config('kuking.media.variants') as $name => $maxEdge) {
-                $image = $manager->read($original);
+            // KLUCZE WARIANTÓW ZAPISUJEMY, ZANIM POWSTANĄ PLIKI (#601).
+            //
+            // `KasujZdjecie` chodzi WYŁĄCZNIE po `metadata.variants`, a ta
+            // tablica zapisuje się dopiero na końcu, razem ze statusem
+            // `ready`. Dopóki zadanie nie skończy, pliki wariantów, które
+            // już poszły do publicznego bucketu, NIE MAJĄ w bazie żadnego
+            // klucza — więc nie skasuje ich ani usunięcie wpisu, ani
+            // wymazanie konta (RODO), ani sprzątanie osieroconych.
+            //
+            // Zmierzone: zadanie przerwane na drugim wariancie zostawiało
+            // plik pierwszego w publicznym buckecie NA ZAWSZE. Ta ścieżka
+            // nie jest hipotetyczna — `$timeout` przy zdjęciu 50 Mpx ubija
+            // proces W ŚRODKU pętli, bez żadnego `catch` (patrz `failed()`).
+            //
+            // Klucze są POLICZALNE Z GÓRY (`kluczPublicznegoWariantu` liczy
+            // je z `object_key` i nazwy wariantu), więc zapisujemy całą listę
+            // JEDNYM `update()` przed pętlą — zamiast dopisywać po każdym
+            // pliku. Kasowanie klucza, pod którym plik nigdy nie powstał,
+            // jest nieszkodliwe: `KasujZdjecie` sprawdza `exists()`.
+            //
+            // OSOBNY KLUCZ, NIE `variants`: `Media::wariantDoSerwowania()`
+            // czyta `variants` i pokazałoby zdjęcie w połowie przetwarzania
+            // pod nazwą wariantu, którego plik może jeszcze nie istnieć.
+            $kluczeWTrakcie = [];
 
-                $this->applyOrientation($image, $orientation);
+            foreach (array_keys(config('kuking.media.variants')) as $nazwaWariantu) {
+                $kluczeWTrakcie[] = Media::kluczPublicznegoWariantu($media->object_key, (string) $nazwaWariantu);
+            }
+
+            $media->update([
+                'metadata' => array_merge($media->metadata ?? [], [
+                    Media::METADANE_WARIANTY_W_TRAKCIE => $kluczeWTrakcie,
+                ]),
+            ]);
+
+            $sourceImage = $manager->read($original);
+            OrientacjaZdjecia::zastosuj($sourceImage, $orientation);
+
+            foreach (config('kuking.media.variants') as $name => $maxEdge) {
+                // Dekodujemy bajty raz. Odczyt obiektu GD tworzy osobną ramkę,
+                // a scaleDown zapisuje wynik w nowej bitmapie; źródło pozostaje
+                // niezmienione. Każdy wariant powstaje z pełnej rozdzielczości,
+                // nie z poprzedniej miniatury. Nie klonujemy dużej bitmapy GD.
+                $image = $manager->read($sourceImage->core()->native());
 
                 // scaleDown nigdy nie powiększa — małe zdjęcie zostaje małe,
                 // zamiast być rozmyte na siłę.
@@ -133,18 +194,20 @@ class ProcessUploadedImage implements ShouldQueue
                 $encoded = $image->toWebp(quality: 82);
 
                 // Wariant idzie do PUBLICZNEGO prefiksu `media/`, oryginał
-                // został w prywatnym `incoming/`. Sama zamiana prefiksu, nie
-                // przepisywanie ścieżki — dzięki temu stare wiersze, zapisane
-                // jeszcze pod `media/`, przetwarzają się bez zmian.
-                $publicznyKlucz = str_starts_with($media->object_key, 'incoming/')
-                    ? 'media/'.substr($media->object_key, strlen('incoming/'))
-                    : $media->object_key;
-
-                $variantKey = preg_replace('/\.[^.]+$/', '', $publicznyKlucz)."_{$name}.webp";
+                // został w prywatnym `incoming/`. Liczy to `Media`, bo to
+                // samo liczy `PodgladOdRazu` — dwie własne kopie tej
+                // ścieżki dałyby pliki-sieroty w buckecie, bez żadnego
+                // czerwonego testu (patrz `Media::kluczPublicznegoWariantu`).
+                $variantKey = Media::kluczPublicznegoWariantu($media->object_key, $name);
                 // BEZ `'public'`. Na R2 `x-amz-acl: public-read` jest wprost
                 // nieobsługiwany dla `PutObject` — publiczność bierze się
                 // z własnej domeny bucketu, a nie z ACL na obiekcie. Ten
                 // argument nie dawał więc publiczności, a mógł żądanie wywrócić.
+                //
+                // Od issue #120 dyski R2 chodzą na własnym sterowniku `r2`
+                // (`App\Support\Storage\R2Adapter`), który nie wysyła ACL
+                // wcale — podanie tu widoczności byłoby dziś błędem, nie
+                // pustym gestem, i padnie od razu.
                 $publiczny->put($variantKey, (string) $encoded);
 
                 $variants[$name] = [
@@ -155,14 +218,21 @@ class ProcessUploadedImage implements ShouldQueue
                 ];
             }
 
+            // Lista „w trakcie" znika po sukcesie: od tej chwili KAŻDY plik
+            // ma swój klucz w `variants`, a dwa źródła prawdy o tym samym
+            // pliku rozjechałyby się przy pierwszej zmianie listy wariantów.
+            $metadane = array_merge($media->metadata ?? [], [
+                'variants' => $variants,
+                'exif_stripped' => true,
+                'orientation_applied' => $orientation !== null && $orientation !== 1,
+                'processed_at' => now()->toIso8601String(),
+            ]);
+
+            unset($metadane[Media::METADANE_WARIANTY_W_TRAKCIE]);
+
             $media->update([
                 'status' => Media::STATUS_READY,
-                'metadata' => array_merge($media->metadata ?? [], [
-                    'variants' => $variants,
-                    'exif_stripped' => true,
-                    'orientation_applied' => $orientation !== null && $orientation !== 1,
-                    'processed_at' => now()->toIso8601String(),
-                ]),
+                'metadata' => $metadane,
             ]);
         } catch (\Throwable $e) {
             Log::warning('Nie udało się przetworzyć zdjęcia', [
@@ -215,31 +285,5 @@ class ProcessUploadedImage implements ShouldQueue
                     : 'processing_failed_or_timeout',
             ]),
         ]);
-    }
-
-    /**
-     * Ustawia zdjęcie tak, jak trzymano telefon.
-     *
-     * Znacznik EXIF Orientation ma osiem wartości i cztery z nich to odbicia
-     * lustrzane, nie same obroty. Pomijanie ich dawałoby zdjęcia poprawnie
-     * obrócone, ale odbite — co przy zdjęciu kartki z przepisem oznacza tekst
-     * czytany od tyłu.
-     */
-    private function applyOrientation(object $image, ?int $orientation): void
-    {
-        if ($orientation === null || $orientation === 1) {
-            return;
-        }
-
-        match ($orientation) {
-            2 => $image->flop(),
-            3 => $image->rotate(180),
-            4 => $image->flip(),
-            5 => $image->rotate(-90)->flop(),
-            6 => $image->rotate(-90),
-            7 => $image->rotate(90)->flop(),
-            8 => $image->rotate(90),
-            default => null,
-        };
     }
 }

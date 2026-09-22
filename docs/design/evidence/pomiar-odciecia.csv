@@ -1,0 +1,28 @@
+# signed_url_minutes=5; dysk=pomiar_r2; sterownik=r2 (MinIO, path-style); sesje=database; podpis_gosc_wystawiony=2026-09-21 10:51:22Z; podpis_gosc_wygasa=2026-09-21 10:56:22Z; X-Amz-Expires=300s; sha256_zrodla=de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+czas;stan;kto;droga;kod_http;cache_control;cel;podpis_wystawiony;podpis_wygasa;blad_magazynu;sha256
+10:51:22.833;1-przed-czymkolwiek;gość;trasa aplikacji;302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.844;1-przed-czymkolwiek;właściciel zdjęcia;trasa aplikacji;302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.855;1-przed-czymkolwiek;moderator;trasa aplikacji;302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.857;1-przed-czymkolwiek;moderator (bajty z magazynu);podpisany adres magazynu;200;public, max-age=150;-;-;-;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:51:22.866;1-przed-czymkolwiek;właściciel (sesja sprzed banu);trasa aplikacji (stara sesja);302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.868;1-przed-czymkolwiek;gość (stary podpis);podpisany adres magazynu;200;public, max-age=150;-;2026-09-21 10:51:22Z;2026-09-21 10:56:22Z;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:51:22.927;2-po-usunieciu-A;gość;trasa aplikacji;302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.938;2-po-usunieciu-A;właściciel zdjęcia;trasa aplikacji;302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.947;2-po-usunieciu-A;moderator;trasa aplikacji;302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.949;2-po-usunieciu-A;moderator (bajty z magazynu);podpisany adres magazynu;200;public, max-age=150;-;-;-;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:51:22.959;2-po-usunieciu-A;właściciel (sesja sprzed banu);trasa aplikacji (stara sesja);302;max-age=150, public;magazyn (podpisany adres);-;-;-;-
+10:51:22.960;2-po-usunieciu-A;gość (stary podpis);podpisany adres magazynu;200;public, max-age=150;-;2026-09-21 10:51:22Z;2026-09-21 10:56:22Z;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:51:23.037;3-po-banie-autora;gość;trasa aplikacji;404;no-cache, private;(bez przekierowania);-;-;-;-
+10:51:23.043;3-po-banie-autora;właściciel zdjęcia;trasa aplikacji;302;no-cache, private;http://localhost:8000/login;-;-;-;-
+10:51:23.050;3-po-banie-autora;moderator;trasa aplikacji;302;no-store, private;magazyn (podpisany adres);-;-;-;-
+10:51:23.052;3-po-banie-autora;moderator (bajty z magazynu);podpisany adres magazynu;200;private, no-store;-;-;-;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:51:23.060;3-po-banie-autora;właściciel (sesja sprzed banu);trasa aplikacji (stara sesja);404;no-cache, private;(bez przekierowania);-;-;-;-
+10:51:23.061;3-po-banie-autora;gość (stary podpis);podpisany adres magazynu;200;public, max-age=150;-;2026-09-21 10:51:22Z;2026-09-21 10:56:22Z;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:51:23.095;4-po-usunieciu-B;gość;trasa aplikacji;404;no-cache, private;(bez przekierowania);-;-;-;-
+10:51:23.100;4-po-usunieciu-B;właściciel zdjęcia;trasa aplikacji;302;no-cache, private;http://localhost:8000/login;-;-;-;-
+10:51:23.107;4-po-usunieciu-B;moderator;trasa aplikacji;302;no-store, private;magazyn (podpisany adres);-;-;-;-
+10:51:23.108;4-po-usunieciu-B;moderator (bajty z magazynu);podpisany adres magazynu;200;private, no-store;-;-;-;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:51:23.116;4-po-usunieciu-B;właściciel (sesja sprzed banu);trasa aplikacji (stara sesja);404;no-cache, private;(bez przekierowania);-;-;-;-
+10:51:23.118;4-po-usunieciu-B;gość (stary podpis);podpisany adres magazynu;200;public, max-age=150;-;2026-09-21 10:51:22Z;2026-09-21 10:56:22Z;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9
+10:56:43.120;5-po-wygasnieciu-podpisu;gość (stary podpis);podpisany adres magazynu;403;(brak);-;2026-09-21 10:51:22Z;2026-09-21 10:56:22Z;AccessDenied — Request has expired;-
+10:56:43.123;5-po-wygasnieciu-podpisu;kontrola dodatnia (świeży podpis);podpisany adres magazynu;200;(brak);-;2026-09-21 10:56:43Z;2026-09-21 11:01:43Z;-;de16ee4741689fa20355452089ee4c7ae07b276448ad3b3d6737f14ee57f27e9

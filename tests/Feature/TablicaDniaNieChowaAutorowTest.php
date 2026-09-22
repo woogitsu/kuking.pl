@@ -64,16 +64,20 @@ class TablicaDniaNieChowaAutorowTest extends TestCase
      * czterech osób — bez tego test niżej mógłby przechodzić dlatego, że
      * tablica jest z innego powodu pusta.
      */
-    public function test_przy_rownym_rozkladzie_tablica_ma_cztery_wpisy(): void
+    public function test_przy_rownym_rozkladzie_tablica_ma_szesc_wpisow(): void
     {
-        foreach (['ala', 'bela', 'cela', 'dela', 'ela'] as $i => $nazwa) {
+        // SIEDMIU autorów przy suficie sześciu — o jednego WIĘCEJ, niż tablica
+        // pokaże. Gdyby było ich dokładnie sześciu, test przechodziłby także
+        // dla kodu bez żadnego limitu, bo „wszyscy" i „sześciu" dałoby ten sam
+        // wynik. Zapas jest tu asercją, nie ozdobnikiem.
+        foreach (['ala', 'bela', 'cela', 'dela', 'ela', 'fela', 'gela'] as $i => $nazwa) {
             $this->wpis($this->user($nazwa), now()->subHours($i + 1));
         }
 
         [, $wpisy] = $this->tablica();
 
-        $this->assertCount(4, $wpisy, 'Tablica nie pokazała czterech wpisów przy pięciu dostępnych autorach.');
-        $this->assertSame(4, $wpisy->pluck('author_id')->unique()->count(), 'Tablica powtórzyła autora.');
+        $this->assertCount(6, $wpisy, 'Tablica nie pokazała sześciu wpisów przy siedmiu dostępnych autorach.');
+        $this->assertSame(6, $wpisy->pluck('author_id')->unique()->count(), 'Tablica powtórzyła autora.');
     }
 
     /**

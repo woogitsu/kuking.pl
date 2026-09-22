@@ -8,9 +8,20 @@
 #    worker     — php artisan queue:work (przetwarzanie zdjęć, maile, eksporty)
 #    scheduler  — php artisan schedule:work (Laravel scheduler, co minutę)
 #    all        — web + worker + scheduler w jednym kontenerze.
-#                 UŻYWAĆ TYLKO na staging/preview, żeby nie płacić za 3 serwisy.
-#                 NIGDY na produkcji: jeden crash zabija wszystko, a skalowanie
-#                 web pociągnęłoby za sobą duplikaty schedulera.
+#
+#                 UWAGA: to jest DZIŚ TRYB PRODUKCYJNY, wbrew temu, co ten
+#                 komentarz mówił do 9 września 2026. Zmierzone connectorem
+#                 Railway: serwis `kuking.pl` startuje komendą
+#                 `kuking-entrypoint all`. Rozbicie na trzy serwisy stoi
+#                 w `.railway/railway.ts`, ale `railway config apply` nigdy
+#                 nie zostało uruchomione, więc nie obowiązuje.
+#
+#                 Powody, dla których to nie jest tryb docelowy, są nadal
+#                 prawdziwe i trzeba je znać: jeden crash zabija wszystko,
+#                 a zwiększenie liczby replik zduplikowałoby harmonogram
+#                 (dlatego zadania w `routes/console.php` musiałyby wtedy
+#                 dostać `->onOneServer()`; przy jednej replice nie muszą).
+#                 Do rozbicia wracamy przy pierwszym `railway config apply`.
 #
 #  Użycie:  kuking-entrypoint web | worker | scheduler | all
 # =============================================================================
@@ -270,7 +281,7 @@ start_web() {
 #  mimo że pułapka była ta sama.
 #
 #  Nadzorca: restartuje proces w miejscu, a eskaluje dopiero wtedy, gdy proces
-#  pada NATYCHMIAST i wielokrotnie — bo to już nie jest recykling, tylko
+#  kończy się błędem albo zbyt szybko i wielokrotnie — to nie jest recykling, tylko
 #  awaria (padła baza, zły APP_KEY). Kontener wychodzi wtedy z kodem 1,
 #  żeby Railway zobaczył porażkę i zrestartował, zamiast uznać ciszę za sukces.
 # -----------------------------------------------------------------------------
@@ -282,20 +293,21 @@ nadzoruj() {
 
   while true; do
     local start; start="$(date +%s)"
-    "$@" || true
+    local kod=0
+    "$@" || kod=$?
     local przezyl=$(( $(date +%s) - start ))
 
-    if (( przezyl >= minimalny_czas_zycia )); then
+    if (( kod == 0 && przezyl >= minimalny_czas_zycia )); then
       # Normalny recykling — worker po --max-time, harmonogram po przebiegu.
       # Licznik zerujemy, bo poprzednie potknięcia już się nie liczą.
       szybkie_smierci=0
-      log "${nazwa}: zakończył się po ${przezyl} s — uruchamiam ponownie"
+      log "${nazwa}: planowy recykling (kod ${kod}) po ${przezyl} s — uruchamiam ponownie"
     else
       szybkie_smierci=$(( szybkie_smierci + 1 ))
-      log "OSTRZEŻENIE: ${nazwa} padł po ${przezyl} s (${szybkie_smierci}/${limit_szybkich_smierci})"
+      log "OSTRZEŻENIE: ${nazwa} awaria (kod ${kod}) po ${przezyl} s (${szybkie_smierci}/${limit_szybkich_smierci})"
 
       if (( szybkie_smierci >= limit_szybkich_smierci )); then
-        log "BŁĄD: ${nazwa} pada natychmiast ${limit_szybkich_smierci} razy z rzędu — to nie jest recykling."
+        log "BŁĄD: ${nazwa} ma ${limit_szybkich_smierci} kolejnych awarii — to nie jest recykling."
         return 1
       fi
 
@@ -303,6 +315,24 @@ nadzoruj() {
       # zalewa logi i bazę przy awarii, która i tak potrwa dłużej.
       sleep $(( 2 ** szybkie_smierci ))
     fi
+  done
+}
+
+czekaj_na_uslugi() {
+  # Obserwujemy NADZORCĘ, nie pojedynczy przebieg kolejki. Planowy recykling
+  # nie kończy nadzorcy. Jego wyjście oznacza wyczerpanie prób naprawy.
+  # Jawne PID-y nie obejmują krótkotrwałych pomocników powłoki.
+  while true; do
+    local pid kod
+    for pid in "${PID_WWW}" "${PID_KOLEJKI}" "${PID_HARMONOGRAMU}"; do
+      if ! kill -0 "${pid}" 2>/dev/null; then
+        kod=0
+        wait "${pid}" || kod=$?
+        log "BŁĄD: usługa PID ${pid} zakończyła się (kod ${kod}) — zamykam kontener"
+        return 1
+      fi
+    done
+    sleep 1
   done
 }
 
@@ -438,19 +468,10 @@ case "${ROLE}" in
     PID_WWW="$!"
     CHILD_PIDS+=("${PID_WWW}")
 
-    # ---------------------------------------------------------------------
-    #  CZEKAMY NA SERWER WWW, NIE NA „KTÓREGOKOLWIEK" (`wait -n`).
-    #
-    #  Serwer WWW jest jedynym procesem, który NIE MA PRAWA się skończyć:
-    #  jego wyjście zawsze znaczy awarię. Kolejka i harmonogram kończą się
-    #  planowo i wracają same, więc ich zakończenie nie może zamykać serwisu.
-    #
-    #  `wait -n` nie odróżniał tych dwóch sytuacji i dlatego dokładnie
-    #  godzinę po każdym wdrożeniu recykling workera gasił całą stronę.
-    # ---------------------------------------------------------------------
-    wait "${PID_WWW}"
-    KOD_WWW=$?
-    log "serwer WWW zakończył się (kod ${KOD_WWW}) — zamykam kontener"
+    # Czekamy na długowieczne usługi, w tym nadzorcę kolejki. Nie na sam
+    # queue:work: jego planowe wyjścia nadal obsługuje nadzoruj(). Status
+    # łapiemy jawnie, żeby set -e nie ominęło sprzątania pozostałych usług.
+    czekaj_na_uslugi || true
 
     # Kod NIEZEROWY jest tu istotny: przy zerowym Railway uznaje, że kontener
     # „skończył pracę poprawnie", i nie restartuje go. Tak właśnie trzy i pół

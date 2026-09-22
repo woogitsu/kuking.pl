@@ -18,6 +18,10 @@ class PostPolicy
 {
     public function view(?User $user, Post $post): bool
     {
+        if ($post->kind === Post::KIND_QUESTION && ! config('kuking.questions.enabled', false)) {
+            return false;
+        }
+
         if (! $post->isPublished()) {
             return $user !== null && $user->getKey() === $post->author_id;
         }
@@ -38,6 +42,42 @@ class PostPolicy
 
         // Blokada działa w obie strony i ma pierwszeństwo przed wszystkim innym.
         if ($user !== null && $user->hasBlockRelationWith($post->author)) {
+            return false;
+        }
+
+        /*
+         * ZAPOWIEDŹ PRZEPISU MA BRAMKĘ W PRZEPISIE, NIE W SOBIE (#368).
+         *
+         * `WpisWskazujacyPrzepis::dopisz()` zapisuje takiemu wpisowi
+         * `visibility = 'public'` — i pisze wprost, że to NIE jest decyzja
+         * o jawności, tylko brak własnego zawężenia, bo „jedyną bramką jest
+         * przepis (`Post::scopeZWidocznymPrzepisem()`)". Ten zakres stał
+         * dotąd wyłącznie w ZAPYTANIACH LIST. Wejście POD BEZPOŚREDNI ADRES
+         * wpisu go omijało: `match` niżej widział `public` i przepuszczał
+         * każdego, a strona wypisywała tytuł przepisu, jego slug w adresie
+         * i zdjęcie główne — zmierzone dla gościa na przepisie „tylko dla
+         * obserwujących".
+         *
+         * Przekierowanie na przepis (`PostController::show()`) tego nie
+         * łatało z dwóch powodów naraz: samo wydaje slug, a przy wpisie
+         * z choć jednym komentarzem w ogóle nie wchodzi
+         * (`jestSamymPrzepisem()`).
+         *
+         * DLACZEGO TU, A NIE W KONTROLERZE. Bo to jest pytanie o prawo
+         * wejścia, a „UUID w adresie to nie autoryzacja" — każde wejście ma
+         * przechodzić przez Policy. Stąd korzysta z tego także
+         * `comment()` niżej: pod zapowiedzią cudzego ukrytego przepisu nie
+         * da się teraz dopisać komentarza (a to właśnie komentarz zdejmował
+         * przekierowanie).
+         *
+         * ODMOWA, A NIE STRONA BEZ TYTUŁU — tylko dla ZAPOWIEDZI, czyli
+         * wpisu bez własnej treści i bez własnych zdjęć. Taki wpis nie ma
+         * nic, co dałoby się pokazać po zdjęciu przepisu: został by pusty
+         * nagłówek. Wpis Z WŁASNĄ treścią zostaje dostępny i traci wyłącznie
+         * odwołanie do przepisu — patrz `PostController::show()`.
+         */
+        if ($post->czyJestZapowiedziaPrzepisu()
+            && ($post->recipe === null || ! app(RecipePolicy::class)->view($user, $post->recipe))) {
             return false;
         }
 

@@ -15,7 +15,6 @@ use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -189,8 +188,16 @@ class RegressionTest extends TestCase
         // PostgreSQL i tak wybierze Seq Scan — i to właśnie łapie ten test.
         DB::statement('SET enable_seqscan = off');
 
+        // Od 9 września 2026 wyszukiwarka porównuje KOLUMNĘ `title_search`
+        // (generowaną z `kuking_normalize(title)`), a nie samo wyrażenie —
+        // i indeks stoi na tej kolumnie. Test pyta o to samo, o co pyta
+        // `SearchQuery::KANDYDACI_SQL`; gdyby pytał o wyrażenie, sprawdzałby
+        // indeks, którego już nie ma, zamiast tego, którego używa serwis.
+        // Od 9 września 2026 (issue #187) pierwsza gałąź pyta operatorem `<%`
+        // z frazą po LEWEJ stronie — test pyta o dokładnie to samo, bo inaczej
+        // sprawdzałby indeks pod operator, którego wyszukiwarka nie używa.
         $plan = collect(DB::select(
-            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE kuking_normalize(title) % ?',
+            'EXPLAIN (FORMAT TEXT) SELECT id FROM recipes WHERE ? <% title_search',
             ['zurek'],
         ))->pluck('QUERY PLAN')->implode("\n");
 
@@ -205,13 +212,29 @@ class RegressionTest extends TestCase
 
     public function test_funkcja_normalizujaca_dziala_tak_samo_w_bazie_i_w_php(): void
     {
+        // NORMALIZATOR Z KODU, NIE JEGO KOPIA PRZEPISANA DO TESTU.
+        //
+        // Ten test miał wcześniej po stronie PHP wpisane wprost
+        // `mb_strtolower(Str::ascii($fraza))` z komentarzem „to samo, co robi
+        // SearchQuery::normalize()". Porównywał więc bazę z WŁASNĄ kopią
+        // reguły, a nie z regułą, która naprawdę chodzi w wyszukiwarce —
+        // czyli mierzył dokładnie ten rozjazd, którego nie mógł zauważyć.
+        //
+        // Zmierzone: po zdjęciu `mb_strtolower` z `SearchQuery::normalize()`
+        // cały ten plik był dalej zielony.
+        //
+        // `normalize()` jest prywatne i takie ma zostać — to szczegół
+        // wyszukiwarki, nie część jej publicznej umowy. Refleksja jest tu
+        // ceną za mierzenie prawdziwej funkcji zamiast jej kopii.
+        $normalizator = new \ReflectionMethod(SearchQuery::class, 'normalize');
+        $wyszukiwarka = app(SearchQuery::class);
+
         $frazy = ['Żurek', 'ŁÓDŹ', 'Pierogi Ruskie', 'ćwikła', 'Zupa'];
 
         foreach ($frazy as $fraza) {
             $wBazie = DB::selectOne('SELECT kuking_normalize(?) AS wynik', [$fraza])->wynik;
 
-            // To samo, co robi SearchQuery::normalize() po stronie PHP.
-            $wPhp = mb_strtolower(Str::ascii($fraza));
+            $wPhp = $normalizator->invoke($wyszukiwarka, $fraza);
 
             $this->assertSame(
                 $wBazie,

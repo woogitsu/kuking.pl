@@ -1074,3 +1074,124 @@ Eight product decisions from `WDROZENIE.md` §5 (P-1…P-8) still block stages
 column, whether a Post can go into the Zeszyt, "Zapisz" versus "Zapisuję".
 
 ---
+
+## 11. Sesja 8 września, wieczór — CI odblokowane, piętnaście PR-ów, audyt zewnętrzny
+
+Ta sekcja jest po polsku, bo od niej dalej rozmowa z właścicielem toczy się
+po polsku i mieszanie języków w jednym pliku nikomu nie służy.
+
+### 11.1 Co weszło na produkcję
+
+Wieczorem scalono piętnaście PR-ów. Wszystkie są na `main` i wdrożone.
+Najważniejsze, w kolejności skutków:
+
+- **#138 i #140 — całe CI na runnerach GitHuba.** To był korek, nie
+  usprawnienie: trzy z sześciu własnych runnerów stały, „Testy" czekały
+  ponad godzinę, a Railway z „Wait for CI" nie wdrażał NICZEGO. Po zmianie
+  pełny zestaw siedmiu zadań idzie równolegle w **3 min 21 s**. D-028
+  dostała poprawkę z liczbami po obu stronach; zasada „własne runnery" NIE
+  jest odwołana, tylko zawieszona. Powrót to jedna podmiana `runs-on`
+  w czterech plikach.
+- **#143 — dane spółki w dokumentach prawnych.** Serwis prowadzi SAMSUFI
+  sp. z o.o. (KRS 0000901262). Dane stoją w `config/kuking.php`
+  (`kuking.podmiot`), a `DokumentyPrawneNieKlamiaTest` porównuje z nimi treść
+  regulaminu i polityki prywatności — numer KRS zmienia się w rejestrze,
+  nie w markdownie. Zamyka jedną z trzech bramek otwarcia (D-040).
+- **#139 — SEC-01 wreszcie z uruchomionymi testami.** Łatka leżała odłożona
+  właśnie dlatego, że nikt nie widział jej testów na zielono. Uruchomienie
+  wykazało usterkę niewidoczną w kodzie: `::ffff:203.0.113.7` kasował CAŁY
+  nagłówek, więc limity całego serwisu spadały na jeden adres brzegu.
+- **#141 — paginacja przestaje gubić wiersze.** Znalezione z czerwonego CI
+  na gałęzi, która komentarzy nie dotyka. `timestampsTz()` daje dokładność
+  do SEKUNDY, a `ORDER BY` po samym znaczniku nie określa kolejności przy
+  remisie — przy `LIMIT`/`OFFSET` ten sam wiersz wychodzi na dwóch stronach,
+  a inny nie wychodzi nigdzie. Wystarczy, że dwie osoby skomentują w tej
+  samej sekundzie.
+- **#146 — „Zobacz" przy powiadomieniu oznacza je jako przeczytane.**
+  Zgłoszenie właściciela. Przyczyna: nie było W OGÓLE trasy oznaczającej
+  pojedyncze powiadomienie. Nic się nie psuło — brakowało części, a
+  brakującej części nie widać, czytając kod.
+- **#147 — kanał alarmowy o błędach 500** (webhook, bez nowej zależności,
+  D-041). Wyłączony do czasu ustawienia `LOG_BLAD_WEBHOOK_URL`.
+- **#144 i #145** — runbook kopii i odtworzenia oraz rekomendacja poczty
+  (EmailLabs, zapasowo Brevo). **#142** — zlecenie audytu w `docs/zlecenia/`.
+
+### 11.2 Czego pilnować, żeby wdrożenie w ogóle ruszyło
+
+`ci.yml` ma `concurrency: cancel-in-progress` na `ci-refs/heads/main`, więc
+KAŻDE kolejne scalenie kasuje przebieg poprzedniego commita. Railway czeka
+na zielony przebieg wierzchołka. Praktyczna reguła, sprawdzona dziś:
+**scalaj serią, a ostatni w serii niech dotyka `watchPatterns`**
+(`app/`, `config/`, `routes/`, `resources/`…) — sam `docs/` builda nie
+wywoła. Potem przestań scalać i sprawdź stopkę:
+`curl -s https://kuking.pl | grep -o 'wydanie [^<]*'`.
+
+### 11.3 Trzy pułapki narzędziowe z tej sesji — warte zapamiętania
+
+1. **Brak wyniku wygląda jak dobry wynik.** Mój lokalny php-cs-fixer
+   wywalał się w trybie RÓWNOLEGŁYM, a wyjątek czytałem jako „czysto".
+   Trzeba `setParallelConfig(ParallelConfigFactory::sequential())`. Zanim
+   uwierzysz w brak znalezisk, sprawdź, czy narzędzie w ogóle się wykonało.
+2. **Nie filtruj wyjścia narzędzia, zanim je zobaczysz.** Dwa razy
+   przepuściłem crash przez `grep`, który go nie dopasował.
+3. **Logi CI ściągaj podpisanym URL-em.** `get_job_logs` BEZ
+   `return_content` zwraca link; pobrany plik grepuje się lokalnie za grosze.
+   Z `return_content` wraca ~3000 linii, w większości logu Postgresa.
+
+### 11.4 Audyt zewnętrzny GPT — `docs/AUDYT_GPT_2026-09.md`
+
+Siedemnaście znalezisk: 3 × P0, 6 × P1, 8 × P2, badane na commicie
+`2fe302b`. Raport jest bajtowo identyczny z dostawą na gałęzi
+`audit/gpt-2026-09` (suma SHA-256 zgodna z zadeklarowaną).
+
+**Nie przejrzałem jeszcze tych znalezisk pojedynczo** — to jest pierwsza
+rzecz do zrobienia następnego dnia. Jedyne, co o nich wiem, to co mówi
+tabela. Najpilniejsze wygląda **G01: wykonanie konta w karencji usunięcia
+jest publiczne pod bezpośrednim adresem, mimo że listy je ukrywają** —
+i to jest dokładnie ten kształt usterki, który ten projekt traktuje
+najpoważniej. **Zweryfikuj je sam, zanim naprawisz** — audyt sam przyznaje,
+że dwie jego sondy miały błędy narzędziowe (selektor CSS, zły klucz JSON).
+
+Pełne dowody (przebiegi testów, schemat, zrzuty przeglądarki) NIE są
+w repozytorium — ważą 6 MB i istnieją jako przebiegi Actions, do których
+linkuje `docs/audyt-gpt-2026-09-dowody/README.md`. Sumy kontrolne są obok.
+
+### 11.5 Co czeka na właściciela — stan na koniec sesji
+
+1. **`FILESYSTEM_DISK` i ścieżka montowania `kuking.pl-volume`.** Ta jedna
+   wartość decyduje, czy wgranie zdjęcia i paczka RODO w ogóle działają:
+   przy `r2` bez bucketu obie ścieżki rzucają wyjątek (`throw => true`),
+   przy `local` obie lądują pod `storage/`. Wolumen ISTNIEJE w panelu, ale
+   `.railway/railway.ts` o nim nie wie i wprost zakłada, że go nie ma.
+   **Nie uruchamiać `railway config apply`, dopóki plik tego nie opisze.**
+2. **Poczta.** Konto EmailLabs założone, konfiguracja niedokończona.
+   Zostają trzy rekordy DNS i cztery zmienne — `docs/infra/POCZTA_URUCHOMIENIE.md`
+   §2A. Sprawdzenie: `php artisan kuking:sprawdz-poczte <adres>`.
+   Autoryzować APEX `kuking.pl`, nie subdomenę — inaczej trzeba zmienić
+   `MAIL_FROM_ADDRESS`, a wtedy zapala się `DokumentyPrawneNieKlamiaTest`.
+3. **Czy `kontakt@kuking.pl` odbiera pocztę.** Dziś w dokumentach prawnych
+   głównym adresem jest `biuro@samsufi.pl` właśnie dlatego, że o tamtym nie
+   wiadomo. Po potwierdzeniu można odwrócić kolejność.
+4. **Dziewięć pytań z `docs/infra/KOPIE_I_ODTWORZENIE.md` §2.3**, w tym
+   najważniejsze: czy kopie bazy są w ogóle włączone.
+5. **R2** — czy zakładamy, czy zostajemy na wolumenie. To dwie różne
+   instrukcje i dwa różne modele ochrony zdjęć.
+
+### 11.6 W locie na koniec sesji
+
+**PR #148 (raport powrotów) jest CZERWONY** i ma na sobie pełną diagnozę
+w komentarzu. Dwie rzeczy: Pint (`PowrotPoDniach.php` —
+`braces_position`, `single_line_empty_body`; nieużywany import w teście)
+oraz jeden test, `OstatniaWizytaTest:54`. Ten drugi to prawdziwe znalezisko,
+nie pomyłka oczekiwania: próg throttla to 15 minut, test skacze o 8.
+**Uwaga, która oszczędzi czas:** komunikat testu zakłada jedną przyczynę
+(„druga wizyta nadpisała"), a obserwacja jest zgodna z dwiema — druga
+wizyta zapisała mimo throttla ALBO pierwsza nie zapisała wcale i `$ostatnio`
+było `null`. Rozstrzyga to asercja po PIERWSZEJ wizycie.
+
+Analityka, o której warto wiedzieć przed dotykaniem #148: `WeeklyActiveCooks`
+i `CookRetentionCohorts` JUŻ ISTNIEJĄ (`app/Domain/Analytics/`), a
+`kuking:wac` działa. Kohorty nie są jednak wołane z żadnego miejsca poza
+własnym katalogiem — istnieją i nikt ich nie widzi. #148 dokłada trzecie
+ujęcie: obecność zamiast publikacji, bo w grupie 50+ większość czyta
+i gotuje z cudzych przepisów częściej, niż publikuje.

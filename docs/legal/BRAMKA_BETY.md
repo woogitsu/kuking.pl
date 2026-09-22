@@ -66,6 +66,11 @@ CHCIAŁ zrobić; test mówi, co zostanie sprawdzone przy następnej zmianie.
 | **W7-11** | P2 | **ZAMKNIĘTE** | `fba0a39` | `CaddySpojnyZNaglowkamiLaravelaTest` (2 testy) |
 | **W7-12** | P2 | **ZAMKNIĘTE** | `79d4919` | `SekretyNieWracajaNaEkranTest` — `App\Support\OdzyskiwalneDane` jest jedyną odpowiedzią na „które pola wolno pokazać z powrotem", i jest to BIAŁA LISTA nazw tras, nie czarna lista nazw pól |
 
+> **Uwaga do wiersza W7-01 — NIEAKTUALNA OD 8 WRZEŚNIA (PR #139).** Testy
+> przebiegły na PostgreSQL 18 i są zielone; wiersz opisuje stan sprzed tego
+> przebiegu i zostaje tu wyłącznie jako ślad, dlaczego łatka tak długo leżała.
+> Oryginalna treść:
+>
 > **Uwaga do wiersza W7-01.** Łatka SEC-01 powstała w środowisku bez pełnego
 > `vendor/`, więc PHPUnita **nie uruchomiono ani razu**. Sprawdzone zostało:
 > składnia (`php -l`), zgodność z faktycznym źródłem `TrustProxies`
@@ -160,14 +165,25 @@ fałszowalny i tak ma być traktowany.
 o `X-Forwarded-For` ani słowem. Do czasu pomiaru na żywej infrastrukturze
 zostaje bezpieczna wartość `1`.
 
-**`X-Forwarded-Host` zostaje zaufany.** Jest podrabialny tak samo jak reszta
-i wpływa na host w adresach z `url()`. Właściwym zamknięciem jest middleware
-`TrustHosts`, którego lista **musi** zawierać `healthcheck.railway.app` —
-inaczej deploy pada na 400 (`.railway/railway.ts`). To osobna zmiana z własnym
-ryzykiem wdrożeniowym i świadomie nie ma jej w tej łatce. Praktyczny zasięg
-jest dziś mniejszy, niż się wydaje: link do ustawienia hasła buduje
-**zakolejkowane** powiadomienie (`UstawienieNowegoHasla implements ShouldQueue`),
-czyli worker bez żądania HTTP, który bierze host z `APP_URL`.
+**`X-Forwarded-Host` NIE JEST JUŻ ZAUFANY — zamknięte 10 września 2026 (S2,
+D-071).** Ten akapit mówił wcześniej, że nagłówek zostaje zaufany, a właściwym
+zamknięciem byłby `TrustHosts` „w osobnej zmianie". Ta zmiana została zrobiona
+i wygląda inaczej, niż tu zapowiadano — na dwa sposoby naraz:
+
+1. `X-Forwarded-Host` **wypadł z bitmaski zaufanych nagłówków**
+   (`bootstrap/app.php`). Nagłówka, którego aplikacja nie czyta, nie da się
+   podstawić — to zamknięcie mocniejsze niż allowlista. Wolno było go wyjąć,
+   bo `Host` przechodzi przez Cloudflare i brzeg Railway nietknięty.
+2. `Host` przechodzi przez `TrustHosts` z jawną listą
+   (`App\Support\ZaufaneHosty`), która **zawiera** `healthcheck.railway.app`
+   — bez tego wpisu deploy pada na 400 i nigdy się nie kończy.
+
+Zapowiedź o mniejszym praktycznym zasięgu była trafna, ale niepełna: reset
+hasła, potwierdzenie adresu i logowanie linkiem faktycznie budują adres
+w workerze z `APP_URL` (`ShouldQueue`), natomiast potwierdzenie **zmiany**
+adresu e-mail powstawało w żądaniu HTTP i tam nagłówek wchodził do listu
+wprost. Wszystkie cztery linki są teraz budowane z konfiguracji
+(`App\Support\AdresKanoniczny`).
 
 **`trustProxies(at: '*')` zostaje.** Wcześniejsze ostrzeżenie „nie usuwać"
 jest nadal aktualne: bez zaufania do `X-Forwarded-Proto` `$request->secure()`
@@ -469,25 +485,84 @@ Sam tekst prawny nie jest do napisania przez agenta: nazwa operatora, adres
 i adres kontaktowy są danymi właściciela, a tabela podstaw prawnych wymaga
 prawnika. Sam dokument zresztą tak mówi w dwóch miejscach.
 
-## 7a. Zmierzone, NIE naprawione — do decyzji właściciela
+## 7a. ZAMKNIĘTE — limity na trasach zapisujących
 
-**35 tras zapisujących nie ma limitu zapytań na poziomie trasy.** AGENTS.md §7
-mówi, że każdy endpoint przechodzi przez pięć pytań, w tym „rate limit", a
-limity mają mieszkać w `config/kuking.php`. Pełna lista wychodzi z
-`php artisan route:list --json` (filtruj po `ThrottleRequests` w middleware —
-uwaga, słowo „throttle" małą literą tam nie występuje i łatwo o tym pomyłkę).
+**Stan wcześniejszy, przepisany tu w całości, bo liczba w nim była błędna:**
 
-**Ocena wagi, uczciwie: to dryf polityki, nie otwarta dziura.** Sprawdziłem
-najgroźniej wyglądający przypadek — `POST /ustawienia/twoje-dane/eksport`
-kolejkuje ciężkie zadanie w tle, ale kontroler ma WŁASNĄ bramkę i odrzuca
-kolejne żądanie, gdy poprzednia paczka jeszcze się robi. Usunięcie konta
-wymaga hasła. Reszta to w większości tanie zapisy jednego wiersza za `auth`
-(obserwowanie, zapis do zeszytu, oznaczenie powiadomień).
+> **35 tras zapisujących nie ma limitu zapytań na poziomie trasy.** […]
+> Nie dobrałem tych 35 limitów sam, bo dobranie liczby to decyzja produktowa
+> (ile obserwowań na minutę to jeszcze człowiek, a ile już skrypt), a nie
+> techniczna.
 
-Nie dobrałem tych 35 limitów sam, bo dobranie liczby to decyzja produktowa
-(ile obserwowań na minutę to jeszcze człowiek, a ile już skrypt), a nie
-techniczna. Warto rozstrzygnąć przed betą, bo `follow`/`unfollow` generuje
-powiadomienia u drugiej osoby.
+**Liczba była przybliżona i policzona inaczej, niż mówiła.** Przeliczone
+ręcznie w `routes/web.php` na wierzchołku `main` (`820e1c5`): **67 definicji
+tras `POST`/`PUT`/`PATCH`/`DELETE`** (licząc `Route::match(['get','post'], …)`
+raz), z czego **31 miało już limit**, a **36 nie miało żadnego** — nie 35.
+Nieprawdziwe było też zdanie z §6 tego samego przeglądu, jakoby limity miały
+„tylko logowanie, rejestracja i reset hasła": kluczy w `config/kuking.php`
+było jedenaście, a limit miały m.in. publikacja, komentarz, zgłoszenie,
+odwołanie i tryb gotowania.
+
+**Rozstrzygnięte: 35 z tych 36 tras dostało limit; jedna świadomie nie.**
+Progi żyją w `config/kuking.php` (sekcja `limits`), pogrupowane WEDŁUG SZKODY,
+jaką robi nadużycie, a nie według kontrolera. Każdy klucz ma tam przy sobie
+uzasadnienie liczby.
+
+| grupa (klucz) | próg | co obejmuje |
+|---|---|---|
+| `post` (bez zmian) | 20 / 10 min | publikacja i edycja treści publicznej |
+| `comment` (bez zmian) | 10 / 1 min | komentarze i podziękowanie |
+| `usuwanie` | 30 / 10 min | usunięcie wpisu, przepisu, „Ugotowałem", zeszytu |
+| `obserwowanie` | 60 / 10 min | obserwowanie i odobserwowanie osoby oraz tagu |
+| `masowe_obserwowanie` | 5 / 10 min | `/witaj/ludzie` — jedno żądanie, wiele powiadomień |
+| `blokada` | 60 / 10 min | blokowanie i odblokowanie osoby |
+| `zeszyt` | 60 / 10 min | zapis i wypisanie przepisu albo wpisu |
+| `ustawienia` | 30 / 10 min | czytelność, prywatność, tagi, motyw, powiadomienia, zapis profilu, usunięcie zdjęcia profilowego |
+| `ustawienia_profil` | 15 / 10 min | `POST /ustawienia/zdjecie` — jedyny ekran ustawień z plikiem |
+| `eksport` | 10 / 60 min | paczka RODO |
+| `confirm_password` (bez zmian) | 5 / 10 min | akcje proszące o hasło — teraz także wyłączenie 2FA i zgłoszenie usunięcia konta |
+| `moderacja` | 120 / 10 min | cały panel `/admin` |
+
+**ŚWIADOMIE BEZ LIMITU: `POST /logout`.** Wylogowanie unieważnia sesję i nic
+nie tworzy; powtórzone nie robi nic. Za to 429 na tej trasie zostawia otwartą
+sesję na wspólnym komputerze u kogoś, kto właśnie próbuje ją zamknąć. Zysk
+zerowy, koszt realny. Wyjątek jest wpisany z nazwy w
+`tests/Feature/LimityTrasZapisujacychTest.php`, więc druga taka trasa nie
+powstanie po cichu.
+
+**Dwie rzeczy naprawione przy okazji, obie zmierzone, nie wywnioskowane:**
+
+1. `collections.save-post` i `collections.unsave-post` chodziły pod prefiksem
+   `post`, czyli pod budżetem PUBLIKOWANIA. Wieczór spędzony na zapisywaniu
+   cudzych wpisów do zeszytu odbierał prawo do opublikowania własnego — ten
+   sam kształt usterki co zgłoszenie „429 przy pierwszym zdjęciu" (`ef4f6ca`),
+   tylko na innej parze tras. Przeniesione pod `zeszyt`, z testem regresyjnym.
+2. `POST /witaj/ludzie` przyjmował listę kont do obserwowania **bez limitu jej
+   długości** (`'follow' => ['nullable','array']`), a pętla w kontrolerze
+   tworzy powiadomienie dla każdej pozycji. Limit na trasie tego nie łapie, bo
+   to jedno żądanie. Dodane `max:20` (ekran proponuje osiem osób). To samo
+   przy `POST /witaj/zainteresowania`: tam każda pozycja tablicy uruchamiała
+   osobne zapytanie `exists:tags,id` — dodane `max:50`.
+
+**Komunikat po przekroczeniu limitu był już w porządku i nie wymagał zmiany.**
+`resources/views/errors/429.blade.php` jest po polsku, w layoucie serwisu,
+mówi ile czekać (zaokrąglone w górę z nagłówka `Retry-After`), mówi, że nic
+nie przepadło, i daje dwa wyjścia. Pilnuje go
+`StronyBleduPoPolskuTest::test_429_mowi_co_zrobic_po_polsku`, a
+`bootstrap/app.php` zapisuje przy każdym 429 wzorzec trasy do logu.
+Jedyna droga, którą zostaje angielskie „Too Many Requests", to odpowiedź JSON
+(`shouldRenderJsonWhen`) — dziś nieosiągalna, bo repozytorium nie ma tras
+`api/*`, a trasy Livewire'a nie mają naszych limitów. Zostawione bez zmiany
+i zapisane tutaj jako rzecz do sprawdzenia w dniu, w którym powstanie
+pierwszy endpoint JSON.
+
+**Otwarte, drobne:** klucz `tag_suggest` w `config/kuking.php` nie jest
+podpięty do żadnej trasy (podpowiedzi tagów liczy `TagSuggester` po stronie
+serwera, bez własnego endpointu). To dokładnie ten sam kształt co opisany
+w tym samym pliku, usunięty już klucz `upload`: martwy wpis jest gorszy niż
+jego brak, bo następna osoba podniesie liczbę i uzna sprawę za załatwioną.
+Zostawiony, bo jego usunięcie albo podpięcie to decyzja o zakresie SPEC §1.5,
+a nie o limitach.
 
 
 ---
@@ -527,16 +602,55 @@ Zanim ktokolwiek powie „można otwierać":
 
 1. **#120** — dowód, że produkcyjny bucket wariantów nie jest publicznie
    osiągalny. Bez tego W7-02 jest naprawione tylko w kodzie.
-2. **SEC-01 na stagingu** — rozstrzygnięcie W7-01.
+2. ~~**SEC-01 na stagingu** — rozstrzygnięcie W7-01.~~ **ZAMKNIĘTE 8 września
+   (PR #139).** Dziewięć testów `PodrobionyNaglowekProxyTest` przebiegło na
+   PostgreSQL 18 na zielono; uruchomienie wykazało przy okazji usterkę, której
+   czytanie kodu nie pokazało (adres IPv4 zapisany jako IPv6 kasował cały
+   nagłówek). Połowa aplikacyjna W7-01 jest zamknięta i **udowodniona
+   przebiegiem, nie rozumowaniem**. Granica zaufania — token krawędziowy —
+   zostaje otwarta i wymaga panelu Cloudflare.
 3. **Fale 1–6 w tej macierzy** (§6).
 4. **Ochrona `main` i bramka CI** (§5) — audyt wymienia to wprost w sekcji
    „Release safety".
-5. **Tożsamość i adres administratora** w dokumentach prawnych (§7b). Do czasu
-   podania: rejestracja otwarta dla wszystkich jest publikowaniem serwisu bez
-   informacji, kto odpowiada za dane.
-6. **Działająca skrzynka pocztowa** (§7b). Dziś `MAIL_MAILER=log`: reset hasła
-   nie dochodzi do nikogo. To nie jest brak wygody — to konto tracone
-   bezpowrotnie przy pierwszym zapomnianym haśle.
-7. **Wybór okresów retencji** (`docs/decyzje/ADR_RETENCJE.md`). Polityka
-   prywatności nie podaje dziś żadnego okresu poza dwoma, które kod egzekwuje,
-   i tak zostanie do czasu tej decyzji.
+5. ~~**Tożsamość i adres administratora** w dokumentach prawnych (§7b).~~
+   **ZAMKNIĘTE 8 września.** Serwis prowadzi SAMSUFI sp. z o.o. z siedzibą
+   w Knyszynie (KRS 0000901262). Dane stoją w regulaminie §1 i w polityce
+   prywatności §1, a `config/kuking.php` jest ich źródłem — rozjazd między
+   konfiguracją a dokumentem zapala `DokumentyPrawneNieKlamiaTest` na czerwono.
+   Wcześniej oba dokumenty mówiły „serwis prowadzi osoba fizyczna" i obiecywały
+   dane później, co przy RODO art. 13 ust. 1 lit. a było zaniechaniem.
+6. ~~**Działająca skrzynka pocztowa** (§7b).~~ **ZAMKNIĘTE — sprawdzone
+   na produkcji 20 września 2026.** Stało tu: „Dziś `MAIL_MAILER=log`: reset
+   hasła nie dochodzi do nikogo". To zdanie opisywało `.env.example`, czyli
+   ustawienie LOKALNE, i przestało być prawdą o produkcji. Odczyt
+   `https://kuking.pl/health` pokazuje `poczta: ok`, a jedynym niezdrowym
+   elementem jest `kolejka: zadania_nieudane`.
+
+   Zostawiam ten punkt przekreślony, a nie skasowany, bo jest dowodem na to,
+   po co ta bramka w ogóle powstała: **pozycja bramkująca, która blokuje na
+   rozwiązanym problemie, szkodzi dokładnie tak samo jak pozycja o usłudze,
+   której nigdy nie było**. Jedna każe czekać bez powodu, druga każe odhaczyć
+   niemożliwe — obie uczą, że listy nie trzeba czytać serio.
+7. ~~**Wybór okresów retencji**~~ — **ZAMKNIĘTE, poprawione 9 września.**
+   Stało tu: „polityka prywatności nie podaje dziś żadnego okresu poza dwoma,
+   które kod egzekwuje". To zdanie zostało z czasu sprzed `ADR_RETENCJE.md`
+   i było już nieprawdziwe. Okresy są wybrane, wpisane w `config/kuking.php`
+   i **egzekwowane przez siedem komend**, a nie przez dwie:
+
+   | co | okres | komenda |
+   |---|---|---|
+   | powiadomienia | 3 miesiące | `kuking:sprzataj-powiadomienia` |
+   | sygnały produktowe | 90 dni | `kuking:sprzataj-sygnaly` |
+   | dziennik audytu | 12 miesięcy | `kuking:sprzataj-audyt` |
+   | sprawy moderacyjne | 36 miesięcy | `kuking:sprzataj-sprawy-moderacyjne` |
+   | paczki z danymi | 7 dni | `kuking:sprzataj-eksporty` |
+   | zdjęcia nieprzypięte | — | `kuking:sprzataj-osierocone-zdjecia` |
+   | konta po karencji | 30 dni | `kuking:usun-wygasle-konta` |
+
+   Powiadomienia moderacyjne mają **własny, dłuższy** termin — sześć miesięcy
+   na odwołanie z regulaminu §8 — i sprzątanie ich pomija; dlatego tamta
+   komenda chodzi po wierszach jedno po drugim zamiast jednym `DELETE`.
+
+   Znalazł to audyt zewnętrzny (§6.2). Ta pozycja bramki nie blokuje już
+   niczego; zostaje przekreślona zamiast skasowana, bo bramka jest zapisem
+   tego, co było do rozstrzygnięcia.

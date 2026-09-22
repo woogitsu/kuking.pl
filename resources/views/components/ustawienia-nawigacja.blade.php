@@ -19,6 +19,31 @@
     dopisuje się w jednym miejscu i od razu widzą go wszystkie pozostałe.
     Bieżący ekran zostaje na liście jako zwykły tekst, nie znika: znikająca
     pozycja przesuwa resztę i za każdym wejściem układ wygląda inaczej.
+
+    GDZIE TEN KOMPONENT MA STAĆ NA STRONIE (zgłoszenie właściciela, Full HD)
+
+    Na 1920×1080 formularz zajmował środek, a cała prawa połowa ekranu stała
+    pusta, podczas gdy ten spis leżał POD formularzem — poza pierwszym
+    ekranem. Poprawka NIE jest osobnym CSS-em dla ustawień: każda podstrona
+    wkłada ten komponent do `<x-slot:rail>`, czyli do tej samej „prawej
+    szyny", którą od dawna mają Start i Szukaj (`.app-rail` w `app.css`,
+    slot `$rail` w `components/layout.blade.php`). Jedna reguła układu,
+    jeden próg szerokości, żadnego nowego CSS-u specyficznego dla ustawień.
+
+    `.app-rail` włącza się dopiero od 80rem (próg zmierzony pod kątem trzeciej
+    kolumny w ogóle, nie tylko tego spisu — patrz komentarz przy nim
+    w `app.css`): poniżej tego progu szyna ląduje POD treścią, w jednej
+    kolumnie — telefon i tablet widzą DOKŁADNIE to, co widziały przed tą
+    zmianą, łącznie z kolejnością.
+
+    KOLEJNOŚĆ W DOM SIĘ NIE ZMIENIA. `<main>` (formularz) renderuje się
+    w layoucie PRZED `<aside class="app-rail">` (ten spis) niezależnie od
+    tego, w którym miejscu pliku podstrony stoi `<x-slot:rail>` — Blade
+    wstawia zawartość slotu tam, gdzie ten slot stoi w LAYOUCIE, nie tam,
+    gdzie stoi w źródle podstrony. Dlatego `Tab` i czytnik ekranu idą tak
+    samo jak wcześniej: formularz, potem ten spis. Do przestawienia NIE użyto
+    CSS-owego `order` — ono zmienia to, co widać, ale nie kolejność fokusu,
+    i naprawiałoby wygląd kosztem klawiatury.
 --}}
 
 @php
@@ -26,9 +51,14 @@
     // Trasa `settings.topics` już nie istnieje — usunięta razem z Tematami
     // w etapie 4/5, więc ta lista jest jedynym, spójnym źródłem ekranów.
     $ekrany = [
-        'profile' => ['settings.profile', 'Profil', 'Nazwa, zdjęcie, kilka słów o Tobie'],
+        'profile' => ['settings.profile', 'Profil', 'Imię, nazwa użytkownika, kilka słów o Tobie'],
+        // Zdjęcie profilowe stoi na liście OSOBNO, zaraz po profilu, bo od tej
+        // zmiany ma własny, krótki ekran — było szóstym polem w formularzu
+        // profilu, czyli funkcją, do której trzeba się było przewinąć.
+        'avatar' => ['settings.avatar', 'Zdjęcie profilowe', 'Dodaj, zmień albo usuń swoje zdjęcie'],
         'accessibility' => ['settings.accessibility', 'Czytelność', 'Wielkość tekstu i kontrast'],
         'tags' => ['settings.tags', 'Tagi', 'Co Cię interesuje w kuchni'],
+        'email' => ['settings.email', 'Adres e-mail', 'Zobacz i zmień adres do wiadomości z Kuking'],
         'security' => ['settings.security', 'Bezpieczeństwo', 'Zmiana hasła, wylogowanie z innych urządzeń'],
         'two_factor' => ['settings.two_factor.edit', 'Weryfikacja dwuetapowa', 'Drugi krok przy logowaniu — kod z telefonu'],
         'privacy' => ['settings.privacy', 'Prywatność', 'Kto widzi Twoje treści, zablokowane osoby'],
@@ -36,7 +66,10 @@
     ];
 @endphp
 
-<nav class="card ustawienia-nawigacja" aria-label="Wszystkie ustawienia">
+{{-- Sekcja strony, nie karta: to nawigacja, nie treść. Warstwa 3 ma te same
+     wartości co warstwa 4 (blok szyny), więc spis wygląda dokładnie tak jak
+     dotąd — bez cienia, który konkurowałby z kolumną główną. --}}
+<nav class="sekcja-strony ustawienia-nawigacja" aria-label="Wszystkie ustawienia">
     <h2 class="ustawienia-nawigacja-tytul">Wszystkie ustawienia</h2>
 
     <ul class="ustawienia-nawigacja-lista">

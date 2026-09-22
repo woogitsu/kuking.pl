@@ -12,14 +12,64 @@
 
     <x-post-card :post="$post" />
 
+    @if($poprzedniWpis || $nastepnyWpis)
+        {{--
+            Kolejne zdjęcie tej samej osoby (Garnek.pl: „kolejne >" z miniaturą
+            w prawej szynie) — jednym kliknięciem, bez powrotu na profil.
+
+            Chronologicznie po `published_at`: „następny" to nowszy wpis, jak
+            w archiwum. Widoczność liczy `App\Domain\Posts\SasiedniWpisAutora`
+            (ten sam komplet zakresów co reszta serwisu), więc żaden z tych
+            odnośników nie prowadzi do wpisu, którego oglądający nie ma prawa
+            zobaczyć — a gdy sąsiada nie ma (pierwszy albo ostatni wpis),
+            odpowiedni odnośnik po prostu nie istnieje.
+        --}}
+        <nav class="wpis-nawigacja-sasiedzi" aria-label="Inne wpisy tej osoby">
+            @if($poprzedniWpis)
+                <a class="wpis-nawigacja-sasiedzi-link wpis-nawigacja-sasiedzi-poprzedni"
+                   href="{{ route('posts.show', $poprzedniWpis) }}">
+                    @if($poprzedniWpis->media->first())
+                        <img class="wpis-nawigacja-sasiedzi-miniatura"
+                             src="{{ $poprzedniWpis->media->first()->url('thumb') }}"
+                             alt="" width="64" height="64" loading="lazy">
+                    @endif
+                    <span class="wpis-nawigacja-sasiedzi-tekst">
+                        <span aria-hidden="true">&larr;</span>
+                        Poprzedni wpis
+                    </span>
+                </a>
+            @endif
+
+            @if($nastepnyWpis)
+                <a class="wpis-nawigacja-sasiedzi-link wpis-nawigacja-sasiedzi-nastepny"
+                   href="{{ route('posts.show', $nastepnyWpis) }}">
+                    <span class="wpis-nawigacja-sasiedzi-tekst">
+                        Następny wpis
+                        <span aria-hidden="true">&rarr;</span>
+                    </span>
+                    @if($nastepnyWpis->media->first())
+                        <img class="wpis-nawigacja-sasiedzi-miniatura"
+                             src="{{ $nastepnyWpis->media->first()->url('thumb') }}"
+                             alt="" width="64" height="64" loading="lazy">
+                    @endif
+                </a>
+            @endif
+        </nav>
+    @endif
+
+    {{-- „Podziel się" stoi na STRONIE wpisu, a nie na karcie w feedzie.
+         Wysyła się konkretny adres, więc miejscem tej akcji jest strona,
+         którą ten adres otwiera. Na karcie w feedzie byłby to dwudziesty
+         przycisk na ekranie i pierwszy, który myli „wyślij komuś"
+         z „opublikuj u siebie". --}}
+    <x-podziel-sie :tresc="$post" />
+
     @if(auth()->id() === $post->author_id)
         {{--
             Zachęta do kolejnego zdjęcia (COLD_START.md).
 
-            „Po publikacji od razu proponujemy dodanie następnego — człowiek
-            ma w telefonie czterdzieści zdjęć obiadów i jest w trybie »już
-            wiem, jak to działa«". To jest jedyny moment, w którym opór przed
-            publikacją jest zerowy, bo właśnie się udało.
+            D-114: opisujemy drogę do formularza, bez założeń o zawartości
+            telefonu i bez niezmierzonej obietnicy szybszego dodawania.
 
             Stoi NAD strefą usuwania i wygląda inaczej niż ona: pierwszą
             rzeczą, którą autor widzi po publikacji, nie może być przycisk
@@ -27,12 +77,14 @@
         --}}
         <div class="notice">
             @if($toPierwszyWpis ?? false)
-                <strong>To Twój pierwszy wpis. Gratulacje.</strong>
-                Masz pewnie w telefonie więcej zdjęć — teraz idzie najszybciej,
-                bo już wiesz, jak to działa.
+                <strong>To Twój pierwszy wpis.</strong>
+                Kolejne zdjęcie dodasz przez ten sam formularz.
             @else
+                {{-- BEZ „zajmuje mniej niż minutę": obietnica z miarą, której
+                     nie mierzymy. Zostaje to, co jest prawdą niezależnie od
+                     zasięgu — że kolejny wpis robi się tak samo jak ten. --}}
                 <strong>Gotujesz dziś coś jeszcze?</strong>
-                Dodanie kolejnego zdjęcia zajmuje mniej niż minutę.
+                Kolejne dodasz tak samo — zdjęcie i kilka słów.
             @endif
             <p class="mb-0">
                 <a class="btn btn-primary" href="{{ route('posts.create') }}">Dodaj kolejne zdjęcie</a>

@@ -71,6 +71,8 @@ final class ReportContent
         User::class => 'viewProfile',
     ];
 
+    public function __construct(private readonly NotifyReporterReceipt $potwierdzenie) {}
+
     /**
      * Bramka widoczności celu (audyt W7-05).
      *
@@ -130,7 +132,7 @@ final class ReportContent
         $existing = $this->otwarteZgloszenie($reporter, $targetType, $target->getKey());
 
         if ($existing !== null) {
-            return $existing;
+            return $this->dokonczPotwierdzenie($existing);
         }
 
         try {
@@ -168,7 +170,7 @@ final class ReportContent
                 throw $e;
             }
 
-            return $rownolegle;
+            return $this->dokonczPotwierdzenie($rownolegle);
         }
 
         AuditLogEntry::record(
@@ -179,7 +181,65 @@ final class ReportContent
             ip: $ip,
         );
 
+        /*
+         * POTWIERDZENIE PRZYJĘCIA (DSA art. 16 ust. 4), issue #10.
+         *
+         * STOI DOKŁADNIE TUTAJ, a nie wyżej, i to jest cała reguła:
+         * potwierdzenie należy się JEDNEMU zgłoszeniu jeden raz. Obie drogi
+         * powyżej, które oddają wiersz JUŻ ISTNIEJĄCY (`$existing` z ciepłego
+         * `SELECT`-a i `$rownolegle` po odbiciu się o indeks
+         * `reports_one_open_per_pair`), wracają wcześniej — więc podwójne
+         * kliknięcie nie tworzy drugiego potwierdzenia, tak samo jak nie
+         * tworzy drugiej sprawy. Ten sam wybór, z tego samego powodu, zrobiła
+         * droga prawna (`ZglosNielegalnaTresc`: „ANI JEDNO potwierdzenie
+         * odbioru więcej").
+         *
+         * POZA TRANSAKCJĄ ZAPISU (jest już zamknięta linijkę wyżej): wiersz
+         * zgłoszenia nie może zniknąć dlatego, że nie udało się zapisać
+         * powiadomienia o nim. Przy obowiązku z art. 16 ciche zgubienie
+         * sprawy jest najgorszym z możliwych skutków.
+         */
+        $this->potwierdzenie->potwierdzBezWywracaniaSprawy($report);
+
         return $report;
+    }
+
+    /**
+     * Dokończenie POTWIERDZENIA przy powrocie do istniejącej sprawy
+     * (issue #797).
+     *
+     * CO TO NAPRAWIA
+     * Potwierdzenie stoi poza transakcją zapisu sprawy — celowo, żeby
+     * zgłoszenie nie zniknęło przez awarię powiadomienia. Skutkiem ubocznym
+     * było to, że awaria zostawiała sprawę BEZ potwierdzenia NA ZAWSZE:
+     * obie drogi powrotu (ciepły `SELECT` i odbicie się o indeks) wracały
+     * wcześniej, więc ponowne kliknięcie „Zgłoś" oddawało tę samą sprawę
+     * i nie próbowało niczego dokończyć. Zmierzone: 1 sprawa,
+     * 0 potwierdzeń, `receipt_sent_at` `null`, i tak już zostawało.
+     *
+     * DLACZEGO PYTAMY O ZNACZNIK, A NIE O ISTNIENIE POWIADOMIENIA
+     * Bo to są dwa różne pytania. `RetencjaPowiadomien` kasuje ping po
+     * ogólnym okresie retencji — poprawnie potwierdzona sprawa sprzed
+     * czterech miesięcy nie ma dziś żadnego `Notification`. Warunek „nie ma
+     * powiadomienia → utwórz" wskrzeszałby takie pingi przy każdym
+     * ponowieniu. `receipt_sent_at` odpowiada na właściwe pytanie: czy
+     * potwierdzenie KIEDYKOLWIEK doszło do skutku.
+     *
+     * ZGŁOSZENIE BEZ KONTA (`reporter_id === null`) nie ma tu adresata i nie
+     * jest zaległością — `NotifyReporterReceipt` wraca z `null` sam, a droga
+     * prawna ma własne, mailowe potwierdzenie.
+     *
+     * ZWYKŁE PODWÓJNE KLIKNIĘCIE nic tu nie robi: znacznik jest ustawiony
+     * od pierwszego przebiegu, więc warunek nie wchodzi i ANI JEDEN ping
+     * więcej nie powstaje.
+     */
+    private function dokonczPotwierdzenie(Report $zgloszenie): Report
+    {
+        if ($zgloszenie->receipt_sent_at === null) {
+            $this->potwierdzenie->potwierdzBezWywracaniaSprawy($zgloszenie);
+        }
+
+        return $zgloszenie;
     }
 
     /**

@@ -1,0 +1,48 @@
+# Otoczenie serii jit-off-r030 — 2026-09-20T18:40:47Z
+# progi bramki: obce <= 18 rdzeni, PSI cpu some avg10 <= 25, spokój 60s
+
+## uptime przed bramką
+ 20:40:47 up 2 days, 7 min,  1 user,  load average: 23.19, 17.51, 13.11
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+2225046  254  1.2       03:37 headless_shell
+2301688  114  0.2       00:00 MainThread
+2297228 99.6  0.2       00:21 php
+2301588 98.9  0.0       00:00 python3
+2296500 98.6  0.2       00:23 python3
+2301635 97.0  0.3       00:00 php
+2301647 85.7  0.4       00:00 MainThread
+2300476 65.5  1.3       00:07 headless_shell
+2211478 54.6  1.0       04:43 php
+2274600 54.6  0.8       01:31 php
+2254483 52.3  0.9       02:43 php
+2249156 51.2  0.9       03:02 php
+2297835 50.2  0.6       00:19 php
+2301595 46.6  0.4       00:00 frankenphp
+2184363 45.6  1.1       07:23 php
+2225167 35.7  0.3       03:37 python3
+2301698 33.3  0.1       00:00 postgres
+2301401 30.0  0.4       00:01 MainThread
+2299446 22.0  0.4       00:13 Runner.Worker
+2224483 18.2  1.4       03:38 MainThread
+2301597 17.7  0.2       00:00 php
+2301616 16.8  0.2       00:00 php
+2301457 11.1  0.2       00:01 chrome-headless
+2225024  8.8  0.3       03:38 headless_shell
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 10
+Runner.Worker (aktywne joby): 5
+
+## kontenery
+kuking-gpt-obciazenie-app kuking:ci-4c811cc7bff365fb8f86d87eabac93b7738a45cd Up 2 seconds (health: starting)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 2 days
+bramka: 30s/300s, obce 16.35 rdzeni z 24, PSI 8.19, runnery kuking: brak, cisza 30s/60s
+bramka OTWARTA po 59s: obce <= 18 rdzeni, PSI <= 25 i ZERO pracujących runnerów kuking przez 60s
+
+## uptime po otwarciu bramki, tuż przed serią
+ 20:41:50 up 2 days, 8 min,  1 user,  load average: 20.79, 17.83, 13.50
+
+## uptime po serii i po 60 s wybiegu
+ 20:45:23 up 2 days, 11 min,  1 user,  load average: 27.08, 23.70, 16.83

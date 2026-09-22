@@ -1,0 +1,13 @@
+{
+  "before": {
+    "md5": "1c791dc5760e326f1757c182c0cc0b41",
+    "mtime_ns": 1789481561626881400
+  },
+  "after": {
+    "md5": "1c791dc5760e326f1757c182c0cc0b41",
+    "mtime_ns": 1789481561626881400
+  },
+  "backup": "/home/mateusz/kuking-local/kuking577-0sa53m4a/ci.yml",
+  "negative_detected": true,
+  "positive_pass": true
+}

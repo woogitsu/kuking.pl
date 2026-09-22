@@ -1,0 +1,16 @@
+{
+  "nazwa": "image_preparation",
+  "plik": "app/Moderacja/OcenaModelem.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "5ad2d5c13fe931dbaff0dd472dff9b99",
+  "md5_po_mutacji": "02ad8c50b989f026e630c02ab13f3c3e",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Not to contain: CONTROLLED_FOREIGN_EXCEPTION",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T19:37:38Z"
+}

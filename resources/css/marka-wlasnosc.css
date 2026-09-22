@@ -1,0 +1,40 @@
+/* Trzy konkretne możliwości, z zachowaniem prawdziwych dróg aplikacji. */
+@layer marka {
+  .marka-wlasnosc-naglowek { margin-bottom: var(--spacing-8); }
+  .marka-wlasnosc-naglowek h2 {
+    font-size: calc(clamp(2.125rem, 4vw, 3.5rem) * var(--user-text-scale, 1));
+    line-height: var(--leading-title-wiele);
+    letter-spacing: -.04em;
+    margin-bottom: var(--spacing-4);
+  }
+  .marka-wlasnosc-karty {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: var(--spacing-4);
+  }
+  .marka-wlasnosc-karty article {
+    min-width: 0;
+    padding: var(--spacing-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-raised);
+    overflow-wrap: anywhere;
+  }
+  .marka-wlasnosc-karty h3 { font-size: var(--text-title-sm); margin-bottom: var(--spacing-4); }
+  .marka-wlasnosc p { color: var(--color-ink-muted); }
+  .marka-wlasnosc .marka-wlasnosc-etykieta,
+  .marka-wlasnosc .start-nadtytul { color: var(--color-brand); font-weight: 700; }
+  .marka-wlasnosc-karty a { display: inline-flex; align-items: center; min-height: 48px; font-weight: 700; }
+  .marka-wlasnosc-zasady {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
+    gap: var(--spacing-6);
+    margin-top: var(--spacing-8);
+    padding-top: var(--spacing-6);
+    border-top: 1px solid var(--color-border);
+  }
+  @media (max-width: 900px) {
+    .marka-wlasnosc-karty,
+    .marka-wlasnosc-zasady { grid-template-columns: minmax(0, 1fr); }
+  }
+}

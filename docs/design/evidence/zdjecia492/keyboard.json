@@ -1,0 +1,26 @@
+[
+  {
+    "theme": "light",
+    "focus": {
+      "text": "Następne zdjęcie",
+      "visible": true
+    },
+    "before": 0,
+    "after": 270,
+    "zoom": 2,
+    "width": 320,
+    "font": "25.2px"
+  },
+  {
+    "theme": "dark",
+    "focus": {
+      "text": "Następne zdjęcie",
+      "visible": true
+    },
+    "before": 0,
+    "after": 270,
+    "zoom": 2,
+    "width": 320,
+    "font": "25.2px"
+  }
+]

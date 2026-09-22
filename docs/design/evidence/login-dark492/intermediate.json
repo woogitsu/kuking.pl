@@ -1,0 +1,38 @@
+{
+    "sourceSha":  "609328b53b6e87d99fbf178f46dbb2157feeeed7",
+    "comparedMainSha":  "c6bed3e64d15e55f7540d48abee6a75cd22bbb64",
+    "rows":  [
+                 {
+                     "state":  "sent",
+                     "width":  390,
+                     "theme":  "dark",
+                     "overflow":  false
+                 },
+                 {
+                     "state":  "sent",
+                     "width":  1440,
+                     "theme":  "dark",
+                     "overflow":  false
+                 },
+                 {
+                     "state":  "confirm",
+                     "width":  390,
+                     "theme":  "dark",
+                     "overflow":  false
+                 },
+                 {
+                     "state":  "confirm",
+                     "width":  1440,
+                     "theme":  "dark",
+                     "overflow":  false
+                 }
+             ],
+    "sendResponse":  {
+                         "observedAt":  "2026-09-17T22:50:34.764Z",
+                         "status":  302,
+                         "date":  "Thu, 17 Sep 2026 22:50:34 GMT",
+                         "retryAfter":  null
+                     },
+    "passed":  false,
+    "limitation":  "Four intermediate layouts passed; success measurement stopped at account theme mismatch."
+}

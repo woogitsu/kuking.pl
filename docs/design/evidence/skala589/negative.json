@@ -1,0 +1,14 @@
+{
+  "md5": "27a88ef754185d9f712623142c1d1942",
+  "mtime_ns": 1789506452001122422,
+  "backup": "/home/mateusz/skala589-wmmvm1od",
+  "negative": {
+    "exit": 1,
+    "output": "node:internal/modules/run_main:107\n    triggerUncaughtException(\n    ^\n\nAssertionError [ERR_ASSERTION]: padding przycisku: 12 zamiast 8.399999999999999\n    at near (file:///home/mateusz/kuking-skala589-runtime/scripts/skala-proporcje.mjs:17:42)\n    at file:///home/mateusz/kuking-skala589-runtime/scripts/skala-proporcje.mjs:68:7 {\n  generatedMessage: false,\n  code: 'ERR_ASSERTION',\n  actual: false,\n  expected: true,\n  operator: '==',\n  diff: 'simple'\n}\n\nNode.js v24.19.0\n"
+  },
+  "restored": true,
+  "positive": {
+    "exit": 0,
+    "output": "Skala589 PASS: 72 konfiguracji\n"
+  }
+}

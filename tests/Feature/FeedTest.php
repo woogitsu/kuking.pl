@@ -8,11 +8,13 @@ use App\Domain\Feed\FollowingFeed;
 use App\Domain\Social\Actions\BlockUser;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
 class FeedTest extends TestCase
 {
     use RefreshDatabase;
+    use WycinaObudoweEkranu;
 
     public function test_feed_pokazuje_wpisy_obserwowanych_chronologicznie(): void
     {
@@ -43,24 +45,95 @@ class FeedTest extends TestCase
 
     public function test_pusty_feed_pokazuje_swiezo_z_kuking_i_propozycje_ludzi(): void
     {
-        $nowy = $this->user('nowy');
-        $ktos = $this->user('ktos');
+        // NAZWY MUSZĄ SIĘ RÓŻNIĆ, I TO JEST CAŁA POPRAWKA TEGO TESTU.
+        //
+        // `TestCase::user()` daje każdemu domyślnie „Testowa osoba". Test
+        // asertował dokładnie ten napis jako dowód, że są propozycje osób —
+        // a ten sam napis stoi na stronie i tak, bo to nazwa ZALOGOWANEGO
+        // widza (nawigacja, nagłówek profilu). Zmierzone: po zmianie
+        // `DailyBoard::forViewer()` na `'people' => collect()`, czyli po
+        // CAŁKOWITYM usunięciu propozycji osób, ten test zostawał zielony
+        // (razem z całym `DailyBoardTest` — 27/27).
+        $nowy = $this->user('nowy', ['display_name' => 'Nowa Basia']);
+        $ktos = $this->user('ktos', ['display_name' => 'Halina z Kaszub']);
         Post::factory()->create(['author_id' => $ktos->getKey()]);
 
         // Propozycje osób pokazuje tablica „kuKINGi na dziś" (DailyBoard),
         // która zastąpiła osobną sekcję „Osoby, które tu gotują".
         //
         // „Świeżo z Kuking" przestało być pozycją w nawigacji i jest teraz
-        // ZAKŁADKĄ feedu („Obserwowani / Odkrywaj", UI kit v2, ekran 01) —
-        // czyli stoi tam, gdzie się go używa. Test pyta więc o zakładkę,
-        // a nie o dawną nazwę pozycji w menu.
-        $this->actingAs($nowy)
+        // ZAKŁADKĄ feedu („Obserwowani / Świeżo z Kuking", UI kit v2,
+        // ekran 01) — czyli stoi tam, gdzie się go używa. Test pyta więc
+        // o zakładkę, a nie o dawną nazwę pozycji w menu.
+        //
+        // D-207: desktop ma Odkrywaj; ponizszy test nadal sprawdza osobna zakladke feedu.
+        $odpowiedz = $this->actingAs($nowy)
             ->get(route('home'))
             ->assertOk()
-            ->assertSee('Odkrywaj')
-            ->assertSee('na dziś')
-            ->assertSee('Testowa osoba')
-            ->assertSee('Jutro będzie tu ktoś inny.');
+            ->assertSee('Co dobrego u innych?')
+            ->assertSee('Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.');
+
+        // Nazwa serwisu w etykiecie zakładki jest zapisana dwukolorowo
+        // (`docs/brand/GLOS_MARKI.md` §2), więc w HTML-u nie ma napisu
+        // „Kuking" — jest komponent `x-kuking-word`. Wzór pyta o zakładkę
+        // razem z tym komponentem: sam „Świeżo z" przechodziłby też wtedy,
+        // gdyby ktoś wyjął nazwę z etykiety.
+        //
+        // `<span class="tab-napis">` jest w tym wzorze OPCJONALNY. Etykieta
+        // musi być owinięta jednym elementem, bo inaczej flex przycina spację
+        // przed nazwą i człowiek czyta „Świeżo zkuKING" — ale pilnuje tego
+        // `ZakladkaNieGubiSpacjiPrzedNazwaTest`, i to jest jego jedyne
+        // zadanie. Ten test pyta o co innego: czy zakładka w ogóle jest
+        // i czy prowadzi do właściwego ekranu. Gdyby wymagał tu konkretnego
+        // opakowania, oblewałby przy każdej zmianie kształtu etykiety
+        // i podawałby przy tym mylny powód.
+        $this->assertMatchesRegularExpression(
+            '~<a class="tab" href="'.preg_quote(route('discover'), '~').'"[^>]*>\s*(?:<span class="tab-napis">)?Świeżo z <span class="kuking-word">~u',
+            (string) $odpowiedz->getContent(),
+            'Zakładka prowadząca do „Świeżo z kuKING" zniknęła ze strony głównej.',
+        );
+
+        // Propozycja osoby to KONKRETNY człowiek z odnośnikiem do profilu —
+        // i musi stać W LIŚCIE OSÓB na tablicy, nie gdziekolwiek na stronie.
+        //
+        // Zawężenie jest tu wszystkim. `assertSee('Halina z Kaszub')` na
+        // całym dokumencie przechodzi także bez propozycji osób, bo ta nazwa
+        // stoi na karcie jej wpisu w zakładce „Świeżo z Kuking". Zawężenie do samej
+        // sekcji `kuking-board` też nie wystarcza — tablica pokazuje obok
+        // osób także DANIA, z nazwą autora przy każdym. Zmierzone: obie
+        // szersze wersje zostawały zielone przy `'people' => collect()`.
+        $lista = $this->listaProponowanychOsob((string) $odpowiedz->getContent());
+
+        $this->assertStringContainsString('Halina z Kaszub', $lista);
+        $this->assertStringContainsString(route('profile.show', 'ktos'), $lista);
+
+        // I nie proponujemy widzowi jego samego.
+        $this->assertStringNotContainsString('Nowa Basia', $lista);
+    }
+
+    /**
+     * Sama lista „Osoby" z tablicy „kuKINGi na dziś".
+     *
+     * `<ul class="kuking-board-people">` renderuje się WYŁĄCZNIE wtedy, gdy
+     * propozycje osób naprawdę są (`@if($people->isNotEmpty())` w
+     * `resources/views/components/kuking-board.blade.php`) — więc samo jej
+     * znalezienie jest już połową asercji.
+     */
+    private function listaProponowanychOsob(string $html): string
+    {
+        $start = strpos($html, '<ul class="kuking-board-people">');
+
+        $this->assertNotFalse(
+            $start,
+            'Na stronie startowej nowej osoby nie ma ani jednej propozycji, kogo obserwować. '
+            .'Pusty feed bez propozycji to pusty ekran u nowego użytkownika (AGENTS.md §8).',
+        );
+
+        $koniec = strpos($html, '</ul>', $start);
+
+        $this->assertNotFalse($koniec);
+
+        return substr($html, $start, $koniec - $start);
     }
 
     public function test_wpisy_zablokowanej_osoby_nie_pojawiaja_sie_w_odkrywaniu(): void
@@ -82,10 +155,16 @@ class FeedTest extends TestCase
         $ktos = $this->user('ktos');
         Post::factory()->create(['author_id' => $ktos->getKey(), 'body' => 'Rosol na niedziele']);
 
-        $this->get('/')
-            ->assertOk()
-            ->assertSee('Pokaż, co dziś ugotowałeś')
-            ->assertSee('Rosol na niedziele');
+        $strona = $this->get('/')->assertOk();
+
+        // NA TREŚCI EKRANU, NIE NA CAŁYM DOKUMENCIE (pułapka 1): hasło strony
+        // powitalnej jest jednocześnie jej `<title>` i `<meta>`, więc asercja
+        // na całej odpowiedzi przechodziła też po skasowaniu nagłówka z pasa
+        // powitalnego.
+        $tresc = $this->trescEkranu((string) $strona->getContent());
+
+        $this->assertStringContainsString('Pokaż, co dziś ugotowałeś', $tresc);
+        $this->assertStringContainsString('Rosol na niedziele', $tresc);
     }
 
     public function test_wpisy_prywatne_nie_wychodza_w_odkrywaniu(): void

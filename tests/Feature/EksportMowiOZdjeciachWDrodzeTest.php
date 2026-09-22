@@ -48,6 +48,40 @@ class EksportMowiOZdjeciachWDrodzeTest extends TestCase
      */
     private const ZDANIE_O_BRAKU = 'nie zmieściło się w tej paczce';
 
+    /**
+     * Zdanie gałęzi „w paczce nie ma ani jednego zdjęcia”, osobno dla obu plików.
+     *
+     * Osobne kotwice, bo pliki mówią to samo innymi słowami, a jedna asercja
+     * na oba schowałaby wypadnięcie jednej z gałęzi (pułapka 3b). Obie trafiają
+     * w zdanie o PACZCE — konta nie opisuje już żadne z nich i o to tu chodzi.
+     */
+    private const ZDANIE_O_PUSTEJ_PACZCE = [
+        'index.html' => 'W tej paczce nie ma żadnego zdjęcia',
+        'CZYTAJ-TO-NAJPIERW.txt' => 'nie weszło do niej żadne zdjęcie',
+    ];
+
+    /**
+     * Treść pliku z paczki sprowadzona do jednego wiersza.
+     *
+     * Oba pliki łamią wiersze — README twardo, `index.html` w Blade — więc
+     * asercja na zdanie dłuższe niż kilka słów trafiała w `\n` i oblewała
+     * mimo poprawnego tekstu. Normalizujemy białe znaki, nie treść: zdanie
+     * ma dalej brzmieć tak, jak je człowiek przeczyta.
+     */
+    private function jednymWierszem(string $tresc): string
+    {
+        return (string) preg_replace('/\s+/u', ' ', $tresc);
+    }
+
+    /**
+     * Zdanie, którego w paczce być NIE MOŻE — orzekało o koncie, nie o paczce.
+     *
+     * Konto z samymi zdjęciami odrzuconymi ma `photoCount = 0`
+     * i `photosStillProcessing = 0`, więc trafiało dokładnie tutaj i czytało,
+     * że nie ma w Kuking żadnego zdjęcia — o zdjęciach, które samo wgrało.
+     */
+    private const ZDANIE_O_KONCIE = 'nie masz jeszcze w Kuking żadnego zdjęcia';
+
     protected function setUp(): void
     {
         parent::setUp();
@@ -110,11 +144,16 @@ class EksportMowiOZdjeciachWDrodzeTest extends TestCase
         $paczka = $this->zbudujPaczke($basia);
 
         foreach (['CZYTAJ-TO-NAJPIERW.txt', 'index.html'] as $plik) {
+            $tresc = $this->jednymWierszem($this->zArchiwum($paczka, $plik));
+
             $this->assertStringNotContainsString(
                 self::ZDANIE_O_BRAKU,
-                $this->zArchiwum($paczka, $plik),
+                $tresc,
                 "Plik {$plik} ostrzega o brakach, których nie ma — fałszywy alarm.",
             );
+
+            // Ani o pustej paczce: zdjęcie w niej JEST.
+            $this->assertStringNotContainsString(self::ZDANIE_O_PUSTEJ_PACZCE[$plik], $tresc);
         }
 
         $dane = json_decode($this->zArchiwum($paczka, 'dane.json'), true, 512, JSON_THROW_ON_ERROR);
@@ -137,8 +176,115 @@ class EksportMowiOZdjeciachWDrodzeTest extends TestCase
 
         $index = $this->zArchiwum($this->zbudujPaczke($basia), 'index.html');
 
-        $this->assertStringNotContainsString('Nie masz jeszcze w Kuking żadnego zdjęcia', $index);
+        // Kotwica idzie w zdanie gałęzi „pusta paczka”, nie w dawny tekst
+        // o koncie: po jego usunięciu asercja na tamten napis przechodziłaby
+        // zawsze, niczego nie pilnując (pułapka 4).
+        $this->assertStringNotContainsString(
+            self::ZDANIE_O_PUSTEJ_PACZCE['index.html'],
+            $this->jednymWierszem($index),
+        );
         $this->assertStringContainsString(self::ZDANIE_O_BRAKU, $index);
+    }
+
+    public function test_konto_wylacznie_z_odrzuconym_zdjeciem_nie_slyszy_ze_nie_ma_zadnego(): void
+    {
+        /*
+         * GAŁĄŹ, KTÓREJ NIKT NIE ZMIERZYŁ.
+         *
+         * `ExportPhotoPlan` bierze do paczki `ready`, a jako „w drodze” liczy
+         * wyłącznie `pending` i `processing`. Konto z SAMYMI zdjęciami
+         * odrzuconymi ma więc oba liczniki na zerze i wpada w gałąź pisaną
+         * dla kogoś, kto nigdy nic nie wgrał — z komunikatem „nie masz jeszcze
+         * w Kuking żadnego zdjęcia”. To zdanie jest wtedy zwyczajnie
+         * nieprawdziwe: człowiek to zdjęcie wgrał i widzi je w serwisie.
+         *
+         * Wcześniejsza regresja (`test_zdjecie_odrzucone_...`) tego nie łapała,
+         * bo jej scena miała obok odrzuconego jedno zdjęcie gotowe — czyli
+         * `photoCount = 1` i zupełnie inną gałąź widoku.
+         *
+         * Paczka powstaje NAPRAWDĘ, przez `GenerateUserExport`, a nie renderem
+         * samego Blade: inaczej test nie mówiłby nic o archiwum, które człowiek
+         * pobierze.
+         */
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $odrzucone = $this->zdjecie($basia, 'spalony', Media::STATUS_REJECTED);
+
+        $paczka = $this->zbudujPaczke($basia);
+
+        // POMIAR PRZED NAPISEM: zdjęcie jest w bazie i ma plik na dysku,
+        // a mimo to w archiwum nie ma ani jednego pliku w `zdjecia/`.
+        $this->assertSame(1, $basia->media()->count());
+        $this->assertSame(Media::STATUS_REJECTED, $odrzucone->refresh()->status);
+        $this->assertTrue(Storage::disk('public')->exists((string) $odrzucone->object_key));
+        $this->assertSame([], array_values(array_filter(
+            $this->plikiWArchiwum($paczka),
+            static fn (string $nazwa): bool => str_starts_with($nazwa, 'zdjecia/'),
+        )), 'Zdjęcie odrzucone miało do paczki NIE wejść.');
+
+        foreach (self::ZDANIE_O_PUSTEJ_PACZCE as $plik => $zdanie) {
+            $tresc = $this->jednymWierszem($this->zArchiwum($paczka, $plik));
+
+            $this->assertStringNotContainsStringIgnoringCase(
+                self::ZDANIE_O_KONCIE,
+                $tresc,
+                "Plik {$plik} orzeka o zawartości konta, a wie tylko o zawartości paczki.",
+            );
+
+            // Kontrola dodatnia: gałąź ma dalej mówić, czego w paczce nie ma.
+            // Sama asercja „czegoś nie ma” przeszłaby też po skasowaniu całego
+            // zdania (pułapka 4).
+            $this->assertStringContainsString(
+                $zdanie,
+                $tresc,
+                "Plik {$plik} przestał mówić, że w paczce nie ma zdjęć.",
+            );
+
+            // To NIE jest zdjęcie w drodze: „poproś o nową paczkę, gdy
+            // przygotowywanie się zakończy” byłoby tu nieprawdą, bo odrzucone
+            // nie wejdzie NIGDY.
+            $this->assertStringNotContainsString(self::ZDANIE_O_BRAKU, $tresc);
+        }
+
+        $json = $this->zArchiwum($paczka, 'dane.json');
+        $dane = json_decode($json, true, 512, JSON_THROW_ON_ERROR);
+        $this->assertSame(0, $dane['o_tym_pliku']['zdjec_jeszcze_w_przygotowaniu']);
+
+        // ZAKRES DANYCH BEZ ZMIAN: paczka nadal nie wypisuje zdjęcia
+        // odrzuconego ani powodu odrzucenia. Poprawka dotyczy jednego zdania,
+        // nie tego, co eksport niesie.
+        $this->assertSame([], $dane['zdjecia']);
+        $this->assertStringNotContainsString(
+            (string) $odrzucone->getKey(),
+            $json,
+            'Do paczki weszło coś o zdjęciu odrzuconym — to byłoby rozszerzenie zakresu eksportu.',
+        );
+    }
+
+    public function test_konto_bez_zadnego_zdjecia_dalej_dostaje_zdanie_o_pustej_paczce(): void
+    {
+        // Kontrola dodatnia dla testu wyżej i osobny przypadek z zadania:
+        // konto, które naprawdę nie ma ani jednego zdjęcia, dostaje dokładnie
+        // to samo zdanie o paczce. Gałąź obsługuje oba konta i żadne z nich
+        // nie potrzebuje zdania o koncie.
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+
+        $paczka = $this->zbudujPaczke($basia);
+
+        $this->assertSame(0, $basia->media()->count());
+
+        // Każda asercja z własnym komunikatem: czerwień bez przeczytanej
+        // przyczyny nie jest informacją (pułapka 8b), a kontrola ujemna
+        // sprawdza, czy oblał TEN warunek, a nie jakikolwiek.
+        foreach (self::ZDANIE_O_PUSTEJ_PACZCE as $plik => $zdanie) {
+            $tresc = $this->jednymWierszem($this->zArchiwum($paczka, $plik));
+
+            $this->assertStringContainsString($zdanie, $tresc,
+                "Plik {$plik} przestał mówić, że w paczce nie ma zdjęć.");
+            $this->assertStringNotContainsStringIgnoringCase(self::ZDANIE_O_KONCIE, $tresc,
+                "Plik {$plik} orzeka o zawartości konta, a wie tylko o zawartości paczki.");
+            $this->assertStringNotContainsString(self::ZDANIE_O_BRAKU, $tresc,
+                "Plik {$plik} obiecuje, że zdjęcia dojdą później — na koncie bez zdjęć nie ma czego czekać.");
+        }
     }
 
     public function test_zdjecie_odrzucone_na_dobre_nie_obiecuje_ze_dojdzie_pozniej(): void
@@ -146,14 +292,44 @@ class EksportMowiOZdjeciachWDrodzeTest extends TestCase
         // `rejected` też nie ma w paczce, ale to jest INNA wiadomość: takie
         // zdjęcie nie pojawi się w niej NIGDY, więc „poproś o nową paczkę
         // za kilka minut" byłoby zwykłą nieprawdą.
+        //
+        // TEN TEST PILNUJE ROZDZIAŁU GAŁĘZI, NIE MILCZENIA (issue #692).
+        //
+        // Do #692 stała tu druga asercja — `assertStringNotContainsString(
+        // 'class="uwaga"', $index)` — i ustanawiała CAŁKOWITE milczenie
+        // o zdjęciu odrzuconym jako stan docelowy. Tego nikt nigdy nie
+        // postanowił: komentarz w `ExportPhotoPlan` mówił tylko, że to jest
+        // INNA wiadomość, a nie że jej nie ma. Paczka mówi o niej dziś
+        // w osobnym bloku i pilnuje tego
+        // `EksportMowiOZdjeciachKtoreNieWejdaNigdyTest`.
+        //
+        // Zostaje to, co ten test naprawdę miał chronić: gałąź „w drodze"
+        // nie ma prawa wejść na scenę, w której żadne zdjęcie w drodze nie
+        // istnieje. Asercja na zdanie, nie na klasę CSS — klasa nic nie
+        // mówi o tym, KTÓRA wiadomość padła.
         $basia = $this->user('basia');
         $this->zdjecie($basia, 'sernik', Media::STATUS_READY);
         $this->zdjecie($basia, 'spalony', Media::STATUS_REJECTED);
 
-        $index = $this->zArchiwum($this->zbudujPaczke($basia), 'index.html');
+        $index = $this->jednymWierszem(
+            $this->zArchiwum($this->zbudujPaczke($basia), 'index.html'),
+        );
 
         $this->assertStringNotContainsString(self::ZDANIE_O_BRAKU, $index);
-        $this->assertStringNotContainsString('class="uwaga"', $index);
+        $this->assertStringNotContainsString(
+            'Poproś o nową paczkę',
+            $index,
+            'Paczka obiecuje, że zdjęcie odrzucone dojdzie w następnej — a ono nie dojdzie nigdy.',
+        );
+
+        // Kontrola dodatnia dla asercji wyżej: sama negacja przeszłaby też
+        // wtedy, gdyby widok przestał mówić o odrzuconym cokolwiek
+        // (pułapka 4 z `docs/PULAPKI_TESTOW.md`).
+        $this->assertStringContainsString(
+            '1 zdjęcie nie weszło do tej paczki i nie wejdzie do żadnej następnej',
+            $index,
+            'Paczka znów milczy o zdjęciu odrzuconym (issue #692).',
+        );
     }
 
     public function test_liczebnik_w_ostrzezeniu_jest_odmieniony_po_polsku(): void

@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -61,13 +62,18 @@ class PanelBezOdpowiedziTest extends TestCase
 
     private function wpis(User $autor, string $tresc, mixed $kiedy = null): Post
     {
-        return Post::factory()->create([
+        $post = Post::factory()->create([
             'author_id' => $autor->getKey(),
             'body' => $tresc,
             'status' => Post::STATUS_PUBLISHED,
             'visibility' => 'public',
             'published_at' => $kiedy ?? now(),
         ]);
+
+        // Fixture historycznego wkładu obejmuje także trwały nośnik pierwszeństwa.
+        DB::table('first_post_events')->insertOrIgnore(['author_id' => $autor->getKey(), 'post_id' => $post->getKey()]);
+
+        return $post;
     }
 
     // ---------------------------------------------------------------
@@ -181,10 +187,21 @@ class PanelBezOdpowiedziTest extends TestCase
             'published_at' => now(),
         ]);
 
+        // ASERCJA KONTROLNA: identyczny wpis PUBLICZNY, też bez komentarza,
+        // MUSI być na liście.
+        //
+        // Bez niej „nie widać wpisu prywatnego" przechodziło także wtedy, gdy
+        // lista nie pokazywała NICZEGO — a to jest awaria, nie poprawność.
+        // Zmierzone: po zawężeniu warunku widoczności w
+        // `BezOdpowiedziController::index()` do pustego zbioru (lista zawsze
+        // pusta) ten test był dalej zielony, choć trzy inne w tym pliku padły.
+        $this->wpis($this->user('marek'), 'Publiczny wpis bez odpowiedzi');
+
         // Nikt poza autorem tego nie widzi, więc brak komentarza nie jest
         // problemem — a lista ma pokazywać rzeczy do zrobienia, nie wszystko.
         $this->actingAs($this->gospodarz())->get(route('admin.unanswered'))
             ->assertOk()
+            ->assertSee('Publiczny wpis bez odpowiedzi')
             ->assertDontSee('Notatka tylko dla mnie');
     }
 

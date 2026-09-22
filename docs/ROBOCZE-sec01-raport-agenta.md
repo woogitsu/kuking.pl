@@ -3,6 +3,25 @@
 Gałąź: `praca-sec01` (od `820e1c5`). Łatka: `sec01.patch`.
 **Nic nie zostało wypchnięte.**
 
+> **CZYTAJ TO JAKO ZAPIS Z DNIA BADANIA, NIE JAKO STAN DZISIEJSZY.**
+> Ten plik jest raportem roboczym agenta i opisuje, co było w łatce SEC-01
+> w chwili jej pisania. Sam kod łatki wszedł w międzyczasie na `main` —
+> i wszedł ZAOSTRZONY dalej, niż go tu opisano. Dwa miejsca, w których
+> raport rozjeżdża się z `main`, i to `main` ma rację:
+>
+> - §6 mówi „`X-Forwarded-Host` zostaje zaufany" i „nie włączałem
+>   `TrustHosts`". Na `main` jedno i drugie jest już zamknięte:
+>   `X-Forwarded-Host` **wypadł z bitmaski** zaufanych nagłówków
+>   w `bootstrap/app.php`, a `Host` przechodzi przez `TrustHosts` z jawną
+>   listą. Opis tego zamknięcia stoi w `docs/legal/BRAMKA_BETY.md`.
+> - `NormalizeForwardedFor` na `main` odcina port ostrożniej niż wersja
+>   z raportu (nawiasy IPv6 i warunek „dokładnie jeden dwukropek").
+>
+> Zostawiamy raport nietknięty poza tą ramką, bo jego wartością jest
+> ROZUMOWANIE i pomiary z tamtego dnia, a nie lista plików. Ramka istnieje,
+> żeby nikt nie wziął §6 za dzisiejszą konfigurację i nie „przywrócił"
+> zaufania do `X-Forwarded-Host`.
+
 ---
 
 ## 1. Czy dokument mówił prawdę? Częściowo — i mylił się w szczególe, który zmienia wnioski

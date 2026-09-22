@@ -62,10 +62,18 @@ mówi wprost: nazwy z repozytorium są źródłem prawdy.
 | element | kit | aplikacja |
 |---|---|---|
 | nagłówek | nazwisko + „2 godz. temu **· publicznie**" + menu „…" | nazwisko + data, bez widoczności i bez menu |
-| akcje | Ugotowałem · Komentarze (12) · **Zapisz** | Ugotowałem · Komentarze · Zgłoś |
+| akcje | Ugotowałem · Komentarze (12) · **Zapisz** (w produkcie: **Zapisuję**, D-036) | Ugotowałem · Komentarze · Zgłoś |
 
-„Zapisz" na wpisie to **nowa funkcja produktowa**, nie brakujący przycisk:
-zeszyt przyjmuje dziś wyłącznie przepisy. Wymaga decyzji właściciela.
+„Zapisuję" na wpisie **było** pytaniem do właściciela w dniu tego porównania —
+i przestało nim być tego samego dnia. Decyzja: **TAK**, wdrożone 6 września
+2026. Zeszyt przyjmuje dziś wpisy, nie tylko przepisy: migracja
+`2026_09_06_150000_collection_items_accept_posts`, trasa
+`collections.save-post`, `CollectionController::savePost()`, akcja
+`App\Domain\Collections\Actions\SavePostToCollection`, przycisk na karcie
+wpisu (`post-card.blade.php`), test `ZeszytPrzyjmujeWpisyTest`. Kolumna
+„aplikacja" w wierszu „akcje" wyżej jest z tego samego dnia i pokazuje stan
+sprzed wdrożenia — dziś ma tam też **Zapisuję** (a „Zgłoś" przeniosło się do
+menu „…", patrz karta wpisu w etapie D niżej).
 
 ## Czego kit NIE ma, a produkt ma — i musi zachować
 
@@ -81,8 +89,17 @@ To jest lista rzeczy, których nie wolno zgubić przy przestylowaniu.
 - **Wszystko działa bez JavaScriptu.** Kit jest statycznym HTML-em, więc nie
   odpowiada na pytanie, jak zachowa się zakładka albo menu „…" przy wyłączonym
   skrypcie. W tym produkcie to warunek, nie ulepszenie (AGENTS.md §5).
-- **Automat dostępności** przy każdej zmianie: axe na 14 ekranach w czterech
+- **Automat dostępności** przy każdej zmianie: axe na 27 ekranach w czterech
   wariantach plus pomiar przewijania w poziomie przy 320–768 px.
+- **„3 osoby zapisały to u siebie w zeszycie" nad paskiem akcji karty** —
+  decyzja właściciela D-081 (issue #275). Kit tego nie ma i łatwo to wziąć za
+  licznik lajków do usunięcia. Nie jest nim: autor widzi liczbę od pierwszej
+  osoby, inny zalogowany od trzeciej, gość wcale, a liczba nigdzie nie sortuje
+  ani nie promuje. Przy przestylowaniu karty to zdanie zostaje nad paskiem
+  akcji, nie w nim, i zostaje przy 18 px (`.post-card-zapisy`,
+  `MinimalnyRozmiarTekstuTest`). Po zapisaniu przycisk „Zapisuję" ustępuje
+  miejsca stanowi „Masz to w zeszycie" — to jest jedyne potwierdzenie widoczne
+  w miejscu kliknięcia i nie wolno go zgubić.
 
 ---
 
@@ -93,10 +110,10 @@ To jest lista rzeczy, których nie wolno zgubić przy przestylowaniu.
 | okruszki „Start › Przepisy” | **jest** |
 | hero: zdjęcie obok panelu | **jest**; bez zdjęcia panel bierze całą szerokość zamiast zostawiać pustą połowę |
 | kafle: czas / porcje / poziom | **jest**, ale tylko te, które autor podał — kafel „—” nie jest informacją |
-| akcje w panelu (Zapisz, Ugotowałem) | **jest**, w pionie i na pełną szerokość panelu; dochodzi trzecia, „Gotuję” |
+| akcje w panelu (Zapisuję, Ugotowałem) | **jest**, w pionie i na pełną szerokość panelu; dochodzi trzecia, „Gotuję” |
 | „Skąd ten przepis?” w panelu | **jest**, razem ze zdjęciem kartki |
 | składniki obok kroków | **jest** (dwie kolumny od 60rem, składniki pierwsze niżej) |
-| składniki z kolumną ilości | **nie i nie będzie** — D-017 |
+| składniki z kolumną ilości | **jest w bazie od 5 września** (`recipe_ingredients.quantity`, `unit_id`, `no_amount`) — D-017 mówiło „nie i nie będzie" i się zdezaktualizowało, patrz D-033 |
 | kroki z tytułami („Przygotuj ciasto”) | **nie i nie będzie** — D-017 |
 | „Jak wyszło innym?” | jest jako „Komu wyszło”; sam napis zmieni #38 |
 | znak „Uśmiech” w przycisku „Ugotowałem” | **świadomie nie**: znak rysuje garnek kolorem bieżącym, a uśmiech kolorem powierzchni — na tle marki wychodzi biała plama bez uśmiechu |
@@ -236,7 +253,7 @@ narysowanego.
 
 | element z kitu | co jest w aplikacji |
 |---|---|
-| duży obszar `.photo-picker` (ikona + „Dodaj zdjęcie" + pomoc) | **jest**, na wszystkich trzech drogach dodawania; natywny `<input type="file">` zostaje w pełni widoczny i klikalny w jego wnętrzu |
+| duży obszar `.photo-picker` (ikona + „Dodaj zdjęcie" + pomoc) | **jest**, na wszystkich drogach dodawania i zmiany zdjęcia (wpis, „Ugotowałem", przepis bez JS, kreator Livewire, zdjęcie profilowe, ekran 419). Natywny `<input type="file">` jest od decyzji **D-035 schowany dla oka** (`.visually-hidden` — zostaje pod klawiaturą i w drzewie dostępności), a klikalna jest etykieta: cały obszar to `<label for>`. Powód: przeglądarka rysowała w tym polu angielskie „Choose File / No file chosen" i nie zmienia tego żaden atrybut. Znany koszt: bez JavaScriptu po wyborze pliku nie zmienia się nic aż do wysłania formularza — właściciel przyjął tę stratę świadomie |
 | napis zmienia się na „Zmień zdjęcie", gdy pole ma już plik | **jest** |
 | `.m-info` pod przyciskiem publikacji | **jest** na `/dodaj/zdjecie`: „Możesz zmienić lub usunąć wpis później. Zdjęcia publikujemy bez danych EXIF i GPS." |
 | `.select` „Kto może zobaczyć?" | **świadomie nie** — trzy duże, zawsze widoczne karty. Ten sam wzorzec co D-017: kit bywa uproszczony kosztem czytelności dla tej grupy |
@@ -280,7 +297,7 @@ portować.
 - **Gość nie ma pola wyszukiwania** — pole w górnej belce jest `@auth`-owane.
   Realna luka nawigacyjna dla niezalogowanych, dotyczy globalnej belki.
 - **`recipe-card` bez czasu i porcji** obok tytułu, jak w kicie.
-- **Automat dostępności** (`scripts/dostepnosc.mjs`) na 23 ekranach ×
+- **Automat dostępności** (`scripts/dostepnosc.mjs`) na 27 ekranach ×
   4 warianty nie był uruchamiany w trakcie etapu D, bo pięć zleceń pisało
   równocześnie w tym samym repozytorium i wynik nie byłby miarodajny dla
   żadnej pojedynczej zmiany. Do uruchomienia teraz, na scalonym stanie.

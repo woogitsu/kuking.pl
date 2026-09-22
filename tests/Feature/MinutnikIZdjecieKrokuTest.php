@@ -357,6 +357,19 @@ class MinutnikIZdjecieKrokuTest extends TestCase
     // 3. Kreator Livewire — ta sama funkcja, druga droga
     // -----------------------------------------------------------------
 
+    public function test_podglad_kreatora_odmienia_jedna_minute_po_na(): void
+    {
+        Livewire::actingAs($this->user('odmiana548'))
+            ->test(self::COMPONENT)
+            ->set('title', 'Zupa z minutnikiem')
+            ->set('ingredients.0.text', 'pomidory')
+            ->set('steps.0.instruction', 'Gotuj przez minutę.')
+            ->set('steps.0.timer_minutes', '1')
+            ->set('step', 4)
+            ->assertSee('Ustaw sobie kuchenny minutnik na 1 minutę.')
+            ->assertDontSee('Ustaw sobie kuchenny minutnik na 1 minuta.');
+    }
+
     public function test_kreator_zapisuje_minutnik_i_zdjecie_kroku(): void
     {
         $basia = $this->user('basia');

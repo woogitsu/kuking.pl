@@ -3,6 +3,16 @@
 Stan na **wrzesień 2026**. Właściciel w Polsce. Serwis: hosting treści użytkowników, na razie bez przychodów,
 docelowo możliwa subskrypcja.
 
+> **PRZECZYTAJ NAJPIERW: decyzja zapadła i ten dokument jej nie zmienia.**
+> Serwis prowadzi **SAMSUFI sp. z o.o.**, ul. Jagiellońska 4A, 19-120 Knyszyn,
+> KRS 0000901262 — decyzja **D-040** z 8 września 2026, dane w `config/kuking.php`.
+> Całe poniższe porównanie form powstało PRZED tym rozstrzygnięciem i kończy się
+> rekomendacją „alfa jako osoba fizyczna, beta jako JDG, spółka to na razie strata
+> pieniędzy". **Ta rekomendacja jest nieaktualna.** Zostaje w repozytorium, bo
+> rozpisuje realne różnice między formami i przyda się, gdyby kiedyś do tematu
+> wracać — ale §5 i „Rekomendację" czytaj jak zapis rozważań z września 2026,
+> nie jak polecenie do wykonania. **Co z tego wynika dziś dla DSA — §3.**
+
 > **Ten dokument nie jest opinią prawną.** Wszystko, czego nie potwierdziłem źródłem, jest oznaczone
 > `[do weryfikacji z prawnikiem]`. Obowiązki DSA i RODO co do treści są rozpisane w `docs/legal/COMPLIANCE.md` —
 > tutaj interesuje nas wyłącznie **to, co zmienia forma prawna**.
@@ -113,6 +123,23 @@ To jest dokładnie ten rodzaj pytania, na które trzeba wydać jedną godzinę u
 `docs/legal/COMPLIANCE.md` §1.2 zakłada, że Kuking **jest** zwolniony jako mikro/małe przedsiębiorstwo.
 **To założenie jest prawdziwe dla JDG i sp. z o.o., a wątpliwe dla osoby fizycznej bez działalności.**
 
+> **ROZSTRZYGNIĘTE — D-040, 8 września 2026.** Paradoks opisany wyżej dotyczył wyłącznie wariantu
+> „osoba fizyczna bez działalności". Ten wariant odpadł: serwis prowadzi **SAMSUFI sp. z o.o.**
+> Spółka z ograniczoną odpowiedzialnością jest przedsiębiorstwem w rozumieniu Zalecenia 2003/361/WE
+> bez żadnej wykładni, więc **zwolnienie z art. 19 stosuje się wprost**, dopóki spółka mieści się
+> w progach. Z trzech pytań do prawnika z „Rekomendacji" niżej **dwa są bezprzedmiotowe**: „czy
+> niezarobkowy serwis jest przedsiębiorstwem" (spółka jest) i „od kiedy działalność staje się
+> zarobkowa" (nie dotyczy spółki). Art. 5 UŚUDE spółka spełnia siedzibą z KRS, więc adres domowy
+> z §4 też przestał być problemem.
+>
+> **Czego to NIE zdejmuje — dwa warunki, których nie sprawdzę z repozytorium:**
+> 1. **Progi liczy się dla całego przedsiębiorstwa, nie dla serwisu.** Jeśli SAMSUFI ma
+>    przedsiębiorstwa partnerskie lub powiązane, ich zatrudnienie i obrót dolicza się do progu
+>    (Zalecenie 2003/361/WE art. 6). To wie właściciel, nie kod.
+> 2. **Statusu nie traci się z dnia na dzień.** Przekroczenie progu w jednym roku obrotowym nic
+>    nie zmienia — dopiero w dwóch kolejnych (art. 4 ust. 2 Zalecenia). Jest więc czas na
+>    przygotowanie Sekcji 3, ale nie jest go nieskończenie wiele.
+
 ---
 
 ## 4. Rzecz, o której nikt nie myśli, a która decyduje: Twój adres domowy w stopce
@@ -143,7 +170,7 @@ Doktryna nie jest tu jednolita, a to jest pytanie, które realnie może zdecydow
 
 ---
 
-## 5. Ścieżka, którą bym przeszedł
+## 5. Ścieżka, którą bym przeszedł *(nieaktualne od D-040 — patrz ramka na górze)*
 
 | Etap | Forma | Koszt / mies. |
 |---|---|---|
@@ -161,7 +188,7 @@ i koniec z pytaniem „czy to już jest działalność gospodarcza".
 
 ---
 
-## Rekomendacja
+## Rekomendacja *(z września 2026, sprzed D-040 — nieaktualna)*
 
 **Alfę zamkniętą (~50 osób z zaproszenia) prowadź jako osoba fizyczna — to jest legalne i kosztuje 0 zł — ale publicznej bety nie otwieraj bez JDG.** Powód nie jest podatkowy, tylko dwojaki: **art. 5 UŚUDE każe osobie fizycznej opublikować imię, nazwisko i adres zamieszkania**, a serwis, w którym moderujesz cudze treści, to zły moment na podanie adresu domowego zmoderowanym użytkownikom; do tego **zwolnienie z art. 19 DSA jest przypisane „mikro- lub małemu przedsiębiorstwu"**, więc podmiot bez działalności może paradoksalnie podlegać *większej* liczbie obowiązków DSA niż JDG. **JDG z ulgą na start kosztuje 432,54 zł miesięcznie przez pierwsze 6 miesięcy** i rozwiązuje oba problemy naraz, a razem z preferencyjnym ZUS daje 30 miesięcy taniego okna — dokładnie tyle, ile potrwa beta. **Sp. z o.o. na tym etapie to strata pieniędzy** (pełna księgowość 500–1 500 zł/mies., pełny ZUS i tak przy jednym wspólniku, podwójne opodatkowanie): wraca do gry przy pierwszym wspólniku, inwestorze albo pierwszym realnym pozwie. **Zanim otworzysz betę, kup jedną godzinę u prawnika od e-commerce i zadaj dokładnie trzy pytania**: czy adres do doręczeń zastępuje adres zamieszkania w art. 5 UŚUDE, czy niezarobkowy serwis jest „przedsiębiorstwem" w rozumieniu art. 19 DSA, i od którego momentu Twoja działalność staje się „zarobkowa" w rozumieniu art. 3 Prawa przedsiębiorców.
 

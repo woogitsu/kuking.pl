@@ -1,0 +1,20 @@
+[
+  {
+    "nazwa": "mysz-1440-light",
+    "motywZadany": "light",
+    "dataTheme": null,
+    "tlo": "rgb(243, 244, 241)",
+    "szerokoscDokumentu": 1440,
+    "szerokoscOkna": 1440,
+    "poziomyOverflow": false
+  },
+  {
+    "nazwa": "dotyk-390-light",
+    "motywZadany": "light",
+    "dataTheme": null,
+    "tlo": "rgb(243, 244, 241)",
+    "szerokoscDokumentu": 390,
+    "szerokoscOkna": 390,
+    "poziomyOverflow": false
+  }
+]

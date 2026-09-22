@@ -2,6 +2,17 @@
 
 > Rozwija `docs/PRODUCT.md` (North Star = Weekly Active Cooks) i `docs/SEO_ANALYTICS_GROWTH.md`. Zakłada mechaniki z `SOUL.md` i operacje z `COLD_START.md`.
 
+## Pierwszy wkład: zdarzenie jednorazowe (#1009)
+
+Powitanie pierwszego dostępnego wpisu ma jeden utrwalony nośnik na autora.
+Prywatne wpisy nie zużywają pierwszeństwa; followers kwalifikuje się tylko
+wtedy, gdy skonfigurowany gospodarz ma dostęp. Bez gospodarza kwalifikuje
+się publiczny wpis, ale nie wysyłamy alertu. Zmiana gospodarza, usunięcie
+powiadomienia lub wpisu nie rozpoczyna powitania ponownie. Panel nie nadaje
+pierwszeństwa kolejnemu wpisowi po odpowiedzi na pierwszy i nie pokazuje
+utrwalonego nośnika osobie bez dostępu. Odtworzenie historii nie wysyła
+zaległych alertów; brakujących fizycznie danych nie zgadujemy.
+
 ## 1. Zasada: powrót ma mieć powód, nie przypomnienie
 
 Trzy rodzaje powodów powrotu, w kolejności siły:
@@ -22,10 +33,19 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 
 ### Pętla 1 — Ugotowałem → wzruszenie autora → odpowiedź → kolejne wykonanie ⭐ główna
 
+> **Stan (issue #17): JEST.** Ekran „Komuś wyszło” działa
+> (`app/Http/Controllers/CookedEventController.php`,
+> `resources/views/pages/cooked/celebrate.blade.php`). Jedyna różnica wobec
+> opisu niżej: przycisk nazywa się „**Podziękuj**” i wysyła zwykły komentarz
+> z gotowym tekstem podziękowania — to jest podziękowanie, nie osobny typ
+> „odpowiedzi". Plakietka „autorka przepisu” przy tym komentarzu (wiersz
+> „Nagroda” niżej) to osobna, jeszcze nie zbudowana mechanika z `SOUL.md`
+> §4.2 — nie część zakresu #17.
+
 | | |
 |---|---|
 | **Trigger** | Powiadomienie: „**Marek ugotował Twoje pierogi z kaszą**” + miniatura jego zdjęcia |
-| **Akcja** | Autor otwiera pełnoekranowy ekran „Komuś wyszło”, patrzy na zdjęcie, odpowiada Markowi |
+| **Akcja** | Autor otwiera pełnoekranowy ekran „Komuś wyszło”, patrzy na zdjęcie, dziękuje Markowi |
 | **Nagroda** | Autor: dowód, że jego przepis żyje w cudzym domu. Marek: odpowiedź od **autorki przepisu**, wyróżniona plakietką |
 | **Inwestycja** | Marek zaczyna obserwować autorkę → jej kolejny przepis wpada mu do feedu. Autorka dopisuje uwagę do przepisu („Marek dodawał chrzan — dobra myśl”) → przepis mądrzeje |
 | **Koszt / kiedy** | M / **MVP** |
@@ -102,7 +122,7 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 | **Inwestycja** | Drugi rok tej samej potrawy → „gotujesz to od 2026, 11 razy” → archiwum staje się cenniejsze |
 | **Koszt / kiedy** | M / V1 (archiwum po miesiącach: MVP) |
 | **Miara** | `CTR kafla wspomnienia`, `powtórne wpisy tej samej potrawy`, **`% ukrytych wspomnień`** (jeśli >10%, mechanika jest zbyt nachalna) |
-| **Jak się psuje** | Wspomnienie boli (osoba zmarła, trudny okres). **Obowiązkowo `Ukryj to wspomnienie` + globalny wyłącznik w `/settings/privacy`. Nigdy nie przypominamy cudzych treści.** |
+| **Jak się psuje** | Wspomnienie boli (osoba zmarła, trudny okres). **Obowiązkowo `Ukryj to wspomnienie` + globalny wyłącznik w `/ustawienia/prywatnosc`. Nigdy nie przypominamy cudzych treści.** |
 
 ### Pętla 8 — Pytanie do autora → autorytet → więcej publikacji
 
@@ -184,6 +204,12 @@ Format: **trigger → akcja → nagroda → inwestycja**. „Inwestycja” = to,
 ---
 
 ## 4. Tygodniowy digest — szkic treści
+
+> Digest sam nie istnieje jeszcze (issue #11, stan „OTWARTE” w
+> `docs/AUDYT_2026-09.md`). Szkic niżej pisany był, zanim ekran „Komuś
+> wyszło” (issue #17) dostał ostateczne brzmienie przycisku — kto go
+> będzie budował, niech przyciskowi w mailu da tę samą nazwę co na
+> ekranie: „**Podziękuj**”, nie „Odpowiedz Markowi”.
 
 **Nadawca:** imię gospodarza + „z Kuking” (np. „Marta z Kuking”), adres odpowiadalny — odpowiedzi czyta człowiek.
 **Wysyłka:** piątek 17:00 (przed weekendem, gdy ludzie gotują i planują).
@@ -397,7 +423,7 @@ Kolejność ma znaczenie — pierwsze cztery są śmiertelne, reszta jest bolesn
 | Pętla 9 (digest tygodniowy) | M | **tak** |
 | Powiadomienia in-app + e-mail z limitami i ciszą nocną | M | **tak** |
 | Alert dla gospodarza o wpisie nowego użytkownika | S | **tak** |
-| Pętla 7 (wspomnienia „rok temu”) | M | V1 (archiwum po miesiącach już w MVP) |
+| Pętla 7 (wspomnienia „rok temu”) | M | **tak** — `app/Domain/Wspomnienia`, kafel na `/home`, wyłącznik w `/ustawienia/prywatnosc` (issue #34) |
 | Pętla 8 (osobny typ „Pytanie do autora”) | M | V1 (w MVP zwykły komentarz) |
 | Pętla 10 (ambasadorzy tematów) | S | V1 |
 | Web Push | M | V1, tylko 2 typy zdarzeń |

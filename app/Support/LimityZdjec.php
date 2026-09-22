@@ -160,9 +160,23 @@ final class LimityZdjec
         return implode(', ', $nazwy).' albo '.$ostatni;
     }
 
+    /**
+     * KOMUNIKAT KOŃCZY SIĘ TYM, CO ZROBIĆ, a nie tym, co się stało.
+     *
+     * „Jedno ze zdjęć waży za dużo. Maksymalny rozmiar to 15 MB." mówiło
+     * człowiekowi, że coś jest nie tak, i zostawiało go z tym: liczbę trzeba
+     * było samemu przełożyć na czynność. AGENTS.md §11 i docs/UX_50_PLUS.md
+     * żądają zdania, po którym wiadomo, co kliknąć — tak jak robi to bliźniaczy
+     * komunikat w `StoreUploadedImage`, który tę końcówkę miał od początku.
+     *
+     * Zdanie musi pasować i do formularza z jednym polem (zdjęcie profilowe),
+     * i do wysyłki kilku zdjęć naraz (wpis, przepis) — stąd „Jedno ze zdjęć"
+     * na początku i „wybierz mniejsze" bez rzeczownika na końcu.
+     */
     public static function komunikatZaDuzyPlik(): string
     {
-        return 'Jedno ze zdjęć waży za dużo. Maksymalny rozmiar to '.self::maksMegabajtowDoKomunikatu().' MB.';
+        return 'Jedno ze zdjęć waży za dużo. Maksymalny rozmiar to '
+            .self::maksMegabajtowDoKomunikatu().' MB — wybierz mniejsze.';
     }
 
     /**

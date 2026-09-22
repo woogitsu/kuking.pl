@@ -1,0 +1,13 @@
+﻿/* Przesunięcie nie zmienia wysokości dokumentu ani kolejności klawiatury. */
+[data-marka] [data-pasek-przewijany] {
+  transition: transform 180ms ease;
+}
+[data-marka] [data-pasek-schowany]:not(:focus-within) {
+  transform: translateY(calc(-100% - 24px));
+}
+[data-marka] [data-pasek-przewijany]:focus-within {
+  transition: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  [data-marka] [data-pasek-przewijany] { transition: none; }
+}

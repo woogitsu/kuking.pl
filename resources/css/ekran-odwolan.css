@@ -1,0 +1,157 @@
+/*
+ * Kolejka odwołań w panelu moderacji — `/admin/odwolania`.
+ * ---------------------------------------------------------------------------
+ * OSOBNY PLIK, nie dopisek do app.css — ten sam powód, który app.css podaje
+ * przy arkuszach ekranów etapu D i który powtarza `ekran-uzytkownikow.css`:
+ * nad panelem pracuje w tym samym czasie kilka zleceń, a wspólny plik znaczy,
+ * że jedno nadpisuje drugie przy scalaniu. Ten arkusz DOPISUJE klasy do
+ * @layer components i nie zmienia żadnej cudzej.
+ *
+ * ───────────────────────────────────────────────────────────────────────────
+ *  CO TU JEST NAPRAWIANE (zgłoszenie właściciela z 10 września)
+ * ───────────────────────────────────────────────────────────────────────────
+ *
+ * „Ten panel jest nieczytelny, zlewa się cały tekst". Karta odwołania miała
+ * osiem bloków o jednej wadze i jednym odstępie, a trzy z jej nagłówków
+ * sekcji stały na `--text-title-sm` (24 px) — dokładnie tam, gdzie stoi
+ * TYTUŁ karty. Na oko wyglądało to jak cztery tytuły i żadnej treści.
+ *
+ * Moderator szuka na tym ekranie DWÓCH rzeczy: co ta osoba napisała i jaka
+ * była pierwotna decyzja. Ten arkusz nie przemalowuje panelu — ustawia
+ * hierarchię czterema narzędziami i żadnym więcej:
+ *
+ *  1. ODSTĘP MIĘDZY BLOKAMI ROŚNIE, w blokach maleje. Etykieta jest
+ *     przyklejona do swojego cytatu (`--spacing-2`), a kolejny blok stoi
+ *     dopiero po `--spacing-8`. To samo w sobie tworzy grupy, bez ani
+ *     jednej kreski.
+ *  2. CYTAT WYGLĄDA JAK CYTAT — tło, krawędź z boku, wcięcie. Treść, którą
+ *     się CZYTA, przestaje wyglądać jak kolejny akapit opisu ekranu.
+ *  3. NAGŁÓWKI SEKCJI SĄ ETYKIETAMI, nie tytułami: 18 px, `--color-ink-muted`.
+ *     W znaczniku zostają nagłówkami (`<h3>`, `<legend>`), więc czytnik
+ *     ekranu ma dalej po czym skakać — zmienia się waga wizualna, nie
+ *     semantyka.
+ *  4. FORMULARZ JEST ODCIĘTY kreską i największym odstępem na karcie. To
+ *     jedyne miejsce, w którym się coś ROBI, a nie czyta.
+ *
+ * ROZMIARY: nic, co się czyta, nie schodzi poniżej `--text-body` (18 px) —
+ * ani cytaty, ani etykiety sekcji (AGENTS.md §5). Mniejsze (`--text-help`,
+ * 16 px, przez wspólną klasę `.meta`) są WYŁĄCZNIE metadane: data, powód,
+ * kto podjął decyzję, cel. To ten sam nazwany wyjątek co metryczka wersji
+ * w stopce (D-051) i ta sama wielkość, na której metryczki stoją w całym
+ * serwisie — nie nowy, mniejszy rozmiar wymyślony na ten jeden ekran.
+ */
+
+@layer components {
+
+  /* Karta sprawy. Odstęp MIĘDZY kartami jest większy niż jakikolwiek odstęp
+     wewnątrz karty (`--spacing-10` przeciw `--spacing-8`) — inaczej dwie
+     sąsiednie sprawy czytałyby się jak jedna długa. Zastępuje `mb-5`,
+     które stało dotąd w znaczniku. */
+  .odwolanie {
+    margin-bottom: var(--spacing-10);
+  }
+
+  /* Metryczka sprawy zostaje przyklejona do tytułu, którego dotyczy.
+     `.meta` daje jej rozmiar i kolor; tutaj tylko odstępy. */
+  .odwolanie-metryczka {
+    margin-top: var(--spacing-1);
+    margin-bottom: var(--spacing-8);
+  }
+
+  /* „termin odpowiedzi minął" — jedyna informacja na karcie, która mówi
+     „już jest za późno". Dostaje kolor błędu, bo to JEST stan błędny wobec
+     obietnicy z DSA art. 20, a nie kolejny fakt w metryczce. Sam kolor nie
+     niesie tu znaczenia (WCAG 1.4.1): treść mówi to samo słowami, a napis
+     jest w `<strong>`. */
+  .odwolanie-po-terminie {
+    color: var(--color-danger);
+  }
+
+  /* ETYKIETA BLOKU — 18 px, nie 24 px. Duży odstęp NAD, mały POD: etykieta
+     należy do tego, co jest pod nią, a nie do tego, co nad nią.
+     `display: block` i zerowe wcięcie są potrzebne, bo ta sama klasa stoi
+     też na `<legend>` formularza, który domyślnie ma własne wcięcia
+     i zachowuje się inaczej niż nagłówek. */
+  .odwolanie-etykieta {
+    display: block;
+    margin: var(--spacing-8) 0 var(--spacing-2);
+    padding: 0;
+    font-size: var(--text-body);
+    font-weight: 700;
+    line-height: var(--leading-body);
+    color: var(--color-ink-muted);
+  }
+
+  /* CYTAT — treść, którą się czyta.
+
+     Krawędź z boku w kolorze akcentu (ten sam token, którym menu i pasek
+     oznaczają panel moderacji — nie nowy kolor na tym ekranie), tło
+     wklęsłe, pełne 18 px i `--leading-body`. `max-width: 66ch` trzyma
+     długość wiersza w przedziale z docs/UX_50_PLUS.md (55-75 znaków) —
+     karta panelu jest szeroka, a odwołanie bywa długim tekstem pisanym
+     jednym ciągiem.
+
+     `margin-inline-start: 0` i wcięcie z `padding`: `<blockquote>` ma
+     w przeglądarce domyślne wcięcie marginesem, które przy 320 px zabiera
+     szerokość, zamiast oddawać ją tekstowi. */
+  .odwolanie-cytat {
+    margin: 0 0 var(--spacing-4);
+    margin-inline-start: 0;
+    padding: var(--spacing-4) var(--spacing-5);
+    border-inline-start: var(--spacing-1) solid var(--color-accent);
+    border-radius: var(--radius-md);
+    background-color: var(--color-surface-sunken);
+    font-size: var(--text-body);
+    line-height: var(--leading-body);
+    max-width: 66ch;
+  }
+
+  /* Cytat CICHY — wiadomość, którą ta osoba wtedy dostała, i zapisana już
+     odpowiedź. Ta sama forma (to też jest tekst do przeczytania, więc ma
+     zostać w tym samym rozmiarze), ale krawędź neutralna: to materiał
+     porównawczy, nie treść, po którą się na ten ekran przyszło. Różnicę
+     robi kolor krawędzi, nie rozmiar tekstu. */
+  .odwolanie-cytat-cichy {
+    border-inline-start-color: var(--color-border-strong);
+  }
+
+  /* Blok pierwotnej decyzji. Bez ramki i bez drugiego tła — wcięcie
+     i kreska z lewej wystarczają, żeby było widać, że to jedna grupa,
+     a dwa zagnieżdżone tła na karcie robią „schodki" i tyle.
+
+     Wcięcie ZNIKA poniżej 40 rem: na telefonie każdy piksel szerokości
+     należy do tekstu, a grupowanie i tak niesie kreska z lewej. */
+  .odwolanie-decyzja {
+    margin: var(--spacing-8) 0 0;
+    padding-inline-start: var(--spacing-5);
+    border-inline-start: 1px solid var(--color-border);
+  }
+
+  /* Pierwsza etykieta w bloku nie potrzebuje odstępu nad sobą — blok już
+     go ma. Bez tego odstępy sumują się w podwójną dziurę. */
+  .odwolanie-decyzja > .odwolanie-etykieta:first-child,
+  .odwolanie-odpowiedz > .odwolanie-etykieta:first-child,
+  .odwolanie-odpowiedz fieldset:first-child .odwolanie-etykieta {
+    margin-top: 0;
+  }
+
+  /* FORMULARZ (albo zapisana odpowiedź) — odcięty od wszystkiego, co się
+     czyta. Kreska NAD, nie ramka wokół: ramka zrobiłaby z formularza drugą
+     kartę w karcie, a chodzi tylko o to, żeby było widać, gdzie kończy się
+     czytanie i zaczyna praca. */
+  .odwolanie-odpowiedz {
+    margin-top: var(--spacing-8);
+    padding-top: var(--spacing-6);
+    border-top: 1px solid var(--color-border);
+  }
+
+  @media (max-width: 40rem) {
+    .odwolanie-decyzja {
+      padding-inline-start: var(--spacing-3);
+    }
+
+    .odwolanie-cytat {
+      padding: var(--spacing-3) var(--spacing-4);
+    }
+  }
+}

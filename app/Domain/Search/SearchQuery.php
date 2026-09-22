@@ -16,12 +16,21 @@ use Illuminate\Support\Str;
  * Wyszukiwarka MVP: PostgreSQL + pg_trgm + unaccent. Bez Typesense,
  * bez Meilisearch, bez osobnego indeksu (docs/ARCHITECTURE.md).
  *
- * WSZYSTKIE porównania idą przez `kuking_normalize()` — funkcję z migracji
- * 2026_09_05_001300, na której stoją indeksy GIN. Zapytanie MUSI używać
- * dokładnie tego samego wyrażenia co indeks, inaczej PostgreSQL go nie użyje
- * i każde wyszukiwanie skanuje całą tabelę. Tak było w pierwszej wersji:
- * indeksy stały na surowych kolumnach, a zapytania pytały o
- * `unaccent(lower(...))`. Jeśli zmieniasz tu wyrażenie — zmień też migrację.
+ * WSZYSTKIE porównania idą po KOLUMNACH `*_search` — generowanych
+ * (`GENERATED ALWAYS AS (public.kuking_normalize(...)) STORED`) w migracji
+ * `2026_09_09_100000_materialize_search_columns`. To na nich stoją indeksy
+ * GIN. Zapytanie MUSI pytać dokładnie o to, na czym stoi indeks, inaczej
+ * PostgreSQL go nie użyje i każde wyszukiwanie skanuje całą tabelę.
+ * Jeśli zmieniasz tu porównanie — zmień też migrację.
+ *
+ * DLACZEGO KOLUMNA, A NIE WYRAŻENIE `kuking_normalize(title)`
+ * Indeks na wyrażeniu też działa (tak było do 9 września 2026) — ale indeks
+ * GIN dla `%` jest STRATNY: oddaje kandydatów, których PostgreSQL sprawdza
+ * po raz drugi już na wierszu tabeli. Przy progu 0,12 kandydatów jest
+ * 35–60% tabeli, a każdy recheck liczył `unaccent()` od nowa. Zmierzone
+ * na 10 000 kont / 40 000 przepisów / 80 000 wpisów, fraza „pierogi":
+ * 169,7 ms → 59,1 ms, ten sam wynik co do wiersza. Uzasadnienie i plany
+ * zapytań: komentarz tamtej migracji i `docs/research/WYDAJNOSC.md` §3.4.
  *
  * Dlaczego trigramy, a nie pełnotekstowe FTS jako główna ścieżka: nasi
  * użytkownicy wpisują "zurek" szukając "żurku" i "pierogii" szukając
@@ -40,9 +49,10 @@ final class SearchQuery
     // POWYŻEJ udokumentowanego progu. Cała odporność na literówki, którą
     // obiecuje komentarz klasy, była martwa.
     //
-    // Uzasadnienie wyboru `set_limit()` zamiast `similarity(...) >= ?`
-    // (indeks trigramowy obsługuje `%`, nie porównanie wyniku funkcji) —
-    // w komentarzu tamtej klasy.
+    // Od 9 września 2026 (issue #187) próg dotyczy operatora `<%`
+    // (`word_similarity`), nie `%`, i wynosi 0,5. Uzasadnienie liczby,
+    // pomiar i to, CO ta zmiana gubi — w komentarzu tamtej klasy
+    // i w `docs/research/WYDAJNOSC.md` §3.4b.
 
     /**
      * Identyfikatory przepisów pasujących do frazy — CZTERY OSOBNE ZAPYTANIA
@@ -73,6 +83,15 @@ final class SearchQuery
      * więc koszt zależał od jej ROZMIARU, a nie od liczby trafień. To jest
      * naprawione i to pilnuje test.
      *
+     * DRUGI POMIAR, 9 WRZEŚNIA 2026, DZIESIĘĆ RAZY WIĘKSZA BAZA
+     * 10 000 kont / 40 000 przepisów / 80 000 wpisów. Wszystkie cztery gałęzie
+     * idą po `Bitmap Index Scan` — indeks NIE jest pomijany, teza z tytułu
+     * issue jest na tej skali obalona. `users` nie steruje niczym: jest
+     * budowaną raz stroną `Hash Join` (9 500 wierszy, ~3 ms), więc koszt nie
+     * rośnie z liczbą kont. Rośnie natomiast z liczbą PRZEPISÓW — i to
+     * z powodu, którego issue nie przewidziało: recheck stratnego indeksu GIN
+     * (patrz komentarz klasy). Stąd kolumny `*_search`.
+     *
      * `UNION ALL`, nie `UNION`: usuwanie duplikatów nie zmienia wyniku `IN`,
      * a kosztuje `HashAggregate` — na tyle, że planner wracał do skanowania
      * sekwencyjnego dwóch gałęzi (10,9 ms kontra 2,8 ms na samym zapytaniu
@@ -83,22 +102,42 @@ final class SearchQuery
      * na całości wyniku. Dlatego świadomie nie ma tu limitu ani osobnej rundy
      * „najpierw tytuł, doszukaj resztę tylko gdy mało wyników" — tamto
      * zmieniałoby kolejność wyników przy nielicznych trafieniach w tytule.
+     *
+     * PIERWSZA GAŁĄŹ UŻYWA `<%`, NIE `%` (issue #187) — I TO JEST ZMIANA
+     * TRAFNOŚCI, NIE KOSZTU
+     * `fraza <% title_search` pyta, czy fraza jest podobna do najlepiej
+     * pasującego FRAGMENTU tytułu; `%` pytało o podobieństwo do CAŁEGO
+     * tytułu i przy progu 0,12 łączyło ze sobą rzeczy, które nie mają ze sobą
+     * nic wspólnego („rosół" → „Rogaliki", „pierogi" → „Piernik", „sajgonki
+     * z krewetkami" → 1 526 wierszy w bazie bez jednej sajgonki). Zmierzone
+     * PRZED/PO, ta sama baza, 40 000 przepisów, fraza „pierogi":
+     *
+     *     %  @0,12   18 178 kandydatów z indeksu → 2 798 trafień, 62,2 ms
+     *     <% @0,5     2 134 kandydatów           → 2 073 trafienia, 9,9 ms
+     *
+     * Kolumna i indeks zostają te same (`gin_trgm_ops` obsługuje oba
+     * operatory) — ta zmiana NIE dotyka schematu bazy.
+     *
+     * ⚠️ Fraza jest po LEWEJ stronie operatora. `title_search <% ?` znaczy coś
+     * innego (czy tytuł jest podobny do fragmentu frazy) i indeks przestałby
+     * pasować do zapytania. Zamiana stron to najłatwiejszy sposób, żeby cicho
+     * zepsuć tę wyszukiwarkę.
      */
     private const KANDYDACI_SQL = <<<'SQL'
-        SELECT id FROM recipes WHERE kuking_normalize(title) % ?
+        SELECT id FROM recipes WHERE ? <% title_search
         UNION ALL
-        SELECT id FROM recipes WHERE kuking_normalize(title) LIKE ?
+        SELECT id FROM recipes WHERE title_search LIKE ?
         UNION ALL
-        SELECT id FROM recipes WHERE kuking_normalize(coalesce(summary, '')) LIKE ?
+        SELECT id FROM recipes WHERE summary_search LIKE ?
         UNION ALL
-        SELECT recipe_id FROM recipe_ingredients WHERE kuking_normalize(ingredient_text) LIKE ?
+        SELECT recipe_id FROM recipe_ingredients WHERE ingredient_text_search LIKE ?
         SQL;
 
     /**
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Recipe>
      */
-    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null): Collection
+    public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
 
@@ -107,6 +146,13 @@ final class SearchQuery
         }
 
         $needle = $this->normalize($phrase);
+
+        // Metaznaki LIKE (`%`, `_`, znak ucieczki `\`) z frazy MUSZĄ zostać
+        // dosłownym tekstem, nie operatorem wzorca (issue #753). Wyłącznie
+        // dla trzech gałęzi `LIKE` niżej — pierwsza gałąź trigramowa (`<%`)
+        // dostaje `$needle` BEZ ucieczki, bo to nie jest LIKE i cytowanie
+        // zepsułoby dopasowanie podobieństwa/sortowanie po nim.
+        $literalnie = $this->uciecznijLike($needle);
 
         // Bez tego gałąź trigramowa niżej milczy przy literówkach — patrz
         // komentarz przy zniesionej stałej wyżej.
@@ -137,9 +183,9 @@ final class SearchQuery
             ->withCount(['cookedEvents' => fn ($q) => $q->widoczneDla($widz)])
             ->whereRaw('recipes.id IN ('.self::KANDYDACI_SQL.')', [
                 $needle,
-                '%'.$needle.'%',
-                '%'.$needle.'%',
-                '%'.$needle.'%',
+                '%'.$literalnie.'%',
+                '%'.$literalnie.'%',
+                '%'.$literalnie.'%',
             ])
             // Filtr „Do 30 minut" (UI kit v2, ekran 03).
             //
@@ -151,17 +197,58 @@ final class SearchQuery
                 ->whereNotNull('prep_minutes')
                 ->whereNotNull('cook_minutes')
                 ->whereRaw('(prep_minutes + cook_minutes) <= ?', [$maksMinut]))
-            ->orderByRaw('similarity(kuking_normalize(title), ?) DESC', [$needle])
+            // KOLEJNOŚĆ: NAJPIERW TO, CO ZDECYDOWAŁO O TRAFIENIU (issue #187)
+            //
+            // Wiersz jest w wyniku dlatego, że fraza pasuje do FRAGMENTU
+            // tytułu (`<%`), więc pierwszym kryterium jest ta sama miara,
+            // `word_similarity`. Samo `similarity` (kryterium sprzed issue
+            // #187) mierzy podobieństwo do CAŁEGO tytułu, czyli karze tytuł
+            // za długość — a to przy operatorze `<%` wypycha prawdziwe
+            // trafienia pod śmieci. Zmierzone na bazie 40 000 przepisów:
+            //
+            //   fraza „pierogi": przy samym `similarity` 722 przepisy
+            //   „Pierogi …" stały ZA pierwszym „Piernikiem"; po zmianie: 0.
+            //   fraza „sernk": przy samym `similarity` sześć „Pierników"
+            //   stało przed pierwszym „Sernikiem babci Haliny"; po zmianie: 0.
+            //
+            // `similarity` zostaje jako DRUGIE kryterium i to nie jest ozdoba:
+            // przy `word_similarity` wszystkie tytuły zawierające całe słowo
+            // mają równe 1,00, więc bez tego rozstrzygnięcia „Pierogi" i
+            // „Pierogi ruskie babci Haliny z pieca" byłyby nierozróżnialne
+            // i o kolejności decydowałaby data. Z nim krótszy, dokładniejszy
+            // tytuł wraca na górę — zmierzone: dokładny tytuł zostaje na
+            // pozycji 1 tak samo jak przed zmianą.
+            ->orderByRaw(
+                'word_similarity(?, recipes.title_search) DESC, similarity(recipes.title_search, ?) DESC',
+                [$needle, $needle],
+            )
             ->orderByDesc('published_at')
+            ->orderBy('recipes.id')
+            ->offset(max(0, $offset))
             ->limit($limit)
             ->get();
     }
 
     /**
+     * Szukanie ludzi — i JEDYNE miejsce, w którym `OR` świadomie ZOSTAJE.
+     *
+     * Issue #116 stawiało tezę ogólną: „`OR` w `WHERE` blokuje indeks
+     * trigramowy". Ta metoda jest jej próbą kontrolną i teza się na niej
+     * NIE potwierdza. Trzy warunki pod wspólnym `OR`, ale wszystkie na
+     * JEDNEJ tabeli — PostgreSQL składa z nich `BitmapOr` z trzech skanów
+     * indeksowych i nie czyta tabeli. Zmierzone przy 10 000 kont, fraza
+     * „pierogi": 7,6 ms, trzy `Bitmap Index Scan` na `profiles_*_trgm_idx`.
+     *
+     * `recipes()` musiało pozbyć się `OR` z innego powodu: tam czwarty
+     * warunek był skorelowanym `EXISTS` na INNEJ tabeli, a takiego składnika
+     * `BitmapOr` przyjąć nie może — więc cała alternatywa spadała do filtra
+     * na pełnym skanie. Rozstrzyga to, czy warunki są na jednej tabeli,
+     * a nie samo słowo `OR`.
+     *
      * @param  User|null  $widz  kto szuka — potrzebny WYŁĄCZNIE do blokad
      * @return Collection<int, Profile>
      */
-    public function people(string $phrase, ?User $widz = null, int $limit = 20): Collection
+    public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
 
@@ -171,19 +258,61 @@ final class SearchQuery
 
         $needle = $this->normalize($phrase);
 
+        // Metaznaki LIKE dosłownie — patrz komentarz w recipes() (issue #753).
+        // Ta metoda nie ma gałęzi trigramowej, więc CAŁY `$needle` idzie
+        // wyłącznie przez wersję po ucieczce.
+        $literalnie = $this->uciecznijLike($needle);
+
+        // Ta metoda nie używa ŻADNEGO operatora trigramowego — dopasowuje
+        // przez `LIKE`, a `similarity()` niżej tylko porządkuje wynik i progu
+        // nie czyta. Wywołanie zostaje mimo to, żeby każda ścieżka
+        // wyszukiwania ustawiała próg tej samej klasy: dzień, w którym ktoś
+        // dopisze tu `<%` i zapomni o tej linijce, jest tańszy niż jedno
+        // zaoszczędzone `set_config` na zapytanie (issue #187, punkt 3).
         ProgPodobienstwa::ustaw();
 
         return Profile::query()
-            ->with(['user', 'avatar'])
+            // `user.profile.avatar`, A NIE SAMO `user` — I NIE JEST TO
+            // POWTÓRNE ŁADOWANIE TEGO SAMEGO WIERSZA DLA OZDOBY.
+            //
+            // Oba ekrany korzystające z tej metody (`/szukaj`, zakładka
+            // „Ludzie", i krok onboardingu „znasz już kogoś tutaj?") rysują
+            // zdjęcie komponentem `<x-avatar :user="$profil->user" />`.
+            // Komponent przyjmuje KONTO i sam wraca po profil
+            // (`$user?->profile`, potem `zdjecieDoPokazania()` → `avatar`),
+            // a wynikiem tej metody są PROFILE — więc doładowany tu `avatar`
+            // siedzi na innej instancji niż ta, po którą sięga komponent,
+            // i nie oszczędza ani jednego zapytania.
+            //
+            // Zmierzone przed poprawką (`WynikiSzukaniaLudziBezWachlarzaZapytanTest`):
+            // 16 zapytań przy 2 osobach i 34 przy 20 — dokładnie jedno
+            // `select * from profiles where user_id = ?` na każdą wypisaną
+            // osobę. Przy kontach ze zdjęciem profilowym dochodziło drugie,
+            // po wiersz `media`.
+            //
+            // `avatar` na profilu-korzeniu ZOSTAJE: to jest kod domenowy,
+            // a nie widok, i nie ma prawa zakładać, że każdy przyszły
+            // odbiorca sięgnie po zdjęcie okrężną drogą przez konto.
+            // Kosztuje to jedno zapytanie na CAŁĄ stronę wyników, nie jedno
+            // na osobę.
+            ->with(['user.profile.avatar', 'avatar'])
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'profiles.user_id'))
-            ->where(function ($query) use ($needle): void {
+            ->where(function ($query) use ($literalnie): void {
                 $query
-                    ->whereRaw('kuking_normalize(display_name) LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('kuking_normalize(username) LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('kuking_normalize(coalesce(speciality, \'\')) LIKE ?', ['%'.$needle.'%']);
+                    ->whereRaw('display_name_search LIKE ?', ['%'.$literalnie.'%'])
+                    ->orWhereRaw('username_search LIKE ?', ['%'.$literalnie.'%'])
+                    ->orWhereRaw('speciality_search LIKE ?', ['%'.$literalnie.'%']);
             })
-            ->orderByRaw('similarity(kuking_normalize(display_name), ?) DESC', [$needle])
+            // Tu `similarity` ZOSTAJE (issue #187 zmieniło tylko przepisy).
+            // Dopasowanie idzie przez `LIKE`, więc zbiór wyników nie zależy
+            // od żadnej miary podobieństwa, a nazwy profili są krótkie —
+            // „karanie za długość", które psuło kolejność przepisów, nie ma
+            // się tu na czym odbyć. Zmiana bez zmierzonego powodu byłaby
+            // zmianą kolejności wyników za darmo.
+            ->orderByRaw('similarity(profiles.display_name_search, ?) DESC', [$needle])
+            ->orderBy('profiles.user_id')
+            ->offset(max(0, $offset))
             ->limit($limit)
             ->get();
     }
@@ -238,5 +367,23 @@ final class SearchQuery
     private function normalize(string $phrase): string
     {
         return mb_strtolower(Str::ascii(mb_substr($phrase, 0, 120)));
+    }
+
+    /**
+     * Cytuje metaznaki operatora LIKE, żeby fraza użytkownika trafiała do
+     * `LIKE` jako dosłowny tekst, nie jako wzorzec (issue #753).
+     *
+     * PostgreSQL bierze `\` jako domyślny znak ucieczki dla `LIKE` — dlatego
+     * najpierw trzeba podwoić SAM znak ucieczki, inaczej `\` z frazy
+     * uciekałby przypadkowo następny znak wstawiony przez tę metodę.
+     * Kolejność (najpierw `\`, potem `%` i `_`) jest tu obowiązkowa.
+     *
+     * Używać WYŁĄCZNIE dla parametrów `LIKE`. Operator trigramowy `<%`
+     * i funkcje `similarity()`/`word_similarity()` mają dostawać frazę
+     * bez tej ucieczki — to nie jest LIKE i cytowanie zmieniłoby dopasowanie.
+     */
+    private function uciecznijLike(string $wartosc): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $wartosc);
     }
 }

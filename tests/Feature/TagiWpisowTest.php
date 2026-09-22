@@ -7,6 +7,9 @@ namespace Tests\Feature;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\TagAlias;
+use App\Models\User;
+use DOMDocument;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -156,6 +159,108 @@ class TagiWpisowTest extends TestCase
         $response->assertRedirect();
         $this->assertSame(0, Post::count(), '„Szukaj tagów” nie powinno publikować wpisu.');
         $response->assertSessionHasInput('body', 'Rosół jak u babci.');
+    }
+
+    /**
+     * PR #701 schowal awaryjny panel tagow w `<details>`, zeby nie konkurowal
+     * z hashtagiem w opisie (#647). Sam panel to dobrze, ale WYNIK „Sprawdz
+     * tag" renderuje sie W SRODKU tej sekcji — a `<details>` bez `open`
+     * wraca po przeladowaniu ZWINIETA. Bez JavaScriptu (AGENTS.md §5)
+     * wygladalo to tak, jakby przycisk nic nie zrobil: podpowiedzi i oba
+     * przyciski „Dodaj" sa w HTML, ale niewidoczne.
+     *
+     * Dlatego ten test patrzy na RENDER, a nie na sesje — cala reszta
+     * sciezki bez JS w tym pliku sprawdza `assertSessionHasInput`, wiec
+     * schowanie wyniku przed czlowiekiem przeszlo jej bokiem.
+     */
+    public function test_wynik_sprawdzenia_tagu_jest_widoczny_bez_javascriptu(): void
+    {
+        Tag::create(['name' => 'Sernik', 'normalized_name' => 'sernik', 'slug' => 'sernik']);
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)->opublikuj([
+            'tag_query' => 'sern',
+            'szukaj_tagu' => '1',
+        ])->assertRedirect();
+
+        $xpath = $this->xpathFormularzaDodawania($basia);
+
+        $lista = $xpath->query('//ul[@aria-label="Podpowiedzi tagów"]');
+        $this->assertSame(1, $lista->length, 'Po „Sprawdz tag" nie ma listy podpowiedzi w ogole.');
+
+        $this->assertSame(
+            0,
+            $xpath->query('ancestor::details[not(@open)]', $lista->item(0))->length,
+            'Podpowiedzi po „Sprawdz tag" siedza w ZWINIETEJ sekcji `<details>` — '.
+            'bez JavaScriptu czlowiek klika „Sprawdz tag", strona sie przeladowuje '.
+            'i nic sie nie pokazuje. Sekcja musi miec `open`, gdy jest co pokazac.',
+        );
+
+        foreach ($xpath->query('//button[@name="dodaj_tag"]') as $przycisk) {
+            $this->assertSame(
+                0,
+                $xpath->query('ancestor::details[not(@open)]', $przycisk)->length,
+                'Przycisk „Dodaj" po wyszukaniu jest schowany w zwinietej sekcji.',
+            );
+        }
+    }
+
+    /**
+     * Ten sam zwiniety `<details>` chowa tez komunikat o tagu juz dodanym —
+     * czyli dokladnie ten stan ze zrzutu w #647, od ktorego zaczelo sie
+     * zgloszenie.
+     */
+    public function test_komunikat_o_juz_dodanym_tagu_jest_widoczny_bez_javascriptu(): void
+    {
+        $basia = $this->user('basia');
+
+        $this->actingAs($basia)->opublikuj([
+            'tag_names' => ['sernik'],
+            'tag_query' => 'sernik',
+            'szukaj_tagu' => '1',
+        ])->assertRedirect();
+
+        $xpath = $this->xpathFormularzaDodawania($basia);
+
+        $komunikat = $xpath->query('//p[normalize-space()="Ten tag jest już dodany."]');
+        $this->assertSame(1, $komunikat->length, 'Brak komunikatu „Ten tag jest już dodany.".');
+        $this->assertSame(
+            0,
+            $xpath->query('ancestor::details[not(@open)]', $komunikat->item(0))->length,
+            'Komunikat „Ten tag jest już dodany." jest schowany w zwinietej sekcji.',
+        );
+    }
+
+    /**
+     * Sekcja awaryjna ma zostac ZWINIETA, dopoki nie ma w niej wyniku —
+     * o to chodzilo w #701 i to tez musi byc pilnowane, zeby poprawka
+     * wyzej nie zostala „naprawiona" stalym `open`.
+     */
+    public function test_sekcja_awaryjna_jest_zwinieta_gdy_nie_ma_czego_pokazac(): void
+    {
+        $xpath = $this->xpathFormularzaDodawania($this->user('basia'));
+
+        $pole = $xpath->query('//input[@name="tag_query"]');
+        $this->assertSame(1, $pole->length);
+        $this->assertSame(
+            1,
+            $xpath->query('ancestor::details[not(@open)]', $pole->item(0))->length,
+            'Swiezy formularz pokazuje awaryjna wyszukiwarke rozwinieta — '.
+            'wraca drugi interfejs obok hashtagu w opisie (#647).',
+        );
+    }
+
+    private function xpathFormularzaDodawania(User $user): DOMXPath
+    {
+        $html = $this->actingAs($user)->get(route('posts.create'))->getContent();
+
+        $doc = new DOMDocument;
+        $poprzednie = libxml_use_internal_errors(true);
+        $doc->loadHTML('<?xml encoding="utf-8" ?>'.$html);
+        libxml_clear_errors();
+        libxml_use_internal_errors($poprzednie);
+
+        return new DOMXPath($doc);
     }
 
     public function test_dodaj_tag_dodaje_do_listy_roboczej_bez_publikacji(): void

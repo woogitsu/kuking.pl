@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use DOMDocument;
+use DOMElement;
+use DOMXPath;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -49,8 +52,10 @@ class UstawieniaNawigacjaTest extends TestCase
     {
         return [
             'settings.profile',
+            'settings.avatar',
             'settings.accessibility',
             'settings.tags',
+            'settings.email',
             'settings.security',
             'settings.two_factor.edit',
             'settings.privacy',
@@ -96,7 +101,20 @@ class UstawieniaNawigacjaTest extends TestCase
             // działający i nie robi nic — to najgorszy rodzaj przycisku.
             // Zamiast niego ma być pogrubiona nazwa z `aria-current`,
             // czyli ta sama informacja dla oka i dla czytnika ekranu.
-            $this->assertStringContainsString('aria-current="page"', $html, $obecny);
+            // W SPISIE USTAWIEŃ, A NIE GDZIEKOLWIEK W DOKUMENCIE (pułapka 1).
+            // `aria-current="page"` stoi na każdym ekranie ustawień także
+            // w nawigacji bocznej layoutu — pozycja „Ustawienia" dostaje go
+            // z `request()->routeIs('settings.*')`. Zmierzone 12.09.2026:
+            // po zdjęciu `aria-current` ze spisu asercja na całym dokumencie
+            // nadal przechodziła, czyli nie pilnowała niczego.
+            [$xpath, $spis] = $this->spisUstawien($html);
+
+            $this->assertSame(
+                1,
+                $xpath->query(".//*[@aria-current='page']", $spis)->length,
+                "Spis ustawień na ekranie {$obecny} nie zaznacza bieżącej pozycji — "
+                .'czytnik ekranu nie powie, gdzie człowiek jest.',
+            );
 
             // Sam adres pojawia się w formularzach (`action`), więc pytamy
             // wprost o odnośnik w spisie, a nie o obecność adresu w HTML-u.
@@ -121,5 +139,31 @@ class UstawieniaNawigacjaTest extends TestCase
         $this->assertStringContainsString('Kto widzi Twoje treści', $html);
         $this->assertStringContainsString('usunięcie konta', $html);
         $this->assertStringContainsString('wylogowanie z innych urządzeń', $html);
+    }
+
+    /**
+     * Sam spis ekranów ustawień (`x-ustawienia-nawigacja`), bez obudowy strony.
+     *
+     * PO CO: patrz pułapka 1 z `docs/PULAPKI_TESTOW.md`. Nawigacja boczna
+     * layoutu niesie ten sam atrybut co spis, więc asercja na całym
+     * dokumencie mówi „gdziekolwiek", a nie „w spisie".
+     *
+     * @return array{DOMXPath, DOMElement}
+     */
+    private function spisUstawien(string $html): array
+    {
+        $dokument = new DOMDocument;
+        @$dokument->loadHTML('<?xml encoding="utf-8" ?>'.$html, LIBXML_NOERROR | LIBXML_NOWARNING);
+
+        $xpath = new DOMXPath($dokument);
+        $spis = $xpath->query("//nav[contains(concat(' ', normalize-space(@class), ' '), ' ustawienia-nawigacja ')]")->item(0);
+
+        $this->assertInstanceOf(
+            DOMElement::class,
+            $spis,
+            'Na ekranie nie ma spisu ustawień — test nie sprawdziłby niczego.',
+        );
+
+        return [$xpath, $spis];
     }
 }

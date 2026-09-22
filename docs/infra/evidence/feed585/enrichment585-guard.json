@@ -1,0 +1,6 @@
+{
+  "before": "801|100|801",
+  "after": "801|100|801",
+  "exit": 1,
+  "message": "Dane zostały już wzbogacone. Nie tworzymy duplikatów."
+}

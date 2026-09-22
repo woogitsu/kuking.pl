@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Collections\Actions\SavePostToCollection;
+use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Jobs\GenerateUserExport;
 use App\Mail\DataExportReady;
@@ -54,6 +56,16 @@ class DataExportTest extends TestCase
     // -----------------------------------------------------------------
     // Budowanie paczki
     // -----------------------------------------------------------------
+
+    public function test_paczka_zawiera_decyzje_o_instalacji_wlasnego_konta(): void
+    {
+        $basia = $this->user('basia', ['pwa_prompt_state' => 'dismissed']);
+        $this->user('marek', ['pwa_prompt_state' => 'installed']);
+
+        $data = $this->jsonFromArchive($this->runExportFor($basia));
+
+        $this->assertSame('dismissed', $data['konto']['stan_zachety_instalacji']);
+    }
 
     public function test_job_tworzy_plik_i_ustawia_status_rozmiar_i_termin_waznosci(): void
     {
@@ -140,6 +152,102 @@ class DataExportTest extends TestCase
         // byłoby kłamstwem.
         $files = $this->filesInArchive($export);
         $this->assertContains('przepisy/'.ExportFileNames::recipeFile($draft), $files);
+    }
+
+    /**
+     * REGRESJA: zapisany WPIS w ogóle nie trafiał do paczki.
+     *
+     * Od migracji `2026_09_06_150000_collection_items_accept_posts` zeszyt
+     * przyjmuje dwie rzeczy — przepisy ORAZ wpisy. `CollectUserExportData::
+     * collections()` czytało wyłącznie `->recipes`, więc druga połowa zeszytu
+     * znikała: bez pozycji, bez liczby i bez zdania o tym, że jej nie ma.
+     *
+     * Żaden dotychczasowy test tego nie widział, bo wszystkie budowały
+     * eksport z zeszytem pustym albo z samych przepisów — dokładnie ta sama
+     * klasa błędu co przy paczce bez zdjęć niżej.
+     */
+    public function test_paczka_zawiera_wpis_zapisany_do_zeszytu(): void
+    {
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $zenek = $this->user('zenek', ['display_name' => 'Zenek', 'email' => 'zenek@przyklad.test']);
+
+        $wpis = Post::factory()->for($zenek, 'author')->create(['body' => 'Zakwas na żurek po dwóch dniach']);
+        $przepis = Recipe::factory()->for($zenek, 'author')->create(['title' => 'Żurek na zakwasie']);
+
+        $zeszyt = $basia->defaultCollection();
+        // `app(...)`, nie `new`: `SaveRecipeToCollection` bierze w konstruktorze
+        // `NotifyUser` (powiadamia autora przepisu o zapisaniu). Kontener
+        // składa akcję tak samo jak w produkcji, więc test przechodzi tą samą
+        // drogą co kontroler — a nie własną, uproszczoną.
+        app(SaveRecipeToCollection::class)->handle($basia, $przepis, $zeszyt);
+        app(SavePostToCollection::class)->handle($basia, $wpis, $zeszyt, 'Spróbować przed Wielkanocą');
+
+        $export = $this->runExportFor($basia);
+        $data = $this->jsonFromArchive($export);
+
+        $this->assertCount(1, $data['kolekcje']);
+        $kolekcja = $data['kolekcje'][0];
+
+        // Przepis był w paczce od początku — sprawdzamy, że nic mu nie ubyło.
+        $this->assertSame(['Żurek na zakwasie'], array_column($kolekcja['przepisy'], 'tytul'));
+
+        // ...a wpis był tym, czego brakowało.
+        $this->assertCount(1, $kolekcja['wpisy'], 'Zapisany wpis nie trafił do paczki.');
+        $this->assertSame('Zakwas na żurek po dwóch dniach', $kolekcja['wpisy'][0]['tresc']);
+        $this->assertSame('Zenek', $kolekcja['wpisy'][0]['autor']);
+        $this->assertSame('Spróbować przed Wielkanocą', $kolekcja['wpisy'][0]['moja_notatka']);
+        $this->assertNotNull($kolekcja['wpisy'][0]['zapisano']);
+
+        // Klucz z liczbą jest ZAWSZE, także gdy nic się nie schowało (issue #113).
+        $this->assertSame(0, $kolekcja['wpisow_juz_niewidocznych']);
+
+        // Zapisany wpis to CUDZA treść. Wolno przepisać tekst, datę i podpis —
+        // nigdy adresu e-mail autora.
+        $this->assertStringNotContainsString(
+            'zenek@przyklad.test',
+            $this->readFromArchive($export, 'dane.json'),
+        );
+    }
+
+    /**
+     * Wpis, którego w serwisie już nie widać, wchodzi do paczki jako LICZBA,
+     * nie jako treść.
+     *
+     * Zeszyt jest pojemnikiem na cudze treści. Wpis zapisany wtedy, gdy autor
+     * pokazywał go obserwującym, przestaje być widoczny po zaprzestaniu
+     * obserwowania — ekran zeszytu mówi wtedy „ile pozycji, nie jakich".
+     * Paczka ZIP zostaje na dysku na zawsze i da się ją komuś wysłać, więc
+     * musi trzymać tę samą granicę — tak samo jak przy powiadomieniach
+     * (`Notification::visibleTo`).
+     */
+    public function test_zapisany_wpis_juz_niewidoczny_wchodzi_do_paczki_jako_liczba(): void
+    {
+        $basia = $this->user('basia', ['display_name' => 'Basia']);
+        $zenek = $this->user('zenek', ['display_name' => 'Zenek']);
+
+        $wpis = Post::factory()->for($zenek, 'author')->followersOnly()->create([
+            'body' => 'Tylko dla obserwujących: rosół babci',
+        ]);
+
+        // Basia obserwuje Zenka, odkłada wpis „na potem"...
+        $basia->following()->attach($zenek->getKey(), ['created_at' => now()]);
+        app(SavePostToCollection::class)->handle($basia, $wpis, $basia->defaultCollection());
+
+        // ...a potem przestaje obserwować. Wpis zostaje w zeszycie, ale
+        // przestaje być dla niej widoczny.
+        $basia->following()->detach($zenek->getKey());
+
+        $export = $this->runExportFor($basia);
+        $kolekcja = $this->jsonFromArchive($export)['kolekcje'][0];
+
+        $this->assertSame([], $kolekcja['wpisy']);
+        $this->assertSame(1, $kolekcja['wpisow_juz_niewidocznych']);
+
+        $this->assertStringNotContainsString(
+            'Tylko dla obserwujących: rosół babci',
+            $this->readFromArchive($export, 'dane.json'),
+            'Paczka wyjęła cudzy tekst poza ustawienie widoczności, które wybrał jego autor.',
+        );
     }
 
     /**
@@ -709,7 +817,11 @@ class DataExportTest extends TestCase
 
         // I mówi wprost, dlaczego go nie ma — pusta sekcja bez wyjaśnienia
         // wygląda jak brakująca część paczki.
-        $this->assertStringContainsString('Nie masz jeszcze w Kuking żadnego zdjęcia', $index);
+        //
+        // Zdanie opisuje PACZKĘ, nie konto: ta sama gałąź obsługuje konto
+        // z samymi zdjęciami odrzuconymi, któremu „nie masz żadnego zdjęcia"
+        // mówiłoby nieprawdę (`EksportMowiOZdjeciachWDrodzeTest`).
+        $this->assertStringContainsString('W tej paczce nie ma żadnego zdjęcia', $index);
 
         $zip->close();
     }

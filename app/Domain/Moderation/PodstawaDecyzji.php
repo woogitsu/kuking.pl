@@ -70,7 +70,7 @@ final class PodstawaDecyzji
         ],
         'cudza-tresc' => [
             'punkt' => 2,
-            'zasada' => 'Publikuj to, co zrobiłeś lub napisałeś sam.',
+            'zasada' => 'Publikuj własne przepisy i teksty.',
             'etykieta' => 'Cudzy przepis albo cudzy tekst (punkt 2)',
         ],
         'cudze-zdjecie' => [
@@ -152,6 +152,64 @@ final class PodstawaDecyzji
         'minor' => 'dane-dziecka',
         'personal_data' => 'cudze-dane-osobowe',
     ];
+
+    /**
+     * KODY TECHNICZNE — powody, które wpisuje SAM SERWIS, nie człowiek.
+     *
+     * Nie są podstawą decyzji (nie odsyłają do punktu zasad i nigdy nie
+     * trafiają do wiadomości dla autora), ale leżą w tej samej kolumnie
+     * `moderation_actions.reason_code` i pojawiają się w panelu na równi
+     * z podstawami. Bez tej listy `etykieta()` musiałaby pokazać
+     * moderatorowi surowy `appeal_overturned`, czyli dokładnie to, co ta
+     * klasa ma z ekranów usuwać.
+     *
+     * @var array<string, string>
+     */
+    public const KODY_TECHNICZNE = [
+        'appeal_overturned' => 'Cofnięcie decyzji po odwołaniu',
+        'automat-falszywy-alarm' => 'Automat się pomylił — sprawa zamknięta bez działania',
+    ];
+
+    /**
+     * ETYKIETA POWODU DO POKAZANIA CZŁOWIEKOWI — polska nazwa, nigdy kod
+     * z bazy.
+     *
+     * PO CO TO POWSTAŁO (zgłoszenie właściciela z 10 września): kolejka
+     * odwołań pisała wprost „powód: tresci-dla-doroslych". Kod z bazy na
+     * ekranie jest usterką także na ekranie roboczym: żeby go zrozumieć,
+     * trzeba znać schemat, a nazwa polska stała tu obok, w tej samej
+     * klasie, od początku (`PODSTAWY[...]['etykieta']`).
+     *
+     * TRZY PRZYPADKI, ŻADEN NIE POKAZUJE SUROWEGO KODU BEZ OSTRZEŻENIA:
+     *  - podstawa z listy (także przez `SYNONIMY`) — jej etykieta;
+     *  - kod techniczny serwisu — jego etykieta;
+     *  - swobodny tekst spoza obu list (decyzje sprzed wprowadzenia
+     *    słownika i pole „powód przywrócenia") — pokazujemy go, ale
+     *    NAZWANY tym, czym jest: „powód wpisany ręcznie". Ukrycie go
+     *    byłoby gorsze niż pokazanie, bo dla starych spraw to JEDYNY ślad
+     *    tego, co wtedy postanowiono; chodzi o to, żeby moderator nie
+     *    musiał się zastanawiać, czy patrzy na nazwę, czy na kod.
+     */
+    public static function etykieta(?string $kod): string
+    {
+        if ($kod === null || trim($kod) === '') {
+            return 'powód nie został zapisany';
+        }
+
+        $kod = trim($kod);
+
+        $rozpoznana = self::rozpoznaj($kod);
+
+        if ($rozpoznana !== null) {
+            return $rozpoznana['etykieta'];
+        }
+
+        if (isset(self::KODY_TECHNICZNE[$kod])) {
+            return self::KODY_TECHNICZNE[$kod];
+        }
+
+        return 'powód wpisany ręcznie: „'.$kod.'”';
+    }
 
     /**
      * Lista do wyboru w panelu moderacji: kod => etykieta.

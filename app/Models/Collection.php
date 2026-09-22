@@ -43,9 +43,12 @@ class Collection extends Model
 
     public function recipes(): BelongsToMany
     {
+        // `orderByDesc('recipes.id')` rozstrzyga remisy `created_at` na
+        // złączeniu — uzasadnienie: `Recipe::cookedEvents()`.
         return $this->belongsToMany(Recipe::class, 'collection_items')
             ->withPivot(['note', 'created_at'])
-            ->orderByPivot('created_at', 'desc');
+            ->orderByPivot('created_at', 'desc')
+            ->orderByDesc('recipes.id');
     }
 
     /**
@@ -60,9 +63,12 @@ class Collection extends Model
      */
     public function posts(): BelongsToMany
     {
+        // Jak wyżej: bez drugiego klucza dwie rzeczy zapisane w tej samej
+        // sekundzie potrafią się przestawić między stronami.
         return $this->belongsToMany(Post::class, 'collection_items')
             ->withPivot(['note', 'created_at'])
-            ->orderByPivot('created_at', 'desc');
+            ->orderByPivot('created_at', 'desc')
+            ->orderByDesc('posts.id');
     }
 
     public function isPublic(): bool

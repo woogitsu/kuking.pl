@@ -1,10 +1,23 @@
 <x-layout title="Dodaj zdjęcie" :noindex="true">
+    {{-- Zakładki „Zdjęcie i kilka słów” / „Cały przepis” (issue #366).
+
+         STOJĄ PRZED NAGŁÓWKIEM I TO JEST CAŁA ICH ROBOTA. Osiem z jedenastu
+         drzwi do dodawania prowadzi prosto tutaj — kafel na `/home`, pusty
+         stan feedu, „Dodaj zdjęcie” na profilu, pusty stan profilu, `/tag/…`,
+         pusty stan `/odkryj`, koniec onboardingu i „Dodaj kolejne zdjęcie”
+         pod wpisem. Wchodzący którymikolwiek z nich ma zobaczyć, że jest też
+         druga możliwość, ZANIM zacznie wypełniać ten formularz.
+
+         To odnośnik, nie przełącznik przebudowujący pola: uzasadnienie stoi
+         w komentarzu samego komponentu. --}}
+    <x-zakladki-dodawania aktywna="zdjecie" />
+
     <h1>Dodaj zdjęcie</h1>
     <p class="mb-5">Wybierz zdjęcie z telefonu, napisz kilka słów i kliknij „Opublikuj”. To wszystko.</p>
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
+    <form class="panel-formularza" method="POST" action="{{ route('posts.store') }}" enctype="multipart/form-data">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR
@@ -25,7 +38,12 @@
         @endif
 
         <div class="field @error('photos') has-error @enderror @error('photos.*') has-error @enderror">
-            <label for="f-photos">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></label>
+            {{-- Nazwa pola jest `<span>`, a nie `<label>`: jedyną etykietą tego
+                 pola jest duży obszar wyboru niżej (D-035). Powód — jedno pole,
+                 jedna etykieta — stoi w resources/css/ekran-dodawania.css przy
+                 `.pole-zdjecia-nazwa`. Nazwa wraca do pola przez
+                 `aria-labelledby`, więc czytnik ekranu dalej ją czyta. --}}
+            <span class="pole-zdjecia-nazwa" id="f-photos-etykieta">Zdjęcie <span class="meta">(możesz wybrać kilka)</span></span>
 
             @php
                 // Zdjęcia, które przetrwały nieudaną walidację (audyt C1).
@@ -41,7 +59,7 @@
             @if($zachowane->isNotEmpty())
                 <div class="notice">
                     <strong>Twoje zdjęcia są zachowane.</strong>
-                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co jest zaznaczone na czerwono.
+                    Nie musisz wybierać ich jeszcze raz — popraw tylko to, co wypisaliśmy na górze formularza.
                     <ul class="stack-tight lista-naga mt-3">
                         @foreach($zachowane as $zdjecie)
                             <li>
@@ -54,24 +72,41 @@
             @endif
 
             {{-- Duży obszar wyboru zdjęcia (UI kit v2, 08_mobile_add.html →
-                 `PhotoPicker`, docs/design/ekran-dodawania.css). Prawdziwy
-                 <input type="file"> zostaje w środku, w pełni widoczny
-                 i klikalny — to wciąż ta sama droga bez JavaScriptu. --}}
-            <div class="pole-zdjecia">
+                 `PhotoPicker`, resources/css/ekran-dodawania.css). Natywne pole
+                 pliku jest tu SCHOWANE DLA OKA (decyzja właściciela D-035):
+                 przeglądarka rysowała w nim angielskie „Choose File / No file
+                 chosen" w środku polskiego formularza i nie da się tego zmienić
+                 żadnym atrybutem. Klikalna zostaje etykieta — to natywne
+                 zachowanie HTML, działa bez JavaScriptu.
+
+                 Pole ZOSTAJE w drzewie dostępności i pod klawiaturą: chowa je
+                 `.visually-hidden`, nigdy `display: none` ani
+                 `visibility: hidden`. Fokus na nim rysuje obwódkę wokół
+                 obszaru.
+
+                 KOLEJNOŚĆ JEST WYMUSZONA: `<input>` stoi BEZPOŚREDNIO PRZED
+                 `<label>`, bo obwódkę fokusu rysuje reguła
+                 `.pole-zdjecia-input:focus-visible + .pole-zdjecia`. --}}
+            <input class="visually-hidden pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
+                   accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
+                   multiple
+                   aria-labelledby="f-photos-etykieta f-photos-tytul"
+                   aria-describedby="f-photos-help">
+            <label class="pole-zdjecia" for="f-photos">
                 <span class="pole-zdjecia-ikona"><x-ikona nazwa="image" :rozmiar="32" /></span>
-                <p class="pole-zdjecia-tytul">Dodaj zdjęcie</p>
+                <span class="pole-zdjecia-tytul" id="f-photos-tytul">Dodaj zdjęcie</span>
                 <span class="field-help" id="f-photos-help">
                     Na telefonie kliknij tutaj, a potem wybierz „Galeria” albo „Zrób zdjęcie”.
                     Największy plik: {{ \App\Support\LimityZdjec::maksMegabajtowDoKomunikatu() }} MB.
                 </span>
-                <input class="field-input pole-zdjecia-input" id="f-photos" type="file" name="photos[]"
-                       accept="{{ \App\Support\LimityZdjec::atrybutAccept() }}"
-                       multiple aria-describedby="f-photos-help">
-            </div>
+            </label>
             @error('photos')<span class="field-error">{{ $message }}</span>@enderror
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
 
+        <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"
+             data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
+             data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
         <x-field
             name="body"
             label="Napisz kilka słów"
@@ -79,8 +114,13 @@
             :rows="5"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
+            <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
+        </div>
 
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-visibility"
+                  @error('visibility') tabindex="-1" aria-invalid="true" aria-describedby="f-visibility-error" @enderror>
             <legend class="font-bold mb-3">Kto ma to widzieć?</legend>
 
             <div class="choice-grid">
@@ -108,10 +148,8 @@
                     </span>
                 </label>
             </div>
-            @error('visibility')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="visibility" />
         </fieldset>
-
-        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Opublikuj</button>

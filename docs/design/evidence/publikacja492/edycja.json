@@ -1,0 +1,66 @@
+[
+  {
+    "state": "formularz",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "focus": "",
+    "axe": []
+  },
+  {
+    "state": "formularz",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "focus": "",
+    "axe": []
+  },
+  {
+    "state": "blad",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "focus": "error-summary",
+    "axe": []
+  },
+  {
+    "state": "blad",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "focus": "error-summary",
+    "axe": []
+  },
+  {
+    "state": "sukces",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "focus": "",
+    "axe": []
+  },
+  {
+    "state": "sukces",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "focus": "",
+    "axe": []
+  },
+  {
+    "state": "jedno-zdjecie",
+    "theme": "light",
+    "width": 320,
+    "scroll": 320,
+    "focus": "",
+    "axe": []
+  },
+  {
+    "state": "jedno-zdjecie",
+    "theme": "dark",
+    "width": 320,
+    "scroll": 320,
+    "focus": "",
+    "axe": []
+  }
+]

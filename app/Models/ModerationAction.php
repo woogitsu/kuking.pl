@@ -24,6 +24,9 @@ class ModerationAction extends Model
 
     public const ACTION_NONE = 'no_action';
 
+    /** Cel zniknął albo nie dał się ustalić przed pierwszą decyzją. */
+    public const ACTION_TARGET_UNAVAILABLE = 'target_unavailable';
+
     public const ACTION_HIDE = 'hide';
 
     /**
@@ -90,6 +93,25 @@ class ModerationAction extends Model
         // Wykonanie zdejmuje się z widoku przez `remove` (soft delete) —
         // i ono działa naprawdę.
         'cooked_event' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_REMOVE, self::ACTION_SUSPEND, self::ACTION_BAN],
+
+        // ZDJĘCIE (dziś: zdjęcie profilowe, issue #237). ŚWIADOMIE BEZ `hide`
+        // I BEZ `remove`, i to nie jest przeoczenie:
+        //
+        //   `hide` — `Media` nie ma kolumny `status` w rozumieniu moderacji
+        //   (`ModeratedContent::UKRYTY` nie ma dla niej wpisu). Przycisk
+        //   robiłby dokładnie to, co robił przy „Ugotowałem": nic, przy
+        //   powiadomieniu „ukryliśmy Twoją treść".
+        //
+        //   `remove` — `$target->delete()` na zdjęciu jest NIEODWRACALNE
+        //   (`Media` nie ma SoftDeletes), a odwołanie od decyzji `remove`
+        //   ma przywrócić treść (DSA art. 17, `ResolveAppeal`). Decyzja,
+        //   od której nie da się skutecznie odwołać, nie może stać na tym
+        //   ekranie. Usuwanie zdjęcia profilowego przez moderatora potrzebuje
+        //   najpierw miękkiego kasowania zdjęć — osobna praca, osobne issue.
+        //
+        // Zostaje to, co działa naprawdę: ostrzeżenie (i odpowiedź pocztą
+        // z panelu, D-058), zawieszenie i ban.
+        'media' => [self::ACTION_NONE, self::ACTION_WARN, self::ACTION_SUSPEND, self::ACTION_BAN],
     ];
 
     /**
@@ -123,6 +145,7 @@ class ModerationAction extends Model
     /** Etykiety po polsku — jedno źródło dla formularza i dla komunikatów. */
     public const ETYKIETY = [
         self::ACTION_NONE => 'Bez działania',
+        self::ACTION_TARGET_UNAVAILABLE => 'Cel niedostępny podczas rozstrzygania',
         self::ACTION_HIDE => 'Ukryj treść',
         self::ACTION_UNHIDE => 'Przywróć treść',
         self::ACTION_REMOVE => 'Usuń treść',

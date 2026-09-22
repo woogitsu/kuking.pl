@@ -1,0 +1,6 @@
+{
+  "two_posts_share_lock": true,
+  "merge_waits_for_both_posts": true,
+  "post_waits_for_merge": true,
+  "scope": "Real TagMutationLock in four PHP processes; isolated DB 55439; no data writes. Does not replace full concurrent post/merge flow."
+}

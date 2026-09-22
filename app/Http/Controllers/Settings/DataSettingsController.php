@@ -10,9 +10,11 @@ use App\Jobs\GenerateUserExport;
 use App\Models\AuditLogEntry;
 use App\Models\DataExport;
 use App\Models\User;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\URL;
@@ -41,6 +43,16 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
  */
 class DataSettingsController extends Controller
 {
+    /**
+     * Jedna treść na dwie drogi dojścia do tego samego faktu: „paczka już się
+     * robi" (D-078). Pierwsza droga to `exists()` przed wstawieniem, druga —
+     * konflikt na indeksie `data_exports_one_active_per_user` przy dwóch
+     * równoległych żądaniach. Człowiek nie ma prawa rozpoznać, którą z nich
+     * trafił, więc zdanie musi być JEDNO; dwie kopie tego samego komunikatu
+     * rozjechałyby się przy pierwszej korekcie tekstu.
+     */
+    private const JUZ_TRWA = 'Przygotowanie paczki z Twoimi danymi już trwa. Napiszemy, gdy będzie gotowa.';
+
     public function show(Request $request): View
     {
         $exports = $request->user()->dataExports()->latest()->limit(5)->get();
@@ -98,18 +110,53 @@ class DataSettingsController extends Controller
     {
         $user = $request->user();
 
-        $pending = $user->dataExports()
-            ->whereIn('status', [DataExport::STATUS_QUEUED, DataExport::STATUS_PROCESSING])
-            ->exists();
-
-        if ($pending) {
-            return back()->with('status', 'Przygotowanie paczki z Twoimi danymi już trwa. Napiszemy, gdy będzie gotowa.');
+        if ($this->maAktywnyEksport($user)) {
+            return back()->with('status', self::JUZ_TRWA);
         }
 
-        $export = DataExport::create([
-            'user_id' => $user->getKey(),
-            'status' => DataExport::STATUS_QUEUED,
-        ]);
+        try {
+            // `DB::transaction()` WOKÓŁ JEDNEGO `INSERT` — nie z ostrożności
+            // na zapas, tylko dlatego, że na PostgreSQL samo try/catch nie
+            // wystarcza. Gdy to żądanie biegnie wewnątrz SZERSZEJ transakcji
+            // (a w testach `RefreshDatabase` opakowuje w nią cały test),
+            // nieudany `INSERT` zatruwa CAŁĄ otaczającą transakcję: każde
+            // następne zapytanie tym samym połączeniem odbija się o „current
+            // transaction is aborted" — także to sprawdzające niżej, czy
+            // aktywny eksport naprawdę istnieje. Laravel w trakcie transakcji
+            // otwiera SAVEPOINT, więc konflikt cofa TYLKO tę jedną wstawkę.
+            // Ta sama pułapka i to samo lekarstwo co w
+            // `App\Domain\Analytics\ZapiszSygnal` i
+            // `App\Domain\Contact\Actions\PrzyjmijWiadomosc`.
+            $export = DB::transaction(fn (): DataExport => DataExport::create([
+                'user_id' => $user->getKey(),
+                'status' => DataExport::STATUS_QUEUED,
+            ]));
+        } catch (UniqueConstraintViolationException $e) {
+            // TU WCHODZI DRUGIE, RÓWNOLEGŁE ŻĄDANIE (audyt QUEUE-04/RACE-05,
+            // D-078). `exists()` wyżej jest dobre na komunikat, ale nie jest
+            // gwarancją: dwa żądania widzą „nie ma aktywnego eksportu"
+            // jednocześnie i oba idą do `INSERT`. Gwarancję daje indeks
+            // częściowy `data_exports_one_active_per_user` — i dopiero on
+            // sprowadza tu jedno z tych żądań.
+            //
+            // Człowiek, który kliknął dwa razy, musi zobaczyć DOKŁADNIE TO
+            // SAMO co ten, który kliknął raz. Dlatego ten sam komunikat co
+            // wyżej, a nie 500: to nie jest awaria, tylko druga odpowiedź na
+            // to samo pytanie, i odpowiedź na nie jest twierdząca („już
+            // przygotowujemy"). Ekran błędu byłby tu karą za dwuklik, czyli
+            // za rzecz, która w grupie 60+ jest normalna
+            // (`docs/UX_50_PLUS.md`).
+            if (! $this->maAktywnyEksport($user)) {
+                // Konflikt unikalności, ale NIE ten. `data_exports` ma poza
+                // tym indeksem tylko klucz główny, więc tu nie powinno się
+                // dać wejść — a jeśli się dało, to znaczy, że odbiło się coś
+                // innego, i wyciszenie tego zamiotłoby usterkę pod dywan
+                // razem z paczką, której człowiek nie dostanie.
+                throw $e;
+            }
+
+            return back()->with('status', self::JUZ_TRWA);
+        }
 
         GenerateUserExport::dispatch((string) $export->getKey());
 
@@ -118,6 +165,23 @@ class DataSettingsController extends Controller
         return back()->with('status',
             'Przygotowujemy paczkę z Twoimi danymi. To może potrwać kilkanaście minut — napiszemy na Twój adres e-mail, gdy będzie gotowa.',
         );
+    }
+
+    /**
+     * Czy to konto ma teraz eksport w robocie.
+     *
+     * Jedno pytanie, dwa wywołania: raz PRZED wstawieniem (żeby dać spokojny
+     * komunikat bez dobijania się do bazy o konflikt), raz PO konflikcie
+     * (żeby rozpoznać, czy odbiło się o TEN indeks, czy o coś innego).
+     * Gdyby ta lista stanów stała w dwóch miejscach osobno, rozjechałaby się
+     * przy pierwszej zmianie słownika stanów — i to cicho, bo obie gałęzie
+     * kończą się tym samym ekranem.
+     */
+    private function maAktywnyEksport(User $user): bool
+    {
+        return $user->dataExports()
+            ->whereIn('status', [DataExport::STATUS_QUEUED, DataExport::STATUS_PROCESSING])
+            ->exists();
     }
 
     /**
@@ -146,7 +210,8 @@ class DataSettingsController extends Controller
         $user = $request->user();
 
         if (! Hash::check($data['password'], $user->password)) {
-            return back()->withErrors(['password' => 'To hasło jest nieprawidłowe.']);
+            return back()->withErrors(['password' => 'Wpisz poprawne hasło, żeby potwierdzić usunięcie konta.'])
+                ->withInput($request->only('usun_tresci'));
         }
 
         $zakres = $request->boolean('usun_tresci')
@@ -188,7 +253,7 @@ class DataSettingsController extends Controller
         $request->session()->regenerateToken();
 
         return redirect()->route('landing')->with('status',
-            "Konto zostało oznaczone do usunięcia i zostałeś/aś wylogowany/a. Masz {$days} dni, żeby zmienić zdanie — "
+            "Konto zostało oznaczone do usunięcia i wylogowaliśmy Cię. Masz {$days} dni, żeby zmienić zdanie — "
             .'zrobisz to na stronie „Cofnij usunięcie konta” ('.route('account.delete.cancel').'), podając e-mail '
             .'albo nazwę użytkownika i hasło. Jeśli nie pamiętasz hasła, najpierw je zresetuj — to też zadziała. '
             .$coZTekstami,

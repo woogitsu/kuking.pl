@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Media\Actions;
 
 use App\Domain\Analytics\ZapiszSygnal;
+use App\Domain\Media\PodgladOdRazu;
 use App\Domain\Media\UsunGps;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\ProcessUploadedImage;
@@ -46,7 +47,10 @@ use Illuminate\Support\Str;
  */
 final class StoreUploadedImage
 {
-    public function __construct(private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal) {}
+    public function __construct(
+        private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal,
+        private readonly PodgladOdRazu $podglad = new PodgladOdRazu,
+    ) {}
 
     public function handle(User $owner, UploadedFile $file, ?string $altText = null): Media
     {
@@ -170,12 +174,13 @@ final class StoreUploadedImage
         // oryginału zapewnia dziś to, że ten bucket nie ma własnej domeny
         // ani `r2.dev` (audyt G-01, G-02).
         //
-        // Sam Flysystem i tak dokłada `ACL` do każdego żądania (`upload()`
-        // w `AwsS3V3Adapter` liczy je zawsze, także bez podanej widoczności),
-        // ale domyślne `private` R2 traktuje jak brak żądania — w odróżnieniu
-        // od `public-read`, które szło tu dla wariantów. Całkowite pozbycie się
-        // ACL z żądania wymaga własnego adaptera i testu na prawdziwym R2 —
-        // patrz osobne zgłoszenie.
+        // Nie dokłada go już też Flysystem. Wbudowany sterownik `s3` liczył
+        // `ACL` zawsze — także bez podanej widoczności, i wtedy wypadało
+        // `private`, które R2 tylko z życzliwości traktuje jak brak żądania.
+        // Dyski R2 mają dziś sterownik `r2` (`App\Support\Storage\R2Adapter`),
+        // który nie wysyła ani `x-amz-acl`, ani `x-amz-grant-*` (issue #120).
+        // Pilnuje tego `ZapisDoR2BezAclTest` — na prawdziwym, podpisanym
+        // żądaniu HTTP, bo w `Storage::fake()` nagłówki nie istnieją.
         // GPS wypada TU, a nie w zadaniu w tle: gdyby leciało asynchronicznie,
         // między wgraniem a przetworzeniem istniałoby okno, w którym w
         // buckecie leży plik ze współrzędnymi. Krótkie okno to nadal okno.
@@ -183,13 +188,42 @@ final class StoreUploadedImage
 
         Storage::disk($disk)->put($objectKey, $oryginal);
 
+        $dyskWariantow = (string) config('kuking.media.public_disk');
+
+        // Orientację czytamy TERAZ, dopóki mamy plik na dysku — zadanie w tle
+        // dostaje ze storage same bajty, a dekoder chodzi z wyłączonym
+        // automatycznym obrotem (patrz `ProcessUploadedImage`). Wartość
+        // wędruje w dwa miejsca: do podglądu niżej i do `metadata`, skąd
+        // weźmie ją potem zadanie w tle. Oba muszą obrócić zdjęcie tak samo,
+        // inaczej obiad obracałby się przy odświeżeniu strony.
+        $orientacja = $this->readOrientation($file->getRealPath());
+
+        // PODGLĄD OD RAZU (issue #430) — jeszcze przed utworzeniem wiersza,
+        // żeby PIERWSZY render strony wpisu miał już co pokazać. Wgranie
+        // i publikacja to jedno żądanie, więc „dorobimy to zaraz po zapisie"
+        // znaczyłoby „za późno".
+        //
+        // Ta linia nie może wywrócić publikacji: `PodgladOdRazu` łapie
+        // wszystko i przy niepowodzeniu oddaje pustą tablicę. Wtedy
+        // `metadata.variants` jest puste, widok pokazuje komunikat zastępczy
+        // i zdjęcie dorabia zadanie w tle — czyli dokładnie to, co działo się
+        // przed #430.
+        $warianty = $this->podglad->zrob(
+            bajty: $oryginal,
+            objectKey: $objectKey,
+            dyskWariantow: $dyskWariantow,
+            orientacja: $orientacja,
+            szerokosc: $width,
+            wysokosc: $height,
+        );
+
         $media = Media::create([
             'owner_id' => $owner->getKey(),
             'disk' => $disk,
             // Gdzie trafią WARIANTY. Zapisujemy to teraz, a nie czytamy
             // z konfiguracji przy każdym odczycie: konfiguracja może się
             // zmienić, a pliki zostaną tam, gdzie je położono (audyt G-01).
-            'variants_disk' => (string) config('kuking.media.public_disk'),
+            'variants_disk' => $dyskWariantow,
             'object_key' => $objectKey,
             'mime_type' => $detectedMime,
             'bytes' => $bytes,
@@ -204,12 +238,15 @@ final class StoreUploadedImage
             'checksum_sha256' => hash('sha256', $oryginal),
             'metadata' => [
                 'original_name_length' => mb_strlen($file->getClientOriginalName()),
-                // Orientację czytamy TERAZ, dopóki mamy plik na dysku.
-                // Zadanie w tle dostaje same bajty ze storage, a sterownik GD
-                // nie czyta EXIF-u — bez tej wartości zdjęcia z telefonu
-                // publikowałyby się obrócone. Osoba 50+ tego nie zgłosi,
-                // po prostu przestanie wrzucać zdjęcia.
-                'exif_orientation' => $this->readOrientation($file->getRealPath()),
+                // Bez tej wartości zdjęcia z telefonu publikowałyby się
+                // obrócone. Osoba 50+ tego nie zgłosi, po prostu przestanie
+                // wrzucać zdjęcia. Czytane wyżej, przy pliku na dysku.
+                'exif_orientation' => $orientacja,
+                // Pusta tablica, gdy podglądu nie zrobiliśmy — i wtedy
+                // `wariantDoSerwowania()` oddaje `null`, a widok pokazuje
+                // komunikat zastępczy. `ProcessUploadedImage` DOPISUJE do
+                // tego `thumb`/`feed`/`large`, zamiast nadpisywać całość.
+                'variants' => $warianty,
             ],
         ]);
 

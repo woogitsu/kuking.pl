@@ -1,8 +1,13 @@
 *.log
 .DS_Store
 .env
-.env.backup
-.env.production
+# Cala rodzina, nie trzy nazwy z osobna. Decyzja wlasciciela 20.09.2026, po
+# mutacji strazniku R47: wystarczylo zalozyc `.env.local`, zeby plik
+# z poswiadczeniami wjechal do repozytorium bez jednego ostrzezenia.
+# Lista nazw milczy, gdy dojdzie czwarta — wzorzec nie milczy.
+# `.env.example` jest jedynym, ktory MA byc sledzony: to szablon bez sekretow.
+.env.*
+!.env.example
 .phpactor.json
 .phpunit.result.cache
 /.codex
@@ -21,6 +26,12 @@
 /storage/*.key
 # Wynik automatu dostępności — świeży po każdym uruchomieniu, nie do repozytorium.
 /storage/dostepnosc.json
+# To samo dla automatu wydajności i SEO (Lighthouse, issue #26).
+/storage/wydajnosc.json
+# I dla audytu martwych przycisków (D-053) — pełna lista adresów z kodami.
+/storage/martwe-przyciski.json
+# Pomiary i zrzuty rzeczywistych kroków kreatora przepisu.
+/storage/kroki-kreatora/
 /storage/pail
 /vendor
 _ide_helper.php
@@ -34,3 +45,12 @@ Thumbs.db
 # Kuking — nie ignorujemy plików instrukcji dla agentów AI.
 # .cursor/rules/ jest częścią repozytorium (patrz AGENTS.md, sekcja 1).
 !/.cursor/rules/
+
+# Znacznik wydania — pisze go build obrazu (Dockerfile), nie człowiek.
+# W repozytorium nie ma czego trzymać: lokalnie stopka mówi „lokalnie".
+/bootstrap/wydanie.txt
+
+# Cache narzędzi do stylu kodu (Pint i php-cs-fixer). Zależy od maszyny,
+# wersji PHP i ścieżek — w repozytorium jest tylko śmieciem i konfliktem.
+.pint.cache
+.php-cs-fixer.cache

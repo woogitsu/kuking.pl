@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Collections\ZapisyWpisu;
+use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
+use App\Models\Tag;
 use App\Support\Czas;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
@@ -22,6 +25,8 @@ use Illuminate\View\View;
  */
 class ProfileController extends Controller
 {
+    public function __construct(private readonly ZapisyWpisu $zapisy = new ZapisyWpisu) {}
+
     public function show(Request $request, string $username): View
     {
         // Adres profilu bez rozróżniania wielkości liter (audyt A25).
@@ -55,6 +60,18 @@ class ProfileController extends Controller
         $rok = (int) $request->query('rok', 0);
         $rok = $rok >= 1990 && $rok <= 2999 ? $rok : null;
 
+        $zeszytySzyny = $this->zeszytyDoSzyny($owner, $viewer, $isOwner);
+        $tagiSzyny = $isOwner ? collect() : $this->tagiDoSzyny($owner, $viewer, $isOwner);
+        // Zdjęcia uzupełniają wyłącznie pustą szynę cudzego profilu. Ten sam
+        // filtr co archiwum chroni treści prywatne i dla obserwujących.
+        $zdjeciaSzyny = ! $isOwner && $zeszytySzyny->isEmpty() && $tagiSzyny->isEmpty()
+            ? $owner->posts()->published()
+                ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
+                ->whereHas('media', fn ($query) => $query->where('status', Media::STATUS_READY))
+                ->with(['media' => fn ($query) => $query->where('status', Media::STATUS_READY)])
+                ->latest('published_at')->latest('id')->limit(3)->get()
+            : collect();
+
         return view('pages.profile.show', [
             'profile' => $profile,
             'owner' => $owner,
@@ -68,19 +85,41 @@ class ProfileController extends Controller
             // ani jednego wpisu byłby linkiem do pustej strony.
             'lata' => $tab === 'wszystko' ? $this->lataZWpisami($owner, $viewer, $isOwner) : collect(),
             'rok' => $rok,
+            // PRAWA SZYNA PROFILU (issue #205) — dwie listy, obie policzone
+            // TUTAJ, nie w widoku. Filtr widoczności jest regułą domenową
+            // i musi stać w jednym miejscu z filtrem list wyżej; przeniesiony
+            // do Blade byłby drugą implementacją tej samej granicy.
+            'zeszytySzyny' => $zeszytySzyny,
+            'tagiSzyny' => $tagiSzyny,
+            'zdjeciaSzyny' => $zdjeciaSzyny,
             'recipes' => $tab === 'przepisy'
                 ? $owner->recipes()
                     ->published()
                     ->tap(fn ($query) => $this->tylkoWidoczne($query, $owner, $viewer, $isOwner))
                     ->with('heroMedia')
                     ->latest('published_at')
+                    ->latest('id')
                     ->paginate(12)
                     ->withQueryString()
                 : null,
             'cookedEvents' => $tab === 'ugotowane'
                 ? $owner->cookedEvents()
                     ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
-                    ->with(['recipe.author.profile', 'media'])
+                    // `user.profile.avatar` — karta wykonania
+                    // (`components/cooked-card.blade.php`) czyta
+                    // `$event->user` (awatar, nazwa) i
+                    // `$event->user->profile->username` (odnośnik do profilu).
+                    // Doładowany był tylko AUTOR PRZEPISU, nie OSOBA, KTÓRA
+                    // GOTOWAŁA — a to na tej zakładce jest treść główna.
+                    //
+                    // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                    // `ANALYZE`): 52 zapytania na dwunastu kartach, z czego 22 to
+                    // para `profiles` + `users` powtórzona na każdą kartę.
+                    // Po zmianie: 30.
+                    // `RecipeController::show()` dociągał to samo od dawna
+                    // (galeria „Komu wyszło"); ta zakładka była jedynym
+                    // miejscem z tą samą kartą i bez tego `with()`.
+                    ->with(['user.profile.avatar', 'recipe.author.profile', 'media'])
                     ->paginate(12)
                     ->withQueryString()
                 : null,
@@ -95,6 +134,81 @@ class ProfileController extends Controller
                 'following' => $this->liczbaPolaczen($owner, 'following', $viewer),
             ],
         ]);
+    }
+
+    /**
+     * Zeszyty pokazywane w prawej szynie profilu (issue #205).
+     *
+     * WŁASNY PROFIL: wszystkie zeszyty, także prywatne — to są dane tej samej
+     * osoby, która patrzy.
+     *
+     * CUDZY PROFIL: wyłącznie zeszyty PUBLICZNE i wyłącznie wtedy, gdy zeszyt
+     * tej osoby w ogóle wolno otworzyć. Warunki są dokładnie te, które ma
+     * `CollectionPolicy::view()` — konto dostępne jako autor, brak blokady
+     * w którąkolwiek stronę, `visibility = public`. Powtarzamy je tutaj nie
+     * dlatego, że Policy nie działa, tylko dlatego, że Policy pilnuje WEJŚCIA
+     * NA ADRES zeszytu, a nie zapytania budującego listę — to są dwie różne
+     * drogi i naprawienie jednej nie naprawia drugiej (ta sama uwaga co przy
+     * `tylkoWidoczne()` wyżej). Bez tego szyna wypisywałaby nazwy zeszytów,
+     * które po kliknięciu dają 403.
+     *
+     * GOŚĆ NIE DOSTAJE NICZEGO, bo `/zeszyt/{id}` leży za `auth` — lista
+     * odnośników prowadzących na ekran logowania jest gorsza niż jej brak.
+     *
+     * `limit(5)` i `->get()`: koszt tej szyny nie rośnie z liczbą zeszytów.
+     *
+     * @return Collection<int, \App\Models\Collection>
+     */
+    private function zeszytyDoSzyny($owner, $viewer, bool $isOwner): Collection
+    {
+        if ($viewer === null) {
+            return collect();
+        }
+
+        if (! $isOwner && (! $owner->jestDostepnyJakoAutor() || $viewer->hasBlockRelationWith($owner))) {
+            return collect();
+        }
+
+        return $owner->collections()
+            ->when(! $isOwner, fn ($query) => $query->where('visibility', 'public'))
+            ->orderByDesc('is_default')
+            ->orderBy('name')
+            ->limit(5)
+            ->get();
+    }
+
+    /**
+     * Tagi z wpisów tej osoby — odpowiedź na „co ona właściwie gotuje"
+     * (issue #205, prawa szyna cudzego profilu).
+     *
+     * WIDOCZNOŚĆ LICZY SIĘ TAK SAMO JAK PRZY LIŚCIE WPISÓW. Tag jest
+     * etykietą wpisu, więc lista tagów policzona bez filtra zdradzałaby
+     * ZAWARTOŚĆ wpisów prywatnych — dokładnie ten sam kształt wycieku co
+     * tytuł przepisu w liście wykonań (patrz `tylkoZWidocznychPrzepisow()`).
+     * Dlatego podzapytanie przechodzi przez `published()` i przez ten sam
+     * `tylkoWidoczne()`, którym idzie archiwum obok.
+     *
+     * BEZ SORTOWANIA PO LICZBIE WPISÓW, alfabetycznie. „Najczęstszy tag tej
+     * osoby" jest miarą aktywności, a `AGENTS.md` §12 nie chce liczników
+     * aktywności wyeksponowanych w interfejsie — a przy okazji sortowanie
+     * po liczniku wymagałoby agregatu, którego ta szyna nie potrzebuje.
+     *
+     * Jedno zapytanie, `limit(6)` — koszt nie rośnie z liczbą wpisów.
+     *
+     * @return Collection<int, Tag>
+     */
+    private function tagiDoSzyny($owner, $viewer, bool $isOwner): Collection
+    {
+        return Tag::query()
+            ->aktywne()
+            ->whereHas('posts', function ($query) use ($owner, $viewer, $isOwner): void {
+                $query->where('posts.author_id', $owner->getKey())->published();
+
+                $this->tylkoWidoczne($query, $owner, $viewer, $isOwner);
+            })
+            ->orderBy('name')
+            ->limit(6)
+            ->get();
     }
 
     /** @return Paginator<int, Post> */
@@ -114,9 +228,32 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            ->with(['media', 'author.profile.avatar'])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            // 'tags:id,slug,name,status' — patrz komentarz w
+            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
+            // gdy relacja jest już doładowana, więc bez tego archiwum
+            // profilu nie miałoby żadnych chipów tematów.
+            // `recipe:…` z `visibility` i `hero_media_id` plus `recipe.heroMedia`
+            // — dokładnie jak w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`
+            // i `TagFeed` (issue #368). Archiwum profilu rysuje tę samą kartę
+            // `x-post-card`, a ta czyta z relacji `recipe` tytuł, odnośnik,
+            // `visibility` na plakietkę widoczności i zdjęcie główne. Bez tego
+            // każdy wpis wskazujący przepis dokładał osobne zapytanie na stronę
+            // (a `heroMedia` drugie), a plakietka widoczności schodziła przez
+            // `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
+            ->with([
+                'media',
+                'author.profile.avatar',
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+                'tags:id,slug,name,status',
+            ])
+            ->withVisibleCommentCount($viewer)
+            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+            // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
+            // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
+            ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->latest('published_at')
+            ->latest('id')
             ->paginate(12)
             ->withQueryString();
     }
@@ -158,10 +295,42 @@ class ProfileController extends Controller
      * zapytania budującego listę. To są dwie różne drogi i naprawienie jednej
      * nie naprawia drugiej — dlatego macierz z issue #41 testuje je osobno.
      *
+     * DRUGA GRANICA, OSOBNA OD POWYŻSZEJ: WIDOCZNOŚĆ PRZEPISU (#368).
+     * Warunek `whereIn('visibility', …)` niżej pyta o WPIS. Wpis zapowiadający
+     * przepis ma `visibility = 'public'` na stałe
+     * (`WpisWskazujacyPrzepis::dopisz()`) i nie jest to jego widoczność, tylko
+     * brak własnego zawężenia — bramką ma być PRZEPIS. Sam filtr po widoczności
+     * wpisu przepuszczał więc zapowiedź przepisu w KAŻDYM stanie, a karta
+     * rysuje z relacji `$post->recipe` tytuł, zdjęcie główne i odnośnik,
+     * w którym slug niesie ten sam tytuł zapisany inaczej.
+     *
+     * BRAMKA STOI TUTAJ, A NIE W `postsFor()`, I TO JEST CAŁA RZECZ.
+     * Ten filtr jest wspólny dla SZEŚCIU zapytań tego ekranu: archiwum, listy
+     * lat, obu liczników, szyny tematów i szyny zdjęć. Każde z nich ma w tym
+     * pliku komentarz mówiący, że musi odpowiadać na to samo pytanie co
+     * archiwum — bo licznik niezgodny z listą i rok prowadzący do pustej
+     * strony są oracle'ami istnienia treści (ta sama klasa błędu co W7-05,
+     * opisana przy `liczbaPolaczen()`). Bramka wstawiona w samo `postsFor()`
+     * zrobiłaby dokładnie ten rozjazd: tytuł zniknąłby z listy, a licznik nad
+     * nią dalej by go liczył.
+     *
+     * DLACZEGO NIE `tylkoZWidocznychPrzepisow()` Z TEGO SAMEGO PLIKU.
+     * Bo ona robi `whereHas('recipe', …)` BEZ gałęzi na `recipe_id IS NULL`.
+     * Na wykonaniach jest to poprawne — każde wykonanie ma przepis. Tutaj
+     * większość wierszy przepisu NIE MA, więc ten warunek skasowałby z profilu
+     * całe zwykłe archiwum. `Post::scopeZWidocznymPrzepisem($widz)` tę gałąź
+     * ma, jest tym samym zakresem, którym bramkują się wszystkie strumienie,
+     * i sam liczy „własny przepis widza" — dlatego wolno go wywołać po
+     * `$isOwner`, nie zamiast.
+     *
      * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
      */
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
+        if ($query->getModel() instanceof Post) {
+            $query->enabledKinds();
+        }
+
         if ($isOwner) {
             return;
         }
@@ -174,6 +343,34 @@ class ProfileController extends Controller
         }
 
         $query->whereIn('visibility', $widocznosci);
+
+        // Bramka PRZEPISU — patrz akapit w opisie metody. Tylko dla `Post`:
+        // zakładka „Przepisy" pyta wprost o `Recipe` i ma tu już swój warunek
+        // wyżej, a `recipes.recipe_id` nie istnieje.
+        if ($query->getModel() instanceof Post) {
+            $query->zWidocznymPrzepisem($viewer);
+
+            // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
+            //
+            // `zWidocznymPrzepisem()` schodzi do `Recipe::widoczneDla()`, a ten
+            // zakres CELOWO nie zna statusu konta — mówi o tym wprost komentarz
+            // przy `User::scopeDostepnyJakoAutor()`. Filtr `whereIn('visibility')`
+            // wyżej pyta o WPIS, czyli o autora WPISU, a nie o autora PRZEPISU.
+            // To są dwie różne osoby: wpis użytkownika A może wskazywać przepis
+            // użytkownika B. Gdy B zostanie zbanowany albo oznaczony do
+            // usunięcia, jego przepis znika z własnego profilu i daje 403 pod
+            // swoim adresem — ale wpis A dalej rysował kartę z tytułem tego
+            // przepisu, jego zdjęciem głównym i odnośnikiem, w którym slug
+            // niesie ten sam tytuł. Obie bramki wyżej przepuszczały ten wiersz,
+            // bo obie pytały o kogo innego.
+            //
+            // Gałąź na `recipe_id IS NULL` jest obowiązkowa: większość wierszy
+            // archiwum profilu NIE MA przepisu i samo `whereHas('recipe.author')`
+            // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
+            // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
+            $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
+        }
     }
 
     /**

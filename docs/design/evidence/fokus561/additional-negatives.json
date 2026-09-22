@@ -1,0 +1,20 @@
+{
+  "backup": "/home/mateusz/kuking561-extra-dl1tv7os",
+  "cases": [
+    {
+      "case": "close",
+      "negative_exit": 1,
+      "md5": "9de6a39403ce28ed651e5452e95c80da",
+      "mtime_ns": 1789549169420864400,
+      "restored": true
+    },
+    {
+      "case": "notice",
+      "negative_exit": 1,
+      "md5": "11f165453ba83b2717f3ba44ea992f75",
+      "mtime_ns": 1789549544698490398,
+      "restored": true
+    }
+  ],
+  "positive_exit": 0
+}

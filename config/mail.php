@@ -35,10 +35,40 @@ return [
     |            "postmark", "resend", "log", "array",
     |            "failover", "roundrobin"
     |
+    | Plus "emaillabs" — WŁASNY sterownik tego repozytorium, zarejestrowany
+    | przez `Mail::extend()` w `App\Providers\PocztaServiceProvider`. To jest
+    | jedyna droga wysyłki, która działa na planach Railway Free i Hobby:
+    | tamte mają wyłączony ruch SMTP i każde połączenie na port 587 wisi bez
+    | odpowiedzi, aż zabije je timeout. Patrz `docs/DECISIONS.md` D-047.
+    |
     */
 
     'mailers' => [
 
+        /*
+        | POCZTA PRODUKCYJNA — API HTTPS EmailLabs (D-047).
+        |
+        | Klucze i konto SMTP mieszkają w `config/services.php`, tak jak dla
+        | każdego innego dostawcy po API. Ten wpis wolno wzbogacić o własne
+        | `smtp_account` albo `tracking`, jeśli kiedyś powstanie DRUGI mailer
+        | na osobny strumień (digest osobno od transakcyjnych,
+        | `docs/decyzje/POCZTA.md` §5 pkt 3) — wartość z tej tablicy wygrywa
+        | z `config/services.php`.
+        */
+        'emaillabs' => [
+            'transport' => 'emaillabs',
+        ],
+
+        /*
+        | SMTP ZOSTAJE, ALE NIE DZIAŁA NA FREE I HOBBY.
+        |
+        | Nie usuwamy go, bo na planie Pro (i wyżej) Railway odblokowuje SMTP,
+        | a wtedy ten sterownik jest gotową drogą powrotną i gotowym drugim
+        | ramieniem `failover`. Zanim ktoś przestawi na niego `MAIL_MAILER`,
+        | musi wiedzieć jedno: na dzisiejszym planie wysyłka przez ten wpis
+        | nie kończy się błędem, tylko WISI — zadanie w kolejce wchodzi
+        | w `RUNNING` i nigdy nie osiąga ani `DONE`, ani `FAIL`.
+        */
         'smtp' => [
             'transport' => 'smtp',
             'scheme' => env('MAIL_SCHEME'),
@@ -81,6 +111,15 @@ return [
             'transport' => 'array',
         ],
 
+        /*
+        | UWAGA: `log` na tej liście NIC NIE DOSTARCZA.
+        |
+        | To jest wpis domyślny Laravela, zostawiony jako przykład składni,
+        | i nie wolno go ustawić w `MAIL_MAILER` bez wymiany tej listy na dwóch
+        | prawdziwych dostawców. Po awarii pierwszego listy zaczęłyby cicho
+        | wpadać do dziennika, a wysyłka dalej zgłaszałaby sukces — ostrzega
+        | przed tym `kuking:sprawdz-poczte`.
+        */
         'failover' => [
             'transport' => 'failover',
             'mailers' => [
@@ -122,10 +161,18 @@ return [
     |
     | Adres nadawcy jest skrzynką, na którą DA SIĘ odpisać. Żadnego
     | `noreply@` — patrz docs/decyzje/POCZTA.md i docs/brand/BRAND_EXTENDED.md.
+    |
+    | NAZWA NADAWCY NIESIE IMIĘ GOSPODARZA, NIE „Zespół Kuking" — decyzja
+    | właściciela, patrz `docs/brand/COPY_STYLE.md` §6 („nadawca") i
+    | `docs/product/RETENTION_LOOPS.md` §4. Samo imię mieszka w JEDNYM
+    | miejscu, `config('kuking.community.host_name')` — nigdy tu wpisane
+    | wprost, żeby zmiana gospodarza była jedną linijką w `config/kuking.php`,
+    | nie przeszukiwaniem configów maila i szablonów. `MAIL_FROM_NAME`
+    | w środowisku dalej wygrywa, gdyby trzeba było nadpisać to doraźnie.
     */
     'from' => [
         'address' => env('MAIL_FROM_ADDRESS', 'kontakt@kuking.pl'),
-        'name' => env('MAIL_FROM_NAME', env('APP_NAME', 'Kuking')),
+        'name' => env('MAIL_FROM_NAME', config('kuking.community.host_name').' z Kuking'),
     ],
 
 ];

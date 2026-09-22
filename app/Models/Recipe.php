@@ -70,6 +70,13 @@ class Recipe extends Model
 
     protected $fillable = [
         'author_id',
+        // Tożsamość JEDNEGO wysłania formularza „Opublikuj" — nie treść
+        // i nie stan przepisu. Częściowy indeks UNIQUE
+        // `recipes_one_per_klucz_wyslania` na parze (autor, klucz) sprawia,
+        // że drugie kliknięcie nie zakłada drugiego przepisu (ADR
+        // `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`). Wypełniane tylko
+        // przy ZAKŁADANIU przepisu; edycja tej kolumny nie dotyka.
+        'klucz_wyslania',
         'title',
         'slug',
         'summary',
@@ -155,7 +162,28 @@ class Recipe extends Model
 
     public function cookedEvents(): HasMany
     {
-        return $this->hasMany(CookedEvent::class)->latest('cooked_at');
+        // DRUGI KLUCZ SORTOWANIA NIE JEST OZDOBĄ — TO WARUNEK POPRAWNEJ
+        // PAGINACJI.
+        //
+        // `cooked_at`, `created_at` i `published_at` są w tym schemacie typu
+        // `timestamptz(0)`, czyli z dokładnością do SEKUNDY (`timestampsTz()`
+        // w migracjach). Dwa wykonania dodane w tej samej sekundzie mają
+        // identyczny klucz, a przy `ORDER BY` po samym nim PostgreSQL może
+        // oddać je w dowolnej kolejności — i w KAŻDYM zapytaniu w innej.
+        //
+        // Paginacja to dwa osobne zapytania z `LIMIT`/`OFFSET`. Gdy kolejność
+        // remisów zmieni się między nimi, ten sam wiersz pokazuje się na
+        // dwóch stronach, a inny NIE POKAZUJE SIĘ NIGDZIE. To jest dokładnie
+        // to, czego zakazuje UX_50_PLUS.md: poprawne dane nie mają prawa
+        // zniknąć.
+        //
+        // `id` jest UUID-em v7 (`HasUuids` w Laravelu 12+), więc rośnie
+        // z czasem — jako drugi klucz nie tylko rozstrzyga remis, ale
+        // rozstrzyga go CHRONOLOGICZNIE. Ten sam wzorzec stoi już
+        // w `DiscoverFeed` i `TagController`; tutaj go brakowało.
+        return $this->hasMany(CookedEvent::class)
+            ->latest('cooked_at')
+            ->latest('id');
     }
 
     public function comments(): HasMany
@@ -163,7 +191,12 @@ class Recipe extends Model
         return $this->hasMany(Comment::class)
             ->whereNull('parent_id')
             ->where('status', Comment::STATUS_PUBLISHED)
-            ->oldest();
+            // `id` NIE jest ozdobą przy `oldest()` — patrz komentarz przy
+            // `cookedEvents()` wyżej. `created_at` ma dokładność do sekundy,
+            // więc bez tego dwa komentarze z tej samej sekundy potrafią
+            // przeskoczyć między stronami.
+            ->oldest()
+            ->orderBy('id');
     }
 
     // ---------------------------------------------------------------------
@@ -294,8 +327,9 @@ class Recipe extends Model
      * Liczba porcji gotowa do pokazania człowiekowi (audyt A28).
      *
      * DLACZEGO TO NIE JEST `(int) $recipe->servings` W WIDOKU
-     * Kolumna `servings` to `decimal(6,2)`, a formularz dopuszcza `step=0.5`
-     * i `min=0.5`. Rzutowanie na `int` w widoku dawało:
+     * Kolumna `servings` to `decimal(6,2)`, a formularz dopuszcza `step=0.01`
+     * (setne — decyzja właściciela z 20.09.2026, issue #750) i `min=0.5`.
+     * Rzutowanie na `int` w widoku dawało:
      *
      *     w bazie 0.5  → „0 porcji"
      *     w bazie 1.5  → „1 porcji"
@@ -369,19 +403,35 @@ class Recipe extends Model
     }
 
     /**
-     * Kto jest prawdziwym autorem przepisu — użytkownik czy osoba, po której
-     * przepis został odziedziczony. To jest jedno z serc produktu: przepis
-     * "po Halinie" ma być podpisany Haliną.
+     * Podpis przepisu: kto go tu zapisał i skąd go ma.
+     *
+     * NIGDY NIE DOKLEJAJ PRZYIMKA ANI SŁOWA NIOSĄCEGO PRZYPADEK DO TEKSTU
+     * WPISANEGO PRZEZ CZŁOWIEKA ANI DO NAZWY KONTA. Polskiej odmiany nie da
+     * się policzyć z dowolnego ciągu znaków, a każda próba kończy się zdaniem,
+     * które wygląda na zepsute oprogramowanie.
+     *
+     * Do 11 września 2026 stało tu `"przepis {$source_person}, spisany przez
+     * {$author}"` i miało dwa błędy odmiany naraz: tekst użytkownika wchodził
+     * w miejsce dopełniacza („przepis Nasze smaki"), a nazwa konta w miejsce
+     * biernika („spisany przez Krzysztof"). Wariant bez źródła był zepsuty tak
+     * samo: „przepis Krzysztof".
+     *
+     * Dlatego obie wartości stoją tu w MIANOWNIKU, w osobnych członach:
+     * nazwa konta jako podpis (tak samo jak w wierszu z awatarem), a wartość
+     * pola po dwukropku — dwukropek zdejmuje wymaganie przypadku i działa
+     * dla „od mamy", „Nasze smaki" i „z gazety Przyjaciółka" jednakowo.
+     * Wartość idzie dosłownie: po dwukropku mała litera jest poprawna,
+     * a zmiana wielkości liter należy do widoku, nie do podpisu.
      */
     public function attributionLine(): string
     {
         $author = $this->author->displayName();
 
         if ($this->source_person !== null && $this->source_person !== '') {
-            return "przepis {$this->source_person}, spisany przez {$author}";
+            return "{$author} · skąd ten przepis: {$this->source_person}";
         }
 
-        return "przepis {$author}";
+        return $author;
     }
 
     public function url(): string

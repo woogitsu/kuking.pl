@@ -14,12 +14,15 @@
     $zdjecia = $event->media;
     $maZdjecie = $zdjecia->isNotEmpty();
 @endphp
-<x-layout title="{{ $kucharz->displayName() }} ugotowała/ugotował Twój przepis" :noindex="true">
-    <article class="card stack text-center">
+<x-layout title="{{ $kucharz->displayName() }} — ugotowane z Twojego przepisu" :noindex="true">
+    <article class="sekcja-strony stack text-center">
         <div>
             <p class="meta m-0 mb-2">Komuś wyszło</p>
+            {{-- „ugotowane", nie „ugotowała/ugotował": ukośnika nie da się
+                 przeczytać na głos, a `docs/brand/COPY_STYLE.md` §2 każe wtedy
+                 zmienić konstrukcję zdania zamiast wybierać rodzaj. --}}
             <h1 class="text-title-lg m-0">
-                {{ $kucharz->displayName() }} ugotowała/ugotował
+                {{ $kucharz->displayName() }} — ugotowane
                 @if($tytulPrzepisu)
                     z Twojego przepisu „{{ $tytulPrzepisu }}”
                 @else
@@ -53,8 +56,12 @@
             <p class="meta m-0">Bez zdjęcia i bez notatki — ale to i tak się liczy.</p>
         @endif
 
+        {{-- Sekcja niesie wiadomość („komuś wyszło"), a panel — jedyną rzecz,
+             którą można tu zrobić. Przed rozdzieleniem ról obie były jedną
+             powierzchnią, więc formularz podziękowania niczym się nie
+             odróżniał od zdjęcia i notatki nad nim. --}}
         <div class="max-w-[32rem] mx-auto text-left">
-            <form method="POST" action="{{ route('cooked.thank', $event) }}">
+            <form class="panel-formularza" method="POST" action="{{ route('cooked.thank', $event) }}">
                 @csrf
                 <x-field name="body" label="Podziękuj" type="textarea" :rows="3"
                          :value="$domyslnePodziekowanie"

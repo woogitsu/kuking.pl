@@ -75,10 +75,25 @@ final class OdzyskiwalneDane
      * zmiany i przypomnienia hasła, włączania i wyłączania 2FA, generowania
      * kodów zapasowych, potwierdzenia usunięcia konta ani cofnięcia
      * usunięcia konta.
+     *
+     * WYJĄTEK POTWIERDZONY PRZEZ WŁAŚCICIELA (#858, decyzja z 20.09.2026,
+     * punkt 2): `settings.tags.update` i `settings.tags.przegladaj`.
+     * Kryterium wyżej („zaznaczenie trzech pól wyboru — nie") liczyło
+     * pojedynczy przełącznik. Lista „Twoje tagi” to co innego: wybór
+     * budowany wieloma krokami (zaznacz, przefiltruj, doładuj kolejną
+     * porcję, zaznacz jeszcze raz), zanim człowiek w ogóle dojdzie do
+     * „Zapisz”. Odmowa 429 w trakcie tego budowania ma oddać dokładnie to,
+     * co było zaznaczone — inaczej „poprawne dane nigdy nie znikają"
+     * (AGENTS.md §5) byłoby złamane w chwili, w której koszt utraty jest
+     * najwyższy: tuż przed zapisem. Pole `tags` niesie same identyfikatory
+     * (UUID), nie sekrety — druga warstwa (`jestWrazliwe()`) i tak by je
+     * przepuściła, więc to jest jedynie zgoda na trasę, nie osłabienie
+     * filtra pól.
      */
     private const TRASY_TRESCI = [
         // Treść społeczności
         'posts.store',
+        'questions.store',
         'recipes.store',
         'recipes.update',
         'posts.comment',
@@ -99,6 +114,16 @@ final class OdzyskiwalneDane
         'admin.reports.decide',
         'admin.appeals.resolve',
         'admin.unanswered.reply',
+        // Odpowiedź na wiadomość z „Napisz do nas" (D-058). Ten sam powód co
+        // wyżej, wzmocniony tym, że po drugiej stronie czeka konkretny
+        // człowiek: tekst pisany kwadrans nie ma przepadać przez wygasłą
+        // sesję ani przez awarię poczty.
+        'admin.contact.reply',
+
+        // „Twoje tagi" (#858, decyzja właściciela z 20.09.2026, punkt 2) —
+        // wyjątek uzasadniony w komentarzu przy `TRASY_TRESCI` wyżej.
+        'settings.tags.update',
+        'settings.tags.przegladaj',
     ];
 
     /**

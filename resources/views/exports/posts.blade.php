@@ -78,7 +78,7 @@
             @endif
 
             @if($event['zmiany'])
-                <p><strong>Co zmieniłam:</strong> {{ $event['zmiany'] }}</p>
+                <p><strong>Po swojemu:</strong> {{ $event['zmiany'] }}</p>
             @endif
 
             @if($event['jeszcze_raz'] !== null)
@@ -93,7 +93,7 @@
 
     @if(count($ownComments) > 0)
         <h2>Twoje komentarze ({{ count($ownComments) }})</h2>
-        <p class="podpis">Komentarze, które napisałaś — także pod przepisami innych osób.</p>
+        <p class="podpis">Twoje komentarze — także pod przepisami innych osób.</p>
         @foreach($ownComments as $comment)
             <div class="karta">
                 <p class="podpis">{{ $comment['napisano'] ? \App\Support\Czas::data(\Illuminate\Support\Carbon::parse($comment['napisano']), 'j F Y') : '' }}

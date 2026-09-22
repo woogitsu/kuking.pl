@@ -1,0 +1,21 @@
+{
+  "scope": "Dwa bledne POST z rzeczywistym CSRF i sesja; 1440px; bez pelnego odbioru fokusu i skali",
+  "rows": [
+    {
+      "field": "odpowiedz",
+      "status": 302,
+      "message": "Napisz odpowiedź, zanim ją wyślesz.",
+      "before": "284900a5276f555da2e96cd3418496bbd2271cdf261097c3316a7aeeddca15d4",
+      "after": "284900a5276f555da2e96cd3418496bbd2271cdf261097c3316a7aeeddca15d4",
+      "pass": true
+    },
+    {
+      "field": "status",
+      "status": 302,
+      "message": "Wybierz stan wiadomości.",
+      "before": "284900a5276f555da2e96cd3418496bbd2271cdf261097c3316a7aeeddca15d4",
+      "after": "284900a5276f555da2e96cd3418496bbd2271cdf261097c3316a7aeeddca15d4",
+      "pass": true
+    }
+  ]
+}

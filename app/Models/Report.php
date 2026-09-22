@@ -47,6 +47,31 @@ class Report extends Model
     ];
 
     /**
+     * Czego dotyczyło zgłoszenie — po polsku, dla ZGŁASZAJĄCEGO (issue #10).
+     *
+     * Karta sprawy na `/zgloszenia/{report}` musi przypomnieć człowiekowi,
+     * co właściwie zgłosił; sam `target_type` („cooked_event") tego nie robi.
+     * Kolejka moderatora pokazuje surową wartość dalej i to jest w porządku —
+     * tam czyta ją osoba, która zna schemat bazy.
+     *
+     * `unknown` to adres, którego nie umieliśmy rozpoznać przy zgłoszeniu
+     * prawnym (patrz `ZglosNielegalnaTresc`). Na tej liście prawie nigdy nie
+     * wystąpi, bo droga prawna nie ma `reporter_id` — zostaje, żeby ekran
+     * nigdy nie pokazał pustego miejsca zamiast zdania.
+     *
+     * @var array<string, string>
+     */
+    public const TARGET_LABELS = [
+        'post' => 'wpis',
+        'recipe' => 'przepis',
+        'comment' => 'komentarz',
+        'cooked_event' => 'wykonanie przepisu',
+        'user' => 'profil osoby',
+        'media' => 'zdjęcie',
+        'unknown' => 'strona spod podanego adresu',
+    ];
+
+    /**
      * Zgłoszenie społecznościowe: „to jest spam", „to jest chamskie".
      * Nasze zasady, nasza kolejka, może wymagać zalogowania.
      */
@@ -63,8 +88,84 @@ class Report extends Model
      */
     public const SOURCE_LEGAL_NOTICE = 'legal_notice';
 
+    /**
+     * Oznaczenie DO PRZEGLĄDU postawione przez automat (D-052).
+     *
+     * TO NIE JEST ZGŁOSZENIE i dlatego ma własne źródło, a nie `community`
+     * z pustym `reporter_id`. Różnica jest praktyczna, nie kosmetyczna:
+     *
+     *  - nikt tu niczego nie zgłosił, więc nie ma komu potwierdzić odbioru
+     *    ani przekazać decyzji (DSA art. 16 ust. 4 i 5 nie ma zastosowania);
+     *  - powstaje najwyżej RAZ na treść — pilnuje tego indeks
+     *    `reports_jeden_automat_na_tresc`, dzięki czemu „to nic takiego"
+     *    zamyka sprawę na zawsze;
+     *  - ma własny ekran (`/admin/sygnaly`), żeby maszynowe podejrzenia nigdy
+     *    nie zasypały kolejki rzeczy zgłoszonych przez ludzi.
+     *
+     * Czego oznaczenie NIE robi: nie ukrywa treści, nie ogranicza jej zasięgu,
+     * nie powiadamia autora i nie zmienia niczego, co widzi czytelnik
+     * (`docs/INSPIRATION_DECISIONS.md` poz. 3.6, 3.10, 3.14, 3.16).
+     */
+    public const SOURCE_AUTOMAT = 'automat';
+
+    /**
+     * Powody, które wpisuje AUTOMAT — osobno od `REASONS`.
+     *
+     * DLACZEGO OSOBNA LISTA, A NIE TRZY POZYCJE W `REASONS`
+     * Tamta lista jest jednocześnie treścią pola wyboru na obu formularzach
+     * zgłoszenia (`ReportController`, `ZgloszenieNielegalnejTresciController`)
+     * ORAZ regułą walidacji `in:`. Dopisanie tam „Automat: powtórzona treść"
+     * pokazałoby tę pozycję ludziom do wyboru, a jednocześnie pozwoliłoby
+     * podszyć się pod automat, wysyłając ten kod z formularza.
+     *
+     * Klucz mówi, KTÓRY sygnał zdecydował o zakwalifikowaniu sprawy (przy
+     * kilku naraz — najcięższy, patrz `WAGA`). Wszystkie powody, po polsku
+     * i pełnym zdaniem, idą do `details`.
+     *
+     * @var array<string, string>
+     */
+    public const REASONS_AUTOMAT = [
+        'automat_model' => 'Automat: model wskazał treść do przejrzenia',
+        'automat_wzorzec' => 'Automat: znany wzorzec spamu',
+        'automat_odnosnik' => 'Automat: odnośnik zewnętrzny u świeżego konta',
+        'automat_powtorzenie' => 'Automat: powtórzona treść',
+    ];
+
+    /**
+     * Kolejność przeglądania kolejki automatu: im większa liczba, tym pilniej.
+     *
+     * JEDEN MODERATOR PRZY TYSIĄCU KONT NIE PRZECZYTA WSZYSTKIEGO, więc
+     * kolejność nie jest ozdobą — jest decyzją o tym, czego ten człowiek nie
+     * zdąży przejrzeć. Najwyżej stoi wzorzec spamu: przy trafieniu szkoda
+     * jest największa (oszustwo, wyłudzenie), a fałszywy alarm najrzadszy.
+     * Najniżej powtórzenie — bywa całkiem niewinne, a szkoda z niego to
+     * najwyżej ten sam wpis dwa razy w czyimś feedzie.
+     *
+     * Wartość idzie do `ORDER BY CASE`, a nie do kolumny: to jest reguła
+     * produktu, nie fakt o wierszu, i ma się zmieniać razem z kodem, nie
+     * migracją danych.
+     *
+     * @var array<string, int>
+     */
+    public const WAGA = [
+        // Ocena modelem stoi najwyżej, bo dotyczy INNEJ KLASY treści niż
+        // pozostałe trzy: nienawiści, przemocy, treści seksualnych
+        // i samookaleczenia (D-055). Najgorszy możliwy spam to zmarnowana
+        // minuta czytelnika; najgorsze trafienie modelu to sprawa, o której
+        // trzeba zawiadomić organy.
+        'automat_model' => 4,
+        'automat_wzorzec' => 3,
+        'automat_odnosnik' => 2,
+        'automat_powtorzenie' => 1,
+    ];
+
     protected $fillable = [
         'reporter_id',
+        // Autor OZNACZONEJ treści — wypełniany wyłącznie przy `source =
+        // 'automat'` i wyłącznie przez `OznaczDoPrzegladu`. Nie przychodzi
+        // z żadnego formularza; stoi tu, bo akcja tworzy wiersz jednym
+        // `create()`, a nie dlatego, że wolno go przysłać z zewnątrz.
+        'autor_tresci_id',
         // Tożsamość jednego wysłania formularza zgłoszenia BEZ KONTA (DSA
         // art. 16 ust. 2 lit. c). Częściowy indeks UNIQUE
         // `reports_one_per_klucz_wyslania` sprawia, że podwójne kliknięcie
@@ -130,9 +231,47 @@ class Report extends Model
         return $this->belongsTo(User::class, 'resolved_by');
     }
 
+    /**
+     * Autor oznaczonej treści — wypełniony tylko przy `source = 'automat'`.
+     *
+     * `null` znaczy „to nie jest oznaczenie automatu" ALBO „konto zostało
+     * skasowane" (`nullOnDelete`). Kolejka automatu obsługuje oba przypadki
+     * jednakowo: grupa bez autora zostaje pozycją do przejrzenia, a nie
+     * pustym miejscem na ekranie.
+     */
+    public function autorTresci(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'autor_tresci_id');
+    }
+
     public function reasonLabel(): string
     {
-        return self::REASONS[$this->reason] ?? $this->reason;
+        return self::REASONS[$this->reason]
+            ?? self::REASONS_AUTOMAT[$this->reason]
+            ?? $this->reason;
+    }
+
+    /** Czy tę pozycję postawił automat, a nie człowiek (D-052). */
+    public function wykrylAutomat(): bool
+    {
+        return $this->source === self::SOURCE_AUTOMAT;
+    }
+
+    public function targetLabel(): string
+    {
+        return self::TARGET_LABELS[$this->target_type] ?? self::TARGET_LABELS['unknown'];
+    }
+
+    /**
+     * Czy sprawa jest już zamknięta — z punktu widzenia ZGŁASZAJĄCEGO.
+     *
+     * Odwrotność `isOpen()`, napisana wprost zamiast `! isOpen()` w widoku:
+     * statusów jest pięć, a nie dwa, i przy dopisaniu szóstego chcemy jedno
+     * miejsce do poprawienia, nie negację rozsianą po Blade.
+     */
+    public function jestRozstrzygniete(): bool
+    {
+        return in_array($this->status, [self::STATUS_RESOLVED, self::STATUS_REJECTED], true);
     }
 
     public function isOpen(): bool

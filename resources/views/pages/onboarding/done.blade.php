@@ -11,8 +11,22 @@
     <h1>Wszystko gotowe, {{ $name }}</h1>
 
     <p class="text-lead">
-        Konto jest założone. Możesz od razu pokazać, co dziś ugotowałaś —
-        albo najpierw się rozejrzeć. Jedno i drugie jest w porządku.
+        {{-- Zdanie z `docs/brand/COPY_STYLE.md` §6 („koniec onboardingu"),
+             BEZ ostatniego zdania („Jedno i drugie jest w porządku") — zdjęte
+             na decyzję właściciela w grupie C4: dwa równorzędne przyciski niżej
+             mówią to samo bez tłumaczenia intencji, a ta sama konstrukcja
+             stała w serwisie trzy razy (`/pomoc`, `/dodaj`, tutaj). Brzmienie
+             do podmiany w §6 jest w raporcie. Stało tu też „ugotowałaś"
+             i zostało zamienione na formę z hasła głównego.
+
+             SPROSTOWANIE (issue #274): pierwotny komentarz twierdził, że była
+             to JEDYNA forma żeńska w interfejsie. Nie była — inwentaryzacja
+             z #274 znalazła ich kilkanaście, od ustawień prywatności
+             („co gotowałam") przez profil („będziesz mogła") po ukośniki
+             rodzajowe („Zrobiłam/zrobiłem"). Dlatego reguła nie stoi już na
+             czyjejś pamięci, tylko na teście `TekstyNiePrzypisujaPlciTest`. --}}
+        Konto jest założone. Możesz od razu pokazać, co dziś ugotowałeś —
+        albo najpierw się rozejrzeć.
     </p>
 
     {{-- Dwa równorzędne wyjścia. Nie wymuszamy publikacji (docs/UX_50_PLUS.md). --}}
@@ -21,7 +35,7 @@
         <a class="btn btn-secondary" href="{{ route('home') }}">Na razie tylko pooglądam</a>
     </div>
 
-    <section class="card mt-8">
+    <section class="ramka-pomocnicza mt-8">
         <h2>Trzy rzeczy, które warto wiedzieć</h2>
         <ul class="pl-6">
             <li><strong>Tekst da się powiększyć.</strong> W <a href="{{ route('settings.accessibility') }}">Ustawieniach</a> możesz ustawić większy tekst — na stałe, na każdym urządzeniu.</li>

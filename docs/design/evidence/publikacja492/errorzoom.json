@@ -1,0 +1,558 @@
+[
+  {
+    "name": "edycja",
+    "theme": "light",
+    "zoom": 1,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 466.09375,
+        "w": 214.21875,
+        "h": 108.125
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 466.09375,
+          "w": 195.859375,
+          "h": 30,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 505.15625,
+          "w": 207.109375,
+          "h": 30,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 544.21875,
+          "w": 214.21875,
+          "h": 30,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        }
+      ],
+      "href": "#f-body",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "edycja",
+    "theme": "dark",
+    "zoom": 1,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 466.09375,
+        "w": 214.21875,
+        "h": 108.125
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 466.09375,
+          "w": 195.859375,
+          "h": 30,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 505.15625,
+          "w": 207.109375,
+          "h": 30,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 544.21875,
+          "w": 214.21875,
+          "h": 30,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        }
+      ],
+      "href": "#f-body",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "edycja",
+    "theme": "light",
+    "zoom": 2,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 466.1484375,
+        "w": 214.2734375,
+        "h": 108.625
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 466.1484375,
+          "w": 195.921875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 505.2109375,
+          "w": 207.171875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 544.2734375,
+          "w": 214.2734375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        }
+      ],
+      "href": "#f-body",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "edycja",
+    "theme": "dark",
+    "zoom": 2,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 466.1484375,
+        "w": 214.2734375,
+        "h": 108.625
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 466.1484375,
+          "w": 195.921875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 505.2109375,
+          "w": 207.171875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 544.2734375,
+          "w": 214.2734375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-body\">Ten wpis jest za długi. Zmieść się w 4000 znakach.</a>"
+        }
+      ],
+      "href": "#f-body",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "przepis",
+    "theme": "light",
+    "zoom": 1,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 392.65625,
+        "w": 209.03125,
+        "h": 147.1875
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 392.65625,
+          "w": 197.734375,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 431.71875,
+          "w": 161.4375,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 470.78125,
+          "w": 207.234375,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 509.84375,
+          "w": 209.03125,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        }
+      ],
+      "href": "#f-title",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "przepis",
+    "theme": "dark",
+    "zoom": 1,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 392.65625,
+        "w": 209.03125,
+        "h": 147.1875
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 392.65625,
+          "w": 197.734375,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 431.71875,
+          "w": 161.4375,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 470.78125,
+          "w": 207.234375,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 509.84375,
+          "w": 209.03125,
+          "h": 30,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        }
+      ],
+      "href": "#f-title",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "przepis",
+    "theme": "light",
+    "zoom": 2,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 392.2109375,
+        "w": 209.09375,
+        "h": 147.6875
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 392.2109375,
+          "w": 197.796875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 431.2734375,
+          "w": 161.484375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 470.3359375,
+          "w": 207.2890625,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 509.3984375,
+          "w": 209.09375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        }
+      ],
+      "href": "#f-title",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "przepis",
+    "theme": "dark",
+    "zoom": 2,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 392.2109375,
+        "w": 209.09375,
+        "h": 147.6875
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 392.2109375,
+          "w": 197.796875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 431.2734375,
+          "w": 161.484375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 470.3359375,
+          "w": 207.2890625,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        },
+        {
+          "x": 59,
+          "y": 509.3984375,
+          "w": 209.09375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-title\">Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.</a>"
+        }
+      ],
+      "href": "#f-title",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "ugotowalem",
+    "theme": "light",
+    "zoom": 1,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 411.6875,
+        "w": 214.90625,
+        "h": 108.125
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 411.6875,
+          "w": 203.890625,
+          "h": 30,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 450.75,
+          "w": 214.90625,
+          "h": 30,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 489.8125,
+          "w": 213.046875,
+          "h": 30,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        }
+      ],
+      "href": "#f-note",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "ugotowalem",
+    "theme": "dark",
+    "zoom": 1,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 411.6875,
+        "w": 214.90625,
+        "h": 108.125
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 411.6875,
+          "w": 203.890625,
+          "h": 30,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 450.75,
+          "w": 214.90625,
+          "h": 30,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 489.8125,
+          "w": 213.046875,
+          "h": 30,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        }
+      ],
+      "href": "#f-note",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "ugotowalem",
+    "theme": "light",
+    "zoom": 2,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 411.7890625,
+        "w": 214.96875,
+        "h": 108.625
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 411.7890625,
+          "w": 203.9453125,
+          "h": 30.5,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 450.8515625,
+          "w": 214.96875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 489.9140625,
+          "w": 213.109375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        }
+      ],
+      "href": "#f-note",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  },
+  {
+    "name": "ugotowalem",
+    "theme": "dark",
+    "zoom": 2,
+    "summaryFocused": true,
+    "link": {
+      "rect": {
+        "x": 59,
+        "y": 411.7890625,
+        "w": 214.96875,
+        "h": 108.625
+      },
+      "fragments": [
+        {
+          "x": 59,
+          "y": 411.7890625,
+          "w": 203.9453125,
+          "h": 30.5,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 450.8515625,
+          "w": 214.96875,
+          "h": 30.5,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        },
+        {
+          "x": 59,
+          "y": 489.9140625,
+          "w": 213.109375,
+          "h": 30.5,
+          "hit": "<a href=\"#f-note\">Ta uwaga jest za długa. Zmieść się w 2000 znakach.</a>"
+        }
+      ],
+      "href": "#f-note",
+      "outline": "solid",
+      "width": 320,
+      "scroll": 320,
+      "visible": true
+    },
+    "enterMovedFocus": true,
+    "axe": []
+  }
+]

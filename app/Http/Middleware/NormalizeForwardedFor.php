@@ -187,6 +187,22 @@ class NormalizeForwardedFor
      * odrzuciłoby ją i cofnęło się o jeden wpis W LEWO — czyli dokładnie
      * w obszar, który wypełnia klient. Wpis nie do odczytania traktujemy
      * więc jak brak nagłówka, a nie jak zaproszenie do szukania dalej.
+     *
+     * DWUKROPEK WE WPISIE Z KROPKAMI NIE ZAWSZE JEST PORTEM
+     * `::ffff:203.0.113.7` ma i kropki, i dwukropki, a portu nie ma wcale —
+     * tak zapisuje adres IPv4 każdy stos nasłuchujący na gnieździe podwójnym,
+     * więc taki wpis potrafi przyjść od zupełnie poprawnego proxy. Cięcie na
+     * PIERWSZYM dwukropku zostawiłoby z niego pusty ciąg, ten nie przeszedłby
+     * walidacji i middleware skasowałby CAŁY nagłówek. Nie jest to dziura —
+     * aplikacja spadłaby na adres połączenia — ale jest to awaria limitów przy
+     * infrastrukturze działającej bez zarzutu, więc tym bardziej nie wolno jej
+     * tu zostawić.
+     *
+     * Dlatego port odcinamy tylko wtedy, gdy dwukropek jest we wpisie JEDEN.
+     * Przy większej liczbie mamy adres IPv6, a taki podany z portem musi
+     * przyjść w nawiasach — i trafia do gałęzi wyżej. Tak samo rozstrzyga to
+     * Symfony: w `normalizeAndFilterClientIps()` stoi `if ($i)`, a nie
+     * `if ($i !== false)`, więc dwukropek na pozycji zerowej niczego nie tnie.
      */
     private function adresBezPortu(string $wpis): ?string
     {
@@ -197,17 +213,37 @@ class NormalizeForwardedFor
             if ($koniec !== false) {
                 $wpis = substr($wpis, 1, $koniec - 1);
             }
-        } elseif (str_contains($wpis, '.')) {
-            // IPv4 w postaci `203.0.113.7:1234`. Gołe IPv6 (bez nawiasów)
-            // ma dwukropki, ale nie ma kropek — dlatego warunek pyta
-            // o kropkę, tak samo jak Symfony.
-            $dwukropek = strpos($wpis, ':');
-
-            if ($dwukropek !== false) {
-                $wpis = substr($wpis, 0, $dwukropek);
-            }
+        } elseif (str_contains($wpis, '.') && substr_count($wpis, ':') === 1) {
+            // IPv4 w postaci `203.0.113.7:1234`.
+            $wpis = substr($wpis, 0, (int) strpos($wpis, ':'));
         }
 
-        return filter_var($wpis, FILTER_VALIDATE_IP) === false ? null : $wpis;
+        if (filter_var($wpis, FILTER_VALIDATE_IP) === false) {
+            return null;
+        }
+
+        return $this->bezMapowaniaNaIpv6($wpis);
+    }
+
+    /**
+     * `::ffff:203.0.113.7` → `203.0.113.7`. Ten sam adres, jeden koszyk limitu.
+     *
+     * Bez tego ta sama osoba dostawałaby DWA osobne koszyki, zależnie od tego,
+     * w którym z dwóch zapisów brzeg akurat poda jej adres — a dwa koszyki to
+     * dwa razy więcej prób, niż mówi `config/kuking.php`. Zapis czwórkowy
+     * wybieramy dlatego, że to on stoi w logach, w zgłoszeniach nadużyć i to
+     * jego człowiek rozpozna.
+     */
+    private function bezMapowaniaNaIpv6(string $adres): string
+    {
+        if (stripos($adres, '::ffff:') !== 0) {
+            return $adres;
+        }
+
+        $czworkowy = substr($adres, 7);
+
+        return filter_var($czworkowy, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4) === false
+            ? $adres
+            : $czworkowy;
     }
 }

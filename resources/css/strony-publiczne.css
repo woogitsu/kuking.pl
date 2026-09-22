@@ -61,11 +61,13 @@
     }
   }
 
-  /* Trzy tła pasa. Czwarte — ciemne — bierze się z `.blok-ciemny`
-     w `tokens.css`, która przestawia całą paletę na kontenerze. */
-  .pas--wglebiony { background-color: var(--color-surface-sunken); }
-  .pas--cieply { background-color: var(--color-surface-brand-wash); }
-  .pas--podniesiony { background-color: var(--color-surface-raised); }
+  /* Tła pasa. Jedyne, którego dziś używa `landing.blade.php`, jest ciemne
+     i bierze się z `.blok-ciemny` w `tokens.css` (przestawia całą paletę na
+     kontenerze). Trzy modyfikatory ze słownika paczki — `.pas--wglebiony`,
+     `.pas--cieply`, `.pas--podniesiony` — stały tu bez ani jednego nosiciela
+     i zostały skreślone 20 września 2026, zgodnie z zasadą z główki tego
+     pliku: bierzemy to, czego aplikacja UŻYWA, a nie cały słownik na zapas.
+     Wejdą z powrotem wtedy, gdy któryś pas naprawdę je dostanie. */
 
   /* Pas na styku dwóch tych samych teł potrzebuje kreski, inaczej sekcje
      zlewają się w jeden długi blok. */
@@ -89,11 +91,31 @@
 
   /* --- Sekcja główna ---------------------------------------------------- */
 
+  /* Do 10 września 2026 `.hero` była siatką o dwóch kolumnach od 64rem:
+     tekst po lewej, tablica „kuKINGi na dziś" po prawej (`.hero-figura`,
+     usunięta razem z tą tablicą — patrz `landing.blade.php`, sekcja 3).
+     Audyt 60+ (`docs/research/AUDYT_60_PLUS.md`) każe tablicy stać PO
+     „Jak działa", nie obok hasła, więc hero zostało z jednym dzieckiem
+     i z jedną kolumną tekstu.
+
+     11 WRZEŚNIA WRACAJĄ DWIE KOLUMNY — ALE Z INNĄ TREŚCIĄ PO PRAWEJ.
+     Zgłoszenie właściciela: „na samej górze po prawej stronie można zrobić
+     kolaż … żeby zachęcać od razu". Zmierzone przed zmianą: przy paśmie
+     1040 px kolumna tekstu zajmowała 544 px, więc około 500 px prawej strony
+     stało puste na serwisie o gotowaniu. Wraca więc podział, ale to, co
+     wróciło, NIE JEST tablicą: kolaż nie ma ani jednego odnośnika, ani
+     jednego przycisku i ani jednej liczby, czyli nie przywraca gęstości,
+     przed którą bronił audyt 60+. */
   .hero {
     display: grid;
-    gap: var(--spacing-8);
-    align-items: center;
-    grid-template-columns: minmax(0, 1fr);
+  }
+
+  @media (min-width: 64rem) {
+    .hero {
+      grid-template-columns: minmax(0, 34rem) minmax(0, 1fr);
+      gap: var(--spacing-10);
+      align-items: center;
+    }
   }
 
   /* `minmax(0, …)`, nigdy `1fr`: element siatki nie zejdzie poniżej swojej
@@ -105,19 +127,205 @@
     overflow-wrap: anywhere;
   }
 
-  @media (min-width: 64rem) {
-    .hero {
-      grid-template-columns: minmax(0, 1fr) minmax(0, 30rem);
-      gap: var(--spacing-12);
-    }
-  }
-
   /* 34rem ≈ 60 znaków przy 18 px, czyli w środku przedziału 55–75
      z `docs/UX_50_PLUS.md`. Ta sama miara dla kolumny hero i dla każdego
      zdania wyjaśniającego pod nagłówkiem — stąd dwie klasy o jednej
      wartości, a nie jedna klasa robiąca dwie rzeczy. */
   .hero-tekst { max-width: 34rem; }
   .miara { max-width: 34rem; }
+
+  /* --- Kolaż zdjęć w hero -----------------------------------------------
+
+     UWAGA: REGUŁY PONIŻEJ NIE OBOWIĄZUJĄ W PRZEGLĄDARCE. Kolaż jest
+     widoczny na KAŻDEJ szerokości, także na telefonie 320 px.
+
+     Kto przeczyta sam ten arkusz, wyciągnie wniosek nieprawdziwy — i tak się
+     już stało. Dlatego stan rzeczywisty stoi tu PRZED uzasadnieniem
+     historycznym, a nie po nim.
+
+     CO SIĘ STAŁO I KIEDY
+
+     11 września 2026 (#351) stało tu zdanie wersalikami: „PONIŻEJ 64REM
+     KOLAŻU NIE MA W OGÓLE — I TO JEST CAŁE ZABEZPIECZENIE PRZYCISKU
+     «Zostań kuKINGiem»", a pod nim tabela pomiarów i zdanie, że telefon nie
+     pobiera czterech plików kolażu. W dniu napisania oba te zdania były
+     prawdziwe.
+
+     13 września 2026 (#488, „Alfa 0.9: pełny port układu i marki") doszedł
+     `resources/css/marka-ekrany.css` z bezwarunkowym
+     `.hero-kolaz-blok { display: block }`. To jest warstwa `marka`,
+     a kolejność warstw z `resources/css/app.css` brzmi:
+
+         @layer theme, base, components, marka, utilities;
+
+     Warstwa późniejsza bije wcześniejszą NIEZALEŻNIE od szczegółowości
+     selektora i NIEZALEŻNIE od zapytania medialnego. `display: none` niżej
+     i `@media (min-width: 64rem)` obok niego przestały więc cokolwiek
+     znaczyć tego samego dnia — dwa dni po tym, jak ktoś je opisał jako
+     „całe zabezpieczenie". Żaden test tego nie złapał, bo żaden test nie
+     czyta WYNIKU KASKADY dla tego elementu; czytanie samego tekstu arkusza
+     pokazuje regułę, która w przeglądarce nie obowiązuje ani przez jeden
+     piksel.
+
+     17 września 2026 rozjazd nazwał audyt UX/UI, pozycja F-03
+     (`docs/design/AUDYT_UX_UI_PLAN_USPRAWNIEN_2026_09_17.md`).
+     20 września 2026 właściciel rozstrzygnął: KOLAŻ ZOSTAJE, komentarz idzie
+     do poprawki. Układ strony powitalnej nie jest tu przestawiany.
+
+     DLACZEGO REGUŁY ZOSTAJĄ, SKORO NIE DZIAŁAJĄ
+
+     Bo ich usunięcie byłoby zmianą zachowania w jedynym przypadku, w którym
+     dziś mają znaczenie: gdyby `marka-ekrany.css` przestał być ładowany albo
+     gdyby ten selektor z niego zniknął, kolaż wróciłby do chowania się
+     poniżej 64rem — cicho i bez śladu. Zostawione tutaj i opisane są
+     widocznym ostrzeżeniem dla następnej osoby. Ich skasowanie to osobna
+     decyzja, nie skutek uboczny poprawki komentarza.
+
+     ZMIERZONE 20 września 2026 (Playwright/Chromium, produkcja kuking.pl,
+     GET jako gość, `deviceScaleFactor: 2`, `isMobile`; „dół przycisku" to
+     odległość dolnej krawędzi przycisku „Zostań kuKINGiem" od góry
+     dokumentu; pozycja i pole z `getBoundingClientRect`, osiągalność
+     z `document.elementFromPoint`, nie z klas CSS):
+
+       okno      skala  kolaż        dół przycisku    widoczny bez  pole przycisku
+                        (szer.×wys.) z kolażem / bez  przewijania   nominalne / skuteczne
+       320×568   100%   264×440 px     776 /  776 px  NIE           264×78  / 264×78  px
+       320×568   140%   264×501 px    1229 / 1229 px  NIE           264×168 / 264×168 px
+       360×640   100%   304×440 px     654 /  654 px  NIE           304×78  / 304×78  px
+       360×640   140%   304×462 px    1012 / 1012 px  NIE           304×133 / 304×133 px
+       375×667   100%   319×440 px     656 /  656 px  TAK           319×78  / 319×78  px
+       375×667   140%   319×462 px    1012 / 1012 px  NIE           319×133 / 319×133 px
+       414×896   100%   358×440 px     628 /  628 px  TAK           358×78  / 358×78  px
+       414×896   140%   358×462 px     977 /  977 px  NIE           358×98  / 358×98  px
+
+     CO Z TEJ TABELI WYNIKA — I CO NIE
+
+     1. Kolumna „z kolażem / bez" jest w każdym wierszu identyczna. Kolaż NIE
+        dokłada ani jednego piksela nad przyciskiem. Powód jest jednak inny
+        niż ten, który tu kiedyś stał: poniżej 64rem hero ma JEDNĄ kolumnę,
+        a `<figure class="hero-kolaz-blok">` stoi w `landing.blade.php` PO
+        bloku z przyciskiem. Zmierzona góra kolażu to 891 px przy 320×568
+        i 743 px przy 414×896, czyli zawsze poniżej dolnej krawędzi
+        przycisku. Chroni więc dokładnie ta KOLEJNOŚĆ W BLADE, którą stary
+        komentarz odrzucał jako „dającą się zepsuć późniejszą zmianą
+        kolejności". Ona jest dziś całym zabezpieczeniem — i nic jej nie
+        pilnuje.
+
+     2. Kolaż dokłada za to 471–533 px WYSOKOŚCI STRONY (17 130 px zamiast
+        16 659 px przy 320×568 / 100%). To jest pod przyciskiem, nie nad nim.
+
+     3. PRZYCISK NIE JEST WIDOCZNY BEZ PRZEWIJANIA przy 320 px w żadnej
+        skali, przy 360 px w żadnej skali, a przy 375 i 414 px tylko przy
+        skali 100%. Przy 320×568 i skali 140% jego dolna krawędź jest na
+        1229 px, czyli ponad dwa ekrany w dół. To jest STAN ZASTANY TEJ
+        STRONY, nie skutek kolażu — kolumna „bez" ma tę samą wartość — i jest
+        zgłoszony osobno, bo przestawienie strony powitalnej należy do
+        właściciela.
+
+     4. Pole SKUTECZNE przycisku równa się nominalnemu na każdej z tych
+        ośmiu kombinacji: po doprzewinięciu w widok `elementFromPoint`
+        trafia w przycisk na całej jego wysokości i szerokości (poza samymi
+        rogami, które zaokrągla `border-radius` — to jest zamierzone).
+        JEDEN WYJĄTEK, i nie pochodzi z tego arkusza: u gościa na pierwszej
+        wizycie pływająca podpowiedź `aside.szybki-wyglad-podpowiedz`
+        przykrywa przy 320×568 / 140% DOLNE 104 px przycisku (pole skuteczne
+        264×65 px zamiast 264×168 px), a przy 360 i 375 px — 12–14 px.
+        To jest obszar #684, nie kolażu; po zamknięciu podpowiedzi pole
+        wraca do nominalnego.
+
+     DRUGIE ZDANIE STAREGO KOMENTARZA TEŻ BYŁO NIEPRAWDZIWE. Brzmiało:
+     obrazki z `loading="lazy"` w kontenerze `display: none` nigdy nie
+     przecinają się z oknem, więc przeglądarka NIE POBIERA ich wcale —
+     „telefon nie płaci za cztery pliki, których nie zobaczy". Zmierzone przy
+     320×568 na liście żądań sieciowych, nie z założenia:
+
+       wariant                                     odpowiedzi  obrazów  kafli pobranych
+       jak jest (kolaż widoczny)                       17        10        4 z 4
+       kontrola ujemna: ten sam arkusz z regułą        11         4        0 z 4
+       ukrywającą kolaż dopisaną na końcu
+
+     Telefon pobiera więc wszystkie cztery kafle (wariant `thumb`;
+     `naturalWidth` 320/320/320/256) i sześć odpowiedzi HTTP więcej, niż
+     pobierałby przy działającym ukryciu. Kontrola ujemna jest tu po to, żeby
+     „4 z 4" znaczyło coś więcej niż „sonda w ogóle działa": ta sama sonda na
+     stronie z DZIAŁAJĄCYM ukryciem pokazuje 0 z 4.
+
+     CZEGO NIE ZMIERZONO: czcionki przeglądarki 200%. Stary komentarz miał tu
+     akapit rozumowania o progu 2048 px. Rozumowanie było poprawne, ale
+     dotyczyło progu, który dziś nie ma znaczenia — kolaż jest widoczny na
+     każdej szerokości niezależnie od tego, gdzie ten próg wypada.
+
+     Telefon nie zostaje przy tym bez zdjęć także poza kolażem: dwie sekcje
+     niżej stoi tablica „kuKINGi na dziś", a pod nią „Świeżo z Kuking". */
+  .hero-kolaz-blok {
+    /* NIE OBOWIĄZUJE — patrz komentarz wyżej. Przykryte przez
+       `marka-ekrany.css` (`@layer marka`), które ustawia `display: block`
+       bezwarunkowo. Zostawione świadomie: jako ostrzeżenie i jako zachowanie
+       awaryjne, gdyby tamta warstwa zniknęła. */
+    display: none;
+    margin: 0;
+  }
+
+  /* NIE OBOWIĄZUJE z tego samego powodu: bezwarunkowa reguła z warstwy
+     `marka` bije to zapytanie medialne niezależnie od szerokości okna. */
+  @media (min-width: 64rem) {
+    .hero-kolaz-blok {
+      display: block;
+    }
+  }
+
+  /* UKŁAD: WIATRACZEK, NIE SIATKA 2×2.
+
+     Cztery kafle w dwóch kolumnach i trzech rzędach, zazębione po przekątnej:
+     wysoki kafel lewy-górny i wysoki prawy-dolny trzymają się przeciwnych
+     narożników, a dwa niskie wypełniają to, co zostaje. Żadna pozioma ani
+     pionowa linia nie przechodzi przez cały kolaż, więc oko nie czyta tego
+     jako tabelki — a o to właśnie chodziło („kolaż ma wyglądać jak coś, co
+     ktoś ułożył").
+
+     Rzędy mają wysokości STAŁE (`rem`), a nie proporcje zdjęć: przy
+     `object-fit: cover` kształt kolażu nie zależy wtedy od tego, czy
+     gospodarz wybrał zdjęcia pionowe, czy poziome. Kolaż z jednego wyboru
+     ma wyglądać tak samo jak z drugiego.
+
+     Suma: 7.5 + 4.5 + 7.5 rem plus dwie przerwy = 21.5 rem ≈ 344 px. To
+     mniej niż wysokość kolumny tekstu w hero, więc kolaż nie dyktuje
+     wysokości pasa i nie spycha niczego pod spód nawet na szerokim ekranie. */
+  .hero-kolaz {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr;
+    grid-template-rows: 7.5rem 4.5rem 7.5rem;
+    gap: var(--spacing-3);
+  }
+
+  .hero-kolaz-kafel:nth-child(1) { grid-column: 1; grid-row: 1 / span 2; rotate: -1.4deg; }
+  .hero-kolaz-kafel:nth-child(2) { grid-column: 2; grid-row: 1; rotate: 1.6deg; }
+  .hero-kolaz-kafel:nth-child(3) { grid-column: 2; grid-row: 2 / span 2; rotate: -1deg; }
+  .hero-kolaz-kafel:nth-child(4) { grid-column: 1; grid-row: 3; rotate: 1.2deg; }
+
+  /* Obwódka w kolorze podniesionej powierzchni udaje biały brzeg odbitki —
+     to ona sprawia, że cztery zdjęcia czytają się jako rozłożone fotografie,
+     a nie jako kafelki interfejsu. Obrót jest mały z rozmysłem: przy większym
+     kącie sąsiednie kafle zachodzą na siebie rogami, a przy `overflow`
+     obcinanym przez pas wychodziłyby poza jego wnętrze. */
+  .hero-kolaz-kafel {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    border-radius: var(--radius-lg);
+    border: 4px solid var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+    background-color: var(--color-surface-sunken);
+  }
+
+  /* Podpis z nazwami autorów. `--text-body` (18 px), nie `--text-help`:
+     to jest zdanie do przeczytania, a nie metka — i obowiązuje je minimum
+     produktowe z `docs/UX_50_PLUS.md`. */
+  .hero-kolaz-podpis {
+    margin: var(--spacing-4) 0 0;
+    font-size: var(--text-body);
+    color: var(--color-ink-muted);
+  }
 
   /* Drugi claim marki stoi NAD hasłem głównym, mniejszy i w kolorze marki.
      Pod hasłem był czytany jak podpis pod zdjęciem i ginął. */
@@ -139,109 +347,95 @@
     margin-bottom: var(--spacing-4);
   }
 
-  .hero-figura { margin: 0; }
-
-  .hero-podpis {
-    margin: var(--spacing-3) 0 0;
-    font-size: var(--text-help);
-    color: var(--color-ink-muted);
+  /* Na wąskim ekranie odstęp nie może zabierać miejsca dużemu napisowi.
+     Zachowujemy rozmiar tekstu i pełną etykietę akcji (#621). */
+  .hero-akcje > .btn-duzy {
+    padding-inline: min(var(--spacing-8), 5vw);
+    scroll-margin-block: var(--spacing-3);
   }
 
-  /* --- „Cztery rzeczy" --------------------------------------------------
-     Dwie kolumny, nigdy cztery: przy czterech kolumnach zdanie wyjaśniające
-     ma przy skali 140% po dwa słowa w wierszu. */
+  /* --- „Jak działa" — słownik skreślony 20 września 2026 ----------------
 
-  .rzeczy {
+     Stał tu komplet reguł sekcji „Jak działa" w słowniku paczki projektowej
+     (`.rzeczy`, `.rzecz`, `.rzecz-tresc`, `.rzecz-znak`, `.rzecz-krok`,
+     `.rzecz-tytul`, `.rzecz-opis`) wraz z pomiarami progów 48/64rem
+     i obrony przy czcionce przeglądarki 200%.
+
+     Sekcję przepisano na `.landing-opowiesc` + `.landing-kroki`
+     (`landing.blade.php`, `#jak-dziala`), a stary słownik został tu bez
+     ani jednego nosiciela w `resources/views`. To był najbardziej mylący
+     kawałek tego pliku: `#jak-dziala` DALEJ istnieje w dokumencie, więc
+     selektory wyglądały na żywe, a ich pomiary — na obowiązujące.
+
+     Wygląd trzech kroków robi dziś port marki w `marka-rama.css`
+     (`[data-marka] .landing-kroki`, `.landing-krok-numer`) — arkusz BEZ
+     `@layer`, więc jego wartości biją wszystko, co stoi w warstwach. */
+
+  /* --- „Świeżo z Kuking" na stronie powitalnej --------------------------
+
+     JEDEN WPIS POD DRUGIM. Zgłoszenie właściciela, dosłownie: „powinno być
+     jedno pod drugim nawet jak jedno jest dłuższe od drugiego, a nie jedna
+     linijka to nowy wpis i pomiędzy jednym a drugim może być taka
+     przestrzeń zmarnowana".
+
+     CO BYŁO. Siatka `grid` o dwóch kolumnach od 64rem (`.landing-wpisy`
+     w `app.css`, klasa zostaje tam martwa do usunięcia). Siatka układa
+     elementy w RZĘDY, a rząd jest tak wysoki jak najwyższa karta w rzędzie —
+     więc pod każdą niższą kartą zostaje puste pole aż do dołu rzędu.
+
+     ZMIERZONE (Chromium 153, okno 1280×800, pas o wnętrzu 992 px, dziewięć
+     kart z danych demo; „zmarnowane" to suma różnic między wysokością rzędu
+     a wysokością karty):
+
+       układ                                  wysokość   zmarnowane   kart
+                                               listy        w pionie  na 1. ekranie
+       dwie kolumny w rzędach (stan sprzed)      2697 px      388 px       2
+       dwie kolumny CSS `columns` (niezależne)   2576 px      358 px       1
+       jedna kolumna, szerokość pasa (992 px)    5710 px        0 px       1
+       jedna kolumna, 45rem (720 px)   ← WYBRANE 4956 px        0 px       1
+
+     DLACZEGO NIE `columns: 2`, SKORO JEST NAJKRÓTSZE
+     Bo to nie jest ten sam układ, tylko podobnie wyglądający. `columns`
+     wypełnia kolumnę PIERWSZĄ do końca, a potem drugą — czyli na liście
+     ułożonej chronologicznie piąty co do świeżości wpis ląduje na SAMEJ
+     GÓRZE po prawej, nad wpisami starszymi od siebie. Do tego zmierzone
+     wyżej: pustki i tak nie usuwa (358 px zamiast 388 px), bo przeglądarka
+     wyrównuje kolumny i ostatnia kończy się wyżej. Gorsza kolejność za
+     30 px — nie.
+
+     CENA JEDNEJ KOLUMNY, WYPISANA WPROST: lista jest prawie dwa razy
+     dłuższa (2697 → 4956 px), a na pierwszym ekranie komputera widać JEDEN
+     wpis zamiast dwóch. To jest świadome ustępstwo, nie przeoczenie:
+     pierwszy ekran strony powitalnej należy do hasła i przycisku, a nie do
+     tej sekcji — kto tu dociera, już przewija.
+
+     DLACZEGO 45REM, A NIE CAŁE 992 PX
+     `--container-content` to ta sama szerokość, którą ma jedna kolumna kart
+     na `/odkryj` — czyli na stronie, do której ta sekcja jest zajawką.
+     Po kliknięciu „Świeżo z Kuking" karta nie zmienia szerokości i nie ma
+     efektu przeskoku. Przy 992 px wiersz tekstu w karcie sięgałby ~100
+     znaków, czyli grubo poza przedział 55–75 z `docs/UX_50_PLUS.md`.
+
+     `margin-inline: auto` zamiast wyrównania do lewej: kolumna węższa niż
+     pas, dosunięta do jednej krawędzi, zostawiłaby po drugiej stronie pas
+     pustki — czyli dokładnie to, na co właściciel się skarżył, tylko
+     obrócone o 90 stopni. */
+  .landing-wpisy-kolumna {
     display: grid;
-    gap: var(--spacing-5);
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  @media (min-width: 48rem) {
-    .rzeczy {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--spacing-6);
-    }
-  }
-
-  .rzecz {
-    background-color: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-6);
-  }
-
-  .rzecz-tytul {
-    font-size: var(--text-body-lg);
-    font-weight: 800;
-    line-height: var(--leading-title-wiele);
-    margin: 0 0 var(--spacing-2);
-  }
-
-  .rzecz-opis {
-    margin: 0;
-    color: var(--color-ink-muted);
-  }
-
-  /* --- Pas ciemny: „Ugotowałem" ----------------------------------------
-     `.blok-ciemny` przestawia paletę na kontenerze, więc wszystko w środku
-     bierze poprawne kolory bez ani jednej wartości hex. */
-
-  .pas-ciemny-tekst { max-width: 34rem; }
-
-  /* Na szerokim ekranie cytat stoi OBOK tekstu, a nie pod nim — inaczej
-     prawa połowa ciemnego pasa jest pusta i pas wygląda na niedokończony. */
-  .pas-ciemny-uklad {
-    display: grid;
-    gap: var(--spacing-8);
-    align-items: center;
     grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-5);
+    max-width: var(--container-content);
+    margin-inline: auto;
   }
 
-  .pas-ciemny-uklad > * {
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-  }
+  /* --- Pas ciemny „Ugotowałem" — słownik skreślony 20 września 2026 -----
 
-  @media (min-width: 64rem) {
-    .pas-ciemny-uklad {
-      grid-template-columns: minmax(0, 1fr) minmax(0, var(--container-rail));
-      gap: var(--spacing-12);
-    }
-  }
-
-  .cytat-ugotowalem {
-    margin: 0;
-    padding-left: var(--spacing-5);
-    border-left: 4px solid var(--color-brand);
-    font-size: var(--text-lead);
-    line-height: var(--leading-body);
-    color: var(--color-ink);
-  }
-
-  .cytat-zrodlo {
-    display: block;
-    margin-top: var(--spacing-2);
-    font-size: var(--text-help);
-    color: var(--color-ink-muted);
-  }
-
-  /* --- Dwie kolumny tekstu ---------------------------------------------- */
-
-  .dwie-kolumny {
-    display: grid;
-    gap: var(--spacing-6);
-  }
-
-  @media (min-width: 64rem) {
-    .dwie-kolumny {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--spacing-8);
-    }
-  }
+     Stały tu `.pas-ciemny-tekst`, `.pas-ciemny-uklad` (dwie kolumny od
+     64rem) oraz `.cytat-ugotowalem` i `.cytat-zrodlo`. Pas żyje dalej, ale
+     jako `.landing-wykonanie` z kartą `.landing-wykonanie-karta` i prawdziwą
+     fotografią wykonania zamiast cytatu — a `LandingKompozycjaFotografiiTest`
+     sprawdza wprost, że `.cytat-ugotowalem` na tej stronie NIE WYSTĘPUJE.
+     Reguły dla cytatu były więc sprzeczne z testem stojącym obok nich. */
 
   /* --- Wezwanie na końcu ------------------------------------------------ */
 
@@ -265,7 +459,6 @@
      Odstęp nad blokiem wtedy, gdy nie ma go z czego wziąć w komponencie. */
 
   .odstep-nad { margin-top: var(--spacing-8); }
-  .odstep-nad-maly { margin-top: var(--spacing-5); }
 
   /* Zdanie pomocnicze przy przycisku („Masz już konto? Zaloguj się").
 

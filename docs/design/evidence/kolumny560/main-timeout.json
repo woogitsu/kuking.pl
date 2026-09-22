@@ -1,0 +1,171 @@
+{
+  "id": 104280296986,
+  "run_id": 34938070574,
+  "run_attempt": 1,
+  "head_sha": "bc76db12dc1e628a37325491bb7b2d4a0246401d",
+  "status": "completed",
+  "conclusion": "cancelled",
+  "started_at": "2026-09-15T06:45:39Z",
+  "completed_at": "2026-09-15T07:10:59Z",
+  "runner_name": "kuking-wsl-DOM-NEW-03",
+  "steps": [
+    {
+      "name": "Set up job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 1,
+      "started_at": "2026-09-15T06:45:38Z",
+      "completed_at": "2026-09-15T06:45:41Z"
+    },
+    {
+      "name": "Initialize containers",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 2,
+      "started_at": "2026-09-15T06:45:41Z",
+      "completed_at": "2026-09-15T06:45:50Z"
+    },
+    {
+      "name": "Run actions/checkout@v7",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 3,
+      "started_at": "2026-09-15T06:45:50Z",
+      "completed_at": "2026-09-15T06:45:53Z"
+    },
+    {
+      "name": "Konfiguracja dynamicznego połączenia z PostgreSQL",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 4,
+      "started_at": "2026-09-15T06:45:53Z",
+      "completed_at": "2026-09-15T06:45:53Z"
+    },
+    {
+      "name": "Czy zmieniła się warstwa widoku",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 5,
+      "started_at": "2026-09-15T06:45:53Z",
+      "completed_at": "2026-09-15T06:45:53Z"
+    },
+    {
+      "name": "Własny katalog narzędzi PHP (issue",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 6,
+      "started_at": "2026-09-15T06:45:53Z",
+      "completed_at": "2026-09-15T06:45:53Z"
+    },
+    {
+      "name": "Konfiguracja PHP",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 7,
+      "started_at": "2026-09-15T06:45:53Z",
+      "completed_at": "2026-09-15T06:45:54Z"
+    },
+    {
+      "name": "Konfiguracja Node",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 8,
+      "started_at": "2026-09-15T06:45:54Z",
+      "completed_at": "2026-09-15T06:45:59Z"
+    },
+    {
+      "name": "Instalacja zależności",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 9,
+      "started_at": "2026-09-15T06:45:59Z",
+      "completed_at": "2026-09-15T06:46:04Z"
+    },
+    {
+      "name": "Przeglądarka",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 10,
+      "started_at": "2026-09-15T06:46:04Z",
+      "completed_at": "2026-09-15T06:46:05Z"
+    },
+    {
+      "name": "Przygotowanie",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 11,
+      "started_at": "2026-09-15T06:46:05Z",
+      "completed_at": "2026-09-15T06:46:11Z"
+    },
+    {
+      "name": "Port projektu — układ i kontrola ujemna",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 12,
+      "started_at": "2026-09-15T06:46:11Z",
+      "completed_at": "2026-09-15T07:10:16Z"
+    },
+    {
+      "name": "Trzy kroki kreatora przy dużym tekście",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 13,
+      "started_at": "2026-09-15T07:10:16Z",
+      "completed_at": "2026-09-15T07:10:32Z"
+    },
+    {
+      "name": "Zrzuty portu marki",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 14,
+      "started_at": "2026-09-15T07:10:32Z",
+      "completed_at": "2026-09-15T07:10:48Z"
+    },
+    {
+      "name": "Post Konfiguracja Node",
+      "status": "completed",
+      "conclusion": "skipped",
+      "number": 26,
+      "started_at": "2026-09-15T07:10:48Z",
+      "completed_at": "2026-09-15T07:10:48Z"
+    },
+    {
+      "name": "Post Run actions/checkout@v7",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 27,
+      "started_at": "2026-09-15T07:10:48Z",
+      "completed_at": "2026-09-15T07:10:49Z"
+    },
+    {
+      "name": "Stop containers",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 28,
+      "started_at": "2026-09-15T07:10:49Z",
+      "completed_at": "2026-09-15T07:10:54Z"
+    },
+    {
+      "name": "Complete job",
+      "status": "completed",
+      "conclusion": "success",
+      "number": 29,
+      "started_at": "2026-09-15T07:10:54Z",
+      "completed_at": "2026-09-15T07:10:54Z"
+    }
+  ],
+  "annotations": [
+    {
+      "path": ".github",
+      "blob_href": "https://github.com/woogitsu/kuking.pl/blob/bc76db12dc1e628a37325491bb7b2d4a0246401d/.github",
+      "start_line": 1,
+      "start_column": null,
+      "end_line": 1,
+      "end_column": null,
+      "annotation_level": "failure",
+      "title": "",
+      "message": "The job has exceeded the maximum execution time of 25m0s",
+      "raw_details": ""
+    }
+  ]
+}

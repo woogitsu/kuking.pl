@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use App\Models\Collection;
 use App\Models\Comment;
 use App\Models\CookedEvent;
 use App\Models\Post;
@@ -56,14 +57,77 @@ final class CollectUserExportData
                 'serwis' => 'Kuking.pl',
                 'wygenerowano' => $generatedAt->toIso8601String(),
                 'format' => 'JSON, kodowanie UTF-8, daty w formacie ISO 8601',
-                'co_zawiera' => 'Wszystkie treści tego konta — także wpisy prywatne i szkice przepisów.',
-                'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta.',
+                // „WSZYSTKIE" BYŁO O JEDNO SŁOWO ZA DUŻO (#492).
+                //
+                // Zdanie obiecywało komplet, a paczka kompletem nie jest i nie
+                // udaje nim być w żadnym innym miejscu: poza nią zostają m.in.
+                // wcześniejsze wersje własnych przepisów (`recipe_versions`,
+                // zapisywane przez `SnapshotRecipeVersion` przy każdej
+                // publikacji), obserwowane tagi, dziennik zgód i tożsamości
+                // zewnętrzne. Żadnej z tych rzeczy nie dokładamy tu do paczki —
+                // zakres danych zostaje bez zmian. Zmienia się tylko zdanie,
+                // żeby nie obiecywało więcej, niż paczka niesie. Granicę
+                // dotyczącą cudzych treści nazywa `czego_nie_zawiera` niżej.
+                'co_zawiera' => 'Treści tego konta — także wpisy prywatne i szkice przepisów.',
+                // Dwie granice, obie mierzone, obie nazwane wprost. Druga
+                // dołączyła po pomiarze do #492: paczka stosowała ją od
+                // początku, ale nie mówiła o niej w żadnym swoim pliku.
+                // Człowiek, który odłożył czterdzieści cudzych przepisów
+                // „na kiedyś", dostawał plik wyglądający na kompletny —
+                // a dowiadywał się o brakach dopiero wtedy, gdy Kuking już
+                // nie istnieje i nie ma dokąd po nie wrócić. To jest
+                // dokładnie ta sama zasada co przy zdjęciach w drodze
+                // (issue #113): paczka, która WYGLĄDA na kompletną, a nie
+                // jest, jest gorsza od paczki mówiącej o swoich brakach.
+                //
+                // Samej granicy tu NIE zmieniamy i zmieniać nie wolno:
+                // cudzy przepis jest daną osoby, która go napisała
+                // (patrz `collections()` niżej). Zmienia się wyłącznie to,
+                // czy paczka o niej mówi.
+                //
+                // TO POLE JEST BEZWARUNKOWE — i tu jest inaczej niż
+                // w `index.html`, gdzie to samo zdanie stoi pod warunkiem
+                // niepustego zeszytu. Różnica jest zamierzona. `index.html`
+                // czyta CZŁOWIEK i opisuje mu, co w TEJ paczce jest, więc
+                // zdanie o cudzych przepisach przy pustym zeszycie opisuje
+                // nieobecne. `czego_nie_zawiera` czyta PROGRAM i jest opisem
+                // REGUŁY eksportu, nie zawartości tego jednego archiwum —
+                // dokładnie jak `zdjec_jeszcze_w_przygotowaniu`, które też
+                // jest zawsze, także gdy wynosi zero. Klucz pojawiający się
+                // tylko czasem zmuszałby czytający program do zgadywania,
+                // czy granicy nie ma, czy paczkę zbudowała starsza wersja.
+                // Trzecia granica dołożona po #692, po TEJ SAMEJ stronie
+                // opisanej niżej linii co dwie poprzednie — i z tego samego
+                // powodu. To jest REGUŁA eksportu, nie cecha tego jednego
+                // archiwum: zdjęcie odrzucone albo skasowane nie wejdzie do
+                // ŻADNEJ paczki, także przyszłej, niezależnie od tego, czy
+                // akurat to konto ma dziś takie zdjęcie. Ile ich jest w TEJ
+                // paczce, mówią dwa liczniki niżej; czego paczka nie niesie
+                // NIGDY, mówi to zdanie. Gdyby stało pod warunkiem, program
+                // czytający paczkę konta bez odrzuconych musiałby zgadywać,
+                // czy reguły nie ma, czy tylko nie było czego liczyć.
+                //
+                // Zakresu danych to nie rusza: nie dokładamy ani jednego
+                // zdjęcia, ani powodu odrzucenia, ani identyfikatora.
+                'czego_nie_zawiera' => 'Danych kontaktowych innych osób. Komentarze innych ludzi mają treść, datę i nazwę wyświetlaną autora, bez adresu e-mail i bez identyfikatora konta. '
+                    .'Nie ma tu też pełnej treści cudzych przepisów odłożonych do zeszytu: z każdego z nich jest tytuł, autor, Twoja notatka i data zapisania, bez składników, kroków i zdjęć — bo to są dane osób, które te przepisy napisały. '
+                    .'Nie ma tu również zdjęć, których nie udało się przygotować do pokazania w serwisie, ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.',
                 'podstawa_prawna' => 'RODO art. 15 (dostęp do danych) i art. 20 (przenoszenie danych)',
                 // Pole jest ZAWSZE, także gdy wynosi zero. Klucz pojawiający
                 // się tylko przy brakach zmusiłby program czytający paczkę do
                 // zgadywania, czy zera nie ma, bo braków nie było, czy dlatego,
                 // że paczkę zbudowała starsza wersja serwisu (issue #113).
                 'zdjec_jeszcze_w_przygotowaniu' => $photos->stillProcessingCount(),
+                // Oba pola ZAWSZE, także gdy wynoszą zero — ta sama reguła
+                // i to samo uzasadnienie co wiersz wyżej (issue #113).
+                //
+                // Osobno, a nie w jednej sumie, bo to są dwa różne fakty
+                // o koncie i dwa różne zdania dla człowieka: odrzucone
+                // wolno wgrać jeszcze raz, skasowane są skasowane.
+                // Program, który chce tylko „ile brakuje", doda je sobie;
+                // program, który dostałby sumę, nie rozdzieli jej nigdy.
+                'zdjec_odrzuconych_przy_przygotowaniu' => $photos->rejectedCount(),
+                'zdjec_skasowanych' => $photos->deletedCount(),
             ],
             'konto' => $this->account($user),
             'profil' => $this->profile($user, $photos),
@@ -93,6 +157,14 @@ final class CollectUserExportData
             'rozmiar_tekstu_procent' => $user->text_scale,
             'chce_podsumowania_tygodnia' => (bool) $user->wants_weekly_digest,
             'usuniecie_konta_zgloszone' => $this->date($user->delete_requested_at),
+            // Znacznik ostatniej wizyty (issue #114/#115) — dana osobowa
+            // tak samo jak reszta tego bloku, więc wchodzi do paczki RODO
+            // z tego samego powodu co `usuniecie_konta_zgloszone` wyżej.
+            // Nadpisywany throttlowanym middlewarem
+            // (`App\Domain\Analytics\ZanotujOstatniaWizyte`), nie logiem —
+            // paczka pokazuje tu wyłącznie NAJNOWSZĄ znaną wartość.
+            'ostatnio_widziany' => $this->date($user->ostatnio_widziany_at),
+            'stan_zachety_instalacji' => $user->pwa_prompt_state,
         ];
     }
 
@@ -176,7 +248,7 @@ final class CollectUserExportData
         // Bez `published()` i bez filtra widoczności — wpis prywatny należy
         // do użytkownika dokładnie tak samo jak publiczny.
         $posts = $user->posts()
-            ->with(['media', 'recipe', 'comments.replies.author.profile', 'comments.author.profile'])
+            ->with(['media', 'recipe', 'tags', 'comments.replies.author.profile', 'comments.author.profile'])
             ->orderByRaw('coalesce(published_at, created_at)')
             ->get();
 
@@ -187,6 +259,12 @@ final class CollectUserExportData
             'utworzono' => $this->date($post->created_at),
             'opublikowano' => $this->date($post->published_at),
             'dotyczy_przepisu' => $post->recipe?->title,
+            'tagi' => $post->tags->map(fn ($tag): array => [
+                'id' => $tag->getKey(),
+                'nazwa' => $tag->name,
+                'slug' => $tag->slug,
+                'dodany_recznie' => $tag->pivot->dodany_recznie === true,
+            ])->all(),
             'zdjecia' => $post->media
                 ->map(fn ($photo) => $photos->pathFor((string) $photo->getKey()))
                 ->filter()
@@ -255,12 +333,67 @@ final class CollectUserExportData
         })->all();
     }
 
-    /** @return list<array<string, mixed>> */
+    /**
+     * Zeszyty — i OBIE rzeczy, które w nich stoją.
+     *
+     * Zeszyt przyjmuje dwa rodzaje pozycji, nie jeden: przepisy ORAZ wpisy
+     * (migracja `2026_09_06_150000_collection_items_accept_posts`, akcja
+     * `SavePostToCollection`, `docs/DATABASE.md` — „collection_items —
+     * przepisy ORAZ wpisy"). Do 8 września paczka niosła wyłącznie przepisy
+     * i robiła to po cichu: w `dane.json` nie było ani pozycji, ani liczby,
+     * ani zdania o tym, że połowy zeszytu brakuje. Człowiek, który odłożył
+     * czterdzieści cudzych zdjęć „na kiedyś", dostawał plik wyglądający na
+     * kompletny — a taki jest gorszy niż brak eksportu.
+     *
+     * ZAPISANE WPISY PRZECHODZĄ PRZEZ TĘ SAMĄ GRANICĘ CO EKRAN ZESZYTU
+     * `widoczneDla()` plus `dostepnyJakoAutor()` — dokładnie ten sam filtr,
+     * który stoi w `CollectionController::show()`, i z tego samego powodu co
+     * `visibleTo()` przy powiadomieniach niżej: **to jest ta sama granica,
+     * nie druga jej wersja.** Zeszyt to pojemnik na CUDZE treści. Wpis
+     * zapisany wtedy, gdy autor pokazywał go obserwującym, przestaje być
+     * widoczny po zaprzestaniu obserwowania — a paczka ZIP zostaje na dysku
+     * na zawsze i da się ją komuś wysłać. Wypisanie treści, której w serwisie
+     * już nie widać, byłoby trwałym wyjęciem cudzego tekstu z jego ustawień.
+     *
+     * Własne wpisy przechodzą przez ten filtr ZAWSZE, także prywatne i szkice
+     * (`Post::scopeWidoczneDla` zaczyna od `posts.author_id = widz`), więc
+     * nic swojego nikomu tu nie ubywa.
+     *
+     * ILE FILTR SCHOWAŁ — MÓWIMY WPROST, TAK JAK EKRAN
+     * `wpisow_juz_niewidocznych` jest ZAWSZE, także gdy wynosi zero — ta sama
+     * reguła co przy `zdjec_jeszcze_w_przygotowaniu` (issue #113): klucz
+     * pojawiający się tylko przy brakach zmusza czytającego do zgadywania,
+     * czy zera nie ma, bo braków nie było, czy dlatego, że paczkę zbudowała
+     * starsza wersja serwisu. Ekran zeszytu mówi „ile, nie czego" — paczka
+     * mówi to samo.
+     *
+     * CZEGO TU NIE MA: ZDJĘĆ Z ZAPISANYCH WPISÓW
+     * `ExportPhotoPlan` chodzi wyłącznie po `$user->media()`, więc zdjęcie
+     * z cudzego wpisu nie ma w paczce nazwy pliku i `pathFor()` zwróciłby dla
+     * niego `null`. To jest wybór, nie przeoczenie: paczka RODO oddaje dane
+     * TEJ osoby, a cudze zdjęcie nią nie jest — pobranie go do archiwum
+     * użytkownika wyjęłoby je z serwisu na stałe.
+     *
+     * @return list<array<string, mixed>>
+     */
     private function collections(User $user): array
     {
-        $collections = $user->collections()->with('recipes.author.profile')->orderBy('created_at')->get();
+        $collections = $user->collections()
+            ->with([
+                'recipes.author.profile',
+                'posts' => fn ($zapytanie) => $zapytanie
+                    ->widoczneDla($user)
+                    ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+                    ->with('author.profile'),
+            ])
+            // Liczba WSZYSTKICH zapisanych wpisów, bez filtra widoczności.
+            // Różnica między nią a liczbą wypisanych pozycji to dokładnie to,
+            // co filtr schował — i to jest liczba, którą paczka podaje.
+            ->withCount('posts')
+            ->orderBy('created_at')
+            ->get();
 
-        return $collections->map(fn ($collection): array => [
+        return $collections->map(fn (Collection $collection): array => [
             'nazwa' => $collection->name,
             'opis' => $collection->description,
             'widocznosc' => $collection->visibility,
@@ -272,6 +405,22 @@ final class CollectUserExportData
                 'moja_notatka' => $recipe->pivot->note ?? null,
                 'zapisano' => $this->date($recipe->pivot->created_at ?? null),
             ])->all(),
+            'wpisy' => $collection->posts->map(fn (Post $post): array => [
+                // Wpis nie ma tytułu — jego treść JEST jego tożsamością,
+                // więc skrócenie jej zostawiłoby pozycję nie do rozpoznania.
+                // Zakres jest ten sam co przy cudzych komentarzach niżej:
+                // treść, data i nazwa wyświetlana. Nigdy e-mail, nigdy
+                // identyfikator konta.
+                'tresc' => $post->body,
+                'autor' => $post->author?->displayName() ?? 'Konto usunięte',
+                'opublikowano' => $this->date($post->published_at),
+                'moja_notatka' => $post->pivot->note ?? null,
+                'zapisano' => $this->date($post->pivot->created_at ?? null),
+            ])->all(),
+            'wpisow_juz_niewidocznych' => max(
+                0,
+                (int) ($collection->posts_count ?? 0) - $collection->posts->count(),
+            ),
         ])->all();
     }
 

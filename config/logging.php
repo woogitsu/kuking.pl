@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Logging\WebhookBleduLogger;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
 use Monolog\Handler\SyslogUdpHandler;
@@ -92,6 +93,54 @@ return [
             'replace_placeholders' => true,
         ],
 
+        /*
+        |----------------------------------------------------------------------
+        | Powiadomienie o błędzie na Slacku/Discordzie (bez pakietu monitoringu)
+        |----------------------------------------------------------------------
+        |
+        | Dziś, gdy stronie wywali się 500, nikt się o tym nie dowiaduje —
+        | `docs/ROADMAP.md` §0 nazywa monitoring błędów fundamentem, a Sentry
+        | (docelowy wybór — `docs/infra/MONITORING_BLEDOW.md`) w tym środowisku
+        | pracy nie da się dziś zainstalować: `composer install` odbija się od
+        | proxy na paczkach z GitHuba, więc `composer.lock` nie da się uczciwie
+        | zaktualizować. Ten kanał NIE DOKŁADA żadnej zależności Composera —
+        | Monolog i klient HTTP Laravela są już częścią frameworka.
+        |
+        | JEDNA ZMIENNA WŁĄCZA WSZYSTKO: `LOG_BLAD_WEBHOOK_URL`. Pusta/brakująca
+        | (domyślny stan lokalnie, w CI i w testach) = kanał jest CAŁKOWICIE
+        | martwy — `WebhookBleduHandler` nie wysyła nic i niczego nie rzuca,
+        | patrz jego komentarz klasy oraz `bootstrap/app.php`, gdzie kanał jest
+        | jawnie wołany z `$exceptions->report()`. Adres bierzemy z Discorda
+        | (końcówka „Slack-Compatible Webhook") albo z prawdziwego Slacka —
+        | oba przyjmują to samo `{"text": "..."}`.
+        |
+        | DLACZEGO WŁASNY STEROWNIK `custom`, A NIE WBUDOWANY `slack`
+        | `Monolog\Handler\SlackWebhookHandler` łączy się przez `curl_init()`
+        | z pominięciem klienta HTTP Laravela (nie da się tego przechwycić
+        | `Http::fake()` w testach) i domyślnie dokleja do wiadomości CAŁY
+        | kontekst rekordu logu — czyli m.in. obiekt wyjątku z argumentami
+        | wywołań ze stosu. AGENTS.md §7 zakazuje PII w logach, a to jest
+        | jedyny log w serwisie, który wychodzi do ZEWNĘTRZNEJ usługi — więc
+        | to jest najgorsze możliwe miejsce na „chyba nic tam nie ma".
+        | `WebhookBleduHandler` buduje treść SAM, z jawnie wybranych pól
+        | wyjątku (klasa, komunikat, plik:linia, wzorzec trasy, ślad BEZ
+        | argumentów) — nic „przy okazji" nie przejdzie. Pełne uzasadnienie:
+        | komentarz klasy `App\Logging\WebhookBleduHandler`.
+        |
+        | POZIOM NA SZTYWNO `error` (wymóg: „nikt nie chce powiadomienia
+        | o każdym info"). To NIE jest gałąź do podniesienia przez `LOG_LEVEL`
+        | — ten kanał ma jeden cel i nie powinien dziedziczyć ogólnego progu
+        | logowania aplikacji.
+        |
+        */
+
+        'blad_webhook' => [
+            'driver' => 'custom',
+            'via' => WebhookBleduLogger::class,
+            'url' => env('LOG_BLAD_WEBHOOK_URL'),
+            'level' => 'error',
+        ],
+
         'papertrail' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
@@ -107,6 +156,54 @@ return [
         'stderr' => [
             'driver' => 'monolog',
             'level' => env('LOG_LEVEL', 'debug'),
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'formatter' => env('LOG_STDERR_FORMATTER'),
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
+        /*
+        |----------------------------------------------------------------------
+        | Szereg czasowy czujek — issue #598, #599
+        |----------------------------------------------------------------------
+        |
+        | POZIOM NA SZTYWNO `info`, dokładnie z tego samego powodu, dla którego
+        | `blad_webhook` ma na sztywno `error`: ten kanał ma jeden cel i nie
+        | może dziedziczyć ogólnego progu logowania aplikacji.
+        |
+        | SKĄD SIĘ WZIĄŁ. Czujki `kuking:budzet-polaczen` i `kuking:sprawdz-kolejke`
+        | pisały pomiar przez zwykłe `Log::info()`, czyli kanałem `stderr`,
+        | którego poziom bierze się z `LOG_LEVEL`. A `.railway/railway.ts`
+        | ustawia `LOG_LEVEL: isProduction ? "warning" : "debug"` — na produkcji
+        | więc `warning`. `info` jest NIŻEJ i był odrzucany, zanim cokolwiek
+        | dotarło do strumienia.
+        |
+        | Zmierzone 19.09.2026: harmonogram produkcji uruchomił czujkę o 11:25:02
+        | i 12:25:11 UTC, oba przebiegi zameldowały „DONE" (15,15 ms i 13,65 ms),
+        | a w dzienniku Railway nie ma ANI JEDNEJ linii z liczbami — przy
+        | obecnych w tej samej sekundzie innych wpisach poziomu `info`. Kod
+        | zapisujący pomiar był wdrożony (commit 7c300ccc jest przodkiem obu
+        | wdrożeń). Definicji gotowości #598 („znany peak active connections")
+        | nie dało się więc spełnić MIMO w pełni działającej czujki.
+        |
+        | DLACZEGO NIE OBNIŻENIE `LOG_LEVEL` NA PRODUKCJI. Bo to wpuściłoby do
+        | dziennika KAŻDE `info` w serwisie, żeby przepchnąć dwie linie na
+        | godzinę. Osobny kanał kosztuje mniej i nie zmienia niczego poza tymi
+        | dwiema liniami. Nie jest to też ustawienie „do zmiany w panelu":
+        | wartość pochodzi z manifestu wdrożenia w repozytorium, więc zmiana
+        | w panelu i tak rozjechałaby się z `.railway/railway.ts`.
+        |
+        | Poziomu tego kanału NIE WOLNO podnieść do `warning`: zdrowy pomiar
+        | nie jest ostrzeżeniem, a od alarmowania jest `AlarmPolaczen`
+        | i `AlarmKolejki` na kanale `blad_webhook`.
+        |
+        */
+
+        'pomiary' => [
+            'driver' => 'monolog',
+            'level' => 'info',
             'handler' => StreamHandler::class,
             'handler_with' => [
                 'stream' => 'php://stderr',

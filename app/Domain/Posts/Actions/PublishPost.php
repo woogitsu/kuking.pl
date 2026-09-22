@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace App\Domain\Posts\Actions;
 
+use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Moderation\UnansweredContent;
 use App\Domain\Notifications\Actions\NotifyUser;
-use App\Domain\Tags\Actions\ResolveTagsForPost;
+use App\Domain\Posts\PublicationAnalysisQueue;
+use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
-use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Profile;
@@ -49,7 +51,8 @@ final class PublishPost
 {
     public function __construct(
         private readonly NotifyUser $notify,
-        private readonly ResolveTagsForPost $resolveTags,
+        private readonly ResolvePostTags $resolveTags,
+        private readonly PublicationAnalysisQueue $analysisQueue,
     ) {}
 
     /**
@@ -68,49 +71,101 @@ final class PublishPost
         ?string $ip = null,
         string $displayMode = Post::DISPLAY_NORMAL,
         ?string $kluczWyslania = null,
+        ?string $questionTitle = null,
     ): Post {
         $body = $this->cleanBody($body);
+        $kind = $questionTitle === null ? Post::KIND_DISH : Post::KIND_QUESTION;
+        if ($kind === Post::KIND_QUESTION) {
+            if (! config('kuking.questions.enabled')) {
+                throw new BladDlaCzlowieka('Dodawanie pytań jest teraz niedostępne.');
+            }
+            $questionTitle = trim($questionTitle);
+            if (mb_strlen($questionTitle) < 10 || mb_strlen($questionTitle) > 180) {
+                throw new BladDlaCzlowieka('Napisz pytanie w tytule — od 10 do 180 znaków.');
+            }
+            if (count(array_unique($mediaIds)) > 1) {
+                throw new BladDlaCzlowieka('Do pytania możesz dodać jedno zdjęcie.');
+            }
+            if ($recipeId !== null || $visibility !== Post::VISIBILITY_PUBLIC) {
+                throw new BladDlaCzlowieka('Pytanie publikujemy w dziale Poradźcie, dla wszystkich.');
+            }
+        }
 
-        if ($body === null && $mediaIds === []) {
+        if ($kind === Post::KIND_DISH && $body === null && $mediaIds === []) {
             throw new BladDlaCzlowieka('Dodaj zdjęcie albo napisz kilka słów — inaczej nie ma czego opublikować.');
         }
 
-        // Bierzemy tylko zdjęcia należące do tej osoby. Bez tego ktoś mógłby
-        // podstawić cudze media_id w formularzu (IDOR).
-        $ownedMedia = Media::query()
-            ->where('owner_id', $author->getKey())
-            ->whereIn('id', $mediaIds)
-            ->pluck('id')
-            ->all();
+        // Nowe nazwy i pivoty powstają w tej samej transakcji co wpis.
+        // Odrzucony limit ani ponowione wysłanie nie zostawiają tagów-sierot.
+        $tags = [];
 
-        // Zachowujemy kolejność wybraną przez użytkownika.
-        $orderedMedia = array_values(array_filter(
-            $mediaIds,
-            static fn (string $id): bool => in_array($id, $ownedMedia, true),
-        ));
+        $trybZadany = $displayMode;
 
-        $orderedMedia = array_slice($orderedMedia, 0, (int) config('kuking.media.max_per_post'));
+        /** @var list<string> $orderedMedia zdjęcia, które NAPRAWDĘ trafiły do wpisu */
+        $orderedMedia = [];
+        $displayMode = Post::DISPLAY_NORMAL;
 
-        // Tagi (D-021, zastępują usunięty już Temat/`topic_id` z issue #31)
-        // — rozwiązywane PRZED transakcją tworzącą wpis, żeby
-        // `BladDlaCzlowieka` za zbyt wiele tagów przerwało publikację, zanim
-        // cokolwiek trafi do bazy (dokładnie tak samo jak sprawdzenie
-        // pustego wpisu wyżej).
-        $tags = $this->resolveTags->handle($tagNames);
+        $this->analysisQueue->assertCompatible();
 
-        // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu wybór nie
-        // znaczy nic — karuzela z jednym slajdem i kolaż z jednym polem to ten
-        // sam widok co „zwykle" — więc zapisujemy `normal` zamiast trzymać
-        // w bazie deklarację, której nie da się zobaczyć. Wartość spoza listy
-        // też schodzi do `normal`: baza odrzuciłaby ją CHECK-iem, a wpis, który
-        // nie zostaje opublikowany z powodu wyboru układu, to zła zamiana.
-        $displayMode = count($orderedMedia) < 2 || ! in_array($displayMode, Post::dozwoloneTrybyWyswietlania(), true)
-            ? Post::DISPLAY_NORMAL
-            : $displayMode;
+        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $kind, $questionTitle, $ip, &$tags, &$orderedMedia, &$displayMode): Post {
+            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $klucz, $kind, $questionTitle, $ip, &$tags, &$orderedMedia, &$displayMode): Post {
+                $tags = $this->resolveTags->handle($body, $tagNames);
+                if ($kind === Post::KIND_QUESTION && count($tags) > 3) {
+                    throw new BladDlaCzlowieka('Do pytania dodaj najwyżej 3 tagi, także te wpisane w opisie.');
+                }
+                /*
+                 * WYBÓR ZDJĘĆ STOI W TEJ SAMEJ TRANSAKCJI CO PRZYPIĘCIE
+                 * (issue #285, D-083).
+                 *
+                 * Przedtem to zapytanie było PRZED transakcją i bez blokady,
+                 * więc między „te zdjęcia należą do tej osoby" a `attach()`
+                 * mieściło się całe sprzątanie osieroconych zdjęć razem
+                 * z kasowaniem plików w R2. Wpis powstawał, powiązanie
+                 * znikało po cichu przez `ON DELETE CASCADE`, a jedyny
+                 * egzemplarz zdjęcia był już nie do odzyskania.
+                 *
+                 * `ZdjeciaDoPrzypiecia::zablokuj()` bierze wiersze `media`
+                 * `FOR UPDATE` w deterministycznej kolejności i sprawdza
+                 * własność DOPIERO POD BLOKADĄ. Zdjęcie przejęte w tym czasie
+                 * do skasowania po prostu nie wróci z tego zapytania: wpis
+                 * powstaje bez niego, zamiast powstać z powiązaniem, które
+                 * zaraz zniknie.
+                 *
+                 * Bramka własności zostaje tu bez zmian i jest ważniejsza niż
+                 * wyścig: bez niej ktoś podstawiłby w formularzu cudze
+                 * `media_id` (IDOR).
+                 */
+                $ownedMedia = ZdjeciaDoPrzypiecia::zablokuj((string) $author->getKey(), $mediaIds);
 
-        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $orderedMedia, $displayMode, $tags): Post {
-            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $orderedMedia, $displayMode, $tags, $klucz): Post {
-                $post = Post::create([
+                // Media przed kontem (D-103), konto przed INSERT i rozstrzygnięciem pierwszeństwa.
+                // NO KEY UPDATE serializuje publikacje, ale nie blokuje odczytów FK KEY SHARE.
+                User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
+
+                // Zachowujemy kolejność wybraną przez użytkownika —
+                // `zablokuj()` oddaje kolejność blokowania, nie formularza.
+                $orderedMedia = array_values(array_filter(
+                    $mediaIds,
+                    static fn (string $id): bool => in_array($id, $ownedMedia, true),
+                ));
+
+                $orderedMedia = array_slice($orderedMedia, 0, (int) config('kuking.media.max_per_post'));
+
+                // Sposób wyświetlania zdjęć (issue #92). Przy jednym zdjęciu
+                // wybór nie znaczy nic — karuzela z jednym slajdem i kolaż
+                // z jednym polem to ten sam widok co „zwykle" — więc
+                // zapisujemy `normal` zamiast trzymać w bazie deklarację,
+                // której nie da się zobaczyć. Wartość spoza listy też schodzi
+                // do `normal`: baza odrzuciłaby ją CHECK-iem, a wpis, który
+                // nie zostaje opublikowany z powodu wyboru układu, to zła
+                // zamiana.
+                $displayMode = count($orderedMedia) < 2 || ! in_array($trybZadany, Post::dozwoloneTrybyWyswietlania(), true)
+                    ? Post::DISPLAY_NORMAL
+                    : $trybZadany;
+
+                // `kind` i `title` NIE IDĄ przez tablicę: pole sterujące
+                // ustawia nazwana metoda (`Post::oznaczJakoPytanie()`),
+                // a tytuł jest z nim związany CHECK-iem w bazie.
+                $post = new Post([
                     'author_id' => $author->getKey(),
                     'body' => $body,
                     'visibility' => $visibility,
@@ -121,16 +176,30 @@ final class PublishPost
                     'published_at' => now(),
                 ]);
 
+                if ($kind === Post::KIND_QUESTION) {
+                    $post->oznaczJakoPytanie((string) $questionTitle);
+                }
+
+                $post->save();
+
                 foreach ($orderedMedia as $position => $mediaId) {
                     $post->media()->attach($mediaId, ['position' => $position]);
                 }
 
-                foreach ($tags as $position => $tag) {
-                    $post->tags()->attach($tag->getKey(), ['position' => $position]);
-                }
+                $post->tags()->attach($tags);
+
+                AuditLogEntry::record(
+                    action: 'post.published',
+                    actor: $author,
+                    subject: $post,
+                    metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility, 'display_mode' => $displayMode, 'tag_count' => count($tags)],
+                    ip: $ip,
+                );
+                $this->powiadomGospodarzaOPierwszymWpisie($author, $post);
+                $this->analysisQueue->push($post);
 
                 return $post;
-            });
+            }, 3);
         };
 
         try {
@@ -163,16 +232,6 @@ final class PublishPost
             // Utrata cudzego wpisu jest gorsza niż duplikat (ADR §4.3).
             $post = $zapisz(null);
         }
-
-        AuditLogEntry::record(
-            action: 'post.published',
-            actor: $author,
-            subject: $post,
-            metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility, 'display_mode' => $displayMode, 'tag_count' => count($tags)],
-            ip: $ip,
-        );
-
-        $this->powiadomGospodarzaOPierwszymWpisie($author, $post);
 
         return $post;
     }
@@ -217,29 +276,18 @@ final class PublishPost
             return;
         }
 
-        // Liczymy DOKŁADNIE DO DWÓCH: przy autorze z dwustoma wpisami
-        // pełne `count()` przelicza całą historię, żeby odpowiedzieć
-        // na pytanie „czy to pierwszy".
-        $ilePierwszych = Post::query()
-            ->where('author_id', $author->getKey())
-            ->published()
-            ->limit(2)
-            ->count();
-
-        if ($ilePierwszych !== 1) {
-            return;
-        }
-
         $nazwaGospodarza = (string) config('kuking.community.host_username');
 
-        if ($nazwaGospodarza === '') {
+        $gospodarz = $nazwaGospodarza === '' ? null : Profile::poNazwie($nazwaGospodarza)?->user;
+        $eligible = $gospodarz === null
+            ? Post::query()->publiclyVisible()->whereHas('author', fn ($query) => $query->widocznyJakoOsoba())
+            : app(UnansweredContent::class)->eligiblePosts($gospodarz);
+        if (! $eligible->whereKey($post->getKey())->exists()
+            || DB::table('first_post_events')->where('author_id', $author->getKey())->exists()) {
             return;
         }
 
-        $gospodarz = Profile::poNazwie($nazwaGospodarza)?->user;
-
-        // `NotifyUser` sam pomija sytuację, w której gospodarz jest autorem —
-        // a to jest częsty przypadek przy pierwszych dwudziestu osobach.
+        DB::table('first_post_events')->insert(['author_id' => $author->getKey(), 'post_id' => $post->getKey()]);
         if ($gospodarz === null) {
             return;
         }

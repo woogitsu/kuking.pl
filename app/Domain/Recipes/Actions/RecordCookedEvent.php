@@ -4,16 +4,17 @@ declare(strict_types=1);
 
 namespace App\Domain\Recipes\Actions;
 
+use App\Domain\Media\ZdjeciaDoPrzypiecia;
 use App\Domain\Notifications\Actions\NotifyUser;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\CookedEvent;
-use App\Models\Media;
 use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * "Ugotowałem" — zapis realnego wykonania przepisu.
@@ -24,6 +25,32 @@ use Illuminate\Support\Facades\DB;
  *  - powiadomienie autora jest OBOWIĄZKOWĄ częścią tej operacji, nie dodatkiem;
  *  - nie wymagamy zdjęcia ani żadnego pola — wystarczy sam fakt ugotowania;
  *  - ta sama osoba może zrobić to dowolnie wiele razy dla tego samego przepisu.
+ *
+ * TRZY PRZYPADKI, W KTÓRYCH POWIADOMIENIE MIMO TO NIE POWSTAJE — WYPISANE,
+ * BO SŁOWO „ZAWSZE" BEZ WYPISANYCH GRANIC JEST NIESPRAWDZALNE
+ * ---------------------------------------------------------------------
+ * Wszystkie trzy odcina `NotifyUser`, żeby nie trzeba było o nich pamiętać
+ * w dwunastu miejscach, i wszystkie trzy są zmierzone w
+ * `tests/Feature/UgotowalemZawszePowiadamiaAutoraTest.php`, każdy z kontrolą
+ * dodatnią obok:
+ *
+ *  1. AUTOR UGOTOWAŁ WŁASNY PRZEPIS. `RecipePolicy::cook()` na to pozwala
+ *     (ludzie gotują swoje przepisy i chcą mieć ślad), ale wiadomość o
+ *     własnej akcji nie niesie żadnej informacji.
+ *  2. KONTO AUTORA JEST ZAMKNIĘTE — `banned`, `pending_delete` albo `erased`
+ *     (`User::mozeCzytac()`). Przy dwóch pierwszych wykonanie i tak nie
+ *     powstaje, bo przepis takiego konta jest niewidoczny; przy `erased`
+ *     powstaje i ZOSTAJE (to dorobek kucharza), a powiadomienia nie ma, bo
+ *     nie ma komu go przeczytać. ZAWIESZENIE TU NIE WCHODZI: zawieszony
+ *     autor powiadomienie dostaje.
+ *  3. MIĘDZY AUTOREM A KUCHARZEM JEST BLOKADA, w którąkolwiek stronę — ale
+ *     wtedy `Gate::denies('cook')` wyżej i tak nie dopuszcza wykonania, więc
+ *     ten warunek w `NotifyUser` jest dla tej ścieżki drugą linią, nie
+ *     pierwszą.
+ *
+ * Czego na tej liście NIE MA i mieć nie ma: ustawienia użytkownika. Jedyna
+ * zgoda, jaką człowiek tu przestawia, dotyczy TYGODNIOWEGO LISTU
+ * (`users.wants_weekly_digest`) i powiadomień w serwisie nie dotyka.
  *
  * JEDNO WYSŁANIE FORMULARZA TO JEDNO WYKONANIE I JEDNO POWIADOMIENIE (ADR
  * `docs/decyzje/ADR_IDEMPOTENCJA_FORMULARZY.md`, wariant A3).
@@ -67,22 +94,59 @@ final class RecordCookedEvent
             throw new BladDlaCzlowieka('Tego przepisu nie ma jeszcze opublikowanego.');
         }
 
-        if ($cook->hasBlockRelationWith($recipe->author)) {
+        /*
+         * AUTORYZACJA STOI TU, A NIE TYLKO W KONTROLERZE (audyt G12).
+         *
+         * `AGENTS.md` §7 mówi „UUID w adresie to nie autoryzacja — każde
+         * wejście przez Policy". Litera mówi o adresie, sens jest szerszy:
+         * o tym, kto może ugotować dany przepis, rozstrzyga
+         * `RecipePolicy`, a nie to, kto akurat wywołuje akcję.
+         *
+         * Przedtem stała tu wyłącznie kontrola blokady. Wywołane wprost,
+         * `handle()` zapisywało wykonanie cudzego przepisu `private` mimo
+         * `RecipePolicy::cook` na „nie". Publicznego IDOR-a to nie dawało,
+         * bo kontroler autoryzuje żądanie osobno — usterka polegała na
+         * tym, że reguła stała w JEDNYM miejscu zamiast w warstwie, do
+         * której sięgnie następne polecenie konsolowe, zadanie w kolejce
+         * albo import.
+         *
+         * Gate zastępuje kontrolę blokady, a nie stoi obok niej:
+         * `RecipePolicy::view` sprawdza blokadę po drodze, więc osobny
+         * warunek byłby drugą kopią tej samej reguły — dokładnie tym
+         * rodzajem rozjazdu, który dał G12. Sprawdzenie `isPublished()`
+         * ZOSTAJE wyżej i osobno, bo Policy wpuszcza autora na jego własny
+         * szkic, a wykonania szkicu zapisywać nie chcemy.
+         *
+         * Komunikat celowo nie mówi, CZEGO zabrakło. „Ten przepis jest
+         * prywatny" potwierdzałoby istnienie przepisu komuś, kto nie ma
+         * prawa o tym wiedzieć — ta sama zasada, dla której komunikat
+         * blokady był tu wcześniej nieokreślony.
+         */
+        if (Gate::forUser($cook)->denies('cook', $recipe)) {
             throw new BladDlaCzlowieka('Nie można dodać wykonania do tego przepisu.');
         }
 
-        $ownedMedia = Media::query()
-            ->where('owner_id', $cook->getKey())
-            ->whereIn('id', $mediaIds)
-            ->pluck('id')
-            ->all();
-
         $zapisz = function (?string $klucz) use (
-            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia
+            $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ip
         ): CookedEvent {
             return DB::transaction(function () use (
-                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $ownedMedia, $klucz
+                $cook, $recipe, $note, $wouldMakeAgain, $perceivedDifficulty, $actualMinutes, $changesNote, $mediaIds, $klucz, $ip
             ): CookedEvent {
+                /*
+                 * ZDJĘCIA WYBIERANE POD BLOKADĄ, W TEJ SAMEJ TRANSAKCJI
+                 * (issue #285, D-083).
+                 *
+                 * Ta sama luka co w `PublishPost`: własność sprawdzana PRZED
+                 * transakcją, zwykłym `SELECT`-em, a przypięcie kilka linijek
+                 * dalej. Sprzątacz osieroconych zdjęć mieścił się w środku
+                 * razem z kasowaniem plików, a `cooked_event_media.media_id`
+                 * kasuje się kaskadowo — więc wykonanie zostawało bez zdjęcia
+                 * i bez pliku. „Ugotowałem" jest w tym produkcie ważniejsze
+                 * niż lajk, a zdjęcie z tego wykonania bywa jedynym, jakie
+                 * ta osoba ma.
+                 */
+                $ownedMedia = ZdjeciaDoPrzypiecia::zablokuj((string) $cook->getKey(), $mediaIds);
+
                 $event = CookedEvent::create([
                     'user_id' => $cook->getKey(),
                     'recipe_id' => $recipe->getKey(),
@@ -106,6 +170,50 @@ final class RecordCookedEvent
                     $position++;
                 }
 
+                /*
+                 * POWIADOMIENIE STOI W TEJ SAMEJ TRANSAKCJI, I TO NIE JEST
+                 * KOSMETYKA (audyt zewnętrzny G04).
+                 *
+                 * Przedtem transakcja kończyła się na wierszu wykonania,
+                 * a powiadomienie szło po niej. Jednorazowa awaria zapisu
+                 * powiadomienia zostawiała więc wykonanie bez wiadomości —
+                 * i, co gorsze, ponowienie tego samego formularza odbijało
+                 * się o `cooked_events_one_per_klucz_wyslania`, znajdowało
+                 * istniejące wykonanie i wychodziło PRZED powiadomieniem.
+                 * Autor przepisu nie dowiadywał się nigdy, a kucharz nie
+                 * miał jak tego naprawić.
+                 *
+                 * Docblock tej klasy mówi „powiadomienie autora jest
+                 * OBOWIĄZKOWĄ częścią tej operacji, nie dodatkiem", a
+                 * AGENTS.md §1 mówi „ZAWSZE powiadamia autora przepisu".
+                 * Jedno wspólne `DB::transaction` jest jedynym sposobem,
+                 * żeby to była prawda, a nie deklaracja.
+                 *
+                 * Wpis audytowy jest tu z tego samego powodu: audyt
+                 * mówiący o wykonaniu, którego nie ma w bazie, jest gorszy
+                 * niż brak wpisu.
+                 */
+                $this->notify->handle(
+                    recipient: $recipe->author,
+                    type: Notification::TYPE_COOKED,
+                    actor: $cook,
+                    data: [
+                        'recipe_id' => $recipe->getKey(),
+                        'recipe_title' => $recipe->title,
+                        'recipe_slug' => $recipe->slug,
+                        'cooked_event_id' => $event->getKey(),
+                        'has_photo' => $event->media()->exists(),
+                    ],
+                );
+
+                AuditLogEntry::record(
+                    action: 'cooked_event.created',
+                    actor: $cook,
+                    subject: $event,
+                    metadata: ['recipe_id' => $recipe->getKey()],
+                    ip: $ip,
+                );
+
                 return $event;
             });
         };
@@ -121,8 +229,14 @@ final class RecordCookedEvent
             }
 
             // Indeks `cooked_events_one_per_klucz_wyslania` odbił wiersz: to
-            // wysłanie już raz zapisało wykonanie. Zwracamy TO wykonanie —
-            // i, co ważniejsze, wychodzimy PRZED powiadomieniem autora.
+            // wysłanie już raz zapisało wykonanie. Zwracamy TO wykonanie
+            // i nie powiadamiamy drugi raz.
+            //
+            // Wolno tak wyjść dopiero od naprawy G04. Skoro wiersz istnieje,
+            // to znaczy, że jego transakcja się ZAKOŃCZYŁA — a w tej samej
+            // transakcji stoi powiadomienie. Wcześniej „wiersz jest" nie
+            // dowodziło niczego o powiadomieniu i właśnie tędy gubiła się
+            // wiadomość do autora.
             $istniejace = $this->wykonanieZTegoWyslania($cook, $kluczWyslania);
 
             if ($istniejace !== null) {
@@ -134,27 +248,6 @@ final class RecordCookedEvent
             // duplikatu (ADR §4.3).
             $event = $zapisz(null);
         }
-
-        $this->notify->handle(
-            recipient: $recipe->author,
-            type: Notification::TYPE_COOKED,
-            actor: $cook,
-            data: [
-                'recipe_id' => $recipe->getKey(),
-                'recipe_title' => $recipe->title,
-                'recipe_slug' => $recipe->slug,
-                'cooked_event_id' => $event->getKey(),
-                'has_photo' => $event->media()->exists(),
-            ],
-        );
-
-        AuditLogEntry::record(
-            action: 'cooked_event.created',
-            actor: $cook,
-            subject: $event,
-            metadata: ['recipe_id' => $recipe->getKey()],
-            ip: $ip,
-        );
 
         return $event;
     }

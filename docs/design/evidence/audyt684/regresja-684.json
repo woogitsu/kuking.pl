@@ -1,0 +1,50 @@
+[
+  {
+    "okno": "320x512",
+    "sposob": "kolko",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  },
+  {
+    "okno": "320x512",
+    "sposob": "dotyk",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  },
+  {
+    "okno": "320x420",
+    "sposob": "kolko",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  },
+  {
+    "okno": "320x420",
+    "sposob": "dotyk",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  },
+  {
+    "okno": "384x512",
+    "sposob": "kolko",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  },
+  {
+    "okno": "384x512",
+    "sposob": "dotyk",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  },
+  {
+    "okno": "390x520",
+    "sposob": "kolko",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  },
+  {
+    "okno": "390x520",
+    "sposob": "dotyk",
+    "ustapila": true,
+    "wrocilaPoOdswiezeniu": true
+  }
+]

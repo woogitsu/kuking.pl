@@ -250,16 +250,107 @@ class RetencjaPowiadomienTest extends TestCase
     }
 
     /**
-     * Lista wyjątków jest ZAMKNIĘTA i ma dokładnie jedną pozycję — ani
-     * mniej (dziura w ochronie prawa do odwołania), ani więcej bez
-     * zmierzonego powodu.
+     * Lista wyjątków jest ZAMKNIĘTA — ani krótsza (dziura w ochronie prawa
+     * do odwołania), ani dłuższa bez zmierzonego powodu.
+     *
+     * DWIE POZYCJE OD ISSUE #10, nie jedna. Doszła `report.decided`:
+     * odpowiedź dla ZGŁASZAJĄCEGO wraz z pouczeniem o dostępnych środkach
+     * (DSA art. 16 ust. 5). Powód jest ten sam co przy `moderation.decision`
+     * — trzymiesięczna retencja jest krótsza niż sześciomiesięczny termin,
+     * w którym decyzja pozostaje zaskarżalna, a to powiadomienie jest
+     * jedynym miejscem, gdzie zgłaszający przeczyta pouczenie drugi raz.
+     *
+     * `report.received` (potwierdzenie przyjęcia) NA LIŚCIE NIE JEST i to
+     * też jest mierzone niżej — pełne uzasadnienie stoi przy samej stałej.
      */
-    public function test_lista_wyjatkow_ma_dokladnie_jedna_pozycje(): void
+    public function test_lista_wyjatkow_ma_dokladnie_dwie_pozycje(): void
     {
         $this->assertSame(
-            [Notification::TYPE_MODERATION],
+            [Notification::TYPE_MODERATION, Notification::TYPE_REPORT_DECIDED],
             Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA,
         );
+
+        $this->assertNotContains(
+            Notification::TYPE_REPORT_RECEIVED,
+            Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA,
+            'Potwierdzenie przyjęcia nie ma terminu odwołania, którym można je mierzyć — '
+            .'na tej liście wisiałoby wiecznie, produkując ostrzeżenie przy każdym sprzątaniu.',
+        );
+    }
+
+    /**
+     * ODPOWIEDŹ DLA ZGŁASZAJĄCEGO (issue #10) chodzi tym samym mechanizmem
+     * co decyzja dla autora — i to jest cały powód, dla którego `data` niesie
+     * `action_id`.
+     *
+     * Sama obecność typu na liście wyjątków niczego nie dowodzi: gdyby
+     * `NotifyReporterDecision` przestało zapisywać `action_id`, typ dalej
+     * byłby na liście, a `terminOchronyOdwolawczej()` zwracałoby `null`
+     * i wiersz wisiałby w `bezPowiazanejDecyzji` zamiast być realnie
+     * chroniony terminem. Ten test mierzy ochronę, nie deklarację.
+     */
+    public function test_odpowiedz_dla_zglaszajacego_zyje_do_terminu_odwolania(): void
+    {
+        config(['kuking.notifications.retention_months' => 3]);
+        $basia = $this->user('basia');
+        $moderator = $this->moderator();
+
+        // Cztery miesiące temu: po ogólnym progu (3), przed terminem
+        // odwołania (co najmniej 6 miesięcy od decyzji).
+        $swieza = $this->decyzja($moderator, now()->subMonths(4));
+        $chroniona = $this->powiadomienie(
+            $basia->getKey(),
+            now()->subMonths(4),
+            type: Notification::TYPE_REPORT_DECIDED,
+            data: ['report_id' => (string) Str::uuid(), 'action_id' => $swieza->getKey()],
+        );
+
+        // Rok temu: termin odwołania od tej decyzji już minął, więc
+        // powiadomienie wraca do bycia zwykłym kandydatem do usunięcia.
+        $stara = $this->decyzja($moderator, now()->subYear());
+        $przedawniona = $this->powiadomienie(
+            $basia->getKey(),
+            now()->subYear(),
+            type: Notification::TYPE_REPORT_DECIDED,
+            data: ['report_id' => (string) Str::uuid(), 'action_id' => $stara->getKey()],
+        );
+
+        $raport = (new PrzedawnionePowiadomienia)->posprzataj(3);
+
+        $this->assertSame(1, $raport->zatrzymaneTerminemOdwolania);
+        $this->assertSame(1, $raport->usunieteModeracyjne);
+        $this->assertSame(0, $raport->bezPowiazanejDecyzji);
+        $this->assertDatabaseHas('notifications', ['id' => $chroniona->getKey()]);
+        $this->assertDatabaseMissing('notifications', ['id' => $przedawniona->getKey()]);
+    }
+
+    /**
+     * POTWIERDZENIE PRZYJĘCIA stoi po DRUGIEJ stronie tej granicy i to też
+     * jest decyzja, nie przeoczenie (patrz
+     * `Notification::WYDLUZONA_RETENCJA_DO_TERMINU_ODWOLANIA`). Nie niesie
+     * decyzji ani pouczenia, więc nie ma terminu, którym można je mierzyć —
+     * a trwałym zapisem sprawy jest wiersz w `reports` (36 miesięcy) i ekran
+     * `/zgloszenia`, nie ten wpis.
+     */
+    public function test_potwierdzenie_przyjecia_idzie_ogolnym_okresem(): void
+    {
+        config(['kuking.notifications.retention_months' => 3]);
+        $basia = $this->user('basia');
+
+        $stare = $this->powiadomienie(
+            $basia->getKey(),
+            now()->subMonths(4),
+            type: Notification::TYPE_REPORT_RECEIVED,
+            data: ['report_id' => (string) Str::uuid(), 'numer_sprawy' => 'KU-2345-6789'],
+        );
+
+        $raport = (new PrzedawnionePowiadomienia)->posprzataj(3);
+
+        $this->assertSame(1, $raport->usunieteZwykle);
+        // NIE trafiło do gałęzi „bez powiązanej decyzji" — tam wisiałoby
+        // wiecznie, produkując ostrzeżenie przy każdym sprzątaniu.
+        $this->assertSame(0, $raport->bezPowiazanejDecyzji);
+        $this->assertDatabaseMissing('notifications', ['id' => $stare->getKey()]);
     }
 
     public function test_komenda_retencji_respektuje_wyjatek_moderacyjny(): void

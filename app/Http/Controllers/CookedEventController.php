@@ -37,7 +37,7 @@ class CookedEventController extends Controller
      * można kliknąć raz i wysłać, ale kto chce dopisać coś swojego, nie musi
      * kasować gotowego tekstu i zaczynać od zera.
      */
-    private const DOMYSLNE_PODZIEKOWANIE = 'Dziękuję, że ugotowałeś/aś mój przepis! Cieszę się, że wyszło.';
+    private const DOMYSLNE_PODZIEKOWANIE = 'Dziękuję za ugotowanie mojego przepisu. Cieszę się, że wyszło.';
 
     public function __construct(
         private readonly RecordCookedEvent $record,
@@ -125,10 +125,30 @@ class CookedEventController extends Controller
             'photos.*.max' => LimityZdjec::komunikatZaDuzyPlik(),
             'photos.max' => LimityZdjec::komunikatZaDuzoZdjec(),
             'note.max' => 'Ta uwaga jest za długa. Zmieść się w 2000 znakach.',
+            'changes_note.max' => 'To jest za długie. Zmieść się w 1000 znakach.',
             // `in` ma mówić, CO WYBRAĆ, nie że „wybrana wartość jest
             // nieprawidłowa" (issue #86) — to pole renderuje się jako
             // trzy przyciski, więc zdanie wymienia dokładnie te trzy.
             'perceived_difficulty.in' => 'Wybierz, jak trudny był ten przepis: łatwy, średni albo trudny.',
+            /*
+             * TRZY KOMUNIKATY DOPISANE PRZY PRZEGLĄDZIE KOMUNIKATÓW.
+             *
+             * `would_make_again` bez własnego zdania dostawał szablon ogólny
+             * reguły `boolean` z nazwą pola z `attributes` — a ta nazwa sama
+             * zawierała cudzysłów drukarski, więc na ekran szło zdanie
+             * z cudzysłowem w cudzysłowie: „Pole «odpowiedź «zrobię jeszcze
+             * raz»» przyjmuje tylko wartość tak/nie." Zmierzone prawdziwym
+             * żądaniem. Nie mówiło też, co zrobić — a na ekranie stoją dwa
+             * przyciski z konkretnymi napisami i to je wymienia nowe zdanie.
+             *
+             * `actual_minutes` mówił „musi być nie mniejsze niż 0" i nazywał
+             * pole „rzeczywisty czas gotowania", choć etykieta na ekranie
+             * brzmi „Ile Ci to zajęło (w minutach)".
+             */
+            'would_make_again.boolean' => 'Zaznacz jedną z odpowiedzi: „Tak, zrobię ponownie” albo „Raczej nie powtórzę”.',
+            'actual_minutes.integer' => 'Wpisz sam czas w minutach, samymi cyframi — na przykład 90.',
+            'actual_minutes.min' => 'Czas nie może być ujemny. Wpisz liczbę minut, na przykład 90.',
+            'actual_minutes.max' => 'Ten czas jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',
         ]);
 
         $user = $request->user();
@@ -172,22 +192,19 @@ class CookedEventController extends Controller
         }
 
         // DRUGIE KLIKNIĘCIE „WYŚLIJ" — wykonanie jest to samo, co przy
-        // pierwszym, a autor przepisu dostał JEDNO powiadomienie. Komunikat
-        // mówi to wprost, bo to jest ta informacja, o którą człowiek się
-        // niepokoi, i pokazuje drogę do zapisania drugiego, prawdziwego
-        // gotowania (D-005 zostaje nienaruszone).
+        // pierwszym. Komunikat potwierdza zapis i drogę do kolejnego
+        // gotowania (D-005). Nie obiecuje powiadomienia: własne wykonanie
+        // i autor, który nie może czytać, mają świadome wyjątki (AGENTS §1).
         if (! $event->wasRecentlyCreated) {
             return redirect()->route('cooked.show', $event)->with(
                 'status',
-                'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
-                .'Gotowałeś ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
+                'To wykonanie już zapisaliśmy. '
+                .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
             );
         }
 
-        $authorName = $model->author->displayName();
-
         return redirect()->route('cooked.show', $event)->with('status',
-            "Zapisane. {$authorName} dowie się, że ktoś ugotował z tego przepisu.",
+            'Wykonanie zapisane.',
         );
     }
 
@@ -288,7 +305,7 @@ class CookedEventController extends Controller
 
         return redirect()->route('cooked.show', $cookedEvent)->with(
             'status',
-            $cookedEvent->user->displayName().' dowie się, że podziękowałaś/eś za wykonanie.',
+            $cookedEvent->user->displayName().' dostanie Twoje podziękowanie.',
         );
     }
 
@@ -301,29 +318,38 @@ class CookedEventController extends Controller
             'parent_id' => ['nullable', 'uuid'],
         ], [
             'body.required' => 'Napisz coś, zanim wyślesz komentarz.',
+            // TEN SAM KOMUNIKAT CO POD WPISEM. Bez tej linii zostawał
+            // domyślny tekst frameworka („Pole «treść» jest za długie — może
+            // mieć najwyżej 4000 znaków"), czyli inny głos i inne słowo na
+            // to samo pole na sąsiednim ekranie.
+            'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
+
+        // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
+        // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
+        // pola (czyli każdy spoza naszego formularza, który zawsze wysyła
+        // puste) kończył się błędem „Undefined array key", czyli 500 zamiast
+        // komentarza.
+        $parentId = $data['parent_id'] ?? null;
 
         try {
             $this->publishComment->handle(
                 author: $request->user(),
                 subject: $cookedEvent,
                 body: $data['body'],
-                // `?? null`, bo `validate()` NIE zwraca klucza, którego
-                // w żądaniu nie było — a `parent_id` jest `nullable`.
-                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
-                // formularza, który zawsze wysyła puste) kończył się błędem
-                // „Undefined array key", czyli 500 zamiast komentarza.
-                //
                 // `widoczneDla()` — audyt W7-06. Bez tego można było podać
                 // UUID komentarza ukrytego przez blokadę i podpiąć się pod
                 // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
                 // kontrolerów jest kilka.
-                parent: ($data['parent_id'] ?? null) === null
+                parent: $parentId === null
                     ? null
                     : $cookedEvent->comments()
                         ->widoczneDla($request->user())
-                        ->whereKey($data['parent_id'])
+                        ->whereKey($parentId)
                         ->first(),
+                // ISSUE #761: patrz komentarz przy tym samym parametrze
+                // w PostController::comment().
+                parentRequested: $parentId !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);

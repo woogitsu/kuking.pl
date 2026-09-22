@@ -103,12 +103,11 @@ class KazdaDrogaPrzyjmujeTeSameFormatyTest extends TestCase
         $basia = $this->user('basia');
 
         $this->actingAs($basia)
-            ->from(route('settings.profile'))
-            // Trasa PUT bez nazwy — adres wprost, żeby test nie zależał od
-            // tego, czy ktoś nazwie ją w przyszłości.
-            ->put('/ustawienia/profil', [
-                'display_name' => (string) $basia->profile?->display_name,
-                'username' => (string) $basia->profile?->username,
+            ->from(route('settings.avatar'))
+            // Zdjęcie profilowe ma własny ekran: `/ustawienia/zdjecie`.
+            // Formularz profilu nie przyjmuje już pliku w ogóle, więc ta
+            // droga NIE jest drugą obok tamtej — jest tą samą, przeniesioną.
+            ->post(route('settings.avatar.update'), [
                 'avatar' => $this->zdjecie($format),
             ])
             ->assertSessionHasNoErrors();

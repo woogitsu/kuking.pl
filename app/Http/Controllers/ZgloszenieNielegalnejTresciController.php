@@ -7,8 +7,12 @@ namespace App\Http\Controllers;
 use App\Domain\Moderation\Actions\ZglosNielegalnaTresc;
 use App\Models\Recipe;
 use App\Models\Report;
+use App\Rules\TurnstileJestPotwierdzony;
+use App\Support\FormConfirmation;
+use App\Support\Turnstile;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Str;
 use Illuminate\View\View;
 
@@ -36,7 +40,7 @@ use Illuminate\View\View;
  */
 class ZgloszenieNielegalnejTresciController extends Controller
 {
-    public function __construct(private readonly ZglosNielegalnaTresc $zglos) {}
+    public function __construct(private readonly ZglosNielegalnaTresc $zglos, private readonly FormConfirmation $receipts) {}
 
     public function create(): View
     {
@@ -108,6 +112,21 @@ class ZgloszenieNielegalnejTresciController extends Controller
             'reason' => ['required', 'string', 'in:'.implode(',', array_keys(Report::REASONS))],
             'illegality_explanation' => ['required', 'string', 'min:20', 'max:5000'],
             'good_faith' => ['accepted'],
+            /*
+             * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
+             *
+             * Brak tokenu ODRZUCA (decyzja właściciela z 9 września 2026:
+             * w tych sześciu newralgicznych miejscach JavaScript jest
+             * obowiązkowy). `required` tu nie stoi i nie dokładaj go:
+             * obecność pola pilnuje `$implicit` w regule, a laravelowy
+             * komunikat mówiłby o „polu cf-turnstile-response".
+             *
+             * Razem z tym idzie `<noscript>` w widoku i osobny komunikat dla
+             * przypadku „skrypt się nie dociągnął" — bez nich zaciśnięcie
+             * zostawia ludzi przed martwym przyciskiem.
+             * `App\Rules\TurnstileJestPotwierdzony`.
+             */
+            Turnstile::POLE => TurnstileJestPotwierdzony::reguly('zgloszenie_nielegalnej_tresci'),
         ], [
             'notifier_email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
             'target_url.required' => 'Wklej adres strony, na której jest ta treść.',
@@ -132,14 +151,18 @@ class ZgloszenieNielegalnejTresciController extends Controller
 
         $numer = $zgloszenie->numer_sprawy;
 
-        return redirect()->route('zglos.nielegalna.potwierdzenie')->with('numer', $numer);
+        $receipt = $this->receipts->issue($request, 'zgloszenie', ['number' => $numer]);
+
+        return redirect()->route('zglos.nielegalna.potwierdzenie', ['potwierdzenie' => $receipt]);
     }
 
-    public function confirmation(Request $request): View
+    public function confirmation(Request $request): Response
     {
-        return view('pages.zglos-nielegalna-tresc-potwierdzenie', [
-            'numer' => $request->session()->get('numer'),
-        ]);
+        $receipt = $this->receipts->read($request, 'zgloszenie');
+
+        return response()->view('pages.zglos-nielegalna-tresc-potwierdzenie', [
+            'numer' => $receipt['number'] ?? null,
+        ])->header('Cache-Control', 'private, no-store');
     }
 
     /**

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Analytics\ZapiszSygnal;
 use App\Domain\Media\Actions\StoreUploadedImage;
+use App\Models\ProductSignal;
 use App\Support\LimityZdjec;
+use App\Support\RozpoznanieZdjecia;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Facades\Storage;
@@ -58,7 +61,22 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
             'image/avif' => (bool) ($gd['AVIF Support'] ?? false),
         ];
 
-        foreach (LimityZdjec::dozwoloneTypy() as $mime) {
+        $dozwolone = LimityZdjec::dozwoloneTypy();
+
+        // ASERCJA KONTROLNA. Cała pętla niżej to zero iteracji, gdy lista
+        // dozwolonych typów jest pusta — a pusta bywa nie tylko „nigdy":
+        // `dozwoloneTypy()` czyta `config('kuking.media.accepted_mime_types')`,
+        // więc wystarczy przeniesiony albo przemianowany klucz konfiguracji.
+        // Zmierzone: po podmianie tego klucza na pustą tablicę ten test —
+        // opisany we własnym komentarzu jako najważniejszy w pliku — był
+        // dalej zielony, nie sprawdzając ani jednego formatu.
+        $this->assertNotEmpty(
+            $dozwolone,
+            'Lista dozwolonych formatów jest pusta — ten test nie sprawdza wtedy niczego, '.
+            'a formularze wysyłki zdjęć nie proponują żadnego formatu.',
+        );
+
+        foreach ($dozwolone as $mime) {
             $this->assertArrayHasKey(
                 $mime,
                 $obslugaGd,
@@ -122,12 +140,29 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
         }
     }
 
-    public function test_zdjecie_z_iphone_a_dostaje_komunikat_mowiacy_co_zrobic(): void
+    /**
+     * Prawdziwe pudełko `ftyp` marki `heic` — TYLE, ILE CZYTA `mime_content_type()`.
+     *
+     * PUŁAPKA, PRZED KTÓRĄ TO CHRONI (issue #119, zadanie wprost o niej
+     * ostrzega): plik o rozszerzeniu `.heic`, w którym leżą bajty JPEG, nie
+     * mierzy niczego — `RozpoznanieZdjecia` i tak nie patrzy na rozszerzenie.
+     * Ten plik ma PRAWDZIWE magic bytes formatu HEIC (ISO BMFF, marka
+     * kompatybilności `heic`), więc `getimagesize()` zawodzi i
+     * `mime_content_type()` naprawdę rozpoznaje go jako `image/heic` —
+     * dokładnie tę samą drogę, którą przejdzie plik z iPhone'a.
+     */
+    private static function sciezkaHeic(): string
     {
-        // Plik z pudełkiem `ftyp` marki `heic` — tyle, ile czyta `mime_content_type`.
         $sciezka = tempnam(sys_get_temp_dir(), 'heic').'.heic';
         $pudelko = 'ftyp'.'heic'.pack('N', 0).'heic'.'mif1';
         file_put_contents($sciezka, pack('N', strlen($pudelko) + 4).$pudelko.str_repeat("\0", 512));
+
+        return $sciezka;
+    }
+
+    public function test_zdjecie_z_iphone_a_dostaje_komunikat_mowiacy_co_zrobic(): void
+    {
+        $sciezka = self::sciezkaHeic();
 
         $this->assertSame(
             'image/heic',
@@ -152,6 +187,76 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
         } finally {
             @unlink($sciezka);
         }
+
+        // D-064 / issue #119: HEIC dostaje WŁASNY kod powodu w sygnale
+        // `photo_upload_failed`, nie ogólne `not_an_image` — inaczej nie da
+        // się z `product_signals` odpowiedzieć na pytanie „ile zdjęć odpada
+        // dziś na HEIC w praktyce" (kryterium akceptacji #119).
+        $sygnal = ProductSignal::query()->where('signal_name', ZapiszSygnal::PHOTO_UPLOAD_FAILED)->sole();
+
+        $this->assertSame(RozpoznanieZdjecia::POWOD_HEIC_NIEOBSLUGIWANY, $sygnal->properties['reason'] ?? null);
+        $this->assertNotSame(
+            RozpoznanieZdjecia::POWOD_NIECZYTELNY,
+            $sygnal->properties['reason'] ?? null,
+            'HEIC zapisał się pod ogólnym kodem "not_an_image" — nie da się go już odróżnić '
+            .'od zwykłego uszkodzonego pliku w statystykach.',
+        );
+    }
+
+    /**
+     * Ta sama próba, ale PRAWDZIWYM formularzem (`posts.store`), nie
+     * bezpośrednim wywołaniem akcji domenowej — czyli drogą `ObslugiwaneZdjecie`
+     * w walidacji, tą samą, którą przechodzi każde zdjęcie wysłane z telefonu.
+     *
+     * Bez tego testu HEIC miał sprawdzoną tylko JEDNĄ z dwóch dróg (patrz
+     * `ObslugiwaneZdjecie` — reguła pyta o to samo co `StoreUploadedImage`,
+     * ale osobnym kodem), a to jest droga, którą naprawdę przechodzi każdy
+     * wpis wysłany z formularza „Co dziś ugotowałeś?" — czyli głównej akcji
+     * produktu.
+     */
+    public function test_zdjecie_heic_wyslane_prawdziwym_formularzem_odpada_przy_polu_z_wyjasnieniem(): void
+    {
+        $sciezka = self::sciezkaHeic();
+        $basia = $this->user('basia');
+
+        try {
+            $odpowiedz = $this->actingAs($basia)
+                ->from(route('posts.create'))
+                ->post(route('posts.store'), [
+                    'body' => 'Sernik wyszedł idealnie.',
+                    'visibility' => 'public',
+                    'photos' => [new UploadedFile($sciezka, 'sernik.heic', 'image/heic', null, true)],
+                ]);
+
+            // Błąd stoi PRZY POLU (docs/UX_50_PLUS.md), nie tylko ogólnie
+            // przy `photos` — inaczej przy kilku wybranych zdjęciach człowiek
+            // nie wiedziałby, które odpadło.
+            $odpowiedz->assertSessionHasErrors('photos.0');
+            $odpowiedz->assertRedirect(route('posts.create'));
+
+            $bledy = $odpowiedz->baseResponse->getSession()->get('errors');
+            $komunikat = (string) $bledy->get('photos.0')[0];
+
+            $this->assertStringContainsString('HEIC', $komunikat);
+            $this->assertStringContainsString('Najbardziej zgodny', $komunikat);
+            $this->assertStringNotContainsString('nie wygląda na zdjęcie', $komunikat);
+
+            // Poprawnie wpisany tekst NIE ZNIKA po nieudanej walidacji
+            // (docs/UX_50_PLUS.md: `old()`) — inaczej człowiek, który napisał
+            // kilka zdań o obiedzie, traci je tylko dlatego, że telefon
+            // wybrał złe zdjęcie.
+            $odpowiedz->assertSessionHas('_old_input.body', 'Sernik wyszedł idealnie.');
+
+            // Zdjęcie NIE LĄDUJE jako pusta ramka ani jako `rejected` bez
+            // wyjaśnienia (zadanie #119 wprost) — bo w ogóle nie dociera do
+            // `StoreUploadedImage`: żaden wiersz `media` nie powstaje.
+            $this->assertDatabaseCount('media', 0);
+        } finally {
+            @unlink($sciezka);
+        }
+
+        $sygnal = ProductSignal::query()->where('signal_name', ZapiszSygnal::PHOTO_UPLOAD_FAILED)->sole();
+        $this->assertSame(RozpoznanieZdjecia::POWOD_HEIC_NIEOBSLUGIWANY, $sygnal->properties['reason'] ?? null);
     }
 
     public function test_plik_ktory_naprawde_nie_jest_zdjeciem_dalej_odpada(): void
