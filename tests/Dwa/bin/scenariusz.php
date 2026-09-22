@@ -99,6 +99,21 @@ try {
             return ['code' => $code, 'output' => $output->fetch()];
         })(),
 
+        'zapis-do-zeszytu' => (function () use ($argumenty): string {
+            $save = function () use ($argumenty): string {
+                $user = User::query()->findOrFail($argumenty['kto']);
+                $collection = $argumenty['typ'] === 'recipe'
+                    ? app(SaveRecipeToCollection::class)->handle($user, Recipe::query()->findOrFail($argumenty['tresc']))
+                    : app(SavePostToCollection::class)->handle($user, Post::query()->findOrFail($argumenty['tresc']));
+
+                return (string) $collection->getKey();
+            };
+
+            // Transakcja zewnętrzna sprawdza, czy konflikt INSERT nie zostawia
+            // połączenia w stanie 25P02 i pozwala dopisać zamówioną treść.
+            return ($argumenty['transakcja'] ?? '0') === '1' ? DB::transaction($save) : $save();
+        })(),
+
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
