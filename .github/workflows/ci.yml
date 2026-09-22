@@ -1093,10 +1093,29 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
+        with:
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1193,10 +1212,29 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
+        with:
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1326,12 +1364,31 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą
       # i sprawdzić, CZY ten PR w ogóle rusza warstwę widoku.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
+        with:
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       # Dynamiczny port Postgresa — pełne uzasadnienie i pomiary przy tym
       # samym kroku w jobie `test` wyżej.
