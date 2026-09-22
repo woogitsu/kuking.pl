@@ -41,6 +41,13 @@ final class ZeszytUsuwaZapisanyWpisTest extends TestCase
 
         // Ekran, w którym stoi ten wpis, NIE oferuje już samego odnośnika do
         // listy zeszytów w jego miejscu (to był stary, martwy stan).
+        //
+        // TA ASERCJA STAŁA PRZEZ DWA DNI NAPRZECIW `WpisDaSieWyjacZZeszytuTest`,
+        // który żądał tego zdania NA OBU ekranach naraz. Właściciel rozstrzygnął
+        // 22 września 2026 na korzyść tej sceny — ale tylko TUTAJ, na ekranie
+        // zeszytu. Tamten plik jest od tego dnia świadomy ekranu (`ekrany()`)
+        // i dalej pilnuje zdania „Masz to w zeszycie" na `posts.show`, gdzie
+        // jest ono jedynym nośnikiem stanu zapisu (audyt L1).
         $this->assertStringNotContainsString('Masz to w zeszycie', $html);
         $this->assertStringContainsString('Usuń z tego zeszytu', $html);
 

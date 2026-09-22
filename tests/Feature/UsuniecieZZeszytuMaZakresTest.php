@@ -25,9 +25,14 @@ use Tests\TestCase;
  * `collections.unsave` i `collections.unsave-post` przyjmują opcjonalny
  * `collection_id` (ten sam parametr i ta sama walidacja własności co przy
  * zapisie, `CollectionController::selectedCollection()`). Podanie go usuwa
- * TYLKO z tego jednego zeszytu. Brak parametru zostaje operacją globalną —
- * i to jest jedyna droga, którą oferuje strona przepisu, więc tam musi być
- * jawnie nazwana i potwierdzona (AGENTS.md §5).
+ * TYLKO z tego jednego zeszytu. Brak parametru zostaje operacją globalną.
+ *
+ * Strona przepisu SAMA WYBIERA między tymi dwiema drogami (`6ab03a5d`,
+ * bloker #775): przy jednym zeszycie wysyła `collection_id` i nie ma czego
+ * ogłaszać, przy kilku zostaje przy zakresie globalnym, ale nazywa go NAD
+ * przyciskiem. Sceny niżej mierzą oba te przypadki osobno — wcześniej
+ * żądały jednego kształtu dla obu i z tego powodu jedna z nich stała się
+ * fałszywa po złożeniu z #775 (patrz komentarz przy tamtej scenie).
  */
 final class UsuniecieZZeszytuMaZakresTest extends TestCase
 {
@@ -109,19 +114,68 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
         $this->assertTrue($b->posts()->whereKey($wpis->getKey())->exists());
     }
 
-    public function test_strona_przepisu_nazywa_zakres_usuniecia_i_wymaga_potwierdzenia(): void
+    public function test_strona_przepisu_nazywa_zakres_usuniecia_przed_klikniecieem(): void
     {
+        // TA SCENA ZMIENIŁA PRZESŁANKĘ, NIE GWARANCJĘ (22 września 2026).
+        //
+        // Żądała wcześniej `<details class="confirm">` i słowa „wszystkich"
+        // ZAWSZE, bo stało w niej założenie: „strona przepisu nie wie,
+        // w którym zeszycie stoi człowiek, więc oferuje wyłącznie operację
+        // globalną, a globalną trzeba potwierdzić". Pierwsza połowa tego
+        // zdania przestała być prawdziwa przy `6ab03a5d` (bloker #775):
+        // ekran liczy teraz zeszyty z tym przepisem i przy JEDNYM wysyła
+        // `collection_id`, czyli operacja nie jest już globalna.
+        //
+        // Gwarancja zostaje ta sama i jest tu dalej pilnowana: CZŁOWIEK ZNA
+        // ZAKRES ZANIM KLIKNIE. Zmienia się tylko to, czym ten zakres jest
+        // niesiony — zawężeniem, gdy da się zawęzić, a zdaniem nad
+        // przyciskiem, gdy zawęzić się nie da.
+        //
+        // Potwierdzenia drugim kliknięciem już nie ma i to jest wybór,
+        // nie przeoczenie: wyjęcie stało się odwracalne co do notatki
+        // (`SaveRecipeToCollection::restore()`), więc tańszy dla grupy 50+
+        // jest przycisk „Przywróć do zeszytu" PO akcji niż pytanie „czy na
+        // pewno" przed każdą — w tym przed tą zawężoną, która niczego poza
+        // jednym zeszytem nie rusza.
         $basia = $this->user('basia');
         $przepis = Recipe::factory()->create();
+
+        // JEDEN ZESZYT — zakres niesie `collection_id`, nie zdanie.
         $basia->defaultCollection()->recipes()->attach($przepis->getKey());
 
         $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
 
-        // Przycisk usuwający na stronie przepisu jest operacją GLOBALNĄ (nie
-        // wie, w którym zeszycie stoi człowiek), więc musi to jawnie
-        // powiedzieć i wymagać drugiego kliknięcia (x-confirm-button,
-        // wzorzec z `components/confirm-button.blade.php`).
-        $this->assertStringContainsString('wszystkich', $tresc);
-        $this->assertStringContainsString('<details class="confirm">', $tresc);
+        $this->assertStringContainsString(
+            'Masz ten przepis w zeszycie',
+            $tresc,
+            'Ekran przepisu nie mówi, z którego zeszytu wyjmie, choć zeszyt jest dokładnie jeden.',
+        );
+        $this->assertStringContainsString(
+            'name="collection_id"',
+            $tresc,
+            'Ekran przepisu nie zawęża wyjęcia do jedynego zeszytu — zdjąłby przepis ze wszystkich (issue #775).',
+        );
+
+        // KILKA ZESZYTÓW — zawęzić się nie da, więc zakres MUSI paść zdaniem,
+        // i to zdaniem związanym z przyciskiem, a nie schowanym gdzieś wyżej.
+        $drugi = Collection::create([
+            'owner_id' => $basia->getKey(),
+            'name' => 'Na święta',
+            'visibility' => 'private',
+        ]);
+        $drugi->recipes()->attach($przepis->getKey(), ['note' => 'Babcine proporcje']);
+
+        $tresc = $this->actingAs($basia)->get($przepis->url())->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            'wszystkich',
+            $tresc,
+            'Ekran przepisu nie mówi, że przycisk zdejmie przepis ze wszystkich zeszytów.',
+        );
+        $this->assertStringContainsString(
+            'aria-describedby="zakres-wyjecia-',
+            $tresc,
+            'Zdanie o zakresie nie jest związane z przyciskiem — czytnik ekranu przeczyta je osobno albo wcale.',
+        );
     }
 }
