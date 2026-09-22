@@ -2374,6 +2374,62 @@ return [
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
     ],
 
+    'potwierdzenia_rodo' => [
+        // RETENCJA POTWIERDZEŃ OBSŁUGI ŻĄDAŃ RODO —
+        // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`, decyzja D-233.
+        //
+        // ┌──────────────────────────────────────────────────────────────┐
+        // │ KASOWANIE JEST WYŁĄCZONE. TO DECYZJA WŁAŚCICIELA Z 22.09.2026 │
+        // │ (D-233), NIE NIEDOPATRZENIE I NIE TYMCZASOWY OBEJŚCIE BŁĘDU.  │
+        // │ NIE WŁĄCZAJ TEGO „przy okazji" ANI „bo autor tak chciał".     │
+        // └──────────────────────────────────────────────────────────────┘
+        //
+        // Autor gałęzi `naprawa/minimalne-potwierdzenie-rodo` włączał
+        // kasowanie po 36 miesiącach domyślnie i bez przełącznika,
+        // argumentując, że „wyłącznik retencji to bezterminowość pod inną
+        // nazwą". Argument jest sensowny i dlatego stoi tu zapisany —
+        // właściciel rozstrzygnął jednak inaczej, i to z dwóch konkretnych
+        // powodów, nie z niechęci do retencji:
+        //
+        //  1. OKRESU NIE POTWIERDZIŁ JESZCZE PRAWNIK. 36 miesięcy to analogia
+        //     do dokumentacji sprawy moderacyjnej (art. 442¹ k.c.), nie
+        //     ustalenie. Domyślnik, który kasuje dowody po niepotwierdzonym
+        //     okresie, jest gorszy niż brak automatu.
+        //  2. KASOWANIE JEST TWARDYM `DELETE`, NIEODWRACALNYM — bez
+        //     soft-delete i bez eksportu. Po jego włączeniu, dla kont, których
+        //     ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy
+        //     i kiedy usunęliście dane tej osoby" NIE ZOSTAJE NIC. A polityka
+        //     prywatności mówi dziś o kopiach zapasowych: „Nie podajemy tu
+        //     liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą" — czyli
+        //     nie wiadomo nawet, jak długo istnieje droga odzysku.
+        //
+        // Dane historyczne mają być najpierw przygotowane. Służy do tego
+        // `kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które
+        // działa NAWET przy wyłączonej retencji i niczego nie kasuje — pokazuje
+        // wyłącznie, ile wierszy wpadłoby pod dany próg.
+        //
+        // JAK TO WŁĄCZYĆ, GDY PRAWNIK POTWIERDZI OKRES — trzy kroki, wszystkie
+        // poza kodem, opisane w `PROJEKT_POTWIERDZENIA_RODO.md` §6:
+        //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
+        //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
+        //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
+        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
+        // wystartuje nawet przy przypadkowo ustawionej zmiennej.
+        //
+        // Domyślnika retencji pilnuje `RetencjaPotwierdzenRodoTest`.
+        'retencja_wlaczona' => (bool) env('KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA', false),
+
+        // BRAK WARTOŚCI DOMYŚLNEJ — I TO JEST ISTOTA POWODU 1 WYŻEJ.
+        // Gdyby stało tu `36`, samo przestawienie flagi wyżej uruchomiłoby
+        // nieodwracalne kasowanie według okresu, którego nikt nie potwierdził.
+        // `null` znaczy „nieustalony": komenda odmawia kasowania i mówi
+        // dlaczego, zamiast zgadywać.
+        'retention_months' => env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS') !== null
+            ? (int) env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS')
+            : null,
+    ],
+
     'sessions' => [
         // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
         //

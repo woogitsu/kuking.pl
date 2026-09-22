@@ -674,6 +674,41 @@ i to ona stoi za komentarzem uzasadniającym `7rem` „czytelnością przy skali
 tekstu 150%", podczas gdy skali 150% w tym produkcie nie ma w ogóle
 (`tokens.css` daje 70/80/90/112/125/140).
 
+## 12. Ułamek wysokości okna nie jest pomiarem położenia
+
+**Złapała: strażnika #684 na 25 kolejnych przebiegach CI.**
+
+`scripts/szybki-wyglad.mjs` sprawdza, że podpowiedź „Wygląd" ustępuje gestowi
+wskaźnika. Gest miał startować „w górnej połowie okna, żeby nie dotknąć samej
+podpowiedzi" — i startował od `0,45 · wysokość`.
+
+To nie jest pomiar położenia podpowiedzi, tylko życzenie. Podpowiedź jest
+`position: fixed` zakotwiczona do **dolnej** krawędzi (`bottom: 76px`) i ma
+stałą wysokość ~156,3 px, więc jej górna krawędź leży zawsze na `h − 232,3`,
+niezależnie od tego, jakim procentem wysokości to akurat jest. Zmierzone
+na `/` w Chromium jako gość:
+
+| okno | podpowiedź (top–bottom) | punkt `0,45 · h` | trafienie |
+|---|---|---|---|
+| 320×512 | 279,7 – 436,0 | 230 | 49,7 px **nad** podpowiedzią |
+| 320×420 | 187,7 – 344,0 | 189 | 1,3 px **w** podpowiedzi |
+
+Nierówność `0,45 · h < h − 232,3` jest prawdziwa dopiero powyżej ~422 px
+wysokości. Okno 320×420 nie mogło przejść ani razu — i nie przeszło, a wyglądało
+to jak wada układu, bo komunikat brzmiał `PODPOWIEDZ_NIE_USTAPILA`. Układ był
+przy obu oknach identyczny co do piksela.
+
+Wniosek, który zostaje: **jeśli test celuje „obok" czegoś, ma wziąć prostokąt
+tego czegoś z `getBoundingClientRect()` i sprawdzić asercją, że trafił obok.**
+Stała wyliczona z rozmiaru okna jest prawdziwa przy rozmiarze, przy którym
+ją wyliczono, i fałszywa przy następnym dopisanym do listy.
+
+Dwie asercje, które teraz tego pilnują, są tańsze niż godzina diagnozy:
+`PUNKT_GESTU_W_PODPOWIEDZI` (przez `elementFromPoint`) oraz `GEST_ZA_KROTKI`.
+Ta druga jest przy okazji jedynym miejscem, które złapie odwrotną wadę:
+podpowiedź, która przy niskim oknie zaczyna zjadać ekran, nie zostawia już
+miejsca na gest i test mówi o tym wprost, zamiast po cichu celować byle gdzie.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026
