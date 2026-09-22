@@ -1,5 +1,9 @@
 # Architektura Kuking
 
+Plan techniczny przed wzrostem: [kanoniczne #614 i uzgodnienie stanu na
+20.09.2026](infra/PLAN_TECHNICZNY_614.md). Mapa kontroli i wdrożeń:
+[odpowiedzialności CI, historia zabezpieczeń i granice uproszczenia #611](infra/MAPA_CI_611.md).
+
 ## Decyzja
 
 **Modularny monolit Laravel.**
@@ -107,6 +111,20 @@ MVP:
 - SQL filters.
 
 Typesense/Meilisearch tylko wtedy, gdy Postgres przestaje spełniać SLA.
+
+Fraza wyszukiwania ma najwyżej 120 znaków po przycięciu skrajnych spacji.
+`SearchQuery::phraseValidator()` jest wspólną regułą formularzy i domeny:
+`/szukaj` oraz `/witaj/ludzie` zachowują dłuższy tekst i pokazują błąd przy
+polu oraz w podsumowaniu, bez zapytania wyszukującego i bez przekierowania.
+Bezpośrednie `recipes()` i `people()` odrzucają go przez `ValidationException`
+z kluczem `q`; przyszła integracja #815 musi obsłużyć ten sam kontrakt.
+Nie obcinamy frazy. Granica dotyczy tekstu wejściowego, przed transliteracją.
+
+W wyszukiwaniu ludzi pojedyncze początkowe `@` jest prefiksem prezentacyjnym:
+`@basia` daje ten sam wynik co `basia`, również przy dopasowaniu fragmentów,
+imienia i specjalności. Nie zmienia to filtrów kont i blokad, wyszukiwania
+przepisów ani znaków `@` wewnątrz frazy. Sam prefiks nie liczy się do minimum
+dwóch znaków nazwy. Pomiary i decyzje właściciela: [#885/#886](research/GRANICE_WYSZUKIWANIA_885_886.md).
 
 ## Feed
 

@@ -322,10 +322,40 @@
                     --}}
                     <a class="btn btn-primary" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
                     @if($isSaved)
-                        <form method="POST" action="{{ route('collections.unsave', $recipe->slug) }}">
-                            @csrf @method('DELETE')
-                            <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Usuń z zeszytu</button>
-                        </form>
+                        {{--
+                            OPERACJA GLOBALNA — PYTA PRZED AKCJĄ I NAZYWA
+                            ZAKRES PO NIEJ (issue #775 + D-224/D-231 = D-230).
+
+                            Ten przycisk nie wie, w którym zeszycie stoi
+                            człowiek — przepis mógł być zapisany w kilku naraz
+                            przez „Wybierz zeszyt" niżej. Zarzut z #775 był
+                            podwójny: „Usunięte z zeszytu" po fakcie ani nie
+                            mówiło, że zniknęło z KAŻDEGO zeszytu, ani nie
+                            pytało przed usunięciem notatek, których żadna
+                            droga powrotu nie odtwarza (`detach()` kasuje
+                            wiersz pivotu razem z `note`, D-230). D-224
+                            rozstrzygnęło, że pytanie przed KAŻDĄ odwracalną
+                            czynnością uczy odklikiwania — ale to rozstrzygnięcie
+                            liczyło z odwracalnością całej akcji, nie z tym, że
+                            część jej skutku (notatki) nie wraca. Stąd pytanie
+                            wraca tu, na jedynym ekranie o zasięgu globalnym.
+
+                            Po potwierdzeniu komunikat nazywa zakres LICZBĄ
+                            („Przepis wyjęty z 3 Twoich zeszytów") i daje
+                            przycisk „Zapisz ponownie"
+                            (`CollectionController::komunikatPoWyjeciu()`) —
+                            ale mówi też wprost, że wraca sam zapis, nie
+                            notatka przy nim.
+
+                            Usunięcie z JEDNEGO, wybranego zeszytu robi się
+                            w widoku tego zeszytu, bez pytania — tam przycisk
+                            nazywa się „Usuń z tego zeszytu" i notatki innych
+                            zeszytów w ogóle nie dotyczy (D-231).
+                        --}}
+                        <x-confirm-button
+                            :action="route('collections.unsave', $recipe->slug)"
+                            label="Usuń z zeszytu"
+                            question="Usunąć ten przepis ze wszystkich Twoich zeszytów, w których go zapisano? Notatki przy nim znikną razem z zapisem." />
                     @else
                         <form method="POST" action="{{ route('collections.save', $recipe->slug) }}">
                             @csrf
