@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Domain\Users\Exports\RequestDataExport;
 use App\Http\Controllers\Controller;
@@ -192,7 +193,7 @@ class DataSettingsController extends Controller
      * Wybór idzie do KOLUMNY, nie do sesji ani do zadania w kolejce —
      * egzekucja jest 30 dni później (D-022, punkt 2).
      */
-    public function requestDeletion(Request $request): RedirectResponse
+    public function requestDeletion(Request $request, RejestrPotwierdzenRodo $rejestr): RedirectResponse
     {
         $data = $request->validate([
             'password' => ['required', 'string'],
@@ -215,7 +216,45 @@ class DataSettingsController extends Controller
             ? User::DELETE_SCOPE_EVERYTHING
             : User::DELETE_SCOPE_MINIMUM;
 
-        $user->markForDeletion($zakres);
+        // OZNACZENIE KONTA I OTWARCIE SPRAWY W REJESTRZE RODO — JEDNA
+        // TRANSAKCJA, nie dwie instrukcje obok siebie.
+        //
+        // `potwierdzenia_zadan_rodo` ma jedną sprawę na jedno żądanie
+        // (`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`). Gdyby te dwa zapisy
+        // szły osobno, zostawałby stan pośredni: konto oznaczone do usunięcia
+        // BEZ sprawy w rejestrze (żądanie, którego nie ma jak potwierdzić —
+        // i którego egzekutor karencji za 30 dni nie będzie miał czym
+        // domknąć) albo sprawa w rejestrze bez oznaczonego konta (rejestr
+        // twierdzący, że coś przyjęliśmy, choć nic się nie dzieje).
+        //
+        // Ta sama zasada, z tego samego powodu, wiąże domknięcie sprawy
+        // z `EraseAccountData` i `CancelAccountDeletion`.
+        // TRANSAKCJA Z POŁĄCZENIA MODELU, NIE Z FASADY `DB` — ŚWIADOMIE.
+        //
+        // KOLIZJA, KTÓREJ GIT NIE ZGŁASZA. Ten sam plik przepisuje #1259
+        // („awaria poczty nie niszczy paczki eksportu"), zdejmując
+        // `use Illuminate\Support\Facades\DB` — słusznie, bo po jego zmianie
+        // jedyne pozostałe użycie fasady w tym pliku (transakcja w metodzie
+        // eksportu) znika razem z nim. Ta metoda i tamta to RÓŻNE metody, więc
+        // scalenie przechodzi BEZ KONFLIKTU, a wynik jest zepsuty: zostaje
+        // wywołanie `DB::` bez importu, czyli
+        //
+        //     Class "App\Http\Controllers\Settings\DB" not found
+        //
+        // przy KAŻDYM zgłoszeniu usunięcia konta. Żadna z gałęzi osobno tego
+        // nie pokazuje i żadne CI nie złapie tego przed scaleniem.
+        //
+        // Pełna nazwa `\Illuminate\…\DB` NIE jest tu rozwiązaniem: `pint`
+        // (reguła `fully_qualified_strict_types`) skraca ją z powrotem do
+        // `DB::`, dopóki import istnieje — sprawdzone, nie przypuszczane.
+        // Połączenie wzięte z modelu nie zależy od żadnego importu, więc działa
+        // niezależnie od kolejności scalania. To ta sama transakcja i to samo
+        // połączenie.
+        $user->getConnection()->transaction(function () use ($user, $zakres, $rejestr): void {
+            $user->markForDeletion($zakres);
+
+            $rejestr->przyjmijZadanieUsunieciaKonta($user);
+        });
 
         // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
         // i kiedy. Gdyby ktoś kiedyś zapytał „dlaczego moje przepisy
