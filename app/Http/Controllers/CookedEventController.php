@@ -164,9 +164,11 @@ class CookedEventController extends Controller
         // „Ugotowałem" to najcenniejszy sygnał jakości przepisu (AGENTS.md §1).
         // Sygnał, w którym da się zapisać tylko „tak", nie jest sygnałem
         // jakości — jest licznikiem pochwał.
-        $wouldMakeAgain = ($data['would_make_again'] ?? null) === null
+        $wouldMakeAgain = ($data['would_make_again'] ?? null) === null || $data['would_make_again'] === ''
             ? null
             : $request->boolean('would_make_again');
+
+        $perceivedDifficulty = empty($data['perceived_difficulty']) ? null : $data['perceived_difficulty'];
 
         try {
             $mediaIds = [];
@@ -181,7 +183,7 @@ class CookedEventController extends Controller
                 note: $data['note'] ?? null,
                 mediaIds: $mediaIds,
                 wouldMakeAgain: $wouldMakeAgain,
-                perceivedDifficulty: $data['perceived_difficulty'] ?? null,
+                perceivedDifficulty: $perceivedDifficulty,
                 actualMinutes: $data['actual_minutes'] ?? null,
                 changesNote: $data['changes_note'] ?? null,
                 ip: $request->ip(),
@@ -366,18 +368,29 @@ class CookedEventController extends Controller
         // wtedy relacja zwraca null (audyt A23). Wcześniej ta linia rzucała
         // wyjątek PRZED skasowaniem, więc człowiek nie mógł usunąć własnego
         // wykonania i zostawał z trwale zepsutą zakładką „Ugotowane".
-        $slug = $cookedEvent->recipe?->slug;
+        $recipe = $cookedEvent->recipe;
         $wlascicielWykonania = $cookedEvent->user;
         $cookedEvent->delete();
 
-        if ($slug === null) {
-            // Nie ma dokąd wrócić „do przepisu" — wracamy tam, skąd człowiek
-            // to zobaczył, czyli do zakładki „Ugotowane" na jego profilu.
-            return redirect()
-                ->route('profile.show', ['username' => $wlascicielWykonania->profile->username, 'zakladka' => 'ugotowane'])
-                ->with('status', 'Wykonanie usunięte.');
+        // Przepis może nie istnieć (soft delete) ALBO aktor może nie mieć
+        // już do niego uprawnień do odczytu (np. autor zmienił widoczność
+        // na prywatną, moderacja ukryła przepis, relacja blokady — issue #766).
+        // Bez sprawdzenia uprawnień powrót do recipes.show kończył się 403 Forbidden.
+        if ($recipe === null || $request->user()->cannot('view', $recipe)) {
+            // Bezpieczny powrót na profil kucharza (zakładka „Ugotowane”).
+            // Jeśli konto kucharza nie ma profilu, wracamy na profil bieżącego użytkownika.
+            $username = $wlascicielWykonania->profile?->username
+                ?? $request->user()->profile?->username;
+
+            if ($username !== null) {
+                return redirect()
+                    ->route('profile.show', ['username' => $username, 'zakladka' => 'ugotowane'])
+                    ->with('status', 'Wykonanie usunięte.');
+            }
+
+            return redirect()->route('home')->with('status', 'Wykonanie usunięte.');
         }
 
-        return redirect()->route('recipes.show', $slug)->with('status', 'Wykonanie usunięte.');
+        return redirect()->route('recipes.show', $recipe->slug)->with('status', 'Wykonanie usunięte.');
     }
 }

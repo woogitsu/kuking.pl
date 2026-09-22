@@ -10543,6 +10543,24 @@ przyszedł. Wtedy znika treść szyny na tych ekranach, a nie kolumna.
 
 ---
 
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Liczby tej decyzji nadal obowiązują
+> jako ROZSTRZYGNIĘCIE, ale reguły CSS, w których je zapisano, **w większości nie
+> dochodzą do przeglądarki**. Zmierzone `getComputedStyle` na wyrenderowanych
+> stronach, 72 konfiguracje: `.app-body { grid-template-columns:
+> var(--container-sidenav) … }`, `.app-body { max-width: var(--container-strona) }`
+> oraz `.uklad-solo .topbar-inner, .uklad-solo .site-… { max-width:
+> var(--container-strona-solo…) }` są **całkowicie przykryte** przez arkusze
+> `resources/css/marka-*.css`, które nie są owinięte w żadną warstwę — a kod
+> spoza warstw bije każdą warstwę nazwaną, także `utilities`.
+>
+> Znaczy to, że układ, który widzi gość, ustala dziś warstwa marki, a nie te
+> reguły. Sama decyzja zostaje bez zmian i nic tu nie usuwamy: usunięcie martwej
+> reguły JEST zmianą zachowania na wypadek zniknięcia arkuszy marki i wymaga
+> osobnego rozstrzygnięcia. Pilnuje tego `scripts/kaskada-martwe-reguly.mjs`.
+> Strażnik, który czytał TEKST arkusza, opisywał tu stan nieistniejący — po to
+> powstało D-223.
+
 ## D-123 · Wybór gospodarza na tablicy jest UZUPEŁNIANY automatem do sufitu, a nie zamyka tablicy na resztę serwisu
 
 **Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
@@ -10692,6 +10710,18 @@ Najbardziej traci na tym ktoś, kto czyta wolniej albo powiększa tekst — bo
 skanowanie wzrokiem przestaje być skrótem.
 
 ---
+
+
+> **Uwaga (20.09.2026, pomiar do D-223).** Podział `.card` na sześć warstw
+> powierzchni obowiązuje jako rozstrzygnięcie, ale zmierzone w przeglądarce
+> deklaracje samej `.card` z warstwy `components` (m.in. tło, obramowanie
+> i promień) są **całkowicie przykryte** przez `[data-marka] .post-card`
+> i pokrewne z arkuszy `marka-*.css` spoza warstw. O wyglądzie karty decyduje
+> dziś warstwa marki, nie te reguły.
+>
+> Nic tu nie usuwamy ani nie zmieniamy statusu — to jest adnotacja o tym, GDZIE
+> wartość naprawdę obowiązuje. Poprawka wpisana w regułę `.card` z `components`
+> nie dojdzie do nikogo. Szczegóły i strażnik: D-223.
 
 ## D-126 · Panel formularza nie pojawia się tam, gdzie w danym stanie ekranu nie ma czego wypełnić
 
@@ -15058,6 +15088,86 @@ katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
 
+## D-223 — Martwe reguły CSS: strażnik pyta o wynik kaskady, nie o tekst arkusza (20 września 2026)
+
+`resources/css/app.css` linia 1 ustawia `@layer theme, base, components, marka,
+utilities;`. Warstwa późniejsza bije wcześniejszą niezależnie od szczegółowości
+selektora i niezależnie od zapytania medialnego. W repozytorium żyją przez to
+reguły z komentarzami uzasadniającymi konkretne wartości, których przeglądarka
+nigdy nie widzi. Komentarz opisuje wtedy stan nieistniejący, a następny człowiek
+czyta go jak prawdę i na nim buduje.
+
+### Co zmierzono przy `.przepis-liczby` — i dlaczego wynik jest inny, niż zakładano
+
+Zlecenie pytało, czy `10rem` z `marka-ekrany.css` zamiast `7rem` z `app.css`
+psuje coś realnego przy 320 px i powiększonym piśmie. Odpowiedź: **nie psuje, bo
+ŻADNA z tych dwóch wartości nie działa.** Jedyny nosiciel `.przepis-liczby`
+(`pages/recipes/show.blade.php`) stoi wewnątrz `.marka-przepis-tekst`, a
+`marka-przepis.css` robi z niego `display: flex`. Na kontenerze flex
+`grid-template-columns` nie znaczy nic. Przykrycie `7rem` przez `10rem` było
+prawdziwe i zarazem bez znaczenia — spór o wartość toczył się o własność, która
+i tak nie dochodzi.
+
+Zmierzone w przeglądarce, nie wyczytane z arkusza: wymuszenie `7rem` tam, gdzie
+wartość naprawdę by obowiązywała, dało geometrię kafel-w-kafel **identyczną co do
+piksela w 30 konfiguracjach na 30** (dwa przepisy × 320/360/1280 px × pięć
+wariantów pisma). Zero przewijania w poziomie, zero ucięcia tekstu.
+Dowód: `docs/design/evidence/kaskada223/`.
+
+Dlatego **wartości nie ruszamy i reguł nie usuwamy** — poprawiono wyłącznie
+komentarze, żeby przestały uzasadniać liczbę, której nie ma. Usunięcie martwej
+reguły JEST zmianą zachowania na wypadek, gdyby `marka-przepis.css` zniknął,
+i jest osobną decyzją.
+
+### Trzy rzeczy, które ten pomiar ujawnił przy okazji
+
+1. **Osiem arkuszy nie jest owiniętych w żadną warstwę** (`marka-przepis`,
+   `marka-panel`, `marka-powiadomienia`, `marka-rama`, `marka-szukaj`,
+   `marka-wejscie`, `marka-zeszyt`, `pasek-przewijany`, `szybki-wyglad`).
+   Kod spoza warstw bije KAŻDĄ warstwę nazwaną, także `utilities` — istnieje
+   więc faktyczna warstwa najwyższa, której instrukcja `@layer` nie wymienia.
+   Komentarz przy imporcie twierdzi, że „każdy z nich dopisuje własne klasy do
+   @layer components". Dla tych ośmiu to nieprawda.
+2. **Instrukcja `@layer a, b, c;` NIE PRZEŻYWA BUDOWANIA.** W zbudowanym
+   arkuszu zostają same bloki `@layer nazwa { … }`, a kolejność wynika z ich
+   pierwszego wystąpienia. Dochodzi też wewnętrzna warstwa Tailwinda
+   `properties`, PRZED `theme` — w źródle jej nie ma.
+3. **Zapytania medialne są budowane w składni zakresowej** (`(width >= 48rem)`),
+   nie `(min-width: 48rem)`. Narzędzie szukające `min-width` znajduje zero
+   progów i wygląda wtedy na zielone.
+
+Wszystkie trzy są argumentem za tym samym: **o CSS trzeba pytać przeglądarkę, nie
+plik.** Strażnik czytający źródło mierzyłby tu co innego, niż widzi użytkownik.
+
+### Strażnik
+
+`scripts/kaskada-martwe-reguly.mjs` wykrywa deklarację z warstwy wcześniejszej
+całkowicie przykrytą przez warstwę późniejszą na tej samej własności i tym samym
+elemencie. Tekst arkusza służy wyłącznie do ZAWĘŻENIA listy kandydatów.
+Rozstrzyga pomiar: deklarację zdejmujemy z żywej reguły na wyrenderowanej
+stronie, porównujemy `getComputedStyle` każdego pasującego elementu przed i po,
+i przywracamy. Brak różnicy we wszystkich mierzonych konfiguracjach znaczy, że
+deklaracja nie zmienia nic.
+
+Strażnik nie jest listą znanych przypadków: kolejność warstw czyta z przeglądarki
+(pierwsze wystąpienie warstwy), reguły obchodzi rekurencyjnie przez `@layer`,
+`@media` i `@supports`, a szerokości bierze z progów znalezionych w arkuszu —
+więc czwarta warstwa i piąty arkusz wchodzą do pomiaru same. Jedyna lista nazw
+w tym pliku to WYJĄTKI i każdy ma przy sobie powód.
+
+Strażnik ma własną samokontrolę: brak wykrytych warstw albo zero przepytanych
+deklaracji to BŁĄD PRZYRZĄDU (kod 2), nie wynik pozytywny. Nie jest to ozdoba —
+pierwsza wersja tego strażnika czytała kolejność warstw z instrukcji `@layer`,
+której zbudowany arkusz nie zawiera, i meldowała „✓ żadna reguła nie jest
+przykryta", nie sprawdziwszy ani jednej. Samokontrola to złapała.
+
+### Czego ten strażnik nie mierzy
+
+Selektorów ze stanem interakcji (`:hover`, `:focus`), selektorów bez nosiciela na
+mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnętrzne
+reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
+pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
+
 ## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
 Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
@@ -15091,6 +15201,15 @@ była otestowana i bezpieczna, ale żaden widok jej nie wołał. Zdanie z D-081
 zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
 stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
 Trasy nie kasujemy.
+
+> **Sprostowane 20 września 2026 — patrz D-231.** Zdanie „przycisk stoi
+> wszędzie tam, gdzie widać »Masz to w zeszycie«" przestało być prawdziwe na
+> JEDNYM ekranie: w środku konkretnego zeszytu nie ma już ani odnośnika „Masz
+> to w zeszycie", ani przycisku „Usuń z zeszytu" — stoi tam wyłącznie „Usuń
+> z tego zeszytu" o zakresie lokalnym. Poza zeszytem wszystko poniżej zostaje
+> bez zmian. Reszta D-224 — brak potwierdzenia przed akcją, droga powrotu po
+> niej, brak JavaScriptu, granica ostrzejsza niż Policy — obowiązuje dalej.
+> Zmienił się też sam komunikat: nazywa teraz FAKTYCZNY zakres (D-231).
 
 Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
 w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
@@ -15190,6 +15309,146 @@ zapisanie z góry.
 **Dowód, że próg nie jest martwą liczbą.** Podbicie go na chwilę na 19 oblewa
 strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
 „18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
+
+## D-231 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
+
+Dwie prace powstały równolegle i nie wiedziały o sobie. #789 (D-224) dało
+przycisk wyjęcia wszędzie tam, gdzie widać stan zapisu, o zakresie GLOBALNYM
+(wszystkie zeszyty widza). #776 dało przycisk wyjęcia o zakresie LOKALNYM
+(`collection_id`), ale tylko wtedy, gdy karta stoi w środku zeszytu, którego
+widz jest właścicielem. Złożone wprost renderowały się OBOK SIEBIE: na ekranie
+zeszytu stały dwa przyciski o prawie identycznych nazwach — „Usuń z zeszytu"
+i „Usuń z tego zeszytu" — i różnym zasięgu. Dla grupy 50+ to gorsze niż brak
+którejkolwiek drogi: zły wybór kosztuje tu dane w zeszytach, o których nikt
+w tym momencie nie myślał.
+
+**Zakres wybiera EKRAN, nie człowiek.**
+
+1. W środku konkretnego zeszytu, gdy widz jest jego właścicielem, stoi
+   wyłącznie **„Usuń z tego zeszytu"** — `collection_id` wskazuje ten zeszyt,
+   zapis w pozostałych zeszytach zostaje razem z notatką i datą (#775).
+   Odnośnik „Masz to w zeszycie" w tym miejscu znika: prowadzi do listy
+   zeszytów, a człowiek stojący W zeszycie już wie, że wpis tam leży.
+2. Poza zeszytem — w strumieniu, na profilu, w wyszukiwarce, na stronie wpisu
+   i na stronie przepisu — stoi wyłącznie **„Usuń z zeszytu"** o zakresie
+   globalnym, obok odnośnika „Masz to w zeszycie" (D-224). Nie ma tam „tego
+   zeszytu", do którego dałoby się odnieść.
+3. **Nigdy oba naraz.** Dowodem jest scena
+   `WpisDaSieWyjacZZeszytuTest::test_na_ekranie_jest_dokladnie_jedna_droga_wyjecia`
+   — liczy formularze wyjęcia na obu ekranach i sprawdza, że nazwa tej drugiej
+   drogi nie pada tam wcale.
+
+**Potwierdzenie PRZED akcją nie wraca.** #775 dokładało na stronie przepisu
+`x-confirm-button` z pytaniem „czy na pewno ze wszystkich zeszytów". D-224
+rozstrzygnęło odwrotnie i to rozstrzygnięcie zostaje: wyjęcie z zeszytu jest
+odwracalne, a pytanie przed każdą odwracalną czynnością uczy odklikiwania
+i psuje wagę pytań przy rzeczach naprawdę nieodwracalnych (kasowanie wpisu,
+kasowanie zeszytu). Strona przepisu wraca więc do zwykłego formularza DELETE.
+
+**Ale zarzut #775 był słuszny i jest spełniony inaczej.** Brzmiał „usuwa ze
+wszystkich zeszytów BEZ UJAWNIENIA ZAKRESU", nie „usuwa bez pytania". Zakres
+nazywa więc komunikat PO akcji, i nazywa go LICZBĄ FAKTYCZNĄ:
+`SavePostToCollection::remove()` i `SaveRecipeToCollection::remove()` oddają,
+z ilu zeszytów naprawdę wyjęto.
+
+- zakres lokalny: „Wpis wyjęty z zeszytu „Obiady". Nie usunęliśmy go
+  z serwisu — możesz go zapisać ponownie."
+- zakres globalny, kilka zeszytów: „Wpis wyjęty z 3 Twoich zeszytów. …"
+- zakres globalny, jeden zeszyt: „Wpis wyjęty z zeszytu. …" — bo zdanie
+  o „wszystkich Twoich zeszytach" przy jednym zeszycie straszy bez powodu,
+  a straszenie bez powodu uczy ignorowania komunikatów tak samo jak pytanie
+  bez powodu.
+
+**Droga powrotu wraca TAM, SKĄD WYJĘTO.** „Zapisz ponownie" (D-224) dostaje
+`pola` — po wyjęciu lokalnym niesie `collection_id` tego zeszytu. Bez tego
+cofnięcie odkładałoby wpis do zeszytu DOMYŚLNEGO, czyli cicho przenosiłoby go
+gdzie indziej; cofnięcie ma przywracać stan, nie tworzyć nowy.
+
+**Nazwy.** „Usuń z zeszytu" i „Usuń z tego zeszytu" nigdy nie stoją razem,
+więc jedna nie jest pułapką na drugą, a ekran zawsze niesie kontekst. Trzecie
+słowo na tę samą czynność („Wyjmij") byłoby złamaniem `BRAND_EXTENDED.md` §3.
+
+**D-081 zostaje w mocy** — tablica „kuKINGi na dziś" dalej świadomie nie
+dolicza stanu zeszytu.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/ZeszytUsuwaZapisanyWpisTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`scripts/wyjecie-z-zeszytu.mjs`.
+
+
+## D-230 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-231, 21 września 2026)
+
+*Ta decyzja nosiła najpierw numer D-229. Straciła go, bo tego samego dnia
+dwaj agenci floty niezależnie dostali od właściciela informację, że „pierwszy
+wolny numer to D-229" — jeden z nich (gałąź `gpt-n1-powiadomienia`) zajął go
+jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 14 w
+`gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
+D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
+
+Dwie gałęzie floty rozwiązały ten sam spór (#775) inaczej i obie miały rację
+w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
+z pytaniem „czy na pewno ze wszystkich zeszytów", ale nie dotknęła
+`post-card.blade.php` — na karcie wpisu poza zeszytem nie było żadnej drogi
+wyjęcia (`WpisDaSieWyjacZZeszytuTest` obalał to na 4 z 12 scen). `jedna-droga`
+dała tę drogę wszędzie i rozstrzygnęła D-231 (jeden przycisk na ekran, zakres
+wybiera ekran, licznik zeszytów w komunikacie), ale przy okazji cofnęła
+pytanie przed akcją na stronie przepisu — bo D-224 uznało wyjęcie z zeszytu za
+w pełni odwracalne.
+
+**Właściciel rozstrzygnął: żadna z tych prac osobno nie zamyka #775, razem
+zamykają.** Bierzemy oba mechanizmy:
+
+1. **Z `jedna-droga`**: drogę wyjęcia na każdym ekranie pokazującym „Masz to
+   w zeszycie" (D-231 bez zmian) — `post-card.blade.php` dostaje przycisk
+   lokalny w środku zeszytu i globalny poza nim, liczbę zeszytów w komunikacie
+   (`Odmiana::rzeczownik()`), i „Zapisz ponownie" jako drogę powrotu, która
+   wraca DOKŁADNIE tam, skąd wyjęto (`pola['collection_id']`).
+2. **Z `zeszyty`**: `<x-confirm-button>` na stronie przepisu, jedynym ekranie
+   o zasięgu GLOBALNYM (wyjmuje ze WSZYSTKICH zeszytów naraz).
+
+**Dlaczego pytanie wraca tylko tam.** D-224 miało rację, że pytanie przed
+KAŻDĄ odwracalną czynnością uczy odklikiwania. Ale wyjęcie globalne nie jest
+w pełni odwracalne: `SavePostToCollection::remove()` i
+`SaveRecipeToCollection::remove()` wołają `detach()`, który kasuje wiersz
+pivotu RAZEM z `note` (`withPivot(['note'])`). „Zapisz ponownie" przywraca
+sam fakt bycia w zeszycie — nie treść notatki, która przy nim stała. To jest
+różnica jakościowa, nie kosmetyczna: przy zasięgu lokalnym (jeden, wybrany
+zeszyt) ryzyko jest małe i znane z kontekstu ekranu, ale przy zasięgu
+globalnym człowiek może stracić notatki w zeszytach, o których w tej chwili
+nie myśli. Stąd pytanie PRZED akcją zostaje wyłącznie na ekranie globalnym,
+a lokalne wyjęcie (D-231) zostaje jednym kliknięciem bez pytania.
+
+**Komunikat po akcji przestaje obiecywać więcej, niż daje.** Obie gałęzie
+pisały po usunięciu „Nie usunęliśmy go z serwisu — możesz go zapisać
+ponownie", co sugerowało pełną odwracalność. Nowe brzmienie
+(`CollectionController::komunikatPoWyjeciu()`):
+
+- zakres lokalny: „{Przepis/Wpis} wyjęty z zeszytu „{nazwa}”. Możesz zapisać
+  go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, N zeszytów: „{Przepis/Wpis} wyjęty z {N} Twoich zeszytów.
+  Możesz zapisać go ponownie, ale notatka przy nim już nie wróci."
+- zakres globalny, jeden zeszyt: „{Przepis/Wpis} wyjęty z zeszytu. Możesz
+  zapisać go ponownie, ale notatka przy nim już nie wróci."
+
+Zachowanie się nie zmienia — `remove()` i `detach()` robią dokładnie to samo,
+co przed tą decyzją. Zmienia się wyłącznie zdanie: mówi teraz, co się NIE
+wraca, zamiast sugerować, że wraca wszystko.
+
+**Testy dwóch gałęzi wzajemnie się wykluczały** (`zeszyty` wymagała
+`<details class="confirm">` na stronie przepisu, `jedna-droga` wymagała jego
+braku) — złożone dają jeden zestaw sprawdzający stan docelowy:
+`UsuniecieZZeszytuMaZakresTest::test_strona_przepisu_pyta_przed_usunieciem_i_nazywa_zakres_po_akcji`
+zastępuje obie sprzeczne sceny i dokłada kontrolę dodatnią
+(`test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia`).
+`WpisDaSieWyjacZZeszytuTest` (issue #776, D-231) zostaje bez zmian zachowania
+— dotyczy wyłącznie wpisów (Post), których ekran przepisu (Recipe) nie
+obejmuje.
+
+Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`resources/views/pages/recipes/show.blade.php`,
+`app/Http/Controllers/CollectionController.php`.
 
 ## D-233 — Rejestr potwierdzeń RODO tak, automatyczne kasowanie wpisów NIE (#1222 nie dotyczy)
 
