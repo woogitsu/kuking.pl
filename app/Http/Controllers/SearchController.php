@@ -56,6 +56,8 @@ class SearchController extends Controller
         // dokładnie tak samo jak brak `q`.
         $qSurowe = $request->query('q', '');
         $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
+        // GET renderuje błąd w miejscu, bez przekierowania na ten sam długi URL.
+        $searchErrors = SearchQuery::phraseValidator($phrase)->errors();
 
         // ZAKRESY WEDŁUG KITU (ekran 03): Wszystko / Przepisy / Ludzie / Do 30 minut.
         //
@@ -117,9 +119,10 @@ class SearchController extends Controller
         //
         // Próg 2 MUSI się zgadzać z SearchQuery — jeśli go tam zmienisz,
         // zmień i tutaj.
-        $zaKrotka = $phrase !== '' && mb_strlen($phrase) < 2;
+        $phraseForLength = $section === 'ludzie' ? SearchQuery::peoplePhrase($phrase) : $phrase;
+        $zaKrotka = $phrase !== '' && mb_strlen($phraseForLength) < 2;
 
-        $przepisy = $szukaPrzepisow
+        $przepisy = $szukaPrzepisow && $searchErrors->isEmpty()
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
             ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu)
@@ -131,7 +134,7 @@ class SearchController extends Controller
         // dalej. Nie kłamała wprost (nie było licznika), ale kończyła się
         // w miejscu, którego nie dało się rozpoznać: przy dwudziestu jeden
         // Basiach dwudziesta pierwsza po prostu nie istniała dla szukającego.
-        $ludzie = $szukaLudzi
+        $ludzie = $szukaLudzi && $searchErrors->isEmpty()
             ? $this->search->people($phrase, $request->user(), $ile + 1, $odOsoby)
             : collect();
 
@@ -150,7 +153,11 @@ class SearchController extends Controller
         // `$zaKrotka` wyżej). Zapisanie tu sygnału policzyłoby otwarcie
         // pustego ekranu i „a" jako wyszukiwanie bez wyników, mimo że baza
         // w ogóle nie została odpytana — zatruwając miarę `has_results=false`.
-        if ($phrase !== '' && ! $zaKrotka) {
+        //
+        // Fraza odrzucona przez `phraseValidator()` (za długa) też nie
+        // odpytała bazy — `$przepisy`/`$ludzie` wyżej są wtedy puste — więc
+        // z tego samego powodu nie ma czego zapisywać.
+        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty()) {
             $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
                 'query_length' => mb_strlen($phrase),
                 'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
@@ -160,6 +167,7 @@ class SearchController extends Controller
         return view('pages.search', [
             'board' => $this->dailyBoard->forViewer($request->user()),
             'phrase' => $phrase,
+            'searchErrors' => $searchErrors,
             'promowaneTagi' => $phrase === '' ? Tag::promowane()->get() : collect(),
             'section' => $section,
             'zaKrotka' => $zaKrotka,

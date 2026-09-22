@@ -1,0 +1,16 @@
+{
+  "nazwa": "877 historia Chromium",
+  "plik": "app/Http/Controllers/Settings/TwoFactorSettingsController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "e26c1603def17c5debdb33fd16af5654",
+  "md5_po_mutacji": "0107c5a6a0f3874ec0a97914c179b65d",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "\"visible\": true",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:48:55Z"
+}
