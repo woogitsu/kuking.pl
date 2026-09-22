@@ -1,4 +1,10 @@
-﻿# Uzupełnienie scenariuszy badań #15 — draft do zatwierdzenia
+> **Adnotacja 20.09.2026:** ten dokument zachowuje historyczny draft z 14 września.
+> Bieżące prowadzenie, osiem zadań R1 i zapis wyników określają
+> [protokół R1](TESTY_Z_UZYTKOWNIKAMI.md) oraz [karta](KARTA_BADANIA_15.md).
+> Poniższe odwołania do nagrań, prywatnych materiałów i P1–P3 nie obowiązują
+> w R1. Tryb gotowania pozostaje propozycją osobnego badania, bez wykonanych sesji.
+
+# Uzupełnienie scenariuszy badań #15 — draft do zatwierdzenia
 
 14 września 2026. Dokument przygotowawczy; nie przeprowadzono sesji, rekrutacji ani kontaktów. Nie zawiera wyników. Nie zastępuje dziesięciu zadań i bramki publicznej bety z issue #15.
 

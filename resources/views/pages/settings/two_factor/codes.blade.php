@@ -16,7 +16,8 @@
     <div class="ramka-pomocnicza mb-5">
         <p class="mt-0"><strong>Do czego służą?</strong> Jeśli zgubisz telefon albo stracisz dostęp
             do aplikacji uwierzytelniającej, każdy z tych kodów pozwala zalogować się <strong>zamiast</strong>
-            kodu z aplikacji. Bez nich, po zgubieniu telefonu, konto zostaje zamknięte na dobre.</p>
+            kodu z aplikacji. Bez telefonu i kodów zapasowych nie zalogujesz się samodzielnie.
+            Zapisz kody teraz i schowaj w bezpiecznym miejscu.</p>
         <p class="mb-0">Każdy kod działa <strong>tylko raz</strong>.</p>
     </div>
 

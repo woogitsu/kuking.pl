@@ -1,0 +1,31 @@
+{
+  "kuking_flota_gpt_dr_baza_source": {
+    "schema_sha256": "fa6c2d7db026166c2adc56ed1a4cb08d92f54fabeeb6ddf7fee713cf46d2db9c",
+    "catalog": {
+      "indexes": 159,
+      "partial_indexes": 25,
+      "extensions": [
+        "pg_trgm",
+        "pgcrypto",
+        "plpgsql",
+        "unaccent"
+      ],
+      "timezone": "UTC"
+    }
+  },
+  "proba_odtworzenia_gpt_dr_baza_20260920t173937z": {
+    "schema_sha256": "8e680228c81ac5d1e3ff379db9ce2d9db33cf94ef03771dc69c9638b7946736a",
+    "catalog": {
+      "indexes": 159,
+      "partial_indexes": 25,
+      "extensions": [
+        "pg_trgm",
+        "pgcrypto",
+        "plpgsql",
+        "unaccent"
+      ],
+      "timezone": "UTC"
+    }
+  },
+  "equal": false
+}

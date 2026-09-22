@@ -210,12 +210,31 @@ else
 ' 'x komunikat nie mowi, jak naprawic bit w repozytorium'; oblane=$((oblane + 1))
 fi
 
-# --- 9. Polecenia w ogole nie ma -> 127 --------------------------------------
+# --- 9. REGRESJA: JSON i konsola muszą meldować to samo przywrócenie -------
+# Do 21 września 2026 pole "przywrocenie" w JSON było liczone w INNYM
+# miejscu niż komunikat na konsolę: JSON zapisywał się w głównym biegu
+# skryptu, ZANIM `trap` na EXIT zdążył naprawdę przywrócić plik, więc
+# zostawał przy wartości startowej „nie wykonane" — mimo że przywrócenie
+# się udało i konsola poprawnie meldowała „Źródło przywrócone". Ten sam
+# fakt liczony dwa razy w dwóch miejscach dawał dwie różne odpowiedzi.
+JSON_9="$PRACA/wynik-9.json"
+rm -f "$JSON_9"
+( cd "$PRACA" && "$PRZYRZAD" --plik zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+    --oczekuj 'BRAMKA_ZDJETA' --json "$JSON_9" -- ./test-dobry.sh zrodlo.txt ) >"$PRACA/wyjscie.log" 2>&1
+if [ -f "$JSON_9" ] && grep -qF '"przywrocenie": "ok' "$JSON_9"; then
+    printf "  ${ZIELONY}✓${RESET} JSON zgadza się z konsolą: przywrocenie zapisane jako „ok”, nie „nie wykonane”\n"; zdane=$((zdane + 1))
+else
+    printf "  ${CZERWONY}✗${RESET} JSON rozjeżdża się z konsolą — pole \"przywrocenie\" nie mówi „ok”\n"
+    [ -f "$JSON_9" ] && grep '"przywrocenie"' "$JSON_9" | sed 's/^/     /'
+    oblane=$((oblane + 1))
+fi
+
+# --- 10. Polecenia w ogole nie ma -> 127 -------------------------------------
 kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./polecenia-nie-ma.sh)"
 sprawdz 'polecenia nie ma (127) -> BLAD_POLECENIA (7), nie BRAK_KONTROLI_DODATNIEJ' 7 "$kod"
 sprawdz 'przy niewykonanym poleceniu plik nietkniety (MD5)' "$MD5_WZORCOWY" "$(md5sum "$PRACA/zrodlo.txt" | cut -d' ' -f1)"
 
-# --- 10. Tryb wsadowy nie gubi wpisow po cichu -------------------------------
+# --- 11. Tryb wsadowy nie gubi wpisow po cichu -------------------------------
 # Runner wsadowy, ktory po cichu pominie wpis, policzy mniej mutacji i nazwie
 # to sukcesem. Katalog nizej ma TRZY bloki o znanych werdyktach: zabita,
 # przezyla, wadliwa (no-op). Sprawdzamy liczbe i kazdy werdykt z osobna.
@@ -261,7 +280,7 @@ else
 ' 'x tabela nie zada rozstrzygniecia przy przezywajacej mutacji'; oblane=$((oblane + 1))
 fi
 
-# --- 11. Mutacja pliku Blade nie zostawia zmutowanego kompilatu -------------
+# --- 12. Mutacja pliku Blade nie zostawia zmutowanego kompilatu --------------
 # Laravel rekompiluje szablon tylko gdy zrodlo jest NOWSZE od kompilatu
 # (Compiler::isExpired). Po przywroceniu mtime zrodlo jest STARSZE niz
 # kompilat zmutowanego widoku, wiec bez tej poprawki Laravel dalej serwowalby
@@ -293,7 +312,7 @@ else
 ' 'x mutacja pliku nie-Blade skasowala kompilaty — nadmiar'; oblane=$((oblane + 1))
 fi
 
-# --- 12. Wzorzec na poczatku DUZEGO wyjscia ---------------------------------
+# --- 13. Wzorzec na poczatku DUZEGO wyjscia ----------------------------------
 # Bez poprawki (`printf | grep -q` pod pipefail) ta proba dostaje
 # ZLA_PRZYCZYNA (4) zamiast POTWIERDZONA (0) — przyrzad odmawia uznania
 # poprawnej kontroli ujemnej, bo SIGPIPE przykrywa trafienie grepa.
