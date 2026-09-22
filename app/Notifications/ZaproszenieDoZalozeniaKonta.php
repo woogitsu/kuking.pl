@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Notifications;
 
+use App\Models\RegistrationInvite;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
@@ -64,6 +65,17 @@ final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldQu
         return ['mail'];
     }
 
+    /** Starsze zadania z datą null także muszą mieć aktualne zaproszenie w bazie. */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        $invite = RegistrationInvite::znajdzPoTokenie($this->token);
+
+        return $invite !== null
+            && $invite->email === $notifiable->routeNotificationFor('mail', $this)
+            && $invite->jestWazne()
+            && (($this->wygasa ?? null) === null || $this->wygasa->isFuture());
+    }
+
     public function toMail(object $notifiable): MailMessage
     {
         return (new MailMessage)
@@ -77,7 +89,7 @@ final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldQu
             ->subject('Zakładanie konta w Kuking')
             ->view('mail.zaproszenie-do-zalozenia-konta', [
                 'linkUrl' => route('zaproszenie.pokaz', ['token' => $this->token]),
-                'waznoscTekst' => self::waznosc(),
+                'waznoscTekst' => $this->waznosc(),
             ]);
     }
 
@@ -90,15 +102,25 @@ final class ZaproszenieDoZalozeniaKonta extends Notification implements ShouldQu
      * przesunięty o dwie godziny względem zegara w polskiej kuchni. Czas
      * TRWANIA jest na tę pomyłkę odporny.
      */
-    private static function waznosc(): string
+    private function waznosc(): string
     {
-        $godzin = max(1, (int) config('kuking.login_link.zaproszenia.waznosc_godzin'));
+        $invite = RegistrationInvite::znajdzPoTokenie($this->token);
+        if ($invite === null) {
+            return 'tylko do terminu ustalonego przy zamówieniu';
+        }
 
-        return match (true) {
-            $godzin === 1 => 'przez godzinę',
-            $godzin === 24 => 'przez dobę',
-            $godzin < 24 => "przez {$godzin} godz.",
-            default => 'przez '.(int) round($godzin / 24).' dni',
-        };
+        $expiry = $invite->expires_at;
+        if (($this->wygasa ?? null) !== null) {
+            $expiry = $expiry->min($this->wygasa);
+        }
+        $minutes = max(0, (int) $invite->created_at->diffInMinutes($expiry));
+
+        return (match (true) {
+            $minutes === 60 => 'przez godzinę',
+            $minutes === 1440 => 'przez dobę',
+            $minutes > 0 && $minutes % 1440 === 0 => 'przez '.intdiv($minutes, 1440).' dni',
+            $minutes > 0 && $minutes % 60 === 0 => 'przez '.intdiv($minutes, 60).' godz.',
+            default => "przez {$minutes} min.",
+        }).' od chwili zamówienia';
     }
 }

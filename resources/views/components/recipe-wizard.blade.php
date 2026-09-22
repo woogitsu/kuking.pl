@@ -132,6 +132,12 @@ new class extends Component
 
     public string $saveMessage = '';
 
+    /** Licznik zmian wysłanych z przeglądarki i ostatniej obsłużonej wersji formularza. */
+    public int $editRevision = 0;
+
+    #[Locked]
+    public int $acknowledgedRevision = 0;
+
     /** Licznik stabilnych kluczy wierszy — bez nich zmiana kolejności gubi treść pól. */
     public int $rowCounter = 0;
 
@@ -250,6 +256,42 @@ new class extends Component
         $this->step = max($this->step - 1, 1);
     }
 
+    /**
+     * Który krok pokazuje pole o tym kluczu błędu (issue #747).
+     *
+     * Podsumowanie błędów zbiera klucze ze WSZYSTKICH kroków naraz —
+     * `$errors->keys()` nie wie nic o aktualnie wyrenderowanym `$step`.
+     * `back()` potrafi zostawić błąd walidacji z kroku 3 (`saveDraft()` →
+     * `validateRows(changeStep: false)`) i mimo to zejść na krok 2: link
+     * `href="#f-steps-0-instruction"` wskazywałby wtedy na pole, którego
+     * w bieżącym HTML w ogóle nie ma.
+     */
+    public function stepForKey(string $key): int
+    {
+        return match (true) {
+            str_starts_with($key, 'ingredients.') => 2,
+            // Obejmuje zarówno `steps` (błąd „opisz przynajmniej jeden
+            // krok”) jak i `steps.N.instruction` / `steps.N.photo`.
+            str_starts_with($key, 'steps') => 3,
+            $key === 'publikacja' => self::STEP_PREVIEW,
+            default => 1,
+        };
+    }
+
+    /**
+     * Kliknięcie odnośnika w podsumowaniu błędów, gdy pole stoi na INNYM
+     * kroku niż ten, który człowiek aktualnie widzi. Przełącza krok
+     * i prosi przeglądarkę (przez zdarzenie JS) o ustawienie fokusu na
+     * właściwym polu PO przerenderowaniu — sam `$this->step` nie wystarczy,
+     * bo DOM w tej samej chwili jeszcze nie istnieje.
+     */
+    public function jumpToError(string $key): void
+    {
+        $this->step = $this->stepForKey($key);
+
+        $this->dispatch('kreator-fokus-pole', pole: 'f-'.str_replace(['[', ']', '.'], '-', $key));
+    }
+
     // -----------------------------------------------------------------
     // Wiersze składników (issue #13)
     // -----------------------------------------------------------------
@@ -295,7 +337,7 @@ new class extends Component
 
     public function removeStep(int $index): void
     {
-        $this->steps = $this->withoutRow($this->steps, $index);
+        $this->replaceSteps($this->withoutRow($this->steps, $index));
 
         if ($this->steps === []) {
             $this->steps = [$this->blankStep()];
@@ -306,14 +348,36 @@ new class extends Component
 
     public function moveStepUp(int $index): void
     {
-        $this->steps = $this->swapRows($this->steps, $index, $index - 1);
+        $this->replaceSteps($this->swapRows($this->steps, $index, $index - 1));
         $this->saveDraft();
     }
 
     public function moveStepDown(int $index): void
     {
-        $this->steps = $this->swapRows($this->steps, $index, $index + 1);
+        $this->replaceSteps($this->swapRows($this->steps, $index, $index + 1));
         $this->saveDraft();
+    }
+
+    /** Zmiana pozycji przenosi również błędy; usunięcie zabiera tylko błędy usuwanego kroku. */
+    private function replaceSteps(array $rows): void
+    {
+        $positions = array_column($rows, null, '_key');
+        $newIndexes = array_flip(array_keys($positions));
+        $errors = [];
+
+        foreach ($this->getErrorBag()->getMessages() as $field => $messages) {
+            if (preg_match('/^steps\.(\d+)\.(.+)$/', $field, $match)) {
+                $key = $this->steps[(int) $match[1]]['_key'] ?? null;
+                if ($key === null || ! isset($newIndexes[$key])) {
+                    continue;
+                }
+                $field = 'steps.'.$newIndexes[$key].'.'.$match[2];
+            }
+            $errors[$field] = $messages;
+        }
+
+        $this->steps = $rows;
+        $this->setErrorBag($errors);
     }
 
     // -----------------------------------------------------------------
@@ -336,6 +400,8 @@ new class extends Component
 
     public function saveDraft(): bool
     {
+        $this->acknowledgedRevision = $this->editRevision;
+
         if ($this->savedThisRequest) {
             return $this->saveState === 'saved';
         }
@@ -389,9 +455,20 @@ new class extends Component
         $this->resetErrorBag();
 
         if (! $this->storePendingPhotos()) {
-            // Zdjęcie się nie przyjęło. Nie publikujemy w ciszy — człowiek
-            // ma zobaczyć dlaczego. Reszta danych zostaje zapisana w szkicu.
-            $this->step = 1;
+            /*
+             * Zdjęcie się nie przyjęło. Nie publikujemy w ciszy — człowiek
+             * ma zobaczyć dlaczego. Reszta danych zostaje zapisana w szkicu.
+             *
+             * `storePendingPhotos()` przypisuje błąd ALBO do `heroPhoto`
+             * (krok 1), ALBO do `steps.N.photo` (krok 3) — nigdy do obu na
+             * raz w jednym wywołaniu tej metody nie znaczy to samo. Stałe
+             * „krok 1” tutaj (issue #747) pokazywało puste zdjęcie główne,
+             * podczas gdy prawdziwy błąd — i jedyne pole z komunikatem —
+             * czekał na kroku 3.
+             */
+            $this->step = collect($this->getErrorBag()->keys())->contains(fn (string $klucz) => str_starts_with($klucz, 'steps'))
+                ? 3
+                : 1;
             $this->saveDraft();
 
             return;
@@ -493,9 +570,7 @@ new class extends Component
         $recipe = Recipe::find($this->recipeId);
 
         if ($recipe === null) {
-            $this->recipeId = null;
-
-            return null;
+            throw new BladDlaCzlowieka('Ten przepis nie jest już dostępny. Skopiuj wpisany tekst, zanim opuścisz formularz.');
         }
 
         Gate::authorize('update', $recipe);
@@ -977,7 +1052,9 @@ new class extends Component
 };
 ?>
 
-<div class="stack">
+<div class="stack"
+     x-data="{ revision: $wire.editRevision }"
+     x-on:input="$wire.editRevision = ++revision">
     {{-- ------------------------------------------------------------------
          Wskaźnik kroku. Tekst „Krok 2 z 3” + nazwa kroku, nie same kropki
          (docs/design/DESIGN_SYSTEM.md → WizardSteps).
@@ -1000,27 +1077,32 @@ new class extends Component
     {{-- Plakietka autosave. aria-live="polite", żeby czytnik ekranu ogłosił
          „Szkic zapisany.” bez przerywania pisania. --}}
     <div aria-live="polite">
-        <p class="autosave-badge" data-state="{{ $saveState }}"
-           wire:loading.remove wire:target="saveDraft, next, back, publish, addIngredient, addStep, removeIngredient, removeStep">
-            @if($saveMessage === '' && $juzOpublikowany)
-                Zmiany zapisują się po drodze.
-            @elseif($saveMessage === '')
-                {{-- STAN POCZĄTKOWY MÓWI O WARUNKU, A NIE O SAMEJ AUTOMATYCE.
+        <div wire:loading.remove>
+            <p class="autosave-badge" data-state="{{ $saveState }}"
+               x-show="revision <= $wire.acknowledgedRevision">
+                @if($saveMessage === '' && $juzOpublikowany)
+                    Zmiany zapisują się po drodze.
+                @elseif($saveMessage === '')
+                    {{-- STAN POCZĄTKOWY MÓWI O WARUNKU, A NIE O SAMEJ AUTOMATYCE.
 
-                     Stało tu bezwarunkowe „Szkic zapisuje się sam" i było to
-                     nieprawdą dokładnie w tym jednym momencie, w którym ta
-                     plakietka jest widoczna: `saveDraft()` bez nazwy przepisu
-                     NIE ZAPISUJE NICZEGO (warunek `mb_strlen(trim($title)) < 3`
-                     wyżej), a pusty `$saveMessage` znaczy właśnie „jeszcze nic
-                     się nie zapisało". Po pierwszym udanym zapisie stoi tu już
-                     „Szkic zapisany.". --}}
-                Szkic zapisze się, kiedy podasz nazwę przepisu.
-            @else
-                {{ $saveMessage }}
-            @endif
-        </p>
+                         Stało tu bezwarunkowe „Szkic zapisuje się sam" i było to
+                         nieprawdą dokładnie w tym jednym momencie, w którym ta
+                         plakietka jest widoczna: `saveDraft()` bez nazwy przepisu
+                         NIE ZAPISUJE NICZEGO (warunek `mb_strlen(trim($title)) < 3`
+                         wyżej), a pusty `$saveMessage` znaczy właśnie „jeszcze nic
+                         się nie zapisało". Po pierwszym udanym zapisie stoi tu już
+                         „Szkic zapisany.". --}}
+                    Szkic zapisze się, kiedy podasz nazwę przepisu.
+                @else
+                    {{ $saveMessage }}
+                @endif
+            </p>
+            <p class="autosave-badge" data-state="waiting" x-cloak x-show="revision > $wire.acknowledgedRevision">
+                Zmiany czekają na zapis.
+            </p>
+        </div>
         <p class="autosave-badge" data-state="saving"
-           wire:loading wire:target="saveDraft, next, back, publish, addIngredient, addStep, removeIngredient, removeStep">
+           wire:loading>
             Zapisywanie…
         </p>
     </div>
@@ -1032,8 +1114,26 @@ new class extends Component
                 Sprawdź formularz
             </p>
             <ul>
+                {{--
+                    Pole błędu może stać na kroku, którego CAŁE `@if($step
+                    === N)` nie jest teraz wyrenderowane (issue #747) — np.
+                    po `back()` z błędem walidacji przygotowania. Zwykłe
+                    `href="#f-..."` prowadziłoby donikąd: cel nie istnieje
+                    w bieżącym HTML. Link zostaje zwykłym `<a>` tylko
+                    wtedy, gdy jego pole jest na kroku, który człowiek
+                    naprawdę widzi; w przeciwnym razie to `wire:click`,
+                    który najpierw przełącza krok i prosi o fokus na
+                    właściwym polu po przerenderowaniu.
+                --}}
                 @foreach($errors->keys() as $key)
-                    <li><a href="#f-{{ str_replace(['[', ']', '.'], '-', $key) }}">{{ $errors->first($key) }}</a></li>
+                    @php $celId = 'f-'.str_replace(['[', ']', '.'], '-', $key); @endphp
+                    <li>
+                        @if($this->stepForKey($key) === $step)
+                            <a href="#{{ $celId }}">{{ $errors->first($key) }}</a>
+                        @else
+                            <button type="button" class="error-summary-link" wire:click="jumpToError('{{ $key }}')">{{ $errors->first($key) }}</button>
+                        @endif
+                    </li>
                 @endforeach
             </ul>
         </div>
@@ -1254,7 +1354,7 @@ new class extends Component
                         „BEZ ILOŚCI” — SÓL DO SMAKU (issue #44).
 
                         Nieobowiązkowe i domyślnie wyłączone. Ma znaczenie
-                        dopiero przy przeliczaniu przepisu na inną liczbę porcji:
+                        dla przyszłego przeliczania porcji (V2, jeszcze niewdrożonego):
                         przepis razy trzy poprosiłby inaczej o trzy szczypty
                         soli i o trzy razy „ile weźmie”. To nie jest drobiazg
                         kosmetyczny — to moment, w którym przepis przestaje
@@ -1264,7 +1364,7 @@ new class extends Component
                         <input type="checkbox" wire:model="ingredients.{{ $index }}.no_amount">
                         <span>
                             <span class="choice-label">Bez ilości</span>
-                            <span class="choice-help">Zaznacz przy „do smaku”, „ile weźmie”, „szczypta”. Taki składnik nie będzie mnożony, gdy ktoś przeliczy przepis na więcej porcji.</span>
+                            <span class="choice-help">Zaznacz, jeśli nie podajesz liczby i jednostki. Sposób dozowania wpisz w nazwie składnika, np. „mleko — ile weźmie”.</span>
                         </span>
                     </label>
 

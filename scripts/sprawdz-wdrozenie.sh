@@ -15,8 +15,9 @@
 #  ani dostępu do paneli.
 #
 #  UŻYCIE
-#      ./scripts/sprawdz-wdrozenie.sh                     # kuking.pl
-#      ./scripts/sprawdz-wdrozenie.sh staging.kuking.pl   # inne środowisko
+#      SESSION_COOKIE=kuking-session ./scripts/sprawdz-wdrozenie.sh
+#      SESSION_COOKIE=nazwa-sesji-staging ./scripts/sprawdz-wdrozenie.sh staging.kuking.pl
+#  SESSION_COOKIE musi odpowiadać config/session.php badanego środowiska.
 #
 #  KOD WYJŚCIA
 #      0 — wszystko przeszło
@@ -59,7 +60,57 @@ fi
 
 # `--max-time` wszędzie: bez tego skrypt potrafi wisieć w nieskończoność, gdy
 # domena wskazuje na adres, który po prostu nie odpowiada.
-POBIERZ=(curl -sS --max-time 15)
+POBIERZ=(curl -q -sS --max-time 15)
+
+# Kod i nagłówki pochodzą z jednej odpowiedzi. Nie wypisujemy nagłówków
+# ani stderr curl: mogą zawierać ciasteczka. Kod curl wystarcza do diagnostyki.
+pobierz_naglowki() {
+    local odpowiedz url="$1"
+    shift
+    local -a metoda=(-I)
+    # Bramka cache mierzy GET: HEAD nie dowodzi zachowania prawdziwej odsłony.
+    if [ "${CACHE_GATE_GET:-0}" = 1 ]; then metoda=(-D - -o /dev/null); fi
+    odpowiedz=$("${POBIERZ[@]}" "${metoda[@]}" -w $'\nKUKING_HTTP_CODE:%{http_code}\n' "$@" "$url" 2>/dev/null)
+    kod_curl=$?
+    odpowiedz="${odpowiedz//$'\r'/}"
+    kod_odpowiedzi="${odpowiedz##*$'\n'KUKING_HTTP_CODE:}"
+    naglowki_odpowiedzi="${odpowiedz%$'\n'KUKING_HTTP_CODE:*}"
+    if [[ ! "$kod_odpowiedzi" =~ ^[0-9]{3}$ ]]; then
+        kod_odpowiedzi="brak"
+        return 1
+    fi
+    [ "$kod_curl" -eq 0 ] || return 1
+    [[ "$naglowki_odpowiedzi" == *$'\n\n' ]] || return 1
+    # CONNECT proxy i odpowiedzi informacyjne nie są nagłówkami endpointu.
+    naglowki_odpowiedzi=$(awk '/^HTTP\// { block="" } { block=block $0 "\n" } END { printf "%s", block }' <<< "$naglowki_odpowiedzi")
+    grep -qE "^HTTP/[^ ]+ $kod_odpowiedzi([[:space:]]|$)" <<< "$naglowki_odpowiedzi"
+}
+
+if [ "${2:-}" = '--cache-gate' ]; then
+    source "$(dirname "${BASH_SOURCE[0]}")/lib/cache-gate.sh"
+    cache_gate
+    exit $?
+fi
+
+# Kod i nagłówki pochodzą z jednej odpowiedzi. Nie wypisujemy nagłówków
+# ani stderr curl: mogą zawierać ciasteczka. Kod curl wystarcza do diagnostyki.
+pobierz_naglowki() {
+    local odpowiedz
+    odpowiedz=$("${POBIERZ[@]}" -I -w $'\nKUKING_HTTP_CODE:%{http_code}\n' "$1" 2>/dev/null)
+    kod_curl=$?
+    odpowiedz="${odpowiedz//$'\r'/}"
+    kod_odpowiedzi="${odpowiedz##*$'\n'KUKING_HTTP_CODE:}"
+    naglowki_odpowiedzi="${odpowiedz%$'\n'KUKING_HTTP_CODE:*}"
+    if [[ ! "$kod_odpowiedzi" =~ ^[0-9]{3}$ ]]; then
+        kod_odpowiedzi="brak"
+        return 1
+    fi
+    [ "$kod_curl" -eq 0 ] || return 1
+    [[ "$naglowki_odpowiedzi" == *$'\n\n' ]] || return 1
+    # CONNECT proxy i odpowiedzi informacyjne nie są nagłówkami endpointu.
+    naglowki_odpowiedzi=$(awk '/^HTTP\// { block="" } { block=block $0 "\n" } END { printf "%s", block }' <<< "$naglowki_odpowiedzi")
+    grep -qE "^HTTP/[^ ]+ $kod_odpowiedzi([[:space:]]|$)" <<< "$naglowki_odpowiedzi"
+}
 
 printf '%sSprawdzam: %s%s\n' "$SZARY" "$HOST" "$KONIEC"
 
@@ -121,11 +172,24 @@ else
 fi
 
 www=$("${POBIERZ[@]}" -o /dev/null -w '%{http_code} %{redirect_url}' "https://www.$HOST/" 2>/dev/null)
-if [[ "${www%% *}" =~ ^(301|308)$ ]]; then
+www_curl=$?
+# Sprawdzamy jeden skok. Host to składnik URL, nie jego prefiks ani userinfo.
+www_cel="${www#* }"
+www_host="${www_cel,,}"
+www_host="${www_host#https://}"
+www_host="${www_host%%[/?#]*}"
+if [[ "$www_host" =~ ^([^:@]+)(:[0-9]+)?$ ]]; then
+    www_host="${BASH_REMATCH[1]}"
+else
+    www_host=""
+fi
+if [ "$www_curl" -ne 0 ]; then
+    blad "Nie sprawdzono przekierowania www (curl: $www_curl). Ponów sondę."
+elif [[ "${www%% *}" =~ ^(301|308)$ ]] && [[ "${www_cel,,}" == https://* ]] && [[ "$www_host" == "${HOST,,}" ]]; then
     ok "www przekierowuje na apex (${www%% *})"
 else
-    uwaga "www nie przekierowuje na apex (dostałem: $www)"
-    rada "Cloudflare → Rules → Redirect Rules. Do poprawienia, ale nie blokuje startu."
+    blad "www nie przekierowuje na apex HTTPS w jednym skoku. Sprawdź regułę przekierowania."
+    rada "Cloudflare → Rules → Redirect Rules: cel https://$HOST/ (301 lub 308)."
 fi
 
 naglowki=$("${POBIERZ[@]}" -I "https://$HOST/" 2>/dev/null)
@@ -175,9 +239,27 @@ fi
 
 # Ciasteczko sesji bez flagi Secure daje się przechwycić przy pierwszym
 # żądaniu po http. Sprawdzamy na stronie logowania, bo tam sesja powstaje.
-ciasteczka=$("${POBIERZ[@]}" -I "https://$HOST/login" 2>/dev/null | grep -i '^set-cookie:')
-if [ -n "$ciasteczka" ]; then
-    if grep -qi 'secure' <<< "$ciasteczka"; then
+if [ -z "${SESSION_COOKIE:-}" ]; then
+    blad "Nie sprawdzono flagi Secure. Podaj SESSION_COOKIE zgodne z konfiguracją badanego środowiska."
+elif ! pobierz_naglowki "https://$HOST/login" || [ "$kod_odpowiedzi" != "200" ]; then
+    blad "Nie sprawdzono flagi Secure (curl: $kod_curl, HTTP: $kod_odpowiedzi). Ponów sondę i sprawdź /login."
+else
+    # Nazwa jest porównywana dosłownie, bez interpolowania jej do regexu.
+    znalezione=0
+    niezabezpieczone=0
+    while IFS= read -r naglowek_ciastka; do
+        [[ "${naglowek_ciastka,,}" == set-cookie:* ]] || continue
+        ciasteczko="${naglowek_ciastka#*:}"
+        ciasteczko="${ciasteczko#"${ciasteczko%%[![:space:]]*}"}"
+        [ "${ciasteczko%%=*}" = "$SESSION_COOKIE" ] || continue
+        znalezione=$((znalezione + 1))
+        if ! grep -qiE ';[[:space:]]*secure[[:space:]]*(;|$)' <<< "$ciasteczko"; then
+            niezabezpieczone=$((niezabezpieczone + 1))
+        fi
+    done <<< "$naglowki_odpowiedzi"
+    if [ "$znalezione" -eq 0 ]; then
+        blad "Nie sprawdzono flagi Secure. Sprawdź SESSION_COOKIE i wystawianie sesji na /login."
+    elif [ "$niezabezpieczone" -eq 0 ]; then
         ok "Ciasteczko sesji ma flagę Secure"
     else
         blad "Ciasteczko sesji BEZ flagi Secure"
@@ -199,21 +281,20 @@ fi
 
 # Ten test jest ważniejszy, niż wygląda: zacache'owany endpoint Livewire
 # oznacza, że jeden użytkownik dostaje odpowiedź wygenerowaną dla innego.
-livewire=$("${POBIERZ[@]}" -I -o /dev/null -w '%{http_code}' "https://$HOST/livewire/update" 2>/dev/null)
-livewire_naglowki=$("${POBIERZ[@]}" -I "https://$HOST/livewire/update" 2>/dev/null)
-
 # Endpoint przyjmuje POST, więc na HEAD/GET odpowiada 405 — i to jest dowód,
 # że istnieje. Przy 404 nie orzekamy nic: zacache'owana strona „nie znaleziono"
 # ma dokładnie te same nagłówki co zacache'owany endpoint, więc test
 # meldowałby awarię, której nie sprawdził.
-if [ "$livewire" = "404" ] || [ "$livewire" = "000" ]; then
-    uwaga "Nie znalazłem endpointu Livewire (HTTP $livewire) — nie sprawdziłem cache'owania"
-elif grep -qi 'cf-cache-status:[[:space:]]*\(HIT\|MISS\)' <<< "$livewire_naglowki"; then
+if ! pobierz_naglowki "https://$HOST/livewire/update" || [ "$kod_odpowiedzi" != "405" ]; then
+    blad "Nie sprawdzono cache Livewire (curl: $kod_curl, HTTP: $kod_odpowiedzi). Ponów sondę i sprawdź endpoint."
+elif grep -qiE '^cf-cache-status:[[:space:]]*(HIT|MISS)[[:space:]]*$' <<< "$naglowki_odpowiedzi"; then
     blad "Endpoint Livewire jest cache'owany przez Cloudflare"
     rada "Dodaj Cache Rule: /livewire/* → Bypass cache."
     rada "Inaczej odpowiedź wygenerowana dla jednej osoby trafi do drugiej."
-else
+elif grep -qiE '^cf-cache-status:[[:space:]]*(BYPASS|DYNAMIC)[[:space:]]*$' <<< "$naglowki_odpowiedzi"; then
     ok "Endpoint Livewire nie jest cache'owany"
+else
+    blad "Nie sprawdzono cache Livewire. Sprawdź nagłówek CF-Cache-Status i regułę /livewire/* w Cloudflare."
 fi
 
 kod_cdn=$("${POBIERZ[@]}" -o /dev/null -w '%{http_code}' "https://$CDN/" 2>/dev/null)

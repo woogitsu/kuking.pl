@@ -1,0 +1,44 @@
+{
+  "retrieved_utc": "2026-09-20T18:34:00.639Z",
+  "source": "Railway MCP read-only",
+  "request": {
+    "hoursBack": 168,
+    "sampleRateSeconds": 300
+  },
+  "result": {
+    "service": {
+      "id": "5714f434-d42f-4ab0-addf-f8213409fa7f",
+      "name": "Postgres"
+    },
+    "environment": {
+      "id": "ea146c13-dc55-4a4f-a386-0835f650f9ce",
+      "name": "production"
+    },
+    "metrics": [
+      {
+        "measurement": "CPU_USAGE",
+        "current": 0.00020721333333333333,
+        "average": 0.001991286784002642,
+        "min": 0.00020721333333333333,
+        "max": 0.012728316666666668,
+        "sampleCount": 2017
+      },
+      {
+        "measurement": "MEMORY_USAGE_GB",
+        "current": 0.08822784,
+        "average": 0.08513342000145423,
+        "min": 0.075006976,
+        "max": 0.09553237333333332,
+        "sampleCount": 2017
+      },
+      {
+        "measurement": "DISK_USAGE_GB",
+        "current": 0.126713856,
+        "average": 0.1250089107679837,
+        "min": 0.123492352,
+        "max": 0.126713856,
+        "sampleCount": 2017
+      }
+    ]
+  }
+}
