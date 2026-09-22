@@ -1,0 +1,2 @@
+Użyj własnej bazy kuking_flota_gpt-redis-ha, użytkownika kuking i portu 55439.
+Kod odmowy: 2

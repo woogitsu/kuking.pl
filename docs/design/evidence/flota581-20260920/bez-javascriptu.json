@@ -1,0 +1,681 @@
+{
+  "pass": true,
+  "rows": [
+    {
+      "path": "/admin/kolaz-powitalny",
+      "dark": false,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 73,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/kuking-na-dzis",
+      "dark": false,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        }
+      ],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 73,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/zgloszenia",
+      "dark": false,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 176
+        },
+        {
+          "font": 18,
+          "height": 176
+        }
+      ],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/odwolania",
+      "dark": false,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 18,
+          "height": 176
+        }
+      ],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/kolaz-powitalny",
+      "dark": false,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [],
+      "buttons": [
+        {
+          "height": 59.5,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/kuking-na-dzis",
+      "dark": false,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        }
+      ],
+      "buttons": [
+        {
+          "height": 91,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/zgloszenia",
+      "dark": false,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 68
+        },
+        {
+          "font": 25.2,
+          "height": 176
+        },
+        {
+          "font": 25.2,
+          "height": 176
+        }
+      ],
+      "buttons": [
+        {
+          "height": 59.5,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/odwolania",
+      "dark": false,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 25.2,
+          "height": 192.25
+        }
+      ],
+      "buttons": [
+        {
+          "height": 59.5,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/kolaz-powitalny",
+      "dark": true,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 73,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/kuking-na-dzis",
+      "dark": true,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        }
+      ],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 50.5,
+          "font": 18
+        },
+        {
+          "height": 73,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/zgloszenia",
+      "dark": true,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 64
+        },
+        {
+          "font": 18,
+          "height": 176
+        },
+        {
+          "font": 18,
+          "height": 176
+        }
+      ],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/odwolania",
+      "dark": true,
+      "scale": 100,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 18,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 18,
+          "height": 176
+        }
+      ],
+      "buttons": [
+        {
+          "height": 50.5,
+          "font": 18
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/kolaz-powitalny",
+      "dark": true,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [],
+      "buttons": [
+        {
+          "height": 59.5,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/kuking-na-dzis",
+      "dark": true,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 75.0625
+        }
+      ],
+      "buttons": [
+        {
+          "height": 91,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        },
+        {
+          "height": 91,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        },
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/zgloszenia",
+      "dark": true,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 25.2,
+          "height": 75.0625
+        },
+        {
+          "font": 25.2,
+          "height": 68
+        },
+        {
+          "font": 25.2,
+          "height": 176
+        },
+        {
+          "font": 25.2,
+          "height": 176
+        }
+      ],
+      "buttons": [
+        {
+          "height": 59.5,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    },
+    {
+      "path": "/admin/odwolania",
+      "dark": true,
+      "scale": 140,
+      "javascript": false,
+      "pass": true,
+      "mutations": 0,
+      "font": 25.2,
+      "width": 320,
+      "scroll": 320,
+      "inputs": [
+        {
+          "font": 25.2,
+          "height": 192.25
+        }
+      ],
+      "buttons": [
+        {
+          "height": 59.5,
+          "font": 25.2
+        }
+      ],
+      "forms": [
+        {
+          "method": "post",
+          "csrf": true,
+          "submit": true
+        }
+      ]
+    }
+  ]
+}

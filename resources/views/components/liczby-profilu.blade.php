@@ -1,4 +1,4 @@
-@props(['stats', 'username', 'wariant'])
+@props(['stats', 'username'])
 
 {{--
     Pięć liczb profilu pochodzi z jednego zestawu danych kontrolera.
@@ -9,13 +9,16 @@
     Zachowane są kolejność i adresy: wpisy, przepisy, Ugotowałem,
     obserwujący i obserwowani. Dwa ostatnie prowadzą do list osób.
     To liczby dorobku konkretnej osoby, bez rankingów i porównań (§12).
-    Historyczna nazwa wariantu „karta” pozostaje klasą wspólnego komponentu;
-    jego bieżące położenie i wygląd określa `marka-profil.css`.
+
+    Historyczna nazwa „karta” pozostaje klasą wspólnego komponentu; jego
+    bieżące położenie i wygląd określa `marka-profil.css`. Drugiej gałęzi
+    („szyna”) tu już nie ma: przełącznik `wariant` miał jedno wywołanie
+    i zawsze tę samą wartość, a klasa `profil-liczby-w-szynie` nie miała
+    po D-210 żadnej reguły w arkuszach. Warunek, który nigdy nie skręca,
+    obiecuje wariant, którego nie ma.
 --}}
 
-<ul
-    class="profil-liczniki {{ $wariant === 'szyna' ? 'profil-liczby-w-szynie' : 'profil-liczby-karta' }}"
-    aria-label="Liczby tego profilu">
+<ul class="profil-liczniki profil-liczby-karta" aria-label="Liczby tego profilu">
     <x-licznik-profilu rodzaj="wpisy" :ile="$stats['posts']" />
     <x-licznik-profilu rodzaj="przepisy" :ile="$stats['recipes']" />
     <x-licznik-profilu rodzaj="ugotowania" :ile="$stats['cooked']" />

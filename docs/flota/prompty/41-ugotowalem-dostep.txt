@@ -1,0 +1,104 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-ugotowalem-dostep
+Gałąź:            gpt/ugotowalem-dostep  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-ugotowalem-dostep
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-ugotowalem-dostep --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Dostęp i odzyskiwanie przy „Ugotowałem" i komentarzach: #902 #910 #903.
+
+#902 — „Ugotowałem" ZAPRASZA zawieszone konto do formularza, który Policy
+       i tak odrzuci. Martwy przycisk w najczystszej postaci (D-053):
+       droga jest, tylko prowadzi w ścianę.
+#910 — wygaśnięcie czasu edycji komentarza daje mylące 403 i NIE ODDAJE
+       poprawianego tekstu. Człowiek traci to, co właśnie napisał, i nie
+       rozumie dlaczego. To wprost „poprawne dane nigdy nie znikają".
+#903 — tryb gotowania nie pozwala świadomie zacząć tego samego przepisu
+       od początku.
+
+DLA #910 NAJWAŻNIEJSZE JEST ODZYSKANIE TEKSTU, nie brzmienie komunikatu.
+Nawet najlepiej napisane 403 jest porażką, jeśli człowiek stracił akapit.
+Komunikat ma mówić CO ZROBIĆ — gdzie jest jego tekst i co może z nim zrobić.
+
+DLA #902 sprawdź NAJPIERW, czy to nie jest szerszy wzorzec: czy zawieszone
+konto widzi inne przyciski, których Policy nie przepuści. Jeśli tak —
+wypisz listę jako osobne znalezisko z pomiarem, ale nie poszerzaj zakresu
+poprawki bez decyzji właściciela.
+
+NIE DOTYKAJ trybu gotowania w zakresie #739 #740 #751 #755 #756 #764 —
+pracuje tam gałąź `gotowanie`. #903 jest wolne, ale plik możecie dzielić:
+przeczytaj jej commity przed zmianą.

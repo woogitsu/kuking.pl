@@ -12,6 +12,8 @@ use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Notifications\Messages\MailMessage;
 use Illuminate\Notifications\Notification;
 use Illuminate\Support\Env;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Symfony\Component\Mime\Email;
 use Tests\TestCase;
 
@@ -61,6 +63,12 @@ final class ListyZSystemuPoPolskuTest extends TestCase
     public function test_list_z_nowym_haslem_jest_po_polsku(): void
     {
         $user = $this->user(null, ['email' => 'basia@example.com']);
+
+        DB::table('password_reset_tokens')->insert([
+            'email' => $user->email,
+            'token' => Hash::make('token-testowy'),
+            'created_at' => now(),
+        ]);
 
         $user->sendPasswordResetNotification('token-testowy');
 
@@ -163,6 +171,12 @@ final class ListyZSystemuPoPolskuTest extends TestCase
     public function test_nadawca_podpisuje_sie_imieniem_gospodarza(): void
     {
         $user = $this->user();
+
+        DB::table('password_reset_tokens')->insert([
+            'email' => $user->email,
+            'token' => Hash::make('token-testowy'),
+            'created_at' => now(),
+        ]);
 
         $user->sendPasswordResetNotification('token-testowy');
 
@@ -271,6 +285,12 @@ final class ListyZSystemuPoPolskuTest extends TestCase
         $user = $this->user();
 
         \Illuminate\Support\Facades\Notification::fake();
+
+        DB::table('password_reset_tokens')->insert([
+            'email' => $user->email,
+            'token' => Hash::make('token-testowy'),
+            'created_at' => now(),
+        ]);
 
         $user->sendPasswordResetNotification('token-testowy');
         $user->sendEmailVerificationNotification();
