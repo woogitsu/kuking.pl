@@ -180,9 +180,8 @@ class ZdjeciaPrzezylyBladWalidacjiTest extends TestCase
             'visibility' => 'public',
         ]);
 
-        $odpowiedz
-            ->assertSessionHasErrors('photos', fn (string $blad): bool => str_contains($blad, 'Nowych zdjęć nie dodano'))
-            ->assertSessionHasInput('media_ids', $wgrane);
+        $odpowiedz->assertSessionHasErrors('photos', fn (string $blad): bool => str_contains($blad, 'Nowych zdjęć nie dodano'));
+        $this->assertEqualsCanonicalizing($wgrane, session()->getOldInput('media_ids'));
 
         // Bez liczenia na SUMIE dało by się obejść limit, wysyłając połowę
         // zdjęć w plikach, a połowę w ukrytych polach.
