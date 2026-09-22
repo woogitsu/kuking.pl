@@ -317,3 +317,20 @@ Przy viewport320×780 opublikowano odpowiedź główną i odpowiedź zagnieżdż
 18.09, rzeczywista przeglądarka, lokalne /pytania?filtr=bez-odpowiedzi: pierwsza strona15pytań, kliknięcie „Pokaż więcej pytań” prowadzi do4kolejnych. Brak wspólnych identyfikatorów między stronami; filtr i cursor zachowane. Scena zawiera18jawnie testowych pytań utworzonych wyłącznie w kuking_372_browser; nie dodawano treści na produkcji. Pierwszy pomocnik nie zapisał wyniku, ponieważ URL nie istnieje w jego sandboxie; ponowny odczyt przez zwykłe linki potwierdził rezultat.
 
 Niezależny agent review372_final odczytał diff55877e2..3c93027, testy i raport: nie znalazł nowego blokera merge w widoczności, blokadach, flagach, licznikach/QAPage, zachowaniu dzieci usuniętej odpowiedzi, strażniku rollbacku ani formularzach. Nie wykonywał testów ani przeglądarki. To review statyczne, nie niezależne powtórzenie moich wyników. Dalsze stany moderacji w przeglądarce i etapowe uruchomienie pozostają niepotwierdzone.
+
+## Uzupełnienie odbioru — 20 września 2026
+
+Na bazie `4c811cc7` ponownie wykonano testy istniejącej mechaniki, następnie
+uzupełniono widoczne wejście „Czeka na odpowiedź (N)” na `/pytania` oraz akcję
+odpowiedzi na kartach bez odpowiedzi. Publiczna lista zachowuje chronologię
+malejącą; najstarsze pytania na początku kolejki gospodarza to kolejność
+obsługi próśb o pomoc, nie ranking feedu. Licznik respektuje widoczność i tag.
+
+Usunięto też odtworzone obejście flagi we Wspomnieniach (#881), zachowując
+własne prywatne zwykłe wpisy. Nie podjęto decyzji produktowej o pytaniach
+jako wspomnieniach przy włączonym dziale.
+
+Własne pomiary, czerwienie przed poprawką, kontrole ujemne, 4397 zielonych
+testów, 24 konfiguracje przeglądarki i granice dowodu są w
+[raporcie stanowiska](../qa/pytania-poradzcie/RAPORT.md).
+To nadal nie jest odbiór produkcyjny ani włączenie funkcji.

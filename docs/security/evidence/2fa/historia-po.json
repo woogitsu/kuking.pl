@@ -1,0 +1,77 @@
+{
+  "browser": "153.0.8010.12",
+  "cases": [
+    {
+      "scenario": "refresh",
+      "initial": true,
+      "printable": true,
+      "cacheControl": "no-store, private",
+      "pragma": null,
+      "visible": false,
+      "restored": false,
+      "newCodeRequests": 1,
+      "sources": [
+        {
+          "status": 302,
+          "diskCache": false,
+          "serviceWorker": true
+        }
+      ],
+      "path": "/ustawienia/2fa"
+    },
+    {
+      "scenario": "back",
+      "initial": true,
+      "printable": true,
+      "cacheControl": "no-store, private",
+      "pragma": null,
+      "visible": false,
+      "restored": false,
+      "newCodeRequests": 1,
+      "sources": [
+        {
+          "status": 302,
+          "diskCache": false,
+          "serviceWorker": true
+        }
+      ],
+      "path": "/ustawienia/2fa"
+    },
+    {
+      "scenario": "logout-back",
+      "initial": true,
+      "printable": true,
+      "cacheControl": "no-store, private",
+      "pragma": null,
+      "visible": false,
+      "restored": false,
+      "newCodeRequests": 1,
+      "sources": [
+        {
+          "status": 302,
+          "diskCache": false,
+          "serviceWorker": true
+        }
+      ],
+      "path": "/login"
+    },
+    {
+      "scenario": "reopen",
+      "initial": true,
+      "printable": true,
+      "cacheControl": "no-store, private",
+      "pragma": null,
+      "visible": false,
+      "restored": false,
+      "newCodeRequests": 1,
+      "sources": [
+        {
+          "status": 302,
+          "diskCache": false,
+          "serviceWorker": true
+        }
+      ],
+      "path": "/ustawienia/2fa"
+    }
+  ]
+}

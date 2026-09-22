@@ -189,9 +189,14 @@ return [
          *
          * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
          * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
-         * Ale wyłączenie jest GŁOŚNE: `PurgePublicMediaCache` zapisuje wtedy
-         * ostrzeżenie w logu, bo cicha rezygnacja z czyszczenia wygląda
-         * dokładnie tak samo jak czyszczenie, które działa.
+         * Ale wyłączenie jest GŁOŚNE — i głośne jest w `/health`, nie w logu
+         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie, ale kończy
+         * się sukcesem, a kanał alarmowy przyjmuje wyłącznie `error`; wpis
+         * w logu nie dociera więc do nikogo. Sygnałem, który dociera, jest
+         * sonda `cdn` w `HealthController`: na produkcji z pustą konfiguracją
+         * `/health` oddaje `degraded` i dzwoni na webhook. Cicha rezygnacja
+         * z czyszczenia wygląda dokładnie tak samo jak czyszczenie, które
+         * działa, i to jest jedyne miejsce, które te dwa stany rozróżnia.
          */
         'cdn_purge' => [
             'zone_id' => env('CLOUDFLARE_ZONE_ID'),
@@ -2369,6 +2374,94 @@ return [
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
     ],
 
+    'potwierdzenia_rodo' => [
+        // RETENCJA POTWIERDZEŃ OBSŁUGI ŻĄDAŃ RODO —
+        // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`, decyzja D-233.
+        //
+        // ┌──────────────────────────────────────────────────────────────┐
+        // │ KASOWANIE JEST WYŁĄCZONE. TO DECYZJA WŁAŚCICIELA Z 22.09.2026 │
+        // │ (D-233), NIE NIEDOPATRZENIE I NIE TYMCZASOWY OBEJŚCIE BŁĘDU.  │
+        // │ NIE WŁĄCZAJ TEGO „przy okazji" ANI „bo autor tak chciał".     │
+        // └──────────────────────────────────────────────────────────────┘
+        //
+        // Autor gałęzi `naprawa/minimalne-potwierdzenie-rodo` włączał
+        // kasowanie po 36 miesiącach domyślnie i bez przełącznika,
+        // argumentując, że „wyłącznik retencji to bezterminowość pod inną
+        // nazwą". Argument jest sensowny i dlatego stoi tu zapisany —
+        // właściciel rozstrzygnął jednak inaczej, i to z dwóch konkretnych
+        // powodów, nie z niechęci do retencji:
+        //
+        //  1. OKRESU NIE POTWIERDZIŁ JESZCZE PRAWNIK. 36 miesięcy to analogia
+        //     do dokumentacji sprawy moderacyjnej (art. 442¹ k.c.), nie
+        //     ustalenie. Domyślnik, który kasuje dowody po niepotwierdzonym
+        //     okresie, jest gorszy niż brak automatu.
+        //  2. KASOWANIE JEST TWARDYM `DELETE`, NIEODWRACALNYM — bez
+        //     soft-delete i bez eksportu. Po jego włączeniu, dla kont, których
+        //     ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy
+        //     i kiedy usunęliście dane tej osoby" NIE ZOSTAJE NIC. A polityka
+        //     prywatności mówi dziś o kopiach zapasowych: „Nie podajemy tu
+        //     liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą" — czyli
+        //     nie wiadomo nawet, jak długo istnieje droga odzysku.
+        //
+        // Dane historyczne mają być najpierw przygotowane. Służy do tego
+        // `kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które
+        // działa NAWET przy wyłączonej retencji i niczego nie kasuje — pokazuje
+        // wyłącznie, ile wierszy wpadłoby pod dany próg.
+        //
+        // JAK TO WŁĄCZYĆ, GDY PRAWNIK POTWIERDZI OKRES — trzy kroki, wszystkie
+        // poza kodem, opisane w `PROJEKT_POTWIERDZENIA_RODO.md` §6:
+        //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
+        //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
+        //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
+        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
+        // wystartuje nawet przy przypadkowo ustawionej zmiennej.
+        //
+        // Domyślnika retencji pilnuje `RetencjaPotwierdzenRodoTest`.
+        'retencja_wlaczona' => (bool) env('KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA', false),
+
+        // BRAK WARTOŚCI DOMYŚLNEJ — I TO JEST ISTOTA POWODU 1 WYŻEJ.
+        // Gdyby stało tu `36`, samo przestawienie flagi wyżej uruchomiłoby
+        // nieodwracalne kasowanie według okresu, którego nikt nie potwierdził.
+        // `null` znaczy „nieustalony": komenda odmawia kasowania i mówi
+        // dlaczego, zamiast zgadywać.
+        'retention_months' => env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS') !== null
+            ? (int) env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS')
+            : null,
+    ],
+
+    'sessions' => [
+        // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
+        //
+        // Wiersz sesji trzyma parę (`user_id`, zgrubny adres IP, pełny
+        // `User-Agent`) — dane osobowe, mimo że tabelę zakłada domyślna
+        // migracja Laravela i nikt jej u nas nie projektował. Do 21.09.2026
+        // była to JEDYNA tabela z danymi osobowymi bez gwarantowanej
+        // retencji: kasowała ją wyłącznie loteria frameworka
+        // (`config/session.php` → `'lottery' => [2, 100]`), czyli 2% żądań.
+        // Przy małym ruchu wiersze leżą wtedy dłużej niż `SESSION_LIFETIME`,
+        // bez żadnej górnej granicy, której dałoby się uczciwie obiecać
+        // w polityce prywatności.
+        //
+        // SIEDEM DNI, a nie trzydzieści: tyle wynosi `SESSION_LIFETIME`
+        // w `.env.example` (10080 minut) i tyle zakładają komentarze
+        // w `CookingModeController`, `EnsureAccountIsActive` i `User` — czyli
+        // to jest liczba, którą ten projekt ma w głowie. Sesja bez aktywności
+        // od tygodnia jest już wygasła; trzymanie jej wiersza dłużej nie służy
+        // niczemu poza rozdęciem tabeli.
+        //
+        // TA LICZBA JEST SUFITEM, NIE POZWOLENIEM NA CIĘCIE ŻYWYCH SESJI.
+        // `App\Domain\Compliance\PrzedawnioneSesje` podnosi próg, gdy
+        // `SESSION_LIFETIME` jest dłuższy (na produkcji może być — plan
+        // w `.railway/railway.ts` mówi 43200 minut, czyli 30 dni). Wiersz
+        // młodszy niż `lifetime` należy do sesji ŻYWEJ, a jego skasowanie
+        // to wylogowanie człowieka w środku pracy.
+        //
+        // Egzekwuje `kuking:sprzataj-sesje`. Loteria frameworka zostaje
+        // obok, świadomie — dwa mechanizmy o różnych trybach awarii.
+        'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
@@ -2528,6 +2621,24 @@ return [
         // miesięcy kalendarzowych, a ta liczba jest tylko dolną granicą,
         // której nie wolno zejść poniżej (pilnuje jej test).
         'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 180),
+
+        // ILE DNI PO ZAMKNIĘCIU SPRAWY DZIAŁA JESZCZE LINK ZGŁASZAJĄCEGO
+        // do strony śledzenia (issue #798, decyzja właściciela 20.09.2026).
+        //
+        // To NIE jest termin na odwołanie i nie ma z nim nic wspólnego —
+        // termin na odwołanie liczy `ModerationAction::appealDeadline()`
+        // (sześć miesięcy), a tu chodzi o dostęp do strony, na której tę
+        // sprawę się śledzi. Przedtem obie rzeczy były jedną liczbą i stąd
+        // wzięło się 403 na własną, wciąż otwartą sprawę.
+        //
+        // Link żyje, DOPÓKI SPRAWA JEST OTWARTA (`DostepDoStronySprawy`),
+        // a ta liczba mówi tylko, ile jeszcze po jej zamknięciu. 30 dni,
+        // bo odpowiedź i tak poszła pocztą (`NotifyReporterAppealOutcome`),
+        // a to okno ma wystarczyć na powrót po nią z maila — nie na
+        // trzymanie sprawy bezterminowo pod adresem, który może trafić
+        // w cudze ręce. Sama LICZBA jest do potwierdzenia przez właściciela;
+        // testy czytają ją stąd, żeby nie zabetonować niewybranego progu.
+        'reporter_case_link_days' => (int) env('KUKING_REPORTER_CASE_LINK_DAYS', 30),
 
         // Ile DNI ROBOCZYCH mamy na odpowiedź. Playbook §3 punkt 4.
         // Świąt nie liczymy — Carbon zna weekendy, nie kalendarz polskich
@@ -2792,7 +2903,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.67',
+        'etykieta' => 'Alfa 0.68',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //
@@ -2828,5 +2939,15 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    'demo' => [
+        // Hasło kont demonstracyjnych `DemoSeeder`. Czytane przez `config()`,
+        // nie `env()` bezpośrednio w seederze — PHPStan słusznie oblewa
+        // gołe `env()` poza katalogiem `config/`, bo przy skonfigurowanym
+        // cache'u konfiguracji (`config:cache`) zwróciłoby `null` zamiast
+        // wartości. Bez wartości domyślnej celowo: `DemoSeeder::hasloDemo()`
+        // sam losuje hasło, gdy ta zmienna jest pusta.
+        'haslo' => env('KUKING_DEMO_HASLO'),
     ],
 ];

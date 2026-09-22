@@ -11,7 +11,9 @@
 #    ./scripts/install-hooks.sh   # hook pre-push, jednorazowo
 #
 #  GDZIE TO CHODZI: rozstrzyga ZMIENNA REPOZYTORIUM `CI_RUNS_ON` (D-121).
-#  Wszystkie dziewięć jobów ma dokładnie to samo:
+#  WYJĄTEK od 21.09.2026: JEDEN job, `port_funkcje`, czyta osobną zmienną,
+#  `CI_RUNS_ON_BROWSER` — patrz blok „JOB PRZEGLĄDARKOWY" niżej. Wszystkie
+#  POZOSTAŁE joby mają dokładnie to samo:
 #
 #      runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
 #
@@ -50,6 +52,82 @@
 #  na nową pulę, skutek skasowania zmiennej i SYGNAŁ, po którym tę decyzję
 #  odwracamy, stoją w docs/infra/SELF_HOSTED_RUNNER.md → „Krok 1" → „Decyzja
 #  właściciela z 12 września 2026: zmienna ZOSTAJE na samym `self-hosted`".
+# ---------------------------------------------------------------------------
+
+# ---------------------------------------------------------------------------
+#  JOB PRZEGLĄDARKOWY `port_funkcje`: OSOBNA ZMIENNA `CI_RUNS_ON_BROWSER`
+#  (decyzja właściciela z 21.09.2026, ZAWĘŻONA tego samego dnia).
+#
+#  CO SIĘ ZMIENIŁO. 21.09 CI przeszło na własne runnery (`CI_RUNS_ON`) we
+#  WSZYSTKICH jobach — koszt minut spadł do zera, ale runnery stoją na TEJ
+#  SAMEJ maszynie co flota agentów, która na niej równolegle pracuje. Przy
+#  pięciu pełnych zestawach testów naraz `load average` dobijał do 12,
+#  a joby przeglądarkowe (Playwright/Chromium pod obciążoną maszyną) odpadały
+#  z `TimeoutError` — `main` poczerwieniał z tego powodu raz tego dnia.
+#
+#  PIERWSZA WERSJA tej decyzji (ten sam dzień) przełączyła PIĘĆ jobów —
+#  `assets`, `port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc` —
+#  na `CI_RUNS_ON_BROWSER`. Właściciel to COFNĄŁ po zobaczeniu kosztu:
+#  pięć jobów to 66 min na pełny przebieg (Panel marki 18 + Port marki 8 +
+#  Port marki — rodziny ekranów 27 + Dostępność 13 = 66; `assets` liczy się
+#  w minutach budowy assetów, nie osobno) — z puli ~500 minut to tylko
+#  SIEDEM pełnych przebiegów miesięcznie. (Pierwotny meldunek zsumował te
+#  cztery liczby jako „ok. 39 min" — błąd w arytmetyce, nie w pomiarze:
+#  18+8+27+13 = 66, nie 39.)
+#
+#  DECYZJA (zawężona): na `ubuntu-latest` wraca WYŁĄCZNIE `port_funkcje`
+#  („Port marki — rodziny ekranów, zoom i kreator") — sam jest NAJDŁUŻSZYM
+#  jobem w całym CI (mediana 51 s, ale MAKSIMUM 1638 s na 25 przebiegach;
+#  limit joba podniesiono do 35 min po przebiegu, w którym sam pomiar
+#  układu trwał 23 min) i to WŁAŚNIE ON padł na `main` z `TimeoutError`
+#  pod obciążeniem floty — najmocniej cierpi, więc jako jedyny się przenosi.
+#  Sam `port_funkcje` to ok. 27 min na przebieg — z puli ~500 minut to
+#  około OSIEMNASTU przebiegów, znacznie mniej ciasno niż przy pięciu jobach.
+#
+#      runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
+#
+#  Pozostałe cztery joby (`assets`, `port_panelu`, `port_marki`, `dostepnosc`)
+#  WRÓCIŁY na `CI_RUNS_ON` (własne runnery) — cofnięte do stanu sprzed
+#  pierwszej wersji tej decyzji. Czy pod obciążeniem floty też zaczną padać,
+#  NIE WIADOMO — to pytanie otwarte, nie rozstrzygnięte tym cofnięciem.
+#
+#  DLACZEGO OSOBNA ZMIENNA, A NIE ETYKIETA NA SZTYWNO W `runs-on:`. Sztywna
+#  etykieta wymagałaby PR-a i przeglądu za każdym razem, gdy flota przestaje
+#  pracować i `port_funkcje` mógłby wrócić na własne runnery. Zmienna zmienia
+#  się w Settings → Secrets and variables → Actions → Variables, bez PR-a —
+#  ten sam powód, dla którego istnieje `CI_RUNS_ON` (patrz blok wyżej).
+#
+#  ŚRODOWISKO: `ubuntu-latest` to ten sam obraz, który już był zapasem
+#  domyślnym tego joba, zanim własne runnery przejęły wszystko — nie nowa,
+#  nieprzetestowana droga. Krok „Przeglądarka" (`npx playwright install
+#  chromium`, BEZ `--with-deps`) zakłada, że biblioteki systemowe Chromium
+#  (libnss, libatk, libgbm i inne) już są na maszynie: na własnym runnerze,
+#  bo ktoś je tam doinstalował ręcznie (docs/infra/SELF_HOSTED_RUNNER.md,
+#  „CI nie instaluje pakietów systemowych"); na `ubuntu-latest` — bo obraz
+#  GitHuba ma preinstalowane przeglądarki (Chrome, Edge), które ciągną te
+#  same biblioteki jako zależności pakietu. NIE JEST TO ZMIERZONE na tym CI —
+#  żaden przebieg tej zmiany jeszcze nie poszedł — tylko WYWNIOSKOWANE
+#  z dokumentacji obrazów runnerów GitHuba. Jeśli któryś pakiet jednak
+#  brakuje, Playwright powie to po nazwie przy starcie przeglądarki (ten sam
+#  komunikat co na self-hosted), nie padnie cicho. Najtańszy sposób
+#  rozstrzygnięcia na pewno: puścić SAM `port_funkcje` (workflow_dispatch albo
+#  push na gałęzi), nie cały przebieg CI.
+#
+#  KLIENT POSTGRESA, PHP, NODE: bez zmian. `shivammathur/setup-php`
+#  i `actions/setup-node` instalują wersję z `env.PHP_VERSION`/`NODE_VERSION`
+#  od zera na KAŻDYM runnerze, więc `ubuntu-latest` nie różni się tu niczym —
+#  to jest już standardowa droga tych akcji na obrazach GitHuba. Klient
+#  `pg_restore` 18 dotyczy wyłącznie joba `lint` (skrypty kopii bazy), który
+#  ZOSTAJE na `CI_RUNS_ON` — `port_funkcje` go nie woła.
+#
+#  PO CZYM POZNAĆ, ŻE TRZEBA WRÓCIĆ NA WŁASNE RUNNERY: flota agentów
+#  przestaje obciążać maszynę (load average trwale poniżej ~4) — wtedy
+#  `CI_RUNS_ON_BROWSER` można skasować albo ustawić na tę samą wartość co
+#  `CI_RUNS_ON`, i `port_funkcje` wraca na własną pulę bez PR-a.
+#
+#  Zgodności tego bloku z tym, co naprawdę stoi w `runs-on:` `port_funkcje`,
+#  pilnuje ten sam strażnik co dla `CI_RUNS_ON`:
+#  `tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php`.
 # ---------------------------------------------------------------------------
 
 # =============================================================================
@@ -241,7 +319,14 @@ jobs:
           # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
           # miernik bez jednego czerwonego przebiegu. Pilnuje tego
           # `PortMarkiMaWlasnaBramkeCiTest`.
-          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|app/Http/Middleware/ApplySecurityHeaders\.php|app/Support/AnalitykaCloudflare\.php|scripts/(referrer-sekret-browser|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          # Lista pomiarów niesie też `referrer-sekret-browser` (z `main`).
+          # Sterujące nim `ApplySecurityHeaders.php` i `AnalitykaCloudflare.php`
+          # łapie już szersze `app/`, więc nie stoją na liście osobno.
+          # PHP także steruje ekranem: komponenty, trasy, kontrolery, polityki
+          # i modele. Konserwatywnie obejmujemy całe app/, konfigurację,
+          # start aplikacji, tłumaczenia, bazę oraz zależności PHP (#1039).
+          # Here-string nie gubi trafienia przez SIGPIPE przy dużym diffie.
+          if grep -qE '^(app/|routes/|config/|bootstrap/|lang/|database/|composer\.(json|lock)$|resources/|public/|scripts/(referrer-sekret-browser|hero-nad-zgieciem|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)' <<< "${ZMIENIONE}"; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -802,6 +887,14 @@ jobs:
           flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
           node scripts/skala-proporcje.mjs
 
+      # Test DOM: potwierdzenie wyboru tagu w opisie (#754). Stoi TU, a nie na
+      # liście `node --test` w skrypcie `build`, bo potrzebuje Chromium —
+      # a `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
+      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
+      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
+      - name: Regresja potwierdzenia wyboru tagu (DOM w Chromium)
+        run: node --test scripts/przegladarka/tagi-potwierdzenie.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.
@@ -849,8 +942,8 @@ jobs:
   # ===========================================================================
   #  URUCHAMIA SIĘ TYLKO PRZY ZMIANACH W WARSTWIE WIDOKU. Repozytorium jest
   #  prywatne, więc każda minuta Actions kosztuje; ten job podnosi przeglądarkę
-  #  i bazę, czyli jest najdroższy z całego CI. Filtr ścieżek sprawia, że nie
-  #  płacimy za niego przy zmianie w kontrolerze albo w migracji.
+  #  i bazę, czyli jest najdroższy z całego CI. Filtr obejmuje także PHP,
+  #  które steruje ekranem; sama dokumentacja nie uruchamia pomiaru.
   #
   #  Bez tego joba automat chodziłby tylko wtedy, gdy ktoś PAMIĘTA o fladze
   #  `./scripts/check.sh --dostepnosc` — a o rzeczach, o których trzeba
@@ -1007,10 +1100,27 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       - uses: actions/checkout@v7
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
         with:
-          fetch-depth: 0
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1072,7 +1182,7 @@ jobs:
     name: Port marki — rodziny ekranów, zoom i kreator
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
-    runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
+    runs-on: ${{ fromJSON(vars.CI_RUNS_ON_BROWSER || '"ubuntu-latest"') }}
     # CI 35241344523: pełne pomiary i upload trwały ponad 25 min; zachowujemy wszystkie kontrole.
     timeout-minutes: 35
 
@@ -1107,10 +1217,27 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       - uses: actions/checkout@v7
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
         with:
-          fetch-depth: 0
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1240,12 +1367,32 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
-      # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą
-      # i sprawdzić, CZY ten PR w ogóle rusza warstwę widoku.
+      # Bez `fetch-depth: 0`. Porównanie z bazą (`git diff --name-only`)
+      # robi WYŁĄCZNIE job `zakres` — to on potrzebuje pełnej historii.
+      # Ten job nie woła gita; czy rusza warstwę widoku, czyta gotowe
+      # z `needs.zakres.outputs.widok` i `needs.zakres.outputs.kod`.
+      # Pilnuje tego `PortMarkiMaWlasnaBramkeCiTest`.
       - uses: actions/checkout@v7
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
         with:
-          fetch-depth: 0
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       # Dynamiczny port Postgresa — pełne uzasadnienie i pomiary przy tym
       # samym kroku w jobie `test` wyżej.
@@ -1256,9 +1403,8 @@ jobs:
           echo "PostgreSQL mapped to host port ${{ job.services.postgres.ports[5432] }}"
 
       # GitHub Actions nie umie filtrować ścieżek per JOB (tylko per workflow),
-      # więc robimy to sami. Wszystkie kolejne kroki są za tym warunkiem —
-      # przy zmianie w kontrolerze albo w migracji job kończy się w kilka
-      # sekund, zamiast pobierać przeglądarkę i podnosić bazę.
+      # więc decyduje wyjście joba `zakres`. Warunek stoi na całym jobie,
+      # nie na krokach; PHP sterujące ekranem też uruchamia pomiar (#1039).
       - name: Własny katalog narzędzi PHP (issue #262)
         run: |
           set -euo pipefail

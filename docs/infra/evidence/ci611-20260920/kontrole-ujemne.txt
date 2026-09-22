@@ -1,0 +1,6 @@
+PASS kontroli ujemnej: port_marki pelna historia -> FAIL na oczekiwanej asercji
+PASS kontroli ujemnej: port_funkcje pelna historia -> FAIL na oczekiwanej asercji
+PASS kontroli ujemnej: dostepnosc pelna historia -> FAIL na oczekiwanej asercji
+PASS kontroli ujemnej: brak checkoutu -> FAIL na oczekiwanej asercji
+PASS kontroli ujemnej: zakres bez historii -> FAIL na oczekiwanej asercji
+PASS po odtworzeniu: 7 testów; bajty i mtime workflowu zachowane.
