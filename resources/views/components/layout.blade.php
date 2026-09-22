@@ -950,7 +950,7 @@
                             @csrf
                             {{-- Ukryte pola drogi powrotu, gdy akcja ich potrzebuje.
                                  Powrót po wyjęciu z zeszytu ich NIE potrzebuje
-                                 (D-241): zeszyt, notatkę i datę zapisu zna
+                                 (D-242): zeszyt, notatkę i datę zapisu zna
                                  zapamiętane w sesji wyjęcie, więc przycisk
                                  „Przywróć do zeszytu" wysyła sam adres, a mimo
                                  to rzecz wraca tam, skąd zeszła. --}}

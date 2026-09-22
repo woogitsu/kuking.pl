@@ -411,7 +411,7 @@ try {
   console.log(`  wpis znowu w zeszycie: ${znowuWZeszycie}\n`);
 
   /*
-   * POWRÓT PRZYWRACA, A NIE ZAPISUJE OD NOWA (D-241).
+   * POWRÓT PRZYWRACA, A NIE ZAPISUJE OD NOWA (D-242).
    *
    * Do złożenia dwóch dróg do #775 przycisk nazywał się „Zapisz ponownie"
    * i robił zwykły zapis, więc komunikat brzmiał „Zapisane w zeszycie «…»"

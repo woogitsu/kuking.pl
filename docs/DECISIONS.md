@@ -15268,7 +15268,7 @@ jako pierwszy. Ponieważ ta gałąź miała mniej odwołań do numeru (9 wobec 1
 `gpt-n1-powiadomienia`), koszt przenumerowania był tu niższy, więc numer
 D-229 zostaje przy tamtej decyzji, a ta dostaje D-230.*
 
-> **Sprostowane 22 września 2026 — patrz D-241.** Dwa rozstrzygnięcia poniżej
+> **Sprostowane 22 września 2026 — patrz D-242.** Dwa rozstrzygnięcia poniżej
 > przestały obowiązywać, bo przestała być prawdziwa przesłanka, na której obie
 > stały: że „`detach()` kasuje notatkę i żadna droga powrotu jej nie odtwarza".
 > Rdzeń z #1110 dołożył `restore()`, które przywraca zdjęte wiersze RAZEM
@@ -15478,7 +15478,7 @@ pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i 
 jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 
 
-## D-241 — Wyjęcie z zeszytu jest odwracalne co do notatki: rdzeń z #1110 na ekranach z #1168 (#775, D-224, D-230, D-231, 22 września 2026)
+## D-242 — Wyjęcie z zeszytu jest odwracalne co do notatki: rdzeń z #1110 na ekranach z #1168 (#775, D-224, D-230, D-231, 22 września 2026)
 
 **Decyzja właściciela: rdzeń z #1110, ekrany z #1168.** #1168 weszło na
 `main` samo, z rdzeniem, który przy wyjęciu nadal kasował notatkę
@@ -15519,9 +15519,13 @@ a ekrany z #1168 zostają, bo bez nich nie ma jak wskazać zeszytu.
 **Bez zmian:** jedna droga wyjęcia na ekran i napisy „Usuń z tego zeszytu" /
 „Usuń z zeszytu" (D-231), edycja zeszytu (#777), licznik karty zeszytu (#774).
 
-**Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-240 przez
-inne gałęzie (sprawdzone na wszystkich gałęziach, nie tylko na `main`).
-Żadnego istniejącego numeru nie przenumerowano.
+**Numer.** D-230 i D-231 są na `main` zajęte przez #1168, a D-232–D-241 przez
+inne gałęzie. *Ta decyzja nosiła najpierw numer D-241* — w chwili sprawdzania
+wszystkich gałęzi był wolny, ale zanim trafił na `origin`, D-241 wzięła
+`flota/scal-786` (#966) i wypchnęła go pierwsza. Według D-235 numer ustępuje
+strona, która wzięła cudzy, więc ustępuje ta decyzja i bierze D-242
+(`scripts/numery-decyzji.sh --nastepny-wolny`). Cudzej gałęzi nie
+przenumerowano.
 
 Dowody: `tests/Feature/WyjecieZZeszytuNieKasujeInnychZeszytowTest.php`,
 `tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
