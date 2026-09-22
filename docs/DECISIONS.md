@@ -15057,6 +15057,15 @@ zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
 stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
 Trasy nie kasujemy.
 
+> **Sprostowane 22 września 2026 — patrz D-230.** Zdanie „przycisk stoi
+> wszędzie tam, gdzie widać »Masz to w zeszycie«" przestało być prawdziwe na
+> JEDNYM ekranie: w środku konkretnego zeszytu nie ma już ani odnośnika „Masz
+> to w zeszycie", ani przycisku „Usuń z zeszytu" — stoi tam wyłącznie „Usuń
+> z tego zeszytu" o zakresie lokalnym. Poza zeszytem wszystko poniżej zostaje
+> bez zmian. Reszta D-224 — brak potwierdzenia przed akcją, droga powrotu po
+> niej, brak JavaScriptu, granica ostrzejsza niż Policy — obowiązuje dalej,
+> a droga powrotu przywraca teraz także notatkę (D-230).
+
 Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
 w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
 więc drugie kliknięcie (norma w tej grupie, issue #43) niczego nie zabiera.
@@ -15109,3 +15118,123 @@ produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
 zakresu statystyk o prywatne treści ani ranking.
 
 Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
+
+
+## D-230 — Jedna droga wyjęcia z zeszytu, zakres wybiera ekran, a cofnięcie wraca z notatką (#775, #776, #777, D-224, 22 września 2026)
+
+Do issue #775 powstały DWIE niezależne naprawy i żadna nie zamykała go sama.
+
+- `naprawa/775-zakres-usuwania-z-zeszytu` (#1110) zrobiła RDZEŃ: `remove()`
+  przyjmuje zeszyt, oddaje zdjęte wiersze i dostaje bliźniaka `restore()`,
+  który odkłada je tam, skąd zeszły — z notatką i pierwotnym `created_at`.
+  Ekranów prawie nie ruszała, więc człowiek nie miał jak wskazać zeszytu.
+- `flota/scal-zeszyt-775` (#1168) zrobiła EKRANY: trasę i formularz edycji
+  zeszytu (#777), spójny licznik na karcie zeszytu (#774), przycisk wyjęcia
+  na karcie wpisu i w środku zeszytu (#776), skrypt pomiarowy i pięć scen.
+  Rdzeń zostawiała nieodwracalny: `remove()` oddawało `int`, notatka przepadała.
+
+**Właściciel rozstrzygnął: rdzeń z #1110, ekrany z #1168.** Powód jest jeden
+i nie jest estetyczny: utrata cudzej notatki jest NIEODWRACALNA — tabela
+`collection_items` nie ma miękkiego kasowania ani historii — a brak ekranu
+jest odwracalny dopisaniem ekranu. Cofanie było więc ważniejsze niż ekrany,
+ale ekrany też weszły, bo bez nich nie ma jak wskazać zeszytu.
+
+### 1. Zakres wybiera EKRAN, nie człowiek
+
+1. W środku konkretnego zeszytu, gdy widz jest jego właścicielem, stoi
+   wyłącznie **„Usuń z tego zeszytu"** — `collection_id` wskazuje ten zeszyt,
+   zapis w pozostałych zostaje razem z notatką i datą. Odnośnika „Masz to
+   w zeszycie" tam NIE MA: prowadzi do listy zeszytów, a człowiek stojący
+   W zeszycie już wie, że wpis tam leży.
+2. Poza zeszytem — w strumieniu, na profilu, w wyszukiwarce, na stronie wpisu
+   i na stronie przepisu — stoi wyłącznie **„Usuń z zeszytu"**, obok odnośnika
+   „Masz to w zeszycie" (D-224). Nie ma tam „tego zeszytu", do którego dałoby
+   się odnieść.
+3. **Nigdy oba naraz.** Dowodem jest scena
+   `WpisDaSieWyjacZZeszytuTest::test_na_ekranie_jest_dokladnie_jedna_droga_wyjecia`.
+
+Różnica napisów między ekranem zeszytu a stroną wpisu jest ROZSTRZYGNIĘCIEM,
+nie niedopatrzeniem — nie ujednolicać.
+
+### 2. Potwierdzenie PRZED akcją nie wraca — bo teraz naprawdę nie musi
+
+#1168 dokładało na stronie przepisu `<x-confirm-button>` z pytaniem „czy na
+pewno ze wszystkich zeszytów". Argument brzmiał: wyjęcie jest tylko CZĘŚCIOWO
+odwracalne, bo `detach()` kasuje wiersz pivotu razem z `note`, a „Zapisz
+ponownie" notatki nie odzyskuje.
+
+**Ten argument przestał być prawdziwy wraz z rdzeniem z #1110.** `restore()`
+przywraca notatkę i pierwotną datę zapisu, więc wyjęcie jest odwracalne
+w całości — a wtedy obowiązuje reguła D-224: pytanie przed KAŻDĄ odwracalną
+czynnością uczy odklikiwania i psuje wagę pytań przy rzeczach naprawdę
+nieodwracalnych (kasowanie wpisu, kasowanie zeszytu). Strona przepisu zostaje
+przy zwykłym formularzu DELETE.
+
+**Ale zarzut #775 jest spełniony, tylko inaczej.** Brzmiał „usuwa ze wszystkich
+zeszytów BEZ UJAWNIENIA ZAKRESU", nie „usuwa bez pytania". Zakres stoi więc
+NAPISANY NAD PRZYCISKIEM, zanim ktoś kliknie, związany z nim przez
+`aria-describedby`:
+
+- jeden zeszyt → formularz niesie `collection_id` i zdanie „Masz ten przepis
+  w zeszycie «nazwa»"; nic poza tym zeszytem nie zostanie ruszone;
+- kilka zeszytów → akapit ostrzegawczy z LICZBĄ zeszytów i zapowiedzią
+  przycisku „Przywróć do zeszytu".
+
+### 3. Komunikat po akcji nazywa FAKTYCZNY zakres i obiecuje dokładnie tyle, ile daje
+
+`remove()` oddaje zdjęte wiersze, więc liczba jest policzona, nie deklarowana:
+wpis leżący w jednym zeszycie nie straszy zdaniem o „wszystkich Twoich
+zeszytach", a drugie kliknięcie (norma w tej grupie, issue #43) nie kłamie,
+że znowu coś zabrało.
+
+- zakres lokalny: „Wpis wyjęty z zeszytu «Obiady». Nie usunęliśmy go
+  z serwisu — możesz go przywrócić."
+- zakres globalny: „Przepis wyjęty z zeszytu — zniknął ze wszystkich Twoich
+  zeszytów, było ich 3. Nie usunęliśmy go z serwisu — możesz go przywrócić
+  razem z notatkami."
+- nic nie było do zdjęcia: „Tego przepisu nie ma w żadnym z Twoich zeszytów." —
+  bez drogi powrotu, bo nie ma dokąd.
+
+### 4. Droga powrotu PRZYWRACA, a nie zapisuje od nowa
+
+Przycisk brzmi **„Przywróć do zeszytu"**, nie „Zapisz ponownie", i to jest
+teraz prawda. Zdjęte wiersze czekają w SESJI, nie we flashu — flash żyje jedno
+żądanie, a droga powrotu ma trzy (DELETE, GET z przyciskiem, POST po
+kliknięciu). Dlatego `saveRecipe()` i `savePost()` sprawdzają najpierw, czy to
+nie jest powrót po wyjęciu; gdyby zadziałały jak zwykły zapis, rzecz wróciłaby
+do zeszytu DOMYŚLNEGO, z pustą notatką i dzisiejszą datą — czyli „powrót" po
+cichu gubiłby to, przed czym ma chronić.
+
+Powrót jest jednorazowy, nie nadpisuje świeższego wiersza (ktoś mógł zapisać
+ponownie, zanim kliknął) i nie sięga zeszytu, który zniknął albo nigdy nie był
+tej osoby.
+
+### 5. Granica bez zmian
+
+Zakres zawsze ogranicza `$user->collections()`, a `collection_id` przechodzi
+przez walidację własności — cudzy identyfikator kończy się błędem walidacji,
+nie cichym brakiem skutku. UUID w adresie dalej nie jest autoryzacją
+(AGENTS.md §7).
+
+### 6. Co jeszcze weszło z ekranami
+
+- **#777** — trasy `collections.edit` i `collections.update` oraz formularz
+  zmiany nazwy, opisu i widoczności. `CollectionPolicy::update()` istniało od
+  dawna; brakowało wyłącznie drogi do niego, więc jedynym sposobem cofnięcia
+  publicznego udostępnienia było USUNIĘCIE całego zeszytu z zawartością.
+  Komunikat nazywa skutek dla dawnego adresu, nie tylko fakt zapisu.
+- **#774** — karta zeszytu liczy WIDOCZNE zapisy, dokładnie tyle, ile widać po
+  wejściu, a różnicę nazywa osobnym zdaniem — tym samym wzorcem co wnętrze
+  zeszytu.
+
+**D-081 zostaje w mocy** — tablica „kuKINGi na dziś" dalej świadomie nie
+dolicza stanu zeszytu. Trzecie słowo na tę samą czynność („Wyjmij") byłoby
+złamaniem `BRAND_EXTENDED.md` §3, więc go nie ma.
+
+Dowody: `tests/Feature/WyjecieZZeszytuNieKasujeInnychZeszytowTest.php`,
+`tests/Feature/UsuniecieZZeszytuMaZakresTest.php`,
+`tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
+`tests/Feature/ZeszytUsuwaZapisanyWpisTest.php`,
+`tests/Feature/LicznikKartyZeszytuSpojnyTest.php`,
+`tests/Feature/EdycjaWidocznosciZeszytuTest.php`,
+`scripts/wyjecie-z-zeszytu.mjs`.

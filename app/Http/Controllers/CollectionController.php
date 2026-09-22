@@ -44,7 +44,30 @@ class CollectionController extends Controller
             'saveContext' => app(CollectionSaveContext::class)->parameters($request),
             'saveContent' => app(CollectionSaveContext::class)->content($request),
             'collections' => $user->collections()
-                ->withCount(['recipes', 'posts'])
+                ->withCount([
+                    // LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK
+                    // ZOBACZY PO WEJŚCIU (issue #774).
+                    //
+                    // PRZED TĄ ZMIANĄ ta karta liczyła bez żadnego filtra
+                    // widoczności ani statusu autora, a `show()` niżej filtrował
+                    // OBOMA (`widoczneDla()` i `dostepnyJakoAutor()`, audyt
+                    // W5-08). Dwa ekrany tego samego zeszytu liczyły więc dwie
+                    // różne rzeczy — i to NIE PO RÓWNO: prywatna treść była
+                    // wliczona w obie liczby, a treść miękko usunięta (SoftDeletes
+                    // dodaje globalny zakres) wypadała tylko z tej karty, nie
+                    // z wnętrza zeszytu. Jedna reguła zamiast dwóch przypadkowo
+                    // różnych: karta pokazuje WIDOCZNE, wnętrze dokłada „N nie
+                    // jest dostępnych" — i te dwie liczby razem dają całość.
+                    'recipes as recipes_count' => fn ($q) => $q->widoczneDla($user)
+                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    'posts as posts_count' => fn ($q) => $q->widoczneDla($user)
+                        ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor()),
+                    // CAŁKOWITA LICZBA ZACHOWANYCH ZAPISÓW — łącznie z tymi
+                    // miękko usuniętymi (`withTrashed()`, tak jak w `show()`) —
+                    // po to, żeby policzyć RÓŻNICĘ, nie żeby ją pokazać wprost.
+                    'recipes as recipes_total_count' => fn ($q) => $q->withTrashed(),
+                    'posts as posts_total_count' => fn ($q) => $q->withTrashed(),
+                ])
                 ->orderByDesc('is_default')
                 ->orderBy('name')
                 ->get(),
@@ -313,10 +336,80 @@ class CollectionController extends Controller
     {
         $user = $request->user();
 
-        $data = $request->validate([
+        $data = $this->validateCollectionData($request, $user->getKey());
+
+        try {
+            $collection = $user->collections()->create($data);
+        } catch (UniqueConstraintViolationException) {
+            // Walidacja wyżej sprawdza to samo, ale między jej SELECT-em
+            // a tym INSERT-em jest okno — a podwójne kliknięcie „Załóż zeszyt”
+            // to w grupie 50+ norma, nie wyjątek. Bez tego łapania drugie
+            // żądanie kończy się błędem 500 zamiast zdaniem po polsku.
+            return back()
+                ->withInput()
+                ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
+        }
+
+        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with('status', 'Zeszyt utworzony.');
+    }
+
+    /**
+     * Formularz zmiany nazwy, opisu i widoczności — `CollectionPolicy::update()`
+     * istniało od dawna, nie istniała droga do niego (issue #777). Do tej
+     * zmiany jedynym sposobem cofnięcia publicznego udostępnienia było
+     * USUNIĘCIE całego zeszytu razem z jego zawartością.
+     */
+    public function edit(Request $request, Collection $collection): View
+    {
+        $this->authorize('update', $collection);
+
+        return view('pages.collections.edit', ['collection' => $collection]);
+    }
+
+    /**
+     * Te same reguły co `store()` (`validateCollectionData()`), z jednym
+     * wyjątkiem: nazwa własnego, niezmienionego zeszytu nie jest dla niego
+     * „zajęta" (`CollectionNameNotTaken::$ignoreCollectionId`).
+     *
+     * KOMUNIKAT NAZYWA ZAKRES ZMIANY WIDOCZNOŚCI, NIE TYLKO FAKT ZAPISU.
+     * „Zeszyt zaktualizowany" nie powiedziałoby człowiekowi, czy publiczny
+     * adres, który ktoś mógł już mieć zapisany, dalej działa. Zmiana
+     * widoczności jest tu decyzją semantyczną (jak w D-088), więc zasługuje
+     * na własne zdanie, nie ogólnikowe potwierdzenie zapisu.
+     */
+    public function update(Request $request, Collection $collection): RedirectResponse
+    {
+        $this->authorize('update', $collection);
+
+        $bylaPubliczna = $collection->isPublic();
+
+        $data = $this->validateCollectionData($request, $collection->owner_id, $collection->getKey());
+
+        $collection->update($data);
+
+        $jestPubliczna = $collection->isPublic();
+
+        $status = match (true) {
+            $bylaPubliczna && ! $jestPubliczna => 'Zeszyt jest teraz widoczny tylko dla Ciebie. Dawny bezpośredni adres przestał działać dla innych.',
+            ! $bylaPubliczna && $jestPubliczna => 'Zeszyt jest teraz widoczny dla wszystkich.',
+            default => 'Zeszyt zaktualizowany.',
+        };
+
+        return redirect()->route('collections.show', $collection)->with('status', $status);
+    }
+
+    /**
+     * Wspólne reguły `store()` i `update()`. `$ignoreCollectionId` przepuszcza
+     * niezmienioną nazwę własnego zeszytu przy zapisie formularza edycji.
+     *
+     * @return array{name: string, description: ?string, visibility: string}
+     */
+    private function validateCollectionData(Request $request, string $ownerId, ?string $ignoreCollectionId = null): array
+    {
+        return $request->validate([
             'name' => [
                 'required', 'string', 'min:2', 'max:120',
-                new CollectionNameNotTaken($user->getKey()),
+                new CollectionNameNotTaken($ownerId, $ignoreCollectionId),
             ],
             'description' => ['nullable', 'string', 'max:500'],
             'visibility' => ['required', 'in:public,private'],
@@ -341,20 +434,6 @@ class CollectionController extends Controller
              */
             'visibility.required' => 'Zaznacz, kto ma widzieć ten zeszyt: wszyscy czy tylko Ty.',
         ]);
-
-        try {
-            $collection = $user->collections()->create($data);
-        } catch (UniqueConstraintViolationException) {
-            // Walidacja wyżej sprawdza to samo, ale między jej SELECT-em
-            // a tym INSERT-em jest okno — a podwójne kliknięcie „Załóż zeszyt”
-            // to w grupie 50+ norma, nie wyjątek. Bez tego łapania drugie
-            // żądanie kończy się błędem 500 zamiast zdaniem po polsku.
-            return back()
-                ->withInput()
-                ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
-        }
-
-        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with('status', 'Zeszyt utworzony.');
     }
 
     public function saveRecipe(Request $request, string $recipe): RedirectResponse
