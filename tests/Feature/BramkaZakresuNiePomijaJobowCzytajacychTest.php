@@ -94,6 +94,125 @@ class BramkaZakresuNiePomijaJobowCzytajacychTest extends TestCase
     }
 
     /**
+     * JOB NIE MOŻE BYĆ POMIJANY, GDY ZMIENIA SIĘ AKCJA, KTÓREJ SAM UŻYWA.
+     *
+     * Joby przeglądarkowe stoją na filtrze warstwy widoku, a ten wymienia
+     * skrypty pomiarowe i `ci.yml` — świadomie, żeby „zmiana przyrządu
+     * uruchomiła pomiar" (komentarz przy samym filtrze). Ta sama reguła musi
+     * obejmować LOKALNE AKCJE, które te joby wołają przez `uses: ./…`:
+     * konfigurację PHP i sprawdzenie sekretu hasła demonstracyjnego.
+     *
+     * Bez tego dało się zepsuć albo odwrócić warunek w akcji-strażniku i nie
+     * zobaczyć ani jednego czerwonego przebiegu — bo joby, których ta akcja
+     * pilnuje, byłyby przy takiej zmianie `skipped`.
+     *
+     * Zmierzone przed poprawką: zmiana `.github/actions/haslo-demo/action.yml`
+     * dawała `kod=true`, ale `widok=false`, czyli wszystkie trzy joby
+     * przeglądarkowe pominięte.
+     */
+    public function test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja(): void
+    {
+        $znalezione = 0;
+
+        foreach ($this->jobyNaFiltrzeWidoku() as $job) {
+            foreach ($this->lokalneAkcjeJoba($job) as $akcja) {
+                $znalezione++;
+
+                $this->assertTrue(
+                    $this->jobRusza($job, [$akcja]),
+                    "Bramka pomija job `{$job}` przy zmianie `{$akcja}`, a ten job tej akcji UŻYWA "
+                    .'(`uses: ./…`). Dałoby się zepsuć przyrząd bez ani jednego czerwonego przebiegu.',
+                );
+            }
+        }
+
+        $this->assertGreaterThan(
+            0,
+            $znalezione,
+            'Nie znaleziono ani jednej lokalnej akcji w jobach na filtrze warstwy widoku — '
+            .'przyrząd nic nie sprawdził.',
+        );
+    }
+
+    /**
+     * Joby, których warunek wymaga `widok` — czyli te, które bramka potrafi
+     * pominąć mimo `kod=true`. Czytane z `ci.yml`, nie wypisane tutaj.
+     *
+     * @return list<string>
+     */
+    private function jobyNaFiltrzeWidoku(): array
+    {
+        $joby = [];
+
+        foreach ($this->blokiJobow() as $job => $blok) {
+            foreach ($this->wiersze($blok) as $wiersz) {
+                if (str_starts_with($wiersz, '    if: ') && str_contains($wiersz, 'outputs.widok')) {
+                    $joby[] = $job;
+
+                    break;
+                }
+            }
+        }
+
+        return $joby;
+    }
+
+    /**
+     * Lokalne akcje wołane przez `uses: ./…` wewnątrz joba — jako ścieżka
+     * pliku, który naprawdę by się zmienił (`<katalog>/action.yml`).
+     *
+     * @return list<string>
+     */
+    private function lokalneAkcjeJoba(string $job): array
+    {
+        $blok = $this->blokiJobow()[$job] ?? '';
+
+        $this->assertNotSame('', $blok, "Nie znaleziono joba `{$job}` w `ci.yml`.");
+
+        preg_match_all('~uses:\s*\./([A-Za-z0-9_./-]+)~', $blok, $trafienia);
+
+        $akcje = [];
+
+        foreach ($trafienia[1] as $katalog) {
+            $plik = rtrim($katalog, '/').'/action.yml';
+
+            if (is_file(base_path($plik))) {
+                $akcje[$plik] = true;
+            }
+        }
+
+        return array_keys($akcje);
+    }
+
+    /**
+     * Treść każdego joba z `ci.yml`, po nazwie. Podział po wcięciu dwóch
+     * spacji — tak samo, jak robią to pozostali strażnicy tego pliku.
+     *
+     * @return array<string, string>
+     */
+    private function blokiJobow(): array
+    {
+        $wiersze = $this->wiersze($this->workflow());
+        $granice = [];
+
+        foreach ($wiersze as $i => $w) {
+            if (preg_match('/^  ([a-z0-9_]+):$/', $w, $m) === 1) {
+                $granice[$i] = $m[1];
+            }
+        }
+
+        $numery = array_keys($granice);
+        $bloki = [];
+
+        foreach ($numery as $k => $od) {
+            $do = $numery[$k + 1] ?? count($wiersze);
+            $bloki[$granice[$od]] = implode("\n", array_slice($wiersze, $od, $do - $od));
+        }
+
+        return $bloki;
+    }
+
+    /**
      * KONTROLA DODATNIA I UJEMNA PRZYRZĄDU (docs/PULAPKI_TESTOW.md §4).
      *
      * Trzy kontrole wyżej przechodziłyby ŚPIEWAJĄCO, gdyby:
