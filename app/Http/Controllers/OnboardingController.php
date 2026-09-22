@@ -93,7 +93,12 @@ class OnboardingController extends Controller
      */
     public function people(Request $request): View
     {
-        $phrase = trim((string) $request->query('q', ''));
+        // Ten sam kontrakt co na `/szukaj` (issue #738): parametr GET może
+        // być tablicą (`q[]=...`). Nie wolno rzutować go na tekst, bo PHP
+        // zgłasza wtedy „Array to string conversion”, a ekran kończy na 500.
+        // Nietekstowe `q` znaczy dokładnie to samo co brak frazy.
+        $qSurowe = $request->query('q', '');
+        $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
 
         // Ten sam próg co `SearchController` — MUSI się zgadzać z tym,
         // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
