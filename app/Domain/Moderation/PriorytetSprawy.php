@@ -102,20 +102,33 @@ final class PriorytetSprawy
         'sexual' => self::P0,
 
         // P1 — szkoda rośnie z każdą godziną, w której treść wisi.
+        // Zgodne z wierszem P1 tabeli SLA w `docs/legal/MODERATION_PLAYBOOK.md`
+        // („nękanie, mowa nienawiści, dane osobowe osób trzecich, nagość").
         //
         //  • `scam` — wyłudzenie działa, dopóki odnośnik jest klikalny;
         //  • `harassment` i `hate` — celem jest konkretna osoba, która to
         //    czyta teraz, a nie „serwis";
         //  • `personal_data` — czyjegoś adresu nie da się odzobaczyć,
         //    a każda godzina to kolejne kopie;
-        //  • `dangerous_advice` — w serwisie kulinarnym to nie jest kategoria
-        //    grzecznościowa: zła rada o weku albo o grzybach kończy się
-        //    szpitalem, a czyta ją ktoś, kto stoi przy garnku dziś.
+        //
+        // `scam` NIE MA POZYCJI W PODRĘCZNIKU — tabela SLA nie wymienia go
+        // w żadnym wierszu. Kładę go tu własnym osądem, bo wyłudzenie działa
+        // dopóki odnośnik jest klikalny, czyli szkoda rośnie z godzinami tak
+        // samo jak przy trzech pozycjach obok. Gdyby właściciel chciał
+        // inaczej — to jest jedna linijka.
         'scam' => self::P1,
         'harassment' => self::P1,
         'hate' => self::P1,
         'personal_data' => self::P1,
-        'dangerous_advice' => self::P1,
+
+        // `dangerous_advice` STOI W P2, ZGODNIE Z PODRĘCZNIKIEM, A NIE PO
+        // MOJEMU. Pierwsza wersja tego pliku dawała mu P1 z argumentem, że
+        // zła rada o weku albo o grzybach kończy się szpitalem. Tabela SLA
+        // w `docs/legal/MODERATION_PLAYBOOK.md` stawia „niebezpieczne porady"
+        // w P2 (72 godziny) i jest dokumentem operacyjnym właściciela, a mój
+        // argument jest opinią, nie pomiarem. Rozjazd kodu z podręcznikiem
+        // byłby gorszy od jednej i drugiej wersji z osobna: moderator czyta
+        // podręcznik, a kolejkę ustawia kod.
 
         // Reszta (`spam`, `impersonation`, `copyright`, `other`) zostaje P2
         // przez `ELSE`. Nie wypisujemy jej, żeby nowy powód dopisany kiedyś

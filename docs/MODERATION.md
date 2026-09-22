@@ -41,12 +41,16 @@ nie ma kolumny w bazie i nie da się go wpisać ręcznie.
 | Priorytet | Skąd | Napis na karcie |
 |---|---|---|
 | **P0** — nie może czekać | `reason` ∈ `minor`, `sexual` — ta sama para, co `KategorieModeracji::PILNE` | „Nie może czekać" |
-| **P1** — na dziś | `reason` ∈ `scam`, `harassment`, `hate`, `personal_data`, `dangerous_advice`; **oraz podłoga** dla `source = legal_notice` (termin z DSA art. 16 ust. 5) | „Na dziś" |
-| **P2** — kolejka | reszta (`spam`, `impersonation`, `copyright`, `other`) | bez plakietki |
+| **P1** — na dziś | `reason` ∈ `scam`, `harassment`, `hate`, `personal_data`; **oraz podłoga** dla `source = legal_notice` (termin z DSA art. 16 ust. 5) | „Na dziś" |
+| **P2** — kolejka | reszta (`spam`, `impersonation`, `copyright`, `dangerous_advice`, `other`) | bez plakietki |
 
 Wewnątrz jednego priorytetu porządek jest ten sam co zawsze: najnowsze na
 górze, remis rozstrzygany po `id` (stabilne stronicowanie —
 `KolejkiModeracjiMajaStabilnyPorzadekTest`).
+
+Podział zgodny z tabelą SLA w `docs/legal/MODERATION_PLAYBOOK.md`, gdzie
+opisane są też dwie granice: „groźby zagrażające życiu" i „aktywny doxxing"
+są tam P0, ale formularz nie ma takich pozycji, więc wchodzą jako P1.
 
 **Kategorię wybiera zgłaszający i nikt jej jeszcze nie sprawdził.** Priorytet
 zmienia WYŁĄCZNIE kolejność czytania i wysyła jeden list — nie ukrywa treści,

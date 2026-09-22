@@ -15235,5 +15235,22 @@ zgłaszający — nikt tej treści jeszcze nie obejrzał. Zmienia wyłącznie
 kolejność czytania i wysyła jeden list: nie ukrywa treści, nie ogranicza jej
 zasięgu i nie powiadamia autora.
 
+**Uzgodnione z podręcznikiem moderacji, nie obok niego.**
+`docs/legal/MODERATION_PLAYBOOK.md` ma własną tabelę SLA P0–P3 i wchodziła na
+`main` równolegle z tą pracą. Zdanie „priorytetu nie ma w narzędziu… sprawa P0
+sprzed dwóch dni leży niżej niż spam sprzed godziny" przestało być prawdziwe
+i zostało w podręczniku poprawione razem z mapowaniem kategorii na to, co robi
+kod. Jedna rzecz zmieniła się PO MOJEJ STRONIE: `dangerous_advice` miał u mnie
+P1, a podręcznik stawia „niebezpieczne porady" w P2 — zostaje P2, bo podręcznik
+jest dokumentem operacyjnym właściciela, a mój argument („zła rada o weku
+kończy się szpitalem") jest opinią, nie pomiarem. `scam` nie ma pozycji
+w tabeli SLA i kładę go w P1 własnym osądem; to jedna linijka do zmiany.
+
+Dwie rzeczy, których z samej kategorii odczytać się NIE DA i które zostają
+przy człowieku: „groźby zagrażające życiu" (P0 w tabeli) wchodzą jako
+`harassment`, czyli P1, bo formularz nie ma takiej pozycji; „aktywny doxxing"
+(P0) wchodzi jako `personal_data`, czyli P1, z tego samego powodu. Oba są
+nazwane wprost w podręczniku, zamiast udawać, że kod je rozpoznaje.
+
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.
