@@ -183,3 +183,15 @@ Middleware nagłówków używa wspólnej klasyfikacji analityki do `no-referrer`
 na żądaniach z poświadczeniem w adresie. Sam brak beacona na pierwszej stronie
 nie chroni następnej. Zakres, formularze, lokalny test dwóch dokumentów
 i ograniczenia dowodu: [REFERRER_SEKRET_1052](infra/REFERRER_SEKRET_1052.md).
+
+## Jeden scheduler na termin (#595)
+
+Każde zadanie harmonogramu ma `onOneServer()` oraz `withoutOverlapping()`.
+Wspólna blokada w cache rozstrzyga, który scheduler obsłuży dany termin;
+chroni to także przed nałożeniem starego i nowego kontenera podczas
+wdrożenia — nie dopiero przy wielu replikach.
+
+Nie zastępuje to idempotencji operacji domenowych ani zadań kolejki.
+
+Sam podział na usługi `web` / `worker` / `scheduler` NIE jest tu wdrożony
+ani opisany jako stan Railway — to osobna, nierozstrzygnięta sprawa.
