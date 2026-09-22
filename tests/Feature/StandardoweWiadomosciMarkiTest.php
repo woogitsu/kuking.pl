@@ -95,8 +95,15 @@ class StandardoweWiadomosciMarkiTest extends TestCase
             $this->assertSame($list->actionUrl, $zapasowy->getAttribute('href'));
             $this->assertStringContainsString($list->actionUrl, $tekst);
             if ($nazwa === 'decyzja') {
+                // PODPIS ZOSTAJE, TERMIN ZNIKA Z ADRESU (issue #798, decyzja
+                // właściciela 20.09.2026). `expires=` w linku znaczyło, że
+                // strona sprawy umiera razem z terminem na ZŁOŻENIE odwołania
+                // — i dawało 403 na własnej, wciąż otwartej sprawie. Dziś
+                // o życiu strony decyduje stan sprawy
+                // (`App\Domain\Moderation\DostepDoStronySprawy`), więc brak
+                // `expires=` jest tu WYMAGANY, nie tolerowany.
                 $this->assertStringContainsString('signature=', $przycisk->getAttribute('href'));
-                $this->assertStringContainsString('expires=', $przycisk->getAttribute('href'));
+                $this->assertStringNotContainsString('expires=', $przycisk->getAttribute('href'));
             }
         } else {
             $this->assertSame(0, $xpath->query('//a[contains(@class,"button ")]')->length);

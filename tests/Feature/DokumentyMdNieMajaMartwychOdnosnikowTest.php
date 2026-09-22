@@ -105,6 +105,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         '/przepisy/{oryginal}/moja-wersja' => 'tryb tworzenia zaproponowany w projekcie #23 (docs/product/MOJA_WERSJA_PROJEKT_23.md), decyzja właściciela nie zapadła — trasy nie ma i nie ma jej być przed tą decyzją',
         '/pytania' => 'dział jawnie opisany jako jeszcze niezbudowany, issue #372 (BRAND_EXTENDED.md)',
         '/tag' => 'nieformalne odwołanie do prefiksu tras tagów',
+        '/tag/przetwory' => 'realny wzorzec tag/{tag} z przykładową wartością (AUDYT_COLD_START_29_2026-09-20.md)',
         '/tag/zupa' => 'realny wzorzec tag/{tag} z przykładową wartością',
         '/tag/zupy' => 'realny wzorzec tag/{tag} z przykładową wartością',
         '/temat/{slug}' => 'propozycja z dokumentu decyzyjnego, nie zbudowana trasa',
@@ -136,6 +137,9 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'scripts', 'docs', 'decyzje', 'config', 'tests', 'research',
         '_work', '_temp', '.npm', '.cache', 'actions-runner-kuking-03',
         'setup-php', 'linux', 'livewire', 'favicon', 'manifest', 'incoming',
+        // katalog domowy Windows w cytowanej ścieżce lokalnej (worktree,
+        // klon repozytorium), nigdy adres tego serwisu
+        'Users',
         // polecenia/skille Claude Code, cytowane w dokumentacji jak trasy
         'code-review', 'simplify', 'security-review', 'fewer-permission-prompts',
         'loop', 'init', 'run', 'permissions', 'slack',
@@ -369,7 +373,7 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
     private function trasyZFragmentu(string $fragment): array
     {
         // Nie zaczynaj od sufiksu po @parametrze ani nie urywaj na rozszerzeniu.
-        preg_match_all('#(?<![\w/.@{}\-])(/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+(?:/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+)*/?)(?![\w/@{}\-])#u', $fragment, $trafienia);
+        preg_match_all('#(?<![\w/.@{}\-])(/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+(?:/(?:[\p{L}\p{N}_@.\-]|\{[^}\s/]+\})+)*/?\*?)(?![\w/@{}\-])#u', $fragment, $trafienia);
 
         return $trafienia[1];
     }
@@ -408,6 +412,16 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
 
     private function wygladaNaCosInnegoNizTrase(string $trasa): bool
     {
+        // Wzorzec ścieżki z gwiazdką (`/zdjecia/*` jako Cache Rule w
+        // Cloudflare, `location` w nginx) opisuje ZBIÓR adresów, a nie
+        // pojedynczą trasę Laravela — jego prefiks nie musi sam być trasą.
+        // Prawdziwy adres zdjęć to `zdjecia/{id}/{wariant}`, więc `/zdjecia/*`
+        // jest w dokumencie poprawne. Do 22 września 2026 parser gubił
+        // gwiazdkę i zgłaszał `/zdjecia/` jako martwą trasę.
+        if (str_ends_with($trasa, '*')) {
+            return true;
+        }
+
         $bezSlashy = trim($trasa, '/');
 
         if ($bezSlashy === '' || mb_strlen($bezSlashy) <= 2) {
