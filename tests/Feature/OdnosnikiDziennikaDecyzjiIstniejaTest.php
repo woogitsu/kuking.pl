@@ -626,10 +626,18 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
     /** @return array<string, string> ścieżka => treść */
     private function wczytajTresciPlikow(string $katalog): array
     {
+        // Jeden przebieg strażnika sprawdza setki odnośników do tych samych
+        // katalogów. Nie czytaj całego drzewa ponownie dla każdego tokenu.
+        static $pamiec = [];
+
+        if (array_key_exists($katalog, $pamiec)) {
+            return $pamiec[$katalog];
+        }
+
         $wynik = [];
 
         if (! is_dir($katalog)) {
-            return $wynik;
+            return $pamiec[$katalog] = $wynik;
         }
 
         // Na WSL/Windows DirectoryIterator potrafi oddać tylko fragment
@@ -637,7 +645,7 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
         // pozycji, a `scandir()` wszystkie 698 (wraz z `.` i `..`).
         $pozycje = scandir($katalog);
         if ($pozycje === false) {
-            return $wynik;
+            return $pamiec[$katalog] = $wynik;
         }
 
         foreach ($pozycje as $nazwa) {
@@ -664,6 +672,6 @@ final class OdnosnikiDziennikaDecyzjiIstniejaTest extends TestCase
             }
         }
 
-        return $wynik;
+        return $pamiec[$katalog] = $wynik;
     }
 }
