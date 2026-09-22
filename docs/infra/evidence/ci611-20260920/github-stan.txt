@@ -1,0 +1,27 @@
+Odczyt własny, 20.09.2026. Repo: woogitsu/kuking.pl.
+Bez zmiany ustawień i bez wyświetlania sekretów.
+
+gh api repos/woogitsu/kuking.pl --jq '{default_branch,delete_branch_on_merge}'
+{"default_branch":"main","delete_branch_on_merge":true}
+
+gh api repos/woogitsu/kuking.pl/rulesets
+[]
+
+gh api repos/woogitsu/kuking.pl/branches/main/protection
+HTTP 404: Branch not protected
+
+gh api repos/woogitsu/kuking.pl/branches/staging
+HTTP 404: Branch not found
+
+gh variable get CI_RUNS_ON --repo woogitsu/kuking.pl
+"ubuntu-latest"
+
+Wcześniejszy odczyt listy zmiennych tego dnia:
+CI_RUNS_ON updated_at=2026-09-20T16:27:59Z
+Brak KUKING_DEPLOY_ENABLED w zmiennych repozytorium.
+Nie sprawdzano zmiennych organizacji ani środowisk.
+
+Stan kodu: 4c811cc7bff365fb8f86d87eabac93b7738a45cd.
+Odczyty zgłoszeń: gh issue view NUMER --repo woogitsu/kuking.pl --json number,title,state,body
+CLOSED: 596,606,585,609,607,608
+OPEN: 120,619,594,595,599,598,193,617,600,597,601,604,605,603,602,610,611,612,613,614,615

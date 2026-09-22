@@ -352,6 +352,12 @@ tura ich nie obejmuje.
 
 ## 7. Czego ten pakiet NIE dowodzi
 
+> Adnotacja 20.09.2026: poniższa lista opisuje **pierwszy etap** pracy.
+> Późniejsze uruchomienia i instalację narzędzi dokumentuje §5, w tym §5.7;
+> nie należy odczytywać tej listy jako zaprzeczenia tych wyników.
+> Aktualny odczyt ustawień, mapa wszystkich workflowów i dalsze wąskie
+> uproszczenie są w [MAPA_CI_611.md](MAPA_CI_611.md), z oddzielonymi dowodami.
+
 - **Nie uruchomiono GitHub Actions.** Zgodnie z poleceniem nie ma pusha ani
   PR-a, a lokalnie nie ma `actionlint` ani `act`. Dowody są trzy: YAML się
   parsuje i ma zamierzoną strukturę, wyrażenie filtra zachowuje się poprawnie
