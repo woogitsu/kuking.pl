@@ -8,8 +8,10 @@ use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Support\ProgPodobienstwa;
+use Illuminate\Contracts\Validation\Validator as ValidatorContract;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\Str;
 
 /**
@@ -39,6 +41,29 @@ use Illuminate\Support\Str;
  */
 final class SearchQuery
 {
+    public const MAX_PHRASE_LENGTH = 120;
+
+    /** Wspólna granica dla formularzy GET i bezpośrednich wywołań domeny. */
+    public static function phraseValidator(string $phrase, string $label = 'Czego szukasz?'): ValidatorContract
+    {
+        return Validator::make(
+            ['q' => $phrase],
+            ['q' => ['max:'.self::MAX_PHRASE_LENGTH]],
+            ['q.max' => 'Skróć tekst w polu „:attribute” do :max znaków i spróbuj ponownie.'],
+            ['q' => $label],
+        );
+    }
+
+    /** Pojedyncze początkowe @ to zapis nazwy widoczny na profilu (#886). */
+    public static function peoplePhrase(string $phrase): string
+    {
+        $phrase = trim($phrase);
+
+        return str_starts_with($phrase, '@') && ! str_starts_with($phrase, '@@')
+            ? substr($phrase, 1)
+            : $phrase;
+    }
+
     // PRÓG PODOBIEŃSTWA MIESZKA W `App\Support\ProgPodobienstwa`, nie tutaj.
     //
     // Do 7 września 2026 stała `SIMILARITY_THRESHOLD = 0.12` była w tym pliku
@@ -140,6 +165,7 @@ final class SearchQuery
     public function recipes(string $phrase, ?User $widz = null, int $limit = 20, ?int $maksMinut = null, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
+        self::phraseValidator($phrase)->validate();
 
         if (mb_strlen($phrase) < 2) {
             return new Collection;
@@ -251,6 +277,8 @@ final class SearchQuery
     public function people(string $phrase, ?User $widz = null, int $limit = 20, int $offset = 0): Collection
     {
         $phrase = trim($phrase);
+        self::phraseValidator($phrase)->validate();
+        $phrase = self::peoplePhrase($phrase);
 
         if (mb_strlen($phrase) < 2) {
             return new Collection;
@@ -361,12 +389,12 @@ final class SearchQuery
      * po stronie bazy — inaczej „Żurek" nie znajdzie „żurek".
      *
      * Str::ascii odpowiada temu, co robi `unaccent` z polskimi znakami
-     * diakrytycznymi. Ograniczenie długości chroni przed wysyłaniem do bazy
-     * całych akapitów i przed kosztownym `similarity()` na długim tekście.
+     * diakrytycznymi. Obie publiczne metody sprawdzają długość PRZED
+     * zapytaniem. Nie obcinamy frazy: wynik ma dotyczyć całego tekstu (#885).
      */
     private function normalize(string $phrase): string
     {
-        return mb_strtolower(Str::ascii(mb_substr($phrase, 0, 120)));
+        return mb_strtolower(Str::ascii($phrase));
     }
 
     /**
