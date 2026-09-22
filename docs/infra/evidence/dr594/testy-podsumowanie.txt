@@ -1,0 +1,9 @@
+Polecenie: bash _wspolne/testuj.sh gpt-dr-baza --filter '^(?!.*ProbaOdtworzeniaTest)'
+  ✓ adres nigdzie nie udaje nazwanej encji                               0.12s
+
+  Tests:    4393 passed (83692 assertions)
+  Duration: 518.53s
+
+
+SHA256 pelnego logu: ea040712e3af4cb49c9ee2c370273a0df6de3f333390bba21204cca66e97d289
+Pelny log: /home/mateusz/flota/gpt-dr-baza-artifacts/20260920T173937Z/testy-pelne.txt
