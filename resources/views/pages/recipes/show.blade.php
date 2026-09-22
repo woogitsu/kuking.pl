@@ -480,7 +480,10 @@
                                 <li>
                                     {{ $ingredient->ingredient_text }}
                                     {{-- „Bez ilości” nie określa sposobu dozowania.
-                                         Pokazujemy tekst autora bez dopisków (#878). --}}
+                                         Pokazujemy tekst autora bez dopisków (#878).
+                                         BRAK DOPISKU JEST CELOWY (D-227): ten ekran
+                                         jest tekstem autora co do znaku. Tryb gotowania
+                                         świadomie robi to inaczej — nie „ujednolicaj”. --}}
                                     @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
                                 </li>
                             @endforeach
