@@ -103,6 +103,7 @@ class CspReportController extends Controller
      *
      *     /nowe-haslo/{token}
      *     /potwierdz-email/{id}/{hash}?expires=…&signature=…
+     *     /@{username}                      ← tożsamość, nie sekret (#1083)
      *
      * Naruszenie na takiej stronie — wystarczy wtyczka przeglądarki
      * blokująca skrypt — wysyłało więc token resetu hasła prosto do naszego
@@ -161,6 +162,28 @@ class CspReportController extends Controller
         $segmenty = array_map(static function (string $segment): string {
             if ($segment === '') {
                 return $segment;
+            }
+
+            // NAZWA KONTA (`/@ania`) — identyfikuje CZŁOWIEKA, nie stronę
+            // (issue #1083).
+            //
+            // Profil publiczny i wszystko, co pod nim wisi
+            // (`/@{username}`, `/@{username}/obserwujacy`,
+            // `/@{username}/obserwowani`, `routes/web.php`), to trasy, które
+            // w segmencie niosą nazwę konta — czyli tożsamość. Naruszenie CSP
+            // na cudzym profilu wystarczy sprowokować jedną wtyczką
+            // przeglądarki, a wtedy do logu platformy szła lista nazw kont
+            // razem ze znacznikiem czasu: kto kiedy czyjego profilu szukał.
+            // Przy otwartej rejestracji ta lista rośnie sama, bez żadnej
+            // decyzji człowieka.
+            //
+            // Do policzenia, KTÓRA TRASA psuje politykę, nazwa nie jest
+            // potrzebna — potrzebny jest wzorzec. Zostawiamy więc samo `@`
+            // (po nim widać, że to profil) i nic więcej. Ten sam powód, dla
+            // którego `WebhookBleduHandler::trasa()` wysyła wzorzec trasy,
+            // a nie rzeczywisty adres.
+            if (str_starts_with($segment, '@')) {
+                return '@[UZYTKOWNIK]';
             }
 
             // UUID — identyfikator konta albo treści.

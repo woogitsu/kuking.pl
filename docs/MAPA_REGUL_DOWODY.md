@@ -17,7 +17,7 @@ Lista reguł BEZ dowodu jest tu produktem głównym. Lista reguł z dowodem jest
 składników; pięć dostało 20.09 strażnika z dowodem z mutacji, dwa zostały bez
 niego świadomie (rozpisane przy wierszu R47). Wiersz dziedziczy koszt najdroższego
 składnika, więc przeniesienie go do A byłoby dokładnie tym fałszywym wpisem w sekcji
-A, przed którym ostrzega akapit niżej. Liczba 11 zmieni się dopiero wtedy, gdy
+A, przed którym ostrzega akapit niżej. Liczba 12 zmieni się dopiero wtedy, gdy
 któraś reguła będzie zamknięta w CAŁOŚCI.
 
 Stopień B to nie jest „prawie A". Kampania mutacyjna pokazała dziewięć przypadków,
@@ -76,77 +76,11 @@ Szczegóły i granice — przy wierszu R60 w sekcji A.
 | R66 | 11 | zakaz „content", „explore", „engage", „creator", „tapnij" | |
 | R73 | 12 | anty-wzorce §12 — **sześć zakazów, nie jeden**; rozpisane niżej | **najszersza reguła produktowa bez strażnika** |
 
-Trzy z tej listy uważałem za pilniejsze od reszty: **R47** (bo skutkiem jest wyciek;
+Trzy z tej listy uważam za pilniejsze od reszty: **R47** (bo skutkiem jest wyciek;
 pięć z siedmiu jej składników zamknięte 20.09, dwa zostają tutaj),
 **R73** (bo to jest obietnica tożsamości produktu i najłatwiej ją naruszyć przypadkiem)
 i **R60** (bo gdy ktoś przestawi testy na SQLite, cała reszta mapy przestaje znaczyć,
 co znaczy — a nic tego nie zauważy). **R60 jest od 20.09 zamknięta** — zostają dwie.
-
-### R73 rozpisane: sześć zakazów o sześciu różnych kosztach
-
-Jeden wiersz mapy dziedziczy koszt najdroższego składnika — i dlatego R73
-wyglądała na niemierzalną. Po rozdzieleniu połowa z niej jest mierzalna dziś.
-
-| zakaz z §12 | da się zmierzyć? | czym |
-|---|---|---|
-| algorytmiczny feed | **tak, mocno** | żadne ORDER BY w kodzie feedu i tablicy nie kluczuje po agregacie; dziś wszystkie idą po `published_at`, `id`, `position` |
-| publiczne rankingi użytkowników | **tak, mocno** | ten sam kształt, inny zbiór plików: zapytanie o użytkowników nie sortuje po agregacie ich treści |
-| wyeksponowane liczniki lajków | **tak** | D-081 jest jedynym wyjątkiem i ma granice wypisane wprost; domyka R75 |
-| streaki i punkty za liczbę postów | tylko po nazwie | kto doda gamifikację, nie nazwie jej `streak` |
-| masowy import cudzych przepisów | tylko po nazwie | |
-| sztuczne konta | tylko po nazwie | |
-
-**Trzech dolnych nie należy pilnować gripem po słowach.** Zielone o niemal zerowej
-mocy przesuwa wiersz z sekcji C do sekcji A, nie zmieniając niczego w rzeczywistości.
-Lepiej, żeby zostały w sekcji C z adnotacją „mierzalne tylko przez przegląd człowieka".
-
-**Jak zamienić „dziś nie ma rankingu" na „nikt nie doda go przypadkiem".**
-Repozytorium ma na to gotowy idiom i nie trzeba go wymyślać:
-`WrazliweKolumnyPozaMasowymPrzypisaniemTest` łączy skan odmawiający domyślnie,
-poziom NIETYKALNE, rejestr wyjątków z powodem i `test_rejestr_nie_ma_martwych_wpisow`.
-Przełożone na R73 gwarancja brzmi: **dodanie sortowania po liczbie wymaga dopisania
-wiersza do rejestru z uzasadnieniem** — czyli wejścia drzwiami, a nie oknem.
-Asercja nie musi przewidzieć przyszłej gamifikacji.
-
-Dwie pułapki do wpisania w projekt, zanim ktoś zacznie pisać:
-- **§2 tego rejestru** — skan, który nie znajduje żadnego pliku, przechodzi.
-  Potrzebna kontrola dodatnia, że naprawdę czyta kod feedu; wzór gotowy
-  w `test_skan_naprawde_czyta_modele`.
-- **Bez dowodu z mutacji** strażnik wyląduje w stopniu B i mapa urośnie o wiersz,
-  który nic nie znaczy. Mutacja jest tania: podmienić jedno `orderByDesc('published_at')`
-  na sortowanie po agregacie i sprawdzić, że test oblewa.
-
-Rekomendacja: budować **jeden**, nie trzy — algorytmiczny feed, bo koszt pomyłki
-jest tam najwyższy, R55 pokrywa go do połowy, a rejestr raz postawiony przyjmie
-dwa pozostałe bez przepisywania.
-
-#### Pomiar na nietkniętym kodzie — i dlaczego zmienił projekt asercji
-
-Przed napisaniem asercji przejrzałem **wszystkie 177 sortowań w `app/`**. Nic nie
-sortuje publicznych treści po popularności. Ale dwa miejsca wywróciłyby asercję
-w kształcie, który podałem najpierw („żadne ORDER BY nie kluczuje po agregacie"):
-
-- **`app/Domain/Feed/DailyBoard.php:302`** — `orderByDesc('ostatnie.ostatnia_publikacja')`
-  sortuje po podzapytaniu `MAX(published_at)`. To **jest** agregat i **jest** zgodne
-  z regułą, bo agreguje CZAS, nie popularność.
-- **`app/Domain/Search/SearchQuery.php:214`** — `word_similarity(…) DESC` sortuje
-  po trafności wyszukiwania. Algorytmiczne, legalne, nie jest feedem.
-
-**Właściwe kryterium nie brzmi „agregat kontra kolumna", tylko „co jest liczone".**
-`MAX(published_at)` to czas. `COUNT(obserwujących)` to popularność. Asercja musi
-zakazywać sortowania po **mierze cudzych reakcji** — wykonaniach, zapisach
-w zeszytach, obserwujących, komentarzach — a nie po agregatach w ogóle.
-Oba miejsca wyżej wchodzą do rejestru wyjątków z powodem, nie do zakazu.
-
-Gdybym napisał asercję bez tego pomiaru, **strażnik urodziłby się czerwony
-i wyglądałoby to na jego usterkę**, a nie na błąd w kryterium.
-
-**Trzecie znalezisko, dokładnie tego kształtu co §5c `PULAPKI_TESTOW`.**
-W `DailyBoard.php:299–301` stoi komentarz: „Sortujemy po tym, KIEDY ktoś ostatnio
-coś pokazał, nie po tym, ile ma obserwujących." Reguła R73 **jest już zapisana
-w kodzie** — jako komentarz przy jednym zapytaniu, nie jako asercja. Ten sam wzorzec
-co lekcja o SIGPIPE przy `entrypoint-nadzor.sh`: projekt wie, zapisał to przy pliku,
-i nie chroni to następnego zapytania, które napisze ktoś inny.
 
 ### R47 rozpisane: siedem zakazów, pięć mierzalnych dziś
 
@@ -311,8 +245,8 @@ czego NIE MA BYĆ. Dowód nieobecności jest droższy i dlatego go nie napisano.
 | R53 | widoki nie pokazują zdjęcia w stanie innym niż `ready` | `zdjecie niegotowe nie jest serwowane` | `KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest` |
 | R55 | feed obserwowanych chronologicznie, treści kont nieaktywnych nie wypływają | `odkrywanie pokazuje wylacznie wpisy publiczne`, `serwis nie promuje tresci kont nieaktywnych` | `FeedTest` |
 | R58 | moderacja pomocnicza — treść ukryta nie zdradza istnienia | `komentarz ukryty przez moderacje nie wraca zakresem` | `KomentarzePolicyZgadzaSieZListaTest` |
-| R60 | testy chodzą na PostgreSQL, nie na SQLite | dwie: `config/database.php` na sztywno `'sqlite'` (4 z 6 testów oblało) oraz `phpunit.xml` `DB_CONNECTION=sqlite` (1 z 6) | `TestyChodzaNaPostgresieTest` |
 | R47 **(pięć z siedmiu składników)** | poświadczenia poza repozytorium, brak zaszytych haseł, CSRF niezdejmowany | **siedem** mutacji: `.env.local` w drzewie, zdjęta reguła `.gitignore`, `Hash::make('Admin123!')`, bramka produkcyjna `DemoSeeder` → `false`, czwarty wyjątek CSRF, `APP_KEY` w `.env.example`, `withoutMiddleware` na trasie | `PoswiadczeniaPozaRepozytoriumTest` |
+| R60 | testy chodzą na PostgreSQL, nie na SQLite | dwie: `config/database.php` na sztywno `'sqlite'` (4 z 6 testów oblało) oraz `phpunit.xml` `DB_CONNECTION=sqlite` (1 z 6) | `TestyChodzaNaPostgresieTest` |
 
 **Zastrzeżenie do R47.** Ten wiersz opisuje PIĘĆ z siedmiu składników reguły i dlatego
 sam wiersz R47 zostaje w sekcji C. Dwa składniki — uczciwość powodu w rejestrze
