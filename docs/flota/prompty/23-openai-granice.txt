@@ -1,0 +1,119 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-openai-granice
+Gałąź:            gpt/openai-granice  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-openai-granice
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-openai-granice --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Granice tego, co wychodzi do OpenAI, i atomowość moderacji: #912 #909 #911.
+
+#912 jest najważniejsze i ma charakter PRYWATNOŚCI, nie wydajności.
+
+#912 — polityka obiecuje, że do modelu idzie POMNIEJSZONE zdjęcie, a
+       `OcenaModelem::jakoJpeg` używa `wariantDoSerwowania('thumb')`. Ta metoda
+       potrafi PODSTAWIĆ inny wariant, gdy miniatury brakuje — włącznie
+       z dużym. Przekodowanie do JPEG nie zmniejsza wymiarów. Efekt: do
+       zewnętrznego dostawcy może wyjść zdjęcie w pełnym rozmiarze.
+       ZMIERZ TO NA METADANYCH HISTORYCZNYCH I USZKODZONYCH, nie na świeżo
+       wygenerowanym komplecie wariantów — na świeżym ten błąd nie wystąpi
+       i dostaniesz fałszywą zieleń.
+       Poprawka ma mieć TWARDĄ GRANICĘ WYMIARU sprawdzaną przed wysyłką,
+       a nie zaufanie do nazwy wariantu. Brak miniatury ma oznaczać
+       „nie wysyłaj", a nie „wyślij co jest".
+#909 — edycja komentarza po zakończonej analizie NIE ZLECA sprawdzenia nowej
+       treści. Można więc przepuścić treść przez moderację, a potem ją
+       podmienić.
+#911 — usunięcie cudzego komentarza i powiadomienie z powodem NIE SĄ ATOMOWE.
+       Awaria pośrodku zostawia jedno bez drugiego.
+
+DLA #911 PRZECZYTAJ NAJPIERW COMMIT `e89f28a5` I RAPORT GAŁĘZI gpt/eksport.
+Tam rozwiązano dokładnie ten kształt problemu (trwałe powiązanie zapisu ze
+skutkiem ubocznym plus znacznik zapobiegający powtórzeniu) i zrobiono to na
+istniejącej kolejce bazodanowej. Nie wymyślaj drugiego mechanizmu obok.
+
+ŻADNEGO ŻĄDANIA DO PRAWDZIWEGO OpenAI. Cały ruch HTTP na atrapie.
+Jeżeli w trakcie zorientujesz się, że problem #912 dotyczy TAKŻE awatarów
+(`PrzeanalizujAwatar`) albo innych ścieżek — wypisz to jako osobne
+znalezisko z pomiarem, ale nie poszerzaj zakresu poprawki bez decyzji
+właściciela.
+
+KONTEKST, KTÓRY OSZCZĘDZI CI GODZINY: #912 zostało założone przez
+stanowisko gpt/moderacja-ai jako znalezisko POBOCZNE przy #826–#830.
+Tamta gałąź świadomie go nie ruszyła. Przeczytaj
+docs/legal/MODERACJA_AI_826_830.md na gałęzi gpt/moderacja-ai — sekcja
+„Osobne znaleziska z odczytu". Odczyt NIE dowodzi incydentu produkcyjnego
+i Ty też tego nie twierdź, dopóki nie zmierzysz.
