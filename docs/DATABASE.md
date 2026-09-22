@@ -4321,8 +4321,13 @@ replice) liczba jest praktycznie ta sama: 4 + 1 + 1 = 6 w spoczynku,
 a wdrożenie z nakładaniem daje 12 + 1 = **13**.
 
 **Koszt każdej dodatkowej repliki `web`:** +4 w spoczynku, +8 w oknie
-wdrożenia. Przy 497 miejscach i budżecie 16 zapas starcza na ponad sto replik,
-zanim połączenia staną się ograniczeniem.
+wdrożenia. Przy 497 miejscach, jednym workerze i jednym schedulerze wzór
+wdrożeniowy to `8R + 8`: mieści się maksymalnie 61 replik web (496 miejsc),
+ale to wyczerpuje pulę i **nie jest bezpiecznym limitem skalowania**.
+Poniżej progu ostrzegawczego 50 mieści się 5 replik (48 miejsc).
+Wcześniejsze „ponad sto replik” pomijało nakładanie wdrożeń.
+Własny pomiar z 20.09.2026, ograniczenia tego wyliczenia i wariant z osobnym
+workerem media: [odbiór lokalny #598/#599](infra/MONITORING_ODBIOR_2026_09_20.md).
 
 ### D. Progi alarmowe i skąd się wzięły
 
