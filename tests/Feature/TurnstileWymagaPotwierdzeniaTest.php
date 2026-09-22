@@ -308,7 +308,7 @@ class TurnstileWymagaPotwierdzeniaTest extends TestCase
             );
 
             $this->assertCount(1, $odrzucone, 'Pusta wartość ma odrzucać.');
-            $this->assertSame(Turnstile::komunikatBrakuTokenu(), $odrzucone[0]);
+            $this->assertSame(Turnstile::komunikatBrakuTokenu('rejestracja'), $odrzucone[0]);
         }
 
         $this->assertNiePytalismyCloudflare();
