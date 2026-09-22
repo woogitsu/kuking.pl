@@ -570,8 +570,17 @@ To normalne, poprawimy to w kroku 8.
 
 → Kanwa projektu → **+ New** → **Database** → **Add PostgreSQL**
 
-**`[POTRZEBNE OD WŁAŚCICIELA — decyzja]`** Wybierz major **18**, jeśli kreator
-go oferuje. Jeśli oferuje tylko 17:
+Wybierz major **18**. Od decyzji właściciela z 20 września 2026 (D-227)
+osiemnastka jest **wymaganiem projektu**, nie preferencją — `AGENTS.md`
+mówi o niej wprost, a `TestyChodzaNaPostgresieTest` oblewa na starszej wersji.
+
+**Warianty niżej są drogą awaryjną odtworzenia, nie dopuszczalnym stanem
+docelowym.** Wolno z nich skorzystać, gdy kreator dostawcy nie oferuje 18
+w chwili, w której stawiasz bazę po awarii — i wtedy upgrade do 18 jest
+zadaniem do domknięcia, a nie opcją. Runbook trzyma je, bo improwizowanie
+procedury w kryzysie kosztuje więcej niż zapisanie jej z góry.
+
+Jeśli kreator oferuje tylko 17:
 
 - **Opcja A (zalecana):** weź 17 i zrób upgrade in-place później
   (→ Database → Config → **Major Version Upgrade**). Railway wspiera
@@ -2395,7 +2404,7 @@ i dla tokenów Railway.
 | # | Decyzja | Rekomendacja | Krok |
 |---|---|---|---|
 | 8 | Dostawca poczty | **EmailLabs przez API HTTPS** (`MAIL_MAILER=emaillabs`) — jedyny wariant działający na planie Hobby, dane w UE, sterownik już w kodzie (D-047). Stało tu „Resend (alfa) → Brevo (beta)", co przeczyło rekomendacji z KROKU 0.5 w tym samym dokumencie; **Brevo z `POCZTA_URUCHOMIENIE.md` §2B idzie przez SMTP, więc na Hobby nie zadziała** i jako plan zapasowy wymagałby najpierw napisania transportu po API | 3 |
-| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place | 6.3 |
+| 9 | Major PostgreSQL, jeśli 18 niedostępne | 17 + upgrade in-place — **wyłącznie jako droga awaryjna odtworzenia**, nie stan docelowy (D-227) | 6.3 |
 | 10 | Topologia produkcji | `PRODUCTION_SPLIT_SERVICES = false` na alfę | §5 decyzji |
 | 11 | Limity budżetu Railway | soft $25 / hard $60 | 12 |
 | 12 | Adres e-mail alertów | `alerty@kuking.pl` | 0.4 |
