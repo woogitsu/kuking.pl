@@ -101,6 +101,8 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         '/polityka-prywatnosci' => 'cytat wewnątrz zdania ostrzegającego „nie /polityka-prywatnosci" (FACEBOOK_LOGIN_URUCHOMIENIE.md)',
         '/przepisy' => 'przykład stylu adresu (AGENTS.md, SKILL.md) — prawdziwa trasa ma parametr',
         '/przepisy/' => 'przykład stylu adresu — prawdziwa trasa ma parametr',
+        '/przepisy/{fork}/oryginal' => 'ekran zaproponowany w projekcie #23 (docs/product/MOJA_WERSJA_PROJEKT_23.md), decyzja właściciela nie zapadła — trasy nie ma i nie ma jej być przed tą decyzją',
+        '/przepisy/{oryginal}/moja-wersja' => 'tryb tworzenia zaproponowany w projekcie #23 (docs/product/MOJA_WERSJA_PROJEKT_23.md), decyzja właściciela nie zapadła — trasy nie ma i nie ma jej być przed tą decyzją',
         '/pytania' => 'dział jawnie opisany jako jeszcze niezbudowany, issue #372 (BRAND_EXTENDED.md)',
         '/tag' => 'nieformalne odwołanie do prefiksu tras tagów',
         '/tag/zupa' => 'realny wzorzec tag/{tag} z przykładową wartością',
