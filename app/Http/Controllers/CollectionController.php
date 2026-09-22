@@ -495,9 +495,34 @@ class CollectionController extends Controller
 
         $this->savePost->remove($request->user(), $post, $collection);
 
-        return back()->with('status', $collection !== null
-            ? "Usunięte z zeszytu „{$collection->name}”."
-            : 'Usunięte ze wszystkich Twoich zeszytów.');
+        // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
+        //
+        // „Usunięte z zeszytu." nie mówiło, CO zostało usunięte ani czy
+        // zniknęło z jednego zeszytu, czy ze wszystkich — a przede wszystkim
+        // nie mówiło, że wpis DALEJ JEST W SERWISIE. W grupie 50+ „usunięte"
+        // czyta się jako „skasowane na zawsze", więc to zdanie musi paść
+        // wprost. Zamiast pytania „czy na pewno" PRZED akcją (wyjęcie jest
+        // odwracalne) idzie przycisk powrotu PO niej; rysuje go
+        // `components/layout.blade.php` w tym samym obszarze `aria-live`,
+        // co komunikat.
+        if ($collection !== null) {
+            // ZAKRES WĘŻSZY (issue #775): wpis wyszedł z JEDNEGO zeszytu.
+            // Przycisku powrotu tu świadomie NIE MA: `collections.save-post`
+            // bez wskazania zeszytu zapisuje do domyślnego, więc „Zapisz
+            // ponownie" odłożyłoby wpis GDZIE INDZIEJ niż go wzięto. Zdanie
+            // mówi zamiast tego, czego akcja NIE ruszyła.
+            return back()->with(
+                'status',
+                "Wpis wyjęty z zeszytu „{$collection->name}”. Nie usunęliśmy go z serwisu ani z innych Twoich zeszytów.",
+            );
+        }
+
+        return back()
+            ->with('status', 'Wpis wyjęty z zeszytu. Zniknął ze wszystkich Twoich zeszytów. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.')
+            ->with('status_powrot', [
+                'akcja' => route('collections.save-post', $post),
+                'etykieta' => 'Zapisz ponownie',
+            ]);
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse

@@ -477,14 +477,29 @@
                 w miejscu akcji, tak jak ekran przepisu robi to od dawna
                 (`recipes/show.blade.php`, `$isSaved`).
 
-                STAN JEST ZDANIEM, NIE DRUGIM PRZYCISKIEM — I TO JEST CELOWE.
-                Ekran przepisu zamienia w tym miejscu przycisk na „Usuń
-                z zeszytu". Tutaj nie, bo karta stoi w feedzie: podwójne
-                kliknięcie w grupie 50+ to norma, nie pomyłka (issue #43),
-                a przycisk kasujący pod tym samym palcem zabierałby z zeszytu
-                to, co ktoś właśnie do niego włożył. Zostaje odnośnik do
-                zeszytu — bo „wyjąć z zeszytu można w samym zeszycie" i to się
-                nie zmieniło.
+                STAN JEST ZDANIEM **ORAZ** PRZYCISKIEM WYJŚCIA (audyt L1,
+                decyzja właściciela z 20 września 2026).
+
+                Stał tu wcześniej akapit „STAN JEST ZDANIEM, NIE DRUGIM
+                PRZYCISKIEM" — z odesłaniem „wyjąć z zeszytu można w samym
+                zeszycie". Tego zdania nie dało się wykonać z EKRANU WPISU:
+                kto otworzył `posts.show` odłożonego przez pomyłkę wpisu, nie
+                miał tam żadnej drogi wyjścia (`docs/AUDYT_2026-09.md`,
+                wiersz L1; `WpisDaSieWyjacZZeszytuTest`). Przycisk stoi więc
+                wszędzie tam, gdzie widać „Masz to w zeszycie".
+
+                OBAWA O PODWÓJNE KLIKNIĘCIE ZOSTAJE ZAADRESOWANA UKŁADEM, NIE
+                BRAKIEM PRZYCISKU. Powód tamtej decyzji był prawdziwy (podwójne
+                kliknięcie w grupie 50+ to norma, nie pomyłka — issue #43), więc
+                pod palcem, który właśnie kliknął „Zapisuję", NIE MA przycisku
+                kasującego: w tym samym miejscu paska stoi dalej odnośnik „Masz
+                to w zeszycie", a „Usuń z zeszytu" jest dopiero NASTĘPNYM celem.
+
+                NAZWA JEST TA SAMA CO PRZY PRZEPISIE: „Usuń z zeszytu"
+                (`BRAND_EXTENDED.md` §3 zabrania synonimów). Wariant wewnątrz
+                konkretnego zeszytu (niżej) nazywa się inaczej — „Usuń z tego
+                zeszytu" — bo robi coś węższego (issue #775) i to jest jedyny
+                powód, dla którego druga nazwa tu stoi.
 
                 Ekran, który `czy_zapisany` nie dolicza, dostaje „Zapisuję" jak
                 dawniej. Zapis jest idempotentny, więc drugie kliknięcie daje
@@ -517,10 +532,34 @@
                         </button>
                     </form>
                 @else
+                    {{--
+                        POZA WNĘTRZEM ZESZYTU (feed, ekran wpisu) STAN JEST
+                        ZDANIEM **I** PRZYCISKIEM — audyt L1.
+
+                        Odnośnik stoi PIERWSZY, żeby drugie kliknięcie w to
+                        samo miejsce otwierało zeszyt, a nie kasowało zapis
+                        (issue #43). Formularz niżej to zwykły `DELETE` bez
+                        JavaScriptu i bez potwierdzenia: wyjęcie z zeszytu
+                        niczego nie kasuje z serwisu i cofa się jednym
+                        kliknięciem z `.flash` (AGENTS.md §5, D-053).
+
+                        BEZ `collection_id` — stąd nie wiadomo, „w którym
+                        zeszycie stoi człowiek", więc zakres jest globalny,
+                        dokładnie jak na stronie przepisu
+                        (`CollectionController::removePost`).
+                    --}}
                     <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
                         <x-ikona nazwa="book" :rozmiar="22" />
                         Masz to w zeszycie
                     </a>
+                    <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
+                        @csrf
+                        @method('DELETE')
+                        <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-zeszytu">
+                            <x-ikona nazwa="save" :rozmiar="22" />
+                            Usuń z zeszytu
+                        </button>
+                    </form>
                 @endif
             @else
                 <form method="POST" action="{{ route('collections.save-post', $post) }}">

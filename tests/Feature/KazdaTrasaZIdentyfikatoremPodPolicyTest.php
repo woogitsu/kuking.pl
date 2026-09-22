@@ -480,6 +480,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'name' => 'Zeszyt na próbę',
             'visibility' => 'private',
         ]);
+        // Osobny zeszyt dla `collections.edit`/`collections.update`, żeby
+        // kontrola dodatnia właściciela (która NAPRAWDĘ zapisuje) nie
+        // przestawiała widoczności zeszytu mierzonego w wierszu
+        // `collections.show`.
+        $zeszytDoEdycji = Collection::create([
+            'owner_id' => $wlasciciel->getKey(),
+            'name' => 'Zeszyt do edycji',
+            'visibility' => 'private',
+        ]);
 
         $zgloszenie = $this->zgloszenie($wlasciciel, $wpisPubliczny);
         $zgloszenieDoDecyzji = $this->zgloszenie($wlasciciel, $wpis);
@@ -742,6 +751,17 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // ─── ZESZYTY ─────────────────────────────────────────────────────
         $dodaj('collections.show', 'prywatny zeszyt', 'get',
             route('collections.show', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        // Zmiana nazwy, opisu i widoczności zeszytu (issue #777). Bramką jest
+        // `CollectionPolicy::update()` — WYŁĄCZNIE właściciel. Moderator ma tu
+        // odmowę świadomie: zeszyt to prywatna półka, a nie treść publiczna
+        // do moderowania; jego narzędziem jest `admin.*`, nie cudzy formularz.
+        // Zablokowany wypada już na `view`, gość na `auth`.
+        $dodaj('collections.edit', 'formularz edycji cudzego zeszytu', 'get',
+            route('collections.edit', $zeszytDoEdycji), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.update', 'zapis edycji cudzego zeszytu', 'patch',
+            route('collections.update', $zeszytDoEdycji),
+            ['name' => 'Zeszyt do edycji', 'description' => 'Opis po zapisie.', 'visibility' => 'private'],
+            [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
 
