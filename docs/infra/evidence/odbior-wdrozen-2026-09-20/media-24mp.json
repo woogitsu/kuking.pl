@@ -1,0 +1,71 @@
+{
+    "utc": "2026-09-20T17:36:48+00:00",
+    "photo": "24mp",
+    "source_sha256": "d55c11254e79e7de361078b3f20a45fb102e7aec20eed4436459a07740c67e15",
+    "source_width": 6000,
+    "source_height": 4000,
+    "orientation": 1,
+    "database": {
+        "name": "kuking_flota_gpt-odbior-wdrozen",
+        "owner": "kuking",
+        "port": 55439
+    },
+    "php": "8.4.24",
+    "gd": {
+        "GD Version": "bundled (2.1.0 compatible)",
+        "FreeType Support": true,
+        "FreeType Linkage": "with freetype",
+        "GIF Read Support": true,
+        "GIF Create Support": true,
+        "JPEG Support": true,
+        "PNG Support": true,
+        "WBMP Support": true,
+        "XPM Support": false,
+        "XBM Support": true,
+        "WebP Support": true,
+        "BMP Support": true,
+        "AVIF Support": true,
+        "TGA Read Support": true,
+        "JIS-mapped Japanese Font Support": false
+    },
+    "job_source_sha256": "a4ec448aa4fa25970e30a8d5899d09135f35692e5557866240c095de1ee1f8ed",
+    "media_id": "01a0bfe4-4e8d-707c-9506-19041057f1a5",
+    "status": "ready",
+    "processed_at": "2026-09-20T17:36:46+00:00",
+    "job_decodes": 1,
+    "baseline_decodes": 3,
+    "wall_ms": 1114.75,
+    "cpu_ms": 1018.12,
+    "peak_rss_kib": 203196,
+    "worker_log": "  2026-09-20 17:36:45 App\\Jobs\\ProcessUploadedImage .................. RUNNING\n  2026-09-20 17:36:46 App\\Jobs\\ProcessUploadedImage .............. 1 sek. DONE\n",
+    "processed_events": [
+        {
+            "job_id": 8,
+            "class": "App\\Jobs\\ProcessUploadedImage"
+        }
+    ],
+    "variants": {
+        "thumb": {
+            "width": 320,
+            "height": 213,
+            "bytes": 9344,
+            "sha256": "93226918808bf0f77eaa67c4e0ccc7ff2cd81397daed8eea8e5b8a943394396a",
+            "baseline_identical": true
+        },
+        "feed": {
+            "width": 960,
+            "height": 640,
+            "bytes": 37226,
+            "sha256": "ef35962f13177a5e87c73c2ccd5d07ac4e6dfc109e96dd1d40d9923623f9da73",
+            "baseline_identical": true
+        },
+        "large": {
+            "width": 1600,
+            "height": 1067,
+            "bytes": 70248,
+            "sha256": "3d376294fa00a10074d6b77072bf4a8ec9097902e9125211ee0e3f4708fb9b97",
+            "baseline_identical": true
+        }
+    },
+    "result": "PASS"
+}

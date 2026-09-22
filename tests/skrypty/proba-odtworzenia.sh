@@ -87,10 +87,20 @@ SERWER="postgresql://${BAZA_POLACZENIE}/postgres"
 export PGPASSWORD="${BAZA_HASLO}"
 PSQL=(psql -q -U "${BAZA_UZYTKOWNIK}" -h "${BAZA_HOST}" -p "${BAZA_PORT}")
 
-# Nazwy baz są UNIKALNE DLA WORKTREE, bo w tym kontenerze pracuje równolegle
-# kilku agentów i kilka przebiegów testów. Sufiks liczy ta sama funkcja, co
-# nazwy baz testowych (`tests/bootstrap.php`) — żeby nie było w repozytorium
-# drugiej reguły nazywania baz, która może się z tamtą rozjechać.
+# Nazwy baz są UNIKALNE DLA KATALOGU REPOZYTORIUM, bo w tym kontenerze
+# pracuje równolegle kilku agentów i kilka przebiegów testów. Sufiks liczy ta
+# sama funkcja, co nazwy baz testowych (`tests/bootstrap.php`) — żeby nie było
+# w repozytorium drugiej reguły nazywania baz, która może się z tamtą rozjechać.
+#
+# UWAGA NA AWARYJNE `_glowny`. Do 2026-09-20 funkcja liczyła nazwę z pliku
+# `.git`, którego w runtime NIE MA (rsync go wyklucza) — sufiks wychodził pusty,
+# wpadało `_glowny` i WSZYSTKIE stanowiska waliły w jedną `kuking_zrodlo_proby_glowny`.
+# Dawało to fałszywą czerwień z kontencji, po której każdy musiał najpierw
+# udowodnić, że to nie jego wina. Dziś sufiks jest pusty WYŁĄCZNIE w głównym
+# checkoucie (gdzie `_glowny` jest prawdą), a pilnuje tego
+# `tests/Unit/NazwaTestowejBazyTest.php`. Gdyby `php` tu padł, `_glowny`
+# nadal zadziała — i nadal będzie wspólne, więc nie jest to nazwa do
+# uruchamiania równolegle.
 SUFIKS="$(php -r 'require "'"${KATALOG}"'/tests/bootstrap.php"; echo substr(kuking_nazwa_testowej_bazy("'"${KATALOG}"'"), strlen("kuking_test"));' 2>/dev/null)"
 SUFIKS="${SUFIKS:-_glowny}"
 
@@ -144,7 +154,7 @@ for narzedzie in pg_dump pg_restore psql openssl php; do
   fi
 done
 
-if ! pg_isready -q 2>/dev/null; then
+if ! pg_isready -q -h "${BAZA_HOST}" -p "${BAZA_PORT}" 2>/dev/null; then
   printf '\033[0;31mPostgreSQL nie odpowiada — nie ma czego dowodzić.\033[0m\n' >&2
   exit 1
 fi

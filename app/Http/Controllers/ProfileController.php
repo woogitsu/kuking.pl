@@ -105,7 +105,21 @@ class ProfileController extends Controller
             'cookedEvents' => $tab === 'ugotowane'
                 ? $owner->cookedEvents()
                     ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
-                    ->with(['recipe.author.profile', 'media'])
+                    // `user.profile.avatar` — karta wykonania
+                    // (`components/cooked-card.blade.php`) czyta
+                    // `$event->user` (awatar, nazwa) i
+                    // `$event->user->profile->username` (odnośnik do profilu).
+                    // Doładowany był tylko AUTOR PRZEPISU, nie OSOBA, KTÓRA
+                    // GOTOWAŁA — a to na tej zakładce jest treść główna.
+                    //
+                    // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                    // `ANALYZE`): 52 zapytania na dwunastu kartach, z czego 22 to
+                    // para `profiles` + `users` powtórzona na każdą kartę.
+                    // Po zmianie: 30.
+                    // `RecipeController::show()` dociągał to samo od dawna
+                    // (galeria „Komu wyszło"); ta zakładka była jedynym
+                    // miejscem z tą samą kartą i bez tego `with()`.
+                    ->with(['user.profile.avatar', 'recipe.author.profile', 'media'])
                     ->paginate(12)
                     ->withQueryString()
                 : null,
