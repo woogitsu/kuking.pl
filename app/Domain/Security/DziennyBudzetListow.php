@@ -178,6 +178,30 @@ final class DziennyBudzetListow
     ) {}
 
     /**
+     * Doby, w których TEN obiekt zajął miejsca, od najstarszej do najnowszej
+     * (issue #1061).
+     *
+     * PO CO: `zwolnij()` wyliczał klucz licznika z `now()` w chwili ZWROTU.
+     * Rezerwacja zrobiona o 23:59:59 i oddana po północy zdejmowała więc
+     * miejsce z NOWEJ doby — tej, w której ktoś inny zdążył już wysłać list —
+     * a stara doba zostawała zawyżona. Licznik nowej doby pokazywał o jeden
+     * list mniej, niż wyszło, i sufit przepuszczał jeden list ponad limit.
+     *
+     * DLACZEGO LISTA, A NIE JEDNA DATA: `kuking:wyslij-podsumowania`
+     * rezerwuje jednym obiektem dziesiątki miejsc w pętli i oddaje co
+     * któreś — zawsze to, które zajął przed chwilą. `zwolnij()` zdejmuje więc
+     * OSTATNIĄ rezerwację i trafia nią w jej własną dobę. Data zapamiętana
+     * w konstruktorze by tu nie wystarczyła: pętla komendy może przejść przez
+     * północ.
+     *
+     * Obiekt, któremu odmówiono, nie ma tu nic — i jego `zwolnij()` nie
+     * zdejmie przez to miejsca zajętego przez kogoś innego.
+     *
+     * @var list<string>
+     */
+    private array $dobyRezerwacji = [];
+
+    /**
      * WSPÓLNY LICZNIK CAŁEJ POCZTY — jedno miejsce decyzji „komu gasimy
      * pierwszemu" (decyzja właściciela z 20 września 2026).
      *
@@ -347,9 +371,9 @@ final class DziennyBudzetListow
      * inkrementowały — 121 listów przy suficie 120 (audyt MAIL-01/RACE-03).
      * Decyzję o wysyłce podejmuje wyłącznie `sprobujZarezerwowac()`.
      */
-    public function zostalo(): int
+    public function zostalo(?string $doba = null): int
     {
-        return max(0, $this->budzet() - $this->zuzyte());
+        return max(0, $this->budzet() - $this->zuzyte($doba));
     }
 
     /** Odczyt do pokazania i do diagnostyki — obostrzenia jak w `zostalo()`. */
@@ -366,9 +390,9 @@ final class DziennyBudzetListow
      * a ta metoda — zero. Obie liczby są prawdziwe i obie są potrzebne:
      * pierwsza opisuje wiadro, druga mówi, czy TEN list z niego wyjdzie.
      */
-    public function zostaloWTejKlasie(): int
+    public function zostaloWTejKlasie(?string $doba = null): int
     {
-        return max(0, $this->zostalo() - $this->prog());
+        return max(0, $this->zostalo($doba) - $this->prog());
     }
 
     /**
@@ -389,10 +413,10 @@ final class DziennyBudzetListow
         return $this->nadrzedny === null ? $wlasne : min($wlasne, $this->nadrzedny->zostaloLacznie());
     }
 
-    /** Czy miejsce jest w TYM liczniku — bez pytania nadrzędnego. */
-    private function jestWlasneMiejsce(): bool
+    /** Czy miejsce jest w TYM liczniku danej doby — bez pytania nadrzędnego. */
+    private function jestWlasneMiejsce(string $doba): bool
     {
-        return $this->zostaloWTejKlasie() > 0;
+        return $this->zostaloWTejKlasie($doba) > 0;
     }
 
     /**
@@ -481,11 +505,18 @@ final class DziennyBudzetListow
                     // drugi raz — pod cudzą blokadą — byłoby braniem dwóch
                     // blokad naraz w ustalonej kolejności bez żadnej
                     // potrzeby.
-                    if (! $this->jestWlasneMiejsce()) {
+                    //
+                    // DOBA WYZNACZONA RAZ, DLA SPRAWDZENIA I ZAJĘCIA NARAZ
+                    // (#1061). Dwa osobne `now()` mogłyby wypaść po dwóch
+                    // stronach północy: sprawdzenie wczorajszego licznika,
+                    // a zajęcie dzisiejszego.
+                    $doba = self::dzisiaj();
+
+                    if (! $this->jestWlasneMiejsce($doba)) {
                         return false;
                     }
 
-                    $this->zajmij();
+                    $this->zajmijWlasne($doba);
 
                     return true;
                 });
@@ -546,18 +577,27 @@ final class DziennyBudzetListow
      */
     public function zwolnij(): void
     {
+        // ZWROT IDZIE DO DOBY, W KTÓREJ MIEJSCE ZAJĘTO, nie do dzisiejszej
+        // (#1061) — pełne wyprowadzenie przy `$dobyRezerwacji`. Brak wpisu
+        // znaczy, że ten obiekt niczego nie zajął (albo już wszystko oddał),
+        // więc nie ma czego oddawać — ani tu, ani u rodzica.
+        $doba = array_pop($this->dobyRezerwacji);
+
+        if ($doba === null) {
+            return;
+        }
+
         try {
             Cache::lock($this->kluczBlokady(), self::BLOKADA_SEKUND)
-                ->block(self::CZEKANIE_SEKUND, function (): void {
+                ->block(self::CZEKANIE_SEKUND, function () use ($doba): void {
                     // Licznik nie może zejść pod zero. Zdarza się to
-                    // wtedy, gdy klucz wygasł albo zmienił się dzień
-                    // między rezerwacją i oddaniem miejsca — wtedy nie ma
-                    // czego oddawać, bo licznik i tak liczy od nowa.
-                    if ($this->zuzyte() < 1) {
+                    // wtedy, gdy klucz tamtej doby zdążył wygasnąć — wtedy
+                    // nie ma czego oddawać.
+                    if ($this->zuzyte($doba) < 1) {
                         return;
                     }
 
-                    Cache::decrement($this->klucz());
+                    Cache::decrement($this->klucz($doba));
                 });
         } catch (LockTimeoutException) {
             // Świadomie pusto — patrz ostatni akapit opisu metody.
@@ -572,9 +612,10 @@ final class DziennyBudzetListow
     /**
      * BEZWARUNKOWE zajęcie jednego miejsca — nie sprawdza sufitu.
      *
-     * TO NIE JEST METODA DO PODEJMOWANIA DECYZJI O WYSYŁCE (D-076). Jest
-     * jednym z dwóch kroków rezerwacji i chodzi w środku blokady założonej
-     * przez `sprobujZarezerwowac()` — tam jest jej jedyne właściwe miejsce.
+     * TO NIE JEST METODA DO PODEJMOWANIA DECYZJI O WYSYŁCE (D-076). Drugi
+     * krok rezerwacji (`zajmijWlasne()`) chodzi w środku blokady założonej
+     * przez `sprobujZarezerwowac()`, a ta metoda jest jego wersją BEZ
+     * blokady i Z rodzicem — zajmuje miejsce także we wspólnej puli.
      * Wołanie jej wprost jest poprawne tylko wtedy, gdy list wychodzi
      * ŚWIADOMIE PONAD sufitem i ma się jedynie policzyć (list próbny
      * `kuking:wyslij-podsumowania --tylko`, wypuszczany ręcznie przez
@@ -602,8 +643,8 @@ final class DziennyBudzetListow
      * za późno na cokolwiek.
      *
      * TU NIE MA OSTRZEŻENIA O KOŃCZĄCEJ SIĘ PULI (issue #234), choć to jest
-     * pierwsze miejsce, w które się prosi. Ta metoda chodzi w środku blokady
-     * z `sprobujZarezerwowac()`, a ostrzeżenie zapisuje dziennik i (przy
+     * pierwsze miejsce, w które się prosi. Jej krok `zajmijWlasne()` chodzi
+     * w środku blokady z `sprobujZarezerwowac()`, a ostrzeżenie zapisuje dziennik i (przy
      * włączonym kanale) dzwoni na webhook — czyli robi w sekcji krytycznej
      * rzeczy trwające dłużej niż cała reszta rezerwacji razem. Ostrzeżenie
      * stoi więc w `sprobujZarezerwowac()`, PO oddaniu blokady; pełne
@@ -615,13 +656,34 @@ final class DziennyBudzetListow
      */
     public function zajmij(): void
     {
-        $klucz = $this->klucz();
+        // LIST PONAD SUFITEM LICZY SIĘ TAKŻE WE WSPÓLNEJ PULI. Bez tego list
+        // próbny `--tylko` wychodził, a wspólny licznik całej poczty o nim nie
+        // wiedział — czyli „musi się POLICZYĆ, żeby nie zniknął z rachunku
+        // wiadra" (komentarz w `kuking:wyslij-podsumowania`) było prawdą
+        // tylko dla sufitu własnego funkcji.
+        $this->nadrzedny?->zajmij();
+
+        $this->zajmijWlasne(self::dzisiaj());
+    }
+
+    /**
+     * Krok „zajmij" W TYM JEDNYM liczniku, bez rodzica.
+     *
+     * Osobno od `zajmij()`, bo w `sprobujZarezerwowac()` rodzic zajął już
+     * swoje miejsce własną rezerwacją — wołanie tam `zajmij()` policzyłoby
+     * jeden list dwa razy we wspólnej puli.
+     */
+    private function zajmijWlasne(string $doba): void
+    {
+        $klucz = $this->klucz($doba);
 
         // `add` zakłada klucz z terminem ważności tylko wtedy, gdy go
         // jeszcze nie ma — bez tego `increment` na nieistniejącym kluczu
         // zakłada wpis BEZ terminu i licznik zostaje na zawsze.
         Cache::add($klucz, 0, now()->addDays(2));
         Cache::increment($klucz);
+
+        $this->dobyRezerwacji[] = $doba;
     }
 
     /**
@@ -716,9 +778,10 @@ final class DziennyBudzetListow
         ));
     }
 
-    public function zuzyte(): int
+    /** @param  string|null  $doba  `Y-m-d`; bez niej — dzisiejsza doba. */
+    public function zuzyte(?string $doba = null): int
     {
-        return (int) Cache::get($this->klucz(), 0);
+        return (int) Cache::get($this->klucz($doba), 0);
     }
 
     public function budzet(): int
@@ -726,9 +789,14 @@ final class DziennyBudzetListow
         return (int) config($this->kluczKonfiguracji, 0);
     }
 
-    private function klucz(): string
+    private function klucz(?string $doba = null): string
     {
-        return self::PREFIKS.$this->funkcja.':'.now()->format('Y-m-d');
+        return self::PREFIKS.$this->funkcja.':'.($doba ?? self::dzisiaj());
+    }
+
+    private static function dzisiaj(): string
+    {
+        return now()->format('Y-m-d');
     }
 
     private function kluczBlokady(): string
