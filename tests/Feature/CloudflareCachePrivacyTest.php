@@ -43,7 +43,7 @@ class CloudflareCachePrivacyTest extends TestCase
         parse_str(parse_url($response->headers->get('Location'), PHP_URL_QUERY), $query);
         $this->assertNotEmpty($query['X-Amz-Signature']);
         $this->assertNotEmpty($query['X-Amz-Date']);
-        $this->assertSame('3600', (string) $query['X-Amz-Expires']);
+        $this->assertOknoPodpisu(3600, $query['X-Amz-Expires']);
         $this->assertLessThan(3600, (int) $response->headers->getCacheControlDirective('max-age'));
     }
 
@@ -63,7 +63,7 @@ class CloudflareCachePrivacyTest extends TestCase
         $this->get($photo->url('feed'))->assertNotFound()->assertHeaderMissing('Location');
         $response = $this->actingAs($photo->owner)->get($photo->url('feed'))->assertStatus(302);
         parse_str(parse_url($response->headers->get('Location'), PHP_URL_QUERY), $query);
-        $this->assertSame('300', (string) $query['X-Amz-Expires']);
+        $this->assertOknoPodpisu(300, $query['X-Amz-Expires']);
         $this->assertStringContainsString('no-store', $query['response-cache-control']);
     }
 
@@ -167,10 +167,10 @@ class CloudflareCachePrivacyTest extends TestCase
         $photo = $this->photo('private');
         $response = $this->actingAs($photo->owner)->get($photo->url('feed'))->assertStatus(302);
         parse_str(parse_url($response->headers->get('Location'), PHP_URL_QUERY), $query);
-        $this->assertSame('300', (string) $query['X-Amz-Expires']);
+        $this->assertOknoPodpisu(300, $query['X-Amz-Expires']);
         $publicPhoto = $this->photo();
         $response = $this->get($publicPhoto->url('feed'))->assertStatus(302);
         parse_str(parse_url($response->headers->get('Location'), PHP_URL_QUERY), $query);
-        $this->assertSame('3600', (string) $query['X-Amz-Expires']);
+        $this->assertOknoPodpisu(3600, $query['X-Amz-Expires']);
     }
 }
