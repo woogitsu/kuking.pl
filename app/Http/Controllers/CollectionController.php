@@ -544,18 +544,41 @@ class CollectionController extends Controller
     }
 
     /**
+     * JEDNA REGUŁA WŁASNEGO ZESZYTU DLA ZAPISU I DLA WYJĘCIA (issue #775).
+     *
+     * `selectedCollection()` i `wybranyZeszytDoWyjecia()` różnią się tylko
+     * zdaniami w błędach — reguła jest ta sama i ma być ta sama: format UUID
+     * przed zapytaniem (`bail`) i własność przypięta do `owner_id`. Dwie
+     * kopie tej listy rozjechałyby się przy pierwszej poprawce jednej z nich,
+     * a wyjęcie z cudzego zeszytu jest dokładnie tą granicą, której pilnuje
+     * AGENTS.md §7.
+     *
+     * Jest też powód mierzalny: `scripts/kontrole-negatywne-alfa08.py` mutuje
+     * tę listę i wymaga, żeby stała w kodzie DOKŁADNIE RAZ. Przy dwóch kopiach
+     * kontrola ujemna odmawia pracy, zanim cokolwiek zmutuje — czyli przestaje
+     * cokolwiek dowodzić. Jedna kopia daje jej jedno miejsce, a mutacja osłabia
+     * wtedy obie drogi naraz.
+     *
+     * @return array<string, list<mixed>>
+     */
+    private function regulyWlasnegoZeszytu(Request $request): array
+    {
+        return [
+            'collection_id' => [
+                'bail', 'nullable', 'uuid',
+                Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey()),
+            ],
+        ];
+    }
+
+    /**
      * Nieistniejący i cudzy zeszyt dają ten sam komunikat (issue #473).
      * „bail” zatrzymuje walidację przed zapytaniem do kolumny UUID, gdy
      * wejście nie ma poprawnego formatu. Brak wyboru oznacza zeszyt domyślny.
      */
     private function selectedCollection(Request $request): ?Collection
     {
-        $data = $request->validate([
-            'collection_id' => [
-                'bail', 'nullable', 'uuid',
-                Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey()),
-            ],
-        ], [
+        $data = $request->validate($this->regulyWlasnegoZeszytu($request), [
             'collection_id.uuid' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
             'collection_id.exists' => 'Odśwież stronę i ponownie wybierz zeszyt do zapisania.',
         ]);
@@ -623,12 +646,7 @@ class CollectionController extends Controller
      */
     private function wybranyZeszytDoWyjecia(Request $request): ?Collection
     {
-        $data = $request->validate([
-            'collection_id' => [
-                'bail', 'nullable', 'uuid',
-                Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey()),
-            ],
-        ], [
+        $data = $request->validate($this->regulyWlasnegoZeszytu($request), [
             'collection_id.uuid' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
             'collection_id.exists' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
         ]);
