@@ -1,0 +1,16 @@
+{
+  "nazwa": "#901 — widoczna droga do wszystkich szkiców",
+  "plik": "resources/views/pages/add.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "47c45ec5eff214e046a671d2be4044db",
+  "md5_po_mutacji": "62c1a15d866ea2d2d9f0506137aa8581",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Wszystkie szkice",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:38:50Z"
+}

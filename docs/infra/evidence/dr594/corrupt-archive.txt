@@ -1,0 +1,13 @@
+[proba] start; baza próbna: proba_odtworzenia_gpt_dr_baza_20260920t173937z_uszkodzony; serwer: postgresql://kuking@127.0.0.1:55439/postgres
+[proba] ✓ bezpiecznik 1: baza celu "proba_odtworzenia_gpt_dr_baza_20260920t173937z_uszkodzony" jest nazwą próbną, serwer nie jest produkcyjny
+[proba] ✓ bezpiecznik 3: cel to własny Postgres tego repozytorium (1870cee372ae8b30)
+[proba] ✓ zrzut: kuking-20260920-173937Z.dump.cms, 427148807 B
+[proba] odszyfrowuję (openssl cms)…
+[proba] ✓ odszyfrowane w 2 s (426731512 B)
+[proba] ODMOWA/PORAŻKA (kod 44)
+        Odszyfrowany zrzut NIE ZGADZA SIĘ ze skrótem z pliku .meta.
+          w .meta:    ec8f672f2abc7e2f1f2bf67104d87c3fb3fc596e44142c56045f272ac4ee99d5
+          policzony:  afcc1ea0f65f5189c57b8d2d906b4e010fbf8f917bf74e172a6b1356e70f4a9d
+        Szyfrogram jest uszkodzony (AES-CBC odszyfrowuje śmieci BEZ BŁĘDU) albo
+        plik .meta należy do innej kopii. NIE ODTWARZAM — nic jeszcze nie
+        powstało, więc nie ma czego sprzątać.

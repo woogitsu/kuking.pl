@@ -1,0 +1,466 @@
+{
+ "seria": "r060-p1",
+ "baza": "http://127.0.0.1:8605",
+ "start": "2026-09-20T18:13:01.559Z",
+ "zadany_rps": 60,
+ "czas_s": 120,
+ "trwanie_s": 150.1,
+ "trwanie_naplywu_s": 120,
+ "przerwana": false,
+ "razem": {
+  "zadan_wyslanych": 7200,
+  "poprawnych": 544,
+  "nieudanych": 6656,
+  "porzuconych_przez_limit": 0,
+  "pominietych_brak_celu": 0,
+  "anulowanych_przy_domykaniu": 43,
+  "w_locie_na_koniec": 0,
+  "przepustowosc_rps": 4.53,
+  "blad_procent": 92.4,
+  "p50": 9337.1,
+  "p95": 19554.4,
+  "p99": 56190.7,
+  "p95_z_bledami": 20001.6,
+  "p99_z_bledami": 36019.6
+ },
+ "uwagi": [
+  "p50/p95/p99 liczone są z odpowiedzi POPRAWNYCH; przy niezerowym blad_procent nie wolno ich cytować jako czasu odpowiedzi serwisu. p95_z_bledami liczone jest na wszystkich doprowadzonych do końca żądaniach i BYWA NIŻSZE od p95, bo odmowy połączenia i szybkie 5xx wracają w ułamku milisekundy — to nie jest poprawa.",
+  "Anulowano 43 żądań przy domykaniu serii po 30000 ms — policzone jako błędy, bo odpowiedzi nie było."
+ ],
+ "bledy_przyrzadu_razem": 0,
+ "bledy_przyrzadu": [],
+ "limity_ms": {
+  "bezczynnosc_zadania": 20000,
+  "calkowity_zadania": 30000,
+  "domkniecie": 30000,
+  "maks_w_locie": 3000
+ },
+ "w_locie_szczyt": 1236,
+ "w_locie_mediana": 1213,
+ "koszt_generatora": {
+  "cpu_user_s": 8.28,
+  "cpu_system_s": 1.15,
+  "cpu_rdzenie_srednio": 0.079,
+  "maxrss_mb": 435
+ },
+ "uploady": [
+  {
+   "plik": "photo-1.jpg",
+   "sha256": "e6a6f552a6f77332e82aefd74d16799b16edce0f4bb3ad33c09b1d67f018918f",
+   "oczekiwane": "accepted",
+   "wyslanych": 11,
+   "zgodnych": 3,
+   "statusy": {
+    "0": 8,
+    "302": 3
+   }
+  },
+  {
+   "plik": "photo-2.jpg",
+   "sha256": "9e5129f7ccf3dd3d70e1ec4c63a3a104f16f7d81615b1c312b4e10654c1acd14",
+   "oczekiwane": "accepted",
+   "wyslanych": 11,
+   "zgodnych": 3,
+   "statusy": {
+    "0": 8,
+    "302": 3
+   }
+  },
+  {
+   "plik": "photo-3.jpg",
+   "sha256": "49286a6dbdb9fbc318d6f07605f52ae3c179c25d8bd3802b51d4409f0ee0ae0c",
+   "oczekiwane": "accepted",
+   "wyslanych": 11,
+   "zgodnych": 3,
+   "statusy": {
+    "0": 8,
+    "302": 3
+   }
+  },
+  {
+   "plik": "photo-4.jpg",
+   "sha256": "20b92b134d8e954d672687db04c9b9a779b32dd0d3e056b17ae3763d416565c1",
+   "oczekiwane": "accepted",
+   "wyslanych": 11,
+   "zgodnych": 3,
+   "statusy": {
+    "0": 8,
+    "302": 3
+   }
+  },
+  {
+   "plik": "photo-5.jpg",
+   "sha256": "bc0c3b1f685088cc94fed975ed283ab4fa39929f3fd09c217e29c012ab681210",
+   "oczekiwane": "accepted",
+   "wyslanych": 11,
+   "zgodnych": 2,
+   "statusy": {
+    "0": 9,
+    "302": 2
+   }
+  },
+  {
+   "plik": "truncated.jpg",
+   "sha256": "09fde1f0bd284d91217a482c3715272dc90220f67ffa65f96921b90dd13300c6",
+   "oczekiwane": "rejected",
+   "wyslanych": 11,
+   "zgodnych": 2,
+   "statusy": {
+    "0": 9,
+    "302": 2
+   }
+  },
+  {
+   "plik": "odd-exif.jpg",
+   "sha256": "1992154bbee945c962db7fbccd5502b386a88014425239ea43c0bf534b21bbd3",
+   "oczekiwane": "accepted",
+   "wyslanych": 11,
+   "zgodnych": 2,
+   "statusy": {
+    "0": 9,
+    "302": 2
+   }
+  },
+  {
+   "plik": "orientation-6.jpg",
+   "sha256": "13f1f8f07e5e3f9e3b3bcde8fa415eee5586edc5c4c1abc87c8425f3aa498173",
+   "oczekiwane": "accepted",
+   "wyslanych": 10,
+   "zgodnych": 2,
+   "statusy": {
+    "0": 8,
+    "302": 2
+   }
+  }
+ ],
+ "endpointy": {
+  "anon_landing": {
+   "zadan": 584,
+   "poprawnych": 41,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 93,
+   "blad_procent_wyslanych": 93,
+   "probek_poprawnych": 41,
+   "p50": 9643.5,
+   "p95": 17483,
+   "p99": 17997.5,
+   "p95_z_bledami": 20001.5,
+   "probek_wszystkich": 584,
+   "max": 17998,
+   "statusy": {
+    "200": 41,
+    "bezczynnosc": 543
+   },
+   "powody": {
+    "ok": 41,
+    "bezczynnosc": 543
+   }
+  },
+  "anon_profil": {
+   "zadan": 141,
+   "poprawnych": 14,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 90.1,
+   "blad_procent_wyslanych": 90.1,
+   "probek_poprawnych": 14,
+   "p50": 5717.9,
+   "p95": 17734.6,
+   "p99": 17734.6,
+   "p95_z_bledami": 20001.7,
+   "probek_wszystkich": 141,
+   "max": 17735,
+   "statusy": {
+    "200": 14,
+    "bezczynnosc": 127
+   },
+   "powody": {
+    "ok": 14,
+    "bezczynnosc": 127
+   }
+  },
+  "anon_przepis": {
+   "zadan": 998,
+   "poprawnych": 71,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 92.9,
+   "blad_procent_wyslanych": 92.9,
+   "probek_poprawnych": 71,
+   "p50": 9057.5,
+   "p95": 18298.8,
+   "p99": 19945,
+   "p95_z_bledami": 20001.6,
+   "probek_wszystkich": 998,
+   "max": 19945,
+   "statusy": {
+    "200": 71,
+    "bezczynnosc": 927
+   },
+   "powody": {
+    "ok": 71,
+    "bezczynnosc": 927
+   }
+  },
+  "anon_tag": {
+   "zadan": 281,
+   "poprawnych": 19,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 93.2,
+   "blad_procent_wyslanych": 93.2,
+   "probek_poprawnych": 19,
+   "p50": 7142.8,
+   "p95": 16928.3,
+   "p99": 16928.3,
+   "p95_z_bledami": 20001.4,
+   "probek_wszystkich": 281,
+   "max": 16928,
+   "statusy": {
+    "200": 19,
+    "bezczynnosc": 262
+   },
+   "powody": {
+    "ok": 19,
+    "bezczynnosc": 262
+   }
+  },
+  "anon_wpis": {
+   "zadan": 538,
+   "poprawnych": 44,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 91.8,
+   "blad_procent_wyslanych": 91.8,
+   "probek_poprawnych": 44,
+   "p50": 8388.6,
+   "p95": 18284.2,
+   "p99": 19905.1,
+   "p95_z_bledami": 20001.6,
+   "probek_wszystkich": 538,
+   "max": 19905,
+   "statusy": {
+    "200": 44,
+    "bezczynnosc": 494
+   },
+   "powody": {
+    "ok": 44,
+    "bezczynnosc": 494
+   }
+  },
+  "komentarz": {
+   "zadan": 292,
+   "poprawnych": 24,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 91.8,
+   "blad_procent_wyslanych": 91.8,
+   "probek_poprawnych": 24,
+   "p50": 11189.5,
+   "p95": 17744.6,
+   "p99": 19267.3,
+   "p95_z_bledami": 20001.6,
+   "probek_wszystkich": 292,
+   "max": 19267,
+   "statusy": {
+    "302": 24,
+    "bezczynnosc": 268
+   },
+   "powody": {
+    "ok": 24,
+    "bezczynnosc": 268
+   }
+  },
+  "szukaj": {
+   "zadan": 588,
+   "poprawnych": 46,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 92.2,
+   "blad_procent_wyslanych": 92.2,
+   "probek_poprawnych": 46,
+   "p50": 9389.4,
+   "p95": 18279.4,
+   "p99": 19870.6,
+   "p95_z_bledami": 20001.6,
+   "probek_wszystkich": 588,
+   "max": 19871,
+   "statusy": {
+    "200": 46,
+    "bezczynnosc": 542
+   },
+   "powody": {
+    "ok": 46,
+    "bezczynnosc": 542
+   }
+  },
+  "ugotowalem": {
+   "zadan": 148,
+   "poprawnych": 15,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 89.9,
+   "blad_procent_wyslanych": 89.9,
+   "probek_poprawnych": 15,
+   "p50": 9447.3,
+   "p95": 19860.1,
+   "p99": 19860.1,
+   "p95_z_bledami": 20001.6,
+   "probek_wszystkich": 148,
+   "max": 19860,
+   "statusy": {
+    "302": 15,
+    "bezczynnosc": 133
+   },
+   "powody": {
+    "ok": 15,
+    "bezczynnosc": 133
+   }
+  },
+  "upload": {
+   "zadan": 87,
+   "poprawnych": 20,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 77,
+   "blad_procent_wyslanych": 77,
+   "probek_poprawnych": 20,
+   "p50": 40191.8,
+   "p95": 70222,
+   "p99": 74140.7,
+   "p95_z_bledami": 90000.2,
+   "probek_wszystkich": 87,
+   "max": 74141,
+   "statusy": {
+    "302": 20,
+    "bezczynnosc": 18,
+    "deadline": 6,
+    "anulowane": 43
+   },
+   "powody": {
+    "ok": 20,
+    "bezczynnosc": 18,
+    "deadline": 6,
+    "anulowane": 43
+   }
+  },
+  "zal_discover": {
+   "zadan": 298,
+   "poprawnych": 19,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 93.6,
+   "blad_procent_wyslanych": 93.6,
+   "probek_poprawnych": 19,
+   "p50": 12555.7,
+   "p95": 19867.6,
+   "p99": 19867.6,
+   "p95_z_bledami": 20001.6,
+   "probek_wszystkich": 298,
+   "max": 19868,
+   "statusy": {
+    "200": 19,
+    "bezczynnosc": 279
+   },
+   "powody": {
+    "ok": 19,
+    "bezczynnosc": 279
+   }
+  },
+  "zal_feed": {
+   "zadan": 978,
+   "poprawnych": 68,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 93,
+   "blad_procent_wyslanych": 93,
+   "probek_poprawnych": 68,
+   "p50": 9549.1,
+   "p95": 19031.4,
+   "p99": 19652.6,
+   "p95_z_bledami": 20001.6,
+   "probek_wszystkich": 978,
+   "max": 19653,
+   "statusy": {
+    "200": 68,
+    "bezczynnosc": 910
+   },
+   "powody": {
+    "ok": 68,
+    "bezczynnosc": 910
+   }
+  },
+  "zal_feed_str2": {
+   "zadan": 304,
+   "poprawnych": 18,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 94.1,
+   "blad_procent_wyslanych": 94.1,
+   "probek_poprawnych": 18,
+   "p50": 9256.8,
+   "p95": 18916.6,
+   "p99": 18916.6,
+   "p95_z_bledami": 20001.5,
+   "probek_wszystkich": 304,
+   "max": 18917,
+   "statusy": {
+    "200": 18,
+    "bezczynnosc": 286
+   },
+   "powody": {
+    "ok": 18,
+    "bezczynnosc": 286
+   }
+  },
+  "zal_zeszyt": {
+   "zadan": 214,
+   "poprawnych": 19,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 91.1,
+   "blad_procent_wyslanych": 91.1,
+   "probek_poprawnych": 19,
+   "p50": 10018.5,
+   "p95": 19868.9,
+   "p99": 19868.9,
+   "p95_z_bledami": 20001.7,
+   "probek_wszystkich": 214,
+   "max": 19869,
+   "statusy": {
+    "200": 19,
+    "bezczynnosc": 195
+   },
+   "powody": {
+    "ok": 19,
+    "bezczynnosc": 195
+   }
+  },
+  "zdjecie": {
+   "zadan": 1749,
+   "poprawnych": 126,
+   "pominietych_brak_celu": 0,
+   "blad_procent": 92.8,
+   "blad_procent_wyslanych": 92.8,
+   "probek_poprawnych": 126,
+   "p50": 8218.4,
+   "p95": 18327.9,
+   "p99": 19877.6,
+   "p95_z_bledami": 20001.5,
+   "probek_wszystkich": 1749,
+   "max": 19956,
+   "statusy": {
+    "200": 126,
+    "bezczynnosc": 1623
+   },
+   "powody": {
+    "ok": 126,
+    "bezczynnosc": 1623
+   }
+  }
+ },
+ "mieszanka": {
+  "anon_landing": 8,
+  "anon_przepis": 14,
+  "anon_wpis": 7,
+  "anon_tag": 4,
+  "anon_profil": 2,
+  "zal_feed": 14,
+  "zal_feed_str2": 4,
+  "zal_discover": 4,
+  "zal_zeszyt": 3,
+  "szukaj": 8,
+  "zdjecie": 25,
+  "komentarz": 4,
+  "ugotowalem": 2,
+  "upload": 1
+ }
+}

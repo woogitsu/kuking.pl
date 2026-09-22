@@ -1,0 +1,16 @@
+{
+  "nazwa": "Kontekst nazwy Poradźcie w treści ekranu",
+  "plik": "resources/views/pages/questions/index.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "3b81c83222cf957e36359d7160e26bb3",
+  "md5_po_mutacji": "06ecf6acbc67f676005495c7f7ea8d2a",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Failed asserting that 0 is identical to 1",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:36:07Z"
+}
