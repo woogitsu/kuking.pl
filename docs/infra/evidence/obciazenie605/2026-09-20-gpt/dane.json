@@ -1,0 +1,28 @@
+{
+  "baza": "kuking_b605_gpt_obciazenie",
+  "sekundy": 457.1,
+  "liczby": {
+    "users": 2060,
+    "profiles": 2060,
+    "follows": 62420,
+    "posts": 200000,
+    "recipes": 20000,
+    "recipe_steps": 90000,
+    "recipe_ingredients": 149996,
+    "comments": 200000,
+    "cooked_events": 25000,
+    "collections": 480,
+    "collection_items": 15456,
+    "post_tags": 399697,
+    "tags": 1446,
+    "tag_follows": 978,
+    "blocks": 1510
+  },
+  "rozklad": {
+    "follows_miedzy_autorami": 48600,
+    "komentarze_na_goracych_przepisach": 40,
+    "zapisy_w_zeszytach": 15456,
+    "obserwowane_tagi": 978,
+    "blokady": 1510
+  }
+}

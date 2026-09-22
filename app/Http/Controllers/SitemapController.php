@@ -42,7 +42,6 @@ class SitemapController extends Controller
                 ->publiclyVisible()
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->select(['id', 'slug', 'updated_at'])
-                ->orderByDesc('published_at')
                 ->chunkById(500, function ($recipes) use (&$urls): void {
                     foreach ($recipes as $recipe) {
                         $urls[] = [
@@ -59,7 +58,6 @@ class SitemapController extends Controller
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
                 ->whereNotNull('body')
                 ->select(['id', 'updated_at'])
-                ->orderByDesc('published_at')
                 ->chunkById(500, function ($posts) use (&$urls): void {
                     foreach ($posts as $post) {
                         $urls[] = [

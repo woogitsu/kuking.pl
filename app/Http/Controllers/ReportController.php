@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Moderation\Actions\ReportContent;
+use App\Domain\Moderation\CelZgloszenia;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
 use App\Models\CookedEvent;
@@ -13,6 +14,7 @@ use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Recipe;
 use App\Models\Report;
+use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Http\RedirectResponse;
@@ -50,7 +52,10 @@ class ReportController extends Controller
             'targetType' => $type,
             'targetId' => $id,
             'target' => $target,
+            'cel' => CelZgloszenia::dla($target),
             'reasons' => Report::REASONS,
+            // Cel „Wróć" — patrz `wracajDo()` (issue #795).
+            'powrot' => $this->wracajDo($target),
         ]);
     }
 
@@ -241,6 +246,52 @@ class ReportController extends Controller
             ->get()
             ->keyBy(fn (ModerationAction $decyzja): string => (string) $decyzja->report_id)
             ->all();
+    }
+
+    /**
+     * Dokąd prowadzi „Wróć" (issue #795).
+     *
+     * NIE `url()->previous()`. Ten formularz ma dwa wejścia GET z rzędu:
+     * pierwsze przy otwarciu (Referer to prawdziwa strona źródłowa), drugie
+     * przy odświeżeniu widoku po odrzuconym POST (`back()->withInput()`
+     * w `store()`) — a Laravel zapamiętuje URL BIEŻĄCEGO żądania GET jako
+     * „poprzedni" DOPIERO PO jego obsłużeniu. Skutek: w chwili renderowania
+     * błędu `_previous.url` w sesji nosi jeszcze adres PIERWSZEGO wejścia na
+     * TEN SAM formularz (ustawiony przy jego otwarciu), więc „Wróć" prowadzi
+     * do formularza, nie do zgłaszanej treści — droga donikąd.
+     *
+     * Zamiast zgadywać z Referera (niezaufany, może wskazywać obcy host),
+     * liczymy cel WPROST z AUTORYZOWANEGO `$target` — ten sam obiekt, który
+     * `authorize()` już zatwierdziło w `create()`. To jednocześnie odpowiada
+     * na "obcy host": budujemy `route()` z naszej własnej trasy, więc wynik
+     * zawsze jest adresem w tym serwisie.
+     */
+    private function wracajDo(Model $target): string
+    {
+        return match (true) {
+            $target instanceof Post => route('posts.show', $target),
+            $target instanceof Recipe => route('recipes.show', $target),
+            $target instanceof CookedEvent => route('cooked.show', $target),
+            $target instanceof Comment => $this->wracajDoRodzicaKomentarza($target),
+            // `user` — cel zgłoszenia to profil.
+            $target instanceof User && $target->profile !== null => route('profile.show', $target->profile->username),
+            // Treść, do której nie da się zbudować bezpiecznego linku
+            // (np. komentarz bez zachowanego rodzica) — wewnętrzny fallback,
+            // nigdy niezaufany adres z zewnątrz.
+            default => route('home'),
+        };
+    }
+
+    private function wracajDoRodzicaKomentarza(Comment $comment): string
+    {
+        $rodzic = $comment->subject();
+
+        return match (true) {
+            $rodzic instanceof Post => route('posts.show', $rodzic),
+            $rodzic instanceof Recipe => route('recipes.show', $rodzic),
+            $rodzic instanceof CookedEvent => route('cooked.show', $rodzic),
+            default => route('home'),
+        };
     }
 
     private function resolveTarget(string $type, string $id): Model
