@@ -1,0 +1,16 @@
+{
+  "nazwa": "811 sekcja z błędem",
+  "plik": "resources/views/pages/settings/two_factor/index.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "fdbfa00d52d2cae67f6885e78e65371f",
+  "md5_po_mutacji": "591202b1cc00ffdce72fdefbbedb153f",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Błąd hasła musi otworzyć właściwy details",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:47:01Z"
+}
