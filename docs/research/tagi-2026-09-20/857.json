@@ -1,0 +1,16 @@
+{
+  "nazwa": "857",
+  "plik": "app/Domain/Tags/Actions/UpdateTagFollows.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "31c2a9652d49a64771a41ee4e7172297",
+  "md5_po_mutacji": "42ad417363504290052fece72a682b30",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Ponowne obserwowanie przepisało datę",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T15:56:49Z"
+}

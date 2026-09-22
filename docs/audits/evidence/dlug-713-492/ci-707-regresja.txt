@@ -1,0 +1,4 @@
+Port marki — rodziny ekranów, zoom i kreator	UNKNOWN STEP	2026-09-19T10:10:53.0724032Z #684: podpowiedź ustępuje wskaźnikowi w 8/8 konfiguracjach
+Port marki — rodziny ekranów, zoom i kreator	UNKNOWN STEP	2026-09-19T10:11:18.1803243Z 36 geometrii + zapis gościa/reset/429/Escape PASS
+Port marki — rodziny ekranów, zoom i kreator	UNKNOWN STEP	2026-09-19T10:20:23.0959917Z PROFILE_FOCUS_AND_WIDGET_PASS storage/port-projektu/profil-widget-false
+Port marki — rodziny ekranów, zoom i kreator	UNKNOWN STEP	2026-09-19T10:21:08.9384606Z PROFILE_FOCUS_AND_WIDGET_PASS storage/port-projektu/profil-widget-true

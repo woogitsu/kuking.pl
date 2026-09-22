@@ -1,0 +1,116 @@
+======================================================================
+ DOWÓD: kontrola ujemna strażnika kaskady (D-223)
+ stanowisko: kaskada    data: 2026-09-20T11:24:21Z
+ runtime:    /home/mateusz/flota/kaskada-run (WSL Ubuntu, PostgreSQL 127.0.0.1:55439, baza kuking_flota_kaskada)
+ uwaga:      scripts/kontrola-ujemna.sh ma tu nałożoną poprawkę SIGPIPE
+             z gałęzi narzedzia/kontrola-ujemna-v2 — NIE jest ona
+             duplikowana na flota/kaskada.
+======================================================================
+
+--- A. KONTROLA DODATNIA ZAWĘŻENIA: zawężenie, które nic nie obejmuje ---
+    (oczekiwany kod 2 — BŁĄD PRZYRZĄDU, nie zieleń)
+  szukaj/1537/light              reguł:  218 deklaracji:  149 martwych:118  255 ms
+  przepis/1537/light             reguł:  238 deklaracji:  135 martwych:103  284 ms
+Kolejność warstw zmierzona w przeglądarce: properties < theme < base < components < marka < utilities < (kod poza warstwami)
+Konfiguracji zmierzonych: 72
+ZAWĘŻENIE RAPORTU: tylko selektory zawierające ".selektor-ktorego-nie-ma" (pomiar biegł na całym arkuszu)
+Reguł z nosicielem: 15656. Deklaracji przepytanych kaskadowo: 8952
+
+
+BŁĄD PRZYRZĄDU: zawężenie --tylko ".selektor-ktorego-nie-ma" nie objęło ANI JEDNEJ reguły z nosicielem
+na mierzonych stronach. Werdykt zapadłby na pustym zbiorze, a pusty zbiór nie ma
+martwych reguł zawsze — niezależnie od tego, co jest w arkuszu.
+Sprawdź pisownię zawężenia albo to, czy selektor ma nosiciela na stronach z `SCIEZKI`.
+KOD A = 2
+
+--- B. STRAŻNIK NA ZAWĘŻENIU DOMYŚLNYM (.przepis-liczba svg) ---
+    (oczekiwany kod 0)
+  logowanie/1537/light           reguł:  155 deklaracji:   93 martwych: 72  253 ms
+  tagi/1537/light                reguł:  148 deklaracji:   83 martwych: 64  290 ms
+  szukaj/1537/light              reguł:  218 deklaracji:  149 martwych:118  327 ms
+  przepis/1537/light             reguł:  238 deklaracji:  135 martwych:103  255 ms
+Kolejność warstw zmierzona w przeglądarce: properties < theme < base < components < marka < utilities < (kod poza warstwami)
+Konfiguracji zmierzonych: 72
+ZAWĘŻENIE RAPORTU: tylko selektory zawierające ".przepis-liczba svg" (pomiar biegł na całym arkuszu)
+Reguł z nosicielem: 15656. Deklaracji przepytanych kaskadowo: 8952
+
+Zawężenie objęło 1 reguł z nosicielem, m.in.: .przepis-liczba svg
+Niezmierzone (granica narzędzia, NIE wynik pozytywny): 1088 selektorów bez nosiciela na mierzonych stronach, 64 ze stanem interakcji.
+
+✓ Żadna reguła z wcześniejszej warstwy nie jest całkowicie przykryta przez późniejszą (poza wyjątkami).
+Pełny wynik: storage/kaskada-martwe-reguly.json
+KOD B = 0
+
+--- C. ZASTANE ZAŁOŻENIE OBALONE: .przepis-liczba jest CZERWONE ---
+   reguł: 2, a w nich deklaracji: 3
+
+  .przepis-liczba
+      warstwa components — martwe własności: padding, border-radius
+      przykrywa: warstwa marka, `.przepis-liczba`
+      martwa w 12/12 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .przepis-liczba span
+      warstwa components — martwe własności: font-size
+      przykrywa: warstwa marka, `.przepis-liczba span`
+      martwa w 12/12 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+
+Pełny wynik: storage/kaskada-martwe-reguly.json
+
+Co z tym zrobić: napraw wartość TAM, GDZIE ONA OBOWIĄZUJE (warstwa późniejsza),
+albo dopisz wyjątek z POWODEM w `WYJATKI` w tym pliku. Nie poprawiaj martwej reguły —
+poprawka w niej nie dojdzie do przeglądarki.
+KOD C = 1
+
+--- D. KONTROLA UJEMNA: PASS -> FAIL -> PASS ---
+
+[0;33m── Kontrola ujemna: strażnik kaskady: ikona kafla liczb przykryta z arkusza bez warstwy ──[0m
+  plik:     resources/css/marka-przepis.css
+  MD5 przed: ecc442a60b07922afbe9031b7283b1df
+  oczekuję:  martwe własności: color
+
+[0;33m── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──[0m
+[0;32m✓ Test przechodzi na nietkniętym źródle.[0m
+[0;33m── 2/4 — mutacja i dowód, że weszła ──[0m
+[0;32m✓ Mutacja weszła: 1 podmian, MD5 ecc442a60b07922afbe9031b7283b1df → e66bf71435c5de1ba56331521af5c24c.[0m
+  różnica:
+       min-width: 0;
+       max-width: 100%;
+     }
+    +[data-marka] .marka-przepis-tekst .przepis-liczba svg {
+    +  color: var(--color-ink-muted);
+    +}
+     [data-marka] .marka-przepis-zdjecie {
+       min-width: 0;
+       padding: var(--spacing-2);
+[0;33m── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──[0m
+[0;32m✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „martwe własności: color” wystąpił w wyjściu.[0m
+          warstwa components — martwe własności: color
+[0;33m── 4/4 — czy po przywróceniu źródła test znów przechodzi ──[0m
+[0;32m✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.[0m
+
+[0;32m✓ KONTROLA UJEMNA POTWIERDZONA — strażnik kaskady: ikona kafla liczb przykryta z arkusza bez warstwy[0m
+  zapis: storage/kontrola-ujemna-kaskada.json
+[0;32m✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.[0m
+KOD D = 0
+
+--- E. PRZYWRÓCENIE BAJT W BAJT ---
+cmp: identyczne bajt w bajt z kopią w worktree
+ecc442a60b07922afbe9031b7283b1df  resources/css/marka-przepis.css
+ecc442a60b07922afbe9031b7283b1df  /mnt/c/Users/matma/Documents/kuking-flota/kaskada/resources/css/marka-przepis.css
+
+--- F. ZAPIS PRZYRZĄDU ---
+{
+  "nazwa": "strażnik kaskady: ikona kafla liczb przykryta z arkusza bez warstwy",
+  "plik": "resources/css/marka-przepis.css",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "ecc442a60b07922afbe9031b7283b1df",
+  "md5_po_mutacji": "e66bf71435c5de1ba56331521af5c24c",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "martwe własności: color",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T11:32:01Z"
+}
