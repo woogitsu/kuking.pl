@@ -16,7 +16,8 @@ use Tests\TestCase;
  * ────────────────────────────────────────────────────────────────────────
  *
  * `beacon.min.js` (Cloudflare Web Analytics, D-092) melduje do Cloudflare
- * PEŁNY adres odwiedzanej strony, nie sam fakt wejścia. Przy `/wpisy/rosol`
+ * ścieżkę odwiedzanej strony, nie sam fakt wejścia. Odczytana wersja 2026.9.1
+ * usuwa query i fragment, ale zostawia pathname. Przy `/wpisy/rosol`
  * jest to zwykły pomiar odwiedzin i dokładnie po to tę analitykę włączono.
  * Ale cztery adresy w tym serwisie niosą w sobie sekret:
  *
@@ -39,8 +40,8 @@ use Tests\TestCase;
  * Bo z serwera nie widać NICZEGO. Strona renderuje się poprawnie, dziennik
  * milczy, przeglądarka nie zgłasza usterki, a jedynym miejscem, w którym ten
  * wyciek jest widoczny, jest panel obcej firmy. Kanał jest przy tym dziś
- * wyłączony (`CLOUDFLARE_ANALYTICS_TOKEN` puste), więc nic nie wyciekło —
- * ale wystarczyłoby go włączyć, dokładnie jak przy A6-01.
+ * domyślnie wyłączony lokalnie (`CLOUDFLARE_ANALYTICS_TOKEN` puste).
+ * Ten test nie stwierdza stanu konfiguracji produkcji ani braku incydentu.
  *
  * KONTROLA DODATNIA JEST TU OBOWIĄZKOWA. Test sprawdzający wyłącznie
  * NIEOBECNOŚĆ znacznika przechodzi także wtedy, gdy analityki nie ma nigdzie

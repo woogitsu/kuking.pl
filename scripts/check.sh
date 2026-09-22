@@ -14,6 +14,8 @@
 #                                   # na 8 stronach publicznych (issue #26)
 #   ./scripts/check.sh --wyscigi    # dodatkowo grupa `dwa-polaczenia`: testy
 #                                   # na dwóch połączeniach (D-105)
+#   ./scripts/check.sh --referrer   # dwa dokumenty i formularze; wymaga jawnego
+#                                   # REFERRER_DB_DATABASE=kuking_port_* po migracji
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -22,6 +24,7 @@ SZYBKO=0
 SPRAWDZ_DOSTEPNOSC=0
 SPRAWDZ_WYDAJNOSC=0
 SPRAWDZ_WYSCIGI=0
+SPRAWDZ_REFERRER=0
 
 # Pętla, a nie `[ "$1" = ... ]`: flagi mają działać w dowolnej kolejności
 # i dowolnej liczbie. Poprzednia wersja czytała wyłącznie PIERWSZY argument,
@@ -32,6 +35,7 @@ for _arg in "$@"; do
         --dostepnosc) SPRAWDZ_DOSTEPNOSC=1 ;;
         --wydajnosc) SPRAWDZ_WYDAJNOSC=1 ;;
         --wyscigi) SPRAWDZ_WYSCIGI=1 ;;
+        --referrer) SPRAWDZ_REFERRER=1 ;;
         *) printf "Nieznana opcja: %s\n" "$_arg" >&2; exit 2 ;;
     esac
 done
@@ -168,6 +172,18 @@ elif DB_DATABASE=kuking_test_wydajnosc node scripts/wydajnosc.mjs >/dev/null 2>&
     ok "Wydajność i SEO powyżej progów na wszystkich mierzonych ekranach"
 else
     zle "Wydajność albo SEO poniżej progu — szczegóły: node scripts/wydajnosc.mjs (i storage/wydajnosc.json)"
+fi
+
+# Osobna, wcześniej zmigrowana baza kuking_port_*; bez domyślnego celu i kasowania danych.
+krok "Sekretny adres i referrer (#1052)"
+if [ "$SPRAWDZ_REFERRER" -ne 1 ]; then
+    printf "  Pominięte: uruchom z --referrer i jawnym REFERRER_DB_DATABASE\n"
+elif [ -z "${REFERRER_DB_DATABASE:-}" ]; then
+    zle "Podaj REFERRER_DB_DATABASE własnej zmigrowanej bazy kuking_port_*"
+elif DB_DATABASE="$REFERRER_DB_DATABASE" node scripts/referrer-sekret-browser.mjs; then
+    ok "Dwa dokumenty, przechwycona analityka i formularze przechodzą"
+else
+    zle "Pomiar referrera nie przeszedł — brak przeglądarki też jest błędem"
 fi
 
 # --- 4. Analiza statyczna --------------------------------------------------

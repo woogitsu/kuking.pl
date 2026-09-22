@@ -241,7 +241,7 @@ jobs:
           # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
           # miernik bez jednego czerwonego przebiegu. Pilnuje tego
           # `PortMarkiMaWlasnaBramkeCiTest`.
-          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|scripts/(dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|app/Http/Middleware/ApplySecurityHeaders\.php|app/Support/AnalitykaCloudflare\.php|scripts/(referrer-sekret-browser|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -1341,6 +1341,15 @@ jobs:
           # pustej bazie i padało na healthchecku (issue #215).
           php artisan migrate:fresh --seed --force --no-interaction
 
+
+      - name: Sekretny adres nie przechodzi do analityki (#1052)
+        env:
+          DB_DATABASE: kuking_port_referrer
+        run: |
+          export PGPASSWORD="$DB_PASSWORD"
+          createdb -h "$DB_HOST" -p "$DB_PORT" -U "$DB_USERNAME" -O "$DB_USERNAME" "$DB_DATABASE"
+          php artisan migrate --force --no-interaction
+          node scripts/referrer-sekret-browser.mjs
 
       # Skrypt sam wykrywa, skąd wziąć Chromium: na runnerze bierze to, co
       # przed chwilą pobrał Playwright, a w obrazie deweloperskim gotową
