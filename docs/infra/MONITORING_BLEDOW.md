@@ -1,5 +1,10 @@
 # Monitoring błędów — webhook na Slack/Discord (i docelowo Sentry)
 
+> Aktualizacja 20.09.2026: [odbiór lokalny #598/#599](MONITORING_ODBIOR_2026_09_20.md)
+> zawiera pomiary, próbę rzeczywistego transportu, naprawę alarmu przy awarii
+> cache oraz instrukcję potwierdzenia odbiorcy. Opis stanu produkcji poniżej
+> jest historyczny; w tej sesji nie odczytano jej konfiguracji.
+
 ## Kod żądania i zadania — issue #1040
 
 `CorrelateRequest` nadaje losowy UUID v4, niezależny od nagłówka klienta,
@@ -20,8 +25,9 @@ pozostałych danych kontekstu nadal nie serializuje.
 
 ### Jawna granica HTTP
 
-Middleware jest trzeci w stosie globalnym, po `NormalizeForwardedFor`
-i `ApplySecurityHeaders`. Zachowujemy ich istniejącą kolejność.
+Middleware jest czwarty w stosie globalnym, po `NormalizeForwardedFor`,
+`ApplySecurityHeaders` i `PreventSharedSessionCache`. Zachowujemy ich
+istniejącą kolejność.
 Korelacja obejmuje raportowanie i renderowanie wyjątku wewnątrz dalszego
 pipeline Laravela. Awaria rozruchu aplikacji albo wcześniejszych warstw
 nie otrzymuje sztucznego kodu: strona 500 zachowuje instrukcję kontaktu,

@@ -188,6 +188,12 @@
 @media (max-width: 30rem) {
   [data-marka] .topbar-inner { padding: calc(12px * var(--user-layout-scale, 1)); gap: calc(8px * var(--user-layout-scale, 1)); }
   [data-marka] .topbar-actions { width: 100%; justify-content: space-between; margin: 0; }
+  /* Przy 320 px „Zaloguj się" (140 px) i „Załóż konto" (146 px) z odstępem 8 px
+     potrzebowały 294 px, a pas wewnętrzny daje 272 px — przez te 22 px drugi
+     przycisk spadał do własnego wiersza i pasek górny rósł z 64 px do 189 px.
+     Zwężamy WYŁĄCZNIE wyściółkę poziomą: pismo zostaje 18 px, wysokość celu
+     zostaje 48 px, szerokość celu dalej grubo ponad 48 px. */
+  [data-marka] .topbar-actions .btn { padding-inline: calc(12px * var(--user-layout-scale, 1)); }
   /* Licznik i Konto mieszczą się obok przy 390 px, bez zmniejszania pisma i celów. */
   [data-marka] .marka-powiadomienia-link,
   [data-marka] .topbar-konto > summary { padding-inline: calc(4px * var(--user-layout-scale, 1)); }
