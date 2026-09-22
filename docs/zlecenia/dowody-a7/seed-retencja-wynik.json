@@ -1,0 +1,29 @@
+{
+  "generated_at_utc": "2026-09-09T16:47:03+00:00",
+  "postgres_version": "PostgreSQL 18.6",
+  "seed_partial_failure": {
+    "forced_failure": "CHECK(false) na recipes, wyjątek przy pierwszym INSERT przepisu",
+    "seeded_users_after_failure": 12,
+    "profiles_after_failure": 12,
+    "recipes_after_failure": 0,
+    "posts_after_failure": 0,
+    "transaction_open_after_failure": 0
+  },
+  "seed_human_takes_username_between_runs": {
+    "before": {"seeded_users": 12, "recipes": 39, "posts": 80, "comments": 60},
+    "after": {"profiles_username_basia": 1, "basia_is_human": true, "old_seed_basia_still_exists": true, "seeded_users": 12, "recipes": 39, "posts": 80, "comments": 60},
+    "second_run_completed": true,
+    "human_preserved": true
+  },
+  "retention_europe_warsaw": {
+    "all_wall_times_ok": true,
+    "cases": [
+      ["2026-05-31 12:00 CEST", 3, "2026-02-28 12:00 CET"],
+      ["2026-03-29 01:30 CET", 3, "2025-12-29 01:30 CET"],
+      ["2026-03-29 03:30 CEST", 3, "2025-12-29 03:30 CET"],
+      ["2026-10-25 01:30 CEST", 3, "2026-07-25 01:30 CEST"],
+      ["2026-10-25 03:30 CET", 3, "2026-07-25 03:30 CEST"],
+      ["2028-02-29 12:00 CET", 12, "2027-02-28 12:00 CET"]
+    ]
+  }
+}

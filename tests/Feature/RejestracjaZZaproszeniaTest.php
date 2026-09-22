@@ -8,9 +8,11 @@ use App\Domain\Security\ZaproszenieWSesji;
 use App\Models\RegistrationInvite;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
+use App\Turnstile\KlientTurnstile;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use Tests\TestCase;
@@ -393,6 +395,47 @@ class RejestracjaZZaproszeniaTest extends TestCase
 
         $this->assertNull($adres);
         $this->assertDatabaseCount('registration_invites', 0);
+    }
+
+    /** Kontrolowany przeplot w jednym żądaniu, nie pomiar współbieżności. */
+    public function test_wygasniecie_podczas_rejestracji_przypomina_o_hasle_i_zachowuje_dane(): void
+    {
+        Notification::fake();
+        [, $invite] = $this->zPrzyjetymZaproszeniem('basia@example.com');
+        config(['kuking.turnstile.klucz_publiczny' => 'test-publiczny', 'kuking.turnstile.sekret' => 'test-sekret']);
+        Http::preventStrayRequests();
+        Http::fake([
+            KlientTurnstile::ADRES => function () use ($invite) {
+                // Kontroler już odczytał ważne zaproszenie; akcja jeszcze go nie zużyła.
+                $this->assertTrue($invite->fresh()->jestWazne());
+                $invite->forceFill(['created_at' => now()->subDays(2), 'expires_at' => now()->subMinute()])->save();
+
+                return Http::response(['success' => true, 'hostname' => 'kuking.pl']);
+            },
+            'https://api.pwnedpasswords.com/*' => Http::response('', 200),
+        ]);
+        $response = $this->zaloz(['cf-turnstile-response' => 'token-testowy']);
+        $response->assertRedirect(route('register'));
+        $this->assertArrayNotHasKey('password', session('_old_input'));
+        $page = $this->followRedirects($response)->assertOk();
+        $this->assertDatabaseMissing('users', ['email' => 'basia@example.com']);
+        Notification::assertNothingSent();
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$page->getContent());
+        $xpath = new \DOMXPath($dom);
+        foreach (['display_name' => 'Basia', 'username' => 'basia_z_podkarpacia', 'email' => 'basia@example.com', 'password' => ''] as $name => $value) {
+            $field = $xpath->query('//input[@name="'.$name.'"]');
+            $this->assertSame(1, $field->length, $name);
+            $this->assertSame($value, $field->item(0)->getAttribute('value'));
+        }
+        foreach (['age_confirmed', 'terms_accepted'] as $name) {
+            $this->assertSame(1, $xpath->query('//input[@name="'.$name.'" and @checked]')->length);
+        }
+        $page->assertDontSee('zielonapietruszkarano');
+        $message = trim($xpath->query('//a[@href="#f-email"]')->item(0)?->textContent ?? '');
+        $this->assertStringContainsString('zaproszenie przestało działać', $message);
+        $this->assertStringContainsString('adres e-mail', $message);
+        $this->assertStringContainsString('hasło ponownie', $message);
     }
 
     // ------------------------------------------------------------------

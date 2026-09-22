@@ -8,6 +8,7 @@ use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
 use App\Models\Media;
 use App\Models\Profile;
+use App\Moderacja\ExceptionContext;
 use App\Moderacja\OcenaModelem;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\PendingDispatch;
@@ -132,7 +133,7 @@ class PrzeanalizujAwatar implements ShouldQueue
             // fotografia, a dziennik błędów nie jest miejscem na treści
             // użytkowników (AGENTS.md §7).
             Log::warning('Ocena zdjęcia profilowego modelem nie powiodła się.', [
-                'blad' => $blad->getMessage(),
+                ...ExceptionContext::forStage($blad, 'avatar_analysis'),
             ]);
         }
     }

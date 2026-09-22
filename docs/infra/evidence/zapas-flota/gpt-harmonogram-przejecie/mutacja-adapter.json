@@ -1,0 +1,16 @@
+{
+  "nazwa": "app/Support/ScheduledArtisanCommand.php",
+  "plik": "app/Support/ScheduledArtisanCommand.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "4ad7ebdb93d6f98a0c6253b3251952bf",
+  "md5_po_mutacji": "11c885f625b6ba52db609a2dd1e33ee5",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Błędny status",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:33:58Z"
+}
