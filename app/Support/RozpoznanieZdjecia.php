@@ -135,14 +135,31 @@ final class RozpoznanieZdjecia
      * z aplikacji innej niż aparat plik idzie w oryginale.
      *
      * DWA ZDANIA, DWIE RÓŻNE RZECZY — SPRAWDZONE OSOBNO (D-064 §3), NIE ZGADYWANE
-     *   1. „Ustawienia → Aparat → Formaty → Najbardziej zgodny" to dosłowna
-     *      ścieżka menu z oficjalnej pomocy Apple (support.apple.com/116944) —
+     *   1. „Ustawienia → Aparat → Formaty → Najbardziej zgodne" to dosłowna
+     *      ścieżka menu z oficjalnej pomocy Apple (support.apple.com/pl-pl/116944) —
      *      dotyczy PRZYSZŁYCH zdjęć, nie tego, które już leży w telefonie.
-     *   2. Dla TEGO KONKRETNEGO zdjęcia: wysyłka e-mailem. Ta sama strona
-     *      Apple: przy udostępnianiu przez AirDrop, Wiadomości albo e-mail do
+     *      Etykieta w rodzaju nijakim, zgodnie z polską pomocą — NIE
+     *      „Najbardziej zgodny" (poprzednia wersja tego komunikatu miała tu
+     *      błędną odmianę, poprawione przy #119 follow-up).
+     *   2. Dla TEGO KONKRETNEGO zdjęcia: wysyłka e-mailem, AirDrop albo
+     *      Wiadomościami. Ta sama strona Apple mówi, że przy udostępnianiu
      *      odbiorcy bez obsługi HEIC/HEVC, iOS **może** wysłać automatycznie
-     *      w formacie zgodnym (JPEG/H.264) — i to jest jedyne poparte źródłem
-     *      zdanie o istniejącym już zdjęciu.
+     *      w formacie zgodnym (JPEG/H.264) — „może", nie „wyśle". Apple wprost
+     *      opisuje to jako zależne od SPOSOBU udostępniania i MOŻLIWOŚCI
+     *      odbiorcy, nie jako gwarancję.
+     *
+     * OBIETNICA BEZ POKRYCIA — SPRAWDZONE I POPRAWIONE (#119 follow-up,
+     * `docs/research/heic-119/RAPORT.md`, stanowisko `gpt/heic-format`):
+     * wcześniejsza wersja tego komunikatu twierdziła bezwarunkowo „wyślij
+     * najpierw do siebie e-mailem — przyjdzie jako JPG". To jest coś, czego
+     * NIE KONTROLUJEMY — Apple opisuje wynik jako zależny od telefonu i
+     * sposobu udostępniania. Człowiek, u którego to nie zadziała, zostawał
+     * bez dalszej drogi i z poczuciem, że zrobił coś źle. Nie zastępujemy tej
+     * obietnicy inną równie pewną (np. „na pewno zadziała Duplikuj" albo
+     * konkretny zewnętrzny konwerter) — mówimy, że wynik zależy od telefonu,
+     * dajemy prostą alternatywę (wybierz inne, gotowe zdjęcie) i osobno,
+     * jasno, ustawienie na PRZYSZŁOŚĆ, które nie przerabia zdjęcia już
+     * zrobionego.
      *
      * WCZEŚNIEJSZA WERSJA TEGO KOMUNIKATU DORADZAŁA TEŻ „otwórz w Zdjęciach
      * i użyj «Duplikuj»" — SPRAWDZONE I USUNIĘTE (issue #119, D-064 §3):
@@ -157,9 +174,13 @@ final class RozpoznanieZdjecia
     private static function komunikatHeic(): string
     {
         return 'To zdjęcie jest w formacie HEIC, którego jeszcze nie umiemy otworzyć. '
-            .'W iPhonie wejdź w Ustawienia → Aparat → Formaty i wybierz „Najbardziej zgodny” — '
-            .'kolejne zdjęcia zapiszą się jako JPG. To zdjęcie, które już masz zrobione, '
-            .'wyślij najpierw do siebie e-mailem — przyjdzie jako JPG i tę wersję wgraj tutaj.';
+            .'Dla TEGO zdjęcia: spróbuj wysłać je do siebie e-mailem, przez AirDrop albo '
+            .'Wiadomości — telefon czasem sam zamienia je wtedy na JPG, ale zależy to od '
+            .'modelu telefonu, więc nie zawsze się uda. Jeśli nadal jest HEIC, wybierz na '
+            .'razie inne, gotowe zdjęcie w formacie JPG lub PNG. '
+            .'Żeby kolejne zdjęcia zapisywały się od razu jako JPG: w iPhonie wejdź '
+            .'w Ustawienia → Aparat → Formaty i wybierz „Najbardziej zgodne” — to ustawienie '
+            .'nie zmieni zdjęcia, które już masz zrobione, dotyczy tylko nowych zdjęć.';
     }
 
     /**

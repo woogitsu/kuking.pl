@@ -90,6 +90,67 @@ class LogCspNieZapisujeSekretowTest extends TestCase
         );
     }
 
+    /**
+     * NAZWA KONTA TO NIE SEKRET, TYLKO TOŻSAMOŚĆ — i też nie ma prawa
+     * zostać w logu platformy (issue #1083).
+     *
+     * `/@{username}` i wszystko, co pod nim wisi, to trasy niosące w ścieżce
+     * nazwę konta. Naruszenie CSP na takiej stronie prowokuje byle wtyczka
+     * przeglądarki, a przy otwartej rejestracji lista „kto kiedy czyj profil
+     * oglądał" rośnie w logu sama, bez żadnej decyzji człowieka.
+     *
+     * DLACZEGO TEN TEST MA DWIE ASERCJE, A NIE JEDNĄ
+     * Samo „log nie zawiera nazwy" przechodzi na pustym kontekście, przy
+     * braku wywołania i przy wyjątku po drodze. Dlatego obok stoi asercja
+     * DODATNIA: wpis musi zawierać znacznik `@[UZYTKOWNIK]`, czyli dowód,
+     * że kontroler ten segment naprawdę zobaczył i naprawdę go zastąpił.
+     */
+    public function test_nazwa_konta_z_adresu_profilu_nie_trafia_do_logu(): void
+    {
+        $log = Log::spy();
+
+        $this->zglos('https://kuking.pl/@basia-z-podlasia/obserwujacy');
+
+        $log->shouldHaveReceived('info')->once()->withArgs(
+            function (string $wiadomosc, array $kontekst): bool {
+                $wszystko = (string) json_encode($kontekst, JSON_UNESCAPED_SLASHES);
+
+                $this->assertStringNotContainsString('basia-z-podlasia', $wszystko);
+
+                // Kontrola dodatnia: segment został ROZPOZNANY i zastąpiony,
+                // a nie zgubiony po drodze razem z całym wpisem.
+                $this->assertStringContainsString('@[UZYTKOWNIK]', $wszystko);
+
+                // Reszta trasy ZOSTAJE — po to ten log istnieje: bez
+                // `obserwujacy` nie wiadomo, który ekran psuje politykę.
+                $this->assertStringContainsString('obserwujacy', $wszystko);
+
+                return true;
+            },
+        );
+    }
+
+    /**
+     * Nazwa konta bywa też w polu `blocked-uri` — gdy polityka zablokuje
+     * zasób ładowany z adresu profilu (np. zdjęcie profilowe podane
+     * przez trasę pod `/@…`). To ta sama ścieżka do tego samego logu.
+     */
+    public function test_nazwa_konta_nie_przechodzi_takze_polem_zablokowanego_zasobu(): void
+    {
+        $log = Log::spy();
+
+        $this->zglos('https://kuking.pl/home', 'https://kuking.pl/@jankowalski');
+
+        $log->shouldHaveReceived('info')->once()->withArgs(
+            function (string $wiadomosc, array $kontekst): bool {
+                $this->assertStringNotContainsString('jankowalski', (string) $kontekst['zablokowane']);
+                $this->assertSame('https://kuking.pl/@[UZYTKOWNIK]', $kontekst['zablokowane']);
+
+                return true;
+            },
+        );
+    }
+
     public function test_zwykly_adres_przepisu_zostaje_czytelny(): void
     {
         // Kontrola w drugą stronę: gdyby czyszczenie było zbyt szerokie,

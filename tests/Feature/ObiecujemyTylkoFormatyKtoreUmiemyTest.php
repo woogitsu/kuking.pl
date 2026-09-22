@@ -182,7 +182,7 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
             // zdjęcie" jest dla człowieka trzymającego zdjęcie sernika po
             // prostu nieprawdą — i nie zostawia żadnego kolejnego kroku.
             $this->assertStringContainsString('HEIC', $e->getMessage());
-            $this->assertStringContainsString('Najbardziej zgodny', $e->getMessage());
+            $this->assertStringContainsString('Najbardziej zgodne', $e->getMessage());
             $this->assertStringNotContainsString('nie wygląda na zdjęcie', $e->getMessage());
         } finally {
             @unlink($sciezka);
@@ -238,7 +238,7 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
             $komunikat = (string) $bledy->get('photos.0')[0];
 
             $this->assertStringContainsString('HEIC', $komunikat);
-            $this->assertStringContainsString('Najbardziej zgodny', $komunikat);
+            $this->assertStringContainsString('Najbardziej zgodne', $komunikat);
             $this->assertStringNotContainsString('nie wygląda na zdjęcie', $komunikat);
 
             // Poprawnie wpisany tekst NIE ZNIKA po nieudanej walidacji
@@ -257,6 +257,73 @@ class ObiecujemyTylkoFormatyKtoreUmiemyTest extends TestCase
 
         $sygnal = ProductSignal::query()->where('signal_name', ZapiszSygnal::PHOTO_UPLOAD_FAILED)->sole();
         $this->assertSame(RozpoznanieZdjecia::POWOD_HEIC_NIEOBSLUGIWANY, $sygnal->properties['reason'] ?? null);
+    }
+
+    /**
+     * Regresja #119 (follow-up po D-064): komunikat obiecywał BEZWARUNKOWO,
+     * że wysłanie HEIC e-mailem do siebie da JPG. Apple opisuje tę konwersję
+     * jako zależną od sposobu udostępniania i możliwości odbiorcy, NIE jako
+     * gwarancję (support.apple.com/pl-pl/116944 — „może zostać automatycznie
+     * udostępniony w bardziej zgodnym formacie", nie „zostanie"). Człowiek,
+     * u którego telefon zachowa się inaczej, zostaje bez dalszej drogi i
+     * z poczuciem, że coś zrobił źle — dokładnie to, czego nie wolno robić
+     * komunikatem błędu (docs/UX_50_PLUS.md).
+     *
+     * Test pilnuje też, że wpisany tekst formularza NIE ZNIKA po odmowie
+     * (`old()`) — inaczej poprawka komunikatu mogłaby ukryć drugą regresję.
+     */
+    public function test_komunikat_heic_nie_obiecuje_bezwarunkowo_konwersji_mailem(): void
+    {
+        $sciezka = self::sciezkaHeic();
+        $basia = $this->user('basia');
+
+        try {
+            $odpowiedz = $this->actingAs($basia)
+                ->from(route('posts.create'))
+                ->post(route('posts.store'), [
+                    'body' => 'Sernik wyszedł idealnie.',
+                    'visibility' => 'public',
+                    'photos' => [new UploadedFile($sciezka, 'sernik.heic', 'image/heic', null, true)],
+                ]);
+
+            $odpowiedz->assertSessionHasErrors('photos.0');
+
+            $bledy = $odpowiedz->baseResponse->getSession()->get('errors');
+            $komunikat = (string) $bledy->get('photos.0')[0];
+
+            // TO JEST GŁÓWNA ASERCJA TEGO TESTU. Żadnej bezwarunkowej obietnicy
+            // wyniku, którego serwer nie kontroluje — Apple mówi „może", więc
+            // komunikat też ma, nie "wyśle je jako JPG" ani "przyjdzie jako JPG".
+            $this->assertStringNotContainsString(
+                'przyjdzie jako JPG',
+                $komunikat,
+                'Komunikat wciąż obiecuje bezwarunkowo, że e-mail zamieni HEIC na JPG — '.
+                'Apple tego nie gwarantuje (support.apple.com/pl-pl/116944).',
+            );
+
+            // Poprawna, polska etykieta ustawienia z pomocy Apple ma rodzaj
+            // nijaki — „Najbardziej zgodne", nie „Najbardziej zgodny".
+            $this->assertStringContainsString(
+                'Najbardziej zgodne',
+                $komunikat,
+                'Etykieta ustawienia aparatu ma brzmieć jak w polskiej pomocy Apple.',
+            );
+            $this->assertStringNotContainsString('Najbardziej zgodny', $komunikat);
+
+            // Zmiana formatu aparatu dotyczy PRZYSZŁYCH zdjęć — komunikat nie
+            // może sugerować, że przerabia zdjęcie już zrobione.
+            $this->assertStringContainsString(
+                'nie zmieni zdjęcia, które już masz zrobione',
+                $komunikat,
+                'Komunikat ma wprost odróżnić ustawienie na przyszłość od TEGO zdjęcia.',
+            );
+
+            // Wpisany tekst przeżywa odmowę — błędne zdjęcie nie kasuje reszty
+            // formularza (docs/UX_50_PLUS.md).
+            $odpowiedz->assertSessionHas('_old_input.body', 'Sernik wyszedł idealnie.');
+        } finally {
+            @unlink($sciezka);
+        }
     }
 
     public function test_plik_ktory_naprawde_nie_jest_zdjeciem_dalej_odpada(): void
