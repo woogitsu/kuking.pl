@@ -411,32 +411,69 @@ class CollectionController extends Controller
 
         $collection = $this->selectedCollection($request);
 
+        // DROGA POWROTU MA WRACAĆ, A NIE ZAPISYWAĆ OD NOWA (issue #775).
+        //
+        // Przycisk „Zapisz ponownie" pod komunikatem wysyła TEN SAM adres co
+        // zwykły zapis i nic poza tokenem. Gdyby zadziałał jak zwykły zapis,
+        // przepis wróciłby do JEDNEGO zeszytu (domyślnego), z pustą notatką
+        // i dzisiejszą datą — czyli „powrót" po cichu gubiłby to, przed czym
+        // ma chronić. Dlatego najpierw sprawdzamy, czy to nie jest powrót po
+        // wyjęciu, które sami przed chwilą zrobiliśmy.
+        if ($collection === null && $request->input('note') === null) {
+            $powrot = $this->przywrocPoWyjeciu($request, 'przepis', (string) $model->getKey());
+
+            if ($powrot !== null) {
+                return back()->with('status', $powrot);
+            }
+        }
+
         $target = $this->save->handle($request->user(), $model, $collection);
 
         return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
     }
 
     /**
-     * `collection_id` opcjonalny — jego brak jest operacją GLOBALNĄ (usuwa
-     * ze wszystkich własnych zeszytów) i tak zostaje jedyna droga dostępna
-     * ze strony przepisu, gdzie nie wiadomo, „w którym zeszycie stoi
-     * człowiek". Podanie go zawęża usunięcie do JEDNEGO zeszytu — to jest
-     * naturalny zakres wewnątrz widoku konkretnego zeszytu (issue #775).
-     * Walidacja własności jest identyczna jak przy zapisie
-     * (`selectedCollection()`): cudzy `collection_id` kończy się błędem
-     * walidacji, nie cichym brakiem skutku.
+     * „Usuń z zeszytu" przy przepisie (issue #775).
+     *
+     * ZAKRES JEST TERAZ WIDOCZNY, A NIE DOMYŚLNY. Wcześniej ta metoda kasowała
+     * przepis ze WSZYSTKICH zeszytów tej osoby, a komunikat brzmiał „Usunięte
+     * z zeszytu." — w liczbie pojedynczej, o operacji na wszystkich. Razem
+     * z wierszami ginęły notatki własne z `collection_items.note` i nie było
+     * ich skąd odtworzyć.
+     *
+     * Kolejność jest taka:
+     *  1. jest `collection_id` → wyjmujemy z TEGO zeszytu i tylko z tego;
+     *  2. nie ma `collection_id`, a przepis leży w jednym zeszycie → nie ma
+     *     czego ujawniać, bo zakres i tak jest jednoznaczny;
+     *  3. nie ma `collection_id`, a zeszytów jest więcej → wyjmujemy ze
+     *     wszystkich (tak działał ten ekran i nie zmieniamy tego pod ludźmi),
+     *     ale komunikat MÓWI, ile ich było, i daje przycisk powrotu.
+     *
+     * Potwierdzenia PRZED akcją nie ma świadomie — to ten sam wybór co przy
+     * wpisie: wyjęcie jest teraz odwracalne co do notatki, więc tańszy jest
+     * przycisk powrotu PO akcji niż pytanie „czy na pewno" przed każdą.
      */
     public function removeRecipe(Request $request, string $recipe): RedirectResponse
     {
         $model = Recipe::where('slug', $recipe)->firstOrFail();
 
-        $collection = $this->selectedCollection($request);
+        $zeszyt = $this->wybranyZeszytDoWyjecia($request);
 
-        $this->save->remove($request->user(), $model, $collection);
+        $zdjete = $this->save->remove($request->user(), $model, $zeszyt);
 
-        return back()->with('status', $collection !== null
-            ? "Usunięte z zeszytu „{$collection->name}”."
-            : 'Usunięte ze wszystkich Twoich zeszytów.');
+        if ($zdjete === []) {
+            // Nie kłamiemy, że coś wyjęliśmy. Bez drogi powrotu — nie ma dokąd.
+            return back()->with('status', 'Tego przepisu nie ma w żadnym z Twoich zeszytów.');
+        }
+
+        $this->zapamietajWyjecie($request, 'przepis', (string) $model->getKey(), $zdjete);
+
+        return back()
+            ->with('status', $this->komunikatPoWyjeciu('Przepis', $request->user(), $zdjete))
+            ->with('status_powrot', [
+                'akcja' => route('collections.save', $model->slug),
+                'etykieta' => 'Przywróć do zeszytu',
+            ]);
     }
 
     /**
@@ -451,6 +488,15 @@ class CollectionController extends Controller
         $this->authorize('view', $post);
 
         $collection = $this->selectedCollection($request);
+
+        // Powrót po wyjęciu — uzasadnienie przy `saveRecipe()`.
+        if ($collection === null && $request->input('note') === null) {
+            $powrot = $this->przywrocPoWyjeciu($request, 'wpis', (string) $post->getKey());
+
+            if ($powrot !== null) {
+                return back()->with('status', $powrot);
+            }
+        }
 
         $target = $this->savePost->handle($request->user(), $post, $collection);
 
@@ -487,42 +533,164 @@ class CollectionController extends Controller
     public function removePost(Request $request, Post $post): RedirectResponse
     {
         // Bez `authorize`: usuwamy z WŁASNEGO zeszytu i tylko z własnego
-        // (`remove` chodzi po kolekcjach tej osoby, `selectedCollection()`
-        // sprawdza `owner_id`). Wpis, którego już nie wolno oglądać, tym
-        // bardziej musi dać się stamtąd wyjąć — inaczej zostawałby w zeszycie
-        // na zawsze.
-        $collection = $this->selectedCollection($request);
+        // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
+        // wolno oglądać, tym bardziej musi dać się stamtąd wyjąć — inaczej
+        // zostawałby w zeszycie na zawsze.
+        //
+        // TO NIE JEST OBEJŚCIE REGUŁY „UUID W ADRESIE TO NIE AUTORYZACJA"
+        // (AGENTS.md §7), tylko granica OSTRZEJSZA niż Policy. Policy
+        // odpowiada na pytanie „czy wolno Ci ruszyć TEN wpis"; tutaj pytanie
+        // brzmi inaczej: „z czyjego zeszytu wyjmujemy". Zakres akcji jest
+        // przypięty do `$request->user()`, więc identyfikator w adresie nie
+        // daje dostępu do niczyjego cudzego zeszytu — obca osoba, która
+        // wyśle tu UUID wpisu leżącego w zeszycie kogoś innego, nie ruszy
+        // tamtego wiersza (`ZeszytPrzyjmujeWpisyTest`:
+        // „obca osoba nie wyjmie wpisu z cudzego zeszytu"). Gość nie dochodzi
+        // tu wcale — trasa stoi za `auth` (`routes/web.php`).
+        // ZAKRES: z tego zeszytu, gdy wiadomo z którego (issue #775).
+        // Bez `collection_id` zostaje stare zachowanie — wszystkie zeszyty
+        // tej osoby — ale komunikat niżej mówi wprost, ile ich było.
+        $zeszyt = $this->wybranyZeszytDoWyjecia($request);
 
-        $this->savePost->remove($request->user(), $post, $collection);
+        $zdjete = $this->savePost->remove($request->user(), $post, $zeszyt);
+
+        if ($zdjete === []) {
+            return back()->with('status', 'Tego wpisu nie ma w żadnym z Twoich zeszytów.');
+        }
+
+        $this->zapamietajWyjecie($request, 'wpis', (string) $post->getKey(), $zdjete);
 
         // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
         //
         // „Usunięte z zeszytu." nie mówiło, CO zostało usunięte ani czy
-        // zniknęło z jednego zeszytu, czy ze wszystkich — a przede wszystkim
-        // nie mówiło, że wpis DALEJ JEST W SERWISIE. W grupie 50+ „usunięte"
-        // czyta się jako „skasowane na zawsze", więc to zdanie musi paść
-        // wprost. Zamiast pytania „czy na pewno" PRZED akcją (wyjęcie jest
-        // odwracalne) idzie przycisk powrotu PO niej; rysuje go
-        // `components/layout.blade.php` w tym samym obszarze `aria-live`,
-        // co komunikat.
-        if ($collection !== null) {
-            // ZAKRES WĘŻSZY (issue #775): wpis wyszedł z JEDNEGO zeszytu.
-            // Przycisku powrotu tu świadomie NIE MA: `collections.save-post`
-            // bez wskazania zeszytu zapisuje do domyślnego, więc „Zapisz
-            // ponownie" odłożyłoby wpis GDZIE INDZIEJ niż go wzięto. Zdanie
-            // mówi zamiast tego, czego akcja NIE ruszyła.
-            return back()->with(
-                'status',
-                "Wpis wyjęty z zeszytu „{$collection->name}”. Nie usunęliśmy go z serwisu ani z innych Twoich zeszytów.",
-            );
-        }
-
+        // zniknęło z jednego zeszytu, czy ze wszystkich. Teraz mówi jedno
+        // i drugie — z nazwą zeszytu, gdy był jeden, i z liczbą, gdy było
+        // ich więcej. Zamiast pytania „czy na pewno" PRZED akcją (wyjęcie
+        // jest odwracalne co do notatki) idzie przycisk powrotu PO niej;
+        // rysuje go `components/layout.blade.php` w tym samym obszarze
+        // `aria-live`, co komunikat.
         return back()
-            ->with('status', 'Wpis wyjęty z zeszytu. Zniknął ze wszystkich Twoich zeszytów. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.')
+            ->with('status', $this->komunikatPoWyjeciu('Wpis', $request->user(), $zdjete))
             ->with('status_powrot', [
                 'akcja' => route('collections.save-post', $post),
-                'etykieta' => 'Zapisz ponownie',
+                'etykieta' => 'Przywróć do zeszytu',
             ]);
+    }
+
+    /**
+     * Zeszyt wskazany przy WYJMOWANIU — albo `null`, czyli „wszystkie moje".
+     *
+     * Osobno od `selectedCollection()`, bo zdania w błędach są inne: tam
+     * mowa o zapisaniu, tu o wyjęciu. Reguła jest ta sama i celowo: cudzy
+     * i nieistniejący zeszyt dają jeden komunikat (issue #473), a zakres
+     * i tak przypina `owner_id`, więc identyfikator w adresie niczego nie
+     * otwiera (AGENTS.md §7).
+     */
+    private function wybranyZeszytDoWyjecia(Request $request): ?Collection
+    {
+        $data = $request->validate([
+            'collection_id' => [
+                'bail', 'nullable', 'uuid',
+                Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey()),
+            ],
+        ], [
+            'collection_id.uuid' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
+            'collection_id.exists' => 'Odśwież stronę i ponownie wskaż zeszyt, z którego wyjmujemy.',
+        ]);
+
+        return isset($data['collection_id'])
+            ? $request->user()->collections()->find($data['collection_id'])
+            : null;
+    }
+
+    /**
+     * Zdanie po wyjęciu — MÓWI ZAKRES, bo zakres jest tu całą sprawą.
+     *
+     * Jeden zeszyt → z nazwy, bo nazwa jest krótsza i pewniejsza niż liczba.
+     * Więcej niż jeden → wprost „ze wszystkich Twoich zeszytów" z liczbą,
+     * żeby nikt nie odkrył zakresu dopiero po fakcie, w innym zeszycie.
+     *
+     * „Nie usunęliśmy go z serwisu" zostaje w obu wariantach: to jedyne
+     * zdanie, które rozróżnia wyjęcie z zeszytu od skasowania treści.
+     *
+     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     */
+    private function komunikatPoWyjeciu(string $co, User $user, array $zdjete): string
+    {
+        if (count($zdjete) === 1) {
+            $nazwa = $user->collections()->whereKey($zdjete[0]['collection_id'])->value('name');
+
+            return $nazwa === null
+                ? "{$co} wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go przywrócić."
+                : "{$co} wyjęty z zeszytu „{$nazwa}”. Nie usunęliśmy go z serwisu — możesz go przywrócić.";
+        }
+
+        $ile = count($zdjete);
+
+        return "{$co} wyjęty z zeszytu — zniknął ze wszystkich Twoich zeszytów, było ich {$ile}. "
+            .'Nie usunęliśmy go z serwisu — możesz go przywrócić razem z notatkami.';
+    }
+
+    /**
+     * Zapamiętanie wyjęcia na potrzeby drogi powrotu.
+     *
+     * NIE `flash()`, i to jest sedno. Flash żyje jedno żądanie, a droga
+     * powrotu ma trzy: DELETE (tu), GET z przyciskiem, POST po kliknięciu.
+     * Na flashu przycisk by się narysował i nie miał czego przywrócić.
+     *
+     * Jedno miejsce, nadpisywane przy każdym wyjęciu — bo i przycisk powrotu
+     * jest jeden, ostatni. Notatki idą do sesji, a nie do adresu: to treść
+     * pisana przez człowieka i nie ma czego szukać w logach serwera.
+     *
+     * @param  list<array{collection_id: string, note: ?string, created_at: ?string}>  $zdjete
+     */
+    private function zapamietajWyjecie(Request $request, string $typ, string $id, array $zdjete): void
+    {
+        $request->session()->put('zeszyt_wyjecie', [
+            'typ' => $typ,
+            'id' => $id,
+            'pozycje' => $zdjete,
+        ]);
+    }
+
+    /**
+     * Powrót po wyjęciu — albo `null`, gdy nie ma czego przywracać.
+     *
+     * Zwraca gotowe zdanie do `status`, żeby wywołujący nie musiał drugi raz
+     * liczyć wierszy.
+     */
+    private function przywrocPoWyjeciu(Request $request, string $typ, string $id): ?string
+    {
+        $wyjecie = $request->session()->get('zeszyt_wyjecie');
+
+        if (! is_array($wyjecie)
+            || ($wyjecie['typ'] ?? null) !== $typ
+            || ($wyjecie['id'] ?? null) !== $id
+            || ! is_array($wyjecie['pozycje'] ?? null)
+            || $wyjecie['pozycje'] === []) {
+            return null;
+        }
+
+        $user = $request->user();
+
+        $wrocilo = $typ === 'przepis'
+            ? $this->save->restore($user, Recipe::findOrFail($id), $wyjecie['pozycje'])
+            : $this->savePost->restore($user, Post::findOrFail($id), $wyjecie['pozycje']);
+
+        // Jednorazowa droga powrotu: drugie kliknięcie nie ma już nic do roboty.
+        $request->session()->forget('zeszyt_wyjecie');
+
+        if ($wrocilo === 0) {
+            // Zeszyt zniknął albo rzecz wróciła tam inną drogą — nie udajemy,
+            // że przywróciliśmy coś, czego nie ruszyliśmy.
+            return null;
+        }
+
+        $co = $typ === 'przepis' ? 'Przepis' : 'Wpis';
+
+        return $wrocilo === 1
+            ? "{$co} wrócił do zeszytu razem z notatką."
+            : "{$co} wrócił do wszystkich {$wrocilo} zeszytów razem z notatkami.";
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse
