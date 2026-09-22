@@ -6495,3 +6495,47 @@
   border-color: var(--color-brand-solid);
   color: var(--color-ink-inverse);
 }
+
+/* --- Wejście kontem u dostawcy zewnętrznego (issue #258, #259) --- */
+
+/* ZNAK MARKI NIE KURCZY SIĘ W RZĘDZIE PRZYCISKÓW.
+   Zmierzone przy 320 px i czcionce przeglądarki 200%: bez tej linijki
+   `flex-shrink` domyślne zgniatało znak Google z 24 px do CZTERECH —
+   czyli do kolorowej smugi, która nie jest już żadnym rozpoznaniem, tylko
+   śmieciem obok napisu. Atrybuty `width` i `height` na `<svg>` tego nie
+   powstrzymują: w kontenerze `flex` są tylko rozmiarem bazowym. */
+.logo-dostawcy {
+  flex-shrink: 0;
+}
+
+/* PRZY DUŻYM TEKŚCIE ZNAK MARKI SCHODZI Z PRZYCISKU.
+   Ten sam próg co odpięcie `.topbar` i rezerwa pod belką (D-082),
+   i z tego samego powodu: porównuje okno z KORZENIEM, więc znaczy „tekst
+   jest duży w stosunku do ekranu", a nie „ekran jest wąski".
+
+   ZMIERZONE, NIE PRZEWIDZIANE, i to jest cała historia tej reguły.
+   Przy 320 px i czcionce przeglądarki 200% przycisk ma 174 px szerokości —
+   nie z naszej winy, bo tyle zostaje w karcie, której wypełnienie jest
+   w `rem` i podwaja się razem z korzeniem — ta sama rodzina usterek co
+   w issue #295, którego poprawka w chwili pisania czeka w PR-ze.
+   NUMERU DECYZJI Z TAMTEJ GAŁĘZI TU NIE CYTUJĘ: na `main` jeszcze go
+   nie ma, a martwy odnośnik wygląda na uzasadnienie i zatrzymuje
+   szukanie. Złapał to `NumeryDecyzjiMajaWpisyTest` — i miał rację.
+   Napis „Wejdź kontem Google" przy piśmie 36 px łamie się wtedy co kilka
+   znaków, bo bazowe `overflow-wrap: anywhere` łamie słowo gdziekolwiek.
+
+   Sam napis dawał 367 px wysokości. Znak marki, KTÓRY PRZESTAŁ SIĘ
+   KURCZYĆ dzięki regule wyżej, zabrał kolejne 24 px szerokości z tych
+   174 — i przycisk wyrósł do 502 px, czyli ponad połowy ekranu. To była
+   regresja wprowadzona razem ze znakiem, złapana pomiarem w Chromium.
+
+   Dlatego przy tym progu znak po prostu znika, a nie kurczy się do
+   nieczytelnej smugi i nie rozpycha przycisku. NIC SIĘ PRZY TYM NIE TRACI:
+   znak jest `aria-hidden` i nigdy nie niósł treści — całe znaczenie jest
+   w napisie, który zostaje. Próba odwrotna (`flex-basis: 100%` na
+   przycisku) nie pomogła wcale: 100% z 174 px to nadal 174 px. */
+@media (max-width: 15rem) {
+  .wejscia-dostawcow .logo-dostawcy {
+    display: none;
+  }
+}

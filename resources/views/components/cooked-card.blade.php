@@ -39,9 +39,17 @@
     @endif
 
     @if($event->media->isNotEmpty())
+        @php
+            $liczbaZdjec = $event->media->count();
+        @endphp
         <div class="photo-grid mb-3 rounded-md overflow-hidden">
-            @foreach($event->media as $media)
-                <x-photo :media="$media" />
+            @foreach($event->media as $index => $media)
+                @php
+                    $domyslnyAlt = $liczbaZdjec > 1
+                        ? 'Zdjęcie '.($index + 1).' z '.$liczbaZdjec.' wykonania'
+                        : 'Zdjęcie wykonania';
+                @endphp
+                <x-photo :media="$media" :alt="$media->alt_text ?: $domyslnyAlt" />
             @endforeach
         </div>
     @endif
@@ -58,7 +66,7 @@
         @if($event->would_make_again !== null)
             <li><span class="badge">{{ $event->would_make_again ? 'Zrobię ponownie' : 'Raczej nie powtórzę' }}</span></li>
         @endif
-        @if($event->actual_minutes)
+        @if($event->actual_minutes !== null)
             <li><span class="badge">Zajęło mi {{ $event->actual_minutes }} min</span></li>
         @endif
         @if($event->perceived_difficulty)
