@@ -111,6 +111,23 @@ class ExportNotificationTest extends TestCase
         $this->assertSame('ready', $export->refresh()->status);
     }
 
+    public function test_migracja_cofa_sie_bez_tabeli_zamiast_wybuchac(): void
+    {
+        // Regresja: `down()` pytał wprost o `data_exports`, więc na bazie bez
+        // pełnego schematu (tak wycofuje krok „Odwracalność migracji"
+        // w scripts/check.sh) całe wycofanie przewracało się surowym
+        // SQLSTATE[42P01] zamiast nie mieć nic do roboty. Migracja, której
+        // `down()` wybucha przy braku tabeli, nie jest odwracalna w czasie
+        // awarii — a po to ten `down()` istnieje.
+        $migration = require database_path('migrations/2026_09_20_180000_add_notified_at_to_data_exports.php');
+        Schema::drop('data_exports');
+        $this->assertFalse(Schema::hasTable('data_exports'));
+
+        $migration->down();
+
+        $this->assertFalse(Schema::hasTable('data_exports'));
+    }
+
     public function test_migracja_cofa_sie_na_pustych_znacznikach_i_odmawia_po_wysylce(): void
     {
         $migration = require database_path('migrations/2026_09_20_180000_add_notified_at_to_data_exports.php');
