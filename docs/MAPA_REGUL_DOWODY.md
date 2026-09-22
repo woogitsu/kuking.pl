@@ -9,15 +9,15 @@ Lista reguł BEZ dowodu jest tu produktem głównym. Lista reguł z dowodem jest
 
 | stopień | co znaczy | ile reguł |
 |---|---|---|
-| **A. dowód z mutacji** | jest test, zepsuliśmy pilnowany kod i test oblał | **11 z 75** + mierzalna część R47 |
+| **A. dowód z mutacji** | jest test, zepsuliśmy pilnowany kod i test oblał | **12 z 75** + mierzalna część R47 |
 | **B. jest test, brak dowodu** | test istnieje i przechodzi; nikt nie sprawdził, czy oblewa | **48 z 75** |
-| **C. brak strażnika** | żaden test nie odnosi się do reguły | **16 z 75** |
+| **C. brak strażnika** | żaden test nie odnosi się do reguły | **15 z 75** |
 
-**R47 liczy się dalej w C, nie w A, i nie podbija liczby 11.** Reguła ma siedem
+**R47 liczy się dalej w C, nie w A, i nie podbija liczby 12.** Reguła ma siedem
 składników; pięć dostało 20.09 strażnika z dowodem z mutacji, dwa zostały bez
 niego świadomie (rozpisane przy wierszu R47). Wiersz dziedziczy koszt najdroższego
 składnika, więc przeniesienie go do A byłoby dokładnie tym fałszywym wpisem w sekcji
-A, przed którym ostrzega akapit niżej. Liczba 11 zmieni się dopiero wtedy, gdy
+A, przed którym ostrzega akapit niżej. Liczba 12 zmieni się dopiero wtedy, gdy
 któraś reguła będzie zamknięta w CAŁOŚCI.
 
 Stopień B to nie jest „prawie A". Kampania mutacyjna pokazała dziewięć przypadków,
@@ -44,11 +44,19 @@ Po złączeniu z mapą:
 **11 z 75, nie 31 z 75.** Podaję to, bo różnica zmienia ocenę stanu projektu,
 a poprzednia liczba brzmiała lepiej, niż było.
 
-## C. Reguły BEZ ŻADNEGO STRAŻNIKA — 16
+(Liczba 11 dotyczy TAMTEJ kampanii. W tabeli wyżej stoi dziś 12, bo 20.09 doszła
+R60 — dowód spoza kampanii, zrobiony osobno. Kolejne dopisy trzymajmy w tym samym
+rytmie: liczba rośnie tylko razem z opisaną mutacją.)
+
+## C. Reguły BEZ ŻADNEGO STRAŻNIKA — 15
 
 Cztery z nich sprawdziłem osobno przez grep w `tests/`, żeby „brak" nie był
 zaniedbaniem rozpoznania: `tailwind.config`, nazwy z zakazu overengineeringu,
 `sqlite`, liczba pozycji nawigacji — zero trafień w każdym przypadku.
+
+**R60 wyszła z tej sekcji 20.09** i jest jedyną pozycją, która ją opuściła:
+`sqlite` daje dziś trafienie, bo powstał `TestyChodzaNaPostgresieTest`.
+Szczegóły i granice — przy wierszu R60 w sekcji A.
 
 | # | § | reguła | uwaga |
 |---|---|---|---|
@@ -63,7 +71,6 @@ zaniedbaniem rozpoznania: `tailwind.config`, nazwy z zakazu overengineeringu,
 | R41 | 6 | `theme` i `posts.display_mode` świadomie bez strażnika | brak testu pilnującego, że strażnika NIE dodano |
 | R47 | 7 | `.env` w repo, hardcoded hasło admina, wyłączanie CSRF | **siedem zakazów, nie trzy**; pięć ma dowód z mutacji od 20.09, w C zostają **dwa** — rozpisane niżej |
 | R59 | 9 | AI nie generuje masowo publicznych przepisów pod SEO | |
-| R60 | 10 | testy chodzą na PostgreSQL, nie na SQLite | nic nie oblewa na SQLite |
 | R63 | 11 | kod po angielsku | |
 | R64 | 11 | adresy URL po polsku (wyjątki `/home`, `/login`, `/register`) | |
 | R66 | 11 | zakaz „content", „explore", „engage", „creator", „tapnij" | |
@@ -73,7 +80,7 @@ Trzy z tej listy uważam za pilniejsze od reszty: **R47** (bo skutkiem jest wyci
 pięć z siedmiu jej składników zamknięte 20.09, dwa zostają tutaj),
 **R73** (bo to jest obietnica tożsamości produktu i najłatwiej ją naruszyć przypadkiem)
 i **R60** (bo gdy ktoś przestawi testy na SQLite, cała reszta mapy przestaje znaczyć,
-co znaczy — a nic tego nie zauważy).
+co znaczy — a nic tego nie zauważy). **R60 jest od 20.09 zamknięta** — zostają dwie.
 
 ### R47 rozpisane: siedem zakazów, pięć mierzalnych dziś
 
@@ -223,7 +230,7 @@ niż reguła** — bo to są miejsca, gdzie stopień B jest najbardziej mylący.
 R11, R27 i R75 mają wspólny kształt: test pilnuje, że coś JEST, a reguła mówi też,
 czego NIE MA BYĆ. Dowód nieobecności jest droższy i dlatego go nie napisano.
 
-## A. Reguły z dowodem z mutacji — 11
+## A. Reguły z dowodem z mutacji — 12
 
 | # | reguła | mutacja | test, który oblał |
 |---|---|---|---|
@@ -239,6 +246,7 @@ czego NIE MA BYĆ. Dowód nieobecności jest droższy i dlatego go nie napisano.
 | R55 | feed obserwowanych chronologicznie, treści kont nieaktywnych nie wypływają | `odkrywanie pokazuje wylacznie wpisy publiczne`, `serwis nie promuje tresci kont nieaktywnych` | `FeedTest` |
 | R58 | moderacja pomocnicza — treść ukryta nie zdradza istnienia | `komentarz ukryty przez moderacje nie wraca zakresem` | `KomentarzePolicyZgadzaSieZListaTest` |
 | R47 **(pięć z siedmiu składników)** | poświadczenia poza repozytorium, brak zaszytych haseł, CSRF niezdejmowany | **siedem** mutacji: `.env.local` w drzewie, zdjęta reguła `.gitignore`, `Hash::make('Admin123!')`, bramka produkcyjna `DemoSeeder` → `false`, czwarty wyjątek CSRF, `APP_KEY` w `.env.example`, `withoutMiddleware` na trasie | `PoswiadczeniaPozaRepozytoriumTest` |
+| R60 | testy chodzą na PostgreSQL, nie na SQLite | dwie: `config/database.php` na sztywno `'sqlite'` (4 z 6 testów oblało) oraz `phpunit.xml` `DB_CONNECTION=sqlite` (1 z 6) | `TestyChodzaNaPostgresieTest` |
 
 **Zastrzeżenie do R47.** Ten wiersz opisuje PIĘĆ z siedmiu składników reguły i dlatego
 sam wiersz R47 zostaje w sekcji C. Dwa składniki — uczciwość powodu w rejestrze
@@ -246,6 +254,22 @@ i poświadczenie pod nazwą, która na poświadczenie nie wygląda — nie mają
 i mieć go nie będą bez przeglądu człowieka. Osobno: skan chodzi po drzewie roboczym,
 więc **nie widzi historii gita** — sekret złożony i skasowany następnym commitem
 przechodzi.
+
+**Zastrzeżenie do R60.** Strażnik mierzy POŁĄCZENIE DOMYŚLNE PROCESU, w którym
+sam chodzi — i to jest jego granica, nie formalność. Nie powie nic o przebiegu,
+w którym go nie uruchomiono (zadanie `test` w CI ma `if: needs.zakres.outputs.kod`,
+więc przy zmianie samych dokumentów nie startuje), i nie zobaczy pojedynczego
+testu, który jawnie sięga po inne połączenie niż domyślne. Część o CI czyta
+`ci.yml` z drzewa roboczego — mówi więc, co workflow DEKLARUJE, a nie czy zadanie
+z testami jest w GitHubie ustawione jako wymagane do scalenia; tego z repozytorium
+sprawdzić się nie da i jest to pytanie do właściciela.
+
+Druga mutacja jest tu ciekawsza niż pierwsza: przestawienie `phpunit.xml`
+na `sqlite` **nie ruszyło żywego połączenia**, bo runner eksportuje
+`DB_CONNECTION=pgsql`, a `<env>` bez `force` nie nadpisuje zmiennej z otoczenia.
+Zabił ją dopiero skan pliku. Odwrotnie przy mutacji `config/database.php`:
+tam skan pliku był zielony, a oblało połączenie. Żadna z dwóch połówek tego
+strażnika nie jest ozdobą drugiej.
 
 **Zastrzeżenie do R49.** Sześć zabitych mutacji dowodzi, że **ciała Policy** są pilnowane
 przez testy dziedzinowe. Nie dowodzą, że `KazdaTrasaZIdentyfikatoremPodPolicyTest` —
