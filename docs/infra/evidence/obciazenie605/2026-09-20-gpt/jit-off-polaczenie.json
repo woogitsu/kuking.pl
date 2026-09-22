@@ -1,0 +1,10 @@
+{
+    "at": "2026-09-20T18:42:19+00:00",
+    "settings": {
+        "database": "kuking_b605_gpt_obciazenie",
+        "jit": "off",
+        "jit_above_cost": "100000"
+    },
+    "following_sha256": "33d3558fccf000421ebe3f317fdce8fcfe40dcd5e11f55d785d65e8223d6c364",
+    "media_sha256": "a4ec448aa4fa25970e30a8d5899d09135f35692e5557866240c095de1ee1f8ed"
+}

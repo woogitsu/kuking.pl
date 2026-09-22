@@ -108,14 +108,7 @@ class SkladnikBezIlosciTest extends TestCase
         $this->assertNull($sol->quantity, 'Ilość przetrwała mimo „bez ilości” — CHECK w bazie wywali publikację.');
     }
 
-    /**
-     * Treść oznaczenia i porównanie obu ekranów stoją w
-     * `WierszSkladnikaJedenKontraktTest`. Tutaj zostaje to, czego pilnowało
-     * issue #44: że składnik zaznaczony jako „bez ilości" w ogóle dostaje
-     * na ekranie własne oznaczenie, zamiast wyglądać jak wiersz, przy
-     * którym autor czegoś zapomniał.
-     */
-    public function test_przepis_oznacza_skladnik_bez_ilosci_zamiast_zostawiac_pusto(): void
+    public function test_przepis_zachowuje_tekst_autora_bez_dopisywania_sposobu_dozowania(): void
     {
         $autor = $this->user('basia');
 
@@ -127,6 +120,10 @@ class SkladnikBezIlosciTest extends TestCase
             'ingredients' => [
                 ['text' => 'pieprz', 'no_amount' => '1'],
                 ['text' => 'sól do smaku', 'no_amount' => '1'],
+                ['text' => 'mleko ile weźmie', 'no_amount' => '1', 'group_name' => 'Ciasto'],
+                ['text' => 'olej do smażenia', 'no_amount' => '1', 'group_name' => 'Ciasto', 'note' => 'na patelnię'],
+                ['text' => 'szczypta soli', 'no_amount' => '1'],
+                ['text' => '200 ml wody', 'no_amount' => '0'],
             ],
             'steps' => [['instruction' => 'Gotuj.']],
         ])->assertRedirect();
@@ -135,12 +132,19 @@ class SkladnikBezIlosciTest extends TestCase
 
         $html = (string) $this->get(route('recipes.show', $przepis->slug))->assertOk()->getContent();
 
-        $this->assertStringContainsString('pieprz', $html);
-        $this->assertStringContainsString('— bez podanej ilości', $html);
-
-        // Dopisek „do smaku" obiecywał doprawianie także tam, gdzie chodziło
-        // o konsystencję albo zastosowanie (#878). Nie wraca żadnym ekranem.
-        $this->assertStringNotContainsString('— do smaku', $html);
+        $dom = new \DOMDocument;
+        @$dom->loadHTML('<?xml encoding="UTF-8">'.$html);
+        $xpath = new \DOMXPath($dom);
+        $rows = $xpath->query('//ul[@class="ingredient-list"]/li');
+        $texts = [];
+        foreach ($rows as $row) {
+            $texts[] = preg_replace('/\s+/u', ' ', trim($row->textContent));
+        }
+        $this->assertSame([
+            'pieprz', 'sól do smaku', 'szczypta soli', '200 ml wody',
+            'mleko ile weźmie', 'olej do smażenia — na patelnię',
+        ], $texts);
+        $this->assertSame('Ciasto', trim($xpath->query('//h3[@class="naglowek-grupy"]')->item(0)->textContent));
     }
 
     public function test_formularz_jednostronicowy_ma_te_opcje_bez_javascriptu(): void

@@ -84,15 +84,39 @@
              gałęzie tego samego `@if` mają `sekcja-strony` i
              `panel-formularza`, więc akurat stan „termin minął" dostawał
              najsłabszą warstwę ekranu. --}}
+        {{-- TA GAŁĄŹ ZACZĘŁA BYĆ OSIĄGALNA DOPIERO Z #798. Przedtem podpis
+             wygasał dokładnie wtedy, gdy zaczynała obowiązywać, więc
+             `middleware('signed')` odrzucało żądanie przed kontrolerem
+             (`[pomiar cudzy: stanowisko dsa-odwolania, 20.09.2026]`,
+             potwierdzone własnym testem: przed poprawką `403`, po niej `200`).
+             Stąd poprawki niżej — nikt nie czytał tych zdań na ekranie.
+
+             „CO NAJMNIEJ sześć miesięcy", nie „sześć miesięcy":
+             `ModerationAction::appealDeadline()` bierze PÓŹNIEJSZĄ z dwóch dat
+             (`appeal_days` z konfiguracji i sześć miesięcy kalendarzowych),
+             więc przy `KUKING_APPEAL_DAYS` większym niż pół roku zdanie
+             o „sześciu miesiącach" byłoby nieprawdą obok wypisanej wyżej,
+             prawdziwej daty. Sześć miesięcy jest DOLNĄ granicą z DSA art. 20
+             ust. 1 i tak to trzeba mówić.
+
+             KIEDY TA STRONA ZNIKNIE — bo tu jest jedyne miejsce, w którym
+             człowiek jeszcze ją widzi i może zdążyć napisać. Ten sam okres
+             mówi list z decyzją (`DecyzjaWSprawieZgloszenia`). --}}
         <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
-                Na odwołanie jest sześć miesięcy od decyzji.
+                Na odwołanie jest co najmniej sześć miesięcy od decyzji.
                 Ten termin minął {{ \App\Support\Czas::data($decyzja->appealDeadline(), 'j F Y') }}.
             </p>
             <p>
                 Jeśli pojawiły się nowe okoliczności, napisz na
                 {{ config('kuking.community.contact_email') }} — przeczytamy.
+                Podaj numer sprawy {{ $zgloszenie->numer_sprawy }}.
+            </p>
+            <p class="meta">
+                Ta strona będzie tu jeszcze przez
+                {{ config('kuking.moderation.reporter_case_link_days') }} dni od tego terminu,
+                a potem odnośnik z naszego listu przestanie ją otwierać.
             </p>
         </article>
     @else

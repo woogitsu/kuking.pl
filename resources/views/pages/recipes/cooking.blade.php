@@ -48,18 +48,41 @@
             @if($recipe->ingredients->isEmpty())
                 <p class="meta">Autor jeszcze nie dodał składników.</p>
             @else
-                {{-- Wiersz składnika rysuje `x-wiersz-skladnika`, ten sam, co na
-                     stronie przepisu. Do tej zmiany tryb gotowania miał własną
-                     kopię tego wiersza i przez to własny, cichy kontrakt: nie
-                     mówił ani słowa o `no_amount`, więc „sól" zaznaczona jako
-                     bez ilości wyglądała tu na przeoczenie autora. Teraz oba
-                     ekrany czytają jeden plik i nie da się zmienić jednego,
-                     nie ruszając drugiego. --}}
-                <ul class="ingredient-list">
-                    @foreach($recipe->ingredients as $ingredient)
-                        <x-wiersz-skladnika :skladnik="$ingredient" />
-                    @endforeach
-                </ul>
+                {{--
+                    GRUPY SKŁADNIKÓW I „DO SMAKU" (issue #764).
+                    Ta lista pokazywała składniki płaską, jedną pętlą po
+                    `$recipe->ingredients` — bez `App\Domain\Recipes\GrupySkladnikow`
+                    (patrz `resources/views/pages/recipes/show.blade.php`)
+                    i bez odczytania `no_amount`. Efekt: przepis z grupami
+                    „Ciasto"/„Farsz" pokazywał w trybie gotowania jedną
+                    listę bez nagłówków — nie usterkę widoczną na pierwszy
+                    rzut oka, tylko po cichu zgubioną strukturę, którą autor
+                    świadomie wpisał — a „sól do smaku" w trybie gotowania
+                    wyglądało jak składnik bez żadnej ilości, bez słowa
+                    wyjaśnienia, czy to pominięcie autora, czy zamierzone.
+                    Naprawa czyta ten sam układ co strona przepisu, tym
+                    samym wywołaniem `GrupySkladnikow::ulozyc()` — jedno
+                    miejsce liczące grupy, nie dwie kopie tej samej reguły.
+                --}}
+                @foreach(\App\Domain\Recipes\GrupySkladnikow::ulozyc($recipe->ingredients) as $grupaSkladnikow)
+                    @if($grupaSkladnikow['nazwa'] !== null)
+                        <h3 class="naglowek-grupy">{{ $grupaSkladnikow['nazwa'] }}</h3>
+                    @endif
+                    <ul class="ingredient-list">
+                        @foreach($grupaSkladnikow['skladniki'] as $ingredient)
+                            <li>
+                                {{ $ingredient->ingredient_text }}
+                                {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
+                                     tego sam w tekście składnika (issue #44),
+                                     ten sam warunek co na stronie przepisu. --}}
+                                @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
+                                    <span class="meta"> — do smaku</span>
+                                @endif
+                                @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                            </li>
+                        @endforeach
+                    </ul>
+                @endforeach
             @endif
         </details>
 
@@ -90,7 +113,7 @@
             @endif
 
             @if($timerLabel)
-                <div class="cook-timer" data-timer-sekundy="{{ $aktualnyKrok->timer_seconds }}" data-timer-etykieta="{{ $timerLabel }}">
+                <div class="cook-timer" data-timer-recipe="{{ $recipe->slug }}" data-timer-krok="{{ $krok }}" data-timer-sekundy="{{ $aktualnyKrok->timer_seconds }}" data-timer-etykieta="{{ $timerLabel }}">
                     {{-- Baza, bez JS: samo zdanie mówi, co zrobić z minutnikiem
                          w kuchni, na piecyku albo telefonie. --}}
                     <p>Ustaw sobie kuchenny minutnik na {{ $timerLabel }}.</p>
@@ -100,6 +123,19 @@
                         Uruchom minutnik w tej przeglądarce
                     </button>
                     <p class="cook-timer-odliczanie" role="timer" aria-live="off" hidden></p>
+                    {{--
+                        Świadome anulowanie (issue #755). Bez tego przycisku
+                        jedynym sposobem na przerwanie odliczania było
+                        doczekanie dźwięku albo opuszczenie trybu gotowania
+                        — a krok bywa zrobiony wcześniej, niż mówił minutnik
+                        (danie zdjęte z ognia na oko, nie na czas). Osobny
+                        przycisk, nie to samo „Uruchom” w roli przełącznika:
+                        dwa różne czasowniki są jaśniejsze niż jeden
+                        przycisk, który zmienia znaczenie w locie.
+                    --}}
+                    <button type="button" class="btn btn-secondary btn-cook cook-timer-anuluj" hidden>
+                        Anuluj minutnik
+                    </button>
                     <p class="visually-hidden cook-timer-komunikat" aria-live="assertive"></p>
                 </div>
             @endif

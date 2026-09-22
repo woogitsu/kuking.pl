@@ -243,12 +243,18 @@
                         @if($obserwuje ?? false)
                             <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
                                 @csrf @method('DELETE')
+                                {{-- #793 rozszerzone na relacje: strona przepisu
+                                     bywa otwarta godzinami, a nazwa autora
+                                     w adresie mogła w tym czasie zmienić
+                                     właściciela. --}}
+                                <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
                         @else
                             @can('follow', $recipe->author)
                                 <form method="POST" action="{{ route('social.follow', $recipe->author->profile->username) }}">
                                     @csrf
+                                    <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                     <button class="btn btn-secondary" type="submit">Obserwuj</button>
                                 </form>
                             @endcan
@@ -325,7 +331,7 @@
                             <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
-                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" />
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -470,14 +476,13 @@
                             <h3 class="naglowek-grupy">{{ $grupaSkladnikow['nazwa'] }}</h3>
                         @endif
                         <ul class="ingredient-list">
-                            {{-- Wiersz składnika rysuje `x-wiersz-skladnika`, ten sam,
-                                 co w trybie gotowania — łącznie z oznaczeniem
-                                 „bez podanej ilości" (#878 rozstrzyga #764).
-                                 Dwie kopie tego wiersza pozwoliły kiedyś dwóm
-                                 gałęziom nadać mu sprzeczne kontrakty bez
-                                 konfliktu w gicie. --}}
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
-                                <x-wiersz-skladnika :skladnik="$ingredient" />
+                                <li>
+                                    {{ $ingredient->ingredient_text }}
+                                    {{-- „Bez ilości” nie określa sposobu dozowania.
+                                         Pokazujemy tekst autora bez dopisków (#878). --}}
+                                    @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
+                                </li>
                             @endforeach
                         </ul>
                     @endforeach
@@ -619,7 +624,7 @@
                 <x-confirm-button
                     :action="route('recipes.destroy', $recipe->slug)"
                     label="Usuń ten przepis"
-                    question="Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne." />
+                    :question="'Na pewno usunąć przepis „'.$recipe->title.'”? Wykonania i komentarze innych osób też przestaną być widoczne.'" />
             </div>
         @endif
 

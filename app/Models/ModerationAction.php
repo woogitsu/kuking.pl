@@ -24,6 +24,9 @@ class ModerationAction extends Model
 
     public const ACTION_NONE = 'no_action';
 
+    /** Cel zniknął albo nie dał się ustalić przed pierwszą decyzją. */
+    public const ACTION_TARGET_UNAVAILABLE = 'target_unavailable';
+
     public const ACTION_HIDE = 'hide';
 
     /**
@@ -142,6 +145,7 @@ class ModerationAction extends Model
     /** Etykiety po polsku — jedno źródło dla formularza i dla komunikatów. */
     public const ETYKIETY = [
         self::ACTION_NONE => 'Bez działania',
+        self::ACTION_TARGET_UNAVAILABLE => 'Cel niedostępny podczas rozstrzygania',
         self::ACTION_HIDE => 'Ukryj treść',
         self::ACTION_UNHIDE => 'Przywróć treść',
         self::ACTION_REMOVE => 'Usuń treść',
