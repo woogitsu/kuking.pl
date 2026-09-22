@@ -177,7 +177,34 @@ class CollectionController extends Controller
             // całkowicie legalnie.
             ->zWidocznymPrzepisem($request->user())
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            ->with(['author.profile.avatar', 'media'])
+            // TRZECIA GRANICA: AUTOR PRZEPISU, A NIE AUTOR WPISU (W5-08).
+            //
+            // Warunek linijkę wyżej pyta o autora WPISU. Wpis zapowiadający
+            // przepis może jednak należeć do kogo innego niż przepis: A odkłada
+            // sobie do zeszytu zapowiedź przepisu B. Gdy B zostanie zbanowany
+            // albo oznaczony do usunięcia, jego przepis daje 403 pod własnym
+            // adresem i znika z listy przepisów tego zeszytu (warunek wyżej przy
+            // `$recipes`) — ale wpis A dalej stał tu z tytułem, zdjęciem głównym
+            // i odnośnikiem, bo `zWidocznymPrzepisem()` liczy widoczność
+            // i publikację przepisu, a statusu konta jego autora celowo nie zna
+            // (patrz `User::scopeDostepnyJakoAutor()`).
+            //
+            // Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu —
+            // bez niej zeszyt straciłby całą zawartość. Ten sam idiom liczy
+            // `App\Domain\Tags\PodpowiedziTagow`.
+            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            // `recipe:…` + `recipe.heroMedia` — jak w czterech strumieniach
+            // (issue #368). Zeszyt rysuje tę samą kartę `x-post-card`, która
+            // czyta z przepisu tytuł, odnośnik, `visibility` na plakietkę
+            // i zdjęcie główne; bez doładowania każdy taki wpis to dwa osobne
+            // zapytania na stronę.
+            ->with([
+                'author.profile.avatar',
+                'media',
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+            ])
             ->withVisibleCommentCount($request->user())
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą

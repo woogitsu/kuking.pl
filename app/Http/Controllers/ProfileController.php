@@ -232,7 +232,21 @@ class ProfileController extends Controller
             // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
             // gdy relacja jest już doładowana, więc bez tego archiwum
             // profilu nie miałoby żadnych chipów tematów.
-            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name,status'])
+            // `recipe:…` z `visibility` i `hero_media_id` plus `recipe.heroMedia`
+            // — dokładnie jak w `FollowingFeed`, `DiscoverFeed`, `DailyBoard`
+            // i `TagFeed` (issue #368). Archiwum profilu rysuje tę samą kartę
+            // `x-post-card`, a ta czyta z relacji `recipe` tytuł, odnośnik,
+            // `visibility` na plakietkę widoczności i zdjęcie główne. Bez tego
+            // każdy wpis wskazujący przepis dokładał osobne zapytanie na stronę
+            // (a `heroMedia` drugie), a plakietka widoczności schodziła przez
+            // `?? $post->visibility` do stałego `public` wpisu zapowiadającego.
+            ->with([
+                'media',
+                'author.profile.avatar',
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+                'tags:id,slug,name,status',
+            ])
             ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
@@ -335,6 +349,27 @@ class ProfileController extends Controller
         // wyżej, a `recipes.recipe_id` nie istnieje.
         if ($query->getModel() instanceof Post) {
             $query->zWidocznymPrzepisem($viewer);
+
+            // BRAMKA AUTORA PRZEPISU, OSOBNA OD BRAMKI WYŻEJ (ustalenie W5-08).
+            //
+            // `zWidocznymPrzepisem()` schodzi do `Recipe::widoczneDla()`, a ten
+            // zakres CELOWO nie zna statusu konta — mówi o tym wprost komentarz
+            // przy `User::scopeDostepnyJakoAutor()`. Filtr `whereIn('visibility')`
+            // wyżej pyta o WPIS, czyli o autora WPISU, a nie o autora PRZEPISU.
+            // To są dwie różne osoby: wpis użytkownika A może wskazywać przepis
+            // użytkownika B. Gdy B zostanie zbanowany albo oznaczony do
+            // usunięcia, jego przepis znika z własnego profilu i daje 403 pod
+            // swoim adresem — ale wpis A dalej rysował kartę z tytułem tego
+            // przepisu, jego zdjęciem głównym i odnośnikiem, w którym slug
+            // niesie ten sam tytuł. Obie bramki wyżej przepuszczały ten wiersz,
+            // bo obie pytały o kogo innego.
+            //
+            // Gałąź na `recipe_id IS NULL` jest obowiązkowa: większość wierszy
+            // archiwum profilu NIE MA przepisu i samo `whereHas('recipe.author')`
+            // skasowałoby całe zwykłe archiwum. Idiom jest już w repozytorium —
+            // `App\Domain\Tags\PodpowiedziTagow` liczy tak samo.
+            $query->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()));
         }
     }
 
