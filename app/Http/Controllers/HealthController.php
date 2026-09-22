@@ -137,6 +137,7 @@ class HealthController extends Controller
         self::POWOD_LISTY_PRZEPADAJA,
         self::POWOD_LIMIT_POCZTY_WYCZERPANY,
         self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
+        self::POWOD_CZYSZCZENIE_CDN_WYLACZONE,
         self::POWOD_PILNY_ALARM_NIE_DOTARL,
         self::POWOD_KANAL_ALARMOWY_WYLACZONY,
         self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY,
@@ -233,6 +234,27 @@ class HealthController extends Controller
     private const POWOD_SLAD_LISTOW_NIESPRAWDZALNY = 'slad_listow_niesprawdzalny';
 
     /**
+     * `CLOUDFLARE_ZONE_ID` albo `CLOUDFLARE_PURGE_TOKEN` jest pusty, więc
+     * `App\Jobs\PurgePublicMediaCache` wychodzi na `return` i NIC nie czyści.
+     *
+     * DLACZEGO TO MUSI STAĆ TUTAJ, A NIE TYLKO W LOGU ZADANIA
+     * Zadanie zapisuje wtedy `Log::warning` i kończy się SUKCESEM: nie ma
+     * wpisu w `failed_jobs`, nic nie jest czerwone, a kanał alarmowy
+     * (`blad_webhook`) ma poziom ustawiony na sztywno na `error`, więc
+     * ostrzeżenia w ogóle nie przyjmuje. Czyszczenie wyłączone wygląda więc
+     * DOKŁADNIE tak samo jak czyszczenie, które działa — a to jest ten sam
+     * rodzaj cichej porażki, co `turnstile_bez_kluczy` i `analityka_bez_tokenu`
+     * (D-050): konfiguracja nie kłamie o awarii, tylko o tym, że coś JEST.
+     *
+     * ŚWIADOMIE `degraded`, A NIE PORAŻKA ZADANIA. Wyłącznik jest legalny
+     * (`config/kuking.php`, sekcja `cdn_purge`), a kasowanie zdjęcia nie ma
+     * prawa się nie udać dlatego, że nie ma czym wyczyścić cudzego cache'u.
+     * Jedno zdanie, które nie gaśnie samo, jest tu właściwą ceną — nie
+     * wywrócone wymazywanie konta.
+     */
+    private const POWOD_CZYSZCZENIE_CDN_WYLACZONE = 'czyszczenie_cdn_wylaczone';
+
+    /**
      * W `reports` leży sprawa PILNA (treść seksualna albo cokolwiek
      * dotyczącego dziecka), o której nie poszedł alarm — issue #1051.
      * Kod nie mówi ani którą, ani czego dotyczy: ta odpowiedź jest publiczna.
@@ -288,6 +310,7 @@ class HealthController extends Controller
             'poczta' => $this->check('poczta', self::POWOD_POCZTA_NIE_WYSYLA, fn () => $this->sprawdzPoczte()),
             'kolejka' => $this->check('kolejka', self::POWOD_ZADANIA_NIEUDANE, fn () => $this->sprawdzKolejke()),
             'listy' => $this->check('listy', self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY, fn () => $this->sprawdzNieudaneListy()),
+            'cdn' => $this->check('cdn', self::POWOD_CZYSZCZENIE_CDN_WYLACZONE, fn () => $this->sprawdzCzyszczenieCdn()),
             'alarmy_moderacji' => $this->check('alarmy_moderacji', self::POWOD_SLAD_ALARMOW_NIESPRAWDZALNY, fn () => $this->sprawdzPilneAlarmy()),
         ];
 
@@ -616,6 +639,76 @@ class HealthController extends Controller
      * i sprawdzenie w KROKU 8F runbooka, które patrzy na realne liczby
      * w panelu, a nie na stan naszej konfiguracji.
      */
+    /**
+     * Czy czyszczenie cache CDN jest w ogóle włączone (audyt G-03).
+     *
+     * CO TA SONDA MIERZY, A CZEGO NIE
+     * Mierzy JEDNO: czy `App\Jobs\PurgePublicMediaCache` ma z czym pójść do
+     * Cloudflare. Nie mierzy, czy przed zdjęciami stoi CDN, ani czy on
+     * cokolwiek trzyma — to żyje w panelu Cloudflare, nie w repozytorium
+     * (issue #120), i z tego kontenera nie da się tego sprawdzić.
+     *
+     * DLACZEGO TO WYSTARCZY, ŻEBY BYŁO WARTO
+     * Bo bez tych dwóch zmiennych czyszczenie NIE ZADZIAŁA NIGDY, niezależnie
+     * od odpowiedzi na tamte pytania — a dowiedzieć się o tym dziś nie ma
+     * skąd. `MediaController` wysyła dla treści publicznej `Cache-Control:
+     * public, max-age=...` (dziś 150 s) i na przekierowaniu, i — przez
+     * `ResponseCacheControl` — na odpowiedzi z bajtami, czyli WPROST zaprasza
+     * pośrednika do trzymania kopii. Kasowanie zdjęcia po decyzji moderacyjnej
+     * albo żądaniu z RODO liczy na to, że ktoś tę kopię potem usunie.
+     *
+     * TYLKO PRODUKCJA. Lokalnie i w testach nie ma żadnego CDN-u i pusta
+     * konfiguracja jest tam stanem poprawnym — mówi o tym wprost komentarz
+     * przy `kuking.media.cdn_purge`. Sygnał, który świeci wszędzie, jest
+     * szumem uczącym ignorować całe pole `checks` (ta sama lekcja co przy
+     * Turnstile i analityce).
+     */
+    private function sprawdzCzyszczenieCdn(): void
+    {
+        if (! app()->environment('production')) {
+            return;
+        }
+
+        $zona = (string) config('kuking.media.cdn_purge.zone_id');
+        $token = (string) config('kuking.media.cdn_purge.token');
+
+        if ($zona !== '' && $token !== '') {
+            return;
+        }
+
+        // Stary, JEDYNY dysk zdjęć z publicznym adresem (`r2_legacy`). Gdy jest
+        // w użyciu, wyłączone czyszczenie znaczy co innego niż zwykle: tam
+        // adres pliku nie ma podpisu i nie wygasa, więc kopia w cache nie jest
+        // ograniczona przez `max-age` żadnego przekierowania. Ten stan wymaga
+        // innej czynności człowieka (dokończyć `kuking:przenies-zdjecia` i
+        // zdjąć domenę ze starego bucketu — issue #120), więc dopisujemy go do
+        // komunikatu, choć kod powodu zostaje jeden: naprawa zaczyna się tak
+        // samo, od panelu Cloudflare.
+        $staryBucketPubliczny = filled(config('filesystems.disks.r2_legacy.bucket'))
+            && filled(config('filesystems.disks.r2_legacy.url'));
+
+        // KOMUNIKAT IDZIE DO LOGU I NA WEBHOOK, NIE DO ODPOWIEDZI. W JSON-ie
+        // publicznym zostaje sam kod — tak jak przy wszystkich pozostałych
+        // sondach, bo `/health` czyta każdy.
+        throw new KontrolaZdrowiaNieprzeszla(
+            self::POWOD_CZYSZCZENIE_CDN_WYLACZONE,
+            'Czyszczenie cache CDN po skasowaniu zdjęcia jest WYŁĄCZONE '
+            .'(brak CLOUDFLARE_ZONE_ID albo CLOUDFLARE_PURGE_TOKEN). '
+            .'Skasowane zdjęcia mogą się dalej otwierać z cache Cloudflare, '
+            .'a zadanie czyszczące kończy się sukcesem i nie zostawia śladu. '
+            .($staryBucketPubliczny
+                ? 'UWAGA: skonfigurowany jest jeszcze stary, PUBLICZNY bucket '
+                  .'`r2_legacy` — tam adres pliku nie wygasa, więc okna narażenia '
+                  .'nie zamyka żaden `max-age`. Dokończ `kuking:przenies-zdjecia` '
+                  .'i zdejmij domenę ze starego bucketu (issue #120). '
+                : 'Stary publiczny bucket `r2_legacy` nie jest skonfigurowany, '
+                  .'więc dotyczy to wyłącznie odpowiedzi trasy `media.show` '
+                  .'i ich `max-age`. ')
+            .'Albo uzupełnij obie zmienne, albo świadomie zostaw wyłączone — '
+            .'ale wtedy wiedz, że „skasowane" znaczy „skasowane z bucketu".',
+        );
+    }
+
     private function sprawdzAnalityke(): void
     {
         if (! app()->environment('production')) {

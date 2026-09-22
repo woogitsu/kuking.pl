@@ -1,0 +1,12 @@
+{
+  "scope": "Isolated execution of reviewed service worker statements; mocked CacheStorage/network, not a browser E2E test.",
+  "checks": 3,
+  "manifest": {
+    "first": "deployment-A",
+    "afterServerDeployment": "deployment-A",
+    "networkRequests": 1,
+    "staleValueReproduced": true
+  },
+  "oldHashedAssetRetained": true,
+  "unrelatedCacheDeletedOnActivation": true
+}

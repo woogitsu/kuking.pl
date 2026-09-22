@@ -348,9 +348,26 @@ Dopiero gdy krok 6 daje kod 0, a §3 jest wypełniona na zielono z datą,
 
 ## 3. Część panelowa — do wykonania po stronie właściciela
 
-**Gdzie:** panel Cloudflare R2 (buckety `kuking-oryginaly` i `kuking-media`,
-`r2.dev`, domena `cdn.kuking.pl`) plus jeden przebieg zapisu i odczytu na
+**Gdzie:** panel Cloudflare R2 plus jeden przebieg zapisu i odczytu na
 środowisku staging podłączonym do prawdziwego R2.
+
+**Które buckety** — nazwy są wartościami, więc rozstrzyga to, do której
+zmiennej trafia która nazwa (`config/filesystems.php`):
+
+| Bucket | Zmienna czytana przez kod | Zmienna w panelu Railway | Dysk | Czego dotyczy poniżej |
+|---|---|---|---|---|
+| `kuking-oryginaly` | `AWS_BUCKET` | `R2_BUCKET` | `r2` | punkty 2, 3, 4, 10, 11 |
+| `kuking-media` | `AWS_PUBLIC_BUCKET` | `R2_PUBLIC_BUCKET` | `r2_publiczne` | punkty 1, 5, 9, 10, 11 |
+| `kuking-eksporty` | `AWS_EXPORTS_BUCKET` | `R2_EXPORTS_BUCKET` | `r2_eksporty` | poza tą bramką — paczki RODO, ale ten sam wymóg: żadnej domeny, `r2.dev` wyłączone |
+
+> **Ta tabela jest tu, bo trzy dokumenty opisywały trzy różne układy bucketów.**
+> `DEPLOYMENT_RUNBOOK.md` §2.1 kazał utworzyć **jeden** bucket `kuking-media`,
+> `.railway/railway.ts` podawał **trzy** zmienne, a ten plik wymieniał **dwa**
+> pod jeszcze innymi nazwami. Żadnego z tych opisów nie dało się wykonać do
+> końca bez zgadywania. Rozstrzyga kod: `config/filesystems.php` czyta
+> `AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET` (plus `AWS_LEGACY_BUCKET`
+> dla starego, jednego bucketu i `AWS_KOPIE_BUCKET` dla kopii bazy — ten ostatni
+> z **osobnym poświadczeniem tylko do odczytu**).
 
 **Czego potrzebujesz:** dostępu do konta Cloudflare, klucza API S3 do R2
 (`AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY`) i `railway ssh` do serwisu.
@@ -413,6 +430,14 @@ wyjątkiem, nie cichym `false`. Człowiek ma zobaczyć polski komunikat, a nie
   honoruje — nie jest zmierzone i wymaga prawdziwego bucketu.
 - **Stary, jeden bucket (`r2_legacy`).** Publiczności nie zdejmujemy, dopóki
   `kuking:przenies-zdjecia` nie dojdzie do końca.
+- **Zgodność wierszy `media` z zawartością bucketów (#1031).** Bramka patrzy na
+  konfigurację i na to, co bucket oddaje na zewnątrz — **nie** sprawdza, czy
+  plik, na który wskazuje wiersz w bazie, w ogóle istnieje. Do tego jest osobny,
+  wyłącznie odczytujący raport: `php artisan kuking:sprawdz-zdjecia-po-przenosinach`.
+  Warto go puścić przed migracją bucketów (#619) i po niej. Powód, dla którego
+  w ogóle powstał: do 22.09.2026 `kuking:przenies-zdjecia` uznawało brakujący
+  plik za poprawnie przeniesiony i przestawiało `disk` — wiersz wypadał wtedy
+  z kolejki migracji i nic już go nie znajdowało.
 - **Lokalizacja danych (#619).** Sprawdzenie 12 rozstrzyga jurysdykcję
   bucketów, po które sięga aplikacja. Nie widzi bucketu kopii bazy (#193),
   przyszłej kwarantanny (#602) ani Location Hintu — te zostają do odczytania

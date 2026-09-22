@@ -349,6 +349,16 @@ kategorii.
 
 ### 8.6. Wymagania techniczne
 
+**Dziennik awarii (#828, #925):** cztery granice — transport OpenAI,
+przygotowanie zdjęcia, analiza treści i analiza awatara — korzystają ze
+wspólnego `App\Moderacja\ExceptionContext`. Z wyjątku zostaje tylko nazwa
+klasy; etap jest stałą podaną przez nasz kod. Nie zapisujemy wiadomości,
+niezatwierdzonego kodu wyjątku, stosu ani poprzedniego wyjątku. Mogą zawierać
+tekst, zdjęcie, adres z parametrami albo sekret. Osobna gałąź błędnej
+odpowiedzi HTTP zachowuje dotychczasowy status liczbowy, bez jej ciała.
+Awaria nadal oznacza brak wyniku analizy, nie sankcję dla autora.
+Testy i ograniczenia pomiaru: `docs/security/DZIENNIK_WYJATKOW_828_925.md`.
+
 - klucz przez `env()` (`OPENAI_MODERATION_KEY`); **brak klucza = funkcja
   wyłączona** — `KlientOpenAI::oceniamy()` oddaje `false`, żadne żądanie nie
   wychodzi, nic nie pada. Tak jest lokalnie, w CI i w testach;

@@ -78,7 +78,9 @@ final class AnalitykaCloudflare
      *  PO CO TO ISTNIEJE — BEACON WYSYŁA ADRES STRONY, NIE SAM FAKT WEJŚCIA
      * ────────────────────────────────────────────────────────────────────
      *
-     * `beacon.min.js` melduje Cloudflare PEŁNY adres odwiedzanej strony.
+     * Odczytany beacon 2026.9.1 usuwa query i fragment, lecz zachowuje
+     * ścieżkę adresu strony i document.referrer. Nie zakładamy, że kolejne
+     * wersje dostawcy zawsze będą czyścić te same pola.
      * Dopóki adres to `/wpisy/rosol-babci`, jest to zwykły pomiar odwiedzin
      * i dokładnie po to analitykę tu włączono (D-092). Ale część adresów
      * w tym serwisie NIESIE W SOBIE SEKRET albo dane osobowe:
@@ -103,6 +105,9 @@ final class AnalitykaCloudflare
      * trasy, więc reguła obejmuje także trasy, których dziś nie ma.
      * `cel` to zaszyfrowany adres docelowy bramki `/otworz-link` — mówi,
      * w co konkretnie ten człowiek kliknął.
+     * Z tej SAMEJ klasyfikacji korzysta ApplySecurityHeaders: no-referrer
+     * zatrzymuje sekret przy wyjściu na kolejny dokument, niezależnie od
+     * włączenia analityki. Sam brak skryptu na tym ekranie nie wystarcza.
      *
      * CO SIĘ DZIEJE, GDY NIE MA ŻĄDANIA (kolejka, CLI): oddajemy `true`,
      * bo wtedy nie renderujemy żadnej strony i nie ma czego chronić.
