@@ -2097,6 +2097,32 @@ pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł 
 zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
 kończyłoby się błędem 500.
 
+### first_post_events
+
+Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
+retencji alertu. `author_id uuid PRIMARY KEY` wskazuje `users.id` (ON DELETE
+CASCADE), `post_id uuid NULL` wskazuje nośnik. Złożony FK
+`(author_id, post_id)` do `posts(author_id, id)` wymusza zgodność autora;
+`ON DELETE SET NULL (post_id)` zachowuje zdarzenie po fizycznym usunięciu
+wpisu. Obsługuje go indeks `posts_author_id_id_unique`. Nie przechowujemy
+odbiorcy ani kopii treści. Soft delete nośnika nie zmienia wiersza.
+
+Publikacja zapisuje znacznik w tej samej transakcji co wpis, audyt, alert
+i zlecenie analizy (produkcyjna kolejka database na tym samym połączeniu).
+Prywatny wpis nie konsumuje pierwszeństwa. Przy istniejącym gospodarzu
+obowiązuje pełna dostępność wpisu dla niego; bez gospodarza kwalifikuje się
+tylko publiczny. Panel pokazuje utrwalony nośnik tylko odbiorcy z dostępem,
+nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
+
+Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
+dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
+obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
+pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
+odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
+przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
+dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
 ### notifications
 In-app.
 

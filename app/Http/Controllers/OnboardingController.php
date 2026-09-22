@@ -7,7 +7,9 @@ namespace App\Http\Controllers;
 use App\Domain\Feed\DailyBoard;
 use App\Domain\Search\SearchQuery;
 use App\Domain\Social\Actions\FollowUser;
+use App\Domain\Tags\Actions\UpdateTagFollows;
 use App\Exceptions\BladDlaCzlowieka;
+use App\Http\Requests\TagSelection;
 use App\Models\Profile;
 use App\Models\Tag;
 use Illuminate\Http\RedirectResponse;
@@ -62,39 +64,8 @@ class OnboardingController extends Controller
 
     public function saveInterests(Request $request): RedirectResponse
     {
-        // `max:` NA SAMEJ TABLICY, NIE TYLKO NA JEJ ELEMENTACH.
-        //
-        // Bez tego jedno żądanie mogło podać dowolnie długą listę, a reguła
-        // `exists:tags,id` wykonuje OSOBNE zapytanie dla KAŻDEGO elementu —
-        // dziesięć tysięcy pozycji w formularzu to dziesięć tysięcy zapytań,
-        // zanim kontroler cokolwiek zdecyduje. Limit żądań na trasie tego nie
-        // łapie, bo to jedno żądanie.
-        //
-        // Pięćdziesiąt, a nie dokładnie tyle, ile pokazuje ekran: lista
-        // promowanych tagów jest w rękach gospodarza i ma prawo urosnąć,
-        // a próg ma odcinać nadużycie, nie normalny wybór.
-        $dane = $request->validate([
-            'tags' => ['nullable', 'array', 'max:50'],
-            'tags.*' => ['string', 'exists:tags,id'],
-        ]);
-
-        // TO JEST CAŁY SENS TEJ ZMIANY (issue #31, kontynuowane przez D-021).
-        //
-        // Odpowiedź idzie DO BAZY, nie do sesji, gdzie ginęłaby po
-        // zakończeniu kroku. Marnowalibyśmy najcenniejsze dane, jakie mamy
-        // przy cold starcie — padają w jedynym momencie, w którym człowiek
-        // chętnie odpowiada na pytania o siebie, i decydują o tym, czy jego
-        // pierwszy feed będzie pusty.
-        $wybrane = array_values(array_intersect(
-            $dane['tags'] ?? [],
-            Tag::promowane()->pluck('id')->all(),
-        ));
-
-        if ($wybrane !== []) {
-            $request->user()->followedTags()->syncWithoutDetaching(
-                array_fill_keys($wybrane, ['created_at' => now()]),
-            );
-        }
+        $selected = app(TagSelection::class)->validate($request, 50);
+        app(UpdateTagFollows::class)->follow($request->user(), $selected, promotedOnly: true);
 
         return redirect()->route('onboarding.people');
     }

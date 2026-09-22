@@ -61,8 +61,9 @@ if command -v pg_isready >/dev/null 2>&1; then
         # skopiowanym bez `.git`; takie drzewa produkuje wyłącznie
         # `_wspolne/przygotuj-runtime.sh` do osobnego katalogu, w którym
         # żadna sesja nie startuje). Przybliżenie NIE obsługuje i nie musi
-        # obsługiwać trzeciego przypadku dodanego w gałęzi
-        # `naprawa/baza-proby-per-runtime` (drzewo skopiowane bez `.git`) —
+        # obsługiwać trzeciego przypadku z
+        # `tests/Support/kuking_nazwa_testowej_bazy.php` (drzewo skopiowane
+        # bez `.git`) — ta reguła jest już na `main`, ale
         # ten przypadek nie dotyczy kontekstu, w którym chodzi ten hook.
         baza_testowa="kuking_test"
         wynik_php=""

@@ -63,6 +63,15 @@ class DokumentyMdNieMajaMartwychOdnosnikowTest extends TestCase
         'docs/research/',
         'docs/zlecenia/',
         'docs/design/system-v3.1/',
+        // Dzienniki i inwentarze floty: zapisują przebieg pracy, a nie obietnice
+        // produktu. Backticki niosą tam ścieżki systemu plików i fragmenty
+        // cudzych API — `/c/.../Codex`, `/Users/matma/…/.git/worktrees/…`,
+        // `/merge`, `/logs`, `/v2.1/email` — których skaner nie odróżni od
+        // adresu na kuking.pl. Wykluczenie zawęża ZAKRES strażnika, nie osłabia
+        // go: dokumenty produktu w `docs/product/` i `docs/design/` dalej muszą
+        // wskazywać trasy, które istnieją. Sprawdzone 21.09.2026 — dwanaście
+        // zgłoszeń z tego katalogu, żadne nie było adresem naszego serwisu.
+        'docs/flota/',
     ];
 
     private const WYKLUCZONE_Z_TRAS_PLIKI = [
