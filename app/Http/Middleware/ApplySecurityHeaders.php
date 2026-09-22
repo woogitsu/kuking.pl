@@ -122,6 +122,15 @@ class ApplySecurityHeaders
 
         $response = $next($request);
 
+        // Sekret w ścieżce może wyjść jako document.referrer NASTĘPNEJ
+        // strony, mimo że na obecnej nie ma beacona. Ta sama klasyfikacja
+        // chroni obie drogi, także gdy analityka jest wyłączona. Robimy to
+        // przed powrotem dla własnego CSP i obu warstw middleware.
+        $mayExposeReferrerPath = AnalitykaCloudflare::wolnoNaTejStronie($request);
+        if (! $mayExposeReferrerPath) {
+            $response->headers->set('Referrer-Policy', 'no-referrer');
+        }
+
         // WARSTWA WEWNĘTRZNA JUŻ TO ZROBIŁA. Na zwykłej stronie odpowiedź
         // przechodzi przez grupę `web`, więc wywołanie globalne widzi tu
         // gotowy komplet i nie dokłada nic — żadnego drugiego nagłówka,
@@ -133,7 +142,9 @@ class ApplySecurityHeaders
 
         $response->headers->set('X-Content-Type-Options', 'nosniff');
         $response->headers->set('X-Frame-Options', 'DENY');
-        $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        if ($mayExposeReferrerPath) {
+            $response->headers->set('Referrer-Policy', 'strict-origin-when-cross-origin');
+        }
         $response->headers->set('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
         $response->headers->set('Cross-Origin-Opener-Policy', 'same-origin');
 

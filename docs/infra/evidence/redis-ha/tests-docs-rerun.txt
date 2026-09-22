@@ -1,0 +1,9 @@
+Polecenie po zsynchronizowaniu kompletnego pakietu i korekcie opisu sondy:
+MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-redis-ha --filter DokumentyMdNieMajaMartwychOdnosnikowTest
+
+PASS Tests\Feature\DokumentyMdNieMajaMartwychOdnosnikowTest
+- odnosniki markdown prowadza do istniejacych celow
+- trasy wspominane w dokumentach naprawde istnieja
+- parser zachowuje parametry rozszerzenia i odrzuca falszywe trasy
+Tests: 3 passed (49 assertions)
+Duration: 1.09s

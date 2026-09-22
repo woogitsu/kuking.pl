@@ -173,6 +173,13 @@ final class SearchQuery
 
         $needle = $this->normalize($phrase);
 
+        // Metaznaki LIKE (`%`, `_`, znak ucieczki `\`) z frazy MUSZĄ zostać
+        // dosłownym tekstem, nie operatorem wzorca (issue #753). Wyłącznie
+        // dla trzech gałęzi `LIKE` niżej — pierwsza gałąź trigramowa (`<%`)
+        // dostaje `$needle` BEZ ucieczki, bo to nie jest LIKE i cytowanie
+        // zepsułoby dopasowanie podobieństwa/sortowanie po nim.
+        $literalnie = $this->uciecznijLike($needle);
+
         // Bez tego gałąź trigramowa niżej milczy przy literówkach — patrz
         // komentarz przy zniesionej stałej wyżej.
         ProgPodobienstwa::ustaw();
@@ -202,9 +209,9 @@ final class SearchQuery
             ->withCount(['cookedEvents' => fn ($q) => $q->widoczneDla($widz)])
             ->whereRaw('recipes.id IN ('.self::KANDYDACI_SQL.')', [
                 $needle,
-                '%'.$needle.'%',
-                '%'.$needle.'%',
-                '%'.$needle.'%',
+                '%'.$literalnie.'%',
+                '%'.$literalnie.'%',
+                '%'.$literalnie.'%',
             ])
             // Filtr „Do 30 minut" (UI kit v2, ekran 03).
             //
@@ -279,6 +286,11 @@ final class SearchQuery
 
         $needle = $this->normalize($phrase);
 
+        // Metaznaki LIKE dosłownie — patrz komentarz w recipes() (issue #753).
+        // Ta metoda nie ma gałęzi trigramowej, więc CAŁY `$needle` idzie
+        // wyłącznie przez wersję po ucieczce.
+        $literalnie = $this->uciecznijLike($needle);
+
         // Ta metoda nie używa ŻADNEGO operatora trigramowego — dopasowuje
         // przez `LIKE`, a `similarity()` niżej tylko porządkuje wynik i progu
         // nie czyta. Wywołanie zostaje mimo to, żeby każda ścieżka
@@ -314,11 +326,11 @@ final class SearchQuery
             ->with(['user.profile.avatar', 'avatar'])
             ->whereHas('user', fn ($query) => $query->where('status', 'active'))
             ->tap(fn ($query) => $this->pomijajZablokowanych($query, $widz, 'profiles.user_id'))
-            ->where(function ($query) use ($needle): void {
+            ->where(function ($query) use ($literalnie): void {
                 $query
-                    ->whereRaw('display_name_search LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('username_search LIKE ?', ['%'.$needle.'%'])
-                    ->orWhereRaw('speciality_search LIKE ?', ['%'.$needle.'%']);
+                    ->whereRaw('display_name_search LIKE ?', ['%'.$literalnie.'%'])
+                    ->orWhereRaw('username_search LIKE ?', ['%'.$literalnie.'%'])
+                    ->orWhereRaw('speciality_search LIKE ?', ['%'.$literalnie.'%']);
             })
             // Tu `similarity` ZOSTAJE (issue #187 zmieniło tylko przepisy).
             // Dopasowanie idzie przez `LIKE`, więc zbiór wyników nie zależy
@@ -383,5 +395,23 @@ final class SearchQuery
     private function normalize(string $phrase): string
     {
         return mb_strtolower(Str::ascii($phrase));
+    }
+
+    /**
+     * Cytuje metaznaki operatora LIKE, żeby fraza użytkownika trafiała do
+     * `LIKE` jako dosłowny tekst, nie jako wzorzec (issue #753).
+     *
+     * PostgreSQL bierze `\` jako domyślny znak ucieczki dla `LIKE` — dlatego
+     * najpierw trzeba podwoić SAM znak ucieczki, inaczej `\` z frazy
+     * uciekałby przypadkowo następny znak wstawiony przez tę metodę.
+     * Kolejność (najpierw `\`, potem `%` i `_`) jest tu obowiązkowa.
+     *
+     * Używać WYŁĄCZNIE dla parametrów `LIKE`. Operator trigramowy `<%`
+     * i funkcje `similarity()`/`word_similarity()` mają dostawać frazę
+     * bez tej ucieczki — to nie jest LIKE i cytowanie zmieniłoby dopasowanie.
+     */
+    private function uciecznijLike(string $wartosc): string
+    {
+        return str_replace(['\\', '%', '_'], ['\\\\', '\%', '\_'], $wartosc);
     }
 }

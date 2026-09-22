@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Contact\Actions;
 
 use App\Domain\Contact\DzwonekOperatora;
+use App\Domain\Contact\PageContext;
 use App\Models\ContactMessage;
 use App\Models\User;
 use App\Support\Wersja;
@@ -64,7 +65,7 @@ final class PrzyjmijWiadomosc
                 'kind' => $rodzaj,
                 'message' => $tresc,
                 'contact_email' => $autor === null ? $email : null,
-                'page_path' => $sciezka,
+                'page_path' => PageContext::clean($sciezka),
                 // Wydanie serwisu w chwili wysłania — przy „coś nie działa"
                 // to jest połowa diagnozy, a nie dana osobowa.
                 'wydanie' => Wersja::opisWydania(),
@@ -81,7 +82,7 @@ final class PrzyjmijWiadomosc
                 throw $e;
             }
 
-            $istniejaca = $this->wiadomoscZTegoWyslania($kluczWyslania, $rodzaj, $tresc, $autor);
+            $istniejaca = $this->wiadomoscZTegoWyslania($kluczWyslania, $rodzaj, $tresc, $autor, $email);
 
             if ($istniejaca !== null) {
                 // Drugie kliknięcie „Wyślij" ma być nieodróżnialne od
@@ -108,7 +109,8 @@ final class PrzyjmijWiadomosc
      * Sam klucz nie wystarcza. UUID w żądaniu nie jest autoryzacją
      * (AGENTS.md §7): gdyby ktoś podstawił cudzą wartość, oddanie tamtego
      * wiersza pokazałoby mu cudzą sprawę. Dlatego wiersz musi zgadzać się
-     * także treścią i autorem — dla prawdziwego podwójnego kliknięcia jest
+     * także treścią, autorem i adresem odpowiedzi gościa. Kontekst strony
+     * jest tylko diagnostyką, nie treścią wysłania. Dla podwójnego kliknięcia jest
      * to bajt w bajt to samo żądanie.
      */
     private function wiadomoscZTegoWyslania(
@@ -116,6 +118,7 @@ final class PrzyjmijWiadomosc
         string $rodzaj,
         string $tresc,
         ?User $autor,
+        ?string $email,
     ): ?ContactMessage {
         return ContactMessage::query()
             ->where('klucz_wyslania', $kluczWyslania)
@@ -123,7 +126,7 @@ final class PrzyjmijWiadomosc
             ->where('message', $tresc)
             ->when(
                 $autor === null,
-                static fn ($query) => $query->whereNull('user_id'),
+                static fn ($query) => $query->whereNull('user_id')->where('contact_email', $email),
                 static fn ($query) => $query->where('user_id', $autor->getKey()),
             )
             ->first();

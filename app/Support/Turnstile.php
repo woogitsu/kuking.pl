@@ -121,14 +121,14 @@ final class Turnstile
      *     wygaśnięcie sprawdzenia (token Turnstile żyje 5 minut), a to zdarza
      *     się właśnie osobie, która pisała długo. Odświeżenie skasowałoby jej
      *     tekst; ponowne wysłanie tego samego formularza — nie, bo wszystkie
-     *     pola wracają przez `old()`, a widget wystawia świeży token.
+     *     pola poza hasłem wracają przez `old()`, a widget wystawia świeży token.
      *  3. Dać drogę wyjścia, gdy nie pomoże, bo dla tej osoby to jest ślepa
      *     ściana: nie ma pojęcia, co to Turnstile, i nie zgadnie.
      */
-    public static function komunikatOdrzucenia(): string
+    public static function komunikatOdrzucenia(string $miejsce): string
     {
         return 'Nie udało się potwierdzić, że formularza nie wypełnia automat — to sprawdzenie mogło wygasnąć, '
-            .'jeśli formularz był otwarty dłuższą chwilę. Twoje dane nie zniknęły: wyślij formularz '
+            .'jeśli formularz był otwarty dłuższą chwilę. '.self::instrukcjaPonowienia($miejsce).'wyślij formularz '
             .'jeszcze raz. Jeśli znowu się nie uda, napisz do nas na '
             .self::adresKontaktowy().' — odpisuje człowiek.';
     }
@@ -151,21 +151,30 @@ final class Turnstile
      * KOLEJNOŚĆ RAD JEST CELOWA:
      *  1. „Wyślij jeszcze raz" — bo nieudana walidacja i tak przerysowuje
      *     stronę (z `old()`), więc przy okazji DRUGI RAZ próbuje pobrać
-     *     skrypt. Przy chwilowym problemie z siecią to wystarcza i nie
-     *     kosztuje ani jednego wpisanego znaku.
+     *     skrypt. Przy chwilowym problemie z siecią to wystarcza; ponowne wysłanie
+     *     wymaga ponownego wpisania tylko hasła, jeśli formularz je ma.
      *  2. Dopiero potem JavaScript i blokada reklam — to wymaga grzebania
      *     w ustawieniach i dla części osób jest nie do zrobienia.
      *  3. Na końcu adres e-mail, bo dla kogoś, komu nic nie pomogło, jest
      *     to JEDYNA droga dalej. `/napisz-do-nas` nią nie jest: ten formularz
      *     ma Turnstile tak samo jak ten, na którym człowiek właśnie utknął.
      */
-    public static function komunikatBrakuTokenu(): string
+    public static function komunikatBrakuTokenu(string $miejsce): string
     {
         return 'Nie udało się wczytać sprawdzenia „czy to na pewno człowiek" i dlatego nie możemy '
-            .'przyjąć tego formularza. Twoje dane nie zniknęły: wyślij go jeszcze raz — zwykle '
+            .'przyjąć tego formularza. '.self::instrukcjaPonowienia($miejsce).'wyślij go jeszcze raz — zwykle '
             .'za drugim razem sprawdzenie się wczytuje. Jeśli znowu się nie uda, włącz w przeglądarce '
             .'JavaScript i wyłącz na tej stronie blokadę reklam. Gdy nic nie pomaga, napisz do nas na '
             .self::adresKontaktowy().' — odpisuje człowiek i załatwimy to razem.';
+    }
+
+    /** Hasło nie wraca przez old(); instrukcja musi poprzedzać ponowne wysłanie. */
+    private static function instrukcjaPonowienia(string $miejsce): string
+    {
+        return match ($miejsce) {
+            'rejestracja', 'logowanie', 'cofniecie_usuniecia' => 'Pozostałe dane nie zniknęły. Dla bezpieczeństwa wpisz hasło ponownie, a potem ',
+            default => 'Twoje dane nie zniknęły: ',
+        };
     }
 
     /**

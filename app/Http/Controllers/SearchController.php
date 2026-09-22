@@ -47,7 +47,15 @@ class SearchController extends Controller
 
     public function index(Request $request): View
     {
-        $phrase = trim((string) $request->query('q', ''));
+        // `q` MUSI być tekstem, zanim cokolwiek go rzutuje (issue #738).
+        // `/szukaj?q[]=...` daje tablicę — bez tej straży `(string) $tablica`
+        // wywala ostrzeżenie „Array to string conversion", które w tym
+        // repo staje się wyjątkiem (błędy → wyjątki) i kończy się 500 na
+        // publicznym, niezalogowanym endpoincie zamiast zwykłego pustego
+        // ekranu wyszukiwania. Nie-tekstowe `q` jest więc traktowane
+        // dokładnie tak samo jak brak `q`.
+        $qSurowe = $request->query('q', '');
+        $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
         // GET renderuje błąd w miejscu, bez przekierowania na ten sam długi URL.
         $searchErrors = SearchQuery::phraseValidator($phrase)->errors();
 
@@ -137,7 +145,19 @@ class SearchController extends Controller
         // analitycznych), a `product_signals` ma nawet CHECK w bazie, który
         // odrzuci wiersz, gdyby ten kod kiedyś zaczął ją tam wysyłać. Zamiast
         // niej idzie wyłącznie DŁUGOŚĆ frazy i to, czy dała wynik.
-        if ($searchErrors->isEmpty()) {
+        //
+        // ZAPISUJEMY WYŁĄCZNIE, GDY FRAZA NAPRAWDĘ SZUKAŁA (issue #737).
+        // Pusty ekran „Szukaj" (brak `q`) i fraza krótsza niż dwa znaki nie
+        // odpytują bazy w ogóle — `SearchQuery::recipes()`/`::people()`
+        // zwracają pustą kolekcję PRZED zapytaniem (ten sam próg co
+        // `$zaKrotka` wyżej). Zapisanie tu sygnału policzyłoby otwarcie
+        // pustego ekranu i „a" jako wyszukiwanie bez wyników, mimo że baza
+        // w ogóle nie została odpytana — zatruwając miarę `has_results=false`.
+        //
+        // Fraza odrzucona przez `phraseValidator()` (za długa) też nie
+        // odpytała bazy — `$przepisy`/`$ludzie` wyżej są wtedy puste — więc
+        // z tego samego powodu nie ma czego zapisywać.
+        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty()) {
             $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
                 'query_length' => mb_strlen($phrase),
                 'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
