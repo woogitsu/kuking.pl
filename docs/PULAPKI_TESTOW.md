@@ -504,6 +504,71 @@ Polecenie diagnostyczne, którego kodu wyjścia nikt nie sprawdza, jest
 kolejnym źródłem tej samej pułapki. `MSYS_NO_PATHCONV=1` rozwiązuje ten
 konkretny przypadek; sprawdzanie kodu wyjścia rozwiązuje całą klasę.
 
+## 11. Niedopasowana atrapa HTTP domyślnie wychodzi do prawdziwej sieci
+
+`Http::fake(['api.example/*' => ...])` podstawia tylko pasujący adres. Bez
+dodatkowej blokady literówka w domenie albo nowy endpoint może ominąć atrapę
+i uruchomić prawdziwy transport podczas testów. Wynik zaczyna wtedy zależeć od
+sieci, cudzej usługi i sekretów stanowiska, a test może nawet zmienić dane poza
+izolowanym środowiskiem.
+
+Dlatego `Tests\TestCase::setUp()` włącza globalnie
+`Http::preventStrayRequests()`. Każdy test używający fasady Laravela musi jawnie
+podstawić wszystkie dozwolone adresy. Pilnuje tego
+`TestyNieWychodzaDoSieciTest`: niedopasowany loopback kończy się
+`StrayRequestException`, a dopasowane żądanie nadal przechodzi i ma sprawdzony
+adres, metodę oraz dane.
+
+Granice tej ochrony są równie ważne jak sama ochrona:
+
+- `Http::fake()` bez mapy i wildcard `Http::fake(['*' => ...])` nadal akceptują
+  każdy adres — używaj ich tylko wtedy, gdy test naprawdę nie rozstrzyga celu;
+- osobna instancja `Illuminate\Http\Client\Factory` nie dziedziczy ustawienia
+  fasady i musi dostać własne `preventStrayRequests()`;
+- blokada obejmuje klienta HTTP Laravela, nie ręczny Guzzle, SDK storage, cURL,
+  proces powłoki ani przeglądarkę;
+- uruchamiamy ją po `parent::setUp()`, więc chroni kod wykonywany przez test,
+  ale nie żądanie wykonane w trakcie samego bootowania aplikacji.
+
+Nie naprawiaj brakującej atrapy przez globalne `Http::fake()` ani
+`allowStrayRequests()`. Dopisz najwęższy wzorzec adresu i zachowaj asercję
+pełnego URL-u, metody oraz danych tam, gdzie są częścią kontraktu.
+
+## 12. Ułamek wysokości okna nie jest pomiarem położenia
+
+**Złapała: strażnika #684 na 25 kolejnych przebiegach CI.**
+
+`scripts/szybki-wyglad.mjs` sprawdza, że podpowiedź „Wygląd" ustępuje gestowi
+wskaźnika. Gest miał startować „w górnej połowie okna, żeby nie dotknąć samej
+podpowiedzi" — i startował od `0,45 · wysokość`.
+
+To nie jest pomiar położenia podpowiedzi, tylko życzenie. Podpowiedź jest
+`position: fixed` zakotwiczona do **dolnej** krawędzi (`bottom: 76px`) i ma
+stałą wysokość ~156,3 px, więc jej górna krawędź leży zawsze na `h − 232,3`,
+niezależnie od tego, jakim procentem wysokości to akurat jest. Zmierzone
+na `/` w Chromium jako gość:
+
+| okno | podpowiedź (top–bottom) | punkt `0,45 · h` | trafienie |
+|---|---|---|---|
+| 320×512 | 279,7 – 436,0 | 230 | 49,7 px **nad** podpowiedzią |
+| 320×420 | 187,7 – 344,0 | 189 | 1,3 px **w** podpowiedzi |
+
+Nierówność `0,45 · h < h − 232,3` jest prawdziwa dopiero powyżej ~422 px
+wysokości. Okno 320×420 nie mogło przejść ani razu — i nie przeszło, a wyglądało
+to jak wada układu, bo komunikat brzmiał `PODPOWIEDZ_NIE_USTAPILA`. Układ był
+przy obu oknach identyczny co do piksela.
+
+Wniosek, który zostaje: **jeśli test celuje „obok" czegoś, ma wziąć prostokąt
+tego czegoś z `getBoundingClientRect()` i sprawdzić asercją, że trafił obok.**
+Stała wyliczona z rozmiaru okna jest prawdziwa przy rozmiarze, przy którym
+ją wyliczono, i fałszywa przy następnym dopisanym do listy.
+
+Dwie asercje, które teraz tego pilnują, są tańsze niż godzina diagnozy:
+`PUNKT_GESTU_W_PODPOWIEDZI` (przez `elementFromPoint`) oraz `GEST_ZA_KROTKI`.
+Ta druga jest przy okazji jedynym miejscem, które złapie odwrotną wadę:
+podpowiedź, która przy niskim oknie zaczyna zjadać ekran, nie zostawia już
+miejsca na gest i test mówi o tym wprost, zamiast po cichu celować byle gdzie.
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026

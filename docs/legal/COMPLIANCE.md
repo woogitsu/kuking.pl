@@ -307,17 +307,17 @@ Pilnuje tego `DokumentyPrawneNieKlamiaTest::test_kazdy_wiersz_listy_gotowosci_ma
 | P0 | Wiek minimalny 16 lat wymagany oświadczeniem przy rejestracji | `app/Http/Controllers/Auth/RegisterController.php:132` — `'age_confirmed' => ['accepted']` | Nie |
 | P0 | Mechanizm eksportu i usunięcia konta działający end-to-end | `DataExportTest`, `AccountDeletionPurgeTest`, `AccountDeletionCancellationTest` | Nie |
 | P0 | Kanał błędów nie wynosi danych osobowych | `BladTrafiaNaWebhookBezDanychOsobowychTest` — **pilnowane testem, nie trzeba sprawdzać ręcznie** | Nie |
-| P0 | Procedura zgłaszania do organów przy CSAM/zagrożeniu życia (Art. 18 DSA) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` ścieżka opisana w `MODERATION_PLAYBOOK.md` §7.1, ale sam dokument zostawia w niej `[do weryfikacji z prawnikiem]` — potwierdzić właściwy organ **przed startem, nie w trakcie incydentu** | **Tak — potwierdzić ścieżkę zgłoszeniową** |
-| P0 | DPA/umowy powierzenia z **realnymi** odbiorcami danych: Railway, Cloudflare (R2, Turnstile, Web Analytics), OpenAI, dostawca poczty, a przy logowaniu zewnętrznym Google i Meta | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` lista odbiorców jest zweryfikowana wobec kodu (patrz §7.2), ale **czy umowy są podpisane, widać wyłącznie w panelach dostawców i w szafie z umowami** | **Tak — przegląd umów** |
-| P0 | Rejestr czynności przetwarzania (Art. 30 RODO) sporządzony | `BRAK:` takiego dokumentu nie ma w repozytorium ani nigdzie indziej, o czym wiadomo | **Tak — przegląd** |
+| P0 | Procedura zgłaszania do organów przy CSAM/zagrożeniu życia (Art. 18 DSA) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` ścieżka operacyjna stoi w `MODERATION_PLAYBOOK.md` §7.1, a od 20.09.2026 jest tam także §7.1a — **projekt ścieżki prawnej z trzema pytaniami do zadania prawnikowi**, jawnie nierozstrzygnięty. Zostało: potwierdzić organ i podstawę **przed startem, nie w trakcie incydentu** | **Tak — potwierdzić ścieżkę zgłoszeniową** |
+| P0 | DPA/umowy powierzenia z **realnymi** odbiorcami danych: Railway, Cloudflare (R2, Turnstile, Web Analytics), OpenAI, dostawca poczty, a przy logowaniu zewnętrznym Google i Meta | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` lista do odhaczenia — co i gdzie sprawdzić u każdego z ośmiu odbiorców — stoi w `REJESTR_UMOW_POWIERZENIA.md`; **czy umowy są podpisane, widać wyłącznie w panelach dostawców i w szafie z umowami**. Przy Meta umowa powierzenia jest **niewłaściwym instrumentem** (osobny administrator) — ten wiersz zamyka opis ról, nie podpis | **Tak — przegląd umów** |
+| P0 | Rejestr czynności przetwarzania (Art. 30 RODO) sporządzony | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` rejestr istnieje — `REJESTR_CZYNNOSCI_PRZETWARZANIA.md`, siedemnaście czynności wyprowadzonych z kodu. Zostały pola, których z kodu wyprowadzić się nie da i które są w nim oznaczone jako `DO UZUPEŁNIENIA PRZEZ WŁAŚCICIELA:` — IOD, regiony usług u Railway i Cloudflare, podstawy przekazań poza EOG z datami, okres życia kopii zapasowej | **Tak — przegląd** |
 | P0 | Cloudflare Web Analytics: statystyka pozostaje bezciasteczkowa | `AnalitykaBezCiasteczekTest`, `WdrozenieAnalitykiOdwiedzinTest` — od tego zależy wiersz P1 o banerze niżej | Nie |
 | P0 | OpenAI: treść wpisu i pomniejszone zdjęcie wychodzą poza EOG — granica opisana w polityce i egzekwowana w kodzie | `app/Moderacja/KlientOpenAI.php`, polityka §„Przekazywanie poza EOG"; `PolitykaPrywatnosciWymieniaKazdaUslugeTest` | **Tak — podstawa przekazania** |
 | P0 | Logowanie kontem Google i Facebookiem: zakres danych zgodny z polityką | `PolitykaPrywatnosciWymieniaKazdaUslugeTest`; `/health` na produkcji potwierdza, że obie drogi są włączone | **Tak — rola Meta jako osobnego administratora** |
 | P0 | `SESSION_SECURE_COOKIE` ustawione na produkcji | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` w repozytorium stoi `.env.example:47 SESSION_SECURE_COOKIE=false` (wartość lokalna). Wartości produkcyjnej nie widać z kodu — odczytać w panelu Railway | Nie |
 | P0 | `zadania_nieudane` w `/health` wyjaśnione przed wpuszczeniem ludzi | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` `/health` mówi `degraded` wyłącznie na kolejce; tabeli `failed_jobs` nie da się odczytać bez konsoli produkcyjnej (#713 A1). Nie kasować bez zrozumienia przyczyny | Nie |
 | P1 | Baner cookies — niepotrzebny, dopóki statystyka jest bezciasteczkowa (D-092); wrócić do tematu przy zmianie dostawcy albo dołożeniu identyfikatorów | `AnalitykaBezCiasteczekTest` — gdy padnie, ten wiersz staje się P0 | **Tak, przy zmianie dostawcy** |
-| P1 | Szablon zgłoszenia naruszenia do UODO + szablon powiadomienia użytkowników przygotowany z wyprzedzeniem | `BRAK:` szablonów nie ma w repozytorium | Zalecane |
-| P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` retencja danych w aplikacji jest egzekwowana siedmioma komendami (§7.3), ale kopie zapasowe rządzą się osobnym cyklem — #193, #594 | Nie |
+| P1 | Szablon zgłoszenia naruszenia do UODO + szablon powiadomienia użytkowników przygotowany z wyprzedzeniem | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` oba szablony i ścieżka decyzyjna stoją w `SZABLONY_NARUSZENIE_DANYCH.md`. Zostały dwie rzeczy, których dokument nie może rozstrzygnąć za właściciela: **kto stwierdza naruszenie i kto go zastępuje**, oraz **droga złożenia zgłoszenia do UODO sprawdzona ZANIM będzie potrzebna** | Zalecane |
+| P1 | Ustalenie i udokumentowanie polityki retencji backupów (max czas życia kopii z danymi po usunięciu konta) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` retencja danych w aplikacji jest egzekwowana dziesięcioma komendami (§7.3), ale kopie zapasowe rządzą się osobnym cyklem — #193, #594 | Nie |
 | P1 | Weryfikacja aktualnego statusu ustawy krajowej wdrażającej DSA i roli UKE jako koordynatora | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` stan prawny zmienia się poza repozytorium | **Tak** |
 | P1 | Uproszczony wewnętrzny system odwołań od decyzji moderacyjnych (dobrowolnie, mimo zwolnienia z Art. 20 DSA) | `app/Http/Controllers/AppealController.php`, `app/Http/Controllers/ReporterAppealController.php` — odwołania działają dla autora treści i dla zgłaszającego | Nie |
 | P1 | Rozstrzygnąć obrazek liczący otwarcia listów u dostawcy poczty (EmailLabs) i wyłączyć go po jego stronie (patrz 7.1) | `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` wyłącznik jest w panelu dostawcy, nie w kodzie (#204, #713 A3) | **Tak** |
@@ -339,15 +339,15 @@ Każda pozycja to **realny kanał wyjścia danych poza ten serwer**.
 | Cloudflare Web Analytics | adres strony, odnośnik, rodzaj przeglądarki, czas wczytania | `app/Support/AnalitykaCloudflare.php`; bezciasteczkowe — `AnalitykaBezCiasteczekTest` |
 | OpenAI | treść wpisu i pomniejszone zdjęcie, bez danych wskazujących osobę | `app/Moderacja/KlientOpenAI.php` |
 | Dostawca poczty (EmailLabs) | adres e-mail odbiorcy i treść listu | `config/mail.php`, `app/Domain/Security/DziennyBudzetListow.php` |
-| Google | przy logowaniu kontem Google: potwierdzenie tożsamości, e-mail, imię | `app/Http/Controllers/SocialController.php` |
-| Meta | przy logowaniu Facebookiem — Meta jest tu **osobnym administratorem** | `app/Http/Controllers/SocialController.php` |
+| Google | przy logowaniu kontem Google: potwierdzenie tożsamości, e-mail, imię | `app/Http/Controllers/Auth/GoogleLoginController.php` |
+| Meta | przy logowaniu Facebookiem — Meta jest tu **osobnym administratorem** | `app/Http/Controllers/Auth/FacebookLoginController.php`, `app/Http/Controllers/Auth/FacebookDeauthorizeController.php` |
 
 **Sentry i PostHog nie są na tej liście, bo ich w tym projekcie nie ma i nigdy
 nie było.** Do 19 września lista gotowości wymagała wobec nich umów i konfiguracji
 — czyli blokowała start warunkami niemożliwymi do spełnienia. Pilnuje tego teraz
 `DokumentyPrawneNieKlamiaTest::test_dokument_wewnetrzny_nie_wymienia_narzedzi_ktorych_nie_uzywamy`.
 
-### 7.3 Retencja — siedem komend, nie dwie
+### 7.3 Retencja — dziesięć komend, nie dwie
 
 | co | okres | komenda |
 |---|---|---|
@@ -358,6 +358,9 @@ nie było.** Do 19 września lista gotowości wymagała wobec nich umów i konfi
 | paczki z danymi | 7 dni | `kuking:sprzataj-eksporty` |
 | zdjęcia nieprzypięte | — | `kuking:sprzataj-osierocone-zdjecia` |
 | konta po karencji | 30 dni | `kuking:usun-wygasle-konta` |
+| wiadomości „Napisz do nas" | 12 miesięcy od załatwienia | `kuking:sprzataj-wiadomosci` |
+| wygasłe zaproszenia do konta | termin w wierszu | `kuking:sprzataj-zaproszenia` |
+| wygasłe żądania zmiany adresu e-mail | termin w wierszu | `kuking:sprzataj-zmiany-adresu` |
 
 Istnienie każdej z nich pilnuje
 `DokumentyPrawneNieKlamiaTest::test_komendy_wymienione_w_procedurach_istnieja`.
