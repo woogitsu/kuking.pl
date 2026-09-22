@@ -93,10 +93,12 @@ PID_PROBNIKA=$!
 trap 'kill "$PID_PROBNIKA" 2>/dev/null || true' EXIT
 sleep 2
 
+KORPUS_ARGS=()
+if [ -n "${KORPUS_ZDJEC:-}" ]; then KORPUS_ARGS=(--korpus "$KORPUS_ZDJEC"); fi
 OD="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 node scripts/generator-obciazenia-605.mjs seria \
   --manifest "$MANIFEST" --baza http://127.0.0.1:8605 \
-  --nazwa "$NAZWA" --rps "$RPS" --czas "$CZAS" --wynik "$WYNIK" > /dev/null
+  --nazwa "$NAZWA" --rps "$RPS" --czas "$CZAS" --wynik "$WYNIK" "${KORPUS_ARGS[@]}" > /dev/null
 DO="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 
 # POWRÓT DO NORMY — osobne pytanie z #605 („czy i jak szybko system wraca do

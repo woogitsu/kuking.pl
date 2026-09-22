@@ -75,10 +75,12 @@ function setup(root, index) {
         if (!items[index] || composing || key(token()) !== current) { hide(); return; }
         const t = token(), replacement = '#' + items[index].token;
         input.setRangeText(replacement, t.from, t.to, 'end');
-        hide(); status.textContent = 'Tag jest w opisie. Możesz pisać dalej.';
+        hide();
         input.focus(); input.dispatchEvent(new Event('input', { bubbles: true }));
         // Wybór nie otwiera ponownie listy i nigdy nie wysyła formularza.
         hide();
+        observed = key(token());
+        status.textContent = 'Tag jest w opisie. Możesz pisać dalej.';
     }
     async function search(t, stamp, expected) {
         controller = new AbortController();
@@ -101,11 +103,11 @@ function setup(root, index) {
                 option.addEventListener('pointerdown', e => e.preventDefault()); option.addEventListener('click', () => choose(i)); list.append(option);
             });
             list.hidden = items.length === 0;
-            status.textContent = items.length ? 'Wybierz tag z podpowiedzi albo pisz dalej.' : 'Brak podpowiedzi. Możesz skorzystać z wyszukiwania tagów poniżej.';
+            status.textContent = items.length ? 'Wybierz tag z podpowiedzi albo pisz dalej.' : 'Brak podpowiedzi. Otwórz „Dodaj tag bezpośrednio”, żeby sprawdzić inną nazwę.';
             position();
         } catch (error) {
             if (error.name === 'AbortError' || stamp !== sequence) return;
-            hide(); status.textContent = 'Nie udało się pobrać podpowiedzi. Spróbuj ponownie albo znajdź tag poniżej.';
+            hide(); status.textContent = 'Nie udało się pobrać podpowiedzi. Spróbuj ponownie albo otwórz „Dodaj tag bezpośrednio”.';
         }
     }
     function update() {
@@ -117,7 +119,8 @@ function setup(root, index) {
     }
     document.addEventListener('selectionchange', () => { if (document.activeElement === input && key(token()) !== observed) update(); });
     input.addEventListener('input', update); input.addEventListener('click', update);
-    input.addEventListener('select', update);
+    // setRangeText emituje też opóźnione select; ten sam kursor nie jest nową edycją.
+    input.addEventListener('select', () => { if (key(token()) !== observed) update(); });
     input.addEventListener('compositionstart', () => { composing = true; hide(); });
     input.addEventListener('compositionend', () => { composing = false; update(); });
     input.addEventListener('keydown', e => {

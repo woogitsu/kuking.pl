@@ -1,0 +1,127 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-widmo-zamkniec
+Gałąź:            gpt/widmo-zamkniec  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-widmo-zamkniec
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-widmo-zamkniec --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Dwa zamknięcia-widma: #606 (kolejka, rzekomo „SKIP LOCKED zweryfikowane")
+i #596 (volume Railway, rzekomo „odłączono, nie usunięto"). Oba figurują
+w C:\Users\matma\Documents\kuking-flota\gpt-ci-architektura\docs\infra\PLAN_TECHNICZNY_614.md
+jako CLOSED, z uzasadnieniem — ale wcześniejszy przegląd repozytorium
+kanonicznego (grep po `app/`, `tests/`, `docs/DECISIONS.md`, `git log --all
+--grep`) NIE znalazł żadnego śladu ani jednego, ani drugiego: zero
+wystąpień „SKIP LOCKED"/„skipLocked" w kodzie i testach, zero wzmianek
+o #606 w historii i w rejestrze decyzji, zero wzmianek o #596 poza
+przypadkowymi trafieniami cyfr. To narzędzie, którym dysponował ten
+przegląd, nie miało dostępu do `gh`/sieci — Ty masz, więc dokończ to,
+czego tamten przegląd nie mógł domknąć.
+
+CO USTALIĆ (z dowodem, nie z domysłu):
+1. `gh issue view 606 --repo woogitsu/kuking.pl` i `gh issue view 596
+   --repo woogitsu/kuking.pl` — realny stan, treść, powiązane PR-y/commity.
+2. Dla #606: czy driver kolejki w tym projekcie w ogóle korzysta z
+   `SKIP LOCKED` (sprawdź sterownik kolejki w konfiguracji i w Laravelu —
+   może to być właściwość samego frameworka, nie kod aplikacji, co
+   tłumaczyłoby brak wzmianek w `app/`). Jeśli tak — to nie jest rozjazd,
+   tylko luka w tym, co przegląd sprawdzał. Jeśli nie — ustal, co
+   naprawdę zamknęło zgłoszenie.
+3. Dla #596: czy odłączenie volumenu to działanie w panelu Railway (poza
+   repozytorium) — jeśli tak, poszukaj dowodu operacyjnego (log wdrożenia,
+   wzmianka w docs/infra, zrzut konfiguracji), a nie tylko twierdzenia.
+
+KIERUNEK NIE JEST OCZYWISTY. Może się okazać, że PLAN_TECHNICZNY_614.md
+ma rację, a przegląd po prostu nie miał dostępu do dowodu (GitHub,
+Railway) — wtedy Twoim zadaniem jest DOPISAĆ ten dowód do dokumentu, nie
+przepisywać go od nowa. Może się też okazać, że zamknięcie było
+przedwczesne albo dotyczyło czegoś innego niż opisano — wtedy popraw
+PLAN_TECHNICZNY_614.md tak, żeby napisać wprost, CO faktycznie zrobiono,
+z datą i odnośnikiem do PR/commita. NIE dopisuj do docs/DECISIONS.md
+wstecznej decyzji, która miałaby „pasować" do tego, co znajdziesz w
+kodzie — jeśli to była świadoma zmiana, opisz ją jako taką, z powodem i
+datą; jeśli był to dryf bez decyzji, napisz to wprost i zostaw jako
+pytanie do właściciela, czy decyzję domknąć.
+
+DOWÓD NA KAŻDĄ POZYCJĘ: numer PR albo commita, stan issue z `gh`, albo
+wprost „niepotwierdzone — brak dostępu do X”. Zdanie „wygląda na
+zamknięte” nie jest dowodem. Rzetelna lista dwóch pozycji jest cenniejsza
+niż naprawa dziesięciu rzeczy obok tematu — nie odchodź od #606/#596.
+
+JEŚLI PO ŚLEDZTWIE OKAŻE SIĘ, ŻE TO PYTANIE PRODUKTOWE (np. „czy
+odłączony, ale nieusunięty volume jest akceptowalnym stanem końcowym,
+czy trzeba go faktycznie skasować i to jest osobne zadanie") — wypisz
+warianty z kosztem i zostaw właścicielowi, nie domykaj asercją.

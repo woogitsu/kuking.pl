@@ -20,15 +20,20 @@ declare(strict_types=1);
  * o WYNIK KROKU, a nie o to, czy narzędzie się nie wywróciło.
  */
 
+use App\Domain\Collections\Actions\SavePostToCollection;
+use App\Domain\Collections\Actions\SaveRecipeToCollection;
 use App\Domain\Comments\Actions\PublishComment;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\Post;
+use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
+use Illuminate\Database\Events\QueryExecuted;
 use Illuminate\Foundation\Application;
 use Illuminate\Support\Facades\DB;
+use Symfony\Component\Console\Output\BufferedOutput;
 
 require __DIR__.'/../../bootstrap.php';
 
@@ -75,6 +80,25 @@ DB::statement("SET idle_in_transaction_session_timeout = '".(getenv('KUKING_STAT
 
 try {
     $wartosc = match ($scenariusz) {
+        'nadaj-role' => (function () use ($argumenty): array {
+            // Bariera należy wyłącznie do przyrządu. Mierzymy zapytanie
+            // komendy/akcji, nie przepisujemy jej warunku do drugiego SQL-a.
+            DB::listen(static function (QueryExecuted $query): void {
+                if (str_contains($query->sql, 'from "users"')
+                    && str_contains($query->sql, '"role" =')
+                    && str_contains($query->sql, '"status" =')
+                    && (str_contains($query->sql, 'count(') || str_contains($query->sql, 'exists('))) {
+                    DB::select('SELECT pg_advisory_xact_lock(1016, 2)');
+                }
+            });
+            $output = new BufferedOutput;
+            $code = app(Kernel::class)->call('kuking:nadaj-role', [
+                'login' => $argumenty['login'], 'rola' => $argumenty['rola'], '--tak' => true,
+            ], $output);
+
+            return ['code' => $code, 'output' => $output->fetch()];
+        })(),
+
         // Egzekucja karencji jednego konta (Z-2, D-093).
         'kasowanie' => app(EraseAccountData::class)->handle(
             User::query()->whereKey($argumenty['konto'])->firstOrFail(),
@@ -104,6 +128,19 @@ try {
             author: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             subject: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
             body: $argumenty['tresc'],
+        )->getKey(),
+
+        // Pierwszy zapis do zeszytu (#1095). Te scenariusze celowo wołają
+        // akcje domenowe, a nie przepisany SQL: test ma pęknąć, jeśli wróci
+        // wyścig w User::defaultCollection().
+        'zapisz-przepis' => (string) app(SaveRecipeToCollection::class)->handle(
+            user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            recipe: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+        )->getKey(),
+
+        'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(
+            user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
+            post: Post::query()->whereKey($argumenty['wpis'])->firstOrFail(),
         )->getKey(),
 
         default => throw new InvalidArgumentException('Nieznany scenariusz wyścigu: '.$scenariusz),

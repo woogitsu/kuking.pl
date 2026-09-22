@@ -1,0 +1,26 @@
+[
+    {
+        "plik":  "app/Jobs/PrzeanalizujAwatar.php",
+        "md5_przed":  "caf75ae73311695f3de82a2301b99d08",
+        "md5_po_kontrolach":  "caf75ae73311695f3de82a2301b99d08",
+        "identyczne":  true
+    },
+    {
+        "plik":  "app/Jobs/PrzeanalizujTresc.php",
+        "md5_przed":  "b47a772282393f57b4ce77843c031529",
+        "md5_po_kontrolach":  "b47a772282393f57b4ce77843c031529",
+        "identyczne":  true
+    },
+    {
+        "plik":  "app/Moderacja/OcenaModelem.php",
+        "md5_przed":  "5ad2d5c13fe931dbaff0dd472dff9b99",
+        "md5_po_kontrolach":  "5ad2d5c13fe931dbaff0dd472dff9b99",
+        "identyczne":  true
+    },
+    {
+        "plik":  "app/Moderacja/KlientOpenAI.php",
+        "md5_przed":  "1a8950a5d439705f4742cae32ad65d31",
+        "md5_po_kontrolach":  "1a8950a5d439705f4742cae32ad65d31",
+        "identyczne":  true
+    }
+]

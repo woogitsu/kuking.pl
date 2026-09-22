@@ -1,0 +1,25 @@
+{
+    "scope": "Obserwacja wyboru przy zamrożonym zegarze, nie kontrakt pytania przy włączonej fladze. Własne prywatne rekordy, transakcje wycofane.",
+    "rows": [
+        {
+            "kind": "dish",
+            "flag": false,
+            "selected": true
+        },
+        {
+            "kind": "dish",
+            "flag": true,
+            "selected": true
+        },
+        {
+            "kind": "question",
+            "flag": false,
+            "selected": false
+        },
+        {
+            "kind": "question",
+            "flag": true,
+            "selected": true
+        }
+    ]
+}
