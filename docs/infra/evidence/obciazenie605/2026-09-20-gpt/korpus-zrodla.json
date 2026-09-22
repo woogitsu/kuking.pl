@@ -1,0 +1,78 @@
+[
+  {
+    "file": "photo-1.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:%22%D0%9F%D0%BE%D0%BA%D0%BB%D0%B8%D0%BA_%D0%AF%D1%80%D1%83%22_%D0%B7%D0%B0%D0%B9%D0%BC%D0%B0%D1%94%D1%82%D1%8C%D1%81%D1%8F_%D1%82%D0%B0%D0%BA%D0%BE%D0%B6_%D0%BE%D1%85%D0%BE%D1%80%D0%BE%D0%BD%D0%BE%D1%8E_%D0%BF%D1%96%D0%B4%D1%81%D0%BD%D1%96%D0%B6%D0%BD%D0%B8%D0%BA%D1%96%D0%B2.jpg",
+    "download": "https://upload.wikimedia.org/wikipedia/commons/2/2e/%22%D0%9F%D0%BE%D0%BA%D0%BB%D0%B8%D0%BA_%D0%AF%D1%80%D1%83%22_%D0%B7%D0%B0%D0%B9%D0%BC%D0%B0%D1%94%D1%82%D1%8C%D1%81%D1%8F_%D1%82%D0%B0%D0%BA%D0%BE%D0%B6_%D0%BE%D1%85%D0%BE%D1%80%D0%BE%D0%BD%D0%BE%D1%8E_%D0%BF%D1%96%D0%B4%D1%81%D0%BD%D1%96%D0%B6%D0%BD%D0%B8%D0%BA%D1%96%D0%B2.jpg",
+    "license": "CC BY-SA 4.0",
+    "author": "Anklavwx",
+    "width": 6016,
+    "height": 4016,
+    "bytes": 12036636,
+    "sha256": "e6a6f552a6f77332e82aefd74d16799b16edce0f4bb3ad33c09b1d67f018918f"
+  },
+  {
+    "file": "photo-2.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:02_inauguraci%C3%B3n_(17).jpg",
+    "download": "https://upload.wikimedia.org/wikipedia/commons/1/1d/02_inauguraci%C3%B3n_%2817%29.jpg",
+    "license": "CC BY-SA 4.0",
+    "author": "Donosti Cup",
+    "width": 6016,
+    "height": 4016,
+    "bytes": 8191862,
+    "sha256": "9e5129f7ccf3dd3d70e1ec4c63a3a104f16f7d81615b1c312b4e10654c1acd14"
+  },
+  {
+    "file": "photo-3.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Ancient_Egyptian_Garden_2,_Hamilton_Gardens,_2023-11-25.jpg",
+    "download": "https://upload.wikimedia.org/wikipedia/commons/4/49/Ancient_Egyptian_Garden_2%2C_Hamilton_Gardens%2C_2023-11-25.jpg",
+    "license": "CC0",
+    "author": "Sleeps-Darkly",
+    "width": 5712,
+    "height": 4284,
+    "bytes": 4062344,
+    "sha256": "49286a6dbdb9fbc318d6f07605f52ae3c179c25d8bd3802b51d4409f0ee0ae0c"
+  },
+  {
+    "file": "photo-4.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Apple_Vision_Pro_on_display.jpg",
+    "download": "https://upload.wikimedia.org/wikipedia/commons/e/e1/Apple_Vision_Pro_on_display.jpg",
+    "license": "CC BY 4.0",
+    "author": "Seasider53",
+    "width": 6048,
+    "height": 8064,
+    "bytes": 3557662,
+    "sha256": "20b92b134d8e954d672687db04c9b9a779b32dd0d3e056b17ae3763d416565c1"
+  },
+  {
+    "file": "photo-5.jpg",
+    "source": "https://commons.wikimedia.org/wiki/File:Arablish_restaurant_%E2%80%9CLazeez_Cafe%E2%80%9D_Nov_2023.jpg",
+    "download": "https://upload.wikimedia.org/wikipedia/commons/1/13/Arablish_restaurant_%E2%80%9CLazeez_Cafe%E2%80%9D_Nov_2023.jpg",
+    "license": "CC BY 4.0",
+    "author": "Slamforeman",
+    "width": 4032,
+    "height": 3024,
+    "bytes": 2747561,
+    "sha256": "bc0c3b1f685088cc94fed975ed283ab4fa39929f3fd09c217e29c012ab681210"
+  },
+  {
+    "file": "truncated.jpg",
+    "derived_from": "photo-5.jpg",
+    "transformation": "Oryginał 12 MP ucięty do 300 bajtów; uszkodzenie kontrolowane",
+    "sha256": "09fde1f0bd284d91217a482c3715272dc90220f67ffa65f96921b90dd13300c6",
+    "bytes": 300
+  },
+  {
+    "file": "odd-exif.jpg",
+    "derived_from": "photo-5.jpg",
+    "transformation": "Oryginał 12 MP z dodatkowym APP1 wskazującym IFD poza plikiem; uszkodzenie kontrolowane",
+    "sha256": "1992154bbee945c962db7fbccd5502b386a88014425239ea43c0bf534b21bbd3",
+    "bytes": 2747579
+  },
+  {
+    "file": "orientation-6.jpg",
+    "derived_from": "photo-5.jpg",
+    "transformation": "Dodatkowy poprawny APP1 EXIF z orientation=6; oryginalne piksele bez ponownego kodowania",
+    "bytes": 2747597,
+    "sha256": "13f1f8f07e5e3f9e3b3bcde8fa415eee5586edc5c4c1abc87c8425f3aa498173"
+  }
+]

@@ -54,10 +54,12 @@ class BlokadaObowiazujeTakzePrzyOdpowiadaniuTest extends TestCase
             'status' => Comment::STATUS_PUBLISHED,
         ]);
 
+        $liczbaKomentarzyPrzed = Comment::count();
+
         // A zna UUID komentarza B, choć go nie widzi.
-        $this->actingAs($a)
+        $odpowiedz = $this->actingAs($a)
             ->post(route('posts.comment', $wpis), [
-                'body' => 'A ja uważam inaczej.',
+                'body' => 'A JA UWAZAM INACZEJ - TEKST NIE MA PRAWA WYJSC.',
                 'parent_id' => $komentarzB->getKey(),
             ]);
 
@@ -66,6 +68,15 @@ class BlokadaObowiazujeTakzePrzyOdpowiadaniuTest extends TestCase
             Comment::where('parent_id', $komentarzB->getKey())->count(),
             'Powstała odpowiedź pod komentarzem osoby w relacji blokady.',
         );
+
+        // ISSUE #761 — wzmocnienie tego testu: samo `count(parent_id=X) == 0`
+        // przechodziło także wtedy, gdy tekst po cichu wylądował jako NOWY
+        // KOMENTARZ GŁÓWNY (parent_id=NULL) zamiast zostać odrzucony. To
+        // dokładnie ta luka pokrycia, którą wskazano w #761: trzeba sprawdzić
+        // odmowę i brak przyrostu wierszy, nie tylko relację do rodzica.
+        $odpowiedz->assertSessionHasErrors('body');
+        $this->assertDatabaseMissing('comments', ['body' => 'A JA UWAZAM INACZEJ - TEKST NIE MA PRAWA WYJSC.']);
+        $this->assertSame($liczbaKomentarzyPrzed, Comment::count(), 'Nie powstał żaden nowy wiersz — ani odpowiedź, ani cichy komentarz główny.');
     }
 
     public function test_komentarz_bez_pola_parent_id_nie_wywala_serwisu(): void
@@ -111,12 +122,20 @@ class BlokadaObowiazujeTakzePrzyOdpowiadaniuTest extends TestCase
             'status' => Comment::STATUS_PUBLISHED,
         ]);
 
-        $this->actingAs($this->user('czytelnik'))
+        $liczbaKomentarzyPrzed = Comment::count();
+
+        $odpowiedz = $this->actingAs($this->user('czytelnik'))
             ->post(route('posts.comment', $drugi), [
-                'body' => 'Podpinam się nie tam, gdzie trzeba.',
+                'body' => 'PODPINAM SIE NIE TAM GDZIE TRZEBA - TEKST NIE MA PRAWA WYJSC.',
                 'parent_id' => $obcyKomentarz->getKey(),
             ]);
 
         $this->assertSame(0, Comment::where('parent_id', $obcyKomentarz->getKey())->count());
+
+        // ISSUE #761 — to samo wzmocnienie co wyżej: dowieść odmowy i braku
+        // przyrostu wierszy, nie tylko braku relacji do konkretnego rodzica.
+        $odpowiedz->assertSessionHasErrors('body');
+        $this->assertDatabaseMissing('comments', ['body' => 'PODPINAM SIE NIE TAM GDZIE TRZEBA - TEKST NIE MA PRAWA WYJSC.']);
+        $this->assertSame($liczbaKomentarzyPrzed, Comment::count());
     }
 }
