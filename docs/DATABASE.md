@@ -2164,6 +2164,18 @@ pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł 
 zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
 kończyłoby się błędem 500.
 
+Równoległe pierwsze zapisy (#778) rozstrzyga indeks
+`collections_one_default_per_owner_idx`, który nadal dopuszcza tylko jeden
+zeszyt domyślny na właściciela. `User::defaultCollection()` próbuje wstawić
+wiersz w osobnej transakcji (PostgreSQL savepoint, gdy akcja już jest
+w transakcji), a złapane 23505 sprawdza po nazwie tego właśnie indeksu
+i dopiero wtedy odczytuje zwycięski wiersz — kolizja nazwy zeszytu ani inna
+przyszła reguła unikalności nie zniknie pod pozornie udanym zapisem.
+Szukamy po `is_default`, nigdy po nazwie publicznego zeszytu właściciela.
+Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.php`
+oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
+się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
+
 ### first_post_events
 
 Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
