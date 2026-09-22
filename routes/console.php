@@ -203,7 +203,7 @@ ScheduledArtisanCommand::artisan('kuking:sprzataj-zaproszenia')
 // różne tryby awarii: loteria czyści przy ruchu nawet po śmierci
 // harmonogramu, zadanie czyści co noc nawet bez ruchu.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-sesje'))
+ScheduledArtisanCommand::artisan('kuking:sprzataj-sesje')
     ->name('kuking:sprzataj-sesje')
     ->dailyAt('05:10')
     ->withoutOverlapping();
