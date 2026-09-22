@@ -405,9 +405,26 @@ try {
   ]);
 
   const wrocil = await strona.evaluate(POMIAR);
-  console.log(`  po kliknięciu „Zapisz ponownie": „${wrocil.flash}"\n`);
-  sprawdz(wrocil.flash !== null && wrocil.flash.includes('Zapisane w zeszycie'),
-    `Bez JavaScriptu powrót nie zapisał wpisu — komunikat: „${wrocil.flash}".`);
+  const znowuWZeszycie = await strona.locator('[data-rola^="wyjmij-z-"]').count() > 0;
+
+  console.log(`  po kliknięciu „Przywróć do zeszytu": „${wrocil.flash}"`);
+  console.log(`  wpis znowu w zeszycie: ${znowuWZeszycie}\n`);
+
+  /*
+   * POWRÓT PRZYWRACA, A NIE ZAPISUJE OD NOWA (D-230).
+   *
+   * Do złożenia dwóch dróg do #775 przycisk nazywał się „Zapisz ponownie"
+   * i robił zwykły zapis, więc komunikat brzmiał „Zapisane w zeszycie «…»"
+   * — i tego zdania pilnował ten pomiar. Teraz `remove()` oddaje zdjęte
+   * wiersze, a `restore()` odkłada je tam, skąd zeszły, razem z notatką
+   * i pierwotną datą; zdanie mówi więc „wrócił". Pilnujemy OBU rzeczy:
+   * zdania i tego, że wpis naprawdę znowu leży w zeszycie — samo zdanie
+   * bez wiersza byłoby komunikatem o niczym.
+   */
+  sprawdz(wrocil.flash !== null && wrocil.flash.includes('wrócił do zeszytu'),
+    `Bez JavaScriptu powrót nie przywrócił wpisu — komunikat: „${wrocil.flash}".`);
+  sprawdz(znowuWZeszycie,
+    'Bez JavaScriptu komunikat mówi o powrocie, a wpisu nie ma z powrotem w zeszycie.');
 
   await bezSkryptu.close();
 } finally {
