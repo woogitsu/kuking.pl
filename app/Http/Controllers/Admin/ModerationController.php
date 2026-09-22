@@ -23,6 +23,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Illuminate\Validation\Validator as Walidator;
 use Illuminate\View\View;
 
@@ -324,8 +325,25 @@ class ModerationController extends Controller
             //  - do logu wchodzi STAN SPRZED decyzji (`previous_status`), więc
             //    trzeba go odczytać, zanim cokolwiek się zmieni. Bez tego
             //    ukrycia nie da się później cofnąć do właściwego stanu (#65).
-            $cel = ModeratedContent::znajdz($report->target_type, $report->target_id);
-            $osoba = $cel === null ? null : ModeratedContent::osoba($cel);
+            $cel = ModeratedContent::znajdz($report->target_type, $report->target_id, zUsunietymi: true);
+            $celNiedostepny = $cel === null
+                || (method_exists($cel, 'trashed') && $cel->trashed());
+
+            if ($celNiedostepny && $data['action'] !== ModerationAction::ACTION_NONE) {
+                throw ValidationException::withMessages([
+                    'action' => 'Tej treści już nie ma albo nie da się jej odnaleźć. '
+                        .'Wybierz „Bez działania”, aby zamknąć sprawę bez zapisywania sankcji.',
+                ]);
+            }
+
+            // Brak celu nie może być cichym sukcesem wybranej sankcji. Przy
+            // świadomym „Bez działania” zapisujemy osobny, prawdziwy wynik,
+            // żeby odpowiedź nie twierdziła, że treść oceniono i zostawiono.
+            $wykonanaAkcja = $celNiedostepny
+                ? ModerationAction::ACTION_TARGET_UNAVAILABLE
+                : $data['action'];
+            $aktywnyCel = $celNiedostepny ? null : $cel;
+            $osoba = $aktywnyCel === null ? null : ModeratedContent::osoba($aktywnyCel);
 
             $akcja = ModerationAction::create([
                 'moderator_id' => $moderator->getKey(),
@@ -333,14 +351,14 @@ class ModerationController extends Controller
                 'target_type' => $report->target_type,
                 'target_id' => $report->target_id,
                 'subject_user_id' => $osoba?->getKey(),
-                'action' => $data['action'],
-                'previous_status' => $cel === null ? null : ($cel->status ?? null),
+                'action' => $wykonanaAkcja,
+                'previous_status' => $aktywnyCel === null ? null : ($aktywnyCel->status ?? null),
                 'reason_code' => $data['reason_code'],
                 'note' => $data['note'] ?? null,
                 'user_message' => $data['user_message'] ?? null,
             ]);
 
-            $this->applyAction($cel, $osoba, $data['action'], $termin);
+            $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $termin);
 
             // Powiadomienie o decyzji. Dopóki go nie było, `user_message` lądowała
             // wyłącznie w logu moderacji: dokumentacja twierdziła, że autora
@@ -351,7 +369,7 @@ class ModerationController extends Controller
             if ($osoba !== null) {
                 $this->powiadom->handle(
                     osoba: $osoba,
-                    decyzja: $data['action'],
+                    decyzja: $wykonanaAkcja,
                     wiadomoscModeratora: $data['user_message'] ?? null,
                     do: $termin,
                     // Bez tego powiadomienie mówi „możesz się odwołać" i nie ma
@@ -393,7 +411,7 @@ class ModerationController extends Controller
             $this->powiadomZglaszajacego->handle($zablokowane, $akcja);
 
             $zablokowane->update([
-                'status' => $data['action'] === ModerationAction::ACTION_NONE
+                'status' => $wykonanaAkcja === ModerationAction::ACTION_NONE
                     ? Report::STATUS_REJECTED
                     : Report::STATUS_RESOLVED,
                 'resolution_note' => $data['note'] ?? null,
@@ -406,7 +424,7 @@ class ModerationController extends Controller
                 actor: $moderator,
                 subject: $zablokowane,
                 metadata: [
-                    'decision' => $data['action'],
+                    'decision' => $wykonanaAkcja,
                     'reason_code' => $data['reason_code'],
                     'suspend_days' => $data['suspend_days'] ?? null,
                     // Sam wybór z listy przestał wystarczać, odkąd jedną z

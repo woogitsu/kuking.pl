@@ -1,0 +1,39 @@
+app\Http\Controllers\CollectionController.php:157:            ->paginate(12);
+app\Http\Controllers\CollectionController.php:168:            ->paginate(
+app\Http\Controllers\FeedController.php:70:            'posts' => $this->discoverFeed->paginate(null, 9),
+app\Http\Controllers\FeedController.php:173:                'obserwowani' => $this->followingFeed->paginate($user),
+app\Http\Controllers\FeedController.php:174:                'tagi' => $this->tagFeed->paginate($user),
+app\Http\Controllers\FeedController.php:175:                default => $this->discoverFeed->paginate($user),
+app\Http\Controllers\FeedController.php:186:            'posts' => $this->discoverFeed->paginate($request->user()),
+app\Http\Controllers\PostController.php:587:            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+app\Http\Controllers\Admin\WiadomosciController.php:60:            ->paginate(25)
+app\Http\Controllers\NotificationController.php:28:            ->paginate(30);
+app\Http\Controllers\ProfileController.php:102:                    ->paginate(12)
+app\Http\Controllers\ProfileController.php:109:                    ->paginate(12)
+app\Http\Controllers\ProfileController.php:218:            // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
+app\Http\Controllers\ProfileController.php:229:            ->paginate(12)
+app\Http\Controllers\Admin\UzytkownicyController.php:317:            ->paginate(self::NA_STRONIE)
+app\Http\Controllers\RecipeController.php:380:            ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
+app\Http\Controllers\RecipeController.php:402:            ->paginate(12, ['*'], 'wykonania');
+app\Http\Controllers\QuestionController.php:28:            ->cursorPaginate((int) config('kuking.feed.page_size'))
+app\Http\Controllers\ReportController.php:129:            ->paginate(20);
+app\Http\Controllers\Admin\SygnalyController.php:190:            ->paginate(self::GRUP_NA_STRONE)
+app\Http\Controllers\Admin\ModerationController.php:103:            ->paginate(25)
+app\Http\Controllers\SocialController.php:203:            ->paginate(20)
+app\Http\Controllers\TagController.php:80:            ->paginate((int) config('kuking.tags.index_page_size'))
+app\Http\Controllers\TagController.php:134:            ->paginate((int) config('kuking.feed.page_size'))
+app\Http\Controllers\Admin\BezOdpowiedziController.php:58:                ->orderBy('published_at')->orderBy('id')->paginate(25)->withQueryString();
+app\Http\Controllers\Admin\BezOdpowiedziController.php:65:                ? $this->queue->recipes($request->user())->with('author.profile')->orderBy('published_at')->orderBy('id')->simplePaginate(25)
+app\Http\Controllers\Admin\BezOdpowiedziController.php:66:                : $this->queue->cooked($request->user())->with(['user.profile', 'recipe'])->orderBy('created_at')->orderBy('id')->simplePaginate(25);
+app\Http\Controllers\Admin\AppealController.php:78:                ->paginate(25)
+app\Domain\Feed\TagFeed.php:46:    public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
+app\Domain\Feed\TagFeed.php:105:            ->cursorPaginate($perPage);
+app\Domain\Feed\TagFeed.php:121:        // DOKŁADNIE TE SAME WARUNKI CO W `paginate()`, łącznie z bramką
+app\Domain\Feed\TagFeed.php:123:        // pokazać" o treści, których `paginate()` i tak nie odda — i widz
+app\Domain\Feed\FollowingFeed.php:35:    public function paginate(User $viewer, ?int $perPage = null): CursorPaginator
+app\Domain\Feed\FollowingFeed.php:98:            ->cursorPaginate($perPage);
+app\Domain\Feed\FollowingFeed.php:123:            // TEN SAM WARUNEK CO W `paginate()` (issue #368) i z tego samego
+app\Domain\Feed\DiscoverFeed.php:38:    public function paginate(?User $viewer, ?int $perPage = null): CursorPaginator
+app\Domain\Feed\DiscoverFeed.php:70:                // Patrz komentarz w FollowingFeed::paginate() — karta wpisu
+app\Domain\Feed\DiscoverFeed.php:87:            ->cursorPaginate($perPage);
+app\Domain\Feed\DailyBoard.php:358:            // DiscoverFeed::paginate(): to jest promowanie treści, więc próg

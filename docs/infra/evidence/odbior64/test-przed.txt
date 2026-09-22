@@ -1,0 +1,15 @@
+
+   PASS  Tests\Feature\DokumentyMdNieMajaMartwychOdnosnikowTest
+  ✓ odnosniki markdown prowadza do istniejacych celow                    0.17s
+  ✓ trasy wspominane w dokumentach naprawde istnieja                     0.10s
+  ✓ parser zachowuje parametry rozszerzenia i odrzuca falszywe trasy     0.01s
+
+   PASS  Tests\Feature\JednoDekodowanieZdjeciaTest
+  ✓ jedno dekodowanie zachowuje bajty wszystkich wariantow               0.02s
+
+   PASS  Tests\Feature\PrzerwanePrzetwarzanieNieZostawiaSierotyTest
+  ✓ zadanie przerwane w polowie zostawia klucze ktore kasowanie znajdzi… 0.75s
+  ✓ po udanym zadaniu lista w trakcie znika                              0.16s
+
+  Tests:    6 passed (387 assertions)
+  Duration: 5.09s

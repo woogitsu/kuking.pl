@@ -103,6 +103,16 @@ class ResetHaslaMowiPrawdeTest extends TestCase
         // odpowiadała na nie „poczta działa”, czyli dokładnie tym kłamstwem,
         // przed którym broni ekran „Nie pamiętam hasła”. Sprawdza to teraz
         // `test_sterownik_bez_transportu_nie_uchodzi_za_dzialajacy` niżej.
+        // SES musi mieć własne poświadczenia (#1042). To kontrola dodatnia
+        // kompletnej konfiguracji; brak któregokolwiek pola mierzy
+        // SesNieUzywaPoswiadczenR2Test, bez dziedziczenia kluczy zdjęć.
+        config([
+            'services.ses.key' => 'ses-test-key',
+            'services.ses.secret' => 'ses-test-secret',
+            'services.ses.region' => 'eu-central-1',
+        ]);
+        Mail::purge('ses');
+
         foreach (['smtp', 'ses'] as $dostarczajacy) {
             config(['mail.default' => $dostarczajacy]);
             $this->assertTrue(Poczta::dziala(), "Sterownik „{$dostarczajacy}” dostarcza, a klasa twierdzi inaczej.");
