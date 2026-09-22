@@ -192,6 +192,7 @@ ScheduledArtisanCommand::artisan('kuking:sprzataj-zmiany-adresu')
 ScheduledArtisanCommand::artisan('kuking:sprzataj-potwierdzenia-rodo')
     ->name('kuking:sprzataj-potwierdzenia-rodo')
     ->dailyAt('05:20')
+    ->onOneServer()
     ->withoutOverlapping();
 
 // 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest
