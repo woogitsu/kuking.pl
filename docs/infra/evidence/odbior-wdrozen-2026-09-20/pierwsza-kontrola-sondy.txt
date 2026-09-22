@@ -1,0 +1,27 @@
+
+── Kontrola ujemna: 601: dodatkowe dekodowanie prawdziwej fotografii ──
+  plik:     app/Jobs/ProcessUploadedImage.php
+  MD5 przed: ebb79774f22d5f89b6731d7c0b6182d6
+  oczekuję:  Job powinien zdekodować fotografię dokładnie raz
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 ebb79774f22d5f89b6731d7c0b6182d6 → fe09bb0f9cda12da135ddaa4fb2224ff.
+  różnica:
+                     ]),
+                 ]);
+
+    -            $sourceImage = $manager->read($original);
+    +            $manager->read($original); $sourceImage = $manager->read($original);
+                 OrientacjaZdjecia::zastosuj($sourceImage, $orientation);
+
+                 foreach (config('kuking.media.variants') as $name => $maxEdge) {
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✗ Mutacja weszła, a test DALEJ PRZECHODZI — ten test nie pilnuje tego, co zepsuliśmy.
+
+In odbior-media-601.php line 36:
+
+  Job powinien zdekodować fotografię dokładnie raz.
+
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

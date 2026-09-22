@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Gate;
 
 /**
@@ -24,6 +25,14 @@ final class SaveRecipeToCollection
     public function __construct(private readonly NotifyUser $notify) {}
 
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
+    {
+        // Oba skutki są zapisami tej samej bazy (#907). Istniejące powiązanie
+        // jest znacznikiem zakończenia: zatwierdzamy je razem z powiadomieniem.
+        // Nie sprawdzamy istnienia wiadomości, którą mogła usunąć retencja.
+        return DB::transaction(fn (): Collection => $this->saveWithNotification($user, $recipe, $collection, $note));
+    }
+
+    private function saveWithNotification(User $user, Recipe $recipe, ?Collection $collection, ?string $note): Collection
     {
         $collection ??= $user->defaultCollection();
         Gate::forUser($user)->authorize('update', $collection);
@@ -56,10 +65,10 @@ final class SaveRecipeToCollection
         }
 
         try {
-            $collection->recipes()->attach($recipe->getKey(), [
+            DB::transaction(fn () => $collection->recipes()->attach($recipe->getKey(), [
                 'note' => $note,
                 'created_at' => now(),
-            ]);
+            ]));
         } catch (UniqueConstraintViolationException) {
             // Dwa kliknięcia potrafią wejść RÓWNOCZEŚNIE — wtedy oba przechodzą
             // sprawdzenie wyżej i drugie odbija się o klucz główny. Dla

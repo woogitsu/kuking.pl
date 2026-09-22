@@ -1,0 +1,46 @@
+# Otoczenie serii jit-on-r030-p2 — 2026-09-20T18:46:37Z
+# progi bramki: obce <= 18 rdzeni, PSI cpu some avg10 <= 25, spokój 60s
+
+## uptime przed bramką
+ 20:46:37 up 2 days, 12 min,  1 user,  load average: 21.17, 22.72, 17.02
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+2225046  285  1.2       09:27 headless_shell
+2302339  228  1.2       05:45 headless_shell
+2398985  103  1.2       00:03 headless_shell
+2388515 70.8  0.2       01:10 python3
+2302904 65.2  1.1       05:41 php
+2297835 57.3  1.1       06:09 php
+2274600 56.9  1.1       07:20 php
+2311138 55.4  1.0       04:57 php
+2296500 50.6  0.3       06:13 python3
+2302265 50.5  1.0       05:45 php
+2254483 49.5  1.1       08:33 php
+2399271 38.6  0.4       00:01 frankenphp
+2392226 36.6  1.7       00:38 headless_shell
+2399272 14.8  0.2       00:01 php
+2302213 14.6  1.4       05:45 MainThread
+2224483 13.2  1.4       09:28 MainThread
+2302303  6.7  0.3       05:45 headless_shell
+2225024  6.1  0.3       09:27 headless_shell
+2302342  5.6  0.3       05:45 headless_shell
+2301960  5.0  2.4       05:48 MainThread
+2225048  4.6  0.3       09:27 headless_shell
+2223583  3.2  2.8       09:30 MainThread
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 10
+Runner.Worker (aktywne joby): 5
+
+## kontenery
+kuking-gpt-obciazenie-app kuking:ci-4c811cc7bff365fb8f86d87eabac93b7738a45cd Up 2 seconds (health: starting)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 2 days
+bramka: 30s/300s, obce 15.92 rdzeni z 24, PSI 8.65, runnery kuking: brak, cisza 30s/60s
+bramka OTWARTA po 59s: obce <= 18 rdzeni, PSI <= 25 i ZERO pracujących runnerów kuking przez 60s
+
+## uptime po otwarciu bramki, tuż przed serią
+ 20:47:39 up 2 days, 13 min,  1 user,  load average: 18.27, 21.68, 17.03
+
+## uptime po serii i po 60 s wybiegu
+ 20:51:11 up 2 days, 17 min,  1 user,  load average: 19.27, 20.47, 17.52

@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\HasOne;
+use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Support\Facades\DB;
@@ -702,11 +703,36 @@ class User extends Authenticatable implements MustVerifyEmailContract
             return $istniejaca;
         }
 
-        return $this->collections()->create([
-            'name' => $this->wolnaNazwaDomyslnegoZeszytu(),
-            'visibility' => 'private',
-            'is_default' => true,
-        ]);
+        try {
+            // Osobna transakcja daje PostgreSQL savepoint, gdy wywołująca
+            // akcja już jest w transakcji. Bez niego złapane 23505 zostawia
+            // całe zewnętrzne połączenie w stanie „transaction aborted”.
+            return DB::transaction(fn (): Collection => $this->collections()->create([
+                'name' => $this->wolnaNazwaDomyslnegoZeszytu(),
+                'visibility' => 'private',
+                'is_default' => true,
+            ]));
+        } catch (UniqueConstraintViolationException $e) {
+            // Obsługujemy WYŁĄCZNIE wyścig o jeden domyślny zeszyt. Kolizja
+            // nazwy ani przyszła inna reguła unikalności nie może zniknąć pod
+            // pozornie udanym zapisem.
+            if (! self::naruszonoIndeksDomyslnegoZeszytu($e)) {
+                throw $e;
+            }
+
+            return $this->collections()->where('is_default', true)->first() ?? throw $e;
+        }
+    }
+
+    private static function naruszonoIndeksDomyslnegoZeszytu(UniqueConstraintViolationException $e): bool
+    {
+        for ($wyjatek = $e; $wyjatek !== null; $wyjatek = $wyjatek->getPrevious()) {
+            if (str_contains($wyjatek->getMessage(), 'collections_one_default_per_owner_idx')) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**
@@ -821,7 +847,9 @@ class User extends Authenticatable implements MustVerifyEmailContract
      */
     public function sendPasswordResetNotification(#[\SensitiveParameter] $token): void
     {
-        $this->notify(new UstawienieNowegoHasla($token));
+        $this->notify(new UstawienieNowegoHasla($token, now()->addMinutes((int) config(
+            'auth.passwords.'.config('auth.defaults.passwords').'.expire', 60,
+        ))));
     }
 
     public function sendEmailVerificationNotification(): void
