@@ -17,6 +17,7 @@ import { sprawdzSzybkiWyglad } from './szybki-wyglad.mjs';
 import { sprawdzPasek } from './pasek-przewijany.mjs';
 import { sprawdzZwarteKolumny } from './zwarte-kolumny.mjs';
 import { sprawdzPrzyciskRejestracji } from './przycisk-rejestracji.mjs';
+import { sprawdzHeroNadZgieciem } from './hero-nad-zgieciem.mjs';
 import { sprawdzInstalacjePwa } from './pwa-install-browser.mjs';
 import { sprawdzMacierzNawigacji } from './nawigacja-etykiety.mjs';
 import { sprawdzZoomNawigacji } from './nawigacja-zoom.mjs';
@@ -461,6 +462,10 @@ try {
   await sprawdzPodpowiedzi({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzZwarteKolumny({ browser: przegladarka, adres });
   await sprawdzPrzyciskRejestracji({ browser: przegladarka, adres });
+  /* `sprawdzPrzyciskRejestracji` mierzy w oknie 900 px wysokości, więc odpowiada
+     na pytanie „czy przycisk jest sprawny", a nie „czy widać go bez przewijania".
+     To drugie pytanie ma własne okna — wysokości prawdziwych telefonów. */
+  await sprawdzHeroNadZgieciem({ browser: przegladarka, adres });
   await sprawdzInstalacjePwa({ browser: przegladarka, adres, sesja, phpEnv: env() });
   await sprawdzPasek({ browser: przegladarka, adres, sesja });
   await sprawdzSzybkiWyglad({ browser: przegladarka, adres });
