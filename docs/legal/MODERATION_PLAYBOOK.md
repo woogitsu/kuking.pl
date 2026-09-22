@@ -58,6 +58,7 @@ Kolumny „Pierwsza reakcja" i „Eskalacja" opisują politykę. Narzędzie ma d
 - **Długość zawieszenia wybierasz z listy: bez zawieszenia (pozycja domyślna), 1, 7 albo 30 dni, własny termin albo bezterminowo.** Własny termin to liczba dni od 1 do 365, którą wpisujesz w polu pod listą — przy każdym innym wyborze ta liczba jest ignorowana i nie musisz jej czyścić. Zawieszenie z terminem zdejmuje się samo; „bezterminowo" trwa do decyzji człowieka.
 - **Brak wyboru NIE znaczy „bezterminowo".** Do września 2026 znaczył — czyli pomyłka przez zaniechanie dawała najsurowszą karę, jaką panel potrafi wydać. Dziś domyślnie zaznaczone jest „Bez zawieszenia", a decyzja „Zawieś konto" bez wybranego terminu nie przechodzi: formularz pyta, na jak długo, i nie traci przy tym tego, co już wpisałeś.
 - **Powiadomienie o decyzji wychodzi zawsze i automatycznie** — przy ukryciu, usunięciu, ostrzeżeniu, zawieszeniu i blokadzie. Nie da się „ukarać po cichu". Puste pole „Wiadomość do użytkownika" znaczy tylko tyle, że pójdzie zdanie domyślne.
+- **Zniknięta treść nie daje pozornej sankcji.** Jeśli autor usunął cel przed decyzją albo adresu nie da się już rozpoznać, ukrycie, usunięcie, ostrzeżenie, zawieszenie i blokada są zatrzymywane z czytelnym błędem, a sprawa pozostaje otwarta. Moderator wybiera wtedy „Bez działania”; historia zapisuje osobny wynik „Cel niedostępny podczas rozstrzygania”, a zgłaszający dostaje neutralną informację, że treści nie dało się ocenić. Nie zgadujemy autora po adresie ani po nazwie profilu.
 - **Panel nie pokazuje historii wcześniejszych kar autora.** Kolumna „Eskalacja" mówi „2. wystąpienie", „powtórka" — ale kolejka zgłoszeń tego nie liczy i nie wyświetla. Dziś to pamięć moderatora, nie funkcja produktu.
 - **Ukryty PRZEPIS jest dla autora zamrożony.** Autor go zobaczy pod jego adresem, ale nie otworzy edycji (`RecipeStatusTransitions::BY_AUTHOR`: wiersz `hidden` jest pusty). Więc „ukryj i daj szansę poprawy" działa dla wpisu, a dla przepisu — nie. Przy prawach autorskich albo poproś o nową wersję przepisu, albo zdejmij ukrycie na czas poprawy.
 
@@ -422,3 +423,13 @@ Przy 1–2 osobach moderacja treści wrażliwych (zwłaszcza zdjęć i opisów) 
 - Powiązane: `docs/legal/COMPLIANCE.md` (podstawy prawne DSA/RODO cytowane w tym dokumencie)
 - Wewnętrzne źródło produktowe: `docs/MODERATION.md` (założenia produktowe, na których oparto ten podręcznik)
 - Kod, który egzekwuje terminy i decyzje opisane wyżej: `config/kuking.php` (`kuking.moderation`), `app/Domain/Moderation/`, `app/Http/Controllers/Admin/ModerationController.php`, `app/Http/Controllers/Admin/AppealController.php`, `routes/console.php` (harmonogram)
+
+## Potwierdzenie formularza zgłoszenia — #842
+
+Ekran po wysłaniu zachowuje numer sprawy przez 30 minut w sesji tej samej
+osoby. Każde wysłanie ma osobne potwierdzenie, więc dwie karty nie podmieniają
+sobie numerów. Bez kontekstu lub po wygaśnięciu ekran nie twierdzi, że nowe
+zgłoszenie przyjęto, i nie zachęca do ponownego wysyłania. Sam adres
+potwierdzenia nie daje dostępu do sprawy w innej sesji. Nie zmienia to
+retencji zgłoszeń, potwierdzeń pocztą ani sposobu pracy moderatora.
+Pomiar i granice: `docs/product/KONTAKT_FORMULARZ_836_842.md`.

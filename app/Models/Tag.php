@@ -111,6 +111,25 @@ class Tag extends Model
         return $slug === '' ? 'tag' : $slug;
     }
 
+    /**
+     * Klucz, pod którym ten tag odpowiada TOKENOWI `#tag` z treści wpisu
+     * (issue #737).
+     *
+     * DLACZEGO NIE PO PROSTU `normalized_name`. Ta kolumna bywa NIEWCZYTANA:
+     * widoki ładują relację z białą listą kolumn (`tags:id,slug,name,status`
+     * w `PostController`), żeby nie ciągnąć z bazy więcej, niż pokazują.
+     * Odwołanie do niewczytanej kolumny nie rzuca błędem — zwraca `null`,
+     * czyli klucz, który NIGDY się nie dopasuje. To jest dokładnie ten
+     * rodzaj cichej usterki, który ten issue naprawiał, więc reprodukowanie
+     * go w poprawce byłoby żartem: `name` jest wczytane wszędzie, bo to ono
+     * stoi na chipsie, a `znormalizujNazwe()` jest TYM SAMYM przejściem,
+     * którym `normalized_name` powstało przy zapisie.
+     */
+    public function kluczTokenu(): string
+    {
+        return self::znormalizujNazwe((string) ($this->normalized_name ?? $this->name));
+    }
+
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_tags')

@@ -1,0 +1,802 @@
+[
+  {
+    "id": "H001",
+    "text": "gdzie mój zapisany przepis",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H002",
+    "text": "gdzie mam zeszyt",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H003",
+    "text": "zapisałam ciasto i nie wiem gdzie",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H004",
+    "text": "chcę otworzyć moje zeszyty",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H005",
+    "text": "gdzie przepisy zapisane na później",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H006",
+    "text": "jak wejsc do zeszytu",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H007",
+    "text": "gdzie znajdę zapisane potrawy",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H008",
+    "text": "schowałam przepis do zeszytu",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H009",
+    "text": "moje zapisane rzeczy",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H010",
+    "text": "chce zobaczyc co se zapisalam",
+    "expected": {
+      "intent": "collections"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H011",
+    "text": "chce pokazac obiad",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H012",
+    "text": "gdzie wrzucić zdjęcie zupy",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H013",
+    "text": "dodam samą fotkę",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H014",
+    "text": "jak dodać zdjęcie obiadu",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H015",
+    "text": "chcę pokazać co jem",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H016",
+    "text": "czy muszę dać opis pod zdjęciem",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H017",
+    "text": "chce wrzucic zdjecie bez przepisu",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H018",
+    "text": "mam fotke obiadu",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H019",
+    "text": "gdzie dać zdjęcie ciasta",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H020",
+    "text": "chcę opublikować samo zdjęcie",
+    "expected": {
+      "intent": "post"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H021",
+    "text": "gdzie wpisać własny przepis",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H022",
+    "text": "mam recepturę babci gdzie ją dodać",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H023",
+    "text": "chcę zapisać składniki i kroki",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H024",
+    "text": "jak dodać cały przepis",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H025",
+    "text": "gdzie formularz przepisu",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H026",
+    "text": "spisze swoj przepis",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H027",
+    "text": "własny przepis chcę umieścić",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H028",
+    "text": "mam swój opis potrawy do dodania",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H029",
+    "text": "przepis na sernik chcę wpisać",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H030",
+    "text": "jak wprowadzic recepture",
+    "expected": {
+      "intent": "recipe"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H031",
+    "text": "zapomniałam hasła",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H032",
+    "text": "nie pamietam hasla",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H033",
+    "text": "jak odzyskać hasło",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H034",
+    "text": "gdzie reset hasła",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H035",
+    "text": "hasło mi umknęło",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H036",
+    "text": "chce odnowic haslo bo nie pamietam",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H037",
+    "text": "zapomniałem hasło do konta",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H038",
+    "text": "nie pamiętam czym się logowałam, hasłem",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H039",
+    "text": "zgubiłam hasło",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H040",
+    "text": "pomóż odzyskać dostęp zapomniałem hasła",
+    "expected": {
+      "intent": "password"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H041",
+    "text": "pobierz moje dane",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H042",
+    "text": "chcę eksport danych",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H043",
+    "text": "zabierz moje przepisy na komputer",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H044",
+    "text": "gdzie mogę pobrać kopię danych",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H045",
+    "text": "jak wyeksportowac konto",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H046",
+    "text": "potrzebuję archiwum swoich danych",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H047",
+    "text": "chcę kopię moich danych z portalu",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H048",
+    "text": "gdzie eksport",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H049",
+    "text": "zapisac dane z konta na dysku",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H050",
+    "text": "ściągnąć moje dane",
+    "expected": {
+      "intent": "export"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H051",
+    "text": "za małe litery",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H052",
+    "text": "chce wieksze literki",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H053",
+    "text": "jak powiększyć tekst",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H054",
+    "text": "gdzie zmienię wygląd",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H055",
+    "text": "ciemne tło mi nie pasuje",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H056",
+    "text": "jak przełączyć na jasny motyw",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H057",
+    "text": "większa czcionka poproszę",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H058",
+    "text": "nie widzę liter takie drobne",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H059",
+    "text": "gdzie ustawienie rozmiaru pisma",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H060",
+    "text": "chcę zmienić motyw",
+    "expected": {
+      "intent": "appearance"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H061",
+    "text": "aplikacja nie działa",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H062",
+    "text": "strona się nie otwiera",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H063",
+    "text": "chcę zgłosić problem techniczny",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H064",
+    "text": "gdzie kontakt z obsługą",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H065",
+    "text": "ciągle mam błąd strony",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H066",
+    "text": "zdjęcie nie chce się dodać",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H067",
+    "text": "coś się zawiesiło",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H068",
+    "text": "nie mogę znaleźć najstarszego szkicu",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H069",
+    "text": "mam siedem szkiców widzę tylko trzy",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H070",
+    "text": "formularz nie odpowiada",
+    "expected": {
+      "intent": "contact"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H071",
+    "text": "gdzie jest pomoc",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H072",
+    "text": "pokaż instrukcję obsługi portalu",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H073",
+    "text": "otwórz zwykłą pomoc",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H074",
+    "text": "chcę przeczytać pomoc",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H075",
+    "text": "strona pomocy",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H076",
+    "text": "instrukcja serwisu",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H077",
+    "text": "gdzie wyjaśnienie obsługi",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H078",
+    "text": "pomoc do portalu poproszę",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H079",
+    "text": "jak otworzyć pomoc",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H080",
+    "text": "szukam działu pomocy",
+    "expected": {
+      "intent": "help"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H081",
+    "text": "nic nie przyszło na maila",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H082",
+    "text": "usuń mnie stąd",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H083",
+    "text": "ktoś mnie obraża",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H084",
+    "text": "nie mam tego",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H085",
+    "text": "co teraz",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H086",
+    "text": "nie wiem o co chodzi",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H087",
+    "text": "to mi zniknęło",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H088",
+    "text": "chcę coś zmienić",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H089",
+    "text": "wiadomość nie przyszła",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H090",
+    "text": "pomóż z tym",
+    "expected": {
+      "intent": "clarify"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H091",
+    "text": "wyślij wiadomość prywatną",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H092",
+    "text": "gdzie ranking kucharzy",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H093",
+    "text": "chcę punkt za aktywność",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H094",
+    "text": "jak zaakceptować najlepszą odpowiedź",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H095",
+    "text": "wymyśl mój przepis",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H096",
+    "text": "odblokuj mi konto administratora",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H097",
+    "text": "zmień cudzy przepis",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H098",
+    "text": "pokaż cudze prywatne dane",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H099",
+    "text": "opublikuj za mnie wpis",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  },
+  {
+    "id": "H100",
+    "text": "czy wpis sam wyśle się po powrocie internetu",
+    "expected": {
+      "intent": "unsupported"
+    },
+    "provenance": "syntetyczny, przygotowany przed pomiarem"
+  }
+]

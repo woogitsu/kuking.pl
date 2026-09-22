@@ -40,6 +40,7 @@
    z nich dopisuje własne klasy do @layer components, żadny nie nadpisuje
    klasy z innego. */
 @import "./ekran-wyszukiwania.css";
+@import "./ekran-tagi.css";
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";
@@ -848,9 +849,6 @@
     flex: none;
     color: var(--color-brand);
   }
-
-  /* Wersja dla <img>, używana jeszcze w pustych stanach. */
-  .wordmark-mark { width: 2rem; height: 2rem; flex: none; }
 
   /*
    * NAPIS LOGOTYPU ZNIKA, GDY NIE MA JAK SIĘ ZMIEŚCIĆ — zostaje sam garnek.
@@ -1808,6 +1806,23 @@
     border: 2px solid var(--color-success);
   }
 
+  /* Droga powrotu pod komunikatem — przycisk „Zapisz ponownie" po wyjęciu
+     wpisu z zeszytu (audyt L1, `components/layout.blade.php`).
+
+     Przycisk stoi POD plakietką, nie w niej: `.flash` jest `<p>` z jednym
+     zdaniem i kilka testów czyta go dokładnie w tym kształcie. Żeby mimo to
+     czytało się jako jedna całość, plakietka oddaje część swojego dolnego
+     odstępu, gdy przycisk za nią stoi. `:has` w przeglądarce bez obsługi po
+     prostu nic nie zmienia — zostaje zwykły, większy odstęp, czyli stan
+     sprzed tej zmiany. */
+  .flash:has(+ .flash-powrot) {
+    margin-bottom: var(--spacing-3);
+  }
+
+  .flash-powrot {
+    margin-bottom: var(--spacing-5);
+  }
+
   .notice {
     border-radius: var(--radius-md);
     padding: var(--spacing-4);
@@ -2237,6 +2252,14 @@
   /* Odsunięcie zgłoszenia na koniec wiersza. Przy zawijaniu po prostu
      schodzi do nowej linii, zamiast wypychać cokolwiek poza ekran. */
   .post-card-report { margin-left: auto; }
+
+  /* Cytat treści na formularzu zgłoszenia (issue #794). */
+  .cel-zgloszenia-cytat {
+    font-size: var(--text-body);
+    font-style: italic;
+    color: var(--color-ink-muted);
+    overflow-wrap: anywhere;
+  }
 
   /* --- Zachęta do dodania wpisu („composer" z mockupów 01 i 05) ---
 
@@ -2956,6 +2979,23 @@
   /* Okruszki: „Start › Przepisy". W kicie są, ale u nas robią więcej niż
      ozdobę — na stronie przepisu ląduje się najczęściej prosto z Google,
      bez żadnego kontekstu, gdzie się jest. */
+  /*
+   * ROZMIAR PISMA I CEL DOTKNIĘCIA W OKRUSZKACH — 18 px i 48 px.
+   *
+   * ZMIERZONE PRZED POPRAWKĄ na `/przepisy/{slug}` (Chromium, 320–1440 px,
+   * oba motywy): „Start" 35 × 20 px, „Świeżo z Kuking" 125 × 20 px, pismo
+   * 16 px. Komentarz nad tą regułą mówi wprost, że okruszki „robią więcej
+   * niż ozdobę" — są jedyną drogą powrotną dla kogoś, kto wszedł na przepis
+   * prosto z wyszukiwarki. Element, po którym się nawiguje, nie jest pomocą
+   * kontekstową w rozumieniu `docs/design/DESIGN_SYSTEM.md`: nie ma obok
+   * niego tekstu ≥ 18 px, od którego byłby dopiskiem.
+   *
+   * Rozmiar zdejmujemy z listy (dziedziczy 18 px z `body`), a minimum celu
+   * dokładamy odnośnikom — `li` bez odnośnika (bieżąca strona) zostaje
+   * zwykłym tekstem, więc nie ma po co go rozpychać. `inline-flex`, bo
+   * okruszki stoją w wierszu; pionowy padding na elemencie `inline` nie
+   * powiększyłby realnego celu.
+   */
   .okruchy {
     display: flex;
     flex-wrap: wrap;
@@ -2964,8 +3004,13 @@
     list-style: none;
     padding: 0;
     margin: 0 0 var(--spacing-2);
-    font-size: var(--text-help);
     color: var(--color-ink-muted);
+  }
+
+  .okruchy a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height-min);
   }
 
   .okruchy li + li::before {
@@ -4055,10 +4100,28 @@
     color: var(--color-ink-muted);
   }
 
+  /*
+   * „Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze." — CAŁE
+   * ZDANIE, NIE DOPISEK.
+   *
+   * ZMIERZONE: 16 px na siedmiu ekranach (tablica, odkrywanie, profile,
+   * zeszyt — wszędzie, gdzie jest prawa szyna), przy każdej szerokości
+   * i w obu motywach. Klasa `.meta` daje `--text-help`, a ten wolno użyć
+   * tylko obok tekstu ≥ 18 px niosącego treść (`docs/design/DESIGN_SYSTEM.md`).
+   * To zdanie stoi SAMO, pod linią oddzielającą je od listy — i jest jedynym
+   * miejscem, w którym serwis tłumaczy, czym ta lista NIE jest.
+   *
+   * Wariant na stronie powitalnej ustawia `--text-body` od 14 września
+   * (`marka-tablica-publiczna.css`). Ta reguła robi to samo dla wszystkich
+   * pozostałych ekranów, zamiast zostawiać jedną stronę poprawną, a siedem nie.
+   * Kolor `--color-ink-muted` z `.meta` zostaje: stonowanie idzie kolorem,
+   * nie wielkością.
+   */
   .kuking-board-footer {
     margin: var(--spacing-5) 0 0;
     padding-top: var(--spacing-3);
     border-top: 1px solid var(--color-border);
+    font-size: var(--text-body);
   }
 
   /* ---------------------------------------------------------------------
@@ -4276,12 +4339,38 @@
      swój wewnętrzny układ (`.site-footer-grupy` to grid, `.site-footer-pasek`
      to wiersz) — ten kontener tylko je składa jeden pod drugim i utrzymuje
      między nimi jeden, wspólny odstęp. */
+  /*
+   * ROZMIAR PISMA W STOPCE: `--text-body` (18 px), NIE `--text-help` (16 px).
+   *
+   * ZMIERZONE, NIE ODCZYTANE Z KLASY. Przy 320/360/390/414/768/1440 px,
+   * w obu motywach i przy skali tekstu 100% i 140%, `getComputedStyle`
+   * na ułożonej stronie dawał dla odnośników stopki 16 px — na KAŻDYM
+   * z 25 mierzonych ekranów serwisu, bo stopka jest wszędzie.
+   *
+   * DLACZEGO TO JEST NARUSZENIE, A NIE DOZWOLONE UŻYCIE `--text-help`.
+   * `docs/design/DESIGN_SYSTEM.md` pozwala na 16 px wyłącznie tam, gdzie
+   * OBOK stoi tekst ≥ 18 px niosący treść. „Pomoc", „Zasady", „Prywatność",
+   * „Napisz do nas" to CAŁA treść tych elementów — nie ma przy nich niczego
+   * większego, od czego byłyby dopiskiem. To ten sam przypadek, który
+   * `MinimalnyRozmiarTekstuTest` pilnuje już dla `.bottom-nav-item`
+   * i `.site-footer-liczba`; stopka jako całość została wtedy pominięta.
+   *
+   * CO ZOSTAJE MNIEJSZE I DLACZEGO WOLNO. Pasek techniczny na samym dole:
+   * metryczka wersji (`.site-version`, 8 px) i przycisk motywu. To jest
+   * jawny, nazwany wyjątek właściciela — D-051 w `docs/DECISIONS.md`,
+   * przywołany też w AGENTS.md §5. Oba elementy mają własny `font-size`,
+   * więc ta zmiana ich nie dotyka.
+   *
+   * `.site-footer-liczba` ustawiało `--text-body` samodzielnie, bo wcześniej
+   * musiało odkręcać dziedziczenie z tej reguły. Zostaje jako jawna deklaracja
+   * — nie szkodzi, a przy kolejnej zmianie tej reguły nie zgaśnie po cichu.
+   */
   .site-footer-inner {
     margin: 0 auto;
     display: flex;
     flex-direction: column;
     gap: var(--spacing-6);
-    font-size: var(--text-help);
+    font-size: var(--text-body);
   }
 
   .site-footer-haslo {
@@ -4322,6 +4411,48 @@
     display: flex;
     flex-direction: column;
     gap: var(--spacing-2);
+  }
+
+  /*
+   * ODNOŚNIK W STOPCE JEST CELEM DOTKNIĘCIA, NIE SŁOWEM W AKAPICIE.
+   *
+   * ZMIERZONE: 74,6 × 20 px („O kuKING"), 53 × 20 px („Pomoc"), 165 × 20 px
+   * („Zgłoś nielegalną treść") — przy 320, 390 i 1440 px tak samo, bo to
+   * wysokość jednego wiersza pisma, a nie skutek wąskiego ekranu. AGENTS.md
+   * §5 i `docs/UX_50_PLUS.md` żądają 48 px dla ważnych przycisków, a to jest
+   * jedyna droga do regulaminu, prywatności i zgłoszenia nielegalnej treści —
+   * czyli do rzeczy, których serwis ma obowiązek nie chować.
+   *
+   * `display: flex` zamiast samego `padding`: `<a>` jest inline, więc pionowy
+   * padding rysowałby się poza pudełkiem wiersza i NIE powiększył realnego
+   * celu (to ta sama pułapka, co przy `.bottom-nav-item` — dlatego tam też
+   * stoi flex). Jako element `flex` w kolumnie `ul` odnośnik rozciąga się
+   * na całą szerokość kolumny, więc cel rośnie w obu wymiarach naraz.
+   *
+   * `min-height`, nie `height`: przy skali tekstu 140% i wąskim ekranie
+   * „Zgłoś nielegalną treść" łamie się na dwa wiersze i musi móc urosnąć.
+   * Wysokość sztywna ucinałaby wtedy drugi wiersz.
+   */
+  /* `min-width: 0` + `overflow-wrap: anywhere` (#918 naprawa): odkąd ten
+     odnośnik jest `display: flex` (cel dotknięcia 48 px, patrz wyżej), stał
+     się elementem flex we WŁASNEJ kolumnie `ul` — a flex item domyślnie ma
+     `min-width: auto`, czyli nie kurczy się poniżej szerokości najdłuższego
+     nierozdzielnego słowa. Przy powiększonej czcionce przeglądarki (rootFont
+     32 px) i skali tekstu 140% (`bodyFont` 50,4 px) pojedyncze słowo, np.
+     „nielegalną” w „Zgłoś nielegalną treść”, jest szersze niż kolumna
+     stopki nawet przy `min(11rem, 100%)` z `.site-footer-grupy` wyżej —
+     WYNIK: 9 px poziomego przewinięcia całej strony przy 320 px
+     (`K509_OVERFLOW /login {"width":320,"scroll":329}`) i to samo na każdej
+     stronie ze stopką, w tym `/home` (`NAV638_DUZY_FONT_OVERFLOW` mierzy
+     `scrollWidth` całego dokumentu, nie samej belki). ZMIERZONE PRZED
+     POPRAWKĄ i PO NIEJ na obu stronach, oba motywy, font-200+140 — patrz
+     meldunek naprawy #918. */
+  .site-footer-grupa ul a {
+    display: flex;
+    align-items: center;
+    min-height: var(--control-height-min);
+    min-width: 0;
+    overflow-wrap: anywhere;
   }
 
   /* Nagłówek kolumny jest WIZUALNY, nie semantyczny — `aria-hidden` w Blade,
@@ -4562,9 +4693,23 @@
   }
 
   .lightbox-akcje {
-    /* Przycisk NAD tłem zdjęcia, zawsze widoczny i zawsze w tym samym
-       miejscu — nie chowa się w rogu, gdzie trzeba go szukać. */
+    /* Przyciski NAD tłem zdjęcia, zawsze widoczne i zawsze w tym samym
+       miejscu — nie chowają się w rogu, gdzie trzeba ich szukać. */
     flex: none;
+    display: flex;
+    gap: var(--spacing-3);
+  }
+
+  /*
+   * Stan wczytywania/błędu dużego wariantu (issue #743). Kolor ostrzegawczy
+   * tylko wtedy, gdy tekst mówi o błędzie — "Wczytywanie zdjęcia…" nie jest
+   * problemem i nie powinno wyglądać jak jeden.
+   */
+  .lightbox-status {
+    color: var(--color-ink-inverse);
+    font-size: var(--text-body);
+    text-align: center;
+    max-width: 32rem;
   }
 
   /* Zamknięty dialog nie może zajmować miejsca ani łapać kliknięć. */
@@ -4612,6 +4757,7 @@
 .confirm-question {
     margin: 0 0 var(--spacing-3);
     font-weight: 600;
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------
@@ -4620,6 +4766,14 @@
    Pilność pokazuje KOLOROWY PASEK PLUS NAPIS „czeka X godzin". Sam kolor
    nie wystarcza: rozróżnianie barw słabnie z wiekiem, a ten ekran ma działać
    także dla kogoś, kto czerwieni od pomarańczu nie odróżni.
+
+   NAZWA STOPNIA JEST SKLEJANA, NIE WPISANA. `pages/admin/bez-odpowiedzi.blade.php`
+   renderuje `class="card czeka czeka-{{ $wpis->pilnosc }}"`, a
+   `Admin\BezOdpowiedziController` ustawia `pilnosc` na `spokojnie | uwaga |
+   alarm`. Szukanie napisu „czeka-alarm" w `resources/views` nie da ani jednego
+   trafienia — a reguła JEST używana. Skreślenie jej zabrałoby ekranowi
+   moderacji kolorowy pasek pilności i nie oblałby na tym żaden test.
+   (`czeka-spokojnie` reguły nie ma i tak ma być: to stan domyślny.)
    --------------------------------------------------------------------------- */
 .czeka {
     border-left: 6px solid var(--color-border);
@@ -5476,8 +5630,26 @@
   overflow-wrap: anywhere;
 }
 
+/*
+ * „Zobacz wszystko" w nagłówku bloku szyny — 18 px i 48 px celu.
+ *
+ * ZMIERZONE PRZED POPRAWKĄ (`/@ania`, 390 px): 135 × 24,8 px, pismo 16 px.
+ * To jest jedyne wyjście z bloku szyny do pełnej listy, a nie dopisek przy
+ * większym tekście: stoi w osobnej kolumnie nagłówka, po przeciwnej stronie
+ * tytułu, i nic ≥ 18 px obok niego nie ma. Warunek z
+ * `docs/design/DESIGN_SYSTEM.md` na użycie `--text-help` nie jest spełniony,
+ * a AGENTS.md §5 żąda 48 px dla celu dotknięcia.
+ *
+ * `inline-flex`, nie `block` z paddingiem: odnośnik jest elementem `flex`
+ * w `.szyna-naglowek` i ma zostać w swoim wierszu — `min-height` bez trybu
+ * flex nie przesunęłoby napisu na środek powiększonego pudełka.
+ * Rozmiar zdejmujemy do domyślnego (18 px z `body`), waga 600 zostaje:
+ * odróżnienie idzie wagą, nie zmniejszeniem.
+ */
 .szyna-wiecej {
-  font-size: var(--text-help);
+  display: inline-flex;
+  align-items: center;
+  min-height: var(--control-height-min);
   font-weight: 600;
 }
 
@@ -5676,19 +5848,6 @@
     min-width: 0;
     max-width: 100%;
     overflow-wrap: anywhere;
-}
-
-/* Nazwa i liczba wpisów pozostają razem; dodatkowe statystyki mają
-   własny wiersz, również przy długich nazwach i dużym tekście. */
-.tag-directory-link {
-  display: block;
-  border-radius: var(--radius-md);
-}
-
-.tag-directory-link [data-tag-public-stats] {
-  display: block;
-  margin-top: var(--spacing-1);
-  font-weight: 400;
 }
 
 .chip:hover {

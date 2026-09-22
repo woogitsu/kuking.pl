@@ -1,0 +1,35 @@
+{
+  "rules": [
+    {
+      "description": "Kuking: anonimowe przekierowania zdjec - wlacz dopiero po odbiorze",
+      "enabled": false,
+      "expression": "(http.host eq \"kuking.pl\" and starts_with(http.request.uri.path, \"/zdjecia/\") and http.request.uri.query eq \"\" and http.cookie eq \"\" and not any(http.request.headers[\"authorization\"][*] ne \"\"))",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": { "mode": "bypass_by_default" },
+        "browser_ttl": { "mode": "respect_origin" },
+        "origin_cache_control": true
+      }
+    },
+    {
+      "description": "Kuking: HTML goscia - BLOKADA sesja i CSRF, nie wlaczaj",
+      "enabled": false,
+      "expression": "(http.host eq \"kuking.pl\" and (http.request.uri.path eq \"/\" or starts_with(http.request.uri.path, \"/przepisy/\") or starts_with(http.request.uri.path, \"/@\")) and http.request.uri.query eq \"\" and http.cookie eq \"\" and not any(http.request.headers[\"authorization\"][*] ne \"\"))",
+      "action": "set_cache_settings",
+      "action_parameters": {
+        "cache": true,
+        "edge_ttl": { "mode": "bypass_by_default" },
+        "browser_ttl": { "mode": "respect_origin" },
+        "origin_cache_control": true
+      }
+    },
+    {
+      "description": "Kuking: ostatnia regula - nigdy nie wspoldziel stanu klienta",
+      "enabled": false,
+      "expression": "(http.host eq \"kuking.pl\" and (http.cookie ne \"\" or any(http.request.headers[\"authorization\"][*] ne \"\") or not http.request.method in {\"GET\" \"HEAD\"} or http.request.uri.query ne \"\" or starts_with(http.request.uri.path, \"/livewire/\") or starts_with(http.request.uri.path, \"/api/\") or starts_with(http.request.uri.path, \"/ustawienia\") or starts_with(http.request.uri.path, \"/konto/\") or http.request.uri.path in {\"/login\" \"/register\" \"/logout\"}))",
+      "action": "set_cache_settings",
+      "action_parameters": { "cache": false }
+    }
+  ]
+}

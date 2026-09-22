@@ -1,0 +1,16 @@
+{
+  "nazwa": "feed renderuje cala tresc zamiast skroconej zapowiedzi",
+  "plik": "resources/views/components/post-card.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "37a0c01df29cfb758f9aefc376a4eca4",
+  "md5_po_mutacji": "ca3b04f2eec41e3a62757e99081b0493",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "tag/ciasto",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-19T22:13:35Z"
+}

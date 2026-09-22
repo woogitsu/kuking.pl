@@ -340,9 +340,9 @@
         JSON, a my nie renderujemy niczego surowego.
     --}}
     {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
-         adres e-mail (`/nowe-haslo/{token}?email=…`). Beacon melduje pełny
-         adres strony, więc bez tego warunku żywy żeton resetu hasła trafiałby
-         do cudzego panelu — uzasadnienie w komentarzu tamtej metody. --}}
+         adres e-mail (`/nowe-haslo/{token}?email=…`). Odczytany beacon usuwa
+         query, ale zostawia ścieżkę. Osobny nagłówek no-referrer chroni
+         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie. --}}
     @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
@@ -923,6 +923,34 @@
                     @if(session('status'))
                         <p class="flash">{{ session('status') }}</p>
                     @endif
+                    {{--
+                        DROGA POWROTU PRZY AKCJI ODWRACALNEJ (issue L1 z audytu
+                        `docs/AUDYT_2026-09.md`).
+
+                        Wyjęcie wpisu z zeszytu jest odwracalne, więc NIE pytamy
+                        „czy na pewno" przed kliknięciem — pytanie przed każdą
+                        odwracalną czynnością uczy odklikiwania i psuje wagę
+                        pytań przy czynnościach naprawdę nieodwracalnych.
+                        Zamiast tego po akcji stoi tu jedno kliknięcie powrotu.
+
+                        Komunikat ZOSTAJE osobnym `<p class="flash">` — nie
+                        wkładamy przycisku do środka akapitu: `.flash` jest
+                        czytany wprost przez kilka testów jako `<p>` i jako
+                        zdanie dla czytnika ekranu. Przycisk stoi pod nim,
+                        w tym samym obszarze `aria-live`, więc czytnik ogłasza
+                        najpierw co się stało, a potem co można z tym zrobić.
+
+                        Formularz, nie odnośnik: to jest zapis, czyli zmiana
+                        stanu. `GET`-em zmiany stanu nie robimy (CSRF, prefetch
+                        przeglądarki, historia).
+                    --}}
+                    @php $powrotPoAkcji = session('status_powrot'); @endphp
+                    @if(is_array($powrotPoAkcji) && isset($powrotPoAkcji['akcja'], $powrotPoAkcji['etykieta']))
+                        <form class="flash-powrot" method="POST" action="{{ $powrotPoAkcji['akcja'] }}">
+                            @csrf
+                            <button class="btn btn-secondary" type="submit" data-rola="powrot-po-akcji">{{ $powrotPoAkcji['etykieta'] }}</button>
+                        </form>
+                    @endif
                 </div>
                 {{-- Zapis do zeszytu wraca także na strumień bez formularza.
                      Sam worek walidacji nie pokazuje tam błędu (issue #473). --}}
@@ -1273,8 +1301,22 @@
         <dialog id="powiekszenie" class="lightbox" aria-label="Powiększone zdjęcie">
             <img class="lightbox-obraz" src="" alt="">
 
-            {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
+            {{--
+                Stan wczytywania/błędu dużego wariantu (issue #743).
+
+                Dialog otwiera się PRZED zakończeniem pobierania — jeśli duży
+                plik nie dojdzie albo się nie zdekoduje, ten region (nie samo
+                zepsute `<img>` przeglądarki) mówi po polsku co się stało
+                i daje działającą akcję. `role="status"` + `aria-live="polite"`,
+                żeby czytnik ekranu ogłosił zmianę bez przenoszenia fokusu —
+                fokus zostaje w dialogu, gdzie już jest (pułapka focusu
+                `showModal()`).
+            --}}
+            <p class="lightbox-status" role="status" aria-live="polite" hidden></p>
+
             <form method="dialog" class="lightbox-akcje">
+                <button type="button" class="btn btn-secondary lightbox-ponow" hidden>Spróbuj ponownie</button>
+                {{-- Przycisk z NAPISEM, nie samym „×”. AGENTS.md: ikona nigdy sama. --}}
                 <button class="btn btn-secondary" type="submit">Zamknij</button>
             </form>
         </dialog>

@@ -5,10 +5,11 @@ declare(strict_types=1);
 namespace App\Domain\Posts\Actions;
 
 use App\Domain\Media\ZdjeciaDoPrzypiecia;
+use App\Domain\Moderation\UnansweredContent;
 use App\Domain\Notifications\Actions\NotifyUser;
+use App\Domain\Posts\PublicationAnalysisQueue;
 use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Exceptions\BladDlaCzlowieka;
-use App\Jobs\PrzeanalizujTresc;
 use App\Models\AuditLogEntry;
 use App\Models\Notification;
 use App\Models\Post;
@@ -51,6 +52,7 @@ final class PublishPost
     public function __construct(
         private readonly NotifyUser $notify,
         private readonly ResolvePostTags $resolveTags,
+        private readonly PublicationAnalysisQueue $analysisQueue,
     ) {}
 
     /**
@@ -103,8 +105,10 @@ final class PublishPost
         $orderedMedia = [];
         $displayMode = Post::DISPLAY_NORMAL;
 
-        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $kind, $questionTitle, &$tags, &$orderedMedia, &$displayMode): Post {
-            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $klucz, $kind, $questionTitle, &$tags, &$orderedMedia, &$displayMode): Post {
+        $this->analysisQueue->assertCompatible();
+
+        $zapisz = function (?string $klucz) use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $kind, $questionTitle, $ip, &$tags, &$orderedMedia, &$displayMode): Post {
+            return DB::transaction(function () use ($author, $body, $visibility, $recipeId, $mediaIds, $trybZadany, $tagNames, $klucz, $kind, $questionTitle, $ip, &$tags, &$orderedMedia, &$displayMode): Post {
                 $tags = $this->resolveTags->handle($body, $tagNames);
                 if ($kind === Post::KIND_QUESTION && count($tags) > 3) {
                     throw new BladDlaCzlowieka('Do pytania dodaj najwyżej 3 tagi, także te wpisane w opisie.');
@@ -132,6 +136,10 @@ final class PublishPost
                  * `media_id` (IDOR).
                  */
                 $ownedMedia = ZdjeciaDoPrzypiecia::zablokuj((string) $author->getKey(), $mediaIds);
+
+                // Media przed kontem (D-103), konto przed INSERT i rozstrzygnięciem pierwszeństwa.
+                // NO KEY UPDATE serializuje publikacje, ale nie blokuje odczytów FK KEY SHARE.
+                User::query()->whereKey($author->getKey())->lock('FOR NO KEY UPDATE')->firstOrFail();
 
                 // Zachowujemy kolejność wybraną przez użytkownika —
                 // `zablokuj()` oddaje kolejność blokowania, nie formularza.
@@ -180,6 +188,16 @@ final class PublishPost
 
                 $post->tags()->attach($tags);
 
+                AuditLogEntry::record(
+                    action: 'post.published',
+                    actor: $author,
+                    subject: $post,
+                    metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility, 'display_mode' => $displayMode, 'tag_count' => count($tags)],
+                    ip: $ip,
+                );
+                $this->powiadomGospodarzaOPierwszymWpisie($author, $post);
+                $this->analysisQueue->push($post);
+
                 return $post;
             }, 3);
         };
@@ -214,31 +232,6 @@ final class PublishPost
             // Utrata cudzego wpisu jest gorsza niż duplikat (ADR §4.3).
             $post = $zapisz(null);
         }
-
-        AuditLogEntry::record(
-            action: 'post.published',
-            actor: $author,
-            subject: $post,
-            metadata: ['media_count' => count($orderedMedia), 'visibility' => $visibility, 'display_mode' => $displayMode, 'tag_count' => count($tags)],
-            ip: $ip,
-        );
-
-        $this->powiadomGospodarzaOPierwszymWpisie($author, $post);
-
-        /*
-         * ANALIZA POD KĄTEM SYGNAŁÓW SPAMU (D-052) — W KOLEJCE, NIE TUTAJ.
-         *
-         * Wysłanie zadania to jeden `INSERT` do `jobs`; sama analiza (dwa
-         * zapytania i porównanie tekstów) dzieje się później, na kolejce
-         * `low`, za wszystkim, co robi człowiek. Publikacja wpisu nie czeka
-         * na nią ani milisekundy i NIE ZALEŻY od jej wyniku — treść jest już
-         * opublikowana i widoczna, a jedyne, co może się zdarzyć, to jedna
-         * pozycja w kolejce moderatora.
-         *
-         * Stoi PO wyjściach idempotencji wyżej (`return $istniejacy`), więc
-         * drugie kliknięcie „Opublikuj" nie zleca analizy drugi raz.
-         */
-        PrzeanalizujTresc::dlaWpisu($post);
 
         return $post;
     }
@@ -283,29 +276,18 @@ final class PublishPost
             return;
         }
 
-        // Liczymy DOKŁADNIE DO DWÓCH: przy autorze z dwustoma wpisami
-        // pełne `count()` przelicza całą historię, żeby odpowiedzieć
-        // na pytanie „czy to pierwszy".
-        $ilePierwszych = Post::query()
-            ->where('author_id', $author->getKey())
-            ->published()
-            ->limit(2)
-            ->count();
-
-        if ($ilePierwszych !== 1) {
-            return;
-        }
-
         $nazwaGospodarza = (string) config('kuking.community.host_username');
 
-        if ($nazwaGospodarza === '') {
+        $gospodarz = $nazwaGospodarza === '' ? null : Profile::poNazwie($nazwaGospodarza)?->user;
+        $eligible = $gospodarz === null
+            ? Post::query()->publiclyVisible()->whereHas('author', fn ($query) => $query->widocznyJakoOsoba())
+            : app(UnansweredContent::class)->eligiblePosts($gospodarz);
+        if (! $eligible->whereKey($post->getKey())->exists()
+            || DB::table('first_post_events')->where('author_id', $author->getKey())->exists()) {
             return;
         }
 
-        $gospodarz = Profile::poNazwie($nazwaGospodarza)?->user;
-
-        // `NotifyUser` sam pomija sytuację, w której gospodarz jest autorem —
-        // a to jest częsty przypadek przy pierwszych dwudziestu osobach.
+        DB::table('first_post_events')->insert(['author_id' => $author->getKey(), 'post_id' => $post->getKey()]);
         if ($gospodarz === null) {
             return;
         }

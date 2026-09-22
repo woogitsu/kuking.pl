@@ -131,7 +131,7 @@ uruchom() {
     echo $?
 }
 
-printf '\n── Przyrząd do kontroli ujemnych: dziewięć prób ──\n\n'
+printf '\n── Przyrząd do kontroli ujemnych: czternaście prób ──\n\n'
 
 # --- 1. SEDNO: mutacja, która NIE TRAFIA ------------------------------------
 # Szukamy łańcucha, którego w pliku nie ma. Przyrząd ma ODMÓWIĆ (kod 2),
@@ -288,6 +288,36 @@ fi
 # poprawnej kontroli ujemnej, bo SIGPIPE przykrywa trafienie grepa.
 kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./test-duze-wyjscie.sh zrodlo.txt)"
 sprawdz 'wzorzec na poczatku duzego wyjscia -> POTWIERDZONA (0), nie ZLA_PRZYCZYNA' 0 "$kod"
+
+# --- 13. mtime wraca CO DO UŁAMKA SEKUNDY ------------------------------------
+# Do 20 września 2026 przyrząd twierdził „MD5 i mtime zgodne", nie porównując
+# mtime w ogóle, a `touch -d` dodatkowo UCINAŁ część podsekundową, którą
+# `cp -p` już poprawnie przywróciło. Ten przypadek by to złapał: przed
+# poprawką mtime po przebiegu różnił się od mtime sprzed ułamkiem sekundy.
+mtime_przed="$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
+uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+        --oczekuj 'BRAMKA' -- ./test-dobry.sh zrodlo.txt >/dev/null
+sprawdz 'mtime wraca co do ułamka sekundy, nie tylko co do sekundy' \
+        "$mtime_przed" "$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
+
+# --- 14. REGRESJA: JSON i konsola muszą meldować to samo przywrócenie -------
+# Do 21 września 2026 pole "przywrocenie" w JSON było liczone w INNYM
+# miejscu niż komunikat na konsolę: JSON zapisywał się w głównym biegu
+# skryptu, ZANIM `trap` na EXIT zdążył naprawdę przywrócić plik, więc
+# zostawał przy wartości startowej „nie wykonane" — mimo że przywrócenie
+# się udało i konsola poprawnie meldowała „Źródło przywrócone". Ten sam
+# fakt liczony dwa razy w dwóch miejscach dawał dwie różne odpowiedzi.
+JSON_9="$PRACA/wynik-9.json"
+rm -f "$JSON_9"
+( cd "$PRACA" && "$PRZYRZAD" --plik zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+    --oczekuj 'BRAMKA_ZDJETA' --json "$JSON_9" -- ./test-dobry.sh zrodlo.txt ) >"$PRACA/wyjscie.log" 2>&1
+if [ -f "$JSON_9" ] && grep -qF '"przywrocenie": "ok' "$JSON_9"; then
+    printf "  ${ZIELONY}✓${RESET} JSON zgadza się z konsolą: przywrocenie zapisane jako „ok”, nie „nie wykonane”\n"; zdane=$((zdane + 1))
+else
+    printf "  ${CZERWONY}✗${RESET} JSON rozjeżdża się z konsolą — pole \"przywrocenie\" nie mówi „ok”\n"
+    [ -f "$JSON_9" ] && grep '"przywrocenie"' "$JSON_9" | sed 's/^/     /'
+    oblane=$((oblane + 1))
+fi
 
 printf '\n'
 if [ "$oblane" -eq 0 ]; then
