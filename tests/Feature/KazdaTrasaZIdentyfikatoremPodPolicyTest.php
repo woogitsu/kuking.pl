@@ -746,6 +746,15 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // Edycja zeszytu (#777) — nazwa, opis i widoczność. O własnym
+        // zeszycie decyduje wyłącznie jego właściciel, także moderator nie
+        // przestawia cudzej widoczności (`CollectionPolicy::update()`).
+        $dodaj('collections.edit', 'formularz edycji zeszytu', 'get',
+            route('collections.edit', $zeszyt), [], [$W, $O, $O, $O, $O]);
+        $dodaj('collections.update', 'zapis edycji zeszytu', 'patch',
+            route('collections.update', $zeszyt),
+            ['name' => 'Zeszyt po zmianie', 'description' => 'Opis po zmianie.', 'visibility' => 'private'],
+            [$W, $O, $O, $O, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
