@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Security\LimitProbHasla;
 use App\Domain\Users\Actions\CancelEmailChange;
 use App\Http\Controllers\Controller;
 use App\Models\AuditLogEntry;
@@ -89,7 +90,7 @@ class PasswordResetController extends Controller
         ]);
     }
 
-    public function reset(Request $request, CancelEmailChange $anuluj): RedirectResponse
+    public function reset(Request $request, CancelEmailChange $anuluj, LimitProbHasla $limit): RedirectResponse
     {
         $request->validate([
             'token' => ['required'],
@@ -128,7 +129,7 @@ class PasswordResetController extends Controller
                 ...$request->only('password', 'password_confirmation', 'token'),
                 'email' => User::normalizeEmail((string) $request->input('email', '')),
             ],
-            function ($user, string $password) use ($request, $anuluj): void {
+            function ($user, string $password) use ($request, $anuluj, $limit): void {
                 // Hasło jedną nazwaną drogą (`assignPassword()`), bo
                 // `password` jest poza `$fillable`. Wspólna metoda niżej
                 // odwołuje również token „zapamiętaj mnie” (#584).
@@ -179,6 +180,32 @@ class PasswordResetController extends Controller
                 // odzyskuje kontrolę. Pełne uzasadnienie:
                 // `App\Domain\Users\Actions\CancelEmailChange`.
                 $anuluj->handle($user, CancelEmailChange::POWOD_RESET_HASLA, $request->ip());
+
+                // ...I ZDEJMUJE BLOKADĘ KONTA Z LIMITERA LOGOWANIA.
+                //
+                // Koszyk konta (15 prób / 15 min, `config/kuking.php` →
+                // `login_limits`) nie odróżnia właściciela od napastnika —
+                // to jest jego zamierzona cena: kto zna cudzy login, umie
+                // wyczerpać ten licznik cudzym loginem i zamknąć drogę
+                // hasłem osobie, która nic złego nie zrobiła.
+                //
+                // Bez tej linijki podpowiedź „Jeśli nie pamiętasz hasła,
+                // kliknij «Nie pamiętam hasła»", którą serwis pokazuje przy
+                // KAŻDEJ nieudanej próbie logowania, prowadziła donikąd:
+                // człowiek przechodził całą drogę przez skrzynkę, ustawiał
+                // nowe hasło — i wracając na `/login` dostawał tę samą
+                // odmowę, bo licznik nadal stał pełny. Dokładnie ten kształt
+                // błędu, o który chodzi w AGENTS.md §5: obietnica wyjścia,
+                // którego nie ma.
+                //
+                // BEZPIECZNE, bo tu już nie ma czego chronić: próby
+                // napastnika dotyczyły hasła, które przed chwilą przestało
+                // istnieć, a żeby tu dojść, trzeba było odebrać list z tej
+                // skrzynki. Koszyk ADRESU zostaje nietknięty — inaczej
+                // wystarczyłoby zresetować hasło własnego, jednorazowego
+                // konta, żeby wyczyścić licznik adresowy przed powrotem do
+                // rozpylania (`App\Support\KluczeLimitow`).
+                $limit->zdejmijBlokadeKonta($user);
 
                 AuditLogEntry::record('account.password_reset', $user, $user, ip: $request->ip());
 

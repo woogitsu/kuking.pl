@@ -252,6 +252,11 @@ export async function sprawdzBladPodWygladem({browser,adres}) {
  const page=await browser.newPage({viewport:{width:720,height:456}});
  try {
   await page.goto(adres+'/login');
+  // Czcionka webowa przesuwa `getBoundingClientRect()` błędu i widżetu —
+  // ten sam powód, dla którego czeka na nią `scripts/pasek-przewijany.mjs`.
+  // Bez tego pomiar delty niżej bywa zrobiony na tymczasowym, nieostatecznym
+  // układzie.
+  await page.evaluate(()=>document.fonts.ready);
   await page.locator('input[name=login]').fill('nieistniejacy-odbior-wygladu@example.test');
   await page.locator('input[name=password]').fill('nieprawidlowe-haslo');
   await page.getByRole('button',{name:'Zaloguj się',exact:true}).click();

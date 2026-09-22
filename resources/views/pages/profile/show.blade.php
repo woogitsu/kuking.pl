@@ -226,18 +226,36 @@
                 @if($isFollowing)
                     <form method="POST" action="{{ route('social.unfollow', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- Ta sama ochrona co przy blokadzie niżej (#793):
+                             nazwa w adresie mogła między wyrenderowaniem tej
+                             strony a kliknięciem trafić do kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                     </form>
-                @else
+                @elseif($owner->isActive())
                     <form method="POST" action="{{ route('social.follow', $p->username) }}">
                         @csrf
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-primary" type="submit">Obserwuj</button>
                     </form>
+                @else
+                    {{-- #780: konto zawieszone przechodzi `jestWidocznyJakoOsoba()`
+                         (zawieszenie jest tymczasowe, karta osoby ma zostać),
+                         ale `UserPolicy::follow()` wymaga `isActive()` i zawsze
+                         odmawia. Przycisk „Obserwuj", który zawsze kończy się
+                         błędem, jest martwym przyciskiem (D-053) — widok
+                         i Policy mówiłyby co innego, a człowiek dowiadywałby
+                         się dopiero po kliknięciu. --}}
+                    <p class="mb-0">To konto jest teraz zawieszone. Nie można go obserwować, dopóki zawieszenie nie zostanie zdjęte.</p>
                 @endif
                 <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $p->username]) }}">Zgłoś</a>
                 @if($hasBlocked)
                     <form method="POST" action="{{ route('social.unblock', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- #793: nazwa użytkownika w adresie mogła między
+                             wyrenderowaniem strony a kliknięciem trafić do
+                             kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
@@ -245,7 +263,8 @@
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'" />
+                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
                 <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
@@ -254,7 +273,7 @@
     </header>
 
     <div class="marka-profil-statystyki">
-        <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
+        <x-liczby-profilu :stats="$stats" :username="$p->username" />
     </div>
 
     @php $maSzyneProfilu = $isOwner || $zeszytySzyny->isNotEmpty() || $tagiSzyny->isNotEmpty() || $zdjeciaSzyny->isNotEmpty(); @endphp

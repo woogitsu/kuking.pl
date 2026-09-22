@@ -1,0 +1,8 @@
+{"at" : "2026-09-20T20:40:32.607708+02:00", "database" : "kuking_b605_gpt_obciazenie", "media" : { "ready" : 140 }, "jobs" : 0, "failed_jobs" : 0}
+{"series" : "jit-on-r030", "posts" : 21, "media" : 21, "ready" : 21, "other" : 0}
+{"series" : "r005-p1", "posts" : 5, "media" : 5, "ready" : 5, "other" : 0}
+{"series" : "r005-p2", "posts" : 11, "media" : 11, "ready" : 11, "other" : 0}
+{"series" : "r015-p1", "posts" : 12, "media" : 12, "ready" : 12, "other" : 0}
+{"series" : "r030-p1", "posts" : 25, "media" : 25, "ready" : 25, "other" : 0}
+{"series" : "r060-p1", "posts" : 44, "media" : 44, "ready" : 44, "other" : 0}
+{"series" : "r120-p1", "posts" : 15, "media" : 15, "ready" : 15, "other" : 0}

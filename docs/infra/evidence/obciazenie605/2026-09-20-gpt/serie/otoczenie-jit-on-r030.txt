@@ -1,0 +1,41 @@
+# Otoczenie serii jit-on-r030 — 2026-09-20T18:35:58Z
+# progi bramki: obce <= 18 rdzeni, PSI cpu some avg10 <= 25, spokój 60s
+
+## uptime przed bramką
+ 20:35:58 up 2 days, 2 min,  1 user,  load average: 9.68, 9.55, 10.00
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+2210529 98.6  0.0       00:00 python3
+2210542 76.4  0.2       00:00 workerd
+2210575 66.6  0.1       00:00 php
+2208561 62.1  0.6       00:14 php
+2210119 50.4  1.5       00:02 MainThread
+2184363 47.1  0.9       02:34 php
+2186615 46.3  0.2       02:14 python3
+2155451 45.4  1.1       06:06 php
+2209646 29.1  0.1       00:07 postgres
+2210565 28.5  0.1       00:00 postgres
+2210459 26.5  0.4       00:01 frankenphp
+2210516 23.2  0.1       00:00 postgres
+2210462  9.7  0.2       00:01 php
+2209690  6.2  0.4       00:06 MainThread
+2204892  5.8  0.4       00:40 Runner.Worker
+2210111  3.2  0.2       00:02 MainThread
+2192896  3.1  0.4       01:37 Runner.Worker
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 10
+Runner.Worker (aktywne joby): 4
+
+## kontenery
+kuking-gpt-obciazenie-app kuking:ci-4c811cc7bff365fb8f86d87eabac93b7738a45cd Up 2 seconds (health: starting)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 2 days
+bramka: 30s/300s, obce 7.83 rdzeni z 24, PSI 0.09, runnery kuking: brak, cisza 30s/60s
+bramka OTWARTA po 59s: obce <= 18 rdzeni, PSI <= 25 i ZERO pracujących runnerów kuking przez 60s
+
+## uptime po otwarciu bramki, tuż przed serią
+ 20:37:00 up 2 days, 3 min,  1 user,  load average: 7.06, 8.77, 9.70
+
+## uptime po serii i po 60 s wybiegu
+ 20:40:32 up 2 days, 6 min,  1 user,  load average: 23.84, 17.36, 12.99

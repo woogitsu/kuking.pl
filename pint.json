@@ -1,5 +1,8 @@
 {
     "preset": "laravel",
+    "exclude": [
+        "docs/research/audyt-2026-09-11/repro"
+    ],
     "rules": {
         "declare_strict_types": true,
         "ordered_imports": {

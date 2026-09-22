@@ -1,0 +1,677 @@
+{
+  "scope": "Lokalna żywa aplikacja, zalogowana osoba testowa; motyw i skala ustawiane w DOM do pomiaru CSS; rzeczywisty zoom chrome.tabs.setZoom.",
+  "rows": [
+    {
+      "width": 320,
+      "zoom": 1,
+      "dark": false,
+      "scale": 100,
+      "inner": 320,
+      "scroll": 320,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "zoom": 1,
+      "dark": false,
+      "scale": 140,
+      "inner": 320,
+      "scroll": 320,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "zoom": 1,
+      "dark": true,
+      "scale": 100,
+      "inner": 320,
+      "scroll": 320,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 320,
+      "zoom": 1,
+      "dark": true,
+      "scale": 140,
+      "inner": 320,
+      "scroll": 320,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "zoom": 1,
+      "dark": false,
+      "scale": 100,
+      "inner": 360,
+      "scroll": 360,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "zoom": 1,
+      "dark": false,
+      "scale": 140,
+      "inner": 360,
+      "scroll": 360,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 294,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "zoom": 1,
+      "dark": true,
+      "scale": 100,
+      "inner": 360,
+      "scroll": 360,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 360,
+      "zoom": 1,
+      "dark": true,
+      "scale": 140,
+      "inner": 360,
+      "scroll": 360,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 294,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "zoom": 1,
+      "dark": false,
+      "scale": 100,
+      "inner": 390,
+      "scroll": 390,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "zoom": 1,
+      "dark": false,
+      "scale": 140,
+      "inner": 390,
+      "scroll": 390,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 324,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "zoom": 1,
+      "dark": true,
+      "scale": 100,
+      "inner": 390,
+      "scroll": 390,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 390,
+      "zoom": 1,
+      "dark": true,
+      "scale": 140,
+      "inner": 390,
+      "scroll": 390,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 324,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 414,
+      "zoom": 1,
+      "dark": false,
+      "scale": 100,
+      "inner": 414,
+      "scroll": 414,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 414,
+      "zoom": 1,
+      "dark": false,
+      "scale": 140,
+      "inner": 414,
+      "scroll": 414,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 334.703125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 414,
+      "zoom": 1,
+      "dark": true,
+      "scale": 100,
+      "inner": 414,
+      "scroll": 414,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 414,
+      "zoom": 1,
+      "dark": true,
+      "scale": 140,
+      "inner": 414,
+      "scroll": 414,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 334.703125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "zoom": 1,
+      "dark": false,
+      "scale": 100,
+      "inner": 1440,
+      "scroll": 1440,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "zoom": 1,
+      "dark": false,
+      "scale": 140,
+      "inner": 1440,
+      "scroll": 1440,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 334.703125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "zoom": 1,
+      "dark": true,
+      "scale": 100,
+      "inner": 1440,
+      "scroll": 1440,
+      "dpr": 1,
+      "font": 18,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 251.75,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        },
+        {
+          "width": 219.046875,
+          "height": 50.5,
+          "font": 18,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "zoom": 1,
+      "dark": true,
+      "scale": 140,
+      "inner": 1440,
+      "scroll": 1440,
+      "dpr": 1,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 334.703125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 288.953125,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 640,
+      "zoom": 2,
+      "dark": false,
+      "scale": 140,
+      "inner": 320,
+      "scroll": 320,
+      "dpr": 2,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 640,
+      "zoom": 2,
+      "dark": true,
+      "scale": 140,
+      "inner": 320,
+      "scroll": 320,
+      "dpr": 2,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 254,
+          "height": 91,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "zoom": 2,
+      "dark": false,
+      "scale": 140,
+      "inner": 720,
+      "scroll": 720,
+      "dpr": 2,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 334.7890625,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 289.0234375,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    },
+    {
+      "width": 1440,
+      "zoom": 2,
+      "dark": true,
+      "scale": 140,
+      "inner": 720,
+      "scroll": 720,
+      "dpr": 2,
+      "font": 25.2,
+      "count": "Czeka na odpowiedź (1)",
+      "titles": [
+        "Jak uratować przesoloną zupę?"
+      ],
+      "controls": [
+        {
+          "width": 334.7890625,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        },
+        {
+          "width": 289.0234375,
+          "height": 59.5,
+          "font": 25.2,
+          "visible": true
+        }
+      ]
+    }
+  ]
+}

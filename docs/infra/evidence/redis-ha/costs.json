@@ -1,0 +1,85 @@
+{
+  "usd_pln": 3.7998,
+  "disk_proxy_gb": 0.126713856,
+  "assumptions": {
+    "ha_nodes": {
+      "postgres": 3,
+      "etcd": 3,
+      "haproxy": 3
+    },
+    "per_node_low": {
+      "postgres": {
+        "ram_gb": 0.25,
+        "vcpu": 0.02
+      },
+      "etcd": {
+        "ram_gb": 0.05,
+        "vcpu": 0.005,
+        "disk_gb": 0.01
+      },
+      "haproxy": {
+        "ram_gb": 0.025,
+        "vcpu": 0.002
+      }
+    },
+    "per_node_high": {
+      "postgres": {
+        "ram_gb": 0.5,
+        "vcpu": 0.05
+      },
+      "etcd": {
+        "ram_gb": 0.1,
+        "vcpu": 0.01,
+        "disk_gb": 0.05
+      },
+      "haproxy": {
+        "ram_gb": 0.05,
+        "vcpu": 0.005
+      }
+    },
+    "warning": "Rozmiar to metryka usługi, nie pg_database_size. Zużycie HA założone, nie zmierzone; brak WAL, backupów i egress poza podanym dyskiem."
+  },
+  "current_pg_month_projection": {
+    "usd": 0.9099,
+    "pln_net": 3.46
+  },
+  "ha": {
+    "1": {
+      "low": {
+        "usd": 11.4315,
+        "pln_net": 43.44
+      },
+      "high": {
+        "usd": 23.4795,
+        "pln_net": 89.22
+      }
+    },
+    "10": {
+      "low": {
+        "usd": 11.9447,
+        "pln_net": 45.39
+      },
+      "high": {
+        "usd": 23.9927,
+        "pln_net": 91.17
+      }
+    },
+    "10_plus_heavier_workload": {
+      "assumption": "3 PG po 1 GB i 0.1 vCPU, etcd i HAProxy jak wariant górny; nie 10x ruchu z pomiaru",
+      "cost": {
+        "usd": 41.9927,
+        "pln_net": 159.56
+      }
+    }
+  },
+  "redis": {
+    "small_assumed_025GB_001cpu_1GBdisk": {
+      "usd": 2.85,
+      "pln_net": 10.83
+    },
+    "larger_assumed_1GB_005cpu_2GBdisk": {
+      "usd": 11.3,
+      "pln_net": 42.94
+    }
+  }
+}

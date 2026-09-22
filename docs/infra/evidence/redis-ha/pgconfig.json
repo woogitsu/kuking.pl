@@ -1,0 +1,84 @@
+{
+  "retrieved_utc": "2026-09-20T18:34:00.656Z",
+  "source": "Railway MCP read-only",
+  "result": {
+    "service": {
+      "id": "5714f434-d42f-4ab0-addf-f8213409fa7f",
+      "name": "Postgres"
+    },
+    "environment": {
+      "id": "ea146c13-dc55-4a4f-a386-0835f650f9ce",
+      "name": "production"
+    },
+    "config": {
+      "source": {
+        "image": "ghcr.io/railwayapp-templates/postgres-ssl:18"
+      },
+      "networking": {
+        "privateNetworkEndpoint": "postgres"
+      },
+      "build": {
+        "builder": "RAILPACK",
+        "buildEnvironment": "V3"
+      },
+      "deploy": {
+        "useLegacyStacker": false,
+        "ipv6EgressEnabled": false,
+        "runtime": "V2",
+        "multiRegionConfig": {
+          "europe-west4-drams3a": {
+            "numReplicas": 1
+          }
+        },
+        "requiredMountPath": "/var/lib/postgresql/data"
+      },
+      "haTemplateCode": "postgres-ha",
+      "haConversionConfig": {
+        "edge": {
+          "label": "Reverse Proxy",
+          "options": [
+            2,
+            3,
+            4,
+            5
+          ],
+          "nodeLabel": "HAProxy",
+          "description": "Routes traffic to the primary",
+          "defaultValue": 3
+        },
+        "replica": {
+          "label": "Replicas",
+          "options": [
+            2,
+            3,
+            4,
+            5,
+            6,
+            7
+          ],
+          "nodeLabel": "Postgres",
+          "description": "Streaming replicas for automatic failover",
+          "defaultValue": 2
+        },
+        "internal": {
+          "label": "Coordinator Nodes",
+          "options": [
+            3,
+            5,
+            7,
+            9
+          ],
+          "nodeLabel": "etcd",
+          "defaultValue": 3
+        },
+        "description": "This will convert your Postgres database to an HA cluster with Patroni failover and etcd consensus."
+      },
+      "volumeMounts": {
+        "795f7370-b4a5-4746-88a9-f0e6758d1f1e": {
+          "mountPath": "/var/lib/postgresql/data"
+        }
+      }
+    },
+    "staged": null
+  }
+}

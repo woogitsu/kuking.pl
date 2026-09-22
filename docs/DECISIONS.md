@@ -100,6 +100,15 @@ unikalności zepsułoby sedno produktu.
 
 **Data:** wrzesień 2026 · Status: **obowiązuje**
 
+> **Uzupełnienie z 20 września 2026 (audyt rejestru).** Reguła jest dziś
+> TRZYelementowa, nie dwuelementowa. Commit `ed6cbf00` (19 września) wyjął
+> `posts.kind` z `$fillable` i nazwał je polem STERUJĄCYM „tej samej rodziny
+> co `users.status` i `users.role`": `kind` rozstrzyga, czy wpis jest daniem,
+> czy pytaniem, a przez to do których strumieni trafia (`scopeEnabledKinds`),
+> pod jakim adresem stoi (`url()`) i co przepuści `PostPolicy`. Jedyną drogą
+> jest nazwana metoda `Post::oznaczJakoPytanie()`. Tytuł i treść tego wpisu
+> mówią o dwóch kolumnach i nie zostały przepisane — reguła obejmuje trzy.
+
 Zmiana stanu konta jest zawsze jawną, nazwaną operacją: `suspend()`, `ban()`,
 `markForDeletion()`, `promoteTo()`. To zamyka drogę do przejęcia uprawnień
 przez dołożenie pola do formularza.
@@ -187,6 +196,17 @@ forma żeńska (żadna nie brzmi po polsku dobrze).
 **Data:** 5 września 2026 · **Decyzja właściciela** · Status: **zmienione przez D-028
 w części dotyczącej runnerów** (organizacja i prywatność repozytorium zostają)
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Sekcja „Stan wykonania"
+> opisuje świat, którego już nie ma. Pozycja „pierwszy zielony przebieg —
+> `main` to dziś pusty commit inicjalizacyjny, więc GitHub nie widzi żadnego
+> workflow" jest nieaktualna: `main` stoi na `61686213` z historią do PR #731,
+> a cztery workflow-y leżą w `.github/workflows/` na tej gałęzi. Nieaktualne
+> jest też uzasadnienie przy „zmienna `CI_RUNNER` usunięta": po drugiej
+> poprawce z D-028 `runs-on` czyta `CI_RUNS_ON`
+> (`.github/workflows/ci.yml:167`), czyli inną zmienną niż ta, o której mówi
+> tamto zdanie. Reszta wpisu — organizacja `woogitsu`, prywatność
+> repozytorium, wyzwalacze — ma pokrycie.
+
 > **Zmiana wcześniejszej decyzji.** Pierwotnie: własny self-hosted runner.
 > Powód zmiany: plan Free daje **2 000 minut miesięcznie także dla repozytoriów
 > prywatnych**, a pula jest liczona per konto. Właściciel wykorzystał ją na inny
@@ -237,6 +257,18 @@ kontroli nad środowiskiem, której runnery GitHuba nie dają.
 
 **Data:** 5 września 2026 · **Decyzja właściciela** ·
 Status: **NIEAKTUALNE — serwis JEST na produkcji (zmierzone 7 września 2026)**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ramka ostrzegawcza mówi,
+> że `docs/infra/DEPLOYMENT_RUNBOOK.md` §2.3 i §7 „dalej KAŻĄ" utworzyć
+> `cdn.kuking.pl` z regułą „Cache Everything". To zostało naprawione:
+> `docs/infra/DEPLOYMENT_RUNBOOK.md:227-247` niesie wycofanie rozdziału i
+> zdanie „**Zamiast tego kroku: nic.**", stara instrukcja zjechała do bloku
+> opisanego jako „do czytania, NIE do wykonywania", a
+> `tests/Feature/RunbookNieKazeTworzycDomenyZdjecTest.php` pilnuje tego
+> maszynowo. Zostawione bez adnotacji ostrzeżenie szkodzi dokładnie tak, jak
+> ten wpis to opisuje: następna osoba „naprawi" rzecz już naprawioną. Sam
+> status NIEAKTUALNE potwierdzony 20 września 2026 — `GET
+> https://kuking.pl/health` odpowiada 200.
 
 > **UWAGA, TA DECYZJA JUŻ NIE OPISUJE RZECZYWISTOŚCI.** `https://kuking.pl`
 > odpowiada HTTP/2 200 z `server: cloudflare` i pełnym zestawem nagłówków
@@ -329,6 +361,18 @@ Koszt zmiany: jedna linijka w `components/kuking-board.blade.php`.
 ## D-014 · Nie budujemy API „pod przyszłą aplikację mobilną"
 
 **Data:** 5 września 2026 · **Propozycja do zatwierdzenia** · Status: **do decyzji właściciela**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Konkluzja — „nie budujemy
+> API" — obowiązuje i ma pokrycie: nie ma `routes/api.php` ani Sanctuma w
+> `composer.json`. Nieprawdziwy jest POMIAR, na którym ten wpis stoi. Zdanie
+> „logika biznesowa nie siedzi w kontrolerach, tylko w 14 Akcjach w 11
+> modułach domenowych… kontrolery mają 109–146 linii (najgrubszy 329)" nie
+> opisuje dzisiejszego kodu: Akcji jest 43, a
+> `app/Http/Controllers/HealthController.php` ma 858 linii,
+> `RecipeController.php` 827, `PostController.php` 749 — czyli 2,5× więcej niż
+> deklarowany „najgrubszy 329". Zobowiązanie „trzymamy dyscyplinę Akcji:
+> logika nigdy nie wycieka do kontrolerów ani do Blade" przestało być podparte
+> liczbami, które ten wpis przytacza jako swój dowód.
 
 Pytanie z rozmowy: skoro kiedyś powstanie wersja mobilna, czy nie pisać już
 teraz API, żeby potem było gotowe?
@@ -424,6 +468,20 @@ D-009
 ## D-016 · Odwołanie składa się w produkcie, formularzem zamkniętym hasłem
 
 **Data:** 6 września 2026 · Status: **obowiązuje** · issues #10, #65
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ograniczenie cytowane w
+> sekcji „Ile razy: raz od jednej decyzji" — `UNIQUE
+> (appeals.moderation_action_id)` — zostało zdjęte tego samego dnia:
+> `database/migrations/2026_09_07_800000_appeals_open_to_reporters.php:127-128`
+> robi `DROP CONSTRAINT appeals_moderation_action_id_unique` i zakłada `UNIQUE
+> (moderation_action_id, appellant)`. Od jednej decyzji moderacyjnej mogą więc
+> powstać DWA odwołania — autora i zgłaszającego. Druga nieścisłość jest w
+> tytule: zgłaszający składa odwołanie podpisanym linkiem
+> (`routes/web.php:567-569`, middleware `signed`), a hasło jest bramką
+> wyłącznie na ścieżce autora
+> (`app/Http/Controllers/AppealController.php:116-130`). Reszta wpisu —
+> karencja 24 h, `previous_status`, powrót do szkicu — ma pokrycie. Słowo
+> `appellant` nie pada w tym dzienniku ani razu poza tą adnotacją.
 
 Ścieżka odwołania (DSA art. 17 i 20) mogła pójść jedną z trzech dróg. Wybór
 zapadł tak, a nie inaczej, i obie odrzucone drogi miały realne zalety.
@@ -1120,6 +1178,17 @@ musi paść przed otwarciem rejestracji.
 
 **Data:** 7 września 2026 · Status: **obowiązuje**
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Zdanie „dane w DWÓCH
+> plikach JSON, czytanych przez `TagSeeder`… razem 1419 tagów i 2448 aliasów"
+> opisuje nieaktualne źródło danych. `database/seeders/TagSeeder.php:104-106`
+> deklaruje TRZY pliki — doszedł `slownik-tagow-v1.1.json` (27 nazw
+> kanonicznych), którego nie opisuje żadna decyzja w tym rejestrze. Liczby
+> 1419/2448 są przez to zaniżone, a `docs/DATABASE.md:3203` powtarza je za tym
+> wpisem, więc ta sama nieprawda stoi w dwóch dokumentach naraz. Mechanizmy
+> opisane niżej — scalanie starych nazw zamiast dublowania, zakaz tagów
+> dietetycznych — działają i mają test
+> (`tests/Feature/SlownikTagowTest.php:47-51`).
+
 Początkowa baza tagów (SPEC §1.4) była wpisana na sztywno w `TagSeeder`:
 651 nazw i 53 aliasy, ułożone przeze mnie przy okazji implementacji D-021.
 Zamówiony osobno słownik ma 1250 nazw kanonicznych i 2366 aliasów, w 13
@@ -1479,6 +1548,17 @@ albo powodu, dla którego format ma wyglądać inaczej.
 
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **obowiązuje**
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Zdanie „pola na tytuł nie
+> ma, `posts.title` nie istnieje w żadnej migracji" przestało obowiązywać 18
+> września 2026 — patrz **D-163**. Migracja
+> `database/migrations/2026_09_18_100000_add_kind_and_title_to_posts.php:18`
+> dodaje `title varchar(180) NULL`. Sedno tej decyzji przetrwało i jest dziś
+> wymuszone bazą: `posts_kind_title_check` wymaga `(kind = 'dish' AND title IS
+> NULL)`, więc wpis-danie tytułu nadal nie ma i mieć nie może. Zmieniła się
+> klasa obiektu: `kind = 'question'` tytułu WYMAGA (10–180 znaków). D-163 nie
+> odesłała tutaj, więc do dziś ten wpis odpowiadał nieprawdziwie na pytanie
+> „czy wpis ma tytuł" dla połowy wierszy w `posts`.
+
 System projektowy v3.1 wprowadza `.karta-tytul` i opisuje go wprost jako nowy
 element: „dziś karta ma tylko treść, przez co nazwa autora jest największym
 napisem w karcie". D-110 daje mu 24 px i wagę 800 — czyli szczyt hierarchii.
@@ -1593,8 +1673,36 @@ w wierszu metadanych bywa przeoczona. Nie „wrażenia, że jest za mała".
 
 ## D-033 · Składniki dostają grupy, a przepis przeliczanie porcji
 
+> **Doprecyzowanie właściciela, 20 września 2026, #878:** „Bez ilości” nie
+> oznacza „do smaku”. Pokazujemy wyłącznie tekst autora i jego uwagę, bez
+> automatycznego dopisku. Zmiana dotyczy prezentacji z #44; flaga i CHECK
+> zostają. W zadaniu #741 właściciel polecił poprawić opisy, bez budowania
+> skalowania porcji: jest ono nadal niewdrożonym planem V2 (`FEATURES.md`).
+
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
 niezbudowana** · **poprawia D-017**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Status „przyjęta,
+> **niezbudowana**" jest dziś prawdziwy tylko dla połowy tego wpisu. Zdanie
+> „grupy składników… **w bazie nie ma na to kolumny**" jest nieprawdziwe:
+> kolumna `recipe_ingredients.group_name varchar(120) NULL` stoi w schemacie,
+> zapis i ujednolicanie pisowni idą przez
+> `app/Domain/Recipes/Actions/PublishRecipe.php:399,452`, scalanie przez
+> `app/Domain/Recipes/GrupySkladnikow.php`, nagłówki grup renderuje
+> `resources/views/pages/recipes/show.blade.php:468`, a pole w formularzu
+> działa bez JavaScriptu
+> (`resources/views/pages/recipes/szczegoly.blade.php:339-346`). Druga połowa
+> — przeliczanie porcji — faktycznie nie istnieje: `servings` jest zwykłym
+> polem liczbowym i nic nie skaluje ilości.
+>
+> **Proponowany kształt, NIE wykonany przez audyt — do rozstrzygnięcia przez
+> właściciela.** Jeden status nie może opisywać rzeczy zbudowanej i
+> niezbudowanej naraz, więc wpis prosi się o rozdzielenie: część „grupy
+> składników" zostaje pod D-033 ze statusem **obowiązuje, wdrożone**, a część
+> „przeliczanie porcji" dostaje pierwszy wolny numer na końcu dziennika ze
+> statusem **przyjęta, niezbudowana** i zdaniem „wydzielone z D-033".
+> Rozdzielenie zmienia strukturę rejestru i numerację — to nie jest adnotacja
+> i audyt tego nie robi.
 
 Pierwotne pytanie („czy składnik ma osobne pole na ilość") było nieaktualne
 w chwili zadawania: `recipe_ingredients` ma `quantity` (decimal 12,4),
@@ -1672,6 +1780,17 @@ D-108 (system v3.1)
 
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
 niezbudowana**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ten wpis nosi status
+> „przyjęta, **niezbudowana**" i opisuje stan zastany zdaniem: „dziś `<input
+> type="file">` jest w pełni widoczny wewnątrz dużego obszaru »Dodaj zdjęcie«,
+> a komentarz mówi wprost, że zostaje widoczny celowo". Dziś jest dokładnie
+> odwrotnie: `resources/views/pages/posts/create.blade.php:73-90` ma pole z
+> klasą `visually-hidden pole-zdjecia-input`, a komentarz nad nim brzmi
+> „Natywne pole pliku jest tu SCHOWANE DLA OKA (decyzja właściciela D-035)".
+> Warunki wykonania postawione w tym wpisie są spełnione: nie `display:none`,
+> prawdziwa `<label for>`, `aria-labelledby` i obwódka `:focus-visible`.
+> **Decyzja jest wdrożona — nieaktualny jest jej status i akapit „Dziś…".**
 
 Dziś `<input type="file">` jest w pełni widoczny wewnątrz dużego obszaru
 „Dodaj zdjęcie", a komentarz w `pages/posts/create.blade.php` mówi wprost, że
@@ -2854,6 +2973,19 @@ zamknięta bramka bez tabliczki, co jest gorsze niż jedno i drugie osobno.
 ## D-051 · Stopka: metryczka wersji 8 px i przełącznik motywu bez widocznego napisu — świadomy wyjątek od AGENTS.md §5
 
 **Data:** 9 września 2026 · Issue #205 · Decyzja właściciela · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Wyjątek obowiązuje i ma
+> pokrycie (`resources/css/app.css:4404-4406`,
+> `resources/views/components/layout.blade.php:1244`, `AGENTS.md:233`), ale
+> nie jest tym, czym brzmi. Strażnik minimum 18 px
+> (`tests/Feature/MinimalnyRozmiarTekstuTest.php:29-36`) chodzi po ZAMKNIĘTEJ
+> BIAŁEJ LIŚCIE sześciu selektorów i nie skanuje CSS w poszukiwaniu małych
+> rozmiarów. Reguła i wyjątek „nie kolidują" wyłącznie dlatego, że reguła do
+> `.site-version` w ogóle nie dochodzi — a samej wartości 8 px nie asertuje
+> żaden test, więc podniesienie jej do `--text-meta` (wariant tu odrzucony)
+> nie obleje niczego. To ten sam kształt co w D-091 i D-163: gwarancja na
+> papierze, mierzona przez coś, co jej nie obejmuje. Naprawa nie należy do
+> tego audytu — zgłoszona osobno.
 
 Przy przebudowie stopki na kilka poziomów (issue #205) właściciel poprosił
 wprost o dwie rzeczy, które łamią `AGENTS.md` §5:
@@ -4771,6 +4903,33 @@ Ta decyzja NIE jest „nigdy" — jest „nie bez tych trzech rzeczy naraz":
   `docs/MEDIA_PIPELINE.md`, `config/kuking.php` (komentarz przy
   `accepted_mime_types`).
 
+### Aktualizacja 20 września 2026 — obietnica bez pokrycia poprawiona (#119 follow-up)
+
+Ta decyzja **nie jest otwierana na nowo**: HEIC nadal jest odrzucany, `libheif`
+nadal nie wchodzi do obrazu Dockera. Poprawiono wyłącznie TEKST komunikatu
+z §3 pkt 2, po pomiarze stanowiska `gpt/heic-format`
+(`docs/research/heic-119/RAPORT.md`).
+
+Znaleziony błąd: komunikat obiecywał **bezwarunkowo**, że wysłanie HEIC do
+siebie e-mailem da JPG („wyślij najpierw do siebie e-mailem — przyjdzie jako
+JPG"). Apple (support.apple.com/pl-pl/116944) opisuje to jako zależne od
+sposobu udostępniania i możliwości odbiorcy — „może" zostać wysłane w formacie
+zgodnym, nie „zostanie". Naprawiono `App\Support\RozpoznanieZdjecia::komunikatHeic()`:
+wynik dla TEGO zdjęcia nazwany jako niepewny („telefon czasem sam zamienia
+je wtedy na JPG, ale zależy to od modelu telefonu"), z prostą alternatywą
+(wybrać inne, gotowe zdjęcie), i osobno, jasno opisane ustawienie na
+PRZYSZŁOŚĆ, które nie przerabia zdjęcia już zrobionego. Nie zastąpiono jednej
+niepewnej obietnicy inną równie pewną — żadna sprawdzona na 100% droga
+konwersji ISTNIEJĄCEGO pliku nie jest znana (patrz RAPORT.md §5: Mail,
+„Duplikuj" i zewnętrzny konwerter odradzane jako pewniki).
+
+Drugi błąd, drobniejszy: polska pomoc Apple podaje etykietę „Najbardziej
+zgodne" (rodzaj nijaki), a komunikat (i ten wpis w §3 pkt 1 wyżej) miał
+błędną odmianę „Najbardziej zgodny". Poprawiono w obu miejscach.
+
+Test regresyjny (RED przed poprawką, GREEN po):
+`tests/Feature/ObiecujemyTylkoFormatyKtoreUmiemyTest.php::test_komunikat_heic_nie_obiecuje_bezwarunkowo_konwersji_mailem`.
+
 ### Co CZEKA na właściciela (opisane, nie wykonane)
 
 - **Pomiar na prawdziwym iPhonie** (§3, §6 pkt 2) — nie do wykonania z tego
@@ -5027,6 +5186,20 @@ issue #21
 
 **Data:** 10 września 2026 · Audyt drugiej warstwy QUEUE-01 / MAIL-02 /
 RACE-04 (P1) · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Rdzeń obowiązuje i ma
+> pokrycie: rezerwacja `(osoba, tydzień)` PRZED `Mail::queue()`, klucz główny
+> `(user_id, week_start)` i `CHECK` na poniedziałek
+> (`database/migrations/2026_09_10_400000_create_weekly_digest_sends_table.php:146,152`).
+> Nieaktualna jest §8 „Czego ta decyzja NIE dotyka". Zdanie
+> „**`DziennyBudzetListow` zostaje bez zmian** … pętla woła budżet tak jak
+> dotąd, **po udanej rezerwacji tygodnia**" opisuje odwrotną kolejność niż
+> kod: `app/Console/Commands/WyslijPodsumowaniaTygodnia.php:226` rezerwuje
+> budżet dobowy, `:282` dopiero tydzień, a `:287` zwalnia miejsce przy
+> niepowodzeniu — pod nagłówkiem „KOLEJNOŚĆ TYCH DWÓCH REZERWACJI JEST
+> MERYTORYCZNA" (`:233-254`), który tę zmianę uzasadnia. Sam
+> `DziennyBudzetListow` też „bez zmian" nie został — D-076 dołożyła mu
+> `sprobujZarezerwowac()` i `zwolnij()`.
 
 ### 1. Co dokładnie było zepsute — kolejność, nie brak sprawdzenia
 
@@ -6533,6 +6706,13 @@ tak jak ekran przepisu robi to od dawna (`$isSaved`). Stanem jest zdanie
 co ktoś właśnie do niego włożył (podwójne kliknięcie w tej grupie to norma,
 issue #43). Wyjąć z zeszytu można nadal w samym zeszycie.
 
+> **Poprawione 20 września 2026 — patrz D-224.** Ostatnie zdanie było
+> nieprawdziwe: ekran zeszytu renderuje TĘ SAMĄ kartę, więc przycisku
+> wyjęcia nie było tam, gdzie to zdanie obiecywało (audyt L1). Przycisk
+> „Usuń z zeszytu" stoi teraz na karcie, OBOK odnośnika „Masz to
+> w zeszycie" — a nie zamiast niego, więc opisana wyżej obawa o podwójne
+> kliknięcie zostaje zaadresowana układem.
+
 Wszystko działa **bez JavaScriptu**: formularz `POST`, przekierowanie, `GET`.
 
 ### Gdzie liczba stoi, a gdzie CELOWO nie
@@ -7336,6 +7516,21 @@ przerwa albo zakładka pasm.
 **Issue:** #285 (MEDIA-01, P1). **Data:** 10.09.2026.
 **Stoi na:** D-079 (jedna kolejność blokad + rewalidacja POD blokadą).
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Sekcja „Co zostaje
+> otwarte" jest nieaktualna od **D-103**, która sama nazywa się wykonaniem
+> tego wpisu. Zdanie „awatar, zdjęcie główne przepisu, skan zeszytu i zdjęcie
+> kroku **przypinają się nadal bez blokady**" nie opisuje dzisiejszego kodu:
+> `app/Domain/Media/Actions/PrzypnijAwatar.php:113` woła
+> `ZdjeciaDoPrzypiecia::zablokuj(...)`, a
+> `app/Domain/Recipes/Actions/PublishRecipe.php:227` robi jedno wspólne
+> `zablokuj()` na `hero_media_id`, `source_scan_media_id` i
+> `recipe_steps.media_id`. Rdzeń — jedna blokada wiersza `media`,
+> `status='deleted'` jako uchwyt do ponowienia, pliki dopiero po commicie —
+> obowiązuje i jest wdrożony
+> (`app/Domain/Media/ZdjeciaDoPrzypiecia.php:66-78`). D-103 nie postawiła tu
+> adnotacji, więc czytany samodzielnie wpis wprowadzał w błąd co do stanu
+> czterech ścieżek przypinania.
+
 ### Stan sprzed zmiany — sprawdzony w plikach, nie przepisany z audytu
 
 Audyt jest materiałem zewnętrznym, a `docs/research/audyt-2026-09-10/SPRAWDZENIE.md`
@@ -7583,6 +7778,29 @@ zachowuje alfabetyczny, nieranking'owy porządek, tylko w kawałkach po
 prawa kolumna jest marnowana, można tam dać info o użytkowniku (ile wpisów,
 przepisów, obs, obserwuj itp itd, a nie na środku przez co wpisy są dużo
 niżej".
+
+> **Adnotacja z 20 września 2026 (audyt rejestru) — ROZBIEŻNOŚĆ OPISANA,
+> NIEROZSTRZYGNIĘTA.** Tytuł obiecuje „dwa egzemplarze w HTML, jeden na
+> ekranie". W kodzie egzemplarz jest JEDEN:
+> `resources/views/pages/profile/show.blade.php:257` renderuje
+> `<x-liczby-profilu … wariant="karta" />`, a `wariant="szyna"` ani klasy
+> `profil-liczby-szyna` nie emituje żaden plik w `resources/views/`.
+> `resources/views/components/szyna-profilu.blade.php` deklaruje wprawdzie
+> `$stats`, ale nigdzie ich nie używa i kontroler ich tam nie podaje.
+>
+> Strażnik podany w tym wpisie egzekwuje dziś **zakaz** obiecanego wariantu:
+> `tests/Feature/ProfilLiczbyWPrawejSzynieTest.php:28` nazywa się
+> `test_liczby_wystepuja_raz_w_dokumencie` i asertuje
+> `assertStringNotContainsString('profil-liczby-szyna', $html)` oraz
+> `assertSame(1, substr_count($html, 'class="profil-liczniki '))`. W
+> `resources/css/ekran-profilu.css:294-316` zostały reguły
+> `.profil-liczby-szyna` / `.profil-liczby-karta`, których nic nie trafia.
+>
+> **Czego audyt NIE ustalił:** czy decyzję wdrożono i później odwrócono, czy
+> nigdy jej nie wykonano, a strażnik napisano pod stan zastany. To dwie różne
+> historie i dwie różne naprawy — przywrócić wariant szyny albo wycofać wpis
+> razem z martwym CSS-em. Żaden późniejszy wpis tego nie odwraca, a dziennik
+> cytuje D-091 dalej jako obowiązujące. **Werdykt należy do właściciela.**
 
 **Stan przed zmianą.** Karta profilu (`pages/profile/show.blade.php`) miała pod
 opisem osoby pięć osobnych wierszy po 48 px: wpisy, przepisy, „razy
@@ -8372,6 +8590,20 @@ migracja `2026_09_10_500000_create_mail_failures_table` ·
 ## D-063 · PostHog: nie teraz — statystyki zostają własne, w naszej bazie
 
 **Data:** 10 września 2026 · Issue #33 (audyt monitoringu) · Status: **obowiązuje do spełnienia warunków powrotu niżej**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Dwa zdania z zakończenia
+> tego wpisu przestały obowiązywać przy **D-092** i nie zostały wtedy
+> odnotowane. „PostHog **zostaje w tabeli stacku jako wybór docelowy**
+> (`AGENTS.md` §3)" — nie zostaje: `AGENTS.md:116` ma dziś wiersz „Analityka |
+> własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez
+> ciasteczek — D-092)". „`.railway/railway.ts` i `.env.example` mają już
+> przygotowane `POSTHOG_KEY`/`POSTHOG_HOST` (EU) — ten kawałek nie wymaga
+> zmian" — `.env.example` nie zawiera ani jednego `POSTHOG`; zostało wyłącznie
+> `.railway/railway.ts:439`. Zmieniła się też przesłanka tytułu („statystyki
+> zostają własne, w naszej bazie"): zewnętrzne narzędzie analityki odwiedzin
+> JEST wpięte (`app/Support/AnalitykaCloudflare.php`,
+> `resources/legal/polityka-prywatnosci.md:54`). Instrukcja wdrożeniowa niżej
+> odsyła do zmiennych, których nie ma.
 
 `AGENTS.md` §3 nazywa PostHog (EU) docelową analityką w tabeli stacku, a
 issue #33 prosił o „projekt na EU Cloud" i taksonomię zdarzeń. Audyt
@@ -9241,6 +9473,14 @@ issue #33, D-041, D-062, `docs/PULAPKI_TESTOW.md` §2
 **Stoi na:** D-083 (jedna blokada wiersza `media`, pliki po commicie),
 D-079 (jedna kolejność blokad + rewalidacja POD blokadą).
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Ten wpis domyka D-083,
+> ale nie postawił tam adnotacji — została dopisana 20 września 2026 przy
+> D-083. Sam D-103 ma pokrycie: cztery drogi są zamknięte
+> (`app/Domain/Recipes/Actions/PublishRecipe.php:227` przed
+> `Recipe::create()`, `app/Domain/Media/Actions/PrzypnijAwatar.php:149`,
+> odpinanie awatara atomowym `UPDATE … WHERE` w
+> `app/Http/Controllers/Settings/AvatarSettingsController.php:158`).
+
 To jest **wykonanie D-083**, nie nowa decyzja o mechanizmie — sekcja „Co
 zostaje otwarte" tamtego wpisu wskazuje dokładnie te cztery drogi. Numer jest
 tu potrzebny z jednego powodu: **jedna z nich nie dała się zamknąć wzorcem**
@@ -9579,6 +9819,24 @@ issue #314, #66, D-079, D-080, D-090, D-093
 
 **Data:** 11 września 2026 · Spłata długu siedmiu stron publicznych z **D-099**
 · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Rdzeń obowiązuje
+> (`MAIL_MAILER=smtp` dla procesu serwera,
+> `przeszkodaWFormularzachOdzyskania()` kończąca kodem 1 —
+> `scripts/dostepnosc.mjs:811,824,1449`). Nieaktualna jest sekcja „Czego ta
+> decyzja NIE robi". Zdanie „**nie spłaca dwóch ekranów wejścia kontem
+> Google** — `wejdz/google/domknij` i `wejdz/google/polacz` zostają długiem, a
+> powód i sprawdzone drogi na skróty są wypisane przy nich w
+> `PomiarDostepnosciObejmujeStronyPubliczneTest`" jest dziś nieprawdziwe w obu
+> członach. Dług spłacił moduł OAuth (#345): oba adresy są mierzone
+> (`scripts/fixtures/oauth-dostepnosc.mjs:8-13`), a job CI zbiera z tego
+> artefakt (`.github/workflows/ci.yml:1535`). Odesłanie „po powód" prowadzi
+> dziś donikąd: na liście `WYJATKI` w
+> `tests/Feature/PomiarDostepnosciObejmujeStronyPubliczneTest.php:75-79` tych
+> dwóch adresów już nie ma, a argumentacja została usunięta razem z długiem.
+> Na granicy: wyliczenie „automat wykonuje **wyłącznie** żądania GET oraz trzy
+> formularze logowania i włączenie 2FA" przestało być pełne — moduł OAuth
+> przechodzi też przez formularze `…/polacz` i `…/domknij`.
 
 ### Co się okazało przy dopisywaniu siedmiu ekranów
 
@@ -10074,6 +10332,18 @@ wartościami i same w sobie niczego nie dowodzą.
 
 **Data:** 11 września 2026 · Potwierdził właściciel · Status: **obowiązuje**
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Sprostowanie, po które
+> ten wpis powstał, nigdy nie weszło do dokumentu.
+> `docs/infra/KOPIE_I_ODTWORZENIE.md:58` nadal niesie ramkę „Najpilniejsza
+> pozycja z tej tabeli" z tezą „Bucket R2 nie istnieje jeszcze", a `:130`
+> powtarza dokładnie zdanie cytowane w tym wpisie jako nieprawdziwe: „**Bucket
+> R2 nie istnieje.** Potwierdzone wprost przez właściciela". Czytelnik tamtego
+> dokumentu jest więc dalej kierowany na ryzyko, o którym ten wpis mówi, że go
+> nie ma, i dalej odwracana jest jego uwaga od ryzyka bieżącego. Wniosek
+> metodyczny tego wpisu — „zdanie o stanie świata ma nosić datę pomiaru" — nie
+> został zastosowany do samego naprawianego zdania: żadne z dwóch miejsc daty
+> nie ma i nic tego nie pilnuje testem.
+
 `KOPIE_I_ODTWORZENIE.md` twierdziło od 8 września: „Bucket R2 nie istnieje jeszcze.
 Potwierdzone wprost przez właściciela". **Zdanie zestarzało się w trzy dni** i przez
 ten czas kierowało czytelnika na ryzyko, którego nie ma (utrata zdjęć przy
@@ -10094,6 +10364,26 @@ nazwisko osoby, która je potwierdziła.
 ## D-119 · Plik-wskaźnik nie powtarza reguły, tylko odsyła — a punkt bez nazwanego wyjątku jest rozjazdem tej samej wagi co punkt nieprawdziwy
 
 **Data:** 11 września 2026 · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Z czterech rozjazdów w
+> `CLAUDE.md`, które ten wpis wymienia, naprawiony został jeden — punkt o
+> JavaScripcie odsyła dziś do D-053. Dwa nazwane tu wprost stoją dalej.
+> `CLAUDE.md:27` każe „Przed PR-em: `vendor/bin/pint` i `php artisan test`",
+> gdy `AGENTS.md:454` podaje `./scripts/check.sh` jako JEDNĄ komendę
+> obejmującą formatowanie, składnię, testy, migracje i assety. `CLAUDE.md:22`
+> mówi „Zmiana schematu = migracja + test + `docs/DATABASE.md` + rollback" bez
+> wyjątku z **D-088** (`down()` przy wartościach semantycznych ODMAWIA), który
+> `AGENTS.md:318` ma jako osobny podrozdział. Realizuje się więc dokładnie
+> ryzyko nazwane w tym wpisie: agent czytający wskaźnik jako pierwszy
+> „poprawi" decyzję właściciela, będąc przekonanym, że egzekwuje zasadę.
+>
+> **Naprawa nie weszła razem z tą adnotacją.** Zlecenie audytu ograniczało
+> zmiany do `docs/DECISIONS.md`, a `CLAUDE.md` jest plikiem instrukcji dla
+> agentów — jego zmiana należy do człowieka, nie do łańcucha zadań. Potrzebna
+> edycja jest dwuliniowa i zgodna z regułą tego wpisu („wskaźnik odsyła, nie
+> powtarza"): w `CLAUDE.md:27` zastąpić `pint` i `artisan test` odesłaniem do
+> `./scripts/check.sh` z `AGENTS.md` §10; w `CLAUDE.md:22` dopisać „rollback
+> może ODMÓWIĆ — patrz D-088 i `AGENTS.md` §6".
 
 `CLAUDE.md` sam o sobie pisze, że jest tylko wskaźnikiem na `AGENTS.md`, i sam
 ostrzega, że „rozjazd między plikami instrukcji jest gorszy niż brak instrukcji".
@@ -10134,6 +10424,21 @@ plik robi teraz.
 
 **Data:** 11 września 2026 · Status: **obowiązuje** · Ciąg dalszy **D-028** · issue #342
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Reguła obowiązuje —
+> `runs-on` czyta `vars.CI_RUNS_ON` z fallbackiem `ubuntu-latest`. Liczba nie:
+> zdanie „wszystkie **dziewięć jobów** w `ci.yml`" opisuje stan sprzed
+> rozrostu workflow. Dziś jobów jest TRZYNAŚCIE (`zakres`, `lint`,
+> `przyrzad_605`, `static-analysis`, `test`, `dwa-polaczenia`, `assets`,
+> `port_panelu`, `port_marki`, `port_funkcje`, `dostepnosc`, `audit`,
+> `docker-build`) i każdy ma tę samą linię `runs-on`. Liczba „dziewięć"
+> została przepisana także do komentarza strażnika
+> (`tests/Feature/DokumentyCiMowiaPrawdeORunnerzeTest.php:18`), więc rozjazd
+> stoi w dwóch miejscach naraz. Drugi człon tytułu — „a dziś wskazuje starą
+> pulę WSL" — opiera się na jednym pomiarze (CI nr 661) i dotyczy zmiennej
+> żyjącej w ustawieniach repozytorium, więc z kodu nie da się go ani
+> potwierdzić, ani obalić. Zgodnie z wnioskiem z D-118 słowo „dziś" w tytule
+> powinno nosić datę pomiaru.
+
 Wszystkie dziewięć jobów w `ci.yml` ma
 `runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}` — czyli **dokładnie**
 zmienną repozytorium, z zapasem w runnerach GitHuba. Nagłówek twierdził odwrotnie:
@@ -10153,6 +10458,18 @@ niżej niż zdanie, któremu przeczy.
 ## D-122 · Gość dostaje prawą szynę obok treści, a nie pod nią — bo komentarz mówił, że gość szyny nie ma, i był nieprawdziwy od 7 września
 
 **Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Decyzja obowiązuje — gość
+> dostaje szynę obok treści — ale WSZYSTKIE liczby w niej są dziś martwe, bo
+> nadpisał je późniejszy port marki. `resources/css/marka-rama.css:185` daje
+> szynę **330 px** (wpis mówi 352), `:39` ramę `min(1120px, …)` (wpis: sufit
+> 1152), `:50` kolumnę treści **760 px** (wpis: 720). Do tego `:49` ukrywa
+> `.side-nav` całkowicie, co znosi przesłankę odróżniającą gościa od
+> zalogowanego, na której zbudowana jest sekcja „Ekran gościa BEZ szyny
+> zostaje jednokolumnowy"; atrybut `data-marka="kuking-2026"` siedzi na
+> `<body>` bezwarunkowo (`resources/views/components/layout.blade.php:359`).
+> Strażnik `tests/Feature/SzynaGosciaTest.php:277-310` niczego nie zauważył,
+> bo czyta TEKST ARKUSZA, a nie wynik kaskady.
 
 ### Zgłoszenie
 
@@ -10318,6 +10635,20 @@ posortowany wynik. Koszt rośnie z liczbą kont i wpisów, nie z sufitem.
 ## D-125 · Klasa `.card` niosła 126 ról naraz — sześć warstw powierzchni zamiast jednej
 
 **Data:** 11 września 2026 · Status: **obowiązuje** · Inwentarz: `docs/design/ROLE_KART.md`
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Zdanie „hierarchia bierze
+> się z **uniesienia i mocy obwódki**, nie z koloru… warstwy 1, 3 i 4 różni
+> wyłącznie cień" przestało opisywać stan faktyczny po porcie marki.
+> `resources/css/marka-rama.css:238-241` nadaje globalnie `[data-marka]
+> :is(.card, .panel-formularza, .empty-state)` ten sam `border-radius: 24px` i
+> ten sam `box-shadow`, więc karta treści (warstwa 1) i panel formularza
+> (warstwa 2) różnią się dziś już tylko obwódką — uniesienie, czyli połowa
+> nośnika hierarchii z cytatu, między nimi zniknęło. Sześć klas i tokeny
+> `--warstwa-*` nadal istnieją (`resources/css/tokens.css:1204-1270`). Pomiar
+> opisany w tym wpisie (`scripts/warstwy-pomiar.mjs`, wyniki „3/1/3 → 3/2/2")
+> nie jest wywoływany ani w `scripts/check.sh`, ani w
+> `.github/workflows/ci.yml`, więc liczby stąd nie są odtwarzalne w bramce i
+> nikt nie zauważy ich zmiany.
 
 ### Co było nie tak
 
@@ -10601,6 +10932,18 @@ z konstrukcji**.
 ## D-134 · Cyfra wersji rośnie przy każdej widocznej zmianie, a każde podbicie ma wpis w `CHANGELOG.md`
 
 **Data:** 11 września 2026 · Zgłosił i rozstrzygnął właściciel · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Pierwsza połowa reguły
+> działa: `config/kuking.php` stoi na `'etykieta' => 'Alfa 0.67'`, a metryczki
+> w stopce pilnuje `tests/Feature/StopkaPoziomyTest.php:119`. Druga połowa
+> jest złamana — w `CHANGELOG.md` NIE MA wpisu dla **Alfy 0.46**: `:101` to
+> „## Alfa 0.47 — kolaż po wyczyszczeniu wyboru", a następna pozycja pod nim,
+> `:107`, to „## Alfa 0.45 — przycisk rejestracji przy dużym tekście". To jest
+> dokładnie „numer bez treści", przed którym ostrzega zdanie „jedno pilnuje
+> drugiego". Przyczyna jest strukturalna: sprzężenie nie ma strażnika — `grep
+> CHANGELOG` po `tests/` i `scripts/` nie daje ani jednego trafienia. Ten wpis
+> przewiduje ryzyko „strażnika poprawianego bezmyślnie przy każdym wydaniu";
+> zrealizowało się ryzyko odwrotne — strażnika nie ma wcale.
 
 ### Zgłoszenie
 
@@ -12482,6 +12825,21 @@ decyzja. Zdejmuje tylko przeszkodę, która kazała tamto odłożyć.
 **Data:** 12 września 2026 · **Decyzja właściciela** · Status: **obowiązuje** ·
 dotyczy issue #372
 
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Nazwa i ekran istnieją
+> (`resources/views/pages/questions/index.blade.php`), ale dwie rzeczy
+> zatwierdzone w tym wpisie nie powstały. Po pierwsze pozycja **w menu**:
+> wiersz „MENU: Poradźcie" nie ma pokrycia — `questions.index` nie występuje w
+> `resources/views/components/layout.blade.php` ani w szynie bocznej, ani w
+> dolnym pasku. Po drugie strażnik, który ten wpis sam stawia jako warunek
+> zatwierdzenia nazwy: „asercja: nagłówek »Poradźcie« **i** zdanie
+> wyjaśniające na tej samej stronie — powstaje razem z ekranem". Ekran jest,
+> strażnika nie ma. Jedyna asercja z tą frazą
+> (`tests/Feature/QuestionIndexTest.php:25`) dotyczy `/odkryj`, nie
+> `/pytania`, i jest `assertSee` po CAŁEJ odpowiedzi — a ta sama fraza siedzi
+> w atrybucie `description` renderowanym jako `<meta name="description">`.
+> Usunięcie `<h1>` i akapitu z `/pytania` nie zaświeciłoby dziś na czerwono
+> ani razu. To wzorzec atrapy nazwany wprost w D-164 i D-185.
+
 ### Nazwa
 
 Dział, w którym można poprosić innych o radę, nazywa się **„Poradźcie"** —
@@ -12866,6 +13224,18 @@ D-053 · D-069 · D-104 · D-113 · issues #258, #259
 ## D-168 · Wejście do Ustawień z telefonu stoi na ekranie profilu, przy „Wyloguj się"
 
 **Data:** 12 września 2026 · PR #419 · issue #344 (część) · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Oba zdania rozstrzygane w
+> tym wpisie przestały obowiązywać 12 września 2026 — patrz **D-174**. „Jeden
+> odnośnik »Ustawienia«… prowadzący na `settings.accessibility`" prowadzi dziś
+> na `settings.index` (`resources/views/pages/profile/show.blade.php:197`), a
+> „**ekran-rozdroże `/ustawienia` nie istnieje**" jest nieprawdą — trasa stoi
+> w `routes/web.php:827` (`SettingsIndexController`). Komentarz w tym samym
+> widoku (linie 180-190) nazywa zmianę po imieniu: „Do 12 września 2026 oba te
+> miejsca celowały w `settings.accessibility`… Rozdroże powstało (issue
+> #344)". D-174 zapisała odwrócenie u siebie, ale nie postawiła adnotacji
+> tutaj, więc do dziś dziennik niósł parę sprzecznych wpisów, oba ze statusem
+> „obowiązuje". Nieaktualna jest też sekcja o „koszcie przyjętym świadomie".
 
 ### Co było
 
@@ -13439,6 +13809,19 @@ w teście i pojechał dalej. Komentarz przepisany.
 ## D-179 · Powitanie na stronie głównej nie zależy od godziny serwera
 
 **Data:** 12 września 2026 · PR #450 · issue #38 · Status: **obowiązuje**
+
+> **Adnotacja z 20 września 2026 (audyt rejestru).** Teza z tytułu — powitanie
+> nie zależy od godziny serwera — obowiązuje i ma pokrycie: w kodzie nie ma
+> żadnej gałęzi po godzinie. Odwrócone zostało BRZMIENIE, przy **D-207**, i
+> nie odnotowano tego tutaj. Zatwierdzone w tym wpisie „**Witaj, {imię}. Co
+> dziś gotujesz?**" nie jest już tekstem na ekranie:
+> `app/Http/Controllers/FeedController.php:200` zwraca „Dzień dobry, {imię}",
+> a pytanie o gotowanie zjechało do kafla publikacji.
+> `tests/Feature/PytanieDniaTest.php:24-26` egzekwuje dziś brzmienie PRZECIWNE
+> do zapisanego niżej. Uzasadnienie zmiany stoi w
+> `docs/brand/COPY_STYLE.md:441-448` („Zastępuje to poprzednie »Witaj, {imię}.
+> Co dziś gotujesz?« i rozdziela powitanie od publikacji"). Nieaktualne są też
+> liczby w sekcji „Zmierzone", bo liczono je na „Witaj, {imię}.".
 
 ### Stan zastany był inny, niż mówiło issue
 
@@ -14666,3 +15049,265 @@ Pobieranie zdjęć obejmuje jednym batchem tagi promowane i bieżącą stronę
 katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
+
+## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+
+Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
+wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
+odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
+pełna gwarancja zaczyna się od wdrożenia.
+
+Pamięć należy do autora, nie do powiadomienia ani aktualnego gospodarza.
+`first_post_events` utrwala jeden nośnik; usunięcie go pozostawia zdarzenie,
+zmiana gospodarza nie wywołuje reemisji. Inny moderator zobaczy oznaczenie
+tylko przy tym nośniku i tylko jeśli ma dostęp. Nie dostaje alternatywnego
+„pierwszego” publicznego wpisu, gdy nośnik był followers poza jego zasięgiem.
+Bez gospodarza pierwszy publiczny wkład zużywa pierwszeństwo bez alertu;
+followers bez dostępnego odbiorcy nie zużywa go. Historia jest odtwarzana
+najpierw z alertów, potem z zachowanych dostępnych wpisów, w tym soft-deleted.
+
+Publikacja serializuje autora po blokadach mediów (D-103), przed INSERT.
+Wpis, znacznik, audyt, alert i enqueue są jedną transakcją. Standardowy
+dispatch pozostaje: gwarancja trwałego enqueue dotyczy database queue na
+identycznym obiekcie połączenia. Odmienny connection database odmawia przed
+zapisem; sync/fake zachowują dotychczasowy kontrakt testowy, nie stanowią
+dowodu trwałości. Zlecenie `low` ma beforeCommit, worker widzi je po commit.
+Nie naprawiamy historycznych częściowych publikacji z #935 ani retencji.
+Rollback jest wąsko chroniony zgodnie z D-088 (szczegóły: DATABASE.md).
+
+## D-224 — Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest (audyt L1, 20 września 2026)
+
+Trasa `DELETE /wpisy/{post}/zapisz` (`collections.unsave-post`) istniała,
+była otestowana i bezpieczna, ale żaden widok jej nie wołał. Zdanie z D-081
+„wyjąć z zeszytu można nadal w samym zeszycie" było nieprawdziwe: ekran
+zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
+stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
+Trasy nie kasujemy.
+
+Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
+w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
+więc drugie kliknięcie (norma w tej grupie, issue #43) niczego nie zabiera.
+Zmierzone: przycisk 207 × 50,5 px przy 320 px i 260 × 59,5 px przy tekście
+140%, pismo 18 i 25,2 px, 10 px przerwy od odnośnika, bez przewijania w bok.
+
+Bez potwierdzenia i bez JavaScriptu. Wyjęcie nie kasuje treści i cofa się
+jednym kliknięciem, więc pytanie „czy na pewno" zostaje dla rzeczy
+nieodwracalnych — kasowania wpisu i kasowania zeszytu. Zamiast pytania PRZED
+akcją jest droga powrotu PO niej: komunikat „Wpis wyjęty z zeszytu. Nie
+usunęliśmy go z serwisu — możesz go zapisać ponownie." i przycisk „Zapisz
+ponownie" w tym samym obszarze `aria-live` (`status_powrot` w sesji).
+
+Nazwa jest ta sama co przy przepisie — „Usuń z zeszytu" (`BRAND_EXTENDED.md`
+§3: jedna czynność, jedna nazwa). Audyt proponował „Wyjmij"; to byłby drugi
+synonim na tę samą rzecz.
+
+Zakres akcji pozostaje przypięty do zeszytów osoby, która wysłała żądanie
+(`SavePostToCollection::remove()`), czyli jest ostrzejszy niż Policy: obca
+osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
+się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
+i `scripts/wyjecie-z-zeszytu.mjs`.
+
+## D-225 — Godzinny podpis zdjęcia publicznego, bez cache sesji (#597/#610)
+
+20 września 2026, jawna decyzja właściciela w zadaniu `gpt/cloudflare-cache`:
+„Zaakceptuj godzinę dla wcześniej publicznego zdjęcia”. Podpis wydany, gdy
+Policy dopuszcza anonima, może działać po zmianie widoczności do końca tej
+godziny. Z 30-minutowym cache bajtów okno może sięgnąć 90 minut od wydania.
+Treści dostępne wyłącznie prywatnie zachowują podpis do 5 minut i no-store.
+Najszerszy rodzic i kontrola Policy z D-020 pozostają bez zmian.
+
+Odpowiedzi z sesją, ciasteczkiem albo logowaniem nie trafiają do wspólnego
+cache, także dla publicznych zdjęć. Publiczny odczyt zdjęcia bez stanu
+klienta nie wystawia sesji. Ta decyzja nie dopuszcza cache HTML z sesją
+ani nie ustala opóźnienia ukrycia HTML. Projekt reguł, bramka i ograniczenia:
+`docs/infra/CLOUDFLARE_CACHE_597_610.md`. Konfiguracji Cloudflare nie zmieniono.
+
+## Uzupełnienie #369 — Próg prezentacji publicznej aktywności (20 września 2026)
+
+Właściciel zatwierdził pozostawienie **5 zdjęć / 3 osób wyłącznie jako progu
+prezentacji publicznej aktywności, bez obietnicy anonimowości**. Nie jest to
+próg ochrony tożsamości ani ograniczenie dostępu do publicznych wpisów.
+
+Pomiar lokalny na syntetycznych danych: gość bez JavaScriptu mógł odczytać
+wszystkich autorów z kart dla tagów z 2, 3, 5, 10 i 42 osobami; ostatni
+przypadek wymagał przejścia trzech stron. Podnoszenie samego progu nie
+ukrywa autorstwa kart. Wynik nie jest badaniem danych ani użytkowników
+produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
+zakresu statystyk o prywatne treści ani ranking.
+
+Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
+
+## D-227 — PostgreSQL 18 jest wymaganiem, nie preferencją
+
+Data: 20 września 2026. Decyzja właściciela.
+
+**Co zdecydowano.** Wymagana wersja PostgreSQL to **18** — lokalnie, w CI
+i na produkcji. Wcześniej `AGENTS.md` mówił „lokalnie i w CI wystarczy 16+".
+
+**Dlaczego.** Szesnastka opisywała stan, którego już nigdzie nie ma: CI stawia
+`postgres:18-alpine` w sześciu usługach, produkcja ma 18, lokalny klaster
+18.6. Reguła, która dopuszcza konfigurację nieistniejącą u nikogo, nie chroni
+przed niczym — a przy tym usypia: każdy czyta ją jako „przetestowane na 16".
+
+**Numer.** Ta decyzja nosiła najpierw D-223. Po awarii 20.09 o ten sam
+numer stanęły trzy różne rozstrzygnięcia z trzech odzyskanych gałęzi, a
+`NumeryDecyzjiMajaWpisyTest` łapie duplikat numeru dopiero PO scaleniu —
+czyli wtedy, gdy odnośniki w kodzie już wskazują na dwie decyzje naraz.
+Numer przyznano tej pracy, która ma najmniej odnośników z zewnątrz:
+tutaj dwa, oba w `DEPLOYMENT_RUNBOOK.md`. Strażnik martwych reguł CSS
+zostaje przy D-223, bo jego numer siedzi w jedenastu miejscach i w nazwie
+katalogu dowodów `docs/design/evidence/kaskada223/`.
+
+**Kolejność zmiany jest częścią decyzji.** Najpierw reguła w `AGENTS.md`
+(`68099722`), dopiero potem próg w strażniku R60 (`d2ffccac`). Odwrotna
+kolejność uczyłaby, że regułę wolno wyprzedzić testem — a `AGENTS.md` jest
+jedynym źródłem prawdy projektu.
+
+**Zakres.** Zmienione cztery miejsca stawiające wymóg: tabela stacku
+w `AGENTS.md` i jej kopia w `README.md`, wymagania uruchomienia w `README.md`
+oraz wymagania własnego runnera w `docs/infra/CI_BEZ_ACTIONS.md`.
+
+**Czego świadomie NIE zmieniono.** Zapisów o POMIARACH wykonanych na 16.13
+(`SearchQuery`, `ProgPodobienstwa`, migracja z 9 września) ani notek „od
+PostgreSQL 17…" w migracjach i `docs/DATABASE.md`. To są fakty o silniku
+i cudze pomiary — przepisanie ich na 18 sfałszowałoby czyjś wynik.
+
+**Skutek dla runbooka.** `DEPLOYMENT_RUNBOOK.md` §6.3 zachowuje wariant „weź
+17 i zrób upgrade in-place", ale **wyłącznie jako drogę awaryjną odtworzenia
+po awarii**, gdy dostawca nie oferuje 18 w danej chwili. Nie jest to
+dopuszczalny stan docelowy, a upgrade staje się wtedy zadaniem do domknięcia.
+Procedurę trzymamy, bo improwizowanie jej w kryzysie kosztuje więcej niż
+zapisanie z góry.
+
+**Dowód, że próg nie jest martwą liczbą.** Podbicie go na chwilę na 19 oblewa
+strażnika komunikatem „PostgreSQL 18 jest starszy niż wymagane 19+". Bez tego
+„18" byłoby liczbą stojącą obok porównania, które i tak zawsze przechodzi.
+
+## D-233 — Rejestr potwierdzeń RODO tak, automatyczne kasowanie wpisów NIE (#1222 nie dotyczy)
+
+22 września 2026, jawna decyzja właściciela przy odbiorze gałęzi
+`naprawa/minimalne-potwierdzenie-rodo`. Gałąź robiła dwie rzeczy: zakładała
+rejestr potwierdzeń obsługi żądań RODO z zapisem **atomowym, w tej samej
+transakcji co skutek**, i włączała **automatyczne kasowanie tych wpisów po 36
+miesiącach, domyślnie, bez przełącznika**. Właściciel przyjmuje pierwszą część
+i wstrzymuje drugą.
+
+Autor gałęzi uzasadniał brak przełącznika zdaniem „wyłącznik retencji to
+bezterminowość pod inną nazwą”. Argument zostaje zapisany, bo jest sensowny
+i bo za tydzień ktoś wyprowadzi go ponownie. Nie przeważa jednak dwóch rzeczy.
+Po pierwsze, **okresu nie potwierdził prawnik**: 36 miesięcy to analogia do
+dokumentacji sprawy moderacyjnej (art. 442¹ k.c., D-057 i ADR_RETENCJE §4), nie
+ustalenie dla tej kategorii. Po drugie, kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby” nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą” — czyli nie jest znana nawet długość drogi odzysku.
+
+Wyłączenie stoi na dwóch niezależnych barierach, żeby nie zdejmowała go jedna
+pomyłka: `kuking.potwierdzenia_rodo.retencja_wlaczona` jest `false`, a zadanie
+`kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte w `routes/console.php`**.
+`retention_months` jest `null`, nie 36, więc samo przestawienie flagi nie
+uruchamia kasowania według okresu, którego nikt nie potwierdził. Komenda
+istnieje i jest przetestowana; `--na-sucho` działa mimo wyłączenia, bo tym mają
+zostać przygotowane dane historyczne.
+
+Ta decyzja **nie cofa** niczego, co gałąź zrobiła dobrze: dziewięciu ograniczeń
+CHECK, braku ekranu dla tej tabeli (osobny test skanuje trasy i widoki),
+zapamiętania zakresu żądania **przed** anonimizacją ani atomowości zapisu.
+Wyłączenie ma być zdjęte świadomie, po potwierdzeniu okresu — droga w trzech
+krokach stoi przy kluczu `potwierdzenia_rodo` w `config/kuking.php`
+i w `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §6.
+
+Numer wzięty po sprawdzeniu gałęzi, nie tylko `main`: D-223 (kaskada), D-227
+(#1164), D-228 (#966), D-229 (#1180), D-230 (#1168) są zajęte, a D-232 jest
+zarezerwowany dla poprawki kolizji numeru w #1222. Niczego nie przenumerowano.
+
+Pilnuje tego `tests/Feature/RetencjaPotwierdzenRodoTest.php` — obie strony:
+że domyślnie nic się nie kasuje i że po jawnym włączeniu automat działa.
+
+## D-238 — Cofnięcie migracji 2FA ODMAWIA, zamiast po cichu zdjąć drugi składnik (DB-01, 22 września 2026)
+
+**Data:** 22 września 2026 · **Naprawa znaleziska z audytu** (DB-01 z
+`docs/AUDYT_2026-09-13.md`, gałąź `claude/laughing-edison-sz4k69`) ·
+Status: **obowiązuje**
+
+### Co było zepsute
+
+`down()` migracji `2026_09_06_120000_add_two_factor_to_users_table` kasowało
+bezwarunkowo cztery kolumny: `two_factor_secret`, `two_factor_backup_codes`,
+`two_factor_confirmed_at`, `two_factor_last_used_at` — a wcześniej zdejmowało
+CHECK `users_two_factor_confirmed_requires_secret_check`.
+
+Sekret TOTP jest zaszyfrowany i nie ma go skąd odtworzyć. Kody zapasowe są
+trzymane wyłącznie jako skróty. Po cofnięciu nie da się przywrócić ani
+jednego, ani drugiego.
+
+### Dlaczego to nie było „świadome", tylko przeoczone
+
+Migracja **broniła się własnym komentarzem**: „nikt nie zostaje zablokowany,
+bo wymóg drugiego składnika znika razem z kolumnami, które go przechowywały".
+To samo zdanie stało w `docs/DATABASE.md`. I ono jest prawdziwe — dlatego
+właśnie było groźne.
+
+> Cofnięcie nie wybija nikogo z serwisu. Ono ZDEJMUJE OCHRONĘ.
+
+Cykl `rollback` → `migrate`, który CI wykonuje jako `migrate:refresh`,
+zostawia kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika.
+Konto moderatora, o którym właściciel wie, że jest chronione dwoma
+składnikami, wraca do logowania samym hasłem — bez błędu, bez komunikatu,
+bez śladu. Moderator widzi zgłoszenia, cudze ukryte treści i odwołania;
+`docs/SECURITY_PRIVACY_LEGAL.md` obiecuje „MFA obowiązkowe dla adminów".
+
+To jest dokładnie „przywracanie stanu groźnego" z zasady **D-088**, tylko
+w postaci trudniejszej do zauważenia niż w #287: tam cofnięcie po cichu
+zmieniało ZNACZENIE decyzji człowieka, tu po cichu USUWA jego zabezpieczenie.
+Objaw jest ten sam — brak śladu błędu.
+
+### Ile było takich strażników przed tą naprawą
+
+W `database/migrations/` odmowę miało już kilkanaście migracji, a w
+`tests/Feature/` stało **dziewiętnaście** testów `Cofniecie*` — m.in. dziennik
+zgód, zaproszenia, zgłoszenia prawne, odwołania zgłaszających, tożsamość
+Google, tożsamość Facebooka, skala tekstu, znacznik odebrania dostępu,
+zeszyty, kolaż powitalny, numer sprawy, sygnały automatu i wiadomości.
+
+Dla 2FA — czyli dla najbardziej wrażliwej z tych wartości — **nie było ani
+jednego**. Nie dlatego, że ktoś to rozważył i odrzucił: przeciwnie,
+komentarz przy migracji pokazuje, że ryzyko było zauważone i uznane za
+akceptowalne, zanim powstała zasada D-088.
+
+### Rozstrzygnięcie
+
+`down()` liczy konta z `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją — **przed jakąkolwiek operacją
+niszczącą**, także przed zdjęciem CHECK-a. Świadome cofnięcie przepuszcza
+`KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`, zgodnie z konwencją furtek z
+`KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY` i `KUKING_ROLLBACK_KASUJE_ZGLOSZENIA_PRAWNE`
+(`getenv()`, nie `env()` — na produkcji konfiguracja bywa zbuforowana).
+
+**Granica jest przy POTWIERDZENIU, nie przy sekrecie.** Sekret zapisany bez
+`confirmed_at` to konto w trakcie włączania 2FA — ekran włączenia pokazuje
+sekret, zanim człowiek wpisze pierwszy kod. To nie jest ochrona, którą można
+stracić; człowiek zaczyna włączanie od nowa. Gdyby strażnik liczył sam
+sekret, jedno porzucone włączanie blokowałoby rollback na stałe.
+
+Na świeżym środowisku cofnięcie działa bez pytania, więc `migrate:refresh`
+w `scripts/check.sh` i w CI chodzi jak dotąd.
+
+### Czego ta decyzja NIE zmienia
+
+Nie zmienia schematu, zachowania logowania ani niczego, co widzi użytkownik.
+Kolumny, CHECK i limit prób zostają bez zmian. Zmienia się wyłącznie to, co
+`down()` robi, gdy ktoś ma 2FA naprawdę włączone.
+
+### Dowód
+
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php` — pięć przypadków, obie
+strony granicy: odmowa z danymi nietkniętymi po niej, świeże środowisko bez
+pytania, sam sekret bez potwierdzenia nieblokujący, furtka przepuszczająca
+oraz kolejność (strażnik przed zdjęciem CHECK-a i przed `dropColumn`).
+
+Kontrola ujemna: na kodzie sprzed tej naprawy **oblewają dwa przypadki z
+pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i to
+jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.

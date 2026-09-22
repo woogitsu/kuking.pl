@@ -1,0 +1,534 @@
+Baza pomiarowa: kuking_audyt_kaskada223 na 127.0.0.1:55439
+
+Progi szerokości z arkusza: 480, 576, 608, 640, 704, 768, 960, 1024, 1280, 1536
+Mierzone szerokości: 320, 481, 577, 609, 641, 705, 769, 961, 1025, 1280, 1281, 1537
+Motywy: light, dark
+
+  strona-glowna/320/light        reguł:  309 deklaracji:  153 martwych:128  366 ms
+  odkryj/320/light               reguł:  238 deklaracji:  134 martwych:109  408 ms
+  logowanie/320/light            reguł:  156 deklaracji:   93 martwych: 76  228 ms
+  tagi/320/light                 reguł:  149 deklaracji:   83 martwych: 68  266 ms
+  szukaj/320/light               reguł:  219 deklaracji:  149 martwych:122  330 ms
+  przepis/320/light              reguł:  240 deklaracji:  132 martwych:105  285 ms
+  strona-glowna/481/light        reguł:  309 deklaracji:  153 martwych:128  396 ms
+  odkryj/481/light               reguł:  238 deklaracji:  134 martwych:109  422 ms
+  logowanie/481/light            reguł:  156 deklaracji:   93 martwych: 76  255 ms
+  tagi/481/light                 reguł:  149 deklaracji:   83 martwych: 68  300 ms
+  szukaj/481/light               reguł:  219 deklaracji:  149 martwych:122  278 ms
+  przepis/481/light              reguł:  240 deklaracji:  132 martwych:104  295 ms
+  strona-glowna/577/light        reguł:  309 deklaracji:  153 martwych:128  394 ms
+  odkryj/577/light               reguł:  238 deklaracji:  134 martwych:109  520 ms
+  logowanie/577/light            reguł:  156 deklaracji:   93 martwych: 76  254 ms
+  tagi/577/light                 reguł:  149 deklaracji:   83 martwych: 68  305 ms
+  szukaj/577/light               reguł:  219 deklaracji:  149 martwych:122  342 ms
+  przepis/577/light              reguł:  240 deklaracji:  132 martwych:104  296 ms
+  strona-glowna/609/light        reguł:  309 deklaracji:  153 martwych:128  440 ms
+  odkryj/609/light               reguł:  238 deklaracji:  134 martwych:109  415 ms
+  logowanie/609/light            reguł:  156 deklaracji:   93 martwych: 76  270 ms
+  tagi/609/light                 reguł:  149 deklaracji:   83 martwych: 68  291 ms
+  szukaj/609/light               reguł:  219 deklaracji:  149 martwych:122  362 ms
+  przepis/609/light              reguł:  240 deklaracji:  132 martwych:104  279 ms
+  strona-glowna/641/light        reguł:  309 deklaracji:  153 martwych:128  391 ms
+  odkryj/641/light               reguł:  238 deklaracji:  134 martwych:109  297 ms
+  logowanie/641/light            reguł:  156 deklaracji:   93 martwych: 76  229 ms
+  tagi/641/light                 reguł:  149 deklaracji:   83 martwych: 68  244 ms
+  szukaj/641/light               reguł:  219 deklaracji:  149 martwych:122  246 ms
+  przepis/641/light              reguł:  240 deklaracji:  132 martwych:104  221 ms
+  strona-glowna/705/light        reguł:  309 deklaracji:  153 martwych:128  328 ms
+  odkryj/705/light               reguł:  238 deklaracji:  134 martwych:109  480 ms
+  logowanie/705/light            reguł:  156 deklaracji:   93 martwych: 76  250 ms
+  tagi/705/light                 reguł:  149 deklaracji:   83 martwych: 68  338 ms
+  szukaj/705/light               reguł:  219 deklaracji:  149 martwych:122  328 ms
+  przepis/705/light              reguł:  240 deklaracji:  132 martwych:104  337 ms
+  strona-glowna/769/light        reguł:  309 deklaracji:  153 martwych:128  430 ms
+  odkryj/769/light               reguł:  238 deklaracji:  134 martwych:109  426 ms
+  logowanie/769/light            reguł:  156 deklaracji:   93 martwych: 76  253 ms
+  tagi/769/light                 reguł:  149 deklaracji:   83 martwych: 68  301 ms
+  szukaj/769/light               reguł:  219 deklaracji:  149 martwych:122  350 ms
+  przepis/769/light              reguł:  240 deklaracji:  132 martwych:104  276 ms
+  strona-glowna/961/light        reguł:  309 deklaracji:  153 martwych:128  332 ms
+  odkryj/961/light               reguł:  238 deklaracji:  134 martwych:109  452 ms
+  logowanie/961/light            reguł:  156 deklaracji:   93 martwych: 76  236 ms
+  tagi/961/light                 reguł:  149 deklaracji:   83 martwych: 68  330 ms
+  szukaj/961/light               reguł:  219 deklaracji:  149 martwych:122  333 ms
+  przepis/961/light              reguł:  240 deklaracji:  132 martwych:105  286 ms
+  strona-glowna/1025/light       reguł:  311 deklaracji:  153 martwych:126  342 ms
+  odkryj/1025/light              reguł:  238 deklaracji:  134 martwych:107  386 ms
+  logowanie/1025/light           reguł:  156 deklaracji:   93 martwych: 74  224 ms
+  tagi/1025/light                reguł:  149 deklaracji:   83 martwych: 66  370 ms
+  szukaj/1025/light              reguł:  219 deklaracji:  149 martwych:120  313 ms
+  przepis/1025/light             reguł:  240 deklaracji:  132 martwych:103  312 ms
+  strona-glowna/1280/light       reguł:  311 deklaracji:  153 martwych:125  384 ms
+  odkryj/1280/light              reguł:  238 deklaracji:  134 martwych:106  398 ms
+  logowanie/1280/light           reguł:  156 deklaracji:   93 martwych: 73  265 ms
+  tagi/1280/light                reguł:  149 deklaracji:   83 martwych: 65  299 ms
+  szukaj/1280/light              reguł:  219 deklaracji:  149 martwych:119  341 ms
+  przepis/1280/light             reguł:  240 deklaracji:  132 martwych:101  286 ms
+  strona-glowna/1281/light       reguł:  311 deklaracji:  153 martwych:125  374 ms
+  odkryj/1281/light              reguł:  238 deklaracji:  134 martwych:106  407 ms
+  logowanie/1281/light           reguł:  156 deklaracji:   93 martwych: 73  219 ms
+  tagi/1281/light                reguł:  149 deklaracji:   83 martwych: 65  265 ms
+  szukaj/1281/light              reguł:  219 deklaracji:  149 martwych:119  313 ms
+  przepis/1281/light             reguł:  240 deklaracji:  132 martwych:101  318 ms
+  strona-glowna/1537/light       reguł:  311 deklaracji:  153 martwych:125  371 ms
+  odkryj/1537/light              reguł:  238 deklaracji:  134 martwych:106  435 ms
+  logowanie/1537/light           reguł:  156 deklaracji:   93 martwych: 73  247 ms
+  tagi/1537/light                reguł:  149 deklaracji:   83 martwych: 65  309 ms
+  szukaj/1537/light              reguł:  219 deklaracji:  149 martwych:119  351 ms
+  przepis/1537/light             reguł:  240 deklaracji:  132 martwych:101  275 ms
+  strona-glowna/320/dark         reguł:  309 deklaracji:  153 martwych:128  360 ms
+  odkryj/320/dark                reguł:  238 deklaracji:  134 martwych:109  420 ms
+  logowanie/320/dark             reguł:  156 deklaracji:   93 martwych: 76  252 ms
+  tagi/320/dark                  reguł:  149 deklaracji:   83 martwych: 68  283 ms
+  szukaj/320/dark                reguł:  219 deklaracji:  149 martwych:122  333 ms
+  przepis/320/dark               reguł:  240 deklaracji:  132 martwych:105  298 ms
+  strona-glowna/481/dark         reguł:  309 deklaracji:  153 martwych:128  401 ms
+  odkryj/481/dark                reguł:  238 deklaracji:  134 martwych:109  420 ms
+  logowanie/481/dark             reguł:  156 deklaracji:   93 martwych: 76  242 ms
+  tagi/481/dark                  reguł:  149 deklaracji:   83 martwych: 68  294 ms
+  szukaj/481/dark                reguł:  219 deklaracji:  149 martwych:122  347 ms
+  przepis/481/dark               reguł:  240 deklaracji:  132 martwych:104  296 ms
+  strona-glowna/577/dark         reguł:  309 deklaracji:  153 martwych:128  427 ms
+  odkryj/577/dark                reguł:  238 deklaracji:  134 martwych:109  424 ms
+  logowanie/577/dark             reguł:  156 deklaracji:   93 martwych: 76  242 ms
+  tagi/577/dark                  reguł:  149 deklaracji:   83 martwych: 68  266 ms
+  szukaj/577/dark                reguł:  219 deklaracji:  149 martwych:122  307 ms
+  przepis/577/dark               reguł:  240 deklaracji:  132 martwych:104  274 ms
+  strona-glowna/609/dark         reguł:  309 deklaracji:  153 martwych:128  422 ms
+  odkryj/609/dark                reguł:  238 deklaracji:  134 martwych:109  432 ms
+  logowanie/609/dark             reguł:  156 deklaracji:   93 martwych: 76  200 ms
+  tagi/609/dark                  reguł:  149 deklaracji:   83 martwych: 68  268 ms
+  szukaj/609/dark                reguł:  219 deklaracji:  149 martwych:122  306 ms
+  przepis/609/dark               reguł:  240 deklaracji:  132 martwych:104  301 ms
+  strona-glowna/641/dark         reguł:  309 deklaracji:  153 martwych:128  378 ms
+  odkryj/641/dark                reguł:  238 deklaracji:  134 martwych:109  376 ms
+  logowanie/641/dark             reguł:  156 deklaracji:   93 martwych: 76  207 ms
+  tagi/641/dark                  reguł:  149 deklaracji:   83 martwych: 68  205 ms
+  szukaj/641/dark                reguł:  219 deklaracji:  149 martwych:122  302 ms
+  przepis/641/dark               reguł:  240 deklaracji:  132 martwych:104  257 ms
+  strona-glowna/705/dark         reguł:  309 deklaracji:  153 martwych:128  375 ms
+  odkryj/705/dark                reguł:  238 deklaracji:  134 martwych:109  391 ms
+  logowanie/705/dark             reguł:  156 deklaracji:   93 martwych: 76  193 ms
+  tagi/705/dark                  reguł:  149 deklaracji:   83 martwych: 68  232 ms
+  szukaj/705/dark                reguł:  219 deklaracji:  149 martwych:122  350 ms
+  przepis/705/dark               reguł:  240 deklaracji:  132 martwych:104  252 ms
+  strona-glowna/769/dark         reguł:  309 deklaracji:  153 martwych:128  434 ms
+  odkryj/769/dark                reguł:  238 deklaracji:  134 martwych:109  355 ms
+  logowanie/769/dark             reguł:  156 deklaracji:   93 martwych: 76  238 ms
+  tagi/769/dark                  reguł:  149 deklaracji:   83 martwych: 68  217 ms
+  szukaj/769/dark                reguł:  219 deklaracji:  149 martwych:122  317 ms
+  przepis/769/dark               reguł:  240 deklaracji:  132 martwych:104  232 ms
+  strona-glowna/961/dark         reguł:  309 deklaracji:  153 martwych:128  448 ms
+  odkryj/961/dark                reguł:  238 deklaracji:  134 martwych:109  402 ms
+  logowanie/961/dark             reguł:  156 deklaracji:   93 martwych: 76  205 ms
+  tagi/961/dark                  reguł:  149 deklaracji:   83 martwych: 68  260 ms
+  szukaj/961/dark                reguł:  219 deklaracji:  149 martwych:122  288 ms
+  przepis/961/dark               reguł:  240 deklaracji:  132 martwych:105  261 ms
+  strona-glowna/1025/dark        reguł:  311 deklaracji:  153 martwych:126  403 ms
+  odkryj/1025/dark               reguł:  238 deklaracji:  134 martwych:107  427 ms
+  logowanie/1025/dark            reguł:  156 deklaracji:   93 martwych: 74  198 ms
+  tagi/1025/dark                 reguł:  149 deklaracji:   83 martwych: 66  281 ms
+  szukaj/1025/dark               reguł:  219 deklaracji:  149 martwych:120  259 ms
+  przepis/1025/dark              reguł:  240 deklaracji:  132 martwych:103  302 ms
+  strona-glowna/1280/dark        reguł:  311 deklaracji:  153 martwych:125  408 ms
+  odkryj/1280/dark               reguł:  238 deklaracji:  134 martwych:106  292 ms
+  logowanie/1280/dark            reguł:  156 deklaracji:   93 martwych: 73  183 ms
+  tagi/1280/dark                 reguł:  149 deklaracji:   83 martwych: 65  202 ms
+  szukaj/1280/dark               reguł:  219 deklaracji:  149 martwych:119  228 ms
+  przepis/1280/dark              reguł:  240 deklaracji:  132 martwych:101  215 ms
+  strona-glowna/1281/dark        reguł:  311 deklaracji:  153 martwych:125  317 ms
+  odkryj/1281/dark               reguł:  238 deklaracji:  134 martwych:106  315 ms
+  logowanie/1281/dark            reguł:  156 deklaracji:   93 martwych: 73  187 ms
+  tagi/1281/dark                 reguł:  149 deklaracji:   83 martwych: 65  226 ms
+  szukaj/1281/dark               reguł:  219 deklaracji:  149 martwych:119  270 ms
+  przepis/1281/dark              reguł:  240 deklaracji:  132 martwych:101  212 ms
+  strona-glowna/1537/dark        reguł:  311 deklaracji:  153 martwych:125  370 ms
+  odkryj/1537/dark               reguł:  238 deklaracji:  134 martwych:106  312 ms
+  logowanie/1537/dark            reguł:  156 deklaracji:   93 martwych: 73  201 ms
+  tagi/1537/dark                 reguł:  149 deklaracji:   83 martwych: 65  216 ms
+  szukaj/1537/dark               reguł:  219 deklaracji:  149 martwych:119  253 ms
+  przepis/1537/dark              reguł:  240 deklaracji:  132 martwych:101  217 ms
+Kolejność warstw zmierzona w przeglądarce: properties < theme < base < components < marka < utilities < (kod poza warstwami)
+Konfiguracji zmierzonych: 144
+Reguł z nosicielem: 31480. Deklaracji przepytanych kaskadowo: 17856
+
+PRZYKRYCIA ZAMIERZONE (wyjątki, każdy z powodem):
+  • .hero-kolaz-blok { display } — warstwa components pod marka
+    powód: Opisane i rozstrzygnięte osobno. `strony-publiczne.css` (warstwa `components`) chowa kolaż i pokazuje go od 64rem; `marka-ekrany.css` (warstwa `marka`) pokazuje go bezwarunkowo i to ona wygrywa. Skutek jest ZAMIERZONY — kolaż ma być widoczny — a reguła spod spodu zostaje, bo jej usunięcie jest osobną decyzją o zachowaniu przy zniknięciu warstwy `marka`.
+
+Niezmierzone (granica narzędzia, NIE wynik pozytywny): 1056 selektorów bez nosiciela na mierzonych stronach, 64 ze stanem interakcji.
+
+✗ MARTWE REGUŁY — zadeklarowane i całkowicie przykryte przez późniejszą warstwę
+   reguł: 91, a w nich deklaracji: 173
+
+  h1, h2, h3, h4, h5, h6
+      warstwa base — martwe własności: font-weight
+      przykrywa: warstwa components, `.kuking-board-subtitle`
+      martwa w 120/120 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, tagi/320/light
+  b, strong
+      warstwa base — martwe własności: font-weight
+      przykrywa: warstwa components, `.kuking-word strong`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  summary
+      warstwa base — martwe własności: display
+      przykrywa: warstwa (poza warstwami), `.szybki-wyglad summary::-webkit-details-marker`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  ol, ul, menu
+      warstwa base — martwe własności: list-style
+      przykrywa: warstwa (poza warstwami), `[data-marka] .landing-kroki`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  img, video
+      warstwa base — martwe własności: height
+      przykrywa: warstwa components, `.hero-kolaz-kafel`
+      martwa w 96/96 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, szukaj/320/light
+  button, input, select, optgroup, textarea
+      warstwa base — martwe własności: background-color, border-radius, opacity
+      przykrywa: warstwa components, `.btn-quiet`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  h1, h2, h3
+      warstwa base — martwe własności: color
+      przykrywa: warstwa (poza warstwami), `[data-marka] .landing-wykonanie h2`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, szukaj/320/light
+  h1
+      warstwa base — martwe własności: font-size
+      przykrywa: warstwa utilities, `.text-title-xl`
+      martwa w 120/120 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, logowanie/320/light, tagi/320/light
+  .btn, .field input, .field select, .field textarea
+      warstwa base @(forced-colors: active) — martwe własności: border
+      przykrywa: warstwa components, `.btn`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .btn
+      warstwa components — martwe własności: font-family, font-size
+      przykrywa: warstwa (poza warstwami), `.szybki-wyglad button, .szybki-wyglad select`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .card
+      warstwa components — martwe własności: border-radius, box-shadow
+      przykrywa: warstwa (poza warstwami), `[data-marka] .post-card`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, przepis/320/light
+  .hero
+      warstwa components @(width >= 64rem) — martwe własności: gap, grid-template-columns, align-items
+      przykrywa: warstwa marka, `.hero`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .hero-kolaz
+      warstwa components — martwe własności: gap
+      przykrywa: warstwa marka, `.hero-kolaz`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .hero-kolaz-kafel:first-child
+      warstwa components — martwe własności: rotate
+      przykrywa: warstwa marka, `.hero-kolaz-kafel:nth-child(n)`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .hero-kolaz-kafel:nth-child(2)
+      warstwa components — martwe własności: rotate
+      przykrywa: warstwa marka, `.hero-kolaz-kafel:nth-child(n)`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .hero-kolaz-kafel:nth-child(3)
+      warstwa components — martwe własności: rotate
+      przykrywa: warstwa marka, `.hero-kolaz-kafel:nth-child(n)`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .hero-kolaz-kafel:nth-child(4)
+      warstwa components — martwe własności: rotate
+      przykrywa: warstwa marka, `.hero-kolaz-kafel:nth-child(n)`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .hero-kolaz-kafel
+      warstwa components — martwe własności: border-radius, border, box-shadow
+      przykrywa: warstwa marka, `.hero-kolaz-kafel:nth-child(n)`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .hero-kolaz-podpis
+      warstwa components — martwe własności: font-size
+      przykrywa: warstwa marka, `.hero-kolaz-podpis`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .zacheta-akcje
+      warstwa components — martwe własności: gap, flex-wrap
+      przykrywa: warstwa marka, `.zacheta-akcje`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .app-main
+      warstwa components — martwe własności: width, max-width, padding, padding-bottom
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .app-body
+      warstwa components @(width >= 64rem) — martwe własności: grid-template-columns, gap, width, max-width, padding, margin, display
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu])`
+      martwa w 288/288 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/320/light, odkryj/320/light
+  .app-body-powitalny
+      warstwa components @(width >= 64rem) — martwe własności: grid-template-columns, max-width, padding
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu])`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/320/light, strona-glowna/481/light
+  .app-body-powitalny .app-main
+      warstwa components — martwe własności: max-width, padding
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .topbar
+      warstwa components — martwe własności: background-color, border-bottom, top
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-topbar`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .topbar-inner
+      warstwa components — martwe własności: padding, gap, flex-wrap, display
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-inner`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .topbar-actions
+      warstwa components — martwe własności: gap, flex-wrap
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-actions`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .topbar-inner, .site-footer-inner
+      warstwa components @(width >= 64rem) — martwe własności: max-width
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-inner`
+      martwa w 288/288 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/320/light, odkryj/320/light
+  .topbar-inner .topbar-actions
+      warstwa components @(width >= 80rem) — martwe własności: flex-wrap
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-actions`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .uklad-solo .topbar-inner, .uklad-powitalny .topbar-inner
+      warstwa components @(width >= 80rem) — martwe własności: gap, display
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-inner`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .uklad-powitalny .topbar-inner, .uklad-powitalny .site-footer-inner
+      warstwa components @(width >= 80rem) — martwe własności: max-width
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-inner`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .wordmark
+      warstwa components — martwe własności: font-size, letter-spacing
+      przykrywa: warstwa (poza warstwami), `[data-marka] .wordmark`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .wordmark .kuking-mark
+      warstwa components — martwe własności: width, height
+      przykrywa: warstwa (poza warstwami), `[data-marka] .wordmark .kuking-mark`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  :root
+      warstwa components — martwe własności: --rezerwa-pod-belka, --rezerwa-nad-belka
+      przykrywa: warstwa (poza warstwami), `:root:has(body[data-marka])`
+      martwa w 432/432 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/320/light, strona-glowna/320/light
+  .post-card-head
+      warstwa components — martwe własności: padding
+      przykrywa: warstwa (poza warstwami), `[data-marka] .post-card-head`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, strona-glowna/481/light
+  .post-card-body
+      warstwa components — martwe własności: font-size, line-height
+      przykrywa: warstwa (poza warstwami), `[data-marka] .post-card-body`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, strona-glowna/481/light
+  .post-card-actions
+      warstwa components — martwe własności: gap
+      przykrywa: warstwa (poza warstwami), `[data-marka] .post-card-actions`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, strona-glowna/481/light
+  .start-nadtytul
+      warstwa components — martwe własności: color, font-size
+      przykrywa: warstwa marka, `.marka-wlasnosc p`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .post-photo
+      warstwa components — martwe własności: background-color, width, display
+      przykrywa: warstwa (poza warstwami), `.photo-placeholder`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, strona-glowna/481/light
+  .karuzela-slajd .photo-zoom-media, .karuzela-slajd > .post-photo
+      warstwa components — martwe własności: background-color, width, display
+      przykrywa: warstwa (poza warstwami), `.photo-placeholder`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, strona-glowna/481/light
+  .karuzela-slajd .post-photo
+      warstwa components — martwe własności: width
+      przykrywa: warstwa (poza warstwami), `.photo-placeholder`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, strona-glowna/481/light
+  .kolaz-pole .photo-zoom-media, .kolaz-pole .post-photo
+      warstwa components — martwe własności: width
+      przykrywa: warstwa (poza warstwami), `.photo-placeholder`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, strona-glowna/481/light
+  .avatar
+      warstwa components — martwe własności: width, height, font-size
+      przykrywa: warstwa (poza warstwami), `.avatar[data-rozmiar="64"]`
+      martwa w 96/96 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, szukaj/320/light
+  .kuking-board-kolumny
+      warstwa components — martwe własności: gap, grid-template-columns
+      przykrywa: warstwa marka, `.landing-tablica .kuking-board-kolumny`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, szukaj/320/light
+  .kuking-board-subtitle
+      warstwa components — martwe własności: font-size, text-transform, letter-spacing, color, margin
+      przykrywa: warstwa marka, `.landing-tablica .kuking-board-subtitle`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, szukaj/320/light
+  .kuking-board-person, .kuking-board-post
+      warstwa components — martwe własności: padding
+      przykrywa: warstwa marka, `.landing-tablica .kuking-board-post, .landing-tablica .kuking-board-pe`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .kuking-board-avatar, .kuking-board-post-photo
+      warstwa components — martwe własności: width
+      przykrywa: warstwa marka, `.landing-tablica .kuking-board-post-photo`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, szukaj/320/light
+  .kuking-board-post-photo img
+      warstwa components — martwe własności: width, height, object-fit, border-radius
+      przykrywa: warstwa marka, `.landing-tablica .kuking-board-post-photo img`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .kuking-board-person-body, .kuking-board-post-body
+      warstwa components — martwe własności: max-width
+      przykrywa: warstwa marka, `.landing-tablica .kuking-board-post-body`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .kuking-board-post-body
+      warstwa components — martwe własności: gap
+      przykrywa: warstwa marka, `.landing-tablica .kuking-board-post-body`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .kuking-board-post-link
+      warstwa components — martwe własności: max-width, display
+      przykrywa: warstwa (poza warstwami), `[data-marka] a.author-name`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, szukaj/320/light
+  .kuking-board-footer
+      warstwa components — martwe własności: font-size
+      przykrywa: warstwa marka, `.landing-tablica > .meta`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .site-footer
+      warstwa components — martwe własności: margin-top, padding-bottom
+      przykrywa: warstwa (poza warstwami), `[data-marka] .site-footer`
+      martwa w 144/144 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, odkryj/320/light, logowanie/320/light
+  .landing-tablica > div > h2
+      warstwa marka — martwe własności: font-size
+      przykrywa: warstwa utilities, `.text-title-lg`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: strona-glowna/320/light, strona-glowna/481/light, strona-glowna/577/light
+  .sekcja-strony
+      warstwa components — martwe własności: background-color, border, padding, border-radius
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-tablica`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: odkryj/320/light, szukaj/320/light, przepis/320/light
+  .nadtytul
+      warstwa components — martwe własności: margin, font-size
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-tablica-wstep .nadtytul`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: odkryj/320/light, szukaj/320/light, odkryj/481/light
+  .odkryj-szyna > *
+      warstwa components @(width >= 80rem) — martwe własności: margin-bottom
+      przykrywa: warstwa utilities, `.mb-6`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: odkryj/320/light, odkryj/481/light, odkryj/577/light
+  .app-body-solo
+      warstwa components @(width >= 64rem) — martwe własności: max-width, grid-template-columns
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu])`
+      martwa w 240/240 zbadanych konfiguracjach, m.in.: odkryj/320/light, odkryj/320/light, logowanie/320/light
+  .app-body-tresc-z-szyna .app-main
+      warstwa components @(width >= 80rem) — martwe własności: grid-column, max-width
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: odkryj/320/light, przepis/320/light, odkryj/481/light
+  .app-body-solo.app-body-tresc-z-szyna
+      warstwa components @(width >= 80rem) — martwe własności: max-width
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu])`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: odkryj/320/light, przepis/320/light, odkryj/481/light
+  .app-body-solo.app-body-tresc-z-szyna .app-main
+      warstwa components @(width >= 80rem) — martwe własności: grid-column
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: odkryj/320/light, przepis/320/light, odkryj/481/light
+  .uklad-solo .topbar-inner, .uklad-solo .site-footer-inner
+      warstwa components @(width >= 64rem) — martwe własności: max-width
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-inner`
+      martwa w 240/240 zbadanych konfiguracjach, m.in.: odkryj/320/light, odkryj/320/light, logowanie/320/light
+  .uklad-solo-z-szyna .topbar-inner, .uklad-solo-z-szyna .site-footer-inner
+      warstwa components @(width >= 80rem) — martwe własności: max-width
+      przykrywa: warstwa (poza warstwami), `[data-marka] .topbar-inner`
+      martwa w 72/72 zbadanych konfiguracjach, m.in.: odkryj/320/light, szukaj/320/light, przepis/320/light
+  .kuking-board
+      warstwa components — martwe własności: --tablica-zdjecie
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-tablica`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: odkryj/320/light, szukaj/320/light, odkryj/481/light
+  *, ::before, ::after
+      warstwa base @(prefers-reduced-motion: reduce) — martwe własności: transition-duration
+      przykrywa: warstwa components, `.skip-link`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: logowanie/320/light, logowanie/481/light, logowanie/577/light
+  .field-help
+      warstwa components — martwe własności: font-size
+      przykrywa: warstwa marka, `.pole-zdjecia .pomoc, .panel-formularza .field-help, .panel-formularza`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: logowanie/320/light, szukaj/320/light, logowanie/481/light
+  .panel-formularza
+      warstwa components — martwe własności: background-color, border, border-radius, box-shadow, padding
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-wejscie-karta .panel-formularza`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: logowanie/320/light, szukaj/320/light, logowanie/481/light
+  .app-main .marka-wejscie-karta > :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomo
+      warstwa components — martwe własności: margin-top
+      przykrywa: warstwa utilities, `.mt-6`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: logowanie/320/light, logowanie/481/light, logowanie/577/light
+  .panel-formularza
+      warstwa marka — martwe własności: border-radius
+      przykrywa: warstwa (poza warstwami), `[data-marka] :is(.card, .panel-formularza, .empty-state)`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: logowanie/320/light, szukaj/320/light, logowanie/481/light
+  .app-main > h1
+      warstwa base — martwe własności: margin-bottom
+      przykrywa: warstwa (poza warstwami), `[data-marka] .app-main > h1, [data-marka] .marka-onboarding > h1`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: tagi/320/light, szukaj/320/light, tagi/481/light
+  .field-input
+      warstwa components — martwe własności: background-color, border-radius, min-height
+      przykrywa: warstwa marka, `.wyszukiwarka-input`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  .wyszukiwarka-input
+      warstwa components — martwe własności: border-radius
+      przykrywa: warstwa marka, `.wyszukiwarka-input`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  .app-rail
+      warstwa components — martwe własności: padding
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu]) > .app-rail`
+      martwa w 48/48 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/320/light, szukaj/481/light
+  .app-body-solo-z-szyna
+      warstwa components @(width >= 80rem) — martwe własności: grid-template-columns, max-width
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-rama:not([data-tryb-panelu])`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  .panel-formularza:has(.wyszukiwarka-input)
+      warstwa marka — martwe własności: border-radius, box-shadow
+      przykrywa: warstwa (poza warstwami), `[data-marka] :is(.card, .panel-formularza, .empty-state)`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  .chipsy[aria-label="Co przeszukujemy"]
+      warstwa marka — martwe własności: gap, flex-wrap
+      przykrywa: warstwa (poza warstwami), `.chipsy`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  .chipsy[aria-label="Co przeszukujemy"] .chip
+      warstwa marka — martwe własności: min-height, overflow-wrap, max-width, font-size, border-radius, padding, background-color, color, border
+      przykrywa: warstwa (poza warstwami), `.chip`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  .chipsy[aria-label="Co przeszukujemy"] .chip[aria-current="page"]
+      warstwa marka — martwe własności: background-color, color, border-color
+      przykrywa: warstwa (poza warstwami), `.chip`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  .mt-6
+      warstwa utilities — martwe własności: margin-top
+      przykrywa: warstwa (poza warstwami), `.chipsy`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: szukaj/320/light, szukaj/481/light, szukaj/577/light
+  textarea
+      warstwa base — martwe własności: resize
+      przykrywa: warstwa components, `textarea.field-input`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .field ~ input[type="hidden"] + .field, .field + button, .field + .btn
+      warstwa components — martwe własności: margin-top
+      przykrywa: warstwa (poza warstwami), `.podziel-sie-kopiuj`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  textarea.field-input
+      warstwa components — martwe własności: min-height, resize
+      przykrywa: warstwa (poza warstwami), `.podziel-sie-adres`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .przepis-uklad
+      warstwa components @(width >= 80rem) — martwe własności: display
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-przepis`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .przepis-uklad > .przepis-panel
+      warstwa components @(width >= 80rem) — martwe własności: grid-area
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-przepis > .przepis-panel`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .przepis-liczby
+      warstwa components — martwe własności: gap, grid-template-columns, margin, display
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-przepis-tekst .przepis-liczby`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .przepis-akcje
+      warstwa components — martwe własności: flex-direction
+      przykrywa: warstwa (poza warstwami), `[data-marka] .marka-przepis .przepis-akcje`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .recipe-story
+      warstwa components — martwe własności: background-color, border-radius
+      przykrywa: warstwa marka, `.recipe-story`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .step-list li
+      warstwa components — martwe własności: gap, grid-template-columns
+      przykrywa: warstwa marka, `.przepis-siatka .step-list li`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .recipe-story > :last-child
+      warstwa components — martwe własności: margin-bottom
+      przykrywa: warstwa utilities, `.mb-0`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .step-number
+      warstwa components — martwe własności: font-size, color
+      przykrywa: warstwa marka, `.przepis-siatka .step-number`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+  .przepis-panel
+      warstwa marka — martwe własności: border-radius, box-shadow
+      przykrywa: warstwa (poza warstwami), `[data-marka] :is(.card, .panel-formularza, .empty-state)`
+      martwa w 24/24 zbadanych konfiguracjach, m.in.: przepis/320/light, przepis/481/light, przepis/577/light
+
+Pełny wynik: storage/kaskada-martwe-reguly.json
+
+Co z tym zrobić: napraw wartość TAM, GDZIE ONA OBOWIĄZUJE (warstwa późniejsza),
+albo dopisz wyjątek z POWODEM w `WYJATKI` w tym pliku. Nie poprawiaj martwej reguły —
+poprawka w niej nie dojdzie do przeglądarki.
+KOD_WYJSCIA=1
