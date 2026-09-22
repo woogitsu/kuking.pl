@@ -1,0 +1,46 @@
+[
+  {
+    "stan": "resize",
+    "dark": false,
+    "scale": 100,
+    "pass": true
+  },
+  {
+    "stan": "resize",
+    "dark": false,
+    "scale": 140,
+    "pass": true
+  },
+  {
+    "stan": "resize",
+    "dark": true,
+    "scale": 100,
+    "pass": true
+  },
+  {
+    "stan": "resize",
+    "dark": true,
+    "scale": 140,
+    "pass": true
+  },
+  {
+    "stan": "bez-js",
+    "width": 320,
+    "pass": true
+  },
+  {
+    "stan": "bez-js",
+    "width": 1440,
+    "pass": true
+  },
+  {
+    "stan": "dotyk-emulowany",
+    "width": 390,
+    "pass": true
+  },
+  {
+    "stan": "livewire-cleanup-reinit",
+    "width": 390,
+    "pass": true
+  }
+]

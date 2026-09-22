@@ -51,23 +51,35 @@ final class DiscoverFeed
                 'author_id',
                 $this->hiddenAuthorIdsFor($viewer),
             ))
+            // WPIS WSKAZUJĄCY PRZEPIS WYCHODZI TYLKO Z WIDOCZNYM PRZEPISEM
+            // (issue #368). Widoczność liczy się Z PRZEPISU, nie z kopii na
+            // wpisie — patrz `Post::scopeZWidocznymPrzepisem()`.
+            ->zWidocznymPrzepisem($viewer)
             ->with([
                 'author.profile.avatar',
                 'media',
-                'recipe:id,title,slug',
+                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
+                // doładowane (issue #368): karta wpisu wskazującego przepis
+                // bierze z relacji WSZYSTKO — tytuł, zdjęcie i plakietkę
+                // widoczności — bo wpis niczego z przepisu nie kopiuje.
+                // Kolumna pominięta w selekcie wróciłaby jako `null`, czyli
+                // karta po cichu napisałaby „publicznie" pod przepisem
+                // widocznym tylko dla obserwujących.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
                 // Patrz komentarz w FollowingFeed::paginate() — karta wpisu
                 // pokazuje tematy TYLKO wtedy, gdy relacja jest już
                 // doładowana, więc bez tego wpisy na „Świeżo z Kuking"
                 // nie miałyby żadnych chipów tematów.
-                'tags:id,slug,name',
+                'tags:id,slug,name,status',
             ])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
             // (kto się liczy, od ilu osób widać liczbę) siedzą w
             // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
             // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name`
+            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
             // wyżej.
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')

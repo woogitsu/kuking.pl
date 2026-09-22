@@ -46,7 +46,11 @@ class OnboardingZnajdzZnajomychTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $this->assertStringContainsString('Znasz już kogoś w Kuking?', $html);
+        // Nazwa serwisu w tym nagłówku jest zapisana dwukolorowo
+        // (`docs/brand/GLOS_MARKI.md` §2), więc w HTML-u nie ma napisu
+        // „Kuking" — jest komponent. Sprawdzamy część stałą nagłówka
+        // i to, że nazwa w nim jest komponentem, a nie zwykłym tekstem.
+        $this->assertStringContainsString('<h2>Znasz już kogoś w <span class="kuking-word">', $html);
         $this->assertStringContainsString('name="q"', $html);
         // Formularz szukania jest GET, nie POST — działa jako zwykły link
         // bez JavaScriptu (AGENTS.md §5).
@@ -263,6 +267,56 @@ class OnboardingZnajdzZnajomychTest extends TestCase
             0,
             DB::table('product_signals')->count(),
             'Onboarding zapisał sygnał — research i PR zakładają rozwiązanie, które nic nie zapisuje.',
+        );
+    }
+
+    /**
+     * Issue #738 — tablica w `q` jest niepoprawnym kształtem parametru GET,
+     * ale nie może wywrócić ekranu ani uruchomić wyszukiwarki fikcyjną frazą
+     * „Array”. Każdy wariant jest osobnym żądaniem rzeczywistej trasy.
+     */
+    public function test_tablicowe_q_daje_pusty_ekran_bez_wyszukiwania_i_sygnalu(): void
+    {
+        $basia = $this->user('basiatablica');
+        $zapytania = [];
+
+        DB::listen(function ($query) use (&$zapytania): void {
+            $zapytania[] = $query->sql;
+        });
+
+        foreach ([
+            ['q' => ['halina']],
+            ['q' => ['nazwa' => 'halina']],
+            ['q' => [['halina']]],
+        ] as $parametry) {
+            $response = $this->actingAs($basia)
+                ->get(route('onboarding.people').'?'.http_build_query($parametry))
+                ->assertOk();
+
+            $this->assertSame('', $response->viewData('phrase'));
+            $this->assertFalse($response->viewData('zaKrotka'));
+            $this->assertNull($response->viewData('wynikiWyszukiwania'));
+        }
+
+        $this->assertSame(0, DB::table('product_signals')->count());
+        $this->assertFalse(
+            collect($zapytania)->contains(fn (string $sql): bool => str_contains($sql, 'display_name_search')),
+            'Tablicowe q uruchomiło zapytanie wyszukiwarki osób.',
+        );
+    }
+
+    public function test_tekstowe_q_z_polskim_znakiem_nadal_wyszukuje_osobe(): void
+    {
+        $szukana = $this->user('zaneta', ['display_name' => 'Żaneta']);
+
+        $response = $this->actingAs($this->user('szukajacazanety'))
+            ->get(route('onboarding.people', ['q' => 'Żaneta']))
+            ->assertOk();
+
+        $this->assertSame('Żaneta', $response->viewData('phrase'));
+        $this->assertSame(
+            [$szukana->getKey()],
+            $response->viewData('wynikiWyszukiwania')->pluck('user_id')->all(),
         );
     }
 

@@ -44,14 +44,45 @@ use Tests\TestCase;
  *    pakiety zostają na nie"), D-064 (HEIC odrzucany, libheif nie wchodzi).
  *    Wymaganie cytowania byłoby wymaganiem, żeby kod wspominał o kodzie,
  *    którego nie ma.
- *  - **Katalogu `docs/`.** Zmierzone: dokumentacja wymienia dziś JEDENAŚCIE
- *    numerów bez wpisu (D-062, D-067, D-069, D-070, D-073, D-074, D-084,
- *    D-086, D-089, D-092, D-093) i robi to legalnie — numery zarezerwowane
- *    dla równolegle pracujących osób, numery świadomie niewykorzystane
- *    (D-084, D-086) i opisy historyczne w przekazaniach pracy, które MÓWIĄ
- *    o tym, że wpisu brakuje. Rozszerzenie skanu na `docs/` zamieniłoby ten
- *    test na jedenaście fałszywych alarmów pierwszego dnia, a to jest
- *    najkrótsza droga do wyłączenia go na stałe.
+ *  - **Katalogu `docs/`.** Dokumentacja wymienia numery, których dziennik nie
+ *    zawiera, i robi to legalnie — numery zarezerwowane dla równolegle
+ *    pracujących osób, numery świadomie niewykorzystane i opisy historyczne
+ *    w przekazaniach pracy, które MÓWIĄ o tym, że wpisu brakuje. Rozszerzenie
+ *    skanu na `docs/` zamieniłoby ten test w tyle samo fałszywych alarmów
+ *    pierwszego dnia, a to jest najkrótsza droga do wyłączenia go na stałe.
+ *
+ *    **TA LISTA SIĘ STARZEJE — I RAZ JUŻ SIĘ ZESTARZAŁA.** Stało tu, że bez
+ *    wpisu jest JEDENAŚCIE numerów: D-062, D-067, D-069, D-070, D-073, D-074,
+ *    D-084, D-086, D-089, D-092, D-093. Pięć z nich wpisy w międzyczasie
+ *    DOSTAŁO (D-062, D-069, D-089, D-092, D-093) — bo to są numery
+ *    zarezerwowane, a rezerwacja z definicji kiedyś się realizuje. Lista
+ *    nazywająca wpis nieistniejącym, gdy on już istnieje, jest dokładnie tym
+ *    samym martwym odnośnikiem, przed którym stoi cały ten plik, tylko
+ *    obróconym w drugą stronę.
+ *
+ *    Zmierzone 11 września 2026 — bez wpisu w `docs/DECISIONS.md` jest dziś
+ *    SIEDEM numerów wymienianych w `docs/`:
+ *
+ *      * **D-084, D-086, D-094** — puste ŚWIADOMIE i na stałe. Mówi to wprost
+ *        nagłówek `docs/DECISIONS.md` („Osobno i wcześniej puste są D-084,
+ *        D-086 i D-094"). To nie są luki do uzupełnienia.
+ *      * **D-067, D-070, D-073, D-074** — numery zarezerwowane, o których
+ *        piszą przekazania pracy i raporty z audytu. Te mogą zniknąć z listy
+ *        w dowolnym dniu, w którym ktoś dopisze wpis.
+ *
+ *    Osobno i z innego powodu stoi **D-108 … D-112**: to NIE są luki dziennika
+ *    głównego, tylko odstęp od CUDZEJ numeracji — system projektowy
+ *    w `docs/design/system-v3.1/` ma własny dziennik i własne D-101 … D-112.
+ *    Dziennik główny przeszedł z D-107 od razu na D-113 i te pięć numerów
+ *    zostaje u niego pustych na zawsze. W kodzie ten sam mechanizm obsługuje
+ *    stała `OBCA_NUMERACJA` niżej, para plik+numer.
+ *
+ *    Sprawdzenie zajmuje jedną linijkę i nie wymaga uruchamiania testów:
+ *
+ *    ```bash
+ *    for n in 067 070 073 074 084 086 094; do \
+ *      printf 'D-%s: %s\n' "$n" "$(grep -cE "^## D-$n\b" docs/DECISIONS.md)"; done
+ *    ```
  *  - **Formatu odnośnika.** „D-051", „(D-051)", „patrz D-051" i „D-051 §3"
  *    są tu równie dobre; ujednolicanie zapisu nie jest tym, co się zepsuło.
  */
@@ -99,10 +130,11 @@ class NumeryDecyzjiMajaWpisyTest extends TestCase
      * JEDYNY PLIK POZA SKANEM — TEN.
      *
      * Wyszło to na pierwszym uruchomieniu i jest właśnie tym, co ten test ma
-     * łapać: docblock wyżej OPOWIADA historię D-066 i D-067, a niżej stoją
-     * D-062…D-093 jako lista numerów legalnie nieobsadzonych, D-100 w akapicie
-     * o wzorcu i D-999 w opisie kontroli ujemnej. Skan zgłosił piętnaście
-     * sierot, wszystkie własne — i miał rację co do liter, a nie co do rzeczy.
+     * łapać: docblock wyżej OPOWIADA historię D-066 i D-067, stoi w nim lista
+     * numerów legalnie nieobsadzonych (D-062…D-094 oraz D-108…D-112 z cudzej
+     * numeracji), D-100 w akapicie o wzorcu i D-999 w opisie kontroli ujemnej.
+     * Skan zgłosił piętnaście sierot, wszystkie własne — i miał rację co do
+     * liter, a nie co do rzeczy.
      *
      * Granica jest ta sama, którą docblock klasy stawia wobec `docs/`:
      * odnośnik cytujący decyzję JAKO UZASADNIENIE podlega kontroli, tekst

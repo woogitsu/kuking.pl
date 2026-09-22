@@ -11,7 +11,13 @@
         <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
     </x-slot:rail>
 
-    <h1>{{ $greeting }}</h1>
+    <header class="start-naglowek">
+        <div>
+            <p class="nadtytul start-nadtytul">Gotujemy po swojemu</p>
+            <h1 class="start-powitanie">{{ $greeting }}</h1>
+        </div>
+        <a href="{{ route('about') }}"><span>Poznaj <x-kuking-word /></span></a>
+    </header>
 
     {{--
         Zachęta do dodania wpisu (UI kit v2, ekrany 01 i 05).
@@ -21,20 +27,26 @@
         a nie jak jeden z wielu guzików na stronie.
 
         Świadomie NIE jest to pole tekstowe udające formularz: takie pole
-        bez JavaScriptu nie robi po kliknięciu nic, a rejestracja, publikacja
-        i komentarz mają działać bez skryptu (AGENTS.md §5). To jest zwykły
+        bez JavaScriptu nie robi po kliknięciu nic. AGENTS.md §5 wymaga
+        obsłużonej drogi lub konkretnej instrukcji. To jest zwykły
         odnośnik do strony dodawania — działa też z klawiatury i na czytniku
         ekranu.
     --}}
-    <a class="card composer" href="{{ route('posts.create') }}">
-        <x-avatar :user="auth()->user()" :size="48" />
-        <span class="composer-copy">
-            <span class="composer-title">Dodaj zdjęcie tego, co ugotowałeś</span>
-            <span class="composer-help">Nie musi być ładne — ma być prawdziwe.</span>
-        </span>
-        <x-ikona nazwa="image" :rozmiar="28" />
-    </a>
+    <section class="marka-publikacja blok-ciemny" aria-label="Pokaż swoje gotowanie">
+        <a class="kafel-akcji composer" href="{{ route('posts.create') }}" aria-label="Co dziś gotujesz? Dodaj zdjęcie">
+            <x-avatar :user="auth()->user()" :size="48" />
+            <span class="composer-copy">
+                <span class="composer-title">Co dziś gotujesz?</span>
+                <span class="composer-help">Zdjęcie i kilka słów wystarczą.</span>
+            </span>
+        </a>
+        <div class="marka-publikacja-akcje">
+            <a class="btn btn-primary" href="{{ route('posts.create') }}"><x-ikona nazwa="image" /> Dodaj zdjęcie</a>
+            <a class="btn btn-secondary" href="{{ route('recipes.create') }}"><x-ikona nazwa="book" /> Dodaj przepis</a>
+        </div>
+    </section>
 
+    <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
     @if($wspomnienie ?? null)
         {{--
@@ -91,7 +103,11 @@
         Zakładka nazywa się tak samo jak ekran, na który prowadzi — powód
         przy samym odnośniku niżej.
     --}}
-    <nav class="tabs feed-tabs" aria-label="Co pokazujemy">
+    <div class="start-feed-naglowek">
+        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : (($zrodloFeedu ?? 'obserwowani') === 'tagi' ? 'Najnowsze z Twoich tagów' : 'Najnowsze od obserwowanych') }}</h2>
+        <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
+    </div>
+    <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
         <a class="tab" href="{{ route('home') }}" @if(! $showingDiscover) aria-current="page" @endif>Obserwowani</a>
         {{-- „Świeżo z Kuking", nie „Odkrywaj" (issue #38).
 
@@ -105,8 +121,33 @@
 
              Nowa etykieta nie jest wymyślona: to nazwa, którą ten feed nosi
              wszędzie indziej — na własnym ekranie (`pages/discover.blade.php`),
-             w pustej tablicy dnia, w wyszukiwarce i w `AGENTS.md` §8. --}}
-        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif>Świeżo z Kuking</a>
+             w pustej tablicy dnia, w wyszukiwarce i w `AGENTS.md` §8.
+
+             CAŁA ETYKIETA W JEDNYM `<span class="tab-napis">` — TEN `<span>`
+             NIE JEST OZDOBĄ I NIE WOLNO GO SKASOWAĆ PRZY SPRZĄTANIU.
+
+             `.tab` jest `display: inline-flex`, więc „Świeżo z " staje się
+             ANONIMOWYM elementem flex, a anonimowemu elementowi flex przycina
+             się białe znaki na końcu. Spacja stoi w tym pliku, jest
+             w wysłanym HTML-u i mimo to nie zostaje narysowana — na telefonie
+             właściciela napis czytał się „Świeżo zkuKING". `.tab` nie ma
+             `gap`, więc nie ma tu czego tę spację zastąpić.
+
+             To ta sama choroba i to samo lekarstwo co `btn-napis` (issue #353,
+             `resources/css/tokens.css`): jeden `<span>` zamienia dwa elementy
+             flex w jeden, a w środku `<span>`-a obowiązuje zwykły skład
+             tekstu, w którym spacja przed elementem inline zostaje.
+
+             ZMIERZONE w Chromium na `/home`, szerokość 390 px i 320 px:
+             przed poprawką końcowa spacja węzła „Świeżo z " miała 0,00 px,
+             po poprawce 4,27 px. Wysokość rzędu zakładek bez zmian.
+
+             CZEGO TU NIE ROBIMY: `white-space: nowrap` jest w `.tab` ODRZUCONE
+             po nieudanym skanie dostępności (issue #294, komentarz
+             w `app.css`), a twarda spacja `&nbsp;` to ten sam pomysł
+             w przebraniu — obie sklejają „z kuKING" w jeden nieprzełamywalny
+             napis i wracają pod ten sam skan. --}}
+        <a class="tab" href="{{ route('discover') }}" @if($showingDiscover) aria-current="page" @endif><span class="tab-napis">Świeżo z <x-kuking-word /></span></a>
     </nav>
 
     @if($showingDiscover)
@@ -124,7 +165,7 @@
 
     @if($posts->count() === 0)
         <x-empty-state title="Jeszcze nic tu nie ma" action="Dodaj pierwsze zdjęcie" :href="route('posts.create')">
-            Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe.
+            Zacznij od zdjęcia tego, co dziś ugotowałeś.
         </x-empty-state>
     @else
         <div class="stack">
@@ -135,4 +176,14 @@
 
         <x-show-more :paginator="$posts" />
     @endif
+    <section class="marka-start-pomoc" aria-labelledby="start-jak-dziala">
+        <p class="nadtytul">Gotowanie łączy</p>
+        <h2 id="start-jak-dziala">Pomysł to dopiero początek.</h2>
+        <div class="marka-start-kroki">
+            <article><span aria-hidden="true">01</span><h3>Znajdź coś na dziś</h3><p>Wpisz nazwę dania lub składnik. Zobacz przepisy i poznaj osoby, które je przygotowują.</p><a href="{{ route('search') }}">Szukaj pomysłu</a></article>
+            <article><span aria-hidden="true">02</span><h3>Zachowaj po swojemu</h3><p>Przepisy i wpisy odkładaj do własnych zeszytów. Wrócisz do nich, gdy przyjdzie ochota.</p><a href="{{ route('collections.index') }}">Otwórz moje zeszyty</a></article>
+            <article><span aria-hidden="true">03</span><h3>Pokaż, jak wyszło</h3><p>Zdjęcie i kilka słów wystarczą. Przy przepisie zaznacz „Ugotowałem” — autor dowie się o Twoim wykonaniu.</p><a href="{{ route('posts.create') }}">Dodaj swoje danie</a></article>
+        </div>
+        <p class="marka-start-zaufanie">Twoje gotowanie, Twoje zasady. Wybierasz widoczność treści i możesz pobrać swoje dane. <a href="{{ route('settings.index') }}">Ustawienia konta</a></p>
+    </section>
 </x-layout>

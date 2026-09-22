@@ -1,0 +1,6 @@
+PAGE 200 Alfa 0.34
+                        wydanie 15 września 2026, 11:51 · be3d355
+CSS 200 https://kuking.pl/build/assets/app-dQNr5eTe.css c72707c27c8914c4d136e99cf0e0ab4fbf7d583f5fd93dcbc6c1bd477946f960 {'marka-wejscie': True, 'marka-profil-statystyki': True, 'marka-przepis-hero': True, 'marka-wlasnosc': True}
+FONT 200 font/woff2 85068 https://kuking.pl/build/assets/inter-latin-ext-wght-normal-DO1Apj_S.woff2
+FONT 200 font/woff2 48256 https://kuking.pl/build/assets/inter-latin-wght-normal-Dx4kXJAl.woff2
+JS 200 https://kuking.pl/build/assets/app-BADFgUD0.js 033291d125bd520a6fbe89fa6d0604870bf15eee4cc3ff8e2992494aeaf61fdc

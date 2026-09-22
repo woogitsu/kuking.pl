@@ -66,17 +66,32 @@ class CofniecieMigracjiNieKasujeZeszytowTest extends TestCase
     {
         $this->zapiszWpisDoZeszytu();
 
+        // ODMOWĘ ODKŁADAMY DO ZMIENNEJ, A OCENIAMY POZA BLOKIEM (D-133):
+        // `$this->fail()` rzuca `AssertionFailedError`, a ta dziedziczy przez
+        // `PHPUnit\Framework\Exception` po `RuntimeException`, więc
+        // postawiona wewnątrz `try` wpadłaby do własnego `catch`.
+        $odmowa = null;
+
         try {
             $this->migracja()->down();
-
-            $this->fail('Cofnięcie przeszło i skasowało zapisane wpisy.');
         } catch (RuntimeException $e) {
-            // Komunikat ma mówić, ILE się straci i CO ZROBIĆ. „Ktoś coś straci"
-            // nie skłania nikogo do zatrzymania się o drugiej w nocy.
-            $this->assertStringContainsString('1 zapisanych wpisów', $e->getMessage());
-            $this->assertStringContainsString('collection_items_kopia', $e->getMessage());
-            $this->assertStringContainsString('KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY', $e->getMessage());
+            $odmowa = $e;
         }
+
+        $this->assertNotNull($odmowa, 'Cofnięcie przeszło i skasowało zapisane wpisy.');
+
+        // Komunikat ma mówić, ILE się straci i CO ZROBIĆ. „Ktoś coś straci"
+        // nie skłania nikogo do zatrzymania się o drugiej w nocy.
+        //
+        // JEDEN wpis, nie pięć: liczba stoi na końcu zdania, za rzeczownikiem
+        // w mianowniku, więc jedynka jest tu poprawna po polsku (D-132).
+        $this->assertStringContainsString('Liczba wpisów, które znikną: 1.', $odmowa->getMessage());
+
+        // Stara, niegramatyczna forma nie ma prawa wrócić.
+        $this->assertStringNotContainsString('skasuje 1 zapisanych wpisów', $odmowa->getMessage());
+
+        $this->assertStringContainsString('collection_items_kopia', $odmowa->getMessage());
+        $this->assertStringContainsString('KUKING_ROLLBACK_KASUJE_ZAPISANE_WPISY', $odmowa->getMessage());
 
         // NAJWAŻNIEJSZE: wiersz nadal jest. Odmowa, która i tak zdążyła
         // skasować dane, byłaby tylko ładniejszym komunikatem o stracie.

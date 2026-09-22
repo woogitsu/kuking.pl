@@ -38,6 +38,13 @@
   /* Skala tekstu z /ustawienia/czytelnosc. Baza to 100%; 90% istnieje dla osób,
      którym 18 px jest za duże na małym telefonie — nigdy nie schodzi poniżej
      16.2 px, więc minimum produktowe zostaje zachowane w duchu. */
+  /* 70% i 80% weszły z kodu 11 września 2026 (migracja
+     `..._rozszerz_skale_tekstu_w_dol`, CHECK `text_scale BETWEEN 70 AND 140`).
+     Ustawienie czytelności działające tylko w jedną stronę jest ustawieniem
+     połowicznym. Kroki 150 i 200 niżej zostają w paczce, choć aplikacja ich
+     nie przyjmuje — paczka opisuje też plansze i szablony spoza aplikacji. */
+  :root[data-text-scale="70"]  { --user-text-scale: 0.7; }
+  :root[data-text-scale="80"]  { --user-text-scale: 0.8; }
   :root[data-text-scale="90"]  { --user-text-scale: 0.9; }
   :root[data-text-scale="112"] { --user-text-scale: 1.12; }
   :root[data-text-scale="125"] { --user-text-scale: 1.25; }

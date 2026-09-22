@@ -13,13 +13,18 @@
         i schowaj w bezpiecznym miejscu.
     </p>
 
-    <div class="card mb-5">
+    <div class="ramka-pomocnicza mb-5">
         <p class="mt-0"><strong>Do czego służą?</strong> Jeśli zgubisz telefon albo stracisz dostęp
             do aplikacji uwierzytelniającej, każdy z tych kodów pozwala zalogować się <strong>zamiast</strong>
-            kodu z aplikacji. Bez nich, po zgubieniu telefonu, konto zostaje zamknięte na dobre.</p>
+            kodu z aplikacji. Bez telefonu i kodów zapasowych nie zalogujesz się samodzielnie.
+            Zapisz kody teraz i schowaj w bezpiecznym miejscu.</p>
         <p class="mb-0">Każdy kod działa <strong>tylko raz</strong>.</p>
     </div>
 
+    {{-- Kody zostają KARTĄ TREŚCI, mimo że reszta ustawień schodzi niżej:
+         to jedyny przedmiot na tym ekranie i jedyna rzecz, po którą się tu
+         przyszło. Wyjaśnienie nad nim jest ramką pomocniczą, więc cień
+         zostawia kodom pierwsze spojrzenie. --}}
     <ul class="card lista-naga kod-do-przepisania p-5">
         @foreach($kody as $kod)
             <li class="py-2">{{ $kod }}</li>

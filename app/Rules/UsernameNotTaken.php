@@ -77,7 +77,7 @@ class UsernameNotTaken implements ValidationRule
 
             $fail($propozycja === null
                 ? 'Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu.'
-                : 'Ta nazwa jest już zajęta. Wolna jest: '.$propozycja.' — możesz ją wpisać.');
+                : 'Ta nazwa jest już zajęta. Wpisz zamiast niej '.$propozycja.' — ta jest wolna.');
         }
     }
 }

@@ -1,0 +1,519 @@
+✓ light / telefon 320 px: #rolada 39/45.8×76.7 px, #ciasto 38/45.8×73.7 px, #nasłodko 46/45.8×102.7 px | 1 wiersz(e) | tekst 19px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+✓ light / telefon 320 px + tekst 140%: #rolada 44/63.9×105 px, #ciasto 54/63.9×102 px, #nasłodko 64/63.9×141 px | 1 wiersz(e) | tekst 26.6px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+✓ light / telefon 360 px + czcionka przeglądarki 200%: #rolada 62/91.6×150.4 px, #ciasto 63/91.6×146.4 px, #nasłodko 77/91.6×202.4 px | 2 wiersz(e) | tekst 38px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+✓ light / komputer 1280 px: #rolada 46/45.8×76.7 px, #ciasto 46/45.8×73.7 px, #nasłodko 46/45.8×102.7 px | 2 wiersz(e) | tekst 19px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+✓ dark / telefon 320 px: #rolada 39/45.8×76.7 px, #ciasto 38/45.8×73.7 px, #nasłodko 46/45.8×102.7 px | 1 wiersz(e) | tekst 19px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+✓ dark / telefon 320 px + tekst 140%: #rolada 44/63.9×105 px, #ciasto 54/63.9×102 px, #nasłodko 64/63.9×141 px | 1 wiersz(e) | tekst 26.6px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+✓ dark / telefon 360 px + czcionka przeglądarki 200%: #rolada 62/91.6×150.4 px, #ciasto 63/91.6×146.4 px, #nasłodko 77/91.6×202.4 px | 2 wiersz(e) | tekst 38px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+✓ dark / komputer 1280 px: #rolada 46/45.8×76.7 px, #ciasto 46/45.8×73.7 px, #nasłodko 46/45.8×102.7 px | 2 wiersz(e) | tekst 19px, underline | fokus 3px solid rgb(21, 94, 239) (offset 2px) | axe naruszeń: 0 | przewijanie w bok: 0 px
+{
+  "adres": "http://127.0.0.1:8732/wpisy/01a0bbd0-ce3a-711c-b565-a4e3c39d20d6",
+  "prog_dotyk": 24,
+  "blad": 0,
+  "wynik": [
+    {
+      "motyw": "light",
+      "wariant": "telefon 320 px",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 39,
+          "szerokosc": 76.7,
+          "gora": 379,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 38,
+          "szerokosc": 73.7,
+          "gora": 379,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 102.7,
+          "gora": 379,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    },
+    {
+      "motyw": "light",
+      "wariant": "telefon 320 px + tekst 140%",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 63.9,
+          "wysokosc_skuteczna": 44,
+          "szerokosc": 105,
+          "gora": 354,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "26.6px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 63.9,
+          "wysokosc_skuteczna": 54,
+          "szerokosc": 102,
+          "gora": 354,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "26.6px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 63.9,
+          "wysokosc_skuteczna": 64,
+          "szerokosc": 141,
+          "gora": 354,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "26.6px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    },
+    {
+      "motyw": "light",
+      "wariant": "telefon 360 px + czcionka przeglądarki 200%",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 91.6,
+          "wysokosc_skuteczna": 62,
+          "szerokosc": 150.4,
+          "gora": 435,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "38px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 91.6,
+          "wysokosc_skuteczna": 63,
+          "szerokosc": 146.4,
+          "gora": 434,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "38px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 91.6,
+          "wysokosc_skuteczna": 77,
+          "szerokosc": 202.4,
+          "gora": 434,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "38px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    },
+    {
+      "motyw": "light",
+      "wariant": "komputer 1280 px",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 76.7,
+          "gora": 222,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 73.7,
+          "gora": 253,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 102.7,
+          "gora": 253,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    },
+    {
+      "motyw": "dark",
+      "wariant": "telefon 320 px",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 39,
+          "szerokosc": 76.7,
+          "gora": 379,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 38,
+          "szerokosc": 73.7,
+          "gora": 379,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 102.7,
+          "gora": 379,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    },
+    {
+      "motyw": "dark",
+      "wariant": "telefon 320 px + tekst 140%",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 63.9,
+          "wysokosc_skuteczna": 44,
+          "szerokosc": 105,
+          "gora": 354,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "26.6px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 63.9,
+          "wysokosc_skuteczna": 54,
+          "szerokosc": 102,
+          "gora": 354,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "26.6px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 63.9,
+          "wysokosc_skuteczna": 64,
+          "szerokosc": 141,
+          "gora": 354,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "26.6px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    },
+    {
+      "motyw": "dark",
+      "wariant": "telefon 360 px + czcionka przeglądarki 200%",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 91.6,
+          "wysokosc_skuteczna": 62,
+          "szerokosc": 150.4,
+          "gora": 435,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "38px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 91.6,
+          "wysokosc_skuteczna": 63,
+          "szerokosc": 146.4,
+          "gora": 434,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "38px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 91.6,
+          "wysokosc_skuteczna": 77,
+          "szerokosc": 202.4,
+          "gora": 434,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "38px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    },
+    {
+      "motyw": "dark",
+      "wariant": "komputer 1280 px",
+      "miary": [
+        {
+          "tekst": "#rolada",
+          "href": "http://127.0.0.1:8732/tag/rolada",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 76.7,
+          "gora": 222,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#ciasto",
+          "href": "http://127.0.0.1:8732/tag/ciasto",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 73.7,
+          "gora": 253,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        },
+        {
+          "tekst": "#nasłodko",
+          "href": "http://127.0.0.1:8732/tag/naslodko",
+          "wysokosc": 45.8,
+          "wysokosc_skuteczna": 46,
+          "szerokosc": 102.7,
+          "gora": 253,
+          "podkreslenie": "underline",
+          "rozmiarTekstu": "19px"
+        }
+      ],
+      "fokus": {
+        "aktywny": true,
+        "outlineStyle": "solid",
+        "outlineWidth": "3px",
+        "outlineColor": "rgb(21, 94, 239)",
+        "outlineOffset": "2px",
+        "tlo": "rgb(243, 244, 241)"
+      },
+      "trafienia": [
+        {
+          "tekst": "#rolada",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#ciasto",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        },
+        {
+          "tekst": "#nasłodko",
+          "srodek": "ten odnośnik",
+          "przy_gorze": "ten odnośnik"
+        }
+      ],
+      "axe": 0,
+      "przepelnienie": 0
+    }
+  ]
+}

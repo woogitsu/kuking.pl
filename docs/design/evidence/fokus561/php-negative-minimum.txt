@@ -1,0 +1,31 @@
+
+  [90;1m.[39;22m[90;1m.[39;22m[31;1m⨯[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m[90;1m.[39;22m
+  [31m────────────────────────────────────────────────────────────────────────────[39m  
+  [41;1m FAILED [49;22m [1mTests\Feature\GaleriaMieszanychOrientacjiTest[22m [90m>[39m slajdy karuzeli m…   
+[39;1m  Bez `min-height: 0` proporcja pola działa TYLKO na zdjęciach poziomych: slajd jest elementem elastycznym, a jego automatyczne minimum równa się własnej wysokości zdjęcia. Zmierzone bez tej linijki przy 320 px: pole poziomego 214,5 px, pionowego 381,3 px — czyli slajdy dalej różnej wysokości.
+Failed asserting that '{\n
+    display: block;\n
+    width: 100%;\n
+    aspect-ratio: 1 / 1;\n
+    background-color: var(--color-surface-sunken);\n
+    \n
+\n
+  ' matches PCRE pattern "/min-height:\s*0\s*;/u".[39;22m
+
+  at [32mtests/Feature/GaleriaMieszanychOrientacjiTest.php[39m:[32m155[39m
+    151▕         );
+    152▕ 
+    153▕         // `min-height: 0` jest tu warunkiem, nie ozdobą — i to jest ta część,
+    154▕         // której brak wygląda w pomiarze prawie jak poprawka.
+  ➜ 155▕         $this->assertMatchesRegularExpression(
+    156▕             '/min-height:\s*0\s*;/u',
+    157▕             $blok,
+    158▕             'Bez `min-height: 0` proporcja pola działa TYLKO na zdjęciach '.
+    159▕             'poziomych: slajd jest elementem elastycznym, a jego automatyczne '.
+
+  [33m1   [39m[39;1mtests/Feature/GaleriaMieszanychOrientacjiTest.php[39;22m:[39;1m155[39;22m
+
+
+  [90mTests:[39m    [31;1m1 failed[39;22m[90m,[39m[39m [39m[32;1m6 passed[39;22m[90m (55 assertions)[39m
+  [90mDuration:[39m [39m1.48s[39m
+

@@ -1,0 +1,23 @@
+[
+  {
+    "mutation": "target",
+    "negative": 1,
+    "restored": 0,
+    "md5": "c34996cb7b1f61951bd627d08817cc0b",
+    "mtime_restored": true
+  },
+  {
+    "mutation": "association",
+    "negative": 1,
+    "restored": 0,
+    "md5": "c34996cb7b1f61951bd627d08817cc0b",
+    "mtime_restored": true
+  },
+  {
+    "mutation": "message",
+    "negative": 1,
+    "restored": 0,
+    "md5": "c34996cb7b1f61951bd627d08817cc0b",
+    "mtime_restored": true
+  }
+]

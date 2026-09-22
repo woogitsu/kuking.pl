@@ -1,13 +1,17 @@
 <x-layout title="Ugotowałem" :noindex="true">
     <h1>Ugotowałem: {{ $recipe->title }}</h1>
     <p class="mb-5">
-        {{ $recipe->author->displayName() }} dowie się, że ktoś ugotował z tego przepisu.
+        @if($recipe->author_id !== auth()->id() && $recipe->author->mozeCzytac())
+            {{ $recipe->author->displayName() }} dowie się, że ktoś ugotował z tego przepisu.
+        @else
+            Zapisz wykonanie tego przepisu.
+        @endif
         <strong>Nie musisz wypełniać żadnego pola</strong> — wystarczy, że klikniesz „Wyślij”.
     </p>
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
+    <form class="panel-formularza" method="POST" action="{{ route('cooked.store', $recipe->slug) }}" enctype="multipart/form-data">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR
@@ -53,13 +57,30 @@
         <x-field name="note" label="Jak wyszło?" type="textarea" :rows="4"
                  help="Na przykład: „Wyszło pięknie, tylko soli mniej.”" />
 
+        {{-- POMOC MÓWI, CO TU WPISAĆ I GDZIE TO TRAFI, A NIE JAK CZĘSTO
+             KTOŚ TO CZYTA.
+
+             Stało tu „To najczęściej czytana część." — trzecie i ostatnie
+             miejsce tego samego niezmierzonego twierdzenia (dwa pozostałe:
+             `components/recipe-wizard.blade.php` i
+             `pages/recipes/create.blade.php`). Nikt nigdy nie mierzył, co
+             w cudzym wykonaniu czyta się najczęściej, a tutaj zdanie było
+             dodatkowo mylące: „część" znaczyło raz część przepisu, raz część
+             tego formularza.
+
+             Nowe zdanie mówi rzecz sprawdzalną przy kodzie: notatka trafia na
+             kartę wykonania (`components/cooked-card.blade.php`), podpisana
+             dokładnie tak. --}}
         <x-field name="changes_note" label="Coś po swojemu?" type="textarea" :rows="3"
-                 help="Zamiana składnika, inny czas, inna forma. To najczęściej czytana część." />
+                 help="Zamiana składnika, inny czas, inna forma. Pokażemy to przy Twoim wykonaniu, podpisane „Po swojemu”." />
 
         <x-field name="actual_minutes" label="Ile Ci to zajęło (w minutach)" type="number"
                  inputmode="numeric" :min="0" :max="10080" />
 
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-would_make_again"
+                  @error('would_make_again') tabindex="-1" aria-invalid="true" aria-describedby="f-would_make_again-error" @enderror>
             <legend class="font-bold mb-3">Zrobisz to jeszcze raz?</legend>
             <div class="choice-grid">
                 <label class="choice">
@@ -71,9 +92,13 @@
                     <span class="choice-label">Raczej nie powtórzę</span>
                 </label>
             </div>
+            <x-blad-grupy name="would_make_again" />
         </fieldset>
 
-        <fieldset class="border-0 p-0 mt-6">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-6" id="f-perceived_difficulty"
+                  @error('perceived_difficulty') tabindex="-1" aria-invalid="true" aria-describedby="f-perceived_difficulty-error" @enderror>
             <legend class="font-bold mb-3">Jak trudne to było dla Ciebie?</legend>
             <div class="choice-grid">
                 @foreach(\App\Models\Recipe::DIFFICULTY_LABELS as $value => $label)
@@ -83,6 +108,7 @@
                     </label>
                 @endforeach
             </div>
+            <x-blad-grupy name="perceived_difficulty" />
         </fieldset>
 
         <div class="form-actions">

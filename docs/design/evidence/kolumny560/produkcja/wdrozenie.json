@@ -1,0 +1,39 @@
+{
+  "sha": "05151d76cc4f609800b214504882492fee376e00",
+  "runs": [
+    {
+      "id": 34943686652,
+      "name": "Deploy",
+      "status": "completed",
+      "conclusion": "success"
+    },
+    {
+      "id": 34943547301,
+      "name": "Deploy",
+      "status": "completed",
+      "conclusion": "skipped"
+    },
+    {
+      "id": 34943541748,
+      "name": "CI",
+      "status": "completed",
+      "conclusion": "success"
+    }
+  ],
+  "deployments": [
+    {
+      "id": 6454177593,
+      "sha": "05151d76cc4f609800b214504882492fee376e00",
+      "statuses": [
+        {
+          "state": "success",
+          "created_at": "2026-09-15T07:49:33Z"
+        },
+        {
+          "state": "in_progress",
+          "created_at": "2026-09-15T07:47:55Z"
+        }
+      ]
+    }
+  ]
+}

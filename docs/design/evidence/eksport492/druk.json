@@ -1,0 +1,311 @@
+{
+  "wersja": "151.0.7922.34",
+  "marginesMm": 10,
+  "wyniki": [
+    {
+      "strona": "index",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 1883,
+      "stronOszacowanie": 2,
+      "zapelnienieOstatniej": "80%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [],
+      "uwaga": [
+        {
+          "kolor": "rgb(74, 54, 7)",
+          "tlo": "rgb(252, 234, 203)",
+          "lewe": "8px rgb(122, 92, 16)",
+          "font": 16
+        }
+      ],
+      "plakietka": [
+        {
+          "tekst": "szkic",
+          "kolor": "rgb(107, 78, 12)",
+          "tlo": "rgb(252, 234, 203)",
+          "obram": "1px rgb(122, 92, 16)"
+        }
+      ],
+      "powrot": [],
+      "breakInsideKart": [
+        "avoid",
+        "auto"
+      ]
+    },
+    {
+      "strona": "rosol",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 4007,
+      "stronOszacowanie": 4,
+      "zapelnienieOstatniej": "83%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [
+        {
+          "sel": "li",
+          "tekst": "1 pietruszka korzeń",
+          "h": 47.4,
+          "od": 1,
+          "do": 2,
+          "breakInside": "avoid"
+        },
+        {
+          "sel": "li",
+          "tekst": "Postaw na małym ogniu. Woda ma ledwo drgać — rosół, któ",
+          "h": 576.5,
+          "od": 2,
+          "do": 3,
+          "breakInside": "avoid"
+        },
+        {
+          "sel": "img.zdjecie",
+          "tekst": "",
+          "h": 494,
+          "od": 2,
+          "do": 3,
+          "breakInside": "avoid"
+        },
+        {
+          "sel": "img.zdjecie",
+          "tekst": "",
+          "h": 604.7,
+          "od": 3,
+          "do": 4,
+          "breakInside": "avoid"
+        }
+      ],
+      "uwaga": [],
+      "plakietka": [],
+      "powrot": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "h": 49
+        }
+      ],
+      "breakInsideKart": [
+        "avoid"
+      ]
+    },
+    {
+      "strona": "pierogi",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 3782,
+      "stronOszacowanie": 4,
+      "zapelnienieOstatniej": "61%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [
+        {
+          "sel": "h3",
+          "tekst": "Ciasto",
+          "h": 36.3,
+          "od": 1,
+          "do": 2,
+          "breakInside": "auto"
+        },
+        {
+          "sel": "li",
+          "tekst": "Ziemniaki obierz, pokrój na ćwiartki i ugotuj w osolone",
+          "h": 573.2,
+          "od": 2,
+          "do": 3,
+          "breakInside": "avoid"
+        },
+        {
+          "sel": "li",
+          "tekst": "Przykryj ciasto miską i zostaw na pół godziny w tempera",
+          "h": 26.4,
+          "od": 3,
+          "do": 4,
+          "breakInside": "avoid"
+        }
+      ],
+      "uwaga": [],
+      "plakietka": [],
+      "powrot": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "h": 49
+        }
+      ],
+      "breakInsideKart": [
+        "avoid"
+      ]
+    },
+    {
+      "strona": "szkic",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 1047,
+      "stronOszacowanie": 2,
+      "zapelnienieOstatniej": "0%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [],
+      "uwaga": [],
+      "plakietka": [
+        {
+          "tekst": "To był szkic — nigdy nie został opublikowany",
+          "kolor": "rgb(107, 78, 12)",
+          "tlo": "rgb(252, 234, 203)",
+          "obram": "1px rgb(122, 92, 16)"
+        }
+      ],
+      "powrot": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "h": 49
+        }
+      ],
+      "breakInsideKart": []
+    },
+    {
+      "strona": "dlugi-adres",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 1047,
+      "stronOszacowanie": 2,
+      "zapelnienieOstatniej": "0%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [],
+      "uwaga": [],
+      "plakietka": [],
+      "powrot": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "h": 49
+        }
+      ],
+      "breakInsideKart": [
+        "avoid"
+      ]
+    },
+    {
+      "strona": "wpisy",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 1873,
+      "stronOszacowanie": 2,
+      "zapelnienieOstatniej": "79%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [
+        {
+          "sel": "div.karta",
+          "tekst": "18 września 2026\n                                    · ",
+          "h": 62.1,
+          "od": 1,
+          "do": 2,
+          "breakInside": "avoid"
+        },
+        {
+          "sel": "p.podpis",
+          "tekst": "18 września 2026\n                                    · ",
+          "h": 35.7,
+          "od": 1,
+          "do": 2,
+          "breakInside": "auto"
+        },
+        {
+          "sel": "span.plakietka",
+          "tekst": "szkic",
+          "h": 35.7,
+          "od": 1,
+          "do": 2,
+          "breakInside": "auto"
+        }
+      ],
+      "uwaga": [],
+      "plakietka": [
+        {
+          "tekst": "tylko dla Ciebie",
+          "kolor": "rgb(107, 78, 12)",
+          "tlo": "rgb(252, 234, 203)",
+          "obram": "1px rgb(122, 92, 16)"
+        },
+        {
+          "tekst": "szkic",
+          "kolor": "rgb(107, 78, 12)",
+          "tlo": "rgb(252, 234, 203)",
+          "obram": "1px rgb(122, 92, 16)"
+        }
+      ],
+      "powrot": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "h": 49
+        }
+      ],
+      "breakInsideKart": [
+        "avoid"
+      ]
+    },
+    {
+      "strona": "pusta-index",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 1264,
+      "stronOszacowanie": 2,
+      "zapelnienieOstatniej": "21%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [],
+      "uwaga": [],
+      "plakietka": [],
+      "powrot": [],
+      "breakInsideKart": [
+        "avoid",
+        "auto"
+      ]
+    },
+    {
+      "strona": "pusta-wpisy",
+      "wersja": "151.0.7922.34",
+      "szerokoscStrony": 718,
+      "wysokoscStrony": 1047,
+      "docSzerokosc": 718,
+      "miesciSieWSzerokosc": true,
+      "docWysokosc": 1047,
+      "stronOszacowanie": 2,
+      "zapelnienieOstatniej": "0%",
+      "bodyFont": 16,
+      "bodyTlo": "rgb(255, 255, 255)",
+      "przeciete": [],
+      "uwaga": [],
+      "plakietka": [],
+      "powrot": [
+        {
+          "tekst": "← Wróć do spisu treści",
+          "h": 49
+        }
+      ],
+      "breakInsideKart": []
+    }
+  ]
+}

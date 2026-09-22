@@ -42,7 +42,7 @@ dowodu + środowisko**. Bez nich to jest `NIEZWERYFIKOWANE` z ładniejszą nazw�
 | 3 | **`kontakt@kuking.pl` realnie odbiera** | `NIE WIEMY` | Dwie wiadomości z 09.09 miały w raporcie EmailLabs stan `deferred`. Sprawdzić, czy ostatecznie doszły. |
 | 4 | **SPF / DKIM / DMARC na polskich skrzynkach** | `NIEZWERYFIKOWANE` | Trzy słowa `spf=pass`, `dkim=pass`, `dmarc=pass` w nagłówkach listu doręczonego na wp.pl, o2.pl, interia.pl, onet.pl. Benchmarku dla nich nie ma; własny test kosztuje popołudnie i zero złotych. |
 | 5 | **R2: nowe zdjęcia idą z R2, nie z kontenera** | `WYKONANE, ZWERYFIKOWANE CZĘŚCIOWO` | 10.09, z zewnątrz, na produkcji: żądanie wariantu → 302 na podpisany adres `…r2.cloudflarestorage.com…` → 200 `image/webp`. Żądanie bez podpisu i żądanie oryginału odrzucone. `cdn.kuking.pl` nie istnieje w DNS. **To nie zamyka bramki #120** — patrz wiersz 6. |
-| 6 | **Bramka R2 (#120) wypełniona** | `NIEZROBIONE — BLOKUJE` | `railway ssh -- php artisan kuking:bramka-r2 --zapis` odhacza siedem punktów z dwunastu prawdziwymi żądaniami. Reszta to panel Cloudflare. Wynik z datą wpisać do `docs/infra/BRAMKA_R2.md` §3 — dziś kolumny „wynik" i „data" są puste. |
+| 6 | **Bramka R2 (#120) wypełniona** | `NIEZROBIONE — BLOKUJE` | `railway ssh -- php artisan kuking:bramka-r2 --zapis` odhacza siedem punktów z dwunastu prawdziwymi żądaniami. **Od 11.09 punkt 2 (oryginał niedostępny przez KAŻDĄ publiczną ścieżkę) jest odhaczany tylko dla adresów wypisanych w `KUKING_R2_PUBLICZNE_ADRESY`** — pusta zmienna daje `NIE WIEMY` i oblewa bramkę, bo adres niezapytany nie jest dowodem na nic. Reszta to panel Cloudflare. Kroki krok po kroku: `docs/infra/BRAMKA_R2.md` §2a; wynik z datą do §3 — dziś kolumny „wynik" i „data" są puste. |
 | 7 | **Stare zdjęcia przeniesione z wolumenu** | `NIEZROBIONE` | 10.09 zmierzone z zewnątrz: zdjęcia sprzed R2 nadal serwuje PHP z wolumenu kontenera. `php artisan kuking:przenies-zdjecia --dry-run`, potem bez `--dry-run`. Dopóki tam leżą, utrata kontenera to utrata oryginałów. |
 | 8 | **Automatyczna kopia bazy poza Railway** | `NIEZROBIONE — BLOKUJE` | Issue #193. **Dziś nie ma żadnej kopii bazy.** Volume Backups i PITR są tylko w planie Pro, Kuking jest na Free/Hobby. Do wykonania #193 każda utrata bazy jest bezpowrotna (D-043). Potrzebuje bucketu z wiersza 6 jako miejsca lądowania. |
 | 9 | **Ćwiczenie odtworzenia (restore drill)** | `NIEZROBIONE — BLOKUJE` | Issue #9. Zrzut, którego nikt nigdy nie odtworzył, jest obietnicą, nie kopią. Tabela wyniku w `docs/infra/KOPIE_I_ODTWORZENIE.md` §5 jest pusta. Potrzebne: RPO, RTO, kontrola integralności po odtworzeniu, lista tego co nie zadziałało. |
@@ -237,3 +237,39 @@ opisywał stan sprzed #10. Szczegóły i dowody w kodzie:
 `docs/infra/INFRA_DECISION.md` · `docs/infra/BRAMKA_R2.md` ·
 `docs/research/audyt-2026-09-10/` · issue #120 ·
 `docs/zlecenia/2026-09-09-audyt-a6.md` (A6-06, A6-07)
+
+---
+
+## Uzupełnienie 17.09.2026 — monitoring (wiersze 11, 12 i 18)
+
+Tabela wyżej jest snapshotem z 10.09.2026 i celowo nie jest przepisywana.
+Ta sekcja dokłada do niej trzy pomiary z 17.09.2026 i nic poza nimi.
+
+**Wiersz 18 — „Alarm z webhooka naprawdę dochodzi": `NIEZWERYFIKOWANE` →
+`NIEZROBIONE — BLOKUJE`.** To nie jest zaostrzenie oceny, tylko zamiana
+„nie wiemy" na „wiemy, że nie". Kanał `blad_webhook` włącza jedna zmienna,
+a odczyt listy zmiennych usługi `kuking.pl` (production) przez API Railway
+pokazuje, że **`LOG_BLAD_WEBHOOK_URL` w niej nie występuje**;
+`sealedVariableNames` jest puste, więc brak nazwy znaczy brak zmiennej,
+a nie ukrytą wartość. Skutek: dziś nie dzwoni **nic** — ani błąd 500, ani
+czujka kopii, ani dwie czujki dołożone w #598 i #599. Mechanizm jest
+sprawdzony na prawdziwym lokalnym odbiorniku HTTP; brakuje wyłącznie
+czynności właściciela w panelu. Kolejność zamykania:
+`docs/infra/MONITORING_BLEDOW.md` §7.3.
+
+**Wiersz 11 — zewnętrzny monitor `/health`: bez zmian, `NIEZROBIONE`.**
+Warto natomiast zapisać, dlaczego jego założenie nie wystarczy dziś do
+niczego: `/health` odpowiada wprawdzie **HTTP 200** (odczyt z zewnątrz,
+17.09 21:10 UTC), ale ze `status: degraded` — i stoi tak **nieprzerwanie od
+9 września**, przez cztery nierozliczone zadania w `failed_jobs`. Monitor
+pilnujący treści odpowiedzi alarmowałby więc od pierwszej minuty i nauczyłby
+się być ignorowany, zanim powstanie. Kolejność jest odwrotna niż wyglądała:
+najpierw rozliczenie tych czterech zadań (`php artisan kuking:martwe-zadania`,
+**bez zbiorowego `queue:retry`** — żeton resetu hasła wygasa), potem monitor.
+
+**Wiersz 12 — test dymny po wdrożeniu: nadal `NIEZWERYFIKOWANE`.** Nie
+sprawdzałem tego wiersza; wdrożenie Alfy 0.57 odbiera drugi model.
+
+Co jest zielone i zmierzone z zewnątrz tego samego dnia: baza, migracje,
+media, poczta, Turnstile, Google, Facebook i analityka — wszystkie pola
+`checks` w `/health` poza `kolejka`.

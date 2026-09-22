@@ -1,0 +1,12 @@
+{
+  "url": "http://127.0.0.1:8372/admin/bez-odpowiedzi?typ=pytania",
+  "status": 200,
+  "heading": true,
+  "count": "Czeka na odpowiedź (2)",
+  "cards": 2,
+  "overflow": false,
+  "afterAnswer": {
+    "cards": 1,
+    "target": "http://127.0.0.1:8372/pytania/01a0b419-70fb-70ed-b353-baa41de0fa49#komentarze"
+  }
+}

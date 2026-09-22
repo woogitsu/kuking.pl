@@ -1,5 +1,14 @@
-<x-layout title="Zgłoś treść" :noindex="true">
-    <h1>Zgłoś tę treść</h1>
+@php
+    $cel = $cel ?? \App\Domain\Moderation\CelZgloszenia::dla($target);
+@endphp
+
+<x-layout :title="'Zgłoś: ' . $cel->nazwa" :noindex="true">
+    <h1>Zgłoś: {{ $cel->nazwa }}</h1>
+
+    @if($cel->cytat)
+        <p class="cel-zgloszenia-cytat mb-4">{{ $cel->cytat }}</p>
+    @endif
+
     <p class="mb-5">
         Powiedz nam, co jest nie tak. Sprawdzimy to i odpiszemy Ci, co zrobiliśmy.
         Zgłoszenie jest anonimowe dla osoby, której dotyczy.
@@ -7,10 +16,13 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('reports.store', ['type' => $targetType, 'id' => $targetId]) }}">
+    <form class="panel-formularza" method="POST" action="{{ route('reports.store', ['type' => $targetType, 'id' => $targetId]) }}">
         @csrf
 
-        <fieldset class="border-0 p-0">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0" id="f-reason"
+                  @error('reason') tabindex="-1" aria-invalid="true" aria-describedby="f-reason-error" @enderror>
             <legend class="font-bold mb-3">Co jest nie tak?</legend>
             <div class="stack-tight">
                 @foreach($reasons as $value => $label)
@@ -20,7 +32,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('reason')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="reason" />
         </fieldset>
 
         <x-field name="details" label="Chcesz coś dopisać?" type="textarea" :rows="4"
@@ -28,7 +40,9 @@
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Wyślij zgłoszenie</button>
-            <a class="btn btn-quiet" href="{{ url()->previous() }}">Wróć</a>
+            {{-- Cel liczony z autoryzowanego celu zgłoszenia, nie z Referera
+                 (issue #795) — patrz `ReportController::wracajDo()`. --}}
+            <a class="btn btn-quiet" href="{{ $powrot }}">Wróć</a>
         </div>
     </form>
 </x-layout>

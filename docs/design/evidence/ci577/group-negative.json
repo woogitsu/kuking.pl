@@ -1,0 +1,24 @@
+{
+  "source": "scripts/port-grupy.mjs",
+  "backup": "/home/mateusz/kuking-local/kuking577-grupa-ttlrdr6o/port-grupy.mjs",
+  "before": {
+    "md5": "94b202e60ef435c6dee61f2c495eda79",
+    "mtime_ns": 1789481429055421500
+  },
+  "after": {
+    "md5": "94b202e60ef435c6dee61f2c495eda79",
+    "mtime_ns": 1789481429055421500
+  },
+  "positive_before": {
+    "exit": 0,
+    "output": "PORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=rozszerzenia sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=rozszerzenia sekundy=0.00\n✔ wykonuje tylko wybrane pomiary: domyślnie (1.761879ms)\n✔ wykonuje tylko wybrane pomiary: baza (0.198162ms)\n✔ wykonuje tylko wybrane pomiary: rozszerzenia (0.748694ms)\n✔ nieznana grupa odrzucana przed wywołaniem pomiaru (0.357129ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 39.732448\n"
+  },
+  "negative": {
+    "exit": 1,
+    "output": "PORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=rozszerzenia sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=rozszerzenia sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=rozszerzenia sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\n✔ wykonuje tylko wybrane pomiary: domyślnie (1.741681ms)\n✖ wykonuje tylko wybrane pomiary: baza (1.51034ms)\n✖ wykonuje tylko wybrane pomiary: rozszerzenia (0.32873ms)\n✔ nieznana grupa odrzucana przed wywołaniem pomiaru (0.469754ms)\nℹ tests 4\nℹ suites 0\nℹ pass 2\nℹ fail 2\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 39.372327\n\n✖ failing tests:\n\ntest at scripts/port-grupy.test.mjs:10:3\n✖ wykonuje tylko wybrane pomiary: baza (1.51034ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n      'baza',\n  +   'rozszerzenia',\n      'baza'\n    ]\n  \n      at TestContext.<anonymous> (file:///home/mateusz/kuking-work560/scripts/port-grupy.test.mjs:15:12)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: [ 'baza', 'rozszerzenia', 'baza' ],\n    expected: [ 'baza', 'baza' ],\n    operator: 'deepStrictEqual',\n    diff: 'simple'\n  }\n\ntest at scripts/port-grupy.test.mjs:10:3\n✖ wykonuje tylko wybrane pomiary: rozszerzenia (0.32873ms)\n  AssertionError [ERR_ASSERTION]: Expected values to be strictly deep-equal:\n  + actual - expected\n  \n    [\n  +   'baza',\n      'rozszerzenia',\n  +   'baza'\n    ]\n  \n      at TestContext.<anonymous> (file:///home/mateusz/kuking-work560/scripts/port-grupy.test.mjs:15:12)\n      at async Test.run (node:internal/test_runner/test:1389:7)\n      at async Test.processPendingSubtests (node:internal/test_runner/test:960:7) {\n    generatedMessage: true,\n    code: 'ERR_ASSERTION',\n    actual: [ 'baza', 'rozszerzenia', 'baza' ],\n    expected: [ 'rozszerzenia' ],\n    operator: 'deepStrictEqual',\n    diff: 'simple'\n  }\n"
+  },
+  "positive_after": {
+    "exit": 0,
+    "output": "PORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=rozszerzenia sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=baza sekundy=0.00\nPORT_CZAS grupa=rozszerzenia sekundy=0.00\n✔ wykonuje tylko wybrane pomiary: domyślnie (1.86143ms)\n✔ wykonuje tylko wybrane pomiary: baza (0.195609ms)\n✔ wykonuje tylko wybrane pomiary: rozszerzenia (0.667344ms)\n✔ nieznana grupa odrzucana przed wywołaniem pomiaru (0.429407ms)\nℹ tests 4\nℹ suites 0\nℹ pass 4\nℹ fail 0\nℹ cancelled 0\nℹ skipped 0\nℹ todo 0\nℹ duration_ms 38.246104\n"
+  }
+}

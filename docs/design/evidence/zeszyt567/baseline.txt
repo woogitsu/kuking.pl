@@ -1,0 +1,49 @@
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-work560/phpunit.xml
+
+FFFFFF.                                                             7 / 7 (100%)
+
+Time: 00:00.780, Memory: 69.00 MB
+
+There were 6 failures:
+
+1) Tests\Feature\ZeszytNiedostepneZapisyTest::test_prywatny_przepis_nie_udaje_pustego_zeszytu_i_wraca_po_upublicznieniu
+Failed asserting that 'Zeszyt kontrolny Ten zeszyt widzisz tylko Ty. W tym zeszycie nic jeszcze nie ma Poszukaj przepisów Usuń ten zeszyt Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu. Tak, usuń ten zeszyt' [UTF-8](length: 216) contains "1 zapis nie jest dla Ciebie dostępny" [UTF-8](length: 37).
+
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:173
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:36
+
+2) Tests\Feature\ZeszytNiedostepneZapisyTest::test_blokada_w_obu_kierunkach_ukrywa_zapis_a_cofniecie_go_przywraca
+Failed asserting that 'Zeszyt kontrolny Ten zeszyt widzisz tylko Ty. W tym zeszycie nic jeszcze nie ma Poszukaj przepisów Usuń ten zeszyt Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu. Tak, usuń ten zeszyt' [UTF-8](length: 216) contains "1 zapis nie jest dla Ciebie dostępny" [UTF-8](length: 37).
+
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:173
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:50
+
+3) Tests\Feature\ZeszytNiedostepneZapisyTest::test_banned_i_pending_delete_ukrywaja_zapis_a_przywrocenie_konta_go_odslania
+Failed asserting that 'Zeszyt kontrolny Ten zeszyt widzisz tylko Ty. W tym zeszycie nic jeszcze nie ma Poszukaj przepisów Usuń ten zeszyt Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu. Tak, usuń ten zeszyt' [UTF-8](length: 216) contains "1 zapis nie jest dla Ciebie dostępny" [UTF-8](length: 37).
+
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:173
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:65
+
+4) Tests\Feature\ZeszytNiedostepneZapisyTest::test_mieszane_zapisy_maja_jeden_prawdziwy_licznik_i_odmiane
+Failed asserting that 'Zeszyt kontrolny Ten zeszyt widzisz tylko Ty. Przepisy Przepis kontrolny 7b8fe139-c18c-43ab-ada5-a9debc4081cc Testowa osoba Zobacz przepis Zapisane wpisy T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny d93a4272-7f2e-43c4-9631-eb814e69f240 Napisz komentarz Masz to w zeszycie 1 zapisany wpis nie jest już dla Ciebie widoczne — autor zmienił ustawienia albo konto nie jest już dostępne. Nic nie zniknęło z Twojego zeszytu. Usuń ten zeszyt Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu. Tak, usuń ten zeszyt' [UTF-8](length: 592) contains "2 zapisy nie są dla Ciebie dostępne" [UTF-8](length: 37).
+
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:173
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:83
+
+5) Tests\Feature\ZeszytNiedostepneZapisyTest::test_obcy_widz_publicznego_zeszytu_nie_dostaje_tekstu_o_swoim_zeszycie
+Failed asserting that 'Zeszyt kontrolny Ten zeszyt widzą wszyscy. Przepisy Przepis kontrolny ba3a8763-a44e-451b-ade6-eba98a4b9852 Testowa osoba Zobacz przepis' [UTF-8](length: 136) contains "1 zapis nie jest dla Ciebie dostępny" [UTF-8](length: 37).
+
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:173
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:103
+
+6) Tests\Feature\ZeszytNiedostepneZapisyTest::test_licznik_nie_uznaje_dalszych_stron_za_niedostepne_zapisy
+Failed asserting that 'Zeszyt kontrolny Ten zeszyt widzisz tylko Ty. Przepisy Przepis kontrolny 4b646797-fe7e-4cb3-a9e5-03be4ecb1379 Testowa osoba Zobacz przepis Przepis kontrolny ebeed083-c202-4a0d-bc62-869b44f197cf Testowa osoba Zobacz przepis Przepis kontrolny 8a811d60-754d-4032-be41-e9cbedf95067 Testowa osoba Zobacz przepis Przepis kontrolny 62623fbb-ca4d-49b0-9432-4038fba1d854 Testowa osoba Zobacz przepis Przepis kontrolny e0a46f0e-eaf7-40f1-a4d7-b7c27b9c279a Testowa osoba Zobacz przepis Przepis kontrolny a696cfdf-639d-4251-acf4-c979fde67a92 Testowa osoba Zobacz przepis Przepis kontrolny fb6a2f7e-7a51-4362-a83c-66a96381dc4f Testowa osoba Zobacz przepis Przepis kontrolny 509b81f0-5dbd-46f3-8b78-9f5cb71547bc Testowa osoba Zobacz przepis Przepis kontrolny 3512e822-7b25-40a7-a92e-bbda6639d729 Testowa osoba Zobacz przepis Przepis kontrolny 182e3730-37da-4b2e-8703-893273d1878b Testowa osoba Zobacz przepis Przepis kontrolny e72b5562-cfa8-420e-8439-4c2654461f96 Testowa osoba Zobacz przepis Przepis kontrolny c745e83a-a829-4504-ac5f-a65206d61161 Testowa osoba Zobacz przepis Pokaż więcej przepisów Zapisane wpisy T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 2848a0b6-2e56-4fa5-a60b-d69cb547263a Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 4c459747-d721-4397-a9cb-7c7ddad0f0fe Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 9d39ccff-a38d-42e8-9e48-8d4019b5da37 Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 05276970-096c-46d9-be38-832411dc98d9 Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 2095bf2b-439a-4fc1-bef8-f5536311d63d Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 59bbb91c-b7d7-49d5-9ec3-adbdfd87dc6d Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny f4c99801-9c35-4bd0-93fe-dd381a87bcf8 Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 5f3ed5fd-6450-4b52-b206-a339ef372565 Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 4caa4153-209a-4faa-890e-ab8172164427 Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 6380fcab-6670-4410-a728-a87a638306e0 Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 906b49c6-4b64-484f-91cc-6a9abdfb48e5 Napisz komentarz Masz to w zeszycie T Testowa osoba 15 września, 11:45 · publicznie Otwórz wpis Zgłoś ten wpis Wpis kontrolny 1fc82cfa-12b0-4187-86c1-aff524ee9ae1 Napisz komentarz Masz to w zeszycie Pokaż więcej zapisanych wpisów 1 zapisany wpis nie jest już dla Ciebie widoczne — autor zmienił ustawienia albo konto nie jest już dostępne. Nic nie zniknęło z Twojego zeszytu. Usuń ten zeszyt Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu. Tak, usuń ten zeszyt' [UTF-8](length: 3424) contains "2 zapisy nie są dla Ciebie dostępne" [UTF-8](length: 37).
+
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:173
+/mnt/c/Users/matma/Documents/Codex/kuking.pl/output/ZeszytNiedostepneZapisyTest.php:123
+
+FAILURES!
+Tests: 7, Assertions: 28, Failures: 6.

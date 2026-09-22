@@ -1,0 +1,143 @@
+{
+  "zoom": 2,
+  "error": null,
+  "state": {
+    "width": 320,
+    "height": 740,
+    "dpr": 2,
+    "scrollY": 0,
+    "widget": {
+      "x": 179.8828125,
+      "y": 480.6953125,
+      "width": 128.1171875,
+      "height": 65.0625,
+      "top": 480.6953125,
+      "right": 308,
+      "bottom": 545.7578125,
+      "left": 179.8828125
+    },
+    "active": "<a class=\"profil-awatar-zmiana\" href=\"http://127.0.0.1:8033/ustawienia/zdjecie\">\n                    <img class=\"avatar\" src=\"http://127.0.0.1:8033/zdjecia/01a0a39a-9870-71c8-b25e-3da0f3b12cef/thumb\" alt=\"\" width=\"170\" height=\"170\" data-rozmiar=\"170\" loading=\"lazy\">\n                    \n                    <span class=\"btn btn-secondary profil-awatar-zmiana-akcja\">\n                        Zmień zdjęcie profilowe\n                    </span>\n                </a>",
+    "rect": {
+      "x": 33,
+      "y": 271.8203125,
+      "width": 220,
+      "height": 277,
+      "top": 271.8203125,
+      "right": 253,
+      "bottom": 548.8203125,
+      "left": 33
+    },
+    "topbar": {
+      "x": 12,
+      "y": 8,
+      "width": 296,
+      "height": 214.8203125,
+      "top": 8,
+      "right": 308,
+      "bottom": 222.8203125,
+      "left": 12
+    },
+    "padding": "278.4px",
+    "point": [
+      143,
+      268.3203125
+    ],
+    "hits": [
+      {
+        "tag": "HEADER",
+        "cls": "sekcja-strony mb-6 marka-profil marka-profil-kompozycja blok-ciemny",
+        "rect": {
+          "x": 12,
+          "y": 250.8203125,
+          "width": 296,
+          "height": 1053.5625,
+          "top": 250.8203125,
+          "right": 308,
+          "bottom": 1304.3828125,
+          "left": 12
+        }
+      },
+      {
+        "tag": "MAIN",
+        "cls": "app-main",
+        "rect": {
+          "x": 12,
+          "y": 250.8203125,
+          "width": 296,
+          "height": 9110.4765625,
+          "top": 250.8203125,
+          "right": 308,
+          "bottom": 9361.296875,
+          "left": 12
+        }
+      },
+      {
+        "tag": "DIV",
+        "cls": "app-body marka-rama    app-body-tresc-z-szyna ",
+        "rect": {
+          "x": 12,
+          "y": 250.8203125,
+          "width": 296,
+          "height": 9110.4765625,
+          "top": 250.8203125,
+          "right": 308,
+          "bottom": 9361.296875,
+          "left": 12
+        }
+      },
+      {
+        "tag": "DIV",
+        "cls": "app-shell",
+        "rect": {
+          "x": 0,
+          "y": 222.8203125,
+          "width": 320,
+          "height": 10228.828125,
+          "top": 222.8203125,
+          "right": 320,
+          "bottom": 10451.6484375,
+          "left": 0
+        }
+      },
+      {
+        "tag": "BODY",
+        "cls": "",
+        "rect": {
+          "x": 0,
+          "y": 8,
+          "width": 320,
+          "height": 10809.109375,
+          "top": 8,
+          "right": 320,
+          "bottom": 10817.109375,
+          "left": 0
+        }
+      },
+      {
+        "tag": "HTML",
+        "cls": "",
+        "rect": {
+          "x": 0,
+          "y": 0,
+          "width": 320,
+          "height": 10817.109375,
+          "top": 0,
+          "right": 320,
+          "bottom": 10817.109375,
+          "left": 0
+        }
+      }
+    ],
+    "calls": [
+      {
+        "args": [
+          0,
+          84.125
+        ],
+        "stack": "Error\n    at window.scrollBy (eval at evaluate (:311:30), <anonymous>:1:318)\n    at http://127.0.0.1:8033/build/assets/app-B738VlMs.js:1:6049",
+        "before": 0,
+        "active": "<a class=\"profil-awatar-zmiana\" href=\"http://127.0.0.1:8033/ustawienia/zdjecie\">\n                    <img class=\"avatar\" src=\"http://127.0.0.1:8033/zdjecia/01a0a39a-9870-71c8-b25e-3da0f3b12cef/thumb\" "
+      }
+    ]
+  }
+}

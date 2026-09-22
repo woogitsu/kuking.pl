@@ -220,7 +220,11 @@ class KartaWpisuTest extends TestCase
     {
         $html = $this->actingAs($this->user('basia'))->get(route('home'))->assertOk()->getContent();
 
-        $start = strpos($html, 'class="card composer"');
+        // `kafel-akcji`, nie `card`: od rozdzielenia ról powierzchni zachęta
+        // jest KAFLEM AKCJI (cała powierzchnia to odnośnik), a nie kartą
+        // treści — `docs/design/ROLE_KART.md`. Test dalej pilnuje tego samego:
+        // że to jest `<a>`, a nie pole tekstowe.
+        $start = strpos($html, 'class="kafel-akcji composer"');
 
         $this->assertNotFalse($start, 'Na stronie głównej nie ma zachęty do dodania wpisu.');
 
@@ -305,6 +309,126 @@ class KartaWpisuTest extends TestCase
             '~<details class="post-card-menu">.*?<summary~s',
             $html,
         );
+    }
+
+    /**
+     * MENU WPISU TO SAME KROPKI — NAZWANY WYJĄTEK OD „IKONA NIGDY SAMA"
+     * (decyzja właściciela z 12 września 2026; `AGENTS.md` §5,
+     * `docs/UX_50_PLUS.md`, sekcja „Jeden nazwany wyjątek").
+     *
+     * TEN TEST ODWRACA POPRZEDNI, I TO JEST ŚWIADOME. Do 12 września stało
+     * tu `test_menu_karty_ma_widoczny_napis_a_nie_same_kropki`, które żądało
+     * napisu „Więcej" w treści przycisku. Argument był prawdziwy — za tym
+     * menu stoją „Edytuj wpis" i „Usuń wpis", a `docs/UX_50_PLUS.md`
+     * wymienia „`♡ ⋮ ↗` bez podpisów" jako wzorzec słaby. Właściciel dostał
+     * to ryzyko wprost i wybrał kropki: dla ludzi 50+, którzy przyszli
+     * z Facebooka, trzy kropki w rogu wpisu nie są zagadką, tylko znakiem,
+     * który już znają.
+     *
+     * WYJĄTEK JEST WPISANY, A NIE OBCHODZONY. Dotyczy WYŁĄCZNIE tego
+     * jednego menu. Reguła „ikona nigdy nie jest jedynym opisem ważnej
+     * akcji" obowiązuje w reszcie serwisu bez zmian i pilnują jej osobne
+     * testy — m.in. `PasekGornyNaTelefonieTest`
+     * (`test_kazda_pozycja_obu_paskow_ma_widoczny_napis`),
+     * `PowiekszanieZdjeciaTest` i `LicznikiKolejekPaneluTest`. Ten test
+     * NIE rozluźnia żadnego z nich.
+     *
+     * DLATEGO SPRAWDZA CZTERY RZECZY NARAZ — każda osobno przechodzi
+     * w stanie, w którym wyjątek zaczyna kosztować:
+     *   1. w treści przycisku NIE MA tekstu — inaczej wyjątek jest już tylko
+     *      nieaktualnym komentarzem, a nie stanem kodu;
+     *   2. `aria-label` ZOSTAJE — czytnik ekranu nie może stracić nic; to
+     *      jest jedyne, co dzieli tę zmianę od stanu sprzed 11 września,
+     *      gdy przycisk był trzema kropkami i niczym więcej;
+     *   3. kropki rysuje `<x-ikona nazwa="more">` z `aria-hidden`, więc
+     *      nazwą dostępną przycisku jest dokładnie `aria-label`, a nie
+     *      znak sklejony z czymkolwiek;
+     *   4. cel dotknięcia zostaje 48 × 48 px — to znikł napis, a nie
+     *      przycisk. Arkusz jest czytany z pliku, bo to jedyne miejsce,
+     *      w którym ta liczba żyje.
+     */
+    public function test_menu_karty_to_same_kropki_ale_czytnik_ekranu_nie_traci_nic(): void
+    {
+        $autor = $this->user('autor');
+        Post::factory()->create(['author_id' => $autor->getKey()]);
+
+        $html = (string) $this->actingAs($autor)->get(route('home'))->assertOk()->getContent();
+
+        /*
+         * Wzorzec zaczyna się od `<details class="post-card-menu">`, a nie od
+         * samego `<summary>`. Od issue #344 PIERWSZYM `<summary>` w dokumencie
+         * jest menu konta w pasku górnym — gołe `~<summary~` łapało więc
+         * przycisk „Moje konto" i pytało o napis „Więcej" w cudzym elemencie.
+         * To jest pułapka 1 z `docs/PULAPKI_TESTOW.md` w czystej postaci:
+         * asercja mierzy coś innego, niż myśli.
+         */
+        $trafil = preg_match(
+            '~<details class="post-card-menu">\s*<summary\b([^>]*)>(.*?)</summary>~s',
+            $html,
+            $summary,
+        );
+
+        $this->assertSame(1, $trafil, 'Na karcie wpisu nie ma menu `<summary>` — nie ma czego sprawdzać.');
+
+        $atrybuty = $summary[1];
+        $wnetrze = $summary[2];
+
+        // 1. Sam znak, bez napisu. `strip_tags` zdejmuje `<svg>` ikony i to,
+        //    co zostaje, ma być puste — spacje i znaki nowej linii z Blade'a
+        //    nie liczą się jako napis.
+        $this->assertSame(
+            '',
+            trim(html_entity_decode(strip_tags($wnetrze))),
+            'W przycisku menu wpisu pojawił się widoczny napis. Wyjątek od „ikona nigdy sama" '.
+            '(AGENTS.md §5) został nadany temu jednemu menu na to, żeby były tu SAME kropki; '.
+            'jeśli napis ma wrócić, to jest decyzja właściciela i wtedy zmienia się także '.
+            'AGENTS.md i docs/UX_50_PLUS.md, a nie sam ten test.',
+        );
+
+        // 2. Nazwa dostępna zostaje w całości.
+        $this->assertStringContainsString(
+            'aria-label="Więcej przy tym wpisie"',
+            $atrybuty,
+            'Przycisk menu wpisu stracił nazwę dostępną. Bez widocznego napisu `aria-label` jest '.
+            'JEDYNĄ rzeczą, jaką dostaje czytnik ekranu — to jest dokładnie ten stan, który '.
+            '11 września uznaliśmy za niedopuszczalny i którego wyjątek NIE obejmuje.',
+        );
+
+        // 3. Kropki są ozdobą, więc nazwą dostępną jest wyłącznie `aria-label`.
+        $this->assertMatchesRegularExpression(
+            '~<svg[^>]*aria-hidden="true"~',
+            $wnetrze,
+            'Ikona kropek nie jest schowana przed czytnikiem ekranu. Wtedy nazwa dostępna '.
+            'przycisku przestaje być tym, co mówi `aria-label`.',
+        );
+
+        $this->assertStringNotContainsString(
+            '···',
+            $wnetrze,
+            'Wróciły kropki wpisane z klawiatury. Kształt ma rysować `<x-ikona nazwa="more">`: '.
+            'znak `···` zależy od czcionki systemu i nie da się go zmierzyć.',
+        );
+
+        // 4. Znikł napis, nie przycisk.
+        $arkusz = (string) file_get_contents(base_path('resources/css/app.css'));
+
+        $trafilCss = preg_match(
+            '~\.post-card-menu\s*>\s*summary\s*\{(.*?)\}~s',
+            $arkusz,
+            $regula,
+        );
+
+        $this->assertSame(1, $trafilCss, 'W `resources/css/app.css` nie ma reguły `.post-card-menu > summary`.');
+
+        foreach (['min-width', 'min-height'] as $wlasciwosc) {
+            $this->assertMatchesRegularExpression(
+                '~'.preg_quote($wlasciwosc, '~').'\s*:\s*var\(--control-height-min\)~',
+                $regula[1],
+                "Przycisk menu wpisu nie trzyma `{$wlasciwosc}: var(--control-height-min)`, czyli 48 px. ".
+                'Razem z napisem miał zniknąć NAPIS, a nie cel dotknięcia — a to jest ta liczba, '.
+                'która przy mniej pewnej ręce decyduje o trafieniu (docs/UX_50_PLUS.md).',
+            );
+        }
     }
 
     public function test_autor_nie_zglasza_sam_siebie(): void

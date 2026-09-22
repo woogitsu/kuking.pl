@@ -1,0 +1,27 @@
+{
+    "sourceSha":  "609328b53b6e87d99fbf178f46dbb2157feeeed7",
+    "comparedMainSha":  "c6bed3e64d15e55f7540d48abee6a75cd22bbb64",
+    "rows":  [
+                 {
+                     "state":  "success",
+                     "width":  390,
+                     "theme":  "dark",
+                     "overflow":  false
+                 },
+                 {
+                     "state":  "success",
+                     "width":  1440,
+                     "theme":  "dark",
+                     "overflow":  false
+                 }
+             ],
+    "sendResponse":  {
+                         "observedAt":  "2026-09-17T22:51:57.109Z",
+                         "status":  302,
+                         "date":  "Thu, 17 Sep 2026 22:51:57 GMT",
+                         "retryAfter":  null
+                     },
+    "passed":  true,
+    "themeMethod":  "Actual application theme form after authenticated login",
+    "authenticatedSuccess":  true
+}

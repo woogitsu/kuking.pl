@@ -11,6 +11,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
@@ -256,9 +257,9 @@ class AutoryzacjaZdjeciaJednymPrzejsciemTest extends TestCase
      * ten sam wyciek, który cała trasa `media.show` naprawia, tylko o warstwę
      * wyżej i bez jednego czerwonego testu, jeśli tego testu nie ma.
      *
-     * Para asercji, nie jedna: ten sam widz, ten sam rodzaj rodzica,
-     * RÓŻNA widoczność — „followers" nie może dostać publicznego cache,
-     * „public" musi. Sama asercja negatywna przechodziłaby także wtedy,
+     * Para asercji, nie jedna: „followers" nie może dostać publicznego
+     * cache, „public" może go dostać wyłącznie dla anonima bez sesji.
+     * Sama asercja negatywna przechodziłaby także wtedy,
      * gdyby nagłówek `public` nie pojawiał się NIGDY.
      */
     public function test_zdjecie_tylko_dla_obserwujacych_nie_dostaje_publicznego_cache(): void
@@ -287,7 +288,9 @@ class AutoryzacjaZdjeciaJednymPrzejsciemTest extends TestCase
 
         // Kontrola dodatnia — nagłówek `public` w ogóle się pojawia, więc
         // asercja wyżej sprawdza różnicę, a nie martwy mechanizm.
-        $odpowiedzSzeroka = $this->actingAs($obserwujacy)->get($publiczne);
+        Auth::forgetGuards();
+        $this->app['session']->flush();
+        $odpowiedzSzeroka = $this->get($publiczne);
         $odpowiedzSzeroka->assertStatus(302);
         $this->assertStringContainsString(
             'public',

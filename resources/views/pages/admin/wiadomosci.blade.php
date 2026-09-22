@@ -58,13 +58,15 @@
             </p>
         </article>
     @empty
-        <p class="card">
+        {{-- `<x-empty-state>`, nie akapit — ten sam komponent co w „Tagach
+             promowanych" i w „Użytkownikach" (issue #367). Bez `action`:
+             pusta kolejka wiadomości nie ma czego zaproponować, a martwy
+             przycisk jest zakazany (D-053). --}}
+        <x-empty-state :title="$status === \App\Models\ContactMessage::STATUS_NOWA ? 'Nic nowego' : 'Tu nic nie ma'">
             @if($status === \App\Models\ContactMessage::STATUS_NOWA)
-                Nic nowego. Wszystko, co przyszło, jest już w robocie albo załatwione.
-            @else
-                Tu nic nie ma.
+                Wszystko, co przyszło, jest już w robocie albo załatwione.
             @endif
-        </p>
+        </x-empty-state>
     @endforelse
 
     <div class="mt-6">{{ $wiadomosci->links() }}</div>

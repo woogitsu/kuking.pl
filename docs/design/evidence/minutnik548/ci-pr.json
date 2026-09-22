@@ -1,0 +1,63 @@
+{
+  "run": {
+    "id": 34950631328,
+    "head_sha": "491b4355a62db4b5550814240216eb7ad04c024f",
+    "conclusion": "success"
+  },
+  "jobs": [
+    {
+      "id": 104320480374,
+      "name": "Zakres zmiany",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531196,
+      "name": "Port marki (kompozycje, zoom i kontrole ujemne)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531235,
+      "name": "Testy (PostgreSQL 18)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531240,
+      "name": "Larastan (analiza statyczna)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531282,
+      "name": "Audyt zależności",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531284,
+      "name": "Wyścigi na dwóch połączeniach (nie blokuje)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531334,
+      "name": "Dostępność (axe-core) i wydajność (Lighthouse)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531343,
+      "name": "Build assetów (Vite)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531493,
+      "name": "Build obrazu (weryfikacja)",
+      "conclusion": "success"
+    },
+    {
+      "id": 104320531597,
+      "name": "Pint (styl kodu)",
+      "conclusion": "success"
+    }
+  ],
+  "php": {
+    "tests": 3816,
+    "assertions": 76642
+  }
+}

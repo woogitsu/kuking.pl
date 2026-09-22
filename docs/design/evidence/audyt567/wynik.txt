@@ -1,0 +1,44 @@
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-work560/phpunit.xml
+
+[41;37mF[0m.                                                                  2 / 2 (100%)
+
+Time: 00:00.641, Memory: 67.00 MB
+
+There was 1 failure:
+
+1) Tests\Feature\NiedostepnyPrzepis567Test::test_jedyny_zapisany_przepis_po_zmianie_na_prywatny_nie_udaje_pustego_zeszytu
+Zapis nadal istnieje, tylko stracil widocznosc: ekran nie moze twierdzic, ze nigdy nic tu nie bylo.
+Failed asserting that '\n
+    Na niedziele 567\n
+        \n
+        Ten zeszyt widzisz tylko Ty.\n
+    \n
+\n
+            \n
+            \n
+        W tym zeszycie nic jeszcze nie ma\n
+                Poszukaj przepisów\n
+    \n
+    \n
+            \n
+            \n
+    Usuń ten zeszyt\n
+\n
+    \n
+        Usunąć ten zeszyt? Same przepisy zostaną — znikną tylko z tego zeszytu.\n
+\n
+        \n
+                                    Tak, usuń ten zeszyt\n
+        \n
+    \n
+\n
+        \n
+        ' [UTF-8](length: 427) does not contain "W tym zeszycie nic jeszcze nie ma" [ASCII](length: 33).
+
+/home/mateusz/kuking-work560/output/NiedostepnyPrzepis567Test.php:54
+
+[37;41mFAILURES![0m
+[37;41mTests: 2[0m[37;41m, Assertions: 11[0m[37;41m, Failures: 1[0m[37;41m.[0m

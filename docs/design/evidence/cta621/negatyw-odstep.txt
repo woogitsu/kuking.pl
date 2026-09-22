@@ -1,0 +1,16 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: CTA_POZA_EKRANEM 320/light/140/font32 {"top":-30.765625,"bottom":931.234375,"left":40,"right":280,"height":962,"viewport":900,"viewportWidth":320,"label":"Zostań kukingiem — bez opłat i bez reklam","ring":true,"rootFont":32,"font":56,"focus":true,"overflow":false,"covered":true,"href":"/register"}
+    at sprawdzPrzyciskRejestracji (file:///home/mateusz/kuking-cta621-runtime/scripts/przycisk-rejestracji.mjs:55:11)
+    at async file:///home/mateusz/kuking-cta621-runtime/run-cta621.mjs:10:5 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

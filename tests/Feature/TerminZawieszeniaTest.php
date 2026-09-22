@@ -286,7 +286,7 @@ class TerminZawieszeniaTest extends TestCase
         // Błąd jest widoczny NIE TYLKO przy polu: nad listą stoi
         // podsumowanie (UX_50_PLUS.md) — jedno na ekran, nie jedno na każde
         // z dwudziestu pięciu zgłoszeń.
-        $kolejka->assertSee('Jednej rzeczy jeszcze brakuje');
+        $kolejka->assertSee('Sprawdź formularz');
         $this->assertSame(
             1,
             substr_count((string) $kolejka->getContent(), 'class="error-summary"'),

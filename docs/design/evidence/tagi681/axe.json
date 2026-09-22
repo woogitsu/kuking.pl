@@ -1,0 +1,34 @@
+[
+  {
+    "width": 390,
+    "theme": "light",
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  {
+    "width": 390,
+    "theme": "dark",
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  {
+    "width": 1440,
+    "theme": "light",
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  },
+  {
+    "width": 1440,
+    "theme": "dark",
+    "violations": [],
+    "incomplete": [
+      "color-contrast"
+    ]
+  }
+]

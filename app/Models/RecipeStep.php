@@ -47,7 +47,7 @@ class RecipeStep extends Model
     }
 
     /**
-     * Czas minutnika po polsku — "12 minut", "1 minuta i 30 sekund".
+     * Czas minutnika po polsku; po „na” używa biernika: „1 minutę i 1 sekundę”.
      *
      * Metoda siedzi na modelu, nie w widoku trybu gotowania (issue #24):
      * ten sam tekst czyta zarówno widoczny akapit („ustaw sobie minutnik
@@ -55,7 +55,7 @@ class RecipeStep extends Model
      * dwa miejsca liczące to samo osobno to dwie okazje, żeby się rozjechały
      * (ten sam powód co `Recipe::servingsLabel()` wyżej w kodzie bazy).
      */
-    public function timerLabel(): ?string
+    public function timerLabel(bool $afterNa = false): ?string
     {
         if ($this->timer_seconds === null || $this->timer_seconds <= 0) {
             return null;
@@ -67,11 +67,11 @@ class RecipeStep extends Model
         $czesci = [];
 
         if ($minuty > 0) {
-            $czesci[] = $minuty.' '.Odmiana::rzeczownik($minuty, 'minuta', 'minuty', 'minut');
+            $czesci[] = $minuty.' '.Odmiana::rzeczownik($minuty, $afterNa ? 'minutę' : 'minuta', 'minuty', 'minut');
         }
 
         if ($sekundy > 0) {
-            $czesci[] = $sekundy.' '.Odmiana::rzeczownik($sekundy, 'sekunda', 'sekundy', 'sekund');
+            $czesci[] = $sekundy.' '.Odmiana::rzeczownik($sekundy, $afterNa ? 'sekundę' : 'sekunda', 'sekundy', 'sekund');
         }
 
         return implode(' i ', $czesci);

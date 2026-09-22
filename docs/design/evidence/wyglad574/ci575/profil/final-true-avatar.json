@@ -1,0 +1,34 @@
+{
+  "width": 320,
+  "height": 740,
+  "dpr": 2,
+  "scrollY": 0,
+  "rect": {
+    "x": 33,
+    "y": 271.8203125,
+    "width": 220,
+    "height": 277,
+    "top": 271.8203125,
+    "right": 253,
+    "bottom": 548.8203125,
+    "left": 33
+  },
+  "widget": {
+    "x": 12,
+    "y": 10502.7109375,
+    "width": 296,
+    "height": 65.0625,
+    "top": 10502.7109375,
+    "right": 308,
+    "bottom": 10567.7734375,
+    "left": 12
+  },
+  "top": 222.8203125,
+  "edges": [
+    false,
+    false,
+    false,
+    false
+  ],
+  "flow": true
+}

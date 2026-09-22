@@ -1,0 +1,16 @@
+node:internal/modules/run_main:107
+    triggerUncaughtException(
+    ^
+
+AssertionError [ERR_ASSERTION]: PROFILE_RING_UNDER_HEADER
+    at sprawdzFokusProfilu (file:///home/mateusz/kuking-work560/scripts/szybki-wyglad.mjs:167:2)
+    at async file:///home/mateusz/kuking-work560/output/fokus575/negative-run.mjs:18:1 {
+  generatedMessage: false,
+  code: 'ERR_ASSERTION',
+  actual: false,
+  expected: true,
+  operator: '==',
+  diff: 'simple'
+}
+
+Node.js v24.19.0

@@ -39,7 +39,7 @@
         · {{ $uzytkownik->roleLabel() }}
     </p>
 
-    <div class="card mb-5">
+    <div class="sekcja-strony mb-5">
         <h2 class="mt-0 text-title-sm">Konto</h2>
 
         <dl class="dane-konta">
@@ -115,7 +115,7 @@
         </dl>
     </div>
 
-    <div class="card mb-5">
+    <div class="sekcja-strony mb-5">
         <h2 class="mt-0 text-title-sm">Co to konto tu zrobiło</h2>
 
         {{-- LICZBY, NIE WYKRESY I NIE PUNKTY. To jest kontekst do rozmowy
@@ -137,7 +137,7 @@
         </dl>
     </div>
 
-    <div class="card">
+    <div class="sekcja-strony">
         <h2 class="mt-0 text-title-sm">Decyzje moderacyjne</h2>
 
         @forelse($decyzje as $decyzja)

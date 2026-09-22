@@ -1,0 +1,24 @@
+ZOOM_TAB_OK zdjecia561-normal 10/10
+PASS normal 320 light
+ZOOM_TAB_OK zdjecia561-normal 10/10
+PASS normal 320 dark
+ZOOM_TAB_OK zdjecia561-normal 10/10
+PASS normal 768 light
+ZOOM_TAB_OK zdjecia561-normal 10/10
+PASS normal 768 dark
+ZOOM_TAB_OK zdjecia561-carousel 15/15
+PASS carousel 320 light
+ZOOM_TAB_OK zdjecia561-carousel 15/15
+PASS carousel 320 dark
+ZOOM_TAB_OK zdjecia561-carousel 15/15
+PASS carousel 768 light
+ZOOM_TAB_OK zdjecia561-carousel 15/15
+PASS carousel 768 dark
+ZOOM_TAB_OK zdjecia561-collage 10/10
+PASS collage 320 light
+ZOOM_TAB_OK zdjecia561-collage 10/10
+PASS collage 320 dark
+ZOOM_TAB_OK zdjecia561-collage 10/10
+PASS collage 768 light
+ZOOM_TAB_OK zdjecia561-collage 10/10
+PASS collage 768 dark

@@ -1,0 +1,147 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-urzadzenia-fizyczne-procedura
+Gałąź:            gpt/urzadzenia-fizyczne-procedura  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-urzadzenia-fizyczne-procedura
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-urzadzenia-fizyczne-procedura --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Dziś za "sprawdzone urządzenia" uchodzi coś, co w rzeczywistości sprawdzono
+tylko w przeglądarkach na jednym komputerze. Audyt
+`WERYFIKACJA_713_492_2026_09_20.md` mówi to wprost:
+- C2: "brak dowodu urządzeń pozostaje; zdanie 'wszystko przez Chromium'
+  jest fałszywym uogólnieniem" — eksport badano w Chromium 151 i
+  Firefox 155, ale **fizycznego telefonu, Safari i iOS nie badano wcale**.
+  "Firefox desktop nie wypełnia tych luk."
+- C3 (#678, eksport/druk): "przeglądarkowy ekran/druk wykonany, urządzenia
+  nie" — test ZIP w PHP sprawdza archiwum programowo, ale **fizycznego
+  wydruku i natywnego rozpakowania na systemach docelowych** nikt nie
+  wykonał.
+
+Obu tych rzeczy nie da się sprawdzić z Twojego stanowiska: pierwsza
+wymaga fizycznego iPhone'a/Maca z Safari, druga — fizycznej drukarki i
+prawdziwych systemów docelowych (Windows/macOS/telefon) do rozpakowania
+archiwum. Nie masz takiego sprzętu i nie wolno Ci udawać, że masz. Twoim
+zadaniem NIE jest "przetestuj to jakoś w emulatorze i nazwij to dowodem"
+— audyt już ostrzega przed dokładnie tym błędem (D-205: `deviceScaleFactor:
+2` nazwane "prawdziwym zoomem200" bez dowodu). Twoim zadaniem jest
+napisać dla właściciela dwie precyzyjne, wykonalne w 30–60 minut procedury
+z konkretną listą kroków i tym, co dokładnie ma zobaczyć/sfotografować
+jako dowód.
+
+CO MASZ ZROBIĆ (praca lokalna, w tej sesji):
+
+1. Przeczytaj: sekcje C2 i C3 audytu, `ODBIOR_EKSPORTU_I_DRUKU_492.md`,
+   powiązane issue #678, oraz kod eksportu
+   (`EksportMowiOZdjeciachKtoreNieWejdaNigdyTest` i klasa, którą testuje).
+2. Dla C2 (telefon/Safari/iOS) napisz procedurę: jakie konkretne ekrany
+   trzeba otworzyć na fizycznym iPhonie w Safari (lista adresów/tras
+   zgodna z tym, co już sprawdzono w Chromium/Firefox wg
+   `ODBIOR_EKSPORTU_I_DRUKU_492.md`, żeby nie duplikować pracy), na co
+   dokładnie patrzeć (np. zachowanie `:hover`/dotyk zamiast myszy, safe
+   area/notch, klawiatura systemowa zasłaniająca formularz, zachowanie
+   Turnstile w Safari), i jak udokumentować wynik (zrzut ekranu z widocznym
+   Ustawienia > Informacje o systemie, żeby dowód miał wersję iOS/Safari).
+3. Dla C3 (fizyczny druk i natywne rozpakowanie) napisz procedurę: krok po
+   kroku — pobranie eksportu z produkcji lub środowiska testowego przez
+   przeglądarkę (nie przez API), wydruk na fizycznej drukarce z
+   konkretnymi rzeczami do sprawdzenia (marginesy, czy treść się nie
+   ucina, czytelność przy rozmiarze czcionki wymaganym przez UX 50+),
+   oraz osobno rozpakowanie pobranego ZIP-a natywnym eksploratorem plików
+   na Windows i na macOS/iOS (bez narzędzi deweloperskich) — co ma się
+   zgadzać (liczba plików, nazwy, że nic nie wymaga hasła/nietypowego
+   programu).
+4. KONTROLA DODATNIA: skoro obie procedury każą właścicielowi porównywać
+   "zgadza się / nie zgadza się", podaj w procedurze explicite ZŁY
+   przykład, który powinien zostać wychwycony (np. plik o obciętej nazwie,
+   brakujący plik w archiwum, strona wydruku ucinająca ostatnią linię) —
+   żeby sama procedura nie była testem, który "zawsze przechodzi" bez
+   względu na to, co właściciel zobaczy. Możesz to zilustrować, psując
+   celowo lokalną kopię eksportu (w swoim worktree, na danych testowych)
+   i pokazując, że opisany krok faktycznie by to złapał.
+5. Jeśli jakiegoś elementu nie da się opisać bez wiedzy, jakim dokładnie
+   telefonem/drukarką dysponuje właściciel — napisz to wprost i zapytaj o
+   to w procedurze jako pierwszy krok, zamiast zgadywać model urządzenia.
+6. Oznacz przejęte fakty jako `[pomiar cudzy: źródło]`.
+
+ZAKAZY (dodatkowo do zasad floty):
+- Nie próbuj emulować telefonu/Safari/druku jako namiastki dowodu — to
+  dokładnie ten błąd, przed którym ostrzega audyt (D-205).
+- Nie łącz się z produkcją ani nie pobieraj z niej danych.
+- Nie zakładaj, jaki sprzęt ma właściciel — zapytaj w treści procedury.
+
+WYNIK: plik `docs/audits/procedura-urzadzenia-fizyczne-<data>.md` w
+Twoim worktree z dwiema procedurami i opisaną kontrolą dodatnią.
+Zacommituj lokalnie po polsku. Nie pushuj, nie otwieraj PR.

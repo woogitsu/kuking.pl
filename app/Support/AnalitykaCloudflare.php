@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use Illuminate\Http\Request;
+use Illuminate\Routing\Route;
+
 /**
  * Analityka odwiedzin przez Cloudflare Web Analytics — czy działa, pod jakim
  * tokenem i pod jakimi DWOMA adresami (D-092).
@@ -59,6 +62,77 @@ final class AnalitykaCloudflare
     public static function wlaczona(): bool
     {
         return self::token() !== '';
+    }
+
+    /**
+     * Nazwy pól adresu, których obecność ZDEJMUJE beacona ze strony.
+     *
+     * @var list<string>
+     */
+    public const POLA_SEKRETNE = ['token', 'email', 'hash', 'cel'];
+
+    /**
+     * Czy na TEJ stronie wolno postawić beacona.
+     *
+     * ────────────────────────────────────────────────────────────────────
+     *  PO CO TO ISTNIEJE — BEACON WYSYŁA ADRES STRONY, NIE SAM FAKT WEJŚCIA
+     * ────────────────────────────────────────────────────────────────────
+     *
+     * Odczytany beacon 2026.9.1 usuwa query i fragment, lecz zachowuje
+     * ścieżkę adresu strony i document.referrer. Nie zakładamy, że kolejne
+     * wersje dostawcy zawsze będą czyścić te same pola.
+     * Dopóki adres to `/wpisy/rosol-babci`, jest to zwykły pomiar odwiedzin
+     * i dokładnie po to analitykę tu włączono (D-092). Ale część adresów
+     * w tym serwisie NIESIE W SOBIE SEKRET albo dane osobowe:
+     *
+     *   /nowe-haslo/{token}?email=basia@wp.pl   ← ŻYWY żeton resetu + adres
+     *   /logowanie/link/{token}                 ← żeton DAJĄCY SESJĘ
+     *   /zaproszenie/{token}                    ← żeton zakładania konta
+     *   /potwierdz-email/{id}/{hash}            ← potwierdzenie adresu
+     *
+     * Beacon na takiej stronie wynosi te wartości do usługi, nad którą nie
+     * mamy żadnej kontroli, i zostawia je w cudzym panelu razem z czasem
+     * wejścia. Dla `/nowe-haslo` to nie jest „wyciek metryki" — to jest
+     * podanie obcej firmie DZIAŁAJĄCEGO klucza do czyjegoś konta wraz
+     * z adresem, na który ten klucz pasuje. Ta sama zasada, co przy
+     * `WebhookBleduHandler` (nic, czego nie zbudowaliśmy sami, nie wychodzi)
+     * i przy wzorcu trasy zamiast adresu w dzienniku 429.
+     *
+     * DLACZEGO PO POLACH ADRESU, A NIE PO LIŚCIE TRAS
+     * Bo lista tras starzeje się po cichu: nowa droga z żetonem w adresie
+     * dostałaby beacona i nikt by się nie dowiedział. Nazwa pola (`token`,
+     * `hash`, `email`, `cel`) jest natomiast widoczna w samej definicji
+     * trasy, więc reguła obejmuje także trasy, których dziś nie ma.
+     * `cel` to zaszyfrowany adres docelowy bramki `/otworz-link` — mówi,
+     * w co konkretnie ten człowiek kliknął.
+     * Z tej SAMEJ klasyfikacji korzysta ApplySecurityHeaders: no-referrer
+     * zatrzymuje sekret przy wyjściu na kolejny dokument, niezależnie od
+     * włączenia analityki. Sam brak skryptu na tym ekranie nie wystarcza.
+     *
+     * CO SIĘ DZIEJE, GDY NIE MA ŻĄDANIA (kolejka, CLI): oddajemy `true`,
+     * bo wtedy nie renderujemy żadnej strony i nie ma czego chronić.
+     */
+    public static function wolnoNaTejStronie(?Request $zadanie = null): bool
+    {
+        $zadanie ??= app()->bound('request') ? request() : null;
+
+        if (! $zadanie instanceof Request) {
+            return true;
+        }
+
+        $trasa = $zadanie->route();
+
+        foreach (self::POLA_SEKRETNE as $pole) {
+            if ($zadanie->query->has($pole)) {
+                return false;
+            }
+
+            if ($trasa instanceof Route && $trasa->hasParameter($pole)) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -118,5 +192,98 @@ final class AnalitykaCloudflare
             ['token' => self::token()],
             JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR,
         );
+    }
+
+    /**
+     * Czy DOKUMENT PRAWNY nadal obiecuje czytelnikowi tę analitykę.
+     *
+     * PO CO W OGÓLE PYTAĆ O TO KOD, SKORO TO TYLKO TEKST
+     * Bo to jest jedyne pytanie, które odróżnia „właściciel nie chce
+     * analityki" od „analityki nie ma, a polityka prywatności mówi, że jest".
+     * Pierwsze jest poprawnym stanem serwisu. Drugie jest nieprawdą w
+     * dokumencie, na który człowiek nie ma jak spojrzeć od środka: przycisku
+     * Google widać brak na ekranie logowania, a braku beacona nie widać
+     * NIGDZIE — ani odwiedzającemu, ani właścicielowi, który przecież
+     * przeczytał w panelu Cloudflare, że serwis istnieje.
+     *
+     * Odpowiedzi używa `HealthController::sprawdzAnalityke()`. Zapala sygnał
+     * TYLKO przy rozjeździe: dokument obiecuje, a tokenu nie ma.
+     *
+     * DLACZEGO ZWYKŁY `str_contains`, A NIE PARSOWANIE DOKUMENTU
+     * Bo pytanie brzmi „czy nazwa usługi pada w tym dokumencie", a nie „czy
+     * zdanie jest twierdzące". Sprytniejszy test treści prawnej oblewałby
+     * przy każdej poprawce stylistycznej i skończyłby wyciszony
+     * (`docs/PULAPKI_TESTOW.md`). Od strony gramatyki pilnuje tego dokumentu
+     * `DokumentyPrawneNieKlamiaTest`, który chodzi po każdym wystąpieniu
+     * nazwy w jego własnym zdaniu (D-092).
+     *
+     * BRAK PLIKU ODDAJE `false`, CZYLI CISZĘ — świadomie. Nieczytelny albo
+     * nieistniejący dokument prawny to awaria o własnej, znacznie głośniejszej
+     * sygnalizacji: `StaticPageController::markdown()` rzuca wtedy wyjątkiem
+     * na trasie `/prywatnosc`, czyli 500 na żywej stronie i dzwonek na
+     * `blad_webhook`. Udawanie tutaj, że obietnica stoi, dołożyłoby do tego
+     * mylący powód w `/health` („brak tokenu") do sprawy, która z tokenem nie
+     * ma nic wspólnego.
+     *
+     * CZYTAMY PLIK PRZY KAŻDYM WYWOŁANIU, BEZ BUFOROWANIA. To jest kilkadziesiąt
+     * kilobajtów z dysku raz na odpytanie `/health` — mniej niż robi sonda
+     * zdjęć w tym samym żądaniu (ta ZAPISUJE plik próbny i czyta go z powrotem).
+     * Bufor w statycznym polu przeżyłby podmianę konfiguracji w teście i dałby
+     * strażnika, który mierzy stan sprzed poprzedniej asercji.
+     */
+    public static function obiecanaWDokumencie(): bool
+    {
+        $sciezka = resource_path(self::dokumentObietnicy());
+
+        if (! is_file($sciezka)) {
+            return false;
+        }
+
+        $tresc = @file_get_contents($sciezka);
+
+        if ($tresc === false) {
+            return false;
+        }
+
+        return str_contains($tresc, self::frazaObietnicy());
+    }
+
+    /** Dokument prawny, w którym stoi obietnica — ścieżka względem `resource_path()`. */
+    public static function dokumentObietnicy(): string
+    {
+        return trim((string) config('kuking.analytics.cloudflare.obietnica.dokument'));
+    }
+
+    /** Fraza, której obecność w tym dokumencie czytamy jako obietnicę. */
+    public static function frazaObietnicy(): string
+    {
+        return trim((string) config('kuking.analytics.cloudflare.obietnica.fraza'));
+    }
+
+    /**
+     * Zdanie DLA WŁAŚCICIELA o tym, czego brakuje — do serwerowego logu,
+     * nigdy do publicznej odpowiedzi `/health` (tam idzie sam kod
+     * `analityka_bez_tokenu`).
+     *
+     * Mówi o DWÓCH czynnościach, nie o jednej, i to jest tu najważniejsze.
+     * Token bez przestawienia wariantu zbierania danych w panelu Cloudflare
+     * daje stan najgorszy z możliwych: skrypt na stronie jest, CSP go
+     * przepuszcza, `/health` milczy, polityka prywatności mówi prawdę —
+     * a panel dalej świeci zerami, bo wariant „excluding visitor data in the
+     * EU" odrzuca ruch z Unii Europejskiej, czyli praktycznie cały nasz.
+     * Zmierzyć tego z naszej strony nie da się wcale (Cloudflare przyjmuje
+     * zdarzenie i odrzuca je u siebie), więc jedyne, co możemy zrobić, to
+     * powiedzieć o tym w tym samym zdaniu, w którym mówimy o tokenie.
+     */
+    public static function komunikatBrakuTokenu(): string
+    {
+        return 'Polityka prywatności ('.self::dokumentObietnicy().') obiecuje analitykę '
+            .'„'.self::frazaObietnicy().'", ale nie ma tokenu: ustaw CLOUDFLARE_ANALYTICS_TOKEN '
+            .'(Cloudflare → Web Analytics → serwis kuking.pl → wartość pola `token` ze znacznika). '
+            .'Do tego czasu beacona nie ma w HTML-u, panel jest pusty, a dokument prawny opisuje '
+            .'przetwarzanie, którego nie ma. W panelu Cloudflare sprawdź przy okazji DWIE rzeczy, '
+            .'bez których sam token nic nie da: wariant zbierania danych musi obejmować Unię '
+            .'Europejską, a automatyczne wstrzykiwanie beacona ma być wyłączone. '
+            .'Krok po kroku: docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.';
     }
 }

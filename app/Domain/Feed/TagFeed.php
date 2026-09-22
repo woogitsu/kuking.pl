@@ -54,20 +54,50 @@ final class TagFeed
             // Ta sama macierz widoczności co wszędzie indziej: obserwowanie
             // tagu NIE MOŻE być obejściem ustawień prywatności ani blokady.
             ->widoczneDla($viewer)
+            // DRUGA BRAMKA, I NIE JEST NADMIAROWA. Wyżej pytamy o widoczność
+            // WPISU, a zapowiedź przepisu (issue #368) jest na stałe `public`
+            // — widoczność ma trzymać PRZEPIS, nie jego zapowiedź. Bez tego
+            // warunku obserwowanie tagu przepuszczało tytuł i zdjęcie główne
+            // przepisu „tylko dla obserwujących" osobie, która autora nie
+            // obserwuje; karta rysowała jedno i drugie, a pod spodem
+            // dopisywała plakietkę „Tylko dla obserwujących".
+            //
+            // `FollowingFeed`, `DiscoverFeed` i `DailyBoard` mają tę bramkę
+            // od issue #368. `TagFeed` był jedynym z czterech strumieni bez
+            // niej — i jedynym, do którego wpisy trafiają bez żadnej relacji
+            // między widzem a autorem.
+            ->zWidocznymPrzepisem($viewer)
             ->tylkoOdAktywnychAutorow()
             ->with([
                 'author.profile.avatar',
                 'media',
-                'recipe:id,title,slug',
-                'tags:id,slug,name',
+                // `visibility` i `hero_media_id` W SELEKCIE, a `heroMedia`
+                // doładowane — dokładnie jak w `FollowingFeed`, `DiscoverFeed`
+                // i `DailyBoard` (issue #368). Ten feed jako jedyny z czterech
+                // został przy samym `recipe:id,title,slug`, a karta wpisu
+                // (`post-card.blade.php`) czyta z tej relacji OBIE brakujące
+                // kolumny: `visibility` na plakietkę widoczności i
+                // `hero_media_id` na zdjęcie przepisu.
+                //
+                // Kolumna pominięta w selekcie NIE JEST BŁĘDEM — wraca `null`.
+                // Skutek był więc podwójnie cichy: `heroMedia` bez klucza
+                // obcego oddawało `null`, czyli wpis wskazujący przepis stał
+                // w strumieniu bez zdjęcia, a `visibility` jako `null` schodziło
+                // przez `?? $post->visibility` do widoczności WPISU — a ta przy
+                // wpisie wskazującym przepis jest na stałe `public`. Karta
+                // pisała więc autorowi „publicznie" pod przepisem widocznym
+                // tylko dla obserwujących.
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+                'tags:id,slug,name,status',
             ])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
             // (kto się liczy, od ilu osób widać liczbę) siedzą w
             // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
             // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name`
+            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
             // wyżej.
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')
@@ -88,9 +118,15 @@ final class TagFeed
             return false;
         }
 
+        // DOKŁADNIE TE SAME WARUNKI CO W `paginate()`, łącznie z bramką
+        // przepisu. Gdyby ta metoda pytała szerzej, odpowiadałaby „jest co
+        // pokazać" o treści, których `paginate()` i tak nie odda — i widz
+        // dostałby pusty strumień zamiast ekranu pustego stanu, który mówi,
+        // co zrobić dalej.
         return Post::query()
             ->whereHas('tags', fn ($q) => $q->whereIn('tags.id', $tagIds))
             ->widoczneDla($viewer)
+            ->zWidocznymPrzepisem($viewer)
             ->tylkoOdAktywnychAutorow()
             ->exists();
     }

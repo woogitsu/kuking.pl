@@ -54,7 +54,10 @@ use Illuminate\Http\UploadedFile;
  */
 final class ObslugiwaneZdjecie implements ValidationRule
 {
-    public function __construct(private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal) {}
+    public function __construct(
+        private readonly ZapiszSygnal $sygnaly = new ZapiszSygnal,
+        private readonly ?string $komunikatZaDuzyPlik = null,
+    ) {}
 
     public function validate(string $attribute, mixed $value, Closure $fail): void
     {
@@ -78,7 +81,7 @@ final class ObslugiwaneZdjecie implements ValidationRule
 
         if ($bytes > $maxBytes) {
             $this->zglosOdrzucenie(ZapiszSygnal::REASON_TOO_LARGE, ['bytes' => $bytes, 'max_bytes' => $maxBytes]);
-            $fail(LimityZdjec::komunikatZaDuzyPlik());
+            $fail($this->komunikatZaDuzyPlik ?? LimityZdjec::komunikatZaDuzyPlik());
 
             return;
         }

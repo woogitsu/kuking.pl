@@ -26,13 +26,22 @@
         Ta sama wyszukiwarka, co na `/szukaj` (`SearchQuery::people()`,
         wołane w `OnboardingController::people()`) — nie osobny mechanizm.
     --}}
-    <div class="card mb-6">
-        <h2>Znasz już kogoś w Kuking?</h2>
+    {{-- RAMKA POMOCNICZA, nie panel formularza — mimo że to jedyne pole
+         na ekranie. Panel dałby temu krokowi najmocniejszą warstwę ekranu,
+         czyli wizualnie zrobiłby z niego obowiązek; główną rzeczą jest lista
+         osób do zaznaczenia i przycisk dalej. Pole w ramce nie ginie:
+         `.ramka-pomocnicza .field-input` odwraca mu tło na podniesione
+         (tokens.css).
+
+         Akapit pod nagłówkiem mówił wcześniej „to pomoc w odnalezieniu kogoś,
+         kogo już znasz, a nie kolejny obowiązkowy krok". Zdjęte w grupie C4:
+         opcjonalność niesie przycisk „Pomiń ten krok" niżej, a nie zdanie
+         o tym, czym ten krok nie jest (`docs/brand/GLOS_MARKI.md` §5). --}}
+    <div class="ramka-pomocnicza mb-6">
+        <h2>Znasz już kogoś w <x-kuking-word />?</h2>
         <p class="mb-4">
             Czasem ważniejsza od ośmiu nieznajomych jest jedna znajoma osoba.
-            Wpisz imię albo nazwę użytkownika, żeby ją tu znaleźć —
-            to pomoc w odnalezieniu kogoś, kogo już znasz, a nie kolejny
-            obowiązkowy krok.
+            Wpisz imię albo nazwę użytkownika, żeby ją tu znaleźć.
         </p>
         <form method="GET" action="{{ route('onboarding.people') }}">
             <div class="field">
@@ -76,6 +85,13 @@
                     @foreach($wynikiWyszukiwania as $profil)
                         <label class="choice">
                             <input type="checkbox" name="follow[]" value="{{ $profil->username }}">
+                            {{-- #793 rozszerzone na relacje: ten ekran ludzie
+                                 przerywają i wracają do niego, więc nazwa
+                                 zaznaczona teraz może przy wysłaniu należeć
+                                 już do kogoś innego. Kontroler porównuje ten
+                                 identyfikator z osobą, którą nazwa wskazuje
+                                 w chwili wysłania. --}}
+                            <input type="hidden" name="oczekiwani[{{ $profil->username }}]" value="{{ $profil->user_id }}">
                             <span class="flex gap-3 items-center flex-1">
                                 <x-avatar :user="$profil->user" :size="48" />
                                 <span>
@@ -109,7 +125,7 @@
 
         @if($people->isEmpty())
             <x-empty-state title="Nie mamy jeszcze kogo Ci pokazać">
-                Kuking dopiero się zaczyna. Za to Ty możesz być jedną z pierwszych osób,
+                <x-kuking-word /> dopiero się zaczyna. Za to Ty możesz być jedną z pierwszych osób,
                 które tu coś pokażą.
             </x-empty-state>
         @else
@@ -117,6 +133,8 @@
                 @foreach($people as $person)
                     <label class="choice">
                         <input type="checkbox" name="follow[]" value="{{ $person->profile->username }}">
+                        {{-- Jak wyżej (#793 rozszerzone na relacje). --}}
+                        <input type="hidden" name="oczekiwani[{{ $person->profile->username }}]" value="{{ $person->getKey() }}">
                         <span class="flex gap-3 items-center flex-1">
                             <x-avatar :user="$person" :size="48" />
                             <span>

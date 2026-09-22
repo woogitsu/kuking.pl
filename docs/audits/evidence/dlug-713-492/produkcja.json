@@ -1,0 +1,50 @@
+{
+    "czas_utc":  "2026-09-20T17:39:18.1747943Z",
+    "health_http":  200,
+    "health":  {
+                   "status":  "degraded",
+                   "app":  "Kuking",
+                   "environment":  "production",
+                   "time":  "2026-09-20T17:39:18+00:00",
+                   "checks":  {
+                                  "database":  {
+                                                   "ok":  true
+                                               },
+                                  "migrations":  {
+                                                     "ok":  true
+                                                 },
+                                  "media":  {
+                                                "ok":  true
+                                            },
+                                  "turnstile":  {
+                                                    "ok":  true
+                                                },
+                                  "google":  {
+                                                 "ok":  true
+                                             },
+                                  "facebook":  {
+                                                   "ok":  true
+                                               },
+                                  "analityka":  {
+                                                    "ok":  true
+                                                },
+                                  "poczta":  {
+                                                 "ok":  true
+                                             },
+                                  "kolejka":  {
+                                                  "ok":  false,
+                                                  "error":  "zadania_nieudane"
+                                              },
+                                  "listy":  {
+                                                "ok":  true
+                                            }
+                              }
+               },
+    "login_http":  200,
+    "wersje_sha":  [
+                       "4c811cc7bff365fb8f86d87eabac93b7738a45cd"
+                   ],
+    "turnstile":  true,
+    "connect_src":  "connect-src \u0027self\u0027 https://challenges.cloudflare.com https://cloudflareinsights.com",
+    "zakres":  "GET /health i /login; bez logowania, bez zapisu danych; odpowiedzi bez cookies i nonce"
+}

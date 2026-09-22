@@ -1,0 +1,28 @@
+{
+  "kind": "nav-mobile",
+  "expectedHypothesis": "P581_ROZCIETE_SLOWO_NAWIGACJI",
+  "rows": [
+    {
+      "kind": "nav-mobile",
+      "theme": "light",
+      "width": 768,
+      "height": 900,
+      "scale": 140,
+      "expectedHypothesis": "P581_ROZCIETE_SLOWO_NAWIGACJI",
+      "passed": false,
+      "error": "P581_ROZCIETE_SLOWO_NAWIGACJI [{\"etykieta\":\"Bez odpowiedzi\",\"slowo\":\"odpowiedzi\"},{\"etykieta\":\"Wiadomości do nas\",\"slowo\":\"Wiadomości\"}]",
+      "blockedMethods": []
+    },
+    {
+      "kind": "nav-mobile",
+      "theme": "dark",
+      "width": 768,
+      "height": 900,
+      "scale": 140,
+      "expectedHypothesis": "P581_ROZCIETE_SLOWO_NAWIGACJI",
+      "passed": false,
+      "error": "P581_ROZCIETE_SLOWO_NAWIGACJI [{\"etykieta\":\"Bez odpowiedzi\",\"slowo\":\"odpowiedzi\"},{\"etykieta\":\"Wiadomości do nas\",\"slowo\":\"Wiadomości\"}]",
+      "blockedMethods": []
+    }
+  ]
+}

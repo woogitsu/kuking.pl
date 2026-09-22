@@ -1,0 +1,258 @@
+[
+  {
+    "kind": "przepis",
+    "theme": "light",
+    "scale": 100,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "18px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 423.6328125,
+      "right": 266,
+      "bottom": 496.6328125
+    },
+    "labels": [
+      {
+        "client": 139,
+        "scroll": 139
+      },
+      {
+        "client": 178,
+        "scroll": 178
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  },
+  {
+    "kind": "przepis",
+    "theme": "light",
+    "scale": 140,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "25.2px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 398.6953125,
+      "right": 266,
+      "bottom": 489.6953125
+    },
+    "labels": [
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  },
+  {
+    "kind": "przepis",
+    "theme": "dark",
+    "scale": 100,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "18px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 423.6328125,
+      "right": 266,
+      "bottom": 496.6328125
+    },
+    "labels": [
+      {
+        "client": 139,
+        "scroll": 139
+      },
+      {
+        "client": 178,
+        "scroll": 178
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  },
+  {
+    "kind": "przepis",
+    "theme": "dark",
+    "scale": 140,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "25.2px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 398.6953125,
+      "right": 266,
+      "bottom": 489.6953125
+    },
+    "labels": [
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  },
+  {
+    "kind": "wpis",
+    "theme": "light",
+    "scale": 100,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "18px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 423.6015625,
+      "right": 266,
+      "bottom": 496.6015625
+    },
+    "labels": [
+      {
+        "client": 139,
+        "scroll": 139
+      },
+      {
+        "client": 178,
+        "scroll": 178
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  },
+  {
+    "kind": "wpis",
+    "theme": "light",
+    "scale": 140,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "25.2px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 398.6328125,
+      "right": 266,
+      "bottom": 489.6328125
+    },
+    "labels": [
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  },
+  {
+    "kind": "wpis",
+    "theme": "dark",
+    "scale": 100,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "18px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 423.6015625,
+      "right": 266,
+      "bottom": 496.6015625
+    },
+    "labels": [
+      {
+        "client": 139,
+        "scroll": 139
+      },
+      {
+        "client": 178,
+        "scroll": 178
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  },
+  {
+    "kind": "wpis",
+    "theme": "dark",
+    "scale": 140,
+    "zoom": 2,
+    "width": 320,
+    "height": 856,
+    "dpr": 2,
+    "font": "25.2px",
+    "overflow": false,
+    "focus": true,
+    "rect": {
+      "x": 54,
+      "y": 398.6328125,
+      "right": 266,
+      "bottom": 489.6328125
+    },
+    "labels": [
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      },
+      {
+        "client": 191,
+        "scroll": 191
+      }
+    ]
+  }
+]

@@ -1,0 +1,342 @@
+/* Nowy kierunek marki na istniejących ekranach Laravel.
+   Warstwa marka następuje po components. Układ ramy i karta wpisu
+   pozostają w swoich plikach; tutaj nie zmieniamy kolejności treści.
+   Każdy profil dostaje w Blade istniejącą klasę `blok-ciemny`, dzięki
+   czemu korzysta z kompletnej palety ciemnej, bez drugiej kopii kolorów. */
+@layer marka {
+  .marka-profil {
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-6);
+    border: 1px solid var(--color-border);
+    background-color: var(--color-surface-raised);
+    color: var(--color-ink);
+    box-shadow: var(--shadow-card);
+  }
+
+  .marka-profil.blok-ciemny {
+    background-color: var(--color-surface);
+    border-color: var(--color-surface);
+  }
+
+  .marka-profil .profil-glowka-tresc {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-6);
+  }
+
+  .marka-profil .profil-tozsamosc {
+    gap: var(--spacing-2) var(--spacing-4);
+    margin-bottom: var(--spacing-4);
+  }
+
+  .marka-profil .profil-tozsamosc h1 {
+    font-size: var(--text-title-lg);
+    line-height: var(--leading-title-wiele);
+    letter-spacing: -0.04em;
+  }
+
+  .marka-profil .profil-tozsamosc .meta {
+    font-size: var(--text-body);
+  }
+
+  .marka-profil .avatar {
+    border-radius: var(--radius-xl);
+  }
+
+  .marka-profil .profil-awatar-zmiana {
+    gap: var(--spacing-4);
+    max-width: 100%;
+  }
+
+  .marka-profil .profil-liczniki {
+    gap: var(--spacing-2);
+    padding-top: var(--spacing-4);
+  }
+
+  /* Filtry pozostają odnośnikami GET. Kolor nie zastępuje aria-current. */
+  .panel-formularza:has(.wyszukiwarka-input) {
+    padding: var(--spacing-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background-color: var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+  }
+
+  .wyszukiwarka-pole-wiersz {
+    min-width: 0;
+    margin-top: var(--spacing-4);
+  }
+
+  .wyszukiwarka-input {
+    background-color: var(--color-surface-sunken);
+    border-radius: var(--radius-lg);
+    padding-block: var(--spacing-3);
+  }
+
+  .chipsy[aria-label="Co przeszukujemy"] {
+    flex-wrap: wrap;
+    gap: var(--spacing-3);
+  }
+
+  .chipsy[aria-label="Co przeszukujemy"] .chip {
+    min-height: var(--control-height-min);
+    max-width: 100%;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: var(--text-body);
+    border-radius: var(--radius-pill);
+    padding: var(--spacing-2) var(--spacing-4);
+    background-color: var(--color-surface-raised);
+    color: var(--color-ink);
+    border: 1px solid var(--color-border-strong);
+  }
+
+  .chipsy[aria-label="Co przeszukujemy"] .chip[aria-current="page"] {
+    background-color: var(--color-ink);
+    color: var(--color-surface);
+    border-color: var(--color-ink);
+  }
+
+  /* Kolumny zależą od miejsca wewnątrz zeszytu, a nie od okna obok szyny. */
+  .marka-zeszyty {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(min(18rem, 100%), 1fr));
+    gap: var(--spacing-4);
+  }
+
+  .marka-zeszyty > .card {
+    min-width: 0;
+    padding: var(--spacing-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background-color: var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+  }
+
+  .marka-zeszyty > .card h2 a {
+    display: inline-flex;
+    align-items: center;
+    min-height: var(--control-height-min);
+    max-width: 100%;
+    overflow-wrap: anywhere;
+    text-underline-offset: 0.2em;
+  }
+
+  .marka-zeszyty > .card .meta {
+    font-size: var(--text-body);
+  }
+
+  /* Nie kadrujemy ponownie zdjęć użytkowników; ich wariant wybiera x-photo. */
+  .przepis-hero-zdjecie {
+    padding: var(--spacing-2);
+    border-radius: var(--radius-xl);
+    background-color: var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+  }
+
+  .przepis-hero-zdjecie img {
+    border-radius: var(--radius-lg);
+  }
+
+  .przepis-panel {
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-6);
+    box-shadow: var(--shadow-card);
+  }
+
+  .przepis-liczby {
+    grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
+  }
+
+  .przepis-liczba {
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-4);
+  }
+
+  .przepis-liczba span {
+    font-size: var(--text-body);
+  }
+
+  .przepis-siatka > .sekcja-strony {
+    min-width: 0;
+    padding: var(--spacing-6);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-xl);
+    background-color: var(--color-surface-raised);
+  }
+
+  .przepis-siatka .step-list li {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-3);
+  }
+
+  .przepis-siatka .step-number {
+    display: inline-grid;
+    place-items: center;
+    justify-self: start;
+    min-width: var(--spacing-10);
+    min-height: var(--spacing-10);
+    padding: var(--spacing-1);
+    border-radius: var(--radius-md);
+    background-color: var(--color-ink);
+    color: var(--color-surface);
+    font-size: var(--text-body);
+  }
+
+  .recipe-story {
+    border-radius: var(--radius-lg);
+    background-color: var(--color-brand-tint);
+    color: var(--color-brand-tint-ink);
+  }
+
+  /* Formularz ma własną powierzchnię; pola zachowują wszystkie stany i fokus. */
+  .panel-formularza {
+    border-radius: var(--radius-xl);
+  }
+
+  .pole-zdjecia {
+    min-height: var(--pole-wielowierszowe-min);
+    padding: var(--spacing-8) var(--spacing-4);
+    border-radius: var(--radius-xl);
+  }
+
+  .pole-zdjecia .pomoc,
+  .panel-formularza .field-help,
+  .panel-formularza .choice-help,
+  .panel-formularza .field-error {
+    font-size: var(--text-body);
+  }
+
+  .wizard-row {
+    border-radius: var(--radius-xl);
+    border-color: var(--color-border-strong);
+  }
+
+  .marka-powiadomienia > li > .card {
+    border-radius: var(--radius-xl);
+    padding: var(--spacing-5);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-card);
+  }
+
+  .marka-powiadomienia .meta {
+    font-size: var(--text-body);
+  }
+
+  /* Publiczny hero zachowuje prawdziwe zdjęcia i wszystkie odnośniki. */
+  .hero {
+    grid-template-columns: minmax(0, 1fr);
+    gap: var(--spacing-8);
+    align-items: center;
+  }
+
+  .hero .hero-tytul {
+    letter-spacing: -0.045em;
+    line-height: var(--leading-title-wiele);
+  }
+
+  .hero-kolaz-blok {
+    display: block;
+    min-width: 0;
+    padding: var(--spacing-3);
+    border-radius: var(--radius-xl);
+    background-color: var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+  }
+
+  .hero-kolaz {
+    gap: var(--spacing-2);
+  }
+
+  .hero-kolaz-kafel:nth-child(n) {
+    rotate: none;
+    border: 0;
+    border-radius: var(--radius-lg);
+    box-shadow: none;
+  }
+
+  /* #632: niepełny dobór ma własną siatkę, bez pustych pól czwórki. */
+  .hero-kolaz:not(:has(> :nth-child(4))) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
+  .hero-kolaz:not(:has(> :nth-child(4))) > .hero-kolaz-kafel {
+    grid-column: auto;
+    grid-row: auto;
+    aspect-ratio: 4 / 3;
+    height: auto;
+    width: 100%;
+  }
+
+  .hero-kolaz:not(:has(> :nth-child(2))) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-kolaz:has(> :nth-child(3)):not(:has(> :nth-child(4))) > :first-child {
+    grid-column: 1 / -1;
+    aspect-ratio: 2 / 1;
+  }
+
+  .hero:not(:has(.hero-kolaz-blok)) .hero-tekst {
+    margin-inline: auto;
+  }
+
+  .hero-kolaz-podpis {
+    padding: var(--spacing-2);
+    font-size: var(--text-body);
+  }
+
+  /* Port marki dla sekcji „Jak działa” (`#jak-dziala .rzecz*`) i dla
+     ciemnego pasa „Ugotowałem” (`.pas-ciemny-uklad`, `.cytat-*`,
+     `.pas--cieply .dwie-kolumny`) stał tu do 20 września 2026. Powitalną
+     przepisano na `.landing-opowiesc` / `.landing-kroki` /
+     `.landing-wykonanie` (port marki w `marka-rama.css`); tamtych klas
+     nie nosi już ani jeden element
+     w `resources/views`, a `LandingKompozycjaFotografiiTest` pilnuje wprost,
+     że `.cytat-ugotowalem` na powitalnej NIE WYSTĘPUJE. Sam `#jak-dziala`
+     żyje dalej — i dlatego te reguły były mylące: identyfikator w selektorze
+     zgadzał się z dokumentem, a potomek nie istniał. */
+
+  .zacheta-akcje {
+    flex-wrap: wrap;
+    gap: var(--spacing-4);
+  }
+
+  /* Progi w rem uwzględniają powiększoną czcionkę przeglądarki. */
+  @media (min-width: 48rem) {
+    .marka-profil {
+      padding: var(--spacing-8);
+    }
+
+    .marka-profil .profil-glowka-tresc {
+      grid-template-columns: minmax(0, 11rem) minmax(0, 1fr);
+      gap: var(--spacing-8);
+    }
+  }
+
+  @media (min-width: 64rem) {
+    .hero:has(.hero-kolaz-blok) {
+      grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
+      gap: var(--spacing-10);
+    }
+  }
+
+  @media (max-width: 30rem) {
+    .marka-profil,
+    .marka-zeszyty > .card,
+    .przepis-panel,
+    .przepis-siatka > .sekcja-strony,
+    .panel-formularza:has(.wyszukiwarka-input) {
+      padding: var(--spacing-4);
+    }
+
+    .wyszukiwarka-pole-wiersz {
+      flex-wrap: wrap;
+    }
+
+    .wyszukiwarka-pole-wiersz .wyszukiwarka-input {
+      flex-basis: 100%;
+    }
+  }
+}

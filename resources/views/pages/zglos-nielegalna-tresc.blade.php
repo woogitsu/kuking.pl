@@ -40,7 +40,7 @@
         Sprawdzimy zgłoszenie i odpiszemy Ci z decyzją.
     </p>
 
-    <div class="card mb-5">
+    <div class="ramka-pomocnicza mb-5">
         <h2 class="mt-0">Chodzi o coś innego?</h2>
         <p>
             Jeśli treść nie łamie prawa, ale łamie zasady Kuking — jest spamem,
@@ -62,7 +62,7 @@
 
     <x-error-summary />
 
-    <form class="card" method="POST" action="{{ route('zglos.nielegalna.store') }}">
+    <form class="panel-formularza" method="POST" action="{{ route('zglos.nielegalna.store') }}">
         @csrf
 
         {{-- Tożsamość TEGO wysłania formularza (ADR
@@ -82,7 +82,10 @@
                  placeholder="https://kuking.pl/przepis/..."
                  help="Skopiuj adres z paska przeglądarki. Jeśli nie masz adresu, opisz poniżej, gdzie to jest." />
 
-        <fieldset class="border-0 p-0 mt-5">
+        {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
+             wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
+        <fieldset class="border-0 p-0 mt-5" id="f-reason"
+                  @error('reason') tabindex="-1" aria-invalid="true" aria-describedby="f-reason-error" @enderror>
             <legend class="font-bold mb-3">Czego dotyczy zgłoszenie?</legend>
             <div class="stack-tight">
                 @foreach($reasons as $value => $label)
@@ -92,7 +95,7 @@
                     </label>
                 @endforeach
             </div>
-            @error('reason')<span class="field-error">{{ $message }}</span>@enderror
+            <x-blad-grupy name="reason" />
         </fieldset>
 
         <x-field name="illegality_explanation" label="Dlaczego uważasz, że ta treść łamie prawo?"
@@ -115,12 +118,13 @@
             najlepszej wiedzy zgłaszającego informacje są prawdziwe i pełne.
         --}}
         <label class="choice mt-5" for="f-good_faith">
-            <input id="f-good_faith" type="checkbox" name="good_faith" value="1" @checked(old('good_faith'))>
+            <input id="f-good_faith" type="checkbox" name="good_faith" value="1"
+                   @error('good_faith') aria-invalid="true" aria-describedby="f-good_faith-error" @enderror @checked(old('good_faith'))>
             <span class="choice-label">
                 Oświadczam, że w dobrej wierze uważam podane informacje za prawdziwe i pełne
             </span>
         </label>
-        @error('good_faith')<span class="field-error">{{ $message }}</span>@enderror
+        <x-blad-grupy name="good_faith" />
 
         <x-turnstile miejsce="zgloszenie_nielegalnej_tresci" />
 
@@ -129,7 +133,7 @@
         </div>
     </form>
 
-    <div class="card mt-5">
+    <div class="ramka-pomocnicza mt-5">
         <h2 class="mt-0">Co się stanie dalej</h2>
         <ol class="lista-krokow">
             <li>Dostaniesz e-mailem potwierdzenie z numerem sprawy — jeśli podasz adres.</li>

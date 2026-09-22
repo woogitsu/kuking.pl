@@ -33,6 +33,7 @@ class MinimalnyRozmiarTekstuTest extends TestCase
         '.kuking-board-subtitle',  // <h3> nad listą, stoi sam
         '.site-footer-liczba',     // „23 kuKINGów" w stopce (issue #38)
         '.post-card-zapisy',       // „3 osoby zapisały to u siebie w zeszycie" (#275, D-081)
+        '.post-card-czytaj-dalej a', // „Czytaj dalej" pod skróconym wpisem (#354)
     ];
 
     /** Rozmiary, które wolno przypisać samodzielnej etykiecie. */
@@ -44,9 +45,31 @@ class MinimalnyRozmiarTekstuTest extends TestCase
         '--text-title-lg',
     ];
 
+    /**
+     * Treść pliku CSS BEZ KOMENTARZY.
+     *
+     * DLACZEGO KOMENTARZE MUSZĄ ZNIKNĄĆ, ZANIM COKOLWIEK POLICZYMY
+     * Ten test szuka reguły wzorcem „lista selektorów, potem `{...}`". Wzorzec
+     * nie odróżnia nazwy selektora stojącej w regule od tej samej nazwy
+     * WYMIENIONEJ W KOMENTARZU — a komentarz opisujący rytm pionowy wspomniał
+     * `.kuking-board-subtitle` kilkadziesiąt linii nad prawdziwą regułą.
+     * Wzorzec złapał wtedy wzmiankę, doczytał do najbliższej klamry i wziął
+     * ciało CUDZEJ reguły (`.kuking-board-kolumny`), w której `font-size`
+     * oczywiście nie ma. Test oblał na regule, która była w porządku.
+     *
+     * Odwrotny przypadek jest gorszy i to on decyduje, że poprawka idzie tutaj,
+     * a nie w komentarz: gdyby wzmianka wypadła nad regułą, która `font-size`
+     * MA, strażnik przeczytałby cudzy rozmiar i puścił dalej etykietę z 16 px.
+     * Czyli fałszywa czerwień dziś, a fałszywa zieleń przy innym układzie pliku.
+     *
+     * Wycinamy wyłącznie `/* … *\/` — CSS nie zna `//`, a te znaki występują
+     * w wartościach (np. w adresach `url()`).
+     */
     private function css(string $plik): string
     {
-        return (string) file_get_contents(resource_path('css/'.$plik));
+        $tresc = (string) file_get_contents(resource_path('css/'.$plik));
+
+        return (string) preg_replace('#/\*.*?\*/#s', '', $tresc);
     }
 
     /**

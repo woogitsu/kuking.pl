@@ -110,7 +110,7 @@ class RegisterController extends Controller
         ]);
 
         $data = $request->validate([
-            'display_name' => ['required', 'string', 'min:2', 'max:100'],
+            'display_name' => ['required', 'string', 'min:2', 'max:'.config('kuking.profil.dlugosc_nazwy')],
             'username' => [
                 'required', 'string', 'min:3', 'max:40',
                 'regex:/^[a-zA-Z0-9_]+$/',
@@ -148,6 +148,12 @@ class RegisterController extends Controller
             Turnstile::POLE => TurnstileJestPotwierdzony::reguly('rejestracja'),
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
+            // Bez tych dwóch wypadał szablon ogólny („Pole «imię, którym mamy
+            // Cię nazywać» jest za krótkie — potrzeba co najmniej 2 znaki"),
+            // który nazywał pole inaczej niż etykieta na ekranie („Jak mamy
+            // Cię nazywać?") i nie mówił, co zrobić.
+            'display_name.min' => 'To imię jest za krótkie. Wpisz co najmniej dwie litery — na przykład „Basia”.',
+            'display_name.max' => 'To imię jest za długie. Zmieść się w :max znakach.',
             /*
              * KOMUNIKATY PO NORMALIZACJI, WIĘC MÓWIĄ O CZYMŚ INNYM NIŻ WCZEŚNIEJ.
              *
@@ -164,7 +170,11 @@ class RegisterController extends Controller
             'email.email' => 'Ten adres e-mail wygląda na niepełny. Sprawdź, czy nie brakuje kropki albo znaku @.',
             'email.unique' => 'Na ten adres jest już założone konto. Możesz się zalogować albo odzyskać hasło.',
             'password.required' => 'Wpisz hasło.',
-            'password.min' => 'Hasło musi mieć co najmniej 10 znaków. Najprościej wpisać trzy słowa, na przykład: zielonapietruszkarano.',
+            // Ten sam przykład co w pomocy przy polu (`auth/register.blade.php`):
+            // słowa rozdzielone myślnikami i wprost powiedziane, żeby wpisać
+            // swoje. Przykład bez separatorów uczył wzorca, który łamie się
+            // słownikowo, a przy okazji był gotowym hasłem do przepisania.
+            'password.min' => 'Hasło musi mieć co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu.',
             'password.uncompromised' => 'To hasło pojawiło się już w wyciekach danych z innych serwisów. Wybierz inne.',
             'age_confirmed.accepted' => "Kuking jest dla osób od {$minAge} lat. Potwierdź, że masz tyle lat.",
             'terms_accepted.accepted' => 'Zaznacz, że znasz zasady Kuking.',
@@ -201,7 +211,7 @@ class RegisterController extends Controller
                     if ($adres === null) {
                         throw new BladDlaCzlowieka(
                             'To zaproszenie przestało działać, zanim zdążyliśmy założyć konto — mogło wygasnąć '
-                            .'albo zostać już użyte. Wpisz swój adres e-mail poniżej i spróbuj jeszcze raz; '
+                            .'albo zostać już użyte. Sprawdź swój adres e-mail poniżej, wpisz hasło ponownie i wyślij formularz jeszcze raz; '
                             .'wyślemy na niego jedną wiadomość z potwierdzeniem.',
                         );
                     }

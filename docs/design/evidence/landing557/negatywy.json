@@ -1,0 +1,52 @@
+[
+  {
+    "name": "kolejnosc",
+    "source": "resources/views/components/kuking-board.blade.php",
+    "negative_exit": 1,
+    "positive_exit": 0,
+    "md5_before": "43d8007939d561af094fbe97ee099bb9",
+    "md5_after": "43d8007939d561af094fbe97ee099bb9",
+    "mtime_restored": true,
+    "backup": "/tmp/landing557-neg-eabpp_w1/kolejnosc-kuking-board.blade.php"
+  },
+  {
+    "name": "duzy_plik",
+    "source": "resources/views/components/kuking-board/posts.blade.php",
+    "negative_exit": 1,
+    "positive_exit": 0,
+    "md5_before": "778190854242bd876a598d4f9a026d1d",
+    "md5_after": "778190854242bd876a598d4f9a026d1d",
+    "mtime_restored": true,
+    "backup": "/tmp/landing557-neg-eabpp_w1/duzy_plik-posts.blade.php"
+  },
+  {
+    "name": "powtorzone_cta",
+    "source": "resources/views/components/kuking-board/people.blade.php",
+    "negative_exit": 1,
+    "positive_exit": 0,
+    "md5_before": "4ff8e89344bd186dc5c5fcde1781f2c8",
+    "md5_after": "4ff8e89344bd186dc5c5fcde1781f2c8",
+    "mtime_restored": true,
+    "backup": "/tmp/landing557-neg-eabpp_w1/powtorzone_cta-people.blade.php"
+  },
+  {
+    "name": "kompozycja",
+    "source": "resources/css/marka-tablica-publiczna.css",
+    "negative_exit": 1,
+    "positive_exit": 0,
+    "md5_before": "e0fcf6bc32d80b1013856d705b34b717",
+    "md5_after": "e0fcf6bc32d80b1013856d705b34b717",
+    "mtime_restored": true,
+    "backup": "/tmp/landing557-neg-eabpp_w1/kompozycja-marka-tablica-publiczna.css"
+  },
+  {
+    "name": "odstep_fokusu",
+    "source": "resources/css/marka-tablica-publiczna.css",
+    "negative_exit": 1,
+    "positive_exit": 0,
+    "md5_before": "e0fcf6bc32d80b1013856d705b34b717",
+    "md5_after": "e0fcf6bc32d80b1013856d705b34b717",
+    "mtime_restored": true,
+    "backup": "/tmp/landing557-neg-eabpp_w1/odstep_fokusu-marka-tablica-publiczna.css"
+  }
+]

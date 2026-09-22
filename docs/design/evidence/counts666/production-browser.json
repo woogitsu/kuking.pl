@@ -1,0 +1,12 @@
+{
+  "url": "https://kuking.pl/przepisy/bigos-z-cukinii",
+  "version": "Alfa 0.64",
+  "sha": "bdc56b8",
+  "emptyVisible": true,
+  "viewport": {
+    "width": 1440,
+    "height": 1000
+  },
+  "theme": null,
+  "method": "read-only guest browser; no data writes"
+}

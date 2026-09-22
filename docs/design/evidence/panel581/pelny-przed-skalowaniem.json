@@ -1,0 +1,89 @@
+{
+    "status":  "PASS pomiaru; odbiór wizualny nieukończony",
+    "phase":  "pelny",
+    "sourceBase":  "ac5ff9d7716d000318870a2120522fdd7930303a + WIP przed skalowaniem kolumny",
+    "count":  312,
+    "failures":  0,
+    "reportSha256":  "244ce5deb70531ccc125f1a03a03cd2b8d569250ac14b765ee31e5ec08a1e780",
+    "assetCss":  "app-BCXL_liv.css",
+    "assetJs":  "app-BfcwSyV6.js",
+    "sourceSha256":  {
+                         "resources/js/panel-tabela.js":  "a21496508cb6f3874891cba1850eeceb71c2cae7d28d8bd200e03594b1f72738",
+                         "public/build/manifest.json":  "013dc3802b623f5e87d802513354a23183be0cf7861c7503cd60c01dfba2c867",
+                         "resources/css/marka-panel.css":  "22a4f96bd1c7f4bbc1eb4c66362332c5110f5f121a7b03ce0ecc12a383fc144b",
+                         "scripts/panel-marki.mjs":  "8cebd9ed4c20e64ddf397d74025445b37ed42dcb6f2af59fe4448a608e492bac"
+                     },
+    "scope":  "Kompozycja rzeczywistych GET, skala tekstu 100/140, reducedMotion:reduce. Bez POST, testu preferencji, zwykłych przejść i zoomu przeglądarki.",
+    "limitations":  [
+                        "Przed późniejszą poprawką szerokości nawigacji i kontrolą podziału słów.",
+                        "Bez kontroli ujemnych, rzeczywistego zoomu i rozwijanych działań.",
+                        "Nie jest odbiorem CI ani produkcji."
+                    ],
+    "scenarios":  [
+                      {
+                          "id":  "zgloszenia-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "sygnaly-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "odwolania-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "wiadomosci-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "wiadomosc-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "kolaz-powitalny-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "kuking-na-dzis-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "tagi-promowane-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "uzytkownicy-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "uzytkownik-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "bez-odpowiedzi-wpisy-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "bez-odpowiedzi-przepisy-pelny",
+                          "count":  24,
+                          "pass":  24
+                      },
+                      {
+                          "id":  "bez-odpowiedzi-ugotowane-pelny",
+                          "count":  24,
+                          "pass":  24
+                      }
+                  ]
+}

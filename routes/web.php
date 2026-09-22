@@ -2,10 +2,12 @@
 
 declare(strict_types=1);
 
+use App\Domain\Media\PodgladOdRazu;
 use App\Http\Controllers\AccountDeletionController;
 use App\Http\Controllers\Admin\AppealController as AdminAppealController;
 use App\Http\Controllers\Admin\BezOdpowiedziController;
 use App\Http\Controllers\Admin\DailyBoardController;
+use App\Http\Controllers\Admin\HeroKolazController;
 use App\Http\Controllers\Admin\ModerationController;
 use App\Http\Controllers\Admin\SygnalyController;
 use App\Http\Controllers\Admin\TagPromotionController;
@@ -13,6 +15,8 @@ use App\Http\Controllers\Admin\UzytkownicyController;
 use App\Http\Controllers\Admin\WiadomosciController;
 use App\Http\Controllers\AppealController;
 use App\Http\Controllers\Auth\EmailVerificationController;
+use App\Http\Controllers\Auth\FacebookDeauthorizeController;
+use App\Http\Controllers\Auth\FacebookLoginController;
 use App\Http\Controllers\Auth\GoogleLoginController;
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\LoginLinkController;
@@ -25,6 +29,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
+use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
@@ -35,6 +40,8 @@ use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PwaInstallController;
+use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
@@ -46,12 +53,14 @@ use App\Http\Controllers\Settings\EmailSettingsController;
 use App\Http\Controllers\Settings\PrivacySettingsController;
 use App\Http\Controllers\Settings\ProfileSettingsController;
 use App\Http\Controllers\Settings\SecuritySettingsController;
+use App\Http\Controllers\Settings\SettingsIndexController;
 use App\Http\Controllers\Settings\TwoFactorSettingsController;
 use App\Http\Controllers\SitemapController;
 use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
+use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
@@ -80,7 +89,11 @@ $limits = config('kuking.limits');
 // --------------------------------------------------------------------------
 
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
+Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
 Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+Route::get('/pytania', [QuestionController::class, 'index'])
+    ->middleware("throttle:{$limits['search']},search")
+    ->name('questions.index');
 Route::get('/szukaj', [SearchController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('search');
@@ -185,6 +198,10 @@ Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'
     ->name('cooking.zaznacz');
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
+Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');
+Route::post('/pytania', [PostController::class, 'store'])
+    ->middleware(['auth', "throttle:{$limits['post']},post"])->name('questions.store');
+Route::get('/pytania/{post}', [PostController::class, 'show'])->whereUuid('post')->name('questions.show');
 Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->name('cooked.show');
 
 /*
@@ -207,7 +224,24 @@ Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->
  */
 Route::get('/zdjecia/{media}/{wariant}', [MediaController::class, 'show'])
     ->whereUuid('media')
-    ->whereIn('wariant', array_keys((array) config('kuking.media.variants')))
+    /*
+     * LISTA NAZW JEST BIAŁĄ LISTĄ I TO JEST JEJ ROBOTA: nazwa wariantu
+     * przychodzi z adresu, czyli od klienta. Cokolwiek spoza tej listy
+     * dostaje 404 jeszcze przed kontrolerem — a więc zanim ktokolwiek
+     * spróbuje zamienić ją na klucz w buckecie.
+     *
+     * `podglad` DOPISANY OSOBNO (issue #430) i to nie jest niedopatrzenie
+     * konfiguracji. `kuking.media.variants` mówi, co liczy zadanie w tle;
+     * podgląd powstaje wcześniej i gdzie indziej (`PodgladOdRazu`), więc
+     * w tamtej liście go nie ma i być nie powinno. W adresie wystąpi —
+     * `Media::url()` oddaje jego nazwę, dopóki nie ma prawdziwych wariantów.
+     * Bez tej linii cała naprawa #430 kończyłaby się na 404 i nikt nie
+     * zobaczyłby swojego zdjęcia ani o sekundę wcześniej.
+     */
+    ->whereIn('wariant', [
+        PodgladOdRazu::NAZWA,
+        ...array_keys((array) config('kuking.media.variants')),
+    ])
     ->middleware("throttle:{$limits['zdjecie']},zdjecie")
     ->name('media.show');
 
@@ -413,6 +447,92 @@ Route::post('/logout', [LoginController::class, 'destroy'])
     ->name('logout');
 
 // --------------------------------------------------------------------------
+// WEJŚCIE KONTEM FACEBOOKA (issue #259, D-069, D-098)
+// --------------------------------------------------------------------------
+//
+//   GET  /wejdz/facebook          — kliknięcie „Wejdź kontem Facebooka"
+//                                   albo „Połącz konto Facebooka". Zakłada
+//                                   w sesji `state` i odsyła do Facebooka.
+//   GET  /wejdz/facebook/wroc     — powrót z Facebooka. Sprawdza `state`,
+//                                   wymienia kod, ROZSTRZYGA co dalej.
+//                                   TEN ADRES JEST WPISANY W PANELU META,
+//                                   znak w znak (runbook §4.2) — zmiana tej
+//                                   ścieżki wymaga zmiany także tam.
+//   GET  /wejdz/facebook/domknij  — ekran domknięcia konta dla nowej osoby
+//                                   (imię, nazwa, dwa oświadczenia)
+//   POST /wejdz/facebook/domknij  — dopiero tu powstaje konto
+//   GET  /wejdz/facebook/polacz   — „połączyć to konto z Facebookiem?"
+//                                   dla osoby JUŻ ZALOGOWANEJ. NIC NIE ZMIENIA.
+//   POST /wejdz/facebook/polacz   — dopiero tu powstaje powiązanie
+//
+// TE TRASY NIE SĄ W GRUPIE `guest` — I TO JEST RÓŻNICA WZGLĘDEM GOOGLE,
+// KTÓRA MA UZASADNIENIE, A NIE JEST NIEDOPATRZENIEM.
+//
+// Facebook nie mówi, czy adres e-mail jest potwierdzony, więc adres
+// z Facebooka NIE MOŻE łączyć kont (D-098) — a to znaczy, że jedyna
+// bezpieczna droga powiązania istniejącego konta prowadzi przez człowieka,
+// który JUŻ JEST NA NIM ZALOGOWANY (hasłem albo linkiem e-mail) i klika
+// „Połącz konto Facebooka" w Ustawieniach → Bezpieczeństwo. Gdyby te trasy
+// stały w grupie `guest`, ta droga byłaby nieosiągalna, a odmowa „na ten
+// adres jest już konto" nie miałaby dokąd odesłać człowieka.
+//
+// Rozstrzyga więc `Auth::check()` w kontrolerze, w jednym miejscu i jawnie.
+// Grupa `guest` przekierowywałaby zalogowanego na `/home` i zabierałaby mu
+// tę możliwość bez słowa wyjaśnienia.
+//
+// ROZDZIAŁ „POKAŻ" OD „ZRÓB" JEST TU BEZPIECZEŃSTWEM, nie estetyką —
+// ten sam powód co przy Google i przy logowaniu linkiem: GET nie zmienia
+// stanu. Konta zakłada i powiązania tworzy wyłącznie POST z tokenem CSRF.
+//
+// DWA OSOBNE KOSZYKI LIMITÓW, osobne także od tych od Google
+// (`facebook_wejscie`, `facebook_domkniecie`) — uzasadnienie stoi przy nich
+// w `config/kuking.php`.
+//
+// BEZ KLUCZY FACEBOOKA te trasy odsyłają na `/login` ze zdaniem po polsku,
+// a przycisku nie ma nigdzie na ekranie: środowisko bez kluczy (CI, lokalnie,
+// każde środowisko preview) zachowuje się dokładnie jak przed tą zmianą.
+Route::get('/wejdz/facebook', [FacebookLoginController::class, 'start'])
+    ->middleware("throttle:{$limits['facebook_wejscie']},facebook_wejscie")
+    ->name('facebook.start');
+
+Route::get('/wejdz/facebook/wroc', [FacebookLoginController::class, 'callback'])
+    ->middleware("throttle:{$limits['facebook_wejscie']},facebook_wejscie")
+    ->name('facebook.callback');
+
+Route::get('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finishForm'])
+    ->name('facebook.finish');
+Route::post('/wejdz/facebook/domknij', [FacebookLoginController::class, 'finish'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.finish.store');
+
+/*
+ * ODEBRANIE DOSTĘPU U FACEBOOKA (issue #259).
+ *
+ * Woła to POST-em serwer Facebooka, nie przeglądarka człowieka — więc trasa
+ * jest WYŁĄCZONA Z OCHRONY CSRF w `bootstrap/app.php`, a autentyczność
+ * potwierdza podpis `signed_request`, nie sesja. Pełne uzasadnienie stoi
+ * w `FacebookDeauthorizeController`.
+ *
+ * OGRANICZENIE PANELU META: pole `Deauthorize callback URL` jest jedno na
+ * aplikację, a jedna aplikacja obsługuje u nas produkcję i staging — więc
+ * STAGING TYCH POWIADOMIEŃ NIE DOSTANIE. To nie jest usterka do naprawienia
+ * w kodzie.
+ *
+ * Bez ogranicznika liczby żądań: każde żądanie bez poprawnego podpisu kończy
+ * się odrzuceniem po jednym `hash_hmac`, a ogranicznik ustawiony za nisko
+ * zaczyna gubić prawdziwe powiadomienia — których Facebook nie ponawia
+ * w nieskończoność.
+ */
+Route::post('/wejdz/facebook/odebranie-dostepu', FacebookDeauthorizeController::class)
+    ->name('facebook.deauthorize');
+
+Route::get('/wejdz/facebook/polacz', [FacebookLoginController::class, 'linkForm'])
+    ->name('facebook.link');
+Route::post('/wejdz/facebook/polacz', [FacebookLoginController::class, 'link'])
+    ->middleware("throttle:{$limits['facebook_domkniecie']},facebook_domkniecie")
+    ->name('facebook.link.store');
+
+// --------------------------------------------------------------------------
 // Odwołanie od decyzji moderacyjnej — droga dla osób ZABLOKOWANYCH (#10)
 // --------------------------------------------------------------------------
 //
@@ -453,7 +573,14 @@ Route::match(['get', 'post'], '/zgloszenie/{report}/odwolanie', [ReporterAppealC
 // --------------------------------------------------------------------------
 
 Route::middleware('auth')->group(function () use ($limits): void {
+    Route::get('/tagi/podpowiedzi', TagSuggestionController::class)
+        ->middleware("throttle:{$limits['tag_suggestions']},tag_suggestions")
+        ->name('tags.suggestions');
+
     Route::get('/home', [FeedController::class, 'home'])->name('home');
+    Route::post('/instalacja/decyzja', [PwaInstallController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('pwa.decision');
 
     // Weryfikacja e-maila. Świadomie NIE blokuje publikowania — patrz
     // RegisterController. Wymagamy jej tylko przy eksporcie danych.
@@ -537,16 +664,28 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['comment']},comment")
         ->name('comments.destroy');
 
-    // Dwie drogi do tego samego przepisu i obie są prawdziwe:
-    // /dodaj/przepis to kreator w krokach (Livewire, wymaga JS),
-    // /dodaj/przepis/jedna-strona to ten sam formularz zwykłym POST-em,
-    // bez JavaScriptu. Druga trasa nie jest zaszłością — bez niej słaby
-    // zasięg zostawia użytkownika z martwym formularzem.
+    /*
+     * DODAWANIE ≠ DOPISYWANIE SZCZEGÓŁÓW (issue #364).
+     *
+     * /dodaj/przepis                — sześć rzeczy i „Opublikuj". Zwykły POST,
+     *                                 bez JavaScriptu. `?szkic={uuid}` wraca
+     *                                 do niedokończonego szkicu w kreatorze.
+     * /przepisy/{slug}/szczegoly    — „Dopisz szczegóły" w trzech krokach
+     *                                 (Livewire, wymaga JS).
+     * /przepisy/{slug}/edycja       — te same szczegóły na jednej stronie,
+     *                                 zwykłym POST-em. Bez niej słaby zasięg
+     *                                 zostawia człowieka z martwym kreatorem.
+     * /dodaj/przepis/jedna-strona   — pełny formularz dodawania. Zostaje dla
+     *                                 adresów, które ludzie mają zapisane;
+     *                                 nic już do niego nie linkuje.
+     */
     Route::get('/dodaj/przepis', [RecipeController::class, 'create'])->name('recipes.create');
+    Route::get('/dodaj/szkice', [RecipeController::class, 'drafts'])->name('recipes.drafts');
     Route::get('/dodaj/przepis/jedna-strona', [RecipeController::class, 'createSimple'])->name('recipes.create.simple');
     Route::post('/dodaj/przepis', [RecipeController::class, 'store'])
         ->middleware("throttle:{$limits['post']},post")
         ->name('recipes.store');
+    Route::get('/przepisy/{recipe}/szczegoly', [RecipeController::class, 'details'])->name('recipes.details');
     Route::get('/przepisy/{recipe}/edycja', [RecipeController::class, 'edit'])->name('recipes.edit');
     // Ten sam limit co przy publikacji i ten sam powód co przy `posts.update`:
     // każdy zapis przepisu tworzy nową wersję (`recipe_versions`), czyli jest
@@ -663,6 +802,31 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->name('notifications.open');
 
     // Ustawienia
+
+    /*
+     * ROZDROŻE — `/ustawienia` (issue #344, koszt zapisany w D-168).
+     *
+     * Do dziś ten adres NIE ISTNIAŁ, a napis „Ustawienia" w obu miejscach
+     * serwisu (nawigacja boczna na komputerze, rząd akcji własnego profilu)
+     * prowadził na `settings.accessibility`, czyli na ekran o nagłówku
+     * „Czytelność". D-168 przyjęło to świadomie jako koszt mniejszy niż jeden
+     * napis o dwóch różnych celach — i zapisało, że zdjęcie tego kosztu
+     * wymaga osobnej decyzji. Ta decyzja zapadła 12 września 2026.
+     *
+     * TRASA JEST PIERWSZA W BLOKU, bo jest wejściem do pozostałych — kolejność
+     * w tym pliku ma odpowiadać kolejności, w jakiej się po nich chodzi.
+     *
+     * BEZ IDENTYFIKATORA W ADRESIE i bez Policy: ekran pokazuje wyłącznie
+     * nazwy ekranów ustawień, identyczne dla każdego zalogowanego. Nie ma tu
+     * cudzego zasobu, który dałoby się podmienić w adresie — uzasadnienie
+     * pełne w `SettingsIndexController`.
+     *
+     * BEZ LIMITU `throttle`: to zwykły GET bez zapisu, jak `settings.profile`
+     * niżej. Limity w tej grupie wiszą wyłącznie na czasownikach zapisujących
+     * (pilnuje tego `LimityTrasZapisujacychTest`).
+     */
+    Route::get('/ustawienia', SettingsIndexController::class)->name('settings.index');
+
     Route::get('/ustawienia/profil', [ProfileSettingsController::class, 'edit'])->name('settings.profile');
     Route::put('/ustawienia/profil', [ProfileSettingsController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia");
@@ -705,6 +869,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.tags.update');
+    // Filtr i „Pokaż kolejne…" — PRZEGLĄDANIE, nie zapis (#858, decyzja
+    // właściciela z 20.09.2026, punkt 1). Osobna trasa i osobny koszyk
+    // limitera, żeby szukanie tagu nie zjadało budżetu zapisu (`ustawienia`,
+    // 30/10) i odwrotnie. Przyciski trafiają tu przez `formaction` w widoku
+    // — bez tego wciąż jeden `<form>`, bez jednej linii JavaScriptu.
+    Route::put('/ustawienia/tagi/przegladaj', [TagFollowController::class, 'przegladaj'])
+        ->middleware("throttle:{$limits['tagi_przegladanie']},tagi_przegladanie")
+        ->name('settings.tags.przegladaj');
 
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update'])
@@ -928,6 +1100,25 @@ Route::middleware(['auth', 'moderator', 'moderator.2fa'])->prefix('admin')->grou
     Route::post('/bez-odpowiedzi/{post}', [BezOdpowiedziController::class, 'odpowiedz'])
         ->middleware("throttle:{$limits['moderacja']},moderacja")
         ->name('admin.unanswered.reply');
+
+    /*
+     * Kolaż zdjęć w hero strony powitalnej — zgłoszenie właściciela:
+     * „dodaj funkcję w panelu admina by ustawiać te zdjęcia spośród
+     * wszystkich publicznych od użytkowników".
+     *
+     * Ta sama rodzina co `kuking-na-dzis` niżej i ten sam kształt tras:
+     * `GET` do obejrzenia, `PUT` do zapisania całego wyboru naraz, `DELETE`
+     * do wyczyszczenia. Oba zapisy z limitem `moderacja` z `config/kuking.php`.
+     *
+     * O prawie do wejścia rozstrzyga `UserPolicy::moderate` w kontrolerze,
+     * nie samo middleware grupy: w formularzu latają UUID-y cudzych zdjęć,
+     * a UUID nie jest autoryzacją (AGENTS.md §7).
+     */
+    Route::get('/kolaz-powitalny', [HeroKolazController::class, 'edit'])->name('admin.hero-kolaz');
+    Route::put('/kolaz-powitalny', [HeroKolazController::class, 'update'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja");
+    Route::delete('/kolaz-powitalny', [HeroKolazController::class, 'destroy'])
+        ->middleware("throttle:{$limits['moderacja']},moderacja");
 
     Route::get('/kuking-na-dzis', [DailyBoardController::class, 'edit'])->name('admin.daily-board');
     Route::put('/kuking-na-dzis', [DailyBoardController::class, 'update'])

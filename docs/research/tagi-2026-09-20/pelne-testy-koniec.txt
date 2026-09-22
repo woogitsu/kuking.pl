@@ -1,0 +1,17 @@
+   PASS  Tests\Feature\ZrodloPrzepisuBezPrzyimkaTest
+  ✓ strona przepisu pokazuje zrodlo doslownie bez doklejonego po         0.16s
+  ✓ podglad w kreatorze pokazuje zrodlo doslownie bez doklejonego po     0.22s
+  ✓ podpis przepisu nie odmienia ani zrodla ani nazwy konta              0.05s
+  ✓ podpis przepisu bez zrodla nie odmienia nazwy konta                  0.05s
+  ✓ pole pyta o fraze ktora stoi samodzielnie                            0.06s
+
+   PASS  Tests\Feature\ZrodloZewnetrzneWDanychStrukturalnychTest
+  ✓ adres zrodla zewnetrznego stoi w is based on                         0.11s
+  ✓ pusty adres nie zostawia pustego is based on                         0.08s
+  ✓ adres przy innym zrodle niz zewnetrzne nie idzie do danych           0.08s
+  ✓ przepis prywatny nie oddaje zadnych danych strukturalnych            0.07s
+  ✓ adres nie wchodzi do autora                                          0.12s
+  ✓ adres nigdzie nie udaje nazwanej encji                               0.08s
+
+  Tests:    4401 passed (83625 assertions)
+  Duration: 379.47s

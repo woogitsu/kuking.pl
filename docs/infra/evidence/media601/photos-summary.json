@@ -1,0 +1,244 @@
+{
+  "scope": "Single sequential smoke per source and mode on busy host; not performance conclusion",
+  "results": [
+    {
+      "mode": "photo-baseline",
+      "fixture": "12mp.jpg",
+      "source_sha256": "f4edc96e422bf0bf3f197be13d4ef0c9692d4c84aa5c65ef04f11ebc5302a253",
+      "input_width": 4080,
+      "input_height": 3060,
+      "orientation": 6,
+      "wall_handle_ms": 1503.935995,
+      "cpu_handle_ms": 1500.733,
+      "process_peak_rss_before_handle_kib": 65364,
+      "process_peak_rss_after_handle_kib": 221456,
+      "binary_decodes_handle": 3,
+      "status": "ready",
+      "variants": {
+        "thumb": {
+          "sha256": "45a44a4073d130ac69ae46b297b2070de6703601ed975403b2bb2665373931c4",
+          "width": 240,
+          "height": 320,
+          "bytes": 22074
+        },
+        "feed": {
+          "sha256": "4d565b537ca9988b9c380ffe05500118f8f9988d17a525d03786c264e844c376",
+          "width": 720,
+          "height": 960,
+          "bytes": 123476
+        },
+        "large": {
+          "sha256": "cdd4e0f76c7345e3266728cfc28a629329b7600d47e2d390331a05eef83d1096",
+          "width": 1200,
+          "height": 1600,
+          "bytes": 252708
+        }
+      },
+      "php": "8.4.24",
+      "job_source": "/home/mateusz/kuking-601-probe-agent/app/Jobs/ProcessUploadedImage.php",
+      "scope": "Single smoke, busy host. Timing only handle; peak RSS is process lifetime through end of handle, not isolated handle allocation. Setup and input copy precede timing. Orientation explicitly supplied from exif_read_data, no upload parser."
+    },
+    {
+      "mode": "photo-native",
+      "fixture": "12mp.jpg",
+      "source_sha256": "f4edc96e422bf0bf3f197be13d4ef0c9692d4c84aa5c65ef04f11ebc5302a253",
+      "input_width": 4080,
+      "input_height": 3060,
+      "orientation": 6,
+      "wall_handle_ms": 826.99566,
+      "cpu_handle_ms": 824.237,
+      "process_peak_rss_before_handle_kib": 65480,
+      "process_peak_rss_after_handle_kib": 217292,
+      "binary_decodes_handle": 1,
+      "status": "ready",
+      "variants": {
+        "thumb": {
+          "sha256": "45a44a4073d130ac69ae46b297b2070de6703601ed975403b2bb2665373931c4",
+          "width": 240,
+          "height": 320,
+          "bytes": 22074
+        },
+        "feed": {
+          "sha256": "4d565b537ca9988b9c380ffe05500118f8f9988d17a525d03786c264e844c376",
+          "width": 720,
+          "height": 960,
+          "bytes": 123476
+        },
+        "large": {
+          "sha256": "cdd4e0f76c7345e3266728cfc28a629329b7600d47e2d390331a05eef83d1096",
+          "width": 1200,
+          "height": 1600,
+          "bytes": 252708
+        }
+      },
+      "php": "8.4.24",
+      "job_source": "/home/mateusz/kuking-601-probe-agent/app/Jobs/ProcessUploadedImage.php",
+      "scope": "Single smoke, busy host. Timing only handle; peak RSS is process lifetime through end of handle, not isolated handle allocation. Setup and input copy precede timing. Orientation explicitly supplied from exif_read_data, no upload parser."
+    },
+    {
+      "mode": "photo-baseline",
+      "fixture": "24mp.jpg",
+      "source_sha256": "d55c11254e79e7de361078b3f20a45fb102e7aec20eed4436459a07740c67e15",
+      "input_width": 6000,
+      "input_height": 4000,
+      "orientation": 1,
+      "wall_handle_ms": 902.813973,
+      "cpu_handle_ms": 899.698,
+      "process_peak_rss_before_handle_kib": 65336,
+      "process_peak_rss_after_handle_kib": 175660,
+      "binary_decodes_handle": 3,
+      "status": "ready",
+      "variants": {
+        "thumb": {
+          "sha256": "93226918808bf0f77eaa67c4e0ccc7ff2cd81397daed8eea8e5b8a943394396a",
+          "width": 320,
+          "height": 213,
+          "bytes": 9344
+        },
+        "feed": {
+          "sha256": "ef35962f13177a5e87c73c2ccd5d07ac4e6dfc109e96dd1d40d9923623f9da73",
+          "width": 960,
+          "height": 640,
+          "bytes": 37226
+        },
+        "large": {
+          "sha256": "3d376294fa00a10074d6b77072bf4a8ec9097902e9125211ee0e3f4708fb9b97",
+          "width": 1600,
+          "height": 1067,
+          "bytes": 70248
+        }
+      },
+      "php": "8.4.24",
+      "job_source": "/home/mateusz/kuking-601-probe-agent/app/Jobs/ProcessUploadedImage.php",
+      "scope": "Single smoke, busy host. Timing only handle; peak RSS is process lifetime through end of handle, not isolated handle allocation. Setup and input copy precede timing. Orientation explicitly supplied from exif_read_data, no upload parser."
+    },
+    {
+      "mode": "photo-native",
+      "fixture": "24mp.jpg",
+      "source_sha256": "d55c11254e79e7de361078b3f20a45fb102e7aec20eed4436459a07740c67e15",
+      "input_width": 6000,
+      "input_height": 4000,
+      "orientation": 1,
+      "wall_handle_ms": 732.245734,
+      "cpu_handle_ms": 727.92,
+      "process_peak_rss_before_handle_kib": 65228,
+      "process_peak_rss_after_handle_kib": 185968,
+      "binary_decodes_handle": 1,
+      "status": "ready",
+      "variants": {
+        "thumb": {
+          "sha256": "93226918808bf0f77eaa67c4e0ccc7ff2cd81397daed8eea8e5b8a943394396a",
+          "width": 320,
+          "height": 213,
+          "bytes": 9344
+        },
+        "feed": {
+          "sha256": "ef35962f13177a5e87c73c2ccd5d07ac4e6dfc109e96dd1d40d9923623f9da73",
+          "width": 960,
+          "height": 640,
+          "bytes": 37226
+        },
+        "large": {
+          "sha256": "3d376294fa00a10074d6b77072bf4a8ec9097902e9125211ee0e3f4708fb9b97",
+          "width": 1600,
+          "height": 1067,
+          "bytes": 70248
+        }
+      },
+      "php": "8.4.24",
+      "job_source": "/home/mateusz/kuking-601-probe-agent/app/Jobs/ProcessUploadedImage.php",
+      "scope": "Single smoke, busy host. Timing only handle; peak RSS is process lifetime through end of handle, not isolated handle allocation. Setup and input copy precede timing. Orientation explicitly supplied from exif_read_data, no upload parser."
+    },
+    {
+      "mode": "photo-baseline",
+      "fixture": "48mp.jpg",
+      "source_sha256": "84c7c9fac42f02de3dd32621a5d5cdce17a3e5c2018917dc163ac482589a71ff",
+      "input_width": 8000,
+      "input_height": 6000,
+      "orientation": 1,
+      "wall_handle_ms": 1588.405104,
+      "cpu_handle_ms": 1585.959,
+      "process_peak_rss_before_handle_kib": 65152,
+      "process_peak_rss_after_handle_kib": 297332,
+      "binary_decodes_handle": 3,
+      "status": "ready",
+      "variants": {
+        "thumb": {
+          "sha256": "92a323e15f2a0a839c7f1a51c0e046345a40dd750f45da1a814f455c433b7dd9",
+          "width": 320,
+          "height": 240,
+          "bytes": 33844
+        },
+        "feed": {
+          "sha256": "6805070a91cb85d3a7b24516ec6f58bdb956ec9554dd35f8ffea2b839303849c",
+          "width": 960,
+          "height": 720,
+          "bytes": 165224
+        },
+        "large": {
+          "sha256": "e7147fc2b2417e882d7e2a7f87b5797b53d3aeafbd5ecbef66e0c8d2a6a6d251",
+          "width": 1600,
+          "height": 1200,
+          "bytes": 359604
+        }
+      },
+      "php": "8.4.24",
+      "job_source": "/home/mateusz/kuking-601-probe-agent/app/Jobs/ProcessUploadedImage.php",
+      "scope": "Single smoke, busy host. Timing only handle; peak RSS is process lifetime through end of handle, not isolated handle allocation. Setup and input copy precede timing. Orientation explicitly supplied from exif_read_data, no upload parser."
+    },
+    {
+      "mode": "photo-native",
+      "fixture": "48mp.jpg",
+      "source_sha256": "84c7c9fac42f02de3dd32621a5d5cdce17a3e5c2018917dc163ac482589a71ff",
+      "input_width": 8000,
+      "input_height": 6000,
+      "orientation": 1,
+      "wall_handle_ms": 1167.209674,
+      "cpu_handle_ms": 1158.648,
+      "process_peak_rss_before_handle_kib": 64872,
+      "process_peak_rss_after_handle_kib": 296928,
+      "binary_decodes_handle": 1,
+      "status": "ready",
+      "variants": {
+        "thumb": {
+          "sha256": "92a323e15f2a0a839c7f1a51c0e046345a40dd750f45da1a814f455c433b7dd9",
+          "width": 320,
+          "height": 240,
+          "bytes": 33844
+        },
+        "feed": {
+          "sha256": "6805070a91cb85d3a7b24516ec6f58bdb956ec9554dd35f8ffea2b839303849c",
+          "width": 960,
+          "height": 720,
+          "bytes": 165224
+        },
+        "large": {
+          "sha256": "e7147fc2b2417e882d7e2a7f87b5797b53d3aeafbd5ecbef66e0c8d2a6a6d251",
+          "width": 1600,
+          "height": 1200,
+          "bytes": 359604
+        }
+      },
+      "php": "8.4.24",
+      "job_source": "/home/mateusz/kuking-601-probe-agent/app/Jobs/ProcessUploadedImage.php",
+      "scope": "Single smoke, busy host. Timing only handle; peak RSS is process lifetime through end of handle, not isolated handle allocation. Setup and input copy precede timing. Orientation explicitly supplied from exif_read_data, no upload parser."
+    }
+  ],
+  "scratch_before": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323000000000
+  },
+  "scratch_restored": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323000000000
+  },
+  "runtime_before": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323221509900
+  },
+  "runtime_after": {
+    "md5": "0fdb30f638d4e251dda0b288394295ed",
+    "mtime_ns": 1789558323221509900
+  },
+  "all_output_hashes_equal": true
+}

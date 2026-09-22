@@ -1,0 +1,23 @@
+{
+  "data": "2026-09-16",
+  "zakres": "Odtwarzanie danych pomiarowych; bez operacji na produkcji",
+  "baza": "kuking_port591_diagnostic",
+  "port": 55439,
+  "zrodlo": "scripts/fixtures/kompozycje-513.php",
+  "metoda": "Zapis stanu przez tryb stan, odtworzenie przez przywroc, porownanie calego JSON: read i tags",
+  "przed_poprawka": {
+    "zgodny_stan": false,
+    "liczba_powiadomien": 8,
+    "data_przed": "2026-09-16T03:01:06.000000Z",
+    "data_po": "2026-09-16T01:01:06.000000Z"
+  },
+  "kontrola_ujemna": {
+    "mutacja": "Fizyczne zastapienie Query Builder dawnym przypisaniem read_at i save w rzeczywistym pliku PHP runtime",
+    "kopia": "Katalog tymczasowy /tmp/kuking-restore513-* poza repozytorium",
+    "wynik": "FAIL zgodnosci stanu zgodnie z oczekiwaniem",
+    "przywrocenie_md5": "b82bbfffe18cc8f1b84b857c25701ca8",
+    "mtime_ns_przed_i_po": 1789542376436049422,
+    "wynik_po_przywroceniu": "PASS pelnej zgodnosci stanu"
+  },
+  "ograniczenia": "Nie jest to wynik calej grupy port-projektu ani CI. Pelny pomiar trwa osobno."
+}

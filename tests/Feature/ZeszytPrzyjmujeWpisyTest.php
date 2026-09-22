@@ -110,7 +110,7 @@ class ZeszytPrzyjmujeWpisyTest extends TestCase
         // ALE NIE ZNIKA PO CICHU. Ciche zniknięcie wygląda jak utrata danych
         // („miałam to tu wczoraj"), więc mówimy ILE, nie mówiąc CZEGO.
         $odpowiedz->assertSee('nie jest', escape: false);
-        $odpowiedz->assertSee('Nic nie zniknęło z Twojego zeszytu.', escape: false);
+        $odpowiedz->assertSee('Te zapisy nadal są w tym zeszycie.', escape: false);
 
         // Wiersz naprawdę został w bazie — komunikat nie kłamie.
         $this->assertSame(1, $basia->defaultCollection()->posts()->count());

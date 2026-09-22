@@ -13,7 +13,7 @@
 
     <x-error-summary />
 
-    <article class="card">
+    <article class="sekcja-strony">
         <h2 class="mt-0 text-title-sm">Czego dotyczy sprawa</h2>
         <p class="meta">
             {{ $decyzja->label() }} ·
@@ -30,15 +30,16 @@
         {{-- Sprawa już u nas leży albo jest zamknięta. Człowiek ma zobaczyć,
              co napisał i co z tego wyszło — nie pusty formularz, który przy
              wysłaniu powie „już się odwoływałeś". --}}
-        <article class="card mt-5">
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Twoje odwołanie</h2>
             <p class="meta">Złożone {{ \App\Support\Czas::data($odwolanie->created_at, 'j F Y') }} · {{ $odwolanie->statusLabel() }}</p>
             <p class="whitespace-pre-line">{{ $odwolanie->body }}</p>
 
             @if($odwolanie->isOpen())
-                <p><strong>Czekamy na rozpatrzenie.</strong>
-                    Odpowiadamy w ciągu {{ config('kuking.moderation.appeal_response_working_days') }} dni roboczych.
-                    Odpowiedź zobaczysz w powiadomieniach.</p>
+                {{-- Stan oczekiwania rozróżnia dziś sprawę przed terminem
+                     od spóźnionej (issue #799) — wspólnie z drogą
+                     zgłaszającego, w jednym komponencie. --}}
+                <x-odwolanie-czeka :odwolanie="$odwolanie" kanal="Odpowiedź zobaczysz w powiadomieniach." />
             @else
                 <h3 class="text-title-sm">Nasza odpowiedź</h3>
                 <p class="meta">{{ \App\Support\Czas::data($odwolanie->decided_at, 'j F Y') }}</p>
@@ -50,7 +51,14 @@
             @endif
         </article>
     @elseif(! $decyzja->isAppealable())
-        <article class="card mt-5">
+        {{-- SEKCJA, nie ramka pomocnicza: w tej gałęzi to jest CAŁA treść
+             ekranu i jedyna odpowiedź, jaką człowiek tu dostaje. Ramka jest
+             wgłębiona i znaczy „to jest obok głównej rzeczy" — a obok czego
+             miałoby to stać, skoro formularza odwołania tu nie ma. Sąsiednie
+             gałęzie tego samego `@if` mają `sekcja-strony` i
+             `panel-formularza`, więc akurat stan „termin minął" dostawał
+             najsłabszą warstwę ekranu. --}}
+        <article class="sekcja-strony mt-5">
             <h2 class="mt-0 text-title-sm">Tej decyzji nie da się już zakwestionować tutaj</h2>
             <p>
                 Na odwołanie jest sześć miesięcy od decyzji.
@@ -62,7 +70,7 @@
             </p>
         </article>
     @else
-        <form class="card mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}">
+        <form class="panel-formularza mt-5" method="POST" action="{{ route('appeals.store', $decyzja) }}">
             @csrf
 
             <h2 class="mt-0 text-title-sm">Napisz, dlaczego to pomyłka</h2>
