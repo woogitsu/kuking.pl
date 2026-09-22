@@ -51,6 +51,16 @@ final class SondaWdrozeniaTest extends TestCase
             '806 brak dowodu cache' => ['livewire-no-cache-header', 'Nie sprawdzono cache Livewire', false, 1],
             '806 HIT' => ['livewire-HIT', 'Endpoint Livewire jest cache', false, 1],
             '806 MISS duże nagłówki' => ['livewire-MISS', 'Endpoint Livewire jest cache', false, 1],
+            // #809 — kontrola cache CSS/JS. Krok zastąpił pomiar samego
+            // manifestu badaniem zasobów, które wskazuje BIEŻĄCA strona, więc
+            // atrapa musi je serwować. Livewire w tych scenariuszach jest
+            // sprawny, stąd `true` — mierzymy wyłącznie nowy krok.
+            '809 zasoby poprawne' => ['asset-good', 'roczny cache immutable', true, 0],
+            '809 CSS bez immutable' => ['asset-css-cache', 'nie ma rocznego cache immutable', true, 1],
+            '809 CSS niedostępny' => ['asset-css-404', 'Nie udało się pobrać', true, 1],
+            '809 zły Content-Type' => ['asset-css-typ', 'nie zawiera oczekiwanego CSS/JS', true, 1],
+            '809 pusty plik' => ['asset-css-pusty', 'nie zawiera oczekiwanego CSS/JS', true, 1],
+            '809 strona bez assetów' => ['strona-bez-assetow', 'Nie znaleziono własnego hashowanego CSS i JS', true, 1],
             '807 poprawna sesja' => ['cookie-good', 'Ciasteczko sesji ma flagę Secure', true, 0],
             '807 różna wielkość liter' => ['cookie-mixed', 'Ciasteczko sesji ma flagę Secure', true, 0],
             '807 Secure w nazwie' => ['cookie-name', 'Ciasteczko sesji BEZ flagi Secure', false, 1],
