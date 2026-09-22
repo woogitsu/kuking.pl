@@ -1,0 +1,12 @@
+
+   PASS  Tests\Feature\PortMarkiMaWlasnaBramkeCiTest
+  ✓ pomiary nie pobieraja historii ktora czyta tylko zakres              0.10s
+  ✓ zakres zachowuje historie do porownania z baza                       0.01s
+  ✓ obie grupy sa obowiazkowe a kreator ma przygotowana baze             0.01s
+  ✓ zmiana samego przyrzadu nie pomija pomiarow                          0.01s
+  ✓ job przegladarkowy nie moze byc zielony bez pomiaru                  0.01s
+  ✓ zakres wystawia oba wyjscia na kazdej sciezce                        0.01s
+  ✓ joby przegladarkowe nadal uruchamiaja pomiar                         0.01s
+
+  Tests:    7 passed (105 assertions)
+  Duration: 0.91s

@@ -38,7 +38,7 @@ class WiadomosciDoOperatoraSaOddzielneOdZgloszenTest extends TestCase
         $this->post(route('kontakt.store'), [
             'kind' => ContactMessage::KIND_BLAD,
             'message' => 'Nie mogę wgrać zdjęcia z telefonu, nic się nie dzieje po kliknięciu.',
-        ])->assertRedirect(route('kontakt.potwierdzenie'));
+        ])->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
 
         $this->assertSame(1, ContactMessage::count());
         $this->assertSame(
@@ -56,7 +56,7 @@ class WiadomosciDoOperatoraSaOddzielneOdZgloszenTest extends TestCase
             'reason' => 'copyright',
             'illegality_explanation' => 'To jest mój tekst, przepisany bez zgody z mojej książki.',
             'good_faith' => '1',
-        ])->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+        ])->assertRedirectContains(route('zglos.nielegalna.potwierdzenie').'?potwierdzenie=');
 
         $this->assertSame(1, Report::count());
         $this->assertSame(

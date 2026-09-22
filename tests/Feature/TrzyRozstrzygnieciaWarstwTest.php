@@ -191,7 +191,7 @@ class TrzyRozstrzygnieciaWarstwTest extends TestCase
         $this->ekranWyzwania2fa();
 
         $this->post(route('login.two_factor.store'), ['backup_code' => 'ZZZZ-9999'])
-            ->assertSessionHasErrors('code');
+            ->assertSessionHasErrors('backup_code');
 
         $this->assertGuest();
     }

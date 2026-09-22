@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Collection;
 use App\Models\Post;
@@ -40,6 +41,8 @@ class CollectionController extends Controller
         // Domyślny zeszyt tworzymy dopiero przy pierwszym zapisie — nie
         // pokazujemy pustego folderu osobie, która nic jeszcze nie zapisała.
         return view('pages.collections.index', [
+            'saveContext' => app(CollectionSaveContext::class)->parameters($request),
+            'saveContent' => app(CollectionSaveContext::class)->content($request),
             'collections' => $user->collections()
                 ->withCount([
                     // LICZBA WIDOCZNA — DOKŁADNIE TA SAMA, KTÓRĄ CZŁOWIEK
@@ -169,7 +172,7 @@ class CollectionController extends Controller
             ->values();
     }
 
-    public function show(Request $request, Collection $collection): View
+    public function show(Request $request, Collection $collection): View|RedirectResponse
     {
         $this->authorize('view', $collection);
 
@@ -181,8 +184,50 @@ class CollectionController extends Controller
 
         $posts = $collection->posts()
             ->widoczneDla($request->user())
+            // BRAMKA PRZEPISU, OSOBNA OD `widoczneDla()` (#368). Tamten
+            // zakres pyta o WPIS, a wpis zapowiadający przepis ma
+            // `visibility = 'public'` na stałe (`WpisWskazujacyPrzepis::dopisz()`)
+            // — to nie jest jego widoczność, tylko brak własnego zawężenia,
+            // bo bramką ma być PRZEPIS. Bez tego warunku zeszyt rysował
+            // `x-post-card` z tytułem, zdjęciem głównym i odnośnikiem, w
+            // którym slug niesie ten sam tytuł.
+            //
+            // W ZESZYCIE TEN WYCIEK DOJRZEWA W CZASIE i to jest jego różnica
+            // wobec reszty rodziny. Zapowiedź zostaje tu wskazana na stałe,
+            // więc gdy autor zawęzi przepis albo zdejmie go moderacja,
+            // treść nie znika sama — a osoba, która ją zapisała, nie ma
+            // powodu jej wyjmować, bo w chwili zapisu widziała przepis
+            // całkowicie legalnie.
+            ->zWidocznymPrzepisem($request->user())
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-            ->with(['author.profile.avatar', 'media'])
+            // TRZECIA GRANICA: AUTOR PRZEPISU, A NIE AUTOR WPISU (W5-08).
+            //
+            // Warunek linijkę wyżej pyta o autora WPISU. Wpis zapowiadający
+            // przepis może jednak należeć do kogo innego niż przepis: A odkłada
+            // sobie do zeszytu zapowiedź przepisu B. Gdy B zostanie zbanowany
+            // albo oznaczony do usunięcia, jego przepis daje 403 pod własnym
+            // adresem i znika z listy przepisów tego zeszytu (warunek wyżej przy
+            // `$recipes`) — ale wpis A dalej stał tu z tytułem, zdjęciem głównym
+            // i odnośnikiem, bo `zWidocznymPrzepisem()` liczy widoczność
+            // i publikację przepisu, a statusu konta jego autora celowo nie zna
+            // (patrz `User::scopeDostepnyJakoAutor()`).
+            //
+            // Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu —
+            // bez niej zeszyt straciłby całą zawartość. Ten sam idiom liczy
+            // `App\Domain\Tags\PodpowiedziTagow`.
+            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            // `recipe:…` + `recipe.heroMedia` — jak w czterech strumieniach
+            // (issue #368). Zeszyt rysuje tę samą kartę `x-post-card`, która
+            // czyta z przepisu tytuł, odnośnik, `visibility` na plakietkę
+            // i zdjęcie główne; bez doładowania każdy taki wpis to dwa osobne
+            // zapytania na stronę.
+            ->with([
+                'author.profile.avatar',
+                'media',
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+            ])
             ->withVisibleCommentCount($request->user())
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą
@@ -194,41 +239,28 @@ class CollectionController extends Controller
                 'wpisy',
             );
 
-        // KAŻDY PRZYCISK „POKAŻ WIĘCEJ" PRZESUWA SWOJĄ LISTĘ, A DRUGĄ ZOSTAWIA
-        // TAM, GDZIE BYŁA (issue #646).
-        //
-        // Paginator buduje adres wyłącznie ze swojego numeru strony, więc
-        // przejście na drugą stronę wpisów cofało przepisy obok na pierwszą —
-        // i odwrotnie. Człowiek, który przewinął obie listy, tracił jedną przy
-        // każdym kliknięciu.
-        //
-        // Doklejamy SAM numer drugiej listy, nie całe query string
-        // (`withQueryString()`): obce parametry adresu nie mają czego szukać
-        // w naszych odnośnikach. `currentPage()` przechodzi przez walidację
-        // Laravela (liczba całkowita >= 1, inaczej 1), a strony pierwszej nie
-        // doklejamy, bo jest domyślna i tylko zaśmiecałaby adres.
-        //
-        // `min(..., lastPage())` NIE JEST OZDOBĄ — bez niego ta poprawka
-        // psułaby coś, co dotąd działało. Laravel uznaje `?page=999` za
-        // poprawne i oddaje pustą stronę, bez cofania na ostatnią. Zanim
-        // powstał ten kod, taki numer znikał sam przy pierwszym kliknięciu
-        // w drugą listę, bo adres budował się od zera; przenoszony dalej BEZ
-        // DOCIĘCIA zostawałby w adresie na zawsze. Docięcie daje dokładnie
-        // tyle: w pustą listę NIE DA SIĘ WEJŚĆ KLIKANIEM — każdy przycisk
-        // prowadzi na ostatnią stronę, na której druga lista ma treść. Ręcznie
-        // wpisany adres z dwoma numerami poza zakresem dalej pokaże pusty
-        // ekran; to stan sprzed tej poprawki i bierze się stąd, że paginator
-        // nie rysuje własnego przycisku dla pustej strony, a nie z przenoszenia
-        // numeru. Tego docięcie nie leczy i nie udaje, że leczy.
-        //
-        // Wspólny helper docina numer do ostatniej strony tego samego
-        // paginatora. Pomylenie paginatorów jest niewidoczne w zeszycie, w którym obie listy mają
-        // tyle samo stron — a w zeszycie o nierównych listach cofałoby człowieka
-        // o stronę. Pilnuje tego osobna scena w `ZeszytPaginacjaObuListTest`.
+        // Jak przy relacjach (#748): pusta dalsza strona nie jest pustą listą.
+        // Każdą listę docinamy do jej własnego zakresu po filtrach widoczności.
+        if ($recipes->currentPage() > $recipes->lastPage() || $posts->currentPage() > $posts->lastPage()) {
+            $pages = [];
+            foreach ([$recipes, $posts] as $paginator) {
+                $page = min($paginator->currentPage(), $paginator->lastPage());
+                if ($page > 1) {
+                    $pages[$paginator->getPageName()] = $page;
+                }
+            }
+            $request->session()->reflash();
+
+            return redirect()->route('collections.show', ['collection' => $collection, ...$pages]);
+        }
+
+        // Każdy przycisk przesuwa swoją listę i zachowuje pozycję drugiej.
         PaginationLinks::preserveOtherPage($recipes, $posts);
         PaginationLinks::preserveOtherPage($posts, $recipes);
 
         return view('pages.collections.show', [
+            'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request) : [],
+            'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request) : null,
             'collection' => $collection,
             // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
             // o tym, co jest w środku. W środku są przepisy wielu różnych
@@ -318,7 +350,7 @@ class CollectionController extends Controller
                 ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
         }
 
-        return redirect()->route('collections.show', $collection)->with('status', 'Zeszyt utworzony.');
+        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with('status', 'Zeszyt utworzony.');
     }
 
     /**
@@ -429,6 +461,10 @@ class CollectionController extends Controller
 
         $target = $this->save->handle($request->user(), $model, $collection);
 
+        if ($request->boolean('open_collection')) {
+            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        }
+
         return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
     }
 
@@ -499,6 +535,10 @@ class CollectionController extends Controller
         }
 
         $target = $this->savePost->handle($request->user(), $post, $collection);
+
+        if ($request->boolean('open_collection')) {
+            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        }
 
         return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
     }

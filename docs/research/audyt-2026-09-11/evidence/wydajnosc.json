@@ -1,0 +1,132 @@
+{
+  "data": "2026-09-11T06:29:41.536Z",
+  "progi": {
+    "wydajnosc": 70,
+    "seo": 98
+  },
+  "konfiguracja": {
+    "onlyCategories": [
+      "performance",
+      "seo"
+    ],
+    "formFactor": "mobile",
+    "screenEmulation": {
+      "mobile": true,
+      "width": 360,
+      "height": 640,
+      "deviceScaleFactor": 2,
+      "disabled": false
+    },
+    "throttlingMethod": "simulate"
+  },
+  "niezaliczonych": 0,
+  "wyniki": [
+    {
+      "ekran": "strona powitalna",
+      "sciezka": "/",
+      "wydajnosc": 94,
+      "seo": 100,
+      "seoPominieteWBramce": false,
+      "seoUsterki": [],
+      "lcp": "2.5 s",
+      "tbt": "0 ms",
+      "cls": "0",
+      "fcp": "2.4 s",
+      "si": "2.4 s"
+    },
+    {
+      "ekran": "Świeżo z Kuking",
+      "sciezka": "/odkryj",
+      "wydajnosc": 94,
+      "seo": 100,
+      "seoPominieteWBramce": false,
+      "seoUsterki": [],
+      "lcp": "2.6 s",
+      "tbt": "0 ms",
+      "cls": "0",
+      "fcp": "2.4 s",
+      "si": "2.4 s"
+    },
+    {
+      "ekran": "logowanie",
+      "sciezka": "/login",
+      "wydajnosc": 96,
+      "seo": 58,
+      "seoPominieteWBramce": true,
+      "seoUsterki": [
+        "is-crawlable",
+        "meta-description"
+      ],
+      "lcp": "2.3 s",
+      "tbt": "0 ms",
+      "cls": "0",
+      "fcp": "2.3 s",
+      "si": "2.3 s"
+    },
+    {
+      "ekran": "rejestracja",
+      "sciezka": "/register",
+      "wydajnosc": 95,
+      "seo": 100,
+      "seoPominieteWBramce": false,
+      "seoUsterki": [],
+      "lcp": "2.4 s",
+      "tbt": "0 ms",
+      "cls": "0.006",
+      "fcp": "2.3 s",
+      "si": "2.3 s"
+    },
+    {
+      "ekran": "przepis",
+      "sciezka": "/przepisy/rosol-babci-zofii",
+      "wydajnosc": 96,
+      "seo": 100,
+      "seoPominieteWBramce": false,
+      "seoUsterki": [],
+      "lcp": "2.4 s",
+      "tbt": "0 ms",
+      "cls": "0",
+      "fcp": "2.1 s",
+      "si": "2.1 s"
+    },
+    {
+      "ekran": "profil",
+      "sciezka": "/@basia",
+      "wydajnosc": 94,
+      "seo": 100,
+      "seoPominieteWBramce": false,
+      "seoUsterki": [],
+      "lcp": "2.5 s",
+      "tbt": "0 ms",
+      "cls": "0.007",
+      "fcp": "2.4 s",
+      "si": "2.4 s"
+    },
+    {
+      "ekran": "strona tagu (gość)",
+      "sciezka": "/tag/zupy",
+      "wydajnosc": 96,
+      "seo": 100,
+      "seoPominieteWBramce": false,
+      "seoUsterki": [],
+      "lcp": "2.3 s",
+      "tbt": "0 ms",
+      "cls": "0.001",
+      "fcp": "2.3 s",
+      "si": "2.3 s"
+    },
+    {
+      "ekran": "regulamin",
+      "sciezka": "/regulamin",
+      "wydajnosc": 95,
+      "seo": 100,
+      "seoPominieteWBramce": false,
+      "seoUsterki": [],
+      "lcp": "2.4 s",
+      "tbt": "0 ms",
+      "cls": "0.003",
+      "fcp": "2.4 s",
+      "si": "2.4 s"
+    }
+  ]
+}

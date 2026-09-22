@@ -1,0 +1,39 @@
+# Otoczenie serii r005-p2 — 2026-09-20T17:57:17Z
+# progi bramki: obce <= 18 rdzeni, PSI cpu some avg10 <= 25, spokój 60s
+
+## uptime przed bramką
+ 19:57:17 up 1 day, 23:23,  1 user,  load average: 16.20, 21.68, 23.16
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+1740927  437  1.4       00:02 chrome-headless
+1740916 87.6  1.5       00:02 chrome-headless
+1656775 55.3  1.1       05:33 php
+1640725 52.1  1.1       06:40 php
+1692720 52.0  0.9       02:58 php
+1741058 28.5  0.1       00:00 postgres
+1741035 26.8  0.1       00:00 postgres
+1740859 13.3  0.4       00:03 node
+1740875  6.7  0.3       00:02 chrome-headless
+1739540  6.3  0.3       00:11 node
+1740504  5.1  0.6       00:09 chrome
+1740896  4.4  0.2       00:02 chrome-headless
+1740491  3.7  0.4       00:09 MainThread
+1511235  3.0  0.4       16:46 frankenphp
+1740595  2.5  0.4       00:08 chrome
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 10
+Runner.Worker (aktywne joby): 3
+
+## kontenery
+kuking-gpt-obciazenie-app kuking:ci-4c811cc7bff365fb8f86d87eabac93b7738a45cd Up 16 minutes (healthy)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 47 hours
+bramka: 30s/300s, obce 11.53 rdzeni z 24, PSI 0.12, runnery kuking: brak, cisza 30s/60s
+bramka OTWARTA po 59s: obce <= 18 rdzeni, PSI <= 25 i ZERO pracujących runnerów kuking przez 60s
+
+## uptime po otwarciu bramki, tuż przed serią
+ 19:58:18 up 1 day, 23:24,  1 user,  load average: 12.88, 19.74, 22.39
+
+## uptime po serii i po 60 s wybiegu
+ 20:01:21 up 1 day, 23:27,  1 user,  load average: 13.91, 16.96, 20.83
