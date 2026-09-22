@@ -35,7 +35,9 @@ Commity aplikacji, w kolejności do kolejki:
   pierwszej, a następnie drugiej bariery dało 302 i 500. Istniały oba
   indeksy UNIQUE, duplikat nie powstał, przegrywający profil pozostał
   niezmieniony, lecz odpowiedź nie miała błędu `username` ani starych pól.
-  Wynik: `output/konto-poczta/pomiar-887.json`. To pomiar prawdziwych
+  Wynik zapisano lokalnie (`output/konto-poczta/pomiar-887.json`); tego
+  katalogu NIE MA w repozytorium, więc odsyłacz jest tylko opisem pomiaru,
+  nie dowodem do odczytania. To pomiar prawdziwych
   żądań przez kernel HTTP, nie tylko próba bezpośredniego UPDATE.
 
 ## Zachowanie po zmianie
@@ -61,7 +63,9 @@ Commity aplikacji, w kolejności do kolejki:
   Inne ograniczenia nadal zgłaszają wyjątek, także gdy treść DETAIL zawiera
   mylącą nazwę indeksu. Ponowny pomiar dwóch procesów: 302/302, jeden zapis,
   bez duplikatu; pięć pól zachowane w sesji i w HTML po GET, przegrany profil
-  niezmieniony. Dowód: `output/konto-poczta/odbior-887.json` (16 asercji).
+  niezmieniony. Odbiór zapisano lokalnie (`output/konto-poczta/odbior-887.json`,
+  16 asercji) — również poza repozytorium. Dowodem, który da się tu
+  uruchomić, jest `tests/Feature/KonfliktNazwyProfiluTest.php`.
   Test regresyjny sprawdza też oba indeksy, błąd przy polu i w podsumowaniu
   oraz zwykłą udaną zmianę.
 
@@ -73,7 +77,8 @@ Każda: PASS → rzeczywista zmiana MD5 → FAIL z właściwej przyczyny → PAS
 Skrypt potwierdził odtworzenie MD5 i mtime. Pole `przywrocenie` w zapisanych
 JSON-ach ma wartość sprzed wykonania końcowego trap; końcowe komunikaty
 procesów potwierdziły przywrócenie. JSON-y i powtarzalny `kontrole.sh`
-są w `output/konto-poczta/`.
+zostały w lokalnym `output/konto-poczta/` i NIE weszły do repozytorium —
+nie da się ich tu odczytać ani powtórzyć.
 
 Pierwsze oczekiwanie tekstu w kontroli #887 nie pasowało do wyjścia PHPUnit;
 przyrząd prawidłowo odmówił uznania dowodu. Po użyciu rzeczywistej diagnostyki
@@ -90,8 +95,9 @@ Formatowanie: `vendor/bin/pint`, PASS (1161 plików, w tym lokalne sondy).
 Końcowy szeroki przebieg po wszystkich poprawkach: **4410 PASS,
 83 819 asercji, 525,15 s**, kod wyjścia 0. Pliki aplikacji i testów w runtime
 porównano bajtowo z worktree (SHA-256, 12 zgodnych plików).
-Zwięzły wynik: `output/konto-poczta/wynik-testow.txt`; pełne lokalne wyjście
-pozostawiono w ignorowanym `output/konto-poczta/pelne-testy.txt`.
+Wyniki tamtego przebiegu zostały wyłącznie lokalnie
+(`output/konto-poczta/wynik-testow.txt`, `pelne-testy.txt`); w repozytorium
+ich nie ma. Przebieg powtarzalny tutaj to `php artisan test`.
 Jedynym świadomie wyłączonym testem szerokiego przebiegu jest
 `ProbaOdtworzeniaTest`: zgodnie ze wskazanym przez właściciela wyjątkiem
 korzysta ze wspólnej bazy `kuking_zrodlo_proby_glowny`
