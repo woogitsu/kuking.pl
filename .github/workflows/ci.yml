@@ -319,7 +319,7 @@ jobs:
           # przyrządu musi uruchomić pomiar, inaczej dałoby się zepsuć
           # miernik bez jednego czerwonego przebiegu. Pilnuje tego
           # `PortMarkiMaWlasnaBramkeCiTest`.
-          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|app/Http/Middleware/ApplySecurityHeaders\.php|app/Support/AnalitykaCloudflare\.php|scripts/(referrer-sekret-browser|dostepnosc|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
+          if echo "${ZMIENIONE}" | grep -qE '^(resources/|public/|app/Http/Middleware/ApplySecurityHeaders\.php|app/Support/AnalitykaCloudflare\.php|scripts/(referrer-sekret-browser|dostepnosc|hero-nad-zgieciem|kafel-dodawania|kafel-dodawania-bramka\.test|port-projektu|pwa-install-browser|port-grupy|port-grupy\.test|szybki-wyglad|pasek-przewijany|zwarte-kolumny|kompozycje-marki|zeszyty-marki|zainteresowania-powiadomienia-marki|tagi-marki|katalog-tagow|kontrast-notice|nawigacja-niski-widok|nawigacja-(etykiety|zoom|negatywy)|zoom-marki|regresja-liczb-profilu|fokus-karty-dania|fokus-zdjec|kroki-kreatora|service-worker-aktualizacja|minutnik-regresja|minutnik-fokus)\.mjs|scripts/fixtures/|docker/Caddyfile|package(-lock)?\.json|\.github/workflows/ci\.yml)'; then
             echo "widok=true" >> "$GITHUB_OUTPUT"
           else
             echo "Warstwa widoku nietknięta — joby przeglądarkowe pominięte."
@@ -1139,10 +1139,29 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
+        with:
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1239,10 +1258,29 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
+        with:
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       - name: Konfiguracja dynamicznego połączenia z PostgreSQL
         run: |
@@ -1372,12 +1410,31 @@ jobs:
       FILESYSTEM_DISK: public
       SENTRY_LARAVEL_DSN: ""
 
+      # HASŁO KONT DEMONSTRACYJNYCH — Z SEKRETU REPOZYTORIUM, NIE Z REPOZYTORIUM.
+      # Ten job robi `migrate:fresh --seed` i loguje się w przeglądarce. Bez tej
+      # zmiennej `DemoSeeder` losuje hasło na każdy zasiew (celowo — hasła nie ma
+      # w repozytorium, patrz `PoswiadczeniaPozaRepozytoriumTest` / R47),
+      # a skrypty logują się swoim stałym. Skutkiem jest `waitForURL: Timeout`
+      # na kroku logowania kilkanaście minut później. Pilnuje tego krok
+      # „Sekret hasła kont demonstracyjnych" zaraz po `checkout`.
+      KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
+
     steps:
       # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą
       # i sprawdzić, CZY ten PR w ogóle rusza warstwę widoku.
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+
+      # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
+      # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
+      # kilkanaście minut później jako timeout logowania w przeglądarce.
+      # Uzasadnienie i treść komunikatów: `.github/actions/haslo-demo/action.yml`.
+      - name: Hasło kont demonstracyjnych jest dostępne
+        uses: ./.github/actions/haslo-demo
+        with:
+          haslo: ${{ secrets.KUKING_DEMO_HASLO }}
+          fork: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork || false }}
 
       # Dynamiczny port Postgresa — pełne uzasadnienie i pomiary przy tym
       # samym kroku w jobie `test` wyżej.
