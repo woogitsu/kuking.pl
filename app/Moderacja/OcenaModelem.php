@@ -34,7 +34,7 @@ use Throwable;
  * przeczyta, dopóki ktoś jej nie zgłosi. Tekst przynajmniej mija się
  * z ludzkim okiem w feedzie.
  *
- * CO WYCHODZI (D-239): wyłącznie treść publiczna (`GranicaWysylki`) i zdjęcie
+ * CO WYCHODZI (D-240): wyłącznie treść publiczna (`GranicaWysylki`) i zdjęcie
  * wpisu pomniejszone do `MAX_BOK`. Zdjęcia profilowego ta klasa nie wysyła
  * wcale — nie ma potwierdzonej zgody na jego ocenę.
  *
@@ -48,7 +48,7 @@ final class OcenaModelem
     public const KOD = 'automat_model';
 
     /**
-     * Najdłuższy bok obrazu, który wolno wysłać (D-239).
+     * Najdłuższy bok obrazu, który wolno wysłać (D-240).
      *
      * Równy dzisiejszemu `thumb` z `config/kuking.php`, ale celowo NIE
      * czytany z konfiguracji: to jest granica prywatności, a nie ustawienie
@@ -65,7 +65,7 @@ final class OcenaModelem
     /**
      * Ocena tekstu i zdjęć wpisu albo tekstu komentarza.
      *
-     * GRANICA (`GranicaWysylki`, D-239) jest pytana PRZED KAŻDYM żądaniem,
+     * GRANICA (`GranicaWysylki`, D-240) jest pytana PRZED KAŻDYM żądaniem,
      * nie raz na wejściu: ocena jednego zdjęcia trwa sekundy, a w tym czasie
      * autor może przełączyć wpis na prywatny.
      *
@@ -186,7 +186,7 @@ final class OcenaModelem
      * TYLKO WARIANT `thumb`, BEZ ZASTĘPSTWA. `wariantDoSerwowania()` przy
      * braku miniatury podstawia pierwszy lepszy wariant — dla strony to
      * rozsądne, dla wysyłki poza serwer nie: zdjęcie z samym `large`
-     * wychodziło do OpenAI w 1600 px (D-239). Brak miniatury = zdjęcie
+     * wychodziło do OpenAI w 1600 px (D-240). Brak miniatury = zdjęcie
      * nie wychodzi, z wpisem w dzienniku.
      *
      * WYMIARY Z BAJTÓW, NIE Z METADANYCH. Nazwa wariantu i liczby

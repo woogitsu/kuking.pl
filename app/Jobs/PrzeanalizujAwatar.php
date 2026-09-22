@@ -8,7 +8,7 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 
 /**
- * ZDJĘCIE PROFILOWE NIE WYCHODZI DO OPENAI — ZADANIE ZOSTAJE PUSTE (D-239).
+ * ZDJĘCIE PROFILOWE NIE WYCHODZI DO OPENAI — ZADANIE ZOSTAJE PUSTE (D-240).
  *
  * Do tej zmiany to zadanie (issue #237, D-061) wysyłało miniaturę awatara do
  * oceny modelem. Decyzja właściciela z 22.09.2026: awatar bez potwierdzonej

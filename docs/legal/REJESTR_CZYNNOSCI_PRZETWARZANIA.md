@@ -104,7 +104,7 @@ egzekwuje.
 - **Cel:** pokazanie użytkownika innym ludziom w serwisie.
 - **Dane:** nazwa użytkownika, nazwa wyświetlana, opis, zdjęcie profilowe.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
-- **Odbiorcy:** Railway, Cloudflare R2 (zdjęcie profilowe). Od D-239
+- **Odbiorcy:** Railway, Cloudflare R2 (zdjęcie profilowe). Od D-240
   zdjęcie profilowe **nie** idzie do OpenAI — brak potwierdzonej zgody.
 - **Termin usunięcia:** do zmiany przez użytkownika albo do usunięcia konta.
 
@@ -132,7 +132,7 @@ egzekwuje.
 - **Podstawa:** art. 6 ust. 1 lit. b RODO.
 - **Odbiorcy:** Cloudflare R2 (`config/filesystems.php`), OpenAI — ale
   **wyłącznie miniatura zdjęcia publicznego wpisu**, przekodowana, bez
-  EXIF-u, najwyżej 320 px; zdjęcie profilowe nie (§3.7, D-239).
+  EXIF-u, najwyżej 320 px; zdjęcie profilowe nie (§3.7, D-240).
 - **Termin usunięcia:** do usunięcia zdjęcia przez użytkownika; **przy
   usunięciu konta kasowane są WSZYSTKIE**, razem z cache CDN-u (D-018) —
   bo anonimizacja podpisu nie zmienia niczego w pikselach. Zdjęcia
@@ -177,7 +177,7 @@ egzekwuje.
   EXIF-u i bez GPS-u (`ocenObraz()`), o dłuższym boku najwyżej 320 px
   zmierzonym z bajtów. Wychodzi **wyłącznie treść publiczna** — widoczna
   dla gościa bez konta w chwili wysyłki (`app/Moderacja/GranicaWysylki.php`).
-  **Zdjęcie profilowe nie wychodzi** (D-239). Żądanie niesie dwa pola: `model`
+  **Zdjęcie profilowe nie wychodzi** (D-240). Żądanie niesie dwa pola: `model`
   i `input`. **Nie wychodzi** adres e-mail, nazwa konta, identyfikator
   wpisu ani adres IP — kod nie ma gdzie ich wpisać, bo `zapytaj()` buduje
   ciało żądania wyłącznie z przekazanej treści.

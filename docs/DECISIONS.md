@@ -15312,7 +15312,7 @@ Kontrola ujemna: na kodzie sprzed tej naprawy **oblewają dwa przypadki z
 pięciu** — odmowa i kolejność. Pozostałe trzy przechodzą w obie strony i to
 jest zamierzone: pilnują, żeby strażnik nie blokował za dużo.
 
-## D-239 — Do OpenAI wychodzi wyłącznie pomniejszona, publiczna treść; awatar nie wychodzi wcale (22 września 2026)
+## D-240 — Do OpenAI wychodzi wyłącznie pomniejszona, publiczna treść; awatar nie wychodzi wcale (22 września 2026)
 
 **Data:** 22 września 2026 · **Decyzja właściciela** (pozycja nr 1 listy,
 „incydent trwający": `OPENAI_MODERATION_KEY` jest ustawiony na produkcji) ·
@@ -15403,7 +15403,7 @@ Logowanie klasy wyjątku zamiast treści jest już na `main` (#1072,
 ### Czego ta decyzja NIE zmienia
 
 Schematu (brak migracji), progów, alarmu pocztowego, wyglądu kolejki
-moderatora. Oznaczenia awatarów sprzed D-239 zostają w kolejce i dają się
+moderatora. Oznaczenia awatarów sprzed D-240 zostają w kolejce i dają się
 rozpatrzyć.
 
 ### Dowód

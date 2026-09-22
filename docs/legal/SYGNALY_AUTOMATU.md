@@ -253,7 +253,7 @@ której nikt nie przeczyta, dopóki ktoś jej nie zgłosi**. Zdjęcia mają
 pierwszeństwo przed tekstem przy wdrożeniu.
 
 Od issue #237 dotyczyło to także **zdjęcia profilowego**, które jest oglądane
-częściej niż jakikolwiek wpis — patrz §9. **Od D-239 już nie:** awatar bez
+częściej niż jakikolwiek wpis — patrz §9. **Od D-240 już nie:** awatar bez
 potwierdzonej zgody nie wychodzi do OpenAI, a mechanizmu takiej zgody nie ma
 (§10).
 
@@ -450,7 +450,7 @@ filtering z poz. 3.16, odrzucony jako sprzeczny z art. 17 DSA.
   ale pozycji w kolejce moderatora — tak. Progu nie ruszamy z góry: mierzymy
   na pierwszej setce kont (§6).
 
-## 10. Co wolno wysłać do OpenAI (D-239)
+## 10. Co wolno wysłać do OpenAI (D-240)
 
 Do dostawcy wychodzi **wyłącznie treść publiczna**: taka, którą gość bez konta
 zobaczyłby w serwisie w chwili wysyłki. Rozstrzyga `app/Moderacja/GranicaWysylki.php`,

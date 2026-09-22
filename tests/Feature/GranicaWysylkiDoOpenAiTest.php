@@ -30,7 +30,7 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
- * CO WOLNO WYSŁAĆ DO OPENAI — D-239.
+ * CO WOLNO WYSŁAĆ DO OPENAI — D-240.
  *
  * Cztery wymagania właściciela, każde z testem, który pada bez poprawki:
  *
@@ -84,7 +84,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
      * Trzecia kolumna: czy wolno wysłać do OpenAI. Czwarta: czy lokalny
      * sygnał spamu (D-052, nie wychodzi z serwera) może postawić oznaczenie.
      * „Dla obserwujących" rozdziela te dwie granice: do dostawcy nie, przed
-     * moderatora tak — jak przed D-239.
+     * moderatora tak — jak przed D-240.
      *
      * @return iterable<string, array{string, string, bool, bool}>
      */

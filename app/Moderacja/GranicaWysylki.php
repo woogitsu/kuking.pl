@@ -15,7 +15,7 @@ use App\Policies\RecipePolicy;
 use Illuminate\Support\Facades\Gate;
 
 /**
- * CO WOLNO WYSŁAĆ DO OPENAI I CO WOLNO POŁOŻYĆ PRZED MODERATOREM (D-239).
+ * CO WOLNO WYSŁAĆ DO OPENAI I CO WOLNO POŁOŻYĆ PRZED MODERATOREM (D-240).
  *
  * DWIE GRANICE, BO SĄ DWA RÓŻNE PYTANIA
  *

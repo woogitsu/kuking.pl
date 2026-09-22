@@ -117,7 +117,7 @@ class PrzeanalizujTresc implements ShouldQueue
 
             // #827: komentarz pod rodzicem, który przestał być widoczny, nie
             // stawia oznaczenia. Do OpenAI wychodzi jeszcze mniej — tylko
-            // treść publiczna; tego pilnuje `OcenaModelem` (D-239).
+            // treść publiczna; tego pilnuje `OcenaModelem` (D-240).
             if ($tresc === null || ! $granica->pozaAutorem($tresc)) {
                 return;
             }
@@ -125,7 +125,7 @@ class PrzeanalizujTresc implements ShouldQueue
             $sygnaly = array_merge($wykrywacz->dla($tresc), $model->dla($tresc));
 
             // Ocena modelem trwa sekundy. Treść, która w tym czasie stała się
-            // prywatna, nie trafia też przed moderatora (D-239).
+            // prywatna, nie trafia też przed moderatora (D-240).
             if (! $granica->pozaAutorem($tresc)) {
                 return;
             }
@@ -164,7 +164,7 @@ class PrzeanalizujTresc implements ShouldQueue
      *
      * To zapytanie jest tylko wstępnym sitem. Resztę rozstrzyga
      * `GranicaWysylki` — także dla komentarza, którego rodzic mógł
-     * w międzyczasie przestać być widoczny (#827, D-239).
+     * w międzyczasie przestać być widoczny (#827, D-240).
      */
     private function tresc(): Post|Comment|null
     {

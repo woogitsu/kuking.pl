@@ -100,7 +100,7 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
     }
 
     /**
-     * Zadanie awatara nie ma już czego logować: od D-239 nic nie wysyła.
+     * Zadanie awatara nie ma już czego logować: od D-240 nic nie wysyła.
      * Zostaje sprawdzenie, że zadanie z kolejki sprzed wdrożenia kończy się
      * bez żądania, bez wpisu w dzienniku i bez skutku dla zdjęcia.
      */

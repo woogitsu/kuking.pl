@@ -116,7 +116,7 @@ class AvatarSettingsController extends Controller
             return back()->withErrors(['avatar' => $e->getMessage()]);
         }
 
-        // ZDJĘCIE PROFILOWE NIE IDZIE DO OCENY MODELEM (D-239). Do #237
+        // ZDJĘCIE PROFILOWE NIE IDZIE DO OCENY MODELEM (D-240). Do #237
         // w tym miejscu zlecaliśmy `PrzeanalizujAwatar`, które wysyłało
         // miniaturę do OpenAI. Decyzja właściciela: awatar bez potwierdzonej
         // zgody nie wychodzi, a mechanizmu takiej zgody w serwisie nie ma.

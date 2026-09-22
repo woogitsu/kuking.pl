@@ -27,10 +27,10 @@ use PHPUnit\Framework\Attributes\Test;
 use Tests\TestCase;
 
 /**
- * ZDJĘCIE PROFILOWE NIE WYCHODZI DO MODELU (D-239; wcześniej issue #237).
+ * ZDJĘCIE PROFILOWE NIE WYCHODZI DO MODELU (D-240; wcześniej issue #237).
  *
  * CO SIĘ ZMIENIŁO
- * Od #237 do D-239 miniatura awatara szła do OpenAI. Decyzja właściciela
+ * Od #237 do D-240 miniatura awatara szła do OpenAI. Decyzja właściciela
  * z 22.09.2026: awatar bez potwierdzonej zgody nie wychodzi, a serwis nie ma
  * mechanizmu takiej zgody. Te testy pilnują więc dwóch rzeczy: że żadna droga
  * (formularz, zadanie zostawione w kolejce) nie wysyła zdjęcia profilowego,
@@ -75,7 +75,7 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
     }
 
     // ---------------------------------------------------------------
-    // NIE WYCHODZI (D-239)
+    // NIE WYCHODZI (D-240)
     // ---------------------------------------------------------------
 
     /** @return array<string, array{string}> */
@@ -102,7 +102,7 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
             $zdjecie->forceFill(['status' => Media::STATUS_PROCESSING])->save();
         }
 
-        // Zadanie mogło zostać w kolejce sprzed wdrożenia D-239.
+        // Zadanie mogło zostać w kolejce sprzed wdrożenia D-240.
         $this->analizuj($zdjecie);
 
         Http::assertNothingSent();
@@ -233,7 +233,7 @@ class ModeracjaZdjeciaProfilowegoTest extends TestCase
     }
 
     /**
-     * Oznaczenie awatara, jakie postawiał automat przed D-239. Takie wiersze
+     * Oznaczenie awatara, jakie postawiał automat przed D-240. Takie wiersze
      * dalej leżą w kolejce i moderator musi móc je rozpatrzyć.
      */
     private function oznaczenieSprzedD239(Media $zdjecie): void

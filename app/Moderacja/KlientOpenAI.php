@@ -153,7 +153,7 @@ final class KlientOpenAI
 
         // Pusta albo uszkodzona lista wyników NIE jest oceną „nic nie ma".
         // Przedtem `[]` i wyniki-napisy przechodziły tędy jako czysta treść,
-        // bez śladu w dzienniku (D-239).
+        // bez śladu w dzienniku (D-240).
         if (! $this->poprawneWyniki($wyniki)) {
             Log::warning('Model moderacji oddał odpowiedź w nieznanym kształcie.', ['czego' => $czego]);
 
