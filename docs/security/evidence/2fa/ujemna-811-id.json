@@ -1,0 +1,16 @@
+{
+  "nazwa": "811 unikalne identyfikatory",
+  "plik": "resources/views/pages/settings/two_factor/index.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "fdbfa00d52d2cae67f6885e78e65371f",
+  "md5_po_mutacji": "735ecb957b49c841af44107c38d532da",
+  "mutacja_weszla": true,
+  "liczba_podmian": 2,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Powielony identyfikator pola lub opisu",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:47:06Z"
+}
