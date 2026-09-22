@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Comments\Actions\PublishComment;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use App\Models\Post;
@@ -47,6 +48,27 @@ class PowiadomieniaBezWachlarzaZapytanTest extends TestCase
 
     /** Ile powiadomień mieści strona — `NotificationController::index()`. */
     private const PELNA_STRONA = 20;
+
+    /**
+     * Treść zapytań, nie tylko ich liczba.
+     *
+     * Sam licznik nie odróżnia „wachlarz zniknął" od „ekran przestał się
+     * renderować", ani nie mówi, KTÓRY odczyt się powiela. Przy adresach
+     * komentarzy powiela się kilka różnych, więc pomiar musi je rozdzielić.
+     *
+     * @return list<string>
+     */
+    private function zebranySql(callable $akcja): array
+    {
+        $sql = [];
+        DB::listen(function ($zapytanie) use (&$sql): void {
+            $sql[] = $zapytanie->sql;
+        });
+
+        $akcja();
+
+        return $sql;
+    }
 
     private function policzZapytania(callable $akcja): int
     {
@@ -200,5 +222,115 @@ class PowiadomieniaBezWachlarzaZapytanTest extends TestCase
                 'data' => ['action_id' => (string) $decyzja->getKey()],
             ]);
         }
+    }
+
+    /**
+     * ADRESY KOMENTARZY — drugi wachlarz na tym samym ekranie, niezależny
+     * od uzasadnień decyzji wyżej.
+     *
+     * CO BYŁO ZEPSUTE
+     * `Notification::adresDocelowy()` dla typów `comment` i `reply` prowadzi
+     * wprost do KONKRETNEGO komentarza (issue #759), a nie na pierwszą stronę
+     * treści. Żeby policzyć tę kotwicę i numer strony, `urlDoKomentarza()`
+     * sięgało przy KAŻDYM wierszu po: odbiorcę (`$this->user`), sam komentarz,
+     * jego treść, a potem jeszcze DWA RAZY po te same wiersze wątku —
+     * `exists()` na widoczność korzenia i `count()` na jego pozycję.
+     *
+     * ZMIERZONE PRZED POPRAWKĄ (ten sam pomiar, czysty `main`):
+     * 16 zapytań przy 2 powiadomieniach i 106 przy 20 — PIĘĆ na wiersz.
+     * Strona mieści trzydzieści, czyli do stu pięćdziesięciu zapytań na
+     * ekranie, na który zalogowany człowiek wchodzi najczęściej.
+     * PO POPRAWCE: 11 i 29.
+     *
+     * CZEGO TEN TEST NIE OBIECUJE
+     * Nie „stałej liczby zapytań". Jedno zapytanie na wiersz ZOSTAJE:
+     * pozycja korzenia w wątku liczona jest przez `$subject->comments()
+     * ->widoczneDla($viewer)`, czyli DOKŁADNIE tę samą relację i ten sam
+     * filtr, którego używa kontroler przy renderowaniu. Zbiorcze policzenie
+     * tego dla wielu treści naraz wymagałoby powtórzenia tego filtru w drugim
+     * miejscu — a komentarz nad tym kodem ostrzega wprost, że inna kolejność
+     * albo inny filtr policzyłyby INNĄ stronę niż ta, na którą trafi
+     * kontroler. Wachlarz zamieniony na jeden odczyt jest tego wart;
+     * rozjazd filtru widoczności nie.
+     *
+     * Dlatego pomiar pilnuje TREŚCI zapytań, nie progu: trzy odczyty
+     * „po kluczu" mają nie rosnąć z liczbą wierszy WCALE.
+     */
+    public function test_adresy_komentarzy_nie_daja_wachlarza_zapytan(): void
+    {
+        $adresat = $this->user('adresatka_komentarzy');
+        $autor = $this->user('komentujacy');
+
+        $powiadomienia = function (int $ile) use ($adresat, $autor): void {
+            for ($i = 0; $i < $ile; $i++) {
+                $wpis = Post::factory()->create(['author_id' => $adresat->id]);
+                app(PublishComment::class)->handle($autor, $wpis, 'Wyszło wyśmienicie.');
+            }
+        };
+
+        $powiadomienia(2);
+        $maloSql = $this->zebranySql(
+            fn () => $this->actingAs($adresat)->get(route('notifications.index'))->assertOk(),
+        );
+
+        $powiadomienia(self::PELNA_STRONA - 2);
+
+        $html = $this->actingAs($adresat)->get(route('notifications.index'))->assertOk()->getContent();
+
+        // KONTROLA DODATNIA (docs/PULAPKI_TESTOW.md §4): gdyby adres komentarza
+        // przestał się w ogóle liczyć, nikt by po te wiersze nie sięgał
+        // i „wachlarza by nie było" — bo nie byłoby ekranu.
+        //
+        // Szukamy PRZYCISKU, nie kotwicy. Sam adres nigdy nie trafia do HTML-u:
+        // widok używa go WYŁĄCZNIE jako warunku (`@if($link)`), a prawdziwe
+        // przekierowanie robi dopiero `NotificationController::open()` po
+        // POST-cie. Na tym właśnie polegał koszt — pięć zapytań na wiersz
+        // płacone po to, żeby rozstrzygnąć, czy narysować jeden przycisk.
+        $this->assertSame(
+            self::PELNA_STRONA,
+            substr_count($html, '>Zobacz</button>'),
+            'Na ekranie nie ma przycisku „Zobacz" przy każdym powiadomieniu — '
+            .'adres komentarza nie jest liczony, więc pomiar niżej nie mierzy tego, o czym mówi.',
+        );
+
+        $this->assertSame(
+            self::PELNA_STRONA,
+            $adresat->notifications()->count(),
+            'asercja kontrolna: powiadomień musi naprawdę być tyle, ile mierzymy',
+        );
+
+        $duzoSql = $this->zebranySql(
+            fn () => $this->actingAs($adresat)->get(route('notifications.index'))->assertOk(),
+        );
+
+        // Trzy odczyty „po kluczu", które przed poprawką szły raz na wiersz.
+        $poKluczu = [
+            'odbiorca' => '/^select \* from "users" where "users"\."id" = \?/',
+            'komentarz' => '/^select \* from "comments" where "comments"\."id" = \?/',
+            'treść' => '/^select \* from "posts" where "posts"\."id" = \?/',
+        ];
+
+        foreach ($poKluczu as $nazwa => $wzorzec) {
+            $malo = count(preg_grep($wzorzec, $maloSql));
+            $duzo = count(preg_grep($wzorzec, $duzoSql));
+
+            $this->assertSame(
+                $malo,
+                $duzo,
+                "Odczyt \"{$nazwa}\" po kluczu rośnie z liczbą powiadomień (N+1): {$malo} przy 2, "
+                ."{$duzo} przy ".self::PELNA_STRONA.'. Ten wiersz ma być wczytany zbiorczo dla całej strony.',
+            );
+        }
+
+        // Pozycja korzenia w wątku zostaje jednym odczytem NA WIERSZ (patrz
+        // docblok), ale ani jednym więcej — i nic innego nie ma rosnąć.
+        $przyrost = count($duzoSql) - count($maloSql);
+
+        $this->assertLessThanOrEqual(
+            self::PELNA_STRONA - 2,
+            $przyrost,
+            'Na jedno dodatkowe powiadomienie wypada więcej niż jedno zapytanie: przyrost '
+            ."{$przyrost} na ".(self::PELNA_STRONA - 2).' dołożonych wierszy.',
+        );
     }
 }

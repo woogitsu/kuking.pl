@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Collection;
 
 /**
  * Powiadomienie w aplikacji.
@@ -212,7 +213,7 @@ class Notification extends Model
      * a rozjazd wyglądałby tak, że przycisk oznacza przeczytane i odsyła
      * gdzie indziej, niż zapowiadał. Jedno źródło, dwóch odbiorców.
      */
-    public function adresDocelowy(): ?string
+    public function adresDocelowy(?Collection $komentarze = null): ?string
     {
         $data = $this->data ?? [];
 
@@ -242,7 +243,7 @@ class Notification extends Model
                 : null,
             // ISSUE #759: komentarz/odpowiedź, nie tylko "gdzieś na tej treści".
             // Patrz `urlDoKomentarza()` niżej.
-            self::TYPE_COMMENT, self::TYPE_REPLY => $this->urlDoKomentarza($data),
+            self::TYPE_COMMENT, self::TYPE_REPLY => $this->urlDoKomentarza($data, $komentarze),
             default => is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null,
         };
     }
@@ -280,7 +281,7 @@ class Notification extends Model
      * jak przed tą poprawką dla WSZYSTKICH powiadomień o komentarzu. Sam
      * fakt niedostępności nie jest tu ujawniany bardziej, niż był wcześniej.
      */
-    private function urlDoKomentarza(array $data): ?string
+    private function urlDoKomentarza(array $data, ?Collection $komentarze = null): ?string
     {
         $fallback = is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
 
@@ -296,7 +297,7 @@ class Notification extends Model
             return $fallback;
         }
 
-        $comment = Comment::query()->find($commentId);
+        $comment = $komentarze?->get($commentId) ?? Comment::query()->find($commentId);
 
         if ($comment === null) {
             return $fallback;
@@ -309,7 +310,9 @@ class Notification extends Model
         }
 
         $rootId = $comment->parent_id ?? $comment->getKey();
-        $root = $rootId === $comment->getKey() ? $comment : Comment::query()->find($rootId);
+        $root = $rootId === $comment->getKey()
+            ? $comment
+            : ($komentarze?->get($rootId) ?? Comment::query()->find($rootId));
 
         if ($root === null) {
             return $fallback;
@@ -322,7 +325,25 @@ class Notification extends Model
         // na którą trafi kontroler przy renderowaniu.
         $widoczneKorzenie = $subject->comments()->widoczneDla($viewer);
 
-        if (! $widoczneKorzenie->clone()->whereKey($root->getKey())->exists()) {
+        // JEDEN przebieg po tych samych wierszach zamiast dwóch (`exists()`
+        // + `count()`). Obie liczby dotyczą DOKŁADNIE tego samego zbioru —
+        // widocznych korzeni tej treści — więc liczenie ich osobno było
+        // dwoma skanami po to samo. `filter (where …)` to standardowy
+        // agregat warunkowy PostgreSQL, a Kuking chodzi wyłącznie na
+        // PostgreSQL (R60), więc nie ma tu przenośności do stracenia.
+        //
+        // `reorder()` jest konieczne, nie kosmetyczne: relacja `comments()`
+        // niesie własne `ORDER BY`, a PostgreSQL odrzuca sortowanie po
+        // kolumnie, która nie wchodzi do agregatu. `count()` i `exists()`
+        // zdejmowały je same, ta selekcja musi zrobić to jawnie.
+        $pomiar = $widoczneKorzenie->clone()->reorder()->selectRaw(
+            'count(*) filter (where comments.created_at < ? '
+            .'or (comments.created_at = ? and comments.id < ?)) as wczesniejsze, '
+            .'count(*) filter (where comments.id = ?) as widoczny_korzen',
+            [$root->created_at, $root->created_at, $root->getKey(), $root->getKey()],
+        )->first();
+
+        if ((int) ($pomiar->widoczny_korzen ?? 0) === 0) {
             // Rodzic niewidoczny dla TEGO odbiorcy — nie zdradzamy, gdzie
             // jest, tylko wracamy do zwykłego adresu treści.
             return $fallback;
@@ -343,16 +364,7 @@ class Notification extends Model
             return $fallback;
         }
 
-        $pozycja = $widoczneKorzenie->clone()
-            ->where(function (Builder $wczesniejsze) use ($root): void {
-                $wczesniejsze
-                    ->where('comments.created_at', '<', $root->created_at)
-                    ->orWhere(function (Builder $remis) use ($root): void {
-                        $remis->where('comments.created_at', $root->created_at)
-                            ->where('comments.id', '<', $root->getKey());
-                    });
-            })
-            ->count();
+        $pozycja = (int) ($pomiar->wczesniejsze ?? 0);
 
         $strona = intdiv($pozycja, $pageSize) + 1;
 

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use Illuminate\Http\RedirectResponse;
@@ -24,13 +25,89 @@ class NotificationController extends Controller
         $notifications = $user
             ->notifications()
             ->visibleTo($user)
-            ->with('actor.profile.avatar')
+            // `user` (odbiorca) wczytywany z góry, bo `adresDocelowy()` pyta
+            // o niego przy KAŻDYM wierszu komentarza i odpowiedzi, żeby
+            // sprawdzić widoczność wątku. Bez tego jest to `select * from
+            // users where id = ?` na wiersz — trzydzieści razy ten sam
+            // wiersz na stronie, bo wszystkie powiadomienia są tej osoby.
+            ->with(['actor.profile.avatar', 'user'])
             ->paginate(30);
 
         return view('pages.notifications', [
             'notifications' => $notifications,
             'decyzjeModeracyjne' => $this->decyzje($notifications->items()),
+            'komentarzeAdresow' => $this->komentarzeAdresow($notifications->items()),
         ]);
+    }
+
+    /**
+     * Komentarze potrzebne do zbudowania adresów — JEDNYM zapytaniem.
+     *
+     * `Notification::adresDocelowy()` dla typów `comment` i `reply` prowadzi
+     * wprost do KONKRETNEGO komentarza (issue #759), a nie na pierwszą stronę
+     * treści. Żeby to zrobić, musi mieć w ręku sam komentarz i jego wątek.
+     * Pobierane wiersz po wierszu dawało to `select * from comments where
+     * id = ?` oraz `select * from posts where id = ?` przy każdym
+     * powiadomieniu na liście.
+     *
+     * ZMIERZONE PRZED POPRAWKĄ (`PowiadomieniaBezWachlarzaZapytanTest`):
+     * 20 powiadomień o odpowiedziach to 106 zapytań, w tym PIĘĆ wzorców
+     * powtarzanych dokładnie 20 razy — komentarz, treść, odbiorca oraz
+     * `exists()` i `count()` po tych samych wierszach wątku.
+     *
+     * Bierzemy też RODZICÓW (`parent_id`): odpowiedź w wątku liczy swoją
+     * stronę od korzenia, więc bez nich N+1 wracałby dla samych odpowiedzi.
+     *
+     * Treść komentarza (`post`, `recipe`, `cookedEvent`) wczytujemy razem —
+     * `Comment::subject()` sięga po wszystkie trzy, a niewczytane byłyby
+     * kolejnym zapytaniem na wiersz. To trzy zapytania na CAŁĄ stronę,
+     * niezależnie od liczby powiadomień.
+     *
+     * @param  list<Notification>  $powiadomienia
+     * @return Collection<string, Comment>
+     */
+    private function komentarzeAdresow(array $powiadomienia): Collection
+    {
+        $identyfikatory = [];
+
+        foreach ($powiadomienia as $powiadomienie) {
+            if (! in_array($powiadomienie->type, [Notification::TYPE_COMMENT, Notification::TYPE_REPLY], true)) {
+                continue;
+            }
+
+            $id = $powiadomienie->data['comment_id'] ?? null;
+
+            if (is_string($id) && $id !== '') {
+                $identyfikatory[$id] = true;
+            }
+        }
+
+        if ($identyfikatory === []) {
+            return collect();
+        }
+
+        $komentarze = Comment::query()
+            ->with(['post', 'recipe', 'cookedEvent'])
+            ->findMany(array_keys($identyfikatory))
+            ->keyBy(fn (Comment $komentarz) => (string) $komentarz->getKey());
+
+        // Korzenie wątków, których nie było wśród powiadomień. Drugie
+        // zapytanie, nie drugie-na-wiersz: pytamy raz, o całą brakującą resztę.
+        $korzenie = $komentarze
+            ->map(fn (Comment $komentarz) => $komentarz->parent_id)
+            ->filter(fn ($id) => is_string($id) && $id !== '' && ! $komentarze->has($id))
+            ->unique()->values()->all();
+
+        if ($korzenie === []) {
+            return $komentarze;
+        }
+
+        return $komentarze->merge(
+            Comment::query()
+                ->with(['post', 'recipe', 'cookedEvent'])
+                ->findMany($korzenie)
+                ->keyBy(fn (Comment $komentarz) => (string) $komentarz->getKey()),
+        );
     }
 
     /**

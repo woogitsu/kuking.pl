@@ -252,7 +252,7 @@
                         // w kontrolerze, który po oznaczeniu przeczytania
                         // musi odesłać w to samo miejsce — dwie kopie
                         // rozjechałyby się przy pierwszym nowym typie.
-                        $link = $notification->adresDocelowy();
+                        $link = $notification->adresDocelowy($komentarzeAdresow ?? null);
                     @endphp
                     @if($link)
                         {{--
