@@ -122,24 +122,45 @@ final class PublishComment
          * Sprawdzenie stoi TUTAJ, a nie tylko w kontrolerze, bo kontrolery
          * są trzy (wpis, przepis, „Ugotowałem") i czwarty by o tym zapomniał.
          */
+        $parentId = null;
+
         if ($parent !== null) {
-            if (! $this->naleziDo($parent, $subject)) {
+            /*
+             * ISSUE #1049: najpierw odświeżamy wskazany komentarz, a potem
+             * rozstrzygamy RZECZYWISTY korzeń płaskiego wątku. Sam autor
+             * odpowiedzi pośredniej nie wyznacza granicy rozmowy: zapis
+             * ostatecznie trafia pod korzeń i blokada z jego autorem musi
+             * obowiązywać tak samo jak przy odpowiedzi bezpośredniej.
+             *
+             * `widoczneDla()` obejmuje status komentarza i autora oraz
+             * blokadę w obie strony. Używamy go osobno dla wskazanego
+             * komentarza i korzenia, bo C może być widoczny, choć korzeń B
+             * jest dla piszącego odcięty blokadą. Neutralna odmowa nie mówi,
+             * który z tych warunków nie przeszedł.
+             */
+            $wskazanyRodzic = Comment::query()
+                ->widoczneDla($author)
+                ->whereKey($parent->getKey())
+                ->first();
+
+            if ($wskazanyRodzic === null || ! $this->naleziDo($wskazanyRodzic, $subject)) {
                 throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
             }
 
-            $autorRodzica = $parent->author;
+            $korzen = $wskazanyRodzic->parent_id === null
+                ? $wskazanyRodzic
+                : Comment::query()
+                    ->widoczneDla($author)
+                    ->whereKey($wskazanyRodzic->parent_id)
+                    ->first();
 
-            if ($autorRodzica !== null && $author->hasBlockRelationWith($autorRodzica)) {
-                // Ten sam komunikat co przy blokadzie z autorem treści —
-                // celowo. Osobny tekst („ta osoba Cię zablokowała")
-                // potwierdzałby, kto kogo zablokował, komuś, kto właśnie
-                // próbuje to obejść.
+            if ($korzen === null || ! $this->naleziDo($korzen, $subject)) {
                 throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
             }
+
+            $parent = $wskazanyRodzic;
+            $parentId = $korzen->getKey();
         }
-
-        // Spłaszczamy wątki: odpowiedź na odpowiedź trafia do korzenia wątku.
-        $parentId = $parent?->parent_id ?? $parent?->getKey();
 
         /*
          * KOMENTARZ I POWIADOMIENIA O NIM POWSTAJĄ RAZEM ALBO WCALE.

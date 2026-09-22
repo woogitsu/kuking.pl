@@ -4,9 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Comments\Actions\PublishComment;
+use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Comment;
+use App\Models\CookedEvent;
+use App\Models\Notification;
 use App\Models\Post;
+use App\Models\Recipe;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use PHPUnit\Framework\Attributes\DataProvider;
 use Tests\TestCase;
 
 /**
@@ -137,5 +144,149 @@ class BlokadaObowiazujeTakzePrzyOdpowiadaniuTest extends TestCase
         $odpowiedz->assertSessionHasErrors('body');
         $this->assertDatabaseMissing('comments', ['body' => 'PODPINAM SIE NIE TAM GDZIE TRZEBA - TEKST NIE MA PRAWA WYJSC.']);
         $this->assertSame($liczbaKomentarzyPrzed, Comment::count());
+    }
+
+    #[DataProvider('kierunkiBlokady')]
+    public function test_http_nie_pozwala_obejsc_blokady_autora_korzenia_przez_odpowiedz(bool $piszacyBlokujeKorzen): void
+    {
+        $sufiks = $this->kierunek($piszacyBlokujeKorzen);
+        $wlasciciel = $this->user('wl_'.$sufiks);
+        $autorKorzenia = $this->user('kor_'.$sufiks);
+        $autorOdpowiedzi = $this->user('odp_'.$sufiks);
+        $piszacy = $this->user('pis_'.$sufiks);
+
+        $this->ustawBlokade($piszacy, $autorKorzenia, $piszacyBlokujeKorzen);
+
+        $wpis = Post::factory()->for($wlasciciel, 'author')->create([
+            'status' => 'published',
+            'visibility' => 'public',
+            'published_at' => now()->subHour(),
+        ]);
+        [$korzen, $odpowiedz] = $this->watek($wpis, $autorKorzenia, $autorOdpowiedzi);
+        $komentarzyPrzed = Comment::count();
+        $powiadomienPrzed = Notification::count();
+
+        $wynik = $this->actingAs($piszacy)->post(route('posts.comment', $wpis), [
+            'body' => 'Nie wolno dopisać tego zdania do zablokowanego wątku.',
+            'parent_id' => $odpowiedz->getKey(),
+        ]);
+
+        $wynik->assertSessionHasErrors('body');
+        $this->assertSame($komentarzyPrzed, Comment::count(), 'Powstał komentarz mimo blokady z autorem korzenia.');
+        $this->assertSame($powiadomienPrzed, Notification::count(), 'Powstało powiadomienie mimo odrzuconego komentarza.');
+        $this->assertDatabaseMissing('comments', [
+            'parent_id' => $korzen->getKey(),
+            'body' => 'Nie wolno dopisać tego zdania do zablokowanego wątku.',
+        ]);
+    }
+
+    public static function kierunkiBlokady(): array
+    {
+        return [
+            'piszący blokuje autora korzenia' => [true],
+            'autor korzenia blokuje piszącego' => [false],
+        ];
+    }
+
+    public function test_akcja_domenowa_pilnuje_korzenia_dla_przepisu_i_ugotowalem(): void
+    {
+        $wlasciciel = $this->user('wldomena');
+        $autorKorzenia = $this->user('kordomena');
+        $autorOdpowiedzi = $this->user('odpdomena');
+        $piszacy = $this->user('pisdomena');
+        $piszacy->blocking()->attach($autorKorzenia->getKey());
+
+        $przepis = Recipe::factory()->for($wlasciciel, 'author')->create([
+            'status' => 'published',
+            'visibility' => 'public',
+        ]);
+        $ugotowalem = CookedEvent::factory()
+            ->for($this->user('kuchdomena'), 'user')
+            ->for($przepis, 'recipe')
+            ->create();
+
+        foreach ([$przepis, $ugotowalem] as $indeks => $tresc) {
+            [, $odpowiedz] = $this->watek($tresc, $autorKorzenia, $autorOdpowiedzi);
+            $komentarzyPrzed = Comment::count();
+            $powiadomienPrzed = Notification::count();
+
+            try {
+                app(PublishComment::class)->handle(
+                    $piszacy,
+                    $tresc,
+                    'Próba domenowa '.$indeks,
+                    $odpowiedz,
+                    true,
+                );
+                $this->fail('Akcja domenowa przyjęła odpowiedź do korzenia objętego blokadą.');
+            } catch (BladDlaCzlowieka $e) {
+                $this->assertStringContainsString('Odśwież stronę', $e->getMessage());
+            }
+
+            $this->assertSame($komentarzyPrzed, Comment::count());
+            $this->assertSame($powiadomienPrzed, Notification::count());
+        }
+    }
+
+    public function test_bez_blokady_odpowiedz_na_odpowiedz_nadal_trafia_do_korzenia(): void
+    {
+        $wlasciciel = $this->user('wlkontrola');
+        $autorKorzenia = $this->user('korkontrola');
+        $autorOdpowiedzi = $this->user('odpkontrola');
+        $piszacy = $this->user('piskontrola');
+        $wpis = Post::factory()->for($wlasciciel, 'author')->create([
+            'status' => 'published',
+            'visibility' => 'public',
+            'published_at' => now()->subHour(),
+        ]);
+        [$korzen, $odpowiedz] = $this->watek($wpis, $autorKorzenia, $autorOdpowiedzi);
+
+        $nowy = app(PublishComment::class)->handle(
+            $piszacy,
+            $wpis,
+            'Zwykła odpowiedź na odpowiedź.',
+            $odpowiedz,
+            true,
+        );
+
+        $this->assertSame($korzen->getKey(), $nowy->parent_id);
+        $this->assertNotSame($odpowiedz->getKey(), $nowy->parent_id);
+    }
+
+    private function ustawBlokade(User $piszacy, User $autorKorzenia, bool $piszacyBlokujeKorzen): void
+    {
+        ($piszacyBlokujeKorzen ? $piszacy : $autorKorzenia)
+            ->blocking()
+            ->attach(($piszacyBlokujeKorzen ? $autorKorzenia : $piszacy)->getKey());
+    }
+
+    private function kierunek(bool $piszacyBlokujeKorzen): string
+    {
+        return $piszacyBlokujeKorzen ? 'wych' : 'przych';
+    }
+
+    /** @return array{Comment, Comment} */
+    private function watek(Post|Recipe|CookedEvent $tresc, User $autorKorzenia, User $autorOdpowiedzi): array
+    {
+        $kolumna = match (true) {
+            $tresc instanceof Post => 'post_id',
+            $tresc instanceof Recipe => 'recipe_id',
+            $tresc instanceof CookedEvent => 'cooked_event_id',
+        };
+        $korzen = Comment::create([
+            'author_id' => $autorKorzenia->getKey(),
+            $kolumna => $tresc->getKey(),
+            'body' => 'Korzeń rozmowy.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+        $odpowiedz = Comment::create([
+            'author_id' => $autorOdpowiedzi->getKey(),
+            $kolumna => $tresc->getKey(),
+            'parent_id' => $korzen->getKey(),
+            'body' => 'Widoczna odpowiedź innej osoby.',
+            'status' => Comment::STATUS_PUBLISHED,
+        ]);
+
+        return [$korzen, $odpowiedz];
     }
 }
