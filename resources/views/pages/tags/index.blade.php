@@ -45,23 +45,34 @@
 
     <h1 class="mt-0">Wszystkie tagi</h1>
 
-    <p class="lead">
+    <p class="text-lead tag-directory-intro">
         Tagi to sposób na przeglądanie bez konieczności znajomości nikogo —
         dania, składniki, okazje i sposoby przygotowania, tak jak ktoś je
         opisał przy swoim wpisie. Liczba obok nazwy to liczba wpisów
         widocznych dla wszystkich, także zero — pusty tag czeka na
-        pierwszy wpis.
+        pierwszy wpis. Wpis prywatny albo tylko dla obserwujących do tej
+        liczby nie wchodzi, nawet gdy jest Twój.
     </p>
 
     @if($polecane->isNotEmpty())
         <h2>Polecane tagi</h2>
         <p class="meta">Wybór gospodarza <x-kuking-word />.</p>
-        <nav class="chipsy" aria-label="Polecane tagi">
+        <nav class="tag-featured" aria-label="Polecane tagi">
             @foreach($polecane as $tag)
-                <a class="chip" href="{{ route('tags.show', $tag) }}">
-                    {{ $tag->name }}
+                <a class="tag-featured-card" href="{{ route('tags.show', $tag) }}">
+                    <x-tag-collage :photos="$collages[$tag->getKey()]" :linked="false" />
+                    <span class="tag-featured-copy">
+                    <strong>{{ $tag->name }}</strong>
+                    @if($tag->promotion?->note)
+                        <span>{{ $tag->promotion->note }}</span>
+                    @endif
+                    <span class="meta">
                     ({{ $tag->posts_count }}
                     {{ \App\Support\Odmiana::rzeczownik($tag->posts_count, 'wpis', 'wpisy', 'wpisów') }})
+                    </span>
+                    <x-tag-public-stats :stats="$publicStats[$tag->getKey()]" :invitation="false" />
+                    <span class="tag-featured-action">Zobacz wpisy <span aria-hidden="true">→</span></span>
+                    </span>
                 </a>
             @endforeach
         </nav>
@@ -77,13 +88,9 @@
             </p>
         </x-empty-state>
     @else
-        <nav class="chipsy" aria-label="Wszystkie tagi, alfabetycznie">
+        <nav class="tag-directory-grid" aria-label="Wszystkie tagi, alfabetycznie">
             @foreach($tagi as $tag)
-                <a class="chip" href="{{ route('tags.show', $tag) }}">
-                    {{ $tag->name }}
-                    ({{ $tag->posts_count }}
-                    {{ \App\Support\Odmiana::rzeczownik($tag->posts_count, 'wpis', 'wpisy', 'wpisów') }})
-                </a>
+                <x-tag-directory-card :tag="$tag" :photo="$collages[$tag->getKey()]->first()" :stats="$publicStats[$tag->getKey()]" />
             @endforeach
         </nav>
 

@@ -93,11 +93,14 @@
 #    21  BEZPIECZNIK 1: adres serwera wygląda na produkcyjny (Railway)
 #    22  BEZPIECZNIK 2: serwer zwrócił INNĄ bazę, niż zadeklarowano
 #    23  BEZPIECZNIK 2: baza próbna nie jest pusta
+#    24  BEZPIECZNIK 3: tożsamość instancji docelowej niepotwierdzona
+#        (albo potwierdzenie nie zgadza się z tym, co stoi pod adresem)
 #    30  nie udało się założyć bazy próbnej
 #    40  zrzutu nie ma albo jest za mały (pusta kopia!)
 #    41  pg_restore nie potrafi odczytać archiwum
 #    42  w archiwum jest za mało tabel
 #    43  odszyfrowanie `.cms` nie udało się
+#    44  odszyfrowany zrzut nie zgadza się ze skrótem z pliku `.meta`
 #    50  pg_restore zakończył się błędem
 #    60  w odtworzonej bazie jest za mało tabel
 #    61  nazwanej tabeli nie ma w odtworzonej bazie
@@ -151,6 +154,16 @@ PLIK_KLUCZA=''
 DSN_ZRODLA=''
 ZOSTAW=0
 PETLA_LOKALNA=0
+# Bezpiecznik 3: jawnie potwierdzony odcisk instancji docelowej.
+INSTANCJA_POTWIERDZONA="${PROBA_INSTANCJA:-}"
+ODCISK_CELU=''
+KATALOG_POSWIADCZEN=''
+SCIEZKA_PGPASS=''
+DSN_BEZ_HASLA=''
+HASLO_Z_DSN=''
+HOST_Z_DSN='*'
+PORT_Z_DSN='*'
+UZYTKOWNIK_Z_DSN='*'
 # Porównanie ŚCISŁE: każda tabela co do jednego wiersza. Włącza je pętla
 # lokalna, bo tam baza źródłowa stoi w miejscu i nie ma prawa się rozjechać.
 SCISLE=0
@@ -185,6 +198,98 @@ padnij() {
 bez_hasla() { sed -E 's#(://[^:/@]+):[^@]*@#\1:***@#' <<<"$1"; }
 
 # =============================================================================
+#  POŚWIADCZENIE POZA LISTĄ PROCESÓW (#594)
+#
+#  `psql "postgresql://user:HASŁO@host/db"` i `pg_restore --dbname=…` pokazują
+#  hasło w `ps` KAŻDEMU użytkownikowi maszyny: argumenty procesu są na Linuksie
+#  jawne. Ten skrypt dostaje w `--zrodlo` adres bazy, z której tylko czyta —
+#  a przy ćwiczeniu z produkcji jest to poświadczenie produkcyjne.
+#
+#  Hasła idą więc do prywatnego `PGPASSFILE` (prawa 600, w katalogu roboczym,
+#  który ginie razem z ćwiczeniem), a do narzędzi trafiają adresy BEZ hasła.
+#  `--no-password` tego nie psuje: ten przełącznik blokuje wyłącznie pytanie
+#  na terminalu, nie odczyt pliku.
+# =============================================================================
+odkoduj_procenty() {
+  local s="${1//\\/\\\\}"
+  printf '%b' "${s//%/\\x}"
+}
+
+# Rozkłada DSN na części. Ustawia: DSN_BEZ_HASLA, HASLO_Z_DSN, HOST_Z_DSN,
+# PORT_Z_DSN, UZYTKOWNIK_Z_DSN. Adres bez hasła zostawia nietknięty.
+rozdziel_dsn() {
+  local dsn="$1"
+  DSN_BEZ_HASLA="${dsn}"
+  HASLO_Z_DSN=''
+  HOST_Z_DSN='*'
+  PORT_Z_DSN='*'
+  UZYTKOWNIK_Z_DSN='*'
+
+  case "${dsn}" in
+    postgresql://* | postgres://*) ;;
+    *) return 0 ;;
+  esac
+
+  local schemat="${dsn%%://*}://" reszta="${dsn#*://}"
+  local przed_sciezka="${reszta%%/*}"
+
+  case "${przed_sciezka}" in
+    *@*) ;;
+    *) return 0 ;;
+  esac
+
+  local userinfo="${przed_sciezka%@*}" gospodarz="${przed_sciezka##*@}"
+  UZYTKOWNIK_Z_DSN="$(odkoduj_procenty "${userinfo%%:*}")"
+
+  case "${gospodarz}" in
+    \[*) ;; # IPv6 — zostawiamy gwiazdkę, dopasowanie po użytkowniku wystarczy
+    *:*)
+      HOST_Z_DSN="${gospodarz%%:*}"
+      PORT_Z_DSN="${gospodarz##*:}"
+      ;;
+    *) HOST_Z_DSN="${gospodarz}" ;;
+  esac
+
+  case "${userinfo}" in
+    *:*) ;;
+    *) return 0 ;;
+  esac
+
+  HASLO_Z_DSN="$(odkoduj_procenty "${userinfo#*:}")"
+  DSN_BEZ_HASLA="${schemat}${userinfo%%:*}@${gospodarz}${reszta#"${przed_sciezka}"}"
+}
+
+# Dopisuje poświadczenie z DSN-u do prywatnego PGPASSFILE i zostawia adres bez
+# hasła w `DSN_BEZ_HASLA`. Wynik JEST W ZMIENNEJ, a nie na wyjściu, i to jest tu
+# istotne: `X="$(schowaj_haslo_z_dsn "$X")"` uruchomiłoby tę funkcję
+# w podpowłoce, a wtedy `export PGPASSFILE` zginąłby razem z nią. Pierwsza
+# wersja tej poprawki miała dokładnie ten błąd i przechodziła tylko dlatego,
+# że w środowisku stało `PGPASSWORD` — czyli zielono, bez PGPASSFILE.
+#
+# Plik powstaje DOPIERO gdy jest co w nim schować — pusty PGPASSFILE
+# przesłoniłby `~/.pgpass` i zerwałby połączenie adresem bez hasła.
+schowaj_haslo_z_dsn() {
+  local dsn="$1"
+  rozdziel_dsn "${dsn}"
+
+  if [[ -n "${HASLO_Z_DSN}" ]]; then
+    if [[ "${PGPASSFILE:-}" != "${SCIEZKA_PGPASS}" ]]; then
+      (
+        umask 077
+        : >"${SCIEZKA_PGPASS}"
+      )
+      chmod 600 "${SCIEZKA_PGPASS}"
+      export PGPASSFILE="${SCIEZKA_PGPASS}"
+    fi
+
+    local pole="${HASLO_Z_DSN//\\/\\\\}"
+    pole="${pole//:/\\:}"
+    printf '%s:%s:*:%s:%s\n' \
+      "${HOST_Z_DSN}" "${PORT_Z_DSN}" "${UZYTKOWNIK_Z_DSN}" "${pole}" >>"${SCIEZKA_PGPASS}"
+  fi
+}
+
+# =============================================================================
 #  Argumenty
 # =============================================================================
 pomoc() {
@@ -200,6 +305,11 @@ Próba odtworzenia bazy Kuking z zrzutu (restore drill).
                     `proba_odtworzenia` (domyślnie: proba_odtworzenia_<znacznik>)
   --zrodlo DSN      opcjonalnie: baza źródłowa TYLKO DO ODCZYTU, żeby
                     porównać liczby wierszy co do jednego
+  --instancja ODC   JAWNE potwierdzenie, do której instancji wlewasz zrzut
+                    (odcisk klastra; skrypt wypisuje go w odmowie). Wymagane
+                    dla każdego serwera, który nie jest Postgresem tego
+                    repozytorium — nazwa hosta nie jest dowodem, bo za
+                    tunelem produkcja też nazywa się 127.0.0.1
   --tabele a,b,c    które tabele policzyć po nazwie
   --zostaw          nie kasuj bazy próbnej po ćwiczeniu (do obejrzenia)
   --petla-lokalna   CAŁE ĆWICZENIE JEDNĄ KOMENDĄ: kopia lokalnej bazy →
@@ -237,6 +347,15 @@ zakoduj_url() {
 
 z_env() {
   local klucz="$1" plik="${KATALOG_REPO}/.env"
+
+  # Zmienna ze ŚRODOWISKA wygrywa z plikiem — dokładnie tak robi Laravel i tak
+  # uruchamiane są testy (`DB_PORT=… php artisan test`). Bez tego bezpiecznik 3
+  # porównywałby cel z klastrem, do którego nikt się w tym przebiegu nie łączy.
+  if [[ -n "${!klucz:-}" ]]; then
+    printf '%s' "${!klucz}"
+    return 0
+  fi
+
   [[ -f "${plik}" ]] || return 0
   sed -n -E "s/^[[:space:]]*${klucz}[[:space:]]*=[[:space:]]*//p" "${plik}" \
     | tail -n 1 | sed -E 's/^"(.*)"$/\1/; s/^'"'"'(.*)'"'"'$/\1/' | tr -d '\r'
@@ -288,6 +407,10 @@ przetworz_argumenty() {
         ;;
       --zrodlo)
         DSN_ZRODLA="${2:-}"
+        shift 2
+        ;;
+      --instancja)
+        INSTANCJA_POTWIERDZONA="${2:-}"
         shift 2
         ;;
       --tabele)
@@ -476,6 +599,111 @@ bezpiecznik_serwera() {
 }
 
 # =============================================================================
+#  BEZPIECZNIK 3 — TOŻSAMOŚĆ INSTANCJI DOCELOWEJ (#594)
+# =============================================================================
+#
+#  DLACZEGO ISTNIEJE — ZMIERZONE 17.09.2026
+#  Bezpiecznik 1 patrzy na NAZWĘ HOSTA. Za tunelem (`railway connect postgres
+#  --tunnel-only`) produkcja nazywa się `127.0.0.1` i przechodzi bez słowa.
+#  Bezpiecznik 2 pyta o bazę CELU — a ta jest świeżo założona, więc rzeczywiście
+#  jest pusta i rzeczywiście nazywa się `proba_odtworzenia_*`.
+#
+#  Odtworzone: TEN SAM klaster, na którym stała żywa instalacja Kukinga,
+#  został odrzucony pod adresem `*.proxy.rlwy.net` (kod 21) i PRZYJĘTY pod
+#  `127.0.0.1` — baza powstała, `pg_restore` wlał na tę instancję komplet
+#  danych osobowych, a skrypt wypisał przy tym „serwer nie jest produkcyjny”.
+#  Blokada po nazwie hosta nie jest więc blokadą produkcji; jest blokadą
+#  jednego sposobu jej zapisania.
+#
+#  CO PYTA TEN BEZPIECZNIK
+#  O tożsamość KLASTRA, a nie o napis. `system_identifier` z
+#  `pg_control_system()` nadaje `initdb` i żaden tunel go nie zmienia. Gdy ta
+#  funkcja jest niedostępna (rola bez uprawnień), bierzemy odcisk zastępczy
+#  z wartości dostępnych każdemu: czasu startu postmastera, wersji serwera
+#  i OID-u `template0`. Odcisk zastępczy zmienia się po restarcie serwera —
+#  i wtedy potwierdzenie trzeba wkleić jeszcze raz. To jest cena za to, żeby
+#  brak uprawnień nie kończył się przepuszczeniem produkcji.
+#
+#  KIEDY PRZEPUSZCZA BEZ PYTANIA
+#  Gdy klaster docelowy jest TYM SAMYM klastrem, który to repozytorium ma
+#  skonfigurowany jako swoją bazę (`DB_HOST`/`DB_PORT` ze środowiska, a gdy
+#  ich nie ma — z `.env`). To jest Postgres dewelopera i ćwiczenie na nim ma
+#  zostać JEDNĄ komendą (`--petla-lokalna`).
+#
+#  KAŻDY INNY klaster wymaga potwierdzenia: `--instancja <odcisk>` albo
+#  zmiennej `PROBA_INSTANCJA`. Odcisk skrypt wypisuje w odmowie, więc drugie
+#  uruchomienie jest wklejeniem — ale wklejeniem ŚWIADOMYM, po przeczytaniu,
+#  do czego się podłączył. Tego kroku nie da się przejść przez pomyłkę
+#  w adresie, bo pomyłka daje inny odcisk.
+#
+#  CZEGO NIE UDAJE: to nie jest dowód, że cel NIE JEST produkcją. To jest
+#  wymuszenie, żeby człowiek nazwał instancję, na którą wlewa dane — i żeby
+#  zrobił to raz na instancję, a nie raz na życie.
+odcisk_instancji() {
+  local dsn="$1" surowy
+
+  surowy="$(psql "${dsn}" --no-password --quiet --no-align --tuples-only \
+    --command 'SELECT system_identifier FROM pg_control_system()' 2>/dev/null \
+    | tr -d '[:space:]')" || true
+
+  if [[ ! "${surowy}" =~ ^[0-9]+$ ]]; then
+    surowy="$(psql "${dsn}" --no-password --quiet --no-align --tuples-only --command \
+      "SELECT pg_postmaster_start_time()::text || '|' || version() || '|' ||
+              (SELECT oid FROM pg_database WHERE datname = 'template0')" \
+      2>/dev/null | tr -d '[:space:]')" || true
+  fi
+
+  [[ -n "${surowy}" ]] || return 1
+  printf '%s' "$(printf '%s' "${surowy}" | sha256sum | cut -c1-16)"
+}
+
+bezpiecznik_instancji() {
+  local odcisk_celu
+  odcisk_celu="$(odcisk_instancji "${SERWER}")" || padnij 24 \
+    "Nie udało się odczytać tożsamości instancji pod $(bez_hasla "${SERWER}")." \
+    'Bez niej nie wiem, DO CZEGO wlewam zrzut — a „nie wiem” liczy się tu' \
+    'jak nieprzejście. Sprawdź, czy adres i poświadczenie są poprawne.'
+
+  ODCISK_CELU="${odcisk_celu}"
+
+  # 1. Potwierdzenie podane wprost wygrywa ze wszystkim innym.
+  if [[ -n "${INSTANCJA_POTWIERDZONA}" ]]; then
+    if [[ "${INSTANCJA_POTWIERDZONA}" != "${ODCISK_CELU}" ]]; then
+      padnij 24 \
+        "Potwierdzono instancję \"${INSTANCJA_POTWIERDZONA}\", a pod adresem stoi \"${ODCISK_CELU}\"." \
+        'To NIE JEST ta instancja, o której myślisz — adres wskazuje gdzie indziej.' \
+        'Nie odtwarzam.'
+    fi
+    ok "bezpiecznik 3: instancja docelowa potwierdzona jawnie (${ODCISK_CELU})"
+    return 0
+  fi
+
+  # 2. Bez potwierdzenia przechodzi wyłącznie własny Postgres tego repozytorium.
+  local dsn_lokalny odcisk_lokalny=''
+  dsn_lokalny="$(dsn_z_env)"
+
+  if [[ -n "${dsn_lokalny}" ]]; then
+    schowaj_haslo_z_dsn "$(podmien_baze_w_dsn "${dsn_lokalny}" postgres)"
+    dsn_lokalny="${DSN_BEZ_HASLA}"
+    odcisk_lokalny="$(odcisk_instancji "${dsn_lokalny}")" || odcisk_lokalny=''
+  fi
+
+  if [[ -n "${odcisk_lokalny}" && "${odcisk_lokalny}" == "${ODCISK_CELU}" ]]; then
+    ok "bezpiecznik 3: cel to własny Postgres tego repozytorium (${ODCISK_CELU})"
+    return 0
+  fi
+
+  padnij 24 \
+    "Instancja docelowa (${ODCISK_CELU}) NIE JEST Postgresem tego repozytorium." \
+    'Nazwa hosta niczego tu nie dowodzi: za tunelem `railway connect` produkcja' \
+    'też nazywa się 127.0.0.1, a bazy próbnej nie da się odróżnić od świeżej.' \
+    'Zobacz, do czego naprawdę jesteś podłączony, i potwierdź to JAWNIE:' \
+    "  --instancja ${ODCISK_CELU}" \
+    '(albo zmienną PROBA_INSTANCJA). Jeśli tego odcisku nie rozpoznajesz —' \
+    'to jest dokładnie ten przebieg, którego nie wolno uruchomić.'
+}
+
+# =============================================================================
 #  Pomocnicze: pytanie do bazy próbnej o jedną liczbę
 # =============================================================================
 liczba() {
@@ -611,6 +839,60 @@ przygotuj_zrzut() {
   koniec="$(date +%s)"
   CZAS_ODSZYFROWANIA=$((koniec - start))
   ok "odszyfrowane w ${CZAS_ODSZYFROWANIA} s ($(stat -c %s "${ZRZUT_JAWNY}") B)"
+
+  sprawdz_skrot_z_meta
+}
+
+# =============================================================================
+#  SKRÓT Z PLIKU `.meta` — JEDYNA KONTROLA SPÓJNOŚCI, JAKĄ MA TA WARSTWA
+#
+#  ZMIERZONE 17.09.2026. CMS `EnvelopedData` z AES-256-CBC NIE NIESIE
+#  UWIERZYTELNIENIA: przekłamanie bajtów w środku szyfrogramu odszyfrowuje się
+#  BEZ BŁĘDU, a `openssl` kończy się zerem. W przebiegu kontrolnym taki plik
+#  przeszedł odszyfrowanie i spis archiwum, a ćwiczenie padło dopiero na
+#  `pg_restore` (kod 50, „odtworzenie nie udało się") — czyli PO założeniu
+#  bazy i po wlaniu do niej części danych, i z komunikatem wskazującym na
+#  serwer, a nie na uszkodzony plik.
+#
+#  Skrót jawnego zrzutu jest zapisywany w pliku `.meta` obok kopii (§7.2)
+#  przez OBA skrypty kopii. Do tej pory nikt go nie czytał. Teraz czyta go ta
+#  funkcja — i uszkodzona kopia zatrzymuje się TU, zanim cokolwiek powstanie.
+#
+#  Brak `.meta` nie jest błędem: kopia sprzed tej zmiany i ręczny `pg_dump`
+#  go nie mają. Wtedy mówimy wprost, że tej kontroli nie było — cicho
+#  pominięta kontrola jest gorsza od jej braku.
+# =============================================================================
+sprawdz_skrot_z_meta() {
+  local meta="${PLIK_ZRZUTU%.cms}"
+  meta="${meta%.dump}.meta"
+
+  if [[ ! -r "${meta}" ]]; then
+    log "OSTRZEŻENIE: nie ma pliku ${meta##*/} — skrótu zrzutu NIE MAM z czym porównać."
+    return 0
+  fi
+
+  local oczekiwany
+  oczekiwany="$(sed -n -E 's/^sha256_jawnego:[[:space:]]*([0-9a-f]{64}).*/\1/p' "${meta}" | head -1)"
+
+  if [[ -z "${oczekiwany}" ]]; then
+    log "OSTRZEŻENIE: w ${meta##*/} nie ma pola sha256_jawnego — skrótu nie porównuję."
+    return 0
+  fi
+
+  local policzony
+  policzony="$(sha256sum "${ZRZUT_JAWNY}" | cut -d' ' -f1)"
+
+  if [[ "${policzony}" != "${oczekiwany}" ]]; then
+    padnij 44 \
+      'Odszyfrowany zrzut NIE ZGADZA SIĘ ze skrótem z pliku .meta.' \
+      "  w .meta:    ${oczekiwany}" \
+      "  policzony:  ${policzony}" \
+      'Szyfrogram jest uszkodzony (AES-CBC odszyfrowuje śmieci BEZ BŁĘDU) albo' \
+      'plik .meta należy do innej kopii. NIE ODTWARZAM — nic jeszcze nie' \
+      'powstało, więc nie ma czego sprzątać.'
+  fi
+
+  ok "skrót odszyfrowanego zrzutu zgadza się z .meta (${policzony:0:16}…)"
 }
 
 # =============================================================================
@@ -1248,6 +1530,13 @@ sprzataj() {
     rm -rf "${KATALOG_ROBOCZY}"
   fi
 
+  # POŚWIADCZENIE MA PRZEŻYĆ SKASOWANIE KATALOGU ROBOCZEGO O JEDEN KROK.
+  # Pierwsza wersja poprawki z #594 trzymała `PGPASSFILE` w katalogu roboczym,
+  # więc `DROP DATABASE` niżej dostawał adres bez hasła i bez pliku — baza
+  # próbna zostawała na cudzym serwerze, a skrypt tylko ostrzegał. Przeszło to
+  # testy wyłącznie dlatego, że w ich środowisku stało `PGPASSWORD`.
+  # Dlatego plik ma własny katalog i ginie DOPIERO na końcu tej funkcji.
+
   # DROP pod TRZEMA warunkami naraz:
   #   * bazę założył TEN przebieg (`BAZA_NASZA`) — bazy zastanej nie kasujemy
   #     nigdy, bo nie wiemy, czemu służy i kto ją założył;
@@ -1261,6 +1550,10 @@ sprzataj() {
     psql "${SERWER}" --no-password --quiet \
       --command "DROP DATABASE IF EXISTS \"${BAZA}\" WITH (FORCE)" >/dev/null 2>&1 \
       || log "OSTRZEŻENIE: nie udało się skasować bazy próbnej ${BAZA} — zrób to ręcznie."
+  fi
+
+  if [[ -n "${KATALOG_POSWIADCZEN}" && -d "${KATALOG_POSWIADCZEN}" ]]; then
+    rm -rf "${KATALOG_POSWIADCZEN}"
   fi
 
   return "${kod}"
@@ -1320,13 +1613,27 @@ main() {
 
   sprawdz_narzedzia
 
-  # Kopia powstaje PO bezpieczniku nazwy, ale przed czymkolwiek innym —
-  # w pętli lokalnej to ona jest przedmiotem ćwiczenia.
+  # Od tej linii adresy nie zawierają już haseł — leżą one w PGPASSFILE
+  # w OSOBNYM katalogu, kasowanym na samym końcu `sprzataj` (powód tam).
+  KATALOG_POSWIADCZEN="$(mktemp -d "${TMPDIR:-/tmp}/proba-pass.XXXXXX")"
+  SCIEZKA_PGPASS="${KATALOG_POSWIADCZEN}/pgpass"
+  schowaj_haslo_z_dsn "${SERWER}"
+  SERWER="${DSN_BEZ_HASLA}"
+  if [[ -n "${DSN_ZRODLA}" ]]; then
+    schowaj_haslo_z_dsn "${DSN_ZRODLA}"
+    DSN_ZRODLA="${DSN_BEZ_HASLA}"
+  fi
+
+  # Bezpiecznik 1 patrzy na napisy i nie wymaga połączenia. Bezpiecznik 3 pyta
+  # SERWER o jego tożsamość — i musi to zrobić PRZED `CREATE DATABASE`, czyli
+  # przed pierwszym zapisem gdziekolwiek.
+  bezpiecznik_nazwy
+  bezpiecznik_instancji
+
+  # Kopia powstaje dopiero po obu bezpiecznikach adresowych — w pętli lokalnej
+  # to ona jest przedmiotem ćwiczenia.
   if ((PETLA_LOKALNA == 1)); then
-    bezpiecznik_nazwy
     zrob_kopie_lokalna
-  else
-    bezpiecznik_nazwy
   fi
 
   przygotuj_zrzut

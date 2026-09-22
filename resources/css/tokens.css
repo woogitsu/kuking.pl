@@ -122,22 +122,23 @@
      wtedy wiersze. System projektowy v3.1. */
   --leading-title-wiele: 1.3;
 
-  /* --- Spacing (baza 4px) — NIE skalowane przez text-scale, celowo --- */
-  --spacing-1: 0.25rem;   /* 4px */
-  --spacing-2: 0.5rem;    /* 8px */
-  --spacing-3: 0.75rem;   /* 12px */
-  --spacing-4: 1rem;      /* 16px */
-  --spacing-5: 1.25rem;   /* 20px */
-  --spacing-6: 1.5rem;    /* 24px */
-  --spacing-8: 2rem;      /* 32px */
-  --spacing-10: 2.5rem;   /* 40px */
-  --spacing-12: 3rem;     /* 48px */
-  --spacing-16: 4rem;     /* 64px */
-  --spacing-20: 5rem;     /* 80px */
+  /* --- Odstępy: mniejsze ustawienia zagęszczają układ; od 100% baza zostaje --- */
+  --spacing: calc(0.25rem * var(--user-layout-scale, 1));
+  --spacing-1: calc(0.25rem * var(--user-layout-scale, 1));   /* 4px */
+  --spacing-2: calc(0.5rem * var(--user-layout-scale, 1));    /* 8px */
+  --spacing-3: calc(0.75rem * var(--user-layout-scale, 1));   /* 12px */
+  --spacing-4: calc(1rem * var(--user-layout-scale, 1));      /* 16px */
+  --spacing-5: calc(1.25rem * var(--user-layout-scale, 1));   /* 20px */
+  --spacing-6: calc(1.5rem * var(--user-layout-scale, 1));    /* 24px */
+  --spacing-8: calc(2rem * var(--user-layout-scale, 1));      /* 32px */
+  --spacing-10: calc(2.5rem * var(--user-layout-scale, 1));   /* 40px */
+  --spacing-12: calc(3rem * var(--user-layout-scale, 1));     /* 48px */
+  --spacing-16: calc(4rem * var(--user-layout-scale, 1));     /* 64px */
+  --spacing-20: calc(5rem * var(--user-layout-scale, 1));     /* 80px */
   /* 96px. PRZYGOTOWANY, NIEUŻYWANY — pasy strony powitalnej wzięły
      `--spacing-12` i `--spacing-20`. Zostaje, bo paczka v3.1 ma go w skali
      i przy kolejnej przenoszonej regule nie chcemy wpisywać liczby z palca. */
-  --spacing-24: 6rem;
+  --spacing-24: calc(6rem * var(--user-layout-scale, 1));
 
   /* --- Radius --- */
   --radius-sm: 0.5rem;    /* 8px  — plakietki, chipy */
@@ -153,7 +154,7 @@
 
   /* --- Kontrolki: rozmiary minimalne --- */
   --control-height-min: 3rem;       /* 48px — przyciski, elementy BottomNav */
-  --control-height-touch: 3.75rem;  /* 60px — pozycje BottomNav (zapas ponad minimum) */
+  --control-height-touch: max(48px, calc(3.75rem * var(--user-layout-scale, 1)));  /* 60px — pozycje BottomNav (zapas ponad minimum) */
   --hit-area-min: 2.75rem;          /* 44px — checkbox/radio obszar klikalny */
 
   /* POLA DO WPISYWANIA — OSOBNE MINIMUM I W PIKSELACH (issue #365).
@@ -161,8 +162,8 @@
      tylko to, co decyduje o jednostce: wysokość pola istnieje dla ekranu
      i dla palca, a te nie rosną, gdy ktoś powiększy czcionkę w przeglądarce
      (D-082, D-107). Pismo w polu zostaje typograficzne — `--text-body`. */
-  --pole-wysokosc-min: 64px;        /* jednowierszowe: 16 px ponad przycisk */
-  --pole-wielowierszowe-min: 176px; /* „Napisz kilka słów" — ok. 5 wierszy */
+  --pole-wysokosc-min: max(48px, calc(64px * var(--user-layout-scale, 1)));        /* jednowierszowe: 16 px ponad przycisk */
+  --pole-wielowierszowe-min: calc(176px * var(--user-layout-scale, 1)); /* „Napisz kilka słów" — ok. 5 wierszy */
 
   /* --- Czas przejść (system projektowy v3.1) ---------------------------
      Dotąd `150ms` było wklejane wprost w każdą regułę `transition`. Token
@@ -531,6 +532,7 @@
   :root {
     /* Domyślny mnożnik skali tekstu użytkownika — 100% */
     --user-text-scale: 1;
+    --user-layout-scale: min(1, var(--user-text-scale));
 
     /* Jawnie `light`, NIE `light dark` (docs/DECISIONS.md, D-019). Wartość
        `light dark` każe przeglądarce dobrać pola formularza i paski
@@ -542,11 +544,11 @@
     color-scheme: light;
   }
 
-  /* Ustawienie „Powiększ tekst" z /settings/accessibility — 4 kroki,
-     niezależne od zoomu przeglądarki. Skaluje WYŁĄCZNIE typografię
-     (tokeny --text-...), nigdy odstępów, promieni ani wysokości kontrolek,
-     dzięki czemu przyciski (min-height, nie height) najwyżej robią się
-     wyższe przy zawijaniu tekstu — layout się nie psuje.
+  /* Ustawienie rozmiaru tekstu — wartości zgodne z konfiguracją,
+     niezależne od zoomu przeglądarki. Skaluje typografię
+     (tokeny --text-...), a poniżej 100% również odstępy i zapas kontrolek
+     przez --user-layout-scale (D-219), z minimum dotykowym 48 px.
+     Powyżej 100% większy tekst naturalnie zwiększa potrzebną wysokość.
 
      TA LISTA MUSI ZGADZAĆ SIĘ Z `config('kuking.text.scales')`. Pilnuje tego
      `SkalaTekstuDzialaTest`, bo rozjazd jest tu niewidoczny w kodzie i milczy:
@@ -1456,9 +1458,27 @@
     margin: 0;
     padding-left: var(--spacing-6);
   }
-  .error-summary a {
+  .error-summary a,
+  .error-summary button.error-summary-link {
     color: var(--color-danger-tint-ink);
     font-weight: 700;
+  }
+  /*
+   * Odnośnik do pola z INNEGO kroku kreatora (issue #747) musi najpierw
+   * przełączyć krok, więc nie może być zwykłym `<a href="#...">` — cel nie
+   * istnieje w bieżącym HTML, dopóki Livewire nie przerenderuje kroku.
+   * Wygląda jak pozostałe odnośniki podsumowania, żeby człowiek nie musiał
+   * zgadywać, że jedno jest linkiem, a drugie przyciskiem.
+   */
+  .error-summary button.error-summary-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    text-align: left;
   }
 
   /* --- Kroki kreatora (WizardSteps) --- */

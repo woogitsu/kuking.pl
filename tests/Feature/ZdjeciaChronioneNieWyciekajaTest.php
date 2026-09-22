@@ -825,7 +825,7 @@ class ZdjeciaChronioneNieWyciekajaTest extends WidocznoscTestCase
 
         preg_match('/max-age=(\d+)/', $cache, $dopasowanie);
         $maxAge = (int) ($dopasowanie[1] ?? -1);
-        $waznoscPodpisu = 60 * (int) config('kuking.media.signed_url_minutes');
+        $waznoscPodpisu = 60 * (int) config('kuking.media.public_signed_url_minutes');
 
         $this->assertGreaterThan(
             0,

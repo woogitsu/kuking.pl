@@ -584,10 +584,94 @@ dowodzą, że **mechanizm** działa: zrzut → weryfikacja → szyfrowanie → w
 → odszyfrowanie samym kluczem prywatnym → `pg_restore`. Nie dowodzą niczego
 o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 
+> **Co znaczy tu „weryfikacja" — doprecyzowane 18 IX 2026.** Do tego dnia był
+> to sam `pg_restore --list`, czyli odczytanie SPISU TREŚCI archiwum. Spis
+> leży na początku pliku, więc taka weryfikacja przechodziła z kodem 0 także
+> na archiwum obciętym o 20% i na archiwum uszkodzonym w środku — a taki plik
+> szedł dalej: był szyfrowany, wysyłany, potwierdzany i meldowany jako
+> GOTOWE. Od tej poprawki `weryfikuj_zrzut()` czyta **całe** archiwum
+> (`pg_restore --file=/dev/null`, kod wyjścia 53 przy porażce). To dowodzi,
+> że każdy blok danych jest obecny i rozpakowuje się bez błędu. **Nadal NIE
+> dowodzi**, że ten SQL wykona się na świeżym serwerze ani ile to potrwa —
+> to jest §4, ćwiczenie człowieka.
+
 | Data | Co uruchomiono | Wynik | Czego to NIE sprawdziło |
 |---|---|---|---|
 | 9 IX 2026 | `docker/kopia/kopia-bazy.sh` na lokalnej bazie po migracjach, z podstawionym bucketem na dysku, prawdziwym `openssl cms` i prawdziwą parą kluczy RSA | Zrzut 125 592 B, 42 tabele z danymi, szyfrogram 126 147 B. Odszyfrowanie **samym kluczem prywatnym** dało plik o identycznym `sha256`; `pg_restore` wczytał go do pustej bazy bez błędu (42 tabele) | Serwera PostgreSQL **18** (lokalnie 16), prawdziwej rozmowy z R2 (podpis SigV4 sprawdzony wektorami AWS, nie wobec Cloudflare), zbudowania obrazu (brak Dockera w środowisku), harmonogramu Railway |
 | 11 IX 2026 | `scripts/kopia-lokalna.sh` + `scripts/proba-odtworzenia.sh` na lokalnej bazie po migracjach (PostgreSQL 16), z parą kluczy RSA generowaną w trakcie — pełny obieg: zrzut → weryfikacja → szyfrowanie kluczem publicznym → odszyfrowanie SAMYM kluczem prywatnym → `pg_restore` → sprawdzenie treści i zachowania | Zrzut 153 061 B, 49 tabel z danymi, szyfrogram 153 630 B. `pg_restore` bez błędu, **1-2 s**. Odtworzona baza: 49 tabel, 3 wyzwalacze (wszystkie włączone), 87 `CHECK`, 25 `UNIQUE`, 68 kluczy obcych. Cztery sondy zachowania odrzuciły zapis, a kontrola dodatnia go przyjęła. Kontrole ujemne oblały skrypt na: zrzucie 0 B, zrzucie pustej bazy, zrzucie bez wierszy, braku wyzwalacza, wyzwalaczu wyłączonym i **wyzwalaczu-atrapie** (obecnym, włączonym, z wypatroszoną funkcją) | Produkcyjnej bazy, serwera PostgreSQL **18**, prawdziwego R2 i prawdziwego zrzutu z bucketu. To jest pomiar MECHANIZMU, nie kopii: liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+| **17 IX 2026 — ĆWICZENIE LOKALNE** | `scripts/proba-odtworzenia.sh --petla-lokalna` na **odizolowanym klastrze PostgreSQL 18.6** (`127.0.0.1:55439`, `PGTZ=UTC`), na świeżej bazie po wszystkich migracjach z małym, kontrolowanym zestawem danych (5 kont, 15 wpisów, 30 komentarzy, 7 tagów, 10 przepisów, 10 ugotowań — **nie** `DemoSeeder`). Pełny obieg: kopia `scripts/kopia-lokalna.sh` → odtworzenie do **innej** bazy → porównanie każdej tabeli co do jednego wiersza → `migrate:status` → sondy zachowania | **Zrzut 164 897 B**, 50 tabel z danymi, `pg_dump`/`pg_restore` 18. Etapy: `CREATE DATABASE` 0,05 s, migracje ~7,5 s, dane ~2 s, zrzut <1 s, **`pg_restore` 2 s**, cała pętla 8 s. Odtworzona baza: 50 tabel, **192 wiersze = 192 w źródle**, 50/50 tabel zgodnych co do jednego wiersza, `migrate:status` 80 wykonanych / **0 czekających**, 3 wyzwalacze (włączone), 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Osobno sprawdzone poza skryptem: rozszerzenia `pg_trgm`, `unaccent`, `pgcrypto` obecne i działające (`%`, `unaccent()`), **25 indeksów częściowych** i 159 indeksów łącznie — tyle samo co w źródle; zapytania domenowe Eloquenta na odtworzonej bazie zwróciły to samo. Strefa sesji **UTC po obu stronach**; `md5` z `(id, created_at)` tabeli `users` identyczny w źródle i w celu | Produkcyjnej bazy, prawdziwego R2 i zrzutu pobranego z bucketu. **To NIE JEST produkcyjne RTO** — 2 s to czas odtworzenia 192 wierszy na pętli lokalnej, bez pobierania pliku i bez odszyfrowania. **RPO nie jest tu w ogóle mierzalne**: nie ma harmonogramu ani ani jednej udanej kopii produkcyjnej, z której dałoby się policzyć wiek danych. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+| **18 IX 2026 — PIERWSZY PRZEBIEG W KONTENERZE, NA PRAWDZIWYM API S3** | `docker build` obrazu `docker/kopia/Dockerfile`, a potem CAŁA ścieżka produkcyjna z tego kontenera: żywa baza PostgreSQL 18.6 → `pg_dump` → `openssl cms` kluczem publicznym → **PUT na prawdziwy serwer S3** (MinIO `RELEASE.2025-09-07` w kontenerze, w miejscu R2) → **GET tego obiektu z bucketu** → odszyfrowanie kluczem prywatnym → `pg_restore` → weryfikacja. Bucket założony **własnym `docker/kopia/s3.sh`**, czyli podpis SigV4 sprawdzony wobec działającej implementacji S3, nie tylko wobec wektorów AWS. Odtworzenie przez `scripts/proba-odtworzenia.sh --instancja <odcisk> --scisle` | Obraz **buduje się**; w środku `pg_dump`/`pg_restore`/`psql` **18.6** (Debian 13), `openssl` 3.5.7, `curl` 8.14.1, kontener chodzi jako `postgres` (uid 999). Cała kopia **0,55 s**: wersje 0,03 s · listowanie bucketu 0,04 s · `pg_dump` **0,06 s / 166 276 B** · `pg_restore --list` 0,02 s · szyfrowanie **0,01 s / 167 159 B** (+883 B narzutu CMS) · PUT szyfrogramu, PUT `.meta` i HEAD potwierdzający rozmiar razem **0,10 s** · retencja 0,04 s. Pobranie obiektu z bucketu **0,035 s**. Odszyfrowanie i `pg_restore` poniżej sekundy każde. Odtworzona baza: **50 tabel, 202 wiersze = 202 w źródle**, 50/50 tabel co do jednego wiersza, `migrate:status` **80 wykonanych / 0 czekających**, 3 wyzwalacze, 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Poza skryptem porównane ze źródłem i **zgodne co do jednego**: rozszerzenia (`pg_trgm` 1.6, `pgcrypto` 1.4, `unaccent` 1.1, `plpgsql` 1.0), 159 indeksów, **25 indeksów częściowych**, 92 indeksy unikalne, 111 kluczy głównych, 8 sekwencji, 75 funkcji, `md5` definicji wszystkich kolumn, `md5` treści `users` i `posts`, strefa sesji UTC po obu stronach | **Produkcji — ani bazy, ani R2.** MinIO stoi w miejscu R2 i mówi tym samym protokołem, ale to nie jest Cloudflare: nie sprawdzono ani jurysdykcji, ani polityk bucketu, ani tokenów R2. Baza źródłowa jest lokalna i ma 202 wiersze, więc **żadna z tych liczb nie jest produkcyjnym RTO**. Lokalny klaster stoi na `trust`, więc ten przebieg **nie dowodzi uwierzytelniania hasłem** — dowodzi, że hasło nie wychodzi w argumentach. **RPO nadal niemierzalne**: nie ma harmonogramu. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+
+### 5.2 Co pozostaje do wykonania na produkcji — odczyt panelu 17 IX 2026
+
+Odczyt przez zalogowane API Railway (**tylko odczyt**, projekt `ideal-exploration`,
+środowisko `production`). To jest lista **faktów**, nie planu:
+
+| Co | Stan 17 IX 2026 | Skutek |
+|---|---|---|
+| Serwis `kopia-bazy` | **NIE ISTNIEJE.** W środowisku są wyłącznie `Postgres` i `kuking.pl` | Nie powstała ani jedna kopia automatyczna. `.railway/railway.ts` deklaruje ten serwis, ale `railway config apply` nie był uruchamiany |
+| Harmonogram (cron) | **Żaden serwis nie ma `cronSchedule`** | Nie ma z czego liczyć RPO |
+| Zmienne współdzielone | **Lista jest pusta** — nie ma `R2_ENDPOINT`, `R2_KOPIE_BUCKET`, `R2_KOPIE_ACCESS_KEY_ID`, `R2_KOPIE_SECRET_ACCESS_KEY`, `R2_KOPIE_ODCZYT_*` ani `KOPIA_KLUCZ_PUBLICZNY` | Serwis kopii nie miałby czym się połączyć ani czym zaszyfrować |
+| Buckety po stronie Railwaya | **Brak** (`buckets: []`) | Bucket na zrzuty, jeśli ma istnieć, jest po stronie Cloudflare R2 — a tego z Railwaya nie widać (§2.2) |
+| Czujka `kuking:sprawdz-kopie` | Serwis `kuking.pl` **nie ma** `AWS_KOPIE_BUCKET`, `AWS_KOPIE_ACCESS_KEY_ID` ani `AWS_KOPIE_SECRET_ACCESS_KEY` | Czujka jest w stanie `WYLACZONA` — „nie znaczy, że kopie są w porządku, znaczy, że nikt nie patrzy" |
+| Kanał alarmu | Serwis `kuking.pl` **nie ma** `LOG_BLAD_WEBHOOK_URL` | Nawet gdyby czujka była włączona, alarm nie doszedłby do nikogo |
+| Railway Backups / PITR | Panel: „only available for customers on the Pro plan" (odczyt 17 IX, #594) | Bez zmian wobec D-043 |
+| Wolumen `kuking.pl-volume` | 500 MB, **odpięty** (`mountedOn: null`) | Osobny wątek, #596 |
+
+**Czego to NIE rozstrzyga i czego z repozytorium rozstrzygnąć się nie da:**
+czy w Cloudflare R2 istnieje bucket na zrzuty i czy istnieje para kluczy
+(panel Cloudflare wymaga logowania właściciela). Do odbioru produkcyjnego
+potrzebne są cztery czynności z §7.3 — kolejność i skutek każdej: §8.
+
+### 5.3 Railway Volume Backups i PITR — co mówi dokumentacja 18 IX 2026
+
+> **To jest sprostowanie do D-043 i do wiersza „Railway Backups / PITR"
+> w tabeli wyżej.** Tamten wiersz opiera się na jednym odczycie panelu
+> (17 IX: „only available for customers on the Pro plan"). Dzisiejszy odczyt
+> **dokumentacji** Railway nie potwierdza takiej bramki planu — i nie
+> zaprzecza jej też wprost. Dwa różne źródła, dwa różne zdania; dopóki nie ma
+> trzeciego, **żadne z nich nie jest ustaleniem**.
+
+Przeczytane 18 IX 2026 przez Railway MCP (`search-docs` / `fetch-docs`,
+**wyłącznie odczyt**) — strony `volumes/backups`, `volumes/point-in-time-recovery`,
+`pricing/plans`, `storage-buckets/billing`:
+
+| Ustalenie | Treść |
+|---|---|
+| Volume Backups — harmonogramy | Daily: co 24 h, trzymane **6 dni** · Weekly: co 7 dni, **27 dni** · Monthly: co 30 dni, **89 dni**. Wolno wybrać kilka naraz; da się też wyzwolić ręcznie |
+| Volume Backups — limit | Kopia ręczna **maks. 50 % rozmiaru wolumenu**. Tutejszy `postgres-volume` ma 500 MB, więc próg to **250 MB** |
+| Volume Backups — cena | Rozliczane jak Volume Storage: **0,15 USD / GB / miesiąc**, przyrostowo i Copy-on-Write (płaci się za dane wyłączne dla kopii) |
+| Volume Backups — haczyk | „Wiping a volume deletes all backups" oraz „Backups can only be restored into the same project + environment" — czyli **to nie jest kopia offsite** i D-043 pozostaje w mocy co do sensu warstwy z §7 |
+| PITR — czym jest | ciągłe archiwum WAL przez pgBackRest do **Railway Storage Bucket**; pełna kopia bazowa co tydzień, różnicowa co dobę; trzymane **4 ostatnie pełne**, czyli okno ok. **4 tygodni** |
+| PITR — wymaganie obrazu | tag **major**, nie minor. Tutejszy `ghcr.io/railwayapp-templates/postgres-ssl:18` **spełnia ten warunek** |
+| PITR — cena | brak osobnej opłaty. Płaci się za **bucket 0,015 USD / GB-miesiąc** (operacje S3 i egress z bucketu **darmowe**) oraz za **egress serwisu** przy wysyłce, **0,05 USD / GB**. Wszystko jest kompresowane (zstd) przed wysłaniem |
+| PITR — czego nie da | „The available restore window starts from the first post-enable base backup, not retroactively" — włączenie **nie cofa się wstecz** |
+| Subskrypcje | Free 0 USD · **Hobby 5 USD/mies. (w tym 5 USD zużycia)** · Pro 20 USD/mies. (w tym 20 USD zużycia) |
+| Czego dokumentacja **nie** mówi | na żadnej z tych czterech stron **nie ma zdania**, że Volume Backups albo PITR wymagają planu Pro. Plan różnicuje: liczbę replik, RAM/CPU, rozmiar wolumenu, retencję obrazów, współpracowników i samoobsługowe powiększanie wolumenu — nie kopie |
+
+**Szacunek kosztu dla TEGO projektu**, przy dzisiejszej wielkości bazy
+(zrzut jawny 166 KB przy 202 wierszach; produkcja jest większa, ale nie
+o rzędy wielkości) i wolumenie 500 MB:
+
+- **Volume Backups**: przyrost dobowy liczony w megabajtach ⇒ **poniżej 0,15 USD
+  miesięcznie**, w praktyce grosze. Mieści się w 5 USD zużycia planu Hobby.
+- **PITR**: archiwum rzędu pojedynczych GB ⇒ **poniżej 0,05 USD** za bucket
+  plus **poniżej 0,20 USD** egressu. Też w granicach zużycia Hobby.
+- **Jedyny realny koszt to ewentualna subskrypcja**: jeśli bramka planu
+  naprawdę istnieje, wejście na Pro to **+15 USD/mies.** wobec Hobby
+  (20 zamiast 5), przy czym limit zużycia rośnie z 5 do 20 USD.
+
+**`[DECYZJA WŁAŚCICIELA — nie wykonana z tej sesji]`** Kolejność jest taka:
+
+1. Otworzyć **panel Railway → serwis `Postgres` → zakładka Backups** i zapisać
+   z datą, co tam jest: harmonogramy do wyboru czy komunikat o planie Pro.
+   To rozstrzyga sprzeczność opisaną w ramce wyżej i jest **jednym kliknięciem**.
+2. Jeżeli zakładka działa na obecnym planie — włączyć **Daily** (koszt groszowy)
+   i dopiero potem rozważyć PITR.
+3. Jeżeli wymaga Pro — decyzja o **+15 USD/mies.** należy do właściciela.
+   Warstwa z §7 (zrzut do R2) jest od niej **niezależna** i ma pierwszeństwo,
+   bo tylko ona jest kopią **poza Railwayem**: Volume Backups i PITR żyją
+   w tym samym koncie i tym samym projekcie co baza.
 
 ---
 
@@ -610,6 +694,32 @@ specyficzne dla kopii i odtwarzania.
 - ~~Backups włączone w panelu Railway~~ — **nie ma czego sprawdzać.**
   Volume Backups i PITR to funkcje planu Pro (D-043). Ta pozycja stała tu
   do 9 września 2026 i była nieprawdą, którą dawało się odhaczyć.
+- **Czy przyszedł alarm `retencja` z kodem 92 — czyli „obiekt bez
+  potwierdzenia".** Retencja nie kasuje obiektów, o których nie potrafi
+  udowodnić, że są kopiami (szyfrogram ze zgodnym `.meta` — §7.2), i nie
+  liczy ich do `KOPIA_MINIMUM_KOPII`. Wypisuje je natomiast w logu serwisu
+  i alarmuje. Co z takim obiektem zrobić — **decyzja jest twoja, nie
+  automatu**:
+
+  1. **Rozmiar 0 B** — to jest ślad po nieudanej wysyłce. Skasuj go
+     ręcznie, nic w nim nie ma.
+  2. **Brak `.meta`, ale rozmiar niezerowy — NIE KASUJ.** To jest
+     najprawdopodobniej **dobra, w pełni odzyskiwalna kopia**. `wyslij()`
+     wysyła najpierw szyfrogram, potem `.meta`, więc gwarantowanym kształtem
+     porażki w tym kroku (kod 71) jest kompletny szyfrogram bez papierka.
+     Tak samo kończy się nieudane potwierdzenie (kod 80): `.meta` znika,
+     szyfrogram zostaje. Zmierzone: taki obiekt odszyfrowuje się do bajtu
+     (`md5` jawnego zgodny) i czyta do końca — `.meta` nie bierze udziału
+     w odszyfrowaniu. Najpierw §7.4 kroki 2 i 4b; kasuj dopiero, gdy się
+     nie odszyfruje albo nie przeczyta.
+  3. **Rozmiar niezgodny z `.meta`** — obiekt jest niepełny albo nadpisany.
+     Zanim skasujesz, sprawdź, czy da się go odszyfrować i przeczytać (§7.4
+     kroki 2 i 4b). Jeśli się da mimo niezgodności, zachowaj go i **zgłoś
+     to jako usterkę** — znaczy, że rozmiar w `.meta` jest zły, a nie plik.
+  4. **Nie kasuj „dla porządku" obiektu, którego nie sprawdziłeś.** Jedyny
+     powód, dla którego ten mechanizm ich nie rusza, jest taki, że kasowanie
+     rzeczy, której się nie rozumie, jest dokładnie tym, przed czym stoi
+     cały ten dokument.
 
 **Co miesiąc:**
 - Rozmiar bazy i R2 vs trend — rosnąca baza zmienia RTO restore'u, warto to
@@ -687,7 +797,8 @@ Dopóki ta warstwa nie chodzi na produkcji, liczba kopii bazy wynosi **zero**.
 | `.railway/railway.ts` → serwis `kopia-bazy` | harmonogram (Railway Cron, 02:17 UTC), limity, zmienne |
 | `app/Domain/Kopie/StanKopiiBazy.php` | czujka po stronie aplikacji: czy kopie NADAL powstają |
 | `app/Console/Commands/SprawdzKopieBazy.php` | `kuking:sprawdz-kopie` — ta czujka z ręki i z harmonogramu |
-| `tests/skrypty/kopia-bazy.sh` | testy skryptu: wektory AWS, treść alarmu, retencja, szyfrowanie w obie strony |
+| `tests/skrypty/kopia-bazy.sh` | testy skryptu: wektory AWS, treść alarmu, weryfikacja na PRAWDZIWYM archiwum `pg_dump` (obciętym i uszkodzonym), retencja wobec PRAWDZIWEGO serwera mówiącego ListObjectsV2, szyfrowanie w obie strony |
+| `tests/skrypty/dane/archiwum-pg18.dump.base64` | prawdziwe archiwum `pg_dump --format=custom` do testu wyżej; jak je odtworzyć, pisze jego własny nagłówek |
 | `scripts/kopia-lokalna.sh` | kopia na dysk właściciela, bez R2 i bez Railwaya — kopia numer jeden do zrobienia DZIŚ (§8.1) |
 | `scripts/proba-odtworzenia.sh` | próba odtworzenia: wlanie zrzutu do czystej bazy `proba_odtworzenia*` i **sprawdzenie wyniku** — tabele, wiersze, wyzwalacze, ograniczenia, zachowanie barier (§8.2) |
 | `tests/skrypty/proba-odtworzenia.sh` | testy obu skryptów na prawdziwym `pg_dump`/`pg_restore`, z fiksturami łamiącymi każdą kontrolę osobno |
@@ -771,6 +882,19 @@ certyfikat.
 
 Nazwa pliku jest źródłem prawdy o wieku kopii (nie `LastModified` obiektu):
 mówi, **kiedy zrobiono zrzut**, a nie kiedy plik trafił do bucketu.
+
+**Co znaczy „kopia potwierdzona" (od 18 IX 2026).** Para powyżej jest kopią
+wtedy i tylko wtedy, gdy oba pliki są w buckecie, szyfrogram ma rozmiar
+większy od zera i ten rozmiar **zgadza się** z polem
+`rozmiar_szyfrogramu_bajty` z jego własnego `.meta`. Tylko takie obiekty
+liczą się do `KOPIA_MINIMUM_KOPII` i tylko takie retencja kasuje. Powód
+jest zmierzony i opisany przy tabeli w §7.6: wcześniej „kopia" znaczyła
+„klucz o pasującej nazwie", więc dziewięć obiektów zerowej długości
+wypchnęło przez minimum jedyną kopię, która cokolwiek zawierała.
+
+To sprawdzenie **nie porównuje bajtów** — na to trzeba by codziennie ściągać
+całą historię kopii przez kontener. Bajty sprawdza dopiero odtworzenie
+z §7.4, robione przez człowieka.
 
 ### 7.3 `[DO WYKONANIA PRZEZ WŁAŚCICIELA]` — czego kod nie mógł zrobić sam
 
@@ -918,6 +1042,18 @@ grep '^sha256_jawnego:' kuking-20260910-021700Z.meta
 # 4. Przeczytaj spis treści archiwum, ZANIM je gdziekolwiek wczytasz.
 pg_restore --list kuking.dump | grep -c 'TABLE DATA'
 
+# 4b. I PRZECZYTAJ CAŁE ARCHIWUM — krok 4 tego NIE robi.
+#     `--list` czyta wyłącznie spis treści, a ten leży na POCZĄTKU pliku;
+#     bloków danych nie dotyka w ogóle. Archiwum obcięte — nawet o jeden
+#     bajt — przechodzi krok 4 z kodem 0 i pełną listą tabel. Zmierzone
+#     18 IX 2026 na prawdziwym zrzucie tej bazy (331 974 B, 50 tabel),
+#     obcinanym do 99, 98, 95, 92, 90 i 80 procent oraz uszkadzanym
+#     w środku: za każdym razem `--list` mówił „50 tabel", a odtworzenie
+#     padało na „could not read from input file: end of file".
+#     Komenda niżej rozpakowuje KAŻDY blok danych i wyrzuca wynik do
+#     /dev/null, więc nie zostawia jawnego SQL-a na dysku:
+pg_restore --file=/dev/null kuking.dump && echo 'archiwum czyta się do końca'
+
 # 5. Odtwórz do PUSTEJ bazy. --no-owner: role z tamtego projektu nie istnieją.
 createdb kuking_odtworzona
 pg_restore --dbname=kuking_odtworzona --no-owner --exit-on-error kuking.dump
@@ -961,6 +1097,79 @@ zrzut — numer stoi w `.meta` w polu `pg_dump`.
   a §6 dokłada przegląd raz na tydzień. **Trzeciego niezależnego świadka nie
   ma** — jeśli padnie i serwis kopii, i aplikacja, milczenie będzie zupełne.
 
+### 7.6 Co się dzieje, gdy coś pójdzie źle — zmierzone, nie założone
+
+**Zmierzone 18 IX 2026 na PRAWDZIWEJ ścieżce**: zbudowany obraz
+`docker/kopia/Dockerfile`, żywa baza PostgreSQL 18.6, prawdziwy serwer S3
+(MinIO w kontenerze, w miejscu R2), prawdziwy `openssl cms`, prawdziwy
+odbiornik webhooka. Żadne narzędzie nie było podstawione.
+
+Kolumna „śmieci" to zawartość katalogu roboczego **po** przebiegu — katalog
+był podmontowany z zewnątrz, więc dało się w niego zajrzeć po tym, jak
+kontener zniknął.
+
+| Co zepsuto | Kod wyjścia | Etap w alarmie | Śmieci | Zgodne z opisem |
+|---|---|---|---|---|
+| `KOPIA_KLUCZ_PUBLICZNY` zawiera klucz PRYWATNY | **64** | `szyfrowanie` | 0 | tak |
+| To samo, sklejone `cat`em z certyfikatem | **64** | `szyfrowanie` | 0 | tak |
+| W zmiennej klucza śmieć (ani PEM, ani base64) | **60** | `szyfrowanie` | 0 | tak |
+| Token bez prawa do bucketu (serwer odpowiada **403**) | **30** | `poprzednia-kopia` | 0 | tak |
+| Bucket nie istnieje (serwer odpowiada **404**) | **30** | `poprzednia-kopia` | 0 | tak |
+| Wysyłka urwana w połowie ciała żądania | **70** | `wysylka` | 0 | tak |
+| Dysk tymczasowy pełny (`tmpfs` 64 KiB) | **40** | `zrzut` | 0 | tak |
+| Odtworzenie **złym** kluczem prywatnym | **43** | — | baza próbna nie powstała | tak |
+| Obiekt w buckecie uszkodzony w środku | **44** | — | baza próbna nie powstała | tak |
+| Obiekt w buckecie obcięty | **43** | — | baza próbna nie powstała | tak |
+
+**Retencja**, sprawdzona osobno na prawdziwym buckecie w sześciu układach
+(12 kopii / 10 przeterminowanych, 10 przeterminowanych, 11 przeterminowanych,
+12 kopii z 2 przeterminowanymi, minimum obniżone do 1, dokładnie 7 przy
+minimum 7): **w każdym z nich najnowsza kopia została nietknięta**, liczba
+pozostałych nigdy nie spadła poniżej minimum, a plik `.meta` ginął razem ze
+swoim szyfrogramem. Przy dokładnie siedmiu kopiach i minimum siedem nie
+skasowała **ani jednej**. Gdy listowanie bucketu się nie udało — zaalarmowała
+i **zwróciła zero**, bo porażka retencji nie jest porażką kopii.
+
+> **CO TAMTEN POMIAR PRZEOCZYŁ — I CO SIĘ PRZEZ TO ZMIENIŁO (18 IX 2026).**
+> We wszystkich sześciu układach każdy obiekt w buckecie był poprawną kopią,
+> więc mierzyły one **arytmetykę wieku i minimum**, a nie to, czy retencja
+> w ogóle wie, co jest kopią. Nie wiedziała: `MINIMUM_KOPII` chroniło
+> **liczbę kluczy**. Odtworzone na tym samym MinIO — jedna poprawna kopia
+> (najstarsza, 172 162 B) i nad nią dziewięć obiektów **zerowej długości** po
+> nieudanych wysyłkach: retencja naliczyła dziesięć „kopii", skasowała trzy
+> najstarsze, czyli razem z jedyną, która cokolwiek zawierała, i zameldowała
+> „retencja: skasowano 3". W buckecie zostało siedem pustych plików i zero
+> kopii. Naprawione — od tej pory liczą się wyłącznie **kopie potwierdzone**:
+> szyfrogram, który ma obok siebie swój `.meta` i którego rozmiar w buckecie
+> **zgadza się** z polem `rozmiar_szyfrogramu_bajty` z tego `.meta`.
+>
+> **Obiekty bez takiego potwierdzenia nie są ani liczone, ani kasowane.**
+> Retencja wypisuje je w logu i alarmuje (etap `retencja`, kod 92), a decyzja
+> należy do człowieka — §6 niżej. Dotyczy to tak samo obiektów sprzed tej
+> zmiany: **nie ma tu daty granicznej ani taryfy ulgowej**, bo `.meta`
+> powstawało od pierwszego dnia tego serwisu, więc ten sam dowód da się
+> przeprowadzić dla starego obiektu i dla dzisiejszego. Praktyczny skutek:
+> pierwszy przebieg po tej zmianie może zaalarmować o obiektach, których
+> wcześniej nikt nie liczył — i to jest właśnie ta informacja, której nie było.
+>
+> Przy okazji naprawione dwie rzeczy z tego samego pomiaru: `potwierdz()`
+> przy niezgodności rozmiaru **usuwa teraz obiekt tego przebiegu razem z jego
+> `.meta`** (zostawał w buckecie i przy następnym przebiegu wyglądał jak
+> kopia), a wartości `KOPIA_MINIMUM_KOPII` i `KOPIA_RETENCJA_DNI` są
+> sprawdzane w KROKU 0: `0` czyściło bucket do zera, a wartość wpisana słowem
+> kończyła przebieg na `unbound variable` **po** udanej kopii i bez alarmu.
+> Obie są teraz odrzucane, zanim powstanie zrzut.
+
+> **Jedna usterka znaleziona i naprawiona tego dnia.** Do 18 IX komunikat
+> o nieudanym listowaniu bucketu **zawsze** brzmiał „HTTP brak", także wtedy,
+> gdy serwer odpowiedział 403 albo 404. Powód: `s3_lista_kluczy` wypisuje
+> klucze na standardowe wyjście, więc wołano ją przez `$(…)` — czyli
+> w podpowłoce, razem z którą ginęła zmienna `S3_KOD`. Skutek praktyczny:
+> „token nie ma uprawnień" i „bucketu nie ma pod tą nazwą" — dwie różne
+> awarie z dwiema różnymi naprawami — były w logu **nie do odróżnienia**.
+> Naprawione (`s3_lista_kluczy_do_pliku`); alarm celowo nadal niesie sam etap
+> i kod wyjścia, bo szczegóły z założenia zostają w logu serwisu.
+
 ---
 
 ## 8. Karta czynności właściciela — od zera kopii do jednej odtworzonej
@@ -974,8 +1183,12 @@ ma komendę albo przycisk i sposób sprawdzenia, że się udało.
 > trzecia w budowie”. **Zero.** Trzy niezależne powody, wszystkie sprawdzone,
 > nie przypuszczone:
 >
-> 1. Volume Backups i PITR to funkcje planu **Pro**, a Kuking jest na
->    Free/Hobby — panel nawet nie pokazuje tej zakładki (D-043).
+> 1. Volume Backups i PITR **nie są włączone** — odczyt Railway MCP z 18 IX
+>    potwierdza: serwis `Postgres` nie ma zmiennych `WAL_ARCHIVE_*`, a po
+>    stronie projektu nie ma ani jednego bucketu. (Czy w ogóle wolno je
+>    włączyć na obecnym planie, jest dziś **sporne** — patrz §5.3. Nawet gdy
+>    wolno, są to kopie **wewnątrz tego samego projektu Railway**, więc nie
+>    zastępują warstwy z §7.)
 > 2. Serwis `kopia-bazy` **ma kod** w `docker/kopia/` i **nie istnieje**
 >    w Railwayu: nie ma bucketu, tokenów, klucza ani samego serwisu (§7.3).
 > 3. Nikt nigdy nie zrobił ręcznego zrzutu — tabela w §5 jest pusta.
@@ -1030,6 +1243,15 @@ export KOPIA_ZRODLO="postgresql://postgres:<HASLO>@localhost:<PORT>/railway"
 Hasło idzie przez zmienną, nie przez argument: argument widać w `ps`
 i zostaje w historii powłoki.
 
+Sam skrypt tego samego błędu już nie popełnia. Do 17 IX 2026 przekazywał DSN
+jako argument `pg_dump`, więc **hasło do produkcyjnej bazy stało w `ps` przez
+cały czas trwania zrzutu** — zmierzone prawdziwym `ps -o args=`, a na Linuksie
+widzi to każdy użytkownik maszyny. Dziś hasło ląduje w prywatnym `PGPASSFILE`
+(prawa 600, ginie razem z przebiegiem), a do `pg_dump` i `psql` idzie adres bez
+hasła. To samo robi serwis kopii (`docker/kopia/kopia-bazy.sh`) i próba
+odtworzenia. **Twojego** wiersza polecenia żaden skrypt nie schowa — dlatego
+`KOPIA_ZRODLO` wyżej zostaje.
+
 **Czym potwierdzasz, że kopia istnieje** — skrypt kończy się kodem 0 i wypisuje:
 
 ```text
@@ -1064,7 +1286,33 @@ z Dockera, byle nie tego, który obsługuje serwis.
 Skrypt zakłada bazę `proba_odtworzenia_<znacznik>`, wlewa do niej zrzut,
 sprawdza wynik i **kasuje ją po sobie** (chcesz obejrzeć? dodaj `--zostaw`).
 Do produkcji nie sięga w żadnym kroku i odmawia startu, gdyby miał —
-pilnują tego dwa niezależne bezpieczniki, opisane w nagłówku skryptu.
+pilnują tego **trzy** niezależne bezpieczniki, opisane w nagłówku skryptu.
+
+> **Jeśli odtwarzasz przez tunel (`railway connect postgres --tunnel-only`),
+> skrypt ODMÓWI za pierwszym razem — i tak ma być (kod 24).**
+> Za tunelem produkcja nazywa się `127.0.0.1`, więc blokada po nazwie hosta
+> (bezpiecznik 1) jej nie widzi, a baza próbna jest świeża, więc bezpiecznik 2
+> też nie ma się czego uczepić. Zmierzone 17 IX 2026: ten sam klaster odrzucony
+> pod adresem `*.proxy.rlwy.net` został przyjęty pod `127.0.0.1` i dostał pełny
+> zrzut danych osobowych. Bezpiecznik 3 pyta o **tożsamość instancji**
+> (`system_identifier` klastra) i przepuszcza bez pytania wyłącznie Postgresa
+> tego repozytorium. Dla każdego innego serwera odmowa wypisuje odcisk:
+>
+> ```text
+> --instancja 1870cee372ae8b30
+> ```
+>
+> **Przeczytaj, do czego jesteś podłączony, zanim to wkleisz.** Jeśli odcisku
+> nie rozpoznajesz, to jest dokładnie ten przebieg, którego nie wolno
+> uruchomić. Odmowa następuje **przed** `CREATE DATABASE`, więc na cudzej
+> instancji nie zostaje nic.
+>
+> Drugi nowy kod: **44** — odszyfrowany zrzut nie zgadza się ze skrótem
+> `sha256_jawnego` z pliku `.meta`. CMS z AES-256-CBC nie niesie
+> uwierzytelnienia, więc uszkodzony szyfrogram odszyfrowuje się **bez błędu**;
+> do 17 IX 2026 poznać to było dopiero po `pg_restore`, czyli po wlaniu części
+> danych do bazy. Trzymaj `.meta` razem ze zrzutem — bez niego tej kontroli
+> nie ma, a skrypt mówi o tym wprost w logu.
 
 **Czym potwierdzasz, że odtworzenie się udało** — kod wyjścia 0 i lista
 zaliczonych kontroli, w tej kolejności:
@@ -1180,6 +1428,33 @@ repozytorium jest zdaniem o kodzie, nie o kopii.
   migawkę, nie blokuje zapisów aplikacji), a próba odtworzenia odmawia
   startu, gdy cel jest czymkolwiek innym niż baza `proba_odtworzenia*`
   na serwerze niebędącym Railwayem.
+
+---
+
+### Korekta parametrów retencji po review PR #689 (18 IX 2026)
+
+Parametry liczbowe panelu są dziesiętne: `010`, `08` i `09` oznaczają
+odpowiednio 10, 8 i 9. Walidacja usuwa zera wiodące przed arytmetyką Basha,
+który sam odczytałby `010` jako 8. Dopuszczamy najwyżej 19 znaków wejścia
+oraz 18 cyfr po normalizacji; odrzucamy zero, liczby ujemne i tekst przed
+konwersją. Te same reguły chronią bezpośrednie wywołanie retencji.
+Nieobliczalna data graniczna zatrzymuje kasowanie z alarmem; nie jest
+interpretowana jako pusty albo zerowy próg.
+
+Regresja porównuje faktyczne pary żądań DELETE do lokalnego serwera:
+12 starych potwierdzonych kopii przy minimum `010` pozwala usunąć dokładnie
+dwie najstarsze pary. Osobno sprawdza młode kopie, mieszane daty i zachowanie
+kopii z dnia granicznego. Oba serwery testowe dostają port od systemu
+(port 0), a test odczytuje gotowość własnego procesu zamiast sprawdzać,
+czy na stałym porcie odpowiada jakakolwiek usługa. To test mechanizmu;
+nie potwierdza kopii produkcyjnej bazy ani dostępu do R2.
+
+Pomiar lokalny tej korekty: **167/167 PASS** w izolowanej kopii, także
+przy obu dawnych portach zajętych własnymi listenerami. Pięć fizycznych
+kontroli ujemnych wykryło powrót zapisu ósemkowego, pominięcie wieku,
+usuwanie dnia granicznego, brak normalizacji i brak alarmu błędnej daty.
+Po każdej przywrócono MD5 i mtime. Nie wykonywano tutaj pełnego PHP,
+hooka ani odbioru produkcji; ShellCheck nie był dostępny.
 
 ---
 

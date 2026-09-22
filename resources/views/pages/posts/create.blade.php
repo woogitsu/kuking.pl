@@ -104,6 +104,9 @@
             @error('photos.*')<span class="field-error">{{ $message }}</span>@enderror
         </div>
 
+        <div data-tagi-opis data-tagi-endpoint="{{ route('tags.suggestions') }}"
+             data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
+             data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
         <x-field
             name="body"
             label="Napisz kilka słów"
@@ -111,6 +114,8 @@
             :rows="5"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
+            <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
+        </div>
 
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
              wiążą błąd z grupą — patrz `x-blad-grupy`. --}}
@@ -145,8 +150,6 @@
             </div>
             <x-blad-grupy name="visibility" />
         </fieldset>
-
-        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Opublikuj</button>

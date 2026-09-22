@@ -1,6 +1,49 @@
 # Kontynuacja autonomiczna KuKing
 
-## Bieżący punkt — #549 scalone, #567 lokalne
+## Bieżąca praca — #579
+
+Użytkownik polecił wykonać po kolei kolejkę gospodarza, review gałęzi audytora FTS/ParaTest, lokalną próbę kopii i odtworzenia oraz weryfikację pozostałych tez audytu. #579 jest pierwszym pakietem na fix/579-kolejka-gospodarza, robocza Alfa0.39. [Raport](KOLEJKA_GOSPODARZA_579.md) zawiera dokładne testy i ograniczenia. Nie deklarować wdrożenia przed CI i Railway. Produkcja0.38/61360bf; #575/#578 zakończone. Gałęzi claude/nice-sagan-98x3qe nie nadpisywać. Kopie produkcji/R2 nadal wymagają dostępu Cloudflare i informacji o istniejącej kopii.
+
+
+## Bieżący punkt — odbiór #575, 15 września 2026
+
+PR #575 scalono normalnie jako `0e1bdbe80ffe25d72accf2f773a3a533675ef458`
+z head `7cbdef8a5d1236d36542008527ee4b322d3506e6`. Zwykły push z pełnym
+hookiem przeszedł. CI PR 34983616697: wszystkie 11 zadań success;
+pełny PHP 3834 testy / 76883 asercje odczytano w logu 104430040169.
+Port bazowy trwał 261 s, rozszerzony 1295 s, w granicach 25 minut.
+Fizyczne negatywy i końcowy ogląd: SZYBKI_WYGLAD_574.md oraz
+PODZIAL_POMIAROW_CI_577.md. Dowód CI: evidence/ci577/ci-pr575.json.
+
+Main CI34986762320:11/11success, PHP3834/76883. Railway6462041446
+success15:36:08UTC, Deploy34989544692 success. Produkcja Alfa0.38,
+0e1bdbe80ffe25d72accf2f773a3a533675ef458, CSSapp-Bx-MzRPK.css,
+JSapp-BlSF1GKB.js i oba Inter HTTP200. Odbiór wykonany: realny zapis
+skali70/motywu, reload/reset,6 kompozycji panelu i24 warianty paska,
+rzeczywiste przewijanie oraz ogląd8 zrzutów. Raport: ODBIOR_PRODUKCJI_ALFA_038.md.
+To odbiór gościa; stany konta i zoom mają osobne dowody lokalne/CI.
+Nie odtwarzać ponownie zakończonego pakietu. Przewijany pasek z0.37
+odebrano razem z0.38; starsza wersja nie miała osobnego odbioru.
+
+Raporty zbiera docs/575-odbior-wygladu; przed ponowną wysyłką sprawdzić
+lokalny i zdalny SHA, PR oraz istniejący proces hooka. Środowisko:
+/home/mateusz/kuking-work560, PG55439, browser kuking_560_browser,
+testy kuking_560_tests. Nigdy5432 ani historyczne /tmp poniżej.
+
+Po dostarczeniu raportu: zweryfikować operacyjne tezy audytu przekazanego
+przez właściciela15.09 (#193/#9 kopie i restore, #120R2, #204EmailLabs),
+przed rozpoczynaniem kolejnych poprawek powierzchni. Stare OTWARCIE.md
+nie jest dowodem aktualnego panelu; nie zakładać braku użytkowników
+ani włączać korespondencji lub zwiększać TTL mediów bez sprawdzenia
+zgód, dostępu i konsekwencji prywatności. Audyt bazował na0.36 i nie obejmował
+produkcji. W kolejce pozostają #568 (pętla po200 wynikach), #561
+(wysokie zdjęcia pod klawiaturą), dalsza macierz #492. Research i scenariusze dopisano do
+istniejącego #576; nie zastępują badań z rzeczywistymi uczestnikami #15.
+#120 wymaga odbioru rzeczywistego R2, #258/#259 paneli dostawców OAuth;
+adapter i nazwane kontrole health już istnieją. Pełny port marki: CZĘŚCIOWO.
+Starsze punkty poniżej są historią, nie stanem bieżącej wysyłki.
+
+## Historyczny punkt — #549 i #567
 
 PR #570 scalono normalnie po 10/10 success CI 34964204421.
 Head: 6388747aa9b5a6070b05f8cac605ebaa6da3bbe9.

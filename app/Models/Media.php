@@ -68,6 +68,21 @@ class Media extends Model
      */
     public const STATUS_DELETED = 'deleted';
 
+    /**
+     * Klucze plików, które `ProcessUploadedImage` DOPIERO ZAPISUJE (#601).
+     *
+     * `KasujZdjecie` chodzi po `metadata.variants`, a ta tablica powstaje
+     * dopiero po ostatnim wariancie. Między pierwszym `put()` a końcem
+     * zadania pliki leżą już w publicznym buckecie, a w bazie nie ma pod nie
+     * żadnego klucza — więc nie kasuje ich ani usunięcie wpisu, ani wymazanie
+     * konta. Ta lista jest tym brakującym uchwytem i znika po sukcesie.
+     *
+     * Nie nazywa się `variants`, bo `wariantDoSerwowania()` pokazałoby po
+     * niej zdjęcie w połowie przetwarzania — pod nazwą wariantu, którego plik
+     * może jeszcze nie istnieć.
+     */
+    public const METADANE_WARIANTY_W_TRAKCIE = 'warianty_w_trakcie';
+
     protected $fillable = [
         'owner_id',
         'disk',

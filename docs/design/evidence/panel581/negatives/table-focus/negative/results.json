@@ -1,0 +1,28 @@
+{
+  "kind": "table-focus",
+  "expectedHypothesis": "P581_FOKUS_ZASLONIETY",
+  "rows": [
+    {
+      "kind": "table-focus",
+      "theme": "light",
+      "width": 320,
+      "height": 900,
+      "scale": 140,
+      "expectedHypothesis": "P581_FOKUS_ZASLONIETY",
+      "passed": false,
+      "error": "P581_FOKUS_ZASLONIETY {\"id\":\"33\",\"focus\":true,\"focusVisible\":true,\"dateFocusWithin\":false,\"outline\":true,\"outlineStyle\":\"solid\",\"outlineWidth\":\"3px\",\"outlineColor\":\"rgb(21, 94, 239)\",\"kolorFokusu\":\"rgb(21, 94, 239)\",\"pierscien\":false,\"shadow\":\"none\",\"fragments\":[false],\"width\":240.328125,\"height\":48,\"target\":false,\"klatki\":1}",
+      "blockedMethods": []
+    },
+    {
+      "kind": "table-focus",
+      "theme": "dark",
+      "width": 320,
+      "height": 900,
+      "scale": 140,
+      "expectedHypothesis": "P581_FOKUS_ZASLONIETY",
+      "passed": false,
+      "error": "P581_FOKUS_ZASLONIETY {\"id\":\"33\",\"focus\":true,\"focusVisible\":true,\"dateFocusWithin\":false,\"outline\":true,\"outlineStyle\":\"solid\",\"outlineWidth\":\"3px\",\"outlineColor\":\"rgb(110, 168, 255)\",\"kolorFokusu\":\"rgb(110, 168, 255)\",\"pierscien\":false,\"shadow\":\"none\",\"fragments\":[false],\"width\":240.328125,\"height\":48,\"target\":false,\"klatki\":1}",
+      "blockedMethods": []
+    }
+  ]
+}

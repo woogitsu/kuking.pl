@@ -10,7 +10,7 @@ Każda trasa `/admin/*` ma dodatkowo stan bramki `pages.admin.wymagane_2fa` (403
 
 Wspólne stany ekranów: jasny/ciemny motyw, 320/360/390/414 px i desktop, powiększony tekst, długie nazwy, fokus i klawiatura; formularze dodatkowo mają błąd przy polu i podsumowanie, zachowanie danych, wysyłanie/sukces, 419/429 oraz brak skryptu. Stany konta i blokady należy rozpatrywać zgodnie z polityką danego zasobu. Kategorie plik/system nie dziedziczą wymagań geometrii ekranu.
 
-Prefiks `livewire-b7a314a9` w tabeli jest snapshotem lokalnej instancji, nie stałym adresem wszystkich wdrożeń. `Livewire\Mechanisms\HandleRequests\EndpointResolver::prefix()` tworzy go z pierwszych ośmiu cyfr szesnastkowych SHA-256 wartości `app.key` z dopiskiem `livewire-endpoint`. Inna instalacja lub zmiana klucza może dać inny prefiks; stabilne są wymienione sufiksy tras. Inwentaryzacja zachowuje zaobserwowane adresy, a test porównania tras normalizuje wyłącznie taki ośmiocyfrowy prefiks Livewire.
+Prefiks `livewire-b7a314a9` w tabeli jest snapshotem lokalnej instancji, nie stałym adresem wszystkich wdrożeń. `Livewire\Mechanisms\HandleRequests\EndpointResolver::prefix()` tworzy go z pierwszych ośmiu cyfr szesnastkowych SHA-256 wartości `app.key` z dopiskiem `livewire-endpoint`. Inna instalacja lub zmiana klucza może dać inny prefiks; stabilne są wymienione sufiksy tras. Inwentaryzacja zachowuje zaobserwowane adresy, a test porównania tras normalizuje taki ośmiocyfrowy prefiks Livewire oraz dokładny wariant głównego skryptu: `livewire.js` przy debugowaniu i `livewire.min.js` bez debugowania. Nie normalizuje dowolnych nazw plików ani dodatkowych segmentów.
 
 ## Lista tras GET (103)
 

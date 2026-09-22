@@ -7,11 +7,13 @@ namespace App\Providers;
 use App\Poczta\BrakKonfiguracjiEmailLabs;
 use App\Poczta\TransportEmailLabs;
 use App\Poczta\ZapiszNieudanyList;
+use Illuminate\Mail\MailManager;
 use Illuminate\Queue\Events\JobFailed;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Queue;
 use Illuminate\Support\ServiceProvider;
 use Psr\Log\LoggerInterface;
+use RuntimeException;
 use Symfony\Component\Mailer\Transport\TransportInterface;
 
 /**
@@ -47,6 +49,21 @@ class PocztaServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // Odmowa przed rozpoczęciem obsługi żądań lub zadań workera.
+        // Sprawdzamy transport, nie nazwę mailera: SES może mieć alias albo
+        // być składnikiem failover/roundrobin. Uśpiony SES niczego nie blokuje.
+        $this->validateSelectedSesMailer((string) config('mail.default'));
+
+        foreach (['ses', 'ses-v2'] as $driver) {
+            Mail::extend($driver, function (array $config): TransportInterface {
+                $this->validateSesConfiguration($config);
+
+                // Osobny manager bez rozszerzeń woła fabrykę Laravela,
+                // nie tę samą funkcję ponownie. Nie kopiujemy klienta SDK.
+                return (new MailManager($this->app))->createSymfonyTransport($config);
+            });
+        }
+
         Mail::extend('emaillabs', function (array $konfiguracja): TransportInterface {
             return $this->transport($konfiguracja);
         });
@@ -66,6 +83,39 @@ class PocztaServiceProvider extends ServiceProvider
         Queue::failing(static function (JobFailed $zdarzenie): void {
             app(ZapiszNieudanyList::class)($zdarzenie);
         });
+    }
+
+    /** @param list<string> $visited */
+    private function validateSelectedSesMailer(string $name, array $visited = []): void
+    {
+        if (in_array($name, $visited, true)) {
+            return;
+        }
+
+        $config = (array) config("mail.mailers.{$name}", []);
+        $driver = $config['transport'] ?? null;
+
+        if (in_array($driver, ['ses', 'ses-v2'], true)) {
+            $this->validateSesConfiguration($config);
+        } elseif (in_array($driver, ['failover', 'roundrobin'], true)) {
+            foreach ($config['mailers'] ?? [] as $child) {
+                $this->validateSelectedSesMailer((string) $child, [...$visited, $name]);
+            }
+        }
+    }
+
+    /** @param array<string, mixed> $config */
+    private function validateSesConfiguration(array $config): void
+    {
+        // Taką samą kolejność scalania stosuje MailManager. Puste jawne
+        // nadpisanie NIE wraca do wartości wspólnej ani do łańcucha SDK.
+        $config = array_merge((array) config('services.ses', []), $config);
+
+        foreach (['key' => 'MAIL_SES_KEY', 'secret' => 'MAIL_SES_SECRET'] as $key => $variable) {
+            if (! is_string($config[$key] ?? null) || empty($config[$key]) || trim($config[$key]) === '') {
+                throw new RuntimeException("Ustaw {$variable} dla poczty SES. Zmienne AWS_* należą do Cloudflare R2 i nie zastępują poświadczeń poczty.");
+            }
+        }
     }
 
     /**

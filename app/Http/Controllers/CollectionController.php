@@ -12,6 +12,7 @@ use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
+use App\Support\PaginationLinks;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -157,9 +158,24 @@ class CollectionController extends Controller
 
         $posts = $collection->posts()
             ->widoczneDla($request->user())
+            // BRAMKA PRZEPISU, OSOBNA OD `widoczneDla()` (#368). Tamten
+            // zakres pyta o WPIS, a wpis zapowiadający przepis ma
+            // `visibility = 'public'` na stałe (`WpisWskazujacyPrzepis::dopisz()`)
+            // — to nie jest jego widoczność, tylko brak własnego zawężenia,
+            // bo bramką ma być PRZEPIS. Bez tego warunku zeszyt rysował
+            // `x-post-card` z tytułem, zdjęciem głównym i odnośnikiem, w
+            // którym slug niesie ten sam tytuł.
+            //
+            // W ZESZYCIE TEN WYCIEK DOJRZEWA W CZASIE i to jest jego różnica
+            // wobec reszty rodziny. Zapowiedź zostaje tu wskazana na stałe,
+            // więc gdy autor zawęzi przepis albo zdejmie go moderacja,
+            // treść nie znika sama — a osoba, która ją zapisała, nie ma
+            // powodu jej wyjmować, bo w chwili zapisu widziała przepis
+            // całkowicie legalnie.
+            ->zWidocznymPrzepisem($request->user())
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
             ->with(['author.profile.avatar', 'media'])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
+            ->withVisibleCommentCount($request->user())
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą
             // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
@@ -169,6 +185,40 @@ class CollectionController extends Controller
                 ['*'],
                 'wpisy',
             );
+
+        // KAŻDY PRZYCISK „POKAŻ WIĘCEJ" PRZESUWA SWOJĄ LISTĘ, A DRUGĄ ZOSTAWIA
+        // TAM, GDZIE BYŁA (issue #646).
+        //
+        // Paginator buduje adres wyłącznie ze swojego numeru strony, więc
+        // przejście na drugą stronę wpisów cofało przepisy obok na pierwszą —
+        // i odwrotnie. Człowiek, który przewinął obie listy, tracił jedną przy
+        // każdym kliknięciu.
+        //
+        // Doklejamy SAM numer drugiej listy, nie całe query string
+        // (`withQueryString()`): obce parametry adresu nie mają czego szukać
+        // w naszych odnośnikach. `currentPage()` przechodzi przez walidację
+        // Laravela (liczba całkowita >= 1, inaczej 1), a strony pierwszej nie
+        // doklejamy, bo jest domyślna i tylko zaśmiecałaby adres.
+        //
+        // `min(..., lastPage())` NIE JEST OZDOBĄ — bez niego ta poprawka
+        // psułaby coś, co dotąd działało. Laravel uznaje `?page=999` za
+        // poprawne i oddaje pustą stronę, bez cofania na ostatnią. Zanim
+        // powstał ten kod, taki numer znikał sam przy pierwszym kliknięciu
+        // w drugą listę, bo adres budował się od zera; przenoszony dalej BEZ
+        // DOCIĘCIA zostawałby w adresie na zawsze. Docięcie daje dokładnie
+        // tyle: w pustą listę NIE DA SIĘ WEJŚĆ KLIKANIEM — każdy przycisk
+        // prowadzi na ostatnią stronę, na której druga lista ma treść. Ręcznie
+        // wpisany adres z dwoma numerami poza zakresem dalej pokaże pusty
+        // ekran; to stan sprzed tej poprawki i bierze się stąd, że paginator
+        // nie rysuje własnego przycisku dla pustej strony, a nie z przenoszenia
+        // numeru. Tego docięcie nie leczy i nie udaje, że leczy.
+        //
+        // Wspólny helper docina numer do ostatniej strony tego samego
+        // paginatora. Pomylenie paginatorów jest niewidoczne w zeszycie, w którym obie listy mają
+        // tyle samo stron — a w zeszycie o nierównych listach cofałoby człowieka
+        // o stronę. Pilnuje tego osobna scena w `ZeszytPaginacjaObuListTest`.
+        PaginationLinks::preserveOtherPage($recipes, $posts);
+        PaginationLinks::preserveOtherPage($posts, $recipes);
 
         return view('pages.collections.show', [
             'collection' => $collection,
@@ -357,9 +407,34 @@ class CollectionController extends Controller
         // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
         // wolno oglądać, tym bardziej musi dać się stamtąd wyjąć — inaczej
         // zostawałby w zeszycie na zawsze.
+        //
+        // TO NIE JEST OBEJŚCIE REGUŁY „UUID W ADRESIE TO NIE AUTORYZACJA"
+        // (AGENTS.md §7), tylko granica OSTRZEJSZA niż Policy. Policy
+        // odpowiada na pytanie „czy wolno Ci ruszyć TEN wpis"; tutaj pytanie
+        // brzmi inaczej: „z czyjego zeszytu wyjmujemy". Zakres akcji jest
+        // przypięty do `$request->user()`, więc identyfikator w adresie nie
+        // daje dostępu do niczyjego cudzego zeszytu — obca osoba, która
+        // wyśle tu UUID wpisu leżącego w zeszycie kogoś innego, nie ruszy
+        // tamtego wiersza (`ZeszytPrzyjmujeWpisyTest`:
+        // „obca osoba nie wyjmie wpisu z cudzego zeszytu"). Gość nie dochodzi
+        // tu wcale — trasa stoi za `auth` (`routes/web.php`).
         $this->savePost->remove($request->user(), $post);
 
-        return back()->with('status', 'Usunięte z zeszytu.');
+        // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
+        //
+        // „Usunięte z zeszytu." nie mówiło, CO zostało usunięte ani czy
+        // zniknęło z jednego zeszytu, czy ze wszystkich — a wyjmujemy ze
+        // wszystkich zeszytów tej osoby, więc trzeba to napisać wprost.
+        // Zamiast pytania „czy na pewno" PRZED akcją (wyjęcie jest
+        // odwracalne) idzie przycisk powrotu PO niej; rysuje go
+        // `components/layout.blade.php` w tym samym obszarze `aria-live`,
+        // co komunikat.
+        return back()
+            ->with('status', 'Wpis wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.')
+            ->with('status_powrot', [
+                'akcja' => route('collections.save-post', $post),
+                'etykieta' => 'Zapisz ponownie',
+            ]);
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse

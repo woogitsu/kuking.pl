@@ -1,0 +1,22 @@
+{
+  "backup": "/tmp/kuking621-negative-g26eirmh/strony-publiczne.css",
+  "initial_md5": "fa4cffb2cfe5f52f77ac80426bd736f0",
+  "initial_mtime_ns": 1789556382005267300,
+  "negative": [
+    {
+      "name": "odstep",
+      "exit": 1,
+      "md5": "fa4cffb2cfe5f52f77ac80426bd736f0",
+      "mtime_ns": 1789556382005267300,
+      "restored": true
+    },
+    {
+      "name": "fokus",
+      "exit": 1,
+      "md5": "fa4cffb2cfe5f52f77ac80426bd736f0",
+      "mtime_ns": 1789556382005267300,
+      "restored": true
+    }
+  ],
+  "positive_exit": 0
+}

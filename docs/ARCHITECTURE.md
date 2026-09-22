@@ -101,8 +101,8 @@ Redis dopiero po pomiarze.
 ## Search
 
 MVP:
-- PostgreSQL FTS;
-- `pg_trgm`;
+- PostgreSQL z `pg_trgm` i `unaccent`;
+- porównania trigramowe oraz `LIKE` w `app/Domain/Search/SearchQuery.php`;
 - GIN;
 - SQL filters.
 
@@ -176,3 +176,10 @@ Na podstawie telemetryki:
 - image CDN/transforms.
 
 Nie zgadujemy problemów, których jeszcze nie ma.
+
+### Sekretny adres i następny dokument
+
+Middleware nagłówków używa wspólnej klasyfikacji analityki do `no-referrer`
+na żądaniach z poświadczeniem w adresie. Sam brak beacona na pierwszej stronie
+nie chroni następnej. Zakres, formularze, lokalny test dwóch dokumentów
+i ograniczenia dowodu: [REFERRER_SEKRET_1052](infra/REFERRER_SEKRET_1052.md).

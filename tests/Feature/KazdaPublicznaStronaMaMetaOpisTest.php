@@ -12,6 +12,7 @@ use App\Models\Tag;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Routing\Route as RoutingRoute;
+use Illuminate\Support\Facades\Crypt;
 use Illuminate\Support\Facades\Route;
 use Illuminate\Support\Str;
 use Tests\TestCase;
@@ -125,9 +126,13 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
 
     public function test_kazda_indeksowalna_strona_publiczna_ma_niepusty_meta_description(): void
     {
+        config(['kuking.questions.enabled' => true]);
+        $question = Post::factory()->question()->create();
         [$autor, $tag, $recipe, $post] = $this->zbudujTresc();
 
         $adresyDlaTras = [
+            'questions.index' => route('questions.index'),
+            'questions.show' => route('questions.show', $question),
             'landing' => route('landing'),
             'discover' => route('discover'),
             'about' => route('about'),
@@ -162,6 +167,7 @@ class KazdaPublicznaStronaMaMetaOpisTest extends TestCase
             'zaproszenie.pokaz' => route('zaproszenie.pokaz', ['token' => 'token-testowy']),
             'password.reset' => route('password.reset', ['token' => 'token-testowy']),
             'search' => route('search'),
+            'links.external' => route('links.external', ['cel' => Crypt::encryptString('https://example.test/przepis')]),
             'tags.index' => route('tags.index'),
             'tags.show' => route('tags.show', $tag->slug),
             'profile.show' => route('profile.show', $autor->profile->username),

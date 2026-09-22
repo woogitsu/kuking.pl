@@ -9,9 +9,29 @@
          niżej — akcja destrukcyjna ma zostać odsunięta (AGENTS.md §5). --}}
     <section class="sekcja-strony">
         <h2 class="mt-0">Pobierz swoje dane</h2>
+        {{--
+            ZDANIE MÓWI TO SAMO, CO SAMA PACZKA (audyt zgodności #8, rozjazd R2).
+
+            Do 19 września 2026 stało tu „paczkę ze WSZYSTKIMI Twoimi (…)
+            zdjęciami". Paczka tak nie działa i nigdy tak nie działała:
+            `CollectUserExportData` liczy zdjęcia jeszcze w przygotowaniu,
+            odrzucone i skasowane, ale ich NIE ZAŁĄCZA — i mówi to wprost
+            w polu `czego_nie_zawiera`. Rozjazd polegał na tym, że paczka
+            była uczciwa, a ekran, na którym się ją zamawia, nie. A to zdanie
+            z ekranu człowiek czyta PIERWSZE i jedyne, zanim kliknie.
+
+            Nie wymieniamy tu wszystkich granic paczki — od tego jest plik
+            `czego_nie_zawiera` w środku. Wymieniamy tę jedną, która przeczy
+            słowu „wszystkie”.
+        --}}
         <p>
-            Przygotujemy paczkę ze wszystkimi Twoimi wpisami, przepisami, zdjęciami i komentarzami.
+            Przygotujemy paczkę z Twoimi wpisami, przepisami, zdjęciami i komentarzami.
             Dostaniesz plik ZIP, który otworzysz na komputerze — także wtedy, gdyby Kuking kiedyś przestał istnieć.
+        </p>
+        <p>
+            Nie ma w niej zdjęć, których nie udało się przygotować do pokazania w serwisie,
+            ani zdjęć skasowanych — te nie wejdą do żadnej paczki, także późniejszej.
+            W środku znajdziesz plik, który wymienia wszystkie granice paczki.
         </p>
 
         <form method="POST" action="{{ route('settings.data.export') }}">

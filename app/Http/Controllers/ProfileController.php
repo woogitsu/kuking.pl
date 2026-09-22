@@ -105,7 +105,21 @@ class ProfileController extends Controller
             'cookedEvents' => $tab === 'ugotowane'
                 ? $owner->cookedEvents()
                     ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
-                    ->with(['recipe.author.profile', 'media'])
+                    // `user.profile.avatar` — karta wykonania
+                    // (`components/cooked-card.blade.php`) czyta
+                    // `$event->user` (awatar, nazwa) i
+                    // `$event->user->profile->username` (odnośnik do profilu).
+                    // Doładowany był tylko AUTOR PRZEPISU, nie OSOBA, KTÓRA
+                    // GOTOWAŁA — a to na tej zakładce jest treść główna.
+                    //
+                    // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                    // `ANALYZE`): 52 zapytania na dwunastu kartach, z czego 22 to
+                    // para `profiles` + `users` powtórzona na każdą kartę.
+                    // Po zmianie: 30.
+                    // `RecipeController::show()` dociągał to samo od dawna
+                    // (galeria „Komu wyszło"); ta zakładka była jedynym
+                    // miejscem z tą samą kartą i bez tego `with()`.
+                    ->with(['user.profile.avatar', 'recipe.author.profile', 'media'])
                     ->paginate(12)
                     ->withQueryString()
                 : null,
@@ -214,12 +228,12 @@ class ProfileController extends Controller
                 'extract(year from published_at at time zone ?) = ?',
                 [Czas::strefa(), $rok],
             ))
-            // 'tags:id,slug,name' — patrz komentarz w
+            // 'tags:id,slug,name,status' — patrz komentarz w
             // FollowingFeed::paginate(): karta wpisu pokazuje tematy TYLKO
             // gdy relacja jest już doładowana, więc bez tego archiwum
             // profilu nie miałoby żadnych chipów tematów.
-            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name'])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->with(['media', 'author.profile.avatar', 'tags:id,slug,name,status'])
+            ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem (issue #275, D-081). Reguły siedzą w `ZapisyWpisu`,
             // tutaj jest tylko miejsce, w którym dokładamy kolumnę do SELECT-a.
@@ -267,10 +281,42 @@ class ProfileController extends Controller
      * zapytania budującego listę. To są dwie różne drogi i naprawienie jednej
      * nie naprawia drugiej — dlatego macierz z issue #41 testuje je osobno.
      *
+     * DRUGA GRANICA, OSOBNA OD POWYŻSZEJ: WIDOCZNOŚĆ PRZEPISU (#368).
+     * Warunek `whereIn('visibility', …)` niżej pyta o WPIS. Wpis zapowiadający
+     * przepis ma `visibility = 'public'` na stałe
+     * (`WpisWskazujacyPrzepis::dopisz()`) i nie jest to jego widoczność, tylko
+     * brak własnego zawężenia — bramką ma być PRZEPIS. Sam filtr po widoczności
+     * wpisu przepuszczał więc zapowiedź przepisu w KAŻDYM stanie, a karta
+     * rysuje z relacji `$post->recipe` tytuł, zdjęcie główne i odnośnik,
+     * w którym slug niesie ten sam tytuł zapisany inaczej.
+     *
+     * BRAMKA STOI TUTAJ, A NIE W `postsFor()`, I TO JEST CAŁA RZECZ.
+     * Ten filtr jest wspólny dla SZEŚCIU zapytań tego ekranu: archiwum, listy
+     * lat, obu liczników, szyny tematów i szyny zdjęć. Każde z nich ma w tym
+     * pliku komentarz mówiący, że musi odpowiadać na to samo pytanie co
+     * archiwum — bo licznik niezgodny z listą i rok prowadzący do pustej
+     * strony są oracle'ami istnienia treści (ta sama klasa błędu co W7-05,
+     * opisana przy `liczbaPolaczen()`). Bramka wstawiona w samo `postsFor()`
+     * zrobiłaby dokładnie ten rozjazd: tytuł zniknąłby z listy, a licznik nad
+     * nią dalej by go liczył.
+     *
+     * DLACZEGO NIE `tylkoZWidocznychPrzepisow()` Z TEGO SAMEGO PLIKU.
+     * Bo ona robi `whereHas('recipe', …)` BEZ gałęzi na `recipe_id IS NULL`.
+     * Na wykonaniach jest to poprawne — każde wykonanie ma przepis. Tutaj
+     * większość wierszy przepisu NIE MA, więc ten warunek skasowałby z profilu
+     * całe zwykłe archiwum. `Post::scopeZWidocznymPrzepisem($widz)` tę gałąź
+     * ma, jest tym samym zakresem, którym bramkują się wszystkie strumienie,
+     * i sam liczy „własny przepis widza" — dlatego wolno go wywołać po
+     * `$isOwner`, nie zamiast.
+     *
      * @param  Builder<covariant \Illuminate\Database\Eloquent\Model>  $query
      */
     private function tylkoWidoczne($query, $owner, $viewer, bool $isOwner): void
     {
+        if ($query->getModel() instanceof Post) {
+            $query->enabledKinds();
+        }
+
         if ($isOwner) {
             return;
         }
@@ -283,6 +329,13 @@ class ProfileController extends Controller
         }
 
         $query->whereIn('visibility', $widocznosci);
+
+        // Bramka PRZEPISU — patrz akapit w opisie metody. Tylko dla `Post`:
+        // zakładka „Przepisy" pyta wprost o `Recipe` i ma tu już swój warunek
+        // wyżej, a `recipes.recipe_id` nie istnieje.
+        if ($query->getModel() instanceof Post) {
+            $query->zWidocznymPrzepisem($viewer);
+        }
     }
 
     /**

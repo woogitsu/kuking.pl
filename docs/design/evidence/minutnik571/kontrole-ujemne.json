@@ -1,0 +1,20 @@
+{
+  "cases": [
+    {
+      "name": "zatrzymany-zegar",
+      "exit": 1,
+      "md5": "f77e6ce2b0ee3acfed26fe838457b151",
+      "mtime_ns": 1789545637997528300,
+      "restored": true
+    },
+    {
+      "name": "ukryty-czas",
+      "exit": 1,
+      "md5": "e7d3a600fc4a2ece5e74d4f596894076",
+      "mtime_ns": 1789545567177810200,
+      "restored": true
+    }
+  ],
+  "positive_exit": 0,
+  "backup": "/home/mateusz/kuking571-negative-8g8pyish"
+}

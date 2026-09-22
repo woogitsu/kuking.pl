@@ -1,0 +1,542 @@
+{
+  "measurement-first": {
+    "utc": "2026-09-20T18:34:42.577281+00:00",
+    "environment": {
+      "load_start": [
+        9.7099609375,
+        9.13427734375,
+        9.8955078125
+      ],
+      "php": "PHP 8.4.24 (cli) (built: Sep 11 2026 17:22:48) (NTS)",
+      "load_end": [
+        10.0927734375,
+        9.6298828125,
+        10.029296875
+      ]
+    },
+    "runs": {
+      "idle-worker": {
+        "summary": {
+          "cache": {
+            "calls": 31,
+            "total_ms": 17.83,
+            "p95_ms": 2.21,
+            "p99_ms": 5.07
+          },
+          "queue": {
+            "calls": 40,
+            "total_ms": 7.54,
+            "p95_ms": 0.41,
+            "p99_ms": 1.5
+          }
+        },
+        "seconds": 10.094419455
+      },
+      "operations": {
+        "summary": {
+          "cache": {
+            "calls": 400,
+            "total_ms": 324.89,
+            "p95_ms": 2.51,
+            "p99_ms": 5.52
+          },
+          "locks": {
+            "calls": 405,
+            "total_ms": 477.17,
+            "p95_ms": 2.82,
+            "p99_ms": 5.04
+          }
+        },
+        "seconds": 0.916421967
+      },
+      "http-0": {
+        "summary": {
+          "sessions": {
+            "calls": 60,
+            "total_ms": 169.41,
+            "p95_ms": 6.48,
+            "p99_ms": 11
+          },
+          "business": {
+            "calls": 300,
+            "total_ms": 251.09,
+            "p95_ms": 2.86,
+            "p99_ms": 4.26
+          },
+          "cache": {
+            "calls": 20,
+            "total_ms": 12.04,
+            "p95_ms": 1.07,
+            "p99_ms": 1.21
+          }
+        },
+        "seconds": 1.830901509
+      },
+      "http-1": {
+        "summary": {
+          "sessions": {
+            "calls": 60,
+            "total_ms": 111.66,
+            "p95_ms": 4.69,
+            "p99_ms": 5.54
+          },
+          "cache": {
+            "calls": 140,
+            "total_ms": 45.71,
+            "p95_ms": 0.54,
+            "p99_ms": 0.63
+          },
+          "business": {
+            "calls": 300,
+            "total_ms": 262.16,
+            "p95_ms": 5.38,
+            "p99_ms": 5.83
+          }
+        },
+        "seconds": 1.233843086
+      },
+      "http-2": {
+        "summary": {
+          "sessions": {
+            "calls": 60,
+            "total_ms": 109.79,
+            "p95_ms": 4.65,
+            "p99_ms": 5.54
+          },
+          "business": {
+            "calls": 200,
+            "total_ms": 117.1,
+            "p95_ms": 1.05,
+            "p99_ms": 1.27
+          },
+          "cache": {
+            "calls": 20,
+            "total_ms": 10.99,
+            "p95_ms": 0.71,
+            "p99_ms": 0.93
+          }
+        },
+        "seconds": 0.929110325
+      },
+      "ab-0-alone": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 281.74,
+            "p95_ms": 0.37,
+            "p99_ms": 0.43
+          }
+        },
+        "seconds": 0.500701466
+      },
+      "ab-0-infra": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 297.35,
+            "p95_ms": 0.37,
+            "p99_ms": 0.41
+          }
+        },
+        "seconds": 0.529847061,
+        "infra_qps": 5027.8247407589415
+      },
+      "ab-1-alone": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 263.77,
+            "p95_ms": 0.35,
+            "p99_ms": 0.39
+          }
+        },
+        "seconds": 0.468967904
+      },
+      "ab-1-infra": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 304.99,
+            "p95_ms": 0.37,
+            "p99_ms": 0.43
+          }
+        },
+        "seconds": 0.547434186,
+        "infra_qps": 4744.936293048005
+      },
+      "ab-2-alone": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 351.34,
+            "p95_ms": 0.45,
+            "p99_ms": 0.61
+          }
+        },
+        "seconds": 0.618180343
+      },
+      "ab-2-infra": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 337.34,
+            "p95_ms": 0.42,
+            "p99_ms": 0.59
+          }
+        },
+        "seconds": 0.616063462,
+        "infra_qps": 5077.921883740532
+      },
+      "queue-0": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 137.09,
+            "p95_ms": 0.33,
+            "p99_ms": 0.39
+          }
+        },
+        "seconds": 0.29361144100000003,
+        "size": {
+          "rows": 0,
+          "bytes": 24576
+        }
+      },
+      "queue-1000": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 163.2,
+            "p95_ms": 0.37,
+            "p99_ms": 0.46
+          }
+        },
+        "seconds": 0.309002119,
+        "size": {
+          "rows": 1000,
+          "bytes": 1261568
+        }
+      },
+      "queue-10000": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 520.13,
+            "p95_ms": 1.18,
+            "p99_ms": 1.63
+          }
+        },
+        "seconds": 0.678284444,
+        "size": {
+          "rows": 10000,
+          "bytes": 12066816
+        }
+      },
+      "queue-100000": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 7450.19,
+            "p95_ms": 14.75,
+            "p99_ms": 17.86
+          }
+        },
+        "seconds": 7.726805023000001,
+        "size": {
+          "rows": 100000,
+          "bytes": 120012800
+        }
+      }
+    }
+  },
+  "measurement": {
+    "utc": "2026-09-20T18:37:51.710111+00:00",
+    "environment": {
+      "load_start": [
+        13.46142578125,
+        10.12109375,
+        10.10302734375
+      ],
+      "php": "PHP 8.4.24 (cli) (built: Sep 11 2026 17:22:48) (NTS)",
+      "load_end": [
+        24.05908203125,
+        15.9609375,
+        12.28076171875
+      ]
+    },
+    "runs": {
+      "idle-worker": {
+        "summary": {
+          "cache": {
+            "calls": 31,
+            "total_ms": 20.84,
+            "p95_ms": 4.35,
+            "p99_ms": 9.21
+          },
+          "queue": {
+            "calls": 40,
+            "total_ms": 19.05,
+            "p95_ms": 1.08,
+            "p99_ms": 7.32
+          }
+        },
+        "seconds": 10.134501914
+      },
+      "operations": {
+        "summary": {
+          "cache": {
+            "calls": 400,
+            "total_ms": 856.17,
+            "p95_ms": 9.9,
+            "p99_ms": 15.97
+          },
+          "locks": {
+            "calls": 407,
+            "total_ms": 1338.06,
+            "p95_ms": 10.23,
+            "p99_ms": 15.07
+          }
+        },
+        "seconds": 2.364325729
+      },
+      "media": {
+        "summary": {
+          "cache": {
+            "calls": 22,
+            "total_ms": 4.95,
+            "p95_ms": 0.56,
+            "p99_ms": 0.8
+          },
+          "queue": {
+            "calls": 25,
+            "total_ms": 7.86,
+            "p95_ms": 0.72,
+            "p99_ms": 0.84
+          },
+          "business": {
+            "calls": 24,
+            "total_ms": 57.91,
+            "p95_ms": 8.29,
+            "p99_ms": 9.51
+          }
+        },
+        "seconds": 1.967056131
+      },
+      "gc": {
+        "summary": {
+          "sessions": {
+            "calls": 1,
+            "total_ms": 10.38,
+            "p95_ms": 10.38,
+            "p99_ms": 10.38
+          },
+          "cache": {
+            "calls": 2,
+            "total_ms": 18.31,
+            "p95_ms": 14.22,
+            "p99_ms": 14.22
+          }
+        },
+        "seconds": 0.041779617
+      },
+      "http-0": {
+        "summary": {
+          "sessions": {
+            "calls": 60,
+            "total_ms": 304.44,
+            "p95_ms": 15.95,
+            "p99_ms": 21.39
+          },
+          "business": {
+            "calls": 300,
+            "total_ms": 348.89,
+            "p95_ms": 4.15,
+            "p99_ms": 8.31
+          },
+          "cache": {
+            "calls": 20,
+            "total_ms": 10.99,
+            "p95_ms": 0.83,
+            "p99_ms": 0.91
+          }
+        },
+        "seconds": 2.499459796
+      },
+      "http-1": {
+        "summary": {
+          "sessions": {
+            "calls": 60,
+            "total_ms": 280.64,
+            "p95_ms": 13.76,
+            "p99_ms": 30.42
+          },
+          "cache": {
+            "calls": 140,
+            "total_ms": 78.18,
+            "p95_ms": 1.79,
+            "p99_ms": 6.49
+          },
+          "business": {
+            "calls": 300,
+            "total_ms": 461.14,
+            "p95_ms": 7.79,
+            "p99_ms": 11.6
+          }
+        },
+        "seconds": 2.381668269
+      },
+      "http-2": {
+        "summary": {
+          "sessions": {
+            "calls": 60,
+            "total_ms": 249.64,
+            "p95_ms": 12.54,
+            "p99_ms": 18.41
+          },
+          "business": {
+            "calls": 200,
+            "total_ms": 195.39,
+            "p95_ms": 2.79,
+            "p99_ms": 5.27
+          },
+          "cache": {
+            "calls": 20,
+            "total_ms": 12.77,
+            "p95_ms": 0.74,
+            "p99_ms": 3.84
+          }
+        },
+        "seconds": 1.6124173099999999
+      },
+      "ab-0-alone": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 257.07,
+            "p95_ms": 0.48,
+            "p99_ms": 1.95
+          }
+        },
+        "seconds": 0.605829076
+      },
+      "ab-0-infra": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 307.65,
+            "p95_ms": 0.71,
+            "p99_ms": 3.27
+          }
+        },
+        "seconds": 0.733646973,
+        "infra_qps": 1386.0881753798878
+      },
+      "ab-1-alone": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 376.96,
+            "p95_ms": 0.96,
+            "p99_ms": 3.29
+          }
+        },
+        "seconds": 0.711336051
+      },
+      "ab-1-infra": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 322.63,
+            "p95_ms": 0.76,
+            "p99_ms": 2.86
+          }
+        },
+        "seconds": 0.638649385,
+        "infra_qps": 2027.9517668002634
+      },
+      "ab-2-alone": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 335.35,
+            "p95_ms": 0.71,
+            "p99_ms": 2.31
+          }
+        },
+        "seconds": 0.641108346
+      },
+      "ab-2-infra": {
+        "summary": {
+          "business": {
+            "calls": 1000,
+            "total_ms": 334.5,
+            "p95_ms": 0.85,
+            "p99_ms": 2.22
+          }
+        },
+        "seconds": 0.677288273,
+        "infra_qps": 1835.6972076376453
+      },
+      "queue-0": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 198.48,
+            "p95_ms": 0.84,
+            "p99_ms": 2.86
+          }
+        },
+        "seconds": 0.44305842900000003,
+        "size": {
+          "rows": 0,
+          "bytes": 24576
+        }
+      },
+      "queue-1000": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 246.52,
+            "p95_ms": 0.95,
+            "p99_ms": 2.52
+          }
+        },
+        "seconds": 0.442718817,
+        "size": {
+          "rows": 1000,
+          "bytes": 1261568
+        }
+      },
+      "queue-10000": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 2073.84,
+            "p95_ms": 6.6,
+            "p99_ms": 9.74
+          }
+        },
+        "seconds": 2.518842538,
+        "size": {
+          "rows": 10000,
+          "bytes": 12066816
+        }
+      },
+      "queue-100000": {
+        "summary": {
+          "queue": {
+            "calls": 600,
+            "total_ms": 21924.07,
+            "p95_ms": 56.1,
+            "p99_ms": 69.11
+          }
+        },
+        "seconds": 22.367851099,
+        "size": {
+          "rows": 100000,
+          "bytes": 120012800
+        }
+      }
+    }
+  }
+}

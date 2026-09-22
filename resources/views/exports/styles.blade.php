@@ -7,6 +7,65 @@
 
     Rozmiary są wzięte ze standardu UX 50+ (docs/UX_50_PLUS.md): tekst
     podstawowy 20 px, duże odstępy, jedna kolumna, wysoki kontrast.
+
+    UZASADNIENIA STOJĄ TUTAJ, NIE W KOMENTARZACH CSS — I TO JEST ŚWIADOME.
+    Ten arkusz jedzie w całości do KAŻDEGO pliku HTML paczki, a komentarz
+    `/* … */` jedzie razem z nim. Zmierzone: trzy akapity uzasadnienia
+    dokładały 2528 bajtów do każdego pliku, czyli ~17,7 KB tekstu o pułapkach
+    testowych do paczki RODO, którą człowiek ma trzymać dziesięć lat.
+    Komentarz Blade zostaje w repozytorium i nie trafia do paczki.
+
+    I DLATEGO NIE WOLNO TU ZACYTOWAĆ ZNACZNIKA ZAMYKAJĄCEGO KOMENTARZ.
+    Poprzednia wersja tego zdania pokazywała oba znaczniki jako przykład —
+    a Blade nie czyta tego jako cytatu, tylko jako KONIEC komentarza.
+    Zmierzone na paczce zbudowanej normalną drogą: wszystko poniżej tamtej
+    linijki szło do archiwum jako widoczny tekst strony, w KAŻDYM pliku HTML
+    paczki. Zmiana, która miała wynieść uzasadnienia z paczki, wnosiła je
+    tam z powrotem — i to jako treść dla czytelnika, nie jako komentarz.
+    Pilnuje tego teraz `PaczkaNieNiesieKomentarzyDeweloperskichTest`.
+
+    `.akcja` — CEL DOTKNIĘCIA 48 PX DLA ODNOŚNIKA, KTÓRY JEST OSOBNĄ AKCJĄ.
+    To akapit, którego całą treścią jest jeden odnośnik: tak stoi „Otwórz
+    katalog ze zdjęciami" w spisie treści. Bez tej klasy miał zmierzone
+    22 px, czyli mniej niż produktowe 48 px (AGENTS.md §5) i mniej niż 24 px
+    z WCAG 2.2 AA 2.5.8; wyjątek „inline" tam nie działa, bo to nie jest
+    odnośnik wewnątrz zdania. Klasa, a nie selektor `p > a:only-child`:
+    `:only-child` liczy RODZEŃSTWO ELEMENTÓW, nie tekst, więc zdanie
+    „Wróć do <a>spisu treści</a>." też by się złapało i rozpychało wiersz
+    stopki z 20 px do 48 px. Odnośnik w zdaniu ma zostać słowem.
+
+    TRZY REGUŁY WYDRUKU, każda z własnym pomiarem na A4 (pdftotext/pdfimages,
+    strona po stronie, dowody w `docs/design/evidence/eksport492/druk.json`):
+
+    - `break-after: avoid` na nagłówkach — bez tego „Składniki" kończyło
+      stronę 1, a pierwszy składnik zaczynał stronę 2; „Jak to zrobić"
+      kończyło stronę 2, a krok 1 zaczynał stronę 3.
+    - `break-inside: avoid` na krokach, składnikach, kartach i zdjęciach —
+      bez tego tekst kroku wychodził na jednej kartce, a zdjęcie TEGO SAMEGO
+      kroku na następnej. Przy garnku to znaczy instrukcja osobno, obrazek
+      osobno.
+    - `max-height: 16cm` na zdjęciu w druku — skan 1200 × 1600 schodził do
+      około 24 cm i spychał resztę przepisu na kolejne kartki, zostawiając
+      jedną prawie pustą. Szerokość liczy się sama z proporcji.
+    - `padding-bottom: 0` na `body` w druku — CZWARTA reguła, dołożona po
+      pomiarze pustej ostatniej kartki. `body` ma na ekranie 64 px dolnego
+      wypełnienia (żeby stopka nie kleiła się do krawędzi okna) i ten sam
+      pas jechał na papier. Gdy treść kończyła się blisko granicy kartki,
+      64 px pustego miejsca przepychało ją na następną — i z drukarki
+      wychodziła kartka CAŁKOWICIE pusta: zero znaków, zero obrazów.
+      Zmierzone na stronie przepisu z prawdziwej paczki, przy rosnącej
+      liczbie kroków (A4, margines 10 mm, `pdfinfo`/`pdftotext`/`pdfimages`
+      strona po stronie): przy 4 krokach 3 kartki, trzecia pusta; przy 14
+      krokach 4 kartki, czwarta pusta. Po poprawce odpowiednio 2 i 3
+      kartki, obie zapełnione, a pozostałe trzynaście długości wychodzi
+      bajt w bajt tak samo. Na papierze marginesy wyznacza arkusz
+      drukarki, nie okno przeglądarki, więc to wypełnienie nie ma tu
+      czego chronić.
+
+      Czego ta reguła NIE obiecuje: że pusta kartka nie wyjdzie NIGDY.
+      Treść wciąż może się skończyć dokładnie na granicy. Znika
+      systematyczny powód — pas pustego miejsca doklejany do każdego
+      wydruku niezależnie od jego długości.
 --}}
 <style>
     :root {
@@ -73,7 +132,8 @@
     .naglowek .podpis { color: #CBD0C6; }
 
     a:focus-visible { outline: 3px solid #155EEF; outline-offset: 4px; }
-    .spis a, .powrot a { display: inline-block; min-height: 48px; padding-block: 8px; }
+
+    .spis a, .powrot a, .akcja a { display: inline-block; min-height: 48px; padding-block: 8px; }
 
     .podpis {
         color: var(--tekst-jasny);
@@ -170,9 +230,15 @@
     }
 
     @media print {
-        body { background: #FFFFFF; font-size: 12pt; }
+        body { background: #FFFFFF; font-size: 12pt; padding-bottom: 0; }
         .karta { border: none; padding: 0; }
         .naglowek { background: #FFFFFF; color: #151714; padding: 0 0 20px; }
         .naglowek .podpis { color: #555E53; }
+        h1, h2, h3 { break-after: avoid; page-break-after: avoid; }
+        .kroki li, .skladniki li, .karta, .uwaga, img.zdjecie {
+            break-inside: avoid;
+            page-break-inside: avoid;
+        }
+        img.zdjecie { max-height: 16cm; }
     }
 </style>

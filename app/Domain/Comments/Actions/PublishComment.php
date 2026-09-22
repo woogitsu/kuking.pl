@@ -61,11 +61,37 @@ final class PublishComment
         Post|Recipe|CookedEvent $subject,
         string $body,
         ?Comment $parent = null,
+        bool $parentRequested = false,
     ): Comment {
         $body = trim($body);
 
         if ($body === '') {
             throw new BladDlaCzlowieka('Napisz coś, zanim wyślesz komentarz.');
+        }
+
+        /*
+         * ISSUE #761: RODZIC PODANY, ALE NIE DA SIĘ GO UŻYĆ, TO ODMOWA —
+         * NIE CICHA ZAMIANA W KOMENTARZ GŁÓWNY.
+         *
+         * Kontrolery szukają rodzica przez `whereKey($parentId)->widoczneDla($viewer)`
+         * i przekazują `null`, gdy nic nie znajdą — DOKŁADNIE to samo `null`,
+         * które oznacza "formularz nowego komentarza, bez rodzica w ogóle".
+         * Te dwa przypadki są nierozróżnialne bez dodatkowej informacji, więc
+         * odpowiedź wysłana pod zniknięty/ukryty/zablokowany/obcy identyfikator
+         * publikowała się po cichu jako nowy komentarz główny: "Komentarz
+         * dodany" wychodziło, tyle że tekst trafiał w inne miejsce rozmowy,
+         * niż zakładał autor.
+         *
+         * `$parentRequested` niesie tę utraconą informację — kontroler mówi
+         * "w żądaniu był `parent_id`", nie tylko "oto rodzic, jakiego znalazłem".
+         * Sprawdzenie stoi TUTAJ, jak reszta granic rodzica niżej, z tego
+         * samego powodu: kontrolerów jest kilka, a czwarty by o tym zapomniał.
+         * Ten sam neutralny komunikat co przy blokadzie — nie zdradza, czy
+         * powodem jest usunięcie, ukrycie moderacyjne, blokada czy zwykła
+         * literówka w adresie.
+         */
+        if ($parent === null && $parentRequested) {
+            throw new BladDlaCzlowieka(self::NIE_MOZNA_KOMENTOWAC);
         }
 
         $subjectOwner = $this->ownerOf($subject);
@@ -196,6 +222,7 @@ final class PublishComment
                     'comment_id' => $comment->getKey(),
                     'excerpt' => mb_substr($body, 0, 120),
                     'url' => $this->urlFor($subject),
+                    'question_answer' => $subject instanceof Post && $subject->kind === Post::KIND_QUESTION && $parentId === null,
                 ],
             );
 

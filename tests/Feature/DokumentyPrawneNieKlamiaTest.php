@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Models\Report;
 use App\Support\AnalitykaCloudflare;
 use App\Support\Odmiana;
+use Illuminate\Support\Facades\Artisan;
 use PHPUnit\Framework\Attributes\DataProvider;
 use Sentry\Laravel\ServiceProvider;
 use Tests\TestCase;
@@ -928,5 +930,500 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
                 .'przywróć je: dokument bez niego jest mniej prawdziwy, nie mniej gadatliwy.',
             );
         }
+    }
+
+    // =====================================================================
+    //  DOKUMENTY WEWNĘTRZNE — `docs/legal/`
+    // =====================================================================
+    //
+    //  DLACZEGO TO TU DOSZŁO (audyt zgodności 19 września 2026, rozjazd R4)
+    //  `docs/legal/COMPLIANCE.md` miała na liście gotowości DWA blokujące
+    //  punkty P0 o Sentry i PostHog — usługach, których w tym projekcie nigdy
+    //  nie było — i ani jednego punktu o Cloudflare Web Analytics, OpenAI
+    //  i logowaniu Facebookiem, czyli o trzech integracjach, które naprawdę
+    //  wysyłają dane na zewnątrz. Do tego dwa odnośniki do plików
+    //  `REGULAMIN_DRAFT.md` i `POLITYKA_PRYWATNOSCI_DRAFT.md`, których nie ma.
+    //
+    //  Strażnik na to ISTNIAŁ — `test_nie_wymieniamy_narzedzi_ktorych_nie_uzywamy`
+    //  wyżej — ale jego data provider wymieniał trzy opublikowane dokumenty
+    //  i `docs/legal/` było poza zasięgiem. Rozjazd przeżył nie dlatego, że
+    //  testu nie było, tylko dlatego, że test patrzył obok.
+    //
+    //  DLATEGO PROVIDER NIŻEJ SKANUJE KATALOG, A NIE WYMIENIA PLIKÓW.
+    //  Gdyby wymieniał, następny dokument dołożony do `docs/legal/` znowu
+    //  wypadłby spod nadzoru i R4 odrosłoby w nowym miejscu. To jest cała
+    //  różnica między tą poprawką a wpisaniem sześciu nazw z palca.
+
+    /**
+     * Dokumenty wewnętrzne procedur, skanowane z katalogu.
+     *
+     * @return array<string, array{0: string}>
+     */
+    public static function dokumentyWewnetrzne(): array
+    {
+        $pliki = glob(self::katalogWewnetrzny().'/*.md') ?: [];
+
+        $wynik = [];
+        foreach ($pliki as $sciezka) {
+            $nazwa = basename($sciezka);
+
+            /*
+             * RAPORTY AUDYTU SĄ WYŁĄCZONE I TO JEST DECYZJA, NIE NIEDOPATRZENIE.
+             * Raport z audytu CYTUJE wadliwe zdanie dosłownie — na tym polega
+             * dowód. Gdyby podlegał tej samej regule co procedura, nie dałoby
+             * się opisać rozjazdu, nie łamiąc testu, który go pilnuje.
+             * Wyłączenie jest wąskie (prefiks `AUDYT_`) i sprawdzone niżej:
+             * test upomina się, gdyby pochłonęło większość katalogu.
+             */
+            if (str_starts_with($nazwa, 'AUDYT_')) {
+                continue;
+            }
+
+            $wynik[$nazwa] = [$nazwa];
+        }
+
+        return $wynik;
+    }
+
+    /*
+     * Katalog liczony ZE ŚCIEŻKI PLIKU, nie przez `base_path()`.
+     * Data provider PHPUnit wykonuje się PRZED bootem aplikacji, więc
+     * helpery Laravela jeszcze nie działają — pierwsza wersja tego kodu
+     * oblała dokładnie tak: „Call to undefined method Container::basePath()".
+     */
+    private static function katalogWewnetrzny(): string
+    {
+        return dirname(__DIR__, 2).'/docs/legal';
+    }
+
+    private function trescWewnetrzna(string $plik): string
+    {
+        $sciezka = self::katalogWewnetrzny().'/'.$plik;
+        $tresc = file_get_contents($sciezka);
+
+        $this->assertIsString($tresc, "Nie da się wczytać {$sciezka}.");
+        $this->assertNotSame('', trim((string) $tresc), "Dokument {$plik} jest pusty.");
+
+        return (string) $tresc;
+    }
+
+    /**
+     * KONTROLA METODY. Skan katalogu naprawdę coś znalazł, a wyłączenie
+     * raportów audytu nie zjadło go w całości (`docs/PULAPKI_TESTOW.md` §2:
+     * skan, który nic nie znajduje, uznaje to za sukces).
+     */
+    public function test_kontrola_skan_dokumentow_wewnetrznych_cos_znajduje(): void
+    {
+        $wszystkie = glob(self::katalogWewnetrzny().'/*.md') ?: [];
+        $nadzorowane = self::dokumentyWewnetrzne();
+
+        $this->assertGreaterThanOrEqual(
+            4,
+            count($nadzorowane),
+            'Skan `docs/legal/` objął mniej niż cztery dokumenty — albo katalog zniknął, '
+            .'albo wyłączenie raportów audytu jest za szerokie. Tak czy inaczej ten test przestał mierzyć.',
+        );
+
+        $this->assertGreaterThan(
+            count($wszystkie) / 2,
+            count($nadzorowane),
+            'Wyłączenie raportów audytu pochłonęło więcej niż połowę katalogu `docs/legal/`.',
+        );
+
+        // Procedury, na których to sprawdzenie ma stać, MUSZĄ w nim być.
+        // Bez tej asercji zmiana nazwy pliku po cichu zdejmowałaby nadzór.
+        $wymagane = ['COMPLIANCE.md', 'BRAMKA_BETY.md', 'MODERATION_PLAYBOOK.md', 'SECURITY_BASELINE.md', 'SYGNALY_AUTOMATU.md'];
+
+        foreach ($wymagane as $wymagany) {
+            $this->assertArrayHasKey(
+                $wymagany,
+                $nadzorowane,
+                "Dokumentu {$wymagany} nie ma pod nadzorem. Jeśli zmienił nazwę — popraw tę listę; "
+                .'jeśli zniknął — sprawdź, czy procedura, którą opisywał, nadal gdzieś żyje.',
+            );
+        }
+    }
+
+    /**
+     * TO JEST POPRAWKA R4. Dokument wewnętrzny też nie może wymieniać
+     * narzędzia, którego kod nie używa — a to właśnie lista kontrolna
+     * gotowości, nie polityka prywatności, decyduje o odblokowaniu #29.
+     *
+     * Lista narzędzi i sposób pytania są TE SAME co w teście dokumentów
+     * publikowanych: pytamy kod, czy narzędzia używa, i zakazujemy wyłącznie
+     * tych, których nie używa. Dzięki temu wpięcie albo usunięcie dostawcy
+     * nie wymaga ręcznej zmiany w tym pliku.
+     *
+     * Granica zdania jest tu szersza niż w dokumentach publikowanych: kropka
+     * ALBO koniec wiersza. Procedury są pisane tabelami i punktami listy,
+     * gdzie kropek często nie ma, a wiersz tabeli jest osobną myślą.
+     */
+    #[DataProvider('dokumentyWewnetrzne')]
+    public function test_dokument_wewnetrzny_nie_wymienia_narzedzi_ktorych_nie_uzywamy(string $plik): void
+    {
+        $wiersze = self::wierszeListyKontrolnej($this->trescWewnetrzna($plik));
+        $nieuzywane = self::narzedziaNieuzywane();
+
+        $this->assertGreaterThanOrEqual(
+            3,
+            count($nieuzywane),
+            'Lista narzędzi, których NIE używamy, skurczyła się do niczego — ten test przestał mierzyć.',
+        );
+
+        foreach ($wiersze as $nr => $wiersz) {
+            foreach ($nieuzywane as $narzedzie) {
+                $this->assertStringNotContainsStringIgnoringCase(
+                    $narzedzie,
+                    $wiersz,
+                    "Wiersz listy gotowości w docs/legal/{$plik} (wiersz {$nr}) stawia warunek wobec „{$narzedzie}”, "
+                    .'a tej usługi w projekcie nie ma. Sporny wiersz: „'.trim($wiersz).'”. '
+                    .'To jest rozjazd klasy R4: bramki „czy można startować” nie da się odhaczyć w dobrej wierze, '
+                    .'więc zostanie odhaczona na oko.',
+                );
+            }
+        }
+
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * Drugi rozjazd z R4: lista kontrolna odsyłała do `REGULAMIN_DRAFT.md`
+     * i `POLITYKA_PRYWATNOSCI_DRAFT.md`, których nie ma — dokumenty żyją
+     * w `resources/legal/`. Odnośnik do nieistniejącego pliku w liście
+     * gotowości jest gorszy niż jego brak: każe komuś odhaczyć punkt,
+     * którego nie da się otworzyć.
+     */
+    #[DataProvider('dokumentyWewnetrzne')]
+    public function test_dokument_wewnetrzny_nie_odsyla_do_nieistniejacych_plikow(string $plik): void
+    {
+        $tresc = $this->trescWewnetrzna($plik);
+
+        /*
+         * DWIE FORMY ODSYŁACZA, BO R4 ZNALAZŁO TĘ DRUGĄ.
+         * `REGULAMIN_DRAFT.md` i `POLITYKA_PRYWATNOSCI_DRAFT.md` nie stały
+         * w odnośnikach Markdown, tylko w backtickach w środku zdania
+         * („patrz `REGULAMIN_DRAFT.md`"). Test łapiący wyłącznie `[x](y.md)`
+         * przeszedłby obok dokładnie tego rozjazdu, który ma pilnować.
+         */
+        preg_match_all('/\[[^\]]*\]\(([^)#\s]+\.md)[^)]*\)/u', $tresc, $markdown);
+        preg_match_all('/`([A-Za-z0-9_\/.-]+\.md)`/u', $tresc, $backticki);
+
+        $cele = array_unique(array_merge($markdown[1], $backticki[1]));
+
+        foreach ($cele as $cel) {
+            if (str_starts_with($cel, 'http')) {
+                continue;
+            }
+
+            /*
+             * Sprawdzamy tylko to, co WYGLĄDA na plik tego repozytorium:
+             * gołą nazwę albo ścieżkę od znanego katalogu. Dokumenty cytują
+             * też ścieżki z cudzych maszyn i z przykładów powłoki
+             * (`bp/kuking-platform/docs/…`) — takiego pliku u nas nie ma
+             * i mieć nie musi, a test nie jest od pilnowania cudzych dysków.
+             */
+            $znaneKorzenie = ['docs/', 'resources/', 'app/', 'scripts/', 'tests/', 'database/', 'config/'];
+            $wlasny = ! str_contains($cel, '/')
+                || array_any($znaneKorzenie, static fn (string $k): bool => str_starts_with($cel, $k));
+
+            if (! $wlasny) {
+                continue;
+            }
+
+            /*
+             * Ścieżka sprawdzana wprost, a GOŁA NAZWA — w całym drzewie
+             * dokumentów. Dokumenty wprowadzają plik pełną ścieżką
+             * (`docs/decyzje/ADR_RETENCJE.md`), a kilka akapitów niżej wracają
+             * do niego samą nazwą. Pierwsza wersja tego testu uznawała to
+             * drugie za martwy odsyłacz — pilnowała formy zapisu zamiast tego,
+             * czy plik istnieje.
+             */
+            $korzen = dirname(__DIR__, 2);
+            $kandydaci = [
+                self::katalogWewnetrzny().'/'.$cel,
+                $korzen.'/'.$cel,
+                $korzen.'/docs/'.$cel,
+                $korzen.'/resources/legal/'.$cel,
+            ];
+
+            $istnieje = array_any($kandydaci, static fn (string $sciezka): bool => file_exists($sciezka))
+                || (! str_contains($cel, '/') && in_array($cel, self::nazwyDokumentow(), true));
+
+            $this->assertTrue(
+                $istnieje,
+                "Dokument docs/legal/{$plik} odsyła do „{$cel}”, a tego pliku nie ma w żadnym "
+                .'ze sprawdzanych miejsc. Albo popraw ścieżkę, albo usuń odsyłacz — punkt listy, '
+                .'którego nie da się otworzyć, zostanie odhaczony na oko.',
+            );
+        }
+
+        $this->addToAssertionCount(1);
+    }
+
+    /**
+     * Nazwy wszystkich dokumentów `.md` w drzewie `docs/` — do rozstrzygania
+     * odsyłaczy podanych samą nazwą pliku.
+     *
+     * @return list<string>
+     */
+    private static function nazwyDokumentow(): array
+    {
+        static $nazwy = null;
+
+        if ($nazwy === null) {
+            $nazwy = [];
+            $katalog = new \RecursiveIteratorIterator(
+                new \RecursiveDirectoryIterator(dirname(__DIR__, 2).'/docs', \FilesystemIterator::SKIP_DOTS),
+            );
+
+            foreach ($katalog as $plik) {
+                if ($plik->isFile() && $plik->getExtension() === 'md') {
+                    $nazwy[] = $plik->getFilename();
+                }
+            }
+        }
+
+        return $nazwy;
+    }
+
+    /**
+     * Wiersze listy kontrolnej gotowości — i tylko one.
+     *
+     * Format w `docs/legal/` to tabela Markdown zaczynająca wiersz od
+     * priorytetu: `| P0 | warunek | odpowiedź |`. Świadomie NIE obejmujemy
+     * prozy: analiza ma prawo opisywać odrzuconych kandydatów, a razem z nimi
+     * pomiar, na podstawie którego ich odrzucono.
+     *
+     * ŚWIADOMIE NIE MA TU TESTU NA `[do ustalenia]`. W dokumencie
+     * publikowanym taki ślad jest usterką, bo widzi go użytkownik.
+     * W wewnętrznej analizie prawnej jest odwrotnie: to uczciwe oznaczenie
+     * pytania otwartego, czekającego na prawnika. Test zakazujący takich
+     * miejsc kazałby zamienić szczerą niewiedzę na ciszę — a cisza w liście
+     * gotowości jest groźniejsza niż jawne „do ustalenia".
+     *
+     * @return array<int, string> numer wiersza => treść
+     */
+    private static function wierszeListyKontrolnej(string $tresc): array
+    {
+        $wynik = [];
+
+        foreach (explode("\n", $tresc) as $i => $wiersz) {
+            if (preg_match('/^\|\s*P[0-2]\s*\|/u', $wiersz) === 1) {
+                $wynik[$i + 1] = $wiersz;
+            }
+        }
+
+        return $wynik;
+    }
+
+    /**
+     * Narzędzia, których kod NIE używa — jedno źródło dla obu testów,
+     * publikowanego i wewnętrznego.
+     *
+     * @return list<string>
+     */
+    private static function narzedziaNieuzywane(): array
+    {
+        $narzedzia = [
+            'Sentry' => class_exists(ServiceProvider::class)
+                && (string) config('sentry.dsn') !== '',
+            'PostHog' => false,
+            'Google Analytics' => false,
+            'Matomo' => false,
+            'Plausible' => false,
+            'Cloudflare Web Analytics' => class_exists(AnalitykaCloudflare::class),
+        ];
+
+        return array_keys(array_filter($narzedzia, static fn (bool $uzywane): bool => ! $uzywane));
+    }
+
+    // =====================================================================
+    //  BRAMKA BETY — lista gotowości ma mówić prawdę bez pytania człowieka
+    // =====================================================================
+    //
+    //  Audyt procedur z 20 września 2026 znalazł w `docs/legal/` cztery
+    //  rozjazdy, których nikt nie pilnował. Każdy dostał tu strażnika i każdy
+    //  strażnik SKANUJE, zamiast wyliczać — bo rozjazd, który naprawiono bez
+    //  strażnika, odrasta w następnym dopisanym wierszu.
+
+    /**
+     * Każdy wiersz listy gotowości ma dowód.
+     *
+     * DLACZEGO TO JEST NAJWAŻNIEJSZY TEST W TYM PLIKU
+     * Lista gotowości jest bramką „czy można wpuścić pierwszych ludzi".
+     * Wiersz bez dowodu nie jest neutralny — jest gorszy niż brak wiersza,
+     * bo wygląda na sprawdzony. Właściciel ma móc ją odhaczyć, nie pytając
+     * nikogo, czy mówi prawdę.
+     *
+     * Dowodem jest jedno z trzech: nazwa testu albo `plik:linia`,
+     * jawne `DO SPRAWDZENIA PRZEZ CZŁOWIEKA:` albo jawne `BRAK:`.
+     */
+    #[DataProvider('dokumentyWewnetrzne')]
+    public function test_kazdy_wiersz_listy_gotowosci_ma_dowod(string $plik): void
+    {
+        $wiersze = self::wierszeListyKontrolnej($this->trescWewnetrzna($plik));
+
+        if ($wiersze === []) {
+            $this->addToAssertionCount(1);
+
+            return;
+        }
+
+        foreach ($wiersze as $nr => $wiersz) {
+            $maDowod = preg_match(
+                '/(DO SPRAWDZENIA PRZEZ CZŁOWIEKA:|BRAK:|[A-Z][A-Za-z0-9]*Test|\.php|routes\/|config\/)/u',
+                $wiersz,
+            ) === 1;
+
+            $this->assertTrue(
+                $maDowod,
+                "Wiersz listy gotowości w docs/legal/{$plik} (wiersz {$nr}) nie ma dowodu. "
+                .'Dopisz nazwę testu albo `plik:linia`, albo napisz wprost '
+                .'„DO SPRAWDZENIA PRZEZ CZŁOWIEKA:" lub „BRAK:". '
+                .'Sporny wiersz: „'.trim($wiersz).'”.',
+            );
+        }
+    }
+
+    /**
+     * Procedura nie może przemilczeć sygnału, którym automat oznacza treść.
+     *
+     * ZNALEZIONE 20 WRZEŚNIA: `SYGNALY_AUTOMATU.md` wymieniał trzy sygnały
+     * (`automat_wzorzec` 3, `automat_odnosnik` 2, `automat_powtorzenie` 1),
+     * a kod miał CZWARTY — `automat_model` z wagą **4**, czyli wyższą niż
+     * wszystkie opisane. Moderator czytający listę sygnałów nie wiedział,
+     * że istnieje najcięższy z nich.
+     *
+     * To jest ta klasa rozjazdu, której nikt nie szuka: nie „dokument
+     * obiecuje coś, czego nie ma", tylko „kod robi więcej, niż dokument mówi".
+     */
+    public function test_procedura_wymienia_kazdy_sygnal_automatu(): void
+    {
+        $sygnaly = array_keys(Report::REASONS_AUTOMAT);
+        $dokument = $this->trescWewnetrzna('SYGNALY_AUTOMATU.md');
+
+        $this->assertGreaterThanOrEqual(
+            3,
+            count($sygnaly),
+            'Sygnałów automatu jest mniej niż trzy — ten test przestał mierzyć.',
+        );
+
+        foreach ($sygnaly as $sygnal) {
+            $this->assertStringContainsString(
+                $sygnal,
+                $dokument,
+                "Kod oznacza treść sygnałem „{$sygnal}” (waga ".Report::WAGA[$sygnal].'), '
+                .'a `SYGNALY_AUTOMATU.md` w ogóle go nie wymienia. Moderator czyta ten dokument, '
+                .'żeby wiedzieć, co automat potrafi podnieść — lista musi być pełna.',
+            );
+        }
+    }
+
+    /**
+     * Komenda wymieniona w procedurze musi istnieć.
+     *
+     * Procedury obiecują siedem komend retencji. Gdy któraś zmieni nazwę
+     * albo zniknie, dokument dalej będzie twierdził, że dane są sprzątane —
+     * a to jest obietnica wobec człowieka, nie szczegół techniczny.
+     */
+    #[DataProvider('dokumentyWewnetrzne')]
+    public function test_komendy_wymienione_w_procedurach_istnieja(string $plik): void
+    {
+        preg_match_all('/`(kuking:[a-z0-9:-]+)`/u', $this->trescWewnetrzna($plik), $trafienia);
+
+        $komendy = array_unique($trafienia[1]);
+
+        if ($komendy === []) {
+            $this->addToAssertionCount(1);
+
+            return;
+        }
+
+        $zarejestrowane = array_keys(Artisan::all());
+
+        foreach ($komendy as $komenda) {
+            $this->assertContains(
+                $komenda,
+                $zarejestrowane,
+                "Dokument docs/legal/{$plik} wymienia komendę „{$komenda}”, a `php artisan` jej nie zna. "
+                .'Albo zmieniła nazwę, albo zniknęła — w obu przypadkach dokument obiecuje sprzątanie, '
+                .'którego nikt nie robi.',
+            );
+        }
+    }
+
+    /**
+     * Liczba, którą procedura podaje jako pomiar, musi zgadzać się z pomiarem.
+     *
+     * ZNALEZIONE 20 WRZEŚNIA: `SECURITY_BASELINE.md` tłumaczył, dlaczego
+     * `style-src` ma jeszcze `unsafe-inline`, liczbą „355 atrybutów `style=`
+     * w 57 plikach". Naprawdę było ich **169 w 14 plikach** — dług skurczył
+     * się o ponad połowę i nikt tego nie zauważył, bo liczba raz wpisana
+     * w dokument nigdy więcej nie była mierzona.
+     *
+     * Ten test nie pilnuje konkretnej liczby. Pilnuje, żeby liczba w zdaniu
+     * nadal opisywała rzeczywistość — i to on powie, kiedy zejdzie do zera,
+     * czyli kiedy dyrektywę wolno wreszcie docisnąć.
+     */
+    public function test_liczba_atrybutow_style_w_dokumencie_zgadza_sie_z_pomiarem(): void
+    {
+        $dokument = $this->trescWewnetrzna('SECURITY_BASELINE.md');
+
+        $znalezione = preg_match(
+            '/(\d+)\s+atrybut[^.]{0,20}`style="?…?"?`?[^.]{0,20}w\s+(\d+)\s+plik/u',
+            $dokument,
+            $zapisane,
+        );
+
+        $this->assertSame(
+            1,
+            $znalezione,
+            'Nie znalazłem w SECURITY_BASELINE.md zdania z liczbą atrybutów `style=`. '
+            .'Jeśli zdanie zniknęło razem z długiem — usuń też ten test. '
+            .'Jeśli tylko zmieniło brzmienie — popraw wzorzec, nie kasuj pomiaru.',
+        );
+
+        [$atrybuty, $pliki] = self::policzAtrybutyStyle();
+
+        $this->assertSame(
+            $atrybuty,
+            (int) $zapisane[1],
+            "SECURITY_BASELINE.md mówi o {$zapisane[1]} atrybutach `style=`, a jest ich {$atrybuty}. "
+            .'Popraw liczbę w dokumencie — a jeśli doszła do zera, dociśnij `style-src` i usuń akapit.',
+        );
+
+        $this->assertSame(
+            $pliki,
+            (int) $zapisane[2],
+            "SECURITY_BASELINE.md mówi o {$zapisane[2]} plikach z atrybutem `style=`, a jest ich {$pliki}.",
+        );
+    }
+
+    /**
+     * @return array{0: int, 1: int} liczba atrybutów i liczba plików
+     */
+    private static function policzAtrybutyStyle(): array
+    {
+        $katalog = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator(dirname(__DIR__, 2).'/resources/views', \FilesystemIterator::SKIP_DOTS),
+        );
+
+        $atrybuty = 0;
+        $pliki = 0;
+
+        foreach ($katalog as $plik) {
+            if (! $plik->isFile() || $plik->getExtension() !== 'php') {
+                continue;
+            }
+
+            $ile = preg_match_all('/style="[^"]*"/u', (string) file_get_contents($plik->getPathname()));
+
+            if ($ile > 0) {
+                $atrybuty += $ile;
+                $pliki++;
+            }
+        }
+
+        return [$atrybuty, $pliki];
     }
 }

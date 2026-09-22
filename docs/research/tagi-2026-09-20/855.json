@@ -1,0 +1,16 @@
+{
+  "nazwa": "855",
+  "plik": "app/Http/Controllers/TagFollowController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "b6cc733916a197c566ac1026a65cc288",
+  "md5_po_mutacji": "13e6aee139088d95b154abc66c6d6c85",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "matches PCRE pattern",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T15:56:58Z"
+}

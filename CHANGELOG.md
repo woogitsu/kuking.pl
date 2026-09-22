@@ -1,5 +1,160 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
+
+- Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
+- Kafel pokazuje dostępne publiczne zdjęcie wpisu i jego autora. Gdy zdjęcia brakuje, pozostaje czytelna nazwa, licznik wpisów i znak Kuking.
+
+## Alfa 0.66 — porządek w rozmowach i przygotowanie Poradźcie
+
+- Przy błędzie odpowiedzi lub poprawki komentarza formularz zachowuje tekst i wskazuje właściwe pole.
+- Przygotowaliśmy „Poradźcie”: pytania o gotowanie, odpowiedzi i kolejkę dla gospodarza. Dział pozostaje wyłączony do zakończenia odbioru i stopniowego uruchomienia.
+- Usunięta odpowiedź z dalszą rozmową pozostawia miejsce dla tej rozmowy, ale nie zwiększa liczby odpowiedzi na pytanie.
+
+## Alfa 0.65 — odnośniki prowadzą tam, gdzie obiecują
+
+- „Poszukaj przepisów” w pustym zeszycie otwiera wyszukiwarkę przepisów. Odnośnik nad przepisem prowadzący do tablicy wpisów ma teraz zgodną z nią nazwę „Świeżo z Kuking”.
+
+## Alfa 0.64 — wykonania i odpowiedzi liczone uczciwie
+
+- Przy przepisie liczba wykonań obejmuje także kolejne gotowania tej samej osoby. Podpisy mówią teraz o wykonaniach i odpowiedziach, zamiast przedstawiać je jako liczbę osób.
+
+## Alfa 0.63 — zobacz, co gotują inni pod tym tagiem
+
+- Strony tagów pokazują kolaż najnowszych publicznych zdjęć od różnych osób. Zdjęcie prowadzi do wpisu, a przycisk dodawania otwiera formularz z wybranym tagiem.
+- Promowane tagi mają karty ze zdjęciami i krótkim zaproszeniem. Pozostałe tagi nadal znajdziesz na liście alfabetycznej.
+
+## Alfa 0.62 — zdjęcia i osoby przy tagach
+
+- Przy tagach z co najmniej pięcioma publicznymi zdjęciami od trzech osób zobaczysz liczbę zdjęć i ich autorów. Przy mniejszym zbiorze strona tagu zaprasza do dodania własnego wpisu. Kolejność tagów pozostaje bez zmian.
+
+## Alfa 0.61 — jasna instrukcja po zbyt dużym zdjęciu
+
+- Jeśli jedno z nowych zdjęć wpisu przekracza limit, formularz prosi o ponowny wybór wszystkich nowych zdjęć. Opis i ustawienie widoczności pozostają zachowane.
+
+## Alfa 0.60 — komentarze i wykonania bez cofania
+
+- Na stronie przepisu przejście do kolejnych komentarzy zachowuje wybraną stronę wykonań — i odwrotnie. Możesz przeglądać obie listy bez wracania do początku.
+
+## Alfa 0.59 — obie listy zostają na swoim miejscu
+
+- W zeszycie przejście do kolejnej strony wpisów zachowuje wybraną stronę przepisów — i odwrotnie. Możesz przeglądać obie listy bez ciągłego wracania do początku.
+
+## Alfa 0.58 — prawidłowy stan obserwowania
+
+- Na listach obserwujących i obserwowanych przyciski pokazują, kogo obserwujesz. Po kliknięciu „Obserwuj” zobaczysz „Przestań obserwować”, także po ponownym otwarciu listy.
+- Cofnięcie obserwowania nie wymaga już przejścia na profil.
+
+## Alfa 0.57 — tagi podczas pisania wpisu
+
+- W opisie wpisu możesz wpisać `#sernik` i wybrać tag z podpowiedzi. Przy istniejących tagach zobaczysz liczbę publicznych wpisów dostępnych dla Ciebie.
+- Tagi wpisane lub wklejone do opisu zapisują się przy publikacji. Usunięcie hashtagu podczas edycji nie usuwa taga dodanego osobno ręcznie.
+- Ręczne dodawanie tagów nadal działa. Wybrany wcześniej tag nie jest jednocześnie proponowany jako nowy, a ukryte tagi nie pojawiają się w odnośnikach pod wpisami.
+
+## Alfa 0.56 — wybór zeszytu przy zapisie
+
+- Przy przepisie i wpisie możesz wybrać własny zeszyt, również gdy treść jest już zapisana w innym miejscu. Szybki zapis do „Zapisanych” nadal jest dostępny.
+- Pełne nazwy zeszytów zawijają się na małym ekranie. Jeśli wybrany zeszyt został usunięty przed zapisem, formularz pokazuje błąd przy właściwym wyborze.
+
+## Alfa 0.55 — wskazanie błędnego stanu wiadomości
+
+- Jeśli zapis stanu wiadomości w panelu zostanie odrzucony, odnośnik w podsumowaniu błędów prowadzi do wyboru stanu.
+- Komunikat przy polu jest powiązany ze wszystkimi opcjami. Wpisana notatka pozostaje w formularzu.
+
+## Alfa 0.54 — osobne notatki promowanych tagów
+
+- Po błędnym zapisie notatki tekst i komunikat pozostają przy wybranym tagu. Pozostałe formularze zachowują własne wartości.
+- Odnośnik w podsumowaniu błędów prowadzi do właściwej notatki. Usunięto powtórzony dopisek o nieobowiązkowym polu.
+
+## Alfa 0.53 — czytelny błąd wyboru decyzji w odwołaniu
+
+- Jeśli przy rozpatrywaniu odwołania nie wybrano wyniku, komunikat u góry prowadzi do właściwego pola.
+- Wyjaśnienie pojawia się również przy wyborze decyzji, wyłącznie w wysłanym formularzu. Pozostałe odwołania zachowują własne wartości.
+
+## Alfa 0.52 — widoczny fokus potwierdzeń w panelu
+
+- Przy przechodzeniu klawiaturą do czyszczenia tablicy i kolażu panel pozostawia miejsce na cały obrys aktywnego przycisku, także przy zwiększonym tekście.
+- Dodano regresje rozwijanych potwierdzeń i pomocy pocztowej, rzeczywistego zoomu 200% oraz fizyczne kontrole ujemne. Nie oznacza to zakończenia całego odbioru panelu #581.
+
+## Alfa 0.51 — pełne nazwy dolnej nawigacji
+
+- Skróty Start, Szukaj, Dodaj, Moje i Profil zachowują pełne nazwy na wąskim ekranie (#638).
+- Przy większym tekście przyciski przechodzą do kolejnego rzędu; nie zmniejszamy pisma ani obszaru dotyku.
+
+## Alfa 0.50 — krótsza nawigacja panelu na telefonie
+
+- Narzędzia moderacji można rozwinąć przyciskiem „Nawigacja panelu”, dzięki czemu szybciej dociera się do treści (#581).
+- Powrót do Kuking pozostaje widoczny. Na komputerze oraz bez JavaScriptu spis narzędzi jest rozwinięty.
+- Menu obsługuje dotyk, mysz i klawiaturę; przy zmianie szerokości nie chowa aktywnego linku.
+
+## Alfa 0.49 — propozycja instalacji po powrocie
+
+- Po powrocie zalogowanej osoby serwis może raz zaproponować instalację, jeśli przeglądarka ją udostępnia (#278).
+- Propozycja nie zasłania strony. Zamknięcie jest zapamiętywane na koncie; bez obsługi instalacji panel pozostaje ukryty.
+- Wybranie instalacji nie jest liczone jako jej ukończenie.
+
+## Alfa 0.48 — linki we wpisach i komentarzach
+
+- Adresy HTTP, HTTPS i www we wpisach, komentarzach i odpowiedziach są klikalne (#634).
+- Przed przejściem do innej witryny pokazujemy jej domenę, pełny adres i ostrzeżenie. Nie jest to skan antywirusowy ani zapewnienie o bezpieczeństwie strony.
+
+## Alfa 0.47 — kolaż po wyczyszczeniu wyboru
+
+- Kolaż powitalny pokazuje również jeden, dwa lub trzy dostępne zdjęcia.
+- Nowsze wpisy bez gotowych zdjęć nie wypychają zdjęć z automatycznego doboru.
+- Gdy nie ma dostępnych zdjęć, powitanie zajmuje jedną kolumnę bez pustego miejsca po prawej.
+
+## Alfa 0.45 — przycisk rejestracji przy dużym tekście
+
+- Na wąskim ekranie przycisk rejestracji zostawia więcej miejsca na pełny napis, zachowując wybrany rozmiar tekstu (#621).
+- Przejście klawiaturą pozostawia zapas na obrys przycisku przy krawędzi okna.
+
+## Alfa 0.44 — powiększanie zdjęć
+
+- Zdjęcie można nadal otworzyć kliknięciem lub dotykiem, a link „Powiększ zdjęcie” pozostaje widoczny przy obsłudze klawiaturą także pod wysokimi zdjęciami (#561).
+- Szybkie zamknięcie i ponowne otwarcie podglądu nie usuwa już wyświetlanego zdjęcia.
+- Fokus linków w komunikatach ma czytelniejszy kontrast w ciemnym motywie.
+
+## Alfa 0.43 — dokładniejsze odliczanie minutnika
+
+- Minutnik uwzględnia czas, który minął podczas wstrzymania karty przez przeglądarkę (#571). Po wznowieniu nie odlicza pominiętych sekund od nowa.
+- Bieżący czas można odczytać czytnikiem ekranu bez automatycznego ogłaszania każdej sekundy (#569).
+
+## Alfa 0.42 — dalsze wyniki wyszukiwania
+
+- „Pokaż więcej” pozwala dotrzeć do przepisów i osób poza pierwszymi 200 wynikami (#568).
+- Dalsze strony pokazują zakres wyników i pozwalają wrócić do początku, również gdy wyniki w międzyczasie znikną.
+- Przeglądanie dalszych przepisów zachowuje pozycję listy osób i odwrotnie. Filtry czasu, prywatność i blokady nadal obowiązują.
+
+## Alfa 0.41 — proporcje mniejszej skali
+
+- Przy rozmiarze tekstu poniżej 100% odstępy i zapas wewnątrz kontrolek zmniejszają się razem z tekstem; cele dotykowe zachowują minimum 48 px (#589).
+- Domyślne odstępy przy 100% i 140% pozostają bez zmian. Wybór skali opisuje też zagęszczenie układu.
+
+## Przygotowane — bezpieczeństwo logowania (#584)
+
+- Wylogowanie innych urządzeń unieważnia również ich zapamiętane logowanie. Bieżąca sesja pozostaje aktywna; po jej utracie trzeba zalogować się ponownie. Ta sama ochrona obejmuje zmianę i reset hasła oraz decyzje o zamknięciu lub zawieszeniu konta.
+## Alfa 0.40 — wygląd panelu moderacji
+
+- Panel moderacji korzysta ze wspólnej identyfikacji: neutralnej nawigacji, czytelnych kart, formularzy i filtrów. Dłuższe nazwy narzędzi zawijają się obok ikon (#581).
+- Zachowane są oznaczenie trybu moderacji, pełna szerokość pracy i dotychczasowe działania.
+- Filtry dat mają więcej miejsca przy powiększonym tekście. Obrys klawiatury pozostaje widoczny także na ikonie kalendarza.
+- Tabelę użytkowników można przewijać w dostępnym obszarze ekranu; przejście klawiszem Tab odsłania jej kolejne linki.
+- „Sygnały automatu” pokazują podsumowanie błędów formularza, także gdy brakuje identyfikatora grupy. Notatka pozostaje do poprawienia.
+
+## Alfa 0.39 — kolejka gospodarza
+
+- Panel „Bez odpowiedzi” obejmuje również przepisy i wykonania „Ugotowałem”, z przejściem do komentarzy. Licznik uwzględnia dostęp gospodarza, a własne dopiski autora nie udają odpowiedzi innej osoby (#579).
+- Odpowiedź z panelu ponownie sprawdza dostępność wpisu i zachowuje tekst po błędzie.
+
+## Alfa 0.38 — szybkie ustawienia wyglądu
+
+- Panel Aa · Wygląd pozwala od pierwszej wizyty zmienić rozmiar tekstu i motyw, także bez konta. Zapamiętuje wybór i pozwala wrócić do ustawień domyślnych (#574).
+
+## Alfa 0.37 — pasek podczas przewijania
+
+- Pasek z logo, logowaniem i rejestracją chowa się podczas przewijania w dół i wraca przy przewijaniu w górę. Fokus klawiatury przywraca pasek.
+
 ## Alfa 0.36 — niedostępne zapisy w zeszycie
 
 - Zeszyt informuje o zapisach, których nie możesz teraz zobaczyć — także przepisach. Nie pokazuje mylącego pustego stanu ani prywatnych treści; komunikat pasuje również do cudzego publicznego zeszytu (#567).

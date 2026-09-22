@@ -29,6 +29,7 @@ use App\Http\Controllers\CommentController;
 use App\Http\Controllers\CookedEventController;
 use App\Http\Controllers\CookingModeController;
 use App\Http\Controllers\CspReportController;
+use App\Http\Controllers\ExternalLinkController;
 use App\Http\Controllers\FeedController;
 use App\Http\Controllers\HealthController;
 use App\Http\Controllers\MediaController;
@@ -39,6 +40,8 @@ use App\Http\Controllers\PodsumowanieTygodniaController;
 use App\Http\Controllers\PostController;
 use App\Http\Controllers\PostMediaController;
 use App\Http\Controllers\ProfileController;
+use App\Http\Controllers\PwaInstallController;
+use App\Http\Controllers\QuestionController;
 use App\Http\Controllers\RecipeController;
 use App\Http\Controllers\ReportController;
 use App\Http\Controllers\ReporterAppealController;
@@ -57,6 +60,7 @@ use App\Http\Controllers\SocialController;
 use App\Http\Controllers\StaticPageController;
 use App\Http\Controllers\TagController;
 use App\Http\Controllers\TagFollowController;
+use App\Http\Controllers\TagSuggestionController;
 use App\Http\Controllers\ThemeController;
 use App\Http\Controllers\WspomnienieController;
 use App\Http\Controllers\ZgloszenieNielegalnejTresciController;
@@ -85,7 +89,11 @@ $limits = config('kuking.limits');
 // --------------------------------------------------------------------------
 
 Route::get('/', [FeedController::class, 'landing'])->name('landing');
+Route::get('/otworz-link', ExternalLinkController::class)->middleware("throttle:{$limits['external_link']},external_link")->name('links.external');
 Route::get('/odkryj', [FeedController::class, 'discover'])->name('discover');
+Route::get('/pytania', [QuestionController::class, 'index'])
+    ->middleware("throttle:{$limits['search']},search")
+    ->name('questions.index');
 Route::get('/szukaj', [SearchController::class, 'index'])
     ->middleware("throttle:{$limits['search']},search")
     ->name('search');
@@ -190,6 +198,10 @@ Route::post('/przepisy/{recipe}/gotuj', [CookingModeController::class, 'zaznacz'
     ->name('cooking.zaznacz');
 
 Route::get('/wpisy/{post}', [PostController::class, 'show'])->name('posts.show');
+Route::get('/pytania/zadaj', [PostController::class, 'create'])->middleware('auth')->name('questions.create');
+Route::post('/pytania', [PostController::class, 'store'])
+    ->middleware(['auth', "throttle:{$limits['post']},post"])->name('questions.store');
+Route::get('/pytania/{post}', [PostController::class, 'show'])->whereUuid('post')->name('questions.show');
 Route::get('/ugotowane/{cookedEvent}', [CookedEventController::class, 'show'])->name('cooked.show');
 
 /*
@@ -561,7 +573,14 @@ Route::match(['get', 'post'], '/zgloszenie/{report}/odwolanie', [ReporterAppealC
 // --------------------------------------------------------------------------
 
 Route::middleware('auth')->group(function () use ($limits): void {
+    Route::get('/tagi/podpowiedzi', TagSuggestionController::class)
+        ->middleware("throttle:{$limits['tag_suggestions']},tag_suggestions")
+        ->name('tags.suggestions');
+
     Route::get('/home', [FeedController::class, 'home'])->name('home');
+    Route::post('/instalacja/decyzja', [PwaInstallController::class, 'update'])
+        ->middleware("throttle:{$limits['ustawienia']},ustawienia")
+        ->name('pwa.decision');
 
     // Weryfikacja e-maila. Świadomie NIE blokuje publikowania — patrz
     // RegisterController. Wymagamy jej tylko przy eksporcie danych.
@@ -849,6 +868,14 @@ Route::middleware('auth')->group(function () use ($limits): void {
     Route::put('/ustawienia/tagi', [TagFollowController::class, 'update'])
         ->middleware("throttle:{$limits['ustawienia']},ustawienia")
         ->name('settings.tags.update');
+    // Filtr i „Pokaż kolejne…" — PRZEGLĄDANIE, nie zapis (#858, decyzja
+    // właściciela z 20.09.2026, punkt 1). Osobna trasa i osobny koszyk
+    // limitera, żeby szukanie tagu nie zjadało budżetu zapisu (`ustawienia`,
+    // 30/10) i odwrotnie. Przyciski trafiają tu przez `formaction` w widoku
+    // — bez tego wciąż jeden `<form>`, bez jednej linii JavaScriptu.
+    Route::put('/ustawienia/tagi/przegladaj', [TagFollowController::class, 'przegladaj'])
+        ->middleware("throttle:{$limits['tagi_przegladanie']},tagi_przegladanie")
+        ->name('settings.tags.przegladaj');
 
     Route::get('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'edit'])->name('settings.accessibility');
     Route::put('/ustawienia/czytelnosc', [AccessibilitySettingsController::class, 'update'])

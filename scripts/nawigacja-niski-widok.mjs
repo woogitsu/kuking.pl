@@ -476,7 +476,7 @@ export async function sprawdzNawigacje492({
                     "ZOOM_FOCUS_OCCLUDED",
                     (text) =>
                         text.replace(
-                            "[data-marka] .bottom-nav { position: relative; inset: auto; margin: 8px; margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }",
+                            "[data-marka] .bottom-nav { position: relative; inset: auto; margin: calc(8px * var(--user-layout-scale, 1)); margin-bottom: calc(calc(8px * var(--user-layout-scale, 1)) + env(safe-area-inset-bottom, calc(0px * var(--user-layout-scale, 1)))); }",
                             "[data-marka] .bottom-nav { position: fixed; }",
                         ),
                 ],
@@ -490,7 +490,7 @@ export async function sprawdzNawigacje492({
                     "N492_DOL_PRZYPIECIE",
                     (text) =>
                         text.replace(
-                            "[data-marka] .bottom-nav { position: relative; inset: auto; margin: 8px; margin-bottom: calc(8px + env(safe-area-inset-bottom, 0px)); }",
+                            "[data-marka] .bottom-nav { position: relative; inset: auto; margin: calc(8px * var(--user-layout-scale, 1)); margin-bottom: calc(calc(8px * var(--user-layout-scale, 1)) + env(safe-area-inset-bottom, calc(0px * var(--user-layout-scale, 1)))); }",
                             "[data-marka] .bottom-nav { position: fixed; }",
                         ),
                 ],
@@ -526,7 +526,7 @@ export async function sprawdzNawigacje492({
                     "N492_WIERSZ",
                     (text) =>
                         text.replace(
-                            "[data-marka] .topbar-konto > summary { padding-inline: 4px; }",
+                            "[data-marka] .topbar-konto > summary { padding-inline: calc(4px * var(--user-layout-scale, 1)); }",
                             "[data-marka] .topbar-konto > summary { padding-inline: 16px; }",
                         ),
                 ],

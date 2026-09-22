@@ -147,7 +147,10 @@ async function podnies() {
   if (process.env.ADRES) return { adres: process.env.ADRES, zabij: () => {} };
 
   const port = 8000 + Math.floor(Math.random() * 900);
-  const serwer = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    /* `--no-reload` — patrz `scripts/port-projektu.mjs`: bez niego `artisan serve`
+       wycina procesowi `php -S` zmienne środowiska joba i aplikacja spada na
+       `.env`, czyli na współdzielony port 5432. */
+  const serwer = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
     stdio: 'ignore',
   });
   const adres = `http://127.0.0.1:${port}`;

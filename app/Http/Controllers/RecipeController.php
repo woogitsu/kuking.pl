@@ -17,6 +17,7 @@ use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityTekstuPrzepisu;
 use App\Support\LimityZdjec;
+use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -375,6 +376,23 @@ class RecipeController extends Controller
                 'author.profile.avatar',
                 'replies' => fn ($query) => $query->widoczneDla($request->user()),
                 'replies.author.profile.avatar',
+                // TO NIE JEST NADMIAROWE, CHOĆ PRZEPIS STOI OBOK W `$model`.
+                //
+                // Pod każdym komentarzem i każdą odpowiedzią widok pyta
+                // `@can('delete', $comment)`. `CommentPolicy::delete()` woła
+                // `Comment::notifiableUserId()`, a ta `Comment::subject()`,
+                // czyli `$this->post ?? $this->recipe ?? $this->cookedEvent`.
+                // Relacja nie była doładowana, więc KAŻDY komentarz szedł po
+                // swój przepis osobnym zapytaniem — mimo że wszystkie
+                // komentarze na tej stronie dotyczą jednego, już wczytanego.
+                //
+                // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                // `ANALYZE`): 41 zapytań przy 5 komentarzach na stronie, 61 przy
+                // 15 i 81 przy 25 — jedno na komentarz i jedno na odpowiedź.
+                // Dwie linijki niżej zamieniają to na dwa zapytania niezależne
+                // od liczby komentarzy: 33 przy każdym rozmiarze strony.
+                'recipe',
+                'replies.recipe',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
@@ -398,8 +416,10 @@ class RecipeController extends Controller
         $cookedEvents = $model->cookedEvents()
             ->widoczneDla($request->user())
             ->with(['user.profile.avatar', 'media'])
-            ->paginate(12, ['*'], 'wykonania')
-            ->withQueryString();
+            ->paginate(12, ['*'], 'wykonania');
+
+        PaginationLinks::preserveOtherPage($komentarze, $cookedEvents);
+        PaginationLinks::preserveOtherPage($cookedEvents, $komentarze);
 
         return view('pages.recipes.show', [
             'recipe' => $model,
@@ -428,11 +448,8 @@ class RecipeController extends Controller
             // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
             // więc dane dla wyszukiwarek zostają bez zmian.
             'cookedCount' => $cookedEvents->total(),
-            // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
-            // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
-            // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
-            // gwiazdek nie ma i nie będzie, bo są abstrakcją, a zdanie
-            // „dziesięć z dwunastu osób zrobi to ponownie" rozumie każdy.
+            // #666: każde wykonanie może mieć osobną odpowiedź, także od tej samej osoby.
+            // Liczniki opisujemy jako wykonania i odpowiedzi, bez deduplikacji kucharzy.
             // Czy oglądający obserwuje autora — jedno zapytanie, żeby przycisk
             // „Obserwuj" na stronie przepisu pokazywał prawdziwy stan
             // (UI kit v2, ekran 02).
@@ -475,27 +492,31 @@ class RecipeController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
+        // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
+        // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
+        // pola (czyli każdy spoza naszego formularza, który zawsze wysyła
+        // puste) kończył się błędem „Undefined array key", czyli 500 zamiast
+        // komentarza.
+        $parentId = $data['parent_id'] ?? null;
+
         try {
             $this->publishComment->handle(
                 author: $request->user(),
                 subject: $model,
                 body: $data['body'],
-                // `?? null`, bo `validate()` NIE zwraca klucza, którego
-                // w żądaniu nie było — a `parent_id` jest `nullable`.
-                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
-                // formularza, który zawsze wysyła puste) kończył się błędem
-                // „Undefined array key", czyli 500 zamiast komentarza.
-                //
                 // `widoczneDla()` — audyt W7-06. Bez tego można było podać
                 // UUID komentarza ukrytego przez blokadę i podpiąć się pod
                 // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
                 // kontrolerów jest kilka.
-                parent: ($data['parent_id'] ?? null) === null
+                parent: $parentId === null
                     ? null
                     : $model->comments()
                         ->widoczneDla($request->user())
-                        ->whereKey($data['parent_id'])
+                        ->whereKey($parentId)
                         ->first(),
+                // ISSUE #761: patrz komentarz przy tym samym parametrze
+                // w PostController::comment().
+                parentRequested: $parentId !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);

@@ -1,0 +1,142 @@
+[
+  {
+    "theme": "light",
+    "page": "index",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "page": "count0",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "page": "count1",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "page": "count2",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "page": "count3",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "page": "count4",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "light",
+    "page": "count5",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "page": "index",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "page": "count0",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "page": "count1",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "page": "count2",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "page": "count3",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "page": "count4",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  },
+  {
+    "theme": "dark",
+    "page": "count5",
+    "zoom": 2,
+    "width": 320,
+    "height": 900,
+    "dpr": 2,
+    "scroll": 320,
+    "scale": "140"
+  }
+]

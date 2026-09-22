@@ -1,0 +1,2030 @@
+{
+  "scope": "9 invalid server POST x 6 widths x 2 themes x text100/140; real zoom separate",
+  "pass": true,
+  "count": 216,
+  "configurations": {
+    "320-100-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "320-100-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "320-140-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "320-140-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "360-100-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "360-100-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "360-140-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "360-140-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "390-100-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "390-100-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "390-140-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "390-140-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "414-100-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true
+      }
+    ],
+    "1440-100-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "1440-100-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "1440-140-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "1440-140-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "414-100-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "414-140-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "414-140-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "768-100-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "768-100-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "768-140-dark": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ],
+    "768-140-light": [
+      {
+        "scenario": "report-custom",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-custom",
+        "row": 2,
+        "expectedErrors": [
+          "reason_code",
+          "suspend_days_custom"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 1,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "report-no-term",
+        "row": 2,
+        "expectedErrors": [
+          "suspend_days"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "restore-no-reason",
+        "row": 1,
+        "expectedErrors": [
+          "reason_code"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 1,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-short",
+        "row": 2,
+        "expectedErrors": [
+          "decision_note"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 1,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      },
+      {
+        "scenario": "appeal-no-outcome",
+        "row": 2,
+        "expectedErrors": [
+          "outcome"
+        ],
+        "pass": true,
+        "httpStatus": 302,
+        "retryAfter": null
+      }
+    ]
+  },
+  "interruption": "First run exceeded unchanged120/10min throttle; completed remaining configurations after expiry; no automatic429 retry."
+}

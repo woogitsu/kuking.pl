@@ -43,10 +43,43 @@
         </p>
     </div>
 
+    {{--
+        Zdanie otwierające mówi, co w paczce JEST — nie „wszystko”.
+        Zmierzone na prawdziwym archiwum: cudzy przepis zapisany w zeszycie
+        wychodzi w `dane.json` jako tytuł, autor, moja notatka i data zapisania
+        (`CollectUserExportData::collections()`), bez składników, kroków
+        i zdjęć. „Kopia wszystkiego” obiecywała więc pełne cudze przepisy,
+        których tu nie ma — a to jest plik, który człowiek czyta przed
+        skasowaniem konta. Zamiast wyliczać, czego brakuje, nazywamy jedno
+        ograniczenie, które naprawdę może kogoś zaskoczyć.
+
+        Słowo „notatki” wypadło świadomie: w Kuking nie ma encji „notatka”
+        (są notatki przy wykonaniu, przy składniku i przy zapisie w zeszycie),
+        więc na tej liście udawało osobny rodzaj treści. „Komentarze” są
+        w paczce naprawdę i jako osobna sekcja (`moje_komentarze`).
+
+        DWIE POPRAWKI PO NIEZALEŻNYM REVIEW.
+
+        1. Zdanie o zeszycie stoi pod warunkiem, bo na koncie BEZ ANI JEDNEGO
+           cudzego przepisu w zeszycie opisywało ograniczenie czegoś, czego
+           w paczce nie ma. Świeże konto dostawało zdanie o „cudzych
+           przepisach” przy pustym zeszycie — ta sama klasa usterki co
+           katalogi, których w paczce nie ma.
+        2. Wyliczenie pól było niepełne. `collections()` daje CZTERY pola
+           (`tytul`, `autor`, `moja_notatka`, `zapisano`), a zdanie mówiło
+           o dwóch — czyli zaniżało to, co człowiek w paczce naprawdę
+           dostaje. Zakres danych się nie zmienia; zmienia się opis.
+           Zgodność listy pól z rzeczywistością pilnuje asercja na klucze
+           w `EksportWygladObietnicePaczkiTest`.
+    --}}
     <div class="karta">
         <p style="margin-bottom:0;">
-            To jest kopia wszystkiego, co masz w Kuking: przepisy, wpisy,
-            zdjęcia i notatki. Możesz to trzymać na swoim komputerze i czytać
+            To jest kopia Twoich przepisów, wpisów, zdjęć i komentarzy.
+            @if($savedOtherRecipeCount > 0)
+                Cudze przepisy zapisane w Twoim zeszycie są tu jako tytuł, autor,
+                Twoja notatka i data zapisania — bez składników, kroków i zdjęć.
+            @endif
+            Możesz to trzymać na swoim komputerze i czytać
             <strong>bez internetu</strong> — także wtedy, gdyby Kuking kiedyś
             przestał istnieć. Nic tutaj nie wymaga zakładania konta.
         </p>
@@ -97,22 +130,42 @@
     --}}
     @if($photoCount > 0)
         <p>
-            Wszystkie Twoje zdjęcia leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
+            {{-- „Zdjęcia z tej paczki", nie „wszystkie Twoje zdjęcia”: do paczki
+                 wchodzą wyłącznie zdjęcia ze statusem `ready` (`ExportPhotoPlan`),
+                 a konto potrafi mieć obok nich odrzucone albo skasowane. Liczba
+                 w nagłówku wyżej opisuje paczkę i była prawdziwa — nieprawdziwe
+                 było samo słowo „wszystkie”. --}}
+            Zdjęcia z tej paczki leżą w katalogu <strong>zdjecia</strong>, obok tego pliku.
             Nazwa każdego pliku zaczyna się od daty, więc łatwo je posortować —
             na przykład <em>2027-03-14-rosol.webp</em>.
         </p>
-        <p><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
+        {{-- `akcja` — akapit, którego całą treścią jest jeden odnośnik.
+             Klasa niesie cel dotknięcia 48 px ze wspólnego `styles.blade.php`;
+             bez niej ten odnośnik miał zmierzone 22 px wysokości. --}}
+        <p class="akcja"><a href="zdjecia/">Otwórz katalog ze zdjęciami</a></p>
     @elseif($photosStillProcessing === 0)
         {{--
-            Ten tekst jest prawdziwy TYLKO wtedy, gdy zdjęć naprawdę nie ma.
-            Przy zdjęciach w drodze mówiłby „nie masz żadnego zdjęcia" komuś,
-            kto wgrał je pięć minut wcześniej — czyli dokładnie odwrotnie,
-            niż jest (issue #113). Wtedy wchodzi ostrzeżenie niżej.
+            ZDANIE OPISUJE PACZKĘ, NIE KONTO.
+
+            Ta gałąź nie znaczy „nie masz zdjęć". Znaczy: żadne zdjęcie nie
+            weszło do paczki i żadne nie jest w drodze. `ExportPhotoPlan`
+            liczy tylko `ready` oraz `pending`/`processing`, więc konto
+            z SAMYMI zdjęciami odrzuconymi (albo skasowanymi) trafia tutaj —
+            i słyszało „nie masz jeszcze w Kuking żadnego zdjęcia" o zdjęciach,
+            które samo wgrało. Ta sama usterka była w `CZYTAJ-TO-NAJPIERW.txt`
+            i naprawiamy ją w obu plikach naraz, żeby paczka nie mówiła
+            dwóch rzeczy o jednej sytuacji.
+
+            Zakres danych eksportu się nie zmienia: paczka dalej nie wypisuje
+            zdjęć odrzuconych ani powodu odrzucenia.
+
+            Przy zdjęciach w drodze to zdanie się NIE pojawia (issue #113) —
+            wtedy wchodzi ostrzeżenie niżej.
         --}}
         <p>
-            Nie masz jeszcze w Kuking żadnego zdjęcia, więc w tej paczce nie ma
-            katalogu ze zdjęciami. Kiedy dodasz pierwsze i poprosisz o paczkę
-            ponownie, znajdziesz je tutaj.
+            W tej paczce nie ma żadnego zdjęcia, więc nie ma w niej katalogu
+            ze zdjęciami. Katalog pojawi się, gdy będziesz mieć w Kuking zdjęcie,
+            które widać w serwisie, i poprosisz o paczkę ponownie.
         </p>
     @endif
 
@@ -142,11 +195,86 @@
         </div>
     @endif
 
+    {{--
+        ZDJĘCIA, KTÓRE DO PACZKI NIE WEJDĄ NIGDY (issue #692).
+
+        To jest ta „inna wiadomość", którą `ExportPhotoPlan` zapowiadał
+        od #113 w komentarzu przy `stillProcessing`, a której nikt nie
+        napisał. Blok wyżej mówi „jeszcze się przetwarzają, poproś o nową
+        paczkę". Tutaj taka rada byłaby nieprawdą: `rejected` i `deleted`
+        są stanami końcowymi i kolejna paczka też ich nie przyniesie.
+
+        DWA BLOKI, NIE JEDEN, I RÓŻNY TON.
+        Odrzucone to STRATA, której człowiek nie wybierał — przygotowanie
+        pliku padło (`ProcessUploadedImage`), a on o tym mógł nigdy nie
+        usłyszeć. Stąd `uwaga` i rada, co da się zrobić: wgrać oryginał
+        jeszcze raz. Skasowane to jego WŁASNA decyzja — krzyczenie na
+        kogoś „UWAGA!" za to, że sam coś skasował, byłoby hałasem, a nie
+        informacją. Stąd zwykły akapit: potwierdzenie, nie alarm.
+        To jest odpowiedź na pytanie z issue, czy te dwa stany zasługują
+        na jedno zdanie, czy na dwa — na dwa, bo różnią się i przyczyną,
+        i tym, co człowiekowi zostaje do zrobienia.
+
+        OBIE GAŁĘZIE STOJĄ POD WARUNKIEM `> 0` — i to jest ta sama strona
+        granicy, co zdanie o cudzych przepisach w zeszycie. `index.html`
+        czyta CZŁOWIEK i opisuje mu TĘ paczkę, więc zdanie o brakach,
+        których w niej nie ma, opisywałoby nieobecne. Reguła — że takie
+        zdjęcia nie wchodzą do żadnej paczki — stoi BEZWARUNKOWO po
+        drugiej stronie, w `czego_nie_zawiera` w `dane.json`, razem
+        z licznikami, które są tam zawsze, także przy zerze.
+
+        Bloki są niezależne od ostrzeżenia o zdjęciach w drodze i od
+        siebie nawzajem: konto może mieć wszystkie trzy rzeczy naraz.
+
+        Zakres danych paczki nie zmienia się o nic — tu jest wyłącznie
+        LICZBA. Żadnego zdjęcia, żadnego powodu odrzucenia, żadnego
+        identyfikatora.
+    --}}
+    @if($photosRejected > 0)
+        @php
+            // Liczebnik, czasownik w przeszłości i w przyszłości odmieniają
+            // się tak samo (1 / 2-4 / 5+ i nastki) — wszystkie z tej samej
+            // funkcji, inaczej wyszłoby „3 zdjęć nie weszły".
+            $zdjeciaOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'zdjęcie', 'zdjęcia', 'zdjęć');
+            $weszloOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'weszło', 'weszły', 'weszło');
+            $wejdzieOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'wejdzie', 'wejdą', 'wejdzie');
+            $ichOdrzucone = \App\Support\Odmiana::rzeczownik($photosRejected, 'go', 'ich', 'ich');
+        @endphp
+        <div class="uwaga">
+            <p>
+                <strong>UWAGA: {{ $photosRejected }} {{ $zdjeciaOdrzucone }} nie {{ $weszloOdrzucone }} do tej paczki i nie {{ $wejdzieOdrzucone }} do żadnej następnej.</strong>
+                Nie udało się {{ $ichOdrzucone }} przygotować do pokazania w serwisie, a tego już się nie cofnie —
+                nowa paczka nic tu nie zmieni.
+                Oryginały, które masz u siebie na komputerze albo w telefonie, możesz wgrać do Kuking jeszcze raz.
+            </p>
+        </div>
+    @endif
+
+    @if($photosDeleted > 0)
+        @php
+            // „które skasowano" jest tu nieodmienne (1: „zdjęcie, które
+            // skasowano", 5: „zdjęć, które skasowano"), więc form jest trzy,
+            // nie pięć.
+            $zdjeciaSkasowane = \App\Support\Odmiana::rzeczownik($photosDeleted, 'zdjęcie', 'zdjęcia', 'zdjęć');
+            $weszloSkasowane = \App\Support\Odmiana::rzeczownik($photosDeleted, 'weszło', 'weszły', 'weszło');
+            $wejdzieSkasowane = \App\Support\Odmiana::rzeczownik($photosDeleted, 'wejdzie', 'wejdą', 'wejdzie');
+        @endphp
+        <p>
+            {{ $photosDeleted }} {{ $zdjeciaSkasowane }}, które skasowano z Kuking, nie {{ $weszloSkasowane }}
+            do tej paczki i nie {{ $wejdzieSkasowane }} do żadnej następnej.
+            Skasowane zdjęcie znika z serwisu razem ze swoimi plikami, więc nie ma już czego do paczki włożyć.
+        </p>
+    @endif
+
     <h2>Pliki techniczne</h2>
     <ul class="spis">
         <li>
             <a href="dane.json">dane.json</a>
-            <br><span class="podpis">Wszystkie dane w formacie, który zrozumie inny serwis albo program.
+            {{-- „Te same dane", nie „wszystkie": ten opis stoi dwa ekrany pod
+                 zdaniem otwierającym, które przestało obiecywać komplet,
+                 i opisuje plik, którego własne `co_zawiera` też przestało.
+                 Paczka nie ma prawa przeczyć samej sobie o dwa akapity. --}}
+            <br><span class="podpis">Te same dane w formacie, który zrozumie inny serwis albo program.
             To jest plik na przeniesienie danych, nie do czytania.</span>
         </li>
         <li>

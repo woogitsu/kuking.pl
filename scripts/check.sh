@@ -14,6 +14,8 @@
 #                                   # na 8 stronach publicznych (issue #26)
 #   ./scripts/check.sh --wyscigi    # dodatkowo grupa `dwa-polaczenia`: testy
 #                                   # na dwóch połączeniach (D-105)
+#   ./scripts/check.sh --referrer   # dwa dokumenty i formularze; wymaga jawnego
+#                                   # REFERRER_DB_DATABASE=kuking_port_* po migracji
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 1
@@ -22,6 +24,7 @@ SZYBKO=0
 SPRAWDZ_DOSTEPNOSC=0
 SPRAWDZ_WYDAJNOSC=0
 SPRAWDZ_WYSCIGI=0
+SPRAWDZ_REFERRER=0
 
 # Pętla, a nie `[ "$1" = ... ]`: flagi mają działać w dowolnej kolejności
 # i dowolnej liczbie. Poprzednia wersja czytała wyłącznie PIERWSZY argument,
@@ -32,6 +35,7 @@ for _arg in "$@"; do
         --dostepnosc) SPRAWDZ_DOSTEPNOSC=1 ;;
         --wydajnosc) SPRAWDZ_WYDAJNOSC=1 ;;
         --wyscigi) SPRAWDZ_WYSCIGI=1 ;;
+        --referrer) SPRAWDZ_REFERRER=1 ;;
         *) printf "Nieznana opcja: %s\n" "$_arg" >&2; exit 2 ;;
     esac
 done
@@ -97,8 +101,31 @@ elif ! bash tests/skrypty/kopia-bazy.sh >/dev/null 2>&1; then
     # więc żaden test PHPUnit go nie dotknie. A jest to dziś JEDYNA planowana
     # kopia bazy — Railway na Free/Hobby nie robi żadnych.
     zle "Testy kopii bazy oblewają — uruchom: bash tests/skrypty/kopia-bazy.sh"
+elif ! bash tests/skrypty/kontrola-ujemna.sh >/dev/null 2>&1; then
+    # Przyrząd do kontroli ujemnych (`scripts/kontrola-ujemna.sh`) pilnuje,
+    # żeby mutacja, która nie trafiła, nie udawała wykonanej kontroli. Sam bez
+    # kontroli ujemnej byłby tym, co naprawia: narzędziem meldującym sukces bez
+    # roboty (PULAPKI_TESTOW §5). Ten przebieg podaje mu m.in. mutację, która
+    # NIE trafia, i sprawdza, że odmawia. Bez bazy, poniżej sekundy.
+    zle "Przyrząd kontroli ujemnych oblewa — uruchom: bash tests/skrypty/kontrola-ujemna.sh"
 else
     ok "Składnia i testy skryptów powłoki przechodzą"
+fi
+
+# --- 3c. Przyrząd do testu obciążeniowego (#605) ---------------------------
+# Regresje NARZĘDZIA POMIAROWEGO, nie produktu. Bez bazy, bez PHP, bez sieci
+# poza własnym serwerem scenariuszy na porcie przydzielanym dynamicznie.
+# Pilnuje usterki z 18.09.2026: żądanie, którego odpowiedź została urwana po
+# nagłówkach, nie kończyło pomiaru, a limit mierzył bezczynność gniazda zamiast
+# czasu żądania. Odtworzenie:
+# docs/infra/evidence/obciazenie605/ODTWORZENIE_ZAWIESZENIA.md
+krok "Przyrząd obciążeniowy (#605)"
+if ! command -v node >/dev/null 2>&1; then
+    zle "Brak node — nie sprawdzono przyrządu #605 (to jest brak kontroli, nie sukces)"
+elif node scripts/przyrzad-605.test.mjs >/dev/null 2>&1; then
+    ok "Regresje i kontrole ujemne przyrządu przechodzą"
+else
+    zle "Przyrząd #605 oblewa — uruchom: node scripts/przyrzad-605.test.mjs"
 fi
 
 # --- 3c. Dostępność (opcjonalna) -------------------------------------------
@@ -147,6 +174,18 @@ else
     zle "Wydajność albo SEO poniżej progu — szczegóły: node scripts/wydajnosc.mjs (i storage/wydajnosc.json)"
 fi
 
+# Osobna, wcześniej zmigrowana baza kuking_port_*; bez domyślnego celu i kasowania danych.
+krok "Sekretny adres i referrer (#1052)"
+if [ "$SPRAWDZ_REFERRER" -ne 1 ]; then
+    printf "  Pominięte: uruchom z --referrer i jawnym REFERRER_DB_DATABASE\n"
+elif [ -z "${REFERRER_DB_DATABASE:-}" ]; then
+    zle "Podaj REFERRER_DB_DATABASE własnej zmigrowanej bazy kuking_port_*"
+elif DB_DATABASE="$REFERRER_DB_DATABASE" node scripts/referrer-sekret-browser.mjs; then
+    ok "Dwa dokumenty, przechwycona analityka i formularze przechodzą"
+else
+    zle "Pomiar referrera nie przeszedł — brak przeglądarki też jest błędem"
+fi
+
 # --- 4. Analiza statyczna --------------------------------------------------
 # Issue #32 zamknięte: `phpstan.neon` istnieje (poziom i uzasadnienie —
 # komentarz na górze tego pliku), więc ten krok PRZESTAJE być opcjonalny.
@@ -158,17 +197,28 @@ if [ ! -x vendor/bin/phpstan ]; then
     zle "Brak vendor/bin/phpstan — uruchom: composer install"
 elif ! { [ -f phpstan.neon ] || [ -f phpstan.neon.dist ] || [ -f phpstan.dist.neon ]; }; then
     zle "Brak konfiguracji PHPStana (phpstan.neon) — patrz issue #32"
-elif vendor/bin/phpstan analyse --no-progress --error-format=raw >/dev/null 2>&1; then
-    ok "PHPStan bez zastrzeżeń"
 else
-    zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    _phpstan_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-phpstan.XXXXXX")
+    if vendor/bin/phpstan analyse --no-progress --error-format=raw >"$_phpstan_log" 2>&1; then
+        rm -f "$_phpstan_log"
+        ok "PHPStan bez zastrzeżeń"
+    else
+        printf 'Wynik PHPStana zapisano w: %s\n' "$_phpstan_log"
+        tail -n 80 "$_phpstan_log"
+        zle "PHPStan zgłasza problemy — uruchom: vendor/bin/phpstan analyse"
+    fi
 fi
 
 # --- 5. Testy -------------------------------------------------------------
 krok "Testy"
-if php artisan test >/dev/null 2>&1; then
+_test_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-tests.XXXXXX")
+if php artisan test >"$_test_log" 2>&1; then
+    rm -f "$_test_log"
     ok "Testy przechodzą"
 else
+    printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
+    printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
+    tail -n 160 "$_test_log"
     zle "Testy nie przechodzą — uruchom: php artisan test"
 fi
 
@@ -193,9 +243,13 @@ fi
 
 # --- 6. Odwracalność migracji --------------------------------------------
 krok "Odwracalność migracji"
-if php artisan migrate:refresh --force --env=testing --no-interaction >/dev/null 2>&1; then
+_migrate_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-migrate.XXXXXX")
+if php artisan migrate:refresh --force --env=testing --no-interaction >"$_migrate_log" 2>&1; then
+    rm -f "$_migrate_log"
     ok "Migracje cofają się i wracają"
 else
+    printf 'Wynik migracji zapisano w: %s\n' "$_migrate_log"
+    tail -n 80 "$_migrate_log"
     zle "Migracja nie ma działającego down() — nie da się jej wycofać podczas awarii"
 fi
 

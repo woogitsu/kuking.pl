@@ -1,0 +1,18 @@
+{
+  "md5": "a69a72a41d7da2f963fc9ee0c7176fdc",
+  "mtime_ns": 1789590715197663824,
+  "restored": true,
+  "mutations": [
+    {
+      "mutacja": "pelna_czworka",
+      "wykryta": true,
+      "output": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-kolaz632-runtime/phpunit.xml\n\n.\u001b[41;37mF\u001b[0m\u001b[41;37mF\u001b[0m...........\u001b[41;37mF\u001b[0m..........\u001b[41;37mF\u001b[0m.....                                   31 / 31 (100%)\n\nTime: 00:02.557, Memory: 135.00 MB\n\nThere were 4 failures:\n\n1) Tests\\Feature\\KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest::test_od_zera_do_czterech_dostepnych_zdjec_jest_renderowane_bez_odrzucania_mniejszego_zestawu\nFailed asserting that actual size 0 matches expected size 1.\n\n/home/mateusz/kuking-kolaz632-runtime/tests/Feature/KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest.php:131\n\n2) Tests\\Feature\\KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest::test_nowsze_wpisy_bez_gotowych_zdjec_nie_wypychaja_zdjecia_z_automatu\nFailed asserting that two arrays are identical.\n--- Expected\n+++ Actual\n@@ @@\n-Array &0 [\n-    0 => '01a0abeb-425a-709a-b116-230827fb2886',\n-]\n+Array &0 []\n\n/home/mateusz/kuking-kolaz632-runtime/tests/Feature/KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest.php:153\n\n3) Tests\\Feature\\KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest::test_mniejszy_kolaz_zachowuje_limit_dwoch_zdjec_od_osoby\nFailed asserting that actual size 0 matches expected size 2.\n\n/home/mateusz/kuking-kolaz632-runtime/tests/Feature/KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest.php:316\n\n4) Tests\\Feature\\PanelKolazuPowitalnegoTest::test_wyczyszczenie_wyboru_pokazuje_dostepne_zdjecie_zamiast_pustego_hero\nFailed asserting that 0 is identical to 1.\n\n/home/mateusz/kuking-kolaz632-runtime/tests/Feature/PanelKolazuPowitalnegoTest.php:160\n\n\u001b[37;41mFAILURES!\u001b[0m\n\u001b[37;41mTests: 31\u001b[0m\u001b[37;41m, Assertions: 74\u001b[0m\u001b[37;41m, Failures: 4\u001b[0m\u001b[37;41m.\u001b[0m\n"
+    },
+    {
+      "mutacja": "brak_ready",
+      "wykryta": true,
+      "output": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-kolaz632-runtime/phpunit.xml\n\n..\u001b[41;37mF\u001b[0m............................                                   31 / 31 (100%)\n\nTime: 00:02.709, Memory: 135.00 MB\n\nThere was 1 failure:\n\n1) Tests\\Feature\\KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest::test_nowsze_wpisy_bez_gotowych_zdjec_nie_wypychaja_zdjecia_z_automatu\nFailed asserting that two arrays are identical.\n--- Expected\n+++ Actual\n@@ @@\n-Array &0 [\n-    0 => '01a0abeb-4e64-7197-a632-7114ff8f213a',\n-]\n+Array &0 []\n\n/home/mateusz/kuking-kolaz632-runtime/tests/Feature/KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest.php:153\n\n\u001b[37;41mFAILURES!\u001b[0m\n\u001b[37;41mTests: 31\u001b[0m\u001b[37;41m, Assertions: 88\u001b[0m\u001b[37;41m, Failures: 1\u001b[0m\u001b[37;41m.\u001b[0m\n"
+    }
+  ],
+  "positive": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-kolaz632-runtime/phpunit.xml\n\n...............................                                   31 / 31 (100%)\n\nTime: 00:02.796, Memory: 135.00 MB\n\n\u001b[30;42mOK (31 tests, 88 assertions)\u001b[0m\n"
+}

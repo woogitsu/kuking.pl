@@ -47,7 +47,15 @@ class SearchController extends Controller
 
     public function index(Request $request): View
     {
-        $phrase = trim((string) $request->query('q', ''));
+        // `q` MUSI być tekstem, zanim cokolwiek go rzutuje (issue #738).
+        // `/szukaj?q[]=...` daje tablicę — bez tej straży `(string) $tablica`
+        // wywala ostrzeżenie „Array to string conversion", które w tym
+        // repo staje się wyjątkiem (błędy → wyjątki) i kończy się 500 na
+        // publicznym, niezalogowanym endpoincie zamiast zwykłego pustego
+        // ekranu wyszukiwania. Nie-tekstowe `q` jest więc traktowane
+        // dokładnie tak samo jak brak `q`.
+        $qSurowe = $request->query('q', '');
+        $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
 
         // ZAKRESY WEDŁUG KITU (ekran 03): Wszystko / Przepisy / Ludzie / Do 30 minut.
         //
@@ -85,6 +93,18 @@ class SearchController extends Controller
         // zapytania liczącego (`COUNT`) — a przy sortowaniu po podobieństwie
         // kursor z feedu tu nie zadziała.
         $ile = min(max((int) $request->query('ile', (string) self::NA_STRONIE), self::NA_STRONIE), self::MAKS);
+        $odPrzepisu = $szukaPrzepisow ? $this->offset($request, 'od_przepisu') : 0;
+        $odOsoby = $szukaLudzi ? $this->offset($request, 'od_osoby') : 0;
+        $parametry = ['q' => $phrase, 'sekcja' => $section, 'ile' => $ile,
+            'od_przepisu' => $odPrzepisu, 'od_osoby' => $odOsoby];
+        $nastepnePrzepisy = $parametry;
+        $nastepneOsoby = $parametry;
+        if ($ile < self::MAKS) {
+            $nastepnePrzepisy['ile'] = $nastepneOsoby['ile'] = min($ile + self::NA_STRONIE, self::MAKS);
+        } else {
+            $nastepnePrzepisy['od_przepisu'] += $ile;
+            $nastepneOsoby['od_osoby'] += $ile;
+        }
 
         // „ZA KRÓTKA" TO NIE „BEZ WYNIKÓW"
         //
@@ -102,7 +122,7 @@ class SearchController extends Controller
         $przepisy = $szukaPrzepisow
             // Widz przekazywany po to, żeby wyszukiwarka respektowała blokady
             // (issue #41). Bez niego blokada kończyła się na widoku i liście.
-            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut)
+            ? $this->search->recipes($phrase, $request->user(), $ile + 1, $maksMinut, $odPrzepisu)
             : collect();
 
         // Zakładka „Ludzie" liczy się DOKŁADNIE TAK SAMO, a nie „przy okazji".
@@ -112,7 +132,7 @@ class SearchController extends Controller
         // w miejscu, którego nie dało się rozpoznać: przy dwudziestu jeden
         // Basiach dwudziesta pierwsza po prostu nie istniała dla szukającego.
         $ludzie = $szukaLudzi
-            ? $this->search->people($phrase, $request->user(), $ile + 1)
+            ? $this->search->people($phrase, $request->user(), $ile + 1, $odOsoby)
             : collect();
 
         // SYGNAŁ `search_performed` (issue #115) — PO POLICZENIU WYNIKÓW,
@@ -122,10 +142,20 @@ class SearchController extends Controller
         // analitycznych), a `product_signals` ma nawet CHECK w bazie, który
         // odrzuci wiersz, gdyby ten kod kiedyś zaczął ją tam wysyłać. Zamiast
         // niej idzie wyłącznie DŁUGOŚĆ frazy i to, czy dała wynik.
-        $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
-            'query_length' => mb_strlen($phrase),
-            'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
-        ]);
+        //
+        // ZAPISUJEMY WYŁĄCZNIE, GDY FRAZA NAPRAWDĘ SZUKAŁA (issue #737).
+        // Pusty ekran „Szukaj" (brak `q`) i fraza krótsza niż dwa znaki nie
+        // odpytują bazy w ogóle — `SearchQuery::recipes()`/`::people()`
+        // zwracają pustą kolekcję PRZED zapytaniem (ten sam próg co
+        // `$zaKrotka` wyżej). Zapisanie tu sygnału policzyłoby otwarcie
+        // pustego ekranu i „a" jako wyszukiwanie bez wyników, mimo że baza
+        // w ogóle nie została odpytana — zatruwając miarę `has_results=false`.
+        if ($phrase !== '' && ! $zaKrotka) {
+            $this->sygnaly->handle($request->user(), ZapiszSygnal::SEARCH_PERFORMED, [
+                'query_length' => mb_strlen($phrase),
+                'has_results' => ($przepisy->count() + $ludzie->count()) > 0,
+            ]);
+        }
 
         return view('pages.search', [
             'board' => $this->dailyBoard->forViewer($request->user()),
@@ -140,6 +170,21 @@ class SearchController extends Controller
             'jestWiecej' => $przepisy->count() > $ile,
             'jestWiecejOsob' => $ludzie->count() > $ile,
             'nastepneIle' => min($ile + self::NA_STRONIE, self::MAKS),
+            'odPrzepisu' => $odPrzepisu,
+            'odOsoby' => $odOsoby,
+            'nastepnePrzepisy' => $nastepnePrzepisy,
+            'nastepneOsoby' => $nastepneOsoby,
+            'poczatekPrzepisow' => array_replace($parametry, ['od_przepisu' => 0]),
+            'poczatekOsob' => array_replace($parametry, ['od_osoby' => 0]),
         ]);
+    }
+
+    private function offset(Request $request, string $key): int
+    {
+        $value = filter_var($request->query($key, 0), FILTER_VALIDATE_INT, [
+            'options' => ['min_range' => 0, 'max_range' => PHP_INT_MAX - self::MAKS],
+        ]);
+
+        return $value === false ? 0 : $value;
     }
 }

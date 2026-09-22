@@ -18,6 +18,7 @@ class PostFactory extends Factory
     public function definition(): array
     {
         return [
+            'title' => null,
             'author_id' => User::factory(),
             'body' => fake()->sentence(8),
             'visibility' => Post::VISIBILITY_PUBLIC,
@@ -32,6 +33,21 @@ class PostFactory extends Factory
             'status' => Post::STATUS_DRAFT,
             'published_at' => null,
         ]);
+    }
+
+    /**
+     * Pytanie do działu „Poradźcie".
+     *
+     * `kind` idzie przez `afterMaking()` i `Post::oznaczJakoPytanie()`, a nie
+     * przez `state()`. NIE dlatego, że `state()` by nie zadziałał — fabryki
+     * Laravela budują model w `Model::unguarded()`, więc zadziałałby — tylko
+     * dlatego, że pytanie ma w tym repozytorium jedną drogę powstawania.
+     * Fabryka chodząca obok niej dowodziłaby czegoś, czego produkcja nie robi.
+     */
+    public function question(): static
+    {
+        return $this->state(fn () => ['title' => 'Jak upiec chrupiący chleb?'])
+            ->afterMaking(fn (Post $post) => $post->oznaczJakoPytanie((string) $post->title));
     }
 
     public function followersOnly(): static

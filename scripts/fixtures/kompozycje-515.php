@@ -2,10 +2,15 @@
 
 declare(strict_types=1);
 
+use App\Models\Media;
+use App\Models\Post;
 use App\Models\Tag;
 use App\Models\TagPromotion;
+use App\Models\User;
 use Illuminate\Contracts\Console\Kernel;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Str;
 
 require __DIR__.'/../../vendor/autoload.php';
 $app = require __DIR__.'/../../bootstrap/app.php';
@@ -18,7 +23,7 @@ if ($app->environment('production') || ! str_starts_with((string) config('databa
     throw new RuntimeException('Pomiar515 wymaga izolowanej bazy kuking_port*.');
 }
 $mode = $argv[1] ?? '';
-if (! in_array($mode, ['zapisz', 'przywroc', 'puste', 'pelne'], true) || empty($argv[2])) {
+if (! in_array($mode, ['zapisz', 'przywroc', 'puste', 'pelne', 'fotografia'], true) || empty($argv[2])) {
     throw new InvalidArgumentException('Podaj tryb pomiaru515 i plik kopii danych.');
 }
 if ($mode === 'zapisz') {
@@ -28,18 +33,51 @@ if ($mode === 'zapisz') {
 if ($mode === 'przywroc') {
     $saved = json_decode(file_get_contents($argv[2]), true, flags: JSON_THROW_ON_ERROR);
     DB::transaction(function () use ($saved) {
+        if (isset($saved['photo681'])) {
+            Post::withTrashed()->whereKey($saved['photo681']['post'])->forceDelete();
+            Media::whereKey($saved['photo681']['media'])->delete();
+            User::whereKey($saved['photo681']['user'])->delete();
+        }
         TagPromotion::query()->delete();
         if ($saved['promotions']) {
             DB::table('tag_promotions')->insert($saved['promotions']);
         }
         Tag::whereKey($saved['created_tags'])->delete();
     });
+    if (isset($saved['photo681'])) {
+        Storage::disk('public')->delete($saved['photo681']['key']);
+    }
     if (TagPromotion::all()->keyBy('tag_id')->map(fn ($p) => $p->getAttributes())->all() != collect($saved['promotions'])->keyBy('tag_id')->all() || Tag::orderBy('id')->pluck('id')->all() !== $saved['tag_ids']) {
         throw new RuntimeException('Nie odtworzono promocji515.');
     }
     exit;
 }
 $backup = json_decode(file_get_contents($argv[2]), true, flags: JSON_THROW_ON_ERROR);
+if ($mode === 'fotografia') {
+    $ids = array_combine(['post', 'media', 'user'], array_map(fn () => (string) Str::uuid(), range(1, 3)));
+    $ids['key'] = 'pomiar681/'.$ids['media'].'.webp';
+    $backup['photo681'] = $ids;
+    file_put_contents($argv[2], json_encode($backup, JSON_THROW_ON_ERROR));
+    $image = imagecreatetruecolor(960, 720);
+    imagefill($image, 0, 0, imagecolorallocate($image, 245, 230, 190));
+    ob_start();
+    imagewebp($image);
+    $bytes = ob_get_clean();
+    Storage::disk('public')->put($ids['key'], $bytes);
+    DB::transaction(function () use ($ids, $bytes) {
+        $user = User::factory()->create(['id' => $ids['user']]);
+        $user->profile()->update(['display_name' => 'Aleksandra Katarzyna z kuchni']);
+        $post = Post::factory()->create(['id' => $ids['post'], 'author_id' => $user->id]);
+        $post->tags()->attach(Tag::where('slug', 'pomiar515-1')->firstOrFail());
+        $variant = ['key' => $ids['key'], 'width' => 960, 'height' => 720, 'bytes' => strlen($bytes)];
+        $media = Media::factory()->create(['id' => $ids['media'], 'owner_id' => $user->id,
+            'disk' => 'public', 'variants_disk' => 'public', 'object_key' => $ids['key'],
+            'width' => 960, 'height' => 720, 'bytes' => strlen($bytes),
+            'metadata' => ['variants' => array_fill_keys(['thumb', 'feed', 'large'], $variant)]]);
+        $post->media()->attach($media);
+    });
+    exit;
+}
 TagPromotion::query()->delete();
 if ($mode === 'puste') {
     exit;

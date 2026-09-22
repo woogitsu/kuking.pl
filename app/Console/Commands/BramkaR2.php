@@ -71,6 +71,25 @@ class BramkaR2 extends Command
     /** Ile sekund czekamy na odpowiedź z R2 przy jednym żądaniu. */
     private const LIMIT_CZASU = 15;
 
+    /** Ogon hosta każdego endpointu S3 w R2. */
+    private const OGON_ENDPOINTU_R2 = '.r2.cloudflarestorage.com';
+
+    /**
+     * Jurysdykcja, którą repozytorium OBIECUJE UŻYTKOWNIKOWI.
+     *
+     * Nie jest to ustawienie środowiska i celowo nim nie jest. Obietnicę
+     * składa `resources/legal/polityka-prywatnosci.md` — wiersz „Cloudflare
+     * R2 · Przechowywanie zdjęć · Unia Europejska" — i to jest tekst,
+     * który czyta człowiek zakładający konto. Gdyby wartość siedziała
+     * w zmiennej środowiskowej, dałoby się uciszyć to sprawdzenie bez
+     * tknięcia dokumentu, który kłamie.
+     *
+     * Wybór wariantu B z issue #619 (zostawiamy architekturę, poprawiamy
+     * opis prawny) jest więc zmianą DWÓCH plików naraz: polityki i tej
+     * stałej. Tak ma być.
+     */
+    private const JURYSDYKCJA_Z_POLITYKI = 'eu';
+
     /** Punkty, które oblały. */
     private int $oblane = 0;
 
@@ -98,7 +117,10 @@ class BramkaR2 extends Command
         $this->newLine();
         $this->line('<options=bold>Sprawdzenia</>');
 
-        $this->oryginalIstniejePrzezApi($media);
+        // WYNIK TEGO SPRAWDZENIA JEST KONTROLĄ DODATNIĄ DLA SPRAWDZENIA 12:
+        // dopiero odczyt prawdziwego obiektu dowodzi, że endpoint z
+        // konfiguracji to naprawdę endpoint tych bucketów, a nie napis.
+        $apiOddaloObiekt = $this->oryginalIstniejePrzezApi($media);
         $wariant = $this->wariantIstniejePrzezApi($media);
         $this->trzyWarianty($media);
 
@@ -126,6 +148,8 @@ class BramkaR2 extends Command
             $this->wiersz('zapis', 'PutObject przechodzi bez `x-amz-acl`', null,
                 'Nie sprawdzone — dołóż `--zapis`, żeby komenda zapisała jeden plik w prefiksie `bramka/` i skasowała go.');
         }
+
+        $this->endpointNiesieJurysdykcjeUE($dyskOryginalow, $apiOddaloObiekt);
 
         return $this->werdykt();
     }
@@ -158,6 +182,22 @@ class BramkaR2 extends Command
             return false;
         }
 
+        // STEROWNIK DYSKU WARIANTÓW SPRAWDZAMY TAK SAMO JAK DYSKU ORYGINAŁÓW.
+        // Bez tego `KUKING_MEDIA_PUBLIC_DISK` wskazujący dysk lokalny
+        // przepuszczał komendę do sprawdzeń, które z tego dysku CZYTAJĄ —
+        // a sprawdzenie 9 („w publicznym buckecie nie ma kluczy `incoming/`")
+        // listowało wtedy pusty katalog na dysku lokalnym i odpowiadało TAK.
+        // Odpowiedź prawdziwa, tylko że nie o R2: dokładnie ta klasa usterki,
+        // przed którą broni sprawdzenie sterownika oryginałów wyżej.
+        if ($sterownikWariantow !== 'r2') {
+            $this->newLine();
+            $this->error('Dysk wariantów nie jest sterownikiem `r2` — sprawdzenia 2, 8, 9 i 10 czytałyby nie z R2.');
+            $this->line('Dysk wariantów to `'.$dyskWariantow.'` (sterownik: '.($sterownikWariantow === '' ? 'BRAK' : $sterownikWariantow).').');
+            $this->line('Ustaw <options=bold>KUKING_MEDIA_PUBLIC_DISK=r2_publiczne</> i uruchom komendę ponownie.');
+
+            return false;
+        }
+
         if ($dyskWariantow === $dyskOryginalow) {
             $this->newLine();
             $this->error('Warianty leżą w TYM SAMYM buckecie co oryginały.');
@@ -178,7 +218,7 @@ class BramkaR2 extends Command
         $this->line("Bucket wariantów:  <options=bold>{$bucketWariantow}</>");
         $this->line('Endpoint R2:       '.($endpoint === '' ? '<fg=red>BRAK</>' : 'ustawiony'));
 
-        if ($bucketOryginalow === '' || $endpoint === '') {
+        if ($bucketOryginalow === '' || $bucketWariantow === '' || $endpoint === '') {
             $this->newLine();
             $this->error('Brak nazwy bucketu albo adresu endpointu — bez nich nie ma czego pytać.');
             $this->line('Ustaw `AWS_BUCKET`, `AWS_PUBLIC_BUCKET` i `AWS_ENDPOINT`.');
@@ -243,7 +283,13 @@ class BramkaR2 extends Command
         return $media;
     }
 
-    private function oryginalIstniejePrzezApi(Media $media): void
+    /**
+     * @return bool|null `true`, gdy R2 NAPRAWDĘ oddało obiekt spod klucza
+     *                   z bazy; `null`, gdy nie było odpowiedzi. Sprawdzenie
+     *                   12 bez tego rozstrzygnięcia nie ma prawa orzekać
+     *                   o jurysdykcji bucketów.
+     */
+    private function oryginalIstniejePrzezApi(Media $media): ?bool
     {
         try {
             $jest = $this->dysk($media->disk)->exists((string) $media->object_key);
@@ -251,13 +297,15 @@ class BramkaR2 extends Command
             $this->wiersz('1', 'Oryginał widoczny przez API S3 z serwera', null,
                 'Zapytanie do R2 się nie udało: '.$this->skrot($e->getMessage()));
 
-            return;
+            return null;
         }
 
         $this->wiersz('1', 'Oryginał widoczny przez API S3 z serwera', $jest,
             $jest
                 ? 'Klucz API działa i plik jest tam, gdzie mówi baza.'
                 : 'Pliku nie ma pod kluczem z bazy — albo klucz API nie widzi tego bucketu, albo plik zniknął.');
+
+        return $jest;
     }
 
     /** @return array{nazwa: string, klucz: string}|null */
@@ -492,6 +540,34 @@ class BramkaR2 extends Command
     private function rozstrzygnijOstrzal(string $numer, string $co, string $klucz, bool $siecDziala, string $alarm): void
     {
         $adresy = $this->zadeklarowanePubliczneAdresy();
+        $nieuzyteczne = $this->nieuzyteczneZadeklarowaneAdresy();
+
+        // WPIS, Z KTÓREGO NIE DA SIĘ ZBUDOWAĆ ŻĄDANIA, MUSI OBLAĆ CAŁE
+        // SPRAWDZENIE, a nie zostać po cichu pominięty.
+        //
+        // Panel Cloudflare pokazuje publiczne adresy bucketu BEZ protokołu
+        // (`cdn.kuking.pl`, `pub-abc123.r2.dev`). Przepisane do zmiennej
+        // dokładnie tak, jak je widać, nie mają hosta — klient HTTP wywala
+        // się na nich wyjątkiem, a `kodOdpowiedzi()` zamienia każdy wyjątek
+        // na „brak odpowiedzi". Niżej „brak odpowiedzi" przy działającym
+        // wyjściu na świat liczy się jako ODMOWA (i słusznie: domena, której
+        // nie ma w DNS-ie, nikomu pliku nie wyda) — tylko że tu nie odmówił
+        // NIKT, bo żądanie w ogóle nie powstało. Bramka meldowała wtedy
+        // „Każdy zadeklarowany adres odmówił" i kod wyjścia 0 o środowisku,
+        // w którym `r2.dev` mogło być włączone na oścież.
+        if ($nieuzyteczne !== []) {
+            $this->wiersz($numer, $co, null,
+                'Zadeklarowano adres, pod który NIE DA SIĘ wysłać żądania — nikt o niego nie zapytał.',
+                array_merge(
+                    array_map(static fn (string $wpis): string => 'nieużyteczny wpis: '.$wpis, $nieuzyteczne),
+                    [
+                        'Pełny adres zaczyna się od `https://`: `https://cdn.kuking.pl`, nie `cdn.kuking.pl`.',
+                        'Panel Cloudflare pokazuje te adresy bez protokołu — trzeba go dopisać.',
+                    ],
+                ));
+
+            return;
+        }
 
         if ($adresy === []) {
             $this->wiersz($numer, $co, null,
@@ -589,8 +665,37 @@ class BramkaR2 extends Command
         ];
     }
 
-    /** @return list<string> */
+    /**
+     * Zadeklarowane adresy, z których DA SIĘ zbudować żądanie HTTP.
+     *
+     * @return list<string>
+     */
     private function zadeklarowanePubliczneAdresy(): array
+    {
+        return array_values(array_filter(
+            $this->wpisyZDeklaracji(),
+            fn (string $adres): bool => $this->daSieZapytac($adres),
+        ));
+    }
+
+    /**
+     * Zadeklarowane wpisy, z których żądania zbudować się NIE DA.
+     *
+     * Wypisujemy je dosłownie: to są publiczne adresy bucketu, a nie sekret
+     * — i człowiek ma zobaczyć dokładnie ten wpis, który poprawia.
+     *
+     * @return list<string>
+     */
+    private function nieuzyteczneZadeklarowaneAdresy(): array
+    {
+        return array_values(array_filter(
+            $this->wpisyZDeklaracji(),
+            fn (string $adres): bool => ! $this->daSieZapytac($adres),
+        ));
+    }
+
+    /** @return list<string> */
+    private function wpisyZDeklaracji(): array
     {
         $adresy = config('kuking.media.publiczne_adresy');
 
@@ -602,6 +707,20 @@ class BramkaR2 extends Command
             array_map(static fn (mixed $adres): string => is_string($adres) ? trim($adres) : '', $adresy),
             static fn (string $adres): bool => $adres !== '',
         ));
+    }
+
+    /** Czy z tego wpisu powstanie adres, pod który klient HTTP w ogóle pójdzie. */
+    private function daSieZapytac(string $adres): bool
+    {
+        $czesci = parse_url($adres);
+
+        if (! is_array($czesci)) {
+            return false;
+        }
+
+        $schemat = strtolower((string) ($czesci['scheme'] ?? ''));
+
+        return in_array($schemat, ['http', 'https'], true) && ($czesci['host'] ?? '') !== '';
     }
 
     private function publicznyBucketBezOryginalow(string $dyskWariantow): void
@@ -704,6 +823,138 @@ class BramkaR2 extends Command
                 }
             }
         }
+    }
+
+    /**
+     * SPRAWDZENIE 12 — JURYSDYKCJA DANYCH (issue #619).
+     *
+     * PO CO TO TU JEST. `resources/legal/polityka-prywatnosci.md` mówi
+     * użytkownikom, że zdjęcia leżą w Unii Europejskiej. Do 17.09.2026
+     * w repozytorium nie było ani jednego miejsca, które by to sprawdzało —
+     * a dowód leży w zasięgu serwera, bez panelu Cloudflare.
+     *
+     * DWIE RZECZY, KTÓRYCH NIE WOLNO POMYLIĆ (dokumentacja Cloudflare
+     * „Data location", odczyt 17.09.2026):
+     *
+     *   · **Location Hint** (`weur`, `eeur`) — Cloudflare opisuje go wprost
+     *     jako „best effort and not a guarantee", służący optymalizacji
+     *     opóźnień. Z endpointu go nie widać i dowodem rezydencji NIE JEST.
+     *   · **Jurisdictional Restriction** (`eu`) — „guarantee objects in
+     *     a bucket are stored within a specific jurisdiction". Bucket
+     *     z jurysdykcją jest dostępny WYŁĄCZNIE przez endpoint
+     *     `https://<KONTO>.<JURYSDYKCJA>.r2.cloudflarestorage.com`,
+     *     a jurysdykcji istniejącego bucketu NIE DA SIĘ zmienić.
+     *
+     * STĄD DOWÓD, I TO DOWÓD W OBIE STRONY. Endpoint z segmentem `eu`
+     * znaczy, że wszystko, po co ta aplikacja sięga, leży w jurysdykcji UE.
+     * Endpoint BEZ segmentu jurysdykcji, przez który udało się odczytać
+     * prawdziwy obiekt, znaczy coś mocniejszego niż „nie wiemy": te buckety
+     * jurysdykcji nie mają, bo gdyby miały, tym endpointem nie dałoby się
+     * ich dotknąć.
+     *
+     * DLATEGO TO OBLEWA BRAMKĘ, a nie jest notatką na końcu. Zdanie
+     * w polityce prywatności jest obietnicą złożoną człowiekowi, nie
+     * komentarzem — a `docs/OTWARCIE.md` mówi, że „NIE WIEMY" liczy się
+     * jak nieprzejście.
+     *
+     * CZEGO TO NIE DOWODZI — i trzeba to mówić za każdym razem:
+     *   · nie mówi, w którym kraju stoi dysk (jurysdykcja to zbiór krajów),
+     *   · nie mówi nic o Location Hincie ani o trybie „Automatic",
+     *   · nie widzi bucketów, po które ta aplikacja nie sięga (kopie bazy
+     *     z #193, kwarantanna z #602) — te trzeba sprawdzić w panelu,
+     *   · region Railway (`europe-west4-drams3a`) to APLIKACJA I BAZA,
+     *     zupełnie osobna rzecz od R2. Nie wolno jednego brać za drugie.
+     *
+     * NA EKRAN IDZIE SAM SEGMENT JURYSDYKCJI, NIGDY HOST. Host endpointu to
+     * jedyne miejsce w konfiguracji z identyfikatorem konta Cloudflare,
+     * a wyjście tej komendy wkleja się do zgłoszeń na GitHubie.
+     */
+    private function endpointNiesieJurysdykcjeUE(string $dyskOryginalow, ?bool $apiOddaloObiekt): void
+    {
+        $co = 'Endpoint R2 jest endpointem jurysdykcji UE (#619)';
+        $endpoint = (string) config("filesystems.disks.{$dyskOryginalow}.endpoint");
+        $ksztalt = $this->ksztaltEndpointu($endpoint);
+
+        $oLokalizacji = 'Location Hint (`weur`/`eeur`) to co innego: Cloudflare nazywa go „best effort", nie gwarancją.';
+        $oRailway = 'Region Railway `europe-west4-drams3a` dotyczy aplikacji i bazy, nie R2 — to osobna rzecz.';
+
+        if ($ksztalt === null) {
+            $this->wiersz('12', $co, null,
+                'Endpoint nie ma kształtu `<konto>[.<jurysdykcja>]'.self::OGON_ENDPOINTU_R2.'` — z jego nazwy nie da się nic wyczytać.',
+                ['Sprawdź `AWS_ENDPOINT`. Jurysdykcję trzeba wtedy odczytać w panelu R2, przy każdym buckecie osobno.']);
+
+            return;
+        }
+
+        $jurysdykcja = $ksztalt['jurysdykcja'];
+
+        if ($jurysdykcja === self::JURYSDYKCJA_Z_POLITYKI) {
+            $this->wiersz('12', $co, true,
+                'Endpoint należy do jurysdykcji `'.$jurysdykcja.'`, a spoza swojej jurysdykcji taki endpoint nie sięga po nic.',
+                [
+                    'Czyli każdy bucket, po który ta aplikacja sięga tym endpointem, jest w jurysdykcji UE.',
+                    $oLokalizacji,
+                    'Czego to NIE dowodzi: bucketów, po które aplikacja nie sięga (kopie bazy #193, kwarantanna #602).',
+                    $oRailway,
+                ]);
+
+            return;
+        }
+
+        if ($jurysdykcja !== null) {
+            $this->wiersz('12', $co, false,
+                'ALARM: endpoint należy do jurysdykcji `'.$jurysdykcja.'`, a polityka prywatności obiecuje użytkownikom Unię Europejską.',
+                ['Rozstrzygnij to razem z #8 — albo buckety w `eu`, albo poprawiony tekst polityki. Nie jedno bez drugiego.']);
+
+            return;
+        }
+
+        if ($apiOddaloObiekt !== true) {
+            $this->wiersz('12', $co, null,
+                'Endpoint nie niesie segmentu jurysdykcji, ale w tym przebiegu nie udało się przez niego odczytać ani jednego obiektu.',
+                ['Sama nazwa hosta mówi, co ktoś wpisał, a nie gdzie leżą pliki. Bez odczytu to jest domysł, nie dowód.']);
+
+            return;
+        }
+
+        $this->wiersz('12', $co, false,
+            'ALARM: te buckety NIE mają ograniczenia jurysdykcyjnego — endpoint bez segmentu jurysdykcji oddał prawdziwy obiekt.',
+            [
+                'Bucket z jurysdykcją jest dostępny WYŁĄCZNIE przez endpoint jurysdykcyjny, więc skoro ten zadziałał, jurysdykcji nie ma.',
+                $oLokalizacji,
+                'Jurysdykcji istniejącego bucketu nie da się zmienić — przejście na `eu` to nowe buckety i migracja (decyzja właściciela).',
+                'Dopóki to trwa, polityka prywatności nie ma pokrycia w konfiguracji. Szczegóły: `docs/infra/LOKALIZACJA_DANYCH_R2.md`.',
+                $oRailway,
+            ]);
+    }
+
+    /**
+     * Rozbiór hosta endpointu R2 na kształt i segment jurysdykcji.
+     *
+     * ZWRACA SEGMENT, NIGDY HOST — identyfikator konta zostaje w środku.
+     *
+     * @return array{jurysdykcja: string|null}|null `null`, gdy to nie jest
+     *                                              endpoint R2 albo host ma
+     *                                              nieznany kształt
+     */
+    private function ksztaltEndpointu(string $endpoint): ?array
+    {
+        $host = strtolower((string) parse_url($endpoint, PHP_URL_HOST));
+
+        if ($host === '' || ! str_ends_with($host, self::OGON_ENDPOINTU_R2)) {
+            return null;
+        }
+
+        $przod = substr($host, 0, -strlen(self::OGON_ENDPOINTU_R2));
+        $czesci = array_values(array_filter(explode('.', $przod), static fn (string $c): bool => $c !== ''));
+
+        return match (count($czesci)) {
+            // `<KONTO>.r2.cloudflarestorage.com` — bez ograniczenia jurysdykcyjnego.
+            1 => ['jurysdykcja' => null],
+            // `<KONTO>.<JURYSDYKCJA>.r2.cloudflarestorage.com`.
+            2 => ['jurysdykcja' => $czesci[1]],
+            default => null,
+        };
     }
 
     private function werdykt(): int

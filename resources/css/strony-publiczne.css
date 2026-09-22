@@ -61,11 +61,13 @@
     }
   }
 
-  /* Trzy tła pasa. Czwarte — ciemne — bierze się z `.blok-ciemny`
-     w `tokens.css`, która przestawia całą paletę na kontenerze. */
-  .pas--wglebiony { background-color: var(--color-surface-sunken); }
-  .pas--cieply { background-color: var(--color-surface-brand-wash); }
-  .pas--podniesiony { background-color: var(--color-surface-raised); }
+  /* Tła pasa. Jedyne, którego dziś używa `landing.blade.php`, jest ciemne
+     i bierze się z `.blok-ciemny` w `tokens.css` (przestawia całą paletę na
+     kontenerze). Trzy modyfikatory ze słownika paczki — `.pas--wglebiony`,
+     `.pas--cieply`, `.pas--podniesiony` — stały tu bez ani jednego nosiciela
+     i zostały skreślone 20 września 2026, zgodnie z zasadą z główki tego
+     pliku: bierzemy to, czego aplikacja UŻYWA, a nie cały słownik na zapas.
+     Wejdą z powrotem wtedy, gdy któryś pas naprawdę je dostanie. */
 
   /* Pas na styku dwóch tych samych teł potrzebuje kreski, inaczej sekcje
      zlewają się w jeden długi blok. */
@@ -268,120 +270,29 @@
     margin-bottom: var(--spacing-4);
   }
 
-  .hero-podpis {
-    margin: var(--spacing-3) 0 0;
-    font-size: var(--text-help);
-    color: var(--color-ink-muted);
+  /* Na wąskim ekranie odstęp nie może zabierać miejsca dużemu napisowi.
+     Zachowujemy rozmiar tekstu i pełną etykietę akcji (#621). */
+  .hero-akcje > .btn-duzy {
+    padding-inline: min(var(--spacing-8), 5vw);
+    scroll-margin-block: var(--spacing-3);
   }
 
-  /* --- „Jak działa" (dawniej „Cztery rzeczy") ---------------------------
+  /* --- „Jak działa" — słownik skreślony 20 września 2026 ----------------
 
-     TRZY KOLUMNY OD 64REM, DO TEGO PROGU JEDNA KOLUMNA POZIOMYCH KAFLI.
+     Stał tu komplet reguł sekcji „Jak działa" w słowniku paczki projektowej
+     (`.rzeczy`, `.rzecz`, `.rzecz-tresc`, `.rzecz-znak`, `.rzecz-krok`,
+     `.rzecz-tytul`, `.rzecz-opis`) wraz z pomiarami progów 48/64rem
+     i obrony przy czcionce przeglądarki 200%.
 
-     Do 11 września stało tu `repeat(2, …)` od 48rem z komentarzem „dwie
-     kolumny, nigdy więcej", a trzeci kafel zostawał sam w drugim rzędzie
-     („i tak ma być, to nie jest błąd składu"). Właściciel zgłosił dokładnie
-     to miejsce: „zbyt brzydkie, proste i niewizualne", a zmierzone ze zrzutu
-     — pod trzecim kaflem stało puste pole wielkości całej karty.
+     Sekcję przepisano na `.landing-opowiesc` + `.landing-kroki`
+     (`landing.blade.php`, `#jak-dziala`), a stary słownik został tu bez
+     ani jednego nosiciela w `resources/views`. To był najbardziej mylący
+     kawałek tego pliku: `#jak-dziala` DALEJ istnieje w dokumencie, więc
+     selektory wyglądały na żywe, a ich pomiary — na obowiązujące.
 
-     Tamten komentarz miał jednak prawdziwy argument, którego nie wolno
-     zgubić: przy większej liczbie kolumn zdanie wyjaśniające ma przy skali
-     tekstu 140% po dwa słowa w wierszu. Dlatego trzy kolumny wchodzą DOPIERO
-     od 64rem (1024 px), a nie od 48rem (768 px) — przy 1024 px kolumna ma
-     około 300 px, czyli przy 140% wciąż 4–5 słów w wierszu. Na 768 px
-     kolumny nie ma wcale i kafel układa się POZIOMO: znak po lewej, tekst
-     po prawej. Poziomy kafel nie marnuje szerokości i nie robi z sekcji
-     trzech ekranów przewijania na telefonie.
-
-     `flex-wrap: wrap` plus `flex-basis` na treści to cały mechanizm obrony
-     przy 320 px i czcionce przeglądarki 200%: gdy na tekst zostaje mniej
-     niż 12rem, treść zjeżdża pod znak sama, bez drugiego zapytania
-     medialnego. Przy 200% czcionki `12rem` to 384 px, czyli więcej niż cały
-     ekran — więc kafel na pewno się złoży. */
-
-  .rzeczy {
-    display: grid;
-    gap: var(--spacing-5);
-    list-style: none;
-    margin: 0;
-    padding: 0;
-  }
-
-  @media (min-width: 64rem) {
-    .rzeczy {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
-      gap: var(--spacing-6);
-    }
-  }
-
-  .rzecz {
-    display: flex;
-    flex-wrap: wrap;
-    align-items: flex-start;
-    gap: var(--spacing-4) var(--spacing-5);
-    background-color: var(--color-surface-raised);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    padding: var(--spacing-6);
-  }
-
-  @media (min-width: 64rem) {
-    .rzecz {
-      flex-direction: column;
-    }
-  }
-
-  .rzecz-tresc {
-    flex: 1 1 12rem;
-    min-width: 0;
-  }
-
-  /* ZNAK KROKU — koło w kolorze podkładu marki z ikoną w środku.
-
-     Rozmiar w `rem`, nie w `px`: rośnie razem z czcionką przeglądarki, więc
-     przy 200% nie zostaje znaczkiem obok dwukrotnie większego napisu.
-     `flex: none`, bo domyślne `flex-shrink` zgniotłoby koło do elipsy,
-     gdy tekst obok jest długi — ta sama pułapka, którą `.ikona` ma
-     zamkniętą u siebie w `tokens.css`. */
-  .rzecz-znak {
-    display: flex;
-    flex: none;
-    align-items: center;
-    justify-content: center;
-    width: 3.5rem;
-    height: 3.5rem;
-    border-radius: var(--radius-pill);
-    background-color: var(--color-surface-brand-wash);
-    color: var(--color-brand);
-  }
-
-  /* Numer kroku — TEKST, nie ikona. Ikona jest `aria-hidden` i nie może być
-     jedynym nośnikiem kolejności; „Krok 2" musi dać się przeczytać na głos. */
-  .rzecz-krok {
-    margin: 0 0 var(--spacing-1);
-    font-size: var(--text-help);
-    font-weight: 700;
-    color: var(--color-brand);
-  }
-
-  .rzecz-tytul {
-    font-size: var(--text-body-lg);
-    font-weight: 800;
-    line-height: var(--leading-title-wiele);
-    margin: 0 0 var(--spacing-2);
-  }
-
-  .rzecz-opis {
-    margin: 0;
-    color: var(--color-ink-muted);
-  }
-
-  /* Tytuł i opis kafla łamią długie słowo, zamiast rozpychać kafel.
-     Zmierzone przy czcionce przeglądarki 200% i oknie 320 px: kafel miał
-     404 px, z czego sam tytuł 274 px w jednym nierozerwalnym wyrazie. */
-  .rzecz-krok,
-  .rzecz-tytul,
-  .rzecz-opis { overflow-wrap: anywhere; }
+     Wygląd trzech kroków robi dziś port marki w `marka-rama.css`
+     (`[data-marka] .landing-kroki`, `.landing-krok-numer`) — arkusz BEZ
+     `@layer`, więc jego wartości biją wszystko, co stoi w warstwach. */
 
   /* --- „Świeżo z Kuking" na stronie powitalnej --------------------------
 
@@ -440,63 +351,14 @@
     margin-inline: auto;
   }
 
-  /* --- Pas ciemny: „Ugotowałem" ----------------------------------------
-     `.blok-ciemny` przestawia paletę na kontenerze, więc wszystko w środku
-     bierze poprawne kolory bez ani jednej wartości hex. */
+  /* --- Pas ciemny „Ugotowałem" — słownik skreślony 20 września 2026 -----
 
-  .pas-ciemny-tekst { max-width: 34rem; }
-
-  /* Na szerokim ekranie cytat stoi OBOK tekstu, a nie pod nim — inaczej
-     prawa połowa ciemnego pasa jest pusta i pas wygląda na niedokończony. */
-  .pas-ciemny-uklad {
-    display: grid;
-    gap: var(--spacing-8);
-    align-items: center;
-    grid-template-columns: minmax(0, 1fr);
-  }
-
-  .pas-ciemny-uklad > * {
-    min-width: 0;
-    max-width: 100%;
-    overflow-wrap: anywhere;
-  }
-
-  @media (min-width: 64rem) {
-    .pas-ciemny-uklad {
-      grid-template-columns: minmax(0, 1fr) minmax(0, var(--container-rail));
-      gap: var(--spacing-12);
-    }
-  }
-
-  .cytat-ugotowalem {
-    margin: 0;
-    padding-left: var(--spacing-5);
-    border-left: 4px solid var(--color-brand);
-    font-size: var(--text-lead);
-    line-height: var(--leading-body);
-    color: var(--color-ink);
-  }
-
-  .cytat-zrodlo {
-    display: block;
-    margin-top: var(--spacing-2);
-    font-size: var(--text-help);
-    color: var(--color-ink-muted);
-  }
-
-  /* --- Dwie kolumny tekstu ---------------------------------------------- */
-
-  .dwie-kolumny {
-    display: grid;
-    gap: var(--spacing-6);
-  }
-
-  @media (min-width: 64rem) {
-    .dwie-kolumny {
-      grid-template-columns: repeat(2, minmax(0, 1fr));
-      gap: var(--spacing-8);
-    }
-  }
+     Stały tu `.pas-ciemny-tekst`, `.pas-ciemny-uklad` (dwie kolumny od
+     64rem) oraz `.cytat-ugotowalem` i `.cytat-zrodlo`. Pas żyje dalej, ale
+     jako `.landing-wykonanie` z kartą `.landing-wykonanie-karta` i prawdziwą
+     fotografią wykonania zamiast cytatu — a `LandingKompozycjaFotografiiTest`
+     sprawdza wprost, że `.cytat-ugotowalem` na tej stronie NIE WYSTĘPUJE.
+     Reguły dla cytatu były więc sprzeczne z testem stojącym obok nich. */
 
   /* --- Wezwanie na końcu ------------------------------------------------ */
 
@@ -520,7 +382,6 @@
      Odstęp nad blokiem wtedy, gdy nie ma go z czego wziąć w komponencie. */
 
   .odstep-nad { margin-top: var(--spacing-8); }
-  .odstep-nad-maly { margin-top: var(--spacing-5); }
 
   /* Zdanie pomocnicze przy przycisku („Masz już konto? Zaloguj się").
 

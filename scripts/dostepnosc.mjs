@@ -191,8 +191,10 @@ const KONTO_MODERATORA = 'moderacja';
 const KONTO_DLUGA_NAZWA = 'zofia_z_bieszczad';
 
 const EKRANY = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
+  { nazwa: 'Poradźcie — lista pytań', adres: '/pytania' },
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },
@@ -251,6 +253,7 @@ const EKRANY = [
   { nazwa: 'profil (najdłuższa dopuszczalna nazwa)', adres: `/@${KONTO_DLUGA_NAZWA}` },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
+  { nazwa: 'dodaj zdjęcie — otwarte podpowiedzi tagów', adres: '/dodaj/zdjecie', zalogowany: true, tagiOpis: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
   /*
    * ROZDROŻE USTAWIEŃ (#344) — ekran, na który od teraz prowadzi KAŻDY napis
@@ -572,6 +575,7 @@ const EKRANY = [
  * (kilkadziesiąt milisekund), a przebieg axe kosztuje sekundę na ekran.
  */
 const EKRANY_UKLADU = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
   /*
@@ -949,11 +953,16 @@ async function podnies_serwer() {
     const adres = `http://127.0.0.1:${port}`;
     const dziennik = [];
 
-    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    /* `--no-reload` — patrz `scripts/port-projektu.mjs`: bez niego `artisan serve`
+       wycina procesowi `php -S` zmienne środowiska joba i aplikacja spada na
+       `.env`, czyli na współdzielony port 5432. */
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
         DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
+        // Mierzymy również dział przed publicznym włączeniem (#372).
+        KUKING_QUESTIONS_ENABLED: 'true',
         // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
         MAIL_MAILER: STEROWNIK_POCZTY_DO_POMIARU,
         // Uzasadnienie i kontrola — przy `KLUCZE_DOSTAWCOW_DO_POMIARU` wyżej.
@@ -1980,6 +1989,13 @@ if (tablicaDnia === null) {
  * ze sprawdzania, jest gorszy niż ekran, który oblewa.
  */
 function sciezkaEkranu(ekran) {
+  if (ekran.znajdz === 'link-zewnetrzny') {
+    const token = execFileSync('php', ['artisan', 'tinker', '--execute',
+      "echo Illuminate\\Support\\Facades\\Crypt::encryptString('https://example.test/przepis');",
+    ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } }).toString().trim();
+    if (!token) throw new Error('Nie utworzono tokenu ostrzeżenia');
+    return `/otworz-link?cel=${encodeURIComponent(token)}`;
+  }
   if (! ekran.znajdz) {
     return ekran.adres;
   }
@@ -2581,6 +2597,27 @@ for (const wariant of WARIANTY) {
       await strona.evaluate(() => new Promise((gotowe) => {
         requestAnimationFrame(() => requestAnimationFrame(() => gotowe(null)));
       }));
+    }
+
+    if (ekran.tagiOpis) {
+      const opis = strona.locator('textarea[name="body"]');
+      await opis.fill('Gotuję #probaregresjitagow');
+      const lista = strona.locator('.tagi-opis-popup:not([hidden])');
+      await lista.waitFor({ state: 'visible' });
+      await opis.press('ArrowDown');
+      const semantyka = await opis.evaluate((element) => {
+        const lista = document.getElementById(element.getAttribute('aria-controls'));
+        const aktywny = document.getElementById(element.getAttribute('aria-activedescendant'));
+        return element.tagName === 'TEXTAREA'
+          && !element.hasAttribute('role') && !element.hasAttribute('aria-expanded')
+          && element.getAttribute('aria-autocomplete') === 'list'
+          && element.getAttribute('aria-haspopup') === 'listbox'
+          && lista?.getAttribute('role') === 'listbox' && !lista.hidden
+          && lista.closest('main') !== null && lista.contains(aktywny)
+          && aktywny?.getAttribute('aria-selected') === 'true'
+          && document.activeElement === element;
+      });
+      if (!semantyka) throw new Error('TAGI_OPIS_ARIA: niepoprawna semantyka otwartej listy');
     }
 
     const wynik = await new AxeBuilder({ page: strona })
@@ -3212,6 +3249,44 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     if (marka) {
       pomiar = marka;
       if (!sprawdzonoUjemnieRameMarki) {
+        /* ANIMACJA WYŁĄCZONA NA CAŁY CZAS KONTROLI UJEMNEJ — i to musi objąć
+           także POWRÓT po zdjęciu mutacji, nie samo jej wstrzyknięcie.
+
+           Pasek ma `transition: transform 180ms` (`pasek-przewijany.css`),
+           a mutacje są wstrzykiwane, mierzone i zdejmowane osobnymi
+           wywołaniami przez CDP — kilka milisekund po sobie. Zmierzone na
+           prawdziwej stronie: po wstrzyknięciu `translateX(20px)` odczyt
+           natychmiastowy pokazuje przesunięcie **2 px**, a po 400 ms pełne
+           **20 px**.
+
+           To daje DWA osobne fałszywe wyniki i oba wystąpiły w CI:
+           przy wstrzyknięciu kontrola ujemna nie wykrywa mutacji („nie
+           wykryła: wyśrodkowanie belki"), a po jej zdjęciu belka wraca
+           animacją i pomiar KOŃCOWY — ten kilka linijek niżej — łapie ją
+           w drodze, meldując rozjazd „wyśrodkowanie belki: 532 zamiast 512",
+           czyli dokładnie te 20 px z mutacji, której już nie ma.
+
+           Dlatego styl wyłączający animację stoi OBOK mutacji i żyje aż do
+           końcowego pomiaru, zamiast być dopisywany do każdej z nich.
+
+           Do 19 września 2026 nie było tego widać, bo `data-pasek-przewijany`
+           stał pod `@guest`, a te pomiary chodzą po stronach zalogowanej
+           osoby — tam belka nie miała żadnej tranzycji i zmiany wchodziły
+           natychmiast. Rozszerzenie chowania paska na zalogowanych odsłoniło
+           założenie, które sonda robiła po cichu.
+
+           Wyłączamy TYLKO animację, nie mierzoną własność: kontrola ujemna
+           sprawdza geometrię, a nie to, jak szybko ta geometria dojeżdża. */
+        const bezAnimacji = await strona.evaluateHandle(() => {
+          const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
+          if (!nonce) throw new Error('Brak nonce do wyłączenia animacji w kontroli ujemnej');
+          const element = document.createElement('style');
+          element.nonce = nonce;
+          element.textContent = '[data-marka] .marka-topbar, [data-marka] .topbar-inner, [data-marka] .site-footer-inner { transition: none !important; }';
+          document.head.append(element);
+          return element;
+        });
+        try {
         for (const [css, oczekiwanyBlad] of [
           ['[data-marka] .marka-topbar { width: 80px !important; }', 'szerokość belki'],
           ['[data-marka] .marka-topbar { transform: translateX(20px) !important; }', 'wyśrodkowanie belki'],
@@ -3239,6 +3314,9 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
         }
         sprawdzonoUjemnieRameMarki = true;
         pomiar = await strona.evaluate(zmierzRameMarki);
+        } finally {
+          await bezAnimacji.evaluate((element) => element.remove());
+        }
       }
     }
     await strona.close();

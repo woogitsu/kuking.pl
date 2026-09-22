@@ -1,0 +1,10 @@
+ZOOM_TAB_OK minutnik-light 1/1
+file:///home/mateusz/kuking-minutnik571-runtime/scripts/zoom-marki.mjs:145
+    if (!r.ring || r.contrast < 3) throw new Error('ZOOM_FOCUS_CONTRAST ' + path + ' ' + JSON.stringify(r));
+                                         ^
+
+Error: ZOOM_FOCUS_CONTRAST minutnik-dark {"id":"0","name":"Uruchom minutnik w tej przeglądarce","hidden":false,"opacity":1,"fragments":[{"x":20,"y":166.171875,"width":284,"height":133}],"visible":true,"centerVisible":true,"occluded":false,"contrast":1.239146164243923,"color":"rgb(244, 245, 241)","ring":"shadow","paint":[110,168,255],"ambiguousPoints":[[162,162.671875]]}
+    at sprawdzTab (file:///home/mateusz/kuking-minutnik571-runtime/scripts/zoom-marki.mjs:145:42)
+    at async file:///home/mateusz/kuking-minutnik571-runtime/scripts/minutnik-fokus.mjs:22:5
+
+Node.js v24.19.0

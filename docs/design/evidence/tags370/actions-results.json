@@ -1,0 +1,190 @@
+[
+  {
+    "theme": "light",
+    "width": 320,
+    "links": [
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+        "outline": "3px",
+        "visible": true,
+        "y": 535.9375,
+        "bottom": 604.59375,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+        "outline": "3px",
+        "visible": true,
+        "y": 584.59375,
+        "bottom": 653.265625,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+        "outline": "3px",
+        "visible": true,
+        "y": 584.59375,
+        "bottom": 653.265625,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+        "outline": "3px",
+        "visible": true,
+        "y": 431.265625,
+        "bottom": 499.921875,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+        "outline": "3px",
+        "visible": true,
+        "y": 431.265625,
+        "bottom": 499.921875,
+        "height": 900
+      }
+    ],
+    "destination": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f"
+  },
+  {
+    "theme": "light",
+    "width": 1440,
+    "links": [
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+        "outline": "3px",
+        "visible": true,
+        "y": 295.453125,
+        "bottom": 382.109375,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+        "outline": "3px",
+        "visible": true,
+        "y": 390.109375,
+        "bottom": 476.78125,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+        "outline": "3px",
+        "visible": true,
+        "y": 390.109375,
+        "bottom": 476.78125,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+        "outline": "3px",
+        "visible": true,
+        "y": 484.78125,
+        "bottom": 571.4375,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+        "outline": "3px",
+        "visible": true,
+        "y": 484.78125,
+        "bottom": 571.4375,
+        "height": 900
+      }
+    ],
+    "destination": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f"
+  },
+  {
+    "theme": "dark",
+    "width": 320,
+    "links": [
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+        "outline": "3px",
+        "visible": true,
+        "y": 535.9375,
+        "bottom": 604.59375,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+        "outline": "3px",
+        "visible": true,
+        "y": 584.59375,
+        "bottom": 653.265625,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+        "outline": "3px",
+        "visible": true,
+        "y": 584.59375,
+        "bottom": 653.265625,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+        "outline": "3px",
+        "visible": true,
+        "y": 431.265625,
+        "bottom": 499.921875,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+        "outline": "3px",
+        "visible": true,
+        "y": 431.265625,
+        "bottom": 499.921875,
+        "height": 900
+      }
+    ],
+    "destination": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f"
+  },
+  {
+    "theme": "dark",
+    "width": 1440,
+    "links": [
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5ce3-7175-860f-cb5ae002a9dc",
+        "outline": "3px",
+        "visible": true,
+        "y": 295.453125,
+        "bottom": 382.109375,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c81-71e5-9ba5-3f172fff0031",
+        "outline": "3px",
+        "visible": true,
+        "y": 390.109375,
+        "bottom": 476.78125,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5c1f-7088-9820-cd4815234945",
+        "outline": "3px",
+        "visible": true,
+        "y": 390.109375,
+        "bottom": 476.78125,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5bb8-7062-ae15-8c5b1bad32cb",
+        "outline": "3px",
+        "visible": true,
+        "y": 484.78125,
+        "bottom": 571.4375,
+        "height": 900
+      },
+      {
+        "href": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f",
+        "outline": "3px",
+        "visible": true,
+        "y": 484.78125,
+        "bottom": 571.4375,
+        "height": 900
+      }
+    ],
+    "destination": "http://127.0.0.1:8071/wpisy/01a0b1e5-5b4c-701e-ae87-6b0360e36e1f"
+  }
+]

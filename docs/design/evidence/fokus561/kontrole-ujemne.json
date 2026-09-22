@@ -1,0 +1,27 @@
+{
+  "cases": [
+    {
+      "case": "dawny-link",
+      "negative_exit": 1,
+      "md5": "2d660b6f9ace3bd64bf5a98218f31182",
+      "mtime_ns": 1789548071585473600,
+      "restored": true
+    },
+    {
+      "case": "brak-pola-klikniecia",
+      "negative_exit": 1,
+      "md5": "2ae9a31672d283afd672840d13ec7d39",
+      "mtime_ns": 1789548647838797100,
+      "restored": true
+    },
+    {
+      "case": "brak-forced-colors",
+      "negative_exit": 1,
+      "md5": "2ae9a31672d283afd672840d13ec7d39",
+      "mtime_ns": 1789548647838797100,
+      "restored": true
+    }
+  ],
+  "backup": "/home/mateusz/kuking561-negatywy-wdie1dbb",
+  "positive_exit": 0
+}

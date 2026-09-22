@@ -1,0 +1,10 @@
+ZOOM_TAB_OK /przepisy/minutnik-lokalny-571/gotuj 6/6
+file:///home/mateusz/kuking-minutnik571-runtime/scripts/zoom-marki.mjs:145
+    if (!r.ring || r.contrast < 3) throw new Error('ZOOM_FOCUS_CONTRAST ' + path + ' ' + JSON.stringify(r));
+                                         ^
+
+Error: ZOOM_FOCUS_CONTRAST /przepisy/minutnik-lokalny-571/gotuj {"id":"3","name":"Uruchom minutnik w tej przeglądarce","hidden":false,"opacity":1,"fragments":[{"x":56,"y":314.5234375,"width":212,"height":203}],"visible":true,"centerVisible":true,"occluded":false,"contrast":1.239146164243923,"color":"rgb(244, 245, 241)","ring":"shadow","paint":[110,168,255],"ambiguousPoints":[[162,311.0234375]]}
+    at sprawdzTab (file:///home/mateusz/kuking-minutnik571-runtime/scripts/zoom-marki.mjs:145:42)
+    at async file:///home/mateusz/kuking-minutnik571-runtime/output/zoom571.mjs:23:1
+
+Node.js v24.19.0

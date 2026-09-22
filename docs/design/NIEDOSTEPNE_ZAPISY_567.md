@@ -47,6 +47,11 @@ nie mierzy ponownie wszystkich akcji klawiatury ani czytników ekranu.
 Nowe asercje tekstowe same nie dowodzą braku danych w atrybutach HTML;
 filtry modeli przed renderem zachowano i oceniono w review.
 
-Hook, CI i produkcja wymagają potwierdzenia. Pełny port marki nadal
+Zwykły hook przeszedł. PR #572 scalono jako d50183eecda28455ece64469571c074e3897c408.
+CI PR 34969399425: wszystkie 10 zadań success; main CI 34971936281 success.
+Railway 6459320591 success 15.09.2026 13:30:11 UTC; Deploy 34975402661 success.
+HTTP produkcji potwierdziło Alfa 0.36 / d50183e oraz CSS, JS i oba fonty Inter HTTP 200.
+Nie odtwarzano niedostępnego zapisu przez zmianę cudzej prywatności w produkcji;
+odbiór tego stanu pozostaje lokalny, opisany wyżej. Pełny port marki nadal
 CZĘŚCIOWO. Nie dodano migracji ani nowych funkcji; rollback przez zwykły
 revert pakietu po kontrolach.

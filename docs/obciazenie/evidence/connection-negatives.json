@@ -1,0 +1,102 @@
+[
+  {
+    "case": "istniejaca-baza",
+    "source": "docs/obciazenie/build_scale.sh",
+    "backup": "/tmp/kuking582-negative-sxar9nv2/build_scale.sh",
+    "before": {
+      "md5": "1b5555da0ea505e6529063aeacd190bb",
+      "mtime_ns": 1789505701000000000
+    },
+    "after": {
+      "md5": "1b5555da0ea505e6529063aeacd190bb",
+      "mtime_ns": 1789505701000000000
+    },
+    "baseline": {
+      "exit": 0,
+      "output": ".\n----------------------------------------------------------------------\nRan 1 test in 0.017s\n\nOK\n"
+    },
+    "negative": {
+      "exit": 1,
+      "output": "F\n======================================================================\nFAIL: test_existing_database_is_not_reset_by_default (__main__.ConnectionTest.test_existing_database_is_not_reset_by_default)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/home/mateusz/kuking-benchmark582-safety/docs/obciazenie/test_connection.py\", line 56, in test_existing_database_is_not_reset_by_default\n    self.assertNotEqual(0, self.run_script(updates={'STUB_EXISTS':'1'}).returncode)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: 0 == 0\n\n----------------------------------------------------------------------\nRan 1 test in 0.109s\n\nFAILED (failures=1)\n"
+    },
+    "restored": {
+      "exit": 0,
+      "output": ".\n----------------------------------------------------------------------\nRan 1 test in 0.019s\n\nOK\n"
+    }
+  },
+  {
+    "case": "wybrany-port",
+    "source": "docs/obciazenie/build_scale.sh",
+    "backup": "/tmp/kuking582-negative-l_f_i48v/build_scale.sh",
+    "before": {
+      "md5": "1b5555da0ea505e6529063aeacd190bb",
+      "mtime_ns": 1789505701000000000
+    },
+    "after": {
+      "md5": "1b5555da0ea505e6529063aeacd190bb",
+      "mtime_ns": 1789505701000000000
+    },
+    "baseline": {
+      "exit": 0,
+      "output": ".\n----------------------------------------------------------------------\nRan 1 test in 0.098s\n\nOK\n"
+    },
+    "negative": {
+      "exit": 1,
+      "output": "F\n======================================================================\nFAIL: test_new_database_keeps_explicit_connection_and_does_not_drop (__main__.ConnectionTest.test_new_database_keeps_explicit_connection_and_does_not_drop)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/home/mateusz/kuking-benchmark582-safety/docs/obciazenie/test_connection.py\", line 73, in test_new_database_keeps_explicit_connection_and_does_not_drop\n    self.assertEqual('55439', args[args.index('-p')+1])\n    ~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\nAssertionError: '55439' != '55440'\n- 55439\n+ 55440\n\n\n----------------------------------------------------------------------\nRan 1 test in 0.099s\n\nFAILED (failures=1)\n"
+    },
+    "restored": {
+      "exit": 0,
+      "output": ".\n----------------------------------------------------------------------\nRan 1 test in 0.096s\n\nOK\n"
+    }
+  },
+  {
+    "case": "php-port",
+    "source": "docs/obciazenie/connection.php",
+    "backup": "/tmp/kuking582-negative-ne_pb3p5/connection.php",
+    "before": {
+      "md5": "932439f89cccfffb92014bdcb378e099",
+      "mtime_ns": 1789505857540880800
+    },
+    "after": {
+      "md5": "932439f89cccfffb92014bdcb378e099",
+      "mtime_ns": 1789505857540880800
+    },
+    "baseline": {
+      "exit": 0,
+      "output": ".\n----------------------------------------------------------------------\nRan 1 test in 0.049s\n\nOK\n"
+    },
+    "negative": {
+      "exit": 1,
+      "output": "F\n======================================================================\nFAIL: test_php_validation_does_not_connect (__main__.ConnectionTest.test_php_validation_does_not_connect)\n----------------------------------------------------------------------\nTraceback (most recent call last):\n  File \"/home/mateusz/kuking-benchmark582-safety/docs/obciazenie/test_connection.py\", line 93, in test_php_validation_does_not_connect\n    self.assertNotEqual(0,p.returncode)\n    ~~~~~~~~~~~~~~~~~~~^^^^^^^^^^^^^^^^\nAssertionError: 0 == 0\n\n----------------------------------------------------------------------\nRan 1 test in 0.025s\n\nFAILED (failures=1)\n"
+    },
+    "restored": {
+      "exit": 0,
+      "output": ".\n----------------------------------------------------------------------\nRan 1 test in 0.047s\n\nOK\n"
+    }
+  },
+  {
+    "case": "go-port",
+    "source": "docs/obciazenie/gobench/connection.go",
+    "backup": "/tmp/kuking582-negative-k0m8_0o3/connection.go",
+    "before": {
+      "md5": "26054b7c870a113e8e80b28e81eabb04",
+      "mtime_ns": 1789505640667722800
+    },
+    "after": {
+      "md5": "26054b7c870a113e8e80b28e81eabb04",
+      "mtime_ns": 1789505640667722800
+    },
+    "baseline": {
+      "exit": 0,
+      "output": "ok  \tcommand-line-arguments\t0.002s\n"
+    },
+    "negative": {
+      "exit": 1,
+      "output": "--- FAIL: TestUnsafeConnectionRejected (0.00s)\n    --- FAIL: TestUnsafeConnectionRejected/port5432 (0.00s)\n        connection_test.go:44: Niebezpieczny port przyjęty\nFAIL\nFAIL\tcommand-line-arguments\t0.002s\nFAIL\n"
+    },
+    "restored": {
+      "exit": 0,
+      "output": "ok  \tcommand-line-arguments\t0.002s\n"
+    }
+  }
+]

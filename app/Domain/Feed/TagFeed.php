@@ -89,15 +89,15 @@ final class TagFeed
                 // tylko dla obserwujących.
                 'recipe:id,title,slug,visibility,hero_media_id',
                 'recipe.heroMedia',
-                'tags:id,slug,name',
+                'tags:id,slug,name,status',
             ])
-            ->withCount(['comments' => fn ($q) => $q->widoczneDla($viewer)])
+            ->withVisibleCommentCount($viewer)
             // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
             // zapytaniem, co wszystko powyżej (issue #275, D-081). Reguły
             // (kto się liczy, od ilu osób widać liczbę) siedzą w
             // `ZapisyWpisu`; tutaj jest tylko miejsce, w którym dokładamy
             // kolumnę do SELECT-a. Bez tego karta wpisu nie pokazałaby ani
-            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name`
+            // liczby, ani potwierdzenia — dokładnie jak z `tags:id,slug,name,status`
             // wyżej.
             ->tap(fn ($q) => $this->zapisy->dolicz($q, $viewer))
             ->orderByDesc('published_at')
