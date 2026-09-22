@@ -2374,6 +2374,38 @@ return [
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
     ],
 
+    'sessions' => [
+        // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
+        //
+        // Wiersz sesji trzyma parę (`user_id`, zgrubny adres IP, pełny
+        // `User-Agent`) — dane osobowe, mimo że tabelę zakłada domyślna
+        // migracja Laravela i nikt jej u nas nie projektował. Do 21.09.2026
+        // była to JEDYNA tabela z danymi osobowymi bez gwarantowanej
+        // retencji: kasowała ją wyłącznie loteria frameworka
+        // (`config/session.php` → `'lottery' => [2, 100]`), czyli 2% żądań.
+        // Przy małym ruchu wiersze leżą wtedy dłużej niż `SESSION_LIFETIME`,
+        // bez żadnej górnej granicy, której dałoby się uczciwie obiecać
+        // w polityce prywatności.
+        //
+        // SIEDEM DNI, a nie trzydzieści: tyle wynosi `SESSION_LIFETIME`
+        // w `.env.example` (10080 minut) i tyle zakładają komentarze
+        // w `CookingModeController`, `EnsureAccountIsActive` i `User` — czyli
+        // to jest liczba, którą ten projekt ma w głowie. Sesja bez aktywności
+        // od tygodnia jest już wygasła; trzymanie jej wiersza dłużej nie służy
+        // niczemu poza rozdęciem tabeli.
+        //
+        // TA LICZBA JEST SUFITEM, NIE POZWOLENIEM NA CIĘCIE ŻYWYCH SESJI.
+        // `App\Domain\Compliance\PrzedawnioneSesje` podnosi próg, gdy
+        // `SESSION_LIFETIME` jest dłuższy (na produkcji może być — plan
+        // w `.railway/railway.ts` mówi 43200 minut, czyli 30 dni). Wiersz
+        // młodszy niż `lifetime` należy do sesji ŻYWEJ, a jego skasowanie
+        // to wylogowanie człowieka w środku pracy.
+        //
+        // Egzekwuje `kuking:sprzataj-sesje`. Loteria frameworka zostaje
+        // obok, świadomie — dwa mechanizmy o różnych trybach awarii.
+        'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
