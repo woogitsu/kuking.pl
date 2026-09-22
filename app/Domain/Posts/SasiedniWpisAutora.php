@@ -31,6 +31,23 @@ use Illuminate\Database\Eloquent\Builder;
  * bo kandydatów jest więcej niż jeden i żadnego pojedynczo nie sprawdzamy
  * przez Gate.
  *
+ * TRZECIA GRANICA: WIDOCZNOŚĆ PRZEPISU, NIE TYLKO WPISU (issue #368).
+ * `widoczneDla()` pyta o widoczność WPISU, a wpis wskazujący przepis ma
+ * `visibility = 'public'` NA STAŁE (`WpisWskazujacyPrzepis::dopisz()`) — nie
+ * dlatego, że treść jest jawna, tylko dlatego, że wpis nie niesie żadnej
+ * własnej treści i całą bramką jest przepis. Bez
+ * `zWidocznymPrzepisem($widz)` ta nawigacja przepuszczała więc zapowiedź
+ * przepisu „tylko dla obserwujących" komuś, kto autora nie obserwuje —
+ * i także niezalogowanemu gościowi.
+ *
+ * TO NIE BYŁO „TYLKO ISTNIENIE". Sama szyna rysuje miniaturę z WŁASNYCH
+ * zdjęć wpisu, których zapowiedź nie ma, więc na ekranie widać jedynie
+ * napis „Następny wpis". Ale `PostController::show()` dla wpisu będącego
+ * samym wskazaniem przepisu PRZEKIEROWUJE na stronę przepisu, zanim
+ * ktokolwiek zapyta o jego widoczność — a w nagłówku `Location` stoi slug,
+ * czyli tytuł zapisany myślnikami. Docelowy adres oddaje potem 403, tylko
+ * że tytuł jest już oddany.
+ *
  * SZKICE AUTORA NIGDY NIE WCHODZĄ DO TEJ NAWIGACJI — decyzja świadoma, nie
  * przeoczenie. `published()` w zapytaniu odcina wpisy bez `published_at`,
  * więc szkic (nawet własny) nie ma gdzie stanąć w kolejności chronologicznej
@@ -99,6 +116,7 @@ final class SasiedniWpisAutora
             ->where('author_id', $post->author_id)
             ->published()
             ->widoczneDla($widz)
+            ->zWidocznymPrzepisem($widz)
             ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
     }
 }
