@@ -1,0 +1,16 @@
+{
+  "nazwa": "842 brak kontekstu",
+  "plik": "app/Http/Controllers/NapiszDoNasController.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "a66b1bb63daea9bfa416964f871e3c5d",
+  "md5_po_mutacji": "34c26478bcc7fad3ea0b18b45767e3b1",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Mamy Twoj",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:05:47Z"
+}

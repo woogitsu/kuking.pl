@@ -273,10 +273,16 @@ final class BledyMowiaCoZrobicTest extends TestCase
             $wyslij();
 
             $pola = array_keys($this->workBledow());
+            // Dwa formularze bezpieczeństwa mają wspólne nazwy pól, lecz
+            // osobne konteksty błędu. Sufiks pochodzi z odrzuconej operacji.
+            $wiersz = old('_wiersz');
             $xpath = $this->xpath($this->get($adres)->getContent());
 
             foreach ($pola as $pole) {
                 $id = 'f-'.str_replace(['[', ']', '.'], '-', $pole);
+                if ($wiersz !== null) {
+                    $id .= '-'.str_replace(['[', ']', '.'], '-', (string) $wiersz);
+                }
 
                 $this->assertSame(
                     1,

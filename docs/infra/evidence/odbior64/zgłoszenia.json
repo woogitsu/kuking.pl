@@ -1,0 +1,174 @@
+﻿[
+    {
+        "number":  595,
+        "title":  "Uruchom `railway config apply` — rozbij produkcję na web / worker / scheduler",
+        "state":  "OPEN",
+        "url":  "https://github.com/woogitsu/kuking.pl/issues/595",
+        "updatedAt":  "2026-09-16T23:09:51Z",
+        "liczba_komentarzy":  2,
+        "komentarze":  [
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/595#issuecomment-5701254481",
+                               "createdAt":  "2026-09-16T16:53:52Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/595#issuecomment-5705829277",
+                               "createdAt":  "2026-09-16T23:09:51Z"
+                           }
+                       ]
+    },
+    {
+        "number":  599,
+        "title":  "P0: monitoring wydajności, queue/DB, zewnętrzny uptime i alerty operacyjne",
+        "state":  "OPEN",
+        "url":  "https://github.com/woogitsu/kuking.pl/issues/599",
+        "updatedAt":  "2026-09-18T16:24:03Z",
+        "liczba_komentarzy":  6,
+        "komentarze":  [
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/599#issuecomment-5705317524",
+                               "createdAt":  "2026-09-16T22:12:32Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/599#issuecomment-5721446374",
+                               "createdAt":  "2026-09-17T21:24:57Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/599#issuecomment-5722773034",
+                               "createdAt":  "2026-09-17T23:48:08Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/599#issuecomment-5728584584",
+                               "createdAt":  "2026-09-18T10:16:12Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/599#issuecomment-5732861103",
+                               "createdAt":  "2026-09-18T16:18:11Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/599#issuecomment-5732929669",
+                               "createdAt":  "2026-09-18T16:24:03Z"
+                           }
+                       ]
+    },
+    {
+        "number":  594,
+        "title":  "Zrób pierwszy zrzut bazy i przećwicz odtworzenie — brak zweryfikowanej ścieżki DR",
+        "state":  "OPEN",
+        "url":  "https://github.com/woogitsu/kuking.pl/issues/594",
+        "updatedAt":  "2026-09-18T09:18:35Z",
+        "liczba_komentarzy":  5,
+        "komentarze":  [
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/594#issuecomment-5695198621",
+                               "createdAt":  "2026-09-16T09:27:05Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/594#issuecomment-5705866406",
+                               "createdAt":  "2026-09-16T23:13:32Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/594#issuecomment-5706778150",
+                               "createdAt":  "2026-09-17T00:56:29Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/594#issuecomment-5722291952",
+                               "createdAt":  "2026-09-17T22:53:53Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/594#issuecomment-5727928893",
+                               "createdAt":  "2026-09-18T09:18:35Z"
+                           }
+                       ]
+    },
+    {
+        "number":  193,
+        "title":  "Offsite `pg_dump`: uruchomić gotowy serwis `kopia-bazy` i wykonać produkcyjny restore drill",
+        "state":  "OPEN",
+        "url":  "https://github.com/woogitsu/kuking.pl/issues/193",
+        "updatedAt":  "2026-09-18T09:18:33Z",
+        "liczba_komentarzy":  4,
+        "komentarze":  [
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/193#issuecomment-5629161399",
+                               "createdAt":  "2026-09-11T03:49:25Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/193#issuecomment-5683302855",
+                               "createdAt":  "2026-09-15T15:44:52Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/193#issuecomment-5722292133",
+                               "createdAt":  "2026-09-17T22:53:54Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/193#issuecomment-5727928508",
+                               "createdAt":  "2026-09-18T09:18:33Z"
+                           }
+                       ]
+    },
+    {
+        "number":  605,
+        "title":  "Realistyczny mixed load test do nasycenia — realne zdjęcia, duży zbiór, upload + odczyt",
+        "state":  "OPEN",
+        "url":  "https://github.com/woogitsu/kuking.pl/issues/605",
+        "updatedAt":  "2026-09-18T11:49:45Z",
+        "liczba_komentarzy":  1,
+        "komentarze":  [
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/605#issuecomment-5729555330",
+                               "createdAt":  "2026-09-18T11:49:45Z"
+                           }
+                       ]
+    },
+    {
+        "number":  601,
+        "title":  "Media job: jedno dekodowanie wdrożone w #625 — pozostał odbiór produkcyjnego przetwarzania",
+        "state":  "OPEN",
+        "url":  "https://github.com/woogitsu/kuking.pl/issues/601",
+        "updatedAt":  "2026-09-17T18:53:55Z",
+        "liczba_komentarzy":  10,
+        "komentarze":  [
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5696941626",
+                               "createdAt":  "2026-09-16T11:49:22Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5697352171",
+                               "createdAt":  "2026-09-16T12:23:18Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5697364859",
+                               "createdAt":  "2026-09-16T12:24:19Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5697725338",
+                               "createdAt":  "2026-09-16T12:51:44Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5697734701",
+                               "createdAt":  "2026-09-16T12:52:24Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5697807740",
+                               "createdAt":  "2026-09-16T12:57:40Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5697842547",
+                               "createdAt":  "2026-09-16T13:00:03Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5698099614",
+                               "createdAt":  "2026-09-16T13:17:33Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5701005766",
+                               "createdAt":  "2026-09-16T16:35:25Z"
+                           },
+                           {
+                               "url":  "https://github.com/woogitsu/kuking.pl/issues/601#issuecomment-5701162773",
+                               "createdAt":  "2026-09-16T16:47:00Z"
+                           }
+                       ]
+    }
+]

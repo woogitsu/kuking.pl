@@ -1,5 +1,17 @@
 # Testing
 
+## Bramka testów risky (#1056)
+
+`phpunit.xml` ustawia `failOnRisky="true"`: test bez asercji nie może
+dać zielonego kodu wyjścia. Nie zmienia to polityki pominięć ani deprecjacji.
+`RiskyTestFailsGateTest` uruchamia przez `php artisan test` dwie osobne
+fixture z `tests/Fixtures/PhpunitRisky/`: brak asercji musi dać kod 1
+z właściwą diagnozą, a rzeczywista asercja kod 0. Fixture nie należą do
+domyślnych zestawów i nie korzystają z bazy. Proces ma limit 60 sekund.
+Strażnik czyta wspólną konfigurację, nie wymusza flagi w argumentach.
+Wycofanie atrybutu przywraca lukę: risky może kończyć się kodem 0,
+a `scripts/check.sh` uzna wtedy etap za udany i usunie jego log.
+
 ## Unit
 - visibility;
 - permissions;

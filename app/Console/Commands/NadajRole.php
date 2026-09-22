@@ -4,9 +4,10 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
-use App\Models\AuditLogEntry;
+use App\Domain\Users\Actions\ChangeUserRole;
 use App\Models\User;
 use App\Support\AdresEmail;
+use DomainException;
 use Illuminate\Console\Command;
 
 /**
@@ -84,10 +85,6 @@ class NadajRole extends Command
             return self::SUCCESS;
         }
 
-        if (! $this->wolnoOdebracAdmina($user, $rola)) {
-            return self::FAILURE;
-        }
-
         if ($rola === User::ROLE_ADMIN) {
             $this->warn('Administrator rozstrzyga odwołania od decyzji moderacyjnych (D-039) i widzi cały panel moderacji. Nadawaj to świadomie.');
         }
@@ -109,23 +106,23 @@ class NadajRole extends Command
             return self::SUCCESS;
         }
 
-        $user->promoteTo($rola);
+        // Pytanie nie trzyma transakcji. Akcja ponownie czyta konto i liczy
+        // administratorów dopiero pod wspólną blokadą zmian ról.
+        try {
+            $result = app(ChangeUserRole::class)->handle($user, $rola);
+        } catch (DomainException $exception) {
+            $this->error($exception->getMessage());
 
-        // DZIENNIK ZDARZEŃ, NIE SAM NAPIS NA EKRANIE. Zmiana roli jest
-        // „zmianą wysokiego znaczenia" w rozumieniu `docs/DATABASE.md`:
-        // decyduje, kto może zamknąć czyjeś odwołanie. `actor` jest pusty,
-        // bo komendę uruchamia powłoka, a nie zalogowany człowiek — dlatego
-        // źródło stoi wprost w metadanych, żeby wpis nie wyglądał na zmianę
-        // znikąd.
-        AuditLogEntry::record(
-            action: 'user.role_changed',
-            subject: $user,
-            metadata: [
-                'from' => $poprzednia,
-                'to' => $rola,
-                'source' => 'console:kuking:nadaj-role',
-            ],
-        );
+            return self::FAILURE;
+        }
+
+        $user = $result['user'];
+        $poprzednia = $result['previous'];
+        if (! $result['changed']) {
+            $this->info("To konto już ma rolę „{$rola}\" — nic do zrobienia.");
+
+            return self::SUCCESS;
+        }
 
         $this->info("Rola konta {$skrot} zmieniona z „{$poprzednia}\" na „{$rola}\".");
 
@@ -134,34 +131,5 @@ class NadajRole extends Command
         }
 
         return self::SUCCESS;
-    }
-
-    /**
-     * Nie zostawiaj serwisu bez administratora.
-     *
-     * Odebranie roli OSTATNIEMU administratorowi zamyka odwołania tak samo
-     * skutecznie, jak zawężenie Policy bez żadnego administratora — z tą
-     * różnicą, że tutaj widać to dopiero wtedy, gdy ktoś się odwoła. Komenda
-     * odmawia; `--tak` tego NIE omija, bo to nie jest pytanie o wygodę.
-     */
-    private function wolnoOdebracAdmina(User $user, string $nowaRola): bool
-    {
-        if ($user->role !== User::ROLE_ADMIN || $nowaRola === User::ROLE_ADMIN) {
-            return true;
-        }
-
-        $innych = User::query()
-            ->where('role', User::ROLE_ADMIN)
-            ->whereKeyNot($user->getKey())
-            ->where('status', User::STATUS_ACTIVE)
-            ->count();
-
-        if ($innych > 0) {
-            return true;
-        }
-
-        $this->error('To jest ostatnie czynne konto administratora. Odebranie mu roli zostawi serwis bez nikogo, kto może rozstrzygnąć odwołanie (DSA art. 20). Najpierw nadaj rolę komuś innemu.');
-
-        return false;
     }
 }

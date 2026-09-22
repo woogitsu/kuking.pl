@@ -1,0 +1,28 @@
+### Result
+{"keyboard":true,"pointer":true,"matrix":[{"width":320,"theme":"light","scale":100,"overflow":false,"popupFits":true,"optionHeight":78,"bodyFont":18},{"width":320,"theme":"light","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":320,"theme":"dark","scale":100,"overflow":false,"popupFits":true,"optionHeight":78,"bodyFont":18},{"width":320,"theme":"dark","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":360,"theme":"light","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":360,"theme":"light","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":360,"theme":"dark","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":360,"theme":"dark","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":390,"theme":"light","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":390,"theme":"light","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":390,"theme":"dark","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":390,"theme":"dark","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":414,"theme":"light","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":414,"theme":"light","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":414,"theme":"dark","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":414,"theme":"dark","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":768,"theme":"light","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":768,"theme":"light","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":768,"theme":"dark","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":768,"theme":"dark","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":1440,"theme":"light","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":1440,"theme":"light","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2},{"width":1440,"theme":"dark","scale":100,"overflow":false,"popupFits":true,"optionHeight":51,"bodyFont":18},{"width":1440,"theme":"dark","scale":140,"overflow":false,"popupFits":true,"optionHeight":99.59375,"bodyFont":25.2}]}
+### Ran Playwright code
+```js
+await (async page => {
+  const input = page.getByRole('textbox', {name:'Napisz kilka słów (nieobowiązkowe)', exact:true});
+  await input.fill('Dziś #pomiar-3');
+  await page.getByRole('option', {name:'#pomiar 3 — 3 publiczne wpisy',exact:true}).waitFor();
+  await input.press('ArrowDown'); await input.press('Enter');
+  if (!page.url().endsWith('/dodaj/zdjecie')) throw Error('Enter wysłał formularz');
+  const rows=[];
+  for(const width of [320,360,390,414,768,1440]) for(const theme of ['light','dark']) for(const scale of [100,140]) {
+    await page.setViewportSize({width,height:900});
+    await page.evaluate(({theme,scale})=>{document.documentElement.dataset.theme=theme;document.documentElement.dataset.textScale=String(scale);},{theme,scale});
+    await input.fill('Dziś #pomiar-3');
+    await page.getByRole('option', {name:'#pomiar 3 — 3 publiczne wpisy',exact:true}).waitFor();
+    const r=await page.evaluate(()=>{const list=document.querySelector('[role=listbox]'), b=list.getBoundingClientRect();return {overflow:document.documentElement.scrollWidth>innerWidth+1,popupFits:b.left>=0&&b.right<=innerWidth+1&&b.top>=0&&b.bottom<=innerHeight+1,optionHeight:list.firstElementChild.getBoundingClientRect().height,bodyFont:parseFloat(getComputedStyle(document.querySelector('textarea')).fontSize)};});
+    if(r.overflow||!r.popupFits||r.optionHeight<48||r.bodyFont<18)throw Error(JSON.stringify({width,theme,scale,r}));
+    rows.push({width,theme,scale,...r});
+    if(width===320&&theme==='dark'&&scale===140) await page.screenshot({path:'/mnt/c/Users/matma/Documents/kuking-flota/gpt-tagi-miejsce/output/playwright/647-popup-320-dark140.png'});
+    await input.press('Escape');
+  }
+  await input.fill('Dziś #pomiar-3');
+  await page.getByRole('option',{name:'#pomiar 3 — 3 publiczne wpisy',exact:true}).click();
+  if (!page.url().endsWith('/dodaj/zdjecie')) throw Error('Wybór wysłał formularz');
+  return {keyboard:true,pointer:true,matrix:rows};
+})(page);
+```

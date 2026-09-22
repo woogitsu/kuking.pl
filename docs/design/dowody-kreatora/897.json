@@ -1,0 +1,16 @@
+{
+  "nazwa": "#897 — zachowaj klucze wejścia",
+  "plik": "resources/views/pages/recipes/szczegoly.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "370d91efc1d815a291e3b00b5bf2adea",
+  "md5_po_mutacji": "9d2c9ccb98647389a6be39c86d619bae",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Ostatni nowy krok",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:38:42Z"
+}

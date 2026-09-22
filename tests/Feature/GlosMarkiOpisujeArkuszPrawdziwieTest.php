@@ -163,6 +163,98 @@ class GlosMarkiOpisujeArkuszPrawdziwieTest extends TestCase
     }
 
     /**
+     * WSZYSTKIE reguły arkusza — selektory i ciało.
+     *
+     * CO BYŁO PRZEDTEM — STRAŻNIK WIDZIAŁ CO DRUGĄ REGUŁĘ (issue #927)
+     * Wzorzec zaczynał się od `(?:^|[}])`, czyli ZJADAŁ klamrę zamykającą
+     * poprzedniej reguły. `preg_match_all` szuka kolejnego trafienia od końca
+     * poprzedniego, więc separator, którego potrzebowała kolejna reguła, był
+     * już skonsumowany: żeby dopasowanie w ogóle doszło do skutku, silnik
+     * przeskakiwał do NASTĘPNEJ klamry `}` — a ta zamyka dopiero regułę nr 2.
+     * Skan widział reguły 1, 3, 5, … Zmierzone na `resources/css/app.css`:
+     * 233 reguły zamiast 479.
+     *
+     * To dokładnie ta klasa usterki, o której mówi `AGENTS.md` przy skanach
+     * („skan, który nie znajduje żadnego pliku, przechodzi"): miernik podaje
+     * wynik, nie widząc połowy wejścia.
+     *
+     * CZEGO TA USTERKA NIE ROBIŁA — SPRAWDZONE, NIE ZAŁOŻONE
+     * Sama reguła `.kuking-word` wypadała po stronie WIDZIANEJ, więc trzy
+     * sprawdzenia w tym pliku dawały prawdziwy wynik i zieleń była zasłużona.
+     * Sprawdzono też, czy to kwestia parzystości, którą przesunęłaby jedna
+     * reguła dopisana wyżej: nie jest — każdy blok `@media` zaczyna
+     * naprzemienność od nowa, więc dopisek na górze arkusza nie zmieniał
+     * widoczności tej reguły. Usterka polegała na ZASIĘGU skanu, nie na
+     * wyniku, który dawał; zasięg zaś jest tym, co ten plik obiecuje
+     * czytelnikowi swoją nazwą.
+     *
+     * CO JEST TERAZ
+     * Separator sprawdzamy WSTECZ (`(?<=[{}])`), zerową długością — nic nie
+     * znika z wejścia. Klamra otwierająca stoi w tym spojrzeniu obok
+     * zamykającej, bo PIERWSZA reguła wewnątrz `@media { … }` nie ma przed
+     * sobą żadnego `}`; bez niej skan gubił kolejne dziesięć reguł.
+     *
+     * Kontrola dodatnia: `test_skan_widzi_kazda_regule_a_nie_co_druga`
+     * i `test_skan_czyta_caly_arkusz_marki`.
+     *
+     * @return list<array{selektory: list<string>, deklaracje: string}>
+     */
+    private function regulyArkusza(string $css): array
+    {
+        preg_match_all('/(?:^|(?<=[{}]))\s*([^{}@]+?)\s*\{([^{}]*)\}/s', $css, $reguly, PREG_SET_ORDER);
+
+        return array_map(static fn (array $regula): array => [
+            'selektory' => array_map('trim', explode(',', $regula[1])),
+            'deklaracje' => trim($regula[2]),
+        ], $reguly);
+    }
+
+    /**
+     * Liczba reguł w arkuszu policzona BEZ wyrażenia regularnego — skanem
+     * klamer. Służy wyłącznie za miarę odniesienia dla `regulyArkusza()`:
+     * strażnik, który mierzy własny zasięg tym samym wzorcem, potwierdziłby
+     * każdą swoją ślepotę.
+     *
+     * Regułą jest blok BEZ zagnieżdżonych klamer (liść), którego preludium nie
+     * zaczyna się od `@` — czyli dokładnie to, co ma widzieć wzorzec.
+     */
+    private function liczbaRegulSkanemKlamer(string $css): int
+    {
+        $stos = [];
+        $preludium = '';
+        $reguly = 0;
+
+        foreach (str_split($css) as $znak) {
+            if ($znak === '{') {
+                $stos[] = ['preludium' => trim($preludium), 'lisc' => true];
+                $preludium = '';
+
+                continue;
+            }
+
+            if ($znak === '}') {
+                $blok = array_pop($stos);
+
+                if ($blok !== null && $blok['lisc'] && $blok['preludium'] !== '' && ! str_starts_with($blok['preludium'], '@')) {
+                    $reguly++;
+                }
+
+                if ($stos !== []) {
+                    $stos[count($stos) - 1]['lisc'] = false;
+                }
+
+                $preludium = '';
+
+                continue;
+            }
+
+            $preludium .= $znak;
+        }
+
+        return $reguly;
+    }
+
+    /**
      * Deklaracje reguły, której CAŁYM selektorem jest `.kuking-word`.
      *
      * Dopasowanie jest po pełnym selektorze, nie po zawieraniu nazwy: reguła
@@ -172,15 +264,11 @@ class GlosMarkiOpisujeArkuszPrawdziwieTest extends TestCase
      */
     private function deklaracjeNazwy(string $css): string
     {
-        preg_match_all('/(?:^|[}])\s*([^{}@]+?)\s*\{([^{}]*)\}/s', $css, $reguly, PREG_SET_ORDER);
-
         $znalezione = [];
 
-        foreach ($reguly as $regula) {
-            $selektory = array_map('trim', explode(',', $regula[1]));
-
-            if (in_array('.kuking-word', $selektory, true)) {
-                $znalezione[] = trim($regula[2]);
+        foreach ($this->regulyArkusza($css) as $regula) {
+            if (in_array('.kuking-word', $regula['selektory'], true)) {
+                $znalezione[] = $regula['deklaracje'];
             }
         }
 
@@ -269,5 +357,85 @@ class GlosMarkiOpisujeArkuszPrawdziwieTest extends TestCase
                 'wyszłaby poza wiersz: `overflow-wrap: anywhere`.',
             );
         }
+    }
+
+    // ------------------------------------------------------------------
+    // KONTROLA DODATNIA SKANU (issue #927)
+    //
+    // Bez niej ten plik jest strażnikiem, który mierzy połowę tego, co
+    // deklaruje: trzy sprawdzenia wyżej pytają o JEDNĄ regułę, więc przechodzą
+    // tak samo, gdy skan widzi co drugą — i przechodziły.
+    // ------------------------------------------------------------------
+
+    /**
+     * Skan czyta KAŻDĄ regułę, nie co drugą.
+     *
+     * Arkusz jest tu syntetyczny i mały, bo o kontrolę dodatnią chodzi:
+     * wiadomo z góry, co ma zostać znalezione, więc „znalazłem mniej" jest
+     * odróżnialne od „w arkuszu tyle nie ma". `.b` i `.d` stoją na pozycjach
+     * PARZYSTYCH — to je gubił wzorzec z `(?:^|[}])`. `.w-srodku` jest
+     * pierwszą regułą wewnątrz `@media` i nie ma przed sobą żadnego `}`.
+     */
+    public function test_skan_widzi_kazda_regule_a_nie_co_druga(): void
+    {
+        $css = <<<'CSS'
+        .a { color: red }
+        .b { color: green }
+        .c, .c-druga { color: blue }
+        .d { color: black }
+        @media (min-width: 40rem) {
+            .w-srodku { color: white }
+            .po-srodku { color: gray }
+        }
+        .e { color: pink }
+        CSS;
+
+        $selektory = [];
+
+        foreach ($this->regulyArkusza($css) as $regula) {
+            foreach ($regula['selektory'] as $selektor) {
+                $selektory[] = $selektor;
+            }
+        }
+
+        foreach (['.a', '.b', '.c', '.c-druga', '.d', '.w-srodku', '.po-srodku', '.e'] as $oczekiwany) {
+            $this->assertContains(
+                $oczekiwany,
+                $selektory,
+                "Skan nie widzi reguły `{$oczekiwany}`. Wzorzec, który zjada klamrę "
+                .'zamykającą poprzedniej reguły, czyta co drugą (issue #927), '
+                .'a strażnik na nim oparty milczy o połowie arkusza.',
+            );
+        }
+
+        $this->assertCount(7, $this->regulyArkusza($css));
+    }
+
+    /**
+     * Ta sama kontrola na PRAWDZIWYM arkuszu, przeciw mierze policzonej bez
+     * wyrażenia regularnego. Syntetyczny arkusz wyżej nie złapałby usterki,
+     * która ujawnia się dopiero na skali `app.css`.
+     */
+    public function test_skan_czyta_caly_arkusz_marki(): void
+    {
+        $css = $this->arkuszBezKomentarzy();
+
+        $skanem = $this->liczbaRegulSkanemKlamer($css);
+
+        $this->assertGreaterThan(
+            400,
+            $skanem,
+            'Miara odniesienia naliczyła podejrzanie mało reguł w `resources/css/app.css`. '
+            .'Zanim uwierzysz w wynik niżej, sprawdź, czy wycinanie komentarzy nie zjadło arkusza.',
+        );
+
+        $this->assertCount(
+            $skanem,
+            $this->regulyArkusza($css),
+            'Wzorzec czytający `resources/css/app.css` widzi inną liczbę reguł niż skan '
+            .'klamer. Tak wyglądał issue #927: wzorzec z `(?:^|[}])` widział 233 reguły '
+            .'z 479, czyli co drugą, i strażnik oceniał arkusz, którego w połowie nie '
+            .'przeczytał.',
+        );
     }
 }

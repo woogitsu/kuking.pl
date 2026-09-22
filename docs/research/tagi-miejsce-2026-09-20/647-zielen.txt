@@ -1,0 +1,81 @@
+
+   PASS  Tests\Feature\EditQuestionTest
+  ✓ owner edits title through form and stranger is denied                1.29s
+  ✓ invalid title returns input without changing saved question          0.04s
+  ✓ title only question can be edited without losing its kind            0.04s
+  ✓ edit cannot bypass three tag limit and rolls back title              0.04s
+  ✓ too many inline tags points to tags and preserves draft              0.05s
+
+   PASS  Tests\Feature\PodpowiedziTagowEndpointTest
+  ✓ wiecej podpowiedzi nie dodaje zapytania na kazdy licznik             0.07s
+  ✓ wymaga konta i krotkiej frazy tekstowej                              0.04s
+  ✓ zwraca tylko jawny kontrakt i publiczne wpisy bez mutacji            0.06s
+  ✓ ukryta dokladna nazwa nie wycieka i nie proponuje duplikatu          0.04s
+  ✓ dokladny slug jest pierwszy bez duplikatu takze gdy ma 40 znakow     0.08s
+  ✓ dluzsze zapytanie nie pozwala utworzyc za dlugiej nazwy              0.04s
+  ✓ licznik respektuje blokady statusy i prywatny przepis wlasciciela    0.10s
+
+   PASS  Tests\Feature\QuestionFormTest
+  ✓ question form names its four fields as specified                     0.06s
+  ✓ tag actions work before title is written without publishing          0.06s
+  ✓ removing preserved photo keeps unfinished text and allows replaceme… 0.09s
+  ✓ uploaded photo survives invalid title without a second upload        0.13s
+  ✓ suspended account cannot publish question                            0.03s
+  ✓ preserved photo survives validation and is attached after correctio… 0.09s
+  ✓ form publishes title only and retry does not duplicate               0.13s
+  ✓ validation preserves title body and tags                             0.10s
+  ✓ guest and disabled feature cannot publish                            0.09s
+
+   PASS  Tests\Feature\TagiInlinePochodzenieTest
+  ✓ wpisany lub wklejony token publikuje sie bez wyboru sugestii         0.10s
+  ✓ zmiana tokenow zachowuje reczne i nie zamienia inline na reczne      0.10s
+  ✓ reczny i inline maja niezalezne przejscia oraz poprawna kolejnosc    0.11s
+  ✓ slug alias i scalony slug prowadza do kanonicznej nazwy              0.08s
+  ✓ limit dotyczy kanonicznej unii a nie liczby aliasow                  0.07s
+  ✓ limit unii cofa body pivoty i tworzenie nowych tagow                 0.07s
+  ✓ limit szesciu inline nie zostawia wpisu ani tagow                    0.07s
+  ✓ hidden zostaje przy dotychczasowym wpisie ale nie jest nowym powiaz… 0.14s
+  ✓ historyczny pivot domyslnie reczny i media nie znikaja przy fallbac… 0.08s
+  ✓ publiczna karta pomija link hidden ale zachowuje body i aktywny tag  0.10s
+  ✓ idempotencja publikacji nie zmienia pochodzenia                      0.05s
+  ✓ usuniete wszystkie reczne tagi nie wracaja do formularza po bledzie  0.17s
+  ✓ old input obcego formularza nie usuwa ani nie podmienia recznych ta… 0.10s
+  ✓ blad innego wpisu nie zeruje listy i marker jest ustalany serwerowo  0.09s
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #0          0.06s
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #1          0.07s
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #2          0.05s
+  ✓ scalenie zachowuje or recznego pochodzenia with data set #3          0.05s
+  ✓ scalenie samego zrodla zachowuje pozycje i false                     0.05s
+
+   PASS  Tests\Feature\TagiPrzyOpisieTest
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.07s
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.05s
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.05s
+  ✓ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.08s
+
+   PASS  Tests\Feature\TagiWpisowTest
+  ✓ wpis da sie oznaczyc tagami                                          0.05s
+  ✓ wpis bez tagow dalej da sie opublikowac                              0.04s
+  ✓ nowy tag powstaje w bazie                                            0.05s
+  ✓ istniejacy tag jest uzywany ponownie a nie duplikowany               0.05s
+  ✓ alias prowadzi do tagu kanonicznego zamiast tworzyc nowy             0.06s
+  ✓ duplikat wpisany dwa razy liczy sie jako jeden tag                   0.05s
+  ✓ szesciu tagow odrzuca publikacje i nie gubi tekstu                   0.06s
+  ✓ wulgarna nazwa nowego tagu jest cicho pomijana                       0.04s
+  ✓ niepoprawna nazwa tagu jest cicho pomijana                           0.04s
+  ✓ szukaj tagu nie publikuje wpisu                                      0.04s
+  ✓ wynik sprawdzenia tagu jest widoczny bez javascriptu                 0.07s
+  ✓ komunikat o juz dodanym tagu jest widoczny bez javascriptu           0.05s
+  ✓ sekcja awaryjna jest zwinieta gdy nie ma czego pokazac               0.04s
+  ✓ dodaj tag dodaje do listy roboczej bez publikacji                    0.04s
+  ✓ dodaj ten sam tag drugi raz pokazuje komunikat i nie dubluje         0.04s
+  ✓ dodaj szosty tag jest odrzucany z komunikatem                        0.04s
+  ✓ usun tag zdejmuje go z listy roboczej                                0.05s
+  ✓ bledna widocznosc nie gubi wpisanych tagow                           0.04s
+  ✓ edycja wpisu zapisuje nowe tagi                                      0.04s
+  ✓ edycja wpisu usuwa tag ktorego juz nie ma na liscie                  0.05s
+  ✓ ekran edycji pokazuje dzisiejsze tagi wpisu                          0.05s
+  ✓ edycja odrzuca szesciu tagow                                         0.05s
+
+  Tests:    66 passed (373 assertions)
+  Duration: 6.33s

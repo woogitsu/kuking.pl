@@ -82,7 +82,7 @@ class BezOdpowiedziController extends Controller
         // Liczone jednym zapytaniem dla wszystkich autorów naraz, nie
         // w pętli: ten ekran ma się otwierać od razu, inaczej gospodarz
         // przestanie na niego zaglądać.
-        $pierwszeWpisy = $this->pierwszeWpisyAutorow($wpisy->pluck('author_id')->unique()->all());
+        $pierwszeWpisy = $this->queue->firstPostIds($request->user(), $wpisy->pluck('author_id')->unique()->all());
 
         $wpisy = $wpisy->map(function (Post $wpis) use ($pierwszeWpisy): Post {
             $wpis->toPierwszyWpis = ($pierwszeWpisy[$wpis->author_id] ?? null) === $wpis->getKey();
@@ -131,29 +131,5 @@ class BezOdpowiedziController extends Controller
         }
 
         return back()->with('status', 'Odpowiedź wysłana.');
-    }
-
-    /**
-     * Identyfikator NAJSTARSZEGO opublikowanego wpisu każdego z podanych
-     * autorów.
-     *
-     * @param  list<string>  $autorzy
-     * @return array<string, string>
-     */
-    private function pierwszeWpisyAutorow(array $autorzy): array
-    {
-        if ($autorzy === []) {
-            return [];
-        }
-
-        return Post::query()
-            ->whereIn('author_id', $autorzy)
-            ->published()
-            ->selectRaw('distinct on (author_id) author_id, id')
-            ->orderBy('author_id')
-            ->orderBy('published_at')
-            ->orderBy('id')
-            ->pluck('id', 'author_id')
-            ->all();
     }
 }
