@@ -1673,6 +1673,12 @@ w wierszu metadanych bywa przeoczona. Nie „wrażenia, że jest za mała".
 
 ## D-033 · Składniki dostają grupy, a przepis przeliczanie porcji
 
+> **Doprecyzowanie właściciela, 20 września 2026, #878:** „Bez ilości” nie
+> oznacza „do smaku”. Pokazujemy wyłącznie tekst autora i jego uwagę, bez
+> automatycznego dopisku. Zmiana dotyczy prezentacji z #44; flaga i CHECK
+> zostają. W zadaniu #741 właściciel polecił poprawić opisy, bez budowania
+> skalowania porcji: jest ono nadal niewdrożonym planem V2 (`FEATURES.md`).
+
 **Data:** 8 września 2026 · **Decyzja właściciela** · Status: **przyjęta,
 niezbudowana** · **poprawia D-017**
 
@@ -15017,6 +15023,31 @@ katalogu. Poszerzenie ramy dotyczy katalogu, nie formularzy ani wszystkich
 stron tekstowych. Tekst na zdjęciu ma stały ciemny podkład również po
 zawinięciu. Odbiór i ograniczenia: docs/design/FOTOGRAFICZNE_TAGI_681.md.
 
+## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+
+Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
+wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
+odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
+pełna gwarancja zaczyna się od wdrożenia.
+
+Pamięć należy do autora, nie do powiadomienia ani aktualnego gospodarza.
+`first_post_events` utrwala jeden nośnik; usunięcie go pozostawia zdarzenie,
+zmiana gospodarza nie wywołuje reemisji. Inny moderator zobaczy oznaczenie
+tylko przy tym nośniku i tylko jeśli ma dostęp. Nie dostaje alternatywnego
+„pierwszego” publicznego wpisu, gdy nośnik był followers poza jego zasięgiem.
+Bez gospodarza pierwszy publiczny wkład zużywa pierwszeństwo bez alertu;
+followers bez dostępnego odbiorcy nie zużywa go. Historia jest odtwarzana
+najpierw z alertów, potem z zachowanych dostępnych wpisów, w tym soft-deleted.
+
+Publikacja serializuje autora po blokadach mediów (D-103), przed INSERT.
+Wpis, znacznik, audyt, alert i enqueue są jedną transakcją. Standardowy
+dispatch pozostaje: gwarancja trwałego enqueue dotyczy database queue na
+identycznym obiekcie połączenia. Odmienny connection database odmawia przed
+zapisem; sync/fake zachowują dotychczasowy kontrakt testowy, nie stanowią
+dowodu trwałości. Zlecenie `low` ma beforeCommit, worker widzi je po commit.
+Nie naprawiamy historycznych częściowych publikacji z #935 ani retencji.
+Rollback jest wąsko chroniony zgodnie z D-088 (szczegóły: DATABASE.md).
+
 ## D-224 — Wpis wychodzi z zeszytu tam, gdzie widać, że w nim jest (audyt L1, 20 września 2026)
 
 Trasa `DELETE /wpisy/{post}/zapisz` (`collections.unsave-post`) istniała,
@@ -15026,14 +15057,14 @@ zeszytu renderuje tę samą kartę wpisu. Właściciel rozstrzygnął: przycisk
 stoi wszędzie tam, gdzie widać „Masz to w zeszycie" — w zeszycie i na karcie.
 Trasy nie kasujemy.
 
-> **Sprostowane 20 września 2026 — patrz D-225.** Zdanie „przycisk stoi
+> **Sprostowane 20 września 2026 — patrz D-231.** Zdanie „przycisk stoi
 > wszędzie tam, gdzie widać »Masz to w zeszycie«" przestało być prawdziwe na
 > JEDNYM ekranie: w środku konkretnego zeszytu nie ma już ani odnośnika „Masz
 > to w zeszycie", ani przycisku „Usuń z zeszytu" — stoi tam wyłącznie „Usuń
 > z tego zeszytu" o zakresie lokalnym. Poza zeszytem wszystko poniżej zostaje
 > bez zmian. Reszta D-224 — brak potwierdzenia przed akcją, droga powrotu po
 > niej, brak JavaScriptu, granica ostrzejsza niż Policy — obowiązuje dalej.
-> Zmienił się też sam komunikat: nazywa teraz FAKTYCZNY zakres (D-225).
+> Zmienił się też sam komunikat: nazywa teraz FAKTYCZNY zakres (D-231).
 
 Przycisk stoi OBOK odnośnika „Masz to w zeszycie", nie zamiast niego. Miejsce,
 w które przed chwilą kliknięto „Zapisuję", zajmuje dalej odnośnik do zeszytu,
@@ -15058,8 +15089,37 @@ osoba nie rusza cudzego wiersza, a wpis, którego nie wolno już oglądać, daje
 się z zeszytu wyjąć. Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`
 i `scripts/wyjecie-z-zeszytu.mjs`.
 
+## D-225 — Godzinny podpis zdjęcia publicznego, bez cache sesji (#597/#610)
 
-## D-225 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
+20 września 2026, jawna decyzja właściciela w zadaniu `gpt/cloudflare-cache`:
+„Zaakceptuj godzinę dla wcześniej publicznego zdjęcia”. Podpis wydany, gdy
+Policy dopuszcza anonima, może działać po zmianie widoczności do końca tej
+godziny. Z 30-minutowym cache bajtów okno może sięgnąć 90 minut od wydania.
+Treści dostępne wyłącznie prywatnie zachowują podpis do 5 minut i no-store.
+Najszerszy rodzic i kontrola Policy z D-020 pozostają bez zmian.
+
+Odpowiedzi z sesją, ciasteczkiem albo logowaniem nie trafiają do wspólnego
+cache, także dla publicznych zdjęć. Publiczny odczyt zdjęcia bez stanu
+klienta nie wystawia sesji. Ta decyzja nie dopuszcza cache HTML z sesją
+ani nie ustala opóźnienia ukrycia HTML. Projekt reguł, bramka i ograniczenia:
+`docs/infra/CLOUDFLARE_CACHE_597_610.md`. Konfiguracji Cloudflare nie zmieniono.
+
+## Uzupełnienie #369 — Próg prezentacji publicznej aktywności (20 września 2026)
+
+Właściciel zatwierdził pozostawienie **5 zdjęć / 3 osób wyłącznie jako progu
+prezentacji publicznej aktywności, bez obietnicy anonimowości**. Nie jest to
+próg ochrony tożsamości ani ograniczenie dostępu do publicznych wpisów.
+
+Pomiar lokalny na syntetycznych danych: gość bez JavaScriptu mógł odczytać
+wszystkich autorów z kart dla tagów z 2, 3, 5, 10 i 42 osobami; ostatni
+przypadek wymagał przejścia trzech stron. Podnoszenie samego progu nie
+ukrywa autorstwa kart. Wynik nie jest badaniem danych ani użytkowników
+produkcji. Decyzja zachowuje istniejące liczby i zachowanie; nie rozszerza
+zakresu statystyk o prywatne treści ani ranking.
+
+Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
+
+## D-231 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
 
 Dwie prace powstały równolegle i nie wiedziały o sobie. #789 (D-224) dało
 przycisk wyjęcia wszędzie tam, gdzie widać stan zapisu, o zakresie GLOBALNYM
@@ -15126,7 +15186,7 @@ Dowody: `tests/Feature/WpisDaSieWyjacZZeszytuTest.php`,
 `scripts/wyjecie-z-zeszytu.mjs`.
 
 
-## D-230 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-225, 21 września 2026)
+## D-230 — Złożenie `zeszyty` i `jedna-droga`: pytanie na ekranie globalnym wraca, komunikat mówi prawdę o notatce (#775, D-224, D-231, 21 września 2026)
 
 *Ta decyzja nosiła najpierw numer D-229. Straciła go, bo tego samego dnia
 dwaj agenci floty niezależnie dostali od właściciela informację, że „pierwszy
@@ -15140,7 +15200,7 @@ w jednej połowie. `zeszyty` dodała na stronie przepisu `<x-confirm-button>`
 z pytaniem „czy na pewno ze wszystkich zeszytów", ale nie dotknęła
 `post-card.blade.php` — na karcie wpisu poza zeszytem nie było żadnej drogi
 wyjęcia (`WpisDaSieWyjacZZeszytuTest` obalał to na 4 z 12 scen). `jedna-droga`
-dała tę drogę wszędzie i rozstrzygnęła D-225 (jeden przycisk na ekran, zakres
+dała tę drogę wszędzie i rozstrzygnęła D-231 (jeden przycisk na ekran, zakres
 wybiera ekran, licznik zeszytów w komunikacie), ale przy okazji cofnęła
 pytanie przed akcją na stronie przepisu — bo D-224 uznało wyjęcie z zeszytu za
 w pełni odwracalne.
@@ -15149,7 +15209,7 @@ w pełni odwracalne.
 zamykają.** Bierzemy oba mechanizmy:
 
 1. **Z `jedna-droga`**: drogę wyjęcia na każdym ekranie pokazującym „Masz to
-   w zeszycie" (D-225 bez zmian) — `post-card.blade.php` dostaje przycisk
+   w zeszycie" (D-231 bez zmian) — `post-card.blade.php` dostaje przycisk
    lokalny w środku zeszytu i globalny poza nim, liczbę zeszytów w komunikacie
    (`Odmiana::rzeczownik()`), i „Zapisz ponownie" jako drogę powrotu, która
    wraca DOKŁADNIE tam, skąd wyjęto (`pola['collection_id']`).
@@ -15166,7 +15226,7 @@ różnica jakościowa, nie kosmetyczna: przy zasięgu lokalnym (jeden, wybrany
 zeszyt) ryzyko jest małe i znane z kontekstu ekranu, ale przy zasięgu
 globalnym człowiek może stracić notatki w zeszytach, o których w tej chwili
 nie myśli. Stąd pytanie PRZED akcją zostaje wyłącznie na ekranie globalnym,
-a lokalne wyjęcie (D-225) zostaje jednym kliknięciem bez pytania.
+a lokalne wyjęcie (D-231) zostaje jednym kliknięciem bez pytania.
 
 **Komunikat po akcji przestaje obiecywać więcej, niż daje.** Obie gałęzie
 pisały po usunięciu „Nie usunęliśmy go z serwisu — możesz go zapisać
@@ -15190,7 +15250,7 @@ braku) — złożone dają jeden zestaw sprawdzający stan docelowy:
 `UsuniecieZZeszytuMaZakresTest::test_strona_przepisu_pyta_przed_usunieciem_i_nazywa_zakres_po_akcji`
 zastępuje obie sprzeczne sceny i dokłada kontrolę dodatnią
 (`test_strona_przepisu_nie_usuwa_zwyklym_delete_bez_potwierdzenia`).
-`WpisDaSieWyjacZZeszytuTest` (issue #776, D-225) zostaje bez zmian zachowania
+`WpisDaSieWyjacZZeszytuTest` (issue #776, D-231) zostaje bez zmian zachowania
 — dotyczy wyłącznie wpisów (Post), których ekran przepisu (Recipe) nie
 obejmuje.
 

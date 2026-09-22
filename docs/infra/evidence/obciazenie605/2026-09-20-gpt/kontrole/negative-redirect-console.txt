@@ -1,0 +1,28 @@
+
+── Kontrola ujemna: Korpus: odrzucenie nie udaje publikacji ──
+  plik:     scripts/generator-obciazenia-605.mjs
+  MD5 przed: 20729a59d93cac34d1c6ca7056041427
+  oczekuję:  302 wracające do formularza
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 20729a59d93cac34d1c6ca7056041427 → 7e7ea48f1edb276c34a0ecbd30e84458.
+  różnica:
+         // ale w `blad_procent` i tak jest błędem, bo nie jest odpowiedzią na pytanie
+         // „ile serwis obsłużył". Rozbicie na `statusy` pokazuje, ile z błędów to 429.
+         let success = odp.status === 200 || odp.status === 302;
+    -    if (uploadFile && opcje.korpus) {
+    +    if (false && uploadFile && opcje.korpus) {
+           const destination = odp.location ? new URL(odp.location, BAZA) : null;
+           const accepted = destination?.origin === adres.origin && /^\/wpisy\/[0-9a-f-]{36}$/.test(destination.pathname);
+           const rejected = destination?.origin === adres.origin && destination.pathname === '/dodaj/zdjecie';
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „302 wracające do formularza” wystąpił w wyjściu.
+    AssertionError [ERR_ASSERTION]: 302 wracające do formularza nie może udawać publikacji poprawnego zdjęcia
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — Korpus: odrzucenie nie udaje publikacji
+  zapis: /home/mateusz/flota/gpt-obciazenie-private/negative-redirect.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.

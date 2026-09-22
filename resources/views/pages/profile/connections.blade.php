@@ -57,11 +57,16 @@
                         @if($isFollowingPerson)
                             <form method="POST" action="{{ route('social.unfollow', $personUsername) }}">
                                 @csrf @method('DELETE')
+                                {{-- #793 rozszerzone na relacje: lista bywa
+                                     otwarta długo, a nazwa w adresie mogła
+                                     w międzyczasie zmienić właściciela. --}}
+                                <input type="hidden" name="oczekiwany_id" value="{{ $person->getKey() }}">
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
                         @elseif($person->isActive())
                             <form method="POST" action="{{ route('social.follow', $personUsername) }}">
                                 @csrf
+                                <input type="hidden" name="oczekiwany_id" value="{{ $person->getKey() }}">
                                 <button class="btn btn-primary" type="submit">Obserwuj</button>
                             </form>
                         @else

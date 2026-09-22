@@ -66,7 +66,7 @@
             warunkowane frazą, więc jeden warunek wystarcza.
         --}}
         <details class="mt-3" @if($zapytanie !== '') open @endif>
-            <summary class="btn btn-quiet inline-flex">Dodaj tag bezpośrednio, jeśli nie używasz podpowiedzi w opisie</summary>
+            <summary class="btn btn-quiet inline-flex">Dodaj tag bezpośrednio</summary>
             <div class="mt-3">
         <label for="f-tag-query">Nazwa tagu</label>
         <div class="flex flex-wrap gap-3 mt-2">

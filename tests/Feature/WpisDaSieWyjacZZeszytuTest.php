@@ -52,7 +52,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
      * (`ZapisyWpisu::dolicz()` / `doliczDoWpisu()`), wraz z nazwą przycisku,
      * która ma na nich stać.
      *
-     * NAZWA ZALEŻY OD EKRANU, BO ZALEŻY OD ZAKRESU (D-225). W środku
+     * NAZWA ZALEŻY OD EKRANU, BO ZALEŻY OD ZAKRESU (D-231). W środku
      * konkretnego zeszytu wyjmujemy z TEGO zeszytu, więc przycisk nazywa się
      * „Usuń z tego zeszytu". Poza zeszytem nie ma „tego zeszytu", do którego
      * dałoby się odnieść, więc zakres jest globalny i przycisk nazywa się
@@ -80,11 +80,11 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
         $this->assertStringContainsString('Rosół na niedzielę.', $html, "Ekran „{$ekran}” nie pokazuje wcale tego wpisu.");
 
         // ...a poza zeszytem ten stan widać dodatkowo jako zdanie „Masz to
-        // w zeszycie". W samym zeszycie tego zdania CELOWO nie ma (D-225):
+        // w zeszycie". W samym zeszycie tego zdania CELOWO nie ma (D-231):
         // prowadzi do listy zeszytów, a człowiek stojący W zeszycie już wie,
         // że wpis tam leży.
         if ($ekran === 'zeszyt') {
-            $this->assertStringNotContainsString('Masz to w zeszycie', $html, 'W zeszycie odnośnik stanu nie ma już stać (D-225).');
+            $this->assertStringNotContainsString('Masz to w zeszycie', $html, 'W zeszycie odnośnik stanu nie ma już stać (D-231).');
         } else {
             $this->assertStringContainsString('Masz to w zeszycie', $html, "Ekran „{$ekran}” nie pokazuje stanu zapisu.");
         }
@@ -103,7 +103,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
     }
 
     /**
-     * DOKŁADNIE JEDNA DROGA WYJĘCIA NA EKRAN — TO JEST SEDNO D-225.
+     * DOKŁADNIE JEDNA DROGA WYJĘCIA NA EKRAN — TO JEST SEDNO D-231.
      *
      * #789 (przycisk globalny wszędzie) i #776 (przycisk lokalny w zeszycie)
      * powstały równolegle i nie wiedziały o sobie. Złożone wprost dawały na
@@ -125,7 +125,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
             1,
             $formularze,
             sprintf(
-                'Ekran „%s” pokazuje %d dróg wyjęcia wpisu z zeszytu zamiast jednej. Dwie prawie identyczne nazwy o różnym zasięgu są dla tej grupy gorsze niż brak którejkolwiek (D-225).',
+                'Ekran „%s” pokazuje %d dróg wyjęcia wpisu z zeszytu zamiast jednej. Dwie prawie identyczne nazwy o różnym zasięgu są dla tej grupy gorsze niż brak którejkolwiek (D-231).',
                 $ekran,
                 count($formularze),
             ),
@@ -369,7 +369,7 @@ class WpisDaSieWyjacZZeszytuTest extends TestCase
     }
 
     /**
-     * WSZYSTKIE formularze wyjęcia tego wpisu — bo sednem D-225 jest ICH
+     * WSZYSTKIE formularze wyjęcia tego wpisu — bo sednem D-231 jest ICH
      * LICZBA, a metoda oddająca „pierwszy trafiony" zielenieje tak samo przy
      * jednym przycisku, jak przy dwóch.
      *

@@ -72,7 +72,7 @@ final class SavePostToCollection
             return $collection->posts()->detach($post->getKey()) > 0 ? 1 : 0;
         }
 
-        // ODDAJEMY LICZBĘ ZESZYTÓW, Z KTÓRYCH NAPRAWDĘ WYJĘTO (D-225).
+        // ODDAJEMY LICZBĘ ZESZYTÓW, Z KTÓRYCH NAPRAWDĘ WYJĘTO (D-231).
         //
         // Komunikat po akcji nazywa zakres („wyjęty z 3 Twoich zeszytów"),
         // a nazwać go da się tylko licząc FAKTYCZNE odpięcia — nie liczbę
