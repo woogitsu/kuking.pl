@@ -186,4 +186,28 @@ class SecuritySettingsTest extends TestCase
     {
         $this->get(route('settings.security'))->assertRedirect(route('login'));
     }
+
+    public function test_blad_hasla_przy_wylogowaniu_innych_urzadzen_nie_oznacza_formularza_zmiany_hasla(): void
+    {
+        $basia = $this->user('basia');
+
+        $odpowiedz = $this->actingAs($basia)
+            ->from(route('settings.security'))
+            ->post(route('settings.security.logout-others'), [
+                'password' => 'zupelnie-zle-haslo',
+            ]);
+
+        $odpowiedz->assertRedirect(route('settings.security'));
+
+        $ekran = $this->actingAs($basia)
+            ->get(route('settings.security'))
+            ->assertOk();
+
+        $html = (string) $ekran->getContent();
+
+        // Pole „Nowe hasło" w formularzu zmiany hasła NIE może mieć błędu ani czerwieni.
+        $this->assertStringNotContainsString('id="f-password-error"', $html, 'Pole nowego hasła dostało błąd z formularza wylogowania innych urządzeń.');
+        // Błąd powinien być przypięty do formularza wylogowania innych urządzeń.
+        $this->assertStringContainsString('id="f-password-wyloguj-error"', $html);
+    }
 }

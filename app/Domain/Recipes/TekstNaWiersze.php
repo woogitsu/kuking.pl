@@ -9,8 +9,8 @@ namespace App\Domain\Recipes;
  *
  * BAZA SIĘ NIE ZMIENIA. `recipe_ingredients` i `recipe_steps` zostają
  * dokładnie takie, jakie były — znika WPISYWANIE składnika po jednym
- * w siedmiu polach, a nie struktura danych. Dzięki temu przeliczanie porcji
- * i szukanie po składnikach działają dalej, bo czytają te same wiersze.
+ * w siedmiu polach, a nie struktura danych. Szukanie po składnikach nadal
+ * czyta te same wiersze. Skalowanie porcji pozostaje niewdrożonym planem V2.
  *
  * DLACZEGO WOLNO TAK PARSOWAĆ
  * Kreator od początku obiecuje „Pisz tak, jak mówisz: «szklanka mąki»,
