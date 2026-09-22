@@ -56,11 +56,19 @@ import { chromium } from 'playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
 import { dirname } from 'node:path';
+import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 
 /* Osobna baza pomiarowa — ten skrypt potrafi zrobić `migrate:fresh`.
    Wskazanie `kuking` albo `kuking_test` kasowałoby czyjąś pracę (AGENTS.md §6). */
 const BAZA_DOMYSLNA = 'kuking_hero_zgiecie';
-const BAZY_ZAKAZANE = ['kuking', 'kuking_test'];
+
+/* BEZPIECZNIK (#736, D-239): nazwę bazy sprawdza `ustalBazePomiarowa()`, a nie
+   lista dwóch dosłownych nazw — `kuking_test_<worktree>` przez taką listę
+   przechodził. Ustalana dopiero w `podniesSerwer()`, NIE przy imporcie modułu:
+   `scripts/port-projektu.mjs` importuje stąd `sprawdzHeroNadZgieciem()` i chodzi
+   na własnej bazie `kuking_port_*`, której ten skrypt nie kasuje — odmowa
+   w chwili importu wyłożyłaby port marki bez powodu. */
+let bazaPomiarowa = null;
 
 /* Port widoku = prawdziwy telefon, razem z wysokością. Patrz nagłówek. */
 export const TELEFONY = [
@@ -101,7 +109,7 @@ function znajdzChromium() {
 }
 
 function env(dodatkowe = {}) {
-  return { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA, ...dodatkowe };
+  return { ...process.env, DB_DATABASE: bazaPomiarowa ?? (process.env.DB_DATABASE || BAZA_DOMYSLNA), ...dodatkowe };
 }
 
 async function wolnyPort() {
@@ -165,9 +173,10 @@ async function uruchomSerwer() {
 async function podniesSerwer() {
   if (process.env.ADRES) return { adres: process.env.ADRES, zamknij: () => {} };
 
-  if (BAZY_ZAKAZANE.includes(env().DB_DATABASE)) {
-    throw new Error(`Odmawiam: ten skrypt robi \`migrate:fresh\`, a DB_DATABASE wskazuje na \`${env().DB_DATABASE}\`.`);
-  }
+  bazaPomiarowa = ustalBazePomiarowa({
+    domyslna: BAZA_DOMYSLNA,
+    skrypt: 'scripts/hero-nad-zgieciem.mjs',
+  });
 
   execFileSync('php', ['artisan', 'config:clear'], { stdio: 'ignore', env: env() });
 
