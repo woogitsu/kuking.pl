@@ -26,7 +26,41 @@
 .szybki-wyglad [data-wyglad-status]:empty { display: none; }
 /* Podpowiedź jest dostępna również przy zwiniętym details. */
 .szybki-wyglad:not([open]) > .szybki-wyglad-podpowiedz:not([hidden]) { display: block; content-visibility: visible; }
-body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 80px); }
+/*
+ * ZASIĘG WIDŻETU LICZONY Z JEGO WŁASNYCH WYMIARÓW, NIE ZE STAŁEJ.
+ *
+ * 80 px było odczytem JEDNEGO pomiaru: przy domyślnej czcionce przeglądarki
+ * i skali tekstu 140% widget sięga 77,06 px od dołu okna. Ta liczba nie jest
+ * jednak stała — rośnie z pismem. ZMIERZONE (Chromium, /admin/wiadomosci/<id>,
+ * skala tekstu 140%, prawdziwy zoom karty nie zmienia żadnej z tych wartości):
+ *
+ *   czcionka przeglądarki   16 px (100%)    widget sięga   77,06 px
+ *   czcionka przeglądarki   22 px (140%)    widget sięga  105,20 px
+ *   czcionka przeglądarki   32 px (200%)    widget sięga  152,12 px
+ *
+ * Przy 22 px stała 80 px była KRÓTSZA o 25,20 px i przewijanie parkowało
+ * treść w pasie widżetu. Dlatego rezerwa jest tu policzona z tych samych
+ * deklaracji, które nadają widżetowi wysokość — `summary` ma wiersz
+ * `--leading-body`, dwa razy `--spacing-3` na dopełnienie i 2 px obramowania,
+ * a całość stoi `--spacing-3` nad krawędzią okna. Formuła odtwarza wszystkie
+ * trzy pomiary co do piksela, więc nie jest zaokrągleniem.
+ *
+ * `--wyglad-dol` (wysokość widocznej dolnej belki) CELOWO tu nie wchodzi:
+ * belkę pokrywa `--rezerwa-pod-belka`, dodawana obok. Liczylibyśmy ją dwa razy.
+ *
+ * 1 px na końcu to NIE zapas „na wszelki wypadek": pozycja przewinięcia
+ * zaokrągla się do pikseli fizycznych i przy DPR 2 zmierzona resztówka
+ * sięgała 0,15 px. Jeden piksel ją pokrywa i nic więcej nie robi.
+ *
+ * Podłoga `max(80px, …)` zostaje, żeby ta zmiana nie ruszyła ani o piksel
+ * układów, które przy domyślnym piśmie są dziś zielone.
+ */
+:root {
+  --wyglad-zasieg: max(80px, calc(
+      max(48px, calc(max(16px, var(--text-body)) * var(--leading-body) + 2 * var(--spacing-3) + 2px))
+    + var(--spacing-3) + env(safe-area-inset-bottom, 0px) + 1px));
+}
+body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + var(--wyglad-zasieg)); }
 /*
  * TA SAMA REZERWA, TYLE ŻE DLA PRZEWIJANIA DO CELU — DRUGA POŁOWA REGUŁY WYŻEJ.
  *
@@ -48,7 +82,21 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
  * Nic nie rysuje — działa wyłącznie przy celowanym przewijaniu. Nie ruszamy
  * ani wielkości tekstu, ani pola dotykowego (docs/UX_50_PLUS.md).
  */
-:root:has(.szybki-wyglad) { scroll-padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 80px); }
+/*
+ * SELEKTOR JEST `:root:has(body .szybki-wyglad)`, A NIE `:root:has(.szybki-wyglad)`,
+ * I TO NIE JEST OZDOBNIK. W `marka-rama.css` stoi
+ *   @media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
+ *     :root:has(body[data-marka]) { scroll-padding-bottom: .5rem }
+ *   }
+ * czyli (0,2,1). Poprzedni zapis (0,2,0) PRZEGRYWAŁ z nim niezależnie od
+ * kolejności, więc w niskim i wąskim widoku rezerwa pod widżetem nie
+ * działała wcale. ZMIERZONE przy CSS 320x600: `scroll-padding-bottom`
+ * wychodziło 8 px, a widget sięgał 77,06 px. `body .szybki-wyglad` podnosi
+ * nas do (0,2,1) — remis rozstrzyga kolejność, a `szybki-wyglad.css` jest
+ * w `app.css` importowany PO `marka-rama.css`. Body ma `data-marka` na
+ * każdym ekranie serwisu, więc obie reguły dotyczą tych samych stron.
+ */
+:root:has(body .szybki-wyglad) { scroll-padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + var(--wyglad-zasieg)); }
 @media (max-height: 400px) {
   .szybki-wyglad[open] { inset: 8px; max-width: none; background: var(--color-surface-raised); overflow: auto; }
   .szybki-wyglad[open] .szybki-wyglad-panel { position: static; width: auto; max-height: none; box-shadow: none; }
