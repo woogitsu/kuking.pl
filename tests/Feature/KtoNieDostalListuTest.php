@@ -10,6 +10,7 @@ use App\Notifications\UstawienieNowegoHasla;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\Mail;
 use RuntimeException;
 use Symfony\Component\Mailer\Envelope;
@@ -278,6 +279,12 @@ class KtoNieDostalListuTest extends TestCase
         Profile::query()->updateOrCreate(
             ['user_id' => $uzytkownik->getKey()],
             ['username' => 'maria'.substr(md5($adres), 0, 8), 'display_name' => $nazwa],
+        );
+
+        // Token ma istnie?, ?eby awaria dotyczy?a transportu, a nie stra?nika wa?no?ci.
+        DB::table('password_reset_tokens')->updateOrInsert(
+            ['email' => $uzytkownik->email],
+            ['token' => Hash::make($token), 'created_at' => now()],
         );
 
         $uzytkownik->notify(new UstawienieNowegoHasla($token));

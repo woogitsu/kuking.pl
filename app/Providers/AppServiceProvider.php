@@ -10,11 +10,13 @@ use App\Models\ContactMessage;
 use App\Models\Report;
 use App\Support\KomunikatZaDuzaWysylka;
 use App\Support\OdmianaWalidacji;
+use App\Support\Sesja\UchwytSesjiBezPelnegoAdresu;
 use App\Support\Storage\DyskR2;
 use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Contracts\Debug\ExceptionHandler;
 use Illuminate\Http\Exceptions\PostTooLargeException;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Session;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Support\ServiceProvider;
@@ -96,6 +98,45 @@ class AppServiceProvider extends ServiceProvider
         $this->zdejmijAdresZLinkuResetu();
 
         $this->odswiezajLicznikiKolejek();
+
+        $this->zapisujWSesjiTylkoZgrubnyAdres();
+    }
+
+    /**
+     * SESJA ZAPISUJE ZGRUBNY ADRES IP, NIE DOKŁADNY (RZ-01, 21.09.2026).
+     *
+     * `Session::extend()` z nazwą JUŻ ISTNIEJĄCEGO sterownika nie dokłada
+     * piątego wariantu obok `database` — podmienia go. `Manager::createDriver()`
+     * patrzy najpierw w `customCreators`, a dopiero potem szuka metody
+     * `createDatabaseDriver()`. Dzięki temu nie trzeba ruszać `SESSION_DRIVER`
+     * ani w `.env.example`, ani w `.railway/railway.ts`, ani w `ci.yml`:
+     * wszędzie tam stoi nadal `database` i wszędzie znaczy to samo, tylko
+     * z inną maską adresu.
+     *
+     * `SessionManager::callCustomCreator()` sam owija zwrócony uchwyt w `Store`
+     * (i w `EncryptedStore`, gdy `SESSION_ENCRYPT=true`), więc domknięcie ma
+     * oddać goły `SessionHandlerInterface`, a nie gotową sesję.
+     *
+     * DLACZEGO TO NIE JEST ODPOWIEDŹ NA `SESSION_ENCRYPT`
+     * Bo tamta flaga tego nie dotyka: szyfruje wyłącznie kolumnę `payload`.
+     * `ip_address` i `user_agent` są dokładane OBOK, jako osobne kolumny,
+     * i przy `SESSION_ENCRYPT=true` zostają jawne tak samo jak bez niej.
+     *
+     * `boot()`, nie `register()` — z tego samego powodu co przy `Storage::extend()`
+     * wyżej: sesja jest budowana leniwie, przy pierwszym żądaniu, a rozstrzyganie
+     * fasady w `register()` wymuszałoby zbudowanie menedżera, zanim inni
+     * dostawcy zdążą się zarejestrować.
+     */
+    private function zapisujWSesjiTylkoZgrubnyAdres(): void
+    {
+        Session::extend('database', function ($app): UchwytSesjiBezPelnegoAdresu {
+            return new UchwytSesjiBezPelnegoAdresu(
+                $app['db']->connection($app['config']->get('session.connection')),
+                $app['config']->get('session.table'),
+                $app['config']->get('session.lifetime'),
+                $app,
+            );
+        });
     }
 
     /**

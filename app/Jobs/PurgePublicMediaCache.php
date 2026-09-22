@@ -60,10 +60,26 @@ class PurgePublicMediaCache implements ShouldQueue
         $token = (string) config('kuking.media.cdn_purge.token');
 
         if ($zona === '' || $token === '') {
-            // GŁOŚNO, nie po cichu. Brak konfiguracji jest normalny lokalnie
-            // i w testach, ale na produkcji znaczy, że skasowane zdjęcia dalej
-            // się otwierają — a to wygląda identycznie jak działające
-            // czyszczenie, więc bez tego wpisu nikt by się nie dowiedział.
+            // TEN WPIS SAM NIE WYSTARCZA I TRZEBA TO POWIEDZIEĆ WPROST.
+            //
+            // Brak konfiguracji jest normalny lokalnie i w testach, ale na
+            // produkcji znaczy, że skasowane zdjęcia dalej się otwierają —
+            // a wygląda to identycznie jak działające czyszczenie. Sam
+            // `Log::warning` tego nie zamyka z dwóch powodów:
+            //
+            //   * kanał alarmowy `blad_webhook` ma w `config/logging.php`
+            //     poziom `error` USTAWIONY NA SZTYWNO, więc ostrzeżenia nie
+            //     przyjmuje w ogóle — wpis ląduje wyłącznie na stderr, wśród
+            //     wszystkiego innego;
+            //   * zadanie kończy się SUKCESEM, więc nie ma go w `failed_jobs`
+            //     i żadna czujka go nie widzi.
+            //
+            // Trwałym sygnałem jest sonda `cdn` w `/health`
+            // (`HealthController::sprawdzCzyszczenieCdn()`): jedno zdanie,
+            // które nie gaśnie samo, dzwoni na webhook z odstępem i nie
+            // wywraca ANI JEDNEGO kasowania zdjęcia. Ten wpis zostaje jako
+            // ślad w dzienniku: mówi, ILU adresów dotyczyła konkretna,
+            // pominięta próba — czego `/health` nie wie.
             Log::warning('Czyszczenie cache CDN pominięte — brak konfiguracji', [
                 'adresow' => count($adresy),
             ]);

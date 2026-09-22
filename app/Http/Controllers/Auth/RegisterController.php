@@ -211,7 +211,7 @@ class RegisterController extends Controller
                     if ($adres === null) {
                         throw new BladDlaCzlowieka(
                             'To zaproszenie przestało działać, zanim zdążyliśmy założyć konto — mogło wygasnąć '
-                            .'albo zostać już użyte. Wpisz swój adres e-mail poniżej i spróbuj jeszcze raz; '
+                            .'albo zostać już użyte. Sprawdź swój adres e-mail poniżej, wpisz hasło ponownie i wyślij formularz jeszcze raz; '
                             .'wyślemy na niego jedną wiadomość z potwierdzeniem.',
                         );
                     }

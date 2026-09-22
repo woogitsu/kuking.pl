@@ -92,6 +92,26 @@ if [ "${2:-}" = '--cache-gate' ]; then
     exit $?
 fi
 
+# Kod i nagłówki pochodzą z jednej odpowiedzi. Nie wypisujemy nagłówków
+# ani stderr curl: mogą zawierać ciasteczka. Kod curl wystarcza do diagnostyki.
+pobierz_naglowki() {
+    local odpowiedz
+    odpowiedz=$("${POBIERZ[@]}" -I -w $'\nKUKING_HTTP_CODE:%{http_code}\n' "$1" 2>/dev/null)
+    kod_curl=$?
+    odpowiedz="${odpowiedz//$'\r'/}"
+    kod_odpowiedzi="${odpowiedz##*$'\n'KUKING_HTTP_CODE:}"
+    naglowki_odpowiedzi="${odpowiedz%$'\n'KUKING_HTTP_CODE:*}"
+    if [[ ! "$kod_odpowiedzi" =~ ^[0-9]{3}$ ]]; then
+        kod_odpowiedzi="brak"
+        return 1
+    fi
+    [ "$kod_curl" -eq 0 ] || return 1
+    [[ "$naglowki_odpowiedzi" == *$'\n\n' ]] || return 1
+    # CONNECT proxy i odpowiedzi informacyjne nie są nagłówkami endpointu.
+    naglowki_odpowiedzi=$(awk '/^HTTP\// { block="" } { block=block $0 "\n" } END { printf "%s", block }' <<< "$naglowki_odpowiedzi")
+    grep -qE "^HTTP/[^ ]+ $kod_odpowiedzi([[:space:]]|$)" <<< "$naglowki_odpowiedzi"
+}
+
 printf '%sSprawdzam: %s%s\n' "$SZARY" "$HOST" "$KONIEC"
 
 # -----------------------------------------------------------------------------

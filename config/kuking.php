@@ -189,9 +189,14 @@ return [
          *
          * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
          * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
-         * Ale wyłączenie jest GŁOŚNE: `PurgePublicMediaCache` zapisuje wtedy
-         * ostrzeżenie w logu, bo cicha rezygnacja z czyszczenia wygląda
-         * dokładnie tak samo jak czyszczenie, które działa.
+         * Ale wyłączenie jest GŁOŚNE — i głośne jest w `/health`, nie w logu
+         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie, ale kończy
+         * się sukcesem, a kanał alarmowy przyjmuje wyłącznie `error`; wpis
+         * w logu nie dociera więc do nikogo. Sygnałem, który dociera, jest
+         * sonda `cdn` w `HealthController`: na produkcji z pustą konfiguracją
+         * `/health` oddaje `degraded` i dzwoni na webhook. Cicha rezygnacja
+         * z czyszczenia wygląda dokładnie tak samo jak czyszczenie, które
+         * działa, i to jest jedyne miejsce, które te dwa stany rozróżnia.
          */
         'cdn_purge' => [
             'zone_id' => env('CLOUDFLARE_ZONE_ID'),
@@ -1647,6 +1652,34 @@ return [
         'ustawienia' => '30,10',
 
         /*
+         * PRZEGLĄDANIE „TWOICH TAGÓW" — filtr i „Pokaż kolejne…" na ekranie
+         * `/ustawienia/tagi` (#858, decyzja właściciela z 20.09.2026, punkt 1).
+         *
+         * Szkoda z nadużycia: żadna widoczna dla innych, dokładnie jak reszta
+         * grupy `ustawienia` — to czyste odczyty, żadna z tych dróg nie
+         * dotyka relacji obserwowania (`TagFollowController::przegladaj()`).
+         *
+         * DLACZEGO NIE ZOSTAJE W GRUPIE `ustawienia`. Bo dzieliła z nią
+         * budżet 30/10 razem z ZAPISEM — a szukanie właściwego tagu to nie
+         * jedno kliknięcie: wpisz frazę, popraw literówkę, doładuj kolejną
+         * porcję, wpisz inną frazę. Kilkanaście takich kroków w jednej
+         * sesji to normalne przeglądanie listy stu kilkudziesięciu tagów,
+         * a nie próba obejścia czegokolwiek — i to ono zjadało budżet
+         * zapisu, więc człowiek, który dużo szukał, tracił możliwość
+         * ZAPISANIA wyniku. Zapis zostaje przy 30/10 bez zmian: jego
+         * ochrona się nie rozluźnia, dostaje tylko własny, nietknięty koszyk.
+         *
+         * SKĄD 300 NA 10 MINUT. Hojny budżet dla czystego odczytu, celowo
+         * o rząd wielkości większy niż `ustawienia` — bo to jest właśnie
+         * ten limit, który ma PRZESTAĆ przeszkadzać normalnemu przeglądaniu.
+         * Osobny koszyk nie zwalnia z reguły „poprawne dane nigdy nie
+         * znikają" (#858, punkt 2): nawet przy tym budżecie ktoś kiedyś go
+         * wyczerpie, a wtedy 429 na tej trasie ma oddać zaznaczenia z powrotem
+         * (`App\Support\OdzyskiwalneDane`), nie pokazać pusty formularz.
+         */
+        'tagi_przegladanie' => '300,10',
+
+        /*
          * POWIADOMIENIA — kliknięcie „Zobacz" przy pojedynczym powiadomieniu.
          *
          * Szkoda z nadużycia: żadna. Jeden UPDATE znacznika `read_at` na
@@ -2341,6 +2374,38 @@ return [
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
     ],
 
+    'sessions' => [
+        // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
+        //
+        // Wiersz sesji trzyma parę (`user_id`, zgrubny adres IP, pełny
+        // `User-Agent`) — dane osobowe, mimo że tabelę zakłada domyślna
+        // migracja Laravela i nikt jej u nas nie projektował. Do 21.09.2026
+        // była to JEDYNA tabela z danymi osobowymi bez gwarantowanej
+        // retencji: kasowała ją wyłącznie loteria frameworka
+        // (`config/session.php` → `'lottery' => [2, 100]`), czyli 2% żądań.
+        // Przy małym ruchu wiersze leżą wtedy dłużej niż `SESSION_LIFETIME`,
+        // bez żadnej górnej granicy, której dałoby się uczciwie obiecać
+        // w polityce prywatności.
+        //
+        // SIEDEM DNI, a nie trzydzieści: tyle wynosi `SESSION_LIFETIME`
+        // w `.env.example` (10080 minut) i tyle zakładają komentarze
+        // w `CookingModeController`, `EnsureAccountIsActive` i `User` — czyli
+        // to jest liczba, którą ten projekt ma w głowie. Sesja bez aktywności
+        // od tygodnia jest już wygasła; trzymanie jej wiersza dłużej nie służy
+        // niczemu poza rozdęciem tabeli.
+        //
+        // TA LICZBA JEST SUFITEM, NIE POZWOLENIEM NA CIĘCIE ŻYWYCH SESJI.
+        // `App\Domain\Compliance\PrzedawnioneSesje` podnosi próg, gdy
+        // `SESSION_LIFETIME` jest dłuższy (na produkcji może być — plan
+        // w `.railway/railway.ts` mówi 43200 minut, czyli 30 dni). Wiersz
+        // młodszy niż `lifetime` należy do sesji ŻYWEJ, a jego skasowanie
+        // to wylogowanie człowieka w środku pracy.
+        //
+        // Egzekwuje `kuking:sprzataj-sesje`. Loteria frameworka zostaje
+        // obok, świadomie — dwa mechanizmy o różnych trybach awarii.
+        'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
@@ -2498,6 +2563,24 @@ return [
         // miesięcy kalendarzowych, a ta liczba jest tylko dolną granicą,
         // której nie wolno zejść poniżej (pilnuje jej test).
         'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 180),
+
+        // ILE DNI PO ZAMKNIĘCIU SPRAWY DZIAŁA JESZCZE LINK ZGŁASZAJĄCEGO
+        // do strony śledzenia (issue #798, decyzja właściciela 20.09.2026).
+        //
+        // To NIE jest termin na odwołanie i nie ma z nim nic wspólnego —
+        // termin na odwołanie liczy `ModerationAction::appealDeadline()`
+        // (sześć miesięcy), a tu chodzi o dostęp do strony, na której tę
+        // sprawę się śledzi. Przedtem obie rzeczy były jedną liczbą i stąd
+        // wzięło się 403 na własną, wciąż otwartą sprawę.
+        //
+        // Link żyje, DOPÓKI SPRAWA JEST OTWARTA (`DostepDoStronySprawy`),
+        // a ta liczba mówi tylko, ile jeszcze po jej zamknięciu. 30 dni,
+        // bo odpowiedź i tak poszła pocztą (`NotifyReporterAppealOutcome`),
+        // a to okno ma wystarczyć na powrót po nią z maila — nie na
+        // trzymanie sprawy bezterminowo pod adresem, który może trafić
+        // w cudze ręce. Sama LICZBA jest do potwierdzenia przez właściciela;
+        // testy czytają ją stąd, żeby nie zabetonować niewybranego progu.
+        'reporter_case_link_days' => (int) env('KUKING_REPORTER_CASE_LINK_DAYS', 30),
 
         // Ile DNI ROBOCZYCH mamy na odpowiedź. Playbook §3 punkt 4.
         // Świąt nie liczymy — Carbon zna weekendy, nie kalendarz polskich
@@ -2762,7 +2845,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.67',
+        'etykieta' => 'Alfa 0.68',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //
@@ -2798,5 +2881,15 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    'demo' => [
+        // Hasło kont demonstracyjnych `DemoSeeder`. Czytane przez `config()`,
+        // nie `env()` bezpośrednio w seederze — PHPStan słusznie oblewa
+        // gołe `env()` poza katalogiem `config/`, bo przy skonfigurowanym
+        // cache'u konfiguracji (`config:cache`) zwróciłoby `null` zamiast
+        // wartości. Bez wartości domyślnej celowo: `DemoSeeder::hasloDemo()`
+        // sam losuje hasło, gdy ta zmienna jest pusta.
+        'haslo' => env('KUKING_DEMO_HASLO'),
     ],
 ];

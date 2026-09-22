@@ -114,7 +114,7 @@
             :rows="5"
             help="Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty.”"
         />
-            <p class="field-help">Wpisz # i nazwę, na przykład #sernik. Tagi możesz też znaleźć poniżej.</p>
+            <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
         </div>
 
         {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty ARIA
@@ -150,8 +150,6 @@
             </div>
             <x-blad-grupy name="visibility" />
         </fieldset>
-
-        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" />
 
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Opublikuj</button>

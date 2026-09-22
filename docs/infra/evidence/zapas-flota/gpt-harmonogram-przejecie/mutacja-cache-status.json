@@ -1,0 +1,16 @@
+{
+  "nazwa": "scripts/sprawdz-cache-assetow.sh",
+  "plik": "scripts/sprawdz-cache-assetow.sh",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "f5e7b6dacc40960fd770d389bc31f46e",
+  "md5_po_mutacji": "b6a0121599e9fb7b6d3dd3b149bfc665",
+  "mutacja_weszla": true,
+  "liczba_podmian": 2,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "FAIL 404: fałszywy sukces",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:35:44Z"
+}

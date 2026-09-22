@@ -1,0 +1,149 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-czytnik-ekranu-odsluch
+Gałąź:            gpt/czytnik-ekranu-odsluch  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-czytnik-ekranu-odsluch
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-czytnik-ekranu-odsluch --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Dziś za "dostępny" uchodzi minutnik gotowania, którego nikt nie odsłuchał
+prawdziwym czytnikiem ekranu. Audyt `WERYFIKACJA_713_492_2026_09_20.md`,
+pozycja C1 (#569), mówi to wprost: "zamknięte świadomie, odsłuch
+niewykonany". Własny odczyt kodu w audycie pokazał
+`resources/views/pages/recipes/cooking.blade.php`: `role="timer"`,
+`aria-live="off"`, BEZ zalecanej nazwy "Pozostały czas". Audytor pisze
+jasno: "test i drzewo dostępności nie zastąpią odsłuchu" — czyli
+wcześniejsze testy automatyczne (drzewo ARIA, asercje) nie są dowodem, że
+człowiek korzystający z NVDA albo VoiceOver faktycznie usłyszy sensowną
+informację o odliczanym czasie.
+
+To JEST możliwe do sprawdzenia z Twojego stanowiska: masz Windows, można
+zainstalować/uruchomić NVDA (darmowy czytnik ekranu) i odsłuchać stronę
+gotowania w przeglądarce na lokalnym/testowym środowisku. To ma być
+prawdziwy pomiar, nie kolejny odczyt kodu.
+
+CO MASZ ZROBIĆ:
+
+1. Przeczytaj: sekcję C1 audytu, issue #569, kod
+   `resources/views/pages/recipes/cooking.blade.php` i towarzyszący mu
+   JS/Livewire obsługujący minutnik, oraz wcześniejsze testy dostępności
+   tego ekranu (`grep -r "aktualny_czas_dostepny" tests/`).
+2. Uruchom lokalny runtime aplikacji na swoim stanowisku
+   (`przygotuj-runtime.sh gpt-czytnik-ekranu-odsluch`, patrz sekcja
+   uruchamiania testów w tym zleceniu) i zaloguj się testowym kontem
+   (seedowanym lokalnie, NIE produkcyjnym) na ekran gotowania z aktywnym
+   minutnikiem.
+3. Zainstaluj lub uruchom NVDA (https://www.nvidia... — NIE, właściwy
+   adres to nvaccess.org; jeśli NVDA nie da się zainstalować w tym
+   środowisku bez zgody na instalację oprogramowania, ZATRZYMAJ SIĘ i
+   napisz to wprost jako brak dowodu z podaniem dokładnej przyczyny —
+   to jest pełnoprawny wynik, nie porażka).
+4. Odsłuchaj: uruchom minutnik, poczekaj aż upłynie kilka sekund/kroków,
+   sprawdź, czy NVDA w ogóle OGŁASZA zmianę czasu (bo `aria-live="off"`
+   sugeruje, że może NIE ogłaszać wcale — to jest hipoteza do
+   sprawdzenia, nie założenie), a jeśli ogłasza — czy nazwa regionu ma
+   sens bez patrzenia na ekran (audyt sugeruje, że brakuje etykiety
+   "Pozostały czas"). Odsłuchaj też przejście między krokami przepisu.
+5. KONTROLA DODATNIA: zanim uznasz brak ogłoszeń za wynik, sprawdź na
+   PROSTYM elemencie z `aria-live="polite"` gdzie indziej w aplikacji (albo
+   na testowej stronie HTML), że NVDA w Twoim środowisku w ogóle poprawnie
+   czyta live regiony — inaczej "cisza" może oznaczać wadliwe środowisko
+   NVDA, a nie wadliwy kod. Opisz dokładnie, co zrobiłeś, żeby to
+   odróżnić.
+6. Zapisz dosłowny przebieg tego, co NVDA odczytało (możesz użyć logu
+   mowy NVDA, jeśli dostępny, albo dokładnej notatki co usłyszałeś) dla
+   każdego scenariusza z punktu 4.
+7. Zaproponuj literalną zmianę (np. dodanie `aria-label="Pozostały czas"`
+   i/lub zmianę `aria-live` na `polite`), ale NIE wprowadzaj jej bez
+   wyraźnego powodu — audyt mówi, że wybór nazwy ma zostać decyzją
+   właściciela, nie asercją autora audytu. Jeśli chcesz zaproponować kod,
+   zrób to jako patch do zaakceptowania, a nie jako gotowe wdrożenie bez
+   pytania. Napisz osobno, co jest usterką (brak ogłoszeń, jeśli
+   potwierdzisz) a co jest kwestią do decyzji (nazwa regionu).
+
+ZAKAZY (dodatkowo do zasad floty):
+- Nie testuj na produkcji ani na koncie z prawdziwymi danymi.
+- Nie zgaduj wyniku odsłuchu bez faktycznego uruchomienia NVDA — samo
+  odczytanie kodu i deklaracja "prawdopodobnie nie ogłasza" nie jest
+  dopuszczalnym wynikiem tego zadania.
+- Jeśli NVDA jest niedostępne w tym środowisku (np. brak GUI/audio w
+  sandboxie) — napisz to wprost, ze szczegółami błędu, i zatrzymaj się
+  zamiast obchodzić brak przez inny sposób "udawania" odsłuchu.
+
+WYNIK: plik `docs/audits/odsluch-nvda-minutnik-<data>.md` w Twoim
+worktree z dosłownym zapisem odsłuchu, dowodem kontroli dodatniej i
+jasnym rozdzieleniem usterka/decyzja właściciela. Jeśli zaproponujesz
+patch kodu — osobny plik diff, NIE scalony automatycznie z testami.
+Zacommituj lokalnie po polsku. Nie pushuj, nie otwieraj PR.
