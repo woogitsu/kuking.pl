@@ -1,0 +1,68 @@
+{
+  "app/Domain/Contact/PageContext.php": {
+    "before": {
+      "md5": "5d8513b2e1302806250ea9acdfb6df0a",
+      "mtime_ns": 1789919263780490500
+    },
+    "after": {
+      "md5": "5d8513b2e1302806250ea9acdfb6df0a",
+      "mtime_ns": 1789919263780490500
+    },
+    "identical": true
+  },
+  "app/Http/Controllers/NapiszDoNasController.php": {
+    "before": {
+      "md5": "a66b1bb63daea9bfa416964f871e3c5d",
+      "mtime_ns": 1789920202125489600
+    },
+    "after": {
+      "md5": "a66b1bb63daea9bfa416964f871e3c5d",
+      "mtime_ns": 1789920202125489600
+    },
+    "identical": true
+  },
+  "app/Domain/Contact/Actions/PrzyjmijWiadomosc.php": {
+    "before": {
+      "md5": "479abe06e6d4f00c1b0a45a99661183a",
+      "mtime_ns": 1789919715515654000
+    },
+    "after": {
+      "md5": "479abe06e6d4f00c1b0a45a99661183a",
+      "mtime_ns": 1789919715515654000
+    },
+    "identical": true
+  },
+  "app/Support/FormConfirmation.php": {
+    "before": {
+      "md5": "e23a0dabf5f78be50be44687927f514f",
+      "mtime_ns": 1789920163927789200
+    },
+    "after": {
+      "md5": "e23a0dabf5f78be50be44687927f514f",
+      "mtime_ns": 1789920163927789200
+    },
+    "identical": true
+  },
+  "resources/views/pages/napisz-do-nas-potwierdzenie.blade.php": {
+    "before": {
+      "md5": "817888a9414aee7aca7b019dab348ed0",
+      "mtime_ns": 1789919715516160300
+    },
+    "after": {
+      "md5": "817888a9414aee7aca7b019dab348ed0",
+      "mtime_ns": 1789919715516160300
+    },
+    "identical": true
+  },
+  "resources/views/pages/zglos-nielegalna-tresc-potwierdzenie.blade.php": {
+    "before": {
+      "md5": "79c208a8bd57ea422e7e17ea2fdbdd66",
+      "mtime_ns": 1789920311870838700
+    },
+    "after": {
+      "md5": "79c208a8bd57ea422e7e17ea2fdbdd66",
+      "mtime_ns": 1789920311870838700
+    },
+    "identical": true
+  }
+}

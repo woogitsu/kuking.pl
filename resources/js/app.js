@@ -51,6 +51,29 @@ function kotwicaPodPolem(input) {
 }
 
 /*
+ * ZWALNIANIE `object URL` PODGLĄDU (issue #742).
+ *
+ * `URL.createObjectURL(plik)` rezerwuje adres, który żyje aż do
+ * `URL.revokeObjectURL()` albo zamknięcia dokumentu — cokolwiek nastąpi
+ * pierwsze. Miniatura zwalniała go WYŁĄCZNIE po zdarzeniu `load`: obraz
+ * z poprawnym nagłówkiem MIME, którego przeglądarka nie potrafi
+ * zdekodować, kończy się `error`, dla którego nie było sprzątania —
+ * i kolejny wybór albo wyczyszczenie pola (`pojemnik.replaceChildren()`
+ * niżej) usuwał dzieci z DOM-u, ale nie zwalniał ich adresów.
+ *
+ * Jedna funkcja, wywoływana PRZED każdym `replaceChildren()`, żeby żaden
+ * z dwóch miejsc czyszczących ten kontener nie mógł o tym zapomnieć osobno.
+ * Revoke na już zwolnionym albo nieistniejącym blobie jest w przeglądarce
+ * bezpiecznym no-opem — nie trzeba pilnować, czy `load`/`error` już się
+ * zdążyło odpalić.
+ */
+function zwolnijPodgladObjectUrls(pojemnik) {
+    for (const img of pojemnik.querySelectorAll('img.podglad-wyboru-zdjecie')) {
+        URL.revokeObjectURL(img.src);
+    }
+}
+
+/*
  * Po wybraniu pliku pokazujemy miniaturę i nazwę. Bez tego użytkownik nie ma
  * żadnego potwierdzenia, że zdjęcie zostało wybrane — a to jest najczęstszy
  * moment porzucenia formularza „dodaj zdjęcie”.
@@ -73,6 +96,7 @@ document.addEventListener('change', (event) => {
         kotwicaPodPolem(input).insertAdjacentElement('afterend', pojemnik);
     }
 
+    zwolnijPodgladObjectUrls(pojemnik);
     pojemnik.replaceChildren();
 
     const pliki = Array.from(input.files ?? []);
@@ -112,7 +136,11 @@ document.addEventListener('change', (event) => {
         img.alt = '';
         img.className = 'podglad-wyboru-zdjecie';
         img.src = URL.createObjectURL(plik);
+        // `error`, NIE TYLKO `load` — plik z nagłówkiem image/jpeg, którego
+        // treść jest uszkodzona, nie ładuje się nigdy, a adres bez tego
+        // zostawałby zarezerwowany aż do zamknięcia dokumentu.
         img.addEventListener('load', () => URL.revokeObjectURL(img.src), { once: true });
+        img.addEventListener('error', () => URL.revokeObjectURL(img.src), { once: true });
         pojemnik.appendChild(img);
     }
 });
@@ -160,8 +188,16 @@ window.addEventListener('livewire-upload-error', (zdarzenie) => {
     pole.textContent = komunikat;
 
     // Podgląd miniatury dorysowany przy wyborze pliku kłamałby: zdjęcia
-    // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu.
-    document.getElementById(`${input.id}-podglad`)?.replaceChildren();
+    // na serwerze nie ma. Usuwamy go razem z pokazaniem błędu — i zwalniamy
+    // jego object URL, z tego samego powodu co przy zwykłym polu plików
+    // wyżej (issue #742): usunięcie z DOM-u samo z siebie niczego nie
+    // zwalnia.
+    const pojemnikBladu = document.getElementById(`${input.id}-podglad`);
+
+    if (pojemnikBladu) {
+        zwolnijPodgladObjectUrls(pojemnikBladu);
+        pojemnikBladu.replaceChildren();
+    }
 });
 
 // Kolejna udana wysyłka sprząta po poprzednim błędzie — inaczej czerwony
@@ -211,6 +247,46 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     const obraz = okno.querySelector('.lightbox-obraz');
+    const status = okno.querySelector('.lightbox-status');
+    const ponowPrzycisk = okno.querySelector('.lightbox-ponow');
+
+    /*
+     * ADRES, O KTÓRY WŁAŚNIE „WALCZYMY" (issue #743).
+     *
+     * Zawsze wartość PO przypisaniu do `obraz.src` — przeglądarka rozwija ją
+     * do pełnego adresu, więc porównanie `obraz.src === biezacyAdres` w
+     * handlerach `load`/`error` działa niezależnie od tego, czy link miał
+     * adres względny czy bezwzględny.
+     *
+     * PO CO TO W OGÓLE: jedno `<img>` obsługuje KAŻDE kolejne otwarte
+     * zdjęcie. Błąd albo dokończone wczytanie poprzedniego żądania, które
+     * dojdzie z opóźnieniem PO otwarciu następnego zdjęcia (albo po
+     * zamknięciu i ponownym otwarciu tego samego), nie może nadpisać stanu
+     * zdjęcia, które człowiek widzi teraz — dlatego każdy handler sprawdza
+     * `obraz.src === biezacyAdres`, zanim cokolwiek zmieni.
+     */
+    let biezacyAdres = null;
+
+    function pokazWczytywanie() {
+        obraz.hidden = true;
+        ponowPrzycisk.hidden = true;
+        status.hidden = false;
+        status.textContent = 'Wczytywanie zdjęcia…';
+    }
+
+    function pokazBlad() {
+        obraz.hidden = true;
+        status.hidden = false;
+        status.textContent = 'Nie udało się wczytać zdjęcia. Spróbuj ponownie.';
+        ponowPrzycisk.hidden = false;
+    }
+
+    function pokazGotowe() {
+        obraz.hidden = false;
+        ponowPrzycisk.hidden = true;
+        status.hidden = true;
+        status.textContent = '';
+    }
 
     document.addEventListener('click', (zdarzenie) => {
         const link = zdarzenie.target.closest('a[data-powieksz]');
@@ -229,10 +305,49 @@ document.addEventListener('DOMContentLoaded', () => {
 
         zdarzenie.preventDefault();
 
-        obraz.src = link.getAttribute('href');
+        pokazWczytywanie();
         obraz.alt = link.dataset.alt || '';
+        obraz.src = link.getAttribute('href');
+        biezacyAdres = obraz.src;
 
         okno.showModal();
+    });
+
+    obraz.addEventListener('load', () => {
+        if (obraz.src !== biezacyAdres) {
+            return;
+        }
+
+        pokazGotowe();
+    });
+
+    obraz.addEventListener('error', () => {
+        // `obraz.src` startuje pusty w HTML źródłowym — samo usunięcie
+        // atrybutu przy zamknięciu (niżej) też potrafi odpalić `error`
+        // w niektórych przeglądarkach. Bez `biezacyAdres` nie ma czego
+        // pokazywać: dialog jest wtedy i tak zamknięty.
+        if (!biezacyAdres || obraz.src !== biezacyAdres) {
+            return;
+        }
+
+        pokazBlad();
+    });
+
+    ponowPrzycisk.addEventListener('click', () => {
+        if (!biezacyAdres) {
+            return;
+        }
+
+        // Ponowienie ma WYKONAĆ PRÓBĘ FAKTYCZNIE, nie tylko pokazać
+        // wczytywanie: samo przypisanie tego samego `src` przeglądarka
+        // czasem traktuje jako no-op i nie wysyła nowego żądania. Doklejony
+        // znacznik czasu wymusza prawdziwe kolejne pobranie za każdym razem.
+        const bazowyAdres = biezacyAdres.split('#')[0].split('?')[0];
+        const laczik = bazowyAdres.includes('?') ? '&' : '?';
+
+        pokazWczytywanie();
+        obraz.src = bazowyAdres + laczik + '_ponow=' + Date.now();
+        biezacyAdres = obraz.src;
     });
 
     // Kliknięcie w tło zamyka. To jest DODATEK do przycisku „Zamknij”,
@@ -253,8 +368,10 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
+        biezacyAdres = null;
         obraz.removeAttribute('src');
         obraz.alt = '';
+        pokazGotowe();
     });
 })();
 
@@ -822,3 +939,49 @@ for (const menu of document.querySelectorAll('details.topbar-konto')) {
         }
     });
 }
+
+/* ==========================================================================
+   KREATOR PRZEPISU: FOKUS PO SKOKU DO INNEGO KROKU (issue #747)
+   ==========================================================================
+
+   Podsumowanie błędów w kreatorze potrafi wskazywać pole z kroku, którego
+   aktualny render w ogóle nie zawiera — `wire:click="jumpToError(...)"`
+   w `recipe-wizard.blade.php` przełącza `$step` po stronie serwera i prosi
+   o fokus na właściwym polu zdarzeniem `kreator-fokus-pole`. Sam przełącznik
+   kroku nie wystarczy: w chwili, w której PHP o tym decyduje, przeglądarka
+   jeszcze nie ma nowego DOM-u — element pojawia się dopiero po tym, jak
+   Livewire przerenderuje komponent i zdarzenie faktycznie dotrze tutaj.
+
+   `Livewire.on` rejestrujemy dopiero po `livewire:init`, żeby nie zależeć
+   od kolejności `@vite` kontra `@livewireScripts` w layoucie — a jeśli
+   Livewire zdążył już wystartować (bo ten skrypt wczytał się później),
+   `window.Livewire` istnieje i można podłączyć się od razu.
+   ========================================================================== */
+(function fokusPoSkokuKreatora() {
+    const podlacz = () => {
+        window.Livewire.on('kreator-fokus-pole', ({ pole }) => {
+            // Livewire kończy morph DOM-u przed doręczeniem zdarzenia
+            // słuchaczom zarejestrowanym przez `Livewire.on`, ale
+            // `requestAnimationFrame` daje przeglądarce jedną klatkę na
+            // domalowanie układu — bez tego `scrollIntoView` na elemencie
+            // z `display: none` przed przemalowaniem czasem nic nie robi.
+            requestAnimationFrame(() => {
+                const cel = document.getElementById(pole);
+
+                if (!cel) {
+                    return;
+                }
+
+                const bezRuchu = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+                cel.scrollIntoView({ behavior: bezRuchu ? 'auto' : 'smooth', block: 'center' });
+                cel.focus({ preventScroll: true });
+            });
+        });
+    };
+
+    if (window.Livewire) {
+        podlacz();
+    } else {
+        document.addEventListener('livewire:init', podlacz);
+    }
+})();

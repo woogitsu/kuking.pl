@@ -14,6 +14,8 @@
 #                                   # na 8 stronach publicznych (issue #26)
 #   ./scripts/check.sh --wyscigi    # dodatkowo grupa `dwa-polaczenia`: testy
 #                                   # na dwóch połączeniach (D-105)
+#   ./scripts/check.sh --referrer   # dwa dokumenty i formularze; wymaga jawnego
+#                                   # REFERRER_DB_DATABASE=kuking_port_* po migracji
 
 set -uo pipefail
 # Katalog skryptu liczymy PRZED `cd`. Po zmianie katalogu `dirname "$0"`
@@ -33,6 +35,7 @@ SZYBKO=0
 SPRAWDZ_DOSTEPNOSC=0
 SPRAWDZ_WYDAJNOSC=0
 SPRAWDZ_WYSCIGI=0
+SPRAWDZ_REFERRER=0
 
 # Pętla, a nie `[ "$1" = ... ]`: flagi mają działać w dowolnej kolejności
 # i dowolnej liczbie. Poprzednia wersja czytała wyłącznie PIERWSZY argument,
@@ -43,6 +46,7 @@ for _arg in "$@"; do
         --dostepnosc) SPRAWDZ_DOSTEPNOSC=1 ;;
         --wydajnosc) SPRAWDZ_WYDAJNOSC=1 ;;
         --wyscigi) SPRAWDZ_WYSCIGI=1 ;;
+        --referrer) SPRAWDZ_REFERRER=1 ;;
         *) printf "Nieznana opcja: %s\n" "$_arg" >&2; exit 2 ;;
     esac
 done
@@ -201,6 +205,18 @@ else
     zle "Wydajność albo SEO poniżej progu — szczegóły: node scripts/wydajnosc.mjs (i storage/wydajnosc.json)"
 fi
 
+# Osobna, wcześniej zmigrowana baza kuking_port_*; bez domyślnego celu i kasowania danych.
+krok "Sekretny adres i referrer (#1052)"
+if [ "$SPRAWDZ_REFERRER" -ne 1 ]; then
+    printf "  Pominięte: uruchom z --referrer i jawnym REFERRER_DB_DATABASE\n"
+elif [ -z "${REFERRER_DB_DATABASE:-}" ]; then
+    zle "Podaj REFERRER_DB_DATABASE własnej zmigrowanej bazy kuking_port_*"
+elif DB_DATABASE="$REFERRER_DB_DATABASE" node scripts/referrer-sekret-browser.mjs; then
+    ok "Dwa dokumenty, przechwycona analityka i formularze przechodzą"
+else
+    zle "Pomiar referrera nie przeszedł — brak przeglądarki też jest błędem"
+fi
+
 # --- 4. Analiza statyczna --------------------------------------------------
 # Issue #32 zamknięte: `phpstan.neon` istnieje (poziom i uzasadnienie —
 # komentarz na górze tego pliku), więc ten krok PRZESTAJE być opcjonalny.
@@ -225,16 +241,50 @@ else
 fi
 
 # --- 5. Testy -------------------------------------------------------------
+# KUKING_TESTY_ROWNOLEGLE=N puszcza baterię na N procesach. Domyślnie PUSTE,
+# czyli szeregowo — i tak ma zostać. Równoległość jest świadomym wyborem
+# stanowiska, które wie, ile rdzeni ma wolnych, a nie zachowaniem domyślnym.
+#
+# Po co: zmierzone 21.09.2026 na 4402 testach — 310 s szeregowo, 105 s na
+# sześciu procesach. Bateria zajmowała 82% czasu bramki i chodziła na JEDNYM
+# rdzeniu z 24.
+#
+# Czego NIE wolno zapomnieć: przy zwykłym przeciążeniu obowiązuje reguła
+# „fałszywa czerwień, nigdy fałszywa zieleń" — przebieg zielony pod obciążeniem
+# jest wiarygodny. Równoległość tę regułę OSŁABIA: test zależny od kolejności
+# albo współdzielonego stanu może się pod nią zachować inaczej. W pomiarze
+# z 21.09 liczba testów zgadzała się co do jednego (4402), ale asercji było
+# 83722 szeregowo i 83721 równolegle. Ta jedna różnica jest nadal niewyjaśniona.
+# Dlatego domyślnie szeregowo, a równolegle tylko tam, gdzie liczy się czas
+# i ktoś ten kompromis podjął świadomie.
+#
+# --recreate-databases jest konieczne, nie kosmetyczne: bazy robocze
+# <baza>_test_N przeżywają między przebiegami, a kolejne gałęzie mają różne
+# migracje. Bez tego druga gałąź dostałaby schemat pierwszej.
 krok "Testy"
 _test_log=$(mktemp "${TMPDIR:-/tmp}/kuking-check-tests.XXXXXX")
-if php artisan test >"$_test_log" 2>&1; then
+_test_polecenie=(php artisan test)
+_test_podpowiedz='php artisan test'
+if [ -n "${KUKING_TESTY_ROWNOLEGLE:-}" ]; then
+    if [ ! -x vendor/bin/paratest ]; then
+        # Cicha ucieczka do szeregowych byłaby najgorsza z możliwych: bramka
+        # trwałaby trzy razy dłużej, nikt by nie wiedział czemu, a przyczyną
+        # byłby brakujący pakiet. Mówimy wprost.
+        zle "KUKING_TESTY_ROWNOLEGLE ustawione, a brak vendor/bin/paratest — uruchom: composer install"
+    fi
+    _test_polecenie=(php artisan test --parallel \
+        --processes="$KUKING_TESTY_ROWNOLEGLE" --recreate-databases)
+    _test_podpowiedz="php artisan test --parallel --processes=$KUKING_TESTY_ROWNOLEGLE"
+    printf '  Bateria na %s procesach (KUKING_TESTY_ROWNOLEGLE)\n' "$KUKING_TESTY_ROWNOLEGLE"
+fi
+if "${_test_polecenie[@]}" >"$_test_log" 2>&1; then
     rm -f "$_test_log"
     ok "Testy przechodzą"
 else
     printf 'Pełny wynik testów zapisano w: %s\n' "$_test_log"
     printf '%s\n' 'Ostatnie 160 wierszy wyniku:'
     tail -n 160 "$_test_log"
-    zle "Testy nie przechodzą — uruchom: php artisan test"
+    zle "Testy nie przechodzą — uruchom: $_test_podpowiedz"
 fi
 
 # --- 5b. Wyścigi na dwóch połączeniach (opcjonalne) ------------------------

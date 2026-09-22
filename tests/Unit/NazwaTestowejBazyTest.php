@@ -196,35 +196,64 @@ class NazwaTestowejBazyTest extends TestCase
     }
 
     /**
-     * Ten sam katalog podany raz z ukośnikiem na końcu, raz bez, to nadal ten
-     * sam katalog. Inaczej jeden skrypt wołający z `"$PWD/"` zakładałby drugą
-     * bazę obok tej, w której już stoi schemat.
+     * WARTOŚĆ Z `naprawa/baza-proby-per-runtime` PONAD `#920`: dwa stanowiska
+     * o TEJ SAMEJ nazwie katalogu, ale w różnych katalogach nadrzędnych —
+     * realny układ floty, gdy dwa runtime'y albo dwie kopie repo nazywają się
+     * tak samo (`…/kuking.pl`, `…/agent-run`). Sama nazwa katalogu by tu nie
+     * wystarczyła — dopiero skrót PEŁNEJ ścieżki rozróżnia te dwa przypadki.
+     * Bez tego testu naprawa #920 mogłaby się cofnąć do wersji „nazwa
+     * katalogu bez skrótu" i nikt by tego nie zauważył na dwóch pozostałych
+     * testach (które używają różnych nazw katalogów).
      */
-    public function test_konczacy_ukosnik_nie_tworzy_drugiej_bazy(): void
+    public function test_ta_sama_nazwa_katalogu_w_dwoch_miejscach_daje_dwie_rozne_bazy(): void
     {
-        $stanowisko = $this->tymczasowyKatalogRepo('ukosnik-run');
+        $stanowiskoA = $this->tymczasowyKatalogRepo('kuking-flota-run');
+        $stanowiskoB = $this->tymczasowyKatalogRepo('kuking-flota-run');
 
-        $this->assertSame(
-            kuking_nazwa_testowej_bazy($stanowisko),
-            kuking_nazwa_testowej_bazy($stanowisko.'/'),
+        $this->assertNotSame(
+            $stanowiskoA,
+            $stanowiskoB,
+            'Fixture testu musi dać dwie różne ścieżki — inaczej test niczego nie sprawdza.',
+        );
+
+        $this->assertNotSame(
+            kuking_nazwa_testowej_bazy($stanowiskoA),
+            kuking_nazwa_testowej_bazy($stanowiskoB),
+            'Dwa katalogi o tej samej nazwie w różnych miejscach dostały tę samą bazę.',
         );
     }
 
     /**
-     * Dwie kopie o TEJ SAMEJ nazwie katalogu, ale w różnych katalogach
-     * nadrzędnych — realny układ, gdy dwie osoby klonują repo pod tą samą
-     * nazwą albo gdy runtime i worktree nazywają się tak samo. Sama nazwa
-     * katalogu by tu nie wystarczyła; skrót pełnej ścieżki wystarcza.
+     * WARTOŚĆ Z `naprawa/baza-proby-per-runtime` PONAD `#920`: ten sam
+     * katalog osiągnięty dwoma różnymi zapisami ścieżki (kończący ukośnik,
+     * `/podkatalog/..`) musi dać TĘ SAMĄ bazę. `tests/bootstrap.php` woła
+     * funkcję z `__DIR__` (bez ukośnika), a skrypty powłoki bywają mniej
+     * dyscyplinowane — gdyby te dwa zapisy dawały dwie bazy, jeden runtime
+     * rozjechałby się sam ze sobą między kolejnymi przebiegami. Zachowanie
+     * dziś zapewnia `realpath()` wewnątrz `kuking_nazwa_testowej_bazy()` —
+     * ten test czyni ten kontrakt jawnym, żeby przyszły refaktor (np. zamiana
+     * `realpath()` na coś tańszego) nie zepsuł go po cichu.
      */
-    public function test_ta_sama_nazwa_katalogu_w_dwoch_miejscach_daje_dwie_bazy(): void
+    public function test_rozne_zapisy_tej_samej_sciezki_daja_ta_sama_nazwe(): void
     {
-        $a = $this->tymczasowyKatalogRepo('kuking.pl');
-        $b = $this->tymczasowyKatalogRepo('kuking.pl');
+        $stanowisko = $this->tymczasowyKatalogRepo('normalizacja-run');
+        mkdir($stanowisko.'/podkatalog');
 
-        $this->assertNotSame(
-            kuking_nazwa_testowej_bazy($a),
-            kuking_nazwa_testowej_bazy($b),
+        $nazwaKanoniczna = kuking_nazwa_testowej_bazy($stanowisko);
+
+        $this->assertSame(
+            $nazwaKanoniczna,
+            kuking_nazwa_testowej_bazy($stanowisko.'/'),
+            'Kończący ukośnik nie może zakładać drugiej bazy dla tego samego katalogu.',
         );
+
+        $this->assertSame(
+            $nazwaKanoniczna,
+            kuking_nazwa_testowej_bazy($stanowisko.'/podkatalog/..'),
+            '"/podkatalog/.." musi się znormalizować do tego samego katalogu, nie do nowej bazy.',
+        );
+
+        rmdir($stanowisko.'/podkatalog');
     }
 
     /**

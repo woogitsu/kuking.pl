@@ -1,0 +1,45 @@
+{
+ "seria": "r005-p2",
+ "zadany_rps": 5,
+ "werdykt": "CZYSTY",
+ "regula_skazenia": "wersja 18.09.2026, ustalona przed rampą. Skażony, gdy KTÓREKOLWIEK z: (1) przebicia w >=3 % próbek ORAZ seria >=2 s pod rząd; (2) jakakolwiek seria >=5 s pod rząd; (3) choć jedna próbka z pracującym Runner.Worker runnera kuking.",
+ "limby_ktore_zadzialaly": [],
+ "prog_rdzeni": 18.0,
+ "prog_psi": 25.0,
+ "probek_pod_obciazeniem": 95,
+ "probek_z_przebiciem": 2,
+ "udzial_przebic_procent": 2.1,
+ "najdluzsze_przebicie_s": 1,
+ "obce_obciazenie_rdzenie": {
+  "min": 2.09,
+  "mediana": 13.88,
+  "p95": 17.6,
+  "max": 18.5
+ },
+ "psi_cpu_some_avg10": {
+  "min": 0.0,
+  "mediana": 1.76,
+  "p95": 8.07,
+  "max": 8.99
+ },
+ "probek_z_pracujacym_runnerem_kuking": 0,
+ "runnery_mierzone_per_probka": true,
+ "wlasne_stanowisko_rdzenie": {
+  "min": 0.006,
+  "mediana": 0.161,
+  "p95": 1.02,
+  "max": 1.147
+ },
+ "generator_rdzenie": {
+  "min": 0.0,
+  "mediana": 0.021,
+  "p95": 0.037,
+  "max": 0.075
+ },
+ "okno_pod_obciazeniem": {
+  "od": "2026-09-20T17:58:20Z",
+  "do": "2026-09-20T18:00:21Z"
+ },
+ "probek_w_wybiegu_po_zdjeciu_obciazenia": 40,
+ "ograniczenie_ktorego_bramka_NIE_usuwa": "Wspólna przepustowość pamięci i wspólny cache L3. Nawet przy wolnych rdzeniach cudze procesy podnoszą opóźnienia dostępu do pamięci. To jest pomiar na maszynie współdzielonej, nie na stanowisku laboratoryjnym — dotyczy KAŻDEJ liczby w tym pliku."
+}

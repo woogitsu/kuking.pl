@@ -1,0 +1,135 @@
+NAPRAWA STANOWISKA — przeczytaj w całości, zanim cokolwiek wykonasz.
+
+CO SIĘ STAŁO (nie Twoja wina, nie psuj sobie głowy szukaniem błędu u siebie):
+Repozytorium kanoniczne `C:\Users\matma\Documents\Codex\kuking.pl` zostało
+uszkodzone — zniknął jego katalog `.git` razem z wszystkimi plikami. Twoje
+stanowisko było do niego podpięte, więc `git` w Twoim katalogu odpowiada teraz
+`fatal: not a git repository`. Repozytorium zostało już ODTWORZONE i działa,
+ale powiązanie Twojego katalogu z nim trzeba odbudować ręcznie.
+
+CO JEST BEZPIECZNE: wszystkie Twoje PLIKI leżą na dysku nietknięte. GitHub ma
+71 gałęzi. Produkcja działa.
+
+CO PRZEPADŁO: lokalne commity, które nigdy nie zostały wypchnięte na GitHuba.
+Ich treść żyje w plikach, ale historia gita nie. Będziesz musiał zacommitować
+swoją pracę jeszcze raz — z plików, które masz.
+
+────────────────────────────────────────────────────────────────────────
+KROK 1 — USTAL, GDZIE JESTEŚ
+────────────────────────────────────────────────────────────────────────
+W swoim katalogu roboczym:
+
+    cat .git
+
+Jeżeli zobaczysz `gitdir: C:/Users/matma/Documents/Codex/kuking.pl/.git/worktrees/...`,
+a `git status` odpowiada „not a git repository" — masz dokładnie ten problem.
+
+Zapisz sobie TERAZ dwie rzeczy: pełną ścieżkę swojego katalogu oraz nazwę
+swojej gałęzi z główki zlecenia (wiersz „Gałąź:").
+
+────────────────────────────────────────────────────────────────────────
+KROK 2 — ZABEZPIECZ SWOJĄ PRACĘ (niczego nie kasuj)
+────────────────────────────────────────────────────────────────────────
+Zmień nazwę swojego katalogu, nie usuwaj go. Przykład dla stanowiska
+`gpt-przyklad` (podstaw swoją nazwę):
+
+    cd C:\Users\matma\Documents\kuking-flota
+    ren gpt-przyklad gpt-przyklad-PLIKI
+
+Od tej chwili `gpt-przyklad-PLIKI` to Twoja kopia bezpieczeństwa. NIE kasuj
+jej, dopóki nie zacommitujesz pracy i nie potwierdzisz, że nic nie brakuje.
+
+────────────────────────────────────────────────────────────────────────
+KROK 3 — ODTWÓRZ STANOWISKO Z DZIAŁAJĄCEGO REPOZYTORIUM
+────────────────────────────────────────────────────────────────────────
+Najpierw sprawdź, czy Twoja gałąź jest już na GitHubie:
+
+    cd C:\Users\matma\Documents\Codex\kuking.pl
+    git fetch origin --prune
+    git branch -r --list "origin/TWOJA/GALAZ"
+
+JEŻELI GAŁĄŹ JEST NA ORIGIN (wypisała się) — odtwórz z niej, zachowasz historię:
+
+    git worktree add "C:/Users/matma/Documents/kuking-flota/gpt-przyklad" -b TWOJA/GALAZ origin/TWOJA/GALAZ
+
+JEŻELI GAŁĘZI NIE MA — zakładasz ją od nowa na aktualnym main:
+
+    git worktree add -b TWOJA/GALAZ "C:/Users/matma/Documents/kuking-flota/gpt-przyklad" origin/main
+
+UWAGA NA ŚCIEŻKI: podawaj je w postaci `C:/Users/...` z ukośnikami zwykłymi.
+NIE używaj przedrostka MSYS_NO_PATHCONV=1 przy `git worktree add` — wyłącza on
+tłumaczenie ścieżek i git zakłada katalog w `C:\c\Users\...`, czyli w złym
+miejscu. (Ten przedrostek jest nadal OBOWIĄZKOWY przy wywołaniach `wsl`.)
+
+Sprawdź, że się udało:
+
+    cd C:\Users\matma\Documents\kuking-flota\gpt-przyklad
+    git status
+    git log --oneline -1
+
+────────────────────────────────────────────────────────────────────────
+KROK 4 — PRZENIEŚ SWOJĄ PRACĘ Z KOPII
+────────────────────────────────────────────────────────────────────────
+Skopiuj zawartość kopii do nowego katalogu, POMIJAJĄC katalogi techniczne:
+
+    robocopy "C:\Users\matma\Documents\kuking-flota\gpt-przyklad-PLIKI" ^
+             "C:\Users\matma\Documents\kuking-flota\gpt-przyklad" ^
+             /E /XD .git vendor node_modules .codex output storage\framework public\storage /XF .env
+
+Potem OBEJRZYJ, co z tego wyszło:
+
+    cd C:\Users\matma\Documents\kuking-flota\gpt-przyklad
+    git status
+    git diff --stat
+
+TU JEST NAJWAŻNIEJSZA CZĘŚĆ CAŁEJ NAPRAWY. Twoja kopia mogła powstać na
+starszym stanie `main`. Jeżeli w `git status` widzisz zmiany w plikach,
+których NIGDY nie dotykałeś — to nie jest Twoja praca, tylko cofnięcie
+cudzych zmian. Przywróć takie pliki:
+
+    git checkout -- <ścieżka/do/pliku>
+
+Zostaw wyłącznie to, co naprawdę zrobiłeś: swoje zmiany w kodzie, swoje testy,
+swój raport w `docs/`. Jeżeli nie masz pewności co do konkretnego pliku —
+przywróć go i napisz o tym w meldunku, zamiast zgadywać.
+
+────────────────────────────────────────────────────────────────────────
+KROK 5 — ZACOMMITUJ I ZWERYFIKUJ
+────────────────────────────────────────────────────────────────────────
+Zacommituj lokalnie, po polsku, w trybie rozkazującym. NIE pushuj — pchanie
+idzie szeregowo przez osobną kolejkę.
+
+Potem POWTÓRZ najważniejszy pomiar swojego zadania. To nie jest formalność:
+Twoja praca powstała na starszym drzewie, więc dowód czerwieni zebrany
+wcześniej mógł stracić ważność. Uruchom runtime i testy:
+
+    MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh <nazwa-stanowiska>
+    MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh <nazwa-stanowiska> --filter TwojTest
+
+PostgreSQL wyłącznie 127.0.0.1:55439, nigdy 5432.
+
+────────────────────────────────────────────────────────────────────────
+CZEGO NIE WOLNO
+────────────────────────────────────────────────────────────────────────
+- NIE uruchamiaj `git worktree prune`. Z Windows wiele worktree wygląda na
+  martwe, a nie jest — jedno polecenie wypruje wszystkie naraz.
+- NIE używaj `git reset --hard` ani `--no-verify`.
+- NIE używaj gołego `git stash` — stos jest WSPÓLNY dla wszystkich stanowisk.
+- NIE kasuj katalogu `-PLIKI`, dopóki praca nie jest zacommitowana i sprawdzona.
+- NIE zapisuj plików w `C:\Users\matma\Documents\Codex` — tam wykonujesz
+  wyłącznie polecenia gita.
+- NIE pushuj i nie otwieraj PR-ów.
+
+────────────────────────────────────────────────────────────────────────
+MELDUNEK
+────────────────────────────────────────────────────────────────────────
+Napisz wprost:
+1. Czy Twoja gałąź była na origin, czy trzeba było ją zakładać od nowa.
+2. SHA commitów po odtworzeniu.
+3. Które pliki przywróciłeś jako „nie moje" i dlaczego.
+4. Czy powtórzyłeś pomiar i z jakim wynikiem.
+5. Co uznajesz za bezpowrotnie utracone — jeżeli cokolwiek.
+
+Jeżeli na którymkolwiek kroku zobaczysz coś, czego ta instrukcja nie
+przewiduje — ZATRZYMAJ SIĘ i napisz co widzisz. Nie improwizuj naprawy
+na współdzielonym repozytorium.
