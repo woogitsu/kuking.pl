@@ -1698,6 +1698,12 @@ weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
 przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
 „ile weźmie".
 
+**Prezentacja (#878, decyzja właściciela z 20 września 2026):** flaga nie
+określa sposobu dozowania. Widok pokazuje wyłącznie tekst składnika i uwagę
+autora, bez automatycznego „do smaku” ani „bez podanej ilości”. Autor wpisuje
+„do smaku”, „ile weźmie” lub inne określenie w nazwie składnika. To zmienia
+dawne kryterium prezentacji z #44, nie CHECK ani znaczenie zapisanej flagi.
+
 Kolumna weszła **przed** funkcją, która jej używa, i to jest jedyny powód,
 dla którego istnieje już teraz: dopisanie jej dziś kosztuje jedną linijkę,
 a po tym, jak w tabeli znajdą się przepisy prawdziwych ludzi, kosztowałoby

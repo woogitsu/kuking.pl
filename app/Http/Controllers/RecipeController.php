@@ -48,8 +48,8 @@ use Illuminate\View\View;
  *
  * BAZA SIĘ NIE ZMIENIŁA. Oba pola tekstowe z punktu 1 serwer rozbija
  * z powrotem na `recipe_ingredients` i `recipe_steps`
- * (`App\Domain\Recipes\TekstNaWiersze`), więc przeliczanie porcji
- * i szukanie po składnikach działają dalej.
+ * (`App\Domain\Recipes\TekstNaWiersze`). Szukanie po składnikach nadal
+ * czyta te same wiersze. Skalowanie porcji pozostaje niewdrożonym planem V2.
  *
  * Wszystkie drogi kończą się w tej samej akcji domenowej `PublishRecipe`,
  * więc reguły („szkic da się zapisać z samym tytułem”, „publikacja wymaga

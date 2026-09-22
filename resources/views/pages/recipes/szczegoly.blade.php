@@ -371,13 +371,13 @@
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
                          i domyślnie wyłączony: ma znaczenie dopiero przy
-                         przeliczaniu przepisu na inną liczbę porcji. --}}
+                         przyszłym przeliczaniu porcji (V2, jeszcze niewdrożonym). --}}
                     <label class="choice mt-2">
                         <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
                                @checked($oldIngredients[$i]['no_amount'] ?? false)>
                         <span>
                             <span class="choice-label">Bez ilości</span>
-                            <span class="choice-help">Na przykład „do smaku”, „ile weźmie”, „szczypta”.</span>
+                            <span class="choice-help">Zaznacz, jeśli nie podajesz liczby i jednostki. Sposób dozowania wpisz w nazwie składnika, np. „mleko — ile weźmie”.</span>
                         </span>
                     </label>
                 </div>

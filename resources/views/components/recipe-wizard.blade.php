@@ -1354,7 +1354,7 @@ new class extends Component
                         „BEZ ILOŚCI” — SÓL DO SMAKU (issue #44).
 
                         Nieobowiązkowe i domyślnie wyłączone. Ma znaczenie
-                        dopiero przy przeliczaniu przepisu na inną liczbę porcji:
+                        dla przyszłego przeliczania porcji (V2, jeszcze niewdrożonego):
                         przepis razy trzy poprosiłby inaczej o trzy szczypty
                         soli i o trzy razy „ile weźmie”. To nie jest drobiazg
                         kosmetyczny — to moment, w którym przepis przestaje
@@ -1364,7 +1364,7 @@ new class extends Component
                         <input type="checkbox" wire:model="ingredients.{{ $index }}.no_amount">
                         <span>
                             <span class="choice-label">Bez ilości</span>
-                            <span class="choice-help">Zaznacz przy „do smaku”, „ile weźmie”, „szczypta”. Taki składnik nie będzie mnożony, gdy ktoś przeliczy przepis na więcej porcji.</span>
+                            <span class="choice-help">Zaznacz, jeśli nie podajesz liczby i jednostki. Sposób dozowania wpisz w nazwie składnika, np. „mleko — ile weźmie”.</span>
                         </span>
                     </label>
 

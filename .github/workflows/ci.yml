@@ -880,6 +880,14 @@ jobs:
           flock -w 600 /tmp/kuking-apt.lock npx playwright install chromium
           node scripts/skala-proporcje.mjs
 
+      # Test DOM: potwierdzenie wyboru tagu w opisie (#754). Stoi TU, a nie na
+      # liście `node --test` w skrypcie `build`, bo potrzebuje Chromium —
+      # a `npm run build` jedzie także w `Dockerfile` (obraz produkcyjny bez
+      # przeglądarki) i w tym zadaniu JESZCZE PRZED krokiem wyżej, który
+      # Chromium instaluje. Pełne uzasadnienie w nagłówku samego pliku.
+      - name: Regresja potwierdzenia wyboru tagu (DOM w Chromium)
+        run: node --test scripts/przegladarka/tagi-potwierdzenie.test.mjs
+
       # Weryfikacja, że build faktycznie coś wyprodukował. Vite potrafi
       # zakończyć się sukcesem z pustym manifestem przy błędnej konfiguracji,
       # a wtedy produkcja dostaje stronę bez CSS.
