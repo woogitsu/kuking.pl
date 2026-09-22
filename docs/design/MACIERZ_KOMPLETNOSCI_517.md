@@ -1,5 +1,19 @@
 # Macierz pokrycia identyfikacji — odbiory i ograniczenia
 
+## Aktualizacja dowodów — 20 września 2026
+
+[Audyt #713 i pozostałych luk #492](../audits/WERYFIKACJA_713_492_2026_09_20.md)
+sprawdza każdą pozycję długu i wskazuje źródła oraz granice pomiarów.
+Produkcja i badany kod mają SHA `4c811cc7bff365fb8f86d87eabac93b7738a45cd`.
+PR #707 i #711 są scalone; #716 jest wdrożony. Dawne „czeka na wdrożenie”
+poniżej opisuje 19 września, nie dzisiejszy stan.
+
+Pełny port nadal **CZĘŚCIOWO**. Zamknięcie #697 nie dowodzi pełnego logowania,
+a dwie z trzech luk #370 mają już odbiór. Audyt doprecyzowuje D7 o własną
+paginację wyszukiwarki i oddziela prawdziwy zoom od deklaracji o DPR.
+Późniejsze dowody relacji, Podziękuj i PUT po 419 mają pierwszeństwo przed
+historycznymi brakami tych samych scenariuszy. Nie powtarzać zamkniętych pakietów.
+
 ## Co zostało — stan zweryfikowany 19 września 2026
 
 Pełny raport: [`POZOSTALE_LUKI_492.md`](POZOSTALE_LUKI_492.md).

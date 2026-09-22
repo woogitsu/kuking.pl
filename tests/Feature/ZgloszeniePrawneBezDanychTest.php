@@ -67,7 +67,7 @@ class ZgloszeniePrawneBezDanychTest extends TestCase
 
         $this->post(route('zglos.nielegalna.store'), $this->zgloszenie())
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+            ->assertRedirectContains(route('zglos.nielegalna.potwierdzenie').'?potwierdzenie=');
 
         $this->assertSame('Anna Kowalska', Report::query()->value('notifier_name'));
     }
@@ -82,7 +82,7 @@ class ZgloszeniePrawneBezDanychTest extends TestCase
             'notifier_email' => '',
         ]))
             ->assertSessionHasNoErrors()
-            ->assertRedirect(route('zglos.nielegalna.potwierdzenie'));
+            ->assertRedirectContains(route('zglos.nielegalna.potwierdzenie').'?potwierdzenie=');
 
         $zgloszenie = Report::query()->firstOrFail();
 

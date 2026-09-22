@@ -1,0 +1,129 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-decyzja-205-i-motyw-370
+Gałąź:            gpt/decyzja-205-i-motyw-370  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-decyzja-205-i-motyw-370
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-decyzja-205-i-motyw-370 --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Dwie sprawy wokół D-205 i D-217, obie wymagające przeczytania rejestru
+ZE ZROZUMIENIEM, nie samego grepa.
+
+CZĘŚĆ A — D-205 użyte dwukrotnie do dwóch różnych spraw
+`docs/DECISIONS.md` w repozytorium kanonicznym zawiera D-205 (linia w
+okolicy „Przyrząd kontroli ma sprawdzać źródło i udowadniać wykrycie
+regresji", PR #483) DOKŁADNIE RAZ — to zweryfikowane przez `grep -c
+"D-205" docs/DECISIONS.md`. Dokument STAN_SESJI_CZESC5.md
+(C:\Users\matma\Documents\kuking-flota\_wspolne\) powołuje się na
+etykietę „D-205" dwukrotnie, dla dwóch różnych sytuacji (raz przy #492,
+raz przy #370) — jako ogólną zasadę „wiarygodność przyrządu
+pomiarowego”, nie jako dwa osobne wpisy rejestru.
+Zadanie: przeczytaj oba miejsca w STAN_SESJI_CZESC5.md, gdzie pada
+„D-205", i oceń: czy to uprawnione powołanie się na tę samą zasadę w
+dwóch kontekstach, czy naciąganie decyzji tam, gdzie nie pasuje. Napisz
+wprost wniosek z cytatami obu miejsc. To NIE JEST błąd rejestru
+(w rejestrze jest jeden, spójny wpis) — jeśli coś tu wymaga poprawki, to
+raczej STAN_SESJI_CZESC5.md albo sposób, w jaki kolejne stanowiska go
+czytają. Nie edytuj docs/DECISIONS.md w tej części, bo tam nie ma błędu
+do poprawienia.
+
+CZĘŚĆ B — D-217 i skrypt cta-stanC.mjs (#370)
+D-217 w docs/DECISIONS.md dotyczy #370 (zgodnie z odniesieniem w
+STAN_SESJI_CZESC5.md, pkt 3). Skrypt
+`docs/design/evidence/tags370/cta-stanC.mjs` w repozytorium kanonicznym
+(linie ok. 19–46) ustawia motyw i skalę PRZEZ PRAWDZIWY FORMULARZ
+(`.szybki-wyglad`, `select#szybki-motyw`, submit), a potem odczytuje
+`data-theme`/`data-text-scale` z `<html>` po ponownym wejściu na stronę.
+STAN_SESJI_CZESC5.md sugeruje, że w komentarzu do #370 na GitHubie ktoś
+zarzucił, że motyw jest ustawiany „przez DOM” (czyli programowo, z
+pominięciem formularza) — co byłoby SPRZECZNE z tym, co robi skrypt.
+Ta druga połowa nie została zweryfikowana — treść komentarza na GitHubie
+nie była dostępna offline.
+Zadanie: `gh issue view 370 --repo woogitsu/kuking.pl --comments` (albo
+odpowiedni PR, jeśli #370 to PR) — znajdź DOKŁADNIE ten komentarz, zacytuj
+go i porównaj z tym, co skrypt naprawdę robi. Jeśli komentarz mówi coś
+innego niż sugeruje STAN_SESJI_CZESC5.md, popraw interpretację w swoim
+meldunku, nie w cudzym dokumencie. Jeśli komentarz faktycznie zarzuca
+manipulację przez DOM, a skrypt jej NIE robi (bo klika prawdziwy
+formularz) — to dowód jest OK i D-217 nie jest odwrócone; jeśli
+odwrotnie — ustal z historii commitów `docs/design/evidence/tags370/`,
+kiedy i dlaczego zmieniono metodę, i opisz to jako odwrócenie z datą i
+powodem, nie jako coś, co „zawsze tak działało".
+
+DOWÓD: treść komentarza z gh, SHA commitów zmieniających
+cta-stanC.mjs, cytaty z docs/DECISIONS.md. Jeśli `gh` nie ma dostępu do
+repo (uprawnienia, sieć) — napisz to wprost jako niepotwierdzone, nie
+zgaduj treści komentarza.
