@@ -102,12 +102,12 @@ class PostMediaController extends Controller
         if ($prostoZPublikacji) {
             return redirect()
                 ->to($post->url())
-                ->with('status', 'Opublikowane. Tak zobaczą ten wpis inni.');
+                ->with('status', 'Układ zdjęć zapisany.');
         }
 
         return redirect()
             ->route('posts.media.edit', $post)
-            ->with('status', 'Zapisane. Tak zobaczą ten wpis inni.');
+            ->with('status', 'Układ zdjęć zapisany.');
     }
 
     /**
