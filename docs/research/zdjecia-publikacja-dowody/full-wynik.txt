@@ -1,0 +1,4 @@
+  ✓ adres nigdzie nie udaje nazwanej encji                               0.10s
+
+  Tests:    4428 passed (83784 assertions)
+  Duration: 365.83s

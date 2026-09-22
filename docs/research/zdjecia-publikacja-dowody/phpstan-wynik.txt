@@ -1,0 +1,1 @@
+Note: Using configuration file /home/mateusz/flota/gpt-zdjecia-publikacja-run/phpstan.neon.
