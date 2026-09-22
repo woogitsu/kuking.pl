@@ -1,0 +1,16 @@
+{
+  "nazwa": "Flaga pytań we Wspomnieniach",
+  "plik": "app/Domain/Wspomnienia/Wspomnienia.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "55e7b073a1cfc16dd119a2e8d3ac4be5",
+  "md5_po_mutacji": "d576445f0f376671be1ed43a3f23ced6",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "does not contain \"Wyłączone pytanie",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:45:26Z"
+}

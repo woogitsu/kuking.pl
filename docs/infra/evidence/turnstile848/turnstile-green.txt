@@ -1,0 +1,106 @@
+﻿
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\LogowanieLinkiemTest[39m
+  [32;1m✓[39;22m[90m [39m[90mz kluczami turnstile wyslanie bez tokenu nie wysyla listu[39m[90m           [39m [90m0.60s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\PolitykaCspDopuszczaPowrotTurnstileTest[39m
+  [32;1m✓[39;22m[90m [39m[90mkazdy host turnstile ze script src i frame src jest tez w connect s[39m[90m…[39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mbez kluczy turnstile nie rozluznia polityki[39m[90m                         [39m [90m0.02s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\RozjazdyAudytuZgodnosciTest[39m
+  [32;1m✓[39;22m[90m [39m[90mpolityka wymienia kazdy formularz za turnstile[39m[90m                      [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\TurnstilePonowneWyslanieTest[39m
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/b[39m[90m…[39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/o[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/t[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "rejestracja/z[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/bra[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/odm[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/tab[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie/za[39m[90m… [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "cofniecie usu[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "odzyskanie ha[39m[90m…[39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "logowanie lin[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/brak"[39m[90m [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/odmow[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/tabli[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "kontakt/za dl[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90minstrukcja pasuje do pol po odrzuceniu with data set "zgloszenie ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mpomiar obejmuje wszystkie siedem miejsc[39m[90m                             [39m [90m0.01s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\TurnstileRozmiarIMotywTest[39m
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/login do[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/login li[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/login da[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/login ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/register[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/register[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/register[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/register[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/nie-pami[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/nie-pami[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/nie-pami[39m[90m…[39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/nie-pami[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/logowani[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/logowani[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/logowani[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/logowani[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/napisz-d[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/napisz-d[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/napisz-d[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/napisz-d[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/cofnij-u[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/cofnij-u[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/cofnij-u[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/cofnij-u[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/zglos-ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/zglos-ni[39m[90m…[39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/zglos-ni[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz ma waski widget w motywie strony with data set "/zglos-ni[39m[90m…[39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mwybor konta ma pierwszenstwo przed ciasteczkiem[39m[90m                     [39m [90m0.05s[39m  
+
+  [30;42;1m PASS [39;49;22m[39m Tests\Feature\TurnstileWymagaPotwierdzeniaTest[39m
+  [32;1m✓[39;22m[90m [39m[90mformularz przechodzi z prawidlowym tokenem[39m[90m                          [39m [90m0.17s[39m  
+  [32;1m✓[39;22m[90m [39m[90mrejestracja bez tokenu jest odrzucana ze zrozumialym komunikatem[39m[90m    [39m [90m0.14s[39m  
+  [32;1m✓[39;22m[90m [39m[90mlogowanie bez tokenu jest odrzucane ze zrozumialym komunikatem[39m[90m      [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90modzyskanie hasla bez tokenu nie wysyla listu[39m[90m                        [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mlogowanie linkiem bez tokenu nie wysyla listu[39m[90m                       [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mcofniecie usuniecia bez tokenu nie przywraca konta[39m[90m                  [39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mnapisz do nas bez tokenu nie zapisuje wiadomosci[39m[90m                    [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mzgloszenie dsa bez tokenu nie zapisuje sprawy[39m[90m                       [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mregula wywolana wprost z pustym tokenem odrzuca[39m[90m                     [39m [90m0.01s[39m  
+  [32;1m✓[39;22m[90m [39m[90mbrak tokenu i podrobiony token daja rozne komunikaty[39m[90m                [39m [90m0.23s[39m  
+  [32;1m✓[39;22m[90m [39m[90modrzucenie z braku tokenu zostawia slad w dzienniku[39m[90m                 [39m [90m0.13s[39m  
+  [32;1m✓[39;22m[90m [39m[90mformularz odrzuca token uznany przez cloudflare za nieprawidlowy[39m[90m    [39m [90m0.13s[39m  
+  [32;1m✓[39;22m[90m [39m[90mzuzyty albo wygasly token tez jest odrzucany[39m[90m                        [39m [90m0.11s[39m  
+  [32;1m✓[39;22m[90m [39m[90mgdy siteverify nie odpowiada formularz przechodzi[39m[90m                   [39m [90m0.15s[39m  
+  [32;1m✓[39;22m[90m [39m[90mgdy siteverify oddaje piecsetke formularz przechodzi[39m[90m                [39m [90m0.14s[39m  
+  [32;1m✓[39;22m[90m [39m[90mzly sekret nie zamyka rejestracji[39m[90m                                   [39m [90m0.13s[39m  
+  [32;1m✓[39;22m[90m [39m[90mbez kluczy widget i ostrzezenie o javascripcie nie sa renderowane[39m[90m   [39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mbez kluczy walidacja nie blokuje i nikogo nie pyta[39m[90m                  [39m [90m0.17s[39m  
+  [32;1m✓[39;22m[90m [39m[90mbez kluczy wyslanie bez tokenu dalej przechodzi[39m[90m                     [39m [90m0.12s[39m  
+  [32;1m✓[39;22m[90m [39m[90mwidget stoi na wszystkich formularzach publicznych[39m[90m                  [39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mnoscript stoi na wszystkich formularzach publicznych[39m[90m                [39m [90m0.04s[39m  
+  [32;1m✓[39;22m[90m [39m[90mlogowanie z podrobionym tokenem nie przechodzi[39m[90m                      [39m [90m0.03s[39m  
+  [32;1m✓[39;22m[90m [39m[90mwylaczenie jednego miejsca zdejmuje widget i walidacje[39m[90m              [39m [90m0.14s[39m  
+  [32;1m✓[39;22m[90m [39m[90mprodukcja bez kluczy melduje bledna konfiguracje[39m[90m                    [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mprodukcja z kluczami jest zdrowa[39m[90m                                    [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mpoza produkcja brak kluczy nie jest awaria[39m[90m                          [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mprodukcja z turnstile wylaczonym wszedzie jest zdrowa[39m[90m               [39m [90m0.02s[39m  
+  [32;1m✓[39;22m[90m [39m[90mpolityka wpuszcza widget dopiero z kluczami[39m[90m                         [39m [90m0.02s[39m  
+
+  [90mTests:[39m    [32;1m90 passed[39;22m[90m (1359 assertions)[39m
+  [90mDuration:[39m [39m4.39s[39m
+
