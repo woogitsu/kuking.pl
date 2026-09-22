@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Actions;
 
+use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\User;
 use Illuminate\Support\Facades\DB;
@@ -30,6 +31,14 @@ use Illuminate\Support\Facades\DB;
  */
 final class CancelAccountDeletion
 {
+    /**
+     * Wartość domyślna, tak samo jak w `EraseAccountData`: ta klasa bywa
+     * tworzona wprost (`new CancelAccountDeletion`), a rejestr potwierdzeń nie
+     * ma stanu ani zależności, więc wymaganie kontenera byłoby tu kosztem bez
+     * zysku.
+     */
+    public function __construct(private readonly RejestrPotwierdzenRodo $rejestr = new RejestrPotwierdzenRodo) {}
+
     public function handle(User $user): void
     {
         // Transakcja z blokadą, nie odczyt z argumentu: formularz i egzekutor
@@ -71,6 +80,20 @@ final class CancelAccountDeletion
             }
 
             $fresh->cancelDeletion();
+
+            // DOMKNIĘCIE SPRAWY W REJESTRZE RODO — W TEJ SAMEJ TRANSAKCJI,
+            // I TO JEST CAŁA WARTOŚĆ TEJ LINIJKI W TYM MIEJSCU.
+            //
+            // `cancelDeletion()` ZERUJE `delete_requested_at` (ADR_RETENCJE.md
+            // §3.1), więc po wyjściu z tej transakcji nie ma już w `users`
+            // żadnego śladu, że żądanie w ogóle wpłynęło. Gdyby potwierdzenie
+            // szło osobną transakcją, jej porażka zostawiłaby konto
+            // odzyskane, a rejestr ze sprawą wiecznie „w toku" — czyli dowód
+            // twierdzący coś innego niż stan faktyczny, dokładnie w sporze
+            // („nigdy nie prosiłem o usunięcie konta"), dla którego ten
+            // wiersz istnieje. Dowodzi tego
+            // `PotwierdzenieRodoIdzieWTejSamejTransakcjiTest`.
+            $this->rejestr->domknijJakoCofniete($fresh);
         });
     }
 }

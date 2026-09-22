@@ -197,3 +197,29 @@ Middleware nagłówków używa wspólnej klasyfikacji analityki do `no-referrer`
 na żądaniach z poświadczeniem w adresie. Sam brak beacona na pierwszej stronie
 nie chroni następnej. Zakres, formularze, lokalny test dwóch dokumentów
 i ograniczenia dowodu: [REFERRER_SEKRET_1052](infra/REFERRER_SEKRET_1052.md).
+
+## Harmonogram: jedno wykonanie na termin (#595)
+
+Każde zadanie w `routes/console.php` ma `->onOneServer()` obok
+`->withoutOverlapping()`. To nie jest przygotowanie pod skalowanie — replika
+serwisu jest dziś jedna i nikt jej nie zwielokrotnia.
+
+Powód jest zmierzony i dotyczy WDROŻENIA. Przy nakładaniu się starego i nowego
+kontenera oba mają własny harmonogram, więc `kuking:sprzataj-osierocone-zdjecia`
+i `kuking:policz-kolejki` **wykonały się dwa razy w jednej minucie**. Przy
+zadaniach kasujących dane to nie jest drobiazg.
+
+`withoutOverlapping()` tego nie zatrzymuje i nie wolno go tak czytać: jego
+blokada chroni przed dwoma przebiegami JEDNOCZEŚNIE i jest zwalniana, gdy
+przebieg się kończy. Drugi kontener, który wystartuje chwilę po pierwszym,
+zastaje ją wolną. `onOneServer()` bierze blokadę na TERMIN (zadanie + minuta)
+i trzyma ją do końca tej minuty, więc powtórzenie nie rusza.
+
+Blokady leżą we wspólnym cache PostgreSQL (`CACHE_STORE=database`, tabela
+`cache_locks`) — sterownik `database` implementuje `LockProvider`, więc działa
+to bez Redisa, którego AGENTS.md zabrania.
+
+To NIE zastępuje idempotencji samych operacji domenowych ani zadań kolejki.
+Strażnikiem jest `tests/Feature/HarmonogramJednegoSerweraTest.php`: sprawdza
+i sam plik (każde zadanie ma flagę), i zachowanie (drugi scheduler w tej samej
+minucie nie powtarza zakończonego zadania, a następny planowy termin nie ginie).
