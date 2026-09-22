@@ -74,7 +74,7 @@
                                 {{ $ingredient->ingredient_text }}
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
                                      tego sam w tekście składnika (issue #44).
-                                     DOPISEK JEST CELOWY I TYLKO TUTAJ (D-227): to widok
+                                     DOPISEK JEST CELOWY I TYLKO TUTAJ (D-232): to widok
                                      roboczy przy garnku, gdzie gołe „sól” wygląda jak
                                      brak informacji. Strona przepisu dopisku NIE daje
                                      i tak ma zostać — nie zbieraj tych wierszy w jeden. --}}

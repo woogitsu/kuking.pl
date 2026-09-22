@@ -15110,7 +15110,7 @@ zakresu statystyk o prywatne treści ani ranking.
 
 Dowody i granice odbioru: [pomiar tagów](research/tagi-miejsce-2026-09-20/RAPORT.md).
 
-## D-227 — Dopisek przy składniku bez ilości: dwa ekrany, dwa świadomie różne zachowania (#878, #764/#1197, #1222)
+## D-232 — Dopisek przy składniku bez ilości: dwa ekrany, dwa świadomie różne zachowania (#878, #764/#1197, #1222)
 
 22 września 2026, jawne rozstrzygnięcie właściciela w PR #1222. Strona
 przepisu i tryb gotowania traktują `no_amount` INACZEJ i tak ma zostać.
