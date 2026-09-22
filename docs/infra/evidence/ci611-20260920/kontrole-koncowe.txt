@@ -1,0 +1,28 @@
+
+   PASS  Tests\Feature\DokumentyMdNieMajaMartwychOdnosnikowTest
+  ✓ odnosniki markdown prowadza do istniejacych celow                    0.34s
+  ✓ trasy wspominane w dokumentach naprawde istnieja                     0.12s
+  ✓ parser zachowuje parametry rozszerzenia i odrzuca falszywe trasy     0.01s
+
+   PASS  Tests\Feature\PlikiWorkflowNieMajaPowtorzonychKluczyTest
+  ✓ zaden plik workflow nie ma powtorzonego klucza                       0.04s
+  ✓ skaner wykrywa duplikat dokladnie tego ksztaltu co awaria            0.01s
+  ✓ powtorzony klucz w dwoch roznych krokach nie jest bledem             0.01s
+
+   PASS  Tests\Feature\PortMarkiMaWlasnaBramkeCiTest
+  ✓ pomiary nie pobieraja historii ktora czyta tylko zakres              0.02s
+  ✓ zakres zachowuje historie do porownania z baza                       0.01s
+  ✓ obie grupy sa obowiazkowe a kreator ma przygotowana baze             0.01s
+  ✓ zmiana samego przyrzadu nie pomija pomiarow                          0.01s
+  ✓ job przegladarkowy nie moze byc zielony bez pomiaru                  0.01s
+  ✓ zakres wystawia oba wyjscia na kazdej sciezce                        0.01s
+  ✓ joby przegladarkowe nadal uruchamiaja pomiar                         0.01s
+
+   PASS  Tests\Feature\TestDymnyNieJestZielonyGdyNieChodziTest
+  ✓ nazwa srodowiska z railwaya sprowadza sie do production              0.09s
+  ✓ workflow obcina przedrostek projektu przed dopasowaniem              0.01s
+  ✓ pominiety test dymny konczy job niepowodzeniem                       0.01s
+  ✓ podsumowanie pokazuje wynik kroku a nie status calego joba           0.01s
+
+  Tests:    17 passed (176 assertions)
+  Duration: 1.64s

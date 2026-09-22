@@ -36,9 +36,9 @@ use Tests\TestCase;
  *
  *  2. Baza się NIE zmieniła. Wklejona lista daje tyle wierszy
  *     w `recipe_ingredients`, ile było niepustych linijek, W TEJ SAMEJ
- *     KOLEJNOŚCI — bo od tego zależy przeliczanie porcji i szukanie po
- *     składnikach. Znika wpisywanie po jednym w siedmiu polach, a nie
- *     struktura danych.
+ *     KOLEJNOŚCI. Szukanie po składnikach nadal czyta te same wiersze;
+ *     skalowanie porcji pozostaje niewdrożonym planem V2. Znika wpisywanie
+ *     po jednym w siedmiu polach, a nie struktura danych.
  *
  *  3. Liczba kontrolek na ekranie dodawania. ASERCJA NA LICZBĘ, nie na
  *     „wygląda prosto": bez niej za miesiąc znów będzie ich dwadzieścia,

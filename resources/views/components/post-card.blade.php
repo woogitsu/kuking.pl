@@ -527,7 +527,7 @@
             --}}
             @if($zapisy->czyZapisany($post))
                 {{--
-                    JEDNA DROGA WYJĘCIA NA EKRAN, NIGDY DWIE (D-225).
+                    JEDNA DROGA WYJĘCIA NA EKRAN, NIGDY DWIE (D-226).
 
                     Dwie prace powstały równolegle i obie miały rację:
                     #789 dało przycisk wyjęcia wszędzie tam, gdzie widać stan
@@ -592,7 +592,7 @@
                     </button>
                 </form>
             @endif
-            <x-wybor-zeszytu :action="route('collections.save-post', $post)" :wiersz="'wpis-'.$post->getKey()" />
+            <x-wybor-zeszytu :action="route('collections.save-post', $post)" :wiersz="'wpis-'.$post->getKey()" :content="$post" />
         @endauth
 
         {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).

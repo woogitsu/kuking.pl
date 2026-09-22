@@ -1,0 +1,22 @@
+0.006598	[kopia] ✓ katalog docelowy: /home/mateusz/flota/gpt-dr-baza-artifacts/20260920T173937Z/backup
+0.016327	[kopia] ✓ klucz publiczny w porządku (bez części prywatnej)
+0.026621	[kopia] pg_dump z postgresql://kuking@127.0.0.1:55439/kuking_flota_gpt_dr_baza_source …
+30.248678	[kopia] ✓ zrzut: kuking-20260920-173937Z.dump, 426731512 B, 30 s
+30.281086	[kopia] ✓ w zrzucie 50 tabel z danymi
+30.281215	[kopia] szyfruję (openssl cms)…
+32.273918	[kopia] ✓ zaszyfrowane: kuking-20260920-173937Z.dump.cms, 427148807 B (odcisk klucza DA66FC1EAF986811…)
+32.314879	[kopia] ✓ metadane: kuking-20260920-173937Z.meta
+32.314982
+32.314994	KOPIA POWSTAŁA.  /home/mateusz/flota/gpt-dr-baza-artifacts/20260920T173937Z/backup/kuking-20260920-173937Z.dump.cms
+32.315003
+32.315007	I DOPÓKI JEJ NIE ODTWORZYSZ, JEST OBIETNICĄ, NIE KOPIĄ.
+32.315014	Następny krok, teraz, nie kiedyś:
+32.315018	  scripts/proba-odtworzenia.sh --zrzut /home/mateusz/flota/gpt-dr-baza-artifacts/20260920T173937Z/backup/kuking-20260920-173937Z.dump.cms \
+32.315023	    --serwer "<DSN serwera, na którym wolno założyć bazę próbną>" \
+32.315043	    --klucz <klucz PRYWATNY>
+32.315068
+32.315077	Ćwiczysz lokalnie? Całą pętlę (kopia → odtworzenie → porównanie każdej
+32.315098	tabeli → migrate:status) robi jedna komenda:
+32.315123	  scripts/proba-odtworzenia.sh --petla-lokalna
+32.315132
+32.315152	Procedura krok po kroku: docs/infra/KOPIE_I_ODTWORZENIE.md §8

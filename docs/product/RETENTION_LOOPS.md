@@ -2,6 +2,17 @@
 
 > Rozwija `docs/PRODUCT.md` (North Star = Weekly Active Cooks) i `docs/SEO_ANALYTICS_GROWTH.md`. Zakłada mechaniki z `SOUL.md` i operacje z `COLD_START.md`.
 
+## Pierwszy wkład: zdarzenie jednorazowe (#1009)
+
+Powitanie pierwszego dostępnego wpisu ma jeden utrwalony nośnik na autora.
+Prywatne wpisy nie zużywają pierwszeństwa; followers kwalifikuje się tylko
+wtedy, gdy skonfigurowany gospodarz ma dostęp. Bez gospodarza kwalifikuje
+się publiczny wpis, ale nie wysyłamy alertu. Zmiana gospodarza, usunięcie
+powiadomienia lub wpisu nie rozpoczyna powitania ponownie. Panel nie nadaje
+pierwszeństwa kolejnemu wpisowi po odpowiedzi na pierwszy i nie pokazuje
+utrwalonego nośnika osobie bez dostępu. Odtworzenie historii nie wysyła
+zaległych alertów; brakujących fizycznie danych nie zgadujemy.
+
 ## 1. Zasada: powrót ma mieć powód, nie przypomnienie
 
 Trzy rodzaje powodów powrotu, w kolejności siły:

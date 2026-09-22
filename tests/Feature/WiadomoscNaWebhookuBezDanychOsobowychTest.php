@@ -127,7 +127,7 @@ class WiadomoscNaWebhookuBezDanychOsobowychTest extends TestCase
             'kind' => ContactMessage::KIND_BLAD,
             'message' => self::TRESC_WIADOMOSCI,
             'contact_email' => self::ADRES_CZLOWIEKA,
-        ])->assertRedirect(route('kontakt.potwierdzenie'));
+        ])->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
 
         $zapisana = ContactMessage::sole();
 
@@ -156,7 +156,7 @@ class WiadomoscNaWebhookuBezDanychOsobowychTest extends TestCase
         $this->post(route('kontakt.store'), [
             'kind' => ContactMessage::KIND_INNE,
             'message' => 'Chciałam tylko powiedzieć, że fajnie tu u Was.',
-        ])->assertRedirect(route('kontakt.potwierdzenie'));
+        ])->assertRedirectContains(route('kontakt.potwierdzenie').'?potwierdzenie=');
 
         $this->assertSame(1, ContactMessage::count());
     }

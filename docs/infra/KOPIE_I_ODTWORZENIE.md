@@ -1,5 +1,14 @@
 # Kopie zapasowe i odtworzenie
 
+> **Aktualizacja 20 IX 2026 — #594 / #193.** Duża lokalna próba została
+> wykonana: 5 504 654 wiersze, baza 2,75 GB, zrzut 30,22 s, odtworzenie
+> 56,94 s, kontrole skryptu 2,62 s i pełne porównanie treści 76,54 s.
+> [Karta poleceń i awarii w połowie](DR594_RUNBOOK_LOKALNY.md) oraz
+> [raport z dowodami](evidence/dr594/RAPORT.md). To **nie jest próba produkcyjna**.
+> Historyczne zdania poniżej o „zerze kopii”, planie Railway i braku R2
+> opisują wcześniejsze ustalenia; nie są aktualnym odczytem usług.
+> W tej sesji produkcji nie sprawdzano. Tabela produkcyjna §5 pozostaje pusta.
+
 **Dla kogo:** właściciel, w chwili gdy coś już poszło źle (albo raz, na sucho,
 zanim cokolwiek pójdzie źle).
 **Cel:** dać komendy i decyzje, nie lekturę. Kontekst i uzasadnienia
@@ -601,6 +610,19 @@ o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 | 11 IX 2026 | `scripts/kopia-lokalna.sh` + `scripts/proba-odtworzenia.sh` na lokalnej bazie po migracjach (PostgreSQL 16), z parą kluczy RSA generowaną w trakcie — pełny obieg: zrzut → weryfikacja → szyfrowanie kluczem publicznym → odszyfrowanie SAMYM kluczem prywatnym → `pg_restore` → sprawdzenie treści i zachowania | Zrzut 153 061 B, 49 tabel z danymi, szyfrogram 153 630 B. `pg_restore` bez błędu, **1-2 s**. Odtworzona baza: 49 tabel, 3 wyzwalacze (wszystkie włączone), 87 `CHECK`, 25 `UNIQUE`, 68 kluczy obcych. Cztery sondy zachowania odrzuciły zapis, a kontrola dodatnia go przyjęła. Kontrole ujemne oblały skrypt na: zrzucie 0 B, zrzucie pustej bazy, zrzucie bez wierszy, braku wyzwalacza, wyzwalaczu wyłączonym i **wyzwalaczu-atrapie** (obecnym, włączonym, z wypatroszoną funkcją) | Produkcyjnej bazy, serwera PostgreSQL **18**, prawdziwego R2 i prawdziwego zrzutu z bucketu. To jest pomiar MECHANIZMU, nie kopii: liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 | **17 IX 2026 — ĆWICZENIE LOKALNE** | `scripts/proba-odtworzenia.sh --petla-lokalna` na **odizolowanym klastrze PostgreSQL 18.6** (`127.0.0.1:55439`, `PGTZ=UTC`), na świeżej bazie po wszystkich migracjach z małym, kontrolowanym zestawem danych (5 kont, 15 wpisów, 30 komentarzy, 7 tagów, 10 przepisów, 10 ugotowań — **nie** `DemoSeeder`). Pełny obieg: kopia `scripts/kopia-lokalna.sh` → odtworzenie do **innej** bazy → porównanie każdej tabeli co do jednego wiersza → `migrate:status` → sondy zachowania | **Zrzut 164 897 B**, 50 tabel z danymi, `pg_dump`/`pg_restore` 18. Etapy: `CREATE DATABASE` 0,05 s, migracje ~7,5 s, dane ~2 s, zrzut <1 s, **`pg_restore` 2 s**, cała pętla 8 s. Odtworzona baza: 50 tabel, **192 wiersze = 192 w źródle**, 50/50 tabel zgodnych co do jednego wiersza, `migrate:status` 80 wykonanych / **0 czekających**, 3 wyzwalacze (włączone), 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Osobno sprawdzone poza skryptem: rozszerzenia `pg_trgm`, `unaccent`, `pgcrypto` obecne i działające (`%`, `unaccent()`), **25 indeksów częściowych** i 159 indeksów łącznie — tyle samo co w źródle; zapytania domenowe Eloquenta na odtworzonej bazie zwróciły to samo. Strefa sesji **UTC po obu stronach**; `md5` z `(id, created_at)` tabeli `users` identyczny w źródle i w celu | Produkcyjnej bazy, prawdziwego R2 i zrzutu pobranego z bucketu. **To NIE JEST produkcyjne RTO** — 2 s to czas odtworzenia 192 wierszy na pętli lokalnej, bez pobierania pliku i bez odszyfrowania. **RPO nie jest tu w ogóle mierzalne**: nie ma harmonogramu ani ani jednej udanej kopii produkcyjnej, z której dałoby się policzyć wiek danych. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 | **18 IX 2026 — PIERWSZY PRZEBIEG W KONTENERZE, NA PRAWDZIWYM API S3** | `docker build` obrazu `docker/kopia/Dockerfile`, a potem CAŁA ścieżka produkcyjna z tego kontenera: żywa baza PostgreSQL 18.6 → `pg_dump` → `openssl cms` kluczem publicznym → **PUT na prawdziwy serwer S3** (MinIO `RELEASE.2025-09-07` w kontenerze, w miejscu R2) → **GET tego obiektu z bucketu** → odszyfrowanie kluczem prywatnym → `pg_restore` → weryfikacja. Bucket założony **własnym `docker/kopia/s3.sh`**, czyli podpis SigV4 sprawdzony wobec działającej implementacji S3, nie tylko wobec wektorów AWS. Odtworzenie przez `scripts/proba-odtworzenia.sh --instancja <odcisk> --scisle` | Obraz **buduje się**; w środku `pg_dump`/`pg_restore`/`psql` **18.6** (Debian 13), `openssl` 3.5.7, `curl` 8.14.1, kontener chodzi jako `postgres` (uid 999). Cała kopia **0,55 s**: wersje 0,03 s · listowanie bucketu 0,04 s · `pg_dump` **0,06 s / 166 276 B** · `pg_restore --list` 0,02 s · szyfrowanie **0,01 s / 167 159 B** (+883 B narzutu CMS) · PUT szyfrogramu, PUT `.meta` i HEAD potwierdzający rozmiar razem **0,10 s** · retencja 0,04 s. Pobranie obiektu z bucketu **0,035 s**. Odszyfrowanie i `pg_restore` poniżej sekundy każde. Odtworzona baza: **50 tabel, 202 wiersze = 202 w źródle**, 50/50 tabel co do jednego wiersza, `migrate:status` **80 wykonanych / 0 czekających**, 3 wyzwalacze, 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Poza skryptem porównane ze źródłem i **zgodne co do jednego**: rozszerzenia (`pg_trgm` 1.6, `pgcrypto` 1.4, `unaccent` 1.1, `plpgsql` 1.0), 159 indeksów, **25 indeksów częściowych**, 92 indeksy unikalne, 111 kluczy głównych, 8 sekwencji, 75 funkcji, `md5` definicji wszystkich kolumn, `md5` treści `users` i `posts`, strefa sesji UTC po obu stronach | **Produkcji — ani bazy, ani R2.** MinIO stoi w miejscu R2 i mówi tym samym protokołem, ale to nie jest Cloudflare: nie sprawdzono ani jurysdykcji, ani polityk bucketu, ani tokenów R2. Baza źródłowa jest lokalna i ma 202 wiersze, więc **żadna z tych liczb nie jest produkcyjnym RTO**. Lokalny klaster stoi na `trust`, więc ten przebieg **nie dowodzi uwierzytelniania hasłem** — dowodzi, że hasło nie wychodzi w argumentach. **RPO nadal niemierzalne**: nie ma harmonogramu. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+
+**Uzupełnienie §5.1 — własny pomiar 20 IX 2026:**
+`scripts/kopia-lokalna.sh` → szyfrowanie CMS/RSA →
+`scripts/proba-odtworzenia.sh --scisle --zostaw` na PostgreSQL 18.6,
+`127.0.0.1:55439`. Źródło 2 747 324 095 B, zrzut 426 731 512 B,
+szyfrogram 427 148 807 B. Zrzut **30,22 s**, odtworzenie **56,94 s**,
+weryfikacja skryptu **2,62 s**, dodatkowa weryfikacja całej treści **76,54 s**.
+50/50 tabel i **5 504 654 wiersze** zgodne; 82 migracje / 0 czekających.
+Utrata jednego komentarza daje kod 63, podmiana treści bez zmiany licznika
+zmienia manifest tylko `comments`, uszkodzony szyfrogram daje kod 44 przed
+utworzeniem celu. Szczegóły, ograniczenia, rozdzielenie czasów i artefakty:
+[raport](evidence/dr594/RAPORT.md). Nie zmierzono produkcyjnego RPO ani RTO,
+nie uruchomiono `kopia-bazy`, nie połączono się z produkcją ani R2.
 
 ### 5.2 Co pozostaje do wykonania na produkcji — odczyt panelu 17 IX 2026
 

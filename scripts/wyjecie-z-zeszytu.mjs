@@ -1,7 +1,7 @@
 /*
  * =============================================================================
  *  Kuking.pl — pomiar przycisku wyjęcia wpisu z zeszytu na karcie (audyt L1,
- *  po ujednoliceniu dwóch dróg — D-225)
+ *  po ujednoliceniu dwóch dróg — D-226)
  * =============================================================================
  *
  *  PO CO TO JEST
@@ -186,7 +186,7 @@ const POMIAR = () => {
   };
 
   /*
-   * JEDEN SELEKTOR NA OBIE DROGI WYJĘCIA (D-225).
+   * JEDEN SELEKTOR NA OBIE DROGI WYJĘCIA (D-226).
    *
    * Ten sam przycisk nazywa się inaczej w zależności od zakresu: w środku
    * zeszytu „Usuń z tego zeszytu" (`wyjmij-z-tego-zeszytu`), poza nim
@@ -304,7 +304,7 @@ try {
       sprawdz(p.wyjmij.pismo >= PROG_TEKST,
         `${wariant.nazwa} · ${ekran.nazwa}: pismo w przycisku ma ${p.wyjmij.pismo} px, próg to ${PROG_TEKST}.`);
       // Przerwa ma sens tylko tam, gdzie odnośnik „Masz to w zeszycie" w ogóle
-      // stoi — czyli POZA zeszytem (D-225). W zeszycie przycisk jest jedyną
+      // stoi — czyli POZA zeszytem (D-226). W zeszycie przycisk jest jedyną
       // rzeczą w tym miejscu paska i nie ma się z czym stykać.
       sprawdz(p.stan === null || p.przerwaOdStanu > 0,
         `${wariant.nazwa} · ${ekran.nazwa}: przycisk kasujący styka się z „Masz to w zeszycie" (${p.przerwaOdStanu} px).`);

@@ -1,0 +1,147 @@
+=============================================================================
+ USUNIĘCIE MARTWYCH DEKLARACJI `.przepis-liczba` — DOWÓD Z POMIARU
+ 20.09.2026, stanowisko `martwe-kaskady`, runtime WSL, PostgreSQL 127.0.0.1:55439
+ Baza pomiarowa: kuking_audyt_martwe_kaskady (własna, zasiana DemoSeederem)
+=============================================================================
+
+CO USUNIĘTO (resources/css/app.css, warstwa `components`)
+  .przepis-liczba      padding: var(--spacing-3)     border-radius: var(--radius-md)
+  .przepis-liczba span font-size: var(--text-help)
+
+KTO TO PRZYKRYWAŁ (resources/css/marka-ekrany.css, warstwa `marka`)
+  .przepis-liczba      padding: var(--spacing-4)     border-radius: var(--radius-lg)
+  .przepis-liczba span font-size: var(--text-body)
+
+`@layer theme, base, components, marka, utilities` — warstwa późniejsza bije
+wcześniejszą niezależnie od swoistości. `data-marka` stoi na `<body>` na sztywno
+(`components/layout.blade.php`), bez flagi i bez warunku, więc warstwa `marka`
+obowiązuje zawsze.
+
+-----------------------------------------------------------------------------
+A. POMIAR WŁASNY PRZED USUNIĘCIEM — strażnik kaskady na całym selektorze
+   bash scripts/kaskada-kontrola-polecenie.sh '.przepis-liczba'
+-----------------------------------------------------------------------------
+Kolejność warstw zmierzona w przeglądarce:
+  properties < theme < base < components < marka < utilities < (kod poza warstwami)
+Konfiguracji zmierzonych: 72
+Reguł z nosicielem: 15656. Deklaracji przepytanych kaskadowo: 8952
+Zawężenie objęło 7 reguł z nosicielem.
+
+✗ MARTWE REGUŁY — reguł: 2, a w nich deklaracji: 3
+
+  .przepis-liczba
+      warstwa components — martwe własności: padding, border-radius
+      przykrywa: warstwa marka, `.przepis-liczba`
+      martwa w 12/12 zbadanych konfiguracjach
+
+  .przepis-liczba span
+      warstwa components — martwe własności: font-size
+      przykrywa: warstwa marka, `.przepis-liczba span`
+      martwa w 12/12 zbadanych konfiguracjach
+
+Kod wyjścia: 1.
+
+To jest POWTÓRZENIE pomiaru przejętego od stanowiska `kaskada` (D-223), wykonane
+od zera na własnym runtime i własnej bazie. Wynik zgadza się co do reguły,
+własności i liczby 12/12. Dopiero po tym cokolwiek usunięto.
+
+-----------------------------------------------------------------------------
+B. ODCISK PRZED / PO — dowód, że usunięcie jest NIEWIDOCZNE
+   docs/design/evidence/martwe-liczby/odcisk-liczb.mjs
+-----------------------------------------------------------------------------
+Zakres odcisku: 2 przepisy (`rosol-babci-zofii` — wszystkie trzy kafle,
+`chleb-pszenno-zytni-na-zakwasie`) × 8 szerokości (320, 360, 480, 481, 768, 769,
+1024, 1280 — po obu stronach progów 30rem/48rem/64rem z `marka-ekrany.css`)
+× 2 motywy (jasny, ciemny) × 3 ustawienia pisma (bez, profil 140 %,
+korzeń 24 px) = 96 konfiguracji.
+
+Na konfigurację: nosiciel siatki, trzy kafle i wszystkie ich dzieci — 23 węzły.
+Na węzeł: KOMPLET `getComputedStyle` (641 własności) plus geometria
+`getBoundingClientRect` do setnej piksela i przepełnienia scroll*/client*.
+
+  sha256 przed.json  e0bba6afa5a80303e1890dc3328193548fe76c48112846f286f41b6b985e1837
+  sha256 po.json     19cb5311cf3f09aca0abf081fafdebf02caf6a5ee489db105012ffe0c9adc391
+
+  Konfiguracji w odcisku PRZED: 96, PO: 96
+  Węzłów porównanych: 2208. Wartości wyliczonych porównanych: 1415328.
+
+  ✓ ODCISKI IDENTYCZNE — ta sama geometria i te same wartości wyliczone przed i po.
+  Kod wyjścia: 0.
+
+UX 50+ — osobno sprawdzone, bo to był warunek zadania: podpis kafla
+(`.przepis-liczba span`) ma `font-size: 18px` PRZED usunięciem i `18px` PO.
+Usunięcie `var(--text-help)` niczego nie zmniejszyło — wartość i tak pochodziła
+z `var(--text-body)` w warstwie `marka`. Próg „tekst ≥ 18 px" nietknięty.
+
+-----------------------------------------------------------------------------
+C. KONTROLA DODATNIA PRZYRZĄDU Z PUNKTU B
+   „Odciski identyczne" nic nie znaczy, dopóki nie wiadomo, że ten przyrząd
+   w ogóle umie zobaczyć różnicę tej wielkości.
+-----------------------------------------------------------------------------
+Mutacja ŻYWEJ deklaracji (runtime, `marka-ekrany.css`, warstwa `marka`):
+  .przepis-liczba { padding: var(--spacing-4) }  →  { padding: var(--spacing-3) }
+
+To jest DOKŁADNIE ta zmiana, którą usunięta deklaracja wywołałaby, GDYBY żyła:
+`--spacing-3` to 12 px, `--spacing-4` to 16 px.
+
+  sha256 kontrola-dodatnia.json
+         98d224250ba6bb3b1917c46fad0e9372e4500d9e95ba67fc150fd20a2be6a18e
+
+  ✗ RÓŻNICA (6664), m.in.:
+    li.przepis-liczba[0]: padding-top: "16px" → "12px"
+    li.przepis-liczba[0]: height: "83.2812px" → "75.2812px"
+    li.przepis-liczba[0]: inline-size: "196px" → "188px"
+    ul.przepis-liczby:    block-size: "281.844px" → "257.844px"
+  Kod wyjścia: 1.
+
+Przywrócenie: `cmp` z kopią sprzed mutacji — identyczne bajt w bajt.
+Mutacja szła WYŁĄCZNIE na runtime; worktree nietknięty.
+
+Wniosek: przyrząd z punktu B widzi zmianę tej właśnie wielkości i na tych
+właśnie węzłach. Zieleń w punkcie B nie jest zerem przebranym za dowód.
+
+-----------------------------------------------------------------------------
+D. POMIAR WŁASNY PO USUNIĘCIU — strażnik na CAŁYM selektorze
+   bash scripts/kaskada-kontrola-polecenie.sh '.przepis-liczba'
+-----------------------------------------------------------------------------
+Konfiguracji zmierzonych: 72
+Reguł z nosicielem: 15656. Deklaracji przepytanych kaskadowo: 8916
+Zawężenie objęło 7 reguł z nosicielem   ← tyle samo co przed usunięciem,
+                                          więc zieleń NIE wzięła się stąd,
+                                          że zawężenie przestało cokolwiek obejmować
+
+✓ Żadna reguła z wcześniejszej warstwy nie jest całkowicie przykryta przez
+  późniejszą (poza wyjątkami).
+Kod wyjścia: 0.
+
+ZAKRES STRAŻNIKA POSZERZONY: domyślne zawężenie w
+`scripts/kaskada-kontrola-polecenie.sh` to od teraz `.przepis-liczba`,
+a nie `.przepis-liczba svg`.
+
+-----------------------------------------------------------------------------
+E. KONTROLA UJEMNA NA POSZERZONYM ZAKRESIE
+   bash scripts/kaskada-kontrola-ujemna.sh
+-----------------------------------------------------------------------------
+  plik:      resources/css/marka-przepis.css
+  MD5 przed: ecc442a60b07922afbe9031b7283b1df
+  oczekuję:  martwe własności: color
+
+  ✓ 1/4  Test przechodzi na nietkniętym źródle.
+  ✓ 2/4  Mutacja weszła: 1 podmian,
+         MD5 ecc442a60b07922afbe9031b7283b1df → e66bf71435c5de1ba56331521af5c24c
+  ✓ 3/4  Test oblał Z OCZEKIWANEGO POWODU — „martwe własności: color”.
+  ✓ 4/4  Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+  ✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+  Kod wyjścia: 0.
+
+Przebieg wykonany z poprawką SIGPIPE PRZENIESIONĄ NA TĘ GAŁĄŹ
+(`scripts/kontrola-ujemna.sh`, `grep -qE … <<<` zamiast `printf … | grep -q`),
+a nie nałożoną na sam runtime. Ta kontrola ujemna rusza z tej gałęzi
+samodzielnie, bez `narzedzia/kontrola-ujemna-v2` pod spodem.
+
+-----------------------------------------------------------------------------
+CZEGO TU NIE MA
+-----------------------------------------------------------------------------
+Surowe odciski (`przed.json`, `po.json`, `kontrola-dodatnia.json`) mają po 63 MB
+i NIE są w repozytorium. Zostają sumy sha256 wyżej i przyrząd, który odtwarza je
+z drzewa: `npx vite build`, potem `odcisk-liczb.mjs`.

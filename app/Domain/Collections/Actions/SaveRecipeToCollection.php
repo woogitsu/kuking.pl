@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Recipe;
 use App\Models\User;
 use Illuminate\Database\UniqueConstraintViolationException;
+use Illuminate\Support\Facades\DB;
 
 /**
  * "Zapisuję" — dodanie przepisu do zeszytu.
@@ -23,6 +24,14 @@ final class SaveRecipeToCollection
     public function __construct(private readonly NotifyUser $notify) {}
 
     public function handle(User $user, Recipe $recipe, ?Collection $collection = null, ?string $note = null): Collection
+    {
+        // Oba skutki są zapisami tej samej bazy (#907). Istniejące powiązanie
+        // jest znacznikiem zakończenia: zatwierdzamy je razem z powiadomieniem.
+        // Nie sprawdzamy istnienia wiadomości, którą mogła usunąć retencja.
+        return DB::transaction(fn (): Collection => $this->saveWithNotification($user, $recipe, $collection, $note));
+    }
+
+    private function saveWithNotification(User $user, Recipe $recipe, ?Collection $collection, ?string $note): Collection
     {
         $collection ??= $user->defaultCollection();
 
@@ -54,10 +63,10 @@ final class SaveRecipeToCollection
         }
 
         try {
-            $collection->recipes()->attach($recipe->getKey(), [
+            DB::transaction(fn () => $collection->recipes()->attach($recipe->getKey(), [
                 'note' => $note,
                 'created_at' => now(),
-            ]);
+            ]));
         } catch (UniqueConstraintViolationException) {
             // Dwa kliknięcia potrafią wejść RÓWNOCZEŚNIE — wtedy oba przechodzą
             // sprawdzenie wyżej i drugie odbija się o klucz główny. Dla
@@ -103,7 +112,7 @@ final class SaveRecipeToCollection
             return $collection->recipes()->detach($recipe->getKey()) > 0 ? 1 : 0;
         }
 
-        // ODDAJEMY LICZBĘ ZESZYTÓW, Z KTÓRYCH NAPRAWDĘ WYJĘTO (D-225).
+        // ODDAJEMY LICZBĘ ZESZYTÓW, Z KTÓRYCH NAPRAWDĘ WYJĘTO (D-226).
         //
         // Komunikat po akcji nazywa zakres („wyjęty z 3 Twoich zeszytów"),
         // a nazwać go da się tylko licząc FAKTYCZNE odpięcia — nie liczbę

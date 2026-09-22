@@ -110,7 +110,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
     }
 
     /**
-     * ZMIENIONY ŚWIADOMIE PRZY UJEDNOLICANIU (D-225).
+     * ZMIENIONY ŚWIADOMIE PRZY UJEDNOLICANIU (D-226).
      *
      * W pierwotnej postaci ta scena wymagała na stronie przepisu
      * `<details class="confirm">`, czyli pytania „czy na pewno" PRZED
@@ -161,7 +161,7 @@ final class UsuniecieZZeszytuMaZakresTest extends TestCase
 
     /**
      * Zakres lokalny nazywa zeszyt po imieniu, a „Zapisz ponownie" wraca
-     * DOKŁADNIE TAM, skąd wyjęto — nie do zeszytu domyślnego (D-225).
+     * DOKŁADNIE TAM, skąd wyjęto — nie do zeszytu domyślnego (D-226).
      */
     public function test_powrot_po_usunieciu_lokalnym_wraca_do_tego_samego_zeszytu(): void
     {
