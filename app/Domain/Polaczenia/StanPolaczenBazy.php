@@ -168,9 +168,9 @@ final class StanPolaczenBazy
     {
         // Jedno zapytanie do `pg_settings` zamiast trzech `SHOW`: `SHOW`
         // rzuca błędem na nieznanej nazwie, a `reserved_connections` istnieje
-        // dopiero od PostgreSQL 16. Repozytorium dopuszcza 16+, ale skrypt
-        // odtworzenia bywa uruchamiany także na starszym serwerze i wtedy
-        // brak tej nazwy nie ma prawa wywrócić pomiaru.
+        // dopiero od PostgreSQL 16. Repozytorium wymaga 18+, więc na własnym
+        // sprzęcie ta nazwa jest, ale skrypt odtworzenia bywa uruchamiany także
+        // na starszym serwerze i wtedy jej brak nie ma prawa wywrócić pomiaru.
         $wiersze = $polaczenie->select(
             "SELECT name, setting FROM pg_settings
              WHERE name IN ('max_connections', 'superuser_reserved_connections', 'reserved_connections')",
