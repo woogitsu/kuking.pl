@@ -116,7 +116,8 @@ php artisan serve
 ```
 
 Konta demo: `basia@example.test`, `marek@example.test`, `ania@example.test`,
-moderator `moderacja@example.test` — hasło `haslo-testowe-123`.
+moderator `moderacja@example.test`. Hasło ustawia `KUKING_DEMO_HASLO`;
+bez tej zmiennej seeder losuje je na każdy przebieg i wypisuje na koniec.
 
 ### Testy i kontrola przed wysłaniem
 

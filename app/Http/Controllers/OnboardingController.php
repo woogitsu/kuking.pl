@@ -93,7 +93,12 @@ class OnboardingController extends Controller
      */
     public function people(Request $request): View
     {
-        $phrase = trim((string) $request->query('q', ''));
+        // Ten sam kontrakt co na `/szukaj` (issue #738): parametr GET może
+        // być tablicą (`q[]=...`). Nie wolno rzutować go na tekst, bo PHP
+        // zgłasza wtedy „Array to string conversion”, a ekran kończy na 500.
+        // Nietekstowe `q` znaczy dokładnie to samo co brak frazy.
+        $qSurowe = $request->query('q', '');
+        $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
 
         // Ten sam próg co `SearchController` — MUSI się zgadzać z tym,
         // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
@@ -139,9 +144,45 @@ class OnboardingController extends Controller
         $request->validate([
             'follow' => ['nullable', 'array', 'max:20'],
             'follow.*' => ['string'],
+            // `oczekiwani[nazwa] => id` — patrz niżej. Ten sam sufit co na
+            // `follow`: to lista sparowana z tamtą, nie osobne wejście.
+            'oczekiwani' => ['nullable', 'array', 'max:20'],
+            'oczekiwani.*' => ['string'],
         ]);
 
         $user = $request->user();
+
+        // NAZWA UŻYTKOWNIKA W FORMULARZU TO NIE AUTORYZACJA (#793).
+        //
+        // Ten krok wskazuje osoby NAZWAMI (`follow[]`), a nazwę da się
+        // zwolnić zmianą w Ustawieniach i od razu ponownie zająć —
+        // `UsernameNotTaken` sprawdza tylko aktualne zajęcie, nie historię.
+        // Ekran onboardingu potrafi stać otwarty bardzo długo (to jest krok,
+        // który ludzie przerywają i wracają do niego), więc okno między
+        // wyrenderowaniem listy a jej wysłaniem jest tu SZERSZE niż
+        // gdziekolwiek indziej. A jedno żądanie zakłada relacje z wieloma
+        // osobami naraz, więc pomyłka nie jest pojedyncza, tylko seryjna.
+        //
+        // `SocialController::assertToTaSamaOsoba()` nie da się tu użyć:
+        // tamta metoda broni JEDNEJ osoby wskazanej adresem trasy, a tu
+        // wskazań jest wiele i żadne nie jest w adresie. Kształt jest za to
+        // ten sam — ukryte pole z identyfikatorem osoby widzianej w chwili
+        // renderowania, sparowane z nazwą, i OPCJONALNE (starsze wywołania
+        // i istniejące testy go nie wysyłają).
+        //
+        // Klucze po `mb_strtolower`, bo `Profile::poNazwie()` nie rozróżnia
+        // wielkości liter — inaczej para rozjeżdżałaby się na samym zapisie
+        // nazwy i ochrona po cichu przestawałaby działać.
+        $oczekiwani = [];
+
+        foreach ($request->input('oczekiwani', []) as $nazwa => $id) {
+            $oczekiwani[mb_strtolower((string) $nazwa)] = (string) $id;
+        }
+
+        // Nazwy, które między wyrenderowaniem a wysłaniem zmieniły
+        // właściciela. Człowiek MUSI o nich usłyszeć: cicho pominięte
+        // zaznaczenie wygląda dokładnie jak zaznaczenie, którego nie było.
+        $zmieniloWlasciciela = [];
 
         foreach ($request->input('follow', []) as $username) {
             // Bez rozróżniania wielkości liter, tak samo jak profil
@@ -149,6 +190,14 @@ class OnboardingController extends Controller
             $target = Profile::poNazwie($username)?->user;
 
             if ($target === null) {
+                continue;
+            }
+
+            $oczekiwanyId = $oczekiwani[mb_strtolower((string) $username)] ?? null;
+
+            if ($oczekiwanyId !== null && (string) $target->getKey() !== $oczekiwanyId) {
+                $zmieniloWlasciciela[] = (string) $username;
+
                 continue;
             }
 
@@ -167,7 +216,20 @@ class OnboardingController extends Controller
             }
         }
 
-        return redirect()->route('onboarding.done');
+        $dalej = redirect()->route('onboarding.done');
+
+        if ($zmieniloWlasciciela === []) {
+            return $dalej;
+        }
+
+        // Komunikat mówi, CO ZROBIĆ, a nie tylko że coś poszło nie tak
+        // (docs/UX_50_PLUS.md). Onboarding się NIE cofa i nie gubi reszty
+        // zaznaczeń — pozostałe osoby są już zaobserwowane, a ta jedna
+        // wymaga świadomego powtórzenia wyboru, bo to już ktoś inny.
+        return $dalej->with('status', count($zmieniloWlasciciela) === 1
+            ? 'Nazwa „'.$zmieniloWlasciciela[0].'” należy teraz do innej osoby, więc jej nie zaobserwowaliśmy. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować tę osobę, znajdź ją w wyszukiwarce i kliknij „Obserwuj” na jej profilu.'
+            : 'Te nazwy należą teraz do innych osób, więc ich nie zaobserwowaliśmy: '.implode(', ', $zmieniloWlasciciela).'. Resztę zaznaczeń zapisaliśmy. Jeśli nadal chcesz obserwować te osoby, znajdź je w wyszukiwarce i kliknij „Obserwuj” na ich profilach.',
+        );
     }
 
     public function done(Request $request): View

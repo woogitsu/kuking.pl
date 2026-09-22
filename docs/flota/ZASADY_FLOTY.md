@@ -52,7 +52,7 @@ Skrót, który i tak trzeba znać:
    gałąź `flota/<twoje>`, odgałęziona od świeżego `main` (`534e0a51`).
 2. Testy uruchamiasz **w WSL**, nie na Windows. **Przedrostek `MSYS_NO_PATHCONV=1`
    jest obowiązkowy** — bez niego Git Bash przerabia `/mnt/c/…` na
-   `C:/Program Files/Git/mnt/c/…` i skrypt „nie istnieje":
+   `C:\Program Files\Git\mnt\c\…` i skrypt „nie istnieje":
    ```
    MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh <twoje>
    MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh <twoje> --filter TwojTest
