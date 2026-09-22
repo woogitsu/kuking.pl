@@ -15438,3 +15438,22 @@ Dowody: `scripts/bezpiecznik-bazy.test.mjs` (10 przypadków) wciągane do
 `php artisan test` przez `tests/Feature/BezpiecznikBazyPomiarowejTest.php`
 oraz do `scripts/check.sh`.
 
+### Druga strona kontraktu: to, co podaje przyrządom `scripts/check.sh` (22 września 2026)
+
+Bezpiecznik odmawia rodzinie `kuking_test*`, a `check.sh` dalej wołał
+`DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs` i
+`DB_DATABASE=kuking_test_wydajnosc node scripts/wydajnosc.mjs`. Po tej decyzji
+`./scripts/check.sh --dostepnosc` i `--wydajnosc` odmawiałyby więc startu. CI
+tego nie widzi, bo oba kroki stoją pod flagą. Kroki idą teraz na bazy
+domyślne obu skryptów, `kuking_a11y` i `kuking_wydajnosc`. Pilnuje tego test
+„check.sh nie podaje zadnemu przyrzadowi bazy z rodziny chronionej” w
+`scripts/bezpiecznik-bazy.test.mjs`: pyta o każdą nazwę tę samą funkcję
+`rodzinaChroniona()`, o którą pyta bezpiecznik.
+
+Przy okazji wyrównana jest lista rodzin jednorazowych. PHP
+(`scripts/fixtures/baza-pomiarowa.php`) znał `kuking_port_*`, a JS nie. To
+jedna reguła w dwóch językach, więc obie listy są teraz równe.
+
+Oba braki znalazła równoległa sesja scalania (komentarz pod #966). Gałąź
+pary, #960 (krok 3c-bis: strażnik kaskady na bazie zasianej przez axe),
+potrzebuje tej samej zmiany nazwy bazy, gdy obie gałęzie spotkają się na `main`.

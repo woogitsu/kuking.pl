@@ -178,7 +178,7 @@ if [ "$SPRAWDZ_DOSTEPNOSC" -ne 1 ]; then
     printf "  Pominięte: uruchom './scripts/check.sh --dostepnosc' przy zmianach w widokach\n"
 elif [ ! -d node_modules/@axe-core ]; then
     printf "  Pominięte: brak @axe-core/playwright (npm install)\n"
-elif DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; then
+elif DB_DATABASE=kuking_a11y node scripts/dostepnosc.mjs >/dev/null 2>&1; then
     ok "Zero naruszeń critical i serious, strona nie przewija się w bok"
 else
     zle "Naruszenia dostępności albo przewijanie w bok — szczegóły: node scripts/dostepnosc.mjs (i storage/dostepnosc.json)"
@@ -199,7 +199,7 @@ if [ "$SPRAWDZ_WYDAJNOSC" -ne 1 ]; then
     printf "  Pominięte: uruchom './scripts/check.sh --wydajnosc' przy zmianach w widokach\n"
 elif [ ! -d node_modules/lighthouse ]; then
     printf "  Pominięte: brak paczki 'lighthouse' (npm install — do zrobienia przez właściciela)\n"
-elif DB_DATABASE=kuking_test_wydajnosc node scripts/wydajnosc.mjs >/dev/null 2>&1; then
+elif DB_DATABASE=kuking_wydajnosc node scripts/wydajnosc.mjs >/dev/null 2>&1; then
     ok "Wydajność i SEO powyżej progów na wszystkich mierzonych ekranach"
 else
     zle "Wydajność albo SEO poniżej progu — szczegóły: node scripts/wydajnosc.mjs (i storage/wydajnosc.json)"

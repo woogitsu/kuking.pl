@@ -30,7 +30,7 @@ declare(strict_types=1);
  * a tam, gdzie `.git` nie ma wcale, od ścieżki katalogu — której nie da się
  * zapomnieć zmienić, bo bez niej nie byłoby czego uruchomić.
  */
-require __DIR__.'/nazwa-bazy.php';
+require_once __DIR__.'/nazwa-bazy.php';
 
 $kuking_baza_testowa = getenv('DB_DATABASE');
 

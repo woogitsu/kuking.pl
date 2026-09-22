@@ -25,7 +25,7 @@ import { readdirSync, readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
+import { rodzinaChroniona, ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
 
 const KATALOG = dirname(fileURLToPath(import.meta.url));
 const DOMYSLNA = 'kuking_kafel_pomiar';
@@ -169,3 +169,44 @@ test('kazdy skrypt robiacy migrate:fresh wola bezpiecznik', () => {
         + bezBezpiecznika.join('\n  '),
     );
 });
+
+/**
+ * DRUGA STRONA KONTRAKTU (D-241): to, CO podaje przyrządom `scripts/check.sh`.
+ *
+ * Bezpiecznik odmawia rodzinie `kuking_test*`, a `check.sh` przez dobę dalej
+ * wołał `DB_DATABASE=kuking_test_a11y node scripts/dostepnosc.mjs` —
+ * `./scripts/check.sh --dostepnosc` i `--wydajnosc` odmawiały więc startu.
+ * CI tego nie widzi, bo oba kroki stoją pod flagą. Test czyta każde
+ * `DB_DATABASE=… node|bash scripts/…` z `check.sh` i pyta o nazwę tę samą
+ * funkcję, o którą pyta bezpiecznik.
+ */
+test('check.sh nie podaje zadnemu przyrzadowi bazy z rodziny chronionej', () => {
+    const skrypt = bezKomentarzyPowloki(readFileSync(join(KATALOG, 'check.sh'), 'utf8'));
+    const wywolania = [...skrypt.matchAll(/DB_DATABASE=([a-z0-9_]+)\s+(?:node|bash)\s+(scripts\/\S+)/g)]
+        .map(([, baza, przyrzad]) => ({ baza, przyrzad }));
+
+    // Pułapka 2 z docs/PULAPKI_TESTOW.md: zero trafień byłoby zielone i nic
+    // by nie znaczyło. Axe i Lighthouse stoją w check.sh zawsze.
+    assert.ok(wywolania.length >= 2, `Skan check.sh znalazł ${wywolania.length} wywołań — sprawdza pustkę.`);
+
+    // Kontrola ujemna na tej samej funkcji: stara nazwa MUSI się zapalić.
+    assert.ok(rodzinaChroniona('kuking_test_a11y'), 'rodzinaChroniona() przestała rozpoznawać kuking_test_*');
+
+    const zakazane = wywolania
+        .filter(({ baza }) => rodzinaChroniona(baza))
+        .map(({ baza, przyrzad }) => `${przyrzad} dostaje ${baza}`);
+
+    assert.deepEqual(zakazane, [], 'check.sh podaje przyrządom bazy, których bezpiecznik nie wpuści:\n  '
+        + zakazane.join('\n  '));
+});
+
+/** `kuking_port_*` jest rodziną jednorazową także w PHP (scripts/fixtures/baza-pomiarowa.php). */
+test('przyjmuje rodzine baz portowych tak samo jak fixture PHP', () => {
+    for (const nazwa of ['kuking_port_referrer', 'kuking_port_panel']) {
+        assert.equal(ustal(nazwa), nazwa);
+    }
+});
+
+function bezKomentarzyPowloki(tresc) {
+    return tresc.split('\n').filter((linia) => !/^\s*#/.test(linia)).join('\n');
+}

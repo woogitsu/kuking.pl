@@ -66,8 +66,27 @@ const RODZINY_CHRONIONE = [
     { wzor: /^(postgres|template0|template1)$/, czym: 'baza systemowa PostgreSQL-a' },
 ];
 
-/** Ogólna rodzina baz jednorazowych, niezwiązana z konkretnym skryptem. */
-const RODZINY_JEDNORAZOWE = [/_pomiar$/, /^kuking_qa_/];
+/**
+ * Rodzina chroniona, do której należy nazwa bazy, albo `undefined`.
+ * Wydzielone, żeby test mógł zapytać o to samo, o co pyta bezpiecznik,
+ * także nazwy baz podawane przyrządom w `scripts/check.sh`.
+ * @param {string} nazwa
+ * @returns {{wzor: RegExp, czym: string} | undefined}
+ */
+export function rodzinaChroniona(nazwa) {
+    const porownywana = String(nazwa).toLowerCase();
+
+    return RODZINY_CHRONIONE.find(({ wzor }) => wzor.test(porownywana));
+}
+
+/**
+ * Ogólna rodzina baz jednorazowych, niezwiązana z konkretnym skryptem.
+ * Ta sama lista co `KUKING_RODZINY_JEDNORAZOWE` w
+ * scripts/fixtures/baza-pomiarowa.php — jedna reguła w dwóch językach (D-241).
+ * `kuking_port_*` to bazy portowe z `ci.yml` (`kuking_port_panel`,
+ * `kuking_port_referrer`).
+ */
+const RODZINY_JEDNORAZOWE = [/_pomiar$/, /^kuking_qa_/, /^kuking_port_/];
 
 /**
  * Ustala nazwę bazy pomiarowej albo ODMAWIA startu.
@@ -113,7 +132,7 @@ export function ustalBazePomiarowa({ domyslna, skrypt, srodowisko = process.env 
         );
     }
 
-    const chroniona = RODZINY_CHRONIONE.find(({ wzor }) => wzor.test(porownywana));
+    const chroniona = rodzinaChroniona(porownywana);
 
     if (chroniona) {
         throw new Error(
@@ -137,7 +156,7 @@ export function ustalBazePomiarowa({ domyslna, skrypt, srodowisko = process.env 
             + '`migrate:fresh`.\n'
             + '  Wpuszczam wyłącznie: bazę domyślną tego skryptu '
             + `(„${domyslna}"), jej wariant („${domyslna}_cos") albo nazwę `
-            + 'z rodziny jednorazowych („…_pomiar", „kuking_qa_…").\n'
+            + 'z rodziny jednorazowych („…_pomiar", „kuking_qa_…", „kuking_port_…").\n'
             + `    DB_DATABASE=${domyslna}_moja node ${skrypt || 'scripts/…mjs'}`,
         );
     }
