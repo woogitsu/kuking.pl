@@ -13,14 +13,14 @@
         <form method="POST" action="{{ route('settings.security.password') }}">
             @csrf @method('PUT')
 
-            <x-field name="current_password" label="Obecne hasło" type="password" required
+            <x-field name="current_password" wiersz="zmiana" label="Obecne hasło" type="password" required
                      autocomplete="current-password" />
 
-            <x-field name="password" label="Nowe hasło" type="password" required
+            <x-field name="password" wiersz="zmiana" label="Nowe hasło" type="password" required
                      autocomplete="new-password"
                      help="Co najmniej 10 znaków. Najprościej połączyć myślnikami trzy swoje słowa, na przykład: parasol-wtorek-cebula. Wymyśl własne, nie przepisuj tych z przykładu." />
 
-            <x-field name="password_confirmation" label="Powtórz nowe hasło" type="password" required
+            <x-field name="password_confirmation" wiersz="zmiana" label="Powtórz nowe hasło" type="password" required
                      autocomplete="new-password" />
 
             <p class="field-help mt-3">
@@ -49,11 +49,9 @@
         <form method="POST" action="{{ route('settings.security.logout-others') }}">
             @csrf
 
-            {{-- `id` JAWNIE, bo wyżej na tej samej stronie stoi drugie pole
-                 `name="password"` („Nowe hasło" w formularzu zmiany hasła).
-                 Bez tego oba miały `id="f-password"`, a kliknięcie tej
-                 etykiety przenosiło fokus do tamtego formularza. --}}
-            <x-field name="password" id="f-wyloguj-inne-haslo" label="Wpisz swoje hasło" type="password" required
+            {{-- Kontekst rozdziela błędy obu formularzy i ich odnośniki.
+                 Kontroler zachowuje tylko nazwę akcji, nigdy hasło. --}}
+            <x-field name="password" wiersz="wyloguj" label="Wpisz swoje hasło" type="password" required
                      autocomplete="current-password"
                      help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
 

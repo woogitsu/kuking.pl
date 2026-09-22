@@ -340,9 +340,9 @@
         JSON, a my nie renderujemy niczego surowego.
     --}}
     {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
-         adres e-mail (`/nowe-haslo/{token}?email=…`). Beacon melduje pełny
-         adres strony, więc bez tego warunku żywy żeton resetu hasła trafiałby
-         do cudzego panelu — uzasadnienie w komentarzu tamtej metody. --}}
+         adres e-mail (`/nowe-haslo/{token}?email=…`). Odczytany beacon usuwa
+         query, ale zostawia ścieżkę. Osobny nagłówek no-referrer chroni
+         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie. --}}
     @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"

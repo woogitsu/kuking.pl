@@ -1,0 +1,16 @@
+{
+  "nazwa": "content_analysis",
+  "plik": "app/Jobs/PrzeanalizujTresc.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "b47a772282393f57b4ce77843c031529",
+  "md5_po_mutacji": "544ebbe9d2c508e4773960289f200ad9",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Not to contain: CONTROLLED_FOREIGN_EXCEPTION",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T19:37:44Z"
+}

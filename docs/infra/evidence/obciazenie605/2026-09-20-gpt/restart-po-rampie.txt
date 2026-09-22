@@ -1,0 +1,17 @@
+2026-09-20T18:31:33Z
+curl: (28) Operation timed out after 5002 milliseconds with 0 bytes received
+before http=000 seconds=5.002784
+curl_exit=28
+container-state running oom=false restarts=0
+low 0
+high 0
+max 1520
+oom 0
+oom_kill 0
+oom_group_kill 0
+kuking-gpt-obciazenie-app
+curl: (7) Failed to connect to 127.0.0.1 port 8605 after 0 ms: Could not connect to server
+curl: (7) Failed to connect to 127.0.0.1 port 8605 after 0 ms: Could not connect to server
+2026-09-20T18:31:51Z
+after http=200 seconds=0.533632
+curl_exit=0

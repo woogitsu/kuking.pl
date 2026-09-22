@@ -315,15 +315,18 @@ class NumerSprawyTest extends TestCase
         ]);
 
         $zgloszenie = Report::query()->sole();
+        $odpowiedz->assertRedirect();
+        $this->withCookie(config('session.cookie'), session()->getId());
+        $ekran = $this->get($odpowiedz->headers->get('Location'))->assertOk();
 
         $this->assertSame(
             $zgloszenie->numer_sprawy,
-            $odpowiedz->getSession()->get('numer'),
+            $ekran->viewData('numer'),
             'Ekran potwierdzenia pokazuje inny numer, niż stoi w wierszu sprawy.',
         );
 
         // I ten sam numer musi być widoczny na ekranie — nie tylko w sesji.
-        $this->followRedirects($odpowiedz)->assertSee((string) $zgloszenie->numer_sprawy);
+        $ekran->assertSee((string) $zgloszenie->numer_sprawy);
     }
 
     public function test_kazda_droga_przez_model_daje_numer_a_baza_pilnuje_reszty(): void

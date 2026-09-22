@@ -1,0 +1,28 @@
+  ✓ adres nigdzie nie udaje nazwanej encji                               0.11s
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\DokumentyMdNieMajaMartwychOdnosnikowTest > odnosnik…
+  Martwe odnośniki markdown:
+docs/infra/MAPA_CI_611.md: [raporcie wykonania](evidence/ci611-20260920/WERYFIKACJA.md) -> brak pliku „docs/infra/evidence/ci611-20260920/WERYFIKACJA.md”
+Failed asserting that two arrays are identical.
+  -Array &0 []
+  +Array &0 [
+  +    0 => 'docs/infra/MAPA_CI_611.md: [raporcie wykonania](evidence/ci611-20260920/WERYFIKACJA.md) -> brak pliku „docs/infra/evidence/ci611-20260920/WERYFIKACJA.md”',
+  +]
+
+
+  at tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php:300
+    296▕             $sprawdzone,
+    297▕             'Sprawdzono podejrzanie mało odnośników markdown — zła ścieżka skanowania?',
+    298▕         );
+    299▕
+  ➜ 300▕         $this->assertSame([], $martwe, "Martwe odnośniki markdown:\n".implode("\n", $martwe));
+    301▕     }
+    302▕
+    303▕     #[Test]
+    304▕     public function test_trasy_wspominane_w_dokumentach_naprawde_istnieja(): void
+
+  1   tests/Feature/DokumentyMdNieMajaMartwychOdnosnikowTest.php:300
+
+
+  Tests:    1 failed, 4394 passed (83710 assertions)
+  Duration: 481.95s

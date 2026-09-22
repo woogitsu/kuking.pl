@@ -1,0 +1,19 @@
+
+   PASS  Tests\Feature\JednoDekodowanieZdjeciaTest
+  ✓ jedno dekodowanie zachowuje bajty wszystkich wariantow
+
+   PASS  Tests\Feature\MediaUploadTest
+  ✓ plik z falszywym rozszerzeniem jest odrzucany                        0.60s
+  ✓ zbyt duzy plik daje komunikat z konkretnym limitem                   0.03s
+  ✓ zdjecie o zbyt duzych wymiarach jest odrzucane                       0.06s
+  ✓ nazwa pliku od uzytkownika nie trafia do sciezki                     0.13s
+  ✓ nowe zdjecie nie jest gotowe do pokazania przed przetworzeniem       0.05s
+  ✓ przetworzenie generuje warianty i oznacza zdjecie jako gotowe        0.28s
+
+   PASS  Tests\Feature\UploadLimitsAgreementTest
+  ✓ budzet zdjec z configu miesci sie w post max size z zapasem          0.01s
+  ✓ pojedyncze zdjecie miesci sie w upload max filesize                  0.01s
+  ✓ max file uploads pozwala na tyle plikow ile max per post             0.01s
+
+  Tests:    10 passed (353 assertions)
+  Duration: 4.71s
