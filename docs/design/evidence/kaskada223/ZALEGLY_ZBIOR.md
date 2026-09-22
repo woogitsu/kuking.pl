@@ -39,9 +39,10 @@ w samym strażniku, i on nie wchodzi do tych 173.
 
 1. **Pełny skan bez zawężenia.** `node scripts/kaskada-martwe-reguly.mjs` (bez
    `--tylko`, bez `--szybko`) w runtime WSL, PostgreSQL `127.0.0.1:55439`, baza
-   `kuking_audyt_kaskada223` po `migrate:fresh --seed` (nosiciel
-   `/przepisy/rosol-babci-zofii` sprawdzony przed skanem — bez zasianej bazy
-   wynik jest pusty i wygląda jak sukces).
+   `kuking_audyt_kaskada223` po `migrate:fresh --seed` (nosiciel — strona
+   przepisu `/przepisy/{recipe}`, w tej bazie egzemplarz o slugu
+   `rosol-babci-zofii` z `DemoSeeder` — sprawdzony przed skanem; bez zasianej
+   bazy wynik jest pusty i wygląda jak sukces).
    Zmierzone: **144 konfiguracje** (6 stron × 12 szerokości × 2 motywy),
    31 480 reguł z nosicielem, 17 856 deklaracji przepytanych kaskadowo.
    Kolejność warstw odczytana z przeglądarki:
