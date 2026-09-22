@@ -132,6 +132,12 @@ new class extends Component
 
     public string $saveMessage = '';
 
+    /** Licznik zmian wysłanych z przeglądarki i ostatniej obsłużonej wersji formularza. */
+    public int $editRevision = 0;
+
+    #[Locked]
+    public int $acknowledgedRevision = 0;
+
     /** Licznik stabilnych kluczy wierszy — bez nich zmiana kolejności gubi treść pól. */
     public int $rowCounter = 0;
 
@@ -331,7 +337,7 @@ new class extends Component
 
     public function removeStep(int $index): void
     {
-        $this->steps = $this->withoutRow($this->steps, $index);
+        $this->replaceSteps($this->withoutRow($this->steps, $index));
 
         if ($this->steps === []) {
             $this->steps = [$this->blankStep()];
@@ -342,14 +348,36 @@ new class extends Component
 
     public function moveStepUp(int $index): void
     {
-        $this->steps = $this->swapRows($this->steps, $index, $index - 1);
+        $this->replaceSteps($this->swapRows($this->steps, $index, $index - 1));
         $this->saveDraft();
     }
 
     public function moveStepDown(int $index): void
     {
-        $this->steps = $this->swapRows($this->steps, $index, $index + 1);
+        $this->replaceSteps($this->swapRows($this->steps, $index, $index + 1));
         $this->saveDraft();
+    }
+
+    /** Zmiana pozycji przenosi również błędy; usunięcie zabiera tylko błędy usuwanego kroku. */
+    private function replaceSteps(array $rows): void
+    {
+        $positions = array_column($rows, null, '_key');
+        $newIndexes = array_flip(array_keys($positions));
+        $errors = [];
+
+        foreach ($this->getErrorBag()->getMessages() as $field => $messages) {
+            if (preg_match('/^steps\.(\d+)\.(.+)$/', $field, $match)) {
+                $key = $this->steps[(int) $match[1]]['_key'] ?? null;
+                if ($key === null || ! isset($newIndexes[$key])) {
+                    continue;
+                }
+                $field = 'steps.'.$newIndexes[$key].'.'.$match[2];
+            }
+            $errors[$field] = $messages;
+        }
+
+        $this->steps = $rows;
+        $this->setErrorBag($errors);
     }
 
     // -----------------------------------------------------------------
@@ -372,6 +400,8 @@ new class extends Component
 
     public function saveDraft(): bool
     {
+        $this->acknowledgedRevision = $this->editRevision;
+
         if ($this->savedThisRequest) {
             return $this->saveState === 'saved';
         }
@@ -540,9 +570,7 @@ new class extends Component
         $recipe = Recipe::find($this->recipeId);
 
         if ($recipe === null) {
-            $this->recipeId = null;
-
-            return null;
+            throw new BladDlaCzlowieka('Ten przepis nie jest już dostępny. Skopiuj wpisany tekst, zanim opuścisz formularz.');
         }
 
         Gate::authorize('update', $recipe);
@@ -1024,7 +1052,9 @@ new class extends Component
 };
 ?>
 
-<div class="stack">
+<div class="stack"
+     x-data="{ revision: $wire.editRevision }"
+     x-on:input="$wire.editRevision = ++revision">
     {{-- ------------------------------------------------------------------
          Wskaźnik kroku. Tekst „Krok 2 z 3” + nazwa kroku, nie same kropki
          (docs/design/DESIGN_SYSTEM.md → WizardSteps).
@@ -1047,27 +1077,32 @@ new class extends Component
     {{-- Plakietka autosave. aria-live="polite", żeby czytnik ekranu ogłosił
          „Szkic zapisany.” bez przerywania pisania. --}}
     <div aria-live="polite">
-        <p class="autosave-badge" data-state="{{ $saveState }}"
-           wire:loading.remove wire:target="saveDraft, next, back, publish, addIngredient, addStep, removeIngredient, removeStep">
-            @if($saveMessage === '' && $juzOpublikowany)
-                Zmiany zapisują się po drodze.
-            @elseif($saveMessage === '')
-                {{-- STAN POCZĄTKOWY MÓWI O WARUNKU, A NIE O SAMEJ AUTOMATYCE.
+        <div wire:loading.remove>
+            <p class="autosave-badge" data-state="{{ $saveState }}"
+               x-show="revision <= $wire.acknowledgedRevision">
+                @if($saveMessage === '' && $juzOpublikowany)
+                    Zmiany zapisują się po drodze.
+                @elseif($saveMessage === '')
+                    {{-- STAN POCZĄTKOWY MÓWI O WARUNKU, A NIE O SAMEJ AUTOMATYCE.
 
-                     Stało tu bezwarunkowe „Szkic zapisuje się sam" i było to
-                     nieprawdą dokładnie w tym jednym momencie, w którym ta
-                     plakietka jest widoczna: `saveDraft()` bez nazwy przepisu
-                     NIE ZAPISUJE NICZEGO (warunek `mb_strlen(trim($title)) < 3`
-                     wyżej), a pusty `$saveMessage` znaczy właśnie „jeszcze nic
-                     się nie zapisało". Po pierwszym udanym zapisie stoi tu już
-                     „Szkic zapisany.". --}}
-                Szkic zapisze się, kiedy podasz nazwę przepisu.
-            @else
-                {{ $saveMessage }}
-            @endif
-        </p>
+                         Stało tu bezwarunkowe „Szkic zapisuje się sam" i było to
+                         nieprawdą dokładnie w tym jednym momencie, w którym ta
+                         plakietka jest widoczna: `saveDraft()` bez nazwy przepisu
+                         NIE ZAPISUJE NICZEGO (warunek `mb_strlen(trim($title)) < 3`
+                         wyżej), a pusty `$saveMessage` znaczy właśnie „jeszcze nic
+                         się nie zapisało". Po pierwszym udanym zapisie stoi tu już
+                         „Szkic zapisany.". --}}
+                    Szkic zapisze się, kiedy podasz nazwę przepisu.
+                @else
+                    {{ $saveMessage }}
+                @endif
+            </p>
+            <p class="autosave-badge" data-state="waiting" x-cloak x-show="revision > $wire.acknowledgedRevision">
+                Zmiany czekają na zapis.
+            </p>
+        </div>
         <p class="autosave-badge" data-state="saving"
-           wire:loading wire:target="saveDraft, next, back, publish, addIngredient, addStep, removeIngredient, removeStep">
+           wire:loading>
             Zapisywanie…
         </p>
     </div>
