@@ -145,6 +145,82 @@ class TabelaStackuMowiPrawdeTest extends TestCase
 
     private const MIN_WIERSZY_SPRAWDZALNYCH = 8;
 
+    /**
+     * KSZTAŁT PIĄTY: NAZWA W KOLUMNIE „WYBÓR", KTÓREJ W TYM PROJEKCIE NIE MA.
+     *
+     * Test wyżej sprawdza TRZECIĄ kolumnę — czy lokalizator wskazuje rzecz,
+     * która istnieje. Nie ma jak sprawdzić DRUGIEJ: wiersz
+     *
+     *     | Wyszukiwarka | PostgreSQL FTS + `pg_trgm` + `unaccent` | w repozytorium: …migracja rozszerzeń |
+     *
+     * przechodził tamten test bez mrugnięcia, bo plik migracji ISTNIEJE —
+     * a `to_tsvector`, `tsvector`, `tsquery` i `ts_rank` nie padają w tym
+     * repozytorium ANI RAZ (audyt 15.09.2026, §4.2). Wiersz ogłaszał więc
+     * technikę, której tu nie ma, w wierszu BEZPOŚREDNIO POD tym, na którym
+     * ta sama pomyłka kosztowała już projekt trzy pliki i wpis w dzienniku
+     * decyzji („Monitoring | Sentry", D-104).
+     *
+     * DLACZEGO LISTA NIEOBECNYCH, A NIE SZUKANIE ŚLADU W KODZIE. Naturalny
+     * odruch — „skoro wiersz mówi FTS, niech `grep` znajdzie `tsvector`" —
+     * sprawdziłem i ODRZUCIŁEM: `grep -ri sentry` po `app/`, `config/`
+     * i `resources/` daje DZIEWIĘĆ plików, wszystkie komentarze tłumaczące,
+     * że Sentry'ego tu NIE MA. Test szukający śladu byłby więc zielony
+     * dokładnie w tym przypadku, dla którego by powstał, a filtr odsiewający
+     * komentarze przecieka na kontynuacjach bloków `/** … *\/`.
+     * To jest pułapka 2 z `docs/PULAPKI_TESTOW.md` w czystej postaci.
+     *
+     * Lista nieobecnych jest dokładna i nie da się jej oszukać: albo słowo
+     * stoi w komórce, albo nie stoi.
+     *
+     * JAK TA LISTA NIE ZGNIJE. Każdy wpis niesie pakiety, po których poznamy,
+     * że rzecz JEDNAK weszła do projektu. Gdy któryś z nich pojawi się
+     * w `composer.json` albo `package.json`, test oblewa z poleceniem
+     * USUNIĘCIA wpisu — więc lista nie może przeżyć własnej nieprawdy
+     * i nie zablokuje prawdziwego wdrożenia.
+     *
+     * Wpis bez pakietów (FTS — to funkcja PostgreSQL, nie zależność) takiego
+     * zamka mieć nie może. Kto wdroży FTS, skasuje ten wpis ręcznie i to jest
+     * świadomy koszt, nie przeoczenie.
+     *
+     * @var array<string, array{powod: string, pakiety: list<string>}>
+     */
+    private const NAZWY_KTORYCH_TU_NIE_MA = [
+        'FTS' => [
+            'powod' => 'D-004 świadomie odrzuciło stemming i FTS: dla polskiego '
+                .'w Postgresie słownika nie ma, a `pg_trgm` + `unaccent` radzą sobie '
+                .'z odmianą i brakiem diakrytyków lepiej. Wyszukiwarka pyta '
+                .'`word_similarity()` z progiem 0,5 (D-046), nie `@@ to_tsquery()`.',
+            'pakiety' => [],
+        ],
+        'Sentry' => [
+            'powod' => 'D-041 i D-104: Sentry jest ZAMIAREM, nie stanem. Nie ma go '
+                .'w `composer.json`, nie ma `config/sentry.php`, a `SENTRY_LARAVEL_DSN` '
+                .'jest przewleczone przez `.env.example` i nieczytane przez ani jedną '
+                .'linijkę PHP. Zamiar mieszka w `docs/ROADMAP.md` §0.',
+            'pakiety' => ['sentry/sentry-laravel', 'sentry/sdk'],
+        ],
+        'Redis' => [
+            'powod' => 'AGENTS.md §3 „Zakaz overengineeringu" wymienia Redisa '
+                .'„na przyszłość" wprost. Kolejka i cache stoją na PostgreSQL.',
+            'pakiety' => ['predis/predis', 'ext-redis'],
+        ],
+        'Scout' => [
+            'powod' => 'D-004: wyszukiwarka stoi na PostgreSQL, bez Scouta '
+                .'i bez osobnego silnika.',
+            'pakiety' => ['laravel/scout'],
+        ],
+        'Meilisearch' => [
+            'powod' => 'AGENTS.md §3: osobny silnik wyszukiwania bez zmierzonej '
+                .'potrzeby jest zakazany (D-004).',
+            'pakiety' => ['meilisearch/meilisearch-php'],
+        ],
+        'Typesense' => [
+            'powod' => 'AGENTS.md §3: osobny silnik wyszukiwania bez zmierzonej '
+                .'potrzeby jest zakazany (D-004).',
+            'pakiety' => ['typesense/typesense-php'],
+        ],
+    ];
+
     public function test_kazdy_wiersz_tabeli_stacku_wskazuje_rzecz_ktora_istnieje(): void
     {
         $wiersze = $this->wierszeTabeli(
@@ -290,6 +366,76 @@ class TabelaStackuMowiPrawdeTest extends TestCase
      * Tamten mówi „tabela obiecuje rzecz, której nie ma", ten „dwie kopie
      * tabeli mówią co innego".
      */
+    public function test_kolumna_wybor_nie_oglasza_rzeczy_ktorych_w_projekcie_nie_ma(): void
+    {
+        $wiersze = $this->wierszeTabeli(
+            $this->trescPliku('AGENTS.md'),
+            self::WZORZEC_SEKCJI_AGENTS,
+            self::NAGLOWEK_AGENTS,
+        );
+
+        $this->assertGreaterThanOrEqual(
+            self::MIN_WIERSZY,
+            count($wiersze),
+            'W tabeli stacku (AGENTS.md §3) widać tylko '.count($wiersze).' wierszy, '
+            .'a spodziewamy się co najmniej '.self::MIN_WIERSZY.'. Skan pustej tabeli '
+            .'nie znajdzie żadnej nazwy i ten test byłby zielony zawsze — to usterka '
+            .'TEGO TESTU, nie AGENTS.md.',
+        );
+
+        $manifesty = array_merge(
+            $this->kluczeManifestu('composer.json', ['require', 'require-dev']),
+            $this->kluczeManifestu(
+                'package.json',
+                ['dependencies', 'devDependencies', 'optionalDependencies'],
+            ),
+        );
+
+        $oglaszane = [];
+        $juzWdrozone = [];
+
+        foreach (self::NAZWY_KTORYCH_TU_NIE_MA as $nazwa => $wpis) {
+            foreach ($wpis['pakiety'] as $pakiet) {
+                if (isset($manifesty[$pakiet])) {
+                    $juzWdrozone[] = '„'.$nazwa.'" jest już w projekcie — pakiet `'
+                        .$pakiet.'` stoi w manifeście. USUŃ ten wpis z '
+                        .'NAZWY_KTORYCH_TU_NIE_MA (i dopisz wiersz do tabeli stacku, '
+                        .'jeśli go tam jeszcze nie ma). Ta lista pilnuje wyłącznie '
+                        .'rzeczy NIEOBECNYCH i nie wolno jej blokować prawdziwego '
+                        .'wdrożenia.';
+                }
+            }
+
+            foreach ($wiersze as [$warstwa, $wybor, $gdzie]) {
+                if (preg_match('/\b'.preg_quote($nazwa, '/').'\b/i', $wybor) !== 1) {
+                    continue;
+                }
+
+                $oglaszane[] = 'wiersz „'.$warstwa.'" ogłasza w kolumnie „Wybór" '
+                    .'nazwę „'.$nazwa.'", a tej rzeczy w projekcie NIE MA. '
+                    .$wpis['powod'];
+            }
+        }
+
+        $this->assertSame(
+            [],
+            $juzWdrozone,
+            "Lista NAZWY_KTORYCH_TU_NIE_MA zdezaktualizowała się:\n\n · "
+            .implode("\n\n · ", $juzWdrozone),
+        );
+
+        $this->assertSame(
+            [],
+            $oglaszane,
+            "Tabela stacku w AGENTS.md §3 ogłasza rzecz, której w projekcie nie ma:\n\n · "
+            .implode("\n\n · ", $oglaszane)
+            ."\n\nCzego NIE robić: usuwać nazwy z listy NAZWY_KTORYCH_TU_NIE_MA, żeby "
+            .'test zamilkł. Wpis wychodzi z niej DOPIERO razem z wdrożeniem rzeczy, '
+            .'którą opisuje. Tabela nosi nagłówek „Stack” i odpowiada na pytanie „co '
+            .'TU JEST”; zamiary mieszkają w docs/ROADMAP.md i docs/DECISIONS.md (D-104).',
+        );
+    }
+
     public function test_kopia_tabeli_w_readme_zgadza_sie_z_agents(): void
     {
         $wAgents = array_map(
