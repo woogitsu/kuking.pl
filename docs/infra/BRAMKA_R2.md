@@ -413,6 +413,14 @@ wyjątkiem, nie cichym `false`. Człowiek ma zobaczyć polski komunikat, a nie
   honoruje — nie jest zmierzone i wymaga prawdziwego bucketu.
 - **Stary, jeden bucket (`r2_legacy`).** Publiczności nie zdejmujemy, dopóki
   `kuking:przenies-zdjecia` nie dojdzie do końca.
+- **Zgodność wierszy `media` z zawartością bucketów (#1031).** Bramka patrzy na
+  konfigurację i na to, co bucket oddaje na zewnątrz — **nie** sprawdza, czy
+  plik, na który wskazuje wiersz w bazie, w ogóle istnieje. Do tego jest osobny,
+  wyłącznie odczytujący raport: `php artisan kuking:sprawdz-zdjecia-po-przenosinach`.
+  Warto go puścić przed migracją bucketów (#619) i po niej. Powód, dla którego
+  w ogóle powstał: do 22.09.2026 `kuking:przenies-zdjecia` uznawało brakujący
+  plik za poprawnie przeniesiony i przestawiało `disk` — wiersz wypadał wtedy
+  z kolejki migracji i nic już go nie znajdowało.
 - **Lokalizacja danych (#619).** Sprawdzenie 12 rozstrzyga jurysdykcję
   bucketów, po które sięga aplikacja. Nie widzi bucketu kopii bazy (#193),
   przyszłej kwarantanny (#602) ani Location Hintu — te zostają do odczytania

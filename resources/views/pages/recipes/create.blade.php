@@ -22,7 +22,8 @@
 
     BAZA SIĘ NIE ZMIENIA. Oba pola tekstowe serwer rozbija z powrotem na
     `recipe_ingredients` i `recipe_steps` (`App\Domain\Recipes\TekstNaWiersze`),
-    więc przeliczanie porcji i szukanie po składnikach działają dalej.
+    więc szukanie po składnikach nadal czyta te same wiersze.
+    Skalowanie porcji pozostaje niewdrożonym planem V2.
 
     RESZTA NIE ZNIKA, TYLKO PRZESTAJE STAĆ NA DRODZE. Krótko o przepisie,
     porcje, czasy, trudność, „po kim", historia, rok, źródło, grupy

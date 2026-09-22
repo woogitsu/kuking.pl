@@ -194,7 +194,7 @@ final class OcenaModelem
             // bajtów — to jest cudza fotografia, a dziennik błędów nie jest
             // miejscem na treści użytkowników.
             Log::warning('Nie udało się przygotować zdjęcia do oceny modelem.', [
-                'blad' => $blad->getMessage(),
+                ...ExceptionContext::forStage($blad, 'image_preparation'),
             ]);
 
             return null;

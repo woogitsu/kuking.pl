@@ -64,7 +64,12 @@ export function sierotyTestow(naDysku, naLiscie) {
 /** Moduły `resources/js/*.js`, których `app.js` nie importuje. */
 export function modulyBezImportu(moduly, appJs) {
     const importowane = new Set(
-        [...appJs.matchAll(/^\s*import\s+['"]\.\/([^'"]+)['"];/gm)].map((m) => m[1]),
+        // Obie formy liczą się jako wczytanie modułu: import dla samego skutku
+        // ubocznego (`import './x.js';`) i import z wiązaniami
+        // (`import {a, b} from './x.js';`, `import x from './x.js';`).
+        // Regexp bez członu `… from` widział tylko tę pierwszą i meldował
+        // martwy moduł tam, gdzie app.js wprost coś z niego bierze.
+        [...appJs.matchAll(/^\s*import\s+(?:[^'"]*?\sfrom\s+)?['"]\.\/([^'"]+)['"];/gm)].map((m) => m[1]),
     );
 
     return moduly.filter((plik) => plik !== 'app.js' && ! importowane.has(plik)).sort();
@@ -90,6 +95,16 @@ test('kontrola dodatnia: reguła importów ZAPALA na module wyrzuconym z app.js'
 
     assert.deepEqual(modulyBezImportu(['app.js', 'jest.js', 'niema.js'], app), ['niema.js']);
     assert.deepEqual(modulyBezImportu(['app.js', 'jest.js'], app), []);
+
+    // Import z wiązaniami liczy się tak samo — inaczej strażnik meldowałby
+    // martwy moduł tam, gdzie app.js wprost coś z niego bierze, a człowiek
+    // „naprawiałby" to dopisywaniem drugiego, zbędnego importu.
+    const zWiazaniami = "import {a} from './nazwany.js';\nimport domyslny from './domyslny.js';\n";
+
+    assert.deepEqual(
+        modulyBezImportu(['app.js', 'nazwany.js', 'domyslny.js', 'niema.js'], zWiazaniami),
+        ['niema.js'],
+    );
 });
 
 // --- POMIAR NA PRAWDZIWYM DRZEWIE -----------------------------------------

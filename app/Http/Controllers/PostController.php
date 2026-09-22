@@ -16,6 +16,7 @@ use App\Models\Media;
 use App\Models\Post;
 use App\Models\Tag;
 use App\Models\User;
+use App\Policies\RecipePolicy;
 use App\Rules\ObslugiwaneZdjecie;
 use App\Support\LimityTagow;
 use App\Support\LimityZdjec;
@@ -530,9 +531,32 @@ class PostController extends Controller
              * Reguła na przyszłość: zawężenie kolumn musi obejmować KLUCZE OBCE
              * relacji, które będą dociągane dalej. Brak klucza nie jest błędem
              * — jest cichym `null`.
+             *
+             * 2026-09-21: ZAWĘŻENIA TU JUŻ NIE MA — I TO NIE JEST NIEDBALSTWO.
+             * Poniżej stoi teraz `RecipePolicy::view()`, decydująca, czy ten
+             * ekran w ogóle wolno mu pokazać przepis. Polityka czyta `status`,
+             * `published_at`, `author_id` i relację `author`, a lista kolumn
+             * ich nie miała. Skutek był dokładnie taki, jak każe się
+             * spodziewać akapitowi wyżej: `isPublished()` czytało `status`
+             * równy `null`, więc polityka odmawiała WSZYSTKIM i pasek
+             * „Z przepisu" zniknął także pod przepisem w pełni publicznym.
+             * Złapały to kontrole dodatnie w
+             * `Tests\Feature\Visibility\StronaWpisuBramkaPrzepisuTest`, nie
+             * człowiek na produkcji — i tylko dlatego, że są.
+             *
+             * Ręcznie utrzymywana lista kolumn POD POLITYKĄ to maszynka do
+             * cichych awarii: polityka wolno rośnie o kolejny warunek,
+             * a lista o nim nie wie. Przepis to jeden wiersz na jeden ekran,
+             * więc oszczędność była i tak niemierzalna.
              */
-            'recipe:id,title,slug,hero_media_id,visibility',
+            'recipe',
             'recipe.heroMedia',
+            // `recipe.author` — bo `RecipePolicy::view()` niżej pyta o stan
+            // konta autora przepisu (`jestDostepnyJakoAutor()`) i o blokadę
+            // między nim a widzem. Bez tego byłoby to lazy load, czyli
+            // zapytanie schowane przed każdym, kto liczy zapytania tego
+            // ekranu (`StronyTresciBezWachlarzaZapytanTest`).
+            'recipe.author',
             // Komentarze NIE SĄ tu ładowane (patrz niżej): rosną z popularnością
             // treści bez górnej granicy, więc idą osobnym, paginowanym
             // zapytaniem. `->load()` wciągał je wszystkie naraz.
@@ -562,6 +586,39 @@ class PostController extends Controller
          */
         if ($post->jestSamymPrzepisem() && $post->recipe !== null) {
             return redirect()->route('recipes.show', $post->recipe->slug);
+        }
+
+        /*
+         * WPIS ZOSTAJE, ODWOŁANIE DO PRZEPISU ZNIKA (czwarte miejsce z
+         * przeglądu po #941).
+         *
+         * Tu trafia wpis, który ma coś WŁASNEGO: treść albo zdjęcia. Taki
+         * wpis jest publiczny z własnych powodów i ma się otwierać — to jest
+         * czyjeś „co dziś ugotowałem". Ale pasek „Z przepisu", zdjęcie główne
+         * przepisu i przycisk „Ugotowałem" wypisywały tytuł i slug przepisu,
+         * którego oglądający nie ma prawa zobaczyć; zmierzone dla gościa:
+         * HTTP 200, tytuł w treści odnośnika, slug w `/przepisy/…` i
+         * `alt="Zdjęcie do przepisu: …"`.
+         *
+         * Zdejmujemy więc RELACJĘ, a nie poszczególne pola w widoku. Karta
+         * (`post-card.blade.php`) pyta o przepis w czterech miejscach —
+         * zdjęcie zastępcze, pasek „Z przepisu", przycisk „Ugotowałem”
+         * i odznaka widoczności — i piąte dopisze się kiedyś bez tej
+         * poprawki. Jedno `setRelation()` zamyka wszystkie naraz, a odznaka
+         * widoczności wraca wtedy do widoczności WPISU, czyli do jego
+         * prawdziwej, własnej wartości.
+         *
+         * Zapowiedź przepisu tędy nie przechodzi — odcina ją wcześniej
+         * `PostPolicy::view()`, bo po zdjęciu przepisu nie zostałoby z niej
+         * nic poza nagłówkiem.
+         */
+        // `RecipePolicy` wprost, a nie `$request->user()->can()`: widzem bywa
+        // GOŚĆ, a `?->can()` na `null` daje `null` — czyli warunek, który
+        // odcinałby przepis także wtedy, gdy jest w pełni publiczny.
+        // `RecipePolicy::view()` przyjmuje `?User` i to ona jest tu tabelą
+        // prawdy, tą samą, co przy wejściu na sam przepis.
+        if ($post->recipe !== null && ! app(RecipePolicy::class)->view($request->user(), $post->recipe)) {
+            $post->setRelation('recipe', null);
         }
 
         // Liczba zapisów i stan „mam to w zeszycie" (issue #275, D-081).
