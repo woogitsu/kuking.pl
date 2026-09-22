@@ -16,16 +16,10 @@
 --}}
 @props(['errorBag' => 'default', 'fieldIds' => []])
 @php
-    // DWA RODZAJE `$errors`, OBA POPRAWNE — nie zakładamy jednego.
-    //
-    // Zwykle `$errors` to współdzielony `ViewErrorBag` Laravela i wtedy
-    // wybieramy z niego worek formularza (`$errorBag`, np. osobne formularze
-    // 2FA na jednym ekranie). Ale wyszukiwarka i onboarding dołączają ten
-    // komponent przez `@include(..., ['errors' => $searchErrors])` z ZWYKŁYM
-    // `MessageBag` z walidatora frazy — bez przekierowania, w miejscu. Ten
-    // nie ma `getBag()`, więc bezwarunkowe wywołanie kończyło się 500 na
-    // KAŻDYM wyszukiwaniu, także dla gościa. Zwykły worek przyjmujemy więc
-    // w całości, tak jak przed wprowadzeniem `$errorBag`.
+    // Strony z walidacją GET (wyszukiwarka, onboarding „ludzie") przekazują
+    // tu gotowy `MessageBag` z własnego walidatora, nie `ViewErrorBag` z
+    // sesji. `MessageBag` nie ma worków (`getBag()`), więc bez tej gałęzi
+    // cała strona kończyła się błędem 500.
     $formErrors = $errors instanceof \Illuminate\Support\ViewErrorBag
         ? $errors->getBag($errorBag)
         : $errors;

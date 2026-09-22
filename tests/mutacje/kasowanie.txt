@@ -1,0 +1,65 @@
+# Kasowanie konta i mediow (RODO art. 17). Cena przeoczenia: dane zostaja
+# po tym, jak czlowiek kazal je usunac.
+nazwa: po wymazaniu konta adres e-mail jest zanonimizowany
+plik: app/Domain/Users/Actions/EraseAccountData.php
+zamien: 'email' => $this->anonimowyEmail($fresh),
+na: 'email' => $fresh->email,
+oczekuj: Failed asserting|zalogowa|email
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/UsunieteKontoTresciZostajaWidoczneTest.php
+ocena:
+---
+nazwa: wymazanie zeruje material uwierzytelniajacy 2FA
+plik: app/Domain/Users/Actions/EraseAccountData.php
+zamien: $fresh->disableTwoFactor();
+na: // $fresh->disableTwoFactor();
+oczekuj: Failed asserting|2fa|2FA
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WymazanieKontaUsuwaRelacjeI2FATest.php
+ocena:
+---
+nazwa: wymazanie zdejmuje blokady w obie strony
+plik: app/Domain/Users/Actions/EraseAccountData.php
+zamien: $this->usunRelacjeWKolejnosciDanych($fresh->blocking(), $fresh->blockedBy());
+na: // $this->usunRelacjeWKolejnosciDanych($fresh->blocking(), $fresh->blockedBy());
+oczekuj: Failed asserting|relacje|obie
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WymazanieKontaUsuwaRelacjeI2FATest.php
+ocena:
+---
+nazwa: gotowa paczka RODO przestaje byc do pobrania po wymazaniu konta
+plik: app/Domain/Users/Actions/EraseAccountData.php
+zamien: ->update(['expires_at' => now()->subSecond()]);
+na: ->update(['expires_at' => now()->addYear()]);
+oczekuj: Failed asserting|paczka|pobrania
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/AccountDeletionPurgeTest.php
+ocena:
+---
+nazwa: wiersz zdjecia znika dopiero, gdy pliki naprawde znikly z dysku
+plik: app/Domain/Users/Actions/EraseAccountData.php
+zamien: if ($this->kasujZdjecie->skasujPliki($zdjecie)) {
+na: if (true) {
+oczekuj: Failed asserting|zdjecie|utyka
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KasowanieZdjeciaOdpornoscNaAwarieTest.php
+ocena:
+---
+nazwa: uzywane zdjecie nie daje sie skasowac sprzataczowi
+plik: app/Domain/Media/KasujZdjecie.php
+zamien: if (DB::table($tabela)->where($kolumna, $zdjecie->getKey())->exists()) {
+na: if (! DB::table($tabela)->where($kolumna, $zdjecie->getKey())->exists()) {
+oczekuj: Failed asserting|sprzatacz|blokad
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/CzteryDrogiZdjeciaPodBlokadaTest.php
+ocena:
+---
+nazwa: cichy false z dysku nie kasuje wiersza
+plik: app/Domain/Media/KasujZdjecie.php
+zamien: if (! $this->skasujPliki($przejete)) {
+na: if (false) {
+oczekuj: Failed asserting|cichy|wiersz
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KasowanieZdjeciaOdpornoscNaAwarieTest.php
+ocena:
+---
+nazwa: zdjecie niegotowe nie jest serwowane
+plik: app/Domain/Media/DostepDoZdjecia.php
+zamien: return $zdjecie->maWariantDoPokazania();
+na: return true;
+oczekuj: Failed asserting|nieprzetworzone|kolaz
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest.php
+ocena:
