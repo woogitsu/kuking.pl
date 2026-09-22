@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Notifications\KontekstyKomentarzy;
 use App\Models\ModerationAction;
 use App\Models\Notification;
 use Illuminate\Http\RedirectResponse;
@@ -26,6 +27,14 @@ class NotificationController extends Controller
             ->visibleTo($user)
             ->with('actor.profile.avatar')
             ->paginate(30);
+
+        // Adresy komentarzy (issue #759) liczone RAZ NA STRONĘ, nie raz na
+        // wiersz. Bez tego `Notification::urlDoKomentarza()` dokładało pięć
+        // zapytań na każde powiadomienie o komentarzu — zmierzone na `main`:
+        // 16 zapytań przy 2 powiadomieniach i 106 przy 20
+        // (`PowiadomieniaOKomentarzachBezWachlarzaZapytanTest`). Pełne
+        // uzasadnienie i sposób liczenia: `KontekstyKomentarzy`.
+        KontekstyKomentarzy::przypisz($notifications->items(), $user);
 
         return view('pages.notifications', [
             'notifications' => $notifications,

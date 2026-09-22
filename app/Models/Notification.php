@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Domain\Notifications\KontekstKomentarza;
+use App\Domain\Notifications\KontekstyKomentarzy;
 use Carbon\CarbonInterface;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Concerns\HasUuids;
@@ -171,6 +173,15 @@ class Notification extends Model
         self::TYPE_REPORT_DECIDED,
     ];
 
+    /**
+     * Kontekst adresu komentarza policzony z góry dla całej strony —
+     * patrz `przypiszKontekstKomentarza()` i `App\Domain\Notifications\KontekstyKomentarzy`.
+     * Nie jest to atrybut modelu i nie zapisuje się do bazy.
+     */
+    private ?KontekstKomentarza $kontekstKomentarza = null;
+
+    private bool $kontekstKomentarzaPrzypisany = false;
+
     protected $fillable = [
         'user_id',
         'actor_id',
@@ -284,54 +295,19 @@ class Notification extends Model
     {
         $fallback = is_string($data['url'] ?? null) && $data['url'] !== '' ? $data['url'] : null;
 
-        $commentId = $data['comment_id'] ?? null;
+        $kontekst = $this->kontekstKomentarza();
 
-        if (! is_string($commentId) || $commentId === '') {
+        if ($kontekst === null || ! $kontekst->korzenWidoczny) {
+            // Brak komentarza, brak treści nad nim albo korzeń niewidoczny dla
+            // TEGO odbiorcy — wracamy do zwykłego adresu treści, nie zdradzając,
+            // gdzie ten wątek jest.
             return $fallback;
         }
 
-        $viewer = $this->user;
+        $bazowy = $kontekst->tresc->url();
+        $kotwica = '#komentarz-'.$kontekst->komentarz->getKey();
 
-        if ($viewer === null) {
-            return $fallback;
-        }
-
-        $comment = Comment::query()->find($commentId);
-
-        if ($comment === null) {
-            return $fallback;
-        }
-
-        $subject = $comment->subject();
-
-        if ($subject === null) {
-            return $fallback;
-        }
-
-        $rootId = $comment->parent_id ?? $comment->getKey();
-        $root = $rootId === $comment->getKey() ? $comment : Comment::query()->find($rootId);
-
-        if ($root === null) {
-            return $fallback;
-        }
-
-        // Kolejność i filtr IDENTYCZNE jak w kontrolerach (`Post::comments()`,
-        // `Recipe::comments()`, `CookedEvent::comments()`: `whereNull('parent_id')`,
-        // `status=published`, `oldest()->orderBy('id')`) plus `widoczneDla($viewer)`
-        // — inna kolejność albo inny filtr policzyłaby INNĄ stronę niż ta,
-        // na którą trafi kontroler przy renderowaniu.
-        $widoczneKorzenie = $subject->comments()->widoczneDla($viewer);
-
-        if (! $widoczneKorzenie->clone()->whereKey($root->getKey())->exists()) {
-            // Rodzic niewidoczny dla TEGO odbiorcy — nie zdradzamy, gdzie
-            // jest, tylko wracamy do zwykłego adresu treści.
-            return $fallback;
-        }
-
-        $bazowy = $subject->url();
-        $kotwica = '#komentarz-'.$comment->getKey();
-
-        if (! ($subject instanceof Post || $subject instanceof Recipe)) {
+        if ($kontekst->pozycjaKorzenia === null) {
             // "Ugotowałem" nie stronicuje komentarzy (`CookedEventController::show()`
             // ładuje je wszystkie naraz) — sama kotwica wystarczy.
             return $bazowy.$kotwica;
@@ -343,18 +319,7 @@ class Notification extends Model
             return $fallback;
         }
 
-        $pozycja = $widoczneKorzenie->clone()
-            ->where(function (Builder $wczesniejsze) use ($root): void {
-                $wczesniejsze
-                    ->where('comments.created_at', '<', $root->created_at)
-                    ->orWhere(function (Builder $remis) use ($root): void {
-                        $remis->where('comments.created_at', $root->created_at)
-                            ->where('comments.id', '<', $root->getKey());
-                    });
-            })
-            ->count();
-
-        $strona = intdiv($pozycja, $pageSize) + 1;
+        $strona = intdiv($kontekst->pozycjaKorzenia, $pageSize) + 1;
 
         if ($strona <= 1) {
             return $bazowy.$kotwica;
@@ -363,6 +328,48 @@ class Notification extends Model
         $laczek = str_contains($bazowy, '?') ? '&' : '?';
 
         return $bazowy.$laczek.'komentarze='.$strona.$kotwica;
+    }
+
+    /**
+     * Kontekst z bazy — przypisany z góry dla całej strony powiadomień albo,
+     * gdy go nikt nie przypisał, policzony dla tego jednego wiersza.
+     *
+     * JEDNA DROGA, NIE DWIE. Obie ścieżki idą przez `KontekstyKomentarzy`,
+     * więc nie ma osobnego „szybkiego" i „wolnego" liczenia adresu, które
+     * mogłoby się rozjechać. Różnica jest wyłącznie w tym, ile wierszy naraz
+     * pyta bazę — pomiar i uzasadnienie w tamtej klasie.
+     */
+    private function kontekstKomentarza(): ?KontekstKomentarza
+    {
+        if ($this->kontekstKomentarzaPrzypisany) {
+            return $this->kontekstKomentarza;
+        }
+
+        $odbiorca = $this->user;
+
+        if ($odbiorca === null) {
+            return null;
+        }
+
+        $this->przypiszKontekstKomentarza(
+            KontekstyKomentarzy::dla([$this], $odbiorca)[(string) $this->getKey()] ?? null,
+        );
+
+        return $this->kontekstKomentarza;
+    }
+
+    /**
+     * Wynik pracy `KontekstyKomentarzy` dla TEGO wiersza. Wołane raz na stronę
+     * powiadomień (`NotificationController::index()`), nie raz na wiersz.
+     *
+     * `null` jest ODPOWIEDZIĄ, nie brakiem odpowiedzi: znaczy „komentarza już
+     * nie ma albo nie da się go umiejscowić", czyli adres ma wrócić do
+     * `data.url`. Dlatego stan pilnuje osobna flaga, a nie sama wartość.
+     */
+    public function przypiszKontekstKomentarza(?KontekstKomentarza $kontekst): void
+    {
+        $this->kontekstKomentarza = $kontekst;
+        $this->kontekstKomentarzaPrzypisany = true;
     }
 
     /**

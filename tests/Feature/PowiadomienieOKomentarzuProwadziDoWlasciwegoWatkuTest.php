@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Models\Block;
 use App\Models\Comment;
+use App\Models\CookedEvent;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -160,5 +162,80 @@ class PowiadomienieOKomentarzuProwadziDoWlasciwegoWatkuTest extends TestCase
         $odpowiedzHttp = $this->actingAs($korzen)->post(route('notifications.open', $powiadomienie));
 
         $odpowiedzHttp->assertRedirect($przepis->url().'?komentarze=2#komentarz-'.$reply->getKey());
+    }
+
+    /**
+     * „UGOTOWAŁEM" NIE STRONICUJE KOMENTARZY — sam adres z kotwicą, bez
+     * numeru strony.
+     *
+     * `CookedEventController::show()` ładuje wątek w całości, więc numer
+     * strony byłby tu wymyślony. Gałąź jest osobna w kodzie i psuje się
+     * osobno: policzenie pozycji dla tej treści dałoby adres `?komentarze=2`
+     * prowadzący na stronę, której ten kontroler w ogóle nie obsługuje.
+     */
+    public function test_zobacz_przy_komentarzu_pod_ugotowalem_nie_dokleja_numeru_strony(): void
+    {
+        $gotujacy = $this->user('gotujacy759u');
+        $wykonanie = CookedEvent::factory()->for($gotujacy, 'user')->create();
+
+        $komentator = $this->user('komentator759u');
+        app(PublishComment::class)->handle($komentator, $wykonanie, 'KOMENTARZ-POD-UGOTOWALEM-759');
+
+        $powiadomienie = Notification::query()
+            ->where('user_id', $gotujacy->getKey())
+            ->where('type', Notification::TYPE_COMMENT)
+            ->firstOrFail();
+
+        $komentarz = Comment::where('body', 'KOMENTARZ-POD-UGOTOWALEM-759')->firstOrFail();
+
+        $this->actingAs($gotujacy)
+            ->post(route('notifications.open', $powiadomienie))
+            ->assertRedirect($wykonanie->url().'#komentarz-'.$komentarz->getKey());
+    }
+
+    /**
+     * KORZEŃ WĄTKU NIEWIDOCZNY DLA ODBIORCY — wracamy do zwykłego adresu
+     * treści, NIE zdradzając, gdzie ten wątek leży.
+     *
+     * Blokada założona po fakcie sprawia, że wątek, do którego odnosi się
+     * powiadomienie, przestaje być dla odbiorcy widoczny. Adres z numerem
+     * strony i kotwicą mówiłby wtedy, ILE wypowiedzi stoi przed wątkiem,
+     * którego ta osoba nie może zobaczyć — a to jest informacja, której
+     * przed tą poprawką też nie dostawała.
+     */
+    public function test_zobacz_przy_niewidocznym_korzeniu_wraca_do_zwyklego_adresu_tresci(): void
+    {
+        $wlasciciel = $this->user('wlascicielwpisu759z');
+        $wpis = Post::factory()->for($wlasciciel, 'author')->create([
+            'status' => Post::STATUS_PUBLISHED,
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'published_at' => now()->subHour(),
+        ]);
+
+        $komentator = $this->user('komentator759z');
+        app(PublishComment::class)->handle($komentator, $wpis, 'KOMENTARZ-PO-BLOKADZIE-759');
+
+        $powiadomienie = Notification::query()
+            ->where('user_id', $wlasciciel->getKey())
+            ->where('type', Notification::TYPE_COMMENT)
+            ->firstOrFail();
+
+        // Kontrola dodatnia: PRZED blokadą adres prowadzi do komentarza.
+        $komentarz = Comment::where('body', 'KOMENTARZ-PO-BLOKADZIE-759')->firstOrFail();
+        $this->assertSame(
+            $wpis->url().'#komentarz-'.$komentarz->getKey(),
+            Notification::query()->findOrFail($powiadomienie->getKey())->adresDocelowy(),
+        );
+
+        Block::create([
+            'blocker_id' => $wlasciciel->getKey(),
+            'blocked_id' => $komentator->getKey(),
+        ]);
+
+        $this->assertSame(
+            $wpis->url(),
+            Notification::query()->findOrFail($powiadomienie->getKey())->adresDocelowy(),
+            'Adres zdradza położenie wątku, którego odbiorca nie może zobaczyć.',
+        );
     }
 }
