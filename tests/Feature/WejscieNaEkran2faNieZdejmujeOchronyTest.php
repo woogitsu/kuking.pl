@@ -115,7 +115,7 @@ class WejscieNaEkran2faNieZdejmujeOchronyTest extends TestCase
         $this->actingAs($basia)
             ->from(route('settings.two_factor.edit'))
             ->post(route('settings.two_factor.disable'), ['password' => 'zle-haslo'])
-            ->assertSessionHasErrors('password');
+            ->assertSessionHasErrorsIn('disable', ['password']);
 
         $this->assertTrue($basia->refresh()->hasTwoFactorConfirmed());
 
