@@ -132,7 +132,7 @@ final class TurnstileJestPotwierdzony implements ValidationRule
             // mówi, co zrobić, i z innym tekstem niż przy tokenie podrobionym.
             $this->zapiszWDzienniku();
 
-            $fail(Turnstile::komunikatBrakuTokenu());
+            $fail(Turnstile::komunikatBrakuTokenu($this->miejsce));
 
             return;
         }
@@ -141,7 +141,7 @@ final class TurnstileJestPotwierdzony implements ValidationRule
             // Tablica zamiast łańcucha albo token dłuższy od wszystkiego, co
             // Turnstile wystawia. Nie ma po co pytać Cloudflare — to nie
             // przyszło z widgetu.
-            $fail(Turnstile::komunikatOdrzucenia());
+            $fail(Turnstile::komunikatOdrzucenia($this->miejsce));
 
             return;
         }
@@ -149,7 +149,7 @@ final class TurnstileJestPotwierdzony implements ValidationRule
         $wynik = $this->klient->sprawdz($value, request()->ip());
 
         if ($wynik === WynikTurnstile::Odrzucony) {
-            $fail(Turnstile::komunikatOdrzucenia());
+            $fail(Turnstile::komunikatOdrzucenia($this->miejsce));
         }
 
         // `Przeszedl` i `Nierozstrzygniety` znaczą tu to samo: puszczamy dalej.

@@ -1,0 +1,118 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-eksport
+Gałąź:            gpt/eksport  (już istnieje, odgałęziona od main = 534e0a51)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh eksport
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh eksport --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Paczki z danymi (RODO): #821 #824 #823 #819 #820 #825 #822.
+
+#821 — BIERZ PIERWSZE: eksport ignoruje `false` z writeStream i może oznaczyć
+       NIEZAPISANĄ paczkę jako gotową. Człowiek dostaje pusty plik i wierzy,
+       że to wszystko, co o nim mamy.
+#824 — zapis prośby i dispatch są rozdzielone: błąd kolejki zostawia blokujące
+       `queued` bez joba. Ten sam wzorzec co #797 — wzór rozwiązania jest
+       w commicie `e89f28a5` na `flota/dsa-odwolania`, przeczytaj go.
+#823 — oznacza `failed` przed retry i pozwala zamówić konkurencyjną paczkę
+       podczas backoffu.
+#819 — wygasła paczka zostaje „gotowa" bez przycisku i bez wyjaśnienia.
+#820 — po błędzie wysyłki e-maila brak niezależnego ponowienia powiadomienia.
+#825 — prefiksy UUID v7 powodują kolizje nazw przepisów i kluczy paczek.
+#822 — dwa testy łapią własne fail() i NIE dowodzą przekazania wyjątku do
+       kolejki. To test, który świeci na zielono, nie sprawdzając niczego.
+       Napraw go i POKAŻ, że po naprawie oblewa, gdy wyjątek nie leci dalej.
+
+KONTEKST: właściciel rozstrzygnął 20.09, że paczki NIE POSZERZAMY o osiem
+brakujących kategorii danych — zamiast tego polityka prywatności mówi teraz,
+co paczka zawiera i gdzie prosić o resztę. Nie dokładaj nowych sekcji eksportu.
+
+------------------------------------------------------------------------
+UWAGA: NA TEJ GAŁĘZI LEŻY JUŻ NIEDOKOŃCZONA PRACA
+------------------------------------------------------------------------
+Poprzednia sesja zdążyła zrobić 2 commit(y) i została przerwana
+w połowie — nie z powodu błędu, tylko wyczerpania limitu. NIE zakładaj,
+że to, co tam jest, jest skończone ani poprawne.
+
+Zanim cokolwiek dopiszesz:
+  git log --oneline 534e0a51..HEAD      # co tam jest
+  git diff 534e0a51..HEAD               # i co dokładnie zmienia
+
+Sprawdź w szczególności, czy każda zmiana ma test, który widziano na
+czerwono przed poprawką. Jeśli commit tego nie ma — dopisz test albo
+cofnij zmianę. Praca bez dowodu jest w tym projekcie gorsza niż brak
+pracy, bo wygląda na zrobioną.
+
+W meldunku napisz WPROST, co przejąłeś po poprzedniku, a co zrobiłeś sam.

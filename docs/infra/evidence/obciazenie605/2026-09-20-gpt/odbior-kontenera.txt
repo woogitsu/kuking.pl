@@ -1,0 +1,5 @@
+2026-09-20T18:57:31Z
+http=200 seconds=0.648887
+PGOPTIONS przywrócone: brak nadpisania; obraz sha256:fef7803ef940c01006de266aef5ecc63082ae22c7650ca3216d692f9415d42b3
+kuking-gpt-obciazenie-app
+stan=exited
