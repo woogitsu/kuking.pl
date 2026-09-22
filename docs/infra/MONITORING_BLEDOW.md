@@ -1,5 +1,10 @@
 # Monitoring błędów — webhook na Slack/Discord (i docelowo Sentry)
 
+> Aktualizacja 20.09.2026: [odbiór lokalny #598/#599](MONITORING_ODBIOR_2026_09_20.md)
+> zawiera pomiary, próbę rzeczywistego transportu, naprawę alarmu przy awarii
+> cache oraz instrukcję potwierdzenia odbiorcy. Opis stanu produkcji poniżej
+> jest historyczny; w tej sesji nie odczytano jej konfiguracji.
+
 Ten dokument jest dla **właściciela**. Zakłada, że masz dostęp do panelu
 Railway i konto na Discordzie (albo Slacku) — i nic więcej. Nie zakłada
 znajomości Sentry, Monologa ani tego, jak Laravel loguje wyjątki.
