@@ -2,12 +2,21 @@
 
 ## Zmiana
 
-Wszystkie 19 komend w `routes/console.php` korzysta z
+Wszystkie 20 komend w `routes/console.php` korzysta z
 `App\Support\ScheduledArtisanCommand::artisan()`. Adapter wykonuje komendę w tym samym
 procesie PHP i zwraca `Artisan::call(...) === 0`. Laravel `CallbackEvent`
 uznaje wyłącznie `false` za porażkę; liczby 1 i 2 były sukcesem. Wyjątki
 pozostają wyjątkami. Nazwy, terminy i `withoutOverlapping()` nie zmieniają się.
 Nie wymaga to `proc_open`, migracji ani dodatkowego pakietu.
+
+Dwudziestym zadaniem jest `kuking:sprzataj-sesje` (retencja tabeli `sessions`,
+RZ-01), które weszło na `main` po powstaniu tej gałęzi i było napisane starym
+wzorcem `Schedule::call(fn () => Artisan::call(...))`. Przeniesiono je na
+adapter razem z resztą. Przed przeniesieniem strażnik świecił na nim czerwono
+przy kodach 1, 2 i 137 — czyli nocne sprzątanie sesji mogło zwracać błąd
+i być raportowane jako sukces. To jest dokładnie ten tryb awarii, dla którego
+strażnik powstał, i powód, żeby wymagał adaptera od KAŻDEGO zadania, a nie
+tylko od tych, które istniały w dniu poprawki.
 
 ## Własne pomiary — 20.09.2026
 
@@ -17,10 +26,10 @@ na oryginalnym `routes/console.php` z tego commita przed wprowadzeniem poprawki.
 
 - Na bazowym harmonogramie test był czerwony dla kodów **1, 2 i 137**:
   zdarzenie miało `exitCode=0` zamiast 1. Sukces i wyjątek przechodziły.
-- Po poprawce: `HarmonogramSprawdzaKodWyjsciaTest` — **11 testów, 1088 asercji**.
+- Po poprawce: `HarmonogramSprawdzaKodWyjsciaTest` — **11 testów, 1142 asercje**.
   Pięć scenariuszy używa rzeczywistej komendy konsolowej podmienionej w miejscu
   `kuking:sprawdz-kolejke` oraz faktycznie zarejestrowanego zdarzenia.
-  Strażnik dodatkowo wykonuje wszystkie 19 zarejestrowanych zdarzeń przy kodach
+  Strażnik dodatkowo wykonuje wszystkie 20 zarejestrowanych zdarzeń przy kodach
   0, 1, 2, 137 i wyjątku. Kernel komend jest tu atrapą, więc żadne zadanie
   domenowe ani wysyłka nie jest wykonywana.
 - Sprawdzono `exitCode`, `onSuccess`, `onFailure`, propagację wyjątku,
