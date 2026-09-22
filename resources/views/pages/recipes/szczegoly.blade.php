@@ -175,8 +175,13 @@
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
             <div class="siatka-pol">
+                {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
+                     Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
+                     z walidacją serwera (`RecipeController::validated()`),
+                     inaczej przeglądarka odrzuca poprawną wartość jako
+                     `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
-                         :value="$isEdit ? $recipe->servings : null" :min="0.5" :max="999" :step="0.5" />
+                         :value="$isEdit ? $recipe->servings : null" :min="0.5" :max="999" :step="0.01" />
                 <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric"
                          :value="$isEdit ? $recipe->prep_minutes : null" :min="0" :max="10080" />
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric"
