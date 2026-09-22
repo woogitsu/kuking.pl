@@ -1,0 +1,132 @@
+Pracujesz nad portalem Kuking.pl (Laravel, Blade, PostgreSQL).
+
+Katalog roboczy:  C:\Users\matma\Documents\kuking-flota\gpt-zamkniecia-607-608-i-inwentarz-ci
+Gałąź:            gpt/zamkniecia-607-608-i-inwentarz-ci  (już istnieje, odgałęziona od main = 4c811cc7)
+Repozytorium kanoniczne: C:\Users\matma\Documents\Codex\kuking.pl
+  — tam wykonujesz WYŁĄCZNIE polecenia gita, nigdy nie zapisujesz plików.
+
+NAJPIERW przeczytaj w całości:
+  C:\Users\matma\Documents\kuking-flota\_wspolne\ZASADY_FLOTY.md
+potem AGENTS.md w korzeniu swojego katalogu. AGENTS.md jest JEDYNYM
+źródłem prawdy projektu; CLAUDE.md to tylko wskaźnik.
+
+TWARDE ZAKAZY
+- Nie pushujesz i nie otwierasz PR-ów. Pchanie idzie szeregowo przez
+  kolejkę; dwa równoległe pchnięcia zderzają się na bazie i dają fałszywe
+  porażki (142 failures, deadlocki — zdarzyło się dwa razy jednego dnia).
+- Nie uruchamiasz `git worktree prune`. Z Windows każdy worktree spod
+  /home/ wygląda na „prunable" i jedno polecenie wypruwa wszystkie naraz.
+- Nie używasz `git reset --hard`, `--no-verify` ani gołego `git stash`
+  (stos jest WSPÓLNY dla wszystkich stanowisk — użyj tymczasowego commita).
+- PostgreSQL wyłącznie 127.0.0.1:55439, nigdy współdzielony 5432.
+- Nie pracujesz w C:\Users\matma\Documents\Codex ani w podkatalogach.
+- Nie wysyłasz wiadomości do ludzi ani instytucji.
+
+ZASADY PROJEKTU, KTÓRE OBOWIĄZUJĄ ZAWSZE
+- Bugfix = test regresyjny. Test MUSISZ zobaczyć NA CZERWONO przed
+  poprawką — inaczej nie wiesz, czy mierzy to, co obiecuje.
+- Testy chodzą na PostgreSQL, nie na SQLite.
+- Poprawne dane użytkownika nigdy nie znikają: po błędzie walidacji
+  formularz odtwarza to, co człowiek wpisał, a nie to, co stoi w bazie.
+- Błędy i komunikaty PO POLSKU, mówiące CO ZROBIĆ, nie co się stało.
+- UUID ani nazwa w adresie to NIE autoryzacja — każde wejście przez Policy.
+- Nie zostawiaj martwych przycisków (D-053); i odwrotnie — działający
+  endpoint bez drogi dla człowieka to ta sama usterka od drugiej strony.
+- UX 50+: tekst >= 18 px, przyciski >= 48 px, bez hover i bez swipe.
+- `status` i `role` użytkownika NIGDY w `$fillable`.
+- Zmiana schematu = migracja + test + docs/DATABASE.md + plan wycofania.
+  Wszystkie cztery, nie trzy.
+- Przed zgłoszeniem gotowości: `vendor/bin/pint`.
+
+ZANIM ZACZNIESZ KODZIĆ — ZMIERZ ZACHOWANIE NA NIETKNIĘTYM DRZEWIE.
+Dziś w tym projekcie dwa zgłoszenia okazały się już naprawione, a jedno
+straszyło jako blokada startu. Zamknięcie zgłoszenia z pomiarem jest
+pełnoprawnym wynikiem i oszczędza czyjś tydzień.
+
+JEŚLI COŚ OKAŻE SIĘ PYTANIEM PRODUKTOWYM, A NIE USTERKĄ — nie domykaj
+tego asercją. Asercja zabetonuje zachowanie, którego nikt nie wybrał.
+Wypisz warianty z kosztem jako decyzję dla właściciela.
+
+URUCHAMIANIE TESTÓW (Git Bash na Windows; przedrostek MSYS_NO_PATHCONV=1
+jest OBOWIĄZKOWY — bez niego ścieżka /mnt/c/... zostaje zepsuta):
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/przygotuj-runtime.sh gpt-zamkniecia-607-608-i-inwentarz-ci
+  MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/testuj.sh gpt-zamkniecia-607-608-i-inwentarz-ci --filter TwojTest
+Skrypt sam zakłada .env i APP_KEY. Po KAŻDEJ zmianie w kodzie uruchom go
+ponownie, zanim odpalisz testy.
+
+PUŁAPKI, NA KTÓRE KTOŚ JUŻ SIĘ NADZIAŁ
+- Porażka poza Twoim obszarem NIE jest „zastana", dopóki jej nie
+  odtworzysz. Trzy stanowiska dziś tak odpisały i dwa razy była to
+  prawdziwa usterka oprzyrządowania. Jedyny znany wyjątek:
+  ProbaOdtworzeniaTest pada, bo wszystkie stanowiska trafiają w tę samą
+  bazę kuking_zrodlo_proby_glowny — wolno go pominąć, ale wymień z nazwy.
+- Skan, który nie znajduje żadnego pliku, PRZECHODZI. Każdy nowy strażnik
+  potrzebuje kontroli dodatniej na wzór `test_skan_naprawde_czyta_modele`.
+- Pod `set -o pipefail` konstrukcja `printf '%s' "$X" | grep -q "$WZ"` daje
+  warunek FAŁSZYWY mimo trafienia (SIGPIPE). Pisz `grep -qE "$WZ" <<< "$X"`.
+- `<env>` w phpunit.xml bez `force` nie nadpisze prawdziwej zmiennej
+  środowiskowej, ale nadpisze `.env`.
+- `.gitignore` zaczyna się od `*.log` — dowody w .log wymagają `git add -f`.
+
+JAK MELDUJESZ
+Na koniec podaj: SHA commitów, co zmierzyłeś SAM (a co przejąłeś, z
+adnotacją „[pomiar cudzy: źródło]"), czego NIE zrobiłeś i dlaczego, oraz
+co wymaga decyzji właściciela. Commituj lokalnie, po polsku, w trybie
+rozkazującym („Nie pozwól, by…", „Pokaż…", „Przywróć…").
+Zgłoszenia czytaj przez: gh issue view NUMER --repo woogitsu/kuking.pl
+
+
+------------------------------------------------------------------------
+TWOJE ZADANIE
+------------------------------------------------------------------------
+Dwie niezależne sprawy: potwierdzenie realnego stanu #607/#608 przez
+GitHub (nie tylko przez istnienie commitów), oraz przegląd wszystkich
+miejsc w dokumentacji, gdzie pojawia się liczba jobów CI.
+
+CZĘŚĆ A — #607 i #608: praca istnieje, status nie był sprawdzony
+Wcześniejszy przegląd repozytorium kanonicznego znalazł commity pasujące
+do opisu obu zgłoszeń (dla #607: commity dot. tego zgłoszenia; dla #608:
+podobnie — sprawdź `git log --all --grep="#607"` i `--grep="#608"`
+dla dokładnych SHA), ale NIE sprawdził stanu samych zgłoszeń na GitHubie
+(brak `gh` w tamtym środowisku). Istnienie commitu, który wygląda na
+związany ze zgłoszeniem, nie jest dowodem, że zgłoszenie zostało
+zamknięte, ani że zamknięto je z tego powodu.
+Zadanie: `gh issue view 607 --repo woogitsu/kuking.pl` i `gh issue view
+608 --repo woogitsu/kuking.pl` — potwierdź stan, datę zamknięcia i
+powiązany PR. Zestaw to z opisem w
+C:\Users\matma\Documents\kuking-flota\gpt-ci-architektura\docs\infra\PLAN_TECHNICZNY_614.md
+i DYSK_UPLOADOW_LIVEWIRE_608.md. Jeśli opis się zgadza — potwierdź to
+w meldunku z numerem PR. Jeśli nie — popraw dokument źródłowy, cytując
+przed/po, i ustal z historii, czy to było świadome domknięcie czymś
+innym niż opisano (wtedy zapisz to jako taką korektę, z datą i
+odnośnikiem), czy dokument po prostu nigdy nie był dokładny.
+
+CZĘŚĆ B — inwentaryzacja liczby jobów CI w dokumentacji
+Zweryfikowano już, że `.github/workflows/ci.yml` ma DOKŁADNIE 13 jobów na
+SHA 4c811cc7, a wszystkie workflow razem (`ci.yml`+`deploy.yml`+
+`preview.yml`+`railway-iac.yml`) dają 20 — to się zgadza z
+MAPA_CI_611.md i PLAN_TECHNICZNY_614.md. Ale to sprawdzono TYLKO w tych
+dwóch plikach. Zadanie: przeszukaj CAŁY katalog
+docs/ w repozytorium kanonicznym oraz cały katalog
+C:\Users\matma\Documents\kuking-flota\gpt-ci-architektura\docs\infra\
+(grep po liczbach typu „9 jobów”, „12 jobów”, „jobów CI”, konkretnych
+nazwach jobów) pod kątem STARSZYCH liczb jobów CI, które mogły zostać
+przywleczone z wcześniejszych stanów projektu i nigdy nie zaktualizowane.
+Dla KAŻDEGO znalezionego miejsca ze starą liczbą: sprawdź datę dokumentu
+(albo datę commita, jeśli plik jest w repozytorium kanonicznym) i albo
+(a) to jest opis stanu HISTORYCZNEGO, wyraźnie oznaczony datą — zostaw
+bez zmian, albo (b) to jest miejsce, które udaje aktualność, a nią nie
+jest — popraw, dopisując dzisiejszą liczbę i datę weryfikacji.
+
+CZĘŚĆ C — pytanie produktowe przy okazji (#597, TTL podpisanego URL)
+`app/Http/Controllers/MediaController.php` ma `signed_url_minutes`, ale
+nie znaleziono w docs/DECISIONS.md wpisu rozstrzygającego, jakie okno
+czasowe jest AKCEPTOWANE przez właściciela (dłuższe okno = wygodniej przy
+wolnym łączu, krócej = mniejsze ryzyko udostępnienia cudzego linku).
+Wypisz aktualną wartość, 2-3 warianty (krótsze/obecne/dłuższe okno) z
+kosztem każdego (UX vs ryzyko), i zostaw to jako pytanie do właściciela —
+NIE zmieniaj wartości i nie zamykaj tego asercją w kodzie ani w rejestrze.
+
+DOWÓD NA KAŻDĄ POZYCJĘ z części A i B: stan z `gh`, SHA, cytat
+przed/po. Lepiej rzetelnie zamknąć te trzy części niż pobieżnie dociągnąć
+temat gdzie indziej.

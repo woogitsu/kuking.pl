@@ -148,7 +148,7 @@ podpinaj self-hosted runnera do repozytorium publicznego przyjmującego PR-y
 od obcych** — to jest równoznaczne z oddaniem im powłoki na tej maszynie.
 
 Runner potrzebuje: PHP 8.4 z rozszerzeniami z `Dockerfile`, Composer, Node 22,
-PostgreSQL 16+ (albo Dockera, żeby postawić usługę `postgres:18-alpine`).
+PostgreSQL 18+ (albo Dockera, żeby postawić usługę `postgres:18-alpine`).
 
 ### C. Testy w ramach builda Railway — bez dodatkowej infrastruktury
 

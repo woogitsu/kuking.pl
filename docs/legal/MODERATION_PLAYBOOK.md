@@ -395,6 +395,116 @@ To jedyna sytuacja, w której **nie stosujemy** standardowej ścieżki "ostrzeż
 
 **To jedyna kategoria w tym dokumencie, gdzie "szybciej i ostrożniej" zawsze wygrywa z "poczekajmy i sprawdźmy dokładniej".**
 
+### 7.1a Projekt ścieżki z art. 18 DSA — DO POTWIERDZENIA PRZEZ PRAWNIKA, NIE ROZSTRZYGNIĘTE
+
+**Czym ta sekcja jest, a czym nie jest.** Punkt 3 wyżej zostawia
+`[do weryfikacji z prawnikiem]` od chwili, w której powstał. Ta sekcja tego
+**nie rozstrzyga** — zbiera materiał, żeby prawnik dostał trzy konkretne
+pytania zamiast pustej kartki, i żeby nikt nie musiał tego zbierać w dniu
+realnego incydentu. **Dopóki prawnik nie potwierdzi, obowiązuje punkt 3
+wyżej w dotychczasowym brzmieniu: zgłoś do Dyżurnet.pl, a przy trwającym
+zagrożeniu dzwoń na Policję.** Ta kolejność jest bezpieczna operacyjnie
+niezależnie od tego, jak wypadnie ocena prawna.
+
+**Każde twierdzenie niżej ma źródło i datę.** Stan prawny zmienia się poza
+tym repozytorium, a zdanie bez daty starzeje się po cichu.
+
+#### Co mówi sam przepis
+
+Art. 18 DSA nakłada na dostawcę usług hostingu obowiązek: gdy poweźmie
+informację dającą podstawę do podejrzenia, że popełniono, popełnia się
+lub może zostać popełnione **przestępstwo zagrażające życiu lub
+bezpieczeństwu osoby**, ma **niezwłocznie** poinformować **organy ścigania
+lub organy sądowe zainteresowanego państwa członkowskiego** i przekazać
+wszystkie dostępne informacje.
+[źródło: tekst skonsolidowany rozporządzenia (UE) 2022/2065 w EUR-Lex,
+odczytany 20.09.2026 — https://eur-lex.europa.eu/legal-content/PL/TXT/HTML/?uri=CELEX:02022R2065-20221027]
+
+Trzy rzeczy, które z tego wynikają wprost i których nie trzeba potwierdzać:
+
+1. **Adresatem jest organ**, a nie organizacja pozarządowa ani punkt
+   kontaktowy branżowy. To jest sedno pytania nr 1 niżej.
+2. **Obowiązek nie zależy od wielkości dostawcy.** Art. 18 leży w Sekcji 2,
+   a zwolnienie dla mikro- i małych przedsiębiorstw dotyczy Sekcji 3
+   (`COMPLIANCE.md` §1.2).
+3. **Próg to podejrzenie, nie pewność.** Czekanie na pewność jest
+   naruszeniem, a nie ostrożnością.
+
+#### Co wiadomo o organach w Polsce
+
+- **Dyżurnet.pl** to zespół NASK, punkt przyjmowania zgłoszeń nielegalnych
+  treści, w tym CSAM; należy do sieci INHOPE.
+  [źródło: https://dyzurnet.pl oraz materiały NASK, odczytane 20.09.2026]
+  **Uwaga: to jest zespół instytutu badawczego, nie organ ścigania.**
+  Zgłoszenie tam jest sensowne operacyjnie (analiza i doprowadzenie do
+  usunięcia treści z sieci), ale **czy wyczerpuje obowiązek z art. 18 —
+  jest właśnie pytaniem do prawnika.**
+- **Policja i prokuratura** są organami ścigania w rozumieniu prawa
+  polskiego — to jest oczywiste i nie wymaga źródła. Przy **trwającym**
+  zagrożeniu życia numerem jest 112.
+- **Prezes UKE** został wskazany jako **koordynator do spraw usług
+  cyfrowych** w rozumieniu DSA.
+  [źródła odczytane 20.09.2026: https://uke.gov.pl/uslugi-cyfrowe/czym-jest-dsa/
+  oraz https://cyberpolicy.nask.pl/wdrozenie-dsa-w-polsce/]
+  **Koordynator to organ nadzoru nad stosowaniem DSA, a nie organ ścigania
+  — zgłoszenie z art. 18 najpewniej nie idzie do niego.** To jest
+  przypuszczenie autora tej sekcji, nie ustalenie.
+- **Data ustawy wdrażającej DSA w Polsce jest w naszych źródłach
+  sprzeczna.** Sekcja „Źródła" w `COMPLIANCE.md` odsyła do druku sejmowego
+  opisanego jako ustawa **z 18 grudnia 2025 r.**; wyszukiwanie z 20.09.2026
+  zwróciło natomiast opis ustawy **z 31 lipca 2026 r.** wyznaczającej
+  Prezesa UKE koordynatorem. Mogą to być dwa różne akty albo błąd jednego
+  ze źródeł. **Tej sprzeczności nie rozstrzygamy zgadywaniem** — wchodzi
+  do pytania nr 3.
+- Komisja Europejska prowadziła konsultacje dotyczące **stosowania
+  art. 18 DSA**, o czym informował UKE.
+  [źródło: https://uke.gov.pl/akt/konsultacje-ke-dot-stosowania-art-18-dsa,616.html —
+  odnośnik znaleziony 20.09.2026, treści i daty publikacji **nie
+  sprawdzono**; jeśli powstały wytyczne KE, są najświeższym materiałem
+  do tego punktu i trzeba zacząć od nich]
+- Istnieje odrębny od DSA obowiązek zawiadomienia o niektórych
+  przestępstwach, wynikający z art. 240 § 1 Kodeksu karnego. **To jest
+  wiedza modelu, nie odczyt źródła w tej sesji** — wymaga sprawdzenia
+  zakresu przedmiotowego i tego, czy sięga operatora platformy. Jeśli
+  sięga, jest to obowiązek **obwarowany sankcją karną**, a więc ważniejszy
+  operacyjnie niż sam art. 18.
+
+#### Trzy pytania do prawnika — do zadania dokładnie w tym brzmieniu
+
+1. **Czy zgłoszenie do Dyżurnet.pl wyczerpuje obowiązek z art. 18 DSA, czy
+   trzeba niezależnie zawiadomić Policję albo prokuraturę — i w jakiej
+   formie?** Chodzi o kolejność i o to, czy zgłoszenie do zespołu NASK
+   liczy się jako poinformowanie „organu ścigania lub organu sądowego".
+   Jeśli nie — prosimy o wskazanie **konkretnej jednostki i drogi
+   złożenia**, którą wpiszemy do punktu 3 procedury wyżej.
+
+2. **Co dokładnie mamy zachować, jak długo i w jakiej formie, zanim
+   usuniemy treść — i czy wolno nam ją zachować?** W procedurze wyżej
+   stoi zakaz kopiowania i przesyłania podejrzanej treści, bo samo to może
+   być czynem karalnym; jednocześnie art. 18 każe przekazać „wszystkie
+   dostępne informacje", a usunięcie treści przed zgłoszeniem zniszczyłoby
+   dowód. Dziś `Usuń treść` robi miękkie usunięcie (`deleted_at`) i zostawia
+   komplet danych w bazie — **prosimy o potwierdzenie, że to jest właściwe
+   zachowanie**, oraz o wskazanie, po jakim czasie i na czyje polecenie
+   wolno te dane skasować. Ma to skutek dla retencji: dziś sprawy
+   moderacyjne kasuje automat po 36 miesiącach
+   (`kuking:sprzataj-sprawy-moderacyjne`).
+
+3. **Jaki jest aktualny stan ustawy wdrażającej DSA w Polsce i czy nakłada
+   ona na dostawcę hostingu obowiązki zgłoszeniowe wykraczające poza
+   art. 18 — w tym wobec Prezesa UKE jako koordynatora?** Prosimy przy
+   okazji o rozstrzygnięcie sprzeczności dat opisanej wyżej oraz
+   o potwierdzenie, czy operatora platformy dotyczy art. 240 § 1 Kodeksu
+   karnego.
+
+#### Czego ta sekcja świadomie nie robi
+
+Nie zmienia ani jednego kroku procedury z §7.1, nie wskazuje organu
+i nie zdejmuje z punktu 3 oznaczenia `[do weryfikacji z prawnikiem]`.
+Zdjęcie go bez odpowiedzi prawnika byłoby dokładnie tym błędem, przed
+którym ostrzega reguła listy gotowości: punkt bez dowodu, który wygląda
+na sprawdzony.
+
 ---
 
 ## 8. Wypalenie moderatora — limity i rotacja

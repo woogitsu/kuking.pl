@@ -7,6 +7,7 @@ namespace Tests\Feature;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Mail\Transport\ArrayTransport;
 use Illuminate\Support\Env;
+use Illuminate\Support\Facades\Password;
 use Symfony\Component\Mime\Email;
 use Tests\TestCase;
 
@@ -101,7 +102,7 @@ final class NadawcaPocztyNieJestNoreplyTest extends TestCase
     {
         $user = $this->user(null, ['email' => 'basia@example.com']);
 
-        $user->sendPasswordResetNotification('token-testowy');
+        $user->sendPasswordResetNotification(Password::createToken($user));
 
         /** @var ArrayTransport $transport */
         $transport = app('mailer')->getSymfonyTransport();

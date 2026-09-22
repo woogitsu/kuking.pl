@@ -1,0 +1,198 @@
+[
+  {
+    "variant": "podglad",
+    "bytes": 66578,
+    "sha256": "7c34a81f5fd6f24ad575f4851ebea49d394a3789b8c9e2aa077ab57be9985768",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "feed",
+    "bytes": 50018,
+    "sha256": "ad817ab296e7d9ea816ba7bbe5c356d8a53e79a895aaf8cda8ba42960bdd6e4e",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "large",
+    "bytes": 101634,
+    "sha256": "676d58aa81e055c94e2ae98043f2241f885d7eaf171d7759ce401de2de8e06b9",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "large",
+    "bytes": 82050,
+    "sha256": "b6d3e9fb51ffc724e210b1889dd0969b5e329be4540e6d1aebc872797b37763b",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "podglad",
+    "bytes": 28808,
+    "sha256": "11f7a62915885611198828ccab048aa863212a4ebb0abe51dda4c525a573c0cc",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "large",
+    "bytes": 88846,
+    "sha256": "8768b59cfb1d4529664c13eaa84c1ee6a0c2eea5689a179d758f7f3772785d69",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "thumb",
+    "bytes": 22516,
+    "sha256": "e3cb97e39c3e3db204b877c7f49e23b5db780ad008a2478eea2c03b60292d0e0",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "thumb",
+    "bytes": 10798,
+    "sha256": "a892446001285e904e91218155973cd2b3a8d582736af05a8bed765df07fc0c7",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "podglad",
+    "bytes": 28326,
+    "sha256": "ddd9b1bd7264c4ee2b0da05c41690cd4268abe22b2ef3fc636c4d2ec584a6235",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "large",
+    "bytes": 398134,
+    "sha256": "71fd6b11dee67c609827c45b83399a5a507c3280ce099bafbe053ab53c66f894",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "large",
+    "bytes": 251262,
+    "sha256": "accd763e530f412d7696ea82ec3741a6bb6ddbd8a7664f9e3b87058c5397288d",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "feed",
+    "bytes": 122328,
+    "sha256": "ad7e0f586846423579614c3453029be0ff635041d027f94113ada4a82aeb128e",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "feed",
+    "bytes": 152890,
+    "sha256": "9855fc9630e2705ed81478e26a023fa1ec0910c5c5f223fa107de4ff49da9164",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "thumb",
+    "bytes": 8662,
+    "sha256": "7ea67e6ecb1678789240e60bf535bb136a3cc465b533857b0a6e704c0bc8ef3c",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "podglad",
+    "bytes": 72082,
+    "sha256": "bb3e35e4e78734e429e43584380d7847e686deb7d229975fbb3c6729f028d02d",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "thumb",
+    "bytes": 20210,
+    "sha256": "8a42581e8f11f4f434222854145fee478f0116df6ee538677cf3a76d12b41767",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "thumb",
+    "bytes": 7390,
+    "sha256": "c50f90cba7070ae92bec0f963c0cfbbfe130d2821343e17a8dfdc16700a43cf3",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "feed",
+    "bytes": 42018,
+    "sha256": "89433dd73a2846af5446c9e61c1aa6e0a8e41e1b223599fbb69e38e3d44dff6e",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "podglad",
+    "bytes": 22124,
+    "sha256": "e86bb15fbfab02ccf784ba4b297e9db53295baebab752b1c45a3e4293e00b7dc",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "feed",
+    "bytes": 48808,
+    "sha256": "12b2feb254089730f9ab276d825f378dcffbfc77a12fec413b1fa001b6d4bbb9",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "large",
+    "bytes": 103122,
+    "sha256": "f86e030a74975676c393dbed5c87a888bbe7b65a5f152c9a43768b7d9af0a4ca",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "podglad",
+    "bytes": 28808,
+    "sha256": "11f7a62915885611198828ccab048aa863212a4ebb0abe51dda4c525a573c0cc",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "podglad",
+    "bytes": 66578,
+    "sha256": "7c34a81f5fd6f24ad575f4851ebea49d394a3789b8c9e2aa077ab57be9985768",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "thumb",
+    "bytes": 10886,
+    "sha256": "01ec076f5e4e0d39cfbdda78fe8e70147dc7a483e6853378e77e75485a5b6977",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "large",
+    "bytes": 103122,
+    "sha256": "f86e030a74975676c393dbed5c87a888bbe7b65a5f152c9a43768b7d9af0a4ca",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "thumb",
+    "bytes": 10886,
+    "sha256": "01ec076f5e4e0d39cfbdda78fe8e70147dc7a483e6853378e77e75485a5b6977",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "feed",
+    "bytes": 50018,
+    "sha256": "ad817ab296e7d9ea816ba7bbe5c356d8a53e79a895aaf8cda8ba42960bdd6e4e",
+    "exif": false,
+    "xmp": false
+  },
+  {
+    "variant": "feed",
+    "bytes": 41136,
+    "sha256": "48e423b70428cb23d18c0736b1f39a0214bcc82674a2b3e506768f7b20012ed1",
+    "exif": false,
+    "xmp": false
+  }
+]

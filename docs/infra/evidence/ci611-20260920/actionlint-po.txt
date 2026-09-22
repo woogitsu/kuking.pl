@@ -1,0 +1,8 @@
+.github/workflows/ci.yml:524:102: property access of object must be type of string but got "number" [expression]
+.github/workflows/ci.yml:634:102: property access of object must be type of string but got "number" [expression]
+.github/workflows/ci.yml:820:120: property access of object must be type of string but got "number" [expression]
+.github/workflows/ci.yml:911:102: property access of object must be type of string but got "number" [expression]
+.github/workflows/ci.yml:953:51: property access of object must be type of string but got "number" [expression]
+.github/workflows/ci.yml:1009:102: property access of object must be type of string but got "number" [expression]
+.github/workflows/ci.yml:1060:51: property access of object must be type of string but got "number" [expression]
+.github/workflows/ci.yml:1143:102: property access of object must be type of string but got "number" [expression]

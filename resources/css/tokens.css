@@ -1458,9 +1458,27 @@
     margin: 0;
     padding-left: var(--spacing-6);
   }
-  .error-summary a {
+  .error-summary a,
+  .error-summary button.error-summary-link {
     color: var(--color-danger-tint-ink);
     font-weight: 700;
+  }
+  /*
+   * Odnośnik do pola z INNEGO kroku kreatora (issue #747) musi najpierw
+   * przełączyć krok, więc nie może być zwykłym `<a href="#...">` — cel nie
+   * istnieje w bieżącym HTML, dopóki Livewire nie przerenderuje kroku.
+   * Wygląda jak pozostałe odnośniki podsumowania, żeby człowiek nie musiał
+   * zgadywać, że jedno jest linkiem, a drugie przyciskiem.
+   */
+  .error-summary button.error-summary-link {
+    background: none;
+    border: 0;
+    padding: 0;
+    margin: 0;
+    font: inherit;
+    text-decoration: underline;
+    cursor: pointer;
+    text-align: left;
   }
 
   /* --- Kroki kreatora (WizardSteps) --- */

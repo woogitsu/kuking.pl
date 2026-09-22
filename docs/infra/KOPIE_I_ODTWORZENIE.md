@@ -1,5 +1,14 @@
 # Kopie zapasowe i odtworzenie
 
+> **Aktualizacja 20 IX 2026 — #594 / #193.** Duża lokalna próba została
+> wykonana: 5 504 654 wiersze, baza 2,75 GB, zrzut 30,22 s, odtworzenie
+> 56,94 s, kontrole skryptu 2,62 s i pełne porównanie treści 76,54 s.
+> [Karta poleceń i awarii w połowie](DR594_RUNBOOK_LOKALNY.md) oraz
+> [raport z dowodami](evidence/dr594/RAPORT.md). To **nie jest próba produkcyjna**.
+> Historyczne zdania poniżej o „zerze kopii”, planie Railway i braku R2
+> opisują wcześniejsze ustalenia; nie są aktualnym odczytem usług.
+> W tej sesji produkcji nie sprawdzano. Tabela produkcyjna §5 pozostaje pusta.
+
 **Dla kogo:** właściciel, w chwili gdy coś już poszło źle (albo raz, na sucho,
 zanim cokolwiek pójdzie źle).
 **Cel:** dać komendy i decyzje, nie lekturę. Kontekst i uzasadnienia
@@ -19,8 +28,8 @@ aktualną procedurą** i w razie sprzeczności wygrywa on.
 |---|---|
 | 🔴 **BEZPOWROTNA UTRATA** | nie istnieje nigdzie indziej — jak przepadnie, przepadło na zawsze |
 | 🟡 **NIEDOGODNOŚĆ** | da się odtworzyć albo wygenerować ponownie, kosztem czasu i/lub przestoju |
-| **[DZIŚ]** | obowiązuje TERAZ, zanim powstanie bucket R2 |
-| **[PO R2]** | zacznie obowiązywać dopiero, gdy bucket R2 powstanie (`DEPLOYMENT_RUNBOOK.md` KROK 2) — **dziś nieaktualne, bucket nie istnieje** (potwierdzone przez właściciela, 8 września 2026) |
+| **[NA R2]** | **obowiązuje TERAZ.** Buckety R2 istnieją i całe przechowywanie zdjęć stoi na Cloudflare R2 (potwierdzone przez właściciela, **11 września 2026**) |
+| ~~**[DZIŚ]**~~ / ~~**[PO R2]**~~ | **oznaczenia wycofane 11 września 2026.** Do tego dnia dokument dzielił świat na „dziś: dysk `local`" i „po R2: buckety" i opierał to na zdaniu „bucket R2 nie istnieje" (potwierdzenie właściciela z 8 września). **To przestało być prawdą trzy dni później**, a na tym zdaniu stała ramka „Najpilniejsza pozycja" w §1.1 — czytelnik uznawał zdjęcia za tracone przy każdym redeployu i szukał nie tego ryzyka, co trzeba |
 | `[PYTANIE DO WŁAŚCICIELA]` | nie da się rozstrzygnąć z repozytorium — zebrane też w §2.3 |
 | ⚠️ nad blokiem komend | komenda może **zapisać albo skasować dane produkcyjne** — blok zaczyna się od sposobu sprawdzenia, że jesteś na właściwym środowisku |
 
@@ -43,32 +52,60 @@ nie z pamięci — co dokładnie, gdzie leży, i co się stanie, jak zniknie.
 | **Baza PostgreSQL** — konta, przepisy, wpisy, komentarze, „Ugotowałem", obserwowanie/blokady, zgłoszenia i decyzje moderacyjne, odwołania, dziennik audytu, powiadomienia, zeszyty, tagi, eksporty RODO, sygnały produktowe — 25 tabel wymienionych w `docs/DATABASE.md` | serwis `postgres`, środowisko `production`, projekt Railway `kuking` | Migracje w `database/migrations/` odtwarzają wyłącznie **pusty schemat**. Zero wierszy. To jest treść, którą ludzie napisali — nie ma jej kopii poza bazą i jej backupami |
 | **`APP_KEY` produkcji** | Railway → `production` → Shared Variables (Sealed) + menedżer haseł właściciela | `.env.example` ma tę wartość celowo pustą (`APP_KEY=`). Utrata klucza **nie kasuje bazy fizycznie**, ale czyni nieczytelnym na zawsze wszystko, co nim zaszyfrowano: `users.two_factor_secret` i `users.two_factor_backup_codes` (`app/Models/User.php:248-249`, cast `encrypted`/`encrypted:array`) oraz wszystkie aktywne sesje (`SESSION_ENCRYPT=true` na produkcji, `.railway/railway.ts:205`). Mitygacja dla 2FA: `railway ssh -- php artisan kuking:2fa-wylacz <login>` czyści te kolumny bez potrzeby ich odczytania — ale to działa tylko, jeśli `APP_KEY` wciąż jest ten sam co przy zapisie, czyli **zanim** go stracisz |
 | **Klucz PRYWATNY kopii bazy** (`kuking-kopie-PRYWATNY.pem`, §7.1) | menedżer haseł właściciela + nośnik offline w innym miejscu fizycznym. **Świadomie NIGDZIE w Railwayu ani w repozytorium** | Zrzuty offsite są szyfrowane odpowiadającym mu kluczem publicznym. Utrata klucza prywatnego **nie kasuje żadnego pliku**, ale czyni WSZYSTKIE kopie bazy nieczytelnymi na zawsze — dokładnie ta sama asymetria, co przy `APP_KEY` wyżej. Cena jest świadoma: dzięki temu przejęcie konta Railway albo bucketu R2 nie daje dostępu do danych. Dlatego DWIE kopie klucza, w DWÓCH miejscach |
-| **Zdjęcia — warianty pokazywane użytkownikom** | **[PO R2]** bucket `r2_publiczne` (`AWS_PUBLIC_BUCKET`) · **[DZIŚ]** dysk `local` w kontenerze `web` — patrz ramka niżej | To jest zdjęcie, które ktoś realnie zrobił w swojej kuchni. Bez oryginału (patrz niżej) nie da się go odtworzyć w żadnej postaci |
+| **Zdjęcia — warianty pokazywane użytkownikom** | **[NA R2]** bucket wariantów, dysk `r2_publiczne` (`AWS_PUBLIC_BUCKET`) — a dla zdjęć sprzed rozdzielenia bucketów dysk `r2_legacy` (wiersz niżej) | To jest zdjęcie, które ktoś realnie zrobił w swojej kuchni. Bez oryginału (patrz niżej) nie da się go odtworzyć w żadnej postaci. **R2 nie ma wersjonowania obiektów ani kosza** — skasowany klucz jest skasowany |
 | **Zdjęcia na koncie `r2_legacy`** (sprzed rozdzielenia bucketów, migracja `kuking:przenies-zdjecia` jeszcze niedokończona — `app/Console/Commands/PrzeniesZdjeciaDoNowychBucketow.php:33-35`) | stary, pojedynczy bucket, wciąż publiczny | Ten bucket jest dziś **jedyną kopią** tych plików — cytat z komentarza w kodzie: „dopóki nie ma pewności, że komplet się przeniósł, stary bucket jest jedyną kopią zapasową". Sprawdź, ile zostało: `Media::where('disk', 'r2_legacy')->count()` |
 | **Konfiguracja DNS, WAF i Cache Rules w Cloudflare** | panel Cloudflare, klikane ręcznie (`DEPLOYMENT_RUNBOOK.md` KROK 10) | Brak Infrastructure-as-Code dla Cloudflare w tym repozytorium (tylko Railway ma `.railway/railway.ts`). Kroki są opisane słownie w runbooku, więc odtworzenie jest możliwe, ale ręczne i z przestojem — patrz §1.2 |
 
 > ## ⚠️ Najpilniejsza pozycja z tej tabeli nie jest baza — jest ta ramka
 >
-> `DEPLOYMENT_RUNBOOK.md` KROK 8 nazywa `FILESYSTEM_DISK=local` wartością
-> **tymczasową**, „w porządku na pierwszy zielony deploy i **nie do
-> przyjęcia**, gdy wpuszczasz prawdziwych ludzi". Dysk `local` to
-> `storage/app/private` **wewnątrz kontenera** — ulotny, kasowany przy
-> **każdym** redeployu, restarcie i awarii kontenera.
+> ### SPROSTOWANIE, 11 września 2026: bucket R2 ISTNIEJE
 >
-> Bucket R2 nie istnieje jeszcze. Jeśli produkcja ma dziś `FILESYSTEM_DISK=local`
-> (do potwierdzenia — patrz §2.3, pytanie 8) **i** przyjmuje już prawdziwe
-> zdjęcia od ludzi, to nie jest ryzyko na przyszłość — **zdjęcia już teraz
-> giną przy każdym wdrożeniu.** Żadna procedura odtworzenia w tym dokumencie
-> tego nie naprawi, bo nie ma z czego odtwarzać. Jedyna naprawa to KROK 2
-> `DEPLOYMENT_RUNBOOK.md` (założenie bucketów R2) wykonane **przed**, nie po,
-> przyjęciu pierwszych ludzi.
+> Do tego dnia stało tu, że „bucket R2 nie istnieje jeszcze", więc produkcja
+> trzyma zdjęcia na dysku `local`, a te **giną przy każdym wdrożeniu**.
+> **Właściciel potwierdził 11 września 2026, że buckety R2 istnieją i całe
+> przechowywanie zdjęć stoi na Cloudflare R2.** Poprzednie zdanie opierało się
+> na jego potwierdzeniu z 8 września i było wtedy prawdziwe — ale zestarzało
+> się w trzy dni, a przez te trzy dni kierowało czytelnika na ryzyko, którego
+> już nie ma, i odciągało od tego, które jest.
+>
+> **Ryzyko BIEŻĄCE, nie przyszłe, jest inne i jest P0:** bramka
+> `kuking:bramka-r2` (issue #120, `docs/infra/BRAMKA_R2.md`) **nigdy nie
+> chodziła na produkcji** — tabela w §3 tamtego pliku jest pusta, a puste
+> pole to nieprzejście, nie „prawdopodobnie w porządku". Skoro zdjęcia są
+> już na R2, to znaczy, że **nie wiemy, czy bucket oryginałów jest
+> publiczny** — a w oryginale siedzi pełny EXIF, czyli współrzędne GPS
+> kuchni, w której zrobiono zdjęcie. Nie wiemy też, czy w buckecie wariantów
+> nie leżą klucze `incoming/` i czy wariant naprawdę nie niesie bloku EXIF.
+>
+> **Co zrobić najpierw** — jedna komenda, prawdziwe żądania do prawdziwego
+> R2, na prawdziwym zdjęciu z bazy:
+>
+> ```bash
+> railway ssh -- php artisan kuking:bramka-r2 --zapis
+> ```
+>
+> Werdykt z datą wpisz do `docs/infra/BRAMKA_R2.md` §3. Punktów, których
+> komenda nie widzi (przełącznik `r2.dev`, własna domena bucketu), nie da się
+> odhaczyć z serwera — wypisuje je na końcu.
+>
+> **Czego ta ramka NIE mówi: że zdjęcia są zabezpieczone.** R2 nie ma
+> wersjonowania obiektów ani kosza, a ten dokument nie opisuje żadnej kopii
+> zapasowej bucketów zdjęć — kopie z §7 dotyczą **wyłącznie bazy**. Skasowany
+> albo zaszyfrowany bucket zdjęć jest nie do odtworzenia, tak samo jak był
+> dysk `local`. To jest osobna, otwarta pozycja, nie rzecz załatwiona przez
+> samo przejście na R2.
+>
+> `[PYTANIE DO WŁAŚCICIELA]` — czy przejściu na R2 towarzyszyło przeniesienie
+> zdjęć, które powstały wcześniej na dysku `local`. Repozytorium tego nie
+> widzi: `kuking:przenies-zdjecia` przenosi między bucketami, nie z dysku
+> lokalnego.
 
 ### 1.2 🟡 Niedogodność — odtwarzalne, kosztem czasu
 
 | Co | Gdzie żyje | Jak wraca |
 |---|---|---|
-| Zdjęcia — **oryginały** z pełnym EXIF/GPS | **[PO R2]** bucket `r2` (`AWS_BUCKET`) | Utrata oryginału nie kasuje wariantu widocznego użytkownikom (osobny bucket) — traci się tylko możliwość przetworzenia zdjęcia na nowo (nowy rozmiar, format) |
-| Paczki eksportu RODO (`data_exports`) | **[PO R2]** bucket `r2_eksporty`, TTL 7 dni (`config/kuking.php` → `exports.ttl_days`) | Generowane na żądanie: `POST /ustawienia/twoje-dane/eksport`. Zniknięcie paczki niczego nie kasuje — dane źródłowe są w bazie i mediach |
+| Zdjęcia — **oryginały** z pełnym EXIF/GPS | **[NA R2]** bucket oryginałów, dysk `r2` (`AWS_BUCKET`) | Utrata oryginału nie kasuje wariantu widocznego użytkownikom (osobny bucket) — traci się tylko możliwość przetworzenia zdjęcia na nowo (nowy rozmiar, format) |
+| Paczki eksportu RODO (`data_exports`) | **[NA R2]** bucket eksportów, dysk `r2_eksporty` (`AWS_EXPORTS_BUCKET`), TTL 7 dni (`config/kuking.php` → `exports.ttl_days`) | Generowane na żądanie: `POST /ustawienia/twoje-dane/eksport`. Zniknięcie paczki niczego nie kasuje — dane źródłowe są w bazie i mediach |
 | Klucze R2, hasło SMTP, `SENTRY_LARAVEL_DSN`, `POSTHOG_KEY`, tokeny Railway/GitHub | Railway Shared Variables (Sealed) + GitHub Actions Secrets + menedżer haseł właściciela | Rotacja jest już opisaną procedurą (`DEPLOYMENT_RUNBOOK.md` §15 „Rotacja kluczy R2" — ta sama ścieżka dla SMTP i tokenów Railway): nowy sekret → podmiana w Railway → redeploy → sprawdzenie → usunięcie starego |
 | Konfiguracja DNS/WAF/Cache Rules (z tabeli 1.1) | panel Cloudflare | Odtwarzalne ręcznie wg `DEPLOYMENT_RUNBOOK.md` KROK 10, z przestojem na propagację DNS (do ~15 min z rekordem TXT, dłużej bez niego — patrz „Najczęstszy błąd" w tamtym dokumencie) |
 
@@ -127,11 +164,20 @@ dla danych, tylko dla wygody wdrożenia.
   `docs/legal/BRAMKA_BETY.md` (macierz zamknięcia fali 7, 6-7 września 2026)
   **w ogóle nie wymienia backupów ani restore'u** — to nie było w zakresie
   tamtego audytu, więc jego milczenie nic tu nie potwierdza ani nie zaprzecza.
-- **Bucket R2 nie istnieje.** Potwierdzone wprost przez właściciela (nie
-  z repozytorium) — ale zgadza się to z tym, co repo pokazuje: gdyby bucket
-  istniał, `DEPLOYMENT_RUNBOOK.md` KROK 8 nie musiałby opisywać
-  `FILESYSTEM_DISK=local` jako wartości tymczasowej „na pierwszy zielony
-  deploy".
+- **Buckety R2 ISTNIEJĄ i zdjęcia są na nich.** Potwierdzone wprost przez
+  właściciela **11 września 2026** (nie z repozytorium). Do tego dnia stało
+  tu zdanie odwrotne — „bucket R2 nie istnieje", z potwierdzenia z 8 września
+  — podparte tym, że `DEPLOYMENT_RUNBOOK.md` KROK 8 opisuje
+  `FILESYSTEM_DISK=local` jako wartość tymczasową. **To rozumowanie było
+  błędne i trzeba je tu zapisać**, żeby nikt go nie powtórzył: runbook opisuje
+  KOLEJNOŚĆ CZYNNOŚCI przy wdrożeniu od zera, a nie stan produkcji. Z tego,
+  że dokument wymienia jakiś stan przejściowy, nie wynika, że produkcja
+  w nim jest.
+- **Czego z tego NIE wynika: że zdjęcia są bezpieczne.** Bramka
+  `kuking:bramka-r2` (#120) nie chodziła na produkcji ani razu, więc
+  publiczność bucketu oryginałów jest **niesprawdzona** — patrz ramka w §1.1.
+  Kopie zapasowe z §7 obejmują **wyłącznie bazę**; bucketów zdjęć nie kopiuje
+  dziś nic, a R2 nie ma wersjonowania obiektów.
 
 ### 2.2 Czego repozytorium NIE MOŻE potwierdzić
 
@@ -149,10 +195,11 @@ pytania nie mają odpowiedzi w kodzie, bo kod nie mówi, co ktoś kliknął w pa
 | 3 | Jaki plan Railway jest dziś aktywny (Hobby czy Pro)? Ma to znaczenie m.in. dla restart policy `ALWAYS` na serwisie `scheduler`, która na Free jest niedostępna (`.railway/railway.ts:691`) | Railway → **Workspace Settings** → **Plan** |
 | 4 | Czy istnieje dziś JAKAKOLWIEK kopia bazy poza Railway (ręczny `pg_dump` wykonany kiedykolwiek przez kogokolwiek)? **Automatyzacja jest już w kodzie, ale bucketu ani serwisu nie ma (§2.1, §7.3) — więc odpowiedź „nie" znaczy: zero kopii.** | ręczny plik u właściciela; repozytorium tego nie widzi |
 | 5 | Czy serwis `postgres` w środowisku `production` w ogóle już istnieje (czy wdrożenie z `DEPLOYMENT_RUNBOOK.md` zostało wykonane), czy dokument nadal opisuje plan? | Railway → kanwa projektu `kuking` → środowisko `production` |
-| 6 | Jaka jest dziś wartość `FILESYSTEM_DISK` na `production`? (Repozytorium sugeruje `local`, bo bucket R2 nie istnieje, ale to wniosek, nie odczyt) | Railway → `production` → serwis `web` → **Variables** → `FILESYSTEM_DISK` |
+| 6 | **Rozstrzygnięte 11 września 2026 przez właściciela:** zdjęcia stoją na Cloudflare R2, czyli `FILESYSTEM_DISK=r2`. Pytania, które mają dziś sens: czy `KUKING_MEDIA_DISK` też jest `r2`, czy ustawiony jest **osobny** `AWS_PUBLIC_BUCKET` (bez niego oba dyski wskazują jeden bucket) i czy ustawiony jest `AWS_EXPORTS_BUCKET` | Railway → `production` → **Variables**; szybciej i pewniej: `railway ssh -- php artisan kuking:bramka-r2 --zapis` (melduje m.in. `TEN SAM bucket`) |
 | 7 | **Rozstrzygnięte (D-043) — nie pytanie, tylko fakt:** offsite `pg_dump` działa w OSOBNYM, minimalnym serwisie Railway (`docker/kopia/`, serwis `kopia-bazy`), nie w kontenerze aplikacji i nie w GitHub Actions. Pytanie, które ma dziś sens: **kiedy zostaną wykonane cztery czynności z §7.3** (bucket R2, dwa tokeny, klucz szyfrujący, serwis cron)? | `docs/DECISIONS.md` → `## D-043`; §7.3 tego dokumentu; postęp: issue #193 |
-| 8 | Ile zdjęć ma dziś `disk = 'r2_legacy'` (czyli ile kont wciąż zależy WYŁĄCZNIE od tego jednego, starego bucketu jako jedynej kopii)? | `railway ssh -- php artisan tinker` → `App\Models\Media::where('disk', 'r2_legacy')->count()` |
-| 9 | Czy serwis ma już realnych użytkowników wgrywających zdjęcia PRZY `FILESYSTEM_DISK=local` — czyli czy problem z ramki w §1.1 już się dzieje, a nie dopiero może się zdarzyć? | do ustalenia z właścicielem wprost, nie z panelu |
+| 8 | Ile zdjęć ma dziś `disk = 'r2_legacy'` (czyli ile kont wciąż zależy WYŁĄCZNIE od tego jednego, starego bucketu jako jedynej kopii) — i czy `AWS_LEGACY_BUCKET` jest w ogóle ustawiony? Bez tej zmiennej dysk `r2_legacy` nie ma bucketu, a te zdjęcia znikają z serwisu | `railway ssh -- php artisan tinker` → `App\Models\Media::where('disk', 'r2_legacy')->count()` |
+| 9 | **Przeformułowane 11 września 2026.** Pytanie brzmiało: „czy ludzie wgrywają już zdjęcia przy `FILESYSTEM_DISK=local`". Odpadło razem z ustaleniem, że zdjęcia są na R2. **Pytanie, które je zastępuje i jest P0:** czy `kuking:bramka-r2 --zapis` została kiedykolwiek uruchomiona na produkcji i z jakim wynikiem — czyli czy oryginał ze współrzędnymi GPS kuchni jest publicznie dostępny, czy nie | `railway ssh -- php artisan kuking:bramka-r2 --zapis`; wynik z datą → `docs/infra/BRAMKA_R2.md` §3 |
+| 10 | Czy zdjęcia, które powstały PRZED przejściem na R2 (na dysku `local`), zostały przeniesione — czy przepadły przy którymś redeployu? W repozytorium nie ma komendy, która przenosi z `local` do R2 (`kuking:przenies-zdjecia` chodzi tylko między bucketami) | do ustalenia z właścicielem wprost; poszlaka: `App\Models\Media::where('disk', 'local')->count()` |
 
 ---
 
@@ -310,20 +357,24 @@ plus czekanie na DNS") — **niezmierzone.**
 
 ### 3(c) Utracone zdjęcia
 
-**[DZIŚ]**, przed R2: dysk `local` jest ulotny z definicji. Nie ma tu procedury
-odtworzenia, bo nie ma z czego odtwarzać — to jest normalny, oczekiwany skutek
-tej konfiguracji, opisany w ramce w §1.1. Sprawdź, w jakim trybie jest
-środowisko:
+**Zanim pójdziesz dalej — sprawdź, gdzie zdjęcia naprawdę są.** Właściciel
+potwierdził 11 września 2026, że stoją na R2, ale wartość zmiennej jest
+odczytem, a potwierdzenie pamięcią:
 
 ```bash
-railway variables --environment production | grep FILESYSTEM_DISK
+railway variables --environment production | grep -E 'FILESYSTEM_DISK|KUKING_MEDIA_DISK|AWS_(PUBLIC_|EXPORTS_|LEGACY_)?BUCKET'
 ```
 
-Jeśli to `local` i serwis ma już prawdziwe zdjęcia od ludzi — to jest
-blokada P0 do rozwiązania KROKIEM 2 z `DEPLOYMENT_RUNBOOK.md`, nie do
-zaakceptowania jako ryzyko.
+Gdyby to jednak był `local`: dysk `local` jest ulotny z definicji — to
+`storage/app/private` wewnątrz kontenera, kasowany przy każdym redeployu.
+Nie ma wtedy procedury odtworzenia, bo nie ma z czego odtwarzać, a naprawą
+jest KROK 2 z `DEPLOYMENT_RUNBOOK.md`.
 
-**[PO R2]** — trzy podscenariusze, bo różnią się tym, co przetrwało:
+**Na R2 — trzy podscenariusze, bo różnią się tym, co przetrwało.** We
+wszystkich trzech obowiązuje jedno ograniczenie, którego ten dokument
+wcześniej nie mówił: **bucketów zdjęć nie kopiuje dziś nic.** Kopie z §7
+obejmują wyłącznie bazę, a R2 nie ma wersjonowania obiektów ani kosza — więc
+„utracone" znaczy tu utracone naprawdę, a nie „do przywrócenia z kopii":
 
 **(c1) Warianty (`r2_publiczne`) utracone, oryginały (`r2`) całe.**
 Da się przetworzyć na nowo — ale w repozytorium **nie ma dziś gotowej
@@ -601,6 +652,19 @@ o produkcji, bo nie było w nich ani produkcyjnej bazy, ani prawdziwego R2.
 | 11 IX 2026 | `scripts/kopia-lokalna.sh` + `scripts/proba-odtworzenia.sh` na lokalnej bazie po migracjach (PostgreSQL 16), z parą kluczy RSA generowaną w trakcie — pełny obieg: zrzut → weryfikacja → szyfrowanie kluczem publicznym → odszyfrowanie SAMYM kluczem prywatnym → `pg_restore` → sprawdzenie treści i zachowania | Zrzut 153 061 B, 49 tabel z danymi, szyfrogram 153 630 B. `pg_restore` bez błędu, **1-2 s**. Odtworzona baza: 49 tabel, 3 wyzwalacze (wszystkie włączone), 87 `CHECK`, 25 `UNIQUE`, 68 kluczy obcych. Cztery sondy zachowania odrzuciły zapis, a kontrola dodatnia go przyjęła. Kontrole ujemne oblały skrypt na: zrzucie 0 B, zrzucie pustej bazy, zrzucie bez wierszy, braku wyzwalacza, wyzwalaczu wyłączonym i **wyzwalaczu-atrapie** (obecnym, włączonym, z wypatroszoną funkcją) | Produkcyjnej bazy, serwera PostgreSQL **18**, prawdziwego R2 i prawdziwego zrzutu z bucketu. To jest pomiar MECHANIZMU, nie kopii: liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 | **17 IX 2026 — ĆWICZENIE LOKALNE** | `scripts/proba-odtworzenia.sh --petla-lokalna` na **odizolowanym klastrze PostgreSQL 18.6** (`127.0.0.1:55439`, `PGTZ=UTC`), na świeżej bazie po wszystkich migracjach z małym, kontrolowanym zestawem danych (5 kont, 15 wpisów, 30 komentarzy, 7 tagów, 10 przepisów, 10 ugotowań — **nie** `DemoSeeder`). Pełny obieg: kopia `scripts/kopia-lokalna.sh` → odtworzenie do **innej** bazy → porównanie każdej tabeli co do jednego wiersza → `migrate:status` → sondy zachowania | **Zrzut 164 897 B**, 50 tabel z danymi, `pg_dump`/`pg_restore` 18. Etapy: `CREATE DATABASE` 0,05 s, migracje ~7,5 s, dane ~2 s, zrzut <1 s, **`pg_restore` 2 s**, cała pętla 8 s. Odtworzona baza: 50 tabel, **192 wiersze = 192 w źródle**, 50/50 tabel zgodnych co do jednego wiersza, `migrate:status` 80 wykonanych / **0 czekających**, 3 wyzwalacze (włączone), 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Osobno sprawdzone poza skryptem: rozszerzenia `pg_trgm`, `unaccent`, `pgcrypto` obecne i działające (`%`, `unaccent()`), **25 indeksów częściowych** i 159 indeksów łącznie — tyle samo co w źródle; zapytania domenowe Eloquenta na odtworzonej bazie zwróciły to samo. Strefa sesji **UTC po obu stronach**; `md5` z `(id, created_at)` tabeli `users` identyczny w źródle i w celu | Produkcyjnej bazy, prawdziwego R2 i zrzutu pobranego z bucketu. **To NIE JEST produkcyjne RTO** — 2 s to czas odtworzenia 192 wierszy na pętli lokalnej, bez pobierania pliku i bez odszyfrowania. **RPO nie jest tu w ogóle mierzalne**: nie ma harmonogramu ani ani jednej udanej kopii produkcyjnej, z której dałoby się policzyć wiek danych. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
 | **18 IX 2026 — PIERWSZY PRZEBIEG W KONTENERZE, NA PRAWDZIWYM API S3** | `docker build` obrazu `docker/kopia/Dockerfile`, a potem CAŁA ścieżka produkcyjna z tego kontenera: żywa baza PostgreSQL 18.6 → `pg_dump` → `openssl cms` kluczem publicznym → **PUT na prawdziwy serwer S3** (MinIO `RELEASE.2025-09-07` w kontenerze, w miejscu R2) → **GET tego obiektu z bucketu** → odszyfrowanie kluczem prywatnym → `pg_restore` → weryfikacja. Bucket założony **własnym `docker/kopia/s3.sh`**, czyli podpis SigV4 sprawdzony wobec działającej implementacji S3, nie tylko wobec wektorów AWS. Odtworzenie przez `scripts/proba-odtworzenia.sh --instancja <odcisk> --scisle` | Obraz **buduje się**; w środku `pg_dump`/`pg_restore`/`psql` **18.6** (Debian 13), `openssl` 3.5.7, `curl` 8.14.1, kontener chodzi jako `postgres` (uid 999). Cała kopia **0,55 s**: wersje 0,03 s · listowanie bucketu 0,04 s · `pg_dump` **0,06 s / 166 276 B** · `pg_restore --list` 0,02 s · szyfrowanie **0,01 s / 167 159 B** (+883 B narzutu CMS) · PUT szyfrogramu, PUT `.meta` i HEAD potwierdzający rozmiar razem **0,10 s** · retencja 0,04 s. Pobranie obiektu z bucketu **0,035 s**. Odszyfrowanie i `pg_restore` poniżej sekundy każde. Odtworzona baza: **50 tabel, 202 wiersze = 202 w źródle**, 50/50 tabel co do jednego wiersza, `migrate:status` **80 wykonanych / 0 czekających**, 3 wyzwalacze, 89 `CHECK`, 26 `UNIQUE`, 71 kluczy obcych. Poza skryptem porównane ze źródłem i **zgodne co do jednego**: rozszerzenia (`pg_trgm` 1.6, `pgcrypto` 1.4, `unaccent` 1.1, `plpgsql` 1.0), 159 indeksów, **25 indeksów częściowych**, 92 indeksy unikalne, 111 kluczy głównych, 8 sekwencji, 75 funkcji, `md5` definicji wszystkich kolumn, `md5` treści `users` i `posts`, strefa sesji UTC po obu stronach | **Produkcji — ani bazy, ani R2.** MinIO stoi w miejscu R2 i mówi tym samym protokołem, ale to nie jest Cloudflare: nie sprawdzono ani jurysdykcji, ani polityk bucketu, ani tokenów R2. Baza źródłowa jest lokalna i ma 202 wiersze, więc **żadna z tych liczb nie jest produkcyjnym RTO**. Lokalny klaster stoi na `trust`, więc ten przebieg **nie dowodzi uwierzytelniania hasłem** — dowodzi, że hasło nie wychodzi w argumentach. **RPO nadal niemierzalne**: nie ma harmonogramu. Liczba kopii produkcyjnej bazy nadal wynosi **zero** (§8) |
+
+**Uzupełnienie §5.1 — własny pomiar 20 IX 2026:**
+`scripts/kopia-lokalna.sh` → szyfrowanie CMS/RSA →
+`scripts/proba-odtworzenia.sh --scisle --zostaw` na PostgreSQL 18.6,
+`127.0.0.1:55439`. Źródło 2 747 324 095 B, zrzut 426 731 512 B,
+szyfrogram 427 148 807 B. Zrzut **30,22 s**, odtworzenie **56,94 s**,
+weryfikacja skryptu **2,62 s**, dodatkowa weryfikacja całej treści **76,54 s**.
+50/50 tabel i **5 504 654 wiersze** zgodne; 82 migracje / 0 czekających.
+Utrata jednego komentarza daje kod 63, podmiana treści bez zmiany licznika
+zmienia manifest tylko `comments`, uszkodzony szyfrogram daje kod 44 przed
+utworzeniem celu. Szczegóły, ograniczenia, rozdzielenie czasów i artefakty:
+[raport](evidence/dr594/RAPORT.md). Nie zmierzono produkcyjnego RPO ani RTO,
+nie uruchomiono `kopia-bazy`, nie połączono się z produkcją ani R2.
 
 ### 5.2 Co pozostaje do wykonania na produkcji — odczyt panelu 17 IX 2026
 
@@ -902,6 +966,13 @@ Kod jest gotowy i przetestowany; **nie działa jeszcze nic**, bo poniższe
 cztery rzeczy dzieją się w panelach, do których repozytorium nie ma dostępu.
 
 **1. Bucket R2** (Cloudflare → R2 → Create bucket)
+
+> **To jest CZWARTY bucket, osobny od trzech bucketów zdjęć**
+> (`DEPLOYMENT_RUNBOOK.md` §2.1: oryginały, warianty, eksporty RODO). Tamte
+> istnieją od dawna — ten, na 11 września 2026, nie: `AWS_KOPIE_BUCKET` jest
+> puste, więc czujka `kuking:sprawdz-kopie` mówi wprost, że nikt nie patrzy,
+> i nie dzwoni nigdzie. `[DO POTWIERDZENIA PRZEZ WŁAŚCICIELA]`, czy tak jest
+> nadal.
 
 - nazwa np. `kuking-kopie`, region `EU`,
 - **osobny bucket, nie prefiks w buckecie zdjęć.** Publiczność w R2 jest cechą
