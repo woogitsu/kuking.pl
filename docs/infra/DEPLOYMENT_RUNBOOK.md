@@ -1333,8 +1333,8 @@ Poniższa lista wymaga dostępu do panelu Meta właściwej aplikacji:
 4. **Data Deletion Instructions URL:** `https://kuking.pl/prywatnosc`
    (Settings → Basic). Jest to adres instrukcji, nie callback usuwania danych.
    Callback odebrania dostępu nie zastępuje procedury usunięcia konta.
-5. **Products → Facebook Login → Settings → Valid OAuth Redirect URIs** —
-   **wpisz wszystkie trzy, co do znaku** (bez ukośnika na końcu, z `https`):
+5. **Valid OAuth Redirect URIs** — **wpisz wszystkie trzy, co do znaku**
+   (bez ukośnika na końcu, z `https`):
 
    ```text
    https://kuking.pl/wejdz/facebook/wroc
@@ -1351,10 +1351,46 @@ Poniższa lista wymaga dostępu do panelu Meta właściwej aplikacji:
    ma sensu tego obchodzić: adresy `*.up.railway.app` są losowe, a Meta nie
    przyjmuje `*`. Bez kluczy przycisku tam po prostu nie ma i to jest
    zachowanie poprawne dla takich środowisk.
+
+   > **Gdzie to pole naprawdę jest — ścieżka odczytana z panelu 11.09.2026.**
+   > Stało tu `Products → Facebook Login → Settings`, bo tak podaje
+   > dokumentacja Meta. Właściciel wszedł do panelu i **menu `Products` tam
+   > nie było**: przy aplikacji zakładanej „przez przypadek użycia" (pkt 1)
+   > Meta włącza produkty sama i nie pokazuje ich jako osobnej gałęzi menu.
+   >
+   > ```text
+   > lewe menu: Use cases
+   >   → przy „Facebook Login" kliknij Customize
+   >     → lewe menu wewnątrz przypadku użycia: Settings
+   >       → sekcja Client OAuth settings
+   >         → pole Valid OAuth Redirect URIs
+   > ```
+   >
+   > Poznasz, że jesteś w dobrym miejscu, po trzech rzeczach na ekranie:
+   > okruszki u góry pokazują `Use cases > Customize`, nad lewym menu jest
+   > **rozwijana lista z wybranym `Facebook Login`** (to przełącznik między
+   > przypadkami użycia, nie przycisk), a w samym menu poza `Settings` są
+   > jeszcze `Permissions and features`, `Quickstart` i `Webhooks`.
+   >
+   > **Pole jest listą, nie jednym napisem.** Wpisz pierwszy adres i naciśnij
+   > **Enter** — zamieni się w kafelek i zwolni miejsce na następny; powtórz
+   > dla drugiego i trzeciego, a na końcu **Save Changes** w prawym dolnym
+   > rogu. Jeśli Enter nie robi kafelka, wklej trzy adresy po przecinku
+   > i **po zapisaniu sprawdź, czy panel pokazuje trzy osobne wpisy, a nie
+   > jeden długi** — jeden długi nie dopasuje się do niczego.
+   >
+   > **Nad polem jest `Redirect URI Validator` z przyciskiem `Check URI`.**
+   > Wklej w niego każdy z trzech adresów powyżej po kolei — Meta odpowie,
+   > czy ten konkretny adres przejdzie. To jedyny sposób sprawdzenia
+   > dopasowania **bez** przechodzenia całego logowania, a dopasowanie jest
+   > znak w znak (patrz ostrzeżenie o „URL Blocked" wyżej).
 6. **App Roles → Roles**: dodaj siebie jako **testera** i przyjmij
    zaproszenie — w trybie deweloperskim wejdą tylko konta z tej listy.
-7. **App Review → Permissions and Features**: `public_profile` i `email` na
-   **Advanced Access**.
+7. **Permissions and features**: `public_profile` i `email` na
+   **Advanced Access**. Ten ekran stoi w tym samym miejscu co pkt 5 —
+   `Use cases` → przy „Facebook Login" **Customize** → `Permissions and
+   features` (menu odczytane z panelu 11.09.2026). Starsza nazwa
+   `App Review → Permissions and Features` pochodzi z poprzedniego kreatora.
 
    > ⛔ **SPROSTOWANIE 12.09.2026.** Stało tu: „Wniosku App Review tu NIE MA
    > — oba uprawnienia mają dostęp zaawansowany z automatu, zostaje
