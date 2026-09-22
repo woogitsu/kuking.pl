@@ -95,33 +95,35 @@ body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 
  * nas do (0,2,1) — remis rozstrzyga kolejność, a `szybki-wyglad.css` jest
  * w `app.css` importowany PO `marka-rama.css`. Body ma `data-marka` na
  * każdym ekranie serwisu, więc obie reguły dotyczą tych samych stron.
+ *
+ * AKTUALIZACJA: w NISKIM I WĄSKIM widoku ta reguła jest jednak wyłączona
+ * (blok niżej) — tam wygrywanie z `marka-rama.css` łamało strażnika N492.
  */
-:root:has(body .szybki-wyglad) { scroll-padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + var(--wyglad-zasieg)); }
 /*
- * NISKI I WĄSKI WIDOK ZOSTAJE PRZY `.5rem` — INACZEJ PADA STRAŻNIK N492.
+ * W NISKIM I WĄSKIM WIDOKU TA REGUŁA NIE OBOWIĄZUJE — tam rezerwę trzyma
+ * `marka-rama.css` (`.5rem`) i to MA zostać jedynym źródłem.
  *
- * Reguła wyżej ma swoistość (0,2,1), DOKŁADNIE tyle samo co
- * `:root:has(body[data-marka])` z `marka-rama.css:230`, a `szybki-wyglad.css`
- * jest w `app.css` importowany PÓŹNIEJ (wiersz 22 wobec 20) — więc w niskim
- * i wąskim widoku wygrywała remisem i podmieniała tam rezerwę `.5rem` na
- * własną. `scripts/nawigacja-niski-widok.mjs` wymaga w trybie „release"
- * dokładnie `scroll-padding-bottom === fontSize / 2` i zgłaszał
- * `N492_DOL_REZERWA`.
+ * Reguła niżej ma swoistość (0,2,1), dokładnie tyle samo co
+ * `:root:has(body[data-marka])` z `marka-rama.css`, a ten arkusz jest w
+ * `app.css` importowany PÓŹNIEJ — więc bez zawężenia wygrywała remisem
+ * i podmieniała w niskim widoku `.5rem` na własną rezerwę.
+ * `scripts/nawigacja-niski-widok.mjs` żąda tam `scroll-padding-bottom ===
+ * fontSize / 2` i zgłaszał `N492_DOL_REZERWA`. ZMIERZONE (Chromium, domyślna
+ * czcionka przez CDP): short 320x500 zoom2 → 80 px zamiast 8 px, largeFont
+ * 320x740 f32 → 153,12 px zamiast 16 px.
  *
- * ZMIERZONE (Chromium, domyślna czcionka ustawiana przez CDP `Page.setFontSizes`,
- * oba warianty `release` ze strażnika):
+ * DLACZEGO WYŁĄCZENIE, A NIE POWTÓRZENIE `.5rem` TUTAJ. Pierwsza wersja tej
+ * poprawki przywracała `.5rem` drugą regułą w tym pliku. Pozytyw przechodził,
+ * ale oślepiła kontrolę ujemną strażnika: `rezerwa-dol` zmienia `.5rem` na
+ * `0rem` W `marka-rama.css`, a powtórzona wartość stąd ją przykrywała —
+ * `N492_NEGATYW rezerwa-dol` w CI. Druga kopia tej samej liczby w innym pliku
+ * to dokładnie to, przed czym strażnik ma chronić.
  *
- *   short     320x500 zoom 2, font 16 px   sam main 8 px   z regułą wyżej  80,00 px
- *   largeFont 320x740 zoom 1, font 32 px   sam main 16 px  z regułą wyżej 153,12 px
- *
- * W tym widoku cała rama i tak ustępuje do przepływu (`marka-rama.css`:
- * `.bottom-nav { position: relative }`, `--rezerwa-pod-belka: 0rem`), więc
- * trzymamy się decyzji, która tam zapadła, zamiast ją tutaj po cichu
- * odwracać. Ten sam zapis `body .szybki-wyglad` i ta sama media query, więc
- * remis znów rozstrzyga kolejność — tym razem na rzecz `.5rem`.
+ * Warunek jest dosłownym zaprzeczeniem media query z `marka-rama.css`; przy
+ * zmianie tamtej trzeba zmienić i tę.
  */
-@media (max-width: 15rem), (max-width: 30rem) and (max-height: 40rem) {
-  :root:has(body .szybki-wyglad) { scroll-padding-bottom: .5rem; }
+@media not ((max-width: 15rem) or ((max-width: 30rem) and (max-height: 40rem))) {
+  :root:has(body .szybki-wyglad) { scroll-padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + var(--wyglad-zasieg)); }
 }
 @media (max-height: 400px) {
   .szybki-wyglad[open] { inset: 8px; max-width: none; background: var(--color-surface-raised); overflow: auto; }
