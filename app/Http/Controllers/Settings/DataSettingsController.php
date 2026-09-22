@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Settings;
 
+use App\Domain\Compliance\RejestrPotwierdzenRodo;
 use App\Domain\Users\Exports\ExportFileNames;
 use App\Http\Controllers\Controller;
 use App\Jobs\GenerateUserExport;
@@ -195,7 +196,7 @@ class DataSettingsController extends Controller
      * Wybór idzie do KOLUMNY, nie do sesji ani do zadania w kolejce —
      * egzekucja jest 30 dni później (D-022, punkt 2).
      */
-    public function requestDeletion(Request $request): RedirectResponse
+    public function requestDeletion(Request $request, RejestrPotwierdzenRodo $rejestr): RedirectResponse
     {
         $data = $request->validate([
             'password' => ['required', 'string'],
@@ -218,7 +219,24 @@ class DataSettingsController extends Controller
             ? User::DELETE_SCOPE_EVERYTHING
             : User::DELETE_SCOPE_MINIMUM;
 
-        $user->markForDeletion($zakres);
+        // OZNACZENIE KONTA I OTWARCIE SPRAWY W REJESTRZE RODO — JEDNA
+        // TRANSAKCJA, nie dwie instrukcje obok siebie.
+        //
+        // `potwierdzenia_zadan_rodo` ma jedną sprawę na jedno żądanie
+        // (`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`). Gdyby te dwa zapisy
+        // szły osobno, zostawałby stan pośredni: konto oznaczone do usunięcia
+        // BEZ sprawy w rejestrze (żądanie, którego nie ma jak potwierdzić —
+        // i którego egzekutor karencji za 30 dni nie będzie miał czym
+        // domknąć) albo sprawa w rejestrze bez oznaczonego konta (rejestr
+        // twierdzący, że coś przyjęliśmy, choć nic się nie dzieje).
+        //
+        // Ta sama zasada, z tego samego powodu, wiąże domknięcie sprawy
+        // z `EraseAccountData` i `CancelAccountDeletion`.
+        DB::transaction(function () use ($user, $zakres, $rejestr): void {
+            $user->markForDeletion($zakres);
+
+            $rejestr->przyjmijZadanieUsunieciaKonta($user);
+        });
 
         // Zakres w audycie, bo to jest jedyny zapis tego, CO człowiek wybrał
         // i kiedy. Gdyby ktoś kiedyś zapytał „dlaczego moje przepisy
