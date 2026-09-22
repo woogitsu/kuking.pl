@@ -4315,6 +4315,11 @@
      zastosowań (wypełnienie stopki dziedziczy po `body`, a
      `scroll-padding-bottom` rozwiązuje się na `:root`), czyli zamieniłoby
      48 px pustego miejsca na dole stopki na pułapkę do nadepnięcia. */
+  /* UWAGA: dla stron marki (a `body` ma `data-marka` zawsze) tę wartość
+     nadpisuje `[data-marka] .site-footer` w `marka-rama.css` i tam stoi
+     `--rezerwa-ukladu-dol` — rezerwa policzona RAZ i tylko wtedy, gdy belka
+     naprawdę jest na ekranie. Reguła niżej zostaje jako wartość bazowa
+     i jako zapis wyprowadzenia liczby. */
   .site-footer {
     margin-top: var(--spacing-12);
     border-top: 1px solid var(--color-border);

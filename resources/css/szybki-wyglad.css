@@ -26,7 +26,13 @@
 .szybki-wyglad [data-wyglad-status]:empty { display: none; }
 /* Podpowiedź jest dostępna również przy zwiniętym details. */
 .szybki-wyglad:not([open]) > .szybki-wyglad-podpowiedz:not([hidden]) { display: block; content-visibility: visible; }
-body:has(.szybki-wyglad) { padding-bottom: calc(var(--rezerwa-pod-belka, 0px) + 80px); }
+/* MIEJSCE NA TEN PRZYCISK NIE JEST JUŻ LICZONE TUTAJ.
+   Do 22 września 2026 stało tu `body:has(.szybki-wyglad) { padding-bottom:
+   calc(var(--rezerwa-pod-belka, 0px) + 80px) }` — czyli rezerwa na przypiętą
+   belkę po raz DRUGI, obok tej samej rezerwy w `padding-bottom` stopki.
+   Gość, który belki w ogóle nie ma (`.bottom-nav` pod `@auth`), dostawał
+   przez to 284 px szarego pasa pod stopką. Rezerwa jest teraz jedna,
+   wydawana raz, w stopce: `--rezerwa-ukladu-dol` w `marka-rama.css`. */
 @media (max-height: 400px) {
   .szybki-wyglad[open] { inset: 8px; max-width: none; background: var(--color-surface-raised); overflow: auto; }
   .szybki-wyglad[open] .szybki-wyglad-panel { position: static; width: auto; max-height: none; box-shadow: none; }
