@@ -1,0 +1,1144 @@
+[
+  {
+    "id": "S001",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S002",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S003",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S004",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S005",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S006",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S007",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S008",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S009",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S010",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S011",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S012",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S013",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S014",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S015",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S016",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S017",
+    "variant": "A",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S018",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S019",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S020",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S021",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S022",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S023",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S024",
+    "variant": "A",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S025",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S026",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S027",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S028",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S029",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S030",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S031",
+    "variant": "A",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S032",
+    "variant": "A",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S033",
+    "variant": "A",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S034",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S035",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S036",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S037",
+    "variant": "A",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S038",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S039",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S040",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S041",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S042",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 1,
+    "flags": [
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S043",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S044",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S045",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S046",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S047",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 1,
+    "flags": [
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S048",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S049",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S050",
+    "variant": "A",
+    "returned": 3,
+    "relevant": 1,
+    "flags": [
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S051",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S052",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S053",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S054",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S055",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S056",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S057",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S058",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S059",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S060",
+    "variant": "A",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S001",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S002",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S003",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S004",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S005",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S006",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S007",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S008",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S009",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S010",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S011",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S012",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S013",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S014",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S015",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S016",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S017",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S018",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S019",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S020",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S021",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S022",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S023",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S024",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S025",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S026",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S027",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S028",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S029",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S030",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S031",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S032",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S033",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S034",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S035",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S036",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S037",
+    "variant": "B",
+    "returned": 5,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S038",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S039",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S040",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S041",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 3,
+    "flags": [
+      true,
+      true,
+      true
+    ]
+  },
+  {
+    "id": "S042",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 1,
+    "flags": [
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S043",
+    "variant": "B",
+    "returned": 1,
+    "relevant": 1,
+    "flags": [
+      true
+    ]
+  },
+  {
+    "id": "S044",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S045",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S046",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S047",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 1,
+    "flags": [
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S048",
+    "variant": "B",
+    "returned": 1,
+    "relevant": 1,
+    "flags": [
+      true
+    ]
+  },
+  {
+    "id": "S049",
+    "variant": "B",
+    "returned": 1,
+    "relevant": 1,
+    "flags": [
+      true
+    ]
+  },
+  {
+    "id": "S050",
+    "variant": "B",
+    "returned": 3,
+    "relevant": 1,
+    "flags": [
+      true,
+      false,
+      false
+    ]
+  },
+  {
+    "id": "S051",
+    "variant": "B",
+    "returned": 1,
+    "relevant": 1,
+    "flags": [
+      true
+    ]
+  },
+  {
+    "id": "S052",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S053",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S054",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S055",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S056",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S057",
+    "variant": "B",
+    "returned": 1,
+    "relevant": 1,
+    "flags": [
+      true
+    ]
+  },
+  {
+    "id": "S058",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S059",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  },
+  {
+    "id": "S060",
+    "variant": "B",
+    "returned": 0,
+    "relevant": 0,
+    "flags": []
+  }
+]

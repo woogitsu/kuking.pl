@@ -1,0 +1,4 @@
+Pint --test: PASS, 1161 plików.
+PHPStan analyse --no-progress --memory-limit=1G: [OK] No errors, kod wyjścia 0.
+php -l: 1124 plików, kod wyjścia 0.
+Git diff --check: kod wyjścia 0.

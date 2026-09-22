@@ -10,6 +10,9 @@ use Illuminate\Auth\Notifications\ResetPassword;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Notifications\Messages\MailMessage;
+use Illuminate\Support\Carbon;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Password;
 
 /**
  * „Ustaw nowe hasło" — jedyna droga powrotu dla kogoś, kto wypadł z konta.
@@ -50,16 +53,28 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
      */
     use Queueable;
 
+    public function __construct(string $token, private readonly ?Carbon $wygasa = null)
+    {
+        parent::__construct($token);
+    }
+
+    /** Broker sprawdza także zużycie i zastąpienie tokenu; sama data nie wystarcza. */
+    public function shouldSend(object $notifiable, string $channel): bool
+    {
+        if (! $notifiable instanceof User || ! Password::tokenExists($notifiable, $this->token)) {
+            return false;
+        }
+
+        $created = $this->createdAt($notifiable);
+
+        return $created !== null && $this->expiresAt($created)->isFuture();
+    }
+
     /**
      * @param  User  $notifiable
      */
     public function toMail($notifiable): MailMessage
     {
-        $minut = (int) config(
-            'auth.passwords.'.config('auth.defaults.passwords').'.expire',
-            60,
-        );
-
         return (new MailMessage)
             ->subject('Ustaw nowe hasło do Kuking')
             ->view('mail.nowe-haslo', [
@@ -76,7 +91,7 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
                 // gwarancję: przestaje ona zależeć od tego, że kolejka jest
                 // asynchroniczna.
                 'linkUrl' => AdresKanoniczny::zbuduj(fn (): string => $this->resetUrl($notifiable)),
-                'waznoscTekst' => self::waznosc($minut),
+                'waznoscTekst' => $this->waznosc($notifiable),
                 'displayName' => $notifiable->profile?->display_name,
             ]);
     }
@@ -90,8 +105,37 @@ final class UstawienieNowegoHasla extends ResetPassword implements ShouldQueue
      * godziny względem zegara w polskiej kuchni. Czas trwania jest odporny
      * na tę pomyłkę.
      */
-    private static function waznosc(int $minut): string
+    private function waznosc(User $notifiable): string
     {
-        return $minut === 60 ? 'przez godzinę' : "przez {$minut} min.";
+        $created = $this->createdAt($notifiable);
+        if ($created === null) {
+            return 'tylko do terminu ustalonego przy zamówieniu';
+        }
+
+        $minutes = max(0, (int) $created->diffInMinutes($this->expiresAt($created)));
+
+        return ($minutes === 60 ? 'przez godzinę' : "przez {$minutes} min.").' od chwili zamówienia';
+    }
+
+    private function createdAt(User $notifiable): ?Carbon
+    {
+        $broker = config('auth.passwords.'.config('auth.defaults.passwords'));
+        $created = DB::connection($broker['connection'] ?? null)
+            ->table($broker['table'])
+            ->where('email', $notifiable->getEmailForPasswordReset())
+            ->value('created_at');
+
+        return $created === null ? null : Carbon::parse($created);
+    }
+
+    private function expiresAt(Carbon $created): Carbon
+    {
+        $expiry = $created->copy()->addMinutes((int) config(
+            'auth.passwords.'.config('auth.defaults.passwords').'.expire', 60,
+        ));
+
+        // Starsze zadanie nie ma daty: odtwarzamy ją z wystawienia w bazie,
+        // nigdy z czasu wykonania kolejki. Nowe zachowuje także własny termin.
+        return ($this->wygasa ?? null) === null ? $expiry : $expiry->min($this->wygasa);
     }
 }

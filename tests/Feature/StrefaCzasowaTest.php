@@ -32,6 +32,8 @@ use Tests\TestCase;
  */
 class StrefaCzasowaTest extends TestCase
 {
+    use RefreshDatabase;
+
     /**
      * WIDOKI, KTÓRYM WOLNO WOŁAĆ `->format()` POZA `Czas::`.
      *
@@ -114,7 +116,6 @@ class StrefaCzasowaTest extends TestCase
         }
     }
 
-    use RefreshDatabase;
 
     protected function tearDown(): void
     {

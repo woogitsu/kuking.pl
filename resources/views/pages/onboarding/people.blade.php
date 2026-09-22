@@ -85,6 +85,13 @@
                     @foreach($wynikiWyszukiwania as $profil)
                         <label class="choice">
                             <input type="checkbox" name="follow[]" value="{{ $profil->username }}">
+                            {{-- #793 rozszerzone na relacje: ten ekran ludzie
+                                 przerywają i wracają do niego, więc nazwa
+                                 zaznaczona teraz może przy wysłaniu należeć
+                                 już do kogoś innego. Kontroler porównuje ten
+                                 identyfikator z osobą, którą nazwa wskazuje
+                                 w chwili wysłania. --}}
+                            <input type="hidden" name="oczekiwani[{{ $profil->username }}]" value="{{ $profil->user_id }}">
                             <span class="flex gap-3 items-center flex-1">
                                 <x-avatar :user="$profil->user" :size="48" />
                                 <span>
@@ -126,6 +133,8 @@
                 @foreach($people as $person)
                     <label class="choice">
                         <input type="checkbox" name="follow[]" value="{{ $person->profile->username }}">
+                        {{-- Jak wyżej (#793 rozszerzone na relacje). --}}
+                        <input type="hidden" name="oczekiwani[{{ $person->profile->username }}]" value="{{ $person->getKey() }}">
                         <span class="flex gap-3 items-center flex-1">
                             <x-avatar :user="$person" :size="48" />
                             <span>

@@ -1,0 +1,81 @@
+
+   FAIL  Tests\Feature\TagiPrzyOpisieTest
+  ⨯ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 1.03s
+  ⨯ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.06s
+  ⨯ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.06s
+  ⨯ reczne tagi sa przy opisie i nadal maja droge bez skryptu with data… 0.06s
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\TagiPrzyOpisieTest > reczne tagi sa przy opisie i n…
+  Lista tagów ma być przy opisie, przed kolejnym polem formularza.
+Failed asserting that 0 is identical to 1.
+
+  at tests/Feature/TagiPrzyOpisieTest.php:53
+     49▕         $xpath = new DOMXPath($dom);
+     50▕         $this->assertSame(1, $xpath->query('//main//textarea[@name="body"]')->length);
+     51▕         $this->assertSame(1, $xpath->query('//main//*[@id="f-tagi"]')->length);
+     52▕         $section = $xpath->query('//main//*[@data-tagi-opis]//*[@id="f-tagi"]');
+  ➜  53▕         $this->assertSame(1, $section->length, 'Lista tagów ma być przy opisie, przed kolejnym polem formularza.');
+     54▕         $this->assertStringContainsString('(maksymalnie '.$limit.')', $section->item(0)->textContent);
+     55▕         $this->assertSame(1, $xpath->query('.//input[@name="tag_names[]" and @value="'.$name.'"]', $section->item(0))->length);
+     56▕         $remove = $xpath->query('.//button[@name="usun_tag" and @value="'.$name.'"]', $section->item(0));
+     57▕         $this->assertSame(1, $remove->length);
+
+  1   tests/Feature/TagiPrzyOpisieTest.php:53
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\TagiPrzyOpisieTest > reczne tagi sa przy opisie i n…
+  Lista tagów ma być przy opisie, przed kolejnym polem formularza.
+Failed asserting that 0 is identical to 1.
+
+  at tests/Feature/TagiPrzyOpisieTest.php:53
+     49▕         $xpath = new DOMXPath($dom);
+     50▕         $this->assertSame(1, $xpath->query('//main//textarea[@name="body"]')->length);
+     51▕         $this->assertSame(1, $xpath->query('//main//*[@id="f-tagi"]')->length);
+     52▕         $section = $xpath->query('//main//*[@data-tagi-opis]//*[@id="f-tagi"]');
+  ➜  53▕         $this->assertSame(1, $section->length, 'Lista tagów ma być przy opisie, przed kolejnym polem formularza.');
+     54▕         $this->assertStringContainsString('(maksymalnie '.$limit.')', $section->item(0)->textContent);
+     55▕         $this->assertSame(1, $xpath->query('.//input[@name="tag_names[]" and @value="'.$name.'"]', $section->item(0))->length);
+     56▕         $remove = $xpath->query('.//button[@name="usun_tag" and @value="'.$name.'"]', $section->item(0));
+     57▕         $this->assertSame(1, $remove->length);
+
+  1   tests/Feature/TagiPrzyOpisieTest.php:53
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\TagiPrzyOpisieTest > reczne tagi sa przy opisie i n…
+  Lista tagów ma być przy opisie, przed kolejnym polem formularza.
+Failed asserting that 0 is identical to 1.
+
+  at tests/Feature/TagiPrzyOpisieTest.php:53
+     49▕         $xpath = new DOMXPath($dom);
+     50▕         $this->assertSame(1, $xpath->query('//main//textarea[@name="body"]')->length);
+     51▕         $this->assertSame(1, $xpath->query('//main//*[@id="f-tagi"]')->length);
+     52▕         $section = $xpath->query('//main//*[@data-tagi-opis]//*[@id="f-tagi"]');
+  ➜  53▕         $this->assertSame(1, $section->length, 'Lista tagów ma być przy opisie, przed kolejnym polem formularza.');
+     54▕         $this->assertStringContainsString('(maksymalnie '.$limit.')', $section->item(0)->textContent);
+     55▕         $this->assertSame(1, $xpath->query('.//input[@name="tag_names[]" and @value="'.$name.'"]', $section->item(0))->length);
+     56▕         $remove = $xpath->query('.//button[@name="usun_tag" and @value="'.$name.'"]', $section->item(0));
+     57▕         $this->assertSame(1, $remove->length);
+
+  1   tests/Feature/TagiPrzyOpisieTest.php:53
+
+  ────────────────────────────────────────────────────────────────────────────
+   FAILED  Tests\Feature\TagiPrzyOpisieTest > reczne tagi sa przy opisie i n…
+  Lista tagów ma być przy opisie, przed kolejnym polem formularza.
+Failed asserting that 0 is identical to 1.
+
+  at tests/Feature/TagiPrzyOpisieTest.php:53
+     49▕         $xpath = new DOMXPath($dom);
+     50▕         $this->assertSame(1, $xpath->query('//main//textarea[@name="body"]')->length);
+     51▕         $this->assertSame(1, $xpath->query('//main//*[@id="f-tagi"]')->length);
+     52▕         $section = $xpath->query('//main//*[@data-tagi-opis]//*[@id="f-tagi"]');
+  ➜  53▕         $this->assertSame(1, $section->length, 'Lista tagów ma być przy opisie, przed kolejnym polem formularza.');
+     54▕         $this->assertStringContainsString('(maksymalnie '.$limit.')', $section->item(0)->textContent);
+     55▕         $this->assertSame(1, $xpath->query('.//input[@name="tag_names[]" and @value="'.$name.'"]', $section->item(0))->length);
+     56▕         $remove = $xpath->query('.//button[@name="usun_tag" and @value="'.$name.'"]', $section->item(0));
+     57▕         $this->assertSame(1, $remove->length);
+
+  1   tests/Feature/TagiPrzyOpisieTest.php:53
+
+
+  Tests:    4 failed (16 assertions)
+  Duration: 1.94s
