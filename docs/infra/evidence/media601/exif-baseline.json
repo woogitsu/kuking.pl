@@ -1,0 +1,35 @@
+{
+    "input": {
+        "orientation": 6,
+        "gps_verified": true,
+        "make": "TestPhone"
+    },
+    "variants": {
+        "thumb": {
+            "sha256": "5a7f9043df67ccbfd73d3ffc2f7f89a707009b8f601dffe793e14a4b02c594cc",
+            "chunks": [
+                "VP8 "
+            ],
+            "width": 50,
+            "height": 100
+        },
+        "feed": {
+            "sha256": "5a7f9043df67ccbfd73d3ffc2f7f89a707009b8f601dffe793e14a4b02c594cc",
+            "chunks": [
+                "VP8 "
+            ],
+            "width": 50,
+            "height": 100
+        },
+        "large": {
+            "sha256": "5a7f9043df67ccbfd73d3ffc2f7f89a707009b8f601dffe793e14a4b02c594cc",
+            "chunks": [
+                "VP8 "
+            ],
+            "width": 50,
+            "height": 100
+        }
+    },
+    "ready": true,
+    "scope": "Real job; Orientation metadata populated explicitly from PHP exif_read_data, not StoreUploadedImage parser."
+}

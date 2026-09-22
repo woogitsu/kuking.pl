@@ -1,4 +1,4 @@
-# Pułapki testów — osiem rzeczy, które w tym repozytorium naprawdę przeszły
+# Pułapki testów — dziesięć rzeczy, które w tym repozytorium naprawdę przeszły
 
 Ten plik nie jest wykładem o testowaniu. To lista pomyłek, które **w tym
 projekcie** przeszły przez zielone CI i zostały wykryte dopiero przez
@@ -169,6 +169,50 @@ wiemy".
 
 Ta sama zasada rządzi bramkami w `docs/OTWARCIE.md`: **`NIE WIEMY` liczy się
 jako nieprzejście, nie jako sukces.**
+
+### 5b. …a najdroższą odmianą tego jest KONTROLA UJEMNA, która niczego nie zepsuła
+
+19 września 2026 ten sam wzorzec trafił **cztery razy w czterech niezależnych
+pakietach**, zawsze tak samo: ktoś mutował źródło, wzorzec `sed` nie trafiał,
+plik zostawał nietknięty, test przechodził — i przebieg wyglądał na poprawnie
+wykonaną kontrolę ujemną. **Dowód był wart zero, a raport twierdził coś
+przeciwnego.** To jest gorsze niż brak kontroli: brak widać, a no-op wygląda
+jak robota.
+
+Trzy odmiany tej jednej choroby, wszystkie zaobserwowane:
+
+1. **Mutacja nie trafiła.** Wzorzec przestał pasować po niewinnym
+   przeformatowaniu kodu albo po zmianie nazwy zmiennej.
+2. **Test był czerwony JUŻ PRZED mutacją.** Czerwień po mutacji niczego nie
+   dowodzi, a wygląda identycznie.
+3. **Czerwień z niewłaściwego powodu.** Test padł na braku bazy, timeoucie
+   albo literówce w samej mutacji — nie na tym, czego pilnuje.
+
+**Co robić: nie pisz kontroli ujemnej ręcznie.** Przepuść ją przez
+`scripts/kontrola-ujemna.sh`, który wszystkie trzy odmiany odcina
+konstrukcyjnie:
+
+```bash
+scripts/kontrola-ujemna.sh   --nazwa 'docięcie numeru strony drugiej listy — #646'   --plik app/Support/PaginationLinks.php   --zamien 'min($other->currentPage(), $other->lastPage())'   --na '$other->currentPage()'   --oczekuj 'page.*999'   --json storage/kontrola-646.json   -- vendor/bin/phpunit tests/Feature/ZeszytPaginacjaObuListTest.php
+```
+
+Przyrząd liczy podmiany (PHP `str_replace`, zwykły łańcuch, nie wyrażenie
+regularne) i **odmawia uruchomienia testu**, gdy podmian było zero — komunikat
+`ODMOWA_NO_OP`, kod wyjścia 2. Wymaga też kontroli dodatniej przed mutacją
+(kod 5, gdy test był już czerwony) i wzorca `--oczekuj`, bez którego nie
+odróżnia dowodu od awarii środowiska (kod 4 przy czerwieni z innej przyczyny).
+Źródło wraca w `trap` na EXIT, INT i TERM, ze sprawdzeniem MD5 i mtime —
+także wtedy, gdy test zginie w połowie.
+
+Sam przyrząd ma własną kontrolę ujemną: `tests/skrypty/kontrola-ujemna.sh`
+podaje mu m.in. mutację, która **nie trafia**, i sprawdza, że odmawia zamiast
+zameldować sukces. Bez tego byłby kolejnym narzędziem z dokładnie tą wadą,
+którą naprawia. Przebieg jest w `scripts/check.sh` — nie wymaga bazy i trwa
+poniżej sekundy.
+
+**Dlaczego łańcuch, a nie wyrażenie regularne.** Łańcuch albo jest w pliku,
+albo go nie ma. Wyrażenie regularne ma trzecią możliwość — „pasuje do czegoś
+innego, niż myślałeś" — i to ona dała połowę no-opów z 19 września.
 
 ---
 
@@ -399,6 +443,96 @@ tyka dokładnie tyle, ile wynosi różnica między dniem napisania a wpisaną da
 ---
 
 ---
+
+## 10. Stan STANOWISKA udaje wynik pomiaru
+
+§8b mówi o czerwieni pochodzącej z maszyny — obciążenia, timeoutu, ubitego
+procesu. Ta pułapka jest inna i groźniejsza, bo nie wygląda na awarię:
+**stanowisko jest ciche, a jego wada zmienia wynik**. Test mówi prawdę
+o czymś, o co nikt nie pytał.
+
+19 września 2026 trafiło to cztery razy w jednym dniu, za każdym razem
+kosztując osobne śledztwo:
+
+**Klon przez `git archive`.** `.gitattributes` oznacza katalog `.github` jako `export-ignore`,
+więc z paczki zniknęło 38 plików i wypadły 22 testy o workflowach CI.
+Objaw: „PR psuje testy CI". Prawda: tych plików nie było w stanowisku.
+
+**Symlink na `vendor`.** Dowiązanie przestawia PSR-4 dla `App\` na katalog
+dawcy. Objaw: `JednoDekodowanieZdjeciaTest` wywraca się po ośmiu minutach
+hooka. Prawda: autoloader ładował cudzy kod. **Vendor się kopiuje, nie
+dowiązuje.**
+
+**Nieświeży lokalny `main`.** W repozytorium, po którym chodzi kilka sesji,
+gałąź `main` potrafi stać kilkaset commitów wstecz, a `git rev-list --count
+origin/main..main` pokazuje wtedy **zero** i niczego nie sygnalizuje.
+Gałąź zbudowana na takiej bazie dała 41 porażek drzewa sprzed tygodnia.
+Objaw: „regresja w main". Prawda: zła baza. **Bazę bierz z `origin/main`,
+nie z lokalnego `main`.**
+
+**Brak bitu wykonywalności.** Skrypt zacommitowany w worktree Windows dostaje
+tryb `100644` zamiast `100755`. Objaw: 8 oblanych z 12, wszystkie z kodem
+**126** („znaleziono, ale nie da się wykonać"). U autora było 12/12, bo plik
+na dysku był wykonywalny — zepsuty był wyłącznie tryb w commicie.
+Commituj skrypty przez `git update-index --chmod=+x`.
+
+### Dlaczego to jest osobna pułapka, a nie odmiana §5
+
+W §5 narzędzie **nie robi nic** i melduje sukces. Tutaj narzędzie robi
+dokładnie to, o co je poproszono — tylko nie na tym, na czym myślisz.
+Wynik jest prawdziwy i bezużyteczny naraz.
+
+### Dwa wzorce, które to wyłapują
+
+**Pytaj o zachowanie, nie o wygląd.** Podgląd pliku przez kilka warstw
+powłoki gubi ukośniki: `/^(P581_[A-Z_]+)\s/` wyświetlił się identycznie
+jak zepsute `/^(P581_[A-Z_]+)s/`. Rozstrzygnęło dopiero zaimportowanie
+modułu i sprawdzenie, co zwraca — wynik był dokładnie odwrotny od
+zamierzonego.
+
+**Bisektuj, zanim ogłosisz regresję.** Masowe porażki na gałęzi sprawdź
+najpierw na samych scaleniach bazy: jeśli każde z osobna jest zielone,
+winna jest baza albo stanowisko, nie kod. To odróżnienie zajęło pięć minut
+i oszczędziło zgłoszenia o nieistniejącej regresji.
+
+### Dotyczy to także poleceń pomocniczych
+
+Tego samego dnia `git show 'origin/main:.env.example'` **cicho padło** na
+zamianie ścieżki przez powłokę Windows, a skrypt wypisał własne „brak
+wpisu" — i na tej podstawie postawiono błędną diagnozę o strefie czasowej.
+Polecenie diagnostyczne, którego kodu wyjścia nikt nie sprawdza, jest
+kolejnym źródłem tej samej pułapki. `MSYS_NO_PATHCONV=1` rozwiązuje ten
+konkretny przypadek; sprawdzanie kodu wyjścia rozwiązuje całą klasę.
+
+## 11. Niedopasowana atrapa HTTP domyślnie wychodzi do prawdziwej sieci
+
+`Http::fake(['api.example/*' => ...])` podstawia tylko pasujący adres. Bez
+dodatkowej blokady literówka w domenie albo nowy endpoint może ominąć atrapę
+i uruchomić prawdziwy transport podczas testów. Wynik zaczyna wtedy zależeć od
+sieci, cudzej usługi i sekretów stanowiska, a test może nawet zmienić dane poza
+izolowanym środowiskiem.
+
+Dlatego `Tests\TestCase::setUp()` włącza globalnie
+`Http::preventStrayRequests()`. Każdy test używający fasady Laravela musi jawnie
+podstawić wszystkie dozwolone adresy. Pilnuje tego
+`TestyNieWychodzaDoSieciTest`: niedopasowany loopback kończy się
+`StrayRequestException`, a dopasowane żądanie nadal przechodzi i ma sprawdzony
+adres, metodę oraz dane.
+
+Granice tej ochrony są równie ważne jak sama ochrona:
+
+- `Http::fake()` bez mapy i wildcard `Http::fake(['*' => ...])` nadal akceptują
+  każdy adres — używaj ich tylko wtedy, gdy test naprawdę nie rozstrzyga celu;
+- osobna instancja `Illuminate\Http\Client\Factory` nie dziedziczy ustawienia
+  fasady i musi dostać własne `preventStrayRequests()`;
+- blokada obejmuje klienta HTTP Laravela, nie ręczny Guzzle, SDK storage, cURL,
+  proces powłoki ani przeglądarkę;
+- uruchamiamy ją po `parent::setUp()`, więc chroni kod wykonywany przez test,
+  ale nie żądanie wykonane w trakcie samego bootowania aplikacji.
+
+Nie naprawiaj brakującej atrapy przez globalne `Http::fake()` ani
+`allowStrayRequests()`. Dopisz najwęższy wzorzec adresu i zachowaj asercję
+pełnego URL-u, metody oraz danych tam, gdzie są częścią kontraktu.
 
 ## Skąd ta lista
 

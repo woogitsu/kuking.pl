@@ -164,6 +164,54 @@ return [
             'processors' => [PsrLogMessageProcessor::class],
         ],
 
+        /*
+        |----------------------------------------------------------------------
+        | Szereg czasowy czujek — issue #598, #599
+        |----------------------------------------------------------------------
+        |
+        | POZIOM NA SZTYWNO `info`, dokładnie z tego samego powodu, dla którego
+        | `blad_webhook` ma na sztywno `error`: ten kanał ma jeden cel i nie
+        | może dziedziczyć ogólnego progu logowania aplikacji.
+        |
+        | SKĄD SIĘ WZIĄŁ. Czujki `kuking:budzet-polaczen` i `kuking:sprawdz-kolejke`
+        | pisały pomiar przez zwykłe `Log::info()`, czyli kanałem `stderr`,
+        | którego poziom bierze się z `LOG_LEVEL`. A `.railway/railway.ts`
+        | ustawia `LOG_LEVEL: isProduction ? "warning" : "debug"` — na produkcji
+        | więc `warning`. `info` jest NIŻEJ i był odrzucany, zanim cokolwiek
+        | dotarło do strumienia.
+        |
+        | Zmierzone 19.09.2026: harmonogram produkcji uruchomił czujkę o 11:25:02
+        | i 12:25:11 UTC, oba przebiegi zameldowały „DONE" (15,15 ms i 13,65 ms),
+        | a w dzienniku Railway nie ma ANI JEDNEJ linii z liczbami — przy
+        | obecnych w tej samej sekundzie innych wpisach poziomu `info`. Kod
+        | zapisujący pomiar był wdrożony (commit 7c300ccc jest przodkiem obu
+        | wdrożeń). Definicji gotowości #598 („znany peak active connections")
+        | nie dało się więc spełnić MIMO w pełni działającej czujki.
+        |
+        | DLACZEGO NIE OBNIŻENIE `LOG_LEVEL` NA PRODUKCJI. Bo to wpuściłoby do
+        | dziennika KAŻDE `info` w serwisie, żeby przepchnąć dwie linie na
+        | godzinę. Osobny kanał kosztuje mniej i nie zmienia niczego poza tymi
+        | dwiema liniami. Nie jest to też ustawienie „do zmiany w panelu":
+        | wartość pochodzi z manifestu wdrożenia w repozytorium, więc zmiana
+        | w panelu i tak rozjechałaby się z `.railway/railway.ts`.
+        |
+        | Poziomu tego kanału NIE WOLNO podnieść do `warning`: zdrowy pomiar
+        | nie jest ostrzeżeniem, a od alarmowania jest `AlarmPolaczen`
+        | i `AlarmKolejki` na kanale `blad_webhook`.
+        |
+        */
+
+        'pomiary' => [
+            'driver' => 'monolog',
+            'level' => 'info',
+            'handler' => StreamHandler::class,
+            'handler_with' => [
+                'stream' => 'php://stderr',
+            ],
+            'formatter' => env('LOG_STDERR_FORMATTER'),
+            'processors' => [PsrLogMessageProcessor::class],
+        ],
+
         'syslog' => [
             'driver' => 'syslog',
             'level' => env('LOG_LEVEL', 'debug'),

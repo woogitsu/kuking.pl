@@ -1,7 +1,7 @@
 /* Nowy kierunek marki na istniejących ekranach Laravel.
    Warstwa marka następuje po components. Układ ramy i karta wpisu
    pozostają w swoich plikach; tutaj nie zmieniamy kolejności treści.
-   Własny profil dostaje w Blade istniejącą klasę `blok-ciemny`, dzięki
+   Każdy profil dostaje w Blade istniejącą klasę `blok-ciemny`, dzięki
    czemu korzysta z kompletnej palety ciemnej, bez drugiej kopii kolorów. */
 @layer marka {
   .marka-profil {
@@ -202,6 +202,7 @@
 
   .pole-zdjecia .pomoc,
   .panel-formularza .field-help,
+  .panel-formularza .choice-help,
   .panel-formularza .field-error {
     font-size: var(--text-body);
   }
@@ -254,60 +255,48 @@
     box-shadow: none;
   }
 
+  /* #632: niepełny dobór ma własną siatkę, bez pustych pól czwórki. */
+  .hero-kolaz:not(:has(> :nth-child(4))) {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-rows: auto;
+  }
+
+  .hero-kolaz:not(:has(> :nth-child(4))) > .hero-kolaz-kafel {
+    grid-column: auto;
+    grid-row: auto;
+    aspect-ratio: 4 / 3;
+    height: auto;
+    width: 100%;
+  }
+
+  .hero-kolaz:not(:has(> :nth-child(2))) {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .hero-kolaz:has(> :nth-child(3)):not(:has(> :nth-child(4))) > :first-child {
+    grid-column: 1 / -1;
+    aspect-ratio: 2 / 1;
+  }
+
+  .hero:not(:has(.hero-kolaz-blok)) .hero-tekst {
+    margin-inline: auto;
+  }
+
   .hero-kolaz-podpis {
     padding: var(--spacing-2);
     font-size: var(--text-body);
   }
 
-  #jak-dziala .rzeczy {
-    display: grid;
-    grid-template-columns: minmax(0, 1fr);
-    gap: var(--spacing-4);
-  }
-
-  #jak-dziala .rzecz {
-    display: flex;
-    flex-direction: column;
-    align-items: flex-start;
-    min-width: 0;
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    background-color: var(--color-surface-raised);
-    box-shadow: var(--shadow-card);
-  }
-
-  #jak-dziala .rzecz-znak {
-    border-radius: var(--radius-lg);
-    background-color: var(--color-brand-tint);
-    color: var(--color-brand-tint-ink);
-  }
-
-  #jak-dziala .rzecz-krok,
-  #jak-dziala .rzecz-opis {
-    font-size: var(--text-body);
-  }
-
-  .pas-ciemny-uklad .cytat-ugotowalem {
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-border-strong);
-    border-radius: var(--radius-xl);
-    background-color: var(--color-surface-raised);
-    color: var(--color-ink);
-  }
-
-  .pas-ciemny-uklad .cytat-zrodlo {
-    font-size: var(--text-body);
-    color: var(--color-ink-muted);
-  }
-
-  .pas--cieply .dwie-kolumny > div {
-    min-width: 0;
-    padding: var(--spacing-6);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-xl);
-    background-color: var(--color-surface-raised);
-  }
+  /* Port marki dla sekcji „Jak działa” (`#jak-dziala .rzecz*`) i dla
+     ciemnego pasa „Ugotowałem” (`.pas-ciemny-uklad`, `.cytat-*`,
+     `.pas--cieply .dwie-kolumny`) stał tu do 20 września 2026. Powitalną
+     przepisano na `.landing-opowiesc` / `.landing-kroki` /
+     `.landing-wykonanie` (port marki w `marka-rama.css`); tamtych klas
+     nie nosi już ani jeden element
+     w `resources/views`, a `LandingKompozycjaFotografiiTest` pilnuje wprost,
+     że `.cytat-ugotowalem` na powitalnej NIE WYSTĘPUJE. Sam `#jak-dziala`
+     żyje dalej — i dlatego te reguły były mylące: identyfikator w selektorze
+     zgadzał się z dokumentem, a potomek nie istniał. */
 
   .zacheta-akcje {
     flex-wrap: wrap;
@@ -327,13 +316,9 @@
   }
 
   @media (min-width: 64rem) {
-    .hero {
+    .hero:has(.hero-kolaz-blok) {
       grid-template-columns: minmax(0, 0.9fr) minmax(0, 1.1fr);
       gap: var(--spacing-10);
-    }
-
-    #jak-dziala .rzeczy {
-      grid-template-columns: repeat(3, minmax(0, 1fr));
     }
   }
 
@@ -342,10 +327,7 @@
     .marka-zeszyty > .card,
     .przepis-panel,
     .przepis-siatka > .sekcja-strony,
-    .panel-formularza:has(.wyszukiwarka-input),
-    #jak-dziala .rzecz,
-    .pas-ciemny-uklad .cytat-ugotowalem,
-    .pas--cieply .dwie-kolumny > div {
+    .panel-formularza:has(.wyszukiwarka-input) {
       padding: var(--spacing-4);
     }
 
@@ -355,6 +337,36 @@
 
     .wyszukiwarka-pole-wiersz .wyszukiwarka-input {
       flex-basis: 100%;
+    }
+
+    /* PIERWSZY EKRAN STRONY POWITALNEJ (issue: hasło i akcja bez przewijania).
+       `STRONA-WWW.md:121` żąda, żeby hasło i akcja były widoczne bez
+       przewijania. Przy 320 px i skali tekstu 100% dół przycisku „Zostań
+       kuKINGiem" stał na 776 px przy oknie 568 px — 208 px za nisko.
+
+       Skracamy WYŁĄCZNIE odstępy nad przyciskiem. Żadna z tych reguł nie
+       rusza rozmiaru pisma ani wysokości celu dotknięcia: nagłówek zostaje
+       28 px, akapit 22 px, przycisk 48 px+ (progi z docs/UX_50_PLUS.md).
+
+       Te reguły MUSZĄ stać tutaj, w warstwie `marka`. Ich odpowiedniki
+       w `strony-publiczne.css` żyją w warstwie `components`, którą warstwa
+       `marka` przykrywa NIEZALEŻNIE od szczegółowości selektora i od
+       zapytania medialnego — reguła `.hero` ze `strony-publiczne.css`
+       nie obowiązuje nigdy. Sprawdzone przez `getComputedStyle`. */
+    .uklad-powitalny .pas:has(.hero) {
+      padding-block-start: var(--spacing-6);
+    }
+
+    .hero .nadtytul {
+      margin-bottom: var(--spacing-2);
+    }
+
+    .hero .hero-tytul {
+      margin-bottom: var(--spacing-3);
+    }
+
+    .hero .hero-lead {
+      margin-bottom: var(--spacing-4);
     }
   }
 }

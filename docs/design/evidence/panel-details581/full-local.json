@@ -1,0 +1,42 @@
+{
+  "scope": "Final local full panel runner; no CI or production receipt",
+  "reports": {
+    "menu-dodatkowe.json": {
+      "count": 8,
+      "failed": 0
+    },
+    "agregat.json": {
+      "pass": true,
+      "pusty": 288,
+      "pelny": 312,
+      "razem": 600
+    },
+    "wyniki-pelny.json": {
+      "count": 312,
+      "failed": 0
+    },
+    "wyniki-pusty.json": {
+      "count": 288,
+      "failed": 0
+    },
+    "menu-zoom200.json": {
+      "count": 4,
+      "failed": 0
+    },
+    "details/details-wyniki581.json": {
+      "count": 24,
+      "failed": 0
+    },
+    "details-zoom/details-zoom200.json": {
+      "count": 6,
+      "failed": 0
+    }
+  },
+  "sources": {
+    "resources/css/marka-panel.css": "07dc26489e34de1b8424efed171d55a1d283e314e967966941fc5e5fdafe0bbb",
+    "scripts/panel-details.mjs": "5aa332ea1aa4d23aa30a9f4546439c7a7ea99a42f78b29a3c16de23719238e65",
+    "scripts/panel-details-zoom.mjs": "bfcf1cccd2dd0c0c61816e69dcdbc3f8be7dc2202cfb12f2ef289cf2224dd1f1",
+    "scripts/panel-marki-run.mjs": "715bb154635f8fe1b98be5faa3397e14aa9990953903da96c76ee1c28f62d8c4",
+    "scripts/fixtures/panel-marki.php": "4cd43d2b809b7abe5ca3788f0a70f0eb9385cae0fc42df24c83e61cdb5fcacdd"
+  }
+}

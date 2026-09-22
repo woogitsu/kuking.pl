@@ -1,0 +1,37 @@
+[
+  {
+    "name": "no-recipes",
+    "file": "app/Domain/Moderation/UnansweredContent.php",
+    "negativeExit": 1,
+    "restoredMD5": "6b2d8b3a6d30eb9780d6fb0b1dd19f23",
+    "mtimeRestored": true
+  },
+  {
+    "name": "private-parent",
+    "file": "app/Domain/Moderation/UnansweredContent.php",
+    "negativeExit": 1,
+    "restoredMD5": "6b2d8b3a6d30eb9780d6fb0b1dd19f23",
+    "mtimeRestored": true
+  },
+  {
+    "name": "self-response",
+    "file": "app/Domain/Moderation/UnansweredContent.php",
+    "negativeExit": 1,
+    "restoredMD5": "6b2d8b3a6d30eb9780d6fb0b1dd19f23",
+    "mtimeRestored": true
+  },
+  {
+    "name": "post-access",
+    "file": "app/Http/Controllers/Admin/BezOdpowiedziController.php",
+    "negativeExit": 1,
+    "restoredMD5": "9644efba9c71eba3d8ca290437722a21",
+    "mtimeRestored": true
+  },
+  {
+    "name": "host-map",
+    "file": "app/Domain/Moderation/KolejkiPanelu.php",
+    "negativeExit": 1,
+    "restoredMD5": "024ced96f66621bfdadbf4b590bf8f6b",
+    "mtimeRestored": true
+  }
+]

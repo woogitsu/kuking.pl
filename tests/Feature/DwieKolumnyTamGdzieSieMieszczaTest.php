@@ -30,8 +30,10 @@ use Tests\TestCase;
  *       przy czcionce przeglądarki 200%: 1 kolumna (próg 64rem = 2048 px)
  *
  *   tablica dnia
- *       w pasie strony powitalnej (992 px): OSOBY obok DAŃ
+ *       historycznie w pasie powitalnej (992 px): OSOBY obok DAŃ
  *       w szynie `/home` (352 px):          jedna kolumna, bez zmian
+ * Wariant powitalny #557 ma odrębny test kolejności: dania przed osobami.
+ * Reguły tego pliku pozostają bazą innych zastosowań tablicy.
  */
 class DwieKolumnyTamGdzieSieMieszczaTest extends TestCase
 {
@@ -44,7 +46,7 @@ class DwieKolumnyTamGdzieSieMieszczaTest extends TestCase
 
     // --- TABLICA DNIA ----------------------------------------------------
 
-    public function test_tablica_dnia_ma_dwie_kolumny_na_osoby_i_dania(): void
+    public function test_tablica_dnia_ma_kontenery_na_obie_listy(): void
     {
         $autor = $this->user('gotujaca');
         Post::factory()->for($autor, 'author')->create([

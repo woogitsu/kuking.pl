@@ -1,4 +1,5 @@
 <x-layout title="Zaloguj się" :noindex="true">
+    <x-marka-wejscie opis="Twoja kuchnia, przepisy i ludzie, którzy naprawdę gotują.">
     <h1>Zaloguj się</h1>
 
     {{--
@@ -70,8 +71,9 @@
         <div class="sekcja-strony mt-6">
             <h2>Nie pamiętasz hasła? Nie musisz go wpisywać</h2>
             <p>
-                Wyślemy Ci wiadomość z jednym przyciskiem. Kliknij go, żeby wejść na konto.
-                Hasło zostaje takie, jakie było; możesz go używać dalej, kiedy zechcesz.
+                Wyślemy Ci wiadomość z linkiem. Otwórz go, a na stronie kliknij „Zaloguj mnie”.
+                Przy potwierdzonym adresie hasło zostaje bez zmian.
+                Jeśli adres konta nie był potwierdzony, wiadomość poprosi najpierw o ustawienie hasła.
             </p>
             <p class="form-actions">
                 <a class="btn btn-secondary" href="{{ route('login.link') }}">Wyślij mi link do zalogowania</a>
@@ -92,4 +94,5 @@
     --}}
     <p>Twoje konto zostało zablokowane albo zawieszone i uważasz, że to pomyłka?
         <a href="{{ route('appeals.guest') }}">Złóż odwołanie</a>.</p>
+    </x-marka-wejscie>
 </x-layout>

@@ -1,11 +1,28 @@
 # Konstytucja marki Kuking
 
-Wersja 1.2, 13 września 2026. Kierunek pełnego portu zaakceptowany przez
+Wersja 1.17, 17 września 2026. Kierunek pełnego portu zaakceptowany przez
 właściciela i wdrożony jako Alfa 0.9 (PR #488, D-206).
 Ten dokument opisuje standard marki. Zakres dowodów oraz ograniczenia
 odbioru zawiera [raport Alfa 0.9](../design/WERYFIKACJA_ALFA_09.md).
+Nowszą inwentaryzację tras i rozdzielenie dowodów kodu, przeglądarki oraz
+produkcji zawiera [audyt kompletności Alfa 0.14](../design/AUDYT_KOMPLETNOSCI_MARKI_ALFA_014.md).
+Wdrożenie kierunku nie jest równoznaczne z pełnym odbiorem wszystkich stanów.
 
 ## Rdzeń
+
+Publiczny fragment wskazany przez właściciela w D-208 ma otwarte trzy
+kolumny 01–03, duży nagłówek „Zdjęcie. Kilka słów. I rozmowa przy okazji.”
+i bezpośrednio po nich ciemny, zaokrąglony blok „Ugotowałem / Twój przepis.
+Czyjś dobry obiad.” z publiczną fotografią i autorstwem. Białe kafle kroków
+nie są równoważnym portem tej kompozycji. Przy braku dopuszczonego zdjęcia
+blok pozostaje tekstowy; tablica i prawdziwe wpisy nie znikają.
+
+Publiczna tablica „Co się dziś gotuje” pokazuje najpierw duże fotografie
+rzeczywistych dań, następnie zwarte wizytówki osób. To odrębna kompozycja
+strony powitalnej, nie powiększona boczna lista. Jedno wspólne zaproszenie
+do rejestracji wystarcza gościowi; nazwiska nadal prowadzą do profili.
+Nie dodajemy pustych kart ani fikcyjnej aktywności. Pozostają notatki,
+informacja o braku rankingu i pojedynczy fokusowalny odnośnik dania (D-215).
 
 Kuking łączy ludzi przez to, co gotują. Zdjęcie i kilka słów są pełnoprawnym
 wpisem. Nie trzeba przygotować przepisu, żeby uczestniczyć. Przepis, zeszyt
@@ -56,6 +73,11 @@ Przy logotypie znak jest dekoracyjny dla czytnika; samodzielnie dostaje nazwę.
 
 ## System wizualny
 
+Pusta prawa kolumna cudzego profilu może pokazać „Zdjęcia z tej kuchni”:
+do trzech ostatnich widocznych wpisów z gotowym zdjęciem, prowadzących do
+wpisu. Tagi i zeszyty mają pierwszeństwo. Bez dostępnych zdjęć nie tworzymy
+wypełniacza; filtr widoczności pozostaje taki sam jak w archiwum (D-214).
+
 Neutralne jasne tło, białe powierzchnie, grafitowe pismo i czerwony akcent.
 Kolory mają role: czerwień wyróżnia czynność lub wybór, nie zastępuje opisu
 błędu ani fokusu. Ciemny motyw jest świadomym wyborem użytkownika. Ciemny
@@ -79,7 +101,51 @@ nie mogą zasłaniać treści ani elementu z fokusem; odstęp uwzględnia ich
 rzeczywistą wysokość oraz bezpieczny obszar urządzenia. Przy dużym tekście
 pierwszeństwo ma dostęp do całej treści, nawet kosztem przyklejenia paska.
 
+Dotyczy to również niskiego obszaru strony przy powiększeniu przeglądarki.
+Jeśli przypięte belki przeszkadzają w korzystaniu z formularza, obie
+przewijają się ze stroną. Zachowujemy wszystkie pozycje, cele dotykowe
+i mały zapas na obrys fokusu; nie rezerwujemy pustego miejsca po odpiętej
+belce. Pomiar i zakres implementacji: [Alfa 0.27](../design/POPRAWKI_ISSUES_ALFA_027.md).
+
+### Wzorzec kompozycji — D-207
+
+Właściciel wskazał wizualizację „Dzień dobry, Basiu” jako wzorzec do
+odtworzenia. Dotychczasowy port zachował zbyt wiele starej kompozycji.
+Na komputerze menu brzmi **Start / Odkrywaj / Mój zeszyt**, a Szukaj jest
+osobną akcją po prawej. Powitanie jest krótkie; pytanie i dwa przyciski
+stoją w ciemnym kaflu z dużym pierścieniem. Prawą kolumnę zaczyna ciemny
+wstęp, następnie osobne powierzchnie osób i dań. Nie kopiujemy fikcyjnych
+kont, danych ani znaku K. Zachowujemy garnek i istniejące funkcje.
+
+Przy szerokim oknie punkt odniesienia to treść 1120 px: 750 + 40 + 330 px.
+Kafel ma tytuł 28 px i grupę akcji do 500 px, nagłówki sekcji 24 px;
+wartości tekstowe rosną z ustawieniem użytkownika. Dłuższe nazwy i opisy
+zawijają się. Wzorzec nie upoważnia do zmniejszania tekstu dla pozornego
+dopasowania ani ukrywania funkcji; pozostają przełącznik strumienia,
+podglądy prawdziwych dań i widoczny podpis Powiadomienia.
+
 ### Powierzchnie i komponenty
+
+D-210 uzupełnia kompozycje z dostarczonego oryginału: wejście ma zaproszenie
+obok karty formularza, szczegół przepisu łączy tekst i zdjęcie w jednym
+nagłówku z akcjami poniżej, a profil ma duży awatar obok tożsamości i jeden
+zestaw rzeczywistych statystyk pod ciemną powierzchnią. Publiczne informacje
+o zeszytach, widoczności i eksporcie tworzą trzy karty. Przy małej dostępnej
+szerokości elementy przechodzą do jednej kolumny. Układ nie usuwa dróg
+logowania, stanów formularza, akcji przepisu ani reguł widoczności liczb.
+Stan odbioru: [kompozycje #509](../design/KOMPOZYCJE_MARKI_509.md).
+
+D-211 przenosi kompozycję zeszytów: ciemne karty folderów, ostatnie zapisy
+w głównej kolumnie oraz zdjęcia nad pełnymi tytułami przepisów w folderze.
+Układ dostosowuje liczbę kolumn do miejsca i powiększenia tekstu. Pokazuje
+rzeczywiste zapisy i opisy, zachowując filtry widoczności i paginację.
+Stan odbioru: [zeszyty #511](../design/ZESZYTY_MARKI_511.md).
+
+D-212 obejmuje duże kafle rzeczywistych zainteresowań i układ zwykłych
+powiadomień: awatar, treść oraz akcja obok siebie na szerokim ekranie.
+Zachowuje opcjonalność wyborów i zielone zaznaczenie. Pełne decyzje
+moderacyjne nie tracą treści ani dodatkowych działań.
+Stan odbioru: [zainteresowania i powiadomienia #513](../design/ZAINTERESOWANIA_POWIADOMIENIA_513.md).
 
 | Rodzina | Standard |
 |---|---|
@@ -110,7 +176,9 @@ zoomu ani ukrycie nazw. Ważna czynność ma widoczny opis; wyjątek trzech krop
 na karcie wpisu nie rozszerza się na pozostałe przyciski.
 
 Układ pozostaje używalny przy **320 px** szerokości oraz tekście przeglądarki
-powiększonym do **200%**. Przy powiększaniu rośnie w dół, a długie nazwy
+powiększonym do **200%**. Oddzielnie sprawdzamy rzeczywisty zoom przeglądarki
+**200%**, także w połączeniu z tekstem aplikacji **140%**. Zmiana samego
+fontu nie zastępuje zoomu. Przy powiększaniu układ rośnie w dół, a długie nazwy
 zawijają się w dostępnej szerokości. Kolumna treści nie może kurczyć się do
 pionowego ciągu liter. Nie maskujemy błędu siatki przez obcięcie całej strony.
 
@@ -121,6 +189,16 @@ wejście, społeczność, szukanie, publikację, przepisy, zeszyty, profile,
 powiadomienia, ustawienia, pomoc, bezpieczeństwo i moderację. Plan pokrycia
 oraz kryteria odbioru są w [PORT_PROJEKTU.md](../design/PORT_PROJEKTU.md).
 Sama zmiana tokenów i powitania nie stanowi wykonania tego zakresu.
+
+Zakres obejmuje także własne listy HTML, standardowe wiadomości Laravel,
+samodzielne ekrany awarii, stronę bez internetu i pobraną paczkę danych.
+Ekran awarii nie może zależeć od bazy, manifestu Vite ani dostępności fontu;
+paczka danych musi otwierać się bez sieci. W tych miejscach używamy
+samodzielnych stylów z paletą marki i systemowego kroju bezszeryfowego.
+W poczcie pozostają tabele, style inline i Arial/Helvetica. Te wyjątki
+techniczne nie usprawiedliwiają starej palety ani nieczytelnego pisma.
+Aktualizacja zasobów aplikacji musi docierać także do istniejącej instalacji
+PWA. Stan odbioru opisuje [audyt Alfa 0.12](../design/AUDYT_SPOJNOSCI_ALFA_012.md).
 
 Przenosimy język wizualny do istniejących komponentów Blade. Trasy,
 autoryzacja, widoczność treści, formularze, powiadomienia i dane zachowują
@@ -148,4 +226,52 @@ nie są specyfikacją backendu ani dowodem działania funkcji.
 
 Przed scaleniem wymagane są testy aplikacji, pomiar dostępności oraz kontrola
 telefonu przy szerokości 320, 360, 390 i 414 px oraz czcionce przeglądarki
-powiększonej do 200%. Brak wyniku zapisujemy jako brak weryfikacji.
+powiększonej do 200%, a także osobny test rzeczywistego zoomu 200%
+i połączenia zoomu z tekstem aplikacji 140%. Starszych pomiarów fontu
+nie przypisujemy zoomowi. Brak wyniku zapisujemy jako brak weryfikacji.
+
+
+## Polecane tagi w wyszukiwaniu — D-213
+
+Przed zapytaniem kafle pokazują rzeczywiste promowane tagi i ich opisy.
+Pastelowe powierzchnie rozróżniają kafle, nie oznaczają popularności.
+Długi tytuł pozostaje w całości; krótka akcja prowadzi do danego tagu.
+Brak danych zachowuje uczciwy pusty stan. Konstytucja nie upoważnia
+modelu do tworzenia fikcyjnych tematów lub liczników dla podobieństwa do makiety.
+
+### Świeże wpisy bez pustych rzędów — D-216
+
+Na publicznej stronie głównej kolejne karty w dwóch kolumnach zaczynają się
+pod poprzednią kartą swojej kolumny. Nie zmniejszamy zdjęć ani treści, żeby
+wyrównać wysokości. Kolejność HTML i klawiatury zostaje chronologiczna;
+na wąskim ekranie wszystkie wpisy tworzą jeden ciąg.
+
+## Szybki wybór czytelności — D-217
+
+Przycisk Aa · Wygląd jest dostępny także dla gościa. Rozmiar tekstu i
+jasny/ciemny motyw można wybrać od pierwszej wizyty; mała zamykana
+podpowiedź nie blokuje treści. Domyślnie nadal18px. Mniejszy tekst to
+świadomy wybór osoby, bez zmniejszania celów dotykowych poniżej48px.
+Przy wartościach poniżej 100% zmniejszamy także odstępy i zapas wewnątrz
+kontrolek (#589, polecenie właściciela). Minimum dotykowe pozostaje 48px.
+Od 100% odstępy zachowują bazową wielkość; większy tekst może naturalnie
+zwiększać wysokość kontrolek. To zagęszczenie, nie globalne skalowanie strony.
+Preferencje konta mają pierwszeństwo przed ciasteczkiem gościa.
+Pływający przycisk nie może zasłaniać aktywnej kontrolki ani przesuwać jej
+pod nawigację. Gdy przy dużym powiększeniu brakuje miejsca, ustępuje
+chwilowo do przepływu strony, zachowując dostęp myszą i klawiaturą;
+wraca po ustaniu kolizji lub przejściu do ustawień wyglądu.
+
+## Panel moderacji — D-218
+
+Panel należy do tej samej marki: neutralna nawigacja na osobnej powierzchni,
+wyraźne nagłówki i wspólny rytm kart, formularzy oraz filtrów. Odrębny tryb
+pracy wskazują tarcza, nazwa Panel moderacji, tytuł strony i droga powrotu.
+Dawne musztardowe tło nawigacji nie jest wymaganiem bezpieczeństwa.
+Ostrzeżenia i działania destrukcyjne zachowują swoje znaczenie oraz ochronę.
+Na szerokim ekranie panel wykorzystuje pełną szerokość dwóch kolumn,
+bez pustej prawej szyny. Na telefonie narzędzia są dostępne pod widocznym
+przyciskiem „Nawigacja panelu” (D-220); bez JavaScriptu pozostają rozwinięte.
+Powrót do Kuking jest widoczny niezależnie od stanu listy.
+Stan wdrożenia i pomiarów opisuje [raport #581](../design/PANEL_MODERACJI_MARKA_581.md);
+standard nie jest deklaracją zakończenia odbioru.

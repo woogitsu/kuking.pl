@@ -1,4 +1,5 @@
 <x-layout title="Załóż konto" description="Załóż darmowe konto w Kuking i pokaż, co dziś ugotowałeś.">
+    <x-marka-wejscie opis="Zachowaj swoje potrawy i rodzinne przepisy.">
     <h1>Zostań <x-kuking-word forma="iem" /></h1>
     {{--
         Kontrakt projektowy 60+ (docs/research/AUDYT_60_PLUS.md, ranking
@@ -145,7 +146,7 @@
         @if($errors->any())
             <p class="field-error mb-4">
                 Formularz nie został wysłany —
-                <a href="#tresc">na górze jest napisane, czego jeszcze brakuje</a>.
+                <a href="#tresc">na górze jest napisane, co trzeba poprawić</a>.
             </p>
         @endif
 
@@ -168,4 +169,5 @@
     @endif
 
     <p class="mt-6">Masz już konto? <a href="{{ route('login') }}">Zaloguj się</a>.</p>
+    </x-marka-wejscie>
 </x-layout>

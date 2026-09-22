@@ -1,0 +1,21 @@
+{
+  "rows": [
+    {
+      "mutation": "hidden",
+      "expectedFailure": true,
+      "restoredPositive": true,
+      "md5": "001e32f639d0dc311b565f0e2fdfc4e0",
+      "mtimeRestored": true
+    },
+    {
+      "mutation": "field-row",
+      "expectedFailure": true,
+      "restoredPositive": true,
+      "md5": "001e32f639d0dc311b565f0e2fdfc4e0",
+      "mtimeRestored": true
+    }
+  ],
+  "runtimeRestored": true,
+  "sourceSHA256": "3a0b4d83474f7961401c8fe0e279de16fbbee2ec3e0950f3b7e9630f4f9f9bbe",
+  "testSHA256": "e15d6dfd205b148347735e601f904374a8ad5e8745874f5a2353c392e607e531"
+}

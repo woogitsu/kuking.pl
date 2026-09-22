@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Feed\HeroKolaz;
+use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Models\HeroPick;
 use App\Models\Media;
 use App\Models\Post;
@@ -121,6 +122,38 @@ class KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest extends TestCase
         $this->assertCount(HeroKolaz::SLOTOW, $this->idZdjecWKolazu());
     }
 
+    public function test_od_zera_do_czterech_dostepnych_zdjec_jest_renderowane_bez_odrzucania_mniejszego_zestawu(): void
+    {
+        for ($liczba = 0; $liczba <= 4; $liczba++) {
+            if ($liczba > 0) {
+                $this->wpisZeZdjeciem($this->user('kafel_'.$liczba));
+            }
+
+            $this->assertCount($liczba, $this->idZdjecWKolazu());
+            $response = $this->get('/')->assertOk();
+            $this->assertSame($liczba, substr_count($response->getContent(), 'class="hero-kolaz-kafel"'));
+        }
+    }
+
+    public function test_nowsze_wpisy_bez_gotowych_zdjec_nie_wypychaja_zdjecia_z_automatu(): void
+    {
+        $autor = $this->user('fotograf');
+        [, $zdjecie] = $this->wpisZeZdjeciem($autor, ['published_at' => now()->subDays(2)]);
+        Post::factory()->count(41)->create([
+            'author_id' => $autor->getKey(),
+            'visibility' => Post::VISIBILITY_PUBLIC,
+            'status' => Post::STATUS_PUBLISHED,
+            'published_at' => now()->subDay(),
+        ]);
+
+        foreach (range(1, 41) as $i) {
+            [, $niegotowe] = $this->wpisZeZdjeciem($autor, ['published_at' => now()]);
+            $niegotowe->update(['status' => ['pending', 'processing', 'deleted'][$i % 3]]);
+        }
+
+        $this->assertSame([(string) $zdjecie->getKey()], $this->idZdjecWKolazu());
+    }
+
     public function test_wskazane_zdjecie_stoi_w_kolazu_na_pierwszym_miejscu(): void
     {
         $zestaw = $this->czteryPubliczneZdjecia();
@@ -156,6 +189,102 @@ class KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest extends TestCase
         [, $zdjecie] = $this->wpisZeZdjeciem($autor, ['visibility' => Post::VISIBILITY_FOLLOWERS]);
 
         $this->assertSame([], app(HeroKolaz::class)->dopuszczZdjecia([(string) $zdjecie->getKey()]));
+    }
+
+    /**
+     * ZAPOWIEDŹ PRZEPISU NIE MA CZYM WEJŚĆ DO KOLAŻU — granica ZMIERZONA,
+     * a nie założona (przegląd po #941).
+     *
+     * Kolaż filtruje wpisy bez `Post::scopeZWidocznymPrzepisem()`, więc
+     * z daleka wygląda jak kolejne miejsce, przez które zapowiedź przepisu
+     * „tylko dla obserwujących" (#368, na stałe `public`) wychodzi do
+     * nieznajomych. Nie wychodzi, i to z dwóch niezależnych powodów:
+     *
+     *  1. Taki wpis powstaje BEZ ani jednego własnego zdjęcia
+     *     (`WpisWskazujacyPrzepis::dopisz()`), a dobór automatyczny pyta
+     *     `whereHas('media', status = ready)` — zapowiedź nie wchodzi już
+     *     do zapasu, z którego kolaż wybiera.
+     *  2. Kolaż rysuje WYŁĄCZNIE `$post->media`, czyli własne zdjęcia wpisu.
+     *     Zdjęcia głównego przepisu nie czyta nigdzie — inaczej niż karta
+     *     w strumieniu (`post-card.blade.php`), która czyta je świadomie.
+     *
+     * Dlatego bramka przepisu byłaby tu warunkiem bez pracy do wykonania,
+     * a ten test pilnuje obu powodów naraz: bramki ZAPISU (panel nie
+     * dopuści zdjęcia przepisu), listy kandydatów w panelu, wyniku
+     * `doKolazu()` i wreszcie tego, co widzi gość na stronie powitalnej.
+     */
+    public function test_zapowiedz_cudzego_przepisu_nie_wnosi_zdjecia_do_kolazu(): void
+    {
+        $basia = $this->user('basia');
+
+        // KONTROLA DODATNIA: zwykłe publiczne zdjęcie tej samej osoby,
+        // żeby asercje niżej nie przechodziły na pustym kolażu.
+        [, $publiczne] = $this->wpisZeZdjeciem($basia);
+
+        $przepis = app(PublishRecipe::class)->handle(
+            author: $basia,
+            attributes: ['title' => 'Bigos z kapusty kiszonej', 'visibility' => 'followers', 'source_type' => 'own'],
+            ingredients: [['text' => 'kapusta kiszona']],
+            steps: [['instruction' => 'Gotuj powoli, przez trzy godziny.']],
+            publish: true,
+        );
+
+        $zdjeciePrzepisu = Media::factory()->create(['owner_id' => $basia->getKey()]);
+        $przepis->forceFill(['hero_media_id' => $zdjeciePrzepisu->getKey()])->save();
+
+        /** @var Post $zapowiedz */
+        $zapowiedz = Post::query()->where('recipe_id', $przepis->getKey())->firstOrFail();
+
+        $this->assertSame(
+            Post::VISIBILITY_PUBLIC,
+            $zapowiedz->visibility,
+            'Zapowiedź przepisu nie jest publiczna — wtedy odcinałby ją zwykły filtr widoczności wpisu '
+            .'i ten test przechodziłby z niewłaściwego powodu.',
+        );
+        $this->assertTrue(
+            $zapowiedz->media()->doesntExist(),
+            'Zapowiedź przepisu ma własne zdjęcie — wtedy powód 1 z opisu tego testu już nie obowiązuje '
+            .'i kolaż potrzebuje bramki przepisu.',
+        );
+
+        // BRAMKA ZAPISU: gospodarz nie wskaże zdjęcia przepisu w panelu.
+        $this->assertSame(
+            [],
+            app(HeroKolaz::class)->dopuszczZdjecia([(string) $zdjeciePrzepisu->getKey()]),
+            'Panel kolażu dopuścił zdjęcie główne przepisu „tylko dla obserwujących".',
+        );
+
+        // LISTA KANDYDATÓW: zapowiedź nie ma czym być kandydatem.
+        $kandydaci = app(HeroKolaz::class)->kandydaci()->map(fn (Post $wpis) => (string) $wpis->getKey())->all();
+
+        $this->assertNotEmpty($kandydaci, 'Panel nie ma żadnych kandydatów — asercja niżej nie mierzyłaby wtedy niczego.');
+        $this->assertNotContains((string) $zapowiedz->getKey(), $kandydaci);
+
+        // FILTR WYŚWIETLENIA.
+        $wKolazu = $this->idZdjecWKolazu();
+
+        $this->assertContains(
+            (string) $publiczne->getKey(),
+            $wKolazu,
+            'Kolaż nie pokazał nawet zwykłego publicznego zdjęcia — asercje niżej nie mówiłyby wtedy '
+            .'o przepisie, tylko o pustym kolażu.',
+        );
+        $this->assertNotContains(
+            (string) $zdjeciePrzepisu->getKey(),
+            $wKolazu,
+            'Zdjęcie główne przepisu „tylko dla obserwujących" weszło do kolażu na stronie powitalnej.',
+        );
+
+        // I to samo na wyrenderowanej stronie, dla gościa — bo to on ją widzi.
+        $html = $this->get(route('landing'))->assertOk()->getContent();
+
+        $this->assertStringContainsString(
+            $publiczne->url('thumb'),
+            $html,
+            'Strona powitalna nie pokazała nawet publicznego zdjęcia — kontrola dodatnia dla widoku.',
+        );
+        $this->assertStringNotContainsString((string) $zdjeciePrzepisu->getKey(), $html);
+        $this->assertStringNotContainsString('Bigos z kapusty kiszonej', $html);
     }
 
     public function test_szkic_i_wpis_schowany_nie_wchodza_do_kolazu(): void
@@ -271,18 +400,19 @@ class KolazPowitalnyPokazujeTylkoPubliczneZdjeciaTest extends TestCase
         $this->assertSame(count($kolaz), count(array_unique($kolaz)), 'To samo zdjęcie weszło do kolażu dwa razy.');
     }
 
-    public function test_bez_czterech_publicznych_zdjec_kolazu_nie_ma_wcale(): void
+    public function test_mniejszy_kolaz_zachowuje_limit_dwoch_zdjec_od_osoby(): void
     {
         // Trzy zdjęcia, ale wszystkie od JEDNEJ osoby: dobór automatyczny
-        // bierze najwyżej dwa od osoby, więc czterech nie uzbiera.
+        // bierze najwyżej dwa od osoby i pokazuje te dwa zamiast pustki.
         $autor = $this->user('samotny');
 
         foreach (range(1, 3) as $i) {
             $this->wpisZeZdjeciem($autor);
         }
 
-        $this->assertSame([], $this->idZdjecWKolazu());
-        $this->get('/')->assertOk()->assertDontSee('hero-kolaz-kafel', false);
+        $this->assertCount(2, $this->idZdjecWKolazu());
+        $html = $this->get('/')->assertOk()->getContent();
+        $this->assertSame(2, substr_count($html, 'class="hero-kolaz-kafel"'));
     }
 
     public function test_dwie_osoby_po_dwa_zdjecia_daja_pelny_kolaz(): void

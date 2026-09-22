@@ -1,0 +1,20 @@
+[
+  {
+    "nazwa": "mysz-1440-dark",
+    "motywZadany": "dark",
+    "dataTheme": "dark",
+    "tlo": "rgb(21, 23, 20)",
+    "szerokoscDokumentu": 1440,
+    "szerokoscOkna": 1440,
+    "poziomyOverflow": false
+  },
+  {
+    "nazwa": "dotyk-390-dark",
+    "motywZadany": "dark",
+    "dataTheme": "dark",
+    "tlo": "rgb(21, 23, 20)",
+    "szerokoscDokumentu": 390,
+    "szerokoscOkna": 390,
+    "poziomyOverflow": false
+  }
+]

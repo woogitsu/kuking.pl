@@ -151,7 +151,8 @@ class SzynaGosciaTest extends TestCase
                 continue;
             }
 
-            if (! str_contains((string) file_get_contents($plik->getPathname()), '<x-slot:rail>')) {
+            $zrodlo = (string) file_get_contents($plik->getPathname());
+            if (! str_contains($zrodlo, '<x-slot:rail>') && ! str_contains($zrodlo, 'class="marka-profil-szyna"')) {
                 continue;
             }
 
@@ -189,6 +190,14 @@ class SzynaGosciaTest extends TestCase
 
         foreach ($ekrany as $widok => $adres) {
             $html = (string) $this->get($adres)->assertOk()->getContent();
+
+            if ($widok === 'pages/profile/show.blade.php') {
+                $this->assertStringContainsString(' app-body-tresc-z-szyna ', $this->klasyUkladu($html));
+                $this->assertStringContainsString('marka-profil-dol-z-szyna', $html);
+                $this->assertStringContainsString('<aside class="marka-profil-szyna"', $html);
+
+                continue;
+            }
 
             $this->assertStringContainsString(
                 ' '.self::KLASA_UKLADU.' ',
@@ -247,6 +256,8 @@ class SzynaGosciaTest extends TestCase
         $this->user('bezniczego');
 
         $html = (string) $this->get('/@bezniczego')->assertOk()->getContent();
+        $this->assertStringNotContainsString('marka-profil-dol-z-szyna', $html);
+        $this->assertStringNotContainsString('<aside class="marka-profil-szyna"', $html);
 
         $this->assertStringNotContainsString(
             ' '.self::KLASA_UKLADU.' ',

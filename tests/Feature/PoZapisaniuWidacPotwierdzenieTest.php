@@ -74,7 +74,19 @@ class PoZapisaniuWidacPotwierdzenieTest extends TestCase
             '/',
         ).'"[^>]*>.*?<\/form>/su';
 
-        return preg_match($wzorzec, $html) === 1;
+        preg_match_all($wzorzec, $html, $formularze);
+        foreach ($formularze[0] as $formularz) {
+            preg_match_all('/<button\b[^>]*>(.*?)<\/button>/su', $formularz, $przyciski);
+            foreach ($przyciski[1] as $przycisk) {
+                // #644 dodaje osobny wybór zeszytu pod tym samym adresem POST.
+                // Ta regresja pilnuje szybkiego przycisku, który znika po zapisie.
+                if (trim(preg_replace('/\s+/u', ' ', strip_tags($przycisk))) === 'Zapisuję') {
+                    return true;
+                }
+            }
+        }
+
+        return false;
     }
 
     public function test_po_kliknieciu_zapisuje_jest_komunikat_na_ekranie(): void

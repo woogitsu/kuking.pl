@@ -1,0 +1,38 @@
+[
+  {
+    "width": 320,
+    "zoom": 2,
+    "theme": "light",
+    "textScale": 140,
+    "started": "1:00",
+    "tick": "0:59",
+    "message": "Minutnik ustawiony na 1 minutę."
+  },
+  {
+    "width": 320,
+    "zoom": 2,
+    "theme": "dark",
+    "textScale": 140,
+    "started": "1:00",
+    "tick": "0:59",
+    "message": "Minutnik ustawiony na 1 minutę."
+  },
+  {
+    "width": 1440,
+    "zoom": 1,
+    "theme": "light",
+    "textScale": 140,
+    "started": "1:00",
+    "tick": "0:59",
+    "message": "Minutnik ustawiony na 1 minutę."
+  },
+  {
+    "width": 1440,
+    "zoom": 1,
+    "theme": "dark",
+    "textScale": 140,
+    "started": "1:00",
+    "tick": "0:59",
+    "message": "Minutnik ustawiony na 1 minutę."
+  }
+]

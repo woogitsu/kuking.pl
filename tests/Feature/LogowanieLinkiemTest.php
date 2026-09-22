@@ -435,6 +435,26 @@ class LogowanieLinkiemTest extends TestCase
         $this->assertDatabaseCount('login_link_tokens', 1);
     }
 
+    public function test_status_pozwala_otworzyc_wiadomosc_na_innym_urzadzeniu_bez_ujawniania_konta(): void
+    {
+        Notification::fake();
+        $osoba = $this->user('basia', ['email' => 'basia@example.com']);
+        $zKontem = $this->wyslijFormularz('basia@example.com');
+        // Sesja jest współdzielona między żądaniami testu: zapisz komunikat przed drugim POST.
+        $statusZKontem = $this->komunikat($zKontem);
+        $bezKonta = $this->wyslijFormularz('bogumila@example.com');
+        $statusBezKonta = $this->komunikat($bezKonta);
+
+        $zKontem->assertRedirect(route('login.link'));
+        $bezKonta->assertRedirect(route('login.link'));
+        $this->assertSame($statusZKontem, $statusBezKonta);
+        $this->assertStringContainsString('b***@example.com', $statusZKontem);
+        $this->assertStringContainsString('także na innym telefonie albo komputerze', $statusZKontem);
+        $this->assertStringNotContainsString('tym samym', $statusZKontem);
+        Notification::assertSentTo($osoba, LinkDoLogowania::class);
+        $this->assertDatabaseCount('login_link_tokens', 1);
+    }
+
     public function test_konto_zablokowane_nie_dostaje_linku_i_nikt_sie_o_tym_nie_dowiaduje(): void
     {
         $zwykla = $this->user('basia', ['email' => 'basia@example.com']);

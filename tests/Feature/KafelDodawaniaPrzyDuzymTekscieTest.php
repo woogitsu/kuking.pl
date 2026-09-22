@@ -283,7 +283,8 @@ class KafelDodawaniaPrzyDuzymTekscieTest extends TestCase
          * żeby ta poprawka niczego nie zmniejszała: ma tylko nie pozwolić
          * wcięciu urosnąć.
          */
-        preg_match('~--spacing-5:\s*([0-9.]+)rem~', $this->css('tokens.css'), $token);
+        // #589: przy 100% i większym tekście gęstość pozostaje równa 1.
+        preg_match('~--spacing-5:\s*calc\(([0-9.]+)rem \* var\(--user-layout-scale, 1\)\)~', $this->css('tokens.css'), $token);
 
         $this->assertNotEmpty(
             $token,
@@ -401,27 +402,24 @@ class KafelDodawaniaPrzyDuzymTekscieTest extends TestCase
         $kafel = substr($html, $start, $koniec - $start);
 
         $this->assertStringContainsString(
-            'Dodaj zdjęcie tego, co ugotowałeś',
+            'Co dziś gotujesz?',
             $kafel,
             'Kafel stracił tytuł. Niska kontrolka okupiona zniknięciem jej opisu nie jest '
             .'naprawą — to jest główna akcja produktu (AGENTS.md §1).',
         );
 
         $this->assertStringContainsString(
-            'Nie musi być ładne — ma być prawdziwe.',
+            'Zdjęcie i kilka słów wystarczą.',
             $kafel,
             'Kafel stracił podpis. Wysokość miała spaść od układu, nie od wyrzucenia '
             .'zdania, które mówi człowiekowi, że zdjęcie nie musi być idealne.',
         );
 
-        /* Ikona zostaje W KODZIE STRONY — schodzi wyłącznie z układu, i to
-           tylko za progiem. Usunięcie jej z widoku zabrałoby ją wszystkim,
-           także na zwykłym telefonie, gdzie nikomu nie przeszkadza. */
+        // D-207: pytanie w kaflu ma osobną, jednoznaczną nazwę akcji.
         $this->assertStringContainsString(
-            'class="ikona"',
+            'aria-label="Co dziś gotujesz? Dodaj zdjęcie"',
             $kafel,
-            'Ikona zniknęła z widoku, a miała schodzić tylko z UKŁADU i tylko za progiem '
-            .self::PROG.'. Zwykły telefon traci ją wtedy bez powodu.',
+            'Kafel z pytaniem musi nazywać działanie dla czytnika ekranu.',
         );
     }
 }

@@ -2,6 +2,12 @@
     <article class="prose">
         <h1>Pomoc</h1>
 
+        <h2 id="kolejnosc-wpisow">Jak działa kolejność wpisów?</h2>
+        <p>Na stronie Start wpisy obserwowanych osób pojawiają się od najnowszych.
+            Jeśli nie ma jeszcze takich wpisów, pokazujemy treści z obserwowanych tagów,
+            a gdy i tam jest pusto — najnowsze publiczne wpisy innych osób.
+            Przełącznik „Świeżo z <x-kuking-word />” prowadzi do tej publicznej listy.</p>
+
         <h2>Jak dodać zdjęcie swojego dania?</h2>
         <ol>
             <li>Kliknij <strong>Dodaj</strong> — na telefonie znajdziesz ten przycisk na dole ekranu, pośrodku.</li>
@@ -13,9 +19,10 @@
 
         <h2>Tekst jest dla mnie za mały</h2>
         <p>
-            Wejdź w <a href="{{ route('settings.accessibility') }}">Ustawienia → Rozmiar tekstu</a>
-            i wybierz rozmiar, przy którym czyta Ci się wygodnie. Zapisze się na Twoim koncie —
-            będzie taki sam na telefonie i na komputerze.
+            Otwórz panel <strong>Wygląd</strong>, wybierz <strong>Rozmiar tekstu</strong>
+            i kliknij <strong>Zapisz wygląd</strong>. Bez logowania zapisujemy wybór
+            w tej przeglądarce. Po zalogowaniu zapisujemy go na Twoim koncie,
+            również do użycia na innych urządzeniach.
         </p>
 
         <h2>Co to znaczy „Ugotowałem”?</h2>
@@ -37,7 +44,9 @@
         <h2>Nie pamiętam hasła</h2>
         <p>
             Na stronie logowania kliknij <a href="{{ route('password.request') }}">Nie pamiętam hasła</a>.
-            Wyślemy Ci wiadomość z linkiem. Jeśli nie przychodzi, sprawdź folder „Spam”.
+            Dalej postępuj według wskazówek na tej stronie.
+            Jeśli wysyłanie wiadomości jest niedostępne, wybierz <a href="{{ route('kontakt') }}">Napisz do nas</a>
+            i opisz problem z logowaniem. Nie przesyłaj hasła ani kodów do logowania.
         </p>
 
         <h2>Ktoś zachowuje się nieprzyjemnie</h2>
@@ -63,9 +72,8 @@
 
         <h2>Nadal nie wiem, co kliknąć</h2>
         <p>
-            <a href="{{ route('kontakt') }}">Napisz do nas</a> albo wyślij zwykłego e-maila na
+            <a href="{{ route('kontakt') }}">Napisz do nas</a> albo wyślij e-mail na
             <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a>.
-            Odpisujemy po ludzku i naprawdę czytamy każdą wiadomość.
         </p>
     </article>
 </x-layout>

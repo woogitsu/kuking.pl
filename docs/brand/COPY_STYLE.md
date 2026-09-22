@@ -6,6 +6,13 @@ przyciski, nagłówki, puste stany, błędy, e-maile, powiadomienia.
 Jeśli piszesz cokolwiek, co przeczyta człowiek — piszesz według tego pliku.
 Słownik funkcji i lista słów zakazanych: `BRAND_EXTENDED.md`.
 
+Aktualizacja D-208, publiczna strona powitalna: „Od Twojej kuchni do
+wspólnego stołu”, „Zdjęcie. Kilka słów. I rozmowa przy okazji.” oraz
+„Twój przepis. Czyjś dobry obiad.” są brzmieniem wskazanego przez
+właściciela wzorca. Kroki pozostają konkretnymi czynnościami: „Robisz
+zdjęcie”, „Piszesz kilka słów”, „Ktoś odpowiada”. Podpis publicznej
+fotografii mówi „Zdjęcie: {autor}”; nie udaje powiadomienia ani wykonania.
+
 > **Ten plik mówi, JAK napisać zdanie. Czym ten głos JEST i GDZIE mówi —
 > [`GLOS_MARKI.md`](GLOS_MARKI.md).** Tamten dokument rozstrzyga zasięg marki
 > (dwukolorowy zapis `kuKING` wszędzie poza pięcioma miejscami, hierarchia
@@ -14,6 +21,41 @@ Słownik funkcji i lista słów zakazanych: `BRAND_EXTENDED.md`.
 > brzmienie zdania rozstrzyga ten plik, zasięg marki — tamten.
 
 ---
+
+## Precyzja opisu działania
+
+Zachęta po pierwszym wpisie wskazuje formularz kolejnego zdjęcia. Nie zakłada
+zawartości telefonu ani nie obiecuje, że następna publikacja pójdzie szybciej
+(D-114, #545). Pierwszy i kolejny wpis są osobnymi stanami odbioru tekstu.
+
+Komunikat przekroczenia limitu podaje wartość z rzeczywistej reguły
+walidacji, np. `:max`, zamiast liczby wpisanej osobno w zdaniu. Zmiana
+limitu nie może pozostawić sprzecznej instrukcji przy polu (#538).
+
+Potwierdzenie zapisu przepisu nazywa faktycznie zapisaną widoczność: prywatny,
+dla obserwujących lub publiczny. Nie sugerujemy odbiorców prywatnej treści.
+Instrukcja dalszego działania używa widocznej nazwy przycisku, np. „Dopisz
+szczegóły”, gdy przepis można uzupełnić (#530).
+
+Automatyczny zapis zatrzymuje się przy niepoprawnych polach. Mówimy wtedy,
+że te zmiany nie zostały zapisane, a tekst nadal jest w formularzu.
+Komunikat „zapisano” pokazujemy po udanym zapisie, nie po samym wpisaniu nazwy
+ani próbie wysłania formularza (#528).
+
+Przy odzyskiwaniu formularza rozróżniamy zachowanie całego tekstu, części pól
+i brak odzyskanej treści. Brak odzyskanych pól nie dowodzi, że formularz był
+pusty. Zapewnienie o tekście nie obejmuje zdjęcia, które trzeba wybrać ponownie.
+Nie obiecujemy zachowania danych przez przycisk „wstecz” przeglądarki (#523).
+
+Instrukcja opisuje kroki, które aplikacja rzeczywiście zapewnia. Przy logowaniu
+przez Google lub Facebooka podajemy nazwę przycisku i uprzedzamy o przekierowaniu;
+nie gwarantujemy jednego kliknięcia, bo dostawca może wymagać potwierdzenia.
+Ta sama zasada obejmuje ekran łączenia kont po powrocie od dostawcy (#542),
+nie tylko przyciski na stronie logowania.
+Podsumowanie podaje okres odpowiadający liczonym zdarzeniom. Nie wywodzimy
+z działania automatu aktualnej widoczności treści ani wiedzy jej autora.
+Zachęta do odpowiedzi na pierwszy wpis nie potrzebuje twierdzenia o retencji.
+Przykłady i regresja: `../design/PRECYZJA_KOMUNIKATOW_514.md`.
 
 ## 1. Jeden akapit, który wystarczy zapamiętać
 
@@ -69,10 +111,9 @@ w tym, o czym jest żart:
 | „Jesteś prawdziwym kuKINGiem!" | o użytkowniku | ❌ zakaz |
 | „Top kuKINGi tygodnia" | o hierarchii | ❌ zakaz |
 
-Powód nie jest estetyczny, a produktowy. Ponad połowa osób 50+ w mediach
-społecznościowych **nigdy nic nie publikuje**. Komplement za publikację
-podnosi poprzeczkę („skoro to ma być królewskie, to ja nie mam czego pokazać").
-Nazwa przynależności ją **obniża** — wystarczy tu być.
+Założenie projektowe: nie oceniamy użytkownika za publikację. Komplement
+może podnosić poprzeczkę („skoro to ma być królewskie, to ja nie mam czego pokazać”).
+Nazwa przynależności ma ją **obniżać** — wystarczy tu być.
 
 ### Odmiana
 
@@ -89,8 +130,8 @@ Jeśli zdanie wymaga takiej formy — przepisz zdanie, nie odmieniaj słowa na s
 
 ### Forma żeńska: nie tworzymy jej
 
-Głównymi użytkownikami Kuking są kobiety 60+ (w badaniu UTW **83,8% słuchaczy
-to kobiety**). Żadna żeńska forma od „kuKING" nie brzmi po polsku dobrze —
+W założeniach projektowych uwzględniamy między innymi kobiety 60+. To wybór
+persony, nie pomiar składu społeczności Kuking. Żadna żeńska forma od „kuKING" nie brzmi po polsku dobrze —
 każda próba wychodzi albo pretensjonalnie, albo śmiesznie w złym sensie.
 
 Dlatego: **kuKING jest nazwą rodzaju wspólnego, jak „gość" w „mamy gościa"**,
@@ -284,6 +325,14 @@ Cztery reguły techniczne:
 
 ## 5. kuKINGi na dziś — tablica polecanych
 
+Na stronie powitalnej wariant D-215 ma nagłówek „Co się dziś gotuje”,
+opis „Codzienne gotowanie, zdjęcia i pomysły od osób z Kuking.” oraz
+podsekcję „Poznaj ich kuchnie”. Wspólne zaproszenie gościa:
+„Obserwuj osoby, do których kuchni chcesz wracać.” i przycisk
+„Załóż konto, żeby obserwować”. Nazwa autora dania jest odnośnikiem do
+wpisu, którego kliknięcie obejmuje również zdjęcie; nie dokładamy
+powtarzanego przycisku „Zobacz”. Pozostałe szyny zachowują swój wariant.
+
 Sekcja z kilkoma osobami i kilkoma wpisami wartymi zobaczenia dzisiaj.
 Odpowiednik „Dla Ciebie" z innych portali, tylko **bez algorytmu i bez rankingu**.
 
@@ -347,7 +396,7 @@ Decyzja i uzasadnienie: `../DECISIONS.md` D-013.
 |---|---|
 | Top kuKINGi | ranking — wprost zakazany |
 | Polecane dla Ciebie | brzmi jak algorytm, którego nie mamy |
-| Odkrywaj | „Explore" po polsku, na liście słów zakazanych |
+| Odkrywaj | D-207 dopuszcza tę etykietę w nawigacji komputerowej do publicznego strumienia; wyszukiwarka nadal nazywa się Szukaj |
 | Trendy w Kuking | korpo-mowa, obca tej grupie |
 | Gwiazdy Kuking | tworzy influencerów, czego świadomie nie chcemy |
 | Warto zobaczyć | poprawne, ale nudne — a nazwa jest jednym z niewielu miejsc, gdzie wolno nam być zabawnymi |
@@ -377,9 +426,11 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 
 | Miejsce | Tekst |
 |---|---|
-| pytanie dnia | Witaj, {imię}. Co dziś gotujesz? |
-| pytanie dnia, konto bez imienia | Co dziś gotujesz? |
-| przycisk główny | Dodaj zdjęcie tego, co ugotowałeś |
+| powitanie na Start | Dzień dobry, {nazwa z profilu} |
+| powitanie bez nazwy | Dzień dobry |
+| tytuł kafla dodawania | Co dziś gotujesz? |
+| opis kafla dodawania | Zdjęcie i kilka słów wystarczą. |
+| przycisk główny na Start | Dodaj zdjęcie |
 | pole tekstowe | Napisz kilka słów |
 | podpowiedź pod polem | Na przykład: „Rosół na niedzielę, z kaczki od sąsiada. Wyszedł złoty." |
 | wybór zdjęcia | Na telefonie kliknij tutaj, a potem wybierz „Galeria" albo „Zrób zdjęcie". |
@@ -387,31 +438,20 @@ Kolumna „miejsce" wskazuje realny plik albo ekran.
 | po kolejnym | Opublikowane. Dziękujemy. |
 | autosave szkicu | Szkic zapisany. |
 
-**Pytanie dnia nie ma wariantu porannego i wieczornego** — i to jest decyzja,
-nie przeoczenie. Stały tu dwa wiersze („Dzień dobry…" / „Dobry wieczór…"),
-a w kodzie cztery warianty wybierane po godzinie. Wyszło z tego zdanie
-nieprawdziwe przez pół doby: „Dobry wieczór" witało od 15:00, a godzinę brał
-`now()`, czyli `config('app.timezone')` — w tym repozytorium `UTC` i takie
-zostanie (issue #87 i komentarz w `config/app.php`: strefą ekranu jest
-`kuking.strefa`, nie strefa, w której aplikacja liczy). Latem znaczyło to dwie
-godziny w tył, więc po 23:00 czasu polskiego serwis mówił „Dzień dobry".
-
-Głębszy powód jest jednak inny: **pory dnia CZYTELNIKA nie znamy.** Serwis
-nie pyta o strefę czasową tak samo, jak nie pyta o płeć, a kuKINGi mieszkają
-też poza Polską. Napis o porze dnia jest więc twierdzeniem o człowieku, którego
-nie mamy skąd wiedzieć — ta sama klasa błędu co „będziesz mogła" z §2
-i co obietnica z miarą bez pomiaru (D-114). „Witaj" jest prawdziwe o każdej
-godzinie; „Hej", „Cześć" i „Siema" zostają zakazane (`MASCOT_CONCEPT.md`).
-
-Zwrot po imieniu znika, gdy imienia nie ma — zostaje samo pytanie. Podstawianie
-nazwy zastępczej („Witaj, Użytkownik Kuking") udaje zwrot po imieniu i jest
-gorsze niż jego brak. Pilnuje tego `tests/Feature/PytanieDniaTest.php`.
+**D-207, wzorzec wskazany przez właściciela 13 września 2026:** krótkie
+„Dzień dobry” jest stałym zwrotem grzecznościowym. Nie dobieramy powitania
+według zegara serwera ani nie zakładamy strefy czasowej lub płci odbiorcy.
+Pokazujemy nazwę z profilu bez automatycznego zgadywania wołacza; przy pustej
+nazwie nie podstawiamy „Użytkownika Kuking”. Pytanie „Co dziś gotujesz?”
+stoi w kaflu, a przyciski nazywają działania. Zastępuje to poprzednie
+„Witaj, {imię}. Co dziś gotujesz?” i rozdziela powitanie od publikacji.
+Regresja: `tests/Feature/PytanieDniaTest.php`.
 
 ### Przepis
 
 | Miejsce | Tekst |
 |---|---|
-| zachęta do zapisu szkicu (formularz na jednej stronie) | Jeśli nie masz teraz czasu — zapisz szkic. Nic nie zginie i wrócisz do tego, kiedy zechcesz. |
+| zachęta do zapisu szkicu (formularz na jednej stronie) | Zapisz szkic, jeśli chcesz dokończyć przepis później. |
 | to samo w kreatorze, gdzie szkic zapisuje się sam | Wystarczy nazwa, żeby ruszyć dalej. Od niej zaczyna się też zapisywanie: szkic zapisuje się sam po każdym kroku i po chwili przerwy w pisaniu, a przycisk „Zapisz szkic" robi to od razu. |
 | sekcja pochodzenia | Skąd ten przepis |
 | pod nagłówkiem sekcji | Tu napiszesz, skąd masz ten przepis i co Cię z nim wiąże. |
@@ -423,7 +463,9 @@ gorsze niż jego brak. Pilnuje tego `tests/Feature/PytanieDniaTest.php`.
 | skan kartki | Jeśli masz przepis zapisany ręcznie — zrób mu zdjęcie. Zostanie przy przepisie. |
 | składniki, podpowiedź | Pisz tak, jak mówisz: „szklanka mąki", „2 duże cebule", „mleko — ile weźmie". Nie musisz nic przeliczać na gramy. |
 | kroki, podpowiedź | Jeden krok to jedna czynność. Krótkie kroki łatwiej czytać przy garnku. |
-| po publikacji | Przepis opublikowany. Teraz ktoś może z niego ugotować. |
+| po publikacji dla wszystkich | Przepis opublikowany. Teraz ktoś może z niego ugotować. |
+| po publikacji dla obserwujących | Przepis opublikowany dla osób, które Cię obserwują. |
+| po zapisaniu prywatnego przepisu | Przepis zapisany. Widzisz go tylko Ty. |
 
 ### Ugotowałem
 
@@ -431,15 +473,22 @@ gorsze niż jego brak. Pilnuje tego `tests/Feature/PytanieDniaTest.php`.
 |---|---|
 | przycisk na przepisie | Ugotowałem |
 | nagłówek sekcji | Gotujesz z tego przepisu? |
-| pod nagłówkiem | {autor} naprawdę chce o tym wiedzieć. Wystarczy jedno kliknięcie. |
+| pod nagłówkiem | Otwórz „Ugotowałem”, a potem wyślij formularz. |
 | formularz, uspokojenie | Nie musisz wypełniać żadnego pola — wystarczy, że klikniesz „Wyślij". |
 | zdjęcie efektu | To jest najmilsza część dla autora przepisu. Zdjęcie nie musi być ładne. |
 | pole uwagi | Jak wyszło? |
 | pole zmian | Coś po swojemu? |
-| po wysłaniu | Zapisane. {autor} dowie się, że ktoś ugotował z tego przepisu. |
+| po wysłaniu | Wykonanie zapisane. |
 | powiadomienie autora | {imię} ugotowała Twój rosół. |
 | sekcja pod przepisem | Komu wyszło |
 | pod nagłówkiem | Zdjęcia od ludzi, którzy naprawdę to zrobili u siebie. |
+
+Instrukcja formularza może zapowiadać powiadomienie innego autora, który
+może czytać serwis. Przy własnym przepisie i autorze wymazanym mówi:
+„Zapisz wykonanie tego przepisu.” Zawieszony autor nadal może czytać
+i otrzymuje powiadomienie (AGENTS.md §1). Potwierdzenie zapisu oraz
+ponownego wysłania nie podaje liczby powiadomień: ich brak w tych
+wyjątkach jest prawidłowy, a wcześniejsze powiadomienie może już nie istnieć.
 
 ### Puste stany
 
@@ -448,7 +497,7 @@ gorsze niż jego brak. Pilnuje tego `tests/Feature/PytanieDniaTest.php`.
 | pusty feed | Jeszcze nic tu nie ma |
 | + wyjaśnienie | Zacznij od zdjęcia tego, co dziś ugotowałeś. Nie musi być ładne — ma być prawdziwe. |
 | pusty zeszyt | Zeszyt jest jeszcze pusty |
-| + wyjaśnienie | Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję". Trafi tutaj i zawsze go znajdziesz. |
+| + wyjaśnienie | Kiedy znajdziesz przepis, który chcesz zachować, kliknij przy nim „Zapisuję". Zapisany przepis pojawi się w Twoim zeszycie. |
 | puste archiwum, własne | Twoje archiwum jest jeszcze puste |
 | + wyjaśnienie | Od pierwszego zdjęcia zaczyna się Twoje archiwum. Za rok zobaczysz tu, co gotujesz dzisiaj. |
 | brak powiadomień | Nie ma jeszcze żadnych powiadomień |
@@ -472,10 +521,15 @@ Wzór: **co się stało → dlaczego → co zrobić.**
 | nazwa zajęta | Ta nazwa jest już zajęta. Spróbuj dodać coś na końcu. |
 | błąd logowania | Nie udało się zalogować. Sprawdź, czy nazwa i hasło są wpisane poprawnie. Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła". |
 | za dużo prób | Za dużo prób logowania. Spróbuj ponownie za {n} min. |
-| podsumowanie, 1 błąd | Jednej rzeczy jeszcze brakuje |
-| podsumowanie, więcej | Kilku rzeczy jeszcze brakuje |
+| podsumowanie błędów | Sprawdź formularz |
 | brak internetu | Nie ma teraz połączenia z internetem |
 | + wyjaśnienie | Kuking potrzebuje internetu, żeby pokazać nowe wpisy. Sprawdź Wi-Fi albo dane w telefonie i spróbuj jeszcze raz. |
+
+Nagłówek podsumowania nie zgaduje przyczyny błędu. Wpisana wartość może być
+za długa, nieprawidłowa albo już zajęta; nie każda walidacja oznacza brak
+danych. Konkretna przyczyna i sposób poprawy pozostają przy polu oraz w
+podsumowaniu. Odnośnik pod formularzem mówi „co trzeba poprawić”, nie
+„czego jeszcze brakuje”. Dotyczy też kreatora i panelu moderacji (#527).
 
 ### Rzeczy nieodwracalne
 
@@ -590,3 +644,19 @@ Rozstrzyga sprzeczność, która stała w produkcie: karta wpisu mówiła
 `BRAND_EXTENDED.md` (słownik i słowa zakazane) · `MASCOT_CONCEPT.md` (zakaz
 komplementowania koroną) · `../UX_50_PLUS.md` (wzorce błędów) ·
 `../product/SOUL.md` (mikro-copy pustych stanów) · `../research/AUDIENCE_50_PLUS.md`
+
+## Odrzucone wysłanie formularza — #549
+
+Sam kod 419 nie dowodzi, że strona była otwarta zbyt długo. Token może
+zmienić się także po zmianie sesji. Piszemy „Nie udało się wysłać formularza”
+i „Nie mogliśmy potwierdzić tego wysłania.”, bez przypisywania nieznanej
+przyczyny. Osobno informujemy o pełnym, częściowym albo nieudanym odzyskaniu
+tekstu. Ponowienie nie jest gwarancją publikacji — nadal działa walidacja
+i sprawdzanie uprawnień.
+
+## Niedostępne zapisy — #567
+
+Brak dostępu do zapisanej treści nie oznacza pustego zeszytu ani usunięcia
+samego zapisu. Komunikat podaje liczbę bez tytułów, autorów i zdjęć. Nie
+zgaduje przyczyny ani wcześniejszego dostępu. „W tym zeszycie” pasuje
+również do cudzej kolekcji; „w Twoim” wymaga potwierdzenia właściciela.

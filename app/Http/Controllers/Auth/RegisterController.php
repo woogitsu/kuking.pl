@@ -153,7 +153,7 @@ class RegisterController extends Controller
             // który nazywał pole inaczej niż etykieta na ekranie („Jak mamy
             // Cię nazywać?") i nie mówił, co zrobić.
             'display_name.min' => 'To imię jest za krótkie. Wpisz co najmniej dwie litery — na przykład „Basia”.',
-            'display_name.max' => 'To imię jest za długie. Zmieść się w 100 znakach.',
+            'display_name.max' => 'To imię jest za długie. Zmieść się w :max znakach.',
             /*
              * KOMUNIKATY PO NORMALIZACJI, WIĘC MÓWIĄ O CZYMŚ INNYM NIŻ WCZEŚNIEJ.
              *
@@ -211,7 +211,7 @@ class RegisterController extends Controller
                     if ($adres === null) {
                         throw new BladDlaCzlowieka(
                             'To zaproszenie przestało działać, zanim zdążyliśmy założyć konto — mogło wygasnąć '
-                            .'albo zostać już użyte. Wpisz swój adres e-mail poniżej i spróbuj jeszcze raz; '
+                            .'albo zostać już użyte. Sprawdź swój adres e-mail poniżej, wpisz hasło ponownie i wyślij formularz jeszcze raz; '
                             .'wyślemy na niego jedną wiadomość z potwierdzeniem.',
                         );
                     }

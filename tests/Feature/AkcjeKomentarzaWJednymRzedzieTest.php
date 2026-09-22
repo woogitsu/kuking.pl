@@ -193,6 +193,29 @@ class AkcjeKomentarzaWJednymRzedzieTest extends TestCase
         return [$gospodarz, $piszacy, $wpis, $komentarz];
     }
 
+    public function test_komentarz_i_odpowiedz_korzystaja_z_systemowego_odstepu_przed_usun(): void
+    {
+        [$gospodarz, , $wpis, $komentarz] = $this->wpisZKomentarzem('gospodyni', 'gospodyni');
+        Comment::factory()->create([
+            'author_id' => $gospodarz->getKey(),
+            'post_id' => $wpis->getKey(),
+            'parent_id' => $komentarz->getKey(),
+            'body' => 'Moja odpowiedź',
+            'created_at' => now()->subMinute(),
+        ]);
+        $xpath = $this->xpath((string) $this->actingAs($gospodarz)
+            ->get(route('posts.show', $wpis))->assertOk()->getContent());
+        $strefy = $xpath->query('.//*[contains(concat(" ", normalize-space(@class), " "), " danger-zone ")]', $this->sekcjaKomentarzy($xpath));
+        $this->assertCount(2, $strefy, 'Musi istnieć strefa własnego komentarza i własnej odpowiedzi.');
+        foreach ($strefy as $strefa) {
+            // D-154: odstęp 32 + 24 pochodzi z systemu. Lokalne utility
+            // nadpisują go po cichu; piksele sprawdza osobny pomiar Chromium.
+            $this->assertDoesNotMatchRegularExpression('/(?:^|\s)(?:[a-z0-9-]+:)*[mp][ty]?-(?:\d|\[)/', $strefa->getAttribute('class'));
+            $this->assertFalse($strefa->hasAttribute('style'), 'Styl inline nie może zastępować odstępu systemowego.');
+            $this->assertSame(1, $xpath->query('.//details//form[input[@name="_method" and @value="DELETE"] and input[@name="_token"]]', $strefa)->length);
+        }
+    }
+
     public function test_wlasny_komentarz_ma_odpowiedz_i_popraw_w_jednym_rzedzie(): void
     {
         // Ten sam człowiek jest autorem wpisu i komentarza: widzi „Odpowiedz",

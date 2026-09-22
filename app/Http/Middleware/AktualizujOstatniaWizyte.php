@@ -5,10 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Middleware;
 
 use App\Domain\Analytics\ZanotujOstatniaWizyte;
+use App\Domain\Pwa\InstallPrompt;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Closure;
 use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Log;
 use Symfony\Component\HttpFoundation\Response;
+use Throwable;
 
 /**
  * Ustawia `users.ostatnio_widziany_at` dla każdego uwierzytelnionego żądania —
@@ -36,14 +40,71 @@ use Symfony\Component\HttpFoundation\Response;
  */
 class AktualizujOstatniaWizyte
 {
-    public function __construct(private readonly ZanotujOstatniaWizyte $zanotuj) {}
+    private const PWA_RETURN_CANDIDATE = 'pwa_return_candidate';
+
+    public function __construct(
+        private readonly ZanotujOstatniaWizyte $zanotuj,
+        private readonly InstallPrompt $installPrompt,
+    ) {}
 
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
 
         if ($user instanceof User) {
+            // Zachowujemy poprzednią aktywność przed jej aktualizacją.
+            // Prefetch i żądania w tle nie są powrotem do czytania strony.
+            $navigation = $request->isMethod('GET') && $request->acceptsHtml()
+                && ! $request->expectsJson() && ! $request->ajax()
+                && (in_array($request->header('Sec-Fetch-Dest'), [null, 'document'], true)
+                    || ($request->header('Sec-Fetch-Dest') === 'empty' && $request->header('Sec-Fetch-Mode') === 'navigate'))
+                && ! str_contains(strtolower($request->header('Purpose', '').' '.$request->header('Sec-Purpose', '')), 'prefetch');
+            $previous = $user->ostatnio_widziany_at?->copy();
+
+            if ($request->hasSession()) {
+                $session = $request->session();
+                $candidate = $session->get(self::PWA_RETURN_CANDIDATE);
+                if (! is_array($candidate)
+                    || ($candidate['user'] ?? null) !== (string) $user->getKey()
+                    || ! is_int($candidate['previous'] ?? null)
+                    || ! is_int($candidate['expires'] ?? null)
+                    || $candidate['expires'] <= now()->getTimestamp()
+                    || $user->pwa_prompt_state !== null) {
+                    $session->forget(self::PWA_RETURN_CANDIDATE);
+                    $candidate = null;
+                }
+
+                if ($navigation) {
+                    // Jednorazowy most między prefetch/AJAX a nawigacją.
+                    // Nie zmienia globalnego trackera i nie przechodzi na inne konto.
+                    if ($candidate !== null) {
+                        $previous = CarbonImmutable::createFromTimestampUTC($candidate['previous']);
+                    }
+                    $session->forget(self::PWA_RETURN_CANDIDATE);
+                } elseif ($candidate === null && $user->pwa_prompt_state === null
+                    && $previous !== null && $previous->lessThanOrEqualTo(now()->utc()->subHours(24))) {
+                    $session->put(self::PWA_RETURN_CANDIDATE, [
+                        'user' => (string) $user->getKey(),
+                        'previous' => $previous->getTimestamp(),
+                        // Ruch w tle nie przedłuża okna w nieskończoność.
+                        'expires' => now()->addHour()->getTimestamp(),
+                    ]);
+                }
+            }
+
+            if ($navigation) {
+                try {
+                    if ($this->installPrompt->qualify($user, $previous)) {
+                        $user->setAttribute('pwa_prompt_state', InstallPrompt::ELIGIBLE);
+                    }
+                } catch (Throwable $e) {
+                    Log::warning('Nie udało się zapisać kwalifikacji zachęty instalacji.', ['wyjatek' => $e::class]);
+                }
+            }
+
             $this->zanotuj->handle($user);
+        } elseif ($request->hasSession()) {
+            $request->session()->forget(self::PWA_RETURN_CANDIDATE);
         }
 
         return $next($request);

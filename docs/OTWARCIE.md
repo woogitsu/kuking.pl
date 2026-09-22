@@ -237,3 +237,39 @@ opisywał stan sprzed #10. Szczegóły i dowody w kodzie:
 `docs/infra/INFRA_DECISION.md` · `docs/infra/BRAMKA_R2.md` ·
 `docs/research/audyt-2026-09-10/` · issue #120 ·
 `docs/zlecenia/2026-09-09-audyt-a6.md` (A6-06, A6-07)
+
+---
+
+## Uzupełnienie 17.09.2026 — monitoring (wiersze 11, 12 i 18)
+
+Tabela wyżej jest snapshotem z 10.09.2026 i celowo nie jest przepisywana.
+Ta sekcja dokłada do niej trzy pomiary z 17.09.2026 i nic poza nimi.
+
+**Wiersz 18 — „Alarm z webhooka naprawdę dochodzi": `NIEZWERYFIKOWANE` →
+`NIEZROBIONE — BLOKUJE`.** To nie jest zaostrzenie oceny, tylko zamiana
+„nie wiemy" na „wiemy, że nie". Kanał `blad_webhook` włącza jedna zmienna,
+a odczyt listy zmiennych usługi `kuking.pl` (production) przez API Railway
+pokazuje, że **`LOG_BLAD_WEBHOOK_URL` w niej nie występuje**;
+`sealedVariableNames` jest puste, więc brak nazwy znaczy brak zmiennej,
+a nie ukrytą wartość. Skutek: dziś nie dzwoni **nic** — ani błąd 500, ani
+czujka kopii, ani dwie czujki dołożone w #598 i #599. Mechanizm jest
+sprawdzony na prawdziwym lokalnym odbiorniku HTTP; brakuje wyłącznie
+czynności właściciela w panelu. Kolejność zamykania:
+`docs/infra/MONITORING_BLEDOW.md` §7.3.
+
+**Wiersz 11 — zewnętrzny monitor `/health`: bez zmian, `NIEZROBIONE`.**
+Warto natomiast zapisać, dlaczego jego założenie nie wystarczy dziś do
+niczego: `/health` odpowiada wprawdzie **HTTP 200** (odczyt z zewnątrz,
+17.09 21:10 UTC), ale ze `status: degraded` — i stoi tak **nieprzerwanie od
+9 września**, przez cztery nierozliczone zadania w `failed_jobs`. Monitor
+pilnujący treści odpowiedzi alarmowałby więc od pierwszej minuty i nauczyłby
+się być ignorowany, zanim powstanie. Kolejność jest odwrotna niż wyglądała:
+najpierw rozliczenie tych czterech zadań (`php artisan kuking:martwe-zadania`,
+**bez zbiorowego `queue:retry`** — żeton resetu hasła wygasa), potem monitor.
+
+**Wiersz 12 — test dymny po wdrożeniu: nadal `NIEZWERYFIKOWANE`.** Nie
+sprawdzałem tego wiersza; wdrożenie Alfy 0.57 odbiera drugi model.
+
+Co jest zielone i zmierzone z zewnątrz tego samego dnia: baza, migracje,
+media, poczta, Turnstile, Google, Facebook i analityka — wszystkie pola
+`checks` w `/health` poza `kolejka`.

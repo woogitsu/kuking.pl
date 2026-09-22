@@ -1,0 +1,7 @@
+{
+  "negative_detected": true,
+  "restored_md5": "81c7d42384b8f40eb7b1228f72e7e2d9",
+  "mtime_restored": true,
+  "backup": "/tmp/kuking647-table-vxqqc39z/PostTag.php",
+  "positive": "PHPUnit 12.5.34 by Sebastian Bergmann and contributors.\n\nRuntime:       PHP 8.4.24\nConfiguration: /home/mateusz/kuking-647-delivery/phpunit.xml\n\n......                                                              6 / 6 (100%)\n\nTime: 00:01.468, Memory: 131.00 MB\n\n\u001b[30;42mOK (6 tests, 147 assertions)\u001b[0m\n"
+}

@@ -1,0 +1,62 @@
+=== KONTROLA UJEMNA #647 (blade: <details> bez open) ===
+czas UTC:    2026-09-19T11:12:56Z
+plik:        /home/mateusz/kuking-647-odbior-claude/resources/views/components/tagi-formularz.blade.php
+MD5 przed:   781aaea9357a2533f2aa9526d12d2c2c
+mtime przed: 1789816316
+
+--- 1. mutacja: cofamy poprawke, <details> znow bez open ---
+trafien wzorca: 1
+
+--- 2. GREP + MD5: czy mutacja NAPRAWDE weszla ---
+MD5 po mutacji: 1e5c009bb9737e9e4b141b7851b9f85f
+wystapien 'open @endif' (ma byc 0): 0
+wystapien '<details class="mt-3">' (ma byc 1): 1
+linia po mutacji:
+68:        <details class="mt-3">
+
+--- 3. testy na ZMUTOWANYM zrodle (maja OBLAC) ---
+status phpunit (mutacja): 1
+PHPUnit 12.5.34 by Sebastian Bergmann and contributors.
+
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-647-odbior-claude/phpunit.xml
+
+..........FF..........                                            22 / 22 (100%)
+
+Time: 00:01.283, Memory: 75.00 MB
+
+There were 2 failures:
+
+1) Tests\Feature\TagiWpisowTest::test_wynik_sprawdzenia_tagu_jest_widoczny_bez_javascriptu
+Podpowiedzi po „Sprawdz tag" siedza w ZWINIETEJ sekcji `<details>` — bez JavaScriptu czlowiek klika „Sprawdz tag", strona sie przeladowuje i nic sie nie pokazuje. Sekcja musi miec `open`, gdy jest co pokazac.
+Failed asserting that 1 is identical to 0.
+
+/home/mateusz/kuking-647-odbior-claude/tests/Feature/TagiWpisowTest.php:191
+
+2) Tests\Feature\TagiWpisowTest::test_komunikat_o_juz_dodanym_tagu_jest_widoczny_bez_javascriptu
+Komunikat „Ten tag jest już dodany." jest schowany w zwinietej sekcji.
+Failed asserting that 1 is identical to 0.
+
+/home/mateusz/kuking-647-odbior-claude/tests/Feature/TagiWpisowTest.php:227
+
+FAILURES!
+Tests: 22, Assertions: 68, Failures: 2.
+
+--- 4. przywrocenie i porownanie ---
+MD5 po:    781aaea9357a2533f2aa9526d12d2c2c
+mtime po:  1789816316
+MD5 ZGODNY
+MTIME ZGODNY
+wystapien 'open @endif' po przywroceniu (ma byc 1): 1
+
+--- 5. przebieg dodatni po przywroceniu ---
+Runtime:       PHP 8.4.24
+Configuration: /home/mateusz/kuking-647-odbior-claude/phpunit.xml
+
+......................                                            22 / 22 (100%)
+
+Time: 00:01.392, Memory: 75.00 MB
+
+OK (22 tests, 70 assertions)
+
+WYNIK ZAPISANY: /home/mateusz/negatyw647-claude-wynik.txt

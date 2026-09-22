@@ -87,10 +87,20 @@ SERWER="postgresql://${BAZA_POLACZENIE}/postgres"
 export PGPASSWORD="${BAZA_HASLO}"
 PSQL=(psql -q -U "${BAZA_UZYTKOWNIK}" -h "${BAZA_HOST}" -p "${BAZA_PORT}")
 
-# Nazwy baz są UNIKALNE DLA WORKTREE, bo w tym kontenerze pracuje równolegle
-# kilku agentów i kilka przebiegów testów. Sufiks liczy ta sama funkcja, co
-# nazwy baz testowych (`tests/bootstrap.php`) — żeby nie było w repozytorium
-# drugiej reguły nazywania baz, która może się z tamtą rozjechać.
+# Nazwy baz są UNIKALNE DLA KATALOGU REPOZYTORIUM, bo w tym kontenerze
+# pracuje równolegle kilku agentów i kilka przebiegów testów. Sufiks liczy ta
+# sama funkcja, co nazwy baz testowych (`tests/bootstrap.php`) — żeby nie było
+# w repozytorium drugiej reguły nazywania baz, która może się z tamtą rozjechać.
+#
+# UWAGA NA AWARYJNE `_glowny`. Do 2026-09-20 funkcja liczyła nazwę z pliku
+# `.git`, którego w runtime NIE MA (rsync go wyklucza) — sufiks wychodził pusty,
+# wpadało `_glowny` i WSZYSTKIE stanowiska waliły w jedną `kuking_zrodlo_proby_glowny`.
+# Dawało to fałszywą czerwień z kontencji, po której każdy musiał najpierw
+# udowodnić, że to nie jego wina. Dziś sufiks jest pusty WYŁĄCZNIE w głównym
+# checkoucie (gdzie `_glowny` jest prawdą), a pilnuje tego
+# `tests/Unit/NazwaTestowejBazyTest.php`. Gdyby `php` tu padł, `_glowny`
+# nadal zadziała — i nadal będzie wspólne, więc nie jest to nazwa do
+# uruchamiania równolegle.
 SUFIKS="$(php -r 'require "'"${KATALOG}"'/tests/bootstrap.php"; echo substr(kuking_nazwa_testowej_bazy("'"${KATALOG}"'"), strlen("kuking_test"));' 2>/dev/null)"
 SUFIKS="${SUFIKS:-_glowny}"
 
@@ -144,7 +154,7 @@ for narzedzie in pg_dump pg_restore psql openssl php; do
   fi
 done
 
-if ! pg_isready -q 2>/dev/null; then
+if ! pg_isready -q -h "${BAZA_HOST}" -p "${BAZA_PORT}" 2>/dev/null; then
   printf '\033[0;31mPostgreSQL nie odpowiada — nie ma czego dowodzić.\033[0m\n' >&2
   exit 1
 fi
@@ -155,6 +165,10 @@ posprzataj() {
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}_zajeta WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}por WITH (FORCE)" >/dev/null 2>&1
   "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}pelny WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}obca WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}cms WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}bezhasla WITH (FORCE)" >/dev/null 2>&1
+  "${PSQL[@]}" -d postgres -c "DROP DATABASE IF EXISTS ${BAZA_PROBNA}drop WITH (FORCE)" >/dev/null 2>&1
   [[ -n "${KATALOG_KOPII}" && -d "${KATALOG_KOPII}" ]] && rm -rf "${KATALOG_KOPII}"
   return 0
 }
@@ -418,6 +432,253 @@ sprawdz "…i NIE kasuje bazy, której odmówił dotknąć" "1" \
 sprawdz "…a tabela w tej bazie jest nietknięta" "1" \
   "$("${PSQL[@]}" -d "${BAZA_PROBNA}_zajeta" -Atc \
     "SELECT count(*) FROM information_schema.tables WHERE table_schema='public'")"
+
+# =============================================================================
+echo
+echo "── BEZPIECZNIK 3 (tożsamość instancji docelowej, #594) ──"
+# =============================================================================
+#
+#  ODTWORZONA USTERKA, ZMIERZONA 17.09.2026
+#  Bezpiecznik 1 czyta NAZWĘ HOSTA. Za tunelem (`railway connect postgres
+#  --tunnel-only`) produkcja nazywa się `127.0.0.1` i przechodzi bez słowa,
+#  a bezpiecznik 2 pyta o bazę CELU — świeżo założoną, więc naprawdę pustą
+#  i naprawdę nazwaną `proba_odtworzenia_*`.
+#
+#  Zmierzone: TEN SAM klaster odrzucony pod adresem `*.proxy.rlwy.net`
+#  (kod 21) został PRZYJĘTY pod `127.0.0.1` — baza powstała, `pg_restore`
+#  wlał na tę instancję komplet danych osobowych, a skrypt wypisał przy tym
+#  „serwer nie jest produkcyjny".
+#
+#  „Obca instancja" jest tu robiona najuczciwszym dostępnym sposobem: przez
+#  wskazanie repozytorium INNEGO Postgresa (`DB_PORT`), niż jest celem. To
+#  jest dokładnie ten kształt, co tunel — cel jest osiągalny i wygląda
+#  niewinnie, a klaster, który repozytorium zna jako swój, to nie on.
+proba_obca_instancja() {
+  (
+    export DB_PORT=1 # pod tym portem nie ma nikogo: cel NIE JEST klastrem repo
+    bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_DOBRY}" --serwer "${SERWER}" \
+      --baza "${BAZA_PROBNA}obca" --tabele users,follows "$@" 2>&1
+  )
+}
+
+wyjscie="$(proba_obca_instancja)"
+kod=$?
+sprawdz "odmawia obcej instancji docelowej (kod 24)" "24" "${kod}"
+sprawdz_zawiera "…i mówi wprost, że nazwa hosta nie jest dowodem" \
+  "za tunelem" "${wyjscie}"
+
+# NAJWAŻNIEJSZA ASERCJA TEJ KONTROLI: odmowa ma nastąpić, ZANIM cokolwiek
+# powstanie. Bezpiecznik, który odmawia po `CREATE DATABASE`, zostawia na
+# cudzej instancji bazę, o której nikt nie wie.
+sprawdz "…zanim na tej instancji cokolwiek powstanie" "0" \
+  "$("${PSQL[@]}" -d postgres -Atc \
+    "SELECT count(*) FROM pg_database WHERE datname='${BAZA_PROBNA}obca'")"
+
+ODCISK_Z_ODMOWY="$(sed -n -E 's/.*--instancja ([0-9a-f]{16}).*/\1/p' <<<"${wyjscie}" | head -1)"
+sprawdz "…podając odcisk, którym da się to potwierdzić" "16" "${#ODCISK_Z_ODMOWY}"
+
+wyjscie="$(proba_obca_instancja --instancja "${ODCISK_Z_ODMOWY}")"
+kod=$?
+sprawdz "…a po JAWNYM potwierdzeniu przechodzi (kod 0)" "0" "${kod}"
+sprawdz_zawiera "…meldując, że potwierdzenie było jawne" \
+  "potwierdzona jawnie" "${wyjscie}"
+
+wyjscie="$(proba_obca_instancja --instancja 0000000000000000)"
+kod=$?
+sprawdz "potwierdzenie NIE TEJ instancji oblewa (kod 24)" "24" "${kod}"
+sprawdz_zawiera "…i pokazuje obie wartości, nie samo „nie zgadza się\"" \
+  "a pod adresem stoi" "${wyjscie}"
+
+# KONTROLA DODATNIA. Bez niej wszystkie asercje wyżej byłyby zielone także
+# wtedy, gdyby bezpiecznik 3 odmawiał ZAWSZE — a ćwiczenie na własnym
+# Postgresie ma zostać JEDNĄ komendą (pułapka 4 z PULAPKI_TESTOW.md).
+sprawdz_zawiera "kontrola dodatnia: własny Postgres repozytorium przechodzi bez potwierdzenia" \
+  "cel to własny Postgres tego repozytorium" \
+  "$(uruchom_probe "${ZRZUT_DOBRY}")"
+
+# =============================================================================
+echo
+echo "── USZKODZONY SZYFROGRAM (#594) ──"
+# =============================================================================
+#
+#  ZMIERZONE 17.09.2026: CMS `EnvelopedData` z AES-256-CBC nie niesie
+#  uwierzytelnienia. Przekłamanie bajtów w środku `.cms` przeszło przez
+#  `openssl cms -decrypt` z kodem 0 i przez spis archiwum, a ćwiczenie padło
+#  dopiero na `pg_restore` (kod 50, „odtworzenie nie udało się") — czyli PO
+#  założeniu bazy i po wlaniu do niej części danych, z komunikatem
+#  wskazującym na serwer, a nie na uszkodzony plik.
+#
+#  Skrót jawnego zrzutu leży w pliku `.meta` obok kopii od początku. Do tej
+#  pory nikt go nie czytał.
+ZRZUT_CMS_USZKODZONY="${KATALOG_KOPII}/uszkodzony.dump.cms"
+cp "${ZRZUT_CMS}" "${ZRZUT_CMS_USZKODZONY}"
+cp "${ZRZUT_CMS%.dump.cms}.meta" "${KATALOG_KOPII}/uszkodzony.meta"
+printf 'ZEPSUTE' | dd of="${ZRZUT_CMS_USZKODZONY}" bs=1 \
+  seek=$(($(stat -c %s "${ZRZUT_CMS_USZKODZONY}") / 2)) conv=notrunc status=none 2>/dev/null
+
+wyjscie="$(bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_CMS_USZKODZONY}" \
+  --klucz "${KATALOG_KOPII}/PRYWATNY.pem" --serwer "${SERWER}" \
+  --baza "${BAZA_PROBNA}cms" 2>&1)"
+kod=$?
+sprawdz "uszkodzony szyfrogram oblewa na skrócie z .meta (kod 44)" "44" "${kod}"
+sprawdz_zawiera "…nazywając rzecz po imieniu, nie „pg_restore padł\"" \
+  "NIE ZGADZA SIĘ ze skrótem" "${wyjscie}"
+sprawdz "…i NIE zakłada bazy, do której miałby to wlać" "0" \
+  "$("${PSQL[@]}" -d postgres -Atc \
+    "SELECT count(*) FROM pg_database WHERE datname='${BAZA_PROBNA}cms'")"
+
+# KONTROLA DODATNIA do tej samej kontroli: NIETKNIĘTY szyfrogram z tym samym
+# `.meta` ma przejść. Bez niej „oblewa zawsze" byłoby nie do odróżnienia
+# od „łapie uszkodzenie".
+sprawdz_zawiera "kontrola dodatnia: nietknięty szyfrogram przechodzi porównanie skrótu" \
+  "zgadza się z .meta" \
+  "$(bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_CMS}" \
+    --klucz "${KATALOG_KOPII}/PRYWATNY.pem" --serwer "${SERWER}" \
+    --baza "${BAZA_PROBNA}cms" --tabele users,follows 2>&1)"
+
+# =============================================================================
+echo
+echo "── HASŁO BAZY POZA LISTĄ PROCESÓW (#594) ──"
+# =============================================================================
+#
+#  ODTWORZONE 17.09.2026 PRAWDZIWYM `ps`: przez cały czas trwania zrzutu
+#  wiersz `ps -o args=` procesu `pg_dump` zawierał pełny DSN razem z hasłem.
+#  Argumenty procesu są na Linuksie jawne dla KAŻDEGO użytkownika maszyny —
+#  a tym DSN-em jest poświadczenie do produkcyjnej bazy.
+#
+#  TEST NIE UŻYWA JUŻ `ps` I TO JEST POPRAWKA, NIE ULGA. Pierwsza wersja
+#  uruchamiała prawdziwy `pg_dump` w tle i próbowała złapać jego wiersz
+#  z `ps`. Przy pełnym zestawie testów zrzut fikstury kończył się szybciej,
+#  niż pętla zdążyła spróbować — asercja „ps naprawdę pokazał wiersz"
+#  oblewała się losowo (zmierzone: samotnie zielona, w pełnym przebiegu
+#  czerwona, dwa razy z rzędu). Wyścig w teście jest usterką testu.
+#
+#  Patrzymy więc na ARGUMENTY, które podstawiony `pg_dump` naprawdę dostał.
+#  To jest dokładnie to, co pokazuje `ps`: `ps -o args=` wypisuje `argv`
+#  procesu — ten sam wektor, który przekazuje `execve`. Różnica jest tylko
+#  taka, że tu nie ma czego przegapić.
+KATALOG_PS="$(mktemp -d)"
+cat >"${KATALOG_PS}/pg_dump" <<'PODSTAWKA'
+#!/usr/bin/env bash
+# Podglądamy dwie rzeczy naraz: wiersz z `ps` prawdziwego procesu ORAZ to,
+# co pg_dump dostał w `PGPASSFILE`. Druga połowa jest tu konieczna, bo
+# „zrzut powstał" niczego nie dowodzi na kliencie, którego `pg_hba.conf`
+# ustawiono na `trust` — a tak stoi lokalny klaster deweloperski.
+printf 'PGPASSFILE=%s\n' "${PGPASSFILE:-BRAK}" >>"${PODGLAD_PASS}"
+if [[ -n "${PGPASSFILE:-}" && -f "${PGPASSFILE}" ]]; then
+  printf 'PRAWA=%s\n' "$(stat -c %a "${PGPASSFILE}")" >>"${PODGLAD_PASS}"
+  cat "${PGPASSFILE}" >>"${PODGLAD_PASS}"
+fi
+PRAWDZIWY="$(PATH="${PATH#*:}" command -v pg_dump)"
+# `argv` procesu — to samo, co wypisałby `ps -o args=`, tylko bez wyścigu
+# o to, czy zdążymy zajrzeć, zanim proces się skończy.
+printf '%s\n' "${PRAWDZIWY} $*" >>"${PODGLAD_PS}"
+exec "${PRAWDZIWY}" "$@"
+PODSTAWKA
+chmod +x "${KATALOG_PS}/pg_dump"
+
+KATALOG_KOPII_PS="${KATALOG_PS}/kopia"
+mkdir -p "${KATALOG_KOPII_PS}"
+PODGLAD_PS="${KATALOG_PS}/ps.txt"
+PODGLAD_PASS="${KATALOG_PS}/pass.txt"
+: >"${PODGLAD_PS}"
+: >"${PODGLAD_PASS}"
+
+# `PGPASSWORD` MUSI ZNIKNĄĆ NA CZAS TEJ PRÓBY — inaczej nie widać RÓŻNICY
+# między „hasło poszło przez plik" a „hasło poszło przez środowisko".
+kod_ps="$(
+  unset PGPASSWORD
+  PATH="${KATALOG_PS}:${PATH}" PODGLAD_PS="${PODGLAD_PS}" PODGLAD_PASS="${PODGLAD_PASS}" \
+    bash "${SKRYPT_KOPII}" --zrodlo "${DSN_ZRODLA}" --katalog "${KATALOG_KOPII_PS}" \
+    >/dev/null 2>&1
+  printf '%s' "$?"
+)"
+
+sprawdz "kopia powstała (kod 0)" "0" "${kod_ps}"
+
+# UWAGA NA FAŁSZYWY DOWÓD. Lokalny klaster deweloperski przyjmuje połączenia
+# BEZ hasła (`trust` w pg_hba.conf) — sprawdzone 17.09.2026. Samo „zrzut
+# powstał" nie dowodzi więc, że `PGPASSFILE` w ogóle zadziałał: dowodzi tylko,
+# że `pg_dump` się połączył. Dlatego niżej patrzymy PROSTO na plik, który
+# `pg_dump` dostał, i na jego prawa.
+sprawdz "pg_dump dostał PGPASSFILE" "tak" \
+  "$(grep -q '^PGPASSFILE=/' "${PODGLAD_PASS}" && echo tak || echo nie)"
+sprawdz "…z hasłem bazy w środku" "tak" \
+  "$(grep -qF ":${BAZA_HASLO}" "${PODGLAD_PASS}" && echo tak || echo nie)"
+sprawdz "…i prawami 600, bo to poświadczenie do bazy" "PRAWA=600" \
+  "$(grep -m1 '^PRAWA=' "${PODGLAD_PASS}" || echo 'PRAWA=brak')"
+
+sprawdz "argumenty pg_dumpa NAPRAWDĘ zapisane (inaczej test nic nie mierzy)" \
+  "tak" "$(grep -qF 'format=custom' "${PODGLAD_PS}" && echo tak || echo nie)"
+sprawdz "…i nie ma w nich hasła do bazy" "brak" \
+  "$(grep -qF ":${BAZA_HASLO}@" "${PODGLAD_PS}" && echo JEST || echo brak)"
+sprawdz "…a sam adres bazy w argumentach nadal jest (dowód, że patrzymy w to miejsce)" \
+  "tak" "$(grep -qF "@${BAZA_HOST}:${BAZA_PORT}/" "${PODGLAD_PS}" && echo tak || echo nie)"
+
+rm -rf "${KATALOG_PS}"
+
+# --- POŚWIADCZENIE MUSI PRZEŻYĆ KATALOG ROBOCZY -----------------------------
+#
+#  `sprzataj()` kasuje katalog roboczy, a DOPIERO POTEM robi `DROP DATABASE`.
+#  Pierwsza wersja poprawki z #594 trzymała `PGPASSFILE` właśnie tam — więc na
+#  serwerze WYMAGAJĄCYM HASŁA (CI, produkcja za tunelem) `DROP` nie miałby czym
+#  się zalogować i baza próbna zostawałaby po ćwiczeniu, przy samym ostrzeżeniu
+#  w logu.
+#
+#  SAMEGO SKUTKU (baza zostaje) NA TYM KLIENCIE POKAZAĆ SIĘ NIE DA: stoi on na
+#  `trust`, więc `DROP` udaje się także bez poświadczenia — sprawdzone, sabotaż
+#  przechodził zielono. Sprawdzamy więc PRZYCZYNĘ, i to zachowaniem, nie
+#  czytaniem pliku: podstawiony `psql` zapisuje, czy w chwili `DROP DATABASE`
+#  plik z `PGPASSFILE` jeszcze ISTNIEJE. Jeśli nie istnieje, to na serwerze
+#  wymagającym hasła tego `DROP`-a już nie będzie.
+KATALOG_DROP="$(mktemp -d)"
+PODGLAD_DROP="${KATALOG_DROP}/drop.txt"
+: >"${PODGLAD_DROP}"
+
+cat >"${KATALOG_DROP}/psql" <<'PODSTAWKA'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  case "${arg}" in
+    *'DROP DATABASE IF EXISTS'*)
+      if [[ -n "${PGPASSFILE:-}" && -f "${PGPASSFILE}" ]]; then
+        printf 'PGPASSFILE_ISTNIEJE\n' >>"${PODGLAD_DROP}"
+      else
+        printf 'PGPASSFILE_ZNIKNAL\n' >>"${PODGLAD_DROP}"
+      fi
+      ;;
+  esac
+done
+exec "$(PATH="${PATH#*:}" command -v psql)" "$@"
+PODSTAWKA
+chmod +x "${KATALOG_DROP}/psql"
+
+(
+  PATH="${KATALOG_DROP}:${PATH}" PODGLAD_DROP="${PODGLAD_DROP}" \
+    bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_DOBRY}" --serwer "${SERWER}" \
+    --baza "${BAZA_PROBNA}drop" --tabele users >/dev/null 2>&1
+)
+
+sprawdz "podstawiony psql NAPRAWDĘ zobaczył DROP DATABASE (inaczej nic nie mierzymy)" \
+  "tak" "$([[ -s "${PODGLAD_DROP}" ]] && echo tak || echo nie)"
+sprawdz "…a PGPASSFILE w tej chwili WCIĄŻ ISTNIEJE (inaczej DROP nie miałby hasła)" \
+  "PGPASSFILE_ISTNIEJE" "$(head -1 "${PODGLAD_DROP}" 2>/dev/null || echo brak)"
+
+rm -rf "${KATALOG_DROP}"
+
+# CAŁY PRZEBIEG BEZ `PGPASSWORD` W ŚRODOWISKU — tak jak u człowieka, który
+# wkleił DSN z tunelu i nic więcej nie ustawiał. Na tym kliencie (`trust`) nie
+# dowodzi to uwierzytelnienia; dowodzi, że rozbicie DSN-u na adres i plik
+# niczego po drodze nie psuje i że po ćwiczeniu nie zostaje baza.
+kod_sprzatania="$(
+  unset PGPASSWORD
+  bash "${SKRYPT_PROBY}" --zrzut "${ZRZUT_DOBRY}" --serwer "${SERWER}" \
+    --baza "${BAZA_PROBNA}bezhasla" --tabele users,follows >/dev/null 2>&1
+  printf '%s' "$?"
+)"
+sprawdz "cały przebieg działa bez PGPASSWORD w środowisku" "0" "${kod_sprzatania}"
+sprawdz "…i baza próbna NIE zostaje na serwerze po sprzątaniu" "0" \
+  "$("${PSQL[@]}" -d postgres -Atc \
+    "SELECT count(*) FROM pg_database WHERE datname='${BAZA_PROBNA}bezhasla'")"
 
 # =============================================================================
 echo

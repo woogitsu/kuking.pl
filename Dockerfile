@@ -75,7 +75,14 @@ COPY app ./app
 COPY routes ./routes
 # Pomiar palety jest częścią polecenia budowania assetów.
 COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs
+COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs
+COPY scripts/panel-komunikat.mjs ./scripts/panel-komunikat.mjs
+COPY scripts/panel-komunikat.test.mjs ./scripts/panel-komunikat.test.mjs
 
+# Node pomija nieistniejący plik podany do `--test` zamiast kończyć błędem.
+# Bez tej bramki obraz budował się zielono, uruchamiając 21 zamiast 33 testów.
+RUN test -f scripts/panel-komunikat.mjs \
+ && test -f scripts/panel-komunikat.test.mjs
 RUN npm run build
 # Wynik: /app/public/build/{manifest.json,assets/*}
 
@@ -299,4 +306,3 @@ CMD ["/usr/local/bin/kuking-entrypoint", "web"]
 #  wycieku stanu między requestami — z Livewire to realne ryzyko.
 #  Źródło: https://frankenphp.dev/docs/worker/
 # =============================================================================
-

@@ -514,7 +514,7 @@ class TekstyMowiaPrawdeTest extends TestCase
             ->assertOk()
             ->getContent();
 
-        $pomocNowegoHasla = $this->pomocPola($bezpieczenstwo, 'password');
+        $pomocNowegoHasla = $this->pomocPola($bezpieczenstwo, 'password-zmiana');
 
         $this->assertNotSame('', $pomocNowegoHasla, 'Nie znalazłem pomocy przy polu nowego hasła.');
         $this->assertStringContainsString('Wymyśl własne', $pomocNowegoHasla);
@@ -734,6 +734,24 @@ class TekstyMowiaPrawdeTest extends TestCase
             $zacheta,
             'Zachęta po opublikowaniu wpisu znów obiecuje, że kolejne zdjęcie zajmie mniej niż minutę.',
         );
+    }
+
+    public function test_zacheta_po_pierwszym_wpisie_nie_obiecuje_najszybszego_dodawania(): void
+    {
+        $autor = $this->user('pierwsza');
+        $wpis = Post::factory()->create(['author_id' => $autor->getKey()]);
+
+        $zacheta = $this->elementZLinkiem(
+            $this->actingAs($autor)->get(route('posts.show', $wpis))->assertOk()->getContent(),
+            route('posts.create'),
+            'div[contains(@class, "notice")]',
+        );
+
+        // Pierwszy wpis ma osobną gałąź Blade; test dwóch wpisów jej nie obejmuje.
+        $this->assertStringContainsString('To Twój pierwszy wpis.', $zacheta);
+        $this->assertStringContainsString('Dodaj kolejne zdjęcie', $zacheta);
+        $this->assertStringNotContainsString('najszybciej', $zacheta);
+        $this->assertStringNotContainsString('Masz pewnie', $zacheta);
     }
 
     // =================================================================

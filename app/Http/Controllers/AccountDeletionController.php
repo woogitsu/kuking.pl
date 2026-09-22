@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers;
 
+use App\Domain\Security\LimitProbHasla;
 use App\Domain\Users\Actions\CancelAccountDeletion;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
@@ -61,7 +62,10 @@ use Illuminate\View\View;
  */
 class AccountDeletionController extends Controller
 {
-    public function __construct(private readonly CancelAccountDeletion $cofnij) {}
+    public function __construct(
+        private readonly CancelAccountDeletion $cofnij,
+        private readonly LimitProbHasla $limit,
+    ) {}
 
     public function showCancelForm(): View
     {
@@ -95,18 +99,38 @@ class AccountDeletionController extends Controller
             'password.required' => 'Wpisz hasło do swojego konta.',
         ]);
 
+        // TEN FORMULARZ SPRAWDZA HASŁO, więc chodzi po TYCH SAMYCH TRZECH
+        // KOSZYKACH CO `/login` (`App\Domain\Security\LimitProbHasla`) —
+        // dokładnie to wspólne wyciągnięcie, które komentarz na górze tej
+        // klasy zapowiadał na chwilę, gdy #10 i A8 spotkają się na `main`.
+        //
+        // Sam `throttle:cancel_delete` (5/60 min) nie wystarczał: liczy się
+        // po ADRESIE, a `User::findByLogin()` + `Hash::check()` odpowiada tu
+        // na pytanie o hasło do DOWOLNEGO konta, nie tylko oznaczonego do
+        // usunięcia (status sprawdza dopiero `CancelAccountDeletion` niżej).
+        // Zmierzone przed tą zmianą: 60 prób hasła do jednego konta z 60
+        // różnych adresów — ZERO odmów.
+        $adres = (string) $request->ip();
+
+        $this->limit->zatrzymajJesliZaDuzo($data['login'], $adres);
+
         $osoba = User::findByLogin($data['login']);
 
         // Komunikat jednakowy dla złego loginu i złego hasła — inaczej ten
         // formularz byłby wygodnym sprawdzaczem, czy dane konto istnieje
         // (ta sama zasada co w LoginController i w formularzu odwołań #10).
         if ($osoba === null || ! Hash::check($data['password'], (string) $osoba->password)) {
+            $this->limit->zapiszNieudanaProbe($data['login'], $adres);
+
             throw ValidationException::withMessages([
                 'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy e-mail albo nazwa i hasło są wpisane poprawnie. '
                     .'Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła” — to działa także dla konta '
                     .'oznaczonego do usunięcia.',
             ]);
         }
+
+        // DOBRE HASŁO CZYŚCI PARĘ I KONTO, NIGDY ADRES (`KluczeLimitow`).
+        $this->limit->wyczyscPoUdanej($data['login'], $adres);
 
         try {
             $this->cofnij->handle($osoba);

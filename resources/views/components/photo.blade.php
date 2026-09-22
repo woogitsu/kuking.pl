@@ -59,14 +59,11 @@
             rosół w garnku”, a nie samo „rosół w garnku”.
 
             Przy `zoom => false` (np. miniatura w karcie przepisu, która jest
-            już linkiem do przepisu) nie owijamy niczym — zagnieżdżone `<a>`
+            już linkiem do przepisu) nie dodajemy linku — zagnieżdżone `<a>`
             to nieprawidłowy HTML i psuje obsługę klawiaturą.
         --}}
-        <a class="photo-zoom"
-           href="{{ $media->url('large') }}"
-           data-powieksz
-           data-alt="{{ $media->alt_text ?? '' }}"
-           aria-label="Powiększ zdjęcie{{ $media->alt_text ? ': '.$media->alt_text : '' }}">
+        <div class="photo-zoom">
+            <div class="photo-zoom-media">
     @endif
     @php
         /*
@@ -130,17 +127,41 @@
         ksort($kandydaci);
 
         $srcset = implode(', ', $kandydaci);
+
+        /*
+         * JEDEN EFEKTYWNY OPIS DLA MINIATURY, LINKU I POWIĘKSZENIA (#744).
+         *
+         * Miniatura liczyła `$alt ?: ($media->alt_text ?? '')`, a `data-alt`
+         * i `aria-label` linku czytały WYŁĄCZNIE `$media->alt_text` — pomijając
+         * `$alt`. Karuzela i kolaż podają przez `$alt` zastępczy opis „Zdjęcie
+         * N z M w tym wpisie", gdy autor nie wpisał własnego — miniatura go
+         * pokazywała, a powiększone zdjęcie (JS kopiuje `data-alt` do
+         * `obraz.alt`, patrz resources/js/app.js) dostawało pusty `alt`
+         * dokładnie tam, gdzie zdjęcie jest największe. Ta sama zmienna idzie
+         * teraz we wszystkie trzy miejsca, z tym samym pierwszeństwem.
+         */
+        $efektywnyAlt = $alt ?: ($media->alt_text ?? '');
     @endphp
     <img class="{{ $class }}"
          src="{{ $media->url($variant) }}"
          srcset="{{ $srcset }}"
          sizes="{{ $sizes }}"
-         alt="{{ $alt ?: ($media->alt_text ?? '') }}"
+         alt="{{ $efektywnyAlt }}"
          width="{{ $media->width($variant) }}"
          height="{{ $media->height($variant) }}"
          @if($priority) fetchpriority="high" @else loading="lazy" decoding="async" @endif>
     @if($zoom)
+            </div>
+        {{-- Jeden krótki przystanek Tab; pseudo-element tego samego linku
+             zachowuje kliknięcie całej fotografii bez powiększania fokusu. --}}
+        <a class="photo-zoom-link"
+           href="{{ $media->url('large') }}"
+           data-powieksz
+           data-alt="{{ $efektywnyAlt }}"
+           aria-label="Powiększ zdjęcie{{ $efektywnyAlt ? ': '.$efektywnyAlt : '' }}">
+            Powiększ zdjęcie
         </a>
+        </div>
     @endif
 @elseif($media)
     {{--

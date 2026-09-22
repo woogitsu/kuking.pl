@@ -1,0 +1,50 @@
+{
+  "sources": {
+    "/tmp/kuking-proof431-20260914/resources/css/app.css": {
+      "backup": "/tmp/kuking431-neg-backup-wu2_mkxo/app.css",
+      "md5": "6d8ec7cb97547c84fd6e15b4fc9a17d0",
+      "mtime_ns": 1789389170513892100,
+      "restored_md5": "6d8ec7cb97547c84fd6e15b4fc9a17d0",
+      "restored_mtime_ns": 1789389170513892100
+    },
+    "/tmp/kuking-proof431-20260914/scripts/fixtures/karuzela-mieszana.php": {
+      "backup": "/tmp/kuking431-neg-backup-wu2_mkxo/karuzela-mieszana.php",
+      "md5": "c2063f1a9eee5d5422a1e76e2eb07256",
+      "mtime_ns": 1789390203411042824,
+      "restored_md5": "c2063f1a9eee5d5422a1e76e2eb07256",
+      "restored_mtime_ns": 1789390203411042824
+    }
+  },
+  "results": [
+    {
+      "name": "ramka",
+      "exit": 1,
+      "expected_assertion": "utracona ramka D-191",
+      "caught": true
+    },
+    {
+      "name": "contain",
+      "exit": 1,
+      "expected_assertion": "utracona ramka D-191",
+      "caught": true
+    },
+    {
+      "name": "cel48",
+      "exit": 1,
+      "expected_assertion": "kontrolki s\u0105 obci\u0119te lub mniejsze ni\u017c 48px",
+      "caught": true
+    },
+    {
+      "name": "orientacja",
+      "exit": 1,
+      "expected_assertion": "brak prawdziwej mieszanej pr\u00f3bki",
+      "caught": true
+    },
+    {
+      "name": "brak-probki",
+      "exit": 1,
+      "expected_assertion": "brak dok\u0142adnie dw\u00f3ch zdj\u0119\u0107 pr\u00f3bki",
+      "caught": true
+    }
+  ]
+}

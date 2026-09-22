@@ -142,10 +142,50 @@ class ProcessUploadedImage implements ShouldQueue
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
 
-            foreach (config('kuking.media.variants') as $name => $maxEdge) {
-                $image = $manager->read($original);
+            // KLUCZE WARIANTÓW ZAPISUJEMY, ZANIM POWSTANĄ PLIKI (#601).
+            //
+            // `KasujZdjecie` chodzi WYŁĄCZNIE po `metadata.variants`, a ta
+            // tablica zapisuje się dopiero na końcu, razem ze statusem
+            // `ready`. Dopóki zadanie nie skończy, pliki wariantów, które
+            // już poszły do publicznego bucketu, NIE MAJĄ w bazie żadnego
+            // klucza — więc nie skasuje ich ani usunięcie wpisu, ani
+            // wymazanie konta (RODO), ani sprzątanie osieroconych.
+            //
+            // Zmierzone: zadanie przerwane na drugim wariancie zostawiało
+            // plik pierwszego w publicznym buckecie NA ZAWSZE. Ta ścieżka
+            // nie jest hipotetyczna — `$timeout` przy zdjęciu 50 Mpx ubija
+            // proces W ŚRODKU pętli, bez żadnego `catch` (patrz `failed()`).
+            //
+            // Klucze są POLICZALNE Z GÓRY (`kluczPublicznegoWariantu` liczy
+            // je z `object_key` i nazwy wariantu), więc zapisujemy całą listę
+            // JEDNYM `update()` przed pętlą — zamiast dopisywać po każdym
+            // pliku. Kasowanie klucza, pod którym plik nigdy nie powstał,
+            // jest nieszkodliwe: `KasujZdjecie` sprawdza `exists()`.
+            //
+            // OSOBNY KLUCZ, NIE `variants`: `Media::wariantDoSerwowania()`
+            // czyta `variants` i pokazałoby zdjęcie w połowie przetwarzania
+            // pod nazwą wariantu, którego plik może jeszcze nie istnieć.
+            $kluczeWTrakcie = [];
 
-                OrientacjaZdjecia::zastosuj($image, $orientation);
+            foreach (array_keys(config('kuking.media.variants')) as $nazwaWariantu) {
+                $kluczeWTrakcie[] = Media::kluczPublicznegoWariantu($media->object_key, (string) $nazwaWariantu);
+            }
+
+            $media->update([
+                'metadata' => array_merge($media->metadata ?? [], [
+                    Media::METADANE_WARIANTY_W_TRAKCIE => $kluczeWTrakcie,
+                ]),
+            ]);
+
+            $sourceImage = $manager->read($original);
+            OrientacjaZdjecia::zastosuj($sourceImage, $orientation);
+
+            foreach (config('kuking.media.variants') as $name => $maxEdge) {
+                // Dekodujemy bajty raz. Odczyt obiektu GD tworzy osobną ramkę,
+                // a scaleDown zapisuje wynik w nowej bitmapie; źródło pozostaje
+                // niezmienione. Każdy wariant powstaje z pełnej rozdzielczości,
+                // nie z poprzedniej miniatury. Nie klonujemy dużej bitmapy GD.
+                $image = $manager->read($sourceImage->core()->native());
 
                 // scaleDown nigdy nie powiększa — małe zdjęcie zostaje małe,
                 // zamiast być rozmyte na siłę.
@@ -178,14 +218,21 @@ class ProcessUploadedImage implements ShouldQueue
                 ];
             }
 
+            // Lista „w trakcie" znika po sukcesie: od tej chwili KAŻDY plik
+            // ma swój klucz w `variants`, a dwa źródła prawdy o tym samym
+            // pliku rozjechałyby się przy pierwszej zmianie listy wariantów.
+            $metadane = array_merge($media->metadata ?? [], [
+                'variants' => $variants,
+                'exif_stripped' => true,
+                'orientation_applied' => $orientation !== null && $orientation !== 1,
+                'processed_at' => now()->toIso8601String(),
+            ]);
+
+            unset($metadane[Media::METADANE_WARIANTY_W_TRAKCIE]);
+
             $media->update([
                 'status' => Media::STATUS_READY,
-                'metadata' => array_merge($media->metadata ?? [], [
-                    'variants' => $variants,
-                    'exif_stripped' => true,
-                    'orientation_applied' => $orientation !== null && $orientation !== 1,
-                    'processed_at' => now()->toIso8601String(),
-                ]),
+                'metadata' => $metadane,
             ]);
         } catch (\Throwable $e) {
             Log::warning('Nie udało się przetworzyć zdjęcia', [
@@ -210,8 +257,19 @@ class ProcessUploadedImage implements ShouldQueue
      *
      * Dekodowanie zdjęcia 45 Mpx i budowa trzech wariantów w GD to jest realnie
      * ten kawałek serwisu, który potrafi nie zmieścić się w limicie czasu
-     * i pamięci workera (`--memory=384`). Bez tego hooka takie zdjęcie zostaje
-     * w stanie przejściowym bez końca.
+     * i pamięci workera. Bez tego hooka takie zdjęcie zostaje w stanie
+     * przejściowym bez końca.
+     *
+     * LICZBY, O KTÓRE TU CHODZI (stało tu `--memory=384`, którego w tym
+     * repozytorium nie ma — patrz D-064 §2):
+     *   - `docker/entrypoint.sh` — `queue:work --memory="${QUEUE_MEMORY:-700}"`,
+     *     MIĘKKI limit Laravela: kończy proces MIĘDZY jobami, więc nie ratuje
+     *     joba, który przekroczył pamięć w środku. Ten hook ratuje.
+     *   - `.railway/railway.ts` — kontener `worker` ma `memoryBytes: 1024 * MB`,
+     *     twardy limit Railway (OOM-kill powyżej). To jest realny sufit.
+     *   - `docker/php.ini` — `memory_limit=256M`, licznik PHP, który NIE widzi
+     *     bufora GD: zmierzony szczyt RSS dla 50 Mpx to 452 MB przy liczniku
+     *     pokazującym 28 MB (`docs/MEDIA_PIPELINE.md`).
      */
     public function failed(?\Throwable $e): void
     {

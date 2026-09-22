@@ -1,0 +1,386 @@
+[
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "recipe",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "collection",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "recipe",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "collection",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "recipe",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "collection",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "recipe",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "collection",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "recipe",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "collection",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "recipe",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "100",
+    "name": "collection",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "recipe",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "collection",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "recipe",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "collection",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "recipe",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "collection",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "recipe",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "collection",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "recipe",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "collection",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "recipe",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  },
+  {
+    "theme": "light",
+    "scale": "140",
+    "name": "collection",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "recipe",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "collection",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "recipe",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "collection",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "recipe",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "collection",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "recipe",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "collection",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "recipe",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "collection",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "recipe",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "100",
+    "name": "collection",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "recipe",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "collection",
+    "width": 320,
+    "scroll": 320,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "recipe",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "collection",
+    "width": 360,
+    "scroll": 360,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "recipe",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "collection",
+    "width": 390,
+    "scroll": 390,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "recipe",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "collection",
+    "width": 414,
+    "scroll": 414,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "recipe",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "collection",
+    "width": 768,
+    "scroll": 768,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "recipe",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  },
+  {
+    "theme": "dark",
+    "scale": "140",
+    "name": "collection",
+    "width": 1440,
+    "scroll": 1440,
+    "click": true
+  }
+]

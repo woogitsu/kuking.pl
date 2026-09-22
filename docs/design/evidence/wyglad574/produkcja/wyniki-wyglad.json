@@ -1,0 +1,46 @@
+{
+  "expected": "0e1bdbe80ffe25d72accf2f773a3a533675ef458",
+  "version": "Alfa 0.38",
+  "guestPostReloadReset": true,
+  "hintDismissal": true,
+  "wheelDownUp": true,
+  "rows": [
+    {
+      "width": 320,
+      "theme": "light",
+      "scale": 70,
+      "result": "PASS"
+    },
+    {
+      "width": 320,
+      "theme": "dark",
+      "scale": 70,
+      "result": "PASS"
+    },
+    {
+      "width": 390,
+      "theme": "light",
+      "scale": 70,
+      "result": "PASS"
+    },
+    {
+      "width": 390,
+      "theme": "dark",
+      "scale": 70,
+      "result": "PASS"
+    },
+    {
+      "width": 1440,
+      "theme": "light",
+      "scale": 70,
+      "result": "PASS"
+    },
+    {
+      "width": 1440,
+      "theme": "dark",
+      "scale": 70,
+      "result": "PASS"
+    }
+  ],
+  "limits": "Wyłącznie anonimowa przeglądarka; nie zmieniano kont ani treści. Pełny zoom i zalogowane stany mają osobne lokalne/CI dowody."
+}

@@ -200,7 +200,9 @@ class CookingModeTest extends TestCase
         $recipe = $this->przepisZKrokami($this->user('autorka10'), 1, minutnikNaPierwszym: 90);
 
         $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
-            ->assertSee('Ustaw sobie kuchenny minutnik na 1 minuta i 30 sekund.');
+            ->assertSee('Ustaw sobie kuchenny minutnik na 1 minutę i 30 sekund.')
+            ->assertSee('data-timer-etykieta="1 minutę i 30 sekund"', false)
+            ->assertSee('data-timer-sekundy="90"', false);
     }
 
     public function test_przycisk_gotuje_widoczny_na_stronie_przepisu_tylko_gdy_sa_kroki(): void
@@ -211,5 +213,76 @@ class CookingModeTest extends TestCase
 
         $this->get(route('recipes.show', $zKrokami->slug))->assertSee('Gotuję');
         $this->get(route('recipes.show', $bezKrokow->slug))->assertDontSee('Gotuję');
+    }
+
+    /**
+     * Regresja issue #740: nawigacja krokami i oznaczenie kroku jako
+     * zrobiony przeładowują stronę, co zeruje cały stan JavaScriptu
+     * (patrz `resources/js/app.js` — `performance.now()` liczy od nowa od
+     * każdego przeładowania). Skrypt odtwarza aktywny minutnik z
+     * `sessionStorage`, ale żeby w ogóle wiedzieć, KTÓREGO kroku KTÓREGO
+     * przepisu dotyczy zapis, znacznik musi nieść obie te wartości — sama
+     * arytmetyka zapisu/odczytu jest jednostkowo przetestowana w
+     * `resources/js/minutnik-krok.test.mjs`, tu pilnujemy tylko, że
+     * znacznik faktycznie je niesie.
+     */
+    public function test_minutnik_niesie_tozsamosc_przepisu_i_kroku_dla_js(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka12'), 2, minutnikNaPierwszym: 90);
+
+        $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
+            ->assertSee('data-timer-recipe="'.$recipe->slug.'"', false)
+            ->assertSee('data-timer-krok="1"', false);
+    }
+
+    /**
+     * Regresja issue #755: minutnik ma dać się świadomie anulować, nie
+     * tylko doczekać do końca albo opuścić tryb gotowania. Przycisk stoi
+     * w znaczniku niezależnie od JS-u (ulepszenie odsłania go dopiero
+     * skrypt — patrz `resources/js/app.js`), więc test na treści strony
+     * łapie zniknięcie samego przycisku, nie stanu `hidden`, którego klient
+     * testowy Laravela i tak nie interpretuje jak przeglądarka.
+     */
+    public function test_minutnik_ma_przycisk_anulowania(): void
+    {
+        $recipe = $this->przepisZKrokami($this->user('autorka13'), 1, minutnikNaPierwszym: 60);
+
+        $this->get(route('cooking.show', [$recipe->slug, 'krok' => 1]))
+            ->assertSee('cook-timer-anuluj', false)
+            ->assertSee('Anuluj minutnik');
+    }
+
+    /**
+     * Regresja issue #764: tryb gotowania pokazywał składniki jedną płaską
+     * listą — bez grup autora (`App\Domain\Recipes\GrupySkladnikow`, ten
+     * sam mechanizm co na stronie przepisu) i bez „do smaku” dla składników
+     * oznaczonych `no_amount`. Efekt: przepis z grupami „Ciasto”/„Farsz”
+     * gubił tę strukturę wyłącznie w trybie gotowania, a „sól” zaznaczona
+     * jako „bez ilości” wyglądała jak składnik bez żadnej informacji
+     * o ilości, zamiast jak świadome „do smaku”.
+     */
+    public function test_skladniki_pokazuja_grupy_i_do_smaku(): void
+    {
+        $autor = $this->user('autorka14');
+        $recipe = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(),
+            'group_name' => 'Ciasto',
+            'ingredient_text' => 'mąka',
+            'position' => 0,
+        ]);
+        RecipeIngredient::create([
+            'recipe_id' => $recipe->getKey(),
+            'group_name' => 'Farsz',
+            'ingredient_text' => 'sól',
+            'no_amount' => true,
+            'position' => 1,
+        ]);
+        RecipeStep::create(['recipe_id' => $recipe->getKey(), 'position' => 0, 'instruction' => 'Krok.']);
+
+        $odpowiedz = $this->get(route('cooking.show', $recipe->slug))->assertOk();
+
+        $odpowiedz->assertSeeInOrder(['Ciasto', 'mąka', 'Farsz', 'sól', 'do smaku']);
     }
 }

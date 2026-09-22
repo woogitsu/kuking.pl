@@ -1,0 +1,9 @@
+[
+  {
+    "width": 320,
+    "mode": "zwykly",
+    "status": "blad",
+    "steps": [],
+    "blad": "Karuzela431: utracona ramka D-191: {\"slide\":1,\"width\":320,\"documentWidth\":320,\"scrollX\":0,\"trackScroll\":0,\"trackHeight\":716.890625,\"frame\":{\"width\":270,\"height\":202.5},\"fit\":\"contain\",\"clip\":\"auto\",\"controls\":[{\"text\":\"Poprzednie zdjęcie\",\"width\":211.40625,\"height\":50.5,\"left\":45,\"right\":256.40625,\"fontSize\":18,\"clippedText\":false},{\"text\":\"Następne zdjęcie\",\"width\":196.203125,\"height\":50.5,\"left\":45,\"right\":241.203125,\"fontSize\":18,\"clippedText\":false}]}"
+  }
+]

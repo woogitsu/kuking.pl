@@ -28,6 +28,9 @@ Test kontrolny dla każdego napisu: *czy Basia (61) przeczyta to raz i będzie w
 | Konto | **Konto** | „ustawienia profilu twórcy" | — |
 | Dział, w którym prosi się innych o radę | **Poradźcie** | „Forum", „Pytania" (jako napis na ekranie), „Q&A", „Hotline", „off-topic" | Nazwa własna, czasownik użyty jak w „Ugotowałem" — świadome odstępstwo od testu 3 z §3. Warunek z D-147: pod nagłówkiem **musi** stać zdanie „Ktoś to już robił i chętnie powie, jak." Dział jeszcze nie zbudowany (issue #372); adres zostaje `/pytania`. D-163. |
 
+D-207: „Odkrywaj” jest zaakceptowaną etykietą komputerowej nawigacji do
+publicznego strumienia. Nie zastępuje nazwy wyszukiwarki „Szukaj”.
+
 ### 1.2 Akcje (etykiety przycisków)
 
 | Akcja | Etykieta | Nigdy |

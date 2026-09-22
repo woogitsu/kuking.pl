@@ -22,7 +22,8 @@
 
     BAZA SIĘ NIE ZMIENIA. Oba pola tekstowe serwer rozbija z powrotem na
     `recipe_ingredients` i `recipe_steps` (`App\Domain\Recipes\TekstNaWiersze`),
-    więc przeliczanie porcji i szukanie po składnikach działają dalej.
+    więc szukanie po składnikach nadal czyta te same wiersze.
+    Skalowanie porcji pozostaje niewdrożonym planem V2.
 
     RESZTA NIE ZNIKA, TYLKO PRZESTAJE STAĆ NA DRODZE. Krótko o przepisie,
     porcje, czasy, trudność, „po kim", historia, rok, źródło, grupy
@@ -91,12 +92,19 @@
              wolnym tekstem, bo „tyle, żeby ciasto było miękkie" nie ma pola
              na ilość). --}}
         <x-field name="skladniki_tekst" label="Składniki" type="textarea" :rows="8"
-                 placeholder="1 kurczak, najlepiej zagrodowy&#10;2 marchewki&#10;pietruszka&#10;sól do smaku"
+                 placeholder="1 kurczak, najlepiej zagrodowy
+2 marchewki
+pietruszka
+sól do smaku"
                  help="Każdy składnik w osobnej linijce. Pisz tak, jak mówisz: „szklanka mąki”, „2 duże cebule”, „mleko — ile weźmie”. Nie musisz nic przeliczać na gramy. To pole możesz zostawić puste i dopisać składniki później." />
 
         {{-- 4. PRZYGOTOWANIE — jedno pole, pusta linia rozdziela kroki. --}}
-        <x-field name="przygotowanie_tekst" label="Przygotowanie" type="textarea" :rows="10"
-                 placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny.&#10;&#10;Wrzuć warzywa i gotuj na małym ogniu trzy godziny.&#10;&#10;Posól na końcu."
+        <x-field name="przygotowanie_tekst" label="Przygotowanie" type="textarea" :rows="10" required
+                 placeholder="Kurczaka zalej zimną wodą i zagotuj. Zbierz szumowiny.
+
+Wrzuć warzywa i gotuj na małym ogniu trzy godziny.
+
+Posól na końcu."
                  help="Pisz spokojnie, po swojemu. Zostaw pustą linijkę tam, gdzie zaczyna się nowa czynność — zrobimy z tego osobne kroki." />
 
         {{-- 5. KTO MA WIDZIEĆ — dwie opcje, bo to jest pytanie o prywatność,

@@ -1,0 +1,115 @@
+
+── Kontrola ujemna: Odmów cache sesji ──
+  plik:     app/Http/Middleware/PreventSharedSessionCache.php
+  MD5 przed: b3d1ad50a78be2ff44dbe017c4c8d60a
+  oczekuję:  test_ochrona_nadpisuje_bledny_publiczny_naglowek
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 b3d1ad50a78be2ff44dbe017c4c8d60a → 6c3ca849d664dc72d31d01797c771468.
+  różnica:
+                 || $request->headers->has('Cookie') || $request->cookies->count() > 0
+                 || $request->headers->has('Authorization') || $request->user() !== null
+                 || $response->headers->getCookies() !== [] || $response->getStatusCode() >= 400) {
+    -            $response->headers->set('Cache-Control', 'private, no-store');
+    +            $response->headers->set('Cache-Control', 'public, max-age=600');
+                 $response->headers->remove('CDN-Cache-Control');
+                 $response->headers->remove('Cloudflare-CDN-Cache-Control');
+                 $response->headers->remove('Surrogate-Control');
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „test_ochrona_nadpisuje_bledny_publiczny_naglowek” wystąpił w wyjściu.
+    1) Tests\Feature\CloudflareCachePrivacyTest::test_ochrona_nadpisuje_bledny_publiczny_naglowek_na_odpowiedzi_z_sesja
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — Odmów cache sesji
+  zapis: storage/cache-evidence/session.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: Nie wydawaj sesji z publicznym zdjęciem ──
+  plik:     app/Http/Middleware/StartSessionExceptAnonymousMedia.php
+  MD5 przed: 85825e171084b4b83b153726aa5fcba1
+  oczekuję:  Publiczny cache nie może rozdawać sesji
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 85825e171084b4b83b153726aa5fcba1 → 8b228cd30854f92b58c2c65298e672aa.
+  różnica:
+         {
+             // Tylko odczyt zdjęcia bez jakiegokolwiek stanu klienta. Sesja dla
+             // formularzy, HTML, zalogowanego i nawet błędnego cookie zostaje.
+    -        if ($request->routeIs('media.show')
+    +        if ($request->routeIs('nieistniejaca-trasa')
+                 && in_array($request->method(), ['GET', 'HEAD'], true)
+                 && ! $request->headers->has('Cookie') && $request->cookies->count() === 0
+                 && ! $request->headers->has('Authorization') && $request->user() === null) {
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „Publiczny cache nie może rozdawać sesji” wystąpił w wyjściu.
+    Publiczny cache nie może rozdawać sesji.
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — Nie wydawaj sesji z publicznym zdjęciem
+  zapis: storage/cache-evidence/cookie.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: Nie wydłużaj prywatnego podpisu ──
+  plik:     app/Http/Controllers/MediaController.php
+  MD5 przed: 52e5eb9cceb9b6297b92db6d948108fd
+  oczekuję:  test_prywatny_podpis_zostaje_krotki
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 52e5eb9cceb9b6297b92db6d948108fd → ce91e2340b22d1d6f7e5dd604b627f93.
+  różnica:
+             // tego, kto pyta — nie wolno nigdzie. Zdjęcie przepisu „followers"
+             // z `public, max-age` w cache Cloudflare byłoby tym samym wyciekiem,
+             // który ta zmiana naprawia, tylko o warstwę wyżej.
+    -        $publiczne = $decyzja->dlaAnonima;
+    +        $publiczne = true;
+             // Publiczność treści wyznacza termin podpisu; tożsamość żądającego
+             // osobno wyznacza możliwość współdzielenia odpowiedzi.
+             $wspolnyCache = $publiczne && $widz === null
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „test_prywatny_podpis_zostaje_krotki” wystąpił w wyjściu.
+    1) Tests\Feature\CloudflareCachePrivacyTest::test_prywatny_podpis_zostaje_krotki_a_obcy_nie_dostaje_adresu
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — Nie wydłużaj prywatnego podpisu
+  zapis: storage/cache-evidence/private-ttl.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+
+── Kontrola ujemna: Nie zaliczaj złych nagłówków sesji w sondzie ──
+  plik:     scripts/lib/cache-gate.sh
+  MD5 przed: 324810cf5fe43c50587995f8bff40c9b
+  oczekuję:  test_bramka_odmawia_bez_pelnego_pomiaru
+
+── 1/4 — czy test w ogóle przechodzi na nietkniętym źródle ──
+✓ Test przechodzi na nietkniętym źródle.
+── 2/4 — mutacja i dowód, że weszła ──
+✓ Mutacja weszła: 1 podmian, MD5 324810cf5fe43c50587995f8bff40c9b → 1626beea442b06525050f820afd527a9.
+  różnica:
+         awk -v key="$1" 'tolower($0) ~ "^" key ":" { sub(/^[^:]*:[[:space:]]*/, ""); print }' <<< "$naglowki_odpowiedzi"
+     }
+
+    -cache_private() {
+    +cache_private() { return 0;
+         local control status
+         control=$(cache_header cache-control)
+         status=$(cache_header cf-cache-status)
+── 3/4 — czy test to wykrywa, i czy z właściwego powodu ──
+✓ Test oblał Z OCZEKIWANEGO POWODU — wzorzec „test_bramka_odmawia_bez_pelnego_pomiaru” wystąpił w wyjściu.
+    1) Tests\Unit\CloudflareCacheGateTest::test_bramka_odmawia_bez_pelnego_pomiaru@auth-public with data ('auth-public', false)
+    2) Tests\Unit\CloudflareCacheGateTest::test_bramka_odmawia_bez_pelnego_pomiaru@auth-private-only with data ('auth-private-only', false)
+    3) Tests\Unit\CloudflareCacheGateTest::test_bramka_odmawia_bez_pelnego_pomiaru@auth-hit with data ('auth-hit', false)
+── 4/4 — czy po przywróceniu źródła test znów przechodzi ──
+✓ Test znów przechodzi. Pełny przebieg: PASS → FAIL → PASS.
+
+✓ KONTROLA UJEMNA POTWIERDZONA — Nie zaliczaj złych nagłówków sesji w sondzie
+  zapis: storage/cache-evidence/probe.json
+✓ Źródło przywrócone: MD5 i mtime PORÓWNANE ze stanem sprzed przebiegu.
+Przywrócone pliki zgodne z worktree.

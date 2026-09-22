@@ -5,6 +5,7 @@
     <p class="mb-5">
         Wybierz rozmiar, przy którym czyta Ci się wygodnie. Ustawienie zapisze się na Twoim koncie —
         będzie takie samo na telefonie, tablecie i komputerze.
+        Poniżej 100% zmniejszamy też odstępy. Przyciski pozostają wygodne do dotknięcia.
     </p>
 
     @php

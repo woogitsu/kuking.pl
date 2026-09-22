@@ -118,14 +118,15 @@ final class StronyBleduPoPolskuTest extends TestCase
         $this->assertBezAngielskiego($odpowiedz);
     }
 
-    public function test_503_mowi_ze_wrocimy(): void
+    public function test_503_mowi_co_zrobic_bez_obietnicy_terminu(): void
     {
         $widok = $this->view('errors.503', ['exception' => null]);
 
         $tresc = (string) $widok;
 
         $this->assertGreaterThan(200, mb_strlen($tresc));
-        $widok->assertSee('Wrócimy dziś');
+        $this->assertStringContainsString('Spróbuj otworzyć stronę później.', $this->trescEkranu($tresc));
+        $widok->assertDontSee('Wrócimy dziś');
         $this->assertStringNotContainsString('Service Unavailable', $tresc);
         $this->assertStringNotContainsString('Be right back', $tresc);
     }
@@ -155,7 +156,7 @@ final class StronyBleduPoPolskuTest extends TestCase
         // (pułapka 1b, zmierzone 12.09.2026: po podmianie `<h1>` asercja na
         // całej odpowiedzi nadal przechodziła).
         $this->assertStringContainsString(
-            'Ta strona była otwarta zbyt długo',
+            'Nie udało się wysłać formularza',
             $this->trescEkranu((string) $odpowiedz->getContent()),
         );
         $odpowiedz->assertSee('Twój tekst jest na miejscu');

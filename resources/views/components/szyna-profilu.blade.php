@@ -1,4 +1,4 @@
-@props(['profile', 'isOwner', 'zeszyty', 'tagi', 'stats'])
+@props(['profile', 'isOwner', 'zeszyty', 'tagi', 'stats', 'zdjecia' => collect()])
 
 {{--
     Prawa szyna profilu `/@nazwa` (issue #205).
@@ -18,38 +18,6 @@
     wyżej, i drugi taki sam przycisk na jednym ekranie każe się zastanawiać,
     czy to na pewno to samo.
 
-    LICZBY O OSOBIE STOJĄ TU OD D-091 — I JEST TO ZMIANA WOBEC PIERWOTNEJ
-    TREŚCI TEGO KOMENTARZA, WIĘC NAZYWAMY JĄ WPROST.
-    Do września 2026 stało tu zdanie „żadnej liczby obserwujących", jednym
-    tchem z zakazem rankingów. To było zlanie dwóch różnych rzeczy w jedną.
-    AGENTS.md §12 zakazuje PORÓWNYWANIA LUDZI ZE SOBĄ: miejsc w tabeli,
-    odznak, „najaktywniejszych", „więcej niż 80% kuKINGów". Nie zakazuje
-    pokazania, ile ta osoba ma własnych wpisów — te same pięć liczb stało
-    przez cały ten czas w karcie profilu dwa centymetry wyżej i nikt nie
-    uznał ich za ranking, bo nim nie są.
-
-    Właściciel poprosił wprost: „prawa kolumna jest marnowana, można tam dać
-    info o użytkowniku (ile wpisów, przepisów, obs, obserwuj itp itd, a nie
-    na środku przez co wpisy są dużo niżej".
-
-    GRANICA ZOSTAJE TA SAMA I JEST OSTRA: liczby są WYŁĄCZNIE o treści tej
-    osoby, nigdy o jej pozycji wobec innych. Blok nie sortuje, nie wyróżnia,
-    nie nagradza i nie ma progu „od ilu to już dużo". Szyna dalej jest tym
-    miejscem, w którym ranking wchodzi najłatwiej — bo wygląda niewinnie
-    jako „ciekawostka obok" — i dalej go tu nie ma.
-
-    ZERO NA WIDOKU. „0 przepisów" pokazujemy tak samo jak „12 przepisów".
-    Chowanie zer zamieniłoby informację w wyróżnienie: widoczna liczba
-    znaczyłaby wtedy „ta osoba ma czym się pochwalić", a jej brak — coś
-    przeciwnego. To jest dokładnie ten sam mechanizm co ranking, tylko
-    wpisany w puste miejsce.
-
-    PUSTA SZYNA JEST DOPUSZCZALNYM WYNIKIEM — ale dotyczy to dwóch bloków
-    niżej, nie liczb. Cudzy profil bez tagów i bez publicznych zeszytów nie
-    dostaje ani jednego z nich. Karta „Ta osoba nie ma jeszcze nic" byłaby
-    wypełniaczem, a przy grupie 50+ każdy element to coś, co trzeba
-    przeczytać i pominąć (issue #205).
-
     PRYWATNOŚĆ. Widok NIE filtruje niczego sam — dostaje z kontrolera
     (`ProfileController::show()`) wyłącznie to, co oglądający i tak ma prawo
     zobaczyć: tagi policzone z wpisów przepuszczonych przez ten sam filtr
@@ -59,43 +27,7 @@
     w tym repozytorium pęka najczęściej.
 --}}
 
-{{--
-    LICZBY O OSOBIE — PIERWSZY BLOK SZYNY (D-091).
 
-    STOI PIERWSZY, BO ZASTĘPUJE TO, CO STAŁO NAJWYŻEJ W KARCIE. Człowiek,
-    który wczoraj widział te liczby pod opisem profilu, ma je dziś znaleźć
-    na tej samej wysokości ekranu, tylko w drugiej kolumnie. Blok pod nim
-    („Twoje skróty" / „Co gotuje") jest akcją albo tematem — czyli czymś
-    innym niż liczby i dlatego niżej.
-
-    TYLKO DLA ZALOGOWANEGO, I NIE JEST TO KWESTIA PRYWATNOŚCI.
-    Te liczby gość widzi w karcie, tak jak dotąd, i to jest CAŁY powód.
-
-    SPROSTOWANIE, 11 WRZEŚNIA 2026 (D-122). Stało tu, że gość „dostaje
-    `.app-body-solo`, czyli JEDNĄ kolumnę na każdej szerokości — szyna leci
-    u niego pod treścią nawet przy 1512 px". Od dziś nieprawda: gość na
-    ekranie z szyną (profil jest takim ekranem) ma od 80rem dwie kolumny,
-    a szyna stoi obok treści. Wniosek zostaje ten sam, ale opiera się teraz
-    na czym innym: liczby już raz stoją w KARCIE, której gościowi nie
-    chowamy (reguła w `ekran-profilu.css` wyklucza układ gościa), więc
-    wypisanie tego bloku byłoby wypisaniem DRUGIEGO, widocznego egzemplarza
-    tych samych liczb na jednym ekranie — a nie, jak dawniej, martwego
-    egzemplarza na dole strony. Tym gorzej, nie lepiej.
-
-    Egzemplarz w karcie chowa się od 80rem — para reguł przy
-    `.profil-liczby-*` w `ekran-profilu.css`. Poniżej 80rem jest odwrotnie
-    i to TEN blok znika, bo szyna ląduje wtedy pod całym archiwum wpisów.
---}}
-@auth
-    <div class="profil-liczby-szyna">
-        <x-szyna-blok
-            :tytul="$isOwner ? 'Twoje liczby' : 'Ta osoba w liczbach'"
-            id="szyna-liczby-profilu"
-            ikona="user">
-            <x-liczby-profilu :stats="$stats" :username="$profile->username" wariant="szyna" />
-        </x-szyna-blok>
-    </div>
-@endauth
 
 @if($isOwner)
     {{-- BEZ „Zajmuje niecałą minutę" przy pierwszym skrócie: obietnica
@@ -134,6 +66,20 @@
     </x-szyna-blok>
 @endif
 
+@if($zdjecia->isNotEmpty())
+    <x-szyna-blok tytul="Zdjęcia z tej kuchni" id="szyna-zdjecia-profilu" ikona="image">
+        <ul class="marka-profil-zdjecia" aria-label="Ostatnie wpisy ze zdjęciami">
+            @foreach($zdjecia as $wpis)
+                <li>
+                    <img src="{{ $wpis->media->first()->url('thumb') }}" alt=""
+                         width="88" height="88" loading="lazy" decoding="async">
+                    <a href="{{ $wpis->url() }}">Wpis z {{ \App\Support\Czas::data($wpis->published_at, 'j F Y') }}</a>
+                </li>
+            @endforeach
+        </ul>
+    </x-szyna-blok>
+@endif
+
 @if($zeszyty->isNotEmpty())
     <x-szyna-blok
         :tytul="$isOwner ? 'Twoje zeszyty' : 'Zeszyty tej osoby'"
@@ -148,7 +94,7 @@
              jest — ten sam „oracle istnienia", który `ProfileController`
              naprawił już przy licznikach obserwujących. Nazwa zeszytu wystarczy
              do tego, po co ta lista jest: żeby do niego wejść. --}}
-        <x-szyna-linki :pozycje="$zeszyty->map(fn ($zeszyt) => [
+        <x-szyna-linki akcja="Otwórz zeszyt" :pozycje="$zeszyty->map(fn ($zeszyt) => [
             'href' => route('collections.show', $zeszyt),
             'nazwa' => $zeszyt->name,
             'podpis' => $zeszyt->description,

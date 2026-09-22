@@ -1,0 +1,187 @@
+[
+  {
+    "name": "title",
+    "value": "Lokalny szkic odbioru publikacji — odbiór edycji",
+    "checked": false
+  },
+  {
+    "name": "summary",
+    "value": ""
+  },
+  {
+    "name": "servings",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "prep_minutes",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "cook_minutes",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "difficulty",
+    "value": "easy",
+    "checked": false
+  },
+  {
+    "name": "difficulty",
+    "value": "medium",
+    "checked": false
+  },
+  {
+    "name": "difficulty",
+    "value": "hard",
+    "checked": false
+  },
+  {
+    "name": "visibility",
+    "value": "public",
+    "checked": false
+  },
+  {
+    "name": "visibility",
+    "value": "followers",
+    "checked": false
+  },
+  {
+    "name": "visibility",
+    "value": "private",
+    "checked": true
+  },
+  {
+    "name": "source_type",
+    "value": "own",
+    "checked": true
+  },
+  {
+    "name": "source_type",
+    "value": "family",
+    "checked": false
+  },
+  {
+    "name": "source_type",
+    "value": "adaptation",
+    "checked": false
+  },
+  {
+    "name": "source_type",
+    "value": "external",
+    "checked": false
+  },
+  {
+    "name": "source_person",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "source_note",
+    "value": ""
+  },
+  {
+    "name": "family_since_year",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "source_url",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "ingredients[0][text]",
+    "value": "1 litr wody",
+    "checked": false
+  },
+  {
+    "name": "ingredients[0][group_name]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "ingredients[0][no_amount]",
+    "value": "1",
+    "checked": false
+  },
+  {
+    "name": "ingredients[1][text]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "ingredients[1][group_name]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "ingredients[1][no_amount]",
+    "value": "1",
+    "checked": false
+  },
+  {
+    "name": "ingredients[2][text]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "ingredients[2][group_name]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "ingredients[2][no_amount]",
+    "value": "1",
+    "checked": false
+  },
+  {
+    "name": "steps[0][id]",
+    "value": "01a0a186-5d52-7361-854f-41e40648fca5",
+    "checked": false
+  },
+  {
+    "name": "steps[0][instruction]",
+    "value": "Zagotuj wodę, a potem gotuj spokojnie przez minutę."
+  },
+  {
+    "name": "steps[0][timer_minutes]",
+    "value": "1",
+    "checked": false
+  },
+  {
+    "name": "steps[0][remove_photo]",
+    "value": "1",
+    "checked": false
+  },
+  {
+    "name": "steps[1][id]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "steps[1][instruction]",
+    "value": ""
+  },
+  {
+    "name": "steps[1][timer_minutes]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "steps[2][id]",
+    "value": "",
+    "checked": false
+  },
+  {
+    "name": "steps[2][instruction]",
+    "value": ""
+  },
+  {
+    "name": "steps[2][timer_minutes]",
+    "value": "",
+    "checked": false
+  }
+]

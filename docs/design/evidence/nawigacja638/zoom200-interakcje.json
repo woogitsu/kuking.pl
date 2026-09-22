@@ -1,0 +1,762 @@
+[
+  {
+    "width": 640,
+    "dark": false,
+    "scale": 140,
+    "zoom": 2,
+    "geo": {
+      "width": 320,
+      "dpr": 2,
+      "scroll": 320,
+      "font": 25.2,
+      "scale": 140,
+      "tokenScale": 1.4,
+      "ready": "complete"
+    },
+    "labels": {
+      "scale": 140,
+      "rootFont": 16,
+      "nav": {
+        "left": 8,
+        "right": 312,
+        "top": 717.7578125,
+        "bottom": 892
+      },
+      "width": 320,
+      "clientWidth": 320,
+      "navWidth": 304,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 79.96875,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 66.96875,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 769.2578125,
+              "bottom": 799.7578125,
+              "left": 15.515625,
+              "right": 77.4453125
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 79.96875,
+          "right": 166.5,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 86.53125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 769.2578125,
+              "bottom": 799.7578125,
+              "left": 82.4921875,
+              "right": 163.9765625
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 166.5,
+          "right": 241.875,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 75.375,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 780.2578125,
+              "bottom": 810.7578125,
+              "left": 169.0234375,
+              "right": 239.3515625
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 241.875,
+          "right": 307,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 65.125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 769.2578125,
+              "bottom": 799.7578125,
+              "left": 244.3984375,
+              "right": 304.4765625
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 13,
+          "right": 307,
+          "bottom": 883,
+          "top": 815,
+          "width": 294,
+          "height": 68,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 847.375,
+              "bottom": 877.875,
+              "left": 127.9140625,
+              "right": 192.0859375
+            }
+          ]
+        }
+      ]
+    },
+    "tab": [
+      {
+        "text": "Start",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Szukaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Dodaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Moje",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Profil",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      }
+    ],
+    "clicks": [
+      {
+        "label": "Start",
+        "path": "/home"
+      },
+      {
+        "label": "Szukaj",
+        "path": "/szukaj"
+      },
+      {
+        "label": "Dodaj",
+        "path": "/dodaj"
+      },
+      {
+        "label": "Moje",
+        "path": "/zeszyt"
+      },
+      {
+        "label": "Profil",
+        "path": "/@panel581_c3ab3808f431_konto"
+      }
+    ],
+    "pass": true
+  },
+  {
+    "width": 640,
+    "dark": true,
+    "scale": 140,
+    "zoom": 2,
+    "geo": {
+      "width": 320,
+      "dpr": 2,
+      "scroll": 320,
+      "font": 25.2,
+      "scale": 140,
+      "tokenScale": 1.4,
+      "ready": "complete"
+    },
+    "labels": {
+      "scale": 140,
+      "rootFont": 16,
+      "nav": {
+        "left": 8,
+        "right": 312,
+        "top": 717.7578125,
+        "bottom": 892
+      },
+      "width": 320,
+      "clientWidth": 320,
+      "navWidth": 304,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 79.96875,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 66.96875,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 769.2578125,
+              "bottom": 799.7578125,
+              "left": 15.515625,
+              "right": 77.4453125
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 79.96875,
+          "right": 166.5,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 86.53125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 769.2578125,
+              "bottom": 799.7578125,
+              "left": 82.4921875,
+              "right": 163.9765625
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 166.5,
+          "right": 241.875,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 75.375,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 780.2578125,
+              "bottom": 810.7578125,
+              "left": 169.0234375,
+              "right": 239.3515625
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 241.875,
+          "right": 307,
+          "bottom": 815,
+          "top": 726.7578125,
+          "width": 65.125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 769.2578125,
+              "bottom": 799.7578125,
+              "left": 244.3984375,
+              "right": 304.4765625
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 13,
+          "right": 307,
+          "bottom": 883,
+          "top": 815,
+          "width": 294,
+          "height": 68,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 847.375,
+              "bottom": 877.875,
+              "left": 127.9140625,
+              "right": 192.0859375
+            }
+          ]
+        }
+      ]
+    },
+    "tab": [
+      {
+        "text": "Start",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Szukaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Dodaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Moje",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Profil",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      }
+    ],
+    "clicks": [
+      {
+        "label": "Start",
+        "path": "/home"
+      },
+      {
+        "label": "Szukaj",
+        "path": "/szukaj"
+      },
+      {
+        "label": "Dodaj",
+        "path": "/dodaj"
+      },
+      {
+        "label": "Moje",
+        "path": "/zeszyt"
+      },
+      {
+        "label": "Profil",
+        "path": "/@panel581_c3ab3808f431_konto"
+      }
+    ],
+    "pass": true
+  },
+  {
+    "width": 1440,
+    "dark": false,
+    "scale": 140,
+    "zoom": 2,
+    "geo": {
+      "width": 720,
+      "dpr": 2,
+      "scroll": 720,
+      "font": 25.2,
+      "scale": 140,
+      "tokenScale": 1.4,
+      "ready": "complete"
+    },
+    "labels": {
+      "scale": 140,
+      "rootFont": 16,
+      "nav": {
+        "left": 8,
+        "right": 712,
+        "top": 785.7578125,
+        "bottom": 892
+      },
+      "width": 720,
+      "clientWidth": 720,
+      "navWidth": 704,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 146.125,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 133.125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 48.59375,
+              "right": 110.5234375
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 146.125,
+          "right": 298.8125,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 152.6875,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 181.7265625,
+              "right": 263.2109375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 298.8125,
+          "right": 440.34375,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 141.53125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 848.2578125,
+              "bottom": 878.7578125,
+              "left": 334.4140625,
+              "right": 404.7421875
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 440.34375,
+          "right": 571.625,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 131.28125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 475.9453125,
+              "right": 536.0234375
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 571.625,
+          "right": 707,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 135.375,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 607.2265625,
+              "right": 671.3984375
+            }
+          ]
+        }
+      ]
+    },
+    "tab": [
+      {
+        "text": "Start",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Szukaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Dodaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Moje",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Profil",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      }
+    ],
+    "clicks": [
+      {
+        "label": "Start",
+        "path": "/home"
+      },
+      {
+        "label": "Szukaj",
+        "path": "/szukaj"
+      },
+      {
+        "label": "Dodaj",
+        "path": "/dodaj"
+      },
+      {
+        "label": "Moje",
+        "path": "/zeszyt"
+      },
+      {
+        "label": "Profil",
+        "path": "/@panel581_c3ab3808f431_konto"
+      }
+    ],
+    "pass": true
+  },
+  {
+    "width": 1440,
+    "dark": true,
+    "scale": 140,
+    "zoom": 2,
+    "geo": {
+      "width": 720,
+      "dpr": 2,
+      "scroll": 720,
+      "font": 25.2,
+      "scale": 140,
+      "tokenScale": 1.4,
+      "ready": "complete"
+    },
+    "labels": {
+      "scale": 140,
+      "rootFont": 16,
+      "nav": {
+        "left": 8,
+        "right": 712,
+        "top": 785.7578125,
+        "bottom": 892
+      },
+      "width": 720,
+      "clientWidth": 720,
+      "navWidth": 704,
+      "items": [
+        {
+          "text": "Start",
+          "left": 13,
+          "right": 146.125,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 133.125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 48.59375,
+              "right": 110.5234375
+            }
+          ]
+        },
+        {
+          "text": "Szukaj",
+          "left": 146.125,
+          "right": 298.8125,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 152.6875,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 181.7265625,
+              "right": 263.2109375
+            }
+          ]
+        },
+        {
+          "text": "Dodaj",
+          "left": 298.8125,
+          "right": 440.34375,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 141.53125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 848.2578125,
+              "bottom": 878.7578125,
+              "left": 334.4140625,
+              "right": 404.7421875
+            }
+          ]
+        },
+        {
+          "text": "Moje",
+          "left": 440.34375,
+          "right": 571.625,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 131.28125,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 475.9453125,
+              "right": 536.0234375
+            }
+          ]
+        },
+        {
+          "text": "Profil",
+          "left": 571.625,
+          "right": 707,
+          "bottom": 883,
+          "top": 794.7578125,
+          "width": 135.375,
+          "height": 88.2421875,
+          "lines": 1,
+          "font": 25.2,
+          "contained": true,
+          "fragments": [
+            {
+              "top": 837.2578125,
+              "bottom": 867.7578125,
+              "left": 607.2265625,
+              "right": 671.3984375
+            }
+          ]
+        }
+      ]
+    },
+    "tab": [
+      {
+        "text": "Start",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Szukaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Dodaj",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Moje",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      },
+      {
+        "text": "Profil",
+        "active": true,
+        "focusVisible": true,
+        "outline": 3,
+        "visible": true
+      }
+    ],
+    "clicks": [
+      {
+        "label": "Start",
+        "path": "/home"
+      },
+      {
+        "label": "Szukaj",
+        "path": "/szukaj"
+      },
+      {
+        "label": "Dodaj",
+        "path": "/dodaj"
+      },
+      {
+        "label": "Moje",
+        "path": "/zeszyt"
+      },
+      {
+        "label": "Profil",
+        "path": "/@panel581_c3ab3808f431_konto"
+      }
+    ],
+    "pass": true
+  }
+]

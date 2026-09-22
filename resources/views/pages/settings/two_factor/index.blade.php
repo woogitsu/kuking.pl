@@ -73,7 +73,7 @@
     @else
         <section class="sekcja-strony">
             <h2 class="mt-0">Wyłączona</h2>
-            <p>Włączenie zajmuje mniej niż dwie minuty i wymaga aplikacji uwierzytelniającej w telefonie
+            <p>Włączenie wymaga aplikacji uwierzytelniającej w telefonie
                 (na przykład Google Authenticator, Aegis albo 1Password).</p>
             <a class="btn btn-primary" href="{{ route('settings.two_factor.enable') }}">Włącz weryfikację dwuetapową</a>
         </section>

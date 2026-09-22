@@ -6,12 +6,14 @@ namespace App\Http\Controllers;
 
 use App\Domain\Collections\Actions\SavePostToCollection;
 use App\Domain\Collections\Actions\SaveRecipeToCollection;
+use App\Domain\Collections\CollectionSaveContext;
 use App\Domain\Collections\ZapisyWpisu;
 use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
 use App\Rules\CollectionNameNotTaken;
+use App\Support\PaginationLinks;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
@@ -39,6 +41,8 @@ class CollectionController extends Controller
         // Domyślny zeszyt tworzymy dopiero przy pierwszym zapisie — nie
         // pokazujemy pustego folderu osobie, która nic jeszcze nie zapisała.
         return view('pages.collections.index', [
+            'saveContext' => app(CollectionSaveContext::class)->parameters($request),
+            'saveContent' => app(CollectionSaveContext::class)->content($request),
             'collections' => $user->collections()
                 ->withCount(['recipes', 'posts'])
                 ->orderByDesc('is_default')
@@ -145,11 +149,95 @@ class CollectionController extends Controller
             ->values();
     }
 
-    public function show(Request $request, Collection $collection): View
+    public function show(Request $request, Collection $collection): View|RedirectResponse
     {
         $this->authorize('view', $collection);
 
+        $recipes = $collection->recipes()
+            ->widoczneDla($request->user())
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            ->with(['author.profile', 'heroMedia'])
+            ->paginate(12);
+
+        $posts = $collection->posts()
+            ->widoczneDla($request->user())
+            // BRAMKA PRZEPISU, OSOBNA OD `widoczneDla()` (#368). Tamten
+            // zakres pyta o WPIS, a wpis zapowiadający przepis ma
+            // `visibility = 'public'` na stałe (`WpisWskazujacyPrzepis::dopisz()`)
+            // — to nie jest jego widoczność, tylko brak własnego zawężenia,
+            // bo bramką ma być PRZEPIS. Bez tego warunku zeszyt rysował
+            // `x-post-card` z tytułem, zdjęciem głównym i odnośnikiem, w
+            // którym slug niesie ten sam tytuł.
+            //
+            // W ZESZYCIE TEN WYCIEK DOJRZEWA W CZASIE i to jest jego różnica
+            // wobec reszty rodziny. Zapowiedź zostaje tu wskazana na stałe,
+            // więc gdy autor zawęzi przepis albo zdejmie go moderacja,
+            // treść nie znika sama — a osoba, która ją zapisała, nie ma
+            // powodu jej wyjmować, bo w chwili zapisu widziała przepis
+            // całkowicie legalnie.
+            ->zWidocznymPrzepisem($request->user())
+            ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
+            // TRZECIA GRANICA: AUTOR PRZEPISU, A NIE AUTOR WPISU (W5-08).
+            //
+            // Warunek linijkę wyżej pyta o autora WPISU. Wpis zapowiadający
+            // przepis może jednak należeć do kogo innego niż przepis: A odkłada
+            // sobie do zeszytu zapowiedź przepisu B. Gdy B zostanie zbanowany
+            // albo oznaczony do usunięcia, jego przepis daje 403 pod własnym
+            // adresem i znika z listy przepisów tego zeszytu (warunek wyżej przy
+            // `$recipes`) — ale wpis A dalej stał tu z tytułem, zdjęciem głównym
+            // i odnośnikiem, bo `zWidocznymPrzepisem()` liczy widoczność
+            // i publikację przepisu, a statusu konta jego autora celowo nie zna
+            // (patrz `User::scopeDostepnyJakoAutor()`).
+            //
+            // Gałąź `recipe_id IS NULL` przepuszcza zwykłe wpisy bez przepisu —
+            // bez niej zeszyt straciłby całą zawartość. Ten sam idiom liczy
+            // `App\Domain\Tags\PodpowiedziTagow`.
+            ->where(fn ($w) => $w->whereNull('posts.recipe_id')
+                ->orWhereHas('recipe.author', fn ($autor) => $autor->dostepnyJakoAutor()))
+            // `recipe:…` + `recipe.heroMedia` — jak w czterech strumieniach
+            // (issue #368). Zeszyt rysuje tę samą kartę `x-post-card`, która
+            // czyta z przepisu tytuł, odnośnik, `visibility` na plakietkę
+            // i zdjęcie główne; bez doładowania każdy taki wpis to dwa osobne
+            // zapytania na stronę.
+            ->with([
+                'author.profile.avatar',
+                'media',
+                'recipe:id,title,slug,visibility,hero_media_id',
+                'recipe.heroMedia',
+            ])
+            ->withVisibleCommentCount($request->user())
+            // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
+            // zapytaniem (issue #275, D-081). Reguły siedzą
+            // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
+            ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
+            ->paginate(
+                (int) config('kuking.collections.saved_posts_page_size'),
+                ['*'],
+                'wpisy',
+            );
+
+        // Jak przy relacjach (#748): pusta dalsza strona nie jest pustą listą.
+        // Każdą listę docinamy do jej własnego zakresu po filtrach widoczności.
+        if ($recipes->currentPage() > $recipes->lastPage() || $posts->currentPage() > $posts->lastPage()) {
+            $pages = [];
+            foreach ([$recipes, $posts] as $paginator) {
+                $page = min($paginator->currentPage(), $paginator->lastPage());
+                if ($page > 1) {
+                    $pages[$paginator->getPageName()] = $page;
+                }
+            }
+            $request->session()->reflash();
+
+            return redirect()->route('collections.show', ['collection' => $collection, ...$pages]);
+        }
+
+        // Każdy przycisk przesuwa swoją listę i zachowuje pozycję drugiej.
+        PaginationLinks::preserveOtherPage($recipes, $posts);
+        PaginationLinks::preserveOtherPage($posts, $recipes);
+
         return view('pages.collections.show', [
+            'saveContext' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->parameters($request) : [],
+            'saveContent' => $request->user()?->getKey() === $collection->owner_id ? app(CollectionSaveContext::class)->content($request) : null,
             'collection' => $collection,
             // Policy wyżej pilnuje dostępu do SAMEGO zeszytu i nic nie mówi
             // o tym, co jest w środku. W środku są przepisy wielu różnych
@@ -163,11 +251,7 @@ class CollectionController extends Controller
             // zbanowany albo kasuje konto. Bez tego przepis dawał 403 przy
             // wejściu wprost, a w cudzym zeszycie stał dalej z tytułem,
             // nazwiskiem autora i miniaturą.
-            'recipes' => $collection->recipes()
-                ->widoczneDla($request->user())
-                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->with(['author.profile', 'heroMedia'])
-                ->paginate(12),
+            'recipes' => $recipes,
             // Wpisy przechodzą przez ten sam filtr widoczności co przepisy —
             // zeszyt jest cudzym pojemnikiem i nie może pokazywać treści,
             // do której oglądający nie ma prawa.
@@ -187,20 +271,7 @@ class CollectionController extends Controller
             // przycisk „Pokaż więcej" pod tą listą przesuwałby PRZY OKAZJI
             // też stronę `recipes()` obok, bo oba paginatory czytałyby ten
             // sam parametr z adresu.
-            'posts' => $collection->posts()
-                ->widoczneDla($request->user())
-                ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())
-                ->with(['author.profile.avatar', 'media'])
-                ->withCount(['comments' => fn ($q) => $q->widoczneDla($request->user())])
-                // Liczba zapisów i stan „mam to w zeszycie" — TYM SAMYM
-                // zapytaniem (issue #275, D-081). Reguły siedzą
-                // w `ZapisyWpisu`; tutaj dokładamy tylko kolumnę do SELECT-a.
-                ->tap(fn ($q) => $this->zapisy->dolicz($q, $request->user()))
-                ->paginate(
-                    (int) config('kuking.collections.saved_posts_page_size'),
-                    ['*'],
-                    'wpisy',
-                ),
+            'posts' => $posts,
             // ILE POZYCJI SCHOWAŁ FILTR — I DLACZEGO TO W OGÓLE POKAZUJEMY.
             //
             // Wpis zapisany, gdy autor pokazywał go obserwującym, znika
@@ -208,11 +279,11 @@ class CollectionController extends Controller
             // wygląda jak utrata danych („miałam to tu wczoraj"), a pokazanie
             // treści łamie widoczność. Zostaje trzecia droga: powiedzieć, ile
             // pozycji tu jest, nie mówiąc jakich.
-            'niewidoczne' => max(
-                0,
-                $collection->posts()->count()
-                    - $collection->posts()->widoczneDla($request->user())->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor())->count(),
-            ),
+            // Paginatory policzyły już wszystkie widoczne pozycje. Liczymy
+            // także przepisy i treści usunięte miękko: ich zapisy nadal istnieją.
+            // withTrashed dotyczy wyłącznie COUNT, nigdy listy ani treści.
+            'niewidoczne' => max(0, $collection->recipes()->withTrashed()->count() - $recipes->total())
+                + max(0, $collection->posts()->withTrashed()->count() - $posts->total()),
             // PRAWA SZYNA (issue #205): pozostałe zeszyty tej samej osoby.
             //
             // Zeszyt jest jednym z kilku pojemników i wejście do drugiego
@@ -283,7 +354,7 @@ class CollectionController extends Controller
                 ->withErrors(['name' => 'Masz już zeszyt o tej nazwie. Wybierz inną.']);
         }
 
-        return redirect()->route('collections.show', $collection)->with('status', 'Zeszyt utworzony.');
+        return redirect()->route('collections.show', ['collection' => $collection, ...app(CollectionSaveContext::class)->parameters($request)])->with('status', 'Zeszyt utworzony.');
     }
 
     public function saveRecipe(Request $request, string $recipe): RedirectResponse
@@ -294,6 +365,10 @@ class CollectionController extends Controller
         $collection = $this->selectedCollection($request);
 
         $target = $this->save->handle($request->user(), $model, $collection);
+
+        if ($request->boolean('open_collection')) {
+            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        }
 
         return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
     }
@@ -321,6 +396,10 @@ class CollectionController extends Controller
         $collection = $this->selectedCollection($request);
 
         $target = $this->savePost->handle($request->user(), $post, $collection);
+
+        if ($request->boolean('open_collection')) {
+            return redirect()->route('collections.show', $target)->with('status', "Zapisane w zeszycie „{$target->name}”.");
+        }
 
         return back()->with('status', "Zapisane w zeszycie „{$target->name}”.");
     }
@@ -353,9 +432,34 @@ class CollectionController extends Controller
         // (`remove` chodzi po kolekcjach tej osoby). Wpis, którego już nie
         // wolno oglądać, tym bardziej musi dać się stamtąd wyjąć — inaczej
         // zostawałby w zeszycie na zawsze.
+        //
+        // TO NIE JEST OBEJŚCIE REGUŁY „UUID W ADRESIE TO NIE AUTORYZACJA"
+        // (AGENTS.md §7), tylko granica OSTRZEJSZA niż Policy. Policy
+        // odpowiada na pytanie „czy wolno Ci ruszyć TEN wpis"; tutaj pytanie
+        // brzmi inaczej: „z czyjego zeszytu wyjmujemy". Zakres akcji jest
+        // przypięty do `$request->user()`, więc identyfikator w adresie nie
+        // daje dostępu do niczyjego cudzego zeszytu — obca osoba, która
+        // wyśle tu UUID wpisu leżącego w zeszycie kogoś innego, nie ruszy
+        // tamtego wiersza (`ZeszytPrzyjmujeWpisyTest`:
+        // „obca osoba nie wyjmie wpisu z cudzego zeszytu"). Gość nie dochodzi
+        // tu wcale — trasa stoi za `auth` (`routes/web.php`).
         $this->savePost->remove($request->user(), $post);
 
-        return back()->with('status', 'Usunięte z zeszytu.');
+        // KOMUNIKAT MÓWI, CO SIĘ STAŁO, I DAJE DROGĘ POWROTU (audyt L1).
+        //
+        // „Usunięte z zeszytu." nie mówiło, CO zostało usunięte ani czy
+        // zniknęło z jednego zeszytu, czy ze wszystkich — a wyjmujemy ze
+        // wszystkich zeszytów tej osoby, więc trzeba to napisać wprost.
+        // Zamiast pytania „czy na pewno" PRZED akcją (wyjęcie jest
+        // odwracalne) idzie przycisk powrotu PO niej; rysuje go
+        // `components/layout.blade.php` w tym samym obszarze `aria-live`,
+        // co komunikat.
+        return back()
+            ->with('status', 'Wpis wyjęty z zeszytu. Nie usunęliśmy go z serwisu — możesz go zapisać ponownie.')
+            ->with('status_powrot', [
+                'akcja' => route('collections.save-post', $post),
+                'etykieta' => 'Zapisz ponownie',
+            ]);
     }
 
     public function destroy(Request $request, Collection $collection): RedirectResponse

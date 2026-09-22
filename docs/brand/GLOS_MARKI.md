@@ -14,6 +14,12 @@
 
 ## 0. Po co ten dokument istnieje
 
+Aktualna kompozycja Startu wynika z D-207 i wizualizacji wskazanej przez
+właściciela. Krótkie powitanie i pytanie w kaflu zastępują długie hasło.
+Teksty „Z innych kuchni” i „Co dobrego u innych?” wprowadzają prawdziwe
+treści społeczności; nie są obietnicą codziennej redakcyjnej selekcji.
+Brzmienie powitania i nazwy wejść opisuje aktualny `COPY_STYLE.md`.
+
 `COPY_STYLE.md` jest dobrym dokumentem i zostaje w mocy. Ma jednak jedną
 dziurę, przez którą dało się przejść: **jest listą zakazów.** Lista
 kontrolna w §7 ma dziesięć pozycji i siedem z nich pyta, czego w zdaniu
@@ -75,12 +81,12 @@ biegnie tam, gdzie biegła:
 | „Top kuKINGi tygodnia" | o hierarchii | ❌ |
 | „Zdobądź poziom kuKING" | o nagrodzie za coś | ❌ |
 
-Powód ostatnich trzech jest produktowy, nie estetyczny, i jest zmierzony:
+Powód ostatnich trzech jest produktowy, nie estetyczny. W przywołanym badaniu
 własne zdjęcie lub film zamieściło w ostatnim miesiącu **17% internautów
-55–64 i 13% z 65+** (`../research/AUDIENCE_50_PLUS.md` §1), a `COPY_STYLE.md`
-§2 dokłada do tego, że **ponad połowa osób 50+ w mediach społecznościowych
-nigdy nic nie publikuje**. Komplement za publikację podnosi poprzeczkę.
-Nazwa przynależności ją obniża — wystarczy tu być.
+55–64 i 13% z 65+** (`../research/AUDIENCE_50_PLUS.md` §1). Te dane nie mówią,
+ile osób nigdy nic nie publikuje. Przyjmujemy zasadę projektową z
+`COPY_STYLE.md` §2: nie oceniamy użytkownika za publikację. Komplement może
+podnosić poprzeczkę; nazwa przynależności ma ją obniżać — wystarczy tu być.
 
 ### Odmiana
 
@@ -240,6 +246,13 @@ ma: bez znacznika nie ma koloru, a na tle w kolorze marki nie ma kontrastu.
 Punkty 1, 2 i 5 pilnuje `tests/Feature/TekstyWedlugCopyStyleTest.php`.
 
 ### Kontrast: policzone, nie założone
+
+Poniższa tabela jest historycznym pomiarem z 11 września 2026, sprzed palety
+przyjętej w D-206. Nie opisuje obecnych tokenów ani ich bieżącego zapasu
+kontrastu. Aktualne wartości są w `resources/css/tokens.css` i
+[NOWY_STYL.md](../design/NOWY_STYL.md); `scripts/kontrast-marki.mjs` czyta
+rzeczywiste źródło i sprawdza 72 pary kolorów. Ten pomiar przeszedł ponownie
+w CI PR #499 (Alfa 0.14). Zasada czytelności tekstu marki pozostaje w mocy.
 
 „KING" jest pisane kolorem, więc jest **tekstem**, nie dekoracją — obowiązuje
 go WCAG 2.2 AA, kryterium **1.4.3 (4,5:1)**. Zmierzone 11 września 2026 dla
@@ -427,8 +440,13 @@ całodobowego dyżuru, odpowiedź czasem po weekendzie.
 
 ```text
 ❌ Wyślemy Ci wiadomość z jednym przyciskiem. Klikasz — i jesteś w środku.
-✅ Wyślemy Ci wiadomość z jednym przyciskiem. Kliknij go, żeby wejść na konto.
+✅ Wyślemy Ci wiadomość z linkiem. Otwórz go, a na stronie kliknij „Zaloguj mnie”.
 ```
+
+Przykład instrukcji uaktualniono w audycie Alfa 0.14: D-056 wymaga jeszcze
+potwierdzenia na stronie. To korekta opisu działania, a nie zmiana zasady
+prostego tonu. Niepotwierdzony adres konta ma osobną drogę ustawienia hasła;
+pełna instrukcja formularza uwzględnia ten wyjątek.
 
 To jest też powód odrzucenia „to darmowe" z przycisku na stronie powitalnej
 (§6): sprzedaż wychodzi z tekstu szybciej, niż się ją tam wkłada.
@@ -575,6 +593,11 @@ zaletą (§6), a napis jest jednym elementem, więc nie rozpada się na telefoni
 (D-131).
 
 **3. Złagodzenie „Przepis jest dobry wtedy, kiedy ktoś go ugotował".**
+Aktualizacja D-208 (13 września 2026): na publicznym bloku właściciel
+wskazał nowy wzorzec z tytułem „Twój przepis. Czyjś dobry obiad.”.
+Ta decyzja zastępuje poniższy historyczny zakaz zmiany tego jednego
+nagłówka; nie zmienia znaczenia „Ugotowałem” ani tytułu hero.
+
 Odrzucone. To zdanie niesie **całą tezę produktu** — „Ugotowałem" jest
 ważniejsze niż lajk (`AGENTS.md` §1, hierarchia priorytetów). Zarzut audytu
 („logicznie zbyt absolutne") dotyczy hasła, a od hasła absolutność się

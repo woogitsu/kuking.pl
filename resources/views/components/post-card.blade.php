@@ -18,7 +18,7 @@
     ani po przesunięciu palcem — dla części naszych użytkowników to jedyna
     droga do funkcji (AGENTS.md §5).
 --}}
-@props(['post'])
+@props(['post', 'showQuestionTitle' => true])
 @php $author = $post->author; @endphp
 <article class="card post-card">
     <div class="post-card-head">
@@ -241,17 +241,49 @@
         o trasę, a nie o dodatkowy parametr komponentu, bo dzięki temu
         żaden z ośmiu widoków używających karty nie musi o niczym pamiętać.
     --}}
+    {{--
+        TAGI WPISU LICZYMY RAZ, PRZED TREŚCIĄ (issue #737)
+
+        Tej samej listy potrzebują dwie rzeczy: `#tag` w treści, który ma być
+        odnośnikiem, i chipsy pod zdjęciem. Gdyby każda liczyła ją u siebie,
+        rozjechałyby się przy pierwszej zmianie reguły „co pokazujemy".
+
+        ŹRÓDŁEM ADRESU JEST RELACJA WPISU, NIE TEKST. Adres złożony z tego, co
+        ktoś napisał, prowadziłby przy literówce albo przy `#2024` na stronę,
+        której nie ma — a odnośnik do pustki jest gorszy niż jego brak.
+        Kluczem mapy jest znormalizowana nazwa (`Tag::kluczTokenu()`) ORAZ
+        slug: dokładnie te dwie drogi, którymi `ResolveTagsForPost::resolve()`
+        dopasowuje token do istniejącego tagu przy ZAPISIE. Ukryte relacje
+        pozostają w modelu; publiczna karta nie linkuje do nich.
+    --}}
+    @php
+        $tagiDoPokazania = $post->relationLoaded('tags')
+            ? $post->tags->where('status', \App\Models\Tag::STATUS_ACTIVE)
+            : collect();
+
+        $adresyTagow = [];
+        foreach ($tagiDoPokazania as $tagWpisu) {
+            $adresyTagow[$tagWpisu->kluczTokenu()] = route('tags.show', $tagWpisu);
+        }
+        foreach ($tagiDoPokazania as $tagWpisu) {
+            $adresyTagow[$tagWpisu->slug] ??= route('tags.show', $tagWpisu);
+        }
+    @endphp
+
+    @if($showQuestionTitle && $post->kind === \App\Models\Post::KIND_QUESTION)
+        <h2 class="post-card-body"><a href="{{ $post->url() }}">{{ $post->title }}</a></h2>
+    @endif
     @if($post->body)
         @php
             $wpisZTrasy = request()->route('post');
-            $naStronieTegoWpisu = request()->routeIs('posts.show')
+            $naStronieTegoWpisu = request()->routeIs('posts.show', 'questions.show')
                 && $wpisZTrasy instanceof \App\Models\Post
                 && $wpisZTrasy->is($post);
 
             $skracamy = ! $naStronieTegoWpisu && \App\Support\ZapowiedzWpisu::czyZaDluga($post->body);
         @endphp
 
-        <div class="post-card-body">{{ $skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body }}</div>
+        <div class="post-card-body">{{ \App\Support\LinkiWTekscie::render($skracamy ? \App\Support\ZapowiedzWpisu::skroc($post->body) : $post->body, $adresyTagow) }}</div>
 
         @if($skracamy)
             {{-- Odnośnik, nie przycisk: czytnik ekranu ogłasza go jako
@@ -341,7 +373,7 @@
         ekranach, które tagów nie doładowują (np. `PostController::show`,
         zakładka „Ugotowane" na profilu). Odwołanie się do relacji wprost
         odpaliłoby tam osobne zapytanie PER WPIS — `TagController`
-        i `App\Domain\Feed\TagFeed` już ładowały `tags:id,slug,name` na
+        i `App\Domain\Feed\TagFeed` już ładowały `tags:id,slug,name,status` na
         zapas, więc ten warunek tylko bierze to, co jest, i nigdzie nic
         nie dociąga po cichu.
 
@@ -350,9 +382,9 @@
         żadnego nowego CSS, więc rozmiar dotyku i kontrast mają policzone
         pokrycie od pierwszego dnia.
     --}}
-    @if($post->relationLoaded('tags') && $post->tags->isNotEmpty())
+    @if($tagiDoPokazania->isNotEmpty())
         <nav class="chipsy post-card-tagi" aria-label="Tagi tego wpisu">
-            @foreach($post->tags as $tag)
+            @foreach($tagiDoPokazania as $tag)
                 <a class="chip" href="{{ route('tags.show', $tag) }}">{{ $tag->name }}</a>
             @endforeach
         </nav>
@@ -400,12 +432,12 @@
         {{-- Ten sam powód co przy dacie: komentarze wpisu, który jest samym
              przepisem, stoją na stronie przepisu (`recipes.comment`), a nie
              pod pustym wpisem. --}}
-        <a class="btn btn-secondary" href="{{ $post->adresTresci() }}">
+        <a class="btn btn-secondary" href="{{ $post->adresTresci().($post->kind === \App\Models\Post::KIND_QUESTION ? '#komentarze' : '') }}">
             <x-ikona nazwa="chat" :rozmiar="22" />
             @if(($post->comments_count ?? 0) > 0)
-                Komentarze ({{ $post->comments_count }})
+                {{ $post->kind === \App\Models\Post::KIND_QUESTION ? 'Odpowiedzi' : 'Komentarze' }} ({{ $post->comments_count }})
             @else
-                Napisz komentarz
+                {{ $post->kind === \App\Models\Post::KIND_QUESTION ? 'Napisz odpowiedź' : 'Napisz komentarz' }}
             @endif
         </a>
 
@@ -445,24 +477,67 @@
                 w miejscu akcji, tak jak ekran przepisu robi to od dawna
                 (`recipes/show.blade.php`, `$isSaved`).
 
-                STAN JEST ZDANIEM, NIE DRUGIM PRZYCISKIEM — I TO JEST CELOWE.
-                Ekran przepisu zamienia w tym miejscu przycisk na „Usuń
-                z zeszytu". Tutaj nie, bo karta stoi w feedzie: podwójne
-                kliknięcie w grupie 50+ to norma, nie pomyłka (issue #43),
-                a przycisk kasujący pod tym samym palcem zabierałby z zeszytu
-                to, co ktoś właśnie do niego włożył. Zostaje odnośnik do
-                zeszytu — bo „wyjąć z zeszytu można w samym zeszycie" i to się
-                nie zmieniło.
+                STAN JEST ZDANIEM **ORAZ** PRZYCISKIEM WYJŚCIA (audyt L1,
+                decyzja właściciela z 20 września 2026).
+
+                Stał tu wcześniej akapit „STAN JEST ZDANIEM, NIE DRUGIM
+                PRZYCISKIEM" — z odesłaniem „wyjąć z zeszytu można w samym
+                zeszycie". Tego zdania nie dało się wykonać: ekran zeszytu
+                renderuje TĘ SAMĄ kartę, więc nie było tam żadnego przycisku
+                wyjęcia (`docs/AUDYT_2026-09.md`, wiersz L1). Trasa
+                `collections.unsave-post` istniała, była otestowana i nie miała
+                ANI JEDNEGO wywołania w `resources/`. Człowiek, który odłożył
+                wpis przez pomyłkę, nie miał w całym serwisie drogi wyjścia.
+                Właściciel rozstrzygnął: przycisk stoi wszędzie tam, gdzie
+                widać „Masz to w zeszycie" — czyli i w zeszycie, i na karcie.
+
+                OBAWA O PODWÓJNE KLIKNIĘCIE ZOSTAJE ZAADRESOWANA UKŁADEM, NIE
+                BRAKIEM PRZYCISKU. Powód tamtej decyzji był prawdziwy (podwójne
+                kliknięcie w grupie 50+ to norma, nie pomyłka — issue #43), więc
+                pod palcem, który właśnie kliknął „Zapisuję", NIE MA przycisku
+                kasującego: w tym samym miejscu paska stoi dalej odnośnik „Masz
+                to w zeszycie", a „Usuń z zeszytu" jest dopiero NASTĘPNYM celem.
+                Drugie kliknięcie w to samo miejsce otwiera więc zeszyt, tak jak
+                przed tą zmianą, i niczego nie zabiera.
+
+                BEZ POTWIERDZENIA I BEZ JavaScriptu. To jest zwykły formularz
+                `DELETE` (zwykły `<form method="POST">` z podmianą metody), więc działa tak samo ze skryptem
+                i bez niego — żadnego martwego przycisku (AGENTS.md §5, D-053).
+                Potwierdzenia (`<x-confirm-button>`) świadomie NIE dokładamy:
+                wyjęcie z zeszytu nie kasuje żadnej treści i cofa się jednym
+                kliknięciem, a `.flash` po akcji podaje przycisk „Zapisz
+                ponownie" (`components/layout.blade.php`). Pytanie „czy na
+                pewno" trzymamy dla rzeczy nieodwracalnych — kasowania wpisu,
+                kasowania zeszytu — żeby nie straciło wagi. Ekran przepisu
+                wyjmuje z zeszytu tak samo, jednym przyciskiem bez pytania
+                (`recipes/show.blade.php`), i ta sama czynność ma się tu
+                zachowywać tak samo.
+
+                NAZWA JEST TA SAMA CO PRZY PRZEPISIE: „Usuń z zeszytu".
+                `BRAND_EXTENDED.md` §3 zabrania synonimów — jedna czynność,
+                jedna nazwa. Audyt proponował „Wyjmij z zeszytu"; drugie słowo
+                na tę samą rzecz byłoby dokładnie tym, przed czym tamta reguła
+                stoi.
 
                 Ekran, który `czy_zapisany` nie dolicza, dostaje „Zapisuję" jak
                 dawniej. Zapis jest idempotentny, więc drugie kliknięcie daje
                 dokładnie ten sam skutek co pierwsze (`SavePostToCollection`).
+                Wyjęcie też: drugie `DELETE` na wpisie, którego już nie ma
+                w zeszycie, nie robi nic i nie jest błędem.
             --}}
             @if($zapisy->czyZapisany($post))
                 <a class="btn btn-secondary" href="{{ route('collections.index') }}" data-rola="stan-zapisu">
                     <x-ikona nazwa="book" :rozmiar="22" />
                     Masz to w zeszycie
                 </a>
+                <form method="POST" action="{{ route('collections.unsave-post', $post) }}">
+                    @csrf
+                    @method('DELETE')
+                    <button class="btn btn-secondary" type="submit" data-rola="wyjmij-z-zeszytu">
+                        <x-ikona nazwa="save" :rozmiar="22" />
+                        Usuń z zeszytu
+                    </button>
+                </form>
             @else
                 <form method="POST" action="{{ route('collections.save-post', $post) }}">
                     @csrf
@@ -472,6 +547,7 @@
                     </button>
                 </form>
             @endif
+            <x-wybor-zeszytu :action="route('collections.save-post', $post)" :wiersz="'wpis-'.$post->getKey()" :content="$post" />
         @endauth
 
         {{-- „Zgłoś" przeniosło się do menu „…" nad wpisem (UI kit v2).

@@ -250,9 +250,18 @@ export default defineRailway((ctx) => {
     //  podatność, bo odczyt wchodzi w obszar wypełniany przez klienta.
     KUKING_ZAUFANE_PRZESKOKI: "1",
 
-    // --- Storage zdjęć: Cloudflare R2, DWA BUCKETY ---------------------------
+    // --- Storage zdjęć: Cloudflare R2, TRZY BUCKETY --------------------------
     //
     //  To jest granica bezpieczeństwa, a nie porządki (audyt G-01).
+    //
+    //  Nagłówek mówił „DWA BUCKETY", a blok niżej ustawiał trzy — czwarty
+    //  (kopie bazy) dochodzi kilkadziesiąt linijek dalej, z własnym
+    //  poświadczeniem. Na tym rozjeździe stanął runbook, który kazał utworzyć
+    //  JEDEN bucket, i `docs/infra/BRAMKA_R2.md`, który wymieniał DWA pod
+    //  innymi nazwami. Źródłem prawdy jest `config/filesystems.php`: czyta
+    //  AWS_BUCKET, AWS_PUBLIC_BUCKET, AWS_EXPORTS_BUCKET, AWS_LEGACY_BUCKET
+    //  i AWS_KOPIE_BUCKET. Zmienne `R2_*` po prawej stronie to nazwy
+    //  sharedowe w panelu Railway — tylko ten plik je mapuje.
     //
     //  Cloudflare nie implementuje S3-owych ACL na obiektach — `x-amz-acl`
     //  jest w tabeli zgodności oznaczony jako NIEOBSŁUGIWANY dla PutObject.
@@ -264,12 +273,19 @@ export default defineRailway((ctx) => {
     //
     //    R2_BUCKET         oryginały (`incoming/`). BEZ własnej domeny,
     //                      r2.dev WYŁĄCZONE. Dostęp tylko przez API S3.
-    //    R2_PUBLIC_BUCKET  przetworzone warianty WebP (`media/`). TEN i tylko
-    //                      ten ma `cdn.kuking.pl`.
+    //    R2_PUBLIC_BUCKET  przetworzone warianty WebP (`media/`). Po W7-02
+    //                      i D-020 TEŻ bez własnej domeny: adresem zdjęcia
+    //                      jest trasa `/zdjecia/{media}/{wariant}`, która
+    //                      pyta Policy. (Stało tu „TEN i tylko ten ma
+    //                      cdn.kuking.pl" — nieaktualne od 6 IX 2026.)
+    //    R2_EXPORTS_BUCKET paczki RODO. Prywatny, patrz niżej.
     //
     //  Kod domenowy używa WYŁĄCZNIE Laravel Filesystem, więc zmiana dostawcy
     //  to zmiana zmiennych, nie przepisywanie domeny (docs/MEDIA_PIPELINE.md).
     FILESYSTEM_DISK: "r2",
+    // Surowe uploady kreatora muszą być dostępne między replikami.
+    // Prywatny bucket oryginałów: pliki tymczasowe mogą zawierać EXIF/GPS.
+    LIVEWIRE_TEMPORARY_FILE_UPLOAD_DISK: "r2",
     AWS_DEFAULT_REGION: "auto", // R2 wymaga literalnie "auto"
     AWS_USE_PATH_STYLE_ENDPOINT: "false",
     AWS_ACCESS_KEY_ID: ctx.shared.R2_ACCESS_KEY_ID,

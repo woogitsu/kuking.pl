@@ -11,8 +11,13 @@
         <x-szyna-startowa :board="$board" :zeszyt="$zeszyt ?? null" />
     </x-slot:rail>
 
-    <p class="nadtytul start-nadtytul">Gotujemy po swojemu.</p>
-    <h1 class="start-powitanie">{{ $greeting }}</h1>
+    <header class="start-naglowek">
+        <div>
+            <p class="nadtytul start-nadtytul">Gotujemy po swojemu</p>
+            <h1 class="start-powitanie">{{ $greeting }}</h1>
+        </div>
+        <a href="{{ route('about') }}"><span>Poznaj <x-kuking-word /></span></a>
+    </header>
 
     {{--
         Zachęta do dodania wpisu (UI kit v2, ekrany 01 i 05).
@@ -28,19 +33,20 @@
         ekranu.
     --}}
     <section class="marka-publikacja blok-ciemny" aria-label="Pokaż swoje gotowanie">
-        <a class="kafel-akcji composer" href="{{ route('posts.create') }}">
+        <a class="kafel-akcji composer" href="{{ route('posts.create') }}" aria-label="Co dziś gotujesz? Dodaj zdjęcie">
             <x-avatar :user="auth()->user()" :size="48" />
             <span class="composer-copy">
-                <span class="composer-title">Dodaj zdjęcie tego, co ugotowałeś</span>
-                <span class="composer-help">Nie musi być ładne — ma być prawdziwe.</span>
+                <span class="composer-title">Co dziś gotujesz?</span>
+                <span class="composer-help">Zdjęcie i kilka słów wystarczą.</span>
             </span>
-            <x-ikona nazwa="image" :rozmiar="28" />
         </a>
         <div class="marka-publikacja-akcje">
             <a class="btn btn-primary" href="{{ route('posts.create') }}"><x-ikona nazwa="image" /> Dodaj zdjęcie</a>
             <a class="btn btn-secondary" href="{{ route('recipes.create') }}"><x-ikona nazwa="book" /> Dodaj przepis</a>
         </div>
     </section>
+
+    <x-pwa-install :eligible="$pwaEligible ?? false" :context="$pwaContext ?? null" />
 
     @if($wspomnienie ?? null)
         {{--
@@ -97,7 +103,11 @@
         Zakładka nazywa się tak samo jak ekran, na który prowadzi — powód
         przy samym odnośniku niżej.
     --}}
-    <nav class="tabs feed-tabs" aria-label="Co pokazujemy">
+    <div class="start-feed-naglowek">
+        <h2>{{ $showingDiscover ? 'Najnowsze z innych kuchni' : (($zrodloFeedu ?? 'obserwowani') === 'tagi' ? 'Najnowsze z Twoich tagów' : 'Najnowsze od obserwowanych') }}</h2>
+        <a href="{{ route('help') }}#kolejnosc-wpisow">Jak działa kolejność?</a>
+    </div>
+    <nav class="tabs feed-tabs start-feed-wybor" aria-label="Co pokazujemy">
         <a class="tab" href="{{ route('home') }}" @if(! $showingDiscover) aria-current="page" @endif>Obserwowani</a>
         {{-- „Świeżo z Kuking", nie „Odkrywaj" (issue #38).
 

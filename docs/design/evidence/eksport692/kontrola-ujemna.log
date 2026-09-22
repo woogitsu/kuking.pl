@@ -1,0 +1,128 @@
+KONTROLA UJEMNA — pakiet #692 (paczka z danymi mówi o zdjęciach odrzuconych
+i skasowanych, które nigdy do niej nie wejdą)
+
+Data (lokalna): 2026-09-19T12:26:35+02:00
+Gałąź: fix/692-paczka-zdjecia (z origin/main = 48135241)
+Kopia wykonawcza: /home/mateusz/kuking-692-hook  (WSL Ubuntu)
+PHP: /opt/kuking-php-8.4-avif/bin/php 8.4.24
+Baza: 127.0.0.1:55439 / kuking_692_hook — jednorazowa, wyłącznie lokalna.
+      Port 5432 NIE był używany (AGENTS.md §6); parametry połączenia podane
+      jawnie zmiennymi środowiska, bez polegania na .env.
+Kopie bajtów poza repozytorium: /tmp/692-kopia-bajtow
+Metoda: psujemy to, czego test pilnuje → test ma OBLAĆ → przywracamy z kopii
+        bajtów, MD5 przed i po. Nigdy `git checkout --` i nigdy `git stash`
+        (pułapki 8 i 8c z docs/PULAPKI_TESTOW.md). Przywracanie stoi
+        w `trap ... EXIT INT TERM`, nie „potem".
+
+
+=== MD5 PRZED SABOTAŻEM ===
+f3e419ce55c72c7f7f5ecfa2a89152b4  resources/views/exports/index.blade.php
+f26fc0a0dbadd38bc833f67ab7697145  resources/views/exports/readme.blade.php
+c298795f63a3701d0e0334dbea9f526f  app/Domain/Users/Exports/ExportPhotoPlan.php
+
+
+--- SABOTAŻ A: oba widoki paczki cofnięte do stanu origin/main (sprzed #692)
+    pliki: resources/views/exports/index.blade.php
+           resources/views/exports/readme.blade.php
+    co znika: zdanie dla CZŁOWIEKA w index.html i w CZYTAJ-TO-NAJPIERW.txt.
+              Liczniki w dane.json zostają nietknięte — dzięki temu widać,
+              że oblewają dokładnie te testy, które pytają o tekst.
+    test: EksportMowiOZdjeciachKtoreNieWejdaNigdyTest
+
+    ⨯ paczka mowi o zdjeciach odrzuconych i o tym ze nie dojda
+    ⨯ paczka mowi o zdjeciach skasowanych osobnym zdaniem
+    ✓ paczka z kompletem zdjec nie dostaje ostrzezenia o brakach
+    ⨯ trzy rodzaje brakow nie mieszaja sie ze soba
+    ⨯ liczebnik w zdaniu o brakach jest odmieniony po polsku
+    ✓ dane json opisuje regule bezwarunkowo takze przy zerze
+    ✓ zakres danych paczki nie rosnie o zdjecia ktore do niej nie weszly
+    Tests: 4 failed, 3 passed (55 assertions)
+
+    Trzy zielone są tu OCZEKIWANE i o to chodzi: kontrola dodatnia
+    („komplet zdjęć nie dostaje ostrzeżenia") ma przechodzić także wtedy,
+    gdy komunikat w ogóle nie istnieje, a dwa testy o `dane.json` nie
+    dotykają widoków. Gdyby oblały wszystkie siedem, sabotaż byłby za
+    szeroki i nie mówiłby, KTÓRY mechanizm trzyma (pułapka 3b).
+
+
+--- SABOTAŻ B: liczniki w ExportPhotoPlan zawsze zero
+    plik: app/Domain/Users/Exports/ExportPhotoPlan.php
+    zmiana: `$this->rejected = 0;` i `$this->deleted = 0;` w miejscu zapytań.
+    dowód, że sabotaż wszedł w plik (grep po podmianie):
+        92:        $this->rejected = 0;
+        94:        $this->deleted = 0;
+    co znika: sama LICZBA. Widoki zostają nietknięte, więc obie gałęzie
+              milkną „od spodu", a `dane.json` melduje zero mimo zdjęć
+              w bazie. To jest inny sabotaż niż A — gdyby test trzymał
+              tylko tekst w Blade, tutaj przeszedłby.
+    test: EksportMowiOZdjeciachKtoreNieWejdaNigdyTest
+
+    ⨯ paczka mowi o zdjeciach odrzuconych i o tym ze nie dojda
+    ⨯ paczka mowi o zdjeciach skasowanych osobnym zdaniem
+    ✓ paczka z kompletem zdjec nie dostaje ostrzezenia o brakach
+    ⨯ trzy rodzaje brakow nie mieszaja sie ze soba
+    ⨯ liczebnik w zdaniu o brakach jest odmieniony po polsku
+    ✓ dane json opisuje regule bezwarunkowo takze przy zerze
+    ✓ zakres danych paczki nie rosnie o zdjecia ktore do niej nie weszly
+    Tests: 4 failed, 3 passed (55 assertions)
+
+
+--- SABOTAŻ C: sam index.blade.php cofnięty do stanu sprzed #692
+    plik: resources/views/exports/index.blade.php
+    po co: sprawdzenie, czy PRZEROBIONA asercja w starym teście naprawdę
+           coś trzyma. Do #692 stało tam
+           `assertStringNotContainsString('class="uwaga"', $index)`, czyli
+           asercja wyłącznie negatywna — przechodziła również wtedy, gdy
+           paczka o zdjęciu odrzuconym milczała zupełnie (pułapka 4).
+           Dziś w tym miejscu stoi kontrola dodatnia na zdanie „nie weszło
+           do tej paczki i nie wejdzie do żadnej następnej".
+    test: EksportMowiOZdjeciachWDrodzeTest
+
+    ✓ paczka ze zdjeciem w przygotowaniu mowi o nim wprost
+    ✓ paczka z kompletem zdjec nie straszy bez powodu
+    ✓ konto wylacznie ze zdjeciami w drodze nie slyszy ze nie ma zadnego
+    ✓ konto wylacznie z odrzuconym zdjeciem nie slyszy ze nie ma zadnego
+    ✓ konto bez zadnego zdjecia dalej dostaje zdanie o pustej paczce
+    ⨯ zdjecie odrzucone na dobre nie obiecuje ze dojdzie pozniej
+    ✓ liczebnik w ostrzezeniu jest odmieniony po polsku
+    Tests: 1 failed, 6 passed (69 assertions)
+
+    Komunikat oblania (dosłownie):
+        Paczka znów milczy o zdjęciu odrzuconym (issue #692).
+        To contain: 1 zdjęcie nie weszło do tej paczki i nie wejdzie do
+        żadnej następnej
+        at tests/Feature/EksportMowiOZdjeciachWDrodzeTest.php:328
+
+
+=== MD5 PO PRZYWRÓCENIU — identyczne z sekcją PRZED ===
+f3e419ce55c72c7f7f5ecfa2a89152b4  resources/views/exports/index.blade.php
+f26fc0a0dbadd38bc833f67ab7697145  resources/views/exports/readme.blade.php
+c298795f63a3701d0e0334dbea9f526f  app/Domain/Users/Exports/ExportPhotoPlan.php
+
+=== MD5 tych samych plików w worktree na dysku Windows (źródło commitu) ===
+f3e419ce55c72c7f7f5ecfa2a89152b4  resources/views/exports/index.blade.php
+f26fc0a0dbadd38bc833f67ab7697145  resources/views/exports/readme.blade.php
+c298795f63a3701d0e0334dbea9f526f  app/Domain/Users/Exports/ExportPhotoPlan.php
+    — czyli kopia wykonawcza w WSL i commitowany worktree to te same bajty,
+      a sabotaże nie zostawiły po sobie niczego.
+
+
+=== KONTROLA DODATNIA PO PRZYWRÓCENIU ===
+EksportMowiOZdjeciachKtoreNieWejdaNigdyTest + EksportMowiOZdjeciachWDrodzeTest
+    Tests: 14 passed (174 assertions)
+
+
+=== PEŁNY PRZEBIEG ===
+php artisan test (cały zestaw, bez grupy `dwa-polaczenia` — wyłączonej
+domyślnie w phpunit.xml zgodnie z D-105):
+    Tests: 4279 passed (82861 assertions)
+    Duration: 420.64s
+
+vendor/bin/pint --test        PASS, 1136 plików
+vendor/bin/phpstan analyse    [OK] No errors
+
+CZEGO TEN PRZEBIEG NIE OBEJMUJE
+  - grupy `dwa-polaczenia` (wyłączona domyślnie, D-105) — nie uruchamiana,
+  - oglądu w przeglądarce i wydruku (pakiet domknięty samym PHPUnitem),
+  - produkcji: nic nie było na niej sprawdzane ani zmieniane,
+  - `npm run build` — zmiana nie dotyka assetów.

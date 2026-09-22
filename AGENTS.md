@@ -88,7 +88,12 @@ Przeczytaj w tej kolejności:
    Połowa „dobrych pomysłów" jest tam już rozstrzygnięta wraz z uzasadnieniem;
 9. dokument dotyczący obszaru, który zmieniasz (`docs/` ma katalogi tematyczne).
 
-Jeśli pracujesz nad wyglądem: `docs/design/DESIGN_SYSTEM.md`.
+Jeśli pracujesz nad marką lub wyglądem: najpierw
+[`docs/brand/KONSTYTUCJA_MARKI.md`](docs/brand/KONSTYTUCJA_MARKI.md), potem
+`docs/brand/COPY_STYLE.md`, `docs/brand/GLOS_MARKI.md` oraz
+`docs/design/DESIGN_SYSTEM.md`. Konstytucja wyznacza kierunek marki;
+nie zastępuje nadrzędnych zasad tego pliku ani jawnych decyzji właściciela
+w `docs/DECISIONS.md`. Historyczna makieta nie unieważnia tych zasad.
 Jeśli nad moderacją lub prawem: `docs/legal/`.
 Jeśli nad wdrożeniem: `docs/infra/`.
 
@@ -100,16 +105,22 @@ Jeśli nad wdrożeniem: `docs/infra/`.
 |---|---|---|
 | Backend | Laravel 13 | `composer.json`: `laravel/framework` |
 | PHP | 8.4 (minimum frameworka: 8.3) | `composer.json`: `php` |
-| UI | Blade + Livewire 4 + Alpine.js | `composer.json`: `livewire/livewire` |
+| UI | Blade + Alpine.js; Livewire 4 w kreatorze przepisu | `composer.json`: `livewire/livewire` |
 | CSS | Tailwind CSS 4 (konfiguracja CSS-first, `@theme`, bez `tailwind.config.js`) | `package.json`: `tailwindcss`, `@tailwindcss/vite` |
-| Baza | PostgreSQL 18 (lokalnie i w CI wystarczy 16+) | usługa zewnętrzna |
+| Baza | PostgreSQL — wymagane **18+** lokalnie, w CI i na produkcji (D-227) | usługa zewnętrzna |
 | Kolejka | Laravel database queue | `composer.json`: `laravel/framework` |
 | Hosting | Railway | usługa zewnętrzna |
 | DNS / CDN / storage | Cloudflare + R2 | usługa zewnętrzna · `composer.json`: `league/flysystem-aws-s3-v3` |
-| Wyszukiwarka | PostgreSQL FTS + `pg_trgm` + `unaccent` | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php` |
+| Wyszukiwarka | PostgreSQL: `pg_trgm` (`word_similarity`, próg 0,5) + `unaccent` — dopasowanie trigramowe (D-004, D-046) | w repozytorium: `database/migrations/0001_01_01_000000_enable_postgres_extensions.php`, `app/Domain/Search/SearchQuery.php` |
 | Monitoring | dziennik serwera + kanał `blad_webhook` na Slack/Discord (D-041) | w repozytorium: `app/Logging/WebhookBleduHandler.php` |
 | Analityka | własna, serwerowa (`App\Domain\Analytics\*`) + Cloudflare Web Analytics (bez ciasteczek — D-092) | w repozytorium: `app/Domain/Analytics`, `app/Support/AnalitykaCloudflare.php` · usługa zewnętrzna |
 | Mobile | PWA | w repozytorium: `public/manifest.webmanifest` |
+
+Feed, wyszukiwanie, komentarze i „Ugotowałem” korzystają z kontrolerów
+i widoków Blade, z JavaScriptem jako ulepszeniem. Livewire obsługuje złożony
+formularz kreatora przepisu (`resources/views/components/recipe-wizard.blade.php`).
+Dodanie `wire:poll` do często odwiedzanych ekranów wymaga osobnej decyzji
+i pomiaru kosztu żądań; nie wynika z wyboru Livewire dla kreatora.
 
 ### Ta tabela opisuje STAN, nie zamiar — i trzecia kolumna jest sprawdzana testem (D-104)
 
@@ -468,9 +479,16 @@ Testy chodzą na **PostgreSQL**, nie na SQLite — schemat używa indeksów
 częściowych, `num_nonnulls()`, `gen_random_uuid()`, `pg_trgm` i `unaccent`.
 Test na SQLite przechodziłby, nic nie sprawdzając.
 
-```bash
-createdb kuking_test     # jednorazowo
-```
+I to na **PostgreSQL 18 lub nowszym** — tak samo lokalnie, w CI i na produkcji.
+Jeden próg dla wszystkich trzech, bo próg niższy od produkcyjnego przepuszcza
+lokalnie migracje, które w CI padają. Produkcja ma 18, CI stawia
+`postgres:18-alpine`, więc `php artisan test` na starszym majorze mierzy silnik,
+którego nigdzie nie używamy. Pilnuje tego `TestyChodzaNaPostgresieTest` —
+i pilnuje też tego, żeby ten akapit i próg w strażniku mówiły tę samą liczbę.
+
+Przed utworzeniem bazy ustal jej właściciela, host, port i nazwę.
+Użyj izolowanej bazy tego zadania i jawnych parametrów połączenia.
+Nie polegaj na domyślnym porcie ani nazwie w środowisku współdzielonym.
 
 **Jeśli pracujesz w worktree gita z dowiązanym `vendor`** — dodaj jawną ścieżkę
 bazową, inaczej Laravel załaduje trasy i klasy z głównego katalogu, a testy
@@ -480,105 +498,62 @@ będą fałszywie zielone:
 APP_BASE_PATH=$(pwd) php artisan test
 ```
 
-### Gdy `composer install` pada na „Could not authenticate against github.com"
+### Gdy instalacja zależności nie działa
 
-Dotyczy kontenerów agentów, w których ruch wychodzi przez proxy.
-`api.github.com` i `codeload.github.com` oddają wtedy **403**, więc Composer
-nie pobierze ani jednej paczki jako `dist` — a bez `vendor/autoload.php` nie
-ruszy ani `php artisan test`, ani `vendor/bin/pint`. Łatwo z tego wyciągnąć
-wniosek, że lokalnie nie da się nic sprawdzić, i zacząć wypychać każdą
-poprawkę na CI. **Da się**, i to jest ważne, bo pula minut Actions jest
-skończona.
+Najpierw uruchom zwykłe `composer install` i odczytaj rzeczywisty błąd.
+Historyczne kontenery agentów miały proxy odrzucające pobrania z GitHuba;
+nie jest to stała właściwość każdego środowiska. Sprawdź bieżący dostęp,
+wersję narzędzia i konfigurację, zanim uznasz instalację za niewykonalną.
 
-`git` przez to samo proxy **przechodzi**, więc paczki instalują się ze
-źródeł:
+Jeśli potwierdzisz blokadę pobrań `dist`, a dostęp przez git działa,
+możesz spróbować `composer install --prefer-source`. Nie zmieniaj globalnej
+konfiguracji Composera w środowisku współdzielonym. Ewentualną konfigurację
+obejścia ogranicz do izolowanej kopii lub osobnego katalogu COMPOSER_HOME.
 
-```bash
-composer install --prefer-source
-```
+Nie usuwaj zależności z manifestu ani locka, żeby uzyskać pozornie pełną
+instalację. Zachowaj dokładne wersje z composer.lock. Historycznie lokalną
+instalację PHPStan umożliwiło przygotowanie archiwum wskazanego commita
+w cache Composera; to opis zakończonej sesji, nie nakaz stosowania obejścia
+przy każdym uruchomieniu.
 
-Jeszcze pewniej działa to z jawnym wyłączeniem API GitHuba, bo inaczej
-Composer i tak próbuje najpierw `dist`:
-
-```bash
-composer config -g use-github-api false
-composer install --prefer-source
-```
-
-Blokuje to dokładnie jedna paczka: `phpstan/phpstan` nie ma w `composer.lock`
-wpisu `source` (to repozytorium dystrybucyjne, tylko `dist`), a klon lustrzany
-jej repozytorium przekracza limit czasu Composera.
-
-**Obejście doraźne** — wyjmij **na czas instalacji** `phpstan/phpstan`
-i `larastan/larastan` z `composer.json` i `composer.lock`, zainstaluj resztę,
-po czym **przywróć oba pliki z gita**:
-
-```bash
-git checkout composer.json composer.lock
-```
-
-`vendor/` zostaje sprawne, a repozytorium nietknięte. Kosztem jest brak
-analizy statycznej.
-
-> ### ⚠️ SPROSTOWANIE, 9 września 2026: Larastan CHODZI lokalnie
->
-> Ten akapit twierdził, że „**Larastan nie chodzi lokalnie**, więc analiza
-> statyczna zostaje po stronie CI". **Nieprawda** — i to nieprawda kosztowna,
-> bo każdy agent czytał ją jako zwolnienie z obowiązku i odhaczał analizę
-> statyczną jako niewykonalną.
->
-> Zmierzone tego dnia w kontenerze agenta: **`PHPStan 2.2.13`, poziom 1
-> z `phpstan.neon`, `0 errors`** na dwóch gałęziach niezależnie. Da się.
->
-> Trzeba tylko podłożyć tę jedną paczkę do cache Composera samodzielnie:
-> sklonuj `phpstan/phpstan` na płytko (`git fetch --depth 1`) na commicie
-> zablokowanym w `composer.lock`, spakuj w kształt zipballa GitHuba i wrzuć
-> do cache Composera **pod dwiema nazwami** — `<reference>.zip`
-> oraz `sha1(<adres dist>).zip`. Ta druga jest tą, której Composer faktycznie
-> szuka, i pominięcie jej jest powodem, dla którego „podłożenie do cache"
-> zwykle nie działa za pierwszym razem.
->
-> To jest zabieg na kilka minut, więc **nie jest wymówką**, żeby go pominąć:
-> jeśli piszesz w opisie PR-a, że analizy nie uruchomiłeś, napisz też
-> dlaczego — brak czasu jest uczciwym powodem, „nie da się" już nie jest.
->
-> CI zostaje **rozstrzygające**. Chodzi o to, żeby nie wypychać na nie
-> błędów, które łapie się lokalnie w trzydzieści sekund.
+Przed obejściem wymagającym modyfikacji plików zrób kopię ich aktualnych
+bajtów i czasu modyfikacji poza repo. Preferuj izolowaną kopię wykonawczą.
+Przywróć dokładnie zapisany stan i sprawdź MD5 oraz mtime; odtworzenie pliku
+z commita nie chroni cudzych niezapisanych zmian. Nie ogłaszaj narzędzia
+niedostępnym ani testu zaliczonym na podstawie historycznej notatki.
+CI pozostaje rozstrzygające, a brak wykonania kontroli musi być jawny.
 
 Czego nadal nie wolno robić: odhaczać w opisie Pull Requesta punktu, którego
 nie uruchomiłeś. To dotyczy każdego narzędzia, nie tylko tego.
 
-Po instalacji ustaw jeszcze klucz aplikacji, inaczej każdy test padnie na
-„No application encryption key has been specified":
+W nowej izolowanej instancji lokalnej sprawdź, czy istnieje klucz aplikacji.
+Generuj go tylko, gdy go brakuje; bez niego wystąpi błąd
+„No application encryption key has been specified”. Nie zmieniaj klucza
+istniejącej aplikacji produkcyjnej podczas przygotowania testów:
 
 ```bash
 php artisan key:generate
 ```
 
-### Przeglądarka w kontenerze agenta
+### Przeglądarka w środowisku agenta
 
-Chromium **nie przejdzie przez proxy sesji** do adresu zewnętrznego: tunel
-CONNECT staje, ale połączenie TLS zrywa się po kilku sekundach bez jednego
-bajta odpowiedzi. Dotyczy to każdego hosta, nie tylko kuking.pl, więc nie
-jest to usterka serwisu i nie ma sensu tego naprawiać w kodzie.
+Najpierw sprawdź aktualny dostęp do testowanej strony. W jednej z dawnych
+sesji Chromium przerywał TLS za proxy; w późniejszych sesjach produkcja
+była dostępna zarówno przez Chromium, jak i zalogowany Chrome. Historyczny
+błąd nie jest dowodem dzisiejszej blokady ani usterki aplikacji.
 
-Obejście: postaw instancję lokalnie i chodź po `127.0.0.1`, bo localhost
-jest poza proxy:
+Do fixture, formularzy i stanów wymagających danych testowych używaj
+izolowanej instancji lokalnej. Przed migracją lub seedowaniem odczytaj
+faktyczny host, port i nazwę bazy oraz upewnij się, że należą do tego testu.
+Nie zakładaj dostępności domyślnego portu PostgreSQL: może obsługiwać inne
+projekty. Współdzielone środowisko wymaga jawnie wybranej bazy i portu.
+Nie wykonuj testów niszczących fixture równolegle z oglądem używającym
+tej samej bazy lub mediów. Nie obchodź błędów TLS przez wyłączanie ochrony.
 
-```bash
-php artisan migrate && php artisan db:seed   # dane demo
-php artisan serve --host=127.0.0.1 --port=8000
-```
-
-W Playwrighcie **nie podawaj wtedy `proxy`**:
-
-```js
-chromium.launch({ executablePath: '/opt/pw-browsers/chromium', headless: true })
-```
-
-Instancja lokalna ma tę przewagę, że wolno się na niej zalogować i wysyłać
-formularze, więc widać także tę połowę produktu, która na produkcji jest za
-logowaniem. Hasła do kont demo wypisuje `DemoSeeder`.
+Raportuj oddzielnie odczyt kodu, pomiary lokalne i ogląd produkcji.
+Brak dostępu do zalogowanej produkcji jest ograniczeniem, nie wynikiem
+pozytywnym; odpowiednie stany można sprawdzić lokalnie, bez zmiany danych
+użytkowników produkcyjnych.
 
 ### Pull Request zawiera
 

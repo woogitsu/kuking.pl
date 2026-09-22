@@ -95,7 +95,10 @@ W tle (`ProcessUploadedImage`, lista w `config/kuking.php`,
 - feed 960 px;
 - large 1600 px.
 
-WebP/AVIF, z fallbackiem zgodnym z support matrix.
+Wszystkie trzy warianty są kodowane do WebP z jakością 82
+(`ProcessUploadedImage::handle()`, `toWebp(quality: 82)`). AVIF jest
+obsługiwanym formatem wejściowym, ale pipeline nie generuje wariantów AVIF
+ani zestawu alternatywnych formatów wyjściowych.
 
 ### `podglad` — 640 px, robiony SYNCHRONICZNIE (issue #430)
 
@@ -144,6 +147,18 @@ Po przetworzeniu podgląd zostaje w `srcset` jako kandydat między `thumb`
 (320) a `feed` (960) — zmierzone: telefon 320 px pobiera dzięki temu 66,8 kB
 zamiast 178,6 kB.
 
+Ten sam uchwyt jest potrzebny wariantom, które **dopiero powstają** (#601).
+`metadata.variants` zapisuje się dopiero z ostatnim wariantem, razem ze
+statusem `ready`, a `put()` idą do bucketu jeden po drugim — więc zadanie
+przerwane w połowie (wyjątek albo `$timeout`, który ubija proces sygnałem,
+bez `catch`) zostawiało pliki, których `KasujZdjecie` nie umiało nazwać.
+Dlatego job zapisuje policzone z góry klucze wariantów **przed pętlą**, pod
+`Media::METADANE_WARIANTY_W_TRAKCIE`, i `KasujZdjecie` sprząta także tę
+listę; po sukcesie lista znika. Lista jest osobna od `variants`, bo
+`wariantDoSerwowania()` pokazałaby po niej zdjęcie pod nazwą wariantu,
+którego plik może jeszcze nie istnieć. Pilnuje tego
+`tests/Feature/PrzerwanePrzetwarzanieNieZostawiaSierotyTest.php`.
+
 ### Co wolno pokazać
 
 Bramką widoków **nie jest status wiersza**, tylko istnienie wariantu:
@@ -166,7 +181,7 @@ MediaController
         ↓
 DostepDoZdjecia  →  Policy treści NADRZĘDNEJ (Recipe/Post/CookedEvent/Profile/RecipeStep)
         ↓
-302 → https://<bucket>/media/...?X-Amz-Signature=...   (ważne 5 minut)
+302 → https://<bucket>/media/...?X-Amz-Signature=...   (do 5 minut; publiczne do 60)
 ```
 
 **Bajty nie idą przez PHP.** Przez PHP idzie wyłącznie decyzja.
@@ -227,14 +242,18 @@ siedzi jeszcze lokalizacja GPS kuchni.
 
 | kiedy | `Cache-Control` |
 |---|---|
-| zdjęcie widoczne dla niezalogowanego | `public, max-age=300` |
+| zdjęcie publiczne, odczyt bez Cookie/Authorization i bez logowania | `public, max-age=1800` |
 | wszystko inne, razem z odmową | `private, no-store` |
 
 Wspólny cache wolno dopuścić wyłącznie dla odpowiedzi, która jest taka sama
 dla każdego — czyli dla zdjęcia, które i tak zobaczyłby ktoś bez konta.
-`max-age` równa się ważności podpisu (`kuking.media.signed_url_minutes`), bo
-jest górnym ograniczeniem na to, jak długo przełączenie przepisu na prywatny
-może nie dojść do skutku.
+`max-age` wynosi połowę ważności podpisu. Decyzja właściciela z 20.09.2026
+(#597): podpis zdjęcia publicznego trwa do 60 minut
+(`kuking.media.public_signed_url_minutes`), chronionego do 5 minut
+(`kuking.media.signed_url_minutes`). Odpowiedź zalogowanego zawsze ma
+`private, no-store`, także przy publicznym zdjęciu. Podpis sprzed zmiany
+widoczności nie jest unieważniany; z cache bajtów okno może sięgnąć 90 minut.
+Kontrola, reguły i granice pomiaru: `docs/infra/CLOUDFLARE_CACHE_597_610.md`.
 
 **Ten nagłówek chroni SAM ADRES, nie treść, do której on prowadzi — chyba że
 adres niesie tę regułę dalej (audyt zewnętrzny N02).** Nagłówek `Cache-Control`
@@ -323,10 +342,20 @@ kont. Jest idempotentne — czyszczenie adresu, którego w cache nie ma, to
 poprawna operacja bez skutku.
 
 Brak konfiguracji (`CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN`) wyłącza
-czyszczenie, ale **głośno**, wpisem w logu. Ciche wyłączenie wygląda dokładnie
-tak samo jak czyszczenie, które działa. Po wyczerpaniu prób w logu zostają
-konkretne adresy — bez nich nie da się tego dokończyć ręcznie, a przy wymazaniu
-konta ktoś dokończyć musi.
+czyszczenie. Ciche wyłączenie wygląda dokładnie tak samo jak czyszczenie, które
+działa — dlatego **głośne miejsce to `/health`, a nie log zadania**. Sam
+`Log::warning` z `PurgePublicMediaCache` do nikogo nie dociera: zadanie kończy
+się sukcesem (nie ma go w `failed_jobs`), a kanał alarmowy `blad_webhook` ma
+w `config/logging.php` poziom `error` ustawiony na sztywno i ostrzeżeń nie
+przyjmuje. Sygnałem, który dociera, jest sonda `cdn`
+(`HealthController::sprawdzCzyszczenieCdn()`): na produkcji z pustą
+konfiguracją `/health` oddaje `degraded` z powodem `czyszczenie_cdn_wylaczone`
+i dzwoni na webhook z odstępem. Świadomie **nie** jest to porażka zadania —
+kasowanie zdjęcia nie ma prawa się nie udać dlatego, że nie ma czym wyczyścić
+cudzego cache'u. Pilnuje tego `SondaCzyszczeniaCacheCdnTest`, z kontrolą
+dodatnią i ujemną. Po wyczerpaniu prób w logu zostają konkretne adresy — bez
+nich nie da się tego dokończyć ręcznie, a przy wymazaniu konta ktoś dokończyć
+musi.
 
 ## Storage
 

@@ -1,43 +1,31 @@
 @props(['pozycje'])
 
-{{--
-    „Ostatnio odłożone" — prawa szyna ekranu „Moje" (`/zeszyt`, issue #205).
-
-    DLACZEGO AKURAT TO
-    Główna kolumna wypisuje ZESZYTY, a człowiek przychodzi tu po jedną
-    konkretną rzecz: „gdzie jest to, co zapisałam wczoraj". Bez tej listy
-    trzeba najpierw sobie przypomnieć, do którego zeszytu to poszło.
-    To jest jedyna rzecz na tym ekranie, której w głównej kolumnie nie ma —
-    powtórzenie listy zeszytów byłoby wypełniaczem.
-
-    Kolejność liczy `CollectionController::ostatnioZapisane()` po CZASIE
-    ODŁOŻENIA, nie po dacie publikacji, i przez ten sam filtr widoczności,
-    którym idzie strona zeszytu.
-
-    PUSTO ZNACZY PUSTO. Osoba, która nic jeszcze nie odłożyła, nie dostaje
-    tu żadnego bloku — w głównej kolumnie stoi wtedy pusty stan z jednym
-    wyjściem („Poszukaj przepisów") i druga zachęta obok tylko by go osłabiła.
---}}
-
+{{-- Historyczna nazwa komponentu pochodzi z prawej szyny (issue #205).
+     Od D-211 ostatnie zapisy stoją w głównej treści zeszytu. Kontroler
+     nadal wybiera je po czasie odłożenia i filtruje według widoczności.
+     Brak danych nie tworzy pustego bloku ani przykładowych pozycji. --}}
 @if($pozycje->isNotEmpty())
-    <x-szyna-blok tytul="Ostatnio odłożone" id="szyna-ostatnio-zapisane" ikona="save">
-        <ul class="szyna-lista">
+    <section class="marka-zeszyt-ostatnie" aria-labelledby="szyna-ostatnio-zapisane">
+        <h2 id="szyna-ostatnio-zapisane">Ostatnio odłożone</h2>
+        <ul class="marka-zeszyt-zapisy">
             @foreach($pozycje as $pozycja)
-                <li class="szyna-pozycja">
-                    <a class="szyna-pozycja-link" href="{{ $pozycja['href'] }}">
-                        {{-- `alt=""`: nazwa i podpis obok niosą całą treść
-                             odnośnika, więc opis zdjęcia byłby dla czytnika
-                             ekranu drugim przeczytaniem tego samego. --}}
-                        <span class="szyna-miniatura">
-                            <x-photo :media="$pozycja['media']" variant="thumb" :zoom="false" sizes="72px" alt="" />
-                        </span>
-                        <span class="min-w-0">
-                            <span class="szyna-nazwa">{{ $pozycja['nazwa'] }}</span>
-                            <span class="meta szyna-podpis">{{ $pozycja['podpis'] }}</span>
-                        </span>
-                    </a>
+                <li class="card marka-zeszyt-zapis">
+                    @if($pozycja['media'])
+                    <div class="marka-zeszyt-miniatura">
+                        <x-photo :media="$pozycja['media']" variant="feed" :zoom="false"
+                                 sizes="(min-width: 768px) 220px, 100vw" alt="" />
+                    </div>
+                    @endif
+                    <div class="min-w-0">
+                        {{-- Fokus obejmuje krótką akcję; pseudo-element rozszerza
+                             kliknięcie na zdjęcie i pozostały obszar karty. --}}
+                        <h3 class="m-0">{{ $pozycja['nazwa'] }}</h3>
+                        <p class="meta mb-0">{{ $pozycja['podpis'] }}</p>
+                        <a class="marka-zeszyt-zapis-link" href="{{ $pozycja['href'] }}"
+                           aria-label="Zobacz: {{ $pozycja['nazwa'] }}">Zobacz</a>
+                    </div>
                 </li>
             @endforeach
         </ul>
-    </x-szyna-blok>
+    </section>
 @endif

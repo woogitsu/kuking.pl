@@ -324,11 +324,10 @@ class KazdeWejscieDoDodawaniaPokazujeObieMozliwosciTest extends TestCase
             // --- osiem drzwi do „Zdjęcie i kilka słów” --------------------
             'home-composer' => [
                 $this->zalogujIWezAdres(fn () => route('home')),
-                'Dodaj zdjęcie tego, co ugotowałeś',
-                null,
-                // Kafel obejmuje nagłówek RAZEM z podpisem („Nie musi być
-                // ładne — ma być prawdziwe"), więc tekst odnośnika jest
-                // dłuższy niż sama nazwa akcji.
+                'Co dziś gotujesz?',
+                'composer',
+                // Pytanie razem z podpisem należy do jednego odnośnika.
+                // Klasa composer odróżnia go od pozostałych wejść do publikacji.
                 true,
             ],
             'home-pusty-stan' => [

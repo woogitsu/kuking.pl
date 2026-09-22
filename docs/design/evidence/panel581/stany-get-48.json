@@ -1,0 +1,630 @@
+{
+  "scope": "GET, geometria i rastry; bez Tab, zoom i POST",
+  "blocked": [],
+  "rows": [
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 320,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 320,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 320,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 320,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 320,
+        "scroll": 320,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 1440,
+      "theme": "light",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 1440,
+      "theme": "light",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(21, 23, 20)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 100,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 18,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/zgloszenia?status=resolved",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/zgloszenia?status=open",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/odwolania?status=upheld",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 0
+    },
+    {
+      "path": "/admin/odwolania?status=open",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-765f-739b-994f-562348635038",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 1
+    },
+    {
+      "path": "/admin/wiadomosci/01a0a68f-766d-727d-9ddc-6673de4592a0",
+      "width": 1440,
+      "theme": "dark",
+      "scale": 140,
+      "geometry": {
+        "width": 1440,
+        "scroll": 1440,
+        "font": 25.2,
+        "color": "rgb(244, 245, 241)"
+      },
+      "forms": 2
+    }
+  ]
+}

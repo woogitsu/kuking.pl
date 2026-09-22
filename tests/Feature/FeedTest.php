@@ -66,18 +66,11 @@ class FeedTest extends TestCase
         // ekran 01) — czyli stoi tam, gdzie się go używa. Test pyta więc
         // o zakładkę, a nie o dawną nazwę pozycji w menu.
         //
-        // Zakładka nazywała się „Odkrywaj" do issue #38. To słowo jest na
-        // liście zakazanych (`docs/brand/BRAND_EXTENDED.md` §2.1 — „Explore"
-        // po polsku; `COPY_STYLE.md` §5 wymienia je wśród nazw odrzuconych),
-        // więc test pilnuje teraz OBU rzeczy naraz: że zakładka istnieje pod
-        // nową nazwą i że stara nie wróciła. Sam `assertSee('Świeżo
-        // z Kuking')` by nie wystarczył — ta nazwa pada na tym ekranie także
-        // w pustej tablicy dnia, więc przechodziłby przy skasowanej zakładce.
+        // D-207: desktop ma Odkrywaj; ponizszy test nadal sprawdza osobna zakladke feedu.
         $odpowiedz = $this->actingAs($nowy)
             ->get(route('home'))
             ->assertOk()
-            ->assertDontSee('Odkrywaj')
-            ->assertSee('na dziś')
+            ->assertSee('Co dobrego u innych?')
             ->assertSee('Tu nie ma rankingu. Pokazujemy różne osoby, nie najlepsze.');
 
         // Nazwa serwisu w etykiecie zakładki jest zapisana dwukolorowo

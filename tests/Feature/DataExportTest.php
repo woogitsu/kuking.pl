@@ -57,6 +57,16 @@ class DataExportTest extends TestCase
     // Budowanie paczki
     // -----------------------------------------------------------------
 
+    public function test_paczka_zawiera_decyzje_o_instalacji_wlasnego_konta(): void
+    {
+        $basia = $this->user('basia', ['pwa_prompt_state' => 'dismissed']);
+        $this->user('marek', ['pwa_prompt_state' => 'installed']);
+
+        $data = $this->jsonFromArchive($this->runExportFor($basia));
+
+        $this->assertSame('dismissed', $data['konto']['stan_zachety_instalacji']);
+    }
+
     public function test_job_tworzy_plik_i_ustawia_status_rozmiar_i_termin_waznosci(): void
     {
         $basia = $this->user('basia', ['display_name' => 'Basia']);
@@ -807,7 +817,11 @@ class DataExportTest extends TestCase
 
         // I mówi wprost, dlaczego go nie ma — pusta sekcja bez wyjaśnienia
         // wygląda jak brakująca część paczki.
-        $this->assertStringContainsString('Nie masz jeszcze w Kuking żadnego zdjęcia', $index);
+        //
+        // Zdanie opisuje PACZKĘ, nie konto: ta sama gałąź obsługuje konto
+        // z samymi zdjęciami odrzuconymi, któremu „nie masz żadnego zdjęcia"
+        // mówiłoby nieprawdę (`EksportMowiOZdjeciachWDrodzeTest`).
+        $this->assertStringContainsString('W tej paczce nie ma żadnego zdjęcia', $index);
 
         $zip->close();
     }

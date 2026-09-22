@@ -87,7 +87,7 @@ class ProfileSettingsController extends Controller
         ], [
             'display_name.required' => 'Podaj imię, którym mamy Cię nazywać.',
             'display_name.min' => 'To imię jest za krótkie. Wpisz co najmniej dwie litery — na przykład „Basia”.',
-            'display_name.max' => 'To imię jest za długie. Zmieść się w 100 znakach.',
+            'display_name.max' => 'To imię jest za długie. Zmieść się w :max znakach.',
             /*
              * `username.required` DOPISANE PRZY PRZEGLĄDZIE KOMUNIKATÓW.
              *

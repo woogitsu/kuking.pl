@@ -32,10 +32,10 @@
             @endif
         </p>
         <p>
-            Jeśli połączysz to konto z Facebookiem, od następnego razu wejdziesz tu jednym
-            kliknięciem — bez wpisywania hasła. <strong>Twoje hasło zostanie takie, jakie
-            było, i nadal będzie działać.</strong> Nic w Twoim profilu, przepisach ani
-            zeszytach się nie zmieni.
+            Po połączeniu kont możesz korzystać z przycisku „Wejdź kontem Facebooka”.
+            Facebook może poprosić o potwierdzenie. <strong>Twoje dotychczasowe hasło
+            nadal będzie działać.</strong> Nic w Twoim profilu, przepisach ani zeszytach
+            się nie zmieni.
         </p>
         <p>
             Nie bierzemy z Facebooka zdjęcia, listy znajomych ani niczego o tym, co tam

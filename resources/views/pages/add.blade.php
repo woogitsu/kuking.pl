@@ -55,6 +55,7 @@
                     </li>
                 @endforeach
             </ul>
+            <p class="mb-0"><a class="btn btn-secondary" href="{{ route('recipes.drafts') }}">Wszystkie szkice</a></p>
         </div>
     @endif
 
@@ -72,5 +73,11 @@
             <h2 class="mt-0">Cały przepis</h2>
             <p class="mb-0">Składniki i przygotowanie, żeby ktoś inny mógł to u siebie zrobić. Możesz zapisać szkic i wrócić później.</p>
         </a>
+        @if(config('kuking.questions.enabled'))
+            <a class="kafel-akcji" href="{{ route('questions.create') }}">
+                <h2 class="mt-0">Zadaj pytanie</h2>
+                <p class="mb-0">Poradźcie — ktoś to już robił i chętnie powie, jak.</p>
+            </a>
+        @endif
     </div>
 </x-layout>

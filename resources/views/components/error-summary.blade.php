@@ -15,18 +15,18 @@
     `old('_wiersz')` jest wtedy puste i dopisek znika.
 --}}
 @php
-    $wierszSufiks = old(\App\Support\WierszFormularza::POLE) !== null
-        ? '-'.str_replace(['[', ']', '.'], '-', (string) old(\App\Support\WierszFormularza::POLE))
+    // `aktywnyWiersz()` odrzuca `_wiersz` przesłane jako tablica/obiekt
+    // zamiast rzutować je wprost na string — inaczej ten sam błąd renderu
+    // co w x-field (issue #745), tyle że tu, w podsumowaniu błędów.
+    $aktywnyWiersz = \App\Support\WierszFormularza::aktywnyWiersz();
+    $wierszSufiks = $aktywnyWiersz !== null
+        ? '-'.str_replace(['[', ']', '.'], '-', $aktywnyWiersz)
         : '';
 @endphp
 @if($errors->any())
     <div class="error-summary" role="alert" tabindex="-1">
         <p class="error-summary-title">
-            @if($errors->count() === 1)
-                Jednej rzeczy jeszcze brakuje
-            @else
-                Kilku rzeczy jeszcze brakuje
-            @endif
+            Sprawdź formularz
         </p>
         <ul>
             @foreach($errors->keys() as $key)

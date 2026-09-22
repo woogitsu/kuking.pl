@@ -1,5 +1,6 @@
 @php $p = $profile; @endphp
 <x-layout
+    :szynaWTresci="true"
     :title="$p->display_name.' (@'.$p->username.')'"
     :description="$p->bio ?: $p->display_name.' gotuje w Kuking.'"
     :noindex="$stats['posts'] === 0 && $stats['recipes'] === 0"
@@ -28,35 +29,10 @@
         @endif
     </x-slot:head>
 
-    {{--
-        PRAWA SZYNA (issue #205). Treść i uzasadnienie: `szyna-profilu`.
-
-        Slot stoi TUTAJ, na górze pliku, a mimo to w gotowym dokumencie
-        `<aside class="app-rail">` renderuje się PO `<main>` — Blade wstawia
-        zawartość slotu tam, gdzie ten slot stoi w LAYOUCIE. Kolejność `Tab`
-        i czytnika ekranu się więc nie zmienia (ten sam mechanizm co przy
-        spisie ustawień, #209), i dlatego nie ma tu żadnego CSS-owego `order`.
-    --}}
-    <x-slot:rail>
-        <x-szyna-profilu
-            :profile="$p"
-            :isOwner="$isOwner"
-            :zeszyty="$zeszytySzyny"
-            :tagi="$tagiSzyny"
-            :stats="$stats" />
-    </x-slot:rail>
-
     {{-- Głowka profilu to rama ekranu, nie karta treści: pod nią stoi strumień
          wpisów, przepisów i wykonań, i to one mają się unosić. --}}
-    <header class="sekcja-strony mb-6 marka-profil {{ $isOwner ? 'blok-ciemny' : '' }}">
-        {{--
-            UKŁAD Z KITU (UI kit v2, ekran 04): awatar i kolumna z imieniem
-            razem, LICZNIKI POD OPISEM — nie osobnym pełnoszerokim wierszem
-            pod całym nagłówkiem, jak dawniej. `.profil-glowka-tresc`
-            w ekran-profilu.css robi z tego siatkę (awatar | treść) i wraca
-            do jednej kolumny poniżej `--breakpoint-md`, żeby przy 320 px
-            awatar nie ściskał opisu do wąskiego paska tekstu.
-        --}}
+    <header class="sekcja-strony mb-6 marka-profil marka-profil-kompozycja blok-ciemny">
+
         <div class="profil-glowka-tresc">
             {{--
                 WŁASNY AWATAR JEST ODNOŚNIKIEM DO USTAWIENIA ZDJĘCIA.
@@ -80,16 +56,10 @@
                 zdjęciem potrawy. Dwa podobnie brzmiące „dodaj zdjęcie" jeden
                 pod drugim byłyby gorsze niż dłuższa nazwa.
 
-                ROZMIAR 128 px, NIE 88: na profilu awatar jest zdjęciem
-                CZŁOWIEKA, o którym jest cała strona, a nie znaczkiem przy
-                cudzym wpisie — i miejsce na niego jest, bo kolumna awatara
-                i tak musi pomieścić przycisk pod nim. Prośba właściciela
-                brzmiała dosłownie: „zdjęcie profilowe może brać więcej
-                miejsca, bo jest na to miejsce".
             --}}
             @if($isOwner)
                 <a class="profil-awatar-zmiana" href="{{ route('settings.avatar') }}">
-                    <x-avatar :user="$owner" :size="128" />
+                    <x-avatar :user="$owner" :size="170" />
                     {{--
                         PODPIS WYGLĄDA JAK AKCJA, BO JEST AKCJĄ.
 
@@ -118,7 +88,7 @@
                     </span>
                 </a>
             @else
-                <x-avatar :user="$owner" :size="128" />
+                <x-avatar :user="$owner" :size="170" />
             @endif
             <div class="min-w-0">
                 {{--
@@ -176,44 +146,8 @@
                     <p class="whitespace-pre-line mb-4">{{ $p->bio }}</p>
                 @endif
 
-                {{--
-                    LICZNIKI: PIĘĆ RÓWNYCH WIERSZY, NIE RZĄD ZAWIJANY DO
-                    KOŃCA WIERSZA.
 
-                    Do tej zmiany było tu pięć pozycji w kontenerze
-                    `flex-wrap`, więc szerokość każdej brała się z długości
-                    podpisu, a wiersze wychodziły „3 + 2" albo „2 + 3"
-                    zależnie od okna i skali tekstu. Właściciel nazwał to
-                    wprost: nieczytelne i niesymetryczne.
 
-                    Teraz każdy licznik to jeden wiersz „liczba + odmieniony
-                    podpis" („2 wpisy"), wszystkie zaczynają się w tej samej
-                    linii i mają tę samą wysokość. Dlaczego JEDNA kolumna,
-                    a nie dwie — z pomiarem szerokości tej karty: komentarz
-                    przy `.profil-liczniki` w `ekran-profilu.css`.
-
-                    Kolejność w HTML zostaje ta sama co dawniej, bo to ona
-                    decyduje o kolejności czytania i `Tab`.
-
-                    TEN EGZEMPLARZ JEST WERSJĄ WĄSKIEGO EKRANU (D-091).
-                    Od 80rem u zalogowanego znika, bo te same liczby stoją
-                    wtedy w prawej szynie (`x-szyna-profilu`) — dzięki temu
-                    karta jest o pięć wierszy krótsza i pierwszy wpis wjeżdża
-                    wyżej. Poniżej 80rem oraz u GOŚCIA widać dokładnie ten
-                    egzemplarz. U gościa NIE dlatego, że nie ma prawej
-                    kolumny — od D-122 na tym ekranie ją ma — tylko dlatego,
-                    że bloku z liczbami w szynie w ogóle mu nie wysyłamy
-                    (`@auth` w `x-szyna-profilu`), więc nie ma czym zastąpić
-                    tego egzemplarza. Para reguł, która o tym decyduje, stoi
-                    przy `.profil-liczby-*` w `ekran-profilu.css`; dlaczego
-                    dwa egzemplarze zamiast jednego przestawianego —
-                    w `x-liczby-profilu`.
-
-                    §12: to są liczby o WŁASNEJ treści tej osoby, bez
-                    porównania z kimkolwiek. Nie ma tu miejsca w tabeli,
-                    nie ma „więcej niż 80% kuKINGów" i nie będzie.
-                --}}
-                <x-liczby-profilu :stats="$stats" :username="$p->username" wariant="karta" />
             </div>
         </div>
 
@@ -292,18 +226,36 @@
                 @if($isFollowing)
                     <form method="POST" action="{{ route('social.unfollow', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- Ta sama ochrona co przy blokadzie niżej (#793):
+                             nazwa w adresie mogła między wyrenderowaniem tej
+                             strony a kliknięciem trafić do kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                     </form>
-                @else
+                @elseif($owner->isActive())
                     <form method="POST" action="{{ route('social.follow', $p->username) }}">
                         @csrf
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-primary" type="submit">Obserwuj</button>
                     </form>
+                @else
+                    {{-- #780: konto zawieszone przechodzi `jestWidocznyJakoOsoba()`
+                         (zawieszenie jest tymczasowe, karta osoby ma zostać),
+                         ale `UserPolicy::follow()` wymaga `isActive()` i zawsze
+                         odmawia. Przycisk „Obserwuj", który zawsze kończy się
+                         błędem, jest martwym przyciskiem (D-053) — widok
+                         i Policy mówiłyby co innego, a człowiek dowiadywałby
+                         się dopiero po kliknięciu. --}}
+                    <p class="mb-0">To konto jest teraz zawieszone. Nie można go obserwować, dopóki zawieszenie nie zostanie zdjęte.</p>
                 @endif
                 <a class="btn btn-quiet" href="{{ route('reports.create', ['type' => 'user', 'id' => $p->username]) }}">Zgłoś</a>
                 @if($hasBlocked)
                     <form method="POST" action="{{ route('social.unblock', $p->username) }}">
                         @csrf @method('DELETE')
+                        {{-- #793: nazwa użytkownika w adresie mogła między
+                             wyrenderowaniem strony a kliknięciem trafić do
+                             kogoś innego. --}}
+                        <input type="hidden" name="oczekiwany_id" value="{{ $owner->getKey() }}">
                         <button class="btn btn-quiet" type="submit">Zdejmij blokadę</button>
                     </form>
                 @else
@@ -311,7 +263,8 @@
                         :action="route('social.block', $p->username)"
                         method="POST"
                         label="Zablokuj"
-                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'" />
+                        :question="'Zablokować '.$p->display_name.'? Nie zobaczycie już wzajemnie swoich treści.'"
+                        :fields="['oczekiwany_id' => $owner->getKey()]" />
                 @endif
             @else
                 <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby obserwować</a>
@@ -319,6 +272,13 @@
         </div>
     </header>
 
+    <div class="marka-profil-statystyki">
+        <x-liczby-profilu :stats="$stats" :username="$p->username" />
+    </div>
+
+    @php $maSzyneProfilu = $isOwner || $zeszytySzyny->isNotEmpty() || $tagiSzyny->isNotEmpty() || $zdjeciaSzyny->isNotEmpty(); @endphp
+    <div class="marka-profil-dol {{ $maSzyneProfilu ? 'marka-profil-dol-z-szyna' : '' }}">
+    <div class="marka-profil-archiwum">
     <nav class="tabs" aria-label="Zakładki profilu">
         <a class="tab" href="{{ route('profile.show', $p->username) }}" @if($tab === 'wszystko') aria-current="page" @endif>Wszystko</a>
         <a class="tab" href="{{ route('profile.show', ['username' => $p->username, 'zakladka' => 'przepisy']) }}" @if($tab === 'przepisy') aria-current="page" @endif>Przepisy</a>
@@ -404,4 +364,12 @@
             <x-show-more :paginator="$cookedEvents" czego="wykonań" />
         @endif
     @endif
+    </div>
+    @if($maSzyneProfilu)
+        <aside class="marka-profil-szyna" aria-label="Skróty i podpowiedzi profilu">
+            <x-szyna-profilu :profile="$p" :isOwner="$isOwner" :zeszyty="$zeszytySzyny" :zdjecia="$zdjeciaSzyny"
+                :tagi="$tagiSzyny" :stats="$stats" />
+        </aside>
+    @endif
+    </div>
 </x-layout>

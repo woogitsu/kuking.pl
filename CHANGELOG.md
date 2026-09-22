@@ -1,5 +1,333 @@
 # Co się zmieniło w Kuking
 
+## Alfa 0.68 — minutnik przy gotowaniu i formularze, które nie gubią wpisanego tekstu
+
+- Formularze ze zdjęciami przestały gubić to, co już wpisaliście. Wcześniej jedno źle wypełnione pole potrafiło zabrać całą resztę formularza razem z poprawnie wypełnionymi polami — teraz błąd zostaje przy swoim polu, a Wasz tekst czeka na miejscu. Podsumowanie błędów w kreatorze przepisu prowadzi do kroku, na którym to pole naprawdę jest.
+- Postęp w trybie gotowania przeżywa poprawkę przepisu. Do tej pory każdy zapis przepisu po cichu odznaczał wszystkie odhaczone kroki, nawet gdy ich treść się nie zmieniła.
+- Przy kroku przepisu jest minutnik, a ekran nie gaśnie, gdy gotujecie. Minutnik odlicza rzeczywisty czas — zmiana godziny w telefonie już go nie skróci ani nie przedłuży.
+- Powiększone zdjęcie pokazuje swój opis. Gdy się nie wczyta, zamiast pustego miejsca pojawia się krótka informacja i przycisk „Spróbuj ponownie”.
+- Wpis da się wyjąć z zeszytu. Karta wpisu ma przycisk „Usuń z zeszytu” obok odnośnika „Masz to w zeszycie”, a po kliknięciu od razu można zapisać ponownie.
+- Stopka, okruszki nad przepisem i filtr na stronie pytań mają większe pismo i większe pola do kliknięcia — takie same, jakich wymagamy na pozostałych ekranach.
+- Wyszukiwarka czyta frazę dosłownie: „100%” szuka teraz „100%”, a nie wszystkiego, co zawiera „100”. Wklejony adres z polskimi znakami staje się działającym odnośnikiem, a nie zwykłym tekstem.
+- Pod komentarzem widać, ile znaków jeszcze zostało. Powiadomienie o komentarzu prowadzi wprost do właściwego wątku, a z komentarza usuniętego mimo odpowiedzi nie wystaje już jego dawna treść — ani w powiadomieniu, ani w pobranych danych konta.
+- Ekran odwołania dla osoby zgłaszającej mówi, co się stało ze zgłoszoną treścią, ale nie ujawnia, jaką karę dostał jej autor. Potwierdzenie zgłoszenia i odwołanie po terminie przestały obiecywać rzeczy, które się nie wydarzą.
+- „Zablokuj” i „Zdejmij blokadę” trafiają w tę osobę, którą widzieliście na ekranie. Jeśli w międzyczasie zmieniła nazwę użytkownika, serwis odmawia i mówi o tym po polsku, zamiast po cichu zablokować kogoś innego.
+- Odwołanie i cofnięcie usunięcia konta są chronione przed zgadywaniem hasła tak samo jak logowanie. Komunikat po zablokowaniu podpowiada logowanie linkiem z poczty, a udana zmiana hasła blokadę zdejmuje.
+
+## Alfa 0.67 — tagi ze zdjęciami z Waszych kuchni
+
+- Wszystkie tagi mają większe kafelki, a katalog wykorzystuje szerokość ekranu komputera.
+- Kafel pokazuje dostępne publiczne zdjęcie wpisu i jego autora. Gdy zdjęcia brakuje, pozostaje czytelna nazwa, licznik wpisów i znak Kuking.
+- Kontrola przed wysłaniem zmian (`scripts/check.sh`) umie puścić baterię testów na kilku rdzeniach — `KUKING_TESTY_ROWNOLEGLE=6` skróciło ją z 310 do 105 sekund przy tych samych 4402 testach. Domyślnie nadal chodzi szeregowo: w pomiarze z 21 września równoległy przebieg wykonał jedną asercję mniej (83721 wobec 83722) i przyczyna pozostaje niewyjaśniona, więc zrównoleglenie jest świadomym wyborem, a nie zachowaniem domyślnym. Nic z tego nie zmienia działania serwisu.
+
+## Alfa 0.66 — porządek w rozmowach i przygotowanie Poradźcie
+
+- Przy błędzie odpowiedzi lub poprawki komentarza formularz zachowuje tekst i wskazuje właściwe pole.
+- Przygotowaliśmy „Poradźcie”: pytania o gotowanie, odpowiedzi i kolejkę dla gospodarza. Dział pozostaje wyłączony do zakończenia odbioru i stopniowego uruchomienia.
+- Usunięta odpowiedź z dalszą rozmową pozostawia miejsce dla tej rozmowy, ale nie zwiększa liczby odpowiedzi na pytanie.
+
+## Alfa 0.65 — odnośniki prowadzą tam, gdzie obiecują
+
+- „Poszukaj przepisów” w pustym zeszycie otwiera wyszukiwarkę przepisów. Odnośnik nad przepisem prowadzący do tablicy wpisów ma teraz zgodną z nią nazwę „Świeżo z Kuking”.
+
+## Alfa 0.64 — wykonania i odpowiedzi liczone uczciwie
+
+- Przy przepisie liczba wykonań obejmuje także kolejne gotowania tej samej osoby. Podpisy mówią teraz o wykonaniach i odpowiedziach, zamiast przedstawiać je jako liczbę osób.
+
+## Alfa 0.63 — zobacz, co gotują inni pod tym tagiem
+
+- Strony tagów pokazują kolaż najnowszych publicznych zdjęć od różnych osób. Zdjęcie prowadzi do wpisu, a przycisk dodawania otwiera formularz z wybranym tagiem.
+- Promowane tagi mają karty ze zdjęciami i krótkim zaproszeniem. Pozostałe tagi nadal znajdziesz na liście alfabetycznej.
+
+## Alfa 0.62 — zdjęcia i osoby przy tagach
+
+- Przy tagach z co najmniej pięcioma publicznymi zdjęciami od trzech osób zobaczysz liczbę zdjęć i ich autorów. Przy mniejszym zbiorze strona tagu zaprasza do dodania własnego wpisu. Kolejność tagów pozostaje bez zmian.
+
+## Alfa 0.61 — jasna instrukcja po zbyt dużym zdjęciu
+
+- Jeśli jedno z nowych zdjęć wpisu przekracza limit, formularz prosi o ponowny wybór wszystkich nowych zdjęć. Opis i ustawienie widoczności pozostają zachowane.
+
+## Alfa 0.60 — komentarze i wykonania bez cofania
+
+- Na stronie przepisu przejście do kolejnych komentarzy zachowuje wybraną stronę wykonań — i odwrotnie. Możesz przeglądać obie listy bez wracania do początku.
+
+## Alfa 0.59 — obie listy zostają na swoim miejscu
+
+- W zeszycie przejście do kolejnej strony wpisów zachowuje wybraną stronę przepisów — i odwrotnie. Możesz przeglądać obie listy bez ciągłego wracania do początku.
+
+## Alfa 0.58 — prawidłowy stan obserwowania
+
+- Na listach obserwujących i obserwowanych przyciski pokazują, kogo obserwujesz. Po kliknięciu „Obserwuj” zobaczysz „Przestań obserwować”, także po ponownym otwarciu listy.
+- Cofnięcie obserwowania nie wymaga już przejścia na profil.
+
+## Alfa 0.57 — tagi podczas pisania wpisu
+
+- W opisie wpisu możesz wpisać `#sernik` i wybrać tag z podpowiedzi. Przy istniejących tagach zobaczysz liczbę publicznych wpisów dostępnych dla Ciebie.
+- Tagi wpisane lub wklejone do opisu zapisują się przy publikacji. Usunięcie hashtagu podczas edycji nie usuwa taga dodanego osobno ręcznie.
+- Ręczne dodawanie tagów nadal działa. Wybrany wcześniej tag nie jest jednocześnie proponowany jako nowy, a ukryte tagi nie pojawiają się w odnośnikach pod wpisami.
+
+## Alfa 0.56 — wybór zeszytu przy zapisie
+
+- Przy przepisie i wpisie możesz wybrać własny zeszyt, również gdy treść jest już zapisana w innym miejscu. Szybki zapis do „Zapisanych” nadal jest dostępny.
+- Pełne nazwy zeszytów zawijają się na małym ekranie. Jeśli wybrany zeszyt został usunięty przed zapisem, formularz pokazuje błąd przy właściwym wyborze.
+
+## Alfa 0.55 — wskazanie błędnego stanu wiadomości
+
+- Jeśli zapis stanu wiadomości w panelu zostanie odrzucony, odnośnik w podsumowaniu błędów prowadzi do wyboru stanu.
+- Komunikat przy polu jest powiązany ze wszystkimi opcjami. Wpisana notatka pozostaje w formularzu.
+
+## Alfa 0.54 — osobne notatki promowanych tagów
+
+- Po błędnym zapisie notatki tekst i komunikat pozostają przy wybranym tagu. Pozostałe formularze zachowują własne wartości.
+- Odnośnik w podsumowaniu błędów prowadzi do właściwej notatki. Usunięto powtórzony dopisek o nieobowiązkowym polu.
+
+## Alfa 0.53 — czytelny błąd wyboru decyzji w odwołaniu
+
+- Jeśli przy rozpatrywaniu odwołania nie wybrano wyniku, komunikat u góry prowadzi do właściwego pola.
+- Wyjaśnienie pojawia się również przy wyborze decyzji, wyłącznie w wysłanym formularzu. Pozostałe odwołania zachowują własne wartości.
+
+## Alfa 0.52 — widoczny fokus potwierdzeń w panelu
+
+- Przy przechodzeniu klawiaturą do czyszczenia tablicy i kolażu panel pozostawia miejsce na cały obrys aktywnego przycisku, także przy zwiększonym tekście.
+- Dodano regresje rozwijanych potwierdzeń i pomocy pocztowej, rzeczywistego zoomu 200% oraz fizyczne kontrole ujemne. Nie oznacza to zakończenia całego odbioru panelu #581.
+
+## Alfa 0.51 — pełne nazwy dolnej nawigacji
+
+- Skróty Start, Szukaj, Dodaj, Moje i Profil zachowują pełne nazwy na wąskim ekranie (#638).
+- Przy większym tekście przyciski przechodzą do kolejnego rzędu; nie zmniejszamy pisma ani obszaru dotyku.
+
+## Alfa 0.50 — krótsza nawigacja panelu na telefonie
+
+- Narzędzia moderacji można rozwinąć przyciskiem „Nawigacja panelu”, dzięki czemu szybciej dociera się do treści (#581).
+- Powrót do Kuking pozostaje widoczny. Na komputerze oraz bez JavaScriptu spis narzędzi jest rozwinięty.
+- Menu obsługuje dotyk, mysz i klawiaturę; przy zmianie szerokości nie chowa aktywnego linku.
+
+## Alfa 0.49 — propozycja instalacji po powrocie
+
+- Po powrocie zalogowanej osoby serwis może raz zaproponować instalację, jeśli przeglądarka ją udostępnia (#278).
+- Propozycja nie zasłania strony. Zamknięcie jest zapamiętywane na koncie; bez obsługi instalacji panel pozostaje ukryty.
+- Wybranie instalacji nie jest liczone jako jej ukończenie.
+
+## Alfa 0.48 — linki we wpisach i komentarzach
+
+- Adresy HTTP, HTTPS i www we wpisach, komentarzach i odpowiedziach są klikalne (#634).
+- Przed przejściem do innej witryny pokazujemy jej domenę, pełny adres i ostrzeżenie. Nie jest to skan antywirusowy ani zapewnienie o bezpieczeństwie strony.
+
+## Alfa 0.47 — kolaż po wyczyszczeniu wyboru
+
+- Kolaż powitalny pokazuje również jeden, dwa lub trzy dostępne zdjęcia.
+- Nowsze wpisy bez gotowych zdjęć nie wypychają zdjęć z automatycznego doboru.
+- Gdy nie ma dostępnych zdjęć, powitanie zajmuje jedną kolumnę bez pustego miejsca po prawej.
+
+## Alfa 0.45 — przycisk rejestracji przy dużym tekście
+
+- Na wąskim ekranie przycisk rejestracji zostawia więcej miejsca na pełny napis, zachowując wybrany rozmiar tekstu (#621).
+- Przejście klawiaturą pozostawia zapas na obrys przycisku przy krawędzi okna.
+
+## Alfa 0.44 — powiększanie zdjęć
+
+- Zdjęcie można nadal otworzyć kliknięciem lub dotykiem, a link „Powiększ zdjęcie” pozostaje widoczny przy obsłudze klawiaturą także pod wysokimi zdjęciami (#561).
+- Szybkie zamknięcie i ponowne otwarcie podglądu nie usuwa już wyświetlanego zdjęcia.
+- Fokus linków w komunikatach ma czytelniejszy kontrast w ciemnym motywie.
+
+## Alfa 0.43 — dokładniejsze odliczanie minutnika
+
+- Minutnik uwzględnia czas, który minął podczas wstrzymania karty przez przeglądarkę (#571). Po wznowieniu nie odlicza pominiętych sekund od nowa.
+- Bieżący czas można odczytać czytnikiem ekranu bez automatycznego ogłaszania każdej sekundy (#569).
+
+## Alfa 0.42 — dalsze wyniki wyszukiwania
+
+- „Pokaż więcej” pozwala dotrzeć do przepisów i osób poza pierwszymi 200 wynikami (#568).
+- Dalsze strony pokazują zakres wyników i pozwalają wrócić do początku, również gdy wyniki w międzyczasie znikną.
+- Przeglądanie dalszych przepisów zachowuje pozycję listy osób i odwrotnie. Filtry czasu, prywatność i blokady nadal obowiązują.
+
+## Alfa 0.41 — proporcje mniejszej skali
+
+- Przy rozmiarze tekstu poniżej 100% odstępy i zapas wewnątrz kontrolek zmniejszają się razem z tekstem; cele dotykowe zachowują minimum 48 px (#589).
+- Domyślne odstępy przy 100% i 140% pozostają bez zmian. Wybór skali opisuje też zagęszczenie układu.
+
+## Przygotowane — bezpieczeństwo logowania (#584)
+
+- Wylogowanie innych urządzeń unieważnia również ich zapamiętane logowanie. Bieżąca sesja pozostaje aktywna; po jej utracie trzeba zalogować się ponownie. Ta sama ochrona obejmuje zmianę i reset hasła oraz decyzje o zamknięciu lub zawieszeniu konta.
+## Alfa 0.40 — wygląd panelu moderacji
+
+- Panel moderacji korzysta ze wspólnej identyfikacji: neutralnej nawigacji, czytelnych kart, formularzy i filtrów. Dłuższe nazwy narzędzi zawijają się obok ikon (#581).
+- Zachowane są oznaczenie trybu moderacji, pełna szerokość pracy i dotychczasowe działania.
+- Filtry dat mają więcej miejsca przy powiększonym tekście. Obrys klawiatury pozostaje widoczny także na ikonie kalendarza.
+- Tabelę użytkowników można przewijać w dostępnym obszarze ekranu; przejście klawiszem Tab odsłania jej kolejne linki.
+- „Sygnały automatu” pokazują podsumowanie błędów formularza, także gdy brakuje identyfikatora grupy. Notatka pozostaje do poprawienia.
+
+## Alfa 0.39 — kolejka gospodarza
+
+- Panel „Bez odpowiedzi” obejmuje również przepisy i wykonania „Ugotowałem”, z przejściem do komentarzy. Licznik uwzględnia dostęp gospodarza, a własne dopiski autora nie udają odpowiedzi innej osoby (#579).
+- Odpowiedź z panelu ponownie sprawdza dostępność wpisu i zachowuje tekst po błędzie.
+
+## Alfa 0.38 — szybkie ustawienia wyglądu
+
+- Panel Aa · Wygląd pozwala od pierwszej wizyty zmienić rozmiar tekstu i motyw, także bez konta. Zapamiętuje wybór i pozwala wrócić do ustawień domyślnych (#574).
+
+## Alfa 0.37 — pasek podczas przewijania
+
+- Pasek z logo, logowaniem i rejestracją chowa się podczas przewijania w dół i wraca przy przewijaniu w górę. Fokus klawiatury przywraca pasek.
+
+## Alfa 0.36 — niedostępne zapisy w zeszycie
+
+- Zeszyt informuje o zapisach, których nie możesz teraz zobaczyć — także przepisach. Nie pokazuje mylącego pustego stanu ani prywatnych treści; komunikat pasuje również do cudzego publicznego zeszytu (#567).
+
+## Alfa 0.35 — ponowne wysłanie formularza
+
+- Ekran odzyskiwania formularza nie przypisuje każdego błędu potwierdzenia zbyt długiemu otwarciu strony. Wskazuje ponowienie wysłania i zachowuje osobne informacje o odzyskanej treści, zdjęciach oraz logowaniu (#549).
+
+## Alfa 0.34 — odmiana czasu minutnika
+
+- Instrukcja, podgląd przepisu i komunikat po uruchomieniu minutnika używają poprawnej formy „na 1 minutę” oraz „na 1 sekundę”. Czas i działanie odliczania pozostają bez zmian (#548).
+
+## Alfa 0.33 — 15 września 2026
+
+- Strona powitalna: kolejne wpisy zaczynają się pod poprzednią kartą we własnej kolumnie, bez pustych przerw wynikających z wysokości sąsiedniej karty (#560). Układ reaguje na rozwijanie treści, zdjęcia i zmianę szerokości; kolejność DOM oraz pojedyncza kolumna na telefonie pozostają.
+
+## Alfa 0.32 — fotografie na stronie powitalnej
+
+- Sekcja „Co się dziś gotuje” pokazuje najpierw duże fotografie dań, potem zwarte wizytówki osób. Gość dostaje jedno wspólne zaproszenie do założenia konta. Boczne tablice zachowują dotychczasowy układ, a dobór treści i zasady widoczności pozostają bez zmian (#557).
+
+## Alfa 0.31 — szersze menu konta
+
+- Menu „Konto” ma więcej miejsca na nazwy pozycji, w tym panel moderacji i wylogowanie. Przy zawijaniu belki pozostaje przy prawej krawędzi, a w wąskim i niskim oknie rozwija się w dostępnym miejscu pod przyciskiem (#555).
+
+## Alfa 0.30 — zdjęcia w pustej kolumnie profilu
+
+- Na cudzym profilu bez tagów i zeszytów pokazujemy trzy ostatnie widoczne wpisy ze zdjęciami. Zdjęcie i data prowadzą do wpisu; treści prywatne pozostają chronione (#551).
+
+## Alfa 0.29 — prawdziwe komunikaty po publikacji
+
+- Po pierwszym wpisie wskazujemy formularz kolejnego zdjęcia, bez niezmierzonej obietnicy szybszego dodawania (#545).
+- „Ugotowałem” potwierdza zapis wykonania, bez obietnicy powiadomienia o własnym gotowaniu lub dla wymazanego autora. Ponowne wysłanie nadal zapisuje jedno wykonanie (#547).
+
+## Alfa 0.28 — sprawdzone ekrany wejścia
+
+- Łączenie konta z Facebookiem opisuje przycisk wejścia i możliwe potwierdzenie u dostawcy, bez obietnicy jednego kliknięcia (#542).
+- Ekran braku adresu z Facebooka kieruje do pełnego formularza i nie obiecuje e-maila po każdym wykonaniu przepisu (#542).
+- Automat dostępności obejmuje pięć stanów po powrocie z Google/Facebooka i zachowuje częściowy raport po błędzie pomiaru (#345).
+
+## Alfa 0.27 — czytelność na małych ekranach
+
+- Na wąskim, niskim ekranie i przy bardzo dużej czcionce obie belki nawigacji przewijają się ze stroną, aby nie zasłaniać formularzy ani zaznaczenia klawiatury (#434, #492).
+- Na telefonie o szerokości 390 px powiadomienia z licznikiem i dostęp do konta mieszczą się w jednym rzędzie bez zmniejszania tekstu.
+- Komunikat zbyt długiego imienia podaje rzeczywisty limit w rejestracji i ustawieniach profilu (#538).
+- Usuwanie komentarza i odpowiedzi ma systemowy odstęp od zwykłych działań (#444).
+
+- Fokus klawiatury na przyciskach w podpowiedziach pozostaje czytelny również przy najechaniu w ciemnym motywie (#539).
+
+## Alfa 0.26 — czytelne przyciski w podpowiedziach
+
+- Przyciski dodania kolejnego zdjęcia, zmiany kolejności zdjęć i dokończenia szkicu zachowują czytelny napis również wewnątrz podpowiedzi, w obu motywach (#534).
+- Zwykłe linki w podpowiedziach zachowują kolor dobrany do ich tła.
+
+## Alfa 0.25 — poprawny zapis i jasne komunikaty przepisów
+
+- Składnik o nazwie do 240 znaków zapisuje się w całości przy tworzeniu i edycji przepisu (#526).
+- Automatyczny zapis sprawdza długość i poprawność pól przed zmianą przepisu. Błędny tekst pozostaje w formularzu, a poprzednia zapisana wersja jest zachowana (#528).
+- Po cofnięciu można wrócić do błędnego składnika lub kroku przygotowania i go poprawić.
+
+- Potwierdzenie zapisu i opis udostępniania rozróżniają treści prywatne, dla obserwujących i publiczne (#530).
+
+## Alfa 0.24 — pełny tekst po odrzuceniu formularza
+
+- Odzyskiwanie po wygaśnięciu sesji lub przekroczeniu limitu zapytań mieści długie przepisy dopuszczone przez formularz. Ponowienie utworzenia i edycji zachowuje wszystkie kroki (#524).
+- Podsumowanie walidacji mówi „Sprawdź formularz” również przy zbyt długiej lub nieprawidłowej wartości. Instrukcje rejestracji nie nazywają każdego błędu brakiem danych (#527).
+- Zdjęcia nadal trzeba wybrać ponownie; ograniczenia rozmiaru odzyskiwania i ochrona danych wrażliwych pozostają.
+
+## Alfa 0.23 — uczciwe informacje o odzyskiwaniu formularza
+
+- Ekran limitu zapytań rozróżnia pełne i częściowe odzyskanie tekstu; pomoc zdjęcia nie obiecuje zachowania brakujących pól (#523).
+- Ekrany wygaśniętej sesji i limitu informują, gdy zbyt duży formularz uniemożliwił odzyskanie tekstu. Nie uznają tego za pusty formularz.
+- Publiczny formularz zgłoszenia treści po odmowie CSRF nie nakazuje zakładania konta ani ponownego logowania.
+
+## Alfa 0.22 — polecane tagi w wyszukiwaniu
+
+- Przed wpisaniem zapytania wyszukiwarka pokazuje kafle rzeczywistych polecanych tagów, z ich opisami i odnośnikami.
+- Zarówno przy pełnej, jak i pustej liście można przejść do wszystkich tagów; pozostaje też droga do aktualności.
+
+## Alfa 0.21 — precyzyjne komunikaty
+
+- Instrukcje logowania przez Google i Facebooka opisują sposób wejścia bez obietnicy liczby kliknięć.
+- Powiadomienie o pierwszym wpisie zachęca do odpowiedzi bez nieudokumentowanego twierdzenia o zachowaniu nowych osób.
+- Podsumowanie automatu podaje rzeczywisty okres oznaczeń i nie obiecuje aktualnej widoczności treści po działaniach moderatorów.
+
+## Alfa 0.20 — zainteresowania i powiadomienia
+
+- Wybór zainteresowań ma większe kafle rzeczywistych tematów; wszystkie trzy kroki pozostają opcjonalne.
+- Nagłówek zainteresowań jest spójny z pozostałymi stronami, a instrukcja mieści się także przy dużym powiększeniu tekstu.
+- Instrukcja nie obiecuje wypełnienia strony głównej przy braku treści.
+- Zwykłe powiadomienia ustawiają akcję obok treści na szerokim ekranie; pełne decyzje moderacyjne zachowują dotychczasową strukturę.
+- Powiadomienia bez dostępnego autora mają pełne zdanie zamiast brakującej nazwy.
+
+## Alfa 0.19 — zeszyty zgodne z wizualizacją
+
+- Zeszyty mają ciemne karty, a ostatnie zapisy znajdują się pod nimi w głównej części strony.
+- Przepisy w zeszycie mają większe zdjęcia nad pełnymi tytułami i układają się w siatkę dopasowaną do dostępnego miejsca.
+- Klawiatura zaznacza krótkie „Zobacz przepis”, dzięki czemu długi tytuł nie wypycha fokusu pod nawigację.
+- Instrukcja pustego zeszytu wyjaśnia zapisywanie bez obietnicy stałego dostępu do każdej treści.
+
+## Alfa 0.18 — kolejne ekrany zgodne z wizualizacją
+
+- Logowanie i rejestracja mają osobną kartę formularza obok zaproszenia.
+- Na szerokim ekranie tytuł, opis i dane przepisu stoją obok zdjęcia; wszystkie akcje są pod nimi.
+- Profil ma większy awatar oraz jeden zestaw czytelnych statystyk pod ciemnym nagłówkiem.
+- Strona publiczna wyjaśnia zeszyty, widoczność i pobieranie własnych treści w trzech kartach.
+- Przy jednoczesnym dużym powiększeniu pisma i tekstu aplikacji wąski nagłówek mieści znak garnka bez poziomego przewijania.
+- Obrys zaznaczonej klawiaturą zakładki mieści się w jej ramie także przy powiększeniu strony.
+
+## Alfa 0.17 — publiczna strona zgodna z wizualizacją
+
+- Trzy otwarte, numerowane kroki z odnośnikami zastępują białe kafle „Jak działa”.
+- Duży blok „Twój przepis. Czyjś dobry obiad.” stoi bezpośrednio pod krokami, z publicznym zdjęciem i podpisem autora.
+- Tablica osób, dania i najnowsze wpisy pozostają dostępne niżej.
+
+## Alfa 0.16 — spójne karty osób
+
+- Karty proponowanych osób na Odkrywaj i w wyszukiwaniu mają te same proporcje co na Start.
+
+## Alfa 0.15 — kompozycja strony głównej zgodna z wizualizacją
+
+- Krótkie powitanie, odrębny nagłówek aktualności i duży tytuł w ciemnym kaflu dodawania z pierścieniem.
+- Na komputerze Start / Odkrywaj / Mój zeszyt oraz osobne Szukaj. Mobilne pięć pozycji bez zmian.
+- Ciemny wstęp „Co dobrego u innych?” i osobne karty osób oraz dań; zachowane rzeczywiste propozycje, notatki, podglądy i obserwowanie.
+- Nowy wygląd obejmuje także zalogowane wejście przez `/`, wyszukiwanie i stronę publicznych wpisów. Pomoc wyjaśnia kolejność strumienia.
+
+## Alfa 0.14 — czytelne wiadomości i dokładniejsze instrukcje
+
+- Powiększyliśmy drobne teksty w e-mailach oraz linki w tygodniowym podsumowaniu.
+- Wiadomość o pobraniu danych podaje także godzinę wygaśnięcia linku.
+- Instrukcje logowania opisują dodatkowe potwierdzenie na stronie. Ustawienia adresu e-mail nie sugerują już wysyłania hasła pocztą.
+- Instrukcje zabezpieczenia konta i edycji przepisu dokładniej opisują wymagane kroki.
+- Przy edycji opublikowanego przepisu komunikaty mówią o zapisanych zmianach, a nie o szkicu.
+- Pobrana paczka danych obsługuje ciemny wygląd systemu. Ostrzeżenie o przygotowywanych zdjęciach nie obiecuje już terminu ich gotowości.
+
+## Alfa 0.13 — aktualizacja zainstalowanej aplikacji
+
+Poprawiliśmy pobieranie aktualizacji w aplikacji zapisanej na telefonie, aby nowy ekran braku połączenia docierał także do osób korzystających ze starszej wersji. Aktualizacja nie przeładowuje otwartego formularza.
+
+## Alfa 0.12 — spójny wygląd także poza głównymi ekranami
+
+- Ekrany awarii i braku internetu oraz pobrane dane mają nową oprawę i czytelny krój pisma.
+- Pozostałe wiadomości systemowe mają spójny wygląd. Długie adresy nie rozpychają wiadomości na telefonie.
+- Zainstalowana aplikacja odświeża ikony po zmianie marki i zachowuje dostępny ekran bez internetu.
+- Komunikaty awarii podają, co zrobić, bez niepotwierdzonych zapewnień o stanie danych lub terminie powrotu.
+- Sprawdzenie antyspamowe mieści się na wąskim telefonie i korzysta z wybranego jasnego lub ciemnego wyglądu.
+- Podpowiedzi składników i przygotowania mają poprawne nowe linie. Wskaźnik kroków przepisu mieści się także przy dużym tekście na wąskim ekranie.
+
+## Alfa 0.11 — klawiatura i duży tekst
+
+Karty dań można nadal otwierać po kliknięciu zdjęcia lub opisu. Przy poruszaniu się klawiaturą fokus obejmuje czytelną nazwę, dzięki czemu wysoka karta nie chowa go pod nawigacją.
+
+## Alfa 0.10 — spójne podstrony i wiadomości
+
+- Nagłówek każdego profilu ma tę samą grafitową oprawę. Tytuły przepisów korzystają z nowej typografii.
+- Opisy w ustawieniach i przy wyborach formularza są czytelniejsze.
+- Wiadomości e-mail otrzymały nową paletę, prosty krój pisma i spójne przyciski.
+- Instrukcje logowania i pomocy są krótsze i precyzyjniejsze.
+
 ## Alfa 0.9 — pełny układ nowej marki
 
 Pływająca nawigacja, ciemny blok publikacji, nowe karty i typografia. Spójny wygląd profilu, zeszytów, wyszukiwarki, przepisów i formularzy. Funkcje korzystają z dotychczasowych danych i ustawień konta.
@@ -315,4 +643,3 @@ Przy powiększonej czcionce wszędzie wraca jedna kolumna. Nic się nie chowa.
 Wersja, od której zaczęliśmy. Historia sprzed 11 września 2026 jest
 w historii repozytorium — ten plik zakładamy dziś i nie odtwarzamy go wstecz,
 bo wpisy pisane z pamięci po fakcie są gorsze niż ich brak.
-

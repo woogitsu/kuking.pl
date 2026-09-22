@@ -101,6 +101,7 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
     public function test_arkusz_ma_regule_odstepu_miedzy_sasiadujacymi_powierzchniami(): void
     {
         $css = (string) file_get_contents(resource_path('css/tokens.css'));
+        $this->assertStringContainsString('.app-main .marka-wejscie-karta', $css, 'Odstęp musi obejmować nową kartę wejścia, nie tylko bezpośrednie dzieci main.');
 
         $trafil = preg_match(
             '/\.app-main\s*>\s*:is\(([^)]*)\)\s*\+\s*:is\(([^)]*)\)\s*\{([^}]*)\}/s',
@@ -216,6 +217,14 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
                     continue;
                 }
 
+                // Nowa rama panelu ma własny slot; ta reguła nie może objąć logowania.
+                $czystySelektor = trim(preg_replace('/\s+/', ' ', preg_replace('~/\*.*?\*/~s', '', $selektor) ?? '') ?? '');
+                if ($czystySelektor === '[data-marka-panel] .marka-panel-tresc > '
+                    .':is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary) '
+                    .'+ :is(.card, .panel-formularza, .sekcja-strony, .ramka-pomocnicza, .kafel-akcji, .error-summary)') {
+                    continue;
+                }
+
                 $winne[] = trim(preg_replace('/\s+/', ' ', $selektor) ?? '')
                     .' { '.trim(preg_replace('/\s+/', ' ', $tresc) ?? '').' } — '.basename($plik);
             }
@@ -259,6 +268,7 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
 
         $panele = $xpath->query(
             "//main[contains(concat(' ', normalize-space(@class), ' '), ' app-main ')]".
+            "//*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-karta ')]".
             "/*[contains(concat(' ', normalize-space(@class), ' '), ' panel-formularza ')]",
         );
 
@@ -267,7 +277,7 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
             1,
             $panele->length,
             "Trasa „{$trasa}”: panel formularza nie jest bezpośrednim dzieckiem ".
-            '`<main class="app-main">` — reguła odstępu z `tokens.css` nic tu nie '.
+            '`<div class="marka-wejscie-karta">` — reguła odstępu z `tokens.css` nic tu nie '.
             'zrobi, a karty znów się skleją.',
         );
 
@@ -334,6 +344,7 @@ class OdstepMiedzyDrogamiWejsciaTest extends TestCase
 
         $panele = $xpath->query(
             "//main[contains(concat(' ', normalize-space(@class), ' '), ' app-main ')]".
+            "//*[contains(concat(' ', normalize-space(@class), ' '), ' marka-wejscie-karta ')]".
             "/*[contains(concat(' ', normalize-space(@class), ' '), ' panel-formularza ')]",
         );
 

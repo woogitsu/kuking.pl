@@ -14,11 +14,7 @@
          czego udostępniać, a adres zdjęcia nie ma po co trafiać do znacznika,
          który zbierają scrapery. --}}
     :image="$isPublic ? $recipe->heroMedia : null"
-    {{-- Ten ekran używa KOLUMNY SZYNY — nie przez `<x-slot:rail>`, tylko od
-         środka: `<main>` zajmuje kolumnę czytania razem z kolumną szyny,
-         a panel „Ugotowałem / Zapisuję / Gotuję" staje w tej drugiej
-         (`.przepis-uklad` w app.css, issue #365). Bez tego gość ma tu całą
-         stronę zwiniętą do 768 px, a zalogowany trzecią kolumnę pustą. --}}
+    {{-- Treść wykorzystuje szerokość ramy: tekst i zdjęcie w hero, akcje poniżej. --}}
     :szynaWTresci="true"
     ogType="article">
 
@@ -153,7 +149,7 @@
                 '@type' => 'BreadcrumbList',
                 'itemListElement' => [
                     ['@type' => 'ListItem', 'position' => 1, 'name' => 'Kuking', 'item' => route('landing')],
-                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Przepisy', 'item' => route('discover')],
+                    ['@type' => 'ListItem', 'position' => 2, 'name' => 'Świeżo z Kuking', 'item' => route('discover')],
                     ['@type' => 'ListItem', 'position' => 3, 'name' => $recipe->title],
                 ],
             ];
@@ -162,12 +158,10 @@
         @endif
     </x-slot:head>
 
-    {{-- `przepis-uklad` DOCHODZI do `stack`, nie zastępuje go: `stack` robi
-         rytm pionowy marginesami na dzieciach i działa tak samo w siatce,
-         a `przepis-uklad` dokłada od 80rem drugą kolumnę na panel akcji.
-         Poniżej tego progu klasa nic nie robi i zostaje jeden ciąg. --}}
-    <article class="stack przepis-uklad">
-        <header>
+    {{-- Bezpośredni header zachowuje semantykę i pomiar typografii portu. --}}
+    <article class="stack przepis-uklad marka-przepis">
+        <header class="marka-przepis-hero">
+            <div class="marka-przepis-tekst">
             {{--
                 OKRUSZKI (kit v2, ekrany 02 i 06).
 
@@ -178,7 +172,7 @@
             --}}
             <ol class="okruchy">
                 <li><a href="{{ auth()->check() ? route('home') : route('landing') }}">Start</a></li>
-                <li><a href="{{ route('discover') }}">Przepisy</a></li>
+                <li><a href="{{ route('discover') }}">Świeżo z Kuking</a></li>
             </ol>
 
             {{-- Odstępy w nagłówku przepisu robi CSS (`.przepis-uklad > header`
@@ -249,12 +243,18 @@
                         @if($obserwuje ?? false)
                             <form method="POST" action="{{ route('social.unfollow', $recipe->author->profile->username) }}">
                                 @csrf @method('DELETE')
+                                {{-- #793 rozszerzone na relacje: strona przepisu
+                                     bywa otwarta godzinami, a nazwa autora
+                                     w adresie mogła w tym czasie zmienić
+                                     właściciela. --}}
+                                <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                 <button class="btn btn-secondary" type="submit">Przestań obserwować</button>
                             </form>
                         @else
                             @can('follow', $recipe->author)
                                 <form method="POST" action="{{ route('social.follow', $recipe->author->profile->username) }}">
                                     @csrf
+                                    <input type="hidden" name="oczekiwany_id" value="{{ $recipe->author->getKey() }}">
                                     <button class="btn btn-secondary" type="submit">Obserwuj</button>
                                 </form>
                             @endcan
@@ -262,46 +262,10 @@
                     @endif
                 @endauth
             </div>
-        </header>
-
-        {{--
-            HERO WEDŁUG KITU (ekran 02): zdjęcie po lewej, panel po prawej.
-
-            Kolejność w kodzie jest kolejnością na TELEFONIE i jest to
-            kolejność z ekranu 06: zdjęcie, liczby, akcje, „Skąd ten przepis".
-            Desktop tylko przesuwa panel W BOK — nie przestawia go w innym
-            miejscu drzewa, więc czytnik ekranu i klawiatura chodzą w obu
-            układach tak samo.
-
-            ZMIANA Z 11 WRZEŚNIA (issue #365): panel przeniósł się ze środka
-            kolumny czytania do KOLUMNY SZYNY — tej, która na tym ekranie
-            stała pusta (zmierzone przy 1920 px: 352 px pustki plus
-            marginesy). Robi to siatka `.przepis-uklad` na `<article>` wyżej,
-            a nie `<x-slot:rail>`: slot renderuje się w kodzie ZA całym
-            `<main>`, czyli za składnikami, krokami i komentarzami, a główna
-            akcja produktu ma stać przed składnikami (`EkranPrzepisuWedlugKituTest`).
-            Dlatego panel jest tu dalej bezpośrednim dzieckiem `<article>`,
-            dokładnie tam, gdzie był — zmienia się wyłącznie kolumna.
-
-            Zdjęcie zostaje w `.przepis-hero` i bierze teraz całą kolumnę
-            czytania zamiast dzielić ją z panelem.
-        --}}
-        @if($recipe->heroMedia)
-            <div class="przepis-hero">
-                <div class="przepis-hero-zdjecie">
-                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
-                </div>
-            </div>
+                {{-- Opis i dane autora należą do tekstowej połowy hero. --}}
+        @if($recipe->summary)
+            <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
         @endif
-
-        <div class="card przepis-panel">
-            {{--
-                KAFLE LICZB: czas, porcje, poziom.
-
-                Pokazujemy TYLKO to, co autor podał. Kit rysuje zawsze trzy
-                kafle, ale kafel „—" nie jest informacją: mówi „nie wiemy",
-                zajmując tyle miejsca, co odpowiedź.
-            --}}
             @if($total || $porcje || $recipe->difficultyLabel())
                 <ul class="przepis-liczby">
                     @if($total)
@@ -324,6 +288,16 @@
                     @endif
                 </ul>
             @endif
+
+
+            </div>
+            @if($recipe->heroMedia)
+                <div class="przepis-hero-zdjecie marka-przepis-zdjecie">
+                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
+                </div>
+            @endif
+        </header>
+        <div class="card przepis-panel">
 
             {{--
                 GŁÓWNA AKCJA PRZEPISU. Nie „Lubię to", a „Ugotowałem".
@@ -357,6 +331,7 @@
                             <button class="btn btn-secondary" type="submit"><x-ikona nazwa="save" /> Zapisuję</button>
                         </form>
                     @endif
+                    <x-wybor-zeszytu :action="route('collections.save', $recipe->slug)" :wiersz="'przepis-'.$recipe->getKey()" :content="$recipe" />
                 @else
                     <a class="btn btn-primary" href="{{ route('register') }}">Załóż konto, żeby dać znać autorowi</a>
                 @endauth
@@ -428,24 +403,22 @@
 
         {{--
             Plakietki, których kit nie ma, a które są tym, czym Kuking różni
-            się od bazy receptur: ile osób to naprawdę zrobiło i od kiedy
+            się od bazy receptur: ile razy ktoś to ugotował i od kiedy
             przepis jest w rodzinie. Zostają POD hero, żeby nie konkurowały
             z trzema liczbami, które mówią „czy zdążę i dla ilu osób".
         --}}
         <ul class="recipe-facts">
             @if($cookedCount > 0)<li><span class="badge badge-cooked">Ugotowane {{ $cookedCount }} ×</span></li>@endif
-            {{-- „X z Y osób zrobi to ponownie" — od trzech ocen (SOUL 4.2).
+            {{-- Odpowiedzi przy wykonaniach, nie unikalne osoby — od trzech ocen (#666).
                  Poniżej trzech jedna opinia waży za dużo, a zdanie brzmi jak
                  werdykt, którym nie jest. --}}
             @if($oceniloWykonanie >= 3)
-                <li><span class="badge badge-cooked">{{ $zrobiaPonownie }} z {{ $oceniloWykonanie }} {{ \App\Support\Odmiana::rzeczownik($oceniloWykonanie, 'osoby', 'osób', 'osób') }} zrobi to ponownie</span></li>
+                <li><span class="badge badge-cooked">Zrobię ponownie: {{ $zrobiaPonownie }} z {{ $oceniloWykonanie }} odpowiedzi</span></li>
             @endif
             @if($recipe->family_since_year)<li><span class="badge badge-cooked">W rodzinie od {{ $recipe->family_since_year }}</span></li>@endif
         </ul>
 
-        @if($recipe->summary)
-            <p class="text-lead kolumna-czytania">{{ $recipe->summary }}</p>
-        @endif
+
 
         {{--
             SKŁADNIKI OBOK KROKÓW (kit, ekran 02).
@@ -506,13 +479,8 @@
                             @foreach($grupaSkladnikow['skladniki'] as $ingredient)
                                 <li>
                                     {{ $ingredient->ingredient_text }}
-                                    {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                         tego sam w tekście składnika (issue #44).
-                                         „Sól do smaku — do smaku” wygląda jak usterka,
-                                         a nie jak informacja. --}}
-                                    @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
-                                        <span class="meta"> — do smaku</span>
-                                    @endif
+                                    {{-- „Bez ilości” nie określa sposobu dozowania.
+                                         Pokazujemy tekst autora bez dopisków (#878). --}}
                                     @if($ingredient->note)<span class="meta"> — {{ $ingredient->note }}</span>@endif
                                 </li>
                             @endforeach
@@ -627,9 +595,9 @@
                 <h2 id="komu-wyszlo" class="m-0">Komu wyszło</h2>
                 @if($cookedCount > 0)
                     <p class="pasek-liczb meta m-0">
-                        {{ $cookedCount }} {{ \App\Support\Odmiana::rzeczownik($cookedCount, 'osoba ugotowała', 'osoby ugotowały', 'osób ugotowało') }} to danie
+                        {{ $cookedCount }} {{ \App\Support\Odmiana::rzeczownik($cookedCount, 'wykonanie', 'wykonania', 'wykonań') }}
                         @if($oceniloWykonanie >= 3)
-                            · {{ (int) round($zrobiaPonownie / $oceniloWykonanie * 100) }}% zrobi to ponownie
+                            · {{ (int) round($zrobiaPonownie / $oceniloWykonanie * 100) }}% odpowiedzi: „Zrobię ponownie”
                         @endif
                     </p>
                 @endif
@@ -656,7 +624,7 @@
                 <x-confirm-button
                     :action="route('recipes.destroy', $recipe->slug)"
                     label="Usuń ten przepis"
-                    question="Na pewno usunąć ten przepis? Wykonania i komentarze innych osób też przestaną być widoczne." />
+                    :question="'Na pewno usunąć przepis „'.$recipe->title.'”? Wykonania i komentarze innych osób też przestaną być widoczne.'" />
             </div>
         @endif
 

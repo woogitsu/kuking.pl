@@ -7,6 +7,7 @@ namespace App\Domain\Digest;
 use App\Models\CookedEvent;
 use App\Models\Post;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\DB;
@@ -41,8 +42,11 @@ use Illuminate\Support\Facades\DB;
  *    `CookedEvent::scopeWidoczneDla()` (galeria „Komu wyszło");
  *  - nowi obserwujący — `User::scopeWidocznyJakoOsoba()`, dokładnie jak
  *    lista obserwujących na profilu (D-022);
- *  - wpisy obserwowanych — `Post::scopeTylkoOdAktywnychAutorow()` i wyłącznie
- *    widoczność `public`/`followers`, dokładnie jak `FollowingFeed`.
+ *  - wpisy obserwowanych — `Post::scopeTylkoOdAktywnychAutorow()`, widoczność
+ *    `public`/`followers` ORAZ osobna bramka widoczności PRZEPISU, tak jak
+ *    w `FollowingFeed`. Te trzy warunki to nie jest jedno i to samo: przez
+ *    długi czas stało tu, że wystarczą dwa pierwsze i że jest to „dokładnie
+ *    jak `FollowingFeed`", a bramki przepisu nie było wcale (#368).
  *
  * Jedyne miejsce, w którym warunek jest ZAPISANY tu, a nie wywołany
  * z modelu, to blokada przy wykonaniach — bo `scopeWidoczneDla()` przyjmuje
@@ -225,6 +229,41 @@ final class ZbierzTresciDigestu
      * kopii każdego jego wpisu wciągniętych do pamięci PHP. Osobno: raz
      * relacje, raz wpisy, złączenie w PHP.
      *
+     * BRAMKA PRZEPISU W ZAPYTANIU WSPÓLNYM DLA WSZYSTKICH ODBIORCÓW (#368).
+     * To jest jedyna trudność tej metody i warto ją nazwać wprost, bo
+     * oczywiste rozwiązanie jest tu ZŁE. `zWidocznymPrzepisem($widz)` —
+     * zakres, którym bramkują się wszystkie strumienie — przyjmuje JEDNEGO
+     * widza. Tutaj widzów jest tylu, ilu odbiorców paczki, a zapytanie jest
+     * jedno. Wywołanie zakresu w pętli po odbiorcach dałoby zapytanie na
+     * osobę i wywróciłoby jedyną twardą własność tej klasy: stałą liczbę
+     * zapytań niezależną od wielkości paczki (`PodsumowanieBezWachlarzaZapytanTest`).
+     *
+     * Bramka zostaje więc JEDNA i policzona BEZ widza — wolno tak, bo widz
+     * jest tu zdeterminowany przez sam wiersz. Wpis trafia do odbiorcy
+     * WYŁĄCZNIE przez `$relacje`, czyli wyłącznie wtedy, gdy odbiorca
+     * obserwuje jego autora. Rozpisując `Recipe::scopeWidoczneDla($widz)`
+     * przy tym założeniu:
+     *
+     *  - blokada odpada — zablokowanie KASUJE obserwowanie w obie strony
+     *    (`BlockUser`, akapit na górze tej klasy), więc wiersza by tu nie było;
+     *  - „własny przepis widza" odpada — nikt nie obserwuje sam siebie,
+     *    a gdyby zaczął, to i tak jest to jego własna treść;
+     *  - `public` wolno — każdemu;
+     *  - `followers` wolno — bo odbiorca autora OBSERWUJE, i to jest ten sam
+     *    argument, który stoi zdanie niżej przy widoczności WPISU;
+     *  - `private` i wszystko nieopublikowane (szkic, zdjęte przez moderację)
+     *    nie wolno NIKOMU poza autorem.
+     *
+     * Zostaje warunek bez parametru: przepis opublikowany i `public` albo
+     * `followers`. `whereColumn('recipes.author_id', 'posts.author_id')` NIE
+     * JEST OZDOBĄ — to on zamienia powyższe rozumowanie w warunek, bo całe
+     * ono wisi na tym, że obserwowany autor wpisu jest zarazem autorem
+     * przepisu. Dziś inaczej być nie może (`WpisWskazujacyPrzepis::dopisz()`
+     * przepisuje `author_id` z przepisu), ale wpis wskazujący CUDZY przepis
+     * przestałby spełniać założenie, nie łamiąc ani jednego testu. Z tym
+     * warunkiem taki wiersz po prostu wypada z listu — zamknięcie w złą
+     * stronę, czyli we właściwą.
+     *
      * @param  list<string>  $identyfikatory
      * @return array<string, list<Post>>
      */
@@ -241,10 +280,29 @@ final class ZbierzTresciDigestu
         $wpisy = Post::query()
             ->published()
             ->whereIn('author_id', $relacje->pluck('followed_id')->unique()->all())
-            // Ta sama para warunków co `FollowingFeed`: „tylko dla
-            // obserwujących" wolno pokazać, bo adresat OBSERWUJE autora —
-            // prywatne nie, nigdy i nikomu poza autorem.
+            // Widoczność WPISU: „tylko dla obserwujących" wolno pokazać, bo
+            // adresat OBSERWUJE autora — prywatne nie, nigdy i nikomu poza
+            // autorem.
+            //
+            // STAŁO TU „ta sama para warunków co `FollowingFeed`" I BYŁO TO
+            // NIEPRAWDĄ — a że brzmiało jak sprawdzone, przez to nikt tu nie
+            // zaglądał. `FollowingFeed` ma OBOK tej pary jeszcze
+            // `zWidocznymPrzepisem($widz)` (dwa razy), i to ona, a nie ta
+            // para, trzyma bramkę przepisu. Tutaj jej nie było; para na
+            // `posts.visibility` nie zatrzymuje zapowiedzi przepisu, bo
+            // zapowiedź jest z założenia trwale `public` (#368).
             ->whereIn('visibility', [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS])
+            // Widoczność PRZEPISU — osobna bramka, `EXISTS` na `recipes`,
+            // policzona bez widza. Dlaczego bez widza i dlaczego wolno:
+            // długi akapit w opisie tej metody.
+            ->where(function (Builder $w): void {
+                $w->whereNull('posts.recipe_id')
+                    ->orWhereHas('recipe', function (Builder $przepis): void {
+                        $przepis->published()
+                            ->whereIn('recipes.visibility', ['public', 'followers'])
+                            ->whereColumn('recipes.author_id', 'posts.author_id');
+                    });
+            })
             ->tylkoOdAktywnychAutorow()
             ->where('published_at', '>=', $od)
             ->with(['author.profile', 'recipe:id,title,slug'])

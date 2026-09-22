@@ -38,7 +38,6 @@
     </form>
 
     <p class="notice mt-6">
-        Ten link działa tylko raz. Po zalogowaniu przestaje działać, więc nikt inny nie wejdzie
-        na Twoje konto, nawet jeśli zobaczy tę wiadomość.
+        Ten link działa tylko raz. Po zalogowaniu nie można go użyć ponownie.
     </p>
 </x-layout>

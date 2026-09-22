@@ -15,7 +15,9 @@ use App\Models\Recipe;
 use App\Models\Unit;
 use App\Models\User;
 use App\Rules\ObslugiwaneZdjecie;
+use App\Support\LimityTekstuPrzepisu;
 use App\Support\LimityZdjec;
+use App\Support\PaginationLinks;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -46,8 +48,8 @@ use Illuminate\View\View;
  *
  * BAZA SIĘ NIE ZMIENIŁA. Oba pola tekstowe z punktu 1 serwer rozbija
  * z powrotem na `recipe_ingredients` i `recipe_steps`
- * (`App\Domain\Recipes\TekstNaWiersze`), więc przeliczanie porcji
- * i szukanie po składnikach działają dalej.
+ * (`App\Domain\Recipes\TekstNaWiersze`). Szukanie po składnikach nadal
+ * czyta te same wiersze. Skalowanie porcji pozostaje niewdrożonym planem V2.
  *
  * Wszystkie drogi kończą się w tej samej akcji domenowej `PublishRecipe`,
  * więc reguły („szkic da się zapisać z samym tytułem”, „publikacja wymaga
@@ -137,9 +139,14 @@ class RecipeController extends Controller
      * UUID w adresie to nie autoryzacja: wejście idzie przez Policy, tak samo
      * jak edycja na jednej stronie.
      */
-    public function details(Request $request, Recipe $recipe): View
+    public function details(Request $request, Recipe $recipe): View|RedirectResponse
     {
         $this->authorize('update', $recipe);
+
+        // Nazwa szkicu zmienia slug. Kolejne żądania Livewire potrzebują stałego adresu.
+        if ($recipe->status === Recipe::STATUS_DRAFT) {
+            return redirect()->route('recipes.create', ['szkic' => $recipe->getKey()]);
+        }
 
         return $this->wizard($request, $recipe);
     }
@@ -159,6 +166,21 @@ class RecipeController extends Controller
             'recipe' => null,
             'kluczWyslania' => $this->kluczDlaFormularza(),
         ]);
+    }
+
+    /** Prywatna lista autora; skróty na „Dodaj” nie zastępują dostępu do starszych szkiców. */
+    public function drafts(Request $request): View
+    {
+        $drafts = $request->user()->recipes()
+            ->where('status', Recipe::STATUS_DRAFT)
+            ->orderByDesc('updated_at')
+            ->orderByDesc('id')
+            ->cursorPaginate(20);
+        foreach ($drafts as $draft) {
+            $this->authorize('view', $draft);
+        }
+
+        return view('pages.recipes.drafts', ['drafts' => $drafts]);
     }
 
     private function wizard(Request $request, Recipe $recipe): View
@@ -238,11 +260,17 @@ class RecipeController extends Controller
          * — i zdanie kierujące go do formularza bez ani jednego pustego pola
          * byłoby tym samym, co przycisk, który po kliknięciu nic nie robi.
          */
-        return redirect()->route('recipes.show', $recipe)->with('status',
-            CoMoznaDopisac::jest($recipe)
-                ? 'Przepis opublikowany. Teraz ktoś może z niego ugotować. Możesz jeszcze dopisać szczegóły — kliknij „Edytuj”.'
-                : 'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
-        );
+        $potwierdzenie = match ($recipe->visibility) {
+            'private' => 'Przepis zapisany. Widzisz go tylko Ty.',
+            'followers' => 'Przepis opublikowany dla osób, które Cię obserwują.',
+            default => 'Przepis opublikowany. Teraz ktoś może z niego ugotować.',
+        };
+
+        if (CoMoznaDopisac::jest($recipe)) {
+            $potwierdzenie .= ' Możesz jeszcze dopisać szczegóły — wybierz „Dopisz szczegóły”.';
+        }
+
+        return redirect()->route('recipes.show', $recipe)->with('status', $potwierdzenie);
     }
 
     public function edit(Request $request, Recipe $recipe): View
@@ -368,6 +396,23 @@ class RecipeController extends Controller
                 'author.profile.avatar',
                 'replies' => fn ($query) => $query->widoczneDla($request->user()),
                 'replies.author.profile.avatar',
+                // TO NIE JEST NADMIAROWE, CHOĆ PRZEPIS STOI OBOK W `$model`.
+                //
+                // Pod każdym komentarzem i każdą odpowiedzią widok pyta
+                // `@can('delete', $comment)`. `CommentPolicy::delete()` woła
+                // `Comment::notifiableUserId()`, a ta `Comment::subject()`,
+                // czyli `$this->post ?? $this->recipe ?? $this->cookedEvent`.
+                // Relacja nie była doładowana, więc KAŻDY komentarz szedł po
+                // swój przepis osobnym zapytaniem — mimo że wszystkie
+                // komentarze na tej stronie dotyczą jednego, już wczytanego.
+                //
+                // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
+                // `ANALYZE`): 41 zapytań przy 5 komentarzach na stronie, 61 przy
+                // 15 i 81 przy 25 — jedno na komentarz i jedno na odpowiedź.
+                // Dwie linijki niżej zamieniają to na dwa zapytania niezależne
+                // od liczby komentarzy: 33 przy każdym rozmiarze strony.
+                'recipe',
+                'replies.recipe',
             ])
             ->paginate((int) config('kuking.comments.page_size'), ['*'], 'komentarze');
 
@@ -391,8 +436,10 @@ class RecipeController extends Controller
         $cookedEvents = $model->cookedEvents()
             ->widoczneDla($request->user())
             ->with(['user.profile.avatar', 'media'])
-            ->paginate(12, ['*'], 'wykonania')
-            ->withQueryString();
+            ->paginate(12, ['*'], 'wykonania');
+
+        PaginationLinks::preserveOtherPage($komentarze, $cookedEvents);
+        PaginationLinks::preserveOtherPage($cookedEvents, $komentarze);
 
         return view('pages.recipes.show', [
             'recipe' => $model,
@@ -421,11 +468,8 @@ class RecipeController extends Controller
             // galeria. Dla gościa `widoczneDla(null)` nie filtruje niczego,
             // więc dane dla wyszukiwarek zostają bez zmian.
             'cookedCount' => $cookedEvents->total(),
-            // C4: „10 z 12 osób zrobi to ponownie" (SOUL 4.2). Ta odpowiedź
-            // była zbierana od początku i wyrzucana — nigdzie nie agregowana.
-            // To jedyna miara jakości przepisu, na jaką się zgodziliśmy:
-            // gwiazdek nie ma i nie będzie, bo są abstrakcją, a zdanie
-            // „dziesięć z dwunastu osób zrobi to ponownie" rozumie każdy.
+            // #666: każde wykonanie może mieć osobną odpowiedź, także od tej samej osoby.
+            // Liczniki opisujemy jako wykonania i odpowiedzi, bez deduplikacji kucharzy.
             // Czy oglądający obserwuje autora — jedno zapytanie, żeby przycisk
             // „Obserwuj" na stronie przepisu pokazywał prawdziwy stan
             // (UI kit v2, ekran 02).
@@ -468,27 +512,31 @@ class RecipeController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
+        // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
+        // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
+        // pola (czyli każdy spoza naszego formularza, który zawsze wysyła
+        // puste) kończył się błędem „Undefined array key", czyli 500 zamiast
+        // komentarza.
+        $parentId = $data['parent_id'] ?? null;
+
         try {
             $this->publishComment->handle(
                 author: $request->user(),
                 subject: $model,
                 body: $data['body'],
-                // `?? null`, bo `validate()` NIE zwraca klucza, którego
-                // w żądaniu nie było — a `parent_id` jest `nullable`.
-                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
-                // formularza, który zawsze wysyła puste) kończył się błędem
-                // „Undefined array key", czyli 500 zamiast komentarza.
-                //
                 // `widoczneDla()` — audyt W7-06. Bez tego można było podać
                 // UUID komentarza ukrytego przez blokadę i podpiąć się pod
                 // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
                 // kontrolerów jest kilka.
-                parent: ($data['parent_id'] ?? null) === null
+                parent: $parentId === null
                     ? null
                     : $model->comments()
                         ->widoczneDla($request->user())
-                        ->whereKey($data['parent_id'])
+                        ->whereKey($parentId)
                         ->first(),
+                // ISSUE #761: patrz komentarz przy tym samym parametrze
+                // w PostController::comment().
+                parentRequested: $parentId !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
@@ -513,9 +561,25 @@ class RecipeController extends Controller
     private function validated(Request $request): array
     {
         $data = $request->validate([
-            'title' => ['required', 'string', 'min:3', 'max:180'],
-            'summary' => ['nullable', 'string', 'max:2000'],
-            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999'],
+            'title' => ['required', 'string', 'min:3', 'max:'.LimityTekstuPrzepisu::POLA['title']],
+            'summary' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['summary']],
+            /*
+             * KROK 0,01 — DECYZJA WŁAŚCICIELA Z 20.09.2026 (issue #750).
+             *
+             * Kolumna `servings` to `decimal(6,2)` — dwa miejsca po
+             * przecinku i ani jednego więcej. Formularz kiedyś deklarował
+             * `step="0.5"`, a walidacja dopuszczała `1.25`, więc pole było
+             * nieprawidłowe wobec własnej deklaracji (`stepMismatch=true`
+             * mimo `checkValidity()`), a `1.255` znikało po cichu jako
+             * `1.26` — bez słowa dla człowieka, który to wpisał.
+             *
+             * `decimal:0,2` dopuszcza 0, 1 albo 2 miejsca po przecinku, czyli
+             * dokładnie tyle, ile udźwignie kolumna: `4`, `1.5`, `1.25` —
+             * TAK; `1.255` — NIE, z komunikatem niżej każącym POPRAWIĆ, a nie
+             * cichym zaokrągleniem. `step="0.01"` w `szczegoly.blade.php`
+             * musi się z tym zgadzać, inaczej wraca ten sam błąd na nowo.
+             */
+            'servings' => ['nullable', 'numeric', 'min:0.5', 'max:999', 'decimal:0,2'],
             'prep_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'cook_minutes' => ['nullable', 'integer', 'min:0', 'max:10080'],
             'difficulty' => ['nullable', 'in:easy,medium,hard'],
@@ -528,16 +592,16 @@ class RecipeController extends Controller
              * szczegółów pyta dalej i dalej przysyła wartość.
              */
             'source_type' => ['nullable', 'in:own,family,adaptation,external'],
-            'source_person' => ['nullable', 'string', 'max:120'],
-            'source_note' => ['nullable', 'string', 'max:2000'],
-            'source_url' => ['nullable', 'url', 'max:2000'],
+            'source_person' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_person']],
+            'source_note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['source_note']],
+            'source_url' => ['nullable', 'url', 'max:'.LimityTekstuPrzepisu::POLA['source_url']],
             'family_since_year' => ['nullable', 'integer', 'min:1850', 'max:2100'],
             'hero_photo' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'source_scan' => ['nullable', 'file', new ObslugiwaneZdjecie, 'max:'.LimityZdjec::maksKilobajtowDoWalidacji()],
             'ingredients' => ['nullable', 'array', 'max:'.Recipe::MAX_INGREDIENTS],
-            'ingredients.*.text' => ['nullable', 'string', 'max:240'],
-            'ingredients.*.group_name' => ['nullable', 'string', 'max:120'],
-            'ingredients.*.note' => ['nullable', 'string', 'max:300'],
+            'ingredients.*.text' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.text']],
+            'ingredients.*.group_name' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.group_name']],
+            'ingredients.*.note' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['ingredients.*.note']],
             // „Bez ilości” — sól do smaku, mleko ile weźmie (issue #44).
             // Pole wysyła zwykły checkbox, więc przychodzi jako "1" albo
             // nie przychodzi wcale.
@@ -550,7 +614,7 @@ class RecipeController extends Controller
             // JEST autoryzacją: `PublishRecipe` dopasowuje je wyłącznie do
             // kroków tego przepisu, więc cudzy identyfikator nic nie daje.
             'steps.*.id' => ['nullable', 'uuid'],
-            'steps.*.instruction' => ['nullable', 'string', 'max:4000'],
+            'steps.*.instruction' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['steps.*.instruction']],
             // Człowiek wpisuje MINUTY, bo tak myśli o gotowaniu. Sekundy
             // (`recipe_steps.timer_seconds`, `data-timer-sekundy` w trybie
             // gotowania) liczy `StepTimer` w warstwie domenowej — tu stoi
@@ -579,8 +643,8 @@ class RecipeController extends Controller
              * odciąć wklejenie całej książki kucharskiej, zanim zacznie
              * chodzić parser.
              */
-            'skladniki_tekst' => ['nullable', 'string', 'max:30000'],
-            'przygotowanie_tekst' => ['nullable', 'string', 'max:120000'],
+            'skladniki_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['skladniki_tekst']],
+            'przygotowanie_tekst' => ['nullable', 'string', 'max:'.LimityTekstuPrzepisu::POLA['przygotowanie_tekst']],
         ], [
             'title.required' => 'Podaj nazwę przepisu — na przykład „Rosół babci Zofii”.',
             'title.min' => 'Nazwa przepisu musi mieć co najmniej 3 znaki. Dopisz kilka liter.',
@@ -589,6 +653,7 @@ class RecipeController extends Controller
             'servings.numeric' => 'Liczba porcji musi być liczbą. Wpisz na przykład 4.',
             'servings.min' => 'Liczba porcji musi być większa od zera. Wpisz na przykład 4.',
             'servings.max' => 'Ta liczba porcji jest nierealna. Wpisz najwyżej 999.',
+            'servings.decimal' => 'Liczba porcji może mieć najwyżej dwa miejsca po przecinku (setne). Zamiast 1,255 wpisz 1,25 albo 1,26.',
             'prep_minutes.integer' => 'Czas przygotowania podaj w pełnych minutach, na przykład 20.',
             'prep_minutes.min' => 'Czas przygotowania nie może być ujemny. Wpisz na przykład 20.',
             'prep_minutes.max' => 'Czas przygotowania jest nierealnie długi. Wpisz najwyżej 10080 minut, czyli tydzień.',

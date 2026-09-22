@@ -1,0 +1,46 @@
+{
+  "source": "/home/mateusz/kuking-digest583-runtime/app/Domain/Digest/TrescDigestu.php",
+  "md5": "dc32d25b86d68e070af92a16e554ce64",
+  "mtime_ns": 1789497455626931200,
+  "database_guard": true,
+  "baseline": {
+    "exit": 0,
+    "summary": [
+      "",
+      "Time: 00:00.755, Memory: 123.00 MB",
+      "",
+      "\u001b[30;42mOK (3 tests, 74 assertions)\u001b[0m"
+    ]
+  },
+  "negative": {
+    "exit": 1,
+    "summary": [
+      "/home/mateusz/kuking-digest583-runtime/tests/Feature/DigestNieKolejkujeSekretowTest.php:68",
+      "",
+      "\u001b[37;41mFAILURES!\u001b[0m",
+      "\u001b[37;41mTests: 1\u001b[0m\u001b[37;41m, Assertions: 2\u001b[0m\u001b[37;41m, Failures: 1\u001b[0m\u001b[37;41m.\u001b[0m"
+    ]
+  },
+  "expected_failure": true,
+  "restored_exact": true,
+  "restored": {
+    "exit": 0,
+    "summary": [
+      "",
+      "Time: 00:00.664, Memory: 125.00 MB",
+      "",
+      "\u001b[30;42mOK (3 tests, 74 assertions)\u001b[0m"
+    ]
+  },
+  "oracle_note": "Initial runner expected wording not to contain; PHPUnit emitted does not contain. Exact failure verified from saved log; no source/test changed.",
+  "regressions": {
+    "exit": 0,
+    "summary": [
+      "....................                                              85 / 85 (100%)",
+      "",
+      "Time: 00:03.959, Memory: 139.00 MB",
+      "",
+      "\u001b[30;42mOK (85 tests, 333 assertions)\u001b[0m"
+    ]
+  }
+}

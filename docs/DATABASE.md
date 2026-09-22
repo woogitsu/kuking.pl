@@ -17,14 +17,17 @@ za mało — rollback trzeba URUCHOMIĆ, i robią to dwie różne rzeczy:
 
 | Narzędzie | Co mierzy | Ile trwa |
 |---|---|---|
-| `./scripts/proba-wycofania.sh` | podnosi 76 migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej z 76 głębokości z osobna | kilka minut |
+| `./scripts/proba-wycofania.sh` | podnosi KOMPLET migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej głębokości z osobna | kilka minut |
 | `tests/Feature/KazdaMigracjaMaWycofanieTest.php` | że każda migracja MA własny, niepusty `down()`; świadoma pustka musi być zadeklarowana stałą `WYCOFANIE_NIC_NIE_ROBI` z uzasadnieniem | ułamek sekundy, w każdym `php artisan test` |
 
 Skrypt schodzi do zera na PUSTEJ bazie, więc nie mierzy zachowania `down()`
 przy danych — tego pilnują osobne testy odmowy (`CofniecieMigracji*Test`),
 po jednym na strażnika z D-088. Stan zmierzony 12 września 2026: 76 z 76
-migracji wycofuje się i wraca, a schemat po cyklu jest identyczny ze wzorcem
-na każdej głębokości.
+migracji wycofuje się i wraca. **Zmierzone ponownie 19 września 2026 na
+`b34c2973`: 82 z 82**, schemat po cyklu identyczny ze wzorcem na każdej
+z 82 głębokości. Liczba migracji rośnie przy każdej zmianie schematu, więc
+nie ma jej ani w progu skryptu, ani w progu
+`KazdaMigracjaMaWycofanieTest` — obydwa są celowo niższe od stanu dnia.
 
 ## Tabele MVP
 
@@ -35,9 +38,18 @@ Konto:
 - password;
 - status;
 - `role varchar(20) NOT NULL DEFAULT 'user'` — `user` \| `moderator` \|
-  `admin`. **Bez CHECK-a w bazie**: wartości pilnuje `App\Models\User`
-  (stałe `ROLE_*`) i jedyna droga nadania roli, komenda `kuking:nadaj-role`,
-  która zapisuje zmianę do `audit_log` (`user.role_changed`, D-039).
+  `admin`. **CHECK jest w bazie**: `users_role_check`
+  (`CHECK (role IN ('user','moderator','admin'))`), założony razem z tabelą
+  w migracji `0001_01_01_000001_create_users_table`, obok
+  `users_status_check` i `users_text_scale_check`. Do 19 września 2026 stało
+  tu zdanie „**Bez CHECK-a w bazie**" — nieprawdziwe od pierwszego dnia
+  projektu i groźne właśnie dlatego, że nikt go nie sprawdzał: czytelnik
+  planujący czwartą rolę wychodził z założenia, że wystarczy dopisać stałą
+  w PHP, a baza odrzuci mu `INSERT` bez migracji. Wartości pilnuje więc baza,
+  a warstwa PHP dokłada nazwy i drogę: stałe `ROLE_*` w `App\Models\User`
+  i jedyna droga nadania roli, komenda `kuking:nadaj-role`, która zapisuje
+  zmianę do `audit_log` (`user.role_changed`, D-039). Dołożenie roli to
+  **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
@@ -63,6 +75,47 @@ Konto:
   niżej); historia jej udzielania i wycofywania leży w `dziennik_zgod`;
 - `weekly_digest_sent_at` — kiedy poszło ostatnie podsumowanie (patrz niżej);
 - verified timestamps.
+
+#### `pwa_prompt_state` — jednorazowa propozycja instalacji (#278)
+
+Migracja `2026_09_16_200000_add_pwa_prompt_state_to_users` dodaje nullable
+`varchar(16)` z CHECK: `eligible`, `offered`, `requested`, `dismissed`,
+`installed`. `NULL` oznacza brak kwalifikacji. Kolumna nie trafia do
+`$fillable`; przejścia wykonuje `App\Domain\Pwa\InstallPrompt` warunkowym
+UPDATE. Zamknięte konta nie zmieniają stanu.
+
+Kwalifikacja wymaga poprzedniej aktywności sprzed co najmniej 24 godzin
+i nawigacji HTML zalogowanej osoby. Jest to przybliżenie powrotu po przerwie,
+nie wykrywanie zamknięcia przeglądarki. Żądanie w tle zachowuje poprzedni
+czas w sesji jako kandydata ważnego godzinę, przypisanego do tego konta;
+nie kwalifikuje samo i nie przedłuża tego okna. Następna nawigacja zużywa
+kandydata. Dzięki temu tracker aktywności nadal obsługuje żądania tła,
+ale prefetch nie odbiera kwalifikacji późniejszemu otwarciu strony.
+Rezerwacja `offered` blokuje kolejne
+propozycje również po odświeżeniu. `requested` oznacza wybranie przycisku,
+a `installed` zgłoszenie zdarzenia `appinstalled` przez klienta; samo
+zaakceptowanie okna instalacji nie wystarcza. Stan nie jest spisem
+zainstalowanych urządzeń i nie wykrywa późniejszego odinstalowania.
+
+Odmowa jest przypisana do konta, bez identyfikatora lub odmowy w localStorage.
+Eksport oddaje `konto.stan_zachety_instalacji`, a wymazanie konta zeruje pole.
+Kontekst zapisu jest szyfrowany, związany z kontem i sesją, ważny godzinę;
+endpoint dodatkowo wymaga zwykłej ochrony CSRF.
+
+**Rollback:** migracja odmawia usunięcia kolumny, jeśli istnieje stan
+`offered`, `requested`, `dismissed` lub `installed`, którego ponowna migracja
+nie odtworzy. Dla `NULL`/`eligible` wycofanie jest dozwolone. Kontrola i DDL
+są w jednej transakcji z blokadą tabeli. Nie kasować decyzji ludzi w celu
+wymuszenia rollbacku.
+
+Migracja `2026_09_16_210000_add_pwa_product_signals` rozszerza zamknięty
+słownik `product_signals` o `pwa_prompt_shown`, `pwa_install_requested`,
+`pwa_prompt_dismissed`, `pwa_installed`. Każdy ma puste `properties` i podlega
+dotychczasowej retencji 90 dni. Wyświetlenie zapisuje się po potwierdzeniu
+widoczności panelu przez klienta, nie przy samej rezerwacji. Telemetria jest
+pomocnicza: awaria jej zapisu nie cofa decyzji. Rollback tej migracji usuwa
+wyłącznie te cztery rodzaje telemetrii i przywraca wcześniejszy CHECK;
+nie zmienia `users.pwa_prompt_state`.
 
 #### `wants_weekly_digest` — zgoda, o którą trzeba było zapytać
 
@@ -601,12 +654,29 @@ użytkownik nadal dostaje 404 z `EnsureUserIsModerator`, zanim dotrze do
 sprawdzenia 2FA. Moderator bez potwierdzonego 2FA widzi jasny ekran
 z przyciskiem do włączenia (403), nie ścianę.
 
-**Rollback:** `down()` zdejmuje CHECK i wszystkie cztery kolumny. To NIE jest
-bezstratne — każde konto z włączonym 2FA traci zapisany sekret i kody
-zapasowe, czyli wraca do logowania samym hasłem. To świadomy powrót do stanu
-SPRZED tej zmiany (nikt nie zostaje zablokowany — wymóg drugiego składnika
-znika razem z danymi, które go przechowywały), sensowny wyłącznie jako
-awaryjne wyłączenie całej funkcji, nie jako operacja codzienna.
+**Rollback: ODMAWIA, gdy ktokolwiek ma 2FA potwierdzone** (D-238, zasada
+D-088). `down()` zdejmuje CHECK i wszystkie cztery kolumny, więc każde konto
+z włączonym 2FA traci sekret i kody zapasowe — bezpowrotnie, bo sekret jest
+zaszyfrowany i nie ma go skąd odtworzyć.
+
+Stało tu wcześniej, że to „świadomy powrót do stanu sprzed tej zmiany,
+nikt nie zostaje zablokowany". To prawda i dlatego właśnie jest groźne:
+cofnięcie nie wybija nikogo z serwisu, tylko po cichu ZDEJMUJE OCHRONĘ.
+Cykl `rollback` → `migrate` (czyli to, co robi `migrate:refresh`) zostawia
+kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika — konto
+moderatora, o którym właściciel wie, że jest chronione dwoma składnikami,
+wraca do samego hasła i nikt się o tym nie dowiaduje.
+
+Dlatego `down()` liczy `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją, **zanim** wykona cokolwiek
+niszczącego — także zanim zdejmie CHECK. Świadome cofnięcie przepuszcza
+zmienna `KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`.
+
+Sam sekret **bez** potwierdzenia nie blokuje niczego: to konto w trakcie
+włączania 2FA, które po prostu zaczyna włączanie od nowa. Na świeżym
+środowisku cofnięcie działa bez pytania, więc `migrate:refresh` w CI
+i u dewelopera chodzi jak dotąd. Pilnuje tego
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php`.
 
 **Zgubiony telefon i kody zapasowe naraz — jak wrócić do konta.** Serwis nie
 ma dziś SMTP, więc nie ma samoobsługowego „wyślij link odzyskiwania".
@@ -1016,8 +1086,10 @@ policzyć wcale. `php artisan kuking:raport` czyta tę kolumnę przez
 domysł.** Pełne uzasadnienie stoi w komentarzu samej migracji; w skrócie:
 retencja `product_signals` (90 dni) NIE jest tym, co przesądza — jest dłuższa
 niż 30 dni, więc D30 dałoby się policzyć nawet z sygnałów. Przesądza kształt
-tabeli: `product_signals_signal_name_check` zamyka `signal_name` na dwa
-rzadkie zdarzenia techniczne i tabela ma tak zostać (migracja
+tabeli: `product_signals_signal_name_check` zamyka `signal_name` na nazwane,
+rzadkie zdarzenia. Początkowo były dwa; późniejsze migracje dodały zdarzenia
+przeglądu tygodniowego i jednorazowej propozycji PWA. Nadal nie jest to
+ogólny dziennik każdej wizyty (migracja
 `2026_09_06_220000_create_product_signals_table`, kontrastowana tam wprost
 z generalnym serwisem `product_events`, którego to repozytorium nie buduje —
 AGENTS.md §3). Log odwiedzin na KAŻDE żądanie każdego konta zmieniłby ten
@@ -1256,6 +1328,57 @@ w bazie. Nic nie trzeba backfillować.
 
 ### posts + post_media
 Najprostszy content społecznościowy.
+
+
+**Rodzaj wpisu i tytuł pytania (#371).** Migracja
+`2026_09_18_100000_add_kind_and_title_to_posts` dodaje `kind varchar(20)
+NOT NULL DEFAULT 'dish'` i `title varchar(180) NULL` razem z ograniczeniami
+`posts_kind_check` i `posts_kind_title_check` w jednym poleceniu ALTER.
+Dozwolone są `dish` (tytuł zawsze NULL) oraz `question` (tytuł nie-NULL,
+10–180 znaków po usunięciu brzegowych spacji, tabulatorów, LF, CR i VT).
+To zestaw PHP trim poza NUL, którego PostgreSQL nie dopuszcza w tekście.
+Długość liczymy w znakach, także polskich, nie w bajtach; varchar(180)
+ogranicza również surowy tytuł przed trim. Nie normalizujemy środka tytułu.
+
+**`kind` i `title` SĄ w `Post::$fillable`** — i to `posts_kind_title_check`
+jest powodem, dla którego wolno je tam trzymać. Zakaz z AGENTS.md §7 dotyczy
+kolumn niosących STAN KONTA albo uprawnienie (`users.status`, `users.role`,
+`users.email`); `kind` i `title` niosą treść wpisu, a jedyny sposób, w jaki
+hurtowe przypisanie mogłoby tu zaszkodzić — pytanie bez tytułu albo danie
+z tytułem — baza odrzuca sama, na każdej drodze zapisu. To jest ogólna
+zasada, nie wyjątek dla tej jednej tabeli: **kolumna wolno-przypisywalna
+hurtem to taka, której wszystkie dopuszczalne kombinacje z innymi kolumnami
+pilnuje ograniczenie w bazie.** Powiązania między kolumnami, które o tym
+decydują, są w tym dokumencie wypisane przy każdej tabeli z osobna —
+`comments_single_target_check`, `collection_items_single_target_check`,
+`appeals_appellant_identity_check`, `users_data_erased_at_check`,
+`users_status_expires_at_check`, `recipe_ingredients_no_amount_check`,
+`tags_merged_consistency_check`, trzy CHECK-i celu w `reports` i komplety
+„rozpatrzone/obsłużone" w `appeals`, `contact_messages`
+i `contact_message_replies`.
+
+Dotychczasowe wpisy otrzymują `dish` i NULL bez zmiany treści, widoczności,
+relacji ani `recipe_id`. Nie ma wariantu `kind=recipe` ani drugiej tabeli.
+Konfiguracja `kuking.questions.enabled` (`KUKING_QUESTIONS_ENABLED`, domyślnie
+false) przygotowuje kolejny etap #372; sama nie filtruje istniejących feedów
+ani ręcznie zapisanych pytań. Ten etap nie dodaje ścieżki HTTP tworzenia pytań.
+
+**`kind` NIE JEST W `$fillable` MODELU `Post`.** To pole STERUJĄCE — decyduje
+o strumieniach (`scopeEnabledKinds`), o adresie wpisu (`url()`) i o tym, co
+przepuści `PostPolicy` — czyli ta sama rodzina co `users.status` i `users.role`
+z AGENTS.md §7. Jedyna droga to nazwana metoda `Post::oznaczJakoPytanie()`,
+tak jak `ContactMessage::oznaczJako()` dla stanu obsługi wiadomości. `title`
+w `$fillable` ZOSTAJE: to treść pisana przez autora, a sam z siebie nie otwiera
+furtki, bo `posts_kind_title_check` nie przyjmie tytułu przy daniu. Pilnuje
+tego `tests/Feature/RodzajWpisuPozaMasowymPrzypisaniemTest.php` — sprawdzając
+zawartość wiersza, a nie zawartość tablicy `$fillable`.
+
+**Rollback:** przy braku pytań `down()` usuwa oba CHECK-i i nowe kolumny,
+zachowując stare wpisy. Jeśli istnieje choć jedno pytanie, również ukryte
+lub miękko usunięte, odmawia przed DDL. Wtedy wycofujemy kod, pozostawiając
+rozszerzony schemat; nie usuwamy pytań w celu przepchnięcia rollbacku.
+Sprawdzenie i DDL są objęte transakcją oraz blokadą tabeli, aby równoległy
+zapis nie wszedł pomiędzy sprawdzenie a usunięcie kolumn.
 
 **`posts.recipe_id` — wpis WSKAZUJĄCY przepis** (issue #368). Kolumna istnieje
 od pierwszej migracji (`2026_09_05_000500_create_posts_tables`, `nullable`,
@@ -1524,11 +1647,21 @@ Podstawa search i późniejszego planera.
 `ingredients` — słownik składników **wspólny dla serwisu**, budowany
 z tego, co ludzie wpisują:
 
-- `canonical_name varchar(160)` — nazwa w pisowni, którą pokazujemy
+- `canonical_name varchar(240)` — nazwa w pisowni, którą pokazujemy
   („cebula czerwona"). To jest tekst pochodzący od człowieka, nie z żadnej
   zewnętrznej bazy;
-- `normalized_name varchar(160) UNIQUE` — ta sama nazwa po `kuking_normalize()`,
-  czyli klucz dopasowania; indeks `gin_trgm_ops` pod wyszukiwarkę.
+- `normalized_name text UNIQUE` — klucz dopasowania obliczany w PHP przez
+  `Ingredient::normalize()` (`Str::ascii`, małe litery i redukcja białych
+  znaków). Transliteracja może wydłużyć nazwę: 240 znaków `Æ` daje 480
+  znaków `ae`, więc limit kolumny nie może wynosić 240. Indeks wyszukiwarki
+  GIN nadal używa `kuking_normalize(normalized_name) gin_trgm_ops`.
+
+Migracja `2026_09_14_100000_dopasuj_slownik_skladnikow_do_formularza`
+(#526) rozszerza poprzednie `varchar(160)`. Nie obcina danych, nie zmienia
+normalizacji ani indeksów. `down()` w transakcji blokuje tabelę i odmawia,
+jeżeli którakolwiek z obu nazw ma ponad 160 znaków; przy krótszych danych
+cofnięcie przechodzi. Powód: formularz i `recipe_ingredients` już wcześniej
+akceptowały 240 znaków, lecz zapis słownika kończył wtedy publikację błędem500.
 
 `units` — jednostki miary. Tabela słownikowa, którą wypełnia seeder, a nie
 człowiek przy przepisie:
@@ -1581,6 +1714,12 @@ składnika nie. `NULL` jest stanem normalnym.
 weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
 przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
 „ile weźmie".
+
+**Prezentacja (#878, decyzja właściciela z 20 września 2026):** flaga nie
+określa sposobu dozowania. Widok pokazuje wyłącznie tekst składnika i uwagę
+autora, bez automatycznego „do smaku” ani „bez podanej ilości”. Autor wpisuje
+„do smaku”, „ile weźmie” lub inne określenie w nazwie składnika. To zmienia
+dawne kryterium prezentacji z #44, nie CHECK ani znaczenie zapisanej flagi.
 
 Kolumna weszła **przed** funkcją, która jej używa, i to jest jedyny powód,
 dla którego istnieje już teraz: dopisanie jej dziś kosztuje jedną linijkę,
@@ -1894,6 +2033,16 @@ uprzedzenia. `parent_id uuid NULL` → `comments` — odpowiedź na komentarz;
 (`deleted_at`), a `status` (`published` \| `hidden` \| `removed`) trzyma
 decyzję moderacji osobno od skasowania przez autora.
 
+`body_removed_at timestamptz NULL` oznacza usunięcie treści z zachowaniem
+wątku odpowiedzi (#372). Kontroler zapisuje ten znacznik razem z tekstem
+„Komentarz usunięty.”, jeżeli komentarz ma dzieci. Ślad nadal pozwala czytać
+rozmowę, ale nie jest odpowiedzią na pytanie: nie trafia do licznika odpowiedzi,
+QAPage ani nie usuwa pytania z kolejki gospodarza. Nie można go ponownie edytować.
+Migracja nie odgaduje historycznych usunięć z samego tekstu. Cofnięcie kolumny
+jest dozwolone tylko, gdy wszystkie wartości są NULL; sprawdzenie i DDL są
+objęte jedną blokadą tabeli. Przy istniejących znacznikach wycofuje się kod
+bez cofania tej migracji.
+
 **Podwójne kliknięcie „Wyślij" NIE jest tu pilnowane przez schemat —
 i to jest świadome.** Zmierzone przed poprawką (audyt podwójnego wysłania,
 12 września 2026): dwa identyczne `POST /wpisy/{post}/komentarz` dawały
@@ -1999,6 +2148,32 @@ Konsekwencja dla domyślnego zeszytu: `User::defaultCollection()` szuka
 pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł sam założyć
 zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
 kończyłoby się błędem 500.
+
+### first_post_events
+
+Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
+retencji alertu. `author_id uuid PRIMARY KEY` wskazuje `users.id` (ON DELETE
+CASCADE), `post_id uuid NULL` wskazuje nośnik. Złożony FK
+`(author_id, post_id)` do `posts(author_id, id)` wymusza zgodność autora;
+`ON DELETE SET NULL (post_id)` zachowuje zdarzenie po fizycznym usunięciu
+wpisu. Obsługuje go indeks `posts_author_id_id_unique`. Nie przechowujemy
+odbiorcy ani kopii treści. Soft delete nośnika nie zmienia wiersza.
+
+Publikacja zapisuje znacznik w tej samej transakcji co wpis, audyt, alert
+i zlecenie analizy (produkcyjna kolejka database na tym samym połączeniu).
+Prywatny wpis nie konsumuje pierwszeństwa. Przy istniejącym gospodarzu
+obowiązuje pełna dostępność wpisu dla niego; bez gospodarza kwalifikuje się
+tylko publiczny. Panel pokazuje utrwalony nośnik tylko odbiorcy z dostępem,
+nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
+
+Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
+dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
+obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
+pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
+odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
+przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
+dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
 
 ### notifications
 In-app.
@@ -2282,7 +2457,15 @@ rozstrzyga człowiek.
 Decyzje moderatorów.
 
 **`action varchar(40) NOT NULL`** — co moderator zrobił: `no_action`, `hide`,
-`unhide`, `remove`, `warn`, `suspend`, `ban`. **Bez CHECK-a w bazie**, bo
+`unhide`, `remove`, `warn`, `suspend`, `ban`, albo wewnętrzny wynik
+`target_unavailable`. Ten ostatni nie jest wyborem w formularzu: powstaje
+wyłącznie wtedy, gdy moderator świadomie wybiera „Bez działania”, a wskazany
+cel zniknął lub nie dał się ustalić przed pierwszą decyzją. Wtedy sprawa jest
+zamknięta jako `resolved`, ale nie zapisujemy sankcji ani nie twierdzimy, że
+oceniliśmy treść. Próba `hide`, `remove`, `warn`, `suspend` albo `ban` zostawia
+sprawę otwartą i wraca z błędem, zamiast tworzyć pozorną decyzję.
+
+**Bez CHECK-a w bazie**, bo
 dopuszczalna wartość zależy od `target_type` (konta nie da się „ukryć",
 zdjęcia nie da się „usunąć" osobno od wpisu) — macierz `target_type` →
 dozwolone działania trzyma `App\Models\ModerationAction::DOZWOLONE`, a CHECK
@@ -2479,6 +2662,173 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+### potwierdzenia_zadan_rodo
+Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
+obsłużone — **zamiast** bezterminowego dziennika osobowego.
+
+Powstało z `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C, która nie kwestionuje
+liczby, tylko kształt: trzy kategorie `audit_log` z listy
+`AuditLogEntry::NIGDY_NIE_KASUJ` trzymają dziś BEZTERMINOWO wpis z `actor_id`,
+`ip_hash` i dowolnym `metadata jsonb`. Ocena każe je zastąpić zamkniętym
+zestawem pól z określonym okresem trzymania; ocena proponowała **36 miesięcy od
+zakończenia obsługi**, ale **właściciel wstrzymał automatyczne kasowanie do
+potwierdzenia okresu przez prawnika** (D-233 — patrz „Retencja" niżej). Pełny projekt,
+razem z rozstrzygnięciem powiązania z wnioskodawcą i jego słabościami:
+`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`.
+
+**Kto do niej pisze (od 21.09.2026):** wyłącznie
+`App\Domain\Compliance\RejestrPotwierdzenRodo`. Wiersz `w_toku` powstaje przy
+zgłoszeniu żądania z `/ustawienia/twoje-dane` (w jednej transakcji
+z `users.markForDeletion()`), a domknięcie — `wykonane` albo `cofniete` — idzie
+**w tej samej transakcji** co `EraseAccountData` i `CancelAccountDeletion`.
+Potwierdzenie zapisane osobną transakcją potrafiłoby opisywać wykonanie,
+którego nie było, albo przemilczeć wykonanie, które było; dowodzi tego
+`tests/Feature/PotwierdzenieRodoIdzieWTejSamejTransakcjiTest.php`.
+
+Model `App\Models\PotwierdzenieZadaniaRodo` ma w `$fillable` **wyłącznie opis
+sprawy** (`rodzaj`, `otrzymano`, `wersja_procedury`, `wyjatki`). `numer`,
+`wynik`, `zakres`, `zakonczono`, `konto_id`, `wstrzymanie_do`
+i `wstrzymanie_sprawa` stoją **poza** `$fillable` — ta sama ostrożność co przy
+`status` i `role` użytkownika, tylko stawką jest tu prawdziwość dowodu, wskaźnik
+na dane osobowe i zegar retencji.
+
+**Czego nadal nie ma:** backfillu istniejących wpisów `account.*` i skasowania
+ich pełnych kopii — to osobne kroki właściciela (lista w projekcie wyżej), więc
+do ich wykonania dziennik i potwierdzenia stoją **obok siebie**, nie zamiast
+siebie. Numer sprawy też nie jest jeszcze nigdzie pokazywany ani wysyłany
+człowiekowi (brzmienie pisma to krok 2 właściciela).
+
+- `id uuid` PK, `DEFAULT gen_random_uuid()`;
+- **`numer varchar(19) UNIQUE`** — `RODO-XXXX-XXXX-XXXX`, losowany
+  z `App\Support\NumerZadaniaRodo` (alfabet bez `0`, `1`, `I`, `L`, `O`, `U`
+  wspólny z `NumerSprawy`, 12 znaków ≈ 59 bitów). To jest **jedyne powiązanie
+  wiersza z człowiekiem po wykonaniu usunięcia** — numer dostaje wnioskodawca,
+  baza nie trzyma niczego, z czego dałoby się go odtworzyć. Przedrostek inny
+  niż `KU` zgłoszeń moderacyjnych, żeby dwa rejestry nie mówiły tym samym
+  numerem. Wzór pilnuje CHECK `potwierdzenia_zadan_rodo_numer_check`,
+  **zamrożony w dniu migracji** — zmiana `NumerSprawy::ALFABET` wymaga nowej
+  migracji (tak samo jak przy `reports`);
+- **`rodzaj varchar(40)`** — CHECK po `SlownikPotwierdzenRodo::RODZAJE`. Dziś
+  jedna wartość: `usuniecie_konta`;
+- **`wynik varchar(30)`** — `w_toku` / `wykonane` / `cofniete` / `odmowa`.
+  Ta kolumna zastępuje TRZY kategorie dziennika jednym wierszem: cofnięcie
+  żądania jest **wynikiem**, nie osobnym zdarzeniem („Przechowuj właściwy stan
+  końcowy, nie trzy niekasowalne kopie wszelkich danych" — §C);
+- **`zakres varchar(20) NULL`** — `minimum` / `everything`, te same wartości co
+  `users.delete_scope` (D-022). CHECK wiąże je z wynikiem w OBIE strony:
+  `wykonane` musi mieć zakres, każdy inny wynik mieć go nie może;
+- **`otrzymano date`** + **`zakonczono date NULL`** — daty wpływu i zakończenia.
+  **`date`, nie `timestamptz`, i to jest minimalizacja**: sekunda zamknięcia
+  sprawy daje się zestawić z chwilą, w której czyjeś wpisy zmieniły autora na
+  „konto usunięte", czyli sama identyfikuje. Doba do wykazania terminu z art. 12
+  ust. 3 i do policzenia 36 miesięcy wystarcza. `zakonczono` jest **początkiem
+  zegara retencji**; `NULL` znaczy „sprawa w toku" i CHECK wiąże to z
+  `wynik = 'w_toku'` w obie strony, żeby bezterminowość nie wróciła przez pustą
+  kolumnę;
+- **`wersja_procedury varchar(20)`** — która wersja procedury usunięcia to
+  wykonała (`RRRR-MM-DD` daty obowiązywania). Bez niej „wykonane" znaczy tylko
+  „zrobiliśmy wtedy to, co wtedy robiliśmy";
+- **`wyjatki text NULL`** — czego NIE usunięto i z jakiej reguły to wynika
+  (przy `minimum` treści zostają zanonimizowane, `COMPLIANCE.md` §2; sprawa
+  moderacyjna ma własne 36 miesięcy). Tekst wskazuje **regułę**, nie opowiada
+  o człowieku;
+- **`konto_id uuid NULL`** → `users` (`ON DELETE SET NULL`) — powiązanie
+  z wnioskodawcą, **zostające także po wykonaniu żądania**.
+
+  **DECYZJA WŁAŚCICIELA Z 21.09.2026, nie rekomendacja oceny zewnętrznej.**
+  Pierwotny schemat miał tu CHECK
+  `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`, zabraniający `konto_id`
+  przy `wynik = 'wykonane'`: z chwilą wykonania konto jest anonimizowane,
+  a wskaźnik wiąże dowód usunięcia danych osobowych ze wszystkim, co po tym
+  koncie w serwisie zostało. Właściciel zdecydował inaczej — ma się dać
+  odpowiedzieć regulatorowi o konkretną osobę bez pytania jej o numer sprawy —
+  i CHECK zdejmuje migracja
+  `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo` (jej
+  `down()` zakłada go z powrotem i odmawia wąsko, gdy stoi wiersz, który by go
+  złamał).
+
+  **CENA TEJ DECYZJI I JEDYNE, CO PO NIEJ ZOSTAŁO Z OCHRONY.** Rejestr umie
+  teraz odpowiedzieć na pytanie „czy ta osoba usunęła konto" każdemu, kto ma
+  dostęp do bazy — a przy zakresie `minimum` treści tej osoby zostają pod tym
+  samym `user_id` (D-022), więc wskaźnik prowadzi od potwierdzenia wprost do
+  jej zachowanego dorobku. Decyzja brzmiała „ma się dać odpowiedzieć
+  regulatorowi", a **nie** „ma być wyszukiwarka", więc:
+  - **nie ma i nie będzie ekranu, trasy ani endpointu** czytającego tę tabelę
+    po `konto_id` — pilnuje tego
+    `tests/Feature/RejestrPotwierdzenRodoNieMaEkranuTest.php` (skan tras, skan
+    warstwy HTTP i widoków, zamknięta lista publicznych metod klasy piszącej,
+    zakaz wiązania modelu z adresu — każdy z kontrolą dodatnią);
+  - **kto i w jakim trybie ma prawo z tego skorzystać:** właściciel serwisu,
+    **odczytem ręcznym wprost w bazie**, przy konkretnej sprawie od organu
+    nadzorczego albo sądu, notując przy sprawie, czego odczyt dotyczył. To nie
+    jest funkcja produktu i nie ma być wygodne — niewygoda jest tu jedynym, co
+    zostało z ochrony zdjętej razem z CHECK-iem.
+
+  Pełny zapis decyzji, argumentów przeciw i tego zawężenia:
+  `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.2 punkt 3 i §3.3 punkt 7;
+- **`wstrzymanie_do date NULL`** + **`wstrzymanie_sprawa varchar(100) NULL`** —
+  udokumentowane wstrzymanie kasowania (§C: „o ile konkretna udokumentowana
+  sprawa nie wymaga dalszego zachowania"). CHECK wymusza parę: wstrzymanie bez
+  wskazanej sprawy to znów retencja bezterminowa, tylko pisana inną kolumną.
+  Data, nie flaga — blokada ma wygasać sama;
+- `created_at` / `updated_at` (`timestamptz`) — kiedy wiersz powstał. To **nie**
+  jest `otrzymano`; rozjazd między nimi jest jedynym sygnałem daty wpisanej
+  wstecz.
+
+**Czego tu nie ma, świadomie:** adresu e-mail (jawnego ani jako skrót), nazwy,
+biogramu, zdjęć, treści wniosku, korespondencji, `ip_hash` — oraz `metadata
+jsonb`, czyli tej jednej kolumny, przez którą wszystkie powyższe wróciłyby bez
+migracji i bez recenzji schematu.
+
+**Indeksy** (wszystkie częściowe — każdy pod jedno zapytanie):
+`potwierdzenia_zadan_rodo_retencja_idx (zakonczono) WHERE zakonczono IS NOT NULL`,
+`..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
+oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
+
+**Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
+D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.
+
+Powód nie jest niechęcią do retencji, tylko dwiema konkretnymi rzeczami:
+okresu **nie potwierdził jeszcze prawnik** (36 miesięcy było analogią do
+sprawy moderacyjnej, nie ustaleniem), a kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby" nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą" — czyli nie wiadomo nawet, jak długo istnieje droga odzysku.
+
+Wyłączenie stoi na **dwóch niezależnych barierach**: `retencja_wlaczona` jest
+`false`, a `kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte
+w `routes/console.php`**, więc nie wystartuje nawet przy przypadkowo ustawionej
+zmiennej. `retention_months` jest `null`, nie 36 — żeby samo przestawienie
+flagi nie uruchomiło kasowania według zgadniętego progu.
+
+Sam predykat istnieje, jest przetestowany i gotowy:
+`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo` liczy od `zakonczono`,
+pomija wiersze z `wstrzymanie_do` w przyszłości, a sprawy w toku (`zakonczono IS
+NULL`) nie są kandydatem w ogóle, bo kasowanie otwartej sprawy zamieniłoby
+retencję w sprzątanie dowodów zaniedbania. Próg liczony `subMonthsNoOverflow`,
+nie `subMonths` (A6-04) — przepełnienie daty przesuwa go w stronę nowszych
+wierszy i kasowałoby dowód wykonania art. 17 przed czasem.
+
+**Do przygotowania danych historycznych** służy
+`kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które działa mimo
+wyłączenia i nie wykonuje żadnego `DELETE` — pokazuje wyłącznie, ile wierszy
+wpadłoby pod dany próg.
+
+**Jak to włączyć, gdy prawnik potwierdzi okres:** trzy kroki opisane przy kluczu
+`potwierdzenia_rodo` w `config/kuking.php` i w `PROJEKT_POTWIERDZENIA_RODO.md`
+§6. `tests/Feature/RetencjaPotwierdzenRodoTest.php` pilnuje obu stron: że
+domyślnie nic się nie kasuje (z kontrolą dodatnią, że wiersz naprawdę był
+kandydatem) i że po jawnym włączeniu automat kasuje oraz omija wstrzymane.
+
+**Rollback:** `down()` kasuje tabelę, ale **odmawia**, gdy stoi w niej choć
+jeden wiersz z wypełnionym `zakonczono` — to dowód obsługi żądania, którego nie
+ma gdzie indziej. Odmowa jest wąska (AGENTS.md §6, D-088): pusta tabela i tabela
+z samymi sprawami w toku cofają się bez pytania, bo sprawa w toku żyje nadal
+w `users.delete_requested_at`. Kolejność: **najpierw kod, potem migracja**.
+Pilnuje tego `MinimalnePotwierdzenieRodoTest` (odmowa + dwie kontrole dodatnie).
 
 ### dziennik_zgod
 Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
@@ -2949,13 +3299,14 @@ i `Wyscigi\EksportDanychRaceTest`.
 ### product_signals
 
 Sygnały produktowe (issue #115), migracja
-`2026_09_06_220000_create_product_signals_table`. Dziś **cztery** zdarzenia:
+`2026_09_06_220000_create_product_signals_table`. Osiem zdarzeń:
 `photo_upload_failed` (próba wgrania zdjęcia, która się nie udaje —
 `App\Domain\Media\Actions\StoreUploadedImage`), `search_performed`
 (wykonane wyszukiwanie — `App\Http\Controllers\SearchController`) oraz para
 od tygodniowego podsumowania: `weekly_digest_queued` i
 `weekly_digest_unsubscribed` (issue #11, D-057; migracja
-`2026_09_10_100100_add_digest_signals_to_product_signals`). Jedyne miejsce,
+`2026_09_10_100100_add_digest_signals_to_product_signals`) oraz cztery sygnały
+instalacji PWA opisane przy `users.pwa_prompt_state` powyżej. Jedyne miejsce,
 które tu pisze: `App\Domain\Analytics\ZapiszSygnal`.
 
 **`weekly_digest_queued` nazywał się do 10 września `weekly_digest_sent`**
@@ -3017,7 +3368,7 @@ potrzebuje).
 |---|---|
 | `id` | `bigserial`, nie UUID — wiersz nigdy nie jest adresowany z zewnątrz (ten sam wybór co `audit_log`). |
 | `user_id` | Nullable, `nullOnDelete()`. Anonimizacja konta (`EraseAccountData`, D-018) NIE kasuje wiersza — sygnał ma wartość niezależnie od tego, kto go wywołał — ale referencja do usuniętego konta znika razem z nim. |
-| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
+| `signal_name` | `photo_upload_failed` \| `search_performed` \| `weekly_digest_queued` \| `weekly_digest_unsubscribed` \| `pwa_prompt_shown` \| `pwa_install_requested` \| `pwa_prompt_dismissed` \| `pwa_installed`. CHECK w bazie (`product_signals_signal_name_check`) — zamknięty zbiór, tak jak `reports.status`. |
 | `properties` | `jsonb`. Dla `photo_upload_failed`: `reason` (patrz niżej) i gdzie to ma sens liczby (`bytes`, `max_bytes`, `megapixels`) — NIGDY nazwa pliku. Dla `search_performed`: **wyłącznie** `query_length` (int) i `has_results` (bool) — **nigdy** `query_text`. Drugi CHECK w bazie (`product_signals_no_query_text_check`, przez `jsonb_exists()`) odrzuca każdy wiersz, w którym klucz `query_text` w ogóle by się pojawił, niezależnie od tego, co akurat pisze kod aplikacji. Dla `weekly_digest_queued`: **wyłącznie liczby** — `wykonania`, `nowi_obserwujacy`, `wpisy` (ile pozycji miała każda sekcja listu), żeby dało się zobaczyć, czy listy nie robią się cienkie. Bez adresu, bez nazw, bez tytułów. Dla `weekly_digest_unsubscribed`: `properties` jest PUSTE — sam fakt i `user_id` wystarczą do progu wypisów. |
 | `occurred_at` | `timestamptz`, `useCurrent()`. **SPROSTOWANIE (D-078):** wcześniej stało tu, że dla `weekly_digest_sent` kolumna jest czytana JAKO LICZNIK dobowego limitu poczty. Nieprawda — sprawdzone w kodzie: dobowy sufit liczy `App\Domain\Security\DziennyBudzetListow`, a ten trzyma licznik w **cache**, nie w tej tabeli, i nie sięga do `product_signals` ani razu. Ta kolumna służy dziś wyłącznie retencji (`kuking:sprzataj-sygnaly`) i porządkowaniu w czasie. |
 
@@ -3142,6 +3493,33 @@ Limit 5 tagów/wpis egzekwowany w `App\Domain\Tags\Actions\ResolveTagsForPost`
 (`App\Support\LimityTagow`), liczony na unikalnych `tag_id`, nie na wpisanych
 frazach.
 
+Od #647 `post_tags.dodany_recznie` jest `boolean NOT NULL DEFAULT true`.
+Migracja `2026_09_18_000000_add_manual_origin_to_post_tags` zachowuje dawne
+powiązania jako ręczne; nie zmienia opisów ani nie importuje ich tokenów.
+Przy świadomej publikacji/edycji parser rozpoznaje tokeny `#slug` w końcowym
+opisie. `ResolvePostTags` łączy ręczny zbiór M i zbiór tokenów I po kanonicznym
+ID: relacja istnieje dla M OR I, a flaga zapisuje M. Skasowanie ostatniego
+tokenu usuwa wyłącznie relację inline-only. Ręczne nazwy wielowyrazowe nadal
+działają; slug istniejącego taga rozwiązuje się do jego nazwy bez tworzenia
+duplikatu. Limit obejmuje unię obu źródeł po aliasach/scaleniu.
+
+Ukrycie taga nie zmienia pochodzenia istniejącego powiązania. Zapis nie
+reaktywuje ukrytego taga ani nie przypina go do nowego wpisu. Scalenie
+zachowuje OR ręcznego pochodzenia dwóch pivotów i nie przepisuje body.
+Współdzielona transakcyjna blokada `TagMutationLock` dopuszcza równoległe
+zapisy wpisów, natomiast scalenie bierze wyłączność na czas zmiany słownika
+i pivotów. Edycja dodatkowo blokuje swój wpis. Opis, nowe nazwy i pivoty
+zapisują się atomowo. Eksport własnych wpisów zawiera nazwy, slugi, ID tagów
+i flagę pochodzenia, również dla wpisów prywatnych.
+
+**Rollback #647:** `down()` blokuje tabelę na czas kontroli i DDL. Odmawia,
+jeżeli jakikolwiek pivot ma false, także przy usuniętym miękko wpisie:
+odtworzenie kolumny zamieniłoby inline-only na ręczny wybór. Przy samych true
+usunięcie kolumny jest bezstratne. Powrót samej aplikacji do starego obrazu
+także nie jest bezstratny: stary formularz traktuje wszystkie relacje jako
+ręczne. Zachowaj kolumnę i nowy kontrakt zapisu albo wstrzymaj edycje na czas
+uzgodnionej migracji danych; nie zastępuj istniejących false przez true.
+
 `tag_follows`: **bez własnego `id`**, `PRIMARY KEY(user_id, tag_id)` —
 jeden do jednego z (usuwanym) `topic_follows`.
 
@@ -3196,7 +3574,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
 | `contact_email` | Tylko dla GOŚCIA. Dla zalogowanego zostaje `NULL` — jego adres jest już na koncie, a kopiowanie go tutaj byłoby powielaniem danych osobowych bez powodu (RODO, minimalizacja). Odpowiedni adres podaje `ContactMessage::adresDoOdpowiedzi()`. |
-| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. Kontroler przycina (`NapiszDoNasController::oczyscSciezke()`): adres z cudzego serwisu i fraza wyszukiwania w `?q=` do bazy nie trafiają. |
+| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
 | `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` (przez `num_nonnulls()`) wymusza komplet: status inny niż `new` MUSI mieć oba, a `new` — żadnego. Bez tego retencja nie miałaby od czego liczyć i wiersz zostawałby w bazie na zawsze. |
@@ -3436,6 +3814,124 @@ zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
 nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
+
+### sessions
+
+Tabela sterownika sesji Laravela (`SESSION_DRIVER=database` — wartość
+**domyślna** w `config/session.php`, ta sama w `.env.example`, w `docker/php.ini`
+i w `.railway/railway.ts`). Zakłada ją domyślna migracja frameworka
+`0001_01_01_000001_create_users_table`, nie nasza.
+
+**Jest tu opisana, chociaż nie jest naszą tabelą — i to jest cała rzecz.**
+Do 21.09.2026 `docs/DATABASE.md` nie wspominał o niej ani razu, a leżą w niej
+dane osobowe. Sześć kolejnych audytów prywatności czytało ten dokument jako
+spis danych i żaden nie zauważył, że serwis trzyma adres IP zalogowanego
+człowieka — bo nikt tej tabeli nie „dodawał", więc nikt nie przeszedł ścieżki
+„migracja + test + `docs/DATABASE.md`", która takie rzeczy wyłapuje
+(badanie RZ-01, 21.09.2026). Cisza w dokumencie nie znaczyła, że nic tam nie ma.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | Identyfikator sesji z ciasteczka, `varchar` PRIMARY KEY. Nadaje go framework, nie my. |
+| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. |
+| `ip_address` | **ZGRUBNY adres IP, nie dokładny** (RZ-01). IPv4 bez ostatniego oktetu (`203.0.113.0`), IPv6 obcięty do `/48` (`2001:db8:1234::`). Zapisuje go `App\Support\Sesja\UchwytSesjiBezPelnegoAdresu` — nasze nadpisanie `DatabaseSessionHandler::ipAddress()`, zarejestrowane w `AppServiceProvider`. `varchar(45)` (długość na pełny IPv6) zostaje ze schematu frameworka. |
+| `user_agent` | **Pełny nagłówek `User-Agent`, do 500 znaków** — obcina go framework, nie my. To jest niezły odcisk palca przeglądarki i **dana osobowa**, gdy stoi obok `user_id`. Nie maskujemy go: to osobna decyzja, nie porządek przy okazji. |
+| `payload` | Zawartość sesji (`text`, base64 + `serialize`). Jedyna kolumna, którą obejmuje `SESSION_ENCRYPT` — patrz niżej. |
+| `last_activity` | Uniksowy znacznik czasu (`integer`, nie `timestamptz`), aktualizowany przy każdym zapisie sesji. Po nim liczy się retencja. |
+
+```sql
+CREATE TABLE sessions (
+    id            varchar(255) PRIMARY KEY,
+    user_id       uuid NULL,
+    ip_address    varchar(45) NULL,
+    user_agent    text NULL,
+    payload       text NOT NULL,
+    last_activity integer NOT NULL
+);
+
+CREATE INDEX sessions_user_id_index ON sessions (user_id);
+CREATE INDEX sessions_last_activity_index ON sessions (last_activity);
+```
+
+#### `SESSION_ENCRYPT` NIE zasłania adresu ani przeglądarki
+
+To jest pułapka, na którą łatwo wejść przy czytaniu `.railway/railway.ts`
+(planuje `SESSION_ENCRYPT: "true"`). Flaga szyfruje **wyłącznie kolumnę
+`payload`**. `ip_address` i `user_agent` są dokładane OBOK, jako osobne
+kolumny, przez `DatabaseSessionHandler::addRequestInformation()`, i zostają
+jawne niezależnie od niej. Kto weźmie zrzut tej tabeli, dostaje parę
+(`user_id`, zgrubny adres, pełny `User-Agent`).
+
+#### Dlaczego adres jest zgrubny, a nie dokładny i nie pusty
+
+Po `App\Http\Middleware\NormalizeForwardedFor` `$request->ip()` zwraca
+**prawdziwy adres człowieka** zza łańcucha Cloudflare → Railway → kontener,
+czyli adres domowy albo komórkowy, a nie adres infrastruktury. RZ-01 ustaliło
+przy tym, że **nic tej kolumny nie czyta**: jedyne odwołania do tabeli
+w całym `app/` to dwa `->delete()` po `user_id` i deklaracja nazwy tabeli.
+Nie ma wykrywania przejęcia sesji ani ekranu „Twoje aktywne urządzenia".
+
+Pełna precyzja nie ma więc dziś odbiorcy, a ma koszt. Zgrubny adres zostawia
+tyle, ile wystarcza przy incydencie na ręczne pytanie „czy te sesje szły
+z jednego miejsca, czy z pół świata"; wyzerowanie kolumny zamknęłoby tę drogę
+bez powrotu i jest osobną decyzją, której nikt nie podjął.
+
+**Uczciwa granica: zamaskowany adres NADAL jest daną osobową**, gdy leży obok
+`user_id` — u operatora, który deleguje abonentowi całe `/48`, ta maska nie
+zabiera nic. Zmiana zmniejsza szkodę przy wycieku; **nie znosi obowiązku
+opisania tego przetwarzania w polityce prywatności**, którego ten dokument nie
+zastępuje i którego nie wolno domknąć zmianą w kodzie.
+
+#### Retencja — twarda, nie loteryjna
+
+`kuking:sprzataj-sesje` (`App\Domain\Compliance\PrzedawnioneSesje`), co noc
+o 05:10: kasuje wiersze bez aktywności od `config('kuking.sessions.retention_days')`
+dni (domyślnie 7), **nigdy jednak krócej niż `SESSION_LIFETIME`** — wiersz
+młodszy niż czas życia sesji należy do sesji ŻYWEJ, a jego skasowanie to
+wylogowanie człowieka w środku pracy.
+
+Do 21.09.2026 kasowała tu wyłącznie loteria frameworka
+(`config/session.php` → `'lottery' => [2, 100]`, czyli `gc()` przy 2% żądań).
+Przy małym ruchu wiersz leżał dłużej niż `lifetime`, bez żadnej gwarantowanej
+górnej granicy — `sessions` była jedyną tabelą z danymi osobowymi bez nocnego
+zadania. **Loteria zostaje włączona obok**, świadomie: dwa mechanizmy o różnych
+trybach awarii (loteria czyści przy ruchu nawet po śmierci harmonogramu,
+zadanie czyści co noc nawet bez ruchu).
+
+#### Czego tu świadomie nie ma i co zostało zrobione z wierszami sprzed zmiany
+
+**Nie ma migracji nadpisującej adresy, które już leżały w tabeli** — i to jest
+decyzja, nie przeoczenie. Powody, w kolejności ważności:
+
+1. **Te wiersze znikają same, bez żadnej destrukcyjnej operacji.**
+   `addRequestInformation()` przepisuje `ip_address` przy KAŻDYM zapisie sesji,
+   więc adres w sesji żywej zostaje zamaskowany przy pierwszym żądaniu po
+   wdrożeniu. Sesja, do której nikt nie wraca, wygasa i zabiera ją
+   `kuking:sprzataj-sesje`. Po okresie retencji nie zostaje ani jeden
+   niezamaskowany adres.
+2. **`down()` takiej migracji nie umiałby nic przywrócić.** `AGENTS.md` wymaga
+   działającego wycofania; migracja nadpisująca dane jest nieodwracalna
+   z definicji, a nieodwracalna migracja udająca odwracalną jest gorsza niż
+   jej brak.
+3. **Kasowanie i nadpisywanie danych na produkcji wymaga osobnej, jawnej zgody
+   właściciela** (zasady floty). Zatwierdzone zostało maskowanie zapisu, nie
+   operacja na istniejących wierszach.
+
+Gdyby właściciel zdecydował inaczej, jest to bezpieczne: jednorazowy
+`UPDATE sessions SET ip_address = …` nikogo nie wylogowuje (kolumny nie czyta
+ani framework, ani nasz kod), ale jest nieodwracalny i dlatego ma być osobną,
+wyraźną decyzją, a nie skutkiem ubocznym tej zmiany.
+
+Nie ma też ekranu „aktywne urządzenia" ani wykrywania przejęcia sesji —
+gdyby kiedyś powstały, będą czytały ZGRUBNY adres i to trzeba wiedzieć przed
+projektowaniem takiego ekranu.
+
+**Rollback.** Ta zmiana **nie dotyka schematu** — nie ma czego wycofywać
+migracją. Wycofanie samego zachowania to zdjęcie rejestracji
+`Session::extend('database', …)` z `AppServiceProvider` (wracają pełne adresy)
+oraz zdjęcie zadania z `routes/console.php` (wraca sama loteria). Adresy
+zamaskowane w międzyczasie **nie wracają** do pełnej postaci i wrócić nie mogą.
+
 
 ## V1 / V2
 
@@ -3754,3 +4250,187 @@ nie generuje i nic go nie pilnuje.
 **Prawdą o schemacie jest żywa baza po `php artisan migrate`.** Ten dokument
 opisuje ją zdaniami, a `SchematBazyTrzymaSieDokumentuTest` pilnuje, żeby żadna
 tabela nie została w nim pominięta ani nie została opisana po skasowaniu.
+
+---
+
+## Budżet połączeń PostgreSQL — issue #598
+
+**Pomiar: 17 września 2026.** Ten rozdział rozdziela trzy rzeczy, które
+w poprzednich notatkach się zlewały: **co zmierzono na produkcji**, **co
+zmierzono lokalnie** i **co z tego policzono**. Liczba policzona nie ma prawa
+udawać pomiaru, a pomiar ma prawo zaprzeczyć obliczeniu — i wtedy to
+obliczenie jest do poprawki, nie pomiar.
+
+### Dlaczego to nie jest zwykła metryka pojemności
+
+Wyczerpanie `max_connections` jest awarią **skokową**. Dopóki zostaje jedno
+wolne miejsce, wszystko wygląda normalnie i `/health` odpowiada „baza działa"
+— bo właśnie to ostatnie miejsce zajął. Po jego zajęciu nie łączy się **nikt**,
+łącznie z administratorem, który przyszedł to naprawić. Dlatego próg alarmowy
+stoi daleko przed limitem, a nie tuż przed nim, i dlatego pomiar połączeń jest
+osobny od `/health`.
+
+### A. Zmierzone na produkcji
+
+| Co | Wartość | Metoda i data |
+|---|---|---|
+| `max_connections` | 500 | odczyt z aktywnej instancji produkcyjnej, 17.09.2026 (issue #598, komentarz z 17.09) |
+| `superuser_reserved_connections` | 3 | tamże |
+| `reserved_connections` | 0 | tamże |
+| miejsc dla aplikacji | **497** | 500 − 3 − 0 |
+| topologia | jeden serwis, `startCommand: kuking-entrypoint all`, `numReplicas: 1` | panel Railway (API), 17.09.2026 ok. 21:50 |
+| limit CPU kontenera | 2 vCPU | metryki Railway, okno 7 dni |
+| limit pamięci kontenera | 1,0 GB (szczyt użycia 0,53 GB) | metryki Railway, okno 7 dni |
+| **`num_threads` / `max_threads` FrankenPHP** | **4 / 4** | log startowy wdrożenia `fa8f012e`, 17.09.2026 19:58:17 UTC: `FrankenPHP started 🐘 php_version=8.4.25 num_threads=4 max_threads=4` |
+| `GOMAXPROCS` | 2 | ten sam log: `maxprocs: Updating GOMAXPROCS=2: determined from CPU quota` |
+| `FRANKENPHP_CONFIG`, `GOMAXPROCS` jako zmienne | nie ustawione | lista zmiennych usługi, 17.09.2026 |
+
+**To `max_threads` jest twardym sufitem równoległości HTTP**, nie liczba
+rdzeni hosta i nie liczba osób online. Do 17.09.2026 ta liczba była w #598
+otwartym pytaniem („efektywnej liczby wątków jeszcze nie zmierzono");
+teraz jest odczytana z logu startowego działającego procesu.
+
+### B. Zmierzone lokalnie (PostgreSQL 18.6, `127.0.0.1:55439`, baza `kuking_598_pomiar`)
+
+Próbnik: `pg_stat_activity`, tylko `backend_type = 'client backend'`.
+Procesy wewnętrzne serwera (autovacuum launcher, walwriter, checkpointer)
+nie zajmują miejsc z puli `max_connections` i celowo nie są liczone.
+
+| Co uruchomiono | Szczyt backendów | Uwaga |
+|---|---|---|
+| 6 równoległych cykli żądania | **6** | dokładnie tyle, ile procesów — sesje, cache i kolejka na bazie **dzielą jedno połączenie**, nie otwierają własnych |
+| pojedyncze żądanie HTTP (24 żądania po kolei) | **1**, po zakończeniu **0** | połączenie jest zwalniane po żądaniu, nic nie zostaje |
+| `queue:work` (jeden proces, jak w entrypoincie) | **1**, trwale | |
+| `schedule:run` (jeden przebieg) | **1**, chwilowo | próbnik co 100 ms |
+| `migrate --force` (jak `preDeployCommand`) | **1**, chwilowo | próbnik co 100 ms |
+
+**Kontrola metody:** ten sam próbnik przy sześciu równoległych procesach
+pokazał 6, a nie 1 — czyli pomiar „1 przy pojedynczym żądaniu" jest
+własnością modelu wykonania, a nie zepsutego licznika.
+
+Ustawienia lokalne odpowiadały produkcyjnym w tym, co dotyczy połączeń:
+`CACHE_STORE=database`, `SESSION_DRIVER=database`, `QUEUE_CONNECTION=database`.
+
+### C. Policzone z A i B
+
+```text
+szczyt zwykły (dziś, APP_ROLE=all, 1 replika)
+    web (max_threads)                        4
+    worker kolejki                           1
+    harmonogram (co minutę, chwilowo)        1
+                                          ----
+                                             6
+
+szczyt wdrożeniowy (stary i nowy kontener obok siebie)
+    stary kontener                           6
+    nowy kontener                            6
+    preDeployCommand: migrate                1
+                                          ----
+                                            13
+
+zapas na administrację, CLI i diagnostykę   +3
+                                          ----
+BUDŻET SZCZYTOWY dzisiejszej topologii      16   z 497 dostępnych miejsc (3,2%)
+```
+
+Po rozdzieleniu ról z `#595` (`web` / `worker` / `scheduler`, po jednej
+replice) liczba jest praktycznie ta sama: 4 + 1 + 1 = 6 w spoczynku,
+a wdrożenie z nakładaniem daje 12 + 1 = **13**.
+
+**Koszt każdej dodatkowej repliki `web`:** +4 w spoczynku, +8 w oknie
+wdrożenia. Przy 497 miejscach, jednym workerze i jednym schedulerze wzór
+wdrożeniowy to `8R + 8`: mieści się maksymalnie 61 replik web (496 miejsc),
+ale to wyczerpuje pulę i **nie jest bezpiecznym limitem skalowania**.
+Poniżej progu ostrzegawczego 50 mieści się 5 replik (48 miejsc).
+Wcześniejsze „ponad sto replik” pomijało nakładanie wdrożeń.
+Własny pomiar z 20.09.2026, ograniczenia tego wyliczenia i wariant z osobnym
+workerem media: [odbiór lokalny #598/#599](infra/MONITORING_ODBIOR_2026_09_20.md).
+
+### D. Progi alarmowe i skąd się wzięły
+
+| Próg | Wartość | Czego pilnuje |
+|---|---|---|
+| ostrzegawczy | **50** | ponad trzykrotność policzonego szczytu (16). Przy poprawnej topologii nie da się tego osiągnąć, więc przekroczenie znaczy **wyciek połączeń albo procesy, o których nikt nie wie**. To sygnał diagnostyczny, nie awaryjny. |
+| krytyczny | **125** | jedna czwarta z 497 dostępnych miejsc. Zostawia trzy czwarte puli na reakcję. Nie „90% i alarm" — przy awarii skokowej alarm przy 90% przychodzi wtedy, gdy nie ma już czasu na nic. |
+
+Oba progi są w `config/kuking.php` (`kuking.polaczenia.*`) i dają się
+nadpisać zmiennymi środowiskowymi. Próg krytyczny jest dodatkowo ograniczony
+do liczby faktycznie dostępnych miejsc — na małym klastrze deweloperskim
+wartość 125 stałaby powyżej twardego limitu i nie zapaliłaby się nigdy.
+
+Mierzy i alarmuje `php artisan kuking:budzet-polaczen` (harmonogram: co
+godzinę, minuta 25). Kanał jest ten sam, co przy błędach 500 i czujce kopii —
+`blad_webhook` (D-041). Powtórzenia są ograniczone do jednej wiadomości na
+`kuking.polaczenia.cisza_godzin` (domyślnie 6 h) przy **niezmienionym** stanie;
+eskalacja `ostrzezenie → krytyczny` dzwoni natychmiast, a powrót do normy daje
+dokładnie jedną wiadomość odwołującą.
+
+### E. Czego ten rozdział NIE dowodzi
+
+- **Że alarm dociera.** Kanał `blad_webhook` włącza zmienna
+  `LOG_BLAD_WEBHOOK_URL`, a tej zmiennej **nie ma dziś w usłudze
+  produkcyjnej** (odczyt listy zmiennych, 17.09.2026). Mechanizm jest
+  sprawdzony lokalnie na atrapie odbiornika; dopóki zmienna nie istnieje,
+  na produkcji nie dzwoni nic — patrz issue #599.
+- **Że produkcja ma dziś zapas.** Zapas produkcji jest stanem produkcji
+  i mierzy go ta sama komenda uruchomiona **na produkcji**. Pojedyncza próbka
+  z 17.09 (1 połączenie bezczynne, 1 aktywne) nie jest ani poziomem typowym,
+  ani historycznym maksimum: nie ma jeszcze szeregu czasowego ani pomiaru
+  szczytu w oknie wdrożenia.
+- **Ilu użytkowników serwis obsłuży.** Liczba osób online nie przekłada się
+  1:1 na połączenia. Decyzja o PgBouncerze (#600) ma wynikać z tych liczb,
+  a nie z progu „ilu jest online" — i na dziś te liczby jej **nie uzasadniają**.
+
+### F. Skąd weźmie się szereg czasowy — i co go może zablokować
+
+**Zmierzone 17.09.2026 23:25:20 UTC:** harmonogram produkcji uruchomił
+`kuking:budzet-polaczen` i zameldował „DONE" w 21 ms — po czym zmierzone
+liczby przepadły. `Schedule::call()` woła komendę przez `Artisan::call()`,
+a to przechwytuje wyjście konsoli do bufora, który kończy się razem
+z przebiegiem. Czujka mierzyła co godzinę i za każdym razem zapominała, więc
+definicji gotowości „znany peak active connections" nie dało się spełnić
+**mimo działającego kodu**.
+
+Od 18.09.2026 obie czujki zapisują jedną linię pomiaru do dziennika serwera:
+
+```text
+kuking:budzet-polaczen  {"stan":…,"zajete_serwer":…,"zajete_baza":…,"aktywne":…,
+                         "bezczynne":…,"w_transakcji":…,"dostepne":…,
+                         "max_connections":…,"budzet_szczytowy":…,"prog_ostrzegawczy":…}
+kuking:sprawdz-kolejke  {"stan":…,"oczekujace":…,"zaleglosc_sekundy":…,"zawieszone":…,
+                         "nieudane_w_oknie":…,"nieudane_razem":…,…}
+```
+
+W sesji pomiarowej nie było dostępu do produkcyjnego Postgresa z zewnątrz
+ani zalogowanego CLI. W tej implementacji historia dziennika Railway jest
+magazynem szeregu czasowego; nie zakładamy tabeli ani zewnętrznej bazy metryk.
+Pojedynczy odczyt w konsoli produkcji nie zastępuje historii pomiarów.
+
+**Co go blokowało — ustalone 19.09.2026, blokada była realna.** Wpisy idą
+poziomem `info`, bo zdrowy pomiar nie jest ostrzeżeniem. Szły jednak kanałem
+`stderr`, a ten bierze poziom z `env('LOG_LEVEL', 'debug')` — i
+`.railway/railway.ts` ustawia `LOG_LEVEL: isProduction ? "warning" : "debug"`.
+Na produkcji stało więc `warning`, `info` jest niżej i **Monolog odrzucał
+pomiar, zanim cokolwiek dotarło do strumienia**. Zmierzone: dwa przebiegi
+harmonogramu 19.09.2026 (11:25:02 i 12:25:11 UTC) zameldowały „DONE" i nie
+zostawiły ani jednej linii z liczbami, przy obecnych w tej samej sekundzie
+innych wpisach poziomu `info`.
+
+Uwaga „trzeba to sprawdzić w panelu", która stała tu wcześniej, była złym
+tropem: wartość pochodzi z manifestu wdrożenia w repozytorium, więc zmiana
+w panelu i tak rozjechałaby się z `.railway/railway.ts`.
+
+**Poprawka:** pomiar idzie teraz osobnym kanałem `pomiary`
+(`config/logging.php`) z poziomem `info` wpisanym **na sztywno** — tak samo jak
+`blad_webhook` ma na sztywno `error`. `LOG_LEVEL` produkcji zostaje bez zmian,
+bo jego obniżenie wpuściłoby do dziennika każde `info` w serwisie, żeby
+przepchnąć dwie linie na godzinę. Pełny opis: [`docs/infra/WERYFIKACJA_BUDZETU_POLACZEN_598.md`](infra/WERYFIKACJA_BUDZETU_POLACZEN_598.md) §2.
+
+**Czego to nadal nie dowodzi:** że szereg powstanie. Dowiedzie tego dopiero
+odczyt dziennika Railway po najbliższym wdrożeniu — linia
+`kuking:budzet-polaczen {...}` o minucie :25.
+
+Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
+`payload` ani `exception`. Dziennik produkcyjny czyta także dostawca hostingu
+— to ta sama zasada, którą stosujemy do webhooka (audyt A6-01). Pilnuje tego
+`PomiarCzujekTrafiaDoDziennikaTest`.

@@ -100,6 +100,49 @@
     ])>
         <h2 class="mt-0">Odpowiedz tej osobie</h2>
 
+        {{--
+            TERMIN USUNIĘCIA I DROGA PONOWNEGO OTWARCIA (D-… , issue #847).
+
+            STAN ZASTANY: ten formularz był dostępny także przy sprawie
+            ZAMKNIĘTEJ, a ekran nigdzie nie mówił, kiedy retencja skasuje
+            całą sprawę razem z odpowiedzią dopisaną tutaj — kaskada
+            `contact_message_replies` → `contact_messages` zabiera odpowiedź
+            razem ze sprawą, bez osobnego ostrzeżenia. Ktoś dopisywał
+            wyjaśnienie do starej zamkniętej sprawy, a NASTĘPNEGO DNIA
+            sprzątanie (`kuking:sprzataj-wiadomosci`) kasowało obie rzeczy
+            naraz.
+
+            DECYZJA WŁAŚCICIELA (20.09.2026): pokazać KONKRETNY termin
+            (datę, nie „wkrótce") i drogę ponownego otwarcia sprawy. WPROST
+            ODRZUCONE: przesuwanie retencji od ostatniej odpowiedzi — to
+            byłaby nowa decyzja o okresie przechowywania danych, wymagająca
+            zmiany polityki prywatności, nie poprawka ekranu.
+
+            Data pochodzi z `PrzedawnioneWiadomosciDoOperatora::terminUsuniecia()`
+            — TEJ SAMEJ metody, z której korzysta samo sprzątanie (`posprzataj()`
+            liczy próg tym samym `subMonthsNoOverflow`), więc ekran nie może
+            zacząć kłamać przez rozjazd dwóch osobnych reguł liczenia tej
+            samej daty. `$terminUsuniecia` jest `null`, gdy sprawa jest
+            otwarta — otwartej sprawy retencja nigdy nie rusza, więc nie ma
+            czym straszyć.
+
+            Data pokazana w STREFIE CZŁOWIEKA (`Czas::data`, issue #746;
+            wewnątrz baza i sprzątanie liczą w UTC), inaczej termin o złej
+            porze byłby drugą wersją tego samego błędu.
+        --}}
+        @if($terminUsuniecia !== null)
+            <p class="notice mb-4" role="status">
+                <strong>Ta sprawa jest zamknięta.</strong>
+                Zostanie skasowana automatycznie i bezpowrotnie
+                <strong>{{ \App\Support\Czas::data($terminUsuniecia, 'j F Y, H:i') }}</strong>
+                — razem z każdą odpowiedzią dopisaną tutaj, także tą, którą
+                napiszesz teraz.
+                Jeśli ta odpowiedź ma zostać, <a href="#stan-wiadomosci">otwórz sprawę ponownie</a>
+                (zaznacz „W trakcie" w polu „Stan wiadomości" niżej i zapisz)
+                — zanim minie ten termin.
+            </p>
+        @endif
+
         @if($wiadomosc->odpowiedzi->isNotEmpty())
             <h3 class="text-title-sm">Co już wyszło</h3>
 
@@ -210,7 +253,7 @@
         @endif
     </section>
 
-    <form class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
+    <form id="stan-wiadomosci" class="panel-formularza mt-5" method="POST" action="{{ route('admin.contact.update', $wiadomosc) }}">
         @csrf
 
         <fieldset class="border-0 p-0">
@@ -228,12 +271,14 @@
                 @foreach(\App\Models\ContactMessage::STATUSY as $wartosc => $etykieta)
                     <label class="choice">
                         <input type="radio" name="status" value="{{ $wartosc }}"
+                               @if($loop->first) id="f-status" @endif
+                               @error('status') aria-invalid="true" aria-describedby="f-status-error" @enderror
                                @checked(old('status', $wiadomosc->status) === $wartosc)>
                         <span class="choice-label">{{ $etykieta }}</span>
                     </label>
                 @endforeach
             </div>
-            @error('status')<span class="field-error">{{ $message }}</span>@enderror
+            @error('status')<span class="field-error" id="f-status-error">{{ $message }}</span>@enderror
         </fieldset>
 
         {{-- ETYKIETA BEZ „(nieobowiązkowe)" — tę adnotację dokłada sam

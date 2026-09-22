@@ -16,6 +16,11 @@ use App\Support\Facebook;
 
 return [
 
+    // Przygotowanie #371; ścieżki produktu i egzekwowanie flagi należą do #372.
+    'questions' => [
+        'enabled' => env('KUKING_QUESTIONS_ENABLED', false),
+    ],
+
     /*
     |--------------------------------------------------------------------------
     | Profil
@@ -184,9 +189,14 @@ return [
          *
          * Puste `zone_id` albo `token` = czyszczenie WYŁĄCZONE. Tak jest
          * lokalnie i w testach i to jest w porządku — nie ma tam CDN-u.
-         * Ale wyłączenie jest GŁOŚNE: `PurgePublicMediaCache` zapisuje wtedy
-         * ostrzeżenie w logu, bo cicha rezygnacja z czyszczenia wygląda
-         * dokładnie tak samo jak czyszczenie, które działa.
+         * Ale wyłączenie jest GŁOŚNE — i głośne jest w `/health`, nie w logu
+         * zadania. `PurgePublicMediaCache` zapisuje ostrzeżenie, ale kończy
+         * się sukcesem, a kanał alarmowy przyjmuje wyłącznie `error`; wpis
+         * w logu nie dociera więc do nikogo. Sygnałem, który dociera, jest
+         * sonda `cdn` w `HealthController`: na produkcji z pustą konfiguracją
+         * `/health` oddaje `degraded` i dzwoni na webhook. Cicha rezygnacja
+         * z czyszczenia wygląda dokładnie tak samo jak czyszczenie, które
+         * działa, i to jest jedyne miejsce, które te dwa stany rozróżnia.
          */
         'cdn_purge' => [
             'zone_id' => env('CLOUDFLARE_ZONE_ID'),
@@ -266,13 +276,17 @@ return [
          *   za długo   przełączenie przepisu na prywatny albo zablokowanie
          *              kogoś nie odcina dostępu przez ten cały czas.
          *
-         * `max-age` odpowiedzi dla treści publicznej to POŁOWA tej liczby,
+         * Zdjęcia publiczne mają osobne okno poniżej (#597). `max-age`
+         * ich odpowiedzi to POŁOWA publicznego okna,
          * nie ona sama: przeglądarka cache'uje przekierowanie razem z już
          * podpisanym adresem, więc przy równych wartościach 302 wyjęte
          * z cache w ostatniej sekundzie okna prowadziłoby pod adres, który
          * właśnie wygasa. Szczegóły w `MediaController::sekundyCache()`.
          */
         'signed_url_minutes' => (int) env('KUKING_MEDIA_SIGNED_URL_MINUTES', 5),
+        // Decyzja właściciela #597: wcześniej publiczny podpis może działać
+        // godzinę po zmianie widoczności. Prywatnego okna nie wydłużamy.
+        'public_signed_url_minutes' => (int) env('KUKING_MEDIA_PUBLIC_SIGNED_URL_MINUTES', 60),
 
         // Maksymalna liczba zdjęć w JEDNEJ wysyłce (wpis albo „Ugotowałem").
         //
@@ -337,6 +351,9 @@ return [
         'min_length' => (int) env('KUKING_TAG_MIN_LENGTH', 2),
 
         'max_length' => (int) env('KUKING_TAG_MAX_LENGTH', 30),
+        // Zapytanie może być istniejącym slugiem (kolumna do 40 znaków).
+        // Nie zwiększa limitu długości nowej nazwy taga.
+        'suggestions_query_max_length' => 40,
 
         // Ile RÓŻNYCH tagów (po unikalnych tag_id, patrz LimityTagow) wolno
         // przypiąć do jednego wpisu. Dość, żeby oznaczyć danie, okazję
@@ -356,6 +373,14 @@ return [
         'index_page_size' => (int) env('KUKING_TAGS_INDEX_PAGE_SIZE', 100),
     ],
 
+    // #369: mały zbiór zaprasza do publikacji zamiast eksponować pustkę.
+    // Pięć zdjęć od trzech osób pokazuje kilka kuchni, nie pojedynczy album.
+    // To próg prezentacji, nie ranking ani próg dostępu do treści.
+    'tag_public_stats' => [
+        'min_photos' => 5,
+        'min_contributors' => 3,
+    ],
+
     'text' => [
         /*
          * Skala tekstu ustawiana przez użytkownika w /ustawienia/czytelnosc.
@@ -369,7 +394,7 @@ return [
          *
          * TRZY MNIEJSZE SĄ NOWE. Zasada „tekst ≥ 18 px" z AGENTS.md dotyczy
          * DOMYŚLNEGO wyglądu — 100% nadal daje 18 px. Niżej schodzi wyłącznie
-         * ten, kto sam tak ustawi, i tylko na swoim koncie.
+         * ten, kto sam tak ustawi, na swoim koncie lub w przeglądarce gościa.
          */
         'scales' => [70, 80, 90, 100, 112, 125, 140],
 
@@ -397,6 +422,7 @@ return [
         ],
 
         'default_scale' => 100,
+        'cookie' => 'kuking_text_scale',
     ],
 
     'theme' => [
@@ -1190,6 +1216,7 @@ return [
     ],
 
     'limits' => [
+        'external_link' => '60,1',
         // Limity zapytań (throttle) per akcja. Liczba prób na minutę.
         //
         // `login` ZOSTAJE jako pierwsza, najtańsza bramka przed kontrolerem
@@ -1395,6 +1422,8 @@ return [
         // więc pięć prób na godzinę nikomu nie przeszkadza.
         'appeal' => '5,60',
         'search' => '60,1',
+        // Autouzupełnianie z debounce; osobny budżet od pełnej wyszukiwarki.
+        'tag_suggestions' => '120,1',
         // Podpowiedzi tagów podczas pisania wpisu (SPEC §1.5). Ten sam rząd
         // wielkości co 'search' — to jest ten sam rodzaj zapytania
         // (trigramowe podobieństwo po kuking_normalize()), tylko na innej
@@ -1623,6 +1652,34 @@ return [
         'ustawienia' => '30,10',
 
         /*
+         * PRZEGLĄDANIE „TWOICH TAGÓW" — filtr i „Pokaż kolejne…" na ekranie
+         * `/ustawienia/tagi` (#858, decyzja właściciela z 20.09.2026, punkt 1).
+         *
+         * Szkoda z nadużycia: żadna widoczna dla innych, dokładnie jak reszta
+         * grupy `ustawienia` — to czyste odczyty, żadna z tych dróg nie
+         * dotyka relacji obserwowania (`TagFollowController::przegladaj()`).
+         *
+         * DLACZEGO NIE ZOSTAJE W GRUPIE `ustawienia`. Bo dzieliła z nią
+         * budżet 30/10 razem z ZAPISEM — a szukanie właściwego tagu to nie
+         * jedno kliknięcie: wpisz frazę, popraw literówkę, doładuj kolejną
+         * porcję, wpisz inną frazę. Kilkanaście takich kroków w jednej
+         * sesji to normalne przeglądanie listy stu kilkudziesięciu tagów,
+         * a nie próba obejścia czegokolwiek — i to ono zjadało budżet
+         * zapisu, więc człowiek, który dużo szukał, tracił możliwość
+         * ZAPISANIA wyniku. Zapis zostaje przy 30/10 bez zmian: jego
+         * ochrona się nie rozluźnia, dostaje tylko własny, nietknięty koszyk.
+         *
+         * SKĄD 300 NA 10 MINUT. Hojny budżet dla czystego odczytu, celowo
+         * o rząd wielkości większy niż `ustawienia` — bo to jest właśnie
+         * ten limit, który ma PRZESTAĆ przeszkadzać normalnemu przeglądaniu.
+         * Osobny koszyk nie zwalnia z reguły „poprawne dane nigdy nie
+         * znikają" (#858, punkt 2): nawet przy tym budżecie ktoś kiedyś go
+         * wyczerpie, a wtedy 429 na tej trasie ma oddać zaznaczenia z powrotem
+         * (`App\Support\OdzyskiwalneDane`), nie pokazać pusty formularz.
+         */
+        'tagi_przegladanie' => '300,10',
+
+        /*
          * POWIADOMIENIA — kliknięcie „Zobacz" przy pojedynczym powiadomieniu.
          *
          * Szkoda z nadużycia: żadna. Jeden UPDATE znacznika `read_at` na
@@ -1789,6 +1846,116 @@ return [
         // 36 h przy harmonogramie dobowym: jeden przebieg ma prawo wypaść
         // (restart, chwilowa niedostępność R2), dwa już nie.
         'maks_wiek_godzin' => (int) env('KUKING_KOPIE_MAKS_WIEK_GODZIN', 36),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Budżet połączeń PostgreSQL — issue #598
+    |--------------------------------------------------------------------------
+    |
+    | Wyczerpanie `max_connections` jest awarią SKOKOWĄ: dopóki zostaje jedno
+    | wolne miejsce, wszystko wygląda normalnie, a po jego zajęciu nie łączy
+    | się nikt — łącznie z administratorem, który przyszedł to naprawić.
+    | Dlatego próg alarmowy stoi daleko przed limitem, a nie tuż przed nim.
+    |
+    | SKĄD SIĘ BIORĄ TE LICZBY — PEŁNE WYPROWADZENIE W `docs/DATABASE.md` §
+    | „Budżet połączeń". W skrócie, i z rozdzieleniem pomiaru od obliczenia:
+    |
+    | ZMIERZONE 17.09.2026
+    |   * produkcja: `max_connections` = 500, `superuser_reserved_connections`
+    |     = 3, czyli 497 miejsc dla aplikacji;
+    |   * jeden kontener, `APP_ROLE=all`, `numReplicas` = 1;
+    |   * FrankenPHP przy starcie: `num_threads=4`, `max_threads=4`
+    |     (GOMAXPROCS=2 z limitu CPU kontenera) — to jest TWARDY sufit
+    |     równoległości HTTP na replikę;
+    |   * lokalnie: jeden równoległy cykl żądania = DOKŁADNIE jeden backend
+    |     PostgreSQL, także przy sesjach, cache i kolejce na bazie;
+    |     `queue:work` trzyma jeden, `schedule:run` i `migrate` po jednym.
+    |
+    | POLICZONE Z TYCH POMIARÓW
+    |   szczyt zwykły:  4 (web) + 1 (kolejka) + 1 (harmonogram)          =  6
+    |   szczyt wdrożeniowy: stary kontener 6 + nowy 6 + migracja 1       = 13
+    |   zapas na administrację i CLI                                     = +3
+    |   ----------------------------------------------------------------------
+    |   budżet szczytowy dzisiejszej topologii                           = 16
+    |
+    | PRÓG OSTRZEGAWCZY (50) nie pyta „czy blisko limitu", tylko „czy budżet
+    | nadal opisuje rzeczywistość". 50 to ponad trzykrotność policzonego
+    | szczytu: przy poprawnej topologii nie da się tego osiągnąć, więc
+    | przekroczenie znaczy wyciek połączeń albo procesy, o których nikt nie
+    | wie. To jest sygnał DIAGNOSTYCZNY, nie awaryjny.
+    |
+    | PRÓG KRYTYCZNY (125) to jedna czwarta z 497 dostępnych miejsc. Zostawia
+    | trzy czwarte puli na reakcję i mieści się grubo pod limitem nawet przy
+    | kilkunastu replikach. Nie jest to „90% i alarm", bo przy awarii skokowej
+    | alarm przy 90% przychodzi wtedy, gdy nie ma już czasu na nic.
+    |
+    | CZEGO TE LICZBY NIE ZNACZĄ
+    | Nie są przepustowością ani liczbą obsługiwanych osób. Ten sam portal
+    | może mieć tysiące ludzi przy kilku równoczesnych żądaniach i odwrotnie.
+    | Decyzja o PgBouncerze (#600) ma wynikać z tych liczb, nie z progu
+    | „ilu jest online".
+    */
+    'polaczenia' => [
+        // Ile połączeń MA PRAWO zająć dzisiejsza topologia. Liczba policzona,
+        // nie zmierzona — przy zmianie topologii (#595, kolejna replika)
+        // trzeba ją przeliczyć razem z `docs/DATABASE.md`.
+        'budzet_szczytowy' => (int) env('KUKING_POLACZENIA_BUDZET', 16),
+
+        'prog_ostrzegawczy' => (int) env('KUKING_POLACZENIA_PROG_OSTRZEGAWCZY', 50),
+
+        'prog_krytyczny' => (int) env('KUKING_POLACZENIA_PROG_KRYTYCZNY', 125),
+
+        // Czujka chodzi co godzinę, a stan „za dużo połączeń" trwa godzinami.
+        // Bez tej ciszy kanał dostawałby 24 identyczne wiadomości na dobę
+        // i nauczyłby ignorować siebie. Zmiana stanu dzwoni od razu.
+        'cisza_godzin' => (int) env('KUKING_POLACZENIA_CISZA_GODZIN', 6),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Czujka kolejki — issue #599
+    |--------------------------------------------------------------------------
+    |
+    | DLACZEGO TO NIE JEST TO SAMO, CO POLE `kolejka` W `/health`
+    | Tamto liczy WSZYSTKIE wiersze w `failed_jobs` i przy liczbie większej od
+    | zera stawia serwis w `degraded`. Na produkcji leżą cztery zadania
+    | z 9 września 2026 (wszystkie `UstawienieNowegoHasla`), więc `/health`
+    | jest w `degraded` NIEPRZERWANIE od tamtego dnia. Zmierzone w logu
+    | wdrożenia z 17.09.2026 19:58:19 UTC — ten sam komunikat, ta sama czwórka.
+    | Sygnał, który świeci zawsze, nie odróżni piątej awarii od czwartej.
+    |
+    | Dlatego czujka pyta o ZDARZENIE (co padło w oknie ostatnich godzin),
+    | a nie o stan tabeli — i mierzy drugą rzecz, której `/health` nie mierzy
+    | wcale: jak długo czeka najstarsze zadanie gotowe do wzięcia. To jedyny
+    | sygnał, który zauważa MARTWEGO WORKERA, bo proces, który nie chodzi,
+    | nie generuje żadnego błędu do zgłoszenia.
+    |
+    | BRAK KONFIGURACJI WEBHOOKA = ZERO EFEKTU, tak samo jak przy czujce kopii.
+    | Na produkcji nie ma dziś `LOG_BLAD_WEBHOOK_URL`, więc czujka liczy
+    | i zapisuje w dzienniku, ale nie dzwoni nigdzie. To jest stan do zamknięcia
+    | w #599, nie właściwość tej konfiguracji.
+    */
+    'kolejka' => [
+        // Okno „co padło niedawno". 3 h przy czujce co kwadrans: awaria nocna
+        // zostanie zgłoszona kilka razy w swoim oknie i nie zginie, a zadanie
+        // sprzed tygodnia nie będzie zgłaszane w kółko.
+        'okno_nieudanych_godzin' => (int) env('KUKING_KOLEJKA_OKNO_GODZIN', 3),
+
+        // Worker chodzi z `--sleep=1`, więc gotowe zadanie ma być wzięte
+        // w sekundy. 600 s to nie „trochę wolniej" — to znaczy, że przez
+        // dziesięć minut nikt po nie nie sięgnął.
+        'prog_zaleglosci_sekundy' => (int) env('KUKING_KOLEJKA_PROG_ZALEGLOSCI', 600),
+
+        // Dwukrotność `DB_QUEUE_RETRY_AFTER` (960 s, `config/queue.php`).
+        // Po `retry_after` kolejka sama zwalnia porzuconą rezerwację, więc
+        // rezerwacja starsza niż dwa takie okresy znaczy, że nie zwolnił jej
+        // nikt — czyli nie chodzi też proces, który miał to zrobić.
+        'prog_zawieszenia_sekundy' => (int) env('KUKING_KOLEJKA_PROG_ZAWIESZENIA', 1920),
+
+        // Martwy worker bywa martwy dobę, a czujka chodzi co kwadrans.
+        // Bez ciszy dałoby to 96 identycznych wiadomości na dobę.
+        'cisza_godzin' => (int) env('KUKING_KOLEJKA_CISZA_GODZIN', 3),
     ],
 
     /*
@@ -2207,6 +2374,94 @@ return [
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
     ],
 
+    'potwierdzenia_rodo' => [
+        // RETENCJA POTWIERDZEŃ OBSŁUGI ŻĄDAŃ RODO —
+        // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`, decyzja D-233.
+        //
+        // ┌──────────────────────────────────────────────────────────────┐
+        // │ KASOWANIE JEST WYŁĄCZONE. TO DECYZJA WŁAŚCICIELA Z 22.09.2026 │
+        // │ (D-233), NIE NIEDOPATRZENIE I NIE TYMCZASOWY OBEJŚCIE BŁĘDU.  │
+        // │ NIE WŁĄCZAJ TEGO „przy okazji" ANI „bo autor tak chciał".     │
+        // └──────────────────────────────────────────────────────────────┘
+        //
+        // Autor gałęzi `naprawa/minimalne-potwierdzenie-rodo` włączał
+        // kasowanie po 36 miesiącach domyślnie i bez przełącznika,
+        // argumentując, że „wyłącznik retencji to bezterminowość pod inną
+        // nazwą". Argument jest sensowny i dlatego stoi tu zapisany —
+        // właściciel rozstrzygnął jednak inaczej, i to z dwóch konkretnych
+        // powodów, nie z niechęci do retencji:
+        //
+        //  1. OKRESU NIE POTWIERDZIŁ JESZCZE PRAWNIK. 36 miesięcy to analogia
+        //     do dokumentacji sprawy moderacyjnej (art. 442¹ k.c.), nie
+        //     ustalenie. Domyślnik, który kasuje dowody po niepotwierdzonym
+        //     okresie, jest gorszy niż brak automatu.
+        //  2. KASOWANIE JEST TWARDYM `DELETE`, NIEODWRACALNYM — bez
+        //     soft-delete i bez eksportu. Po jego włączeniu, dla kont, których
+        //     ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy
+        //     i kiedy usunęliście dane tej osoby" NIE ZOSTAJE NIC. A polityka
+        //     prywatności mówi dziś o kopiach zapasowych: „Nie podajemy tu
+        //     liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą" — czyli
+        //     nie wiadomo nawet, jak długo istnieje droga odzysku.
+        //
+        // Dane historyczne mają być najpierw przygotowane. Służy do tego
+        // `kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które
+        // działa NAWET przy wyłączonej retencji i niczego nie kasuje — pokazuje
+        // wyłącznie, ile wierszy wpadłoby pod dany próg.
+        //
+        // JAK TO WŁĄCZYĆ, GDY PRAWNIK POTWIERDZI OKRES — trzy kroki, wszystkie
+        // poza kodem, opisane w `PROJEKT_POTWIERDZENIA_RODO.md` §6:
+        //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
+        //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
+        //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
+        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
+        // wystartuje nawet przy przypadkowo ustawionej zmiennej.
+        //
+        // Domyślnika retencji pilnuje `RetencjaPotwierdzenRodoTest`.
+        'retencja_wlaczona' => (bool) env('KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA', false),
+
+        // BRAK WARTOŚCI DOMYŚLNEJ — I TO JEST ISTOTA POWODU 1 WYŻEJ.
+        // Gdyby stało tu `36`, samo przestawienie flagi wyżej uruchomiłoby
+        // nieodwracalne kasowanie według okresu, którego nikt nie potwierdził.
+        // `null` znaczy „nieustalony": komenda odmawia kasowania i mówi
+        // dlaczego, zamiast zgadywać.
+        'retention_months' => env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS') !== null
+            ? (int) env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS')
+            : null,
+    ],
+
+    'sessions' => [
+        // RETENCJA TABELI `sessions` (RZ-01, 21.09.2026).
+        //
+        // Wiersz sesji trzyma parę (`user_id`, zgrubny adres IP, pełny
+        // `User-Agent`) — dane osobowe, mimo że tabelę zakłada domyślna
+        // migracja Laravela i nikt jej u nas nie projektował. Do 21.09.2026
+        // była to JEDYNA tabela z danymi osobowymi bez gwarantowanej
+        // retencji: kasowała ją wyłącznie loteria frameworka
+        // (`config/session.php` → `'lottery' => [2, 100]`), czyli 2% żądań.
+        // Przy małym ruchu wiersze leżą wtedy dłużej niż `SESSION_LIFETIME`,
+        // bez żadnej górnej granicy, której dałoby się uczciwie obiecać
+        // w polityce prywatności.
+        //
+        // SIEDEM DNI, a nie trzydzieści: tyle wynosi `SESSION_LIFETIME`
+        // w `.env.example` (10080 minut) i tyle zakładają komentarze
+        // w `CookingModeController`, `EnsureAccountIsActive` i `User` — czyli
+        // to jest liczba, którą ten projekt ma w głowie. Sesja bez aktywności
+        // od tygodnia jest już wygasła; trzymanie jej wiersza dłużej nie służy
+        // niczemu poza rozdęciem tabeli.
+        //
+        // TA LICZBA JEST SUFITEM, NIE POZWOLENIEM NA CIĘCIE ŻYWYCH SESJI.
+        // `App\Domain\Compliance\PrzedawnioneSesje` podnosi próg, gdy
+        // `SESSION_LIFETIME` jest dłuższy (na produkcji może być — plan
+        // w `.railway/railway.ts` mówi 43200 minut, czyli 30 dni). Wiersz
+        // młodszy niż `lifetime` należy do sesji ŻYWEJ, a jego skasowanie
+        // to wylogowanie człowieka w środku pracy.
+        //
+        // Egzekwuje `kuking:sprzataj-sesje`. Loteria frameworka zostaje
+        // obok, świadomie — dwa mechanizmy o różnych trybach awarii.
+        'retention_days' => (int) env('KUKING_SESSION_RETENTION_DAYS', 7),
+    ],
+
     // STREFA, W KTÓREJ POKAZUJEMY CZAS — nie ta, w której go zapisujemy.
     //
     // `app.timezone` zostaje UTC i musi zostać: to jest strefa, w której
@@ -2364,6 +2619,24 @@ return [
         // miesięcy kalendarzowych, a ta liczba jest tylko dolną granicą,
         // której nie wolno zejść poniżej (pilnuje jej test).
         'appeal_days' => (int) env('KUKING_APPEAL_DAYS', 180),
+
+        // ILE DNI PO ZAMKNIĘCIU SPRAWY DZIAŁA JESZCZE LINK ZGŁASZAJĄCEGO
+        // do strony śledzenia (issue #798, decyzja właściciela 20.09.2026).
+        //
+        // To NIE jest termin na odwołanie i nie ma z nim nic wspólnego —
+        // termin na odwołanie liczy `ModerationAction::appealDeadline()`
+        // (sześć miesięcy), a tu chodzi o dostęp do strony, na której tę
+        // sprawę się śledzi. Przedtem obie rzeczy były jedną liczbą i stąd
+        // wzięło się 403 na własną, wciąż otwartą sprawę.
+        //
+        // Link żyje, DOPÓKI SPRAWA JEST OTWARTA (`DostepDoStronySprawy`),
+        // a ta liczba mówi tylko, ile jeszcze po jej zamknięciu. 30 dni,
+        // bo odpowiedź i tak poszła pocztą (`NotifyReporterAppealOutcome`),
+        // a to okno ma wystarczyć na powrót po nią z maila — nie na
+        // trzymanie sprawy bezterminowo pod adresem, który może trafić
+        // w cudze ręce. Sama LICZBA jest do potwierdzenia przez właściciela;
+        // testy czytają ją stąd, żeby nie zabetonować niewybranego progu.
+        'reporter_case_link_days' => (int) env('KUKING_REPORTER_CASE_LINK_DAYS', 30),
 
         // Ile DNI ROBOCZYCH mamy na odpowiedź. Playbook §3 punkt 4.
         // Świąt nie liczymy — Carbon zna weekendy, nie kalendarz polskich
@@ -2628,7 +2901,7 @@ return [
         // KAŻDY PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje
         // drugiego. Wersja bez wpisu jest numerem bez treści, a wpis bez
         // wersji nie da się z niczym powiązać.
-        'etykieta' => 'Alfa 0.9',
+        'etykieta' => 'Alfa 0.68',
 
         // CO DOKŁADNIE JEST WDROŻONE — ustawiane samo, przez Railway.
         //
@@ -2664,5 +2937,15 @@ return [
         // `bootstrap/`, nie `storage/`: `storage/` bywa wolumenem podpiętym
         // przy starcie kontenera i wtedy zasłania to, co leży w obrazie.
         'plik_wydania' => base_path('bootstrap/wydanie.txt'),
+    ],
+
+    'demo' => [
+        // Hasło kont demonstracyjnych `DemoSeeder`. Czytane przez `config()`,
+        // nie `env()` bezpośrednio w seederze — PHPStan słusznie oblewa
+        // gołe `env()` poza katalogiem `config/`, bo przy skonfigurowanym
+        // cache'u konfiguracji (`config:cache`) zwróciłoby `null` zamiast
+        // wartości. Bez wartości domyślnej celowo: `DemoSeeder::hasloDemo()`
+        // sam losuje hasło, gdy ta zmienna jest pusta.
+        'haslo' => env('KUKING_DEMO_HASLO'),
     ],
 ];

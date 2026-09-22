@@ -1,12 +1,5 @@
-<x-layout title="Zeszyt" :noindex="true">
-    {{-- PRAWA SZYNA (issue #205): rzeczy odłożone ostatnio, żeby nie trzeba
-         było pamiętać, do którego zeszytu poszły. Uzasadnienie treści:
-         `szyna-ostatnio-zapisane`. Slot stoi na górze pliku, a w gotowym
-         dokumencie renderuje się PO `<main>` — Blade wstawia go tam, gdzie
-         slot stoi w LAYOUCIE, więc kolejność `Tab` się nie zmienia. --}}
-    <x-slot:rail>
-        <x-szyna-ostatnio-zapisane :pozycje="$ostatnioZapisane" />
-    </x-slot:rail>
+<x-layout title="Zeszyt" :noindex="true" :szynaWTresci="true">
+    <div class="marka-zeszyt">
 
     <h1>Twój zeszyt</h1>
     {{-- „Przepisy i wpisy", nie same przepisy: od 6 września Zeszyt przyjmuje
@@ -22,14 +15,14 @@
     <x-error-summary />
 
     @if($collections->isEmpty())
-        <x-empty-state title="Zeszyt jest jeszcze pusty" action="Poszukaj przepisów" :href="route('discover')">
+        <x-empty-state title="Zeszyt jest jeszcze pusty" action="Poszukaj przepisów" :href="route('search', ['sekcja' => 'przepisy'])">
             Kiedy znajdziesz przepis albo czyjeś danie, które chcesz zachować,
-            kliknij przy nim „Zapisuję”. Trafi tutaj i zawsze do niego wrócisz.
+            kliknij przy nim „Zapisuję”. Zapisane rzeczy znajdziesz w swoim zeszycie.
         </x-empty-state>
     @else
         <div class="marka-zeszyty">
             @foreach($collections as $collection)
-                <article class="card">
+                <article class="card blok-ciemny marka-zeszyt-karta">
                     <h2 class="mt-0">
                         <a class="text-ink" href="{{ route('collections.show', $collection) }}">{{ $collection->name }}</a>
                     </h2>
@@ -50,6 +43,10 @@
         </div>
     @endif
 
+    {{-- Jedna lista ostatnich zapisów w głównej treści (D-211), przed
+         formularzem. Kolejność i dostępność nadal ustala kontroler. --}}
+    <x-szyna-ostatnio-zapisane :pozycje="$ostatnioZapisane" />
+
     {{-- Po nieudanej walidacji formularz zostaje ROZWINIĘTY — inaczej człowiek
          wraca na stronę, na której nic się nie stało, a jego tekst jest
          schowany pod zwiniętym „Załóż nowy zeszyt”.
@@ -62,10 +59,20 @@
          po wyjściu odpowiedzi z serwera. Robi to więc arkusz —
          `details.panel-formularza:not([open])` w `tokens.css` — bo tylko on
          czyta ten stan na żywo i bez JavaScriptu. --}}
-    <details class="panel-formularza mt-8" {{ $errors->any() ? 'open' : '' }}>
+    <details class="panel-formularza mt-8" {{ $errors->any() || $saveContext !== [] ? 'open' : '' }}>
         <summary class="btn btn-secondary inline-flex">Załóż nowy zeszyt</summary>
         <form class="mt-4" method="POST" action="{{ route('collections.store') }}">
             @csrf
+            @foreach($saveContext as $key => $value)
+                <input type="hidden" name="{{ $key }}" value="{{ $value }}">
+            @endforeach
+            @if($saveContent)
+                <p>Po założeniu zeszytu możesz dokończyć zapis. Samo założenie zeszytu nie zapisuje w nim treści.</p>
+                <a class="btn btn-secondary" href="{{ $saveContent->url() }}">Anuluj i wróć {{ $saveContent instanceof \App\Models\Recipe ? 'do przepisu' : 'do wpisu' }}</a>
+            @elseif($saveContext !== [])
+                <p>Ta treść nie jest już dostępna. Możesz założyć pusty zeszyt albo wrócić do szukania.</p>
+                <a class="btn btn-secondary" href="{{ route('search') }}">Szukaj</a>
+            @endif
             <x-field name="name" label="Nazwa zeszytu" required placeholder="Na święta" />
             <x-field name="description" label="Krótki opis" type="textarea" :rows="2" />
             {{-- `id` jest CELEM odnośnika z podsumowania błędów, a atrybuty
@@ -98,4 +105,5 @@
             <button class="btn btn-primary mt-4" type="submit">Załóż zeszyt</button>
         </form>
     </details>
+    </div>
 </x-layout>

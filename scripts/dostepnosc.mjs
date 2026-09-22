@@ -45,9 +45,16 @@
  * =============================================================================
  */
 import { chromium } from 'playwright';
+import { przygotujKaruzele, zmierzKaruzele } from './fixtures/karuzela-mieszana.mjs';
+import { EKRANY_OAUTH, WARIANTY_OAUTH, zmierzOauth } from './fixtures/oauth-dostepnosc.mjs';
 import { AxeBuilder } from '@axe-core/playwright';
 import { spawn, execFileSync } from 'node:child_process';
 import { writeFileSync, mkdirSync, existsSync } from 'node:fs';
+
+// Szybka regresja końcowego zapisu działa także przez check.sh i w CI,
+// zanim kosztowny pomiar uruchomi przeglądarkę i przygotuje bazę.
+execFileSync(process.execPath, ['--test', 'scripts/fixtures/karuzela-raport.test.mjs'], { stdio: 'inherit' });
+execFileSync(process.execPath, ['--test', 'scripts/fixtures/oauth-raport.test.mjs'], { stdio: 'inherit' });
 
 const SZYBKO = process.argv.includes('--szybko');
 
@@ -184,8 +191,10 @@ const KONTO_MODERATORA = 'moderacja';
 const KONTO_DLUGA_NAZWA = 'zofia_z_bieszczad';
 
 const EKRANY = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   { nazwa: 'strona powitalna', adres: '/' },
   { nazwa: 'Świeżo z Kuking', adres: '/odkryj' },
+  { nazwa: 'Poradźcie — lista pytań', adres: '/pytania' },
   { nazwa: 'logowanie', adres: '/login' },
   { nazwa: 'rejestracja', adres: '/register' },
   { nazwa: 'przepis', adres: null, znajdz: 'przepis' },
@@ -244,6 +253,7 @@ const EKRANY = [
   { nazwa: 'profil (najdłuższa dopuszczalna nazwa)', adres: `/@${KONTO_DLUGA_NAZWA}` },
   { nazwa: 'tablica', adres: '/home', zalogowany: true },
   { nazwa: 'dodaj zdjęcie', adres: '/dodaj/zdjecie', zalogowany: true },
+  { nazwa: 'dodaj zdjęcie — otwarte podpowiedzi tagów', adres: '/dodaj/zdjecie', zalogowany: true, tagiOpis: true },
   { nazwa: 'dodaj przepis', adres: '/dodaj/przepis', zalogowany: true },
   /*
    * ROZDROŻE USTAWIEŃ (#344) — ekran, na który od teraz prowadzi KAŻDY napis
@@ -550,16 +560,10 @@ const EKRANY = [
    * serwer z atrapami kluczy (`KLUCZE_DOSTAWCOW_DO_POMIARU`), a to, że sekcja
    * naprawdę wyszła, sprawdza `przeszkodaWWejsciachZewnetrznych()`.
    *
-   * CZTERECH EKRANÓW ZA ZGODĄ DOSTAWCY TU NIE MA I NIE JEST TO PRZEOCZENIE.
-   * `/wejdz/google/domknij`, `/wejdz/google/polacz` i odpowiedniki Facebooka
-   * czytają z sesji tożsamość, którą zakłada WYŁĄCZNIE `callback()` po udanej
-   * wymianie kodu u dostawcy — a adres wymiany jest stałą w kodzie
-   * (`App\Support\Google::ADRES_TOKENU`), idzie z serwera i nie da się go
-   * wskazać konfiguracją. Atrapa klucza otwiera przycisk; tamte ekrany
-   * wymagają atrapy CAŁEGO DOSTAWCY, czyli osobnej pracy — issue #345
-   * i stała `WYJATKI` w `PomiarDostepnosciObejmujeStronyPubliczneTest`.
-   * Dopisanie ich tutaj bez tej atrapy dałoby przekierowanie na `/login`,
-   * czyli pomiar ekranu logowania pod cudzą nazwą.
+   * Ekrany za zgodą dostawcy mierzy osobny moduł OAuth (#345), wywołany
+   * przed zapisem wspólnego raportu. Własny lokalny serwer podstawia tylko
+   * transport dostawcy; tożsamość do sesji nadal zapisuje prawdziwy callback.
+   * Samo dopisanie adresu tutaj mierzyłoby przekierowanie na /login.
    */
   { nazwa: 'bezpieczeństwo konta', adres: '/ustawienia/bezpieczenstwo', zalogowany: true },
 ];
@@ -571,6 +575,7 @@ const EKRANY = [
  * (kilkadziesiąt milisekund), a przebieg axe kosztuje sekundę na ekran.
  */
 const EKRANY_UKLADU = [
+  { nazwa: 'ostrzeżenie przed wyjściem', adres: '/otworz-link', znajdz: 'link-zewnetrzny' },
   ...EKRANY,
   { nazwa: 'zeszyt', adres: '/zeszyt', zalogowany: true },
   /*
@@ -877,18 +882,9 @@ async function przeszkodaWFormularzachOdzyskania(adres) {
  * GET-y i nie klika w te przyciski — a gdyby kliknął, dostałby
  * przekierowanie na ekran zgody dostawcy, czyli poza mierzony serwis.
  *
- * CZEGO TO NIE ZAŁATWIA — i nie udaje, że załatwia. Cztery ekrany ZA zgodą
- * dostawcy (`/wejdz/google/domknij`, `/wejdz/google/polacz` i odpowiedniki
- * Facebooka) dalej nie są mierzone: atrapa klucza otwiera przycisk, ale nie
- * zakłada w sesji potwierdzonej tożsamości, którą te ekrany czytają. Powód
- * i granica stoją w `tests/Feature/PomiarDostepnosciObejmujeStronyPubliczneTest.php`
- * (stała `WYJATKI`) oraz w issue #345 — to osobna praca: atrapa DOSTAWCY,
- * nie atrapa klucza.
- *
- * Ustawiamy to WYŁĄCZNIE dla serwera, który stawiamy sami — tak samo jak
- * sterownik poczty wyżej. Przy `ADRES=…` mierzymy cudzą instancję w stanie,
- * w jakim ją zastaliśmy, i nie mamy prawa jej przestawiać; dlatego niżej
- * stoi sprawdzenie, a nie założenie.
+ * Atrapy kluczy wystarczają do tego pomiaru przycisków. Formularze po
+ * powrocie dostawcy i stan Facebooka bez adresu są osobno mierzone przez
+ * fixtures/oauth-dostepnosc.mjs, z atrapą transportu i prawdziwym callbackiem.
  */
 const KLUCZE_DOSTAWCOW_DO_POMIARU = {
   GOOGLE_CLIENT_ID: 'atrapa-do-pomiaru-dostepnosci',
@@ -957,11 +953,16 @@ async function podnies_serwer() {
     const adres = `http://127.0.0.1:${port}`;
     const dziennik = [];
 
-    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`], {
+    /* `--no-reload` — patrz `scripts/port-projektu.mjs`: bez niego `artisan serve`
+       wycina procesowi `php -S` zmienne środowiska joba i aplikacja spada na
+       `.env`, czyli na współdzielony port 5432. */
+    const proces = spawn('php', ['artisan', 'serve', '--host=127.0.0.1', `--port=${port}`, '--no-reload'], {
       stdio: ['ignore', 'pipe', 'pipe'],
       env: {
         ...process.env,
         DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA,
+        // Mierzymy również dział przed publicznym włączeniem (#372).
+        KUKING_QUESTIONS_ENABLED: 'true',
         // Uzasadnienie i kontrola — przy `STEROWNIK_POCZTY_DO_POMIARU` wyżej.
         MAIL_MAILER: STEROWNIK_POCZTY_DO_POMIARU,
         // Uzasadnienie i kontrola — przy `KLUCZE_DOSTAWCOW_DO_POMIARU` wyżej.
@@ -1557,6 +1558,10 @@ if (adresPrzepisu === null) {
  * mają co pokazać — inaczej mierzylibyśmy trzy razy ten sam układ i raport
  * wyglądałby na kompletny.
  */
+// Własna rzeczywista próbka, także dla axe/układu: brak fixture jest błędem,
+// nigdy powodem do powrotu do wygodnej karuzeli z samymi poziomymi zdjęciami.
+const mieszanaKaruzela = przygotujKaruzele({ ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA });
+process.once('exit', () => mieszanaKaruzela.sprzataj());
 const wpisyPoTrybie = (() => {
   const wynik = execFileSync('php', ['artisan', 'tinker', '--execute',
     "foreach (['normal','carousel','collage'] as $t) { "
@@ -1576,6 +1581,7 @@ const wpisyPoTrybie = (() => {
     }
   }
 
+  mapa.carousel = mieszanaKaruzela.id;
   return mapa;
 })();
 
@@ -1983,6 +1989,13 @@ if (tablicaDnia === null) {
  * ze sprawdzania, jest gorszy niż ekran, który oblewa.
  */
 function sciezkaEkranu(ekran) {
+  if (ekran.znajdz === 'link-zewnetrzny') {
+    const token = execFileSync('php', ['artisan', 'tinker', '--execute',
+      "echo Illuminate\\Support\\Facades\\Crypt::encryptString('https://example.test/przepis');",
+    ], { env: { ...process.env, DB_DATABASE: process.env.DB_DATABASE || BAZA_DOMYSLNA } }).toString().trim();
+    if (!token) throw new Error('Nie utworzono tokenu ostrzeżenia');
+    return `/otworz-link?cel=${encodeURIComponent(token)}`;
+  }
   if (! ekran.znajdz) {
     return ekran.adres;
   }
@@ -2586,6 +2599,27 @@ for (const wariant of WARIANTY) {
       }));
     }
 
+    if (ekran.tagiOpis) {
+      const opis = strona.locator('textarea[name="body"]');
+      await opis.fill('Gotuję #probaregresjitagow');
+      const lista = strona.locator('.tagi-opis-popup:not([hidden])');
+      await lista.waitFor({ state: 'visible' });
+      await opis.press('ArrowDown');
+      const semantyka = await opis.evaluate((element) => {
+        const lista = document.getElementById(element.getAttribute('aria-controls'));
+        const aktywny = document.getElementById(element.getAttribute('aria-activedescendant'));
+        return element.tagName === 'TEXTAREA'
+          && !element.hasAttribute('role') && !element.hasAttribute('aria-expanded')
+          && element.getAttribute('aria-autocomplete') === 'list'
+          && element.getAttribute('aria-haspopup') === 'listbox'
+          && lista?.getAttribute('role') === 'listbox' && !lista.hidden
+          && lista.closest('main') !== null && lista.contains(aktywny)
+          && aktywny?.getAttribute('aria-selected') === 'true'
+          && document.activeElement === element;
+      });
+      if (!semantyka) throw new Error('TAGI_OPIS_ARIA: niepoprawna semantyka otwartej listy');
+    }
+
     const wynik = await new AxeBuilder({ page: strona })
       // Reguły WCAG 2.2 AA — cel produktowy z docs/design/DESIGN_SYSTEM.md.
       // `best-practice` świadomie pomijamy: to zalecenia, nie wymagania,
@@ -2845,100 +2879,22 @@ if (pominieteWUkladzie.length > 0) {
 log('');
 log('Karuzela bez JavaScriptu:');
 
-const karuzelaBezJs = await (async () => {
-  const sciezka = sciezkaEkranu({ znajdz: 'wpis:carousel' });
-
-  if (! sciezka) {
-    console.error('BŁĄD: brak wpisu z karuzelą — warunek z issue #92 nie zostałby sprawdzony.');
-    process.exitCode = 1;
-
-    return null;
-  }
-
-  // 320 px: najwęższy ekran z WCAG 2.2 AA. Jeśli karuzela ma gdzieś pęknąć,
-  // pęknie tutaj.
-  const kontekst = await przegladarka.newContext({
-    viewport: { width: 320, height: 740 },
-    javaScriptEnabled: false,
+const karuzelaBezJs = { wyniki: [], blad: null };
+try {
+  await zmierzKaruzele({
+    browser: przegladarka, adres, path: mieszanaKaruzela.path, executablePath: CHROMIUM,
+    wyniki: karuzelaBezJs.wyniki,
   });
-
-  const strona = await kontekst.newPage();
-  await strona.goto(`${adres}${sciezka}`, { waitUntil: 'domcontentloaded' });
-
-  await poczekajNaFonty(strona);
-
-  const ile = await strona.locator('.karuzela-slajd').count();
-
-  /** Numer slajdu, który jest teraz na wierzchu taśmy (liczony od 1). */
-  const widocznySlajd = () => strona.evaluate(() => {
-    const tasma = document.querySelector('.karuzela-tasma');
-    const slajdy = [...tasma.querySelectorAll('.karuzela-slajd')];
-    const srodek = tasma.getBoundingClientRect().left + tasma.clientWidth / 2;
-
-    const numer = slajdy.findIndex((s) => {
-      const ramka = s.getBoundingClientRect();
-
-      return ramka.left <= srodek && ramka.right >= srodek;
-    });
-
-    return {
-      numer: numer + 1,
-      przewinieteTasma: Math.round(tasma.scrollLeft),
-      przewinietaStrona: Math.round(document.documentElement.scrollLeft),
-    };
-  });
-
-  const droga = [(await widocznySlajd()).numer];
-
-  for (let i = 1; i < ile; i++) {
-    await strona.locator('.karuzela-slajd').nth(i - 1)
-      .getByRole('link', { name: 'Następne zdjęcie' }).click();
-    await strona.waitForTimeout(200);
-    droga.push((await widocznySlajd()).numer);
+  const wynikiKaruzeli = karuzelaBezJs.wyniki;
+  if (wynikiKaruzeli.length !== 8 || wynikiKaruzeli.some(w => w.status !== 'ok')) {
+    throw new Error('Karuzela431: niepełny raport pomiaru');
   }
-
-  const naKoncu = await widocznySlajd();
-
-  const powrot = [];
-
-  for (let i = ile - 1; i > 0; i--) {
-    await strona.locator('.karuzela-slajd').nth(i)
-      .getByRole('link', { name: 'Poprzednie zdjęcie' }).click();
-    await strona.waitForTimeout(200);
-    powrot.push((await widocznySlajd()).numer);
-  }
-
-  await kontekst.close();
-
-  const oczekiwana = Array.from({ length: ile }, (_, i) => i + 1);
-
-  return {
-    slajdow: ile,
-    droga,
-    powrot,
-    przewinieteTasma: naKoncu.przewinieteTasma,
-    przewinietaStrona: naKoncu.przewinietaStrona,
-    dotarloDoKonca: JSON.stringify(droga) === JSON.stringify(oczekiwana),
-    wrocilo: JSON.stringify(powrot) === JSON.stringify(oczekiwana.slice(0, -1).reverse()),
-    przewijaSieTasmaNieStrona: naKoncu.przewinieteTasma > 0 && naKoncu.przewinietaStrona === 0,
-  };
-})();
-
-if (karuzelaBezJs) {
-  const dobrze = karuzelaBezJs.dotarloDoKonca
-    && karuzelaBezJs.wrocilo
-    && karuzelaBezJs.przewijaSieTasmaNieStrona;
-
-  log(`  ${dobrze ? '✓' : '✗'} zdjęć: ${karuzelaBezJs.slajdow}, droga ${karuzelaBezJs.droga.join('→')}`
-    + `, powrót ${karuzelaBezJs.powrot.join('→')}`
-    + `, taśma przewinięta o ${karuzelaBezJs.przewinieteTasma} px`
-    + `, strona o ${karuzelaBezJs.przewinietaStrona} px`);
-
-  if (! dobrze) {
-    process.exitCode = 1;
-  }
+  log(`  ✓ mieszana próbka: ${wynikiKaruzeli.length} wariantów, kliknięcia i Tab/Enter, ramka D-191, kontrolki 48px`);
+} catch (error) {
+  karuzelaBezJs.blad = error?.message ?? String(error);
+  console.error(error);
+  process.exitCode = 1;
 }
-
 /* =============================================================================
    WYBÓR ZDJĘCIA BEZ JAVASCRIPTU (decyzja właściciela D-035)
 
@@ -2982,8 +2938,17 @@ const wyborZdjeciaBezJs = await (async () => {
     storageState: stanZalogowany,
   });
 
+  // Bez JS DOMContentLoaded nie czeka na CSS. Opóźnienie arkusza odtwarza
+  // wyścig z CI; Tab wolno zacząć dopiero po załadowaniu dokumentu i zasobów.
+  const oczekiwaniaNaCss = [];
+  await kontekst.route('**/build/assets/*.css', (route) => {
+    const oczekiwanie = new Promise((resolve) => setTimeout(resolve, 3000))
+      .then(() => route.continue());
+    oczekiwaniaNaCss.push(oczekiwanie);
+    return oczekiwanie;
+  });
   const strona = await kontekst.newPage();
-  const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'domcontentloaded' });
+  const odpowiedz = await strona.goto(`${adres}/dodaj/zdjecie`, { waitUntil: 'load' });
   const kod = odpowiedz?.status() ?? 0;
 
   await poczekajNaFonty(strona);
@@ -2994,6 +2959,7 @@ const wyborZdjeciaBezJs = await (async () => {
   if (kod !== 200) {
     console.error(`BŁĄD: „/dodaj/zdjecie" odpowiedziało kodem ${kod} — wybór zdjęcia nie został sprawdzony.`);
     process.exitCode = 1;
+    await Promise.all(oczekiwaniaNaCss);
     await kontekst.close();
 
     return null;
@@ -3038,9 +3004,11 @@ const wyborZdjeciaBezJs = await (async () => {
     })
     : null;
 
+  await Promise.all(oczekiwaniaNaCss);
   await kontekst.close();
 
   return {
+    opoznionychArkuszy: oczekiwaniaNaCss.length,
     krokowTabem: krokow,
     doszloTabem,
     etykiet: pomiar?.etykiet ?? 0,
@@ -3057,13 +3025,15 @@ const wyborZdjeciaBezJs = await (async () => {
 })();
 
 if (wyborZdjeciaBezJs) {
-  const dobrze = wyborZdjeciaBezJs.doszloTabem
+  const dobrze = wyborZdjeciaBezJs.opoznionychArkuszy > 0
+    && wyborZdjeciaBezJs.doszloTabem
     && wyborZdjeciaBezJs.zostajeWDrzewie
     && wyborZdjeciaBezJs.jednaEtykieta
     && wyborZdjeciaBezJs.widocznyFokusNaObszarze;
 
   log(`  ${dobrze ? '✓' : '✗'} Tab dochodzi do pola po ${wyborZdjeciaBezJs.krokowTabem} krokach`
     + ` (${wyborZdjeciaBezJs.doszloTabem ? 'tak' : 'NIE'})`
+    + `, opóźnionych arkuszy CSS: ${wyborZdjeciaBezJs.opoznionychArkuszy}`
     + `, etykiet: ${wyborZdjeciaBezJs.etykiet}`
     + `, pole display: ${wyborZdjeciaBezJs.display} / visibility: ${wyborZdjeciaBezJs.visibility}`
     + `, obrys na obszarze: ${wyborZdjeciaBezJs.obrys} ${wyborZdjeciaBezJs.gruboscObrysu} px`);
@@ -3279,6 +3249,44 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
     if (marka) {
       pomiar = marka;
       if (!sprawdzonoUjemnieRameMarki) {
+        /* ANIMACJA WYŁĄCZONA NA CAŁY CZAS KONTROLI UJEMNEJ — i to musi objąć
+           także POWRÓT po zdjęciu mutacji, nie samo jej wstrzyknięcie.
+
+           Pasek ma `transition: transform 180ms` (`pasek-przewijany.css`),
+           a mutacje są wstrzykiwane, mierzone i zdejmowane osobnymi
+           wywołaniami przez CDP — kilka milisekund po sobie. Zmierzone na
+           prawdziwej stronie: po wstrzyknięciu `translateX(20px)` odczyt
+           natychmiastowy pokazuje przesunięcie **2 px**, a po 400 ms pełne
+           **20 px**.
+
+           To daje DWA osobne fałszywe wyniki i oba wystąpiły w CI:
+           przy wstrzyknięciu kontrola ujemna nie wykrywa mutacji („nie
+           wykryła: wyśrodkowanie belki"), a po jej zdjęciu belka wraca
+           animacją i pomiar KOŃCOWY — ten kilka linijek niżej — łapie ją
+           w drodze, meldując rozjazd „wyśrodkowanie belki: 532 zamiast 512",
+           czyli dokładnie te 20 px z mutacji, której już nie ma.
+
+           Dlatego styl wyłączający animację stoi OBOK mutacji i żyje aż do
+           końcowego pomiaru, zamiast być dopisywany do każdej z nich.
+
+           Do 19 września 2026 nie było tego widać, bo `data-pasek-przewijany`
+           stał pod `@guest`, a te pomiary chodzą po stronach zalogowanej
+           osoby — tam belka nie miała żadnej tranzycji i zmiany wchodziły
+           natychmiast. Rozszerzenie chowania paska na zalogowanych odsłoniło
+           założenie, które sonda robiła po cichu.
+
+           Wyłączamy TYLKO animację, nie mierzoną własność: kontrola ujemna
+           sprawdza geometrię, a nie to, jak szybko ta geometria dojeżdża. */
+        const bezAnimacji = await strona.evaluateHandle(() => {
+          const nonce = document.querySelector('script[nonce], style[nonce]')?.nonce;
+          if (!nonce) throw new Error('Brak nonce do wyłączenia animacji w kontroli ujemnej');
+          const element = document.createElement('style');
+          element.nonce = nonce;
+          element.textContent = '[data-marka] .marka-topbar, [data-marka] .topbar-inner, [data-marka] .site-footer-inner { transition: none !important; }';
+          document.head.append(element);
+          return element;
+        });
+        try {
         for (const [css, oczekiwanyBlad] of [
           ['[data-marka] .marka-topbar { width: 80px !important; }', 'szerokość belki'],
           ['[data-marka] .marka-topbar { transform: translateX(20px) !important; }', 'wyśrodkowanie belki'],
@@ -3306,6 +3314,9 @@ for (const szerokosc of SZEROKOSCI_WYROWNANIA) {
         }
         sprawdzonoUjemnieRameMarki = true;
         pomiar = await strona.evaluate(zmierzRameMarki);
+        } finally {
+          await bezAnimacji.evaluate((element) => element.remove());
+        }
       }
     }
     await strona.close();
@@ -3655,6 +3666,17 @@ async function przejdzTabemIZmierzFocus(strona) {
         return zaslonietych / (SIATKA * SIATKA);
       }
 
+      const prostokat = (element) => element ? element.getBoundingClientRect().toJSON() : null;
+      const geometria = {
+        klasa: el.className,
+        rodzic: el.parentElement?.className,
+        ramka: prostokat(el),
+        topbar: prostokat(document.querySelector('.topbar')),
+        bottomNav: prostokat(document.querySelector('.bottom-nav')),
+        scrollPaddingTop: getComputedStyle(document.documentElement).scrollPaddingTop,
+        scrollPaddingBottom: getComputedStyle(document.documentElement).scrollPaddingBottom,
+      };
+
       const opis = `${el.tagName.toLowerCase()}`
         + (el.id ? `#${el.id}` : '')
         + (el.getAttribute('aria-label') ? ` [aria-label="${el.getAttribute('aria-label')}"]` : '')
@@ -3662,6 +3684,7 @@ async function przejdzTabemIZmierzFocus(strona) {
 
       return {
         opis,
+        geometria,
         pokrycieTopbar: pokrycieNakladki('.topbar'),
         pokrycieBottomNav: pokrycieNakladki('.bottom-nav'),
       };
@@ -3831,6 +3854,8 @@ for (const szerokosc of SZEROKOSCI_FOCUS) {
           ['.bottom-nav', krok.pokrycieBottomNav],
         ]) {
           if (pokrycie === null || pokrycie === 0) continue;
+
+          console.log('FOCUS_GEOMETRIA ' + JSON.stringify({ ekran: ekran.nazwa, wariant: opis, nakladka, pokrycie, ...krok.geometria }));
 
           if (pokrycie >= PROG_CALKOWITEGO_PRZYKRYCIA) {
             zlych++;
@@ -4039,31 +4064,59 @@ for (const szerokosc of SZEROKOSCI_TABLICY) {
   await kontekst.close();
 }
 
-/* ==========================================================================
-   LICZBY O OSOBIE: DOKŁADNIE JEDEN EGZEMPLARZ NA EKRANIE (D-091)
-
-   Pięć liczb profilu („4 wpisy", „0 przepisów", „1 obserwujący"…) stoi
-   w dokumencie DWA razy: w karcie profilu i w prawej szynie. Który z nich
-   widać, decyduje para reguł w `ekran-profilu.css` — a to jest dokładnie ta
-   klasa zmiany, którą testy PHP przepuszczą: HTML jest poprawny w obu
-   przypadkach, psuje się wyłącznie obraz na ekranie.
-
-   Dwie usterki, których ten pomiar pilnuje, obie widziane wyłącznie
-   w przeglądarce:
-    - liczby DWA RAZY przy 1512 px (skasowana reguła chowająca kartę),
-    - liczby ZNIKNIĘTE na telefonie (przeniesione „na stałe" do szyny, która
-      poniżej 80rem ląduje pod całym archiwum wpisów).
-
-   Gość jest tu osobnym przypadkiem, nie powtórką — ale od 11 września 2026
-   (D-122) Z INNEGO POWODU, niż stało tu wcześniej. Nie „ma jedną kolumnę na
-   każdej szerokości": na profilu ma od 80rem dwie, a szyna stoi obok treści.
-   Powód jest taki, że bloku z liczbami w szynie gościowi w ogóle nie
-   wysyłamy (`@auth` w `x-szyna-profilu`), więc przy 1512 px MUSI widzieć
-   egzemplarz
-   w karcie — inaczej liczby lądują u niego na samym dole strony.
-   ========================================================================== */
+/* D-210: jeden zestaw pięciu rzeczywistych liczników pod ciemnym nagłówkiem,
+   poza nagłówkiem i szyną, na każdej mierzonej szerokości. */
 log('');
-log('Liczby o osobie (karta czy prawa szyna):');
+log('Liczby profilu: pojedynczy pas pod nagłówkiem (D-210):');
+
+// BEGIN POMIAR_LICZB_PROFILU — te same funkcje wykonuje wąska regresja źródła.
+function pomiarLiczbProfilu() {
+  const visible = el => {
+    if (!el || !el.getClientRects().length) return false;
+    for (let p = el; p; p = p.parentElement) {
+      const css = getComputedStyle(p);
+      if (css.visibility !== 'visible' || Number(css.opacity) === 0) return false;
+    }
+    return true;
+  };
+  const lists = [...document.querySelectorAll('.profil-liczniki')];
+  const list = lists[0];
+  const band = document.querySelector('.marka-profil-statystyki');
+  const header = document.querySelector('.marka-profil-kompozycja');
+  const archive = document.querySelector('.marka-profil-dol');
+  const fields = [...(list?.querySelectorAll('.profil-licznik-pole') ?? [])];
+  return {
+    copies: lists.length,
+    visible: visible(list) && visible(band),
+    placement: !!list && !!band && !!header && !!archive && band.contains(list)
+      && !list.closest('.marka-profil-kompozycja, .app-rail, .marka-profil-szyna')
+      && header.nextElementSibling === band && band.nextElementSibling === archive,
+    geometry: !!band && !!header && !!archive
+      && band.getBoundingClientRect().top >= header.getBoundingClientRect().bottom - 1
+      && archive.getBoundingClientRect().top >= band.getBoundingClientRect().bottom - 1,
+    fields: fields.map(el => ({
+      visible: visible(el) && visible(el.querySelector('.stat-value')) && visible(el.querySelector('.stat-label')),
+      value: el.querySelector('.stat-value')?.textContent.trim() ?? '',
+      label: el.querySelector('.stat-label')?.textContent.trim() ?? '',
+      href: el.getAttribute('href'),
+      background: getComputedStyle(el.closest('.profil-licznik')).backgroundColor,
+    })),
+    path: location.pathname,
+    headerBackground: header ? getComputedStyle(header).backgroundColor : null,
+  };
+}
+function bledyLiczbProfilu(p) {
+  const errors = [];
+  if (p.copies !== 1) errors.push('PROFILE_COUNTER_COPIES ' + p.copies);
+  if (!p.visible) errors.push('PROFILE_COUNTER_HIDDEN');
+  if (!p.placement || !p.geometry) errors.push('PROFILE_COUNTER_POSITION');
+  const labels = [/^wpis/, /^przepis/, /Ugotowa\u0142em/, /^obserwuj/, /^obserwowan/];
+  if (p.fields.length !== 5 || p.fields.some((f, i) => !f.visible || !/^\d+$/.test(f.value) || !labels[i]?.test(f.label))) errors.push('PROFILE_COUNTER_CONTENT');
+  if (p.fields.slice(3).some((f, i) => !f.href || new URL(f.href, 'http://localhost').pathname !== p.path + ['/obserwujacy', '/obserwowani'][i])) errors.push('PROFILE_COUNTER_LINKS');
+  if (p.fields.some(f => f.background !== 'rgb(255, 255, 255)') || p.headerBackground === 'rgb(255, 255, 255)') errors.push('PROFILE_COUNTER_SURFACE');
+  return errors;
+}
+// END POMIAR_LICZB_PROFILU
 
 const EKRANY_LICZB = [
   { nazwa: 'profil cudzy (gość)', adres: '/@basia', zalogowany: false },
@@ -4097,68 +4150,11 @@ for (const szerokosc of SZEROKOSCI_LICZB) {
       continue;
     }
 
-    const pomiar = await strona.evaluate(() => {
-      // `getClientRects().length` zamiast `offsetParent`: łapie także element
-      // schowany przez `display: none` NA PRZODKU, a to jest właśnie ten
-      // przypadek (chowamy opakowanie bloku, nie samą listę).
-      const widoczny = (el) => el !== null && el.getClientRects().length > 0;
-
-      const karta = document.querySelector('.profil-liczby-karta');
-      const szyna = document.querySelector('.profil-liczby-szyna');
-
-      return {
-        maKarte: karta !== null,
-        kartaWidoczna: widoczny(karta),
-        szynaWSzynie: szyna !== null ? szyna.closest('.app-rail') !== null : null,
-        szynaWidoczna: widoczny(szyna),
-        // Ile razy podpis „obserwujących"/„obserwujący" jest naprawdę
-        // widoczny — najprostsze sprawdzenie „czy liczba stoi dwa razy".
-        widocznychPodpisow: [...document.querySelectorAll('.profil-licznik-pole .stat-label')]
-          .filter((el) => el.getClientRects().length > 0 && el.textContent.includes('obserwuj'))
-          .length,
-        // Pierwszy wpis archiwum — po to była cała zmiana. Zapisujemy
-        // pozycję, żeby dało się zobaczyć, czy wjechał wyżej.
-        goraPierwszegoWpisu: (() => {
-          const wpis = document.querySelector('.app-main .post-card');
-          return wpis === null ? null : Math.round(wpis.getBoundingClientRect().top);
-        })(),
-      };
-    });
-
-    const bledy = [];
-
-    if (!pomiar.maKarte) {
-      bledy.push('nie ma w ogóle listy liczb w karcie profilu');
-    }
-
-    if (pomiar.kartaWidoczna === pomiar.szynaWidoczna) {
-      bledy.push(pomiar.kartaWidoczna
-        ? 'te same liczby widać JEDNOCZEŚNIE w karcie i w szynie'
-        : 'liczb nie widać ANI w karcie, ANI w szynie');
-    }
-
-    if (pomiar.widocznychPodpisow !== 1) {
-      bledy.push(`podpis „obserwujący" jest widoczny ${pomiar.widocznychPodpisow} razy, ma być raz`);
-    }
-
-    if (pomiar.szynaWSzynie === false) {
-      bledy.push('blok liczb nie leży w `.app-rail`');
-    }
-
-    // Szeroko i po zalogowaniu liczby MAJĄ być w szynie — inaczej cała ta
-    // zmiana nic nie dała i karta jest tak samo długa jak przed nią.
-    if (szerokosc >= 1280 && ekran.zalogowany && !pomiar.szynaWidoczna) {
-      bledy.push('przy szerokim oknie liczby dalej stoją w karcie');
-    }
-
-    // Na telefonie i u gościa MAJĄ być w karcie.
-    if ((szerokosc < 1280 || !ekran.zalogowany) && !pomiar.kartaWidoczna) {
-      bledy.push('liczby zniknęły z karty tam, gdzie nie ma prawej kolumny');
-    }
-
-    log(`  ${ekran.nazwa} przy ${szerokosc} px: karta ${pomiar.kartaWidoczna ? 'widoczna' : 'schowana'}, `
-      + `szyna ${pomiar.szynaWidoczna ? 'widoczna' : 'schowana'}, `
-      + `pierwszy wpis od góry: ${pomiar.goraPierwszegoWpisu ?? '(brak wpisu)'} px`);
+    await strona.evaluate(() => { document.documentElement.dataset.theme = 'light'; });
+    const pomiar = await strona.evaluate(pomiarLiczbProfilu);
+    const bledy = bledyLiczbProfilu(pomiar);
+    log(`  ${ekran.nazwa} przy ${szerokosc} px: kopii ${pomiar.copies}, pól ${pomiar.fields.length}, `
+      + `pas ${pomiar.visible ? 'widoczny' : 'niewidoczny'}, pozycja ${pomiar.placement && pomiar.geometry ? 'poprawna' : 'błędna'}`);
 
     if (bledy.length > 0) {
       rozjazdyLiczb.push({ ekran: ekran.nazwa, szerokosc, bledy });
@@ -4171,7 +4167,7 @@ for (const szerokosc of SZEROKOSCI_LICZB) {
 
 if (rozjazdyLiczb.length > 0) {
   log('');
-  log('Liczby o osobie stoją w złym miejscu (D-091):');
+  log('Liczby o osobie: niezgodność z D-210:');
   for (const r of rozjazdyLiczb) {
     log(`  ${r.ekran} przy ${r.szerokosc} px:`);
     for (const blad of r.bledy) {
@@ -4388,6 +4384,28 @@ if (rozjazdySzynyGoscia.length > 0) {
   }
 }
 
+// OAuth: własny serwer pomiarowy, bez włazu do sesji w aplikacji (#345).
+const oauth = { wyniki: [], blad: null };
+try {
+  await zmierzOauth({ przegladarka, wyniki: oauth.wyniki });
+  const kluczOauth = (w) => JSON.stringify([w.adres, w.stan ?? null, w.wariant]);
+  const oczekiwaneOauth = EKRANY_OAUTH.flatMap((ekran) => WARIANTY_OAUTH.map((wariant) =>
+    kluczOauth({ ...ekran, ...wariant })));
+  const otrzymaneOauth = oauth.wyniki.map(kluczOauth);
+  if (oczekiwaneOauth.length !== 10 || otrzymaneOauth.length !== oczekiwaneOauth.length
+      || new Set(otrzymaneOauth).size !== oczekiwaneOauth.length
+      || ! oczekiwaneOauth.every((klucz) => otrzymaneOauth.includes(klucz))
+      || oauth.wyniki.some((w) => w.status !== 'success')) {
+    throw new Error('OAuth345: niepełny raport pięciu ekranów w dwóch motywach');
+  }
+  log(`OAuth: ${oauth.wyniki.length}/${oczekiwaneOauth.length} pomiarów zakończonych.`);
+} catch (error) {
+  oauth.blad = error?.message ?? String(error);
+  console.error(`BŁĄD OAuth: ${oauth.blad}`);
+  process.exitCode = 1;
+}
+// Koniec pomiaru OAuth.
+
 await przegladarka.close();
 zamknij();
 
@@ -4412,6 +4430,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     przepelnienia,
   },
   karuzelaBezJs,
+  oauth,
   wyborZdjeciaBezJs,
   wyrownanieBelki: {
     szerokosci: SZEROKOSCI_WYROWNANIA,
@@ -4447,7 +4466,7 @@ writeFileSync('storage/dostepnosc.json', JSON.stringify({
     rozjazdy: rozjazdyTablicy,
   },
   /*
-   * LICZBY O OSOBIE (D-091) — kontrola, którą kod wyjścia respektował od
+   * LICZBY O OSOBIE (D-210, wcześniej D-091) — kontrola, którą kod wyjścia respektował od
    * początku, a artefakt przemilczał. Brakowało jej dokładnie tutaj, czyli
    * w trzecim z trzech miejsc zbiorczych tego pliku (sekcja 14.5
    * przekazania). Skutek nie był groźny — CI oblewało poprawnie — ale

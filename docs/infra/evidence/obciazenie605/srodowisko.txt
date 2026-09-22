@@ -1,0 +1,21 @@
+# Środowisko stanowiska — 18.09.2026
+
+## host
+Linux 6.18.33.2-microsoft-standard-WSL2 x86_64
+24
+               total        used        free      shared  buff/cache   available
+Mem:           31955       13911        1898        3057       19572       18043
+CPU(s):                                  24
+Model name:                              Intel(R) Core(TM) Ultra 7 270K Plus
+
+## PostgreSQL
+PostgreSQL 18.6 (Ubuntu 18.6-0ubuntu0.26.04.1) on x86_64-pc-linux-gnu, compiled by gcc (Ubuntu 15.2.0-16ubuntu1) 15.2.0, 64-bit
+100
+
+## obraz aplikacji
+obraz=kuking:ci-bdc56b8cf9b664eda104b628d85149b08d84d8d9 utworzony=2026-09-18T07:41:51.56975652Z
+cpus=2000000000 pamiec=1073741824 cmd=[/usr/local/bin/kuking-entrypoint all]
+
+## start FrankenPHP (te same wartości co produkcja wg #598)
+{"level":"info","ts":1789722646.2328439,"msg":"maxprocs: Updating GOMAXPROCS=2: determined from CPU quota"}
+{"level":"info","ts":1789722646.2827902,"logger":"frankenphp","msg":"FrankenPHP started 🐘","php_version":"8.4.25","num_threads":4,"max_threads":4,"max_requests":0}

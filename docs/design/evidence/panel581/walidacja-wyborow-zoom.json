@@ -1,0 +1,149 @@
+{
+  "scope": "Cztery bledne POST z rzeczywistym CSRF i sesja; rzeczywisty zoom 200%, 320 CSS px, tekst 140%, oba motywy, fokus podsumowania",
+  "rows": [
+    {
+      "theme": "light",
+      "focus": {
+        "top": 287.328125,
+        "bottom": 644.796875,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "wpisy[]",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nPole „wybrany wpis” musi być poprawnym identyfikatorem UUID.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "focus": {
+        "top": 287.53125,
+        "bottom": 645,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "zdjecia[]",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nPole „zdjecia.0” musi być poprawnym identyfikatorem UUID.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "focus": {
+        "top": 386.7421875,
+        "bottom": 705.1484375,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "nazwa_tagu",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nWpisz nazwę tagu, który chcesz promować.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    },
+    {
+      "theme": "light",
+      "focus": {
+        "top": 386.7421875,
+        "bottom": 705.1484375,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "note",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nPole „notatka” jest za długie. Skróć je do 200 znaków.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "focus": {
+        "top": 287.328125,
+        "bottom": 644.796875,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "wpisy[]",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nPole „wybrany wpis” musi być poprawnym identyfikatorem UUID.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "focus": {
+        "top": 287.53125,
+        "bottom": 645,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "zdjecia[]",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nPole „zdjecia.0” musi być poprawnym identyfikatorem UUID.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "focus": {
+        "top": 386.7421875,
+        "bottom": 705.1484375,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "nazwa_tagu",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nWpisz nazwę tagu, który chcesz promować.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    },
+    {
+      "theme": "dark",
+      "focus": {
+        "top": 386.7421875,
+        "bottom": 705.1484375,
+        "viewport": 900,
+        "outline": "solid",
+        "width": "3px",
+        "clear": true,
+        "overflow": false
+      },
+      "field": "note",
+      "status": 302,
+      "message": "Sprawdź formularz\n\nPole „notatka” jest za długie. Skróć je do 200 znaków.",
+      "before": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "after": "33db53fdcfadc0b6693f6b10628a04ee2a7ab469098c10491407f9c17e0eb952",
+      "pass": true
+    }
+  ]
+}

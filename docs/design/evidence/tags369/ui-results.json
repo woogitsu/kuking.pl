@@ -1,0 +1,579 @@
+{
+  "rows": [
+    {
+      "theme": "light",
+      "width": 320,
+      "page": "index",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "page": "eligible",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "page": "below-photos",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 320,
+      "page": "below-people",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 360,
+      "page": "index",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 360,
+      "page": "eligible",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 360,
+      "page": "below-photos",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 360,
+      "page": "below-people",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "page": "index",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "page": "eligible",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "page": "below-photos",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 390,
+      "page": "below-people",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 414,
+      "page": "index",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 414,
+      "page": "eligible",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 414,
+      "page": "below-photos",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 414,
+      "page": "below-people",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "page": "index",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "page": "eligible",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "page": "below-photos",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 768,
+      "page": "below-people",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "page": "index",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "page": "eligible",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "page": "below-photos",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "page": "below-people",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "page": "index",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "page": "eligible",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "page": "below-photos",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "page": "below-people",
+      "scroll": 320,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 360,
+      "page": "index",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 360,
+      "page": "eligible",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 360,
+      "page": "below-photos",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 360,
+      "page": "below-people",
+      "scroll": 360,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "page": "index",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "page": "eligible",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "page": "below-photos",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 390,
+      "page": "below-people",
+      "scroll": 390,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 414,
+      "page": "index",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 414,
+      "page": "eligible",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 414,
+      "page": "below-photos",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 414,
+      "page": "below-people",
+      "scroll": 414,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "page": "index",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "page": "eligible",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "page": "below-photos",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 768,
+      "page": "below-people",
+      "scroll": 768,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "page": "index",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "page": "eligible",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Publicznie: 5 zdjęć od 3 osób."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "page": "below-photos",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "page": "below-people",
+      "scroll": 1440,
+      "scale": "140",
+      "overflow": false,
+      "stats": [
+        "Pokaż, co gotujesz — dodaj swój wpis."
+      ]
+    }
+  ],
+  "keyboard": [
+    {
+      "theme": "light",
+      "width": 320,
+      "focus": {
+        "href": "http://127.0.0.1:8070/tag/odbior-statystyki-1",
+        "focusVisible": true,
+        "outline": "3px"
+      },
+      "enterNavigated": true,
+      "clickedPagination": true
+    },
+    {
+      "theme": "light",
+      "width": 1440,
+      "focus": {
+        "href": "http://127.0.0.1:8070/tag/odbior-statystyki-1",
+        "focusVisible": true,
+        "outline": "3px"
+      },
+      "enterNavigated": true,
+      "clickedPagination": true
+    },
+    {
+      "theme": "dark",
+      "width": 320,
+      "focus": {
+        "href": "http://127.0.0.1:8070/tag/odbior-statystyki-1",
+        "focusVisible": true,
+        "outline": "3px"
+      },
+      "enterNavigated": true,
+      "clickedPagination": true
+    },
+    {
+      "theme": "dark",
+      "width": 1440,
+      "focus": {
+        "href": "http://127.0.0.1:8070/tag/odbior-statystyki-1",
+        "focusVisible": true,
+        "outline": "3px"
+      },
+      "enterNavigated": true,
+      "clickedPagination": true
+    }
+  ],
+  "overflowCount": 0
+}

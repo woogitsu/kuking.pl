@@ -1,0 +1,54 @@
+/* Kompozycja wejścia z oryginału: zaproszenie obok działającego formularza.
+   Karta obejmuje także alternatywne drogi logowania i komunikaty błędów. */
+  [data-marka] .marka-rama:not([data-tryb-panelu]) > .app-main:has(.marka-wejscie) {
+    max-width: 1040px;
+  }
+
+  .marka-wejscie {
+    display: grid;
+    grid-template-columns: minmax(0, .8fr) minmax(0, 1.2fr);
+    gap: clamp(32px, 5vw, 70px);
+    align-items: start;
+  }
+
+  .marka-wejscie-zaproszenie { padding-block: var(--spacing-10); }
+  .marka-wejscie-znak { color: var(--color-brand); width: 80px; }
+  .marka-wejscie-znak svg { width: 100%; height: auto; }
+  .marka-wejscie-zaproszenie p {
+    max-width: 22ch;
+    margin-top: var(--spacing-6);
+    font-size: var(--text-title);
+    line-height: 1.5;
+    color: var(--color-ink-muted);
+  }
+
+  .marka-wejscie-karta {
+    min-width: 0;
+    padding: clamp(20px, 3vw, 44px);
+    border-radius: var(--radius-xl);
+    background: var(--color-surface-raised);
+    box-shadow: var(--shadow-card);
+    border: 1px solid var(--color-border);
+    overflow-wrap: anywhere;
+  }
+
+  .marka-wejscie-karta > h1 {
+    font-size: var(--text-title-lg);
+    line-height: var(--leading-title-wiele);
+    letter-spacing: -.04em;
+    margin-bottom: var(--spacing-6);
+  }
+
+  [data-marka] .marka-wejscie-karta .panel-formularza {
+    padding: 0;
+    border: 0;
+    background: transparent;
+    box-shadow: none;
+  }
+
+  @media (max-width: 900px) {
+    .marka-wejscie { grid-template-columns: minmax(0, 1fr); gap: var(--spacing-6); }
+    .marka-wejscie-zaproszenie { padding: 0; display: flex; flex-wrap: wrap; align-items: center; gap: var(--spacing-4); }
+    .marka-wejscie-znak { width: 48px; flex: none; }
+    .marka-wejscie-zaproszenie p { flex: 1 1 240px; min-width: 0; margin: 0; max-width: none; font-size: var(--text-body); overflow-wrap: anywhere; }
+  }

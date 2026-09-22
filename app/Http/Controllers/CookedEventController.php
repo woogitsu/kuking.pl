@@ -192,22 +192,19 @@ class CookedEventController extends Controller
         }
 
         // DRUGIE KLIKNIĘCIE „WYŚLIJ" — wykonanie jest to samo, co przy
-        // pierwszym, a autor przepisu dostał JEDNO powiadomienie. Komunikat
-        // mówi to wprost, bo to jest ta informacja, o którą człowiek się
-        // niepokoi, i pokazuje drogę do zapisania drugiego, prawdziwego
-        // gotowania (D-005 zostaje nienaruszone).
+        // pierwszym. Komunikat potwierdza zapis i drogę do kolejnego
+        // gotowania (D-005). Nie obiecuje powiadomienia: własne wykonanie
+        // i autor, który nie może czytać, mają świadome wyjątki (AGENTS §1).
         if (! $event->wasRecentlyCreated) {
             return redirect()->route('cooked.show', $event)->with(
                 'status',
-                'To wykonanie już zapisaliśmy. Autor przepisu dostał jedno powiadomienie, nie dwa. '
+                'To wykonanie już zapisaliśmy. '
                 .'Gotujesz ten przepis drugi raz? Otwórz „Ugotowałem” jeszcze raz — każde wykonanie zapisujemy osobno.',
             );
         }
 
-        $authorName = $model->author->displayName();
-
         return redirect()->route('cooked.show', $event)->with('status',
-            "Zapisane. {$authorName} dowie się, że ktoś ugotował z tego przepisu.",
+            'Wykonanie zapisane.',
         );
     }
 
@@ -328,27 +325,31 @@ class CookedEventController extends Controller
             'body.max' => 'Ten komentarz jest za długi. Zmieść się w 4000 znakach.',
         ]);
 
+        // `?? null`, bo `validate()` NIE zwraca klucza, którego w żądaniu nie
+        // było — a `parent_id` jest `nullable`. Komentarz wysłany bez tego
+        // pola (czyli każdy spoza naszego formularza, który zawsze wysyła
+        // puste) kończył się błędem „Undefined array key", czyli 500 zamiast
+        // komentarza.
+        $parentId = $data['parent_id'] ?? null;
+
         try {
             $this->publishComment->handle(
                 author: $request->user(),
                 subject: $cookedEvent,
                 body: $data['body'],
-                // `?? null`, bo `validate()` NIE zwraca klucza, którego
-                // w żądaniu nie było — a `parent_id` jest `nullable`.
-                // Komentarz wysłany bez tego pola (czyli każdy spoza naszego
-                // formularza, który zawsze wysyła puste) kończył się błędem
-                // „Undefined array key", czyli 500 zamiast komentarza.
-                //
                 // `widoczneDla()` — audyt W7-06. Bez tego można było podać
                 // UUID komentarza ukrytego przez blokadę i podpiąć się pod
                 // cudzy wątek. Akcja domenowa sprawdza to drugi raz, bo
                 // kontrolerów jest kilka.
-                parent: ($data['parent_id'] ?? null) === null
+                parent: $parentId === null
                     ? null
                     : $cookedEvent->comments()
                         ->widoczneDla($request->user())
-                        ->whereKey($data['parent_id'])
+                        ->whereKey($parentId)
                         ->first(),
+                // ISSUE #761: patrz komentarz przy tym samym parametrze
+                // w PostController::comment().
+                parentRequested: $parentId !== null,
             );
         } catch (BladDlaCzlowieka $e) {
             return back()->withInput()->withErrors(['body' => $e->getMessage()]);
