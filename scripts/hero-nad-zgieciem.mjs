@@ -62,7 +62,7 @@ import { ustalBazePomiarowa } from './bezpiecznik-bazy.mjs';
    Wskazanie `kuking` albo `kuking_test` kasowałoby czyjąś pracę (AGENTS.md §6). */
 const BAZA_DOMYSLNA = 'kuking_hero_zgiecie';
 
-/* BEZPIECZNIK (#736, D-239): nazwę bazy sprawdza `ustalBazePomiarowa()`, a nie
+/* BEZPIECZNIK (#736, D-241): nazwę bazy sprawdza `ustalBazePomiarowa()`, a nie
    lista dwóch dosłownych nazw — `kuking_test_<worktree>` przez taką listę
    przechodził. Ustalana dopiero w `podniesSerwer()`, NIE przy imporcie modułu:
    `scripts/port-projektu.mjs` importuje stąd `sprawdzHeroNadZgieciem()` i chodzi
