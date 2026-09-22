@@ -15387,14 +15387,15 @@ Dowody: `tests/Unit/NazwaTestowejBazyTest.php`,
 `tests/skrypty/sprzatanie-baz-testowych.sh` (+ `SprzatanieBazTestowychTest`),
 `tests/Feature/SkryptyPytajaOWlasciwyPortTest.php`.
 
-## D-242 — Przyrządy pomiarowe rozpoznają rodzinę baz, nie pojedyncze nazwy (#736, 19 września 2026)
+## D-243 — Przyrządy pomiarowe rozpoznają rodzinę baz, nie pojedyncze nazwy (#736, 19 września 2026)
 
 **Ta decyzja nosiła najpierw numer D-226** (gałąź `flota/scal-786`, 21 września).
 Przenumerowana 22 września przy scalaniu `main`, najpierw na D-239, potem na D-241
 (D-239 zapisała wcześniej `flota/732-licznik-poczty-zlozone`, D-240
 `claude/new-session-ozvji9`), a 23 września na D-242: D-241 jest zarezerwowany
 dla `flota/lokalna-moderacja-niepubliczne` („Lokalne wzorce spamu sprawdzają
-także treść niepubliczną…”, wchodzi po #1298). D-226 wzięła wcześniej
+także treść niepubliczną…”, wchodzi po #1298), wreszcie na D-243: D-242 zapisała
+o 23:28 UTC `flota/775-zlozone` (#1282), siedem minut przed tą gałęzią. D-226 wzięła wcześniej
 (20 września) gałąź `fix/732-wspolny-licznik-poczty`, a równolegle niesie go też
 `jedna-droga` (#1208). Żadnej z nich nie ma jeszcze na `main`, więc według D-235
 ustępuje strona, która numer wzięła później. Treść decyzji bez zmian.

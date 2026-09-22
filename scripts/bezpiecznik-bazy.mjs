@@ -82,7 +82,7 @@ export function rodzinaChroniona(nazwa) {
 /**
  * Ogólna rodzina baz jednorazowych, niezwiązana z konkretnym skryptem.
  * Ta sama lista co `KUKING_RODZINY_JEDNORAZOWE` w
- * scripts/fixtures/baza-pomiarowa.php — jedna reguła w dwóch językach (D-242).
+ * scripts/fixtures/baza-pomiarowa.php — jedna reguła w dwóch językach (D-243).
  * `kuking_port_*` to bazy portowe z `ci.yml` (`kuking_port_panel`,
  * `kuking_port_referrer`).
  */
