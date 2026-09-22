@@ -481,6 +481,23 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             'visibility' => 'private',
         ]);
 
+        // Zeszyty osoby, której konto PRZESTAŁO być aktywne (issue #1092).
+        // Właścicielem jest tu ktoś SPOZA pięciu ról tabeli — żadna z nich
+        // nie jest właścicielem tych dwóch zeszytów, więc wejście może dać
+        // wyłącznie Policy, nigdy sam identyfikator w adresie.
+        $zbanowany = $this->user('zbanowanyzeszytowy');
+        $zeszytZbanowanegoPrywatny = Collection::create([
+            'owner_id' => $zbanowany->getKey(),
+            'name' => 'Prywatny zeszyt zbanowanego',
+            'visibility' => 'private',
+        ]);
+        $zeszytZbanowanegoPubliczny = Collection::create([
+            'owner_id' => $zbanowany->getKey(),
+            'name' => 'Publiczny zeszyt zbanowanego',
+            'visibility' => 'public',
+        ]);
+        $zbanowany->ban();
+
         $zgloszenie = $this->zgloszenie($wlasciciel, $wpisPubliczny);
         $zgloszenieDoDecyzji = $this->zgloszenie($wlasciciel, $wpis);
         $zgloszenieDoPrzywrocenia = $this->zgloszenie($wlasciciel, $wpisDoWspomnien);
@@ -613,6 +630,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         // Moderator ma tu ODMOWĘ świadomie: rozstrzyga administrator
         // (`UserPolicy::resolveAppeals`, A-4). Kontrola dodatnia dla admina
         // stoi w osobnym teście wyżej.
+        //
+        // Ten wiersz mierzy bramkę KONTROLERA i był zielony także wtedy,
+        // gdy rola nie była sprawdzana nigdzie indziej (#1087) — czyli gdy
+        // ta sama czynność wykonana z komendy, kolejki albo nowego
+        // endpointu obchodziła regułę A-4 w całości. Domenową stronę tej
+        // bramki mierzy `RolaRozstrzygajacegoOdwolanieStoiWDomenieTest`,
+        // bo żądaniem HTTP na tę trasę nie da się jej zobaczyć.
         $dodaj('admin.appeals.resolve', 'rozstrzygnięcie odwołania', 'post',
             route('admin.appeals.resolve', $this->odwolanie), ['decision' => 'upheld', 'note' => 'Notatka.'],
             [$O, $O, $O, $O, $O]);
@@ -744,6 +768,24 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.show', $zeszyt), [], [$W, $O, $O, $O, $O]);
         $dodaj('collections.destroy', 'usunięcie zeszytu', 'delete',
             route('collections.destroy', $zeszytDoKasacji), [], [$W, $O, $O, $O, $O]);
+        // ZMIANA STATUSU WŁAŚCICIELA MA ZAWĘŻAĆ, NIGDY NIE ROZSZERZAĆ (#1092).
+        //
+        // Dwa wiersze na tej samej trasie, różniące się WYŁĄCZNIE flagą
+        // widoczności — i to jest cały pomiar. Przed poprawką
+        // `CollectionPolicy::view()` pytała o status właściciela PRZED
+        // flagą, więc oba wiersze wychodziły tak samo: moderator wchodził
+        // też na PRYWATNY. Czyli zbanowanie właściciela otwierało
+        // moderatorowi zeszyt, którego przy koncie aktywnym nie widział
+        // (wiersz `collections.show` wyżej: moderator ma tam ODMOWĘ).
+        //
+        // Wiersz PUBLICZNY jest tu kontrolą dodatnią: gdyby poprawka
+        // zamknęła tę trasę wszystkim, moderator przestałby widzieć treść,
+        // za którą to konto zbanował — i prywatny wiersz byłby zielony
+        // z zupełnie niewłaściwego powodu.
+        $dodaj('collections.show', 'prywatny zeszyt osoby zbanowanej', 'get',
+            route('collections.show', $zeszytZbanowanegoPrywatny), [], [$O, $O, $O, $O, $O]);
+        $dodaj('collections.show', 'publiczny zeszyt osoby zbanowanej', 'get',
+            route('collections.show', $zeszytZbanowanegoPubliczny), [], [$O, $O, $O, $W, $O]);
 
         // ─── TAGI ────────────────────────────────────────────────────────
         // Tag jest wspólną nawigacją serwisu, nie czyjąś własnością
