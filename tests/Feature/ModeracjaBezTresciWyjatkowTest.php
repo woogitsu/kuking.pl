@@ -46,6 +46,18 @@ class ModeracjaBezTresciWyjatkowTest extends TestCase
         Log::shouldReceive('warning')->andReturnUsing(function (string $message, array $context = []): void {
             $this->records[] = [$message, $context];
         });
+
+        // `Log::shouldReceive()` podmienia cały LogManager na ścisłą atrapę.
+        // Hook payloadu kolejki (`QueueCorrelation::payload()`, #1040) czyta
+        // przy każdym `dispatch()` `sharedContext()`, a słuchacze zadania
+        // ustawiają i sprzątają kontekst. Bez tych zgód test mierzyłby własną
+        // atrapę (`BadMethodCallException`), a nie treść logu. `byDefault()`,
+        // bo liczby wywołań tu nie sprawdzamy — ten sam wzór, co
+        // `KontaktPotwierdzeniaTest::pozwolNaKontekstKorelacji()`.
+        Log::shouldReceive('shareContext')->andReturnSelf()->byDefault();
+        Log::shouldReceive('sharedContext')->andReturn([])->byDefault();
+        Log::shouldReceive('withoutContext')->andReturnSelf()->byDefault();
+        Log::shouldReceive('flushSharedContext')->andReturnSelf()->byDefault();
     }
 
     public function test_transport_openai_nie_loguje_tresci_wyjatku(): void
