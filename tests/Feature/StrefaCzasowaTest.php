@@ -116,7 +116,6 @@ class StrefaCzasowaTest extends TestCase
         }
     }
 
-
     protected function tearDown(): void
     {
         CarbonImmutable::setTestNow();
