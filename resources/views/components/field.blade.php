@@ -70,6 +70,7 @@
     'wireModifier' => 'live.debounce.3000ms',
     'id' => null,
     'wiersz' => null,
+    'errorBag' => 'default',
     /*
      * LIMIT ZNAKÓW WIDOCZNY PRZED WYSŁANIEM (issue #762).
      *
@@ -117,7 +118,10 @@
     // jest w pętli (`wiersz` nie podane), i tylko dla wiersza, którego
     // formularz naprawdę wrócił z błędem, jeśli jest.
     $tenWiersz = $wiersz === null || \App\Support\WierszFormularza::jestAktywny($wiersz);
-    $error = $tenWiersz ? $errors->first($name) : null;
+    // Ten sam przypadek co w `x-error-summary`: widok może dostać gotowy
+    // `MessageBag` zamiast `ViewErrorBag`, a ten nie ma `getBag()`.
+    $workiBledow = $errors instanceof \Illuminate\Support\ViewErrorBag ? $errors->getBag($errorBag) : $errors;
+    $error = $tenWiersz ? $workiBledow->first($name) : null;
     $binding = $wire === null ? null : 'wire:model.'.$wireModifier;
 
     /*
