@@ -731,6 +731,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
         ->middleware("throttle:{$limits['zeszyt']},zeszyt")
         ->name('collections.store');
     Route::get('/zeszyt/{collection}', [CollectionController::class, 'show'])->name('collections.show');
+    // Cofnięcie publicznego udostępnienia bez kasowania zeszytu (issue #777).
+    // Własny klucz `zeszyt`, nie `usuwanie` — to nie jest akcja destrukcyjna.
+    Route::get('/zeszyt/{collection}/edytuj', [CollectionController::class, 'edit'])->name('collections.edit');
+    Route::patch('/zeszyt/{collection}', [CollectionController::class, 'update'])
+        ->middleware("throttle:{$limits['zeszyt']},zeszyt")
+        ->name('collections.update');
     Route::delete('/zeszyt/{collection}', [CollectionController::class, 'destroy'])
         ->middleware("throttle:{$limits['usuwanie']},usuwanie")
         ->name('collections.destroy');
