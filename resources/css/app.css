@@ -40,6 +40,7 @@
    z nich dopisuje własne klasy do @layer components, żadny nie nadpisuje
    klasy z innego. */
 @import "./ekran-wyszukiwania.css";
+@import "./ekran-tagi.css";
 @import "./ekran-profilu.css";
 @import "./ekran-dodawania.css";
 @import "./karta-ugotowania.css";
@@ -2251,6 +2252,14 @@
   /* Odsunięcie zgłoszenia na koniec wiersza. Przy zawijaniu po prostu
      schodzi do nowej linii, zamiast wypychać cokolwiek poza ekran. */
   .post-card-report { margin-left: auto; }
+
+  /* Cytat treści na formularzu zgłoszenia (issue #794). */
+  .cel-zgloszenia-cytat {
+    font-size: var(--text-body);
+    font-style: italic;
+    color: var(--color-ink-muted);
+    overflow-wrap: anywhere;
+  }
 
   /* --- Zachęta do dodania wpisu („composer" z mockupów 01 i 05) ---
 
@@ -4748,6 +4757,7 @@
 .confirm-question {
     margin: 0 0 var(--spacing-3);
     font-weight: 600;
+    overflow-wrap: anywhere;
 }
 
 /* ---------------------------------------------------------------------------

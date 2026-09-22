@@ -78,6 +78,13 @@ final class PublishComment
         }
 
         /*
+         * Blokada wobec autora treści, WSKAZANEGO komentarza i KORZENIA
+         * płaskiego wątku (audyt W7-06, issue #1049) jest sprawdzana
+         * w LockCommentContext — pod zamkami, na świeżo odczytanych
+         * wierszach, osobno dla wskazanego komentarza i korzenia
+         * (`widoczneDla()` obejmuje status i blokadę w obie strony).
+         */
+        /*
          * KOMENTARZ I POWIADOMIENIA O NIM POWSTAJĄ RAZEM ALBO WCALE.
          *
          * Ta sama klasa błędu co G04 w `RecordCookedEvent`, tyle że tutaj

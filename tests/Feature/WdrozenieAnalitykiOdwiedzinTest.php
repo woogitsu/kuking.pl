@@ -589,6 +589,12 @@ class WdrozenieAnalitykiOdwiedzinTest extends TestCase
             'mail.default' => 'smtp',
             'kuking.google.wlaczone' => false,
             'kuking.facebook.wlaczone' => false,
+            // Czyszczenie cache CDN (audyt G-03) zapala na produkcji własny
+            // sygnał `czyszczenie_cdn_wylaczone`, gdy nie ma `CLOUDFLARE_ZONE_ID`
+            // i `CLOUDFLARE_PURGE_TOKEN` — a w testach ich nie ma i mieć nie
+            // musi. Uciszamy go udawaną parą, żeby ten test mierzył swoje.
+            'kuking.media.cdn_purge.zone_id' => 'udawana-strefa',
+            'kuking.media.cdn_purge.token' => 'udawany-token-czyszczenia',
         ]);
 
         $this->app->detectEnvironment(static fn (): string => 'production');
