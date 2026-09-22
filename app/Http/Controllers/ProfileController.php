@@ -5,11 +5,14 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Collections\ZapisyWpisu;
+use App\Models\CookedEvent;
 use App\Models\Media;
 use App\Models\Post;
 use App\Models\Profile;
 use App\Models\Tag;
+use App\Models\User;
 use App\Support\Czas;
+use Illuminate\Contracts\Pagination\LengthAwarePaginator;
 use Illuminate\Contracts\Pagination\Paginator;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Http\Request;
@@ -45,6 +48,7 @@ class ProfileController extends Controller
             ->firstOrFail();
 
         $owner = $profile->user;
+        $owner->setRelation('profile', $profile);
 
         $this->authorize('viewProfile', $owner);
 
@@ -103,25 +107,7 @@ class ProfileController extends Controller
                     ->withQueryString()
                 : null,
             'cookedEvents' => $tab === 'ugotowane'
-                ? $owner->cookedEvents()
-                    ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
-                    // `user.profile.avatar` — karta wykonania
-                    // (`components/cooked-card.blade.php`) czyta
-                    // `$event->user` (awatar, nazwa) i
-                    // `$event->user->profile->username` (odnośnik do profilu).
-                    // Doładowany był tylko AUTOR PRZEPISU, nie OSOBA, KTÓRA
-                    // GOTOWAŁA — a to na tej zakładce jest treść główna.
-                    //
-                    // Zmierzone (`scripts/pomiar-n1.php`, 10 000 wpisów, po
-                    // `ANALYZE`): 52 zapytania na dwunastu kartach, z czego 22 to
-                    // para `profiles` + `users` powtórzona na każdą kartę.
-                    // Po zmianie: 30.
-                    // `RecipeController::show()` dociągał to samo od dawna
-                    // (galeria „Komu wyszło"); ta zakładka była jedynym
-                    // miejscem z tą samą kartą i bez tego `with()`.
-                    ->with(['user.profile.avatar', 'recipe.author.profile', 'media'])
-                    ->paginate(12)
-                    ->withQueryString()
+                ? $this->cookedEventsDlaProfilu($owner, $viewer, $isOwner)
                 : null,
             'stats' => [
                 'posts' => $owner->posts()->published()
@@ -415,6 +401,46 @@ class ProfileController extends Controller
             $sub->widoczneDla($viewer)
                 ->whereHas('author', fn ($autor) => $autor->dostepnyJakoAutor());
         });
+    }
+
+    /**
+     * Wykonania kucharza w zakładce profilu (issue #735, #736).
+     *
+     * 1. Jawny porządek `cooked_at DESC, id DESC` gwarantuje stabilną paginację
+     *    bez gubienia i dublowania wierszy przy remisach czasu (#735).
+     * 2. Związanie znanego $owner z każdym wierszem wykonania eliminuje
+     *    powtarzane zapytania o kucharza i jego profil/awatar na każdej karcie (#736).
+     */
+    private function cookedEventsDlaProfilu(User $owner, ?User $viewer, bool $isOwner): LengthAwarePaginator
+    {
+        // OSOBA, KTÓRA GOTOWAŁA, JEST TU TREŚCIĄ GŁÓWNĄ — i to ona była
+        // źródłem wachlarza zapytań. Karta wykonania
+        // (`components/cooked-card.blade.php`) czyta `$event->user` (awatar,
+        // nazwa) i `$event->user->profile->username`, a doładowywany był
+        // tylko autor przepisu. Zmierzone przed naprawą (`scripts/pomiar-n1.php`,
+        // 10 000 wpisów, po `ANALYZE`): 52 zapytania na dwunastu kartach,
+        // z czego 22 to para `profiles` + `users` powtórzona na każdą kartę.
+        //
+        // Na zakładce profilu gotował ZAWSZE właściciel profilu, więc nie ma
+        // po co dociągać `user.profile.avatar` osobno dla każdej karty:
+        // wystarczy raz doczytać profil właściciela i podstawić tę samą
+        // relację w każde wykonanie. Koszt jest stały, niezależny od liczby
+        // kart — tego pilnuje `ProfilUgotowaneBezWachlarzaZapytanTest`.
+        $owner->loadMissing('profile.avatar');
+
+        $paginator = $owner->cookedEvents()
+            ->tap(fn ($query) => $this->tylkoZWidocznychPrzepisow($query, $viewer, $isOwner))
+            ->latest('cooked_at')
+            ->latest('id')
+            ->with(['recipe.author.profile', 'media'])
+            ->paginate(12)
+            ->withQueryString();
+
+        $paginator->getCollection()->each(function (CookedEvent $event) use ($owner): void {
+            $event->setRelation('user', $owner);
+        });
+
+        return $paginator;
     }
 
     /**
