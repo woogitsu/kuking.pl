@@ -30,7 +30,7 @@ use Tests\TestCase;
  *     pliku. Nie da się na niego powołać z kodu, bo cały mechanizm odnośników
  *     w tym repozytorium stoi na numerze.
  *
- * Oba dostały numery (D-231 i D-232), a ten test pilnuje, żeby trzeci taki
+ * Oba dostały numery (D-237 i D-234), a ten test pilnuje, żeby trzeci taki
  * nie wszedł po cichu.
  *
  * ────────────────────────────────────────────────────────────────────────
