@@ -1104,8 +1104,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
       # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
@@ -1223,8 +1221,6 @@ jobs:
 
     steps:
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
       # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
@@ -1374,11 +1370,12 @@ jobs:
       KUKING_DEMO_HASLO: ${{ secrets.KUKING_DEMO_HASLO }}
 
     steps:
-      # `fetch-depth: 0` — potrzebujemy historii, żeby porównać się z bazą
-      # i sprawdzić, CZY ten PR w ogóle rusza warstwę widoku.
+      # Bez `fetch-depth: 0`. Porównanie z bazą (`git diff --name-only`)
+      # robi WYŁĄCZNIE job `zakres` — to on potrzebuje pełnej historii.
+      # Ten job nie woła gita; czy rusza warstwę widoku, czyta gotowe
+      # z `needs.zakres.outputs.widok` i `needs.zakres.outputs.kod`.
+      # Pilnuje tego `PortMarkiMaWlasnaBramkeCiTest`.
       - uses: actions/checkout@v7
-        with:
-          fetch-depth: 0
 
       # Zaraz po `checkout`, PRZED jakąkolwiek instalacją — brak sekretu ma paść
       # w kilkanaście sekund i powiedzieć, czego brakuje, zamiast wychodzić
