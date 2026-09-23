@@ -77,6 +77,7 @@ X-Frame-Options: DENY
 - **2FA — kiedy:**
   - **Obowiązkowe dla kont administracyjnych/moderatorskich** od dnia startu — to konta z realną władzą nad treścią i danymi innych osób.
   - **Opcjonalne dla zwykłych użytkowników** w MVP (TOTP, np. `pragmarx/google2fa-laravel` lub wbudowane wsparcie Fortify) — nie blokuj startu na to, ale zostaw to w roadmapie V1, zwłaszcza gdy pojawią się konta z większym zasięgiem (popularni twórcy przepisów = częstszy cel przejęcia konta).
+  - **Włączone 2FA obowiązuje na każdej publicznej drodze do konta, nie tylko przy logowaniu** (issue #1314): `/cofnij-usuniecie-konta` dla konta z potwierdzonym 2FA wymaga poza hasłem kodu z aplikacji albo kodu zapasowego, sprawdzanego tym samym `TwoFactorAuthenticator` i liczonego w tym samym koszyku prób konta (`TwoFactorAuthenticator::kluczLimituProb`) co `/logowanie/kod`.
 
 ---
 
