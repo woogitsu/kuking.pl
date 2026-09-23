@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Moderation\Actions\NotifyReporterReceipt;
 use App\Models\Notification;
 use App\Models\Post;
 use App\Models\Report;
@@ -18,7 +19,7 @@ use Tests\TestCase;
 
 /**
  * ZALEGŁE POTWIERDZENIE PRZYJĘCIA ZGŁOSZENIA DOCHODZI SAMO
- * (issue #797, decyzja właściciela z 20.09.2026, DSA art. 16 ust. 4).
+ * (issue #797, D-252 — decyzja właściciela z 23.09.2026, DSA art. 16 ust. 4).
  *
  * ── CO ZOSTAWAŁA NIEDOKOŃCZONE POPRZEDNIA POPRAWKA ──
  *
@@ -170,6 +171,118 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
         $this->assertNull($sprawa->refresh()->receipt_sent_at);
     }
 
+    /**
+     * SPRAWA Z DORĘCZONYM ROZSTRZYGNIĘCIEM (D-252). Potwierdzenie mówi
+     * „sprawdzimy je i napiszemy, co postanowiliśmy" — po decyzji to jest
+     * nieprawda. Sprawa nie jest zaległością i nie wchodzi nawet do licznika.
+     */
+    public function test_sprawa_z_doreczona_decyzja_nie_dostaje_potwierdzenia_przyjecia(): void
+    {
+        $sprawa = $this->zalegleZgloszenie($this->user('zaleglyI'));
+        $sprawa->forceFill([
+            'status' => Report::STATUS_RESOLVED,
+            'resolved_at' => now(),
+            'decision_sent_at' => now(),
+        ])->save();
+
+        $this->artisan(self::KOMENDA)
+            ->expectsOutput('Zaległych potwierdzeń w bazie: 0.')
+            ->assertSuccessful();
+
+        $this->assertSame(0, $this->potwierdzenia(), 'Dosyłka wysłała „mamy Twoje zgłoszenie" po doręczonej decyzji.');
+        $this->assertNull($sprawa->refresh()->receipt_sent_at);
+    }
+
+    /**
+     * KONTROLA DODATNIA do testu wyżej: sprawa rozstrzygnięta, której decyzja
+     * NIE doszła, potwierdzenie dostaje — to jedyny sygnał, że zgłoszenie
+     * w ogóle do nas trafiło. Bez tego testu warunek „rozstrzygnięta" zamiast
+     * „decyzja doręczona" przeszedłby niezauważony.
+     */
+    public function test_sprawa_rozstrzygnieta_bez_doreczonej_decyzji_dostaje_potwierdzenie(): void
+    {
+        $sprawa = $this->zalegleZgloszenie($this->user('zaleglyJ'));
+        $sprawa->forceFill(['status' => Report::STATUS_REJECTED, 'resolved_at' => now()])->save();
+
+        $this->artisan(self::KOMENDA)->assertSuccessful();
+
+        $this->assertSame(1, $this->potwierdzenia());
+        $this->assertNotNull($sprawa->refresh()->receipt_sent_at);
+    }
+
+    /**
+     * WYŚCIG Z DECYZJĄ: partia przeczytana, zanim decyzja doszła, a dosyłka
+     * rusza po niej. Warunek stoi w zamku (`UPDATE ... WHERE
+     * decision_sent_at IS NULL`), więc potwierdzenie nie wychodzi, choć
+     * model w ręku dosyłki jeszcze o decyzji nie wie.
+     */
+    public function test_decyzja_doreczona_po_odczycie_partii_wygrywa_z_dosylka(): void
+    {
+        $sprawa = $this->zalegleZgloszenie($this->user('zaleglyK'));
+        $wRece = Report::query()->findOrFail($sprawa->getKey());
+
+        Report::query()->whereKey($sprawa->getKey())->update(['decision_sent_at' => now()]);
+
+        $this->assertNull(app(NotifyReporterReceipt::class)->handle($wRece));
+        $this->assertSame(0, $this->potwierdzenia());
+    }
+
+    /**
+     * Konto WYMAZANE nie ma czytelnika — to nie zaległość, tylko brak
+     * adresata, jak przy zgłoszeniu bez konta.
+     */
+    public function test_zglaszajacy_z_kontem_wymazanym_nie_jest_zalegloscia(): void
+    {
+        $zglaszajacy = $this->user('zaleglyL');
+        $sprawa = $this->zalegleZgloszenie($zglaszajacy);
+        $zglaszajacy->forceFill(['status' => User::STATUS_ERASED, 'data_erased_at' => now()])->save();
+
+        $this->artisan(self::KOMENDA)
+            ->expectsOutput('Zaległych potwierdzeń w bazie: 0.')
+            ->assertSuccessful();
+
+        $this->assertSame(0, $this->potwierdzenia());
+        $this->assertNull($sprawa->refresh()->receipt_sent_at);
+    }
+
+    /**
+     * KONTROLA DODATNIA do testu wyżej: zawieszony ma prawo wiedzieć, że
+     * zgłoszenie doszło (uzasadnienie w `NotifyReporterReceipt`).
+     */
+    public function test_zglaszajacy_zawieszony_dostaje_potwierdzenie(): void
+    {
+        $zglaszajacy = $this->user('zaleglyM');
+        $this->zalegleZgloszenie($zglaszajacy);
+        $zglaszajacy->forceFill(['status' => User::STATUS_SUSPENDED])->save();
+
+        $this->artisan(self::KOMENDA)->assertSuccessful();
+
+        $this->assertSame(1, $this->potwierdzenia());
+    }
+
+    /**
+     * LIMIT PARTII: `--ile` ogranicza jeden przebieg, najstarsze idą
+     * pierwsze, a reszta czeka na następny przebieg — nie przepada.
+     */
+    public function test_limit_partii_bierze_najstarsze_a_reszte_zostawia_na_nastepny_przebieg(): void
+    {
+        $starsza = $this->zalegleZgloszenie($this->user('zaleglyN1'));
+        $starsza->forceFill(['created_at' => now()->subDay()])->save();
+        $nowsza = $this->zalegleZgloszenie($this->user('zaleglyN2'));
+
+        $this->artisan(self::KOMENDA, ['--ile' => 1])
+            ->expectsOutput('Zaległych potwierdzeń w bazie: 2.')
+            ->assertSuccessful();
+
+        $this->assertSame(1, $this->potwierdzenia());
+        $this->assertNotNull($starsza->refresh()->receipt_sent_at, 'Partia nie zaczęła od najstarszej zaległości.');
+        $this->assertNull($nowsza->refresh()->receipt_sent_at);
+
+        $this->artisan(self::KOMENDA, ['--ile' => 1])->assertSuccessful();
+
+        $this->assertSame(2, $this->potwierdzenia());
+    }
+
     // ------------------------------------------------------------------
     // Kod wyjścia — to na nim stoi wpięcie w harmonogram
     // ------------------------------------------------------------------
@@ -205,16 +318,12 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
     // ------------------------------------------------------------------
 
     /**
-     * ZADANIE W HARMONOGRAMIE SPRAWDZA KOD WYJŚCIA KOMENDY.
+     * ZADANIE W HARMONOGRAMIE ZAMIENIA KOD WYJŚCIA ≠ 0 W WYJĄTEK.
      *
-     * `CallbackEvent::execute()` liczy wynik domknięcia wyłącznie przez
-     * `$this->result === false ? 1 : 0` — liczbowe `1` NIE jest `false`,
-     * więc `Schedule::call(fn () => Artisan::call(...))` melduje sukces po
-     * każdym przebiegu, także po nieudanym. To jest usterka #835, wspólna
-     * dziewiętnastu callbackom w `routes/console.php` i naprawiana osobno.
-     *
-     * Ten test pilnuje, żeby DWUDZIESTY callback jej nie powtarzał: domknięcie
-     * dosyłki porównuje kod Artisana z zerem i oddaje `bool`.
+     * `CallbackEvent` uznaje za porażkę wyłącznie wyjątek albo `false` —
+     * liczbowe `1` zwrócone przez `Artisan::call()` przeszłoby jako sukces
+     * (#835, #1342). Reguła jest ta sama co przy
+     * `kuking:sprzataj-powiadomienia` (`RetencjaPowiadomienCzesciowaPorazkaTest`).
      */
     public function test_zadanie_w_harmonogramie_melduje_porazke_gdy_komenda_padnie(): void
     {
@@ -223,21 +332,23 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
         $this->zalegleZgloszenie($this->user('zaleglyG'));
 
         $wylacz = $this->zepsuj('insert into "notifications"');
-        $zadanie->run($this->app);
-        $wylacz();
 
-        $this->assertSame(
-            1,
-            $zadanie->exitCode,
-            'Harmonogram uznał nieudany przebieg dosyłki za sukces — to jest wada z #835, '
-            .'powtórzona w nowym callbacku.',
-        );
+        try {
+            $zadanie->run($this->app);
+            $this->fail('Harmonogram uznał nieudany przebieg dosyłki za sukces — to jest wada z #835, powtórzona w nowym zadaniu.');
+        } catch (RuntimeException $e) {
+            $this->assertStringContainsString('zakończone kodem 1', $e->getMessage());
+        } finally {
+            $wylacz();
+        }
+
+        $this->assertSame(1, $zadanie->exitCode);
     }
 
     /**
      * KONTROLA DODATNIA do testu wyżej: to samo zadanie, przebieg udany,
-     * ma meldować sukces. Bez niej test wyżej przechodziłby także wtedy,
-     * gdyby zadanie meldowało porażkę ZAWSZE.
+     * ma meldować sukces. Osobno, bo `CallbackEvent` pamięta wyjątek
+     * z poprzedniego `run()` i rzuciłby go ponownie.
      */
     public function test_zadanie_w_harmonogramie_melduje_sukces_gdy_komenda_przejdzie(): void
     {
@@ -249,6 +360,21 @@ class DosylkaZaleglychPotwierdzenTest extends TestCase
 
         $this->assertSame(0, $zadanie->exitCode);
         $this->assertSame(1, $this->potwierdzenia(), 'Zadanie przeszło, ale niczego nie dosłało.');
+    }
+
+    /**
+     * Reguły harmonogramu z main: `onOneServer()` (#595) i blokada krótsza
+     * niż interwał godzinny (#1002 — 50 minut). Czytane ze zdarzenia, nie
+     * z tekstu pliku.
+     */
+    public function test_zadanie_chodzi_co_godzine_na_jednym_serwerze_z_krotka_blokada(): void
+    {
+        $zadanie = $this->zadanieHarmonogramu();
+
+        $this->assertSame('25 * * * *', $zadanie->expression);
+        $this->assertTrue($zadanie->onOneServer, 'Dosyłka bez onOneServer() odpali się dwa razy przy wdrożeniu.');
+        $this->assertTrue($zadanie->withoutOverlapping);
+        $this->assertSame(50, $zadanie->expiresAt, 'Blokada zadania co godzinę ma wygasać przed następnym terminem (#1002).');
     }
 
     // ------------------------------------------------------------------

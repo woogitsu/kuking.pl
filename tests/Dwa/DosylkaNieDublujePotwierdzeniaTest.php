@@ -14,7 +14,7 @@ use PHPUnit\Framework\Attributes\Group;
 
 /**
  * DOSYŁKA ZALEGŁEGO POTWIERDZENIA I POWRÓT CZŁOWIEKA DO SPRAWY — JEDNO
- * POTWIERDZENIE, NIE DWA (issue #797, decyzja właściciela z 20.09.2026).
+ * POTWIERDZENIE, NIE DWA (issue #797, D-252 — decyzja właściciela z 23.09.2026).
  *
  * ══════════════════════════════════════════════════════════════════════
  *  PO CO TEN TEST, SKORO JEST `DosylkaZaleglychPotwierdzenTest`

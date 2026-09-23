@@ -1,3 +1,19 @@
 gpt-ci-architektura	2026-09-20T22:37Z	strażnik bez swojej zmiany: test_pomiary_nie_pobieraja_historii wymaga usunięcia 'fetch-depth: 0' z jobów port_marki, port_funkcje i dostepnosc, a gałąź tej zmiany nie niesie. Dokończenie = powtórzenie zmiany wycofanej kiedyś przez abef3c94. DO DECYZJI WŁAŚCICIELA.
 gpt-cloudflare-cache	2026-09-20T22:48Z	10 testow oblanych, w tym wlasny CloudflareCachePrivacyTest: 'Publiczny cache nie moze rozdawac sesji' — odpowiedz na publiczne zdjecie niesie 2 ciasteczka zamiast zera. Galaz dodaje straznikow, skrypty i reguly CDN, ale ZADNEGO kodu aplikacji. DO OBEJRZENIA PRZEZ AUTORA; pytanie o prywatnosc wymaga osobnego sprawdzenia.
 gpt-sonda-wdrozenia	2026-09-21T04:00Z	SPOR DWOCH DECYZJI. Test test_usuwanie_preview_nie_ukrywa_bledu_cli wymaga, zeby krok 'Usun srodowisko PR' w .github/workflows/preview.yml propagowal KAZDY niezerowy kod CLI - lacznie z kodem 1 'brak srodowiska'. Obecny krok ma '|| true' z komentarzem, ze brak srodowiska to stan pozadany, a nie blad. Galaz NIE zmienia preview.yml. Dokonczenie = rozstrzygniecie, czy usuwanie nieistniejacego srodowiska ma zapalac joba na czerwono. DO DECYZJI WLASCICIELA.
+notyfikacja-zywa	ROZBROJONE 21.09: rozni sie od gpt-n1-powiadomienia WYLACZNIE brzmieniem stalej WYCOFANIE_NIC_NIE_ROBI (tekst komentarza). up() identyczny bajt w bajt. Zwykly konflikt tresci, nie awaria.
+gpt-n1-powiadomienia	ROZBROJONE 21.09: patrz notyfikacja-zywa. Ta wersja ma dluzszy tekst stalej, tamta krotszy z dopisanym docblockiem. Wybor dowolny.
+tagi-filtr	WCHLONIETA przez naprawa-858. Scalenie dalo by dwie definicje przegladaj() i trzy przyciski w widoku.
+gpt-tagi	WCHLONIETA przez naprawa-858 (wersja sprzed TagFollowWindow).
+powiadomienia	WCHLONIETA przez straznik-format (12 plikow bajt w bajt, tamta ma jeden wiecej).
+flota/straznik-r60	WCHLONIETA przez flota/prog-postgresa (jest jej przodkiem). Pchac wolno, scalac nie.
+flota/scal-915	WCHLONIETA przez flota/martwe-kaskady. PR #915 zamkniety.
+flota/kaskada	WCHLONIETA przez flota/martwe-kaskady.
+gpt-sonda-wdrozenia	WCHLONIETA przez gpt-cloudflare-cache.
+naprawa/klient-pg18-w-ci	PUSTA. merge-tree daje dokladnie drzewo main (897dc6bc). Oba commity juz w main. Pchac wolno, PR-a NIE otwierac.
+naprawa/proba-odtworzenia-w-ci	PUSTA z tego samego powodu (ta sama jedna linia). PR-a NIE otwierac.
+notyfikacja-zywa	WCHLONIETA przez gpt-n1-powiadomienia (decyzja wlasciciela 21.09). 14 z 19 wspolnych plikow bajt w bajt; n1 zbudowana NA niej i dokłada #833. Pchac wolno, scalac nie.
+gpt-ugotowalem-dostep	UWAGA WERSJA: podbija etykiete na 'Alfa 0.68' NIE dotykajac CHANGELOG. Zderzy sie z flota/wersja-068 (dd9f6c88). Przed scaleniem usunac podbicie albo scalic po wersja-068 i rozstrzygnac na jej rzecz.
+gpt-zalegle	UWAGA WERSJA: jak wyzej — 'Alfa 0.68' bez wpisu w CHANGELOG.
+gpt-zdjecia-limity	UWAGA WERSJA: jak wyzej — 'Alfa 0.68' bez wpisu w CHANGELOG.
+gpt-zdjecia-publikacja	UWAGA WERSJA: jak wyzej — 'Alfa 0.68' bez wpisu w CHANGELOG.

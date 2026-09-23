@@ -6,6 +6,7 @@ namespace App\Mail;
 
 use App\Domain\Digest\OdnosnikWypisania;
 use App\Domain\Digest\TrescDigestu;
+use App\Domain\Digest\ZbierzTresciDigestu;
 use App\Models\CookedEvent;
 use Illuminate\Bus\Queueable;
 use Illuminate\Contracts\Queue\ShouldQueue;
@@ -14,6 +15,7 @@ use Illuminate\Mail\Mailables\Content;
 use Illuminate\Mail\Mailables\Envelope;
 use Illuminate\Mail\Mailables\Headers;
 use Illuminate\Queue\SerializesModels;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 
 /**
@@ -37,6 +39,53 @@ class PodsumowanieTygodnia extends Mailable implements ShouldQueue
     use SerializesModels;
 
     public function __construct(public TrescDigestu $tresc) {}
+
+    /**
+     * OSTATNIE SPRAWDZENIE, W CHWILI FAKTYCZNEJ WYSYŁKI (#1328, #1383).
+     *
+     * Komenda wstawia list do kolejki z opóźnieniem (`numer × odstep_sekund`,
+     * przy pełnej paczce ok. 40 minut), a worker po awarii potrafi go wziąć
+     * dużo później. Wszystko, co sprawdzono przy kolejkowaniu — zgoda,
+     * status konta, potwierdzony adres, widoczność każdej pozycji — mogło się
+     * w tym czasie zmienić. Człowiek, który kliknął „wypisz" pięć minut po
+     * kolejkowaniu, ma NIE dostać listu, a nie dostać go „bo już był w drodze".
+     *
+     * Dlatego tutaj, a nie w komendzie:
+     *  - adresat jest czytany z bazy od nowa; brak zgody, konto nieczynne,
+     *    adres niepotwierdzony → NIE WYSYŁAMY (zwracamy `null`);
+     *  - adres doręczenia jest AKTUALNY z konta, nie ten z chwili kolejkowania
+     *    (ktoś mógł go zmienić — stary adres bywa już cudzą skrzynką);
+     *  - treść jest składana świeżo z identyfikatorów, z bramkami widoczności;
+     *    jeśli po tym nie ma o czym pisać, list nie wychodzi (issue #11 pkt 7).
+     *
+     * Rezerwacja tygodnia (D-077) zostaje: pominięty tu list NIE wraca w tym
+     * tygodniu. Przy wypisaniu tak ma być; przy treści, która zniknęła, to ta
+     * sama strona pomyłki co w D-077 — raczej o list za mało niż o treść,
+     * której nie wolno pokazać.
+     *
+     * Błąd bazy przy tym odczycie wywraca zadanie (ponowienie przez kolejkę):
+     * bez sprawdzenia list nie wychodzi.
+     */
+    public function send($mailer)
+    {
+        $swieza = app(ZbierzTresciDigestu::class)->odswiez($this->tresc);
+
+        if ($swieza === null || $swieza->jestPusty()) {
+            Log::info('Tygodniowe podsumowanie pominięte w chwili wysyłki.', [
+                'powod' => $swieza === null ? 'odbiorca_bez_zgody_lub_nieczynny' : 'brak_tresci_po_odswiezeniu',
+            ]);
+
+            return null;
+        }
+
+        $this->tresc = $swieza;
+        $this->to = [];
+        $this->cc = [];
+        $this->bcc = [];
+        $this->to((string) $swieza->odbiorca->email);
+
+        return parent::send($mailer);
+    }
 
     public function envelope(): Envelope
     {

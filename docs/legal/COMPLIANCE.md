@@ -58,7 +58,7 @@ Zwolnione (dopóki Kuking spełnia progi mikro/małego przedsiębiorstwa i nie z
 6. Zapisywanie decyzji moderacyjnych (baza danych — kolumna `status`, `reason` w tabeli zgłoszeń) na wypadek utraty statusu małego przedsiębiorstwa lub kontroli koordynatora.
 
 **Potwierdzenie przyjęcia (ust. 4) nie zależy od tego, czy człowiek wróci do
-sprawy** (issue #797, decyzja właściciela z 20 września 2026). Potwierdzenie
+sprawy** (issue #797, D-252 — decyzja właściciela z 23 września 2026). Potwierdzenie
 powstaje POZA transakcją zapisu zgłoszenia — celowo, żeby awaria powiadomienia
 nie zabrała człowiekowi przyjętej sprawy. Awaria zostawia wtedy sprawę
 z pustym `reports.receipt_sent_at`; dokańcza ją pierwsze wejście na to samo
@@ -68,7 +68,10 @@ woła tę samą akcję co formularz, więc zbieg dosyłki z powrotem człowieka
 rozstrzyga zamek w bazie — jedna sprawa, jedno potwierdzenie. **Zgłoszenie bez
 konta** (ust. 2 lit. c) ma własne, mailowe potwierdzenie i NIE jest dla tej
 komendy zaległością: pusty znacznik znaczy tam brak adresata w serwisie, a nie
-niedokończony obowiązek.
+niedokończony obowiązek. To samo dotyczy konta **wymazanego** (nie ma czytelnika)
+oraz sprawy, której **rozstrzygnięcie** (ust. 5) już do zgłaszającego doszło —
+informacja o decyzji niesie ten sam numer sprawy, a „sprawdzimy i napiszemy"
+byłoby po niej nieprawdą.
 
 ### 1.4 Nadzór w Polsce
 

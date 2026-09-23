@@ -6,13 +6,14 @@ namespace App\Console\Commands;
 
 use App\Domain\Moderation\Actions\NotifyReporterReceipt;
 use App\Models\Report;
+use App\Models\User;
 use Illuminate\Console\Command;
 use Illuminate\Database\Eloquent\Builder;
 use Throwable;
 
 /**
  * DOSYŁKA ZALEGŁYCH POTWIERDZEŃ PRZYJĘCIA ZGŁOSZENIA
- * (issue #797, decyzja właściciela z 20.09.2026, DSA art. 16 ust. 4).
+ * (issue #797, D-252 — decyzja właściciela z 23.09.2026, DSA art. 16 ust. 4).
  *
  * ── CO ZOSTAWAŁO NIEDOKOŃCZONE ──
  *
@@ -55,6 +56,23 @@ use Throwable;
  *    `RetencjaPowiadomien` świadomie kasuje ping po ogólnym okresie, a sprawa
  *    żyje 36 miesięcy. Dlatego komenda pyta o znacznik, NIGDY o istnienie
  *    powiadomienia.
+ * 3. Sprawa, której ROZSTRZYGNIĘCIE już do zgłaszającego doszło
+ *    (`decision_sent_at IS NOT NULL`). Potwierdzenie mówi „Sprawdzimy je
+ *    i napiszemy, co postanowiliśmy" — po decyzji to zdanie jest nieprawdą,
+ *    a w liście powiadomień „mamy Twoje zgłoszenie" pod „postanowiliśmy"
+ *    tylko miesza. Informacja o rozstrzygnięciu (art. 16 ust. 5) niesie ten
+ *    sam numer sprawy i sama jest dowodem, że zgłoszenie doszło. Tego
+ *    warunku pilnuje też warunkowy `UPDATE` w `NotifyReporterReceipt`, więc
+ *    decyzja wysłana między odczytem partii a dosyłką też wygrywa.
+ *    Sprawa rozstrzygnięta, której decyzja NIE doszła (`decision_sent_at`
+ *    puste), dostaje potwierdzenie normalnie — to wtedy jedyny sygnał, że
+ *    zgłoszenie w ogóle do nas trafiło.
+ * 4. Zgłaszający z kontem WYMAZANYM (`users.status = erased`). Takie konto
+ *    nie da się zalogować ani odzyskać, więc powiadomienie w serwisie nie ma
+ *    czytelnika — to nie zaległość, tylko brak adresata, jak w punkcie 1.
+ *    Konto zawieszone, zbanowane albo w karencji usunięcia potwierdzenie
+ *    DOSTAJE (uzasadnienie w `NotifyReporterReceipt`: zawieszony ma prawo
+ *    wiedzieć, że zgłoszenie doszło; karencję da się cofnąć).
  *
  * ── CZEGO TU ŚWIADOMIE NIE MA ──
  *
@@ -139,8 +157,8 @@ class DosylajPotwierdzeniaZgloszen extends Command
     /**
      * Zaległość = sprawa z ADRESATEM w serwisie i bez znacznika potwierdzenia.
      *
-     * Uzasadnienie obu warunków stoi w nagłówku klasy; są to dwa różne
-     * warunki i żaden nie wynika z drugiego.
+     * Uzasadnienie każdego warunku stoi w nagłówku klasy („czego komenda nie
+     * rusza", punkty 1–4); żaden nie wynika z pozostałych.
      *
      * @return Builder<Report>
      */
@@ -148,6 +166,8 @@ class DosylajPotwierdzeniaZgloszen extends Command
     {
         return Report::query()
             ->whereNotNull('reporter_id')
-            ->whereNull('receipt_sent_at');
+            ->whereNull('receipt_sent_at')
+            ->whereNull('decision_sent_at')
+            ->whereHas('reporter', fn (Builder $konto) => $konto->where('status', '!=', User::STATUS_ERASED));
     }
 }
