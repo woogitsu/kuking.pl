@@ -1,3 +1,396 @@
+# Plan scalania — 21 września 2026
+
+> ## ⚠ CZYTAJ TEN PLIK OD DOŁU, NIE OD GÓRY
+>
+> Ten dokument narastał przez cały dzień: góra to stan z rana, a **przypisy na końcu
+> (sekcje a)–o\)) prostują ją w kilku miejscach**. Kto przeczyta samą górę, podejmie
+> decyzje na danych, które już nie obowiązują.
+>
+> **`main` NIE jest już `cd966aae`.** Dziś weszły trzy PR-y: `#913` → `d6f2a555`,
+> `#920` → `f56f97f0`, `#923` → **`65327e69`**. Każda liczba porównana z `cd966aae`
+> jest przeterminowana.
+>
+> **Co konkretnie na górze jest nieaktualne:**
+>
+> | miejsce | co mówi | co obowiązuje |
+> |---|---|---|
+> | §2, „D-230 → `jedna-droga` PRZENUMEROWAĆ" | że `jedna-droga` traci numer | **decyzja właściciela: D-225 ZOSTAJE przy `jedna-droga`**; przenumerowuje się `flota/scal-786` na D-228 — przypisy g) i n) |
+> | §2, „D-229 → `gpt-cloudflare-cache`" | że D-229 jest zajęte | **D-229 jest pierwszym WOLNYM numerem** po przeglądzie 141 gałęzi — przypis n) i `MAPA_NUMEROW_DECYZJI.md` |
+> | §3 A, `prog-postgresa` **albo** `straznik-r60` | że to wybór | **`straznik-r60` jest PRZODKIEM `prog-postgresa`** — nie ma wyboru, jest wchłonięcie; przypis „21.09, ranek" i przypis nr 2 e) |
+> | §1 poz. 2, `flota/scal-915` jako osobna pozycja | że wchodzi osobno | **wchłonięta przez `flota/martwe-kaskady`**, PR #915 zamknięty — przypis nr 2 e) |
+> | §1 poz. 3, rozmiar `flota/scal-786` | 117 plików / +12 962 | **42 pliki / +2 046** — mój pomiar starzał się w trakcie; przypis a) |
+>
+> Pełny spis dokumentów floty i ostrzeżenia o sprzecznościach: **`_wspolne/SPIS.md`**.
+
+---
+
+## Treść pierwotna z rana (stan `main` = `cd966aae`) — czytaj z powyższą tabelą w ręku
+
+> **Ta sekcja zastępuje analizę z 20.09 niżej.** Stara sekcja zostaje jako zapis
+> tego, co wtedy wiedziano — ale jej punkt nr 1 („#929 musi iść pierwsze")
+> **jest dziś nieprawdziwy**, dowód w §0. Nie czytaj starej sekcji jako instrukcji.
+>
+> **Metoda:** wszystko poniżej zmierzone przez `git merge-tree --write-tree`
+> (próbne scalenie bez dotykania drzewa), `git diff --numstat` i odczyt treści
+> plików. Nic nie scalono, nie pchnięto, nie otwarto PR-a, nie zmieniono gałęzi.
+> Kolejka = 61 gałęzi (`do-pchniecia.txt` minus `pchniete.txt` ze stanowiska
+> pchania). Zlecenie mówiło o 58 — różnicę robią trzy pozycje dorzucone
+> przez `wpusc-zaleglosci.sh` o 08:20 (`naprawa/795-powrot-ze-zgloszenia`,
+> `naprawa/927-glos-marki-regex`, `naprawa/baza-proby-per-runtime`).
+
+---
+
+## 0. Zanim cokolwiek ruszysz: dwie gałęzie są PUSTE
+
+`git merge-tree --write-tree origin/main <gałąź>` zwraca dla obu **dokładnie
+drzewo `origin/main`** (`897dc6bc…` = `origin/main^{tree}`). Scalenie nie zmieni
+ani jednego bajtu:
+
+| Gałąź | Dlaczego pusta |
+|---|---|
+| `naprawa/klient-pg18-w-ci` (#929) | Oba jej commity są już w `main`: `postgresql-client-18` stoi w `.github/workflows/ci.yml` w. 345 i 640, a sonda `pg_isready -h "$BAZA_HOST" -p "$BAZA_PORT"` w `tests/skrypty/proba-odtworzenia.sh` w. 147. |
+| `naprawa/proba-odtworzenia-w-ci` | Ta sama jedna linia, to samo drzewo wynikowe. |
+
+**Skutek dla starego planu:** cała konstrukcja „#929 jest warunkiem wejścia dla
+jedenastu pozycji" straciła podstawę — nie dlatego, że przestała być ważna, tylko
+dlatego, że **`main` już to ma**. Kto będzie dziś czekał na #929, będzie czekał
+na nic.
+
+---
+
+## 1. Pierwsze pięć pozycji
+
+| # | Gałąź | Dlaczego tu, a nie niżej |
+|---|---|---|
+| **1** | `flota/martwe-kaskady` | Ma `flota/kaskada` w historii (`git merge-base --is-ancestor` = tak), więc **scala obie naraz i bezkonfliktowo**. Osobne scalanie `flota/kaskada` na `main`, a potem `flota/martwe-kaskady`, to praca za darmo. Bierze **D-223** — numer, który `flota/scal-786` jawnie dla tej rodziny zarezerwowała (cytat w §2). Wnosi też **najnowszą wersję strażnika kaskady** (`scripts/kaskada-martwe-reguly.mjs`, 37 408 B, samokontrola zawężenia `--tylko`) — kto wejdzie po niej z wersją starszą, musi przy konflikcie wybrać TĘ. |
+| **2** | `flota/scal-915` | Musi iść **po** poz. 1, nie przed. Konflikt jest pewny (`docs/DECISIONS.md`, `scripts/kaskada-kontrola-polecenie.sh`, `scripts/kaskada-martwe-reguly.mjs`) i **rozwiązanie nie jest „wybierz stronę"**: jej strażnik jest starszy (35 098 B, 2 wystąpienia `--tylko` zamiast 8, domyślne zawężenie `.przepis-liczba` zamiast `.przepis-liczba svg`), ale **niesie treść, której poz. 1 nie ma w ogóle**: poprawkę SIGPIPE `PULAPKI_TESTOW.md §5c` oraz cały katalog `tests/mutacje/` ze `scripts/mutacje.sh`. Rozwiązanie: **skrypty z poz. 1, dokumentacja i `tests/mutacje/` z poz. 2**, `docs/DECISIONS.md` — porzuć jej kopię D-223 (już jest). `docs/PULAPKI_TESTOW.md` scala się automatycznie. |
+| **3** | `flota/scal-786` | Największy węzeł kolejki: `tests/bootstrap.php`, `scripts/cleanup-test-dbs.sh`, `tests/Unit/NazwaTestowejBazyTest.php`, `tests/skrypty/proba-odtworzenia.sh`, `scripts/check.sh`, `.github/workflows/ci.yml` i **D-225 + D-226**. Koliduje z **czterema** innymi pozycjami kolejki; wszystkie cztery są od niej mniejsze. Wchodząc pierwsza, narzuca kontrakt nazw baz, do którego pozostałe się dostroją. Wchodząc później — trzeba ją przepisać w całości. |
+| **4** | `naprawa/baza-proby-per-runtime` | Konflikt z poz. 3 w `tests/bootstrap.php`, `tests/Unit/NazwaTestowejBazyTest.php`, `scripts/cleanup-test-dbs.sh`. Po poz. 3 jest to konflikt **do dostrojenia**, przed poz. 3 — do przepisania. |
+| **5** | `naprawa/jedna-regula-nazw-baz` | Trzecia reguła nazywania. Konflikt z poz. 4 w `tests/bootstrap.php` **potwierdzony pomiarem** — to nie jest zależność „na papierze". Dodatkowo koliduje z poz. 3 w `.claude/hooks/session-start.sh`. Musi iść jako ostatnia z trójki baz, inaczej reguła nr 3 opisuje stan, którego jeszcze nie ma. |
+
+Dalej (kolejność mniej krytyczna, ale nie dowolna):
+**6.** `flota/prog-postgresa` (`flota/straznik-r60` **wchłonięta** — patrz §3 A i przypis niżej) ·
+**7.** `flota/zdjecia-formularze` · **8.** `naprawa-858` ·
+**9.** `gpt-cloudflare-cache` · **10.** `jedna-droga` ·
+**11.** klaster `Notification.php` (§6) · … ·
+**PRZEDOSTATNIA:** `naprawa/kontrola-dodatnia-do-przodu` (§4 C7) ·
+**OSTATNIA:** `naprawa/testy-js-wchodza-do-ci` (§5).
+
+Dwie twarde zależności jednokierunkowe poza pierwszą piątką:
+`odzysk/heic-119` **przed** `naprawa/119-obietnica-konwersji` (§4 C8);
+`gpt-zalegle` **razem z** poprawką `CHANGELOG.md`, jeśli wchodzi
+`naprawa/podbicie-wersji-wymaga-wpisu` (§4 C6).
+
+---
+
+## 2. Numery decyzji — kolizja jest szersza, niż mówiła lista zlecenia
+
+`main` ma dziś D-222 i **D-224**; **D-223 jest dziurą**. O wolne numery walczy
+**sześć różnych decyzji**, nie trzy:
+
+| Numer | Kto go zajmuje | Co to jest |
+|---|---|---|
+| **D-223** | `flota/kaskada` = `flota/martwe-kaskady` = `flota/scal-915` | „Martwe reguły CSS: strażnik pyta o wynik kaskady, nie o tekst arkusza" — **jedna decyzja na trzech gałęziach**, nie trzy kolizje |
+| **D-223** | `flota/prog-postgresa` | „PostgreSQL 18 jest wymaganiem, nie preferencją" |
+| **D-223** | **`notyfikacja-zywa`** | „Powiadomienie śledzi treść komentarza (#758)" — **tego na liście zlecenia NIE BYŁO** |
+| **D-225 + D-226** | `flota/scal-786` | „Nazwa bazy testowej wynika ze ścieżki katalogu" + „Przyrządy rozpoznają rodzinę baz" |
+| **D-225** | **`gpt-cloudflare-cache`** | „Godzinny podpis zdjęcia publicznego, bez cache sesji (#597/#610)" — **nie było na liście** |
+| **D-225** | **`jedna-droga`** | „Jedna droga wyjęcia wpisu z zeszytu (#775, #776)" — **nie było na liście** |
+
+`flota/scal-786` faktycznie przenumerowała się świadomie; jej commit `ba69bf16`
+mówi wprost: *„Numer D-223 zostawiam wolny dla PR #915, [decyzje] gałęzi
+(bez ani jednego odwołania z zewnątrz) idą na D-225 i D-226"*. Zależność
+**potwierdzona** i ukryta w treści, zgodnie z listą — ale samo to przenumerowanie
+**stworzyło nową kolizję potrójną na D-225**, o której nikt nie wiedział.
+
+**Zalecany rozdział numerów** (honoruje rezerwację `scal-786`, minimalizuje pracę):
+
+```
+D-223 → rodzina kaskady (poz. 1 i 2)
+D-225 → flota/scal-786          (bez zmian)
+D-226 → flota/scal-786          (bez zmian)
+D-227 → flota/prog-postgresa    PRZENUMEROWAĆ
+D-228 → notyfikacja-zywa        PRZENUMEROWAĆ
+D-229 → gpt-cloudflare-cache    PRZENUMEROWAĆ
+D-230 → jedna-droga             PRZENUMEROWAĆ
+```
+
+> **Pułapka odsyłacza.** `jedna-droga` nie tylko zakłada D-225 — ona **dopisuje
+> do istniejącego w `main` D-224 zdanie „Sprostowane — patrz D-225"** i w treści
+> kilkakrotnie odsyła do „D-225". Jeśli D-225 zostanie przy `flota/scal-786`
+> (nazwy baz testowych), to zdanie w D-224 będzie **poprawnie zbudowane i
+> całkowicie fałszywe** — odeśle czytelnika decyzji o zeszycie do decyzji
+> o bazach. Git tego nie zgłosi: pliki się zgadzają, tylko sens nie.
+> **Przy przenumerowaniu `jedna-droga` trzeba poprawić też odsyłacze w prozie.**
+
+---
+
+## 3. Pary „albo jedna, albo druga"
+
+Wszystkie potwierdzone próbnym scaleniem i porównaniem treści.
+
+### A. `flota/prog-postgresa` ⟂ `flota/straznik-r60` — DECYZJA WŁAŚCICIELA
+Obie odzyskują ten sam, nieistniejący w `main`, plik
+`tests/Feature/TestyChodzaNaPostgresieTest.php` — **289 z ~300 dodanych linii jest
+identycznych**, różnica to stała: `MINIMALNY_MAJOR = 16` (r60) kontra `18` (próg).
+Kolidują też w `docs/MAPA_REGUL_DOWODY.md`.
+**To nie jest kolizja techniczna, tylko rozstrzygnięcie:** `flota/prog-postgresa`
+zmienia przy okazji `AGENTS.md` z „*lokalnie i w CI wystarczy 16+*" na
+„*lokalnie i w CI też 18+*" — czyli **zmienia regułę, którą stała uzasadnia**.
+Wzięcie `straznik-r60` po `prog-postgresie` i rozwiązanie konfliktu „po swojemu"
+(16) da `AGENTS.md` mówiący 18 i strażnika przepuszczającego 16. **Cicha
+sprzeczność, zielone CI.** Nie domykaj tego sam.
+
+### B. `flota/scal-786` ⟂ `robota/bazy-stanowisk`
+Cztery wspólne pliki (`tests/bootstrap.php`, `tests/Unit/NazwaTestowejBazyTest.php`,
+`scripts/cleanup-test-dbs.sh`, `tests/skrypty/proba-odtworzenia.sh`), to samo
+zadanie #736 dwiema drogami. W `NazwaTestowejBazyTest.php` pokrywa się tylko
+**8 ze 150 / 82 dodanych linii** — to są dwie różne implementacje, nie dwie kopie.
+**Rekomendacja: `flota/scal-786`** (ma dodatkowo bramkę zakresu w `ci.yml`,
+`scripts/bezpiecznik-bazy.mjs` i scalony już `main`).
+
+### C. `naprawa-858` ⟂ `tagi-filtr`
+Prawie identyczne (47 wspólnych plików, w tym pliki dowodowe zgodne **co do linii**:
+`pelne-testy.txt` — 4909 identycznych wierszy). `naprawa-858` jest nadzbiorem:
+`tagi-filtr` nie ma 366 linii, w tym `TagiEnterFiltrujeNieZapisujeTest`,
+`TagiPrzegladanieOsobnyLimiterTest`, wpisu `tagi_przegladanie` w `config/kuking.php`
+i trasy w `routes/web.php`. **Bierz `naprawa-858`, `tagi-filtr` odrzuć.**
+
+### D. `powiadomienia` ⟂ `straznik-format`
+`straznik-format` = `powiadomienia` **+ 90 linii `tests/Feature/StrefaCzasowaTest.php`**;
+w drugą stronę różnica to 2 linie. Wszystkie pozostałe 11 plików zgadza się
+**co do każdej dodanej linii**. **Bierz `straznik-format`.**
+
+### E. `gpt-cloudflare-cache` ⟂ `gpt-sonda-wdrozenia` — patrz też §4 C1, to jest CICHE
+Te same **cztery commity o identycznych tytułach**, odzyskane dwa razy pod różnymi
+SHA; `gpt-cloudflare-cache` ma piąty commit ponadto. Dziesięć plików pokrywa się
+co do linii. **Bierz `gpt-cloudflare-cache`.**
+
+### F. `gpt-ci-architektura` ⟂ `gpt/widmo-zamkniec`
+`docs/infra/PLAN_TECHNICZNY_614.md`: **97 ze 101 dodanych linii wspólnych**,
+konflikt pewny. Ten sam dokument napisany dwa razy. Scalać jedną.
+
+### G. `odzysk/dowody-martwe-kaskady` ⊂ `flota/martwe-kaskady`
+Wszystkie cztery pliki dowodowe są w `flota/martwe-kaskady` **identyczne co do
+linii**. Osobne scalenie nie wnosi nic.
+
+---
+
+## 4. Ciche zderzenia — git NIE zgłosi konfliktu
+
+### C1. Funkcja zdefiniowana dwa razy w jednym pliku bash *(potwierdzone pomiarem)*
+`gpt-cloudflare-cache` **+** `gpt-sonda-wdrozenia`. Próbne scalenie obu po kolei
+kończy się **czysto** — a wynikowy `scripts/sprawdz-wdrozenie.sh` ma **dwie pełne
+definicje `pobierz_naglowki()`** (20 linii ponad wariant z samym
+`gpt-cloudflare-cache`). Bash po cichu bierze ostatnią. Żadnego konfliktu,
+żadnej czerwieni, `shellcheck` też tego nie nazwie błędem.
+**To jest dokładnie ten wzorzec, o który pytało zlecenie.**
+
+### C2. `AGENTS.md` mówi 18, strażnik przepuszcza 16
+Para A z §3. Sprzeczność siedzi w **dwóch różnych plikach**
+(`AGENTS.md` kontra `tests/Feature/TestyChodzaNaPostgresieTest.php`) i ujawni się
+tylko wtedy, gdy ktoś rozwiąże konflikt stałej na korzyść `straznik-r60`.
+
+### C3. Odsyłacz „patrz D-225" w decyzji D-224
+Para `jedna-droga` **+** (`flota/scal-786` albo `gpt-cloudflare-cache`).
+Opisane w §2. Pliki mogą się nawet nie pokrywać — sprzeczność jest w treści.
+
+### C4. Strażnik kaskady nie jest wpięty w CI — a wygląda na wpięty
+`scripts/kaskada-martwe-reguly.mjs` i `scripts/kaskada-kontrola-polecenie.sh`
+**nie są wołane ani z `.github/workflows/ci.yml`, ani ze `scripts/check.sh`** —
+na żadnej z trzech gałęzi rodziny ani na `main`. Dowody w
+`docs/design/evidence/kaskada223/` nie są czytane przez żaden test.
+Scalenie poz. 1 i 2 doda więc narzędzie, które **nigdy nie zapali**, a raport
+będzie mówił „strażnik jest". **Do decyzji właściciela: wpiąć czy nie** — nie
+dopisuj kroku CI samodzielnie, bo to zabetonuje zachowanie, którego nikt nie wybrał.
+
+### C5. Dowody `pomiar-liczby-kolizja3.json` starzeją się bez ostrzeżenia
+Rodzina kaskady wnosi zmierzone liczby układu, a `naprawa-858`, `tagi-filtr`,
+`gpt-zalegle` i `flota/zdjecia-formularze` **przepisują `resources/css/app.css`
+(137 usunięć / 20 wstawek)** i `marka-ekrany.css`. Wszystkie te pary scalają się
+**czysto**. Po scaleniu liczby w dowodach opisują arkusz, którego już nie ma —
+i nic tego nie zgłosi, bo **żaden test ich nie czyta** (patrz C4).
+
+### C6. Wersja podbita, lista zmian nie *(potwierdzone pomiarem)*
+`gpt-zalegle` **+** `naprawa/podbicie-wersji-wymaga-wpisu`. Pierwsza zmienia
+w `config/kuking.php` `'etykieta' => 'Alfa 0.67'` na `'Alfa 0.68'` i **nie tyka
+`CHANGELOG.md`** (pliku nie ma w jej diffie). Druga wnosi
+`tests/Feature/PodbicieWersjiWymagaWpisuWChangelogTest.php`, który wymaga, żeby
+najświeższy nagłówek `CHANGELOG.md` zgadzał się z etykietą. Najświeższy nagłówek
+na `main` to „Alfa 0.67". Pliki rozłączne, scalenie czyste, produkt po scaleniu
+mówi „Alfa 0.68", a lista zmian kończy się na 0.67.
+**Poprawka: dopisz wpis „Alfa 0.68" do `CHANGELOG.md` przy scalaniu `gpt-zalegle`.**
+
+### C7. Nowi strażnicy tekstu bez kontroli dodatniej *(potwierdzone pomiarem)*
+`naprawa/kontrola-dodatnia-do-przodu` wnosi
+`tests/Feature/StraznikTekstuMaKontroleDodatniaTest.php` + `tests/straznicy-tekstu-zastane.txt`
+(173 wiersze, **lista zamknięta na `4c811cc7`, „TYLKO SIĘ SKRACA"**). Reguła:
+każdy nowy `tests/**/*Test.php`, który czyta źródła i asertuje na ich treści,
+musi mieć kontrolę dodatnią albo jawne `@bez-kontroli-dodatniej <powód>`.
+**Dziewięć gałęzi kolejki dokłada dokładnie taki plik i żadna nie ma dowodu:**
+
+| Gałąź | Nowy strażnik tekstu |
+|---|---|
+| `flota/prog-postgresa` / `flota/straznik-r60` | `tests/Feature/TestyChodzaNaPostgresieTest.php` |
+| `flota/scal-786` | `BezpiecznikBazyPomiarowejTest`, `SkryptyPytajaOWlasciwyPortTest`, `SprzatanieBazTestowychTest` |
+| `flota/zdjecia-formularze` | `PowiekszenieMaStanBleduIPonowienieTest` |
+| `gpt-cloudflare-cache` | `tests/Unit/CloudflareCacheGateTest.php`, `tests/Unit/SondaWdrozeniaTest.php` |
+| `gpt-sonda-wdrozenia` | `tests/Unit/SondaWdrozeniaTest.php` |
+| `hero-ekran` | `PierwszyEkranMiesciPrzyciskTest` |
+| `naprawa/podbicie-wersji-wymaga-wpisu` | `PodbicieWersjiWymagaWpisuWChangelogTest` |
+| `odzysk/testy-regresyjne` | `PolitykaNieObiecujePelnejKopiiTest` |
+
+Każda z tych par scala się **czysto** — sprzeczność siedzi w rozłącznych plikach.
+**Wniosek dla kolejności: `naprawa/kontrola-dodatnia-do-przodu` scalaj PO tych
+dziewięciu** (jak `naprawa/testy-js-wchodza-do-ci` z §5 — ta sama mechanika:
+strażnik zamykający listę idzie na końcu, nie na początku). Inaczej każda
+kolejna pozycja zapala czerwień, której nikt się nie spodziewa.
+
+### C8. Odsyłacz do raportu, który jest na innej gałęzi *(potwierdzone pomiarem)*
+`naprawa/119-obietnica-konwersji` powołuje się **dwa razy** — w `docs/DECISIONS.md`
+i w `app/Support/RozpoznanieZdjecia.php` — na `docs/research/heic-119/RAPORT.md`.
+Ten plik istnieje **wyłącznie** na `odzysk/heic-119`. Scalenie pierwszej bez
+drugiej zostawia martwy odsyłacz w dzienniku decyzji; git milczy.
+**Scalaj `odzysk/heic-119` przed `naprawa/119-obietnica-konwersji`.**
+
+### Czego szukano i NIE znaleziono
+Wzorzec z dzisiejszego „— do smaku" (ta sama fraza wchodząca z dwóch gałęzi
+do dwóch różnych ekranów) przeszukano maszynowo: 5-wyrazowe shingle ze wszystkich
+1939 dodanych polskich linii w `resources/views/**`, `lang/**`, `resources/legal/**`
+i `app/**`. **Ani jednego nowego przypadku.** Wszystkie trafienia to pary
+gałęzi-bliźniaków na tym samym pliku (§3 C, D). Progi liczbowe w `config/kuking.php`
+też sprawdzono — cztery nowe klucze, każdy na jednej gałęzi, żadnej wartości
+zapisanej inaczej gdzie indziej.
+*(Ten akapit i C6–C8 pochodzą z osobnego przebiegu wyszukiwania; punktowo
+zweryfikowałem C6, C7 i C8 na drzewie sam.)*
+
+---
+
+## 5. `naprawa/testy-js-wchodza-do-ci` — SCALAĆ JAKO OSTATNIĄ
+
+Gałąź zamienia listę `node --test` w `package.json` z 4 plików na 11 i dokłada
+`scripts/straznik-testow-js.test.mjs`, który zapala, gdy w `resources/js`,
+`scripts` lub `scripts/fixtures` leży `*.test.mjs` spoza listy (a także gdy
+moduł z `resources/js` nie jest importowany w `app.js`).
+
+**Lista zlecenia wymagała korekty.** Zmierzone na drzewach gałęzi:
+
+| Gałąź | Plik spoza listy | Zapali? |
+|---|---|---|
+| `flota/zdjecia-formularze` | `scripts/podglad-object-url.test.mjs` | **TAK** |
+| `flota/scal-786` | `scripts/bezpiecznik-bazy.test.mjs` | **TAK** — nie było na liście |
+| `gpt-zalegle` | `scripts/offline-ponowienie.test.mjs` | **TAK** — nie było na liście |
+| `gpt-obciazenie` | `scripts/korpus-605.test.mjs`, `scripts/probnik-605.test.mjs` | **TAK** (`przyrzad-605.test.mjs` jest już na nowej liście) |
+| `gpt-rozbicie-uslug` | `scripts/railway-roles.test.mjs` | **TAK** |
+| `gpt-ustawienia-profilu` | `scripts/kopiowanie-adresu.test.mjs`, `scripts/wyglad-nawigacja.test.mjs` | **TAK** |
+| `gpt-skladniki` | `scripts/przegladarka/tagi-potwierdzenie.test.mjs` | **NIE** — `scripts/przegladarka` nie jest skanowane |
+
+Uwaga: `gpt-obciazenie`, `gpt-rozbicie-uslug`, `gpt-skladniki`
+i `gpt-ustawienia-profilu` **nie są w tej kolejce** (stoją w `pchniete.txt`), ale
+wciąż nie ma ich w `main` — dotkną następnej tury.
+
+**Dlaczego ostatnia:** scalona wcześnie, zapala czerwień na każdej kolejnej
+pozycji wnoszącej test JS, aż ktoś dopisze plik do `build`. Scalona na końcu —
+poprawiasz linię `build` **raz**, znając komplet.
+
+**Ślepy punkt strażnika (do decyzji, nie do cichego łatania):** `scripts/przegladarka`
+jest poza `SKANOWANE`, więc test z `gpt-skladniki` przejdzie niezauważony —
+dokładnie ta dziura, którą ta gałąź miała zasypać. Asercja `naDysku.length >= 10`
+przy równo dziesięciu plikach `*.test.mjs` w `main` też stoi na styk.
+
+---
+
+## 6. Klaster `app/Models/Notification.php` — pięć gałęzi, konflikt już z `main`
+
+`main` ruszył ten plik commitem `ee80a8b2` (#924, komentarze). Wszystkie gałęzie
+kolejki wyszły z `4c811cc7`, więc **konfliktują z `main` zanim spotkają się
+nawzajem**:
+
+`naprawa/906-zbiorcze-zapisy` · `notyfikacja-zywa` · `powiadomienia` ·
+`straznik-format` · `zaleglosci-zgloszen` (ta ostatnia w
+`app/Domain/Moderation/Actions/NotifyReporterReceipt.php`).
+
+Do tego dochodzą z kolejki: `jedna-droga`, `naprawa/750-porcje`,
+`naprawa/119-obietnica-konwersji`, `gpt/zeszyt-zapisy`,
+`gemini/dziennik-wgladow-moderatora`, `flota/zdjecia-formularze`,
+`flota/scal-786`, `flota/scal-915`, `flota/prog-postgresa`,
+`flota/martwe-kaskady`, `gpt-cloudflare-cache` — każda koliduje
+z `notyfikacja-zywa` w `Notification.php` i `tests/Feature/PowiadomieniaWidocznoscTest.php`.
+
+**Kolejność wewnątrz klastra:** `straznik-format` (§3 D) → `notyfikacja-zywa`
+(największa, 221 linii) → `naprawa/906-zbiorcze-zapisy` → `jedna-droga` →
+reszta. Każda kolejna dostraja się do poprzedniej; **nie ma tu drogi bez
+ręcznego rozwiązywania konfliktu.**
+
+Drugi, mniejszy węzeł na `NotifyReporterReceipt.php`:
+`zaleglosci-zgloszen` ⟂ `odwolanie-link` ⟂ `naprawa/795-powrot-ze-zgloszenia`
+⟂ `gpt/zeszyt-zapisy` ⟂ `flota/prywatnosc-formularz`.
+Oraz `flota/prywatnosc-formularz` ⟂ `naprawa/795-powrot-ze-zgloszenia`
+w `app/Http/Controllers/ReportController.php` i `resources/views/pages/report.blade.php`.
+
+---
+
+## 7. NIE SCALAĆ W OGÓLE
+
+| Gałąź | Powód | Dowód |
+|---|---|---|
+| `naprawa/klient-pg18-w-ci` | treść już w `main` | drzewo scalenia == `origin/main^{tree}` |
+| `naprawa/proba-odtworzenia-w-ci` | j.w. | to samo drzewo |
+| `tagi-filtr` | uboższa kopia `naprawa-858` | §3 C |
+| `powiadomienia` | ściśle zawarta w `straznik-format` | §3 D |
+| `gpt-sonda-wdrozenia` | ta sama praca co `gpt-cloudflare-cache`; scalenie obu daje **cichy dublet funkcji** | §3 E, §4 C1 |
+| `odzysk/dowody-martwe-kaskady` | podzbiór `flota/martwe-kaskady` | §3 G |
+| `flota/kaskada` — **nie osobno** | jest przodkiem `flota/martwe-kaskady`; wchodzi razem z poz. 1 | `merge-base --is-ancestor` |
+
+Oraz **jedna z pary** w każdym przypadku §3 A, B, F — po rozstrzygnięciu.
+
+---
+
+## 8. Ogon bez kolizji (28 gałęzi, dowolna kolejność)
+
+Nie dzielą ani jednego pliku z żadną inną pozycją kolejki i scalają się
+z `main` czysto:
+
+`flota/nazwa-a-relacje` · `flota/r49-trasy` · `flota/retencja-wyjatkow-audytu` ·
+`gemini/adr-warstwa-merytoryczna` · `gpt/haslo-konto` · `gpt/turnstile-pomoc` ·
+`hero-ekran` · `naprawa/619-polityka-prawdziwa` · `naprawa/847-termin` ·
+`naprawa/927-glos-marki-regex` · `naprawa/kontrola-dodatnia-do-przodu` ·
+`naprawa/kruchy-pomiar-wygladu` · `naprawa/podbicie-wersji-wymaga-wpisu` ·
+`odzysk/dokumenty-design-infra` · `odzysk/dokumenty-produktowe` ·
+`odzysk/dowody-ai-piloty` · `odzysk/dowody-cache-kreator-wersje` ·
+`odzysk/dowody-turnstile-848` · `odzysk/dsa-odwolania` · `odzysk/harmonogram-php` ·
+`odzysk/heic-119` · `odzysk/qa-granice` · `odzysk/testy-regresyjne` ·
+`odzysk/zapas-narzedzia` · `robota/plan-scalania` · `robota/poswiadczenia-decyzje` ·
+`robota/stopka-pusty-pas` · `stan-sesji`
+
+Trzy pary z tego ogona dzielą plik z inną pozycją, ale scalają się czysto — i **właśnie
+dlatego warto na nie spojrzeć okiem, nie tylko gitem**:
+`hero-ekran` + `robota/stopka-pusty-pas` (`resources/css/marka-rama.css`,
+`scripts/port-projektu.mjs`), `flota/nazwa-a-relacje` + `gpt-zalegle`
+(`SocialController.php`, `recipes/show.blade.php`), `flota/zdjecia-formularze`
++ `gpt-zalegle` (`app.css`, `components/photo.blade.php`).
+
+---
+
+## 9. Ile z listy zlecenia się nie potwierdziło
+
+| Twierdzenie | Werdykt |
+|---|---|
+| D-223 zajęte w trzech miejscach | **niepełne** — kolizja to **trzy niezależne decyzje**, ale `scal-915` to ta sama decyzja co `kaskada`, a brakuje `notyfikacja-zywa` |
+| `scal-786` przenumerowała na D-225/226 zakładając D-223 dla #915 | **potwierdzone**, cytat z commita `ba69bf16` |
+| `martwe-kaskady` stoi na `kaskada` | **potwierdzone** |
+| `straznik-r60` ⟂ `prog-postgresa`, 16 vs 18, reguła w `AGENTS.md` | **potwierdzone w całości** |
+| `scal-915` i `kaskada` — ten sam strażnik, wersja z `kaskada` nowsza | **potwierdzone**, ale **niepełne**: `scal-915` niesie treść unikatową (SIGPIPE §5c, `tests/mutacje/`), więc to nie jest „albo-albo" |
+| `testy-js` zapali na pięciu wymienionych gałęziach | **częściowo błędne** — 4 z 5 trafione, `gpt-skladniki` NIE zapali; brakowało `flota/scal-786` i `gpt-zalegle` |
+| `jedna-regula-nazw-baz` zależy od `baza-proby-per-runtime` | **potwierdzone**, i jest szersze: to węzeł czterech gałęzi |
+| `proba-odtworzenia-w-ci` jest zbędna | **potwierdzone**, ale z innego powodu (nie „bo #929" — #929 też jest puste) |
+
+**Nieaktualnych / niepełnych: 4 z 8** (D-223, para kaskady, lista `testy-js`,
+uzasadnienie zbędności). Żadne nie okazało się całkiem fałszywe.
+Do tego **stary punkt 1 tego dokumentu („#929 pierwsze") jest dziś martwy.**
+
+---
+---
 ## WYMUSZONA KOLEJNOSC (ustalona z logow CI 20.09, godz. 23:30)
 
 1. **#929 `naprawa/klient-pg18-w-ci`** — musi isc PIERWSZE.
@@ -448,3 +841,549 @@ Pełna weryfikacja 56 gałęzi-ODZYSK (`_wspolne/WERYFIKACJA_ODZYSKU.md`) wykry�
 
 Szczegóły, dowody (`git diff`, `git merge-base`) i pełna lista sprawdzonych plików współdzielonych —
 patrz `_wspolne/WERYFIKACJA_ODZYSKU.md`.
+
+---
+
+## Przypis z 21.09, ranek — `flota/straznik-r60` jest WCHŁONIĘTA, nie alternatywna
+
+§3 A stawiała `flota/prog-postgresa` i `flota/straznik-r60` jako wybór „albo–albo".
+**Pomiar mówi, że wyboru nie ma.** `git merge-base --is-ancestor 4ac1a336 flota/prog-postgresa`
+odpowiada twierdząco: `straznik-r60` (`4ac1a336`) jest **przodkiem** `prog-postgresa`.
+Po scaleniu `prog-postgresa` gałąź `straznik-r60` nie wnosi ani jednego bajtu.
+
+Dwie rzeczy do sprostowania w starym tekście:
+
+1. **Ostrzeżenie o skasowanej sekcji było odwrócone.** `straznik-r60` wstawia
+   „### R73 rozpisane" **dwa razy** (wadliwe wklejenie przy odzysku). Commit
+   `d900af7b` usunął **duplikat**, nie oryginał. Sekcje „R47 rozpisane" i
+   „R73 rozpisane" są w `prog-postgresa` obecne, po jednym razie, jak na `origin/main`.
+   Cały wkład `straznik-r60` jest zachowany: wiersz R60 w sekcji A, liczniki
+   sekcji A 11→12 i C 16→15, zdanie „R60 jest od 20.09 zamknięta".
+
+2. **D-223 nie jest sporne dla tej rodziny.** §2 wpisuje `flota/prog-postgresa`
+   do walki o D-223. Gałąź używa **D-227**. Ten wiersz §2 jest nieaktualny.
+
+**Co z tym zrobić:** `flota/straznik-r60` **zostaje w kolejce pchania** (pchanie nic
+nie kosztuje i daje kopię pracy poza maszyną), ale **wypada z kolejności scalania**.
+Nie otwierać dla niej PR-a. Gdyby kiedykolwiek miała iść **przed** `prog-postgresa`
+albo zostać zrebase'owana — wprowadzi z powrotem zdublowaną sekcję „R73 rozpisane".
+
+---
+
+## Przypis nr 2 z 21.09, przedpołudnie — cztery sprostowania i dwie pary rozstrzygnięte
+
+### a) Rozmiar `flota/scal-786` — moja liczba była nieaktualna
+Wpisałem do PR #966 „117 plików, +12 962". **Prawda: 42 pliki, +2 046 / −364.**
+Zmierzyłem, gdy bazą scalenia gałęzi był jeszcze `4c811cc7`; o 07:54 autor wciągnął
+do niej `cd966aae` (`ba69bf16`) i praca `main` przestała się liczyć jako praca gałęzi.
+Cztery „niezwiązane testy", które wymieniłem, weszły na `main` własnymi commitami
+(`bd48fce3`, #789, #916, #918).
+
+**Skutek:** rozdzielenie gałęzi było niepotrzebne — `flota/kontrakt-nazw-baz`
+(`c07d7701`) ma drzewo **identyczne** z `flota/scal-786`. Wszystkie 42 pliki to kontrakt.
+
+**Nauka:** liczba z `git diff --stat` starzeje się, gdy ktoś wciągnie `main` do gałęzi.
+Przed wpisaniem rozmiaru do PR-a **zmierzyć ponownie** i podać obok bazę scalenia.
+
+### b) Para A — scalać TYLKO `naprawa-858`
+`naprawa-858` jest nadzbiorem `tagi-filtr`: 45 z 47 wspólnych plików identycznych
+haszem, a z 236 wierszy dodanych przez `tagi-filtr` brakuje **5** — dokładnie tych,
+które `naprawa-858` świadomie przepisała. **Scalenie `tagi-filtr` do niej dałoby dwie
+definicje `przegladaj()` i trzy przyciski przeglądania w widoku.** `gpt-tagi` domyka
+rodzinę (wersja sprzed `TagFollowWindow`) — też wypada.
+
+### c) Para B — scalać TYLKO `straznik-format`
+Ścisły nadzbiór `powiadomienia`: 12 wspólnych plików bajt w bajt, plus jeden więcej
+(`tests/Feature/StrefaCzasowaTest.php`). `git merge-tree` daje drzewo identyczne ze
+`straznik-format`. Konflikt z `main` jest gałąź-kontra-main, nie w parze: gałąź dokłada
+`celIstniejeNadal()`, `main` (#924) `urlDoKomentarza()` — metody rozłączne, „obie strony"
+jest poprawne.
+
+### d) MINA — dwie różne migracje pod jedną nazwą pliku
+`notyfikacja-zywa` i `gpt-n1-powiadomienia` wnoszą
+`2026_09_20_120000_usun_zamrozone_wycinki_komentarzy.php` **o RÓŻNEJ treści**.
+Jedyna taka kolizja w kolejce 115 gałęzi. **Wejście obu to twarda awaria.**
+Decyzja o wyborze wersji jest merytoryczna (co znika i komu), nie techniczna —
+czeka na właściciela. **Do tego czasu nie scalać żadnej z tych dwóch.**
+
+### e) Wchłonięcia potwierdzone dziś (`--is-ancestor`, w OBU kierunkach)
+| wchłonięta | przez | skutek |
+|---|---|---|
+| `flota/straznik-r60` | `flota/prog-postgresa` | wypada ze scalania, zostaje w pchaniu |
+| `flota/scal-915` | `flota/martwe-kaskady` | PR #915 zamknięty |
+| `flota/kaskada` | `flota/martwe-kaskady` | wypada |
+| `praca/izolacja-bazy-klon` (#786) | `flota/scal-786` | #786 zostaje otwarty na życzenie właściciela |
+| `odzysk/dowody-martwe-kaskady` | `flota/martwe-kaskady` | wypada |
+| `gpt-sonda-wdrozenia` | `gpt-cloudflare-cache` | wypada |
+
+**Metoda, której trzymać się przy każdym „albo–albo" z tego planu:** `--is-ancestor`
+jest **niesymetryczne**. Pytanie zadane w złą stronę daje odpowiedź prawdziwą
+i bezużyteczną. Pytać w obu kierunkach, zawsze.
+
+### f) Numery decyzji
+D-223 → rodzina kaskady (17 odwołań w kodzie). Próg PostgreSQL przeniesiony na
+**D-227** (`9b80b617`). D-225/D-226 wolne dla `flota/scal-786` — sprawdzone na `cd966aae`.
+**D-225 chcą jeszcze trzy inne gałęzie**; decyzja właściciela: numer zostaje przy
+`jedna-droga` (26 odwołań), pozostałe przenumerować — `flota/scal-786` i
+`gpt-cloudflare-cache` mają zero odwołań, więc są najtańsze do przesunięcia.
+
+**Uwaga:** `NumeryDecyzjiMajaWpisyTest` łapie duplikat dopiero **po** scaleniu drugiej
+gałęzi — gdy odwołania w kodzie od dawna wskazują dwie decyzje naraz.
+
+### g) ŻYWA KOLIZJA D-225 — `jedna-droga` kontra PR #966
+
+`jedna-droga` wypchnięta 21.09 przedpołudniem. **Obie gałęzie zajmują D-225:**
+
+| gałąź | numery | odwołań do D-225 |
+|---|---|---|
+| `jedna-droga` | D-224, **D-225** | **22** |
+| `flota/scal-786` (#966) | **D-225**, D-226 | **2** |
+
+Decyzja właściciela: numer zostaje przy `jedna-droga`. **#966 ma przenumerować
+swoje D-225 na D-228** (wolne: main ma D-220…D-222 i D-224; D-223 to dziura dla
+kaskady, D-227 wziął `prog-postgresa`). **D-226 z #966 jest bezsporne.**
+
+Zapisane jako komentarz na PR #966, nie jako commit — nie robimy po cichu zmian
+pod cudzym otwartym PR-em.
+
+**Dlaczego to pilne mimo zielonego CI:** `NumeryDecyzjiMajaWpisyTest` łapie duplikat
+**dopiero po scaleniu drugiej gałęzi**. Osobno obie są zielone. Czerwień wyjdzie
+na `main` po fakcie, gdy odwołania w kodzie będą już wskazywać dwie decyzje pod
+jednym numerem.
+
+**To trzecia rzecz dziś, którą strażnik wykrywa dopiero po szkodzie** — obok
+duplikatu migracji (`notyfikacja-zywa` / `gpt-n1-powiadomienia`) i cichego zderzenia
+definicji funkcji przy scaleniu czystym. Wzór wart osobnej uwagi: **strażniki tego
+repozytorium pilnują stanu `main`, a nie kolejki czekającej na scalenie.**
+
+### h) Narzędzie: `_wspolne/kolizje-w-kolejce.sh`
+
+Sprawdza gałęzie kolejki **przeciw sobie**, nie przeciw `main`. Powstało 21.09
+po trzeciej kolizji tego samego dnia. Nic nie zmienia, nie wchodzi do CI, nie
+zużywa minut — uruchamiane na żądanie:
+
+    MSYS_NO_PATHCONV=1 wsl -d Ubuntu -- bash /mnt/c/Users/matma/Documents/kuking-flota/_wspolne/kolizje-w-kolejce.sh
+
+Szuka trzech rzeczy, których git **nie zgłasza** przy czystym scaleniu:
+1. ten sam numer `D-xxx` **nadany** przez dwie gałęzie,
+2. ta sama nazwa pliku migracji przy **różnej treści** (twarda awaria),
+3. ta sama definicja klasy/funkcji dodana przez dwie gałęzie (sygnał, nie wyrok).
+
+**Wynik pierwszego czystego przebiegu (103 gałęzie, `main` = `cd966aae`):**
+D-223 sporne przez 5 gałęzi (kaskada 16 odwołań kontra para powiadomień 13/12),
+D-225 przez 3 (`jedna-droga` 22, `scal-786` 2, `gpt-cloudflare-cache` 1),
+mina migracyjna potwierdzona haszami `eee2804d` / `ae41ec26`.
+
+**PUŁAPKA, którą to narzędzie samo w sobie miało i którą naprawiono —
+nie cofać tej poprawki.** Pierwsza wersja liczyła **każde wystąpienie** numeru
+zamiast jego **nadania** i zgłosiła D-052 jako sporne przez trzy gałęzie.
+D-052 stoi na `main` od dawna; gałęzie tylko się do niego odwoływały
+(`### Uzupełnienie D-052/D-055 …`). Sygnałem fałszu były **trzy identyczne
+liczby odwołań (39, 39, 39)** — prawdziwy spór prawie nigdy nie jest idealnie
+symetryczny. Poprawka: liczyć wyłącznie dodane **nagłówki** `## D-xxx`, plus
+drugi bezpiecznik odrzucający numery już będące nagłówkami na `main`.
+
+### i) Czwarty raz ta sama pułapka pomiaru — zapisz to raz na zawsze
+
+`naprawa/klient-pg18-w-ci` po wypchnięciu:
+
+```
+git diff --name-only origin/main origin/naprawa/klient-pg18-w-ci | wc -l   ->  62
+git merge-tree --write-tree origin/main origin/naprawa/klient-pg18-w-ci    ->  897dc6bc
+git rev-parse origin/main^{tree}                                           ->  897dc6bc
+```
+
+**62 pliki różnicy, a scalenie nie zmieni ANI BAJTU.** Te 62 pliki to praca
+samego `main`, o którą gałąź jest w tyle — nie jej wkład.
+
+To jest ta sama pomyłka, która dziś wyszła:
+1. przy `flota/scal-786` (podałem 117 plików zamiast 42, trafiło do PR #966),
+2. przy czterech „rozbieżnych parach" (8 057 wierszy zamiast kilkunastu plików),
+3. przy fałszywym D-052 w strażniku kolejki,
+4. tutaj.
+
+**Reguła, której trzymać się bez wyjątku przy ocenie, co gałąź wnosi:**
+
+| pytanie | narzędzie |
+|---|---|
+| **co ta gałąź wniesie po scaleniu** | `git merge-tree --write-tree origin/main <g>` i porównać z `origin/main^{tree}` |
+| w czym dwie gałęzie się nie zgadzają | pliki zmieniane przez OBIE wobec `main`, z nich te o różnym haszu |
+| czy jedna zawiera drugą | `git merge-base --is-ancestor` **w obu kierunkach** |
+| **do niczego z powyższych** | `git diff --stat origin/main <g>` — mierzy odległość, nie wkład |
+
+Ostatni wiersz jest najważniejszy: `git diff --stat` odpowiada na pytanie,
+którego zwykle nie zadajemy, i robi to przekonująco.
+
+### j) DOGRYWKA — gałęzie z commitem nowszym niż to, co jest na origin
+
+Kolejka `kolejka9` przerabia listę raz; gałąź już przez nią przepuszczona **nie
+wróci**, nawet jeśli dostała nowy commit. Takie przypadki idą do
+`/home/mateusz/flota/dogrywka.txt` i pchamy je **po** opróżnieniu głównej kolejki
+— nigdy równolegle, bo dwie kolejki naraz dały w nocy „142 fałszywe porażki".
+
+| gałąź | na origin | lokalnie | co wnosi nowy commit |
+|---|---|---|---|
+| `flota/zdjecia-formularze` | `24f7a59f` | **`6c5345ab`** | rozwiązanie konfliktu z `main` w `field.blade.php` |
+
+Ten konflikt był **jednoplikowy i komplementarny**: `main` dokładał licznik znaków
+(`#762`), gałąź strażnika tablicy w polu skalarnym (`#745`) — obie tuż po tej samej
+linii `$current`. Rozwiązanie „obie strony" jest poprawne i już istnieje
+(`6c5345ab`): sprawdzone, że plik ma `is_scalar` **i** `licznikZnakow`, i zero
+znaczników konfliktu.
+
+### k) ROZSTRZYGNIĘTE: schemat nazw baz testowych to `_kat_` z `#920`
+
+`main` = **`f56f97f0`** — „Licz nazwę testowej bazy z katalogu, nie z nieistniejącego
+`.git`" (#920). Decyzja właściciela z 21.09 po południu.
+
+**Obowiązujący schemat dla kopii bez `.git`:**
+```
+kuking_test_kat_<katalog, do 30 znakow, male litery>_<sha256 sciezki, 8 znakow>
+```
+
+**Dwie gałęzie muszą się teraz do niego dostroić — nie odwrotnie:**
+
+| gałąź | jej schemat | co zrobić |
+|---|---|---|
+| `flota/scal-786` / `flota/kontrakt-nazw-baz` (#966) | `kuking_test` + `kuking_sufiks_kopii()` | przepisać na `_kat_`; **reszta kontraktu zostaje** (bezpiecznik rodzin baz, D-225/D-226, sprzątanie) |
+| `naprawa/baza-proby-per-runtime` | `kuking_test_kopia_<kat>_<sha1:8>` | przepisać na `_kat_` |
+
+**Czego z `#920` nie wolno zgubić przy dostrajaniu:** limit **43 znaków** na sufiks
+i powód, dla którego tam stoi — Postgres obcina identyfikator do **63 bajtów bez
+ostrzeżenia**, więc dwie za długie nazwy schodzą się po cichu w jedną bazę, czyli
+wracają dokładnie do błędu, który ta zmiana naprawia. Wcześniej stało tam 50,
+co dawało 70 znaków. Żadna z dwóch pozostałych gałęzi tej pułapki nie wymienia.
+
+**Skutek uboczny, warty sprawdzenia:** to jest naprawa przyczyny chwiejności
+`ProbaOdtworzeniaTest` (wszystkie runtime'y floty widziały bazę `kuking_zrodlo_proby_glowny`,
+a skrypt robi na niej `DROP ... WITH (FORCE)`). **Istniejące runtime'y to kopie —
+nie dostaną poprawki, dopóki nie powstaną na nowo.**
+
+### l) MÓJ BŁĄD przy ocenie `#920` — czytanie fragmentu zamiast funkcji
+
+Napisałem w `PARY_ROZBIEZNE.md`, że `#920` i `naprawa/baza-proby-per-runtime`
+„obie wyprowadzają nazwę z `.git`" i mają tę samą wadę. Przeczytałem **osiem wierszy**
+funkcji — akurat ten fragment, gdzie stoi przypadek pierwszy (główny checkout) —
+i wyciągnąłem wniosek. Dalej, w przypadku trzecim, obie obsługują drzewo bez `.git`.
+
+Uratował mnie tytuł commita („Licz nazwę testowej bazy **z katalogu, nie z nieistniejącego
+`.git`**"), który jawnie przeczył mojemu wnioskowi. **Gdyby commit nazywał się
+»poprawka bootstrap«, scaliłbym to z fałszywym opisem albo wstrzymał bez powodu.**
+
+Reguła na przyszłość: przy ocenie, co gałąź robi z regułą, **czytać całą funkcję,
+nie okolice pierwszego trafienia grepa** — zwłaszcza gdy funkcja ma jawne przypadki
+1./2./3., co widać po komentarzach.
+
+### m) MINA MIGRACYJNA ROZBROJONA — była mniejsza, niż wszyscy twierdzili
+
+Trzy niezależne źródła nazwały `2026_09_20_120000_usun_zamrozone_wycinki_komentarzy.php`
+na `notyfikacja-zywa` i `gpt-n1-powiadomienia` „jedyną taką kolizją w kolejce"
+i „twardą awarią przy wejściu obu". **Przeczytałem obie wersje. To nieprawda.**
+
+`up()` jest **identyczny bajt w bajt** w obu:
+```php
+DB::table('notifications')
+    ->whereIn('type', self::TYPY)
+    ->whereRaw("jsonb_exists(data, 'excerpt')")
+    ->update(['data' => DB::raw("data - 'excerpt'")]);
+```
+`TYPY` też: `['comment.created', 'comment.replied']`.
+
+**Cała różnica to brzmienie stałej `WYCOFANIE_NIC_NIE_ROBI`** — tekstu, który tłumaczy
+człowiekowi, czemu `down()` nic nie robi. Obie mówią to samo: wartości `excerpt`
+nie ma skąd odczytać, jedynym źródłem jest kopia zapasowa sprzed migracji.
+`notyfikacja-zywa` ma wersję krótszą z dopisanym docblockiem, `gpt-n1-powiadomienia`
+dłuższą bez niego. **76 wierszy wobec 74.**
+
+**Skutek:** to jest **zwykły konflikt treści**, który git zgłosi i który rozwiązuje się
+wybraniem dowolnego z dwóch tekstów. Nie ma ryzyka dla danych, bo operacja kasująca
+jest ta sama. Obie gałęzie **wypadają z `wstrzymane.txt`** jako mina — zostaje przy
+nich tylko zwykła uwaga o konflikcie.
+
+**Dlaczego trzy źródła się pomyliły:** wszystkie porównywały **hasze plików**
+(`ae41ec26` ≠ `eee2804d`) i na tej podstawie orzekły „różna treść". Hasz odpowiada
+na pytanie „czy identyczne", a nie „czy różnią się czymś, co ma znaczenie".
+**Przy plikach, które coś kasują, trzeba przeczytać `up()`, a nie porównać skrót.**
+
+### n) D-225 zostaje przy `jedna-droga` — decyzja utrzymana mimo nowego pomiaru
+
+Pełny przegląd **141 gałęzi** pokazał, że `naprawa/ci-hybryda-runnerow` ma **28 odwołań**
+do D-225 — więcej niż `jedna-droga` (22). Czyli według kryterium kosztu, które sam
+zaproponowałem, numer należałby się tamtej gałęzi.
+
+**Właściciel utrzymał decyzję** z dwóch powodów, oba mocniejsze od samej liczby:
+`jedna-droga` **jest już na origin i wypchnięta**, a `naprawa/ci-hybryda-runnerow`
+dotyczy hybrydy runnerów — sprawy, którą dziś zamknęło przejście na własne runnery,
+więc ta gałąź może w ogóle nie wejść.
+
+**Nauka o kryterium:** „numer zostaje tam, gdzie odwołań więcej" jest dobrym
+domyślnym rozstrzygnięciem, ale **przegrywa z pytaniem, co naprawdę wejdzie do `main`**.
+Liczba odwołań mierzy koszt przeniesienia, a nie wartość gałęzi.
+
+**Nauka o moim pomiarze:** liczyłem odwołania **tylko na gałęziach z kolejki** (103),
+a numery nadaje się na wszystkich (141). Przy każdym takim rachunku pytać o **wszystkie
+gałęzie**, nie o te akurat pchane. Pierwszy naprawdę wolny numer to **D-229**.
+
+### o) `#725` — czerwień zdiagnozowana, poprawka to jeden wiersz
+
+Job „Panel marki — puste i pełne widoki" oblewał na `MENU_BEZ_JS_KOMPLET`
+(`scripts/panel-marki.mjs:262`): test wymaga **9** pozycji menu bez JS, a gałąź dodaje
+dziesiątą — wpis „Kolejka zadań", widoczny dla admina (`@can('diagnozujKolejke')`).
+Sam plik testu jest **identyczny** z `main`; gałąź zapomniała podbić stałej po dodaniu
+własnego wpisu.
+
+Sprawdzone, że to **nie jest czerwień zamówiona** — `grep` po `MENU_BEZ_JS_KOMPLET`
+w `scripts/kontrole-negatywne-alfa08.py` i skryptach `.mjs` daje zero trafień.
+
+Poprawka: `9` → `10`, commit **`2bccebe8`**. Kontrola dodatnia: przed poprawką czerwień
+identyczna z CI, po poprawce `P581 MENU PASS: 8 dodatkowych scenariuszy`.
+Dopisane do dogrywki.
+
+### p) D-223 rodzina powiadomień: `gpt-n1-powiadomienia` wygrywa, dostaje D-229
+
+Decyzja właściciela 21.09. **`gpt-n1-powiadomienia` jest nadzbiorem `notyfikacja-zywa`,
+nie jej konkurentem** — zmierzone:
+
+- **14 z 19** wspólnych plików jest **bajt w bajt identycznych**, w tym cały `docs/DECISIONS.md`
+  wraz z sekcją `## D-223`;
+- obie mają identyczny wzorzec trzech commitów odzyskowych, a różnica między nimi to
+  **dokładnie cztery pliki dotyczące #833**;
+- notatka pomiarowa n1 (`docs/infra/POWIADOMIENIA_ZAPYTANIA_833.md`) **sama przyznaje**,
+  że jej bazą jest commit „zawierający żywe wycinki z `flota/notyfikacja-zywa`".
+
+**Co n1 dokłada:** `Notification::destinationUrls()` liczy adresy całej strony
+**jednym zapytaniem zamiast pięciu na wiersz** (#833), plus `AdresyPowiadomienZbiorczoTest`.
+`notyfikacja-zywa` świadomie tego nie rusza — jej własny test to dokumentuje wprost.
+
+**Testy:** n1 **4409 przeszło**, zywa **4406**; różnica to dokładnie te trzy przypadki.
+W obu jedna identyczna czerwień: `ProbaOdtworzeniaTest` — **ta sama na obu**, więc wada
+środowiska, nie regresja. (Obie stoją na `main` sprzed `#920`, który tę przyczynę naprawił.)
+
+**Numer:** D-223 zostaje przy rodzinie kaskady (16 odwołań). n1 bierze **D-229** —
+pierwszy naprawdę wolny, sprawdzony niezależnie dwoma skanami (141 i 142 gałęzie).
+
+**SPROSTOWANIE do meldunku agenta:** nazwał migrację
+`2026_09_20_120000_usun_zamrozone_wycinki_komentarzy.php` „twardą awarią przy wejściu obu".
+To jest **rozbrojone** — patrz przypis m): `up()` identyczny bajt w bajt, różni się wyłącznie
+brzmienie stałej z komentarzem. **Prawdziwa kolizja siedzi gdzie indziej** i tę część
+meldunku potwierdzam: `NotificationController.php`, `Notification.php`
+i `resources/views/pages/notifications.blade.php` zderzają się wprost — drugie wejście
+nadpisze pierwsze i cofnie albo optymalizację #833, albo wywali render `urlDoKomentarza()`.
+
+**To szóste wchłonięcie dzisiaj.** Wzór jest powtarzalny: agenci odzysku scalali rodziny
+gałęzi w nocy, a plan opisuje stan sprzed tego scalania. Przy każdym „albo–albo" z tego
+planu pytać `--is-ancestor` **w obu kierunkach** i porównywać pliki wspólne po haszu.
+
+### r) CI: tylko `port_funkcje` idzie na `ubuntu-latest`
+
+Decyzja właściciela 21.09, po korekcie liczb. Gałąź `flota/ci-runnery-przegladarkowe`,
+SHA **`f51504f2`**, w dogrywce.
+
+**Dlaczego jeden job, nie pięć.** Pierwszy agent przełączył pięć i podał sumę „~39 min".
+**To była pomyłka w dodawaniu** — wypisał cztery joby (18 + 13 + 8 + 27), które sumują się
+do **66**. Przy 66 min to **7 przebiegów** z pozostałych ~500 minut, a nie 12.
+
+Sam `port_funkcje` to **27 min → około 18 przebiegów**, i to **właśnie on** padł dziś na
+`main` z `TimeoutError`. Jest najdłuższy w całym CI i najmocniej cierpi pod obciążeniem:
+mediana 51 s, **maksimum 1638 s** na 25 przebiegach.
+
+**Luka w strażniku, znaleziona przy okazji i naprawiona.** `DokumentyCiMowiaPrawdeORunnerzeTest`
+pilnuje, że joby wybierają runnera jednym sposobem, przez `assertCount(1, array_unique(...))`.
+Przy **jednym** elemencie w grupie przeglądarkowej ta asercja jest **zawsze prawdziwa** —
+zbiór jednoelementowy ma jedną unikalną wartość, więc cichy powrót `port_funkcje`
+na `CI_RUNS_ON` przeszedłby niezauważony. Dołożona asercja na obecność
+`CI_RUNS_ON_BROWSER`; sprawdzone mutacją, że łapie ten regres. **6/6, 111 asercji.**
+
+**Czego NIE wiemy — i to jest zapisane w `ci.yml`, nie tylko tutaj.** Krok „Przeglądarka"
+woła `npx playwright install chromium` **bez `--with-deps`**, zakładając, że `libnss`,
+`libatk` i `libgbm` są na maszynie. `JobDostepnosciNieWolaAptaTest` uzasadnia to słowami
+o „jednym, stałym systemie" — czyli o **trwałym runnerze, nie o efemerycznym
+`ubuntu-latest`**, który wstaje od zera. To założenie **nie przenosi się automatycznie**.
+
+**Najtańszy sposób sprawdzenia:** `workflow_dispatch` obejmujący **tylko `port_funkcje`**,
+nie cały przebieg. Brakującego pakietu Playwright nie połknie — powie po nazwie przy starcie.
+
+**Pytanie otwarte:** czy pozostałe cztery joby przeglądarkowe też zaczną padać pod
+obciążeniem floty. Nikt tego dla nich osobno nie zmierzył.
+
+### s) WERSJA: cztery gałęzie podbijają na 0.68 bez wpisu — zderzą się z `flota/wersja-068`
+
+Wersja stała na **Alfa 0.67 od 18 września**, mimo **czternastu scaleń**. Reguła
+w `config/kuking.php` mówi „cyfra rośnie przy każdej zmianie, którą człowiek zobaczy",
+a sam komentarz przy niej opisuje, że **to już się raz zdarzyło** przed 11 września
+i regułę wtedy zaostrzono. Stanęła znowu, **bo nic jej nie pilnuje**.
+
+Podbicie: gałąź **`flota/wersja-068`** (`dd9f6c88`, w dogrywce) — `Alfa 0.68`
+w obu miejscach plus wpis w `CHANGELOG.md` obejmujący **9 z 14** scaleń.
+
+**Zmierzone: cztery gałęzie NA ORIGIN już podbijają `etykieta` na `'Alfa 0.68'`,
+zostawiając `CHANGELOG.md` na 0.67:**
+
+| gałąź | `config/kuking.php` | `CHANGELOG.md` |
+|---|---|---|
+| `gpt-ugotowalem-dostep` | `Alfa 0.68` | `## Alfa 0.67 …` |
+| `gpt-zalegle` | `Alfa 0.68` | `## Alfa 0.67 …` |
+| `gpt-zdjecia-limity` | `Alfa 0.68` | `## Alfa 0.67 …` |
+| `gpt-zdjecia-publikacja` | `Alfa 0.68` | `## Alfa 0.67 …` |
+
+**Skutek:** każda z nich zderzy się z `dd9f6c88` na `config/kuking.php`, a gdyby
+weszła **przed** nim — wstawiłaby do `main` numer wersji **bez wpisu, który go
+tłumaczy**, czyli dokładnie stan, przed którym ostrzega komentarz przy regule
+(„wersja bez wpisu jest numerem bez treści").
+
+**Przed scaleniem którejkolwiek:** zdjąć z niej podbicie i pozwolić, żeby wersję
+wniosła `flota/wersja-068`. Numer ma jedno źródło, nie pięć.
+
+### Strażnik wersji — ósmy dziś, i JEDYNY, którego coś wywołuje
+
+`naprawa/podbicie-wersji-wymaga-wpisu` (`22e97947`, jeden plik, 113 wierszy).
+Zmierzone przez agenta w trzech warstwach: `ci.yml` job `test` w. 671 to **gołe
+`php artisan test`**, `scripts/check.sh` w. 199 tak samo, a `install-hooks.sh`
+wpina `check.sh --szybko` w `pre-push`. Bramka zakresu go nie wycina, bo za „nie kod"
+uznaje wyłącznie `docs/` i `README.md`.
+
+**Ale NIE złapałby przypadku, który go wywołał**, i mówi to wprost we własnym
+docblocku: pilnuje **spójności dwóch miejsc**, nie **obowiązku podbicia**. Przez
+wszystkie czternaście scaleń byłby zielony, bo obie wartości zgodnie mówiły 0.67.
+
+Co naprawdę łapie: **dokładnie te cztery gałęzie wyżej.** To jest jego realna
+wartość i powód, żeby go wpuścić — ale z zapisem, że zamyka połowę problemu.
+
+Druga połowa („zmiana ze śladem w interfejsie musi podbić cyfrę") wymaga
+rozstrzygnięcia, co maszynowo znaczy „zmiana, którą człowiek zobaczy". `ci.yml` ma
+już taki filtr (`widok=true`: `resources/`, `public/`, wybrane `scripts/*.mjs`).
+**Decyzja właściciela, nie agenta.**
+
+### t) `#941` naprawione — i lekcja o teście, który kłamał nazwą
+
+Publiczna `/tag/{slug}` wydawała gościowi **tytuł i zdjęcie główne przepisu
+`followers` i `private`**. `TagController::show()` była jedyną powierzchnią bez
+`zWidocznymPrzepisem()` — mają ją `TagFeed`, `FollowingFeed`, `DiscoverFeed`,
+`DailyBoard`, `TagCollage`, `TagPublicStats`, `PodpowiedziTagow`.
+
+Naprawa: `flota/tag941`, **`bd549289`**, przez **istniejący zakres**
+`Recipe::scopeWidoczneDla()`, nie własny warunek w kontrolerze — żeby przyszła
+poprawka widoczności naprawiała się raz, a nie w siedmiu miejscach osobno.
+
+**Wyciek był szerszy, niż mówiło zgłoszenie.** Poza tytułem i zdjęciem przeciekała
+**liczba**: `$posts->total()` szło do meta description, więc strona ogłaszała
+„N wpisów z tagiem", gdzie N liczyło treści, których nie wolno pokazać. W teście
+widać to jako **4 zamiast 2**. Strona, która nie pokazuje tytułu, ale podaje liczbę,
+wciąż ujawnia istnienie treści.
+
+### DLACZEGO TO ŻYŁO POD ZIELONYM TESTEM — warte zapamiętania
+
+Istniał test `FeedTagowNiePokazujeCudzegoPrzepisuTest::test_tytul_i_zdjecie_…_na_stronie_tagu`.
+Nazwa mówi „na stronie tagu". **Metoda wchodzi na `/home`, nie na `/tag/{slug}`.**
+
+Czyli: strażnik istniał, był zielony, nazywał się dokładnie tak, jak brzmiała luka —
+i jej nie pilnował. Nikt nie sprawdzał, bo nazwa brzmiała wiarygodnie.
+
+To jest **inny wzór niż siedem martwych strażników z dzisiaj**. Tam problem brzmiał
+„strażnik istnieje i nic go nie woła". Tutaj: **strażnik istnieje, jest wołany, jest
+zielony — i mierzy co innego, niż mówi jego nazwa.** Drugi wzór jest gorszy, bo
+pierwszy widać w `ci.yml`, a drugiego nie widać nigdzie.
+
+Nazwa poprawiona na `…_w_strumieniu_tagow_na_stronie_glownej`.
+
+**Reguła na przyszłość: nazwa testu jest obietnicą.** Przy audycie pokrycia nie ufać
+nazwom — sprawdzać, na jaką trasę test faktycznie wchodzi.
+
+### u) Limit nazw baz był policzony pod ZŁYM przedrostkiem — i trzymał się na nieudokumentowanym triku
+
+`flota/sufiks-limit`, **`a5d96776`**, w dogrywce.
+
+`#920` wprowadził limit **43 znaków** na sufiks z rachunkiem: najdłuższy przedrostek
+to `kuking_zrodlo_proby` (19) + podkreślnik + 43 = 63. **Rachunek był błędny.**
+
+Pełna lista przedrostków, zmierzona grepem:
+
+| przedrostek | znaków |
+|---|---:|
+| `kuking_test` | 11 |
+| `kuking_race` | 11 |
+| `proba_wycofania` | 15 |
+| `kuking_zrodlo_proby` | 19 |
+| **`proba_odtworzenia_test`** | **22** |
+
+Najdłuższy jest **o trzy znaki dłuższy** niż ten, pod który liczono. Rachunek nie
+wywracał się **wyłącznie dzięki nieudokumentowanemu trikowi** w `proba-odtworzenia.sh`:
+ręcznemu wycinaniu podkreślników z gotowego sufiksu, które przypadkiem bilansowało
+się dla tego jednego przedrostka.
+
+**Czyli limit, który wczoraj opisano jako starannie policzony, stał na przypadku.**
+
+### Rozwiązanie i dlaczego jest lepsze od poprawienia liczby
+
+Budżet liczy się teraz z **jawnej listy** `KUKING_PREFIKSY_RODZIN_BAZ` jako
+`63 − 1 − najdłuższy_przedrostek`. Dopisanie kolejnego, dłuższego przedrostka
+**samo zwęża budżet wszystkim pozostałym**, zamiast po cichu przekraczać 63 bajty.
+
+Przy konflikcie skraca się **część czytelna**; skrót ma zawsze pierwszeństwo, bo to
+on gwarantuje rozróżnialność. Strażnik `kuking_pilnuj_dlugosci_nazwy()` rzuca
+wyjątkiem przy przekroczeniu 63 bajtów i jest wpięty we wszystkie funkcje budujące nazwy.
+
+**Zapas przy najdłuższym przedrostku: zero znaków** — i to jest celowe. Margines nie
+leży w liczbie, tylko w tym, że lista przelicza się sama.
+
+### UWAGA PRZY SCALANIU — nazwy istniejących baz SIĘ ZMIENIĄ
+
+Czytelna część skraca się z 30 do 27 znaków (budżet 44 → 40), a dla głównego checkoutu
+`kuking_zrodlo_proby` i `proba_odtworzenia_test` zwracają teraz **gołe nazwy zamiast
+`*_glowny`**. To znaczy: po scaleniu istniejące bazy stanowisk stają się **sierotami**
+i trzeba je posprzątać. Nic nie ginie, ale miejsce zajmują.
+
+**Dowód:** 14/14 testów jednostkowych, `proba-odtworzenia.sh` **124/124** — w tym
+dokładnie ten przypadek, który dziś oblewał („odmawia odtwarzania do bazy, która NIE
+jest pusta", kod 23) — pełny zestaw 4502/4502.
+
+### w) Eksport danych: status przestał być deklaracją — `#821`, `#823`, `#824`
+
+`flota/eksport-stan`, **`be764cfb`**, w dogrywce. Zawiera też cherry-pick siedmiu
+testów rozpoznania (`b2394f27`) — **bajt w bajt, bez jednej zmiany**.
+
+**Jedno miejsce z własnością statusu:** `ExportLifecycle.php`, pilnowane strażnikiem
+`test_status_paczki_zapisuje_wylacznie_export_lifecycle` z kontrolą dodatnią. Strażnik
+łapie i stałą modelu, i surowy literał; **nie łapie importu pod aliasem** — i to jest
+napisane wprost w komentarzu, zamiast udawać pełną szczelność.
+
+**`#824` — razem albo wcale.** `create()` i `dispatch()` w jednej transakcji, kolejka
+`database` na tym samym połączeniu przy `after_commit => false`, więc wiersz w `jobs`
+zatwierdza się razem z rekordem. **Skrzynka nadawcza bez dopisywania własnej.**
+Asymetria jednostronna i świadoma: **nigdy rekordu bez zadania**; zadanie bez rekordu
+jest nieszkodliwe, bo `handle()` zaczyna od `find()` i wraca.
+
+**`#823` — nowa kolumna `retry_until`, NIE szósty stan.** To odejście od mojej sugestii
+i uzasadnienie jest lepsze: `status` pełni dwie role — jest tekstem na ekranie
+i kluczem inwariantu „jeden aktywny eksport". Stan „czeka na ponowienie" zamieniłby
+jeden fałsz na drugi, bo **pierwsza próba naprawdę padła i człowiek ma prawo to wiedzieć**.
+Więc `status` zostaje przy prawdzie o **próbie**, a `retry_until` mówi prawdę o **kolejce**.
+Zobowiązanie **ma termin**, bo stan bez terminu jest blokadą konta na zawsze, gdy worker
+zginie między próbami.
+
+**`#821` — `ready` dopiero po `true`.** Plus zasada warta zapamiętania:
+**odmowa bez wyjątku dostaje odpowiedź bez wyjątku.** Nie produkuje z `false` sztucznego
+wyjątku ze śladem stosu, który niczego nie wskazuje.
+
+**Migracja** przebudowuje indeks pod tą samą nazwą celowo, żeby `down()` zdejmował także
+rozszerzoną ochronę zamiast zostawiać dwa indeksy. `down()` **odmawia wąsko** — tylko przy
+żywym `retry_until` — z gotowym SQL-em i nazwaną ceną.
+
+**Pełny zestaw: 4517 przeszło, 7 oblało** — wszystkie siedem to testy rozpoznania spraw,
+których agent miał **nie ruszać** (`#825`, `#832`, `#953`, `#956`). Zgodne z oczekiwaniem.
+
+### DO DECYZJI WŁAŚCICIELA — jedna wąska ścieżka została
+
+**`processing` po twardym zabiciu workera** (SIGKILL, śmierć kontenera): hook `failed()`
+się nie wykonuje, a `processing` trzyma slot **bez terminu**. W praktyce leczy się sama —
+rezerwacja w `jobs` wygasa po 960 s i zadanie wraca. Zostaje na zawsze tylko wtedy, gdy
+zadanie zginie **razem z kolejką**.
+
+Agent tego nie ruszył i słusznie: to **inna przyczyna** (brak terminu przy `processing`)
+niż ta, którą miał zamknąć, a naprawa zmieniałaby znaczenie `processing`.
+
+### Zdanie do protokołu przy zamykaniu `#823`
+
+Naprawa **nie polega** na tym, że `failed` przestało padać po pierwszej próbie, tylko na
+tym, że `failed` przestało **zwalniać slot**. Kto czytał zgłoszenie jako „job ma nie pisać
+failed", zobaczy w kodzie co innego, niż się spodziewa.
