@@ -83,3 +83,29 @@ updates:
       actions-wszystkie:
         patterns:
           - "*"
+
+  # ---------------------------------------------------------------------
+  # Obrazy bazowe (#952) — linie `FROM` w Dockerfile'ach są przypięte do
+  # digestów (`tag@sha256:...`). Bez tego wpisu przypięcie oznaczałoby
+  # zamrożenie: poprawki bezpieczeństwa w node / frankenphp / postgres
+  # nigdy by do nas nie dotarły. Dependabot podbija digest w obrębie tego
+  # samego tagu i proponuje nowsze tagi.
+  #
+  # Duże wersje ignorujemy jak wyżej, a tu ma to dodatkowy powód: `postgres:18`
+  # w obrazie kopii MUSI zgadzać się z wersją serwera na Railwayu
+  # (docker/kopia/Dockerfile, „KIEDY TEN TAG TRZEBA ZMIENIĆ”), a node 22 → 24
+  # czy PHP 8.4 → 8.5 to migracja, nie wrzutka.
+  # ---------------------------------------------------------------------
+  - package-ecosystem: "docker"
+    directories:
+      - "/"
+      - "/docker/kopia"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "zależności"
+    ignore:
+      - dependency-name: "*"
+        update-types: ["version-update:semver-major"]
