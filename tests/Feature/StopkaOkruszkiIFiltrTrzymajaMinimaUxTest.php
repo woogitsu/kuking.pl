@@ -31,6 +31,8 @@ use Tests\TestCase;
  * „18 px" i „48 px", a nie że tyle wyszło po ułożeniu. Gdyby ktoś przykrył
  * te reguły inną, mocniejszą, ten test przeszedłby, a strona dalej byłaby
  * za mała — to łapie dopiero pomiar w przeglądarce.
+ *
+ * @bez-kontroli-dodatniej Każde wyszukanie reguły CSS jest opakowane w assertSame(1, preg_match(...)), więc zmiana nazwy selektora daje czerwień zamiast zieleni nad niedopasowaniem.
  */
 class StopkaOkruszkiIFiltrTrzymajaMinimaUxTest extends TestCase
 {
