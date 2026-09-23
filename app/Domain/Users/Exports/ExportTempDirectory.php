@@ -191,7 +191,7 @@ final class ExportTempDirectory
                 }
             }
         } catch (UnexpectedValueException|ErrorException $e) {
-            $unreadable ??= $e::class;
+            $unreadable = $e::class;
         }
 
         if ($unreadable !== null) {

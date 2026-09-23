@@ -3360,7 +3360,7 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   z identyfikatorem eksportu, bez ścieżek. Nieczytelny katalog albo wpis
   (np. założony przez innego użytkownika systemu) nie wywraca eksportu:
   jeden `Log::warning` z klasą wyjątku, bez ścieżki, i sprzątanie idzie
-  dalej. Stary wspólny `<tmp>/kuking-eksport` (sprzed #1436) nie jest już
+  dalej. Stary wspólny podkatalog `kuking-eksport` (sprzed #1436) nie jest już
   czytany — znika z restartem kontenera. Sprzątanie stoi na samym
   początku `handle()`, **przed** wczesnymi powrotami (konto wymazane,
   eksport już `ready`, brak wiersza) — inaczej kopia z przerwanej próby
