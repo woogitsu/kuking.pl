@@ -1,0 +1,29 @@
+# Otoczenie serii r030-p1 — 2026-09-20T18:06:54Z
+# progi bramki: obce <= 18 rdzeni, PSI cpu some avg10 <= 25, spokój 60s
+
+## uptime przed bramką
+ 20:06:54 up 1 day, 23:33,  1 user,  load average: 3.05, 10.56, 17.10
+
+## procesy powyżej 2% CPU (cudze też — one są tu treścią, nie tłem)
+    PID %CPU %MEM     ELAPSED COMMAND
+1806357 51.5  1.1       05:25 php
+1858123 26.8  0.4       00:05 Runner.Worker
+1511235  5.9  0.4       26:24 frankenphp
+1858728  4.4  0.0       00:01 postgres
+1511237  2.2  0.3       26:24 php
+
+## runnery CI pięciu projektów na tym hoście
+Runner.Listener (zarejestrowane): 10
+Runner.Worker (aktywne joby): 2
+
+## kontenery
+kuking-gpt-obciazenie-app kuking:ci-4c811cc7bff365fb8f86d87eabac93b7738a45cd Up 26 minutes (healthy)
+buildx_buildkit_builder-198f9509-7387-47e8-a3df-52d10d2a4a4d0 moby/buildkit:buildx-stable-1 Up 2 days
+bramka: 30s/300s, obce 1.99 rdzeni z 24, PSI 0.00, runnery kuking: brak, cisza 30s/60s
+bramka OTWARTA po 59s: obce <= 18 rdzeni, PSI <= 25 i ZERO pracujących runnerów kuking przez 60s
+
+## uptime po otwarciu bramki, tuż przed serią
+ 20:07:56 up 1 day, 23:34,  1 user,  load average: 2.63, 9.06, 16.17
+
+## uptime po serii i po 60 s wybiegu
+ 20:11:28 up 1 day, 23:37,  1 user,  load average: 5.66, 7.66, 14.17

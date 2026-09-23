@@ -204,7 +204,11 @@ Budżet „dziś = 16" to 6 w spoczynku (4 web + 1 worker + 1 harmonogram),
 na administrację i diagnostykę — wyprowadzenie w `docs/DATABASE.md` §C.
 
 **Wniosek: połączenia nie są ograniczeniem dla #600.** Obie zmiany naraz zjadają
-~5 % puli; zapasu starczyłoby na ponad sto replik. Jeżeli #600 ma argument za
+~5 % puli. Korekta z 20.09: przy nakładaniu wdrożeń `8R+8` mieści najwyżej
+61 replik web w 497 miejscach, a poniżej ostrzeżenia 50 — tylko 5.
+To wyliczenie, nie zgoda na skalowanie; patrz
+[nowszy pomiar lokalny i ograniczenia](MONITORING_ODBIOR_2026_09_20.md).
+Jeżeli #600 ma argument za
 PgBouncerem, to **nie jest nim liczba połączeń** — i warto, żeby padło to w #600
 wprost, zanim ktoś dołoży komponent bez pomiaru (AGENTS.md §3, zakaz
 overengineeringu).
@@ -216,7 +220,7 @@ Progi istnieją, są wpięte w czujkę i nadpisywalne zmiennymi. Pomiar z 19.09
 
 | Próg | Wartość | Dlaczego zostaje |
 |---|---|---|
-| ostrzegawczy | **50** | ponad trzykrotność zmierzonego szczytu (16). Przy poprawnej topologii nieosiągalny, więc przekroczenie znaczy wyciek połączeń albo proces, o którym nikt nie wie. Po obu zmianach z #600 budżet rośnie do 26 — wciąż **dwukrotny zapas** pod progiem, więc #600 też go nie wymusza. |
+| ostrzegawczy | **50** | ponad trzykrotność obliczonego budżetu szczytowego (16). Przy poprawnej topologii nieosiągalny, więc przekroczenie znaczy wyciek połączeń albo proces, o którym nikt nie wie. Po obu zmianach z #600 budżet rośnie do 26 — wciąż **około 1,92-krotność budżetu (50 / 26)** pod progiem, więc #600 też go nie wymusza. |
 | krytyczny | **125** | ¼ z 497. Zostawia trzy czwarte puli na reakcję. Przy awarii skokowej próg „90 %" zapala się wtedy, gdy nie ma już czasu na nic. |
 
 Zmiana progu bez zmierzonej potrzeby byłaby dokładnie tym, czego zakazuje
@@ -258,4 +262,36 @@ potrzeby** — to notatka dla kogoś, kto zmieni plan bazy na mniejszy.
 
 Żadna liczba w §1a i §1b nie jest wyliczona z konfiguracji: 1a to odczyty
 z Railway, 1b to odczyty z `pg_stat_activity` przy działających procesach.
-Liczby w §3 poza „16" są **policzone** i tak są nazwane.
+Budżety w §3, w tym **16**, oraz wolne miejsca i procenty są **obliczone**; 497 to historyczny limit dostępnych miejsc przyjęty z odczytu z 17.09, nie ponowny pomiar.
+
+## 6. Korekta terminologii — 20 września 2026
+
+Weryfikacja na `4c811cc7bff365fb8f86d87eabac93b7738a45cd`:
+**16 jest obliczonym budżetem, nie zmierzonym szczytem produkcji**.
+Dla przyjętej topologii `R = Q = S = 1` wzór wynosi
+`2 × (4R + Q + S) + 1 migracja + 3 zapasu = 16`.
+Warianty z §3 dają odpowiednio 24, 18 i 26. To rachunek oparty na
+historycznych danych z §1, nie odczyt dzisiejszej topologii Railway.
+
+Historia rozstrzyga kierunek poprawki. Commit
+`3656a1dd0f9918fcb7cd05231fa3883b19dd2d5a` z 17.09 wprowadził wartość 16
+w konfiguracji z jawnym komentarzem „Liczba policzona, nie zmierzona”.
+`StanPolaczenBazy::budzet()` odczytuje konfigurację; pomiar bieżących
+backendów pochodzi osobno z `pg_stat_activity`. `BudzetPolaczen` zapisuje
+obie wielkości do kanału `pomiary`: pole `budzet_szczytowy` nie jest
+maksimum zaobserwowanym w czasie, nawet gdy występuje w dzienniku pomiarów.
+
+Commit `0c96de71dfe62e6f931e4f01b17cd4b8fdda411d` z 19.09 dodał ten
+raport i poprawił kanał logowania, jawnie pozostawiając progi bez zmian.
+Jego dowód `evidence/polaczenia598/pomiar-lokalny-2026-09-19.txt`
+[pomiar cudzy: artefakt tego commita] zawiera lokalne odczyty 0, 1, 5 i 6,
+a nie produkcyjny szczyt 16. §5 wyklucza pomiar szczytu wdrożeniowego.
+W przejrzanej historii i artefaktach nie znaleziono dowodu produkcyjnego
+szczytu 16; w tej sesji nie pobierano nowych logów Railway.
+
+To korekta błędu redakcyjnego §4 oraz wyjątku dla 16 w końcówce §5,
+nie odwrócenie decyzji. Skorygowano też rachunek zapasu: 50 / 26 to około
+1,92, nie dokładnie 2. Kod, budżet i progi pozostają bez zmian.
+Ograniczenia §5 opisują sesję z 19.09; treść #598 odczytano już 20.09
+przez `gh issue view`. Zgłoszenie pozostaje otwarte i nadal wymaga pomiaru
+produkcyjnego szczytu. Korekta tego dokumentu nie zamyka tej części pracy.

@@ -1,5 +1,9 @@
 # Architektura Kuking
 
+Plan techniczny przed wzrostem: [kanoniczne #614 i uzgodnienie stanu na
+20.09.2026](infra/PLAN_TECHNICZNY_614.md). Mapa kontroli i wdrożeń:
+[odpowiedzialności CI, historia zabezpieczeń i granice uproszczenia #611](infra/MAPA_CI_611.md).
+
 ## Decyzja
 
 **Modularny monolit Laravel.**
@@ -108,6 +112,20 @@ MVP:
 
 Typesense/Meilisearch tylko wtedy, gdy Postgres przestaje spełniać SLA.
 
+Fraza wyszukiwania ma najwyżej 120 znaków po przycięciu skrajnych spacji.
+`SearchQuery::phraseValidator()` jest wspólną regułą formularzy i domeny:
+`/szukaj` oraz `/witaj/ludzie` zachowują dłuższy tekst i pokazują błąd przy
+polu oraz w podsumowaniu, bez zapytania wyszukującego i bez przekierowania.
+Bezpośrednie `recipes()` i `people()` odrzucają go przez `ValidationException`
+z kluczem `q`; przyszła integracja #815 musi obsłużyć ten sam kontrakt.
+Nie obcinamy frazy. Granica dotyczy tekstu wejściowego, przed transliteracją.
+
+W wyszukiwaniu ludzi pojedyncze początkowe `@` jest prefiksem prezentacyjnym:
+`@basia` daje ten sam wynik co `basia`, również przy dopasowaniu fragmentów,
+imienia i specjalności. Nie zmienia to filtrów kont i blokad, wyszukiwania
+przepisów ani znaków `@` wewnątrz frazy. Sam prefiks nie liczy się do minimum
+dwóch znaków nazwy. Pomiary i decyzje właściciela: [#885/#886](research/GRANICE_WYSZUKIWANIA_885_886.md).
+
 ## Feed
 
 MVP:
@@ -176,3 +194,36 @@ Na podstawie telemetryki:
 - image CDN/transforms.
 
 Nie zgadujemy problemów, których jeszcze nie ma.
+
+### Sekretny adres i następny dokument
+
+Middleware nagłówków używa wspólnej klasyfikacji analityki do `no-referrer`
+na żądaniach z poświadczeniem w adresie. Sam brak beacona na pierwszej stronie
+nie chroni następnej. Zakres, formularze, lokalny test dwóch dokumentów
+i ograniczenia dowodu: [REFERRER_SEKRET_1052](infra/REFERRER_SEKRET_1052.md).
+
+## Harmonogram: jedno wykonanie na termin (#595)
+
+Każde zadanie w `routes/console.php` ma `->onOneServer()` obok
+`->withoutOverlapping()`. To nie jest przygotowanie pod skalowanie — replika
+serwisu jest dziś jedna i nikt jej nie zwielokrotnia.
+
+Powód jest zmierzony i dotyczy WDROŻENIA. Przy nakładaniu się starego i nowego
+kontenera oba mają własny harmonogram, więc `kuking:sprzataj-osierocone-zdjecia`
+i `kuking:policz-kolejki` **wykonały się dwa razy w jednej minucie**. Przy
+zadaniach kasujących dane to nie jest drobiazg.
+
+`withoutOverlapping()` tego nie zatrzymuje i nie wolno go tak czytać: jego
+blokada chroni przed dwoma przebiegami JEDNOCZEŚNIE i jest zwalniana, gdy
+przebieg się kończy. Drugi kontener, który wystartuje chwilę po pierwszym,
+zastaje ją wolną. `onOneServer()` bierze blokadę na TERMIN (zadanie + minuta)
+i trzyma ją do końca tej minuty, więc powtórzenie nie rusza.
+
+Blokady leżą we wspólnym cache PostgreSQL (`CACHE_STORE=database`, tabela
+`cache_locks`) — sterownik `database` implementuje `LockProvider`, więc działa
+to bez Redisa, którego AGENTS.md zabrania.
+
+To NIE zastępuje idempotencji samych operacji domenowych ani zadań kolejki.
+Strażnikiem jest `tests/Feature/HarmonogramJednegoSerweraTest.php`: sprawdza
+i sam plik (każde zadanie ma flagę), i zachowanie (drugi scheduler w tej samej
+minucie nie powtarza zakończonego zadania, a następny planowy termin nie ginie).

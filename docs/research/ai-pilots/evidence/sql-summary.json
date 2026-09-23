@@ -1,0 +1,29 @@
+{
+  "scope": "Własny pomiar SQL; ręcznie ustalona przydatność tytułów fixture, bez badania użytkowników",
+  "variants": {
+    "A": {
+      "cases": 100,
+      "supported": 60,
+      "supported_nonempty": 31,
+      "supported_with_relevant_result": 31,
+      "supported_empty": 29,
+      "mean_precision_nonempty": 0.8581,
+      "median_ms": 21.198,
+      "p95_ms": 34.314,
+      "sql_queries": 456,
+      "provider_requests": 0
+    },
+    "B": {
+      "cases": 100,
+      "supported": 60,
+      "supported_nonempty": 40,
+      "supported_with_relevant_result": 40,
+      "supported_empty": 20,
+      "mean_precision_nonempty": 0.87,
+      "median_ms": 19.1415,
+      "p95_ms": 32.144,
+      "sql_queries": 278,
+      "provider_requests": 0
+    }
+  }
+}

@@ -51,8 +51,19 @@
      * o jeden wiersz WIĘCEJ, niż przyjmuje walidacja — przy pełnym przepisie
      * formularz odbijałby własny POST komunikatem o zbyt wielu krokach.
      */
-    $ingredientRows = min(\App\Models\Recipe::MAX_INGREDIENTS, max(3, count($oldIngredients) + 1));
-    $stepRows = min(\App\Models\Recipe::MAX_STEPS, max(3, count($oldSteps) + 1));
+    // Klucz adresuje dane, zdjęcie i błąd; numer widoczny liczy osobno pętla.
+    // Dopisujemy pierwszy wolny klucz, nie tworzymy pól aż do największego.
+    $withEmptyRows = static function (array $rows, int $limit): array {
+        $count = min($limit, max(3, count($rows) + 1));
+        for ($key = 0; count($rows) < $count; $key++) {
+            if (! array_key_exists($key, $rows)) {
+                $rows[$key] = [];
+            }
+        }
+        return $rows;
+    };
+    $oldIngredients = $withEmptyRows($oldIngredients, \App\Models\Recipe::MAX_INGREDIENTS);
+    $oldSteps = $withEmptyRows($oldSteps, \App\Models\Recipe::MAX_STEPS);
 @endphp
 
 <x-layout :title="$isEdit ? 'Dopisz szczegóły' : 'Dodaj przepis ze szczegółami'" :noindex="true">
@@ -164,8 +175,13 @@
                      help="Jedno-dwa zdania. Na co ten przepis jest dobry, kiedy go robisz." />
 
             <div class="siatka-pol">
+                {{-- Krok 0,01 (setne) — decyzja właściciela z 20.09.2026 (#750).
+                     Kolumna `servings` to decimal(6,2); `step` musi się zgadzać
+                     z walidacją serwera (`RecipeController::validated()`),
+                     inaczej przeglądarka odrzuca poprawną wartość jako
+                     `stepMismatch`, zanim żądanie w ogóle wyjdzie. --}}
                 <x-field name="servings" label="Na ile porcji" type="number" inputmode="decimal"
-                         :value="$isEdit ? $recipe->servings : null" :min="0.5" :max="999" :step="0.5" />
+                         :value="$isEdit ? $recipe->servings : null" :min="0.5" :max="999" :step="0.01" />
                 <x-field name="prep_minutes" label="Przygotowanie (minuty)" type="number" inputmode="numeric"
                          :value="$isEdit ? $recipe->prep_minutes : null" :min="0" :max="10080" />
                 <x-field name="cook_minutes" label="Gotowanie / pieczenie (minuty)" type="number" inputmode="numeric"
@@ -305,9 +321,9 @@
                 Grupę wypełnij tylko wtedy, gdy przepis ma osobne części, na przykład „Ciasto” i „Nadzienie”.
             </p>
 
-            @for($i = 0; $i < $ingredientRows; $i++)
+            @foreach($oldIngredients as $i => $ingredient)
                 <div class="field">
-                    <label for="f-ingredients-{{ $i }}-text">Składnik {{ $i + 1 }}</label>
+                    <label for="f-ingredients-{{ $i }}-text">Składnik {{ $loop->iteration }}</label>
                     <input class="field-input" id="f-ingredients-{{ $i }}-text"
                            name="ingredients[{{ $i }}][text]" type="text" maxlength="240"
                            value="{{ $oldIngredients[$i]['text'] ?? '' }}"
@@ -345,20 +361,27 @@
                            @if($i === 0) placeholder="Ciasto" @endif>
                     @error("ingredients.$i.group_name")<span class="field-error">{{ $message }}</span>@enderror
 
+                    <label class="mt-3" for="f-ingredients-{{ $i }}-note">Uwagi do składnika <span class="meta">(nieobowiązkowe)</span></label>
+                    <input class="field-input" id="f-ingredients-{{ $i }}-note"
+                           name="ingredients[{{ $i }}][note]" type="text" maxlength="300"
+                           value="{{ $ingredient['note'] ?? '' }}"
+                           @error("ingredients.$i.note") aria-invalid="true" aria-describedby="f-ingredients-{{ $i }}-note-error" @enderror>
+                    @error("ingredients.$i.note")<span class="field-error" id="f-ingredients-{{ $i }}-note-error">{{ $message }}</span>@enderror
+
                     {{-- „Bez ilości” — sól do smaku (issue #44). Zwykły
                          checkbox, działa bez JavaScriptu. Nieobowiązkowy
                          i domyślnie wyłączony: ma znaczenie dopiero przy
-                         przeliczaniu przepisu na inną liczbę porcji. --}}
+                         przyszłym przeliczaniu porcji (V2, jeszcze niewdrożonym). --}}
                     <label class="choice mt-2">
                         <input type="checkbox" name="ingredients[{{ $i }}][no_amount]" value="1"
                                @checked($oldIngredients[$i]['no_amount'] ?? false)>
                         <span>
                             <span class="choice-label">Bez ilości</span>
-                            <span class="choice-help">Na przykład „do smaku”, „ile weźmie”, „szczypta”.</span>
+                            <span class="choice-help">Zaznacz, jeśli nie podajesz liczby i jednostki. Sposób dozowania wpisz w nazwie składnika, np. „mleko — ile weźmie”.</span>
                         </span>
                     </label>
                 </div>
-            @endfor
+            @endforeach
 
             <p class="field-help">
                 @unless($isEdit && $recipe->isPublished())
@@ -383,13 +406,13 @@
             </p>
             @error('steps')<p class="field-error">{{ $message }}</p>@enderror
 
-            @for($i = 0; $i < $stepRows; $i++)
+            @foreach($oldSteps as $i => $stepRow)
                 @php
                     $idKroku = $oldSteps[$i]['id'] ?? null;
                     $zdjecieKroku = $idKroku === null ? null : $krokiWBazie->get((string) $idKroku)?->media;
                 @endphp
                 <fieldset class="wizard-row">
-                    <legend class="font-bold mb-3">Krok {{ $i + 1 }}</legend>
+                    <legend class="font-bold mb-3">Krok {{ $loop->iteration }}</legend>
 
                     {{-- Tożsamość tego kroku. Wraca niezmieniona, żeby zdjęcie
                          zostało przy SWOIM kroku także po wyczyszczeniu innego
@@ -441,7 +464,7 @@
                             <span class="krok-zdjecie">
                                 <x-photo :media="$zdjecieKroku" variant="thumb" :zoom="false"
                                          class="krok-zdjecie-obraz"
-                                         :alt="'Zdjęcie przy kroku '.($i + 1)"
+                                         :alt="'Zdjęcie przy kroku '.$loop->iteration"
                                          sizes="160px" />
                             </span>
                             <label class="choice mt-2">
@@ -483,7 +506,7 @@
                         @error("steps.$i.photo")<span class="field-error">{{ $message }}</span>@enderror
                     </div>
                 </fieldset>
-            @endfor
+            @endforeach
         </section>
 
         <div class="form-actions">

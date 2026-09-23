@@ -1,5 +1,11 @@
 # #492 — przegląd pozostałych luk, 19 września 2026
 
+> **Dokument historyczny.** [Weryfikacja z 20.09.2026](../audits/WERYFIKACJA_713_492_2026_09_20.md)
+> aktualizuje statusy wszystkich pozycji #713 i pozostały zakres #492.
+> #707 i #711 są już scalone, #716 wdrożony. Deklaracja rzeczywistego zoomu
+> oparta poniżej na `deviceScaleFactor: 2` nie ma wystarczającego dowodu;
+> sam DPR nie potwierdza zoomu. Zachowano pierwotny tekst dla rozliczalności.
+
 Stan odniesienia: `main` = `e306842c692dba2d1dea894d4cfb7947cf120ed9`.
 Produkcja odczytana tego samego dnia: **Alfa 0.67**, SHA `ab91185`.
 Bez zmian kodu aplikacji. Bez pushu i bez PR-a.

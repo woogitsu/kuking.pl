@@ -540,7 +540,7 @@ await stanowiskoKU.zamknij();
 {
   const kopia = join(roboczy, 'generator-uszkodzony-ksiegowanie.mjs');
   copyFileSync(GENERATOR, kopia);
-  const szukaj = "    dodaj(scenariusz, odp.ms, odp.powod === 'ok' ? (odp.status || 'blad') : odp.powod, odp.status === 200 || odp.status === 302);";
+  const szukaj = "    dodaj(scenariusz, odp.ms, odp.powod === 'ok' ? (odp.status || 'blad') : odp.powod, success);";
   let tekst = readFileSync(kopia, 'utf8');
   assert.ok(tekst.includes(szukaj), 'Kontrola ujemna księgowania: nie znalazłem wywołania `dodaj`.');
   tekst = tekst.replace(szukaj, "    if (odp.status === 200 || odp.status === 302) dodaj(scenariusz, odp.ms, odp.status, true);");
@@ -674,3 +674,6 @@ powiedz('oryginalny generator ma tę samą sumę MD5 co przed kontrolami ujemnym
 
 rmSync(roboczy, { recursive: true, force: true });
 process.stdout.write(`\nZdane sprawdzenia: ${zdane}\n`);
+
+await import('./korpus-605.test.mjs');
+await import('./probnik-605.test.mjs');

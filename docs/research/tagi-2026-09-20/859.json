@@ -1,0 +1,16 @@
+{
+  "nazwa": "859",
+  "plik": "resources/views/pages/settings/tags.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "cbb5aa8446d905fd8f5fd1b82264d1af",
+  "md5_po_mutacji": "214f17b663cf3ac1330ae56c35342a5c",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "dopóki nikogo nie obserwujesz",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T16:09:07Z"
+}

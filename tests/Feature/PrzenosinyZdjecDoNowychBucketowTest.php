@@ -5,8 +5,10 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\Media;
+use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Storage;
+use Mockery;
 use Tests\TestCase;
 
 /**
@@ -107,23 +109,138 @@ class PrzenosinyZdjecDoNowychBucketowTest extends TestCase
         }
     }
 
-    public function test_awaria_w_polowie_nie_przestawia_wiersza(): void
+    public function test_brak_oryginalu_w_starym_buckecie_nie_przestawia_wiersza(): void
     {
-        // NAJWAŻNIEJSZY TEST W TYM PLIKU.
+        // NAJWAŻNIEJSZY TEST W TYM PLIKU (#1031).
         //
-        // Gdyby wiersz był przestawiany przed sprawdzeniem kopii, zdjęcie
-        // wskazywałoby na plik, którego nie ma: znikałoby z serwisu i nie
-        // dałoby się go odzyskać bez ręcznego grzebania w buckecie.
+        // Do 22 września 2026 `skopiuj()` zwracało `true`, kiedy pliku nie było
+        // w starym buckecie. Wiersz dostawał `disk` nowego bucketu, w którym
+        // pliku nie ma, WYPADAŁ z zapytania `where('disk', 'r2_legacy')`
+        // i żaden kolejny przebieg nie miał go już jak znaleźć: zdjęcia nie ma,
+        // baza twierdzi, że jest, i nic tego nie wykrywa.
+        //
+        // Ten test nie ustawia pustego bucketu ani niczego innego, co i tak
+        // zatrzymałoby komendę na wejściu. Jedyne, co jest nie tak, to BRAK
+        // PLIKU — i to samo w sobie ma wystarczyć, żeby wiersza nie ruszyć.
         $media = $this->stareZdjecie();
 
-        // Wariant, którego nie ma w starym buckecie ORAZ nie ma go dokąd
-        // skopiować — symulacja nieudanego kopiowania.
         Storage::disk('r2_legacy')->delete($media->object_key);
-        Storage::fake('nowe_oryginaly');
 
-        // Kasujemy plik ze źródła, więc kopiowanie oryginału „udaje się"
-        // (nie ma czego kopiować), ale wiersz i tak ma dojść do końca.
-        // Prawdziwą awarię wymuszamy brakiem bucketu.
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('POMINIĘTE')
+            ->expectsOutputToContain($media->object_key)
+            ->assertFailed();
+
+        // SEDNO: wiersz stoi tam, gdzie stał.
+        $media->refresh();
+        $this->assertSame('r2_legacy', $media->disk);
+        $this->assertNull($media->variants_disk);
+        $this->assertDatabaseHas('media', ['id' => $media->getKey(), 'disk' => 'r2_legacy']);
+
+        // A skoro stoi, to wraca w każdym kolejnym przebiegu — czyli nie da się
+        // o nim zapomnieć, i dokładnie po to zostaje przy starym dysku.
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('POMINIĘTE')
+            ->assertFailed();
+    }
+
+    public function test_brak_jednego_wariantu_zatrzymuje_przenosiny_w_polowie(): void
+    {
+        // Oryginał jest, wariantu nie ma. Kopiowanie zatrzymuje się w połowie
+        // i wiersz NIE może zostać przestawiony: `variantsDisk()` wskazywałby
+        // wtedy bucket, w którym tego wariantu nie ma.
+        $media = $this->stareZdjecie();
+
+        Storage::disk('r2_legacy')->delete($media->metadata['variants']['feed']['key']);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('POMINIĘTE')
+            ->expectsOutputToContain('wariant feed')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+    }
+
+    public function test_nieudany_zapis_w_polowie_nie_przestawia_wiersza(): void
+    {
+        // Tu plik JEST w starym buckecie, ale zapis do nowego się nie udaje —
+        // awaria sieci, brak uprawnień, pełny bucket. To inny przypadek niż
+        // brak pliku i ma inną etykietę w raporcie, ale skutek dla wiersza
+        // musi być ten sam: bez zmian.
+        $media = $this->stareZdjecie();
+
+        $zepsuty = Mockery::mock(Filesystem::class);
+        $zepsuty->shouldReceive('exists')->andReturn(false);
+        $zepsuty->shouldReceive('writeStream')->andReturn(false);
+
+        Storage::set('nowe_publiczne', $zepsuty);
+
+        $this->artisan('kuking:przenies-zdjecia')
+            ->expectsOutputToContain('NIE UDAŁO SIĘ')
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+    }
+
+    public function test_ponowienie_po_czesciowym_przebiegu_konczy_robote(): void
+    {
+        // Idempotencja: przebieg przerwany w połowie wolno po prostu powtórzyć.
+        // To, co zdążyło się skopiować, nie jest kopiowane drugi raz, a to,
+        // czego brakowało, dochodzi.
+        $media = $this->stareZdjecie();
+
+        $brakujacy = $media->metadata['variants']['thumb']['key'];
+        Storage::disk('r2_legacy')->delete($brakujacy);
+
+        $this->artisan('kuking:przenies-zdjecia')->assertFailed();
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+
+        // Oryginał zdążył się przekopiować — ponowienie ma go zastać na miejscu
+        // i nie próbować drugi raz.
+        Storage::disk('nowe_oryginaly')->assertExists($media->object_key);
+
+        // Brakujący wariant wraca do starego bucketu (np. z kopii zapasowej).
+        Storage::disk('r2_legacy')->put($brakujacy, 'wariant');
+
+        $this->artisan('kuking:przenies-zdjecia')->assertSuccessful();
+
+        $media->refresh();
+        $this->assertSame('nowe_oryginaly', $media->disk);
+        $this->assertSame('nowe_publiczne', $media->variantsDisk());
+
+        foreach ($media->metadata['variants'] as $wariant) {
+            Storage::disk('nowe_publiczne')->assertExists($wariant['key']);
+        }
+    }
+
+    public function test_tryb_tylko_raport_melduje_brak_i_niczego_nie_zapisuje(): void
+    {
+        // Tryb „tylko raport" ma dać odpowiedź PRZED prawdziwym przebiegiem:
+        // ile zdjęć pójdzie, ile odpadnie i dlaczego. Bez jednego zapisu —
+        // ani do bucketu, ani do bazy.
+        $media = $this->stareZdjecie();
+
+        Storage::disk('r2_legacy')->delete($media->object_key);
+
+        $this->artisan('kuking:przenies-zdjecia', ['--tylko-raport' => true])
+            ->expectsOutputToContain('POMINIĘTE')
+            ->expectsOutputToContain($media->object_key)
+            ->assertFailed();
+
+        $this->assertSame('r2_legacy', $media->refresh()->disk);
+
+        foreach ($media->metadata['variants'] as $wariant) {
+            Storage::disk('nowe_publiczne')->assertMissing($wariant['key']);
+        }
+    }
+
+    public function test_bez_ustawionego_starego_bucketu_komenda_odmawia_nawet_gdy_plikow_brak(): void
+    {
+        // Stary warunek wejścia trzyma się dalej: bez `AWS_LEGACY_BUCKET`
+        // komenda nie rusza żadnego wiersza.
+        $media = $this->stareZdjecie();
+
+        Storage::disk('r2_legacy')->delete($media->object_key);
         config(['filesystems.disks.r2_legacy.bucket' => '']);
 
         $this->artisan('kuking:przenies-zdjecia')->assertFailed();
