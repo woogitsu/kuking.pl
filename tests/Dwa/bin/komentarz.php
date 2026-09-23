@@ -25,7 +25,11 @@ require __DIR__.'/../../bootstrap.php';
 $app = require __DIR__.'/../../../bootstrap/app.php';
 $app->make(Kernel::class)->bootstrap();
 $args = json_decode($argv[2], true, flags: JSON_THROW_ON_ERROR);
-if (! str_starts_with(DB::connection()->getDatabaseName(), 'kuking_race_')) {
+// Rodzina baz wyścigów to `kuking_race` (główny checkout, CI) oraz
+// `kuking_race_<kopia robocza>` — ta sama reguła, co `kuking_nazwa_bazy_wyscigow()`.
+// Sam przedrostek `kuking_race_` odrzucał gołe `kuking_race`, więc w CI każde
+// dziecko ginęło tu przed barierą, a test widział tylko jej brak po 4 s.
+if (preg_match('/\Akuking_race(_|\z)/', DB::connection()->getDatabaseName()) !== 1) {
     throw new RuntimeException('Odmowa uruchomienia poza izolowaną bazą wyścigów.');
 }
 DB::statement("SET lock_timeout = '5s'");
