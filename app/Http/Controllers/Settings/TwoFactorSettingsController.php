@@ -94,6 +94,16 @@ class TwoFactorSettingsController extends Controller
      * Bez tego kroku literówka przy przepisywaniu sekretu zablokowałaby
      * konto pierwszym prawdziwym logowaniem, zamiast na samym ekranie
      * włączenia, gdzie łatwo spróbować jeszcze raz.
+     *
+     * HASŁO JAK PRZY WYŁĄCZANIU (#1376, D-245). Kod z aplikacji dowodzi
+     * tylko tego, że NOWY telefon jest dobrze ustawiony — nie tego, że sesję
+     * obsługuje właściciel konta. Kto przejął otwartą sesję, podpinał więc
+     * własny telefon, zabierał kody zapasowe, a właściciel przy następnym
+     * logowaniu stawał przed kodem, którego nie ma. Włączenie przypisuje
+     * kontu drugi składnik, więc waży tyle co jego zdjęcie i prosi o to samo.
+     *
+     * Hasło sprawdzamy PRZED kodem: przy złym haśle kod nie jest ani
+     * sprawdzany, ani zużywany, a 2FA zostaje wyłączona.
      */
     public function confirm(Request $request): RedirectResponse
     {
@@ -101,12 +111,20 @@ class TwoFactorSettingsController extends Controller
 
         $data = $request->validate([
             'code' => ['required', 'string'],
+            'password' => ['required', 'string'],
         ], [
             'code.required' => 'Wpisz sześciocyfrowy kod z aplikacji.',
+            'password.required' => 'Wpisz hasło do Kuking, żeby włączyć weryfikację dwuetapową.',
         ]);
 
         if ($user->two_factor_secret === null) {
             return redirect()->route('settings.two_factor.enable');
+        }
+
+        if (! Hash::check($data['password'], $user->password)) {
+            throw ValidationException::withMessages([
+                'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
+            ]);
         }
 
         if (! $this->totp->verifyCode($user, $user->two_factor_secret, $data['code'])) {
@@ -117,6 +135,17 @@ class TwoFactorSettingsController extends Controller
 
         $kodyJawne = $this->totp->generateBackupCodes();
         $user->confirmTwoFactor($this->totp->hashBackupCodes($kodyJawne));
+
+        // STARE POŚWIADCZENIA JEDNOSKŁADNIKOWE GASNĄ (#930, D-245).
+        //
+        // Sesje i ciasteczka „zapamiętaj mnie" sprzed tej chwili powstały bez
+        // drugiego składnika. Zostawione, dalej otwierałyby konto bez kodu —
+        // a konto moderatora od tej sekundy także `/admin`, bo
+        // `moderator.2fa` sprawdza stan konta, nie przebieg logowania.
+        // Bieżąca sesja zostaje: to w niej właściciel właśnie podał hasło
+        // i kod. Zły kod albo złe hasło kończą się wyjątkiem wyżej, więc
+        // niczego nie odwołują.
+        $user->invalidateSessions($request->session()->getId());
 
         // Kody zapasowe idą do sesji TYLKO na ten jeden, następny widok
         // (`->with()` = flash na jedno żądanie) — to jest jedyny moment,

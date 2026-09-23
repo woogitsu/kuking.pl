@@ -5,7 +5,8 @@
      CO TU JEST, A CZEGO NIE MA I NIE BĘDZIE
     ────────────────────────────────────────────────────────────────────────
 
-    Jest: nazwa klasy zadania, nazwa klasy wyjątku, liczba i dwie daty.
+    Jest: nazwa klasy zadania, nazwa klasy wyjątku, nazwa kolejki, liczba
+    i dwie daty.
     Nie ma: ładunku zadania, treści wyjątku, adresów e-mail, imion, żetonów.
     Uzasadnienie pełne w `App\Domain\Kolejka\NieudaneZadania` — w skrócie:
     w ładunku leży ŻYWY żeton logowania, a ślad stosu potrafi nieść argumenty
@@ -91,6 +92,9 @@
 
                         <dt>Pełna nazwa wyjątku</dt>
                         <dd><code>{{ $grupa['wyjatek'] }}</code></dd>
+
+                        <dt>Kolejka</dt>
+                        <dd><code>{{ $grupa['kolejka'] }}</code></dd>
 
                         <dt>Najstarsze</dt>
                         <dd>{{ $grupa['najstarsze']?->format('j.m.Y, H:i') ?? 'nie wiadomo' }}</dd>

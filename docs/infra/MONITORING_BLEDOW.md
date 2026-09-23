@@ -693,7 +693,7 @@ dokładnie jedną rzecz i nie zostawia po sobie stanu.
 **Sama konfiguracja nie jest dowodem dostarczenia** — to jest właśnie różnica
 między warstwą 2 a 4.
 
-### 7.5. Droga ODCZYTU: `/admin/kolejka` (issue #717)
+### 7.5. Droga ODCZYTU: `/admin/kolejka` (issue #599)
 
 Wszystko wyżej w tym rozdziale opisuje **wysyłanie**: czujkę, która dzwoni.
 Ten punkt opisuje rzecz odwrotną — pytanie zadane z własnej woli, wtedy,

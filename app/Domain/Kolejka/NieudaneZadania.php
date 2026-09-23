@@ -42,11 +42,13 @@ use Throwable;
  * a ślad stosu w Laravelu potrafi nieść argumenty wywołań — czyli ten sam
  * żeton i adres e-mail (`WebhookBleduHandler`, audyt A6-01).
  *
- * Dlatego stąd wychodzą WYŁĄCZNIE dwie nazwy klas i liczby:
+ * Dlatego stąd wychodzą WYŁĄCZNIE dwie nazwy klas, nazwa kolejki i liczby:
  *
  *  - `klasa`   — `payload.displayName`, czyli nazwa klasy zadania;
  *  - `wyjatek` — sama nazwa klasy wyjątku, odcięta przed pierwszym `:`.
- *    KOMUNIKAT wyjątku zostaje w bazie i nie jest tu nawet czytany.
+ *    KOMUNIKAT wyjątku zostaje w bazie i nie jest tu nawet czytany;
+ *  - `kolejka` — kolumna `failed_jobs.queue`, przepuszczona przez
+ *    `nazwaKolejki()` (krótki identyfikator albo `?`).
  *
  * Obie przechodzą przez `nazwaKlasy()`, która przepuszcza tylko kształt
  * identyfikatora PHP z ukośnikami. To nie jest ozdobnik: gdyby kiedykolwiek
@@ -70,7 +72,7 @@ final class NieudaneZadania
     /**
      * @return array{
      *     razem: int,
-     *     grupy: list<array{klasa: string, nazwa: string, wyjatek: string, nazwa_wyjatku: string, ile: int, najstarsze: ?Carbon, najnowsze: ?Carbon}>,
+     *     grupy: list<array{klasa: string, nazwa: string, wyjatek: string, nazwa_wyjatku: string, kolejka: string, ile: int, najstarsze: ?Carbon, najnowsze: ?Carbon}>,
      *     poza_lista: int,
      *     odczytane: bool
      * }
@@ -79,7 +81,7 @@ final class NieudaneZadania
     {
         try {
             $wiersze = DB::table('failed_jobs')
-                ->select(['payload', 'exception', 'failed_at'])
+                ->select(['queue', 'payload', 'exception', 'failed_at'])
                 ->orderByDesc('failed_at')
                 ->get();
         } catch (Throwable) {
@@ -93,9 +95,10 @@ final class NieudaneZadania
         foreach ($wiersze as $wiersz) {
             $klasa = $this->klasaZadania($wiersz->payload ?? null);
             $wyjatek = $this->klasaWyjatku($wiersz->exception ?? null);
+            $kolejka = $this->nazwaKolejki($wiersz->queue ?? null);
             $kiedy = $this->kiedy($wiersz->failed_at ?? null);
 
-            $klucz = $klasa."\0".$wyjatek;
+            $klucz = $klasa."\0".$wyjatek."\0".$kolejka;
 
             if (! array_key_exists($klucz, $grupy)) {
                 $grupy[$klucz] = [
@@ -103,6 +106,7 @@ final class NieudaneZadania
                     'nazwa' => $this->krotka($klasa),
                     'wyjatek' => $wyjatek,
                     'nazwa_wyjatku' => $this->krotka($wyjatek),
+                    'kolejka' => $kolejka,
                     'ile' => 0,
                     'najstarsze' => null,
                     'najnowsze' => null,
@@ -202,6 +206,21 @@ final class NieudaneZadania
         }
 
         return ltrim($wartosc, '\\');
+    }
+
+    /**
+     * Nazwa kolejki (`default`, `mail`…) — tylko krótki identyfikator.
+     * Kolumna jest tekstem wpisanym przez kod wysyłający zadanie, więc
+     * dostaje tę samą białą listę kształtu co nazwy klas: cokolwiek
+     * dłuższego albo z innymi znakami wychodzi jako `?`.
+     */
+    private function nazwaKolejki(mixed $wartosc): string
+    {
+        if (! is_string($wartosc) || preg_match('/^[A-Za-z0-9_.:-]{1,64}$/', $wartosc) !== 1) {
+            return self::NIEZNANA;
+        }
+
+        return $wartosc;
     }
 
     /** Krótka nazwa do nagłówka; pełna zostaje w wierszu obok. */

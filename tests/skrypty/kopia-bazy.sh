@@ -1695,7 +1695,9 @@ sprawdz "sam klucz prywatny nie udaje certyfikatu" "kod=64" \
 echo "── Obraz kopii (docker/kopia/Dockerfile) ──"
 # =============================================================================
 
-if bez_komentarzy "${DOCKERFILE_KOPII}" | grep -E '^FROM postgres:18($|[[:space:]])' >/dev/null; then
+# Digest (`@sha256:...`, #952) jest dozwolony i wymagany osobno przez
+# tests/Unit/ObrazyBazowePrzypieteDoDigestowTest.php — tu liczy się tylko wersja 18.
+if bez_komentarzy "${DOCKERFILE_KOPII}" | grep -E '^FROM postgres:18(@sha256:[0-9a-f]{64})?($|[[:space:]])' >/dev/null; then
   sprawdz "obraz bazowy niesie pg_dump 18 (zgodny z serwerem)" "tak" "tak"
 else
   sprawdz "obraz bazowy niesie pg_dump 18 (zgodny z serwerem)" "tak" "nie"

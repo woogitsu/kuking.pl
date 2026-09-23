@@ -113,7 +113,7 @@ class TrybPaneluWMenuTest extends TestCase
     {
         // ADMIN, NIE MODERATOR — i to jest o jeden ekran WIĘCEJ, nie o jeden
         // mniej. Ta pętla przemiata WSZYSTKIE bezparametrowe trasy `/admin/**`,
-        // a od issue #717 jedna z nich (`/admin/kolejka`) ma bramkę na rolę
+        // a od issue #599 jedna z nich (`/admin/kolejka`) ma bramkę na rolę
         // `admin` (`UserPolicy::diagnozujKolejke`) i moderatorowi oddaje 403.
         // `User::isModerator()` jest prawdziwe także dla roli `admin`, więc
         // konto stąd wchodzi na każdy ekran panelu — czyli ten test pilnuje

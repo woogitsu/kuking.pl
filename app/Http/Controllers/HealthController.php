@@ -701,7 +701,7 @@ class HealthController extends Controller
      *
      * POWŁOKI SERWERA NA RAILWAY NIE MA — i dlatego to zdanie było przez
      * dziesięć dni ślepym zaułkiem: `/health` mówił `degraded`, a jedyna
-     * odpowiedź na pytanie „które zadanie" stała za ścianą. Od issue #717
+     * odpowiedź na pytanie „które zadanie" stała za ścianą. Od issue #599
      * jest druga droga, TEŻ nie publiczna: `/admin/kolejka`, za rolą `admin`
      * (`UserPolicy::diagnozujKolejke`). Ona także nie pokazuje ładunku ani
      * treści wyjątku — tylko nazwy klas i liczby.

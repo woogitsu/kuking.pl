@@ -304,6 +304,11 @@ class WyslijPodsumowaniaTygodnia extends Command
                 // w `failed_jobs` i widać w teście. `Mail::later()` przekazuje
                 // je bokiem, do samej kolejki, i po drodze nie zostaje po nim
                 // ślad, którym dałoby się to sprawdzić.
+                //
+                // Adres i treść z TEJ chwili nie są ostateczne: zgodę, konto,
+                // aktualny adres i widoczność każdej pozycji sprawdza jeszcze
+                // raz `PodsumowanieTygodnia::send()` w chwili wysyłki (#1328,
+                // #1383). Tu w zadaniu zostają same identyfikatory.
                 $list = (new PodsumowanieTygodnia($tresc))->delay(now()->addSeconds($numer * $odstep));
 
                 Mail::to($osoba->email)->queue($list);
@@ -336,7 +341,13 @@ class WyslijPodsumowaniaTygodnia extends Command
      */
     private function budzet(DziennyBudzetListow $budzetDnia): int
     {
-        $zostalo = $budzetDnia->zostalo();
+        // `zostaloLacznie()`, nie `zostalo()`: od 20 września 2026 sufit
+        // podsumowań leży WEWNĄTRZ wspólnej puli całej poczty, a wąskim
+        // gardłem bywa raz jeden, raz drugi. Liczba stąd służy do tego, żeby
+        // nie pobierać z bazy sześćdziesięciu odbiorców w dniu, w którym
+        // reszta serwisu wysłała już 250 listów i wspólny próg tej klasy
+        // (240) i tak odmówi przy pierwszym.
+        $zostalo = $budzetDnia->zostaloLacznie();
 
         if ($this->option('limit') === null) {
             return $zostalo;

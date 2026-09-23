@@ -22,7 +22,7 @@ use Tests\TestCase;
 
 /**
  * `/admin/kolejka` — jedyna droga do odpowiedzi „KTÓRE zadanie padło"
- * dostępna BEZ powłoki serwera i bez dostępu do bazy (issue #717).
+ * dostępna BEZ powłoki serwera i bez dostępu do bazy (issue #599).
  *
  * ────────────────────────────────────────────────────────────────────────
  *  ŁADUNEK JEST PRAWDZIWY, NIE WPISANY RĘCZNIE
@@ -210,6 +210,36 @@ class PanelKolejkiZadanTest extends TestCase
         $odpowiedz->assertOk();
         $odpowiedz->assertSee('Wierszy razem:');
         $odpowiedz->assertDontSee(self::ZETON);
+        $odpowiedz->assertDontSee(self::SLAD_W_WYJATKU);
+    }
+
+    /**
+     * KOLEJKA jest na ekranie — ale tylko wtedy, gdy ma kształt nazwy.
+     * Kontrola dodatnia (`poczta` widać) i ujemna (adres e-mail wpisany
+     * w kolumnę `queue` nie wychodzi, zamiast niego jest `?`).
+     */
+    public function test_nazwa_kolejki_jest_widoczna_a_obcy_tekst_w_kolumnie_nie(): void
+    {
+        $wiersz = fn (string $uuid, string $kolejka): array => [
+            'uuid' => $uuid,
+            'connection' => 'database',
+            'queue' => $kolejka,
+            'payload' => json_encode(['displayName' => 'App\\Jobs\\ProcessUploadedImage']),
+            'exception' => 'RuntimeException: '.self::SLAD_W_WYJATKU,
+            'failed_at' => self::AWARIA,
+        ];
+
+        DB::table('failed_jobs')->insert([
+            $wiersz('e5a5a0e0-0000-4000-8000-000000000001', 'poczta'),
+            $wiersz('e5a5a0e0-0000-4000-8000-000000000002', 'maria@przyklad.pl ma zly adres'),
+        ]);
+
+        $odpowiedz = $this->actingAs($this->admin())->get('/admin/kolejka');
+
+        $odpowiedz->assertOk();
+        $odpowiedz->assertSee('<code>poczta</code>', false);
+        $odpowiedz->assertSee('<code>?</code>', false);
+        $odpowiedz->assertDontSee('maria@przyklad.pl');
         $odpowiedz->assertDontSee(self::SLAD_W_WYJATKU);
     }
 
