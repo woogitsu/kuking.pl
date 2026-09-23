@@ -8,6 +8,8 @@ use App\Domain\Users\Actions\EraseAccountData;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use Illuminate\Console\Command;
+use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Egzekutor 30-dniowej karencji po zgłoszeniu usunięcia konta (audyt A8).
@@ -50,32 +52,57 @@ use Illuminate\Console\Command;
  * ustawiona. Druga kolejka (`$doPonowienia`) wybiera właśnie te konta po tym,
  * że wciąż mają wiersze w `media`, i każe `EraseAccountData::handle()`
  * dokończyć wyłącznie kasowanie plików.
+ *
+ * PARTIE I BUDŻET PRZEBIEGU (issue #1028). Każda z dwóch kolejek bierze
+ * najwyżej `--limit` kont na jedno uruchomienie (domyślnie
+ * `BUDZET_PRZEBIEGU`), najstarsze zgłoszenia najpierw, i wczytuje je
+ * partiami po `$rozmiarPartii`. Wcześniej cały backlog szedł do pamięci
+ * jednym `get()`, a przy dłuższym zatorze przebieg nie kończył się przed
+ * następnym — po cichu, bo harmonogram woła komendę przez `Artisan::call()`
+ * i jej wyjście nigdzie nie trafia. Dlatego to, co zostało na następną noc,
+ * idzie OSTRZEŻENIEM do dziennika serwera, a nie tylko na ekran.
  */
 class PurgeExpiredAccountDeletions extends Command
 {
+    /**
+     * Ile kont z JEDNEJ kolejki obsługuje jedno uruchomienie. Wymazanie
+     * konta to transakcja plus kasowanie plików w storage — kilkaset na noc
+     * mieści się w oknie harmonogramu z dużym zapasem.
+     */
+    public const BUDZET_PRZEBIEGU = 500;
+
+    /** Domyślny rozmiar partii wczytywanej naraz do pamięci. */
+    public const ROZMIAR_PARTII = 50;
+
     protected $signature = 'kuking:usun-wygasle-konta
-                            {--dry-run : Pokaż, którym kontom minęła karencja, i nic nie zmieniaj}';
+                            {--dry-run : Pokaż, którym kontom minęła karencja, i nic nie zmieniaj}
+                            {--limit= : Najwięcej kont z jednej kolejki w tym uruchomieniu (domyślnie '.self::BUDZET_PRZEBIEGU.')}';
 
     protected $description = 'Trwale usuwa/anonimizuje dane kont, którym minęła 30-dniowa karencja po zgłoszeniu usunięcia';
 
-    public function __construct(private readonly EraseAccountData $usunDane)
-    {
+    public function __construct(
+        private readonly EraseAccountData $usunDane,
+        private readonly int $rozmiarPartii = self::ROZMIAR_PARTII,
+    ) {
         parent::__construct();
     }
 
     public function handle(): int
     {
         $dryRun = (bool) $this->option('dry-run');
+        $budzet = $this->option('limit') !== null
+            ? max(1, (int) $this->option('limit'))
+            : self::BUDZET_PRZEBIEGU;
         $graceDays = (int) config('kuking.account.delete_grace_days');
         $termin = now()->subDays($graceDays);
 
-        $doWykonania = User::query()
+        $doWykonania = fn (): Builder => User::query()
             ->where('status', User::STATUS_PENDING_DELETE)
             ->whereNull('data_erased_at')
             ->whereNotNull('delete_requested_at')
             ->where('delete_requested_at', '<=', $termin)
             ->orderBy('delete_requested_at')
-            ->get();
+            ->orderBy('id');
 
         // PONOWIENIE (audyt/issue #17): konta już zanonimizowane
         // (`data_erased_at` ustawione), którym mimo to zostały nieskasowane
@@ -88,13 +115,16 @@ class PurgeExpiredAccountDeletions extends Command
         // `whereNull('data_erased_at')`, a tu ta kolumna jest już ustawiona.
         // Zdjęcie z pełnym, nietkniętym EXIF-em zostawałoby więc dostępne
         // bezterminowo, mimo potwierdzenia usunięcia danych.
-        $doPonowienia = User::query()
+        $doPonowienia = fn (): Builder => User::query()
             ->whereNotNull('data_erased_at')
             ->whereHas('media')
             ->orderBy('data_erased_at')
-            ->get();
+            ->orderBy('id');
 
-        if ($doWykonania->isEmpty() && $doPonowienia->isEmpty()) {
+        $ileDoWykonania = $doWykonania()->count();
+        $ileDoPonowienia = $doPonowienia()->count();
+
+        if ($ileDoWykonania === 0 && $ileDoPonowienia === 0) {
             $this->info('Nie ma kont, którym minęła karencja na usunięcie.');
 
             return self::SUCCESS;
@@ -103,7 +133,7 @@ class PurgeExpiredAccountDeletions extends Command
         $usuniete = 0;
         $dokonczone = 0;
 
-        foreach ($doWykonania as $user) {
+        foreach ($this->partiami($doWykonania, $budzet) as $user) {
             if ($dryRun) {
                 $this->line("[dry-run] {$user->getKey()} — zgłoszono ".$user->delete_requested_at->format('Y-m-d H:i'));
 
@@ -137,7 +167,7 @@ class PurgeExpiredAccountDeletions extends Command
             $this->line("Usunięto dane konta: {$user->getKey()}");
         }
 
-        foreach ($doPonowienia as $user) {
+        foreach ($this->partiami($doPonowienia, $budzet) as $user) {
             if ($dryRun) {
                 $this->line("[dry-run, ponowienie] {$user->getKey()} — zostały nieskasowane zdjęcia z poprzedniej próby");
 
@@ -159,11 +189,63 @@ class PurgeExpiredAccountDeletions extends Command
             }
         }
 
-        $this->info($dryRun
-            ? 'Kont z minioną karencją: '.$doWykonania->count()
-                .', do ponowienia (nieskasowane zdjęcia): '.$doPonowienia->count().' (nic nie zmieniono).'
-            : 'Usunięto dane kont: '.$usuniete.'. Dokończono kasowanie zdjęć: '.$dokonczone.'.');
+        if ($dryRun) {
+            $this->info('Kont z minioną karencją: '.$ileDoWykonania
+                .', do ponowienia (nieskasowane zdjęcia): '.$ileDoPonowienia.' (nic nie zmieniono).'
+                .($ileDoWykonania > $budzet || $ileDoPonowienia > $budzet
+                    ? ' Jedno uruchomienie obsłuży najwyżej '.$budzet.' kont z każdej kolejki.'
+                    : ''));
+
+            return self::SUCCESS;
+        }
+
+        $this->info('Usunięto dane kont: '.$usuniete.'. Dokończono kasowanie zdjęć: '.$dokonczone.'.');
+
+        // Ile zostało na następny przebieg — liczone od nowa, bo wyścigi
+        // i nieudane kasowanie plików zmieniają obraz w trakcie.
+        $zostaloDoWykonania = $doWykonania()->count();
+        $zostaloDoPonowienia = $doPonowienia()->count();
+
+        if ($zostaloDoWykonania + $zostaloDoPonowienia > 0) {
+            $this->warn('Zostaje na następny przebieg: kont do wymazania '.$zostaloDoWykonania
+                .', kont z nieskasowanymi zdjęciami '.$zostaloDoPonowienia.'.');
+
+            Log::warning('Wymazywanie kont po karencji: część kont czeka na następny przebieg', [
+                'zostalo_do_wymazania' => $zostaloDoWykonania,
+                'zostalo_do_ponowienia_zdjec' => $zostaloDoPonowienia,
+                'budzet_przebiegu_na_kolejke' => $budzet,
+            ]);
+        }
 
         return self::SUCCESS;
+    }
+
+    /**
+     * Najwyżej `$budzet` kont z kolejki, najstarsze najpierw, wczytywane
+     * partiami po `$rozmiarPartii`.
+     *
+     * Najpierw same identyfikatory (budżet ogranicza ich liczbę), potem
+     * modele partia po partii. Nie `chunk()` po `OFFSET`: obsłużone konto
+     * wypada z warunku kolejki, więc przesunięcie przeskakiwałoby
+     * nieobsłużone. Nie `chunkById()`: kolejność po identyfikatorze zamiast po
+     * dacie zgłoszenia kazałaby najstarszym zgłoszeniom czekać przy zatorze.
+     *
+     * @param  \Closure(): Builder  $kolejka
+     * @return \Generator<int, User>
+     */
+    private function partiami(\Closure $kolejka, int $budzet): \Generator
+    {
+        $identyfikatory = $kolejka()->limit($budzet)->pluck('id')->all();
+
+        foreach (array_chunk($identyfikatory, max(1, $this->rozmiarPartii)) as $partia) {
+            $konta = User::query()->whereKey($partia)->get()->keyBy(static fn (User $u): string => (string) $u->getKey());
+
+            foreach ($partia as $id) {
+                // Konto mogło zniknąć między odczytem identyfikatorów a partią.
+                if ($konta->has((string) $id)) {
+                    yield $konta->get((string) $id);
+                }
+            }
+        }
     }
 }
