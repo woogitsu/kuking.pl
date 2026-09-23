@@ -5,10 +5,12 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Models\AuditLogEntry;
+use App\Models\LoginLinkToken;
 use App\Models\User;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
@@ -44,6 +46,64 @@ class NadanieRoliTest extends TestCase
         $this->assertSame(User::ROLE_USER, $wpis->metadata['from']);
         $this->assertSame(User::ROLE_ADMIN, $wpis->metadata['to']);
         $this->assertSame('console:kuking:nadaj-role', $wpis->metadata['source']);
+    }
+
+    /**
+     * Regresja #1315: zmiana roli nie ruszała otwartych sesji. Przeglądarka
+     * zalogowana PRZED awansem wchodziła do panelu moderacji bez ponownego
+     * logowania (a więc bez kroku 2FA przy logowaniu), a po degradacji
+     * trzymała stan sprzed zmiany. Dotyczy obu kierunków.
+     */
+    public function test_zmiana_roli_w_obie_strony_uniewaznia_sesje_i_link_logowania(): void
+    {
+        config(['session.driver' => 'database']);
+        $this->user('szef', ['email' => 'szef@kuking.pl', 'role' => User::ROLE_ADMIN]);
+        $ula = $this->user('ula', ['email' => 'ula@kuking.pl']);
+
+        foreach (['moderator', 'user'] as $rola) {
+            DB::table('sessions')->insert([
+                'id' => 'sesja-przed-'.$rola,
+                'user_id' => $ula->getKey(),
+                'ip_address' => '127.0.0.1',
+                'user_agent' => 'przegladarka',
+                'payload' => '',
+                'last_activity' => time(),
+            ]);
+            $link = new LoginLinkToken;
+            $link->user_id = $ula->getKey();
+            $link->token_hash = LoginLinkToken::skrot(Str::random(40));
+            $link->created_at = now();
+            $link->expires_at = now()->addMinutes(30);
+            $link->save();
+            $tokenPrzed = $ula->fresh()->remember_token;
+
+            $this->artisan('kuking:nadaj-role', ['login' => 'ula@kuking.pl', 'rola' => $rola, '--tak' => true])
+                ->assertSuccessful();
+
+            $this->assertSame($rola, $ula->fresh()->role);
+            $this->assertDatabaseMissing('sessions', ['id' => 'sesja-przed-'.$rola]);
+            $this->assertSame(0, LoginLinkToken::query()->where('user_id', $ula->getKey())->count());
+            $this->assertNotSame($tokenPrzed, $ula->fresh()->remember_token);
+        }
+    }
+
+    public function test_ta_sama_rola_nie_wylogowuje(): void
+    {
+        config(['session.driver' => 'database']);
+        $ula = $this->user('ula', ['email' => 'ula@kuking.pl']);
+        DB::table('sessions')->insert([
+            'id' => 'sesja-uli',
+            'user_id' => $ula->getKey(),
+            'ip_address' => '127.0.0.1',
+            'user_agent' => 'przegladarka',
+            'payload' => '',
+            'last_activity' => time(),
+        ]);
+
+        $this->artisan('kuking:nadaj-role', ['login' => 'ula@kuking.pl', 'rola' => User::ROLE_USER, '--tak' => true])
+            ->assertSuccessful();
+
+        $this->assertDatabaseHas('sessions', ['id' => 'sesja-uli']);
     }
 
     public function test_bez_potwierdzenia_nic_sie_nie_zmienia(): void

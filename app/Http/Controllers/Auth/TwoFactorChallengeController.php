@@ -76,8 +76,8 @@ class TwoFactorChallengeController extends Controller
         // Limit liczony PO KONCIE, nie po adresie IP — kod ma sześć cyfr,
         // więc bez limitu prób jest do odgadnięcia, a rozproszony atak
         // z wielu adresów miałby ominąć zwykły throttle po IP.
-        [$maxProb, $decayMinuty] = $this->limity();
-        $throttleKey = 'weryfikacja-2fa|'.$user->getKey();
+        [$maxProb, $decayMinuty] = TwoFactorAuthenticator::limitProb();
+        $throttleKey = TwoFactorAuthenticator::kluczLimituProb($user);
 
         if (RateLimiter::tooManyAttempts($throttleKey, $maxProb)) {
             $sekundy = RateLimiter::availableIn($throttleKey);
@@ -121,15 +121,5 @@ class TwoFactorChallengeController extends Controller
         Auth::login($user, remember: false);
 
         return redirect()->intended(route('home'));
-    }
-
-    /**
-     * @return array{0: int, 1: int} [maksimum prób, minuty do odblokowania]
-     */
-    private function limity(): array
-    {
-        [$max, $minuty] = explode(',', config('kuking.limits.two_factor'));
-
-        return [(int) $max, (int) $minuty];
     }
 }
