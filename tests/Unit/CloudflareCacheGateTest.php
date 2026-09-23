@@ -8,6 +8,9 @@ use PHPUnit\Framework\Attributes\DataProvider;
 use PHPUnit\Framework\TestCase;
 use Symfony\Component\Process\Process;
 
+/**
+ * @bez-kontroli-dodatniej Czyta dokument JSON i asertuje na sparsowanej strukturze, a asercje tekstowe dotyczą wyjścia skryptu bramki, nie treści źródła aplikacji.
+ */
 class CloudflareCacheGateTest extends TestCase
 {
     #[DataProvider('cases')]
