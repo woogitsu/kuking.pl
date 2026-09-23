@@ -20,6 +20,8 @@ use Tests\TestCase;
  * Każda próba zapisu niespójnego stanu idzie w zagnieżdżonej transakcji
  * (savepoint): w PostgreSQL nieudane zapytanie przerywa całą transakcję,
  * a `RefreshDatabase` trzyma test w jednej.
+ *
+ * @bez-kontroli-dodatniej plik migracji jest wczytywany tylko po to, żeby wywołać `up()`/`down()` na bazie; asercje dotyczą zachowania PostgreSQL, a kontrola dodatnia jest w samym teście (`test_kontrola_dodatnia_kazdy_nazwany_stan_przechodzi`).
  */
 class SladPilnegoAlarmuWBazieTest extends TestCase
 {
