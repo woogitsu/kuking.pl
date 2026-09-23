@@ -1161,6 +1161,9 @@ zrzut — numer stoi w `.meta` w polu `pg_dump`.
 - **`APP_KEY`.** Zrzut zawiera zaszyfrowane nim kolumny (`two_factor_secret`),
   więc bez `APP_KEY` odtworzona baza jest kompletna, ale te dwie kolumny
   pozostają nieczytelne. `APP_KEY` ma własny wiersz w tabeli §1.1.
+  Po rotacji klucza (runbook krok 15) kopia sprzed rotacji potrzebuje
+  STAREGO klucza: dopisz go do `APP_PREVIOUS_KEYS` i uruchom
+  `kuking:przeszyfruj-klucz`.
 - **Sytuacji, w której serwis kopii przestaje się uruchamiać.** Sam skrypt
   alarmuje, gdy jego przebieg się nie udał, i sprawdza wiek poprzedniej kopii
   — ale kod, który nie chodzi, nie może o sobie donieść. Dlatego czujka po
