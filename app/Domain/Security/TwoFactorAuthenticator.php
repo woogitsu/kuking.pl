@@ -258,6 +258,28 @@ class TwoFactorAuthenticator
     }
 
     /**
+     * Czy kod zapasowy pasuje — BEZ zużycia.
+     *
+     * Dla miejsc, w których poprawny kod ma otworzyć tylko informację, a nie
+     * akcję: cofnięcie usunięcia konta, którego nie ma czego cofać
+     * (`AccountDeletionController::cancel`). Zużycie kodu przy odmowie
+     * zabierałoby człowiekowi kod ratunkowy za nic. Normalizacja ta sama co
+     * w `consumeBackupCode()`; blokady nie trzeba, bo nic tu nie zapisujemy.
+     */
+    public function backupCodeMatches(User $user, string $podanyKod): bool
+    {
+        $znormalizowany = Str::upper(trim($podanyKod));
+
+        foreach ($user->two_factor_backup_codes ?? [] as $hash) {
+            if (Hash::check($znormalizowany, $hash)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    /**
      * Świeży wiersz konta, zablokowany do końca transakcji.
      *
      * TO JEST SEDNO POPRAWKI A6-03. Obie metody wyżej brały stan 2FA

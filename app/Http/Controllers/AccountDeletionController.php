@@ -18,6 +18,7 @@ use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\Validator;
+use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
 
 /**
@@ -140,7 +141,16 @@ class AccountDeletionController extends Controller
         // różnych adresów — ZERO odmów.
         $adres = (string) $request->ip();
 
-        $this->limit->zatrzymajJesliZaDuzo($data['login'], $adres);
+        // `LimitProbHasla` rzuca zwykły `ValidationException`, a ten przy
+        // przekierowaniu odkłada w sesji całe wejście poza hasłem — razem
+        // z `code`, który `x-field` wstawiłby potem jawnie w `value` pola.
+        // Kod zapasowy w sesji i w HTML-u to dokładnie to, przed czym broni
+        // `odmow()`, więc odmowa limitu idzie tą samą drogą.
+        try {
+            $this->limit->zatrzymajJesliZaDuzo($data['login'], $adres);
+        } catch (ValidationException $odmowaLimitu) {
+            $this->odmow($request, $odmowaLimitu->errors());
+        }
 
         $osoba = User::findByLogin($data['login']);
 
@@ -160,10 +170,28 @@ class AccountDeletionController extends Controller
         // DOBRE HASŁO CZYŚCI PARĘ I KONTO, NIGDY ADRES (`KluczeLimitow`).
         $this->limit->wyczyscPoUdanej($data['login'], $adres);
 
-        // Drugi składnik PRZED `CancelAccountDeletion`: bez kodu formularz nie
+        // Czy jest co cofać — liczone TERAZ, ale ogłaszane dopiero po kodzie.
+        // Kod zapasowy jest jednorazowy, więc na koncie, którego nie ma czego
+        // cofać (aktywne, wymazane), poprawny kod ma zostać sprawdzony, ale
+        // NIE zużyty — inaczej pomyłka co do stanu własnego konta kosztuje
+        // człowieka jeden z kilku kodów ratunkowych.
+        $powodOdmowy = $this->cofnij->powodOdmowy($osoba);
+
+        // Drugi składnik PRZED ogłoszeniem stanu: bez kodu formularz nie
         // mówi nawet, w jakim stanie jest konto.
         if ($osoba->hasTwoFactorConfirmed()) {
-            $this->sprawdzKodDwuetapowy($request, $osoba, trim((string) ($data['code'] ?? '')));
+            $this->sprawdzKodDwuetapowy(
+                $request,
+                $osoba,
+                trim((string) ($data['code'] ?? '')),
+                zuzyjKodZapasowy: $powodOdmowy === null,
+            );
+        }
+
+        // Odmowa bez wołania `handle()`: gdyby konto w międzyczasie stało się
+        // `pending_delete`, cofnięcie przeszłoby na NIEZUŻYTYM kodzie zapasowym.
+        if ($powodOdmowy !== null) {
+            $this->odmow($request, ['login' => $powodOdmowy]);
         }
 
         try {
@@ -186,8 +214,11 @@ class AccountDeletionController extends Controller
      * (kody zapasowe mają litery, `XXXXX-XXXXX`). Limit to ten sam koszyk
      * konta co na ekranie logowania (`TwoFactorAuthenticator::kluczLimituProb`)
      * i tak samo liczy się tylko ZŁY kod, nie puste pole.
+     *
+     * `$zuzyjKodZapasowy = false` sprawdza kod zapasowy bez skreślania go
+     * z listy — dla konta, którego nie ma czego cofać (patrz `cancel()`).
      */
-    private function sprawdzKodDwuetapowy(Request $request, User $osoba, string $kod): void
+    private function sprawdzKodDwuetapowy(Request $request, User $osoba, string $kod, bool $zuzyjKodZapasowy): void
     {
         if ($kod === '') {
             $this->odmow($request, [
@@ -212,7 +243,9 @@ class AccountDeletionController extends Controller
 
         $poprawny = ctype_digit($cyfry)
             ? $this->totp->verifyCode($osoba, (string) $osoba->two_factor_secret, $cyfry)
-            : $this->totp->consumeBackupCode($osoba, $kod);
+            : ($zuzyjKodZapasowy
+                ? $this->totp->consumeBackupCode($osoba, $kod)
+                : $this->totp->backupCodeMatches($osoba, $kod));
 
         if (! $poprawny) {
             RateLimiter::hit($klucz, $decayMinuty * 60);
