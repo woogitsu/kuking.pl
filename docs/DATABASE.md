@@ -3237,6 +3237,7 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
 | `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
 | `unknown` | Worek na resztę — każda inna awaria. |
 
@@ -3246,7 +3247,7 @@ pokazuje surowego kodu ani starego wolnego tekstu — nieznany albo pusty kod
 dostaje tekst spod `unknown`. Pełny `$e->getMessage()` zostaje wyłącznie
 w logu aplikacji (`Log::warning` w `GenerateUserExport::handle()`).
 
-Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych czterech
+Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych pięciu
 wartości — dokładnie jak `reports.reason` (patrz wyżej), które też jest
 kodem z zamkniętym mapowaniem w PHP, a nie w bazie.
 
@@ -3255,6 +3256,31 @@ zamienia istniejące wiersze z wolnego tekstu na kody (backfill po dokładnym
 dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
+
+#### Eksport a wymazanie konta i pliki pośrednie (issues #1307, #993)
+
+Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
+
+- `GenerateUserExport` nie zaczyna pracy dla konta `erased` ani dla eksportu,
+  któremu `EraseAccountData` przestawiło `expires_at` w przeszłość (`failed`,
+  `account_missing`). Karencja `pending_delete` eksportu nie blokuje.
+- Przejście w `ready` idzie w krótkiej transakcji z `lockForUpdate()` na
+  wierszu `users` (ta sama kolejność blokad co w `EraseAccountData`) i na
+  wierszu eksportu, z ponownym sprawdzeniem obu warunków. Przegrany wyścig:
+  wiersz dostaje `expired` z **zachowanym** `disk`/`object_key` i terminem
+  w przeszłości, job kasuje plik z weryfikacją `exists()` i dopiero wtedy
+  zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
+  `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
+- Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
+  `<tmp>/kuking-eksport/<data_export_id>/` na dysku **workera** i znikają
+  w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
+  instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
+  godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
+  jednej próby) usuwa start każdego następnego eksportu na tym workerze —
+  czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
+  pierwszego eksportu po upływie godziny albo do restartu kontenera
+  (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
+  z identyfikatorem eksportu, bez ścieżek.
 
 Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
 w kolejności; `data_exports_one_active_per_user` — patrz niżej.
