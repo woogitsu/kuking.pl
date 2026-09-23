@@ -81,6 +81,19 @@ STRAZNIK_PLIK_ODSTEPSTWA = "tests/Feature/PlikKontrolnyZOdstepstwemTest.php"
 OBRAZ_ASSETOW = "Dockerfile"
 OBRAZ_ASSETOW_TEST = "ObrazAssetowMaPlikiTestowTest"
 
+# Kolejność w `down()` migracji 2FA (D-238, DB-01). Strażnik czyta źródło
+# migracji i porównuje położenie sprawdzenia liczby kont z położeniem zdjęcia
+# CHECK-a i `dropColumn`. W działaniu różnicy nie widać — wyjątek leci w obu
+# wersjach — więc tylko mutacja dowodzi, że asercja o kolejności naprawdę pada.
+MIGRACJA_2FA = "database/migrations/2026_09_06_120000_add_two_factor_to_users_table.php"
+MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
+
+# Pierwszy ekran strony powitalnej: blok reguł w warstwie `marka` ma ruszać
+# WYŁĄCZNIE odstępy. Najtańsza „naprawa" przycisku pod zgięciem to mniejsze
+# pismo — i właśnie tego strażnik pilnuje, czytając arkusz.
+PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
+PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -163,6 +176,41 @@ def bez_kopii_testu_assetow(source):
     )
 
 
+def zdjecie_checku_przed_straznikiem_2fa(source):
+    """KONTROLA DODATNIA: zdejmij CHECK 2FA, ZANIM strażnik policzy konta.
+
+    Dokładnie ten błąd kolejności, którego pilnuje
+    `test_straznik_stoi_przed_kazda_operacja_niszczaca`: odmowa nadal leci,
+    ale schemat przestał już pilnować niezmiennika. Blok `isPostgres()`
+    wędruje z miejsca po strażniku na początek `down()`.
+    """
+    zdjecie = (
+        "        if ($this->isPostgres()) {\n"
+        "            DB::statement('ALTER TABLE users DROP CONSTRAINT IF EXISTS "
+        "users_two_factor_confirmed_requires_secret_check');\n"
+        "        }\n\n"
+    )
+    straznik = "        $zPotwierdzonym = DB::table('users')->whereNotNull('two_factor_confirmed_at')->count();\n"
+
+    bez_zdjecia = replace_once(source, zdjecie, "")
+
+    return replace_once(bez_zdjecia, straznik, zdjecie + straznik)
+
+
+def mniejsze_pismo_na_pierwszym_ekranie(source):
+    """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
+
+    Blok pierwszego ekranu dostaje `font-size` przy akapicie hasła — skrót,
+    którego poprawka świadomie nie zrobiła (progi pisma z docs/UX_50_PLUS.md).
+    `test_skrocenie_nie_zostalo_oplacone_pismem_ani_celem_dotkniecia` ma zapalić.
+    """
+    return replace_once(
+        source,
+        "    .hero .hero-lead {\n      margin-bottom: var(--spacing-4);\n",
+        "    .hero .hero-lead {\n      font-size: 1rem;\n      margin-bottom: var(--spacing-4);\n",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -178,12 +226,18 @@ checks = [
      bez_znacznika_odstepstwa),
     ("Plik z node --test nieskopiowany do etapu assets", OBRAZ_ASSETOW, OBRAZ_ASSETOW_TEST,
      bez_kopii_testu_assetow),
+    ("Zdjęcie CHECK-a 2FA przed strażnikiem cofnięcia", MIGRACJA_2FA, MIGRACJA_2FA_TEST,
+     zdjecie_checku_przed_straznikiem_2fa),
+    ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
+     mniejsze_pismo_na_pierwszym_ekranie),
 ]
 
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
 run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
+run_test(MIGRACJA_2FA_TEST, True)
+run_test(PIERWSZY_EKRAN_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
