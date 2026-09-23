@@ -59,6 +59,17 @@ assert.equal((await get('/home', 'navigate')).body, 'sieć:/home');
 assert.equal(await caches.match('/home'), undefined, 'Prywatny HTML nie trafia do cache');
 online = false;
 assert.equal((await get('/home', 'navigate')).body, 'nowe:/offline.html');
+// #749: ekran offline przychodzi POD ADRESEM, który człowiek otwierał
+// (respondWith przy nawigacji), więc „Spróbuj ponownie" rozwiązane względem
+// tego adresu ma ponowić ten sam przepis i to samo wyszukiwanie.
+const offlineHtml = readFileSync(new URL('../public/offline.html', import.meta.url), 'utf8');
+const ponow = offlineHtml.match(/<a href="([^"]*)">Spróbuj ponownie<\/a>/);
+assert(ponow, 'Ekran offline musi mieć odnośnik „Spróbuj ponownie"');
+for (const path of ['/przepisy/rosol-fixture', '/szukaj?q=zupa']) {
+  assert.equal((await get(path, 'navigate')).body, 'nowe:/offline.html');
+  const cel = new URL(ponow[1], `https://kuking.test${path}`);
+  assert.equal(cel.pathname + cel.search, path, `„Spróbuj ponownie" porzuca ${path}`);
+}
 assert.equal(await get('/dodaj/zdjecie', 'navigate', 'POST'), undefined);
 assert.equal(await get('/zdjecia/prywatne/feed'), undefined);
 console.log('Service worker: odświeżanie marki, offline i prywatność — OK');

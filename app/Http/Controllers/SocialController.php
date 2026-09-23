@@ -166,13 +166,13 @@ class SocialController extends Controller
     }
 
     /** Lista osób, które obserwują dany profil: /@{username}/obserwujacy */
-    public function followers(Request $request, string $username): Response
+    public function followers(Request $request, string $username): Response|RedirectResponse
     {
         return $this->connections($request, $username, 'followers', 'Obserwujący');
     }
 
     /** Lista osób, które dany profil obserwuje: /@{username}/obserwowani */
-    public function following(Request $request, string $username): Response
+    public function following(Request $request, string $username): Response|RedirectResponse
     {
         return $this->connections($request, $username, 'following', 'Obserwowani');
     }
@@ -187,7 +187,7 @@ class SocialController extends Controller
      * znaleźć ktoś, kogo zablokował akurat OSOBA OGLĄDAJĄCA listę, a nie
      * właściciel profilu.
      */
-    private function connections(Request $request, string $username, string $relation, string $title): Response
+    private function connections(Request $request, string $username, string $relation, string $title): Response|RedirectResponse
     {
         $target = $this->findUser($username);
         $this->authorize('viewProfile', $target);
@@ -293,6 +293,29 @@ class SocialController extends Controller
             ->orderByDesc('users.id')
             ->paginate(20)
             ->withQueryString();
+
+        // STRONA POZA ZAKRESEM TO NIE PUSTA LISTA (#748).
+        //
+        // „Przestań obserwować" przy ostatniej karcie drugiej strony wraca
+        // przez `back()` na `?page=2`, która jest już pusta. Widok pytał
+        // `count()` bieżącej strony i mówił „Jeszcze nikogo nie obserwuje",
+        // choć na pierwszej zostawało dwadzieścia osób — a pusta strona nie
+        // ma żadnego przycisku, którym dałoby się do nich wrócić. Przenosimy
+        // więc na ostatnią istniejącą stronę; komunikat po akcji jedzie dalej.
+        if ($paginator->currentPage() > 1 && $paginator->currentPage() > $paginator->lastPage()) {
+            $request->session()->reflash();
+
+            $parametry = $request->query();
+            unset($parametry['page']);
+            if ($paginator->lastPage() > 1) {
+                $parametry['page'] = $paginator->lastPage();
+            }
+
+            return redirect()->route(
+                $relation === 'followers' ? 'social.followers' : 'social.following',
+                ['username' => $username, ...$parametry],
+            );
+        }
 
         $profile = $target->profile;
 

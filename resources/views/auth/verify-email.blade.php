@@ -31,8 +31,8 @@
     @if ($nieudanaWysylka !== null)
         <p class="notice">
             <strong>Ostatnia wiadomość nie dotarła.</strong>
-            Wysłaliśmy ją {{ $nieudanaWysylka->failed_at->format('j.m.Y') }}
-            o {{ $nieudanaWysylka->failed_at->format('H:i') }}, ale nasz dostawca poczty jej nie przyjął —
+            Wysłaliśmy ją {{ \App\Support\Czas::lokalnie($nieudanaWysylka->failed_at)->format('j.m.Y') }}
+            o {{ \App\Support\Czas::lokalnie($nieudanaWysylka->failed_at)->format('H:i') }}, ale nasz dostawca poczty jej nie przyjął —
             więc nie ma jej ani w Twojej skrzynce, ani w folderze „Spam”.
             Kliknij niżej „Wyślij wiadomość jeszcze raz”. Jeśli znów nie przyjdzie,
             napisz na <a href="mailto:{{ config('kuking.community.contact_email') }}">{{ config('kuking.community.contact_email') }}</a>

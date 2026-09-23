@@ -35,7 +35,13 @@ class SamodzielneEkranyMarkiTest extends TestCase
     {
         $dom = $this->document(file_get_contents(public_path('offline.html')));
         $this->assertSame('Nie ma teraz połączenia z internetem', trim($dom->query('//main/h1')->item(0)->textContent));
-        $this->assertSame('/home', $dom->query('//main//a')->item(0)->getAttribute('href'));
+        // #749: „Spróbuj ponownie" ponawia BIEŻĄCY adres (pusty href), a strona
+        // główna ma osobny, uczciwie nazwany odnośnik.
+        $ponow = $dom->query('//main//a[normalize-space()="Spróbuj ponownie"]');
+        $this->assertSame(1, $ponow->length);
+        $this->assertTrue($ponow->item(0)->hasAttribute('href'));
+        $this->assertSame('', $ponow->item(0)->getAttribute('href'));
+        $this->assertSame('/home', $dom->query('//main//a[normalize-space()="Przejdź na stronę główną"]')->item(0)?->getAttribute('href'));
         $this->assertSame(0, $dom->query('//script | //link')->length);
         $css = $dom->query('//style')->item(0)->textContent;
         $this->assertBrand($css);

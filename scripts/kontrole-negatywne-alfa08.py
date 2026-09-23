@@ -106,6 +106,12 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
 
+# Gołe `->format(` z datą dla człowieka omija `App\Support\Czas` (issue #746).
+# Strażnik czyta widoki linia po linii; mutacja przywraca w ekranie
+# potwierdzenia adresu surową godzinę UTC i strażnik ma ją zobaczyć.
+WIDOK_POTWIERDZENIA = "resources/views/auth/verify-email.blade.php"
+STREFA_STRAZNIK_TEST = "test_zaden_widok_nie_formatuje_daty_z_pominieciem_pomocnika"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -258,6 +264,8 @@ checks = [
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Godzina w widoku z pominięciem Czas", WIDOK_POTWIERDZENIA, STREFA_STRAZNIK_TEST,
+     lambda s: replace_once(s, "{{ \\App\\Support\\Czas::lokalnie($nieudanaWysylka->failed_at)->format('H:i') }}", "{{ $nieudanaWysylka->failed_at->format('H:i') }}")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -268,6 +276,7 @@ run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(STREFA_STRAZNIK_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
