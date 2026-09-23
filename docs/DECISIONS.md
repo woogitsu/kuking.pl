@@ -15919,6 +15919,72 @@ z komunikatem, co zrobić.
 
 ---
 
+## D-245 — Włączenie 2FA prosi o obecne hasło, jak jej wyłączenie (#1376, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`POST /ustawienia/2fa/wlacz` (`TwoFactorSettingsController::confirm()`)
+sprawdzał wyłącznie sześciocyfrowy kod z sekretu wygenerowanego chwilę
+wcześniej na tym samym ekranie. Kod dowodzi, że **nowy** telefon jest dobrze
+ustawiony — nie tego, że sesję obsługuje właściciel konta. Kto przejął ważną
+sesję (30 dni), podpinał własny telefon, zabierał kody zapasowe, a właściciel
+przy następnym logowaniu stawał przed kodem, którego nie ma. Wyłączenie 2FA
+i nowe kody zapasowe o hasło już prosiły; włączenie — nie.
+
+### Reguła
+
+Włączenie 2FA wymaga **obecnego hasła do Kuking** obok kodu z aplikacji.
+Zmiana telefonu idzie przez wyłączenie (hasło) i ponowne włączenie (hasło),
+więc obejmuje ją ta sama reguła. Hasło jest sprawdzane **przed** kodem: przy
+złym haśle kod nie jest ani weryfikowany, ani zużywany, a 2FA zostaje
+wyłączona. Trasa dostaje oba limity: `two_factor` (kod) i `confirm_password`
+(`Hash::check()` to ta sama wyrocznia co przy wyłączeniu, więc nie ma prawa
+mieć luźniejszego limitu).
+
+**Dlaczego pole hasła, a nie middleware `password.confirm` z Laravela.**
+Repozytorium nigdzie go nie używa. Każda wrażliwa akcja w ustawieniach
+(zmiana hasła i adresu, wyłączenie 2FA, nowe kody, usunięcie konta) prosi
+o hasło w tym samym formularzu i sprawdza je `Hash::check()` pod limitem
+`confirm_password`. Włączenie idzie tą samą drogą: jedno pole więcej na
+ekranie, który człowiek i tak wypełnia, zamiast osobnego ekranu z własnym
+oknem ważności.
+
+### Konta bez własnego hasła (Google, #876)
+
+Nie wymyślamy dla nich drugiej drogi: tak samo jak przy wyłączaniu, ekran
+mówi, jak ustawić hasło do Kuking przez „Nie pamiętam hasła"
+(`two_factor/_password-help`), i ostrzega, żeby nie wpisywać hasła do Google.
+Świadomy koszt: dopóki serwis nie wysyła poczty (`Poczta::dziala()`), konto
+założone wyłącznie przez Google nie włączy 2FA samo — ekran mówi to wprost
+i kieruje do „Napisz do nas". Świeże ponowne logowanie przez Google jako
+dowód tożsamości to osobna decyzja, tu niepodjęta.
+
+### Włączenie 2FA gasi poświadczenia sprzed niego (#930)
+
+Po udanym potwierdzeniu (dobre hasło **i** dobry kod) `confirm()` woła
+istniejące `User::invalidateSessions()` z wyjątkiem bieżącej sesji — tą samą
+drogą co zmiana hasła i „Wyloguj inne urządzenia" (#584). Znika więc każda
+inna sesja `database`, rotuje `remember_token` (stare ciasteczka „zapamiętaj
+mnie" przestają odtwarzać logowanie) i giną oczekujące linki do logowania.
+Wszystkie te poświadczenia powstały bez drugiego składnika; zostawione,
+otwierałyby konto bez kodu, a konto moderatora od tej chwili także `/admin`,
+bo `moderator.2fa` sprawdza stan konta, nie przebieg logowania. Bieżąca sesja
+zostaje, kody zapasowe są pokazane jak dotąd. Złe hasło albo zły kod kończą
+się przed tą linią, więc niczego nie odwołują. Nowe ciasteczko pamiętania dla
+bieżącej przeglądarki nie jest wystawiane — jak w #584.
+
+📄 `app/Http/Controllers/Settings/TwoFactorSettingsController.php`,
+`routes/web.php`, `resources/views/pages/settings/two_factor/enable.blade.php`,
+`resources/views/pages/settings/two_factor/_password-help.blade.php`,
+`tests/Feature/WlaczenieDwuetapowejWymagaHaslaTest.php`,
+`tests/Feature/ZapamietaneLogowanieUniewaznienieTest.php`,
+`docs/security/ZAPAMIETANE_LOGOWANIE_584.md`
+
+---
+
 ## D-249 — Wpis w dzienniku audytu: atomowy z decyzją albo pomocniczy za nią — i nic pomiędzy (#1343, #1373, #1363, 23 września 2026)
 
 **Data:** 23 września 2026 · Decyzja zespołu (przegląd kodu gałęzi
@@ -15989,6 +16055,57 @@ z nazwą braku (rejestracja hasłem, Google i Facebook).
 ### Wycofanie
 
 Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
+
+---
+
+## D-232 — Dopisek przy składniku bez ilości: dwa ekrany, dwa świadomie różne zachowania (#878, #764/#1197, #1222)
+
+22 września 2026, jawne rozstrzygnięcie właściciela w PR #1222. Strona
+przepisu i tryb gotowania traktują `no_amount` INACZEJ i tak ma zostać.
+To nie jest rozjazd do naprawienia ani przeoczenie po scaleniu — jest to
+decyzja, i jest zapisana tutaj właśnie po to, żeby następna osoba nie wzięła
+jej za usterkę i nie „ujednoliciła" dwóch ekranów jednym commitem.
+
+**Strona przepisu (`resources/views/pages/recipes/show.blade.php`) nie dopisuje
+niczego.** Ten ekran jest tekstem autora — co do znaku. „Sól do smaku",
+„mleko ile weźmie", „olej do smażenia" to zdania, które człowiek napisał
+świadomie, i serwis nie dokłada do nich swoich słów. Każdy dopisek o dozowaniu
+byłby zgadywaniem za autora: „mleko ile weźmie" mówi o konsystencji ciasta,
+„olej do smażenia" o zastosowaniu — żadne z nich nie jest doprawianiem, a to
+właśnie mierzyło #878. Pilnuje tego
+`tests/Feature/SkladnikBezIlosciTest::test_przepis_zachowuje_tekst_autora_bez_dopisywania_sposobu_dozowania`,
+porównując wiersze listy znak w znak.
+
+**Tryb gotowania (`resources/views/pages/recipes/cooking.blade.php`) dopisuje
+„— do smaku".** Ten ekran nie jest tekstem autora, tylko widokiem roboczym:
+człowiek stoi przy garnku, zerka znad patelni i ma jedną rękę wolną. Gołe
+„sól" w rozwiniętej liście wygląda w tej sytuacji jak brak informacji — jak
+coś, co się zgubiło po drodze — i wysyła gotującego z powrotem na stronę
+przepisu, żeby sprawdził, czy czegoś nie brakuje. Dopisek jest tam po to, żeby
+jednoznacznie powiedzieć „nic nie zginęło, sypnij ile lubisz", i nie musi być
+dosłownym cytatem z autora, bo ten ekran niczego nie cytuje. Pilnuje tego
+`tests/Feature/CookingModeTest::test_skladniki_pokazuja_grupy_i_do_smaku`.
+Warunek z #44 zostaje: dopisku nie ma, gdy autor sam napisał „do smaku"
+w tekście składnika, żeby nie wyszło „sól do smaku — do smaku".
+
+**Trzecia treść odpada.** PR #1222 proponował jedno neutralne „— bez podanej
+ilości" na obu ekranach, w nowym wspólnym komponencie
+`resources/views/components/wiersz-skladnika.blade.php`. Komponent nie miał
+wołającego — żaden widok go nie renderował — a jego test
+`WierszSkladnikaJedenKontraktTest` pilnował treści sprzecznej z OBOMA
+istniejącymi testami naraz: wymagał dopisku tam, gdzie #878 wymaga jego braku,
+i innego dopisku tam, gdzie #764/#1197 wymaga „do smaku". Oba pliki zostały
+z gałęzi usunięte. Samo słowo „bez podanej ilości" jest zresztą nadal
+zgadywaniem — mówi czytelnikowi, że czegoś na ekranie nie ma, zamiast pomóc
+mu gotować.
+
+**Konsekwencja dla przyszłych zmian.** `SkladnikBezIlosciTest`
+i `CookingModeTest` pilnują DWÓCH RÓŻNYCH zachowań i żadnego z nich nie wolno
+osłabić ani skasować „dla spójności". Czerwień jednego z nich po wprowadzeniu
+wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
+komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
+tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
+ponownej decyzji właściciela.
 
 ---
 

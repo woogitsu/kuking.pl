@@ -966,8 +966,12 @@ Route::middleware('auth')->group(function () use ($limits): void {
     // niżej), dla zwykłego konta zostaje opcjonalna.
     Route::get('/ustawienia/2fa', [TwoFactorSettingsController::class, 'edit'])->name('settings.two_factor.edit');
     Route::get('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'create'])->name('settings.two_factor.enable');
+    // Włączenie prosi o kod z NOWEGO telefonu ORAZ o obecne hasło (#1376,
+    // D-245). Dwa limity naraz: kod TOTP ma swój koszyk, a `Hash::check()`
+    // na haśle z formularza jest tą samą wyrocznią co wyłączenie 2FA, więc
+    // nie ma prawa mieć luźniejszego limitu niż ono.
     Route::post('/ustawienia/2fa/wlacz', [TwoFactorSettingsController::class, 'confirm'])
-        ->middleware("throttle:{$limits['two_factor']},two_factor")
+        ->middleware(["throttle:{$limits['two_factor']},two_factor", "throttle:{$limits['confirm_password']},confirm_password"])
         ->name('settings.two_factor.confirm');
     Route::get('/ustawienia/2fa/kody-zapasowe', [TwoFactorSettingsController::class, 'codes'])->name('settings.two_factor.codes');
     // Nowy komplet kodów zapasowych bez zdejmowania 2FA. Ten sam limit co

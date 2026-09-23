@@ -2226,6 +2226,10 @@ co `AuditLogEntry::NIGDY_NIE_KASUJ`).
 Egzekwuje `kuking:sprzataj-powiadomienia`
 (`App\Domain\Compliance\PrzedawnionePowiadomienia`), harmonogram codziennie
 o 04:20. Zwykły masowy `DELETE` — wiersz nie ma odpowiednika w storage.
+Powiadomienie moderacyjne, którego `delete()` się nie uda, zostaje w bazie
+(następny przebieg próbuje ponownie), ale przebieg kończy się porażką: raport
+liczy je w `nieudaneModeracyjne`, komenda zwraca kod ≠ 0, a zadanie
+w harmonogramie rzuca wyjątek (#1342, `RetencjaPowiadomienCzesciowaPorazkaTest`).
 
 ### reports
 Zgłoszenia — **dwie różne drogi w jednej tabeli**, rozróżniane kolumną
@@ -3755,7 +3759,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | Kolumna | Uwagi |
 |---|---|
 | `id` | UUID, `gen_random_uuid()` — wiersz jest adresowany z zewnątrz (`/admin/wiadomosci/{id}`), więc nie `bigserial`. |
-| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. |
+| `user_id` | Nullable, `nullOnDelete()`. `NULL` znaczy „gość bez konta" **albo** „konto usunięte" — wiadomość zostaje, bo może być w trakcie załatwiania. Konto jest anonimizowane, nie kasowane (D-022), więc `nullOnDelete()` się nie uruchamia — `user_id` zeruje jawnie `EraseAccountData` w tej samej transakcji co wymazanie (#995, pilnuje `WymazanieKontaOdlaczaWiadomosciDoNasTest`). |
 | `klucz_wyslania` | Tożsamość jednego wysłania formularza (D-027). Częściowy `UNIQUE` `contact_messages_one_per_klucz_wyslania` `WHERE klucz_wyslania IS NOT NULL` — wyłącznik `kuking.formularze.klucz_wyslania_wlaczony` zdejmuje mechanizm, wpisując `NULL`. |
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
