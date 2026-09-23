@@ -227,7 +227,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         // wywołanie go tutaj zużyłoby jedną z prób limitu, który ma testować
         // WYŁĄCZNIE ten test. Test logowania z 2FA (wyżej) i tak sprawdza
         // pełną ścieżkę przez /login.
-        $this->withSession(['logowanie.2fa.user_id' => $basia->getKey()]);
+        $this->withSession(TwoFactorAuthenticator::oczekujaceLogowanie($basia->fresh()));
 
         for ($i = 0; $i < (int) $maxProb; $i++) {
             $this->post(route('login.two_factor.store'), ['code' => '000000'])
@@ -259,7 +259,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
 
         [$maxProb] = explode(',', config('kuking.limits.two_factor'));
 
-        $this->withSession(['logowanie.2fa.user_id' => $basia->getKey()]);
+        $this->withSession(TwoFactorAuthenticator::oczekujaceLogowanie($basia->fresh()));
 
         for ($i = 0; $i < (int) $maxProb; $i++) {
             $this->withServerVariables(['REMOTE_ADDR' => "10.0.{$i}.1"])
