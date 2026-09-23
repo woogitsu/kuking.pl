@@ -13,6 +13,7 @@ use App\Models\Media;
 use App\Models\User;
 use App\Support\RozpoznanieZdjecia;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Illuminate\Support\Str;
 
@@ -186,73 +187,137 @@ final class StoreUploadedImage
         // buckecie leży plik ze współrzędnymi. Krótkie okno to nadal okno.
         $oryginal = UsunGps::zBajtow($file->get());
 
-        Storage::disk($disk)->put($objectKey, $oryginal);
-
         $dyskWariantow = (string) config('kuking.media.public_disk');
 
-        // Orientację czytamy TERAZ, dopóki mamy plik na dysku — zadanie w tle
-        // dostaje ze storage same bajty, a dekoder chodzi z wyłączonym
-        // automatycznym obrotem (patrz `ProcessUploadedImage`). Wartość
-        // wędruje w dwa miejsca: do podglądu niżej i do `metadata`, skąd
-        // weźmie ją potem zadanie w tle. Oba muszą obrócić zdjęcie tak samo,
-        // inaczej obiad obracałby się przy odświeżeniu strony.
-        $orientacja = $this->readOrientation($file->getRealPath());
-
-        // PODGLĄD OD RAZU (issue #430) — jeszcze przed utworzeniem wiersza,
-        // żeby PIERWSZY render strony wpisu miał już co pokazać. Wgranie
-        // i publikacja to jedno żądanie, więc „dorobimy to zaraz po zapisie"
-        // znaczyłoby „za późno".
+        // KOMPENSACJA, GDY WIERSZ NIE POWSTANIE (issue #962).
         //
-        // Ta linia nie może wywrócić publikacji: `PodgladOdRazu` łapie
-        // wszystko i przy niepowodzeniu oddaje pustą tablicę. Wtedy
-        // `metadata.variants` jest puste, widok pokazuje komunikat zastępczy
-        // i zdjęcie dorabia zadanie w tle — czyli dokładnie to, co działo się
-        // przed #430.
-        $warianty = $this->podglad->zrob(
-            bajty: $oryginal,
-            objectKey: $objectKey,
-            dyskWariantow: $dyskWariantow,
-            orientacja: $orientacja,
-            szerokosc: $width,
-            wysokosc: $height,
-        );
+        // Pliki idą do storage PRZED `Media::create()`, a transakcja SQL nie
+        // cofnie zapisu do bucketu. Błąd bazy w tym oknie (zerwane połączenie,
+        // naruszone ograniczenie, wyjątek obserwatora) zostawiał oryginał —
+        // a przy małym zdjęciu i publiczny podgląd — BEZ wiersza `media`.
+        // Wszystko, co w tym serwisie sprząta i kasuje zdjęcia (`KasujZdjecie`,
+        // sprzątanie osieroconych, wymazanie konta), zaczyna od tej tabeli,
+        // więc takiego obiektu nie znalazłoby już nic. Kasujemy go więc tu,
+        // od razu, a pierwotny wyjątek leci dalej do wywołującego.
+        try {
+            Storage::disk($disk)->put($objectKey, $oryginal);
 
-        $media = Media::create([
-            'owner_id' => $owner->getKey(),
-            'disk' => $disk,
-            // Gdzie trafią WARIANTY. Zapisujemy to teraz, a nie czytamy
-            // z konfiguracji przy każdym odczycie: konfiguracja może się
-            // zmienić, a pliki zostaną tam, gdzie je położono (audyt G-01).
-            'variants_disk' => $dyskWariantow,
-            'object_key' => $objectKey,
-            'mime_type' => $detectedMime,
-            'bytes' => $bytes,
-            'width' => $width,
-            'height' => $height,
-            'status' => Media::STATUS_PENDING,
-            'alt_text' => $altText,
-            // Suma z tego, CO NAPRAWDĘ LEŻY W BUCKECIE, nie z pliku przed
-            // zdjęciem GPS-u — inaczej opisywałaby plik, którego nigdzie nie
-            // ma. Nic jej dziś nie czyta, ale suma kontrolna, która nie
-            // zgadza się z obiektem, jest gorsza niż jej brak.
-            'checksum_sha256' => hash('sha256', $oryginal),
-            'metadata' => [
-                'original_name_length' => mb_strlen($file->getClientOriginalName()),
-                // Bez tej wartości zdjęcia z telefonu publikowałyby się
-                // obrócone. Osoba 50+ tego nie zgłosi, po prostu przestanie
-                // wrzucać zdjęcia. Czytane wyżej, przy pliku na dysku.
-                'exif_orientation' => $orientacja,
-                // Pusta tablica, gdy podglądu nie zrobiliśmy — i wtedy
-                // `wariantDoSerwowania()` oddaje `null`, a widok pokazuje
-                // komunikat zastępczy. `ProcessUploadedImage` DOPISUJE do
-                // tego `thumb`/`feed`/`large`, zamiast nadpisywać całość.
-                'variants' => $warianty,
-            ],
-        ]);
+            // Orientację czytamy TERAZ, dopóki mamy plik na dysku — zadanie w tle
+            // dostaje ze storage same bajty, a dekoder chodzi z wyłączonym
+            // automatycznym obrotem (patrz `ProcessUploadedImage`). Wartość
+            // wędruje w dwa miejsca: do podglądu niżej i do `metadata`, skąd
+            // weźmie ją potem zadanie w tle. Oba muszą obrócić zdjęcie tak samo,
+            // inaczej obiad obracałby się przy odświeżeniu strony.
+            $orientacja = $this->readOrientation($file->getRealPath());
+
+            // PODGLĄD OD RAZU (issue #430) — jeszcze przed utworzeniem wiersza,
+            // żeby PIERWSZY render strony wpisu miał już co pokazać. Wgranie
+            // i publikacja to jedno żądanie, więc „dorobimy to zaraz po zapisie"
+            // znaczyłoby „za późno".
+            //
+            // Ta linia nie może wywrócić publikacji: `PodgladOdRazu` łapie
+            // wszystko i przy niepowodzeniu oddaje pustą tablicę. Wtedy
+            // `metadata.variants` jest puste, widok pokazuje komunikat zastępczy
+            // i zdjęcie dorabia zadanie w tle — czyli dokładnie to, co działo się
+            // przed #430.
+            $warianty = $this->podglad->zrob(
+                bajty: $oryginal,
+                objectKey: $objectKey,
+                dyskWariantow: $dyskWariantow,
+                orientacja: $orientacja,
+                szerokosc: $width,
+                wysokosc: $height,
+            );
+
+            $media = Media::create([
+                'owner_id' => $owner->getKey(),
+                'disk' => $disk,
+                // Gdzie trafią WARIANTY. Zapisujemy to teraz, a nie czytamy
+                // z konfiguracji przy każdym odczycie: konfiguracja może się
+                // zmienić, a pliki zostaną tam, gdzie je położono (audyt G-01).
+                'variants_disk' => $dyskWariantow,
+                'object_key' => $objectKey,
+                'mime_type' => $detectedMime,
+                'bytes' => $bytes,
+                'width' => $width,
+                'height' => $height,
+                'status' => Media::STATUS_PENDING,
+                'alt_text' => $altText,
+                // Suma z tego, CO NAPRAWDĘ LEŻY W BUCKECIE, nie z pliku przed
+                // zdjęciem GPS-u — inaczej opisywałaby plik, którego nigdzie nie
+                // ma. Nic jej dziś nie czyta, ale suma kontrolna, która nie
+                // zgadza się z obiektem, jest gorsza niż jej brak.
+                'checksum_sha256' => hash('sha256', $oryginal),
+                'metadata' => [
+                    'original_name_length' => mb_strlen($file->getClientOriginalName()),
+                    // Bez tej wartości zdjęcia z telefonu publikowałyby się
+                    // obrócone. Osoba 50+ tego nie zgłosi, po prostu przestanie
+                    // wrzucać zdjęcia. Czytane wyżej, przy pliku na dysku.
+                    'exif_orientation' => $orientacja,
+                    // Pusta tablica, gdy podglądu nie zrobiliśmy — i wtedy
+                    // `wariantDoSerwowania()` oddaje `null`, a widok pokazuje
+                    // komunikat zastępczy. `ProcessUploadedImage` DOPISUJE do
+                    // tego `thumb`/`feed`/`large`, zamiast nadpisywać całość.
+                    'variants' => $warianty,
+                ],
+            ]);
+        } catch (\Throwable $e) {
+            $this->posprzatajPoNieudanymZapisie($disk, $objectKey, $dyskWariantow);
+
+            throw $e;
+        }
 
         ProcessUploadedImage::dispatch($media->getKey());
 
         return $media;
+    }
+
+    /**
+     * Kasuje oryginał i podgląd zdjęcia, dla którego nie powstał wiersz
+     * `media` (issue #962).
+     *
+     * Klucz podglądu LICZYMY, a nie bierzemy z wyniku `PodgladOdRazu`: gdy
+     * błąd przyszedł w trakcie jego zapisu, wyniku nie ma, a plik może już
+     * leżeć w buckecie. Klucz, pod którym pliku nie ma, to no-op (`exists()`).
+     *
+     * Sam `delete()` nie jest dowodem — dysk z `throw => false` oddaje cichy
+     * `false` — więc sprawdzamy `exists()`, jak `KasujZdjecie::skasujZDysku()`.
+     * Porażka NIE udaje sprzątnięcia: zostaje w dzienniku jako błąd z dyskiem
+     * i kluczem (bez treści pliku), bo to jedyny ślad, po którym da się to
+     * dokończyć — wiersza, do którego można by klucz dopisać, nie ma.
+     * Kompensacja nigdy nie rzuca: wywołujący ma dostać PIERWOTNY wyjątek.
+     */
+    private function posprzatajPoNieudanymZapisie(string $disk, string $objectKey, string $dyskWariantow): void
+    {
+        $doSkasowania = [
+            [$disk, $objectKey],
+            [$dyskWariantow, Media::kluczPublicznegoWariantu($objectKey, PodgladOdRazu::NAZWA)],
+        ];
+
+        foreach ($doSkasowania as [$nazwaDysku, $klucz]) {
+            try {
+                $dysk = Storage::disk($nazwaDysku);
+
+                if ($dysk->exists($klucz)) {
+                    $dysk->delete($klucz);
+                }
+
+                if (! $dysk->exists($klucz)) {
+                    continue;
+                }
+
+                Log::error('Plik zdjęcia bez wiersza media nadal istnieje po próbie usunięcia', [
+                    'dysk' => $nazwaDysku,
+                    'klucz' => $klucz,
+                ]);
+            } catch (\Throwable $blad) {
+                Log::error('Nie udało się usunąć pliku zdjęcia bez wiersza media', [
+                    'dysk' => $nazwaDysku,
+                    'klucz' => $klucz,
+                    'error' => $blad->getMessage(),
+                ]);
+            }
+        }
     }
 
     /**

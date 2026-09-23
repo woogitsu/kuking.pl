@@ -106,6 +106,73 @@ final class ZbierzTresciDigestu
         return $tresci;
     }
 
+    /**
+     * Treść listu złożona OD NOWA w chwili faktycznej wysyłki (#1328, #1383).
+     *
+     * Zadanie w kolejce czeka od kilku sekund do kilkudziesięciu minut
+     * (`odstep_sekund` × numer w paczce), a po awarii workera — dłużej. W tym
+     * czasie odbiorca może się wypisać albo zmienić adres, autor wpisu może
+     * go usunąć, poprawić albo przestawić na prywatny, ktoś może kogoś
+     * zablokować albo przestać obserwować. Migawka z chwili kolejkowania
+     * wysłałaby wtedy treść, której adresat na stronie już by nie zobaczył.
+     *
+     * Dlatego z zapisu w kolejce bierzemy WYŁĄCZNIE IDENTYFIKATORY — kto jest
+     * adresatem i które pozycje wybrano — a wszystko, co trafi do listu,
+     * czytamy tu świeżo, tymi samymi zapytaniami i tymi samymi bramkami co
+     * przy składaniu paczki. Pozycja, która bramki już nie przechodzi,
+     * wypada. Nowe pozycje NIE dochodzą: list mówi o tym, co wybrano przy
+     * kolejkowaniu, minus to, czego już nie wolno pokazać.
+     *
+     * Okno czasu (`okno_dni`) tu nie działa, świadomie: było kryterium
+     * WYBORU, nie bramką prywatności, a wybór jest już zrobiony — zadanie
+     * opóźnione o godzinę nie ma gubić wpisu, który wypadł z okna po drodze.
+     *
+     * `null` = nie wysyłaj: adresat nie ma już zgody, konto nie jest czynne,
+     * adres przestał być potwierdzony (`OdbiorcyDigestu::kwalifikujacySie()`).
+     * Pusty wynik (`jestPusty()`) też nie wychodzi — rozstrzyga wołający.
+     * Błąd bazy leci wyjątkiem w górę: bez sprawdzenia list nie wychodzi.
+     */
+    public function odswiez(TrescDigestu $zapis): ?TrescDigestu
+    {
+        $odbiorca = app(OdbiorcyDigestu::class)
+            ->kwalifikujacySie()
+            ->whereKey($zapis->odbiorca->getKey())
+            ->with('profile')
+            ->first();
+
+        if (! $odbiorca instanceof User) {
+            return null;
+        }
+
+        $id = (string) $odbiorca->getKey();
+        $klucze = static fn (array $modele): array => array_values(array_filter(
+            array_map(static fn ($m): string => (string) $m->getKey(), $modele),
+            static fn (string $k): bool => $k !== '',
+        ));
+
+        $idWykonan = $klucze($zapis->wykonania);
+        $idObserwujacych = $klucze($zapis->nowiObserwujacy);
+        $idWpisow = $klucze($zapis->wpisyObserwowanych);
+
+        $wykonania = $idWykonan === [] ? [] : ($this->wykonania([$id], null, $idWykonan)[$id] ?? []);
+        $obserwujacy = $idObserwujacych === [] ? [] : ($this->nowiObserwujacy([$id], null, $idObserwujacych)[0][$id] ?? []);
+        $wpisy = $idWpisow === [] ? [] : ($this->wpisyObserwowanych([$id], null, $idWpisow)[$id] ?? []);
+
+        // LICZBA OBSERWUJĄCYCH bywa większa niż lista z imionami („i jeszcze
+        // cztery osoby"), a tych spoza listy nie znamy z imienia — odejmujemy
+        // więc tylko tych, o których WIEMY, że wypadli.
+        $ile = max(count($obserwujacy), $zapis->ileNowychObserwujacych - (count($idObserwujacych) - count($obserwujacy)));
+
+        return new TrescDigestu(
+            odbiorca: $odbiorca,
+            wykonania: $wykonania,
+            nowiObserwujacy: $obserwujacy,
+            ileNowychObserwujacych: $ile,
+            wpisyObserwowanych: $wpisy,
+            pytanieGospodarza: $zapis->pytanieGospodarza,
+        );
+    }
+
     /** Wygodne wejście dla jednej osoby — podgląd i testy. */
     public function dlaJednej(User $odbiorca, ?Carbon $od = null): TrescDigestu
     {
@@ -129,7 +196,7 @@ final class ZbierzTresciDigestu
      * @param  list<string>  $identyfikatory
      * @return array<string, list<CookedEvent>>
      */
-    private function wykonania(array $identyfikatory, Carbon $od): array
+    private function wykonania(array $identyfikatory, ?Carbon $od, ?array $tylko = null): array
     {
         $wiersze = CookedEvent::query()
             ->select('cooked_events.*')
@@ -137,7 +204,8 @@ final class ZbierzTresciDigestu
             ->join('recipes', 'recipes.id', '=', 'cooked_events.recipe_id')
             ->whereNull('recipes.deleted_at')
             ->whereIn('recipes.author_id', $identyfikatory)
-            ->where('cooked_events.cooked_at', '>=', $od)
+            ->when($od !== null, fn ($q) => $q->where('cooked_events.cooked_at', '>=', $od))
+            ->when($tylko !== null, fn ($q) => $q->whereIn('cooked_events.id', $tylko))
             ->whereColumn('cooked_events.user_id', '!=', 'recipes.author_id')
             ->whereHas('user', fn ($kucharz) => $kucharz->dostepnyJakoAutor())
             // Blokada w OBIE strony, skorelowana z autorem przepisu — patrz
@@ -179,12 +247,13 @@ final class ZbierzTresciDigestu
      * @param  list<string>  $identyfikatory
      * @return array{0: array<string, list<User>>, 1: array<string, int>}
      */
-    private function nowiObserwujacy(array $identyfikatory, Carbon $od): array
+    private function nowiObserwujacy(array $identyfikatory, ?Carbon $od, ?array $tylko = null): array
     {
         $wiersze = DB::table('follows')
             ->join('users', 'users.id', '=', 'follows.follower_id')
             ->whereIn('follows.followed_id', $identyfikatory)
-            ->where('follows.created_at', '>=', $od)
+            ->when($od !== null, fn ($q) => $q->where('follows.created_at', '>=', $od))
+            ->when($tylko !== null, fn ($q) => $q->whereIn('follows.follower_id', $tylko))
             // Ta sama granica co lista obserwujących na profilu (D-022):
             // konto zamknięte nie jest pokazywane JAKO OSOBA.
             ->whereNotIn('users.status', User::STATUSY_ZAMKNIETEGO_KONTA)
@@ -267,7 +336,7 @@ final class ZbierzTresciDigestu
      * @param  list<string>  $identyfikatory
      * @return array<string, list<Post>>
      */
-    private function wpisyObserwowanych(array $identyfikatory, Carbon $od): array
+    private function wpisyObserwowanych(array $identyfikatory, ?Carbon $od, ?array $tylko = null): array
     {
         $relacje = DB::table('follows')
             ->whereIn('follower_id', $identyfikatory)
@@ -304,7 +373,8 @@ final class ZbierzTresciDigestu
                     });
             })
             ->tylkoOdAktywnychAutorow()
-            ->where('published_at', '>=', $od)
+            ->when($od !== null, fn ($q) => $q->where('published_at', '>=', $od))
+            ->when($tylko !== null, fn ($q) => $q->whereIn('posts.id', $tylko))
             ->with(['author.profile', 'recipe:id,title,slug'])
             ->orderByDesc('published_at')
             ->orderByDesc('id')

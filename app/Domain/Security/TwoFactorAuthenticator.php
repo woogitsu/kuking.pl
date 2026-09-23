@@ -53,6 +53,29 @@ class TwoFactorAuthenticator
     }
 
     /**
+     * Klucz limitu prób drugiego składnika — JEDEN na konto (issue #1314).
+     *
+     * Kod pada nie tylko na ekranie logowania (`TwoFactorChallengeController`),
+     * ale też przy cofaniu usunięcia konta (`AccountDeletionController`). Oba
+     * ekrany liczą próby w TYM SAMYM koszyku: osobne koszyki dawałyby
+     * zgadującemu podwójny budżet na sześć cyfr jednego konta.
+     */
+    public static function kluczLimituProb(User $user): string
+    {
+        return 'weryfikacja-2fa|'.$user->getKey();
+    }
+
+    /**
+     * @return array{0: int, 1: int} [maksimum prób, minuty do odblokowania]
+     */
+    public static function limitProb(): array
+    {
+        [$max, $minuty] = explode(',', (string) config('kuking.limits.two_factor'));
+
+        return [(int) $max, (int) $minuty];
+    }
+
+    /**
      * Nowy sekret TOTP — losowy, jeszcze niczyj.
      */
     public function generateSecret(): string
@@ -232,6 +255,28 @@ class TwoFactorAuthenticator
 
             return false;
         });
+    }
+
+    /**
+     * Czy kod zapasowy pasuje — BEZ zużycia.
+     *
+     * Dla miejsc, w których poprawny kod ma otworzyć tylko informację, a nie
+     * akcję: cofnięcie usunięcia konta, którego nie ma czego cofać
+     * (`AccountDeletionController::cancel`). Zużycie kodu przy odmowie
+     * zabierałoby człowiekowi kod ratunkowy za nic. Normalizacja ta sama co
+     * w `consumeBackupCode()`; blokady nie trzeba, bo nic tu nie zapisujemy.
+     */
+    public function backupCodeMatches(User $user, string $podanyKod): bool
+    {
+        $znormalizowany = Str::upper(trim($podanyKod));
+
+        foreach ($user->two_factor_backup_codes ?? [] as $hash) {
+            if (Hash::check($znormalizowany, $hash)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

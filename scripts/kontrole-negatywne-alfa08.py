@@ -100,6 +100,12 @@ PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 STRAZNIK_HOSTA = "app/Support/DozwolonyHostApi.php"
 STRAZNIK_HOSTA_TEST = "test_straznik_odrzuca_adres_spoza_listy"
 
+# Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
+# niezależną biblioteką — strażnik widzi odczyt pliku, więc kontrola dodatnia
+# wyłącza samo czyszczenie XMP i test ma wtedy oblać.
+USUN_GPS = "app/Domain/Media/UsunGps.php"
+XMP_TEST = "OryginalTraciGpsZXmpTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -262,6 +268,8 @@ checks = [
      bez_sprawdzenia_hosta),
     ("Strażnik sekretów bez sprawdzenia ścieżki", STRAZNIK_HOSTA, STRAZNIK_HOSTA_TEST,
      bez_sprawdzenia_sciezki),
+    ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
+     lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -271,6 +279,7 @@ run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(STRAZNIK_HOSTA_TEST, True)
+run_test(XMP_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
