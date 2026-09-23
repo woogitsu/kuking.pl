@@ -13,7 +13,12 @@ use Illuminate\Support\Facades\Gate;
 
 final class DeleteComment
 {
-    private const DELETED_PLACEHOLDER = 'Komentarz usunięty.';
+    /**
+     * Napis w miejscu komentarza z odpowiedziami. Publiczny, bo tę samą
+     * regułę stosuje moderacja (`ZdejmijTresc`, G31) — dwa napisy na jedno
+     * zdarzenie rozjechałyby się przy pierwszej zmianie tekstu.
+     */
+    public const DELETED_PLACEHOLDER = 'Komentarz usunięty.';
 
     public function __construct(private readonly NotifyUser $notify) {}
 

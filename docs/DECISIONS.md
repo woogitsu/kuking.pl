@@ -15989,3 +15989,83 @@ z nazwą braku (rejestracja hasłem, Google i Facebook).
 ### Wycofanie
 
 Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
+
+---
+
+## D-251 — „Zdejmij z urzędu”: decyzja bez zgłoszenia w tym samym rejestrze, z `report_id = NULL` (G31, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (dodać akcję z urzędu),
+projekt zapisu — decyzja zespołu · Status: **obowiązuje**
+
+### Co było
+
+Od #1446 (issue #932) moderator usuwa cudzą treść wyłącznie z panelu, a panel
+usuwał wyłącznie rozstrzygnięciem zgłoszenia. Własnego zgłoszenia moderator
+nie rozstrzyga (D-244). Spamu, którego nikt nie zgłosił, nie dało się więc
+zdjąć wcale — przy jednoosobowej moderacji nawet przez „zgłoszę sam i poproszę
+drugą osobę”.
+
+### Decyzja
+
+1. **Akcja „Zdejmij z urzędu”** dla wpisu, przepisu i komentarza: przycisk
+   przy treści → ekran `/admin/z-urzedu/{typ}/{id}` → decyzja `remove`.
+   Podstawa z zamkniętej listy `PodstawaDecyzji` i uzasadnienie dla autora
+   są obowiązkowe.
+2. **Zapis w tym samym rejestrze:** wiersz `moderation_actions` z
+   `report_id = NULL`. **Bez „zgłoszenia z urzędu”** i bez nowej kolumny
+   źródła. Powody:
+   - decyzja z urzędu nie jest „własną sprawą” z D-244 — nie ma zgłaszającego,
+     któremu moderator mógłby rozstrzygnąć na korzyść, ani nikogo, komu
+     DSA art. 16 każe odpisać. Sztuczne zgłoszenie wstawiłoby moderatora
+     w rolę zgłaszającego, czyli dokładnie w sytuację, której
+     `ReportPolicy::decide()` zabrania, i wymagałoby wyjątku od tej reguły;
+   - fikcyjny wiersz w `reports` zasiliłby kolejkę, liczniki, statystyki
+     zgłoszeń i terminy z art. 16 czymś, czego nikt nie zgłosił;
+   - schemat był na to gotowy: `report_id` jest `NULL`-owalne, a
+     `UzasadnienieDecyzji::skadSprawa()` od początku miało gałąź „Nikt tego
+     nie zgłosił — sprawę znaleźliśmy sami” (DSA art. 17 ust. 3 lit. b).
+     Pusty `report_id` przy decyzji odwoływalnej znaczy odtąd decyzję z urzędu;
+     przy `unhide` — przywrócenie, jak dotąd.
+3. **Kto:** czynny moderator albo administrator z potwierdzonym 2FA
+   (`removeExOfficio` → `UserPolicy::takeDownContentOf()`), i tylko wobec
+   konta o **niższej** roli. To świadomie ostrzej niż D-244 pkt 3 („ocena
+   treści nie zależy od roli autora”). Przy zgłoszeniu sprawę wnosi ktoś
+   drugi. Z urzędu jedna osoba jest naraz tą, która sprawę znalazła, i tą,
+   która ją rozstrzyga. Treść równej albo wyższej rangi idzie zwykłym „Zgłoś”.
+   Ta sama reguła wyklucza zdejmowanie własnej treści.
+4. **Odwołanie** — ta sama ścieżka co od decyzji ze zgłoszenia (`FileAppeal`,
+   `ResolveAppeal`); „cofam” przywraca treść.
+5. **Otwarte zgłoszenie wygrywa:** z urzędu nie zdejmuje się treści, przy
+   której czeka zgłoszenie. Decyzja zapada w kolejce, a zgłaszający dostaje
+   odpowiedź.
+6. **Komentarz z odpowiedziami → „Komentarz usunięty.”** przy każdej decyzji
+   `remove` (także ze zgłoszenia — `applyAction()` robił tu zwykły soft
+   delete i wątek się rozsypywał). Tekst zostaje przy decyzji w nowej
+   kolumnie `moderation_actions.tresc_sprzed_zdjecia`, bo napis go
+   nadpisuje, a „cofam” ma go przywrócić. Kolumnę czyści „usuń wszystko”
+   przy usuwaniu konta (RODO).
+
+### Czego ta decyzja nie robi
+
+- **„Ugotowałem” nie ma „Zdejmij z urzędu”.** `cooked_events` nie ma soft
+  delete: `remove` kasuje wiersz na stałe razem z komentarzami, a „cofam”
+  nie ma czego przywrócić. Ten sam powód, dla którego `media` nie ma
+  `remove`. Ta sama luka istnieje dziś przy decyzji `remove` **ze
+  zgłoszenia** na wykonaniu (komentarz w `ModerationAction::DOZWOLONE`
+  twierdził „soft delete” — poprawiony). Domknięcie wymaga soft delete
+  `cooked_events` — osobna praca.
+- Nie dodaje ukrywania ani ostrzeżeń z urzędu — tylko zdjęcie.
+
+📄 `app/Domain/Moderation/Actions/ZdejmijZUrzedu.php`,
+`app/Domain/Moderation/Actions/ZdejmijTresc.php`,
+`app/Http/Controllers/Admin/ZUrzeduController.php`,
+`app/Policies/UserPolicy.php` (`takeDownContentOf`),
+`database/migrations/2026_09_23_200000_add_tresc_sprzed_zdjecia_to_moderation_actions.php`,
+`tests/Feature/ZdejmijZUrzeduTest.php`
+
+### Wycofanie
+
+Odwrócić commit. Migracja cofa się sama, dopóki nie ma zapisanych tekstów
+zdjętych komentarzy. Gdy są — odmawia (D-088, opis w `docs/DATABASE.md`).
+Decyzje z urzędu już zapisane zostają w rejestrze jako zwykłe `remove`
+z pustym `report_id`.

@@ -7,6 +7,7 @@ namespace App\Domain\Moderation\Actions;
 use App\Domain\Moderation\ModeratedContent;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
+use App\Models\Comment;
 use App\Models\ModerationAction;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Model;
@@ -71,8 +72,21 @@ final class RestoreContent
         $bylaUkryta = ModeratedContent::jestUkryta($target);
         $bylaUsunieta = method_exists($target, 'trashed') && $target->trashed();
 
-        if (! $bylaUkryta && ! $bylaUsunieta) {
+        // Komentarz z odpowiedziami zdjęty przez moderację: wiersz żyje, ale
+        // w `body` stoi napis „Komentarz usunięty.” (G31, `ZdejmijTresc`).
+        $bylZastapiony = ! $bylaUsunieta && $target instanceof Comment && $target->body_removed_at !== null;
+
+        if (! $bylaUkryta && ! $bylaUsunieta && ! $bylZastapiony) {
             throw new BladDlaCzlowieka('Ta treść jest już widoczna — nie ma czego przywracać.');
+        }
+
+        $tekst = $bylZastapiony ? $this->trescSprzedZdjecia((string) $target->getKey()) : null;
+
+        if ($bylZastapiony && $tekst === null) {
+            // Napis postawił autor komentarza albo autor treści pod nim
+            // (`DeleteComment`) — tekst skasowali sami i moderacja go nie ma.
+            throw new BladDlaCzlowieka('Ten komentarz usunęła osoba, która go napisała, albo autor treści, '
+                .'pod którą stał. Moderacja nie ma jego tekstu, więc nie da się go przywrócić.');
         }
 
         $poprzedni = $this->statusSprzedUkrycia($typ, (string) $target->getKey());
@@ -111,6 +125,10 @@ final class RestoreContent
             $target->restore();
         }
 
+        if ($tekst !== null) {
+            $target->forceFill(['body' => $tekst, 'body_removed_at' => null]);
+        }
+
         $target->forceFill(['status' => $docelowy])->save();
 
         $osoba = ModeratedContent::osoba($target);
@@ -142,6 +160,23 @@ final class RestoreContent
         );
 
         return $decyzja;
+    }
+
+    /**
+     * Tekst komentarza zapisany przy OSTATNIEJ decyzji `remove`, która go
+     * zastąpiła napisem (`ZdejmijTresc`, G31).
+     */
+    private function trescSprzedZdjecia(string $id): ?string
+    {
+        $tekst = ModerationAction::query()
+            ->where('target_type', 'comment')
+            ->where('target_id', $id)
+            ->where('action', ModerationAction::ACTION_REMOVE)
+            ->whereNotNull('tresc_sprzed_zdjecia')
+            ->orderByDesc('created_at')
+            ->value('tresc_sprzed_zdjecia');
+
+        return is_string($tekst) ? $tekst : null;
     }
 
     /**

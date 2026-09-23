@@ -70,9 +70,8 @@ final class UzasadnienieDecyzji
             // Art. 17 ust. 3 lit. e. To zdanie jest prawdą, bo wiersza
             // w `moderation_actions` NIE DA SIĘ utworzyć bez moderatora:
             // `moderator_id` jest NOT NULL z kluczem obcym do `users`,
-            // a w całym `app/` tworzą go dwa miejsca — oba stoją za
-            // `authorize('moderate', User::class)` i oba przyjmują
-            // konkretnego człowieka. Pilnuje tego
+            // a każde miejsce w `app/`, które go tworzy, stoi za bramką
+            // moderatora i przyjmuje konkretnego człowieka. Pilnuje tego
             // `UzasadnienieDecyzjiTest::test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowieka`.
             'Decyzję podjął człowiek z naszego zespołu. Nie mamy w Kuking automatu, '
                 .'który sam ukrywa, usuwa albo blokuje.',
@@ -87,18 +86,19 @@ final class UzasadnienieDecyzji
      * PEWNA dla każdej decyzji, przy której to zdanie w ogóle powstaje:
      *
      *  - decyzje odwoływalne (`hide`, `remove`, `warn`, `suspend`, `ban`)
-     *    tworzy WYŁĄCZNIE `ModerationController::decide()`, a on zawsze
-     *    zapisuje `report_id` — rozpatruje przecież zgłoszenie;
+     *    tworzą dwa miejsca: `ModerationController::decide()`, który zawsze
+     *    zapisuje `report_id` — rozpatruje przecież zgłoszenie — oraz
+     *    `ZdejmijZUrzedu` (G31, D-251), który zapisuje `remove` z pustym
+     *    `report_id`, bo nikt niczego nie zgłosił;
      *  - `unhide` tworzy `RestoreContent` i tam `report_id` zostaje puste,
      *    bo indeks częściowy `moderation_actions_one_per_report` dopuszcza
      *    jedną decyzję na zgłoszenie. Ale `zdania()` dla `unhide` nie tworzy
      *    uzasadnienia wcale, więc gałąź „nikt tego nie zgłosił" nie ma jak
      *    trafić do człowieka jako nieprawda.
      *
-     * Gałąź dla pustego `report_id` zostaje mimo to, i to nie jest kod martwy
-     * na zapas: pierwsza decyzja podjęta z WŁASNEGO przeglądu serwisu, bez
-     * niczyjego zgłoszenia, jest dokładnie tym przypadkiem — a pomiar DSA
-     * wskazuje ją jako brakującą drogę, nie jako niemożliwą.
+     * Gałąź dla pustego `report_id` to decyzja z WŁASNEGO przeglądu serwisu,
+     * bez niczyjego zgłoszenia — od G31 droga istniejąca w produkcie
+     * („Zdejmij z urzędu”), a nie tylko przewidziana.
      */
     private static function skadSprawa(ModerationAction $decyzja): string
     {

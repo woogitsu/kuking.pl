@@ -123,5 +123,7 @@
         </div>
     @endif
 
+    <x-zdejmij-z-urzedu :tresc="$post" typ="post" />
+
     <x-comment-thread :comments="$komentarze" :ile="$komentarzyRazem" :action="route('posts.comment', $post)" />
 </x-layout>

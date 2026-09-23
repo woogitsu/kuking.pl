@@ -106,6 +106,14 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
 
+# Decyzja moderacyjna tylko z człowiekiem (UzasadnienieDecyzji, G31/D-251).
+# Strażnik skanuje `app/` w poszukiwaniu `ModerationAction::create(` i porównuje
+# z listą dozwolonych miejsc. Mutacja dokłada to wywołanie w pliku SPOZA listy
+# (`ZdejmijTresc`, sąsiad nowego `ZdejmijZUrzedu`) — strażnik ma zapalić, czyli
+# naprawdę widzi nowe pliki, a nie tylko potwierdza listę, którą już zna.
+ZDEJMIJ_TRESC = "app/Domain/Moderation/Actions/ZdejmijTresc.php"
+DECYZJA_Z_CZLOWIEKIEM_TEST = "test_nie_ma_w_kodzie_drogi_do_decyzji_bez_czlowieka"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -258,6 +266,8 @@ checks = [
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Decyzja moderacyjna tworzona poza listą", ZDEJMIJ_TRESC, DECYZJA_Z_CZLOWIEKIEM_TEST,
+     lambda s: replace_once(s, "final class ZdejmijTresc\n{\n", "final class ZdejmijTresc\n{\n    // ModerationAction::create( — mutacja kontroli dodatniej\n")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -268,6 +278,7 @@ run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(DECYZJA_Z_CZLOWIEKIEM_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

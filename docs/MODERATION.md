@@ -63,9 +63,60 @@ zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
   i administrator dostają tam 403, także z 2FA. Tamta droga omijała 2FA
   panelu, uzasadnienie, wiersz w `moderation_actions` i odwołanie. Pilnuje
   tego `tests/Feature/ModeratorUsuwaCudzaTrescTylkoZPaneluTest.php`.
+  Treść bez zgłoszenia zdejmuje się z panelu akcją „Zdejmij z urzędu”
+  (niżej, D-251).
 
 Odmowa nie zamyka zgłoszenia i nie zostawia decyzji, powiadomienia ani wpisu
 w dzienniku.
+
+### Zdjęcie z urzędu — treść, której nikt nie zgłosił (G31, D-251)
+
+Panel usuwa cudzą treść rozstrzygnięciem zgłoszenia, a własnego zgłoszenia
+moderator nie rozstrzyga (D-244). Spamu, którego nikt nie zgłosił, nie dało
+się więc zdjąć wcale. Stąd akcja **„Zdejmij z urzędu”**.
+
+- **Gdzie:** przycisk „Zdejmij z urzędu” przy wpisie, przepisie i komentarzu
+  (także odpowiedzi), w `.danger-zone`. Prowadzi na ekran panelu
+  `/admin/z-urzedu/{typ}/{id}` z formularzem; usuwa dopiero przycisk
+  „Zdejmij tę treść” na tamtym ekranie. Działa bez JavaScriptu.
+- **Kto:** czynny moderator albo administrator z potwierdzonym 2FA — ta
+  sama reguła wejścia co panel (`moderator.2fa`), sprawdzana też w Policy
+  (`removeExOfficio` → `UserPolicy::takeDownContentOf()`). Przycisk widzi
+  tylko ten, komu Policy pozwala.
+- **Czyją treść:** wyłącznie konta o **niższej** roli. Moderator nie zdejmie
+  tą drogą treści moderatora ani administratora, administrator — innego
+  administratora, nikt — własnej. Inaczej niż przy zgłoszeniu (tam ocena
+  treści od roli autora nie zależy, D-244 pkt 3): z urzędu jedna osoba jest
+  naraz tą, która sprawę znalazła, i tą, która ją rozstrzyga. Treść
+  równej albo wyższej rangi idzie zwykłym „Zgłoś” do kogoś innego.
+- **Co trzeba podać:** podstawę z zamkniętej listy (`PodstawaDecyzji`, jak
+  przy decyzjach) i **obowiązkowe** uzasadnienie dla autora.
+- **Co zostaje:** wiersz w `moderation_actions` — tym samym rejestrze co
+  decyzje ze zgłoszeń — z `action = 'remove'` i **pustym `report_id`**.
+  Bez sztucznego zgłoszenia. Wpis w dzienniku: `moderation.ex_officio`.
+- **Autor** dostaje powiadomienie z uzasadnieniem. Pouczenie mówi
+  „Nikt tego nie zgłosił — sprawę znaleźliśmy sami, przeglądając serwis”
+  (DSA art. 17 ust. 3 lit. b). Odwołanie idzie **tą samą ścieżką** co od
+  decyzji ze zgłoszenia (`/odwolanie/{decyzja}`, rozstrzyga administrator),
+  a „cofam” przywraca treść.
+- **Kiedy nie:** treść już zdjęta albo z **otwartym zgłoszeniem** — wtedy
+  decyzja zapada w kolejce zgłoszeń, żeby zgłaszający dostał odpowiedź
+  (art. 16 ust. 5) i żeby o jedną treść nie toczyły się dwie sprawy.
+- **„Ugotowałem” — nie.** `cooked_events` nie ma soft delete, więc zdjęcie
+  kasowałoby wpis na stałe, a „cofam” po odwołaniu nie miałoby czego
+  przywrócić. Ten sam powód, dla którego zdjęcie (`media`) nie ma `remove`.
+  Wraca po dodaniu soft delete do tej tabeli.
+
+### Komentarz z odpowiedziami: „Komentarz usunięty.” także przy moderacji (G31)
+
+Decyzja „Usuń” (ze zgłoszenia i z urzędu) na komentarzu, na który ktoś już
+odpowiedział, nie kasuje wiersza. Zostawia napis „Komentarz usunięty.”
+(`body_removed_at`), a odpowiedzi innych osób zostają na miejscu. To ta sama
+reguła co w `DeleteComment`. Wcześniej `applyAction()` robił zwykły soft
+delete i wątek się rozsypywał. Tekst komentarza zostaje przy decyzji
+(`moderation_actions.tresc_sprzed_zdjecia`), więc „cofam” po odwołaniu
+przywraca go w całości (`RestoreContent`). Komentarz bez odpowiedzi znika
+jak dotąd (soft delete).
 
 ### Przywracanie treści (issue #65)
 

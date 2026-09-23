@@ -2592,6 +2592,41 @@ Nowy indeks: `moderation_actions_subject_idx (subject_user_id, created_at DESC)`
 wyłącznie ścieżka przywracania i odwołań. Cena: dla treści już ukrytych ginie
 zapisany stan sprzed ukrycia i po ponownym wdrożeniu wrócą one jako szkice.
 
+#### `report_id IS NULL` przy decyzji odwoływalnej — decyzja z urzędu (G31, D-251)
+
+Pusty `report_id` przy `action = 'remove'` znaczy „nikt tego nie zgłosił”:
+moderator zdjął treść z własnego przeglądu („Zdejmij z urzędu”,
+`App\Domain\Moderation\Actions\ZdejmijZUrzedu`). Nie ma przy tym sztucznego
+zgłoszenia i nie ma nowej kolumny źródła — pusty `report_id` przy `unhide`
+znaczy przywrócenie (`RestoreContent`), przy decyzji odwoływalnej znaczy
+decyzję z urzędu, i tak czyta go `UzasadnienieDecyzji::skadSprawa()`.
+
+#### `tresc_sprzed_zdjecia text NULL` (migracja `2026_09_23_200000_add_tresc_sprzed_zdjecia_to_moderation_actions`, G31, D-251)
+
+Tekst komentarza, który decyzja `remove` zastąpiła napisem „Komentarz
+usunięty.”. Tak moderacja zdejmuje komentarz **z odpowiedziami** — tą samą
+regułą co `DeleteComment`, żeby odpowiedzi innych osób nie znikały razem
+z nim (`ZdejmijTresc`). Napis nadpisuje `comments.body`, a od decyzji
+przysługuje odwołanie, które po „cofam” ma przywrócić treść od razu — stąd
+kopia przy decyzji, czytana przez `RestoreContent`.
+
+- `moderation_actions_tresc_sprzed_zdjecia_check`:
+  `tresc_sprzed_zdjecia IS NULL OR (target_type = 'comment' AND action = 'remove')`.
+- Wypełniana w tej samej transakcji, zaraz po utworzeniu wiersza decyzji
+  (to jedyny zapis po `INSERT` poza czyszczeniem niżej).
+- **RODO:** usunięcie konta z zakresem „wszystko” (`EraseAccountData::usunTresci()`)
+  ustawia ją na `NULL` dla decyzji dotyczących tej osoby — razem
+  z `forceDelete()` jej komentarzy. Sama decyzja zostaje. Przy zakresie
+  `minimum` komentarz i tak zostaje w bazie, więc kopia niczego nie dokłada.
+- Retencja: razem z wierszem decyzji (niżej).
+
+**Rollback:** `down()` **odmawia**, gdy kolumna ma choć jedną niepustą
+wartość (D-088) — bez niej „cofam” po odwołaniu zostawiłoby napis zamiast
+tekstu. Na świeżej bazie przechodzi. Świadome wymuszenie (najpierw kopia
+wierszy z niepustą kolumną):
+`KUKING_ROLLBACK_KASUJE_TRESC_ZDJETYCH_KOMENTARZY=1`. Test:
+`tests/Feature/ZdejmijZUrzeduTest.php`.
+
 **Retencja:** ten sam okres i **ta sama komenda** co `reports` (domyślnie
 36 miesięcy, decyzja właściciela), liczony od `created_at` — kolumna jest
 niemutowalna (`ModerationAction::UPDATED_AT === null`). Wiersz jest kandydatem

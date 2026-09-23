@@ -448,6 +448,9 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $wpisDoWspomnien = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $wpisBezOdpowiedzi = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
 
+        // Osobny wpis dla „Zdejmij z urzędu” (G31) — udany POST go zdejmuje.
+        $wpisZUrzedu = Post::factory()->create(['author_id' => $wlasciciel->getKey()]);
+
         $przepis = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
         $przepisPrywatny = Recipe::factory()->create(['author_id' => $wlasciciel->getKey(), 'visibility' => 'private']);
         $przepisDoKasacji = Recipe::factory()->create(['author_id' => $wlasciciel->getKey()]);
@@ -610,6 +613,14 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             [$O, $O, $O, $W, $O]);
         $dodaj('admin.reports.restore', 'przywrócenie treści', 'post',
             route('admin.reports.restore', $zgloszenieDoPrzywrocenia), [], [$O, $O, $O, $W, $O]);
+        // „Zdejmij z urzędu” (G31, D-251): wyłącznie moderacja, przez
+        // `removeExOfficio` — autor własnej treści tędy nie wchodzi.
+        $dodaj('admin.z-urzedu.create', 'zdjęcie z urzędu — formularz', 'get',
+            route('admin.z-urzedu.create', ['typ' => 'post', 'id' => $wpisPubliczny->getKey()]), [], [$O, $O, $O, $W, $O]);
+        $dodaj('admin.z-urzedu.store', 'zdjęcie z urzędu', 'post',
+            route('admin.z-urzedu.store', ['typ' => 'post', 'id' => $wpisZUrzedu->getKey()]),
+            ['reason_code' => 'spam-reklama', 'user_message' => 'Wpis jest reklamą, nie ma nic wspólnego z gotowaniem.'],
+            [$O, $O, $O, $W, $O]);
         // Moderator ma tu ODMOWĘ świadomie: rozstrzyga administrator
         // (`UserPolicy::resolveAppeals`, A-4). Kontrola dodatnia dla admina
         // stoi w osobnym teście wyżej.
