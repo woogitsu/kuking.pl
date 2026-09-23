@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Domain\Media;
 
 /**
- * Usuwa z bajtów zdjęcia WYŁĄCZNIE współrzędne GPS, zostawiając resztę
- * metadanych nietkniętą (D-023).
+ * Usuwa z bajtów zdjęcia współrzędne GPS z EXIF-u i cały pakiet XMP,
+ * zostawiając resztę metadanych nietkniętą (D-023, issue #1004).
  *
  * PO CO TO ISTNIEJE
  * Warianty pokazywane w serwisie powstają przez przekodowanie do WebP, więc
@@ -67,11 +67,45 @@ namespace App\Domain\Media;
  * Jeśli plik ma EXIF, ale bez GPS-a (zdecydowana większość wgrań) — też nie
  * zmieniamy ani jednego bajtu.
  *
+ * XMP WYPADA W CAŁOŚCI, NIE POLE PO POLU (issue #1004)
+ *
+ * XMP to drugi, niezależny od EXIF-u zapis metadanych — i niesie własne
+ * współrzędne: `exif:GPSLatitude`, `exif:GPSLongitude`, `GPSDest*`, a do tego
+ * struktury lokalizacji IPTC (`Iptc4xmpExt:LocationCreated`/`LocationShown`)
+ * i pola producentów (np. drony) w dowolnych przestrzeniach nazw, w kilku
+ * serializacjach RDF naraz. Wyszukiwanie „pól GPS" w tym XML-u zawsze
+ * przegapi jakąś odmianę, więc nie szukamy pól: CAŁY pakiet XMP zamieniamy
+ * na spacje. To jest świadome odstępstwo od „reszta metadanych zostaje"
+ * z D-023 i jest tanie: aparat, obiektyw, data i orientacja żyją w EXIF-ie,
+ * który zostaje nietknięty; XMP dokłada zwykle historię edycji i właśnie
+ * lokalizację.
+ *
+ * Z tego samego powodu wypada tekstowy profil EXIF w PNG („Raw profile type
+ * exif", a razem z nim „… xmp", „… iptc", „… app1" — ImageMagick zapisuje
+ * tam szesnastkowo te same bloki, razem z GPS-em).
+ *
+ * Zasada „nigdy nie skracamy pliku" obowiązuje dalej: pakiet dostaje spacje
+ * w miejscu, a nie znika, więc długości segmentów i chunków się nie zmieniają.
+ * Gdzie XMP jest:
+ *
+ *   JPEG   APP1 `http://ns.adobe.com/xap/1.0/\0` i XMP rozszerzony
+ *          (`http://ns.adobe.com/xmp/extension/\0`, po nagłówku GUID-u);
+ *   PNG    `iTXt`/`zTXt`/`tEXt` ze słowem kluczowym `XML:com.adobe.xmp`
+ *          albo `Raw profile type …` — chunk staje się `tEXt` o tej samej
+ *          długości, z samymi spacjami, i dostaje nową sumę CRC (dane
+ *          `zTXt`/skompresowanego `iTXt` są zlib-em, spacje w nich nie dałyby
+ *          poprawnego pliku);
+ *   WebP   chunk `XMP `;
+ *   AVIF i reszta  pakiet szukany w bajtach (`<?xpacket begin` … `end…?>`
+ *          albo `<…xmpmeta` … `</…xmpmeta>`), jak awaryjne `strpos` wyżej.
+ *
+ * IPTC-IIM (JPEG APP13) współrzędnych nie ma — tylko nazwy miejsc — więc
+ * zostaje, tak jak reszta EXIF-u.
+ *
  * CZEGO TA KLASA NADAL NIE OBEJMUJE, wprost, żeby nikt nie zakładał więcej,
- * niż jest: EXIF-u zapisanego w PNG jako tekst (`zTXt`/`iTXt` z profilem
- * „Raw profile type exif"), metadanych XMP w żadnym kontenerze, ani AVIF-a
- * inaczej niż przez awaryjne `strpos`. XMP potrafi nieść własne pola
- * lokalizacji — to jest znana, nieprzykryta luka, a nie przeoczenie.
+ * niż jest: AVIF-a inaczej niż przez awaryjne szukanie w bajtach (EXIF po
+ * `Exif\0\0`, XMP po nagłówku pakietu) — bez parsera ISOBMFF skompresowany
+ * element XMP w AVIF-ie zostałby niewidoczny.
  *
  * PNG: chunk `eXIf` niesie własną sumę CRC32, więc po zerowaniu trzeba ją
  * przeliczyć. Bez tego przeglądarka uznałaby plik za uszkodzony. JPEG i
@@ -107,7 +141,234 @@ final class UsunGps
         12 => 8, // DOUBLE
     ];
 
+    /** Nagłówek APP1 z pakietem XMP w JPEG. */
+    private const NAGLOWEK_XMP_JPEG = "http://ns.adobe.com/xap/1.0/\x00";
+
+    /**
+     * Nagłówek APP1 z XMP rozszerzonym w JPEG. Za nim stoi 32-znakowy GUID
+     * i dwie liczby po 4 bajty (pełna długość, przesunięcie) — dopiero potem
+     * kawałek XML-u.
+     */
+    private const NAGLOWEK_XMP_ROZSZERZONY = "http://ns.adobe.com/xmp/extension/\x00";
+
+    private const NAGLOWEK_XMP_ROZSZERZONY_RESZTA = 32 + 4 + 4;
+
+    /** Słowo kluczowe chunku tekstowego PNG niosącego XMP. */
+    private const SLOWO_XMP_PNG = 'XML:com.adobe.xmp';
+
+    /** Prefiks słów kluczowych, pod którymi ImageMagick zapisuje surowe profile. */
+    private const SLOWO_SUROWY_PROFIL_PNG = 'Raw profile type ';
+
     public static function zBajtow(string $bajty): string
+    {
+        return self::usunXmp(self::usunGpsZExif($bajty));
+    }
+
+    /**
+     * Zamienia na spacje każdy pakiet XMP, jaki kontener niesie — bez zmiany
+     * długości pliku. Uzasadnienie w komentarzu klasy („XMP WYPADA W CAŁOŚCI").
+     */
+    private static function usunXmp(string $bajty): string
+    {
+        if (str_starts_with($bajty, self::SYGNATURA_PNG)) {
+            return self::usunXmpZPng($bajty);
+        }
+
+        if (str_starts_with($bajty, 'RIFF') && substr($bajty, 8, 4) === 'WEBP') {
+            return self::usunXmpZWebp($bajty);
+        }
+
+        if (str_starts_with($bajty, "\xFF\xD8")) {
+            return self::usunXmpZJpeg($bajty);
+        }
+
+        return self::usunPakietyXmp($bajty);
+    }
+
+    /** JPEG: segmenty do `SOS`, tak jak w `blokWJpeg()`. */
+    private static function usunXmpZJpeg(string $bajty): string
+    {
+        $poz = 2;
+        $koniec = strlen($bajty);
+
+        while ($poz + 4 <= $koniec) {
+            if ($bajty[$poz] !== "\xFF") {
+                return $bajty;
+            }
+
+            $znacznik = ord($bajty[$poz + 1]);
+
+            if ($znacznik >= 0xD0 && $znacznik <= 0xD9) {
+                $poz += 2;
+
+                continue;
+            }
+
+            if ($znacznik === 0xDA) {
+                return $bajty;
+            }
+
+            $dlugosc = self::short($bajty, $poz + 2, false);
+
+            if ($dlugosc === null || $dlugosc < 2) {
+                return $bajty;
+            }
+
+            $nastepny = $poz + 2 + $dlugosc;
+
+            if ($nastepny <= $poz || $nastepny > $koniec) {
+                return $bajty;
+            }
+
+            if ($znacznik === 0xE1) {
+                $dane = $poz + 4;
+                $od = null;
+
+                if (substr($bajty, $dane, strlen(self::NAGLOWEK_XMP_JPEG)) === self::NAGLOWEK_XMP_JPEG) {
+                    $od = $dane + strlen(self::NAGLOWEK_XMP_JPEG);
+                } elseif (substr($bajty, $dane, strlen(self::NAGLOWEK_XMP_ROZSZERZONY)) === self::NAGLOWEK_XMP_ROZSZERZONY) {
+                    $od = $dane + strlen(self::NAGLOWEK_XMP_ROZSZERZONY) + self::NAGLOWEK_XMP_ROZSZERZONY_RESZTA;
+                }
+
+                if ($od !== null && $od < $nastepny) {
+                    $bajty = self::spacje($bajty, $od, $nastepny - $od);
+                }
+            }
+
+            $poz = $nastepny;
+        }
+
+        return $bajty;
+    }
+
+    /**
+     * PNG: chunki do `IEND`, tak jak w `blokWPng()`. Chunk tekstowy z XMP albo
+     * surowym profilem staje się `tEXt` tej samej długości: słowo kluczowe,
+     * bajt zerowy i same spacje — z nową sumą CRC.
+     */
+    private static function usunXmpZPng(string $bajty): string
+    {
+        $poz = strlen(self::SYGNATURA_PNG);
+        $koniec = strlen($bajty);
+
+        while ($poz + 12 <= $koniec) {
+            $dlugosc = self::dlugoscBe($bajty, $poz);
+
+            if ($dlugosc === null) {
+                return $bajty;
+            }
+
+            $typ = substr($bajty, $poz + 4, 4);
+            $nastepny = $poz + 12 + $dlugosc;
+
+            if ($nastepny <= $poz || $nastepny > $koniec) {
+                return $bajty;
+            }
+
+            if ($typ === 'IEND') {
+                return $bajty;
+            }
+
+            if (in_array($typ, ['iTXt', 'zTXt', 'tEXt'], true)) {
+                $dane = substr($bajty, $poz + 8, $dlugosc);
+                $zero = strpos($dane, "\x00");
+                $slowo = $zero === false ? '' : substr($dane, 0, $zero);
+
+                if ($zero !== false
+                    && ($slowo === self::SLOWO_XMP_PNG || str_starts_with($slowo, self::SLOWO_SUROWY_PROFIL_PNG))) {
+                    $noweDane = $slowo."\x00".str_repeat(' ', $dlugosc - $zero - 1);
+                    $chunk = 'tEXt'.$noweDane;
+
+                    $bajty = substr_replace($bajty, $chunk.pack('N', crc32($chunk)), $poz + 4, 4 + $dlugosc + 4);
+                }
+            }
+
+            $poz = $nastepny;
+        }
+
+        return $bajty;
+    }
+
+    /** WebP: chunki RIFF, tak jak w `blokWWebp()`; `XMP ` dostaje spacje. */
+    private static function usunXmpZWebp(string $bajty): string
+    {
+        $poz = 12;
+        $koniec = strlen($bajty);
+
+        while ($poz + 8 <= $koniec) {
+            $typ = substr($bajty, $poz, 4);
+            $dlugosc = self::dlugoscLe($bajty, $poz + 4);
+
+            if ($dlugosc === null) {
+                return $bajty;
+            }
+
+            $nastepny = $poz + 8 + $dlugosc + ($dlugosc % 2);
+
+            if ($nastepny <= $poz || $nastepny > $koniec) {
+                return $bajty;
+            }
+
+            if ($typ === 'XMP ') {
+                $bajty = self::spacje($bajty, $poz + 8, $dlugosc);
+            }
+
+            $poz = $nastepny;
+        }
+
+        return $bajty;
+    }
+
+    /**
+     * AVIF i wszystko, czego nie rozpoznajemy: pakiety XMP szukane w bajtach.
+     * Najpierw ramka `<?xpacket begin … <?xpacket end…?>`, potem — dla
+     * pakietów bez niej — sam element `xmpmeta` z dowolnym prefiksem.
+     */
+    private static function usunPakietyXmp(string $bajty): string
+    {
+        // `strpos`, a nie `preg_replace` z `.*?`: na kilkunastu megabajtach
+        // AVIF-a PCRE potrafi przekroczyć limit cofania i oddać `null` —
+        // a rzutowane na tekst dałoby PUSTY oryginał zamiast zdjęcia.
+        $od = 0;
+
+        while (($poczatek = strpos($bajty, '<?xpacket begin', $od)) !== false) {
+            $znacznikKonca = strpos($bajty, '<?xpacket end', $poczatek);
+            $koniec = $znacznikKonca === false ? false : strpos($bajty, '?>', $znacznikKonca);
+
+            if ($koniec === false) {
+                break;
+            }
+
+            $bajty = self::spacje($bajty, $poczatek, $koniec + 2 - $poczatek);
+            $od = $koniec + 2;
+        }
+
+        // Pakiet bez ramki `xpacket` — sam element `xmpmeta`, z dowolnym
+        // prefiksem przestrzeni nazw (w praktyce prawie zawsze `x:`).
+        $od = 0;
+
+        while (preg_match('/<([A-Za-z_][\w.-]*:)?xmpmeta\b/', $bajty, $m, PREG_OFFSET_CAPTURE, $od) === 1) {
+            $poczatek = (int) $m[0][1];
+            $zamkniecie = strpos($bajty, '</'.($m[1][0] ?? '').'xmpmeta', $poczatek);
+            $koniec = $zamkniecie === false ? false : strpos($bajty, '>', $zamkniecie);
+
+            if ($koniec === false) {
+                break;
+            }
+
+            $bajty = self::spacje($bajty, $poczatek, $koniec + 1 - $poczatek);
+            $od = $koniec + 1;
+        }
+
+        return $bajty;
+    }
+
+    private static function spacje(string $bajty, int $od, int $ile): string
+    {
+        return $ile <= 0 ? $bajty : substr_replace($bajty, str_repeat(' ', $ile), $od, $ile);
+    }
+
+    private static function usunGpsZExif(string $bajty): string
     {
         $blok = self::znajdzBlokTiff($bajty);
 

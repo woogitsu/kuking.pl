@@ -16,6 +16,8 @@ use Throwable;
  * DLACZEGO OSOBNA KLASA, A NIE METODA W ZADANIU
  * Bo od issue #237 alarmować muszą DWA zadania: analiza wpisu i komentarza
  * (`PrzeanalizujTresc`) oraz ocena zdjęcia profilowego (`PrzeanalizujAwatar`).
+ * Od D-240 zdjęcie profilowe nie idzie do modelu, więc wołającym jest dziś
+ * tylko `PrzeanalizujTresc` — klasa zostaje jako jedno miejsce tej reguły.
  * Druga kopia tego warunku rozjechałaby się z pierwszą przy pierwszej
  * zmianie — a rozjazd wygląda tu tak, że jedna droga alarmuje, a druga
  * milczy, i nikt tego nie zauważa, dopóki nie zdarzy się coś złego akurat

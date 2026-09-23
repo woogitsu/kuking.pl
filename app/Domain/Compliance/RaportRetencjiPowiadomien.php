@@ -21,7 +21,19 @@ final class RaportRetencjiPowiadomien
         public readonly int $usunieteModeracyjne,
         public readonly int $zatrzymaneTerminemOdwolania,
         public readonly int $bezPowiazanejDecyzji,
+        /**
+         * Kandydaci do skasowania, których `delete()` rzucił wyjątek (#1342).
+         * Coś innego niż `bezPowiazanejDecyzji`: tamte pominęliśmy świadomie,
+         * te próbowaliśmy skasować i się nie udało. W trybie na sucho zawsze 0.
+         */
+        public readonly int $nieudaneModeracyjne = 0,
     ) {}
+
+    /** Przebieg zostawił w bazie wiersze po terminie, które miał skasować. */
+    public function czesciowaPorazka(): bool
+    {
+        return $this->nieudaneModeracyjne > 0;
+    }
 
     public function usunieteLacznie(): int
     {
