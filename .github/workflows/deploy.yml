@@ -219,7 +219,7 @@ jobs:
       github.event.deployment_status.state == 'success'
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Ustal adres środowiska
         id: target
@@ -419,7 +419,7 @@ jobs:
         # starej wersji, przy zielonym CI i zielonych PR-ach.
         if: steps.target.outputs.pomin != '1' && vars.SENTRY_ORG != '' && vars.SENTRY_PROJECT != ''
         continue-on-error: true
-        uses: getsentry/action-release@v3
+        uses: getsentry/action-release@ff07929a6537bac57790c3451cf4d364aca38528 # v3.7.0
         env:
           SENTRY_AUTH_TOKEN: ${{ secrets.SENTRY_AUTH_TOKEN }}
           SENTRY_ORG: ${{ vars.SENTRY_ORG }}
@@ -512,10 +512,10 @@ jobs:
       APP_SERVICE: kuking.pl
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Konfiguracja Node (dla Railway CLI)
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
         with:
           node-version: "22"
 

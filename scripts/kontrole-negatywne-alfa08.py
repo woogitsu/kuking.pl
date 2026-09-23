@@ -72,6 +72,12 @@ STRAZNIK_TEKSTU_TEST = "StraznikTekstuMaKontroleDodatniaTest"
 STRAZNIK_SAM_SKRYPT = "scripts/kontrole-negatywne-alfa08.py"
 STRAZNIK_PLIK_ODSTEPSTWA = "tests/Feature/PlikKontrolnyZOdstepstwemTest.php"
 
+# Akcje GitHuba przypięte do pełnych SHA (#951). Strażnik parsuje `uses:`
+# w workflowach i akcjach composite; mutacja cofa akcję PHP do ruchomego tagu
+# i ma go zapalić — dowód, że widzi też `.github/actions/**`, nie tylko workflowy.
+AKCJA_PHP = ".github/actions/php/action.yml"
+AKCJE_SHA_TEST = "AkcjeGithubPrzypieteDoShaTest"
+
 # Etap `assets` obrazu a lista plików podana do `node --test` (regresja #1085).
 # Ten strażnik pilnuje własnej NIEPUSTOŚCI (`assertNotEmpty`), ale nic w nim
 # nie dowodzi, że czytnik `COPY` z Dockerfile potrafi powiedzieć „nie
@@ -180,6 +186,20 @@ def smaller_help(source):
     return source[:start] + block + source[end:]
 
 
+def akcja_php_na_ruchomym_tagu(source):
+    """KONTROLA DODATNIA: wróć w akcji composite do gołego tagu `@v2`.
+
+    Workflow z `setup-php@v2` działa dalej zielono — dlatego tylko mutacja
+    dowodzi, że `test_kazde_zewnetrzne_uses_ma_pelny_sha_i_dokladna_wersje`
+    to zauważy.
+    """
+    return replace_once(
+        source,
+        "uses: shivammathur/setup-php@f3e473d116dcccaddc5834248c87452386958240 # 2.37.2",
+        "uses: shivammathur/setup-php@v2",
+    )
+
+
 def bez_kopii_testu_assetow(source):
     """KONTROLA DODATNIA: zabierz etapowi `assets` jeden z plików `node --test`.
 
@@ -264,6 +284,7 @@ checks = [
      lambda s: replace_once(s, "Rule::exists('collections', 'id')->where('owner_id', $request->user()->getKey())", "Rule::exists('collections', 'id')")),
     ("Komunikat po powrocie", LAYOUT, COLLECTION_TEST, remove_notice),
     ("Podpis co najmniej 18 px", CSS, COMPOSER_TEST, smaller_help),
+    ("Akcja GitHuba na ruchomym tagu", AKCJA_PHP, AKCJE_SHA_TEST, akcja_php_na_ruchomym_tagu),
     ("Licznik w widocznym menu konta", LAYOUT, "test_wejscie_do_panelu_pokazuje_sume_kolejek",
      lambda s: replace_once(s, """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji <x-licznik-kolejki :ile="$czekaWPanelu" /></a></li>""", """<li><a href="{{ route('admin.reports') }}">Otwórz panel moderacji</a></li>""")),
     ("Strażnik tekstu bez własnego wpisu", STRAZNIK_SAM_SKRYPT, STRAZNIK_TEKSTU_TEST,
@@ -286,6 +307,7 @@ checks = [
 
 run_test(COLLECTION_TEST, True)
 run_test(COMPOSER_TEST, True)
+run_test(AKCJE_SHA_TEST, True)
 run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
