@@ -659,7 +659,7 @@ sekretów.
 | Zmienna | Wartość | Sekret? | Opis |
 |---|---|---|---|
 | `APP_KEY` | `base64:...` (krok 7) | **TAK** | Klucz szyfrowania sesji i danych. Rotacja tylko procedurą z kroku 15 („Rotacja `APP_KEY`”). |
-| `APP_PREVIOUS_KEYS` | **nie ustawiaj** poza rotacją | **TAK** | Poprzednie `APP_KEY`, po przecinku, bez spacji. Istnieje tylko w okresie przejściowym rotacji (krok 15) — na co dzień zmiennej nie ma wcale |
+| `APP_PREVIOUS_KEYS` | **nie ustawiaj** poza rotacją | **TAK** | Poprzednie `APP_KEY`, po przecinku, bez spacji. Istnieje tylko w okresie przejściowym rotacji (krok 15) — na co dzień zmiennej nie ma wcale. `railway.ts` przekazuje ją web, workerowi i schedulerowi (#1014) `[do weryfikacji: czy `railway config plan` przyjmuje referencję do Shared Variable, której nie ma — jeśli nie, załóż ją z pustą wartością]` |
 | `R2_ACCESS_KEY_ID` | z kroku 2.2 | **TAK** | Access Key ID tokenu obejmującego trzy buckety zdjęć |
 | `R2_SECRET_ACCESS_KEY` | z kroku 2.2 | **TAK** | Secret Access Key R2 |
 | `R2_BUCKET` | `kuking-oryginaly` | nie | Bucket **oryginałów** (pełny EXIF z GPS). `railway.ts` → `AWS_BUCKET` → dysk `r2` |
@@ -676,7 +676,6 @@ sekretów.
 | ~~`MAIL_PORT`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_USERNAME`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_PASSWORD`~~ | — | — | jw. — nie ustawiaj na Hobby |
-| `APP_PREVIOUS_KEYS` | puste; w czasie rotacji — poprzedni `APP_KEY` | **TAK** | **Opcjonalne.** Poprzednie klucze szyfrowania rozdzielone przecinkami, tylko na czas rotacji `APP_KEY` (PR #1437). Web, worker, scheduler |
 | `OPENAI_MODERATION_KEY` | z panelu OpenAI (projekt z dostępem tylko do `/v1/moderations`) | **TAK** | Moderacja modelem (D-055). **Tylko worker** (`PrzeanalizujTresc`). Pusto = moderacja modelem wyłączona bez błędu — zielony `/health` tego nie pokaże, sprawdź KROKIEM 8B |
 | `KUKING_MODEL_ALARM_EMAIL` | adres skrzynki moderatora | nie (dana osobowa, nie klucz) | Pilne alarmy i dzienne podsumowania automatu moderacji. Worker (`AlarmujModeratora`) i scheduler (`kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan`). Pusto = te listy nie wychodzą |
 | `CLOUDFLARE_ZONE_ID` | Cloudflare → strefa `kuking.pl` → Overview → Zone ID | nie | Czyszczenie cache CDN po skasowaniu zdjęcia (#959). Worker (`PurgePublicMediaCache`) i web (`/health` sprawdza obecność) |
@@ -2492,10 +2491,13 @@ wygoda (stare linki z maili i ciasteczka).
      APP_KEY           = <NOWY klucz>
    Obie zmiany w JEDNYM zatwierdzeniu zmian (jeden deploy). Kilka starych
    kluczy: po przecinku, bez spacji, najnowszy pierwszy.
-   UWAGA: `.railway/railway.ts` NIE przekazuje dziś `APP_PREVIOUS_KEYS`
-   (przekazuje tylko `APP_KEY`). Sama Shared Variable nie dotrze więc do
-   serwisu — ustaw `APP_PREVIOUS_KEYS` wprost na serwisie web i worker
-   (albo `${{shared.APP_PREVIOUS_KEYS}}` jako wartość) i sprawdź w kroku 3.
+   UWAGA: `.railway/railway.ts` przekazuje `APP_PREVIOUS_KEYS` web,
+   workerowi i schedulerowi (#1014), ale obowiązuje dopiero po pierwszym
+   `railway config apply`. Dopóki produkcja stoi na klikanym serwisie
+   `kuking.pl`, sama Shared Variable nie dotrze do serwisu — ustaw
+   `APP_PREVIOUS_KEYS` wprost na serwisie (albo `${{shared.APP_PREVIOUS_KEYS}}`
+   jako wartość) i sprawdź w kroku 3; po rozdzieleniu usług — na każdym
+   z trzech.
 
 2. Wdróż (GitHub → Actions → Deploy → redeploy, albo deploy ze zmian
    zmiennych). config:cache przebudowuje się przy starcie kontenera.
