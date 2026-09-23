@@ -57,7 +57,7 @@
         Hierarchię niesie KOLEJNOŚĆ i stan `<details>`, nie zepchnięcie
         w dół warstwy.
     --}}
-    <details class="sekcja-strony mt-5">
+    <details class="sekcja-strony mt-5" @if($errors->has('backup_code')) open @endif>
         <summary class="btn btn-secondary inline-flex">Nie mam dostępu do telefonu</summary>
         <div class="mt-4">
             <p>
@@ -66,7 +66,7 @@
             </p>
             <form method="POST" action="{{ route('login.two_factor.store') }}">
                 @csrf
-                <x-field name="backup_code" label="Kod zapasowy" autocomplete="off" placeholder="XXXX-XXXX" />
+                <x-field name="backup_code" label="Kod zapasowy" autocomplete="off" placeholder="XXXXX-XXXXX" />
                 <div class="form-actions">
                     <button class="btn btn-secondary" type="submit">Zaloguj się kodem zapasowym</button>
                 </div>

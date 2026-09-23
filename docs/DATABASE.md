@@ -17,14 +17,17 @@ za mało — rollback trzeba URUCHOMIĆ, i robią to dwie różne rzeczy:
 
 | Narzędzie | Co mierzy | Ile trwa |
 |---|---|---|
-| `./scripts/proba-wycofania.sh` | podnosi 76 migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej z 76 głębokości z osobna | kilka minut |
+| `./scripts/proba-wycofania.sh` | podnosi KOMPLET migracji na WŁASNEJ bazie `proba_wycofania*`, schodzi krok po kroku do zera, wraca na szczyt i porównuje `pg_dump --schema-only` ze wzorcem — na każdej głębokości z osobna | kilka minut |
 | `tests/Feature/KazdaMigracjaMaWycofanieTest.php` | że każda migracja MA własny, niepusty `down()`; świadoma pustka musi być zadeklarowana stałą `WYCOFANIE_NIC_NIE_ROBI` z uzasadnieniem | ułamek sekundy, w każdym `php artisan test` |
 
 Skrypt schodzi do zera na PUSTEJ bazie, więc nie mierzy zachowania `down()`
 przy danych — tego pilnują osobne testy odmowy (`CofniecieMigracji*Test`),
 po jednym na strażnika z D-088. Stan zmierzony 12 września 2026: 76 z 76
-migracji wycofuje się i wraca, a schemat po cyklu jest identyczny ze wzorcem
-na każdej głębokości.
+migracji wycofuje się i wraca. **Zmierzone ponownie 19 września 2026 na
+`b34c2973`: 82 z 82**, schemat po cyklu identyczny ze wzorcem na każdej
+z 82 głębokości. Liczba migracji rośnie przy każdej zmianie schematu, więc
+nie ma jej ani w progu skryptu, ani w progu
+`KazdaMigracjaMaWycofanieTest` — obydwa są celowo niższe od stanu dnia.
 
 ## Tabele MVP
 
@@ -35,9 +38,18 @@ Konto:
 - password;
 - status;
 - `role varchar(20) NOT NULL DEFAULT 'user'` — `user` \| `moderator` \|
-  `admin`. **Bez CHECK-a w bazie**: wartości pilnuje `App\Models\User`
-  (stałe `ROLE_*`) i jedyna droga nadania roli, komenda `kuking:nadaj-role`,
-  która zapisuje zmianę do `audit_log` (`user.role_changed`, D-039).
+  `admin`. **CHECK jest w bazie**: `users_role_check`
+  (`CHECK (role IN ('user','moderator','admin'))`), założony razem z tabelą
+  w migracji `0001_01_01_000001_create_users_table`, obok
+  `users_status_check` i `users_text_scale_check`. Do 19 września 2026 stało
+  tu zdanie „**Bez CHECK-a w bazie**" — nieprawdziwe od pierwszego dnia
+  projektu i groźne właśnie dlatego, że nikt go nie sprawdzał: czytelnik
+  planujący czwartą rolę wychodził z założenia, że wystarczy dopisać stałą
+  w PHP, a baza odrzuci mu `INSERT` bez migracji. Wartości pilnuje więc baza,
+  a warstwa PHP dokłada nazwy i drogę: stałe `ROLE_*` w `App\Models\User`
+  i jedyna droga nadania roli, komenda `kuking:nadaj-role`, która zapisuje
+  zmianę do `audit_log` (`user.role_changed`, D-039). Dołożenie roli to
+  **zmiana schematu**: migracja podmieniająca CHECK, nie sama stała.
   **Nigdy w `$fillable`** (AGENTS.md §7) — razem ze `status` i `email`;
 - `status_expires_at` — kiedy kara mija (patrz niżej);
 - `delete_requested_at` — kiedy zgłoszono usunięcie konta (status `pending_delete`);
@@ -642,12 +654,29 @@ użytkownik nadal dostaje 404 z `EnsureUserIsModerator`, zanim dotrze do
 sprawdzenia 2FA. Moderator bez potwierdzonego 2FA widzi jasny ekran
 z przyciskiem do włączenia (403), nie ścianę.
 
-**Rollback:** `down()` zdejmuje CHECK i wszystkie cztery kolumny. To NIE jest
-bezstratne — każde konto z włączonym 2FA traci zapisany sekret i kody
-zapasowe, czyli wraca do logowania samym hasłem. To świadomy powrót do stanu
-SPRZED tej zmiany (nikt nie zostaje zablokowany — wymóg drugiego składnika
-znika razem z danymi, które go przechowywały), sensowny wyłącznie jako
-awaryjne wyłączenie całej funkcji, nie jako operacja codzienna.
+**Rollback: ODMAWIA, gdy ktokolwiek ma 2FA potwierdzone** (D-238, zasada
+D-088). `down()` zdejmuje CHECK i wszystkie cztery kolumny, więc każde konto
+z włączonym 2FA traci sekret i kody zapasowe — bezpowrotnie, bo sekret jest
+zaszyfrowany i nie ma go skąd odtworzyć.
+
+Stało tu wcześniej, że to „świadomy powrót do stanu sprzed tej zmiany,
+nikt nie zostaje zablokowany". To prawda i dlatego właśnie jest groźne:
+cofnięcie nie wybija nikogo z serwisu, tylko po cichu ZDEJMUJE OCHRONĘ.
+Cykl `rollback` → `migrate` (czyli to, co robi `migrate:refresh`) zostawia
+kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika — konto
+moderatora, o którym właściciel wie, że jest chronione dwoma składnikami,
+wraca do samego hasła i nikt się o tym nie dowiaduje.
+
+Dlatego `down()` liczy `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją, **zanim** wykona cokolwiek
+niszczącego — także zanim zdejmie CHECK. Świadome cofnięcie przepuszcza
+zmienna `KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`.
+
+Sam sekret **bez** potwierdzenia nie blokuje niczego: to konto w trakcie
+włączania 2FA, które po prostu zaczyna włączanie od nowa. Na świeżym
+środowisku cofnięcie działa bez pytania, więc `migrate:refresh` w CI
+i u dewelopera chodzi jak dotąd. Pilnuje tego
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php`.
 
 **Zgubiony telefon i kody zapasowe naraz — jak wrócić do konta.** Serwis nie
 ma dziś SMTP, więc nie ma samoobsługowego „wyślij link odzyskiwania".
@@ -1311,6 +1340,23 @@ To zestaw PHP trim poza NUL, którego PostgreSQL nie dopuszcza w tekście.
 Długość liczymy w znakach, także polskich, nie w bajtach; varchar(180)
 ogranicza również surowy tytuł przed trim. Nie normalizujemy środka tytułu.
 
+**`kind` i `title` SĄ w `Post::$fillable`** — i to `posts_kind_title_check`
+jest powodem, dla którego wolno je tam trzymać. Zakaz z AGENTS.md §7 dotyczy
+kolumn niosących STAN KONTA albo uprawnienie (`users.status`, `users.role`,
+`users.email`); `kind` i `title` niosą treść wpisu, a jedyny sposób, w jaki
+hurtowe przypisanie mogłoby tu zaszkodzić — pytanie bez tytułu albo danie
+z tytułem — baza odrzuca sama, na każdej drodze zapisu. To jest ogólna
+zasada, nie wyjątek dla tej jednej tabeli: **kolumna wolno-przypisywalna
+hurtem to taka, której wszystkie dopuszczalne kombinacje z innymi kolumnami
+pilnuje ograniczenie w bazie.** Powiązania między kolumnami, które o tym
+decydują, są w tym dokumencie wypisane przy każdej tabeli z osobna —
+`comments_single_target_check`, `collection_items_single_target_check`,
+`appeals_appellant_identity_check`, `users_data_erased_at_check`,
+`users_status_expires_at_check`, `recipe_ingredients_no_amount_check`,
+`tags_merged_consistency_check`, trzy CHECK-i celu w `reports` i komplety
+„rozpatrzone/obsłużone" w `appeals`, `contact_messages`
+i `contact_message_replies`.
+
 Dotychczasowe wpisy otrzymują `dish` i NULL bez zmiany treści, widoczności,
 relacji ani `recipe_id`. Nie ma wariantu `kind=recipe` ani drugiej tabeli.
 Konfiguracja `kuking.questions.enabled` (`KUKING_QUESTIONS_ENABLED`, domyślnie
@@ -1668,6 +1714,12 @@ składnika nie. `NULL` jest stanem normalnym.
 weźmie. Przy skalowaniu porcji (V2) takiego składnika **się nie mnoży**:
 przepis razy trzy poprosiłby inaczej o trzy szczypty soli i o trzy razy
 „ile weźmie".
+
+**Prezentacja (#878, decyzja właściciela z 20 września 2026):** flaga nie
+określa sposobu dozowania. Widok pokazuje wyłącznie tekst składnika i uwagę
+autora, bez automatycznego „do smaku” ani „bez podanej ilości”. Autor wpisuje
+„do smaku”, „ile weźmie” lub inne określenie w nazwie składnika. To zmienia
+dawne kryterium prezentacji z #44, nie CHECK ani znaczenie zapisanej flagi.
 
 Kolumna weszła **przed** funkcją, która jej używa, i to jest jedyny powód,
 dla którego istnieje już teraz: dopisanie jej dziś kosztuje jedną linijkę,
@@ -2097,6 +2149,44 @@ pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł 
 zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
 kończyłoby się błędem 500.
 
+Równoległe pierwsze zapisy (#778) rozstrzyga indeks
+`collections_one_default_per_owner_idx`, który nadal dopuszcza tylko jeden
+zeszyt domyślny na właściciela. `User::defaultCollection()` próbuje wstawić
+wiersz w osobnej transakcji (PostgreSQL savepoint, gdy akcja już jest
+w transakcji), a złapane 23505 sprawdza po nazwie tego właśnie indeksu
+i dopiero wtedy odczytuje zwycięski wiersz — kolizja nazwy zeszytu ani inna
+przyszła reguła unikalności nie zniknie pod pozornie udanym zapisem.
+Szukamy po `is_default`, nigdy po nazwie publicznego zeszytu właściciela.
+Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.php`
+oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
+się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
+
+### first_post_events
+
+Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
+retencji alertu. `author_id uuid PRIMARY KEY` wskazuje `users.id` (ON DELETE
+CASCADE), `post_id uuid NULL` wskazuje nośnik. Złożony FK
+`(author_id, post_id)` do `posts(author_id, id)` wymusza zgodność autora;
+`ON DELETE SET NULL (post_id)` zachowuje zdarzenie po fizycznym usunięciu
+wpisu. Obsługuje go indeks `posts_author_id_id_unique`. Nie przechowujemy
+odbiorcy ani kopii treści. Soft delete nośnika nie zmienia wiersza.
+
+Publikacja zapisuje znacznik w tej samej transakcji co wpis, audyt, alert
+i zlecenie analizy (produkcyjna kolejka database na tym samym połączeniu).
+Prywatny wpis nie konsumuje pierwszeństwa. Przy istniejącym gospodarzu
+obowiązuje pełna dostępność wpisu dla niego; bez gospodarza kwalifikuje się
+tylko publiczny. Panel pokazuje utrwalony nośnik tylko odbiorcy z dostępem,
+nigdy nie promuje drugiego po usunięciu lub odpowiedzi na pierwszy.
+
+Migracja odtwarza zachowane `post.first` przed fallbackiem do najstarszego
+dostępnego wpisu (także soft-deleted). Followers wymaga rzeczywistego
+obserwowania przez aktualnie skonfigurowanego gospodarza. Nie wysyła alertów.
+Fizycznie usunięta historia bez zachowanego dowodu jest nieodtwarzalna;
+pełna gwarancja zaczyna się od wdrożenia. Rollback porównuje dokładne
+odtworzenie każdego znacznika, również NULL i tożsamość nośnika; odmawia
+przed zmianą schematu, jeśli odtworzenie zmieni znaczenie. Świeża lub
+dokładnie odtwarzalna tabela może być cofnięta. Retencja powiadomień bez zmian.
+
 ### notifications
 In-app.
 
@@ -2379,7 +2469,15 @@ rozstrzyga człowiek.
 Decyzje moderatorów.
 
 **`action varchar(40) NOT NULL`** — co moderator zrobił: `no_action`, `hide`,
-`unhide`, `remove`, `warn`, `suspend`, `ban`. **Bez CHECK-a w bazie**, bo
+`unhide`, `remove`, `warn`, `suspend`, `ban`, albo wewnętrzny wynik
+`target_unavailable`. Ten ostatni nie jest wyborem w formularzu: powstaje
+wyłącznie wtedy, gdy moderator świadomie wybiera „Bez działania”, a wskazany
+cel zniknął lub nie dał się ustalić przed pierwszą decyzją. Wtedy sprawa jest
+zamknięta jako `resolved`, ale nie zapisujemy sankcji ani nie twierdzimy, że
+oceniliśmy treść. Próba `hide`, `remove`, `warn`, `suspend` albo `ban` zostawia
+sprawę otwartą i wraca z błędem, zamiast tworzyć pozorną decyzję.
+
+**Bez CHECK-a w bazie**, bo
 dopuszczalna wartość zależy od `target_type` (konta nie da się „ukryć",
 zdjęcia nie da się „usunąć" osobno od wpisu) — macierz `target_type` →
 dozwolone działania trzyma `App\Models\ModerationAction::DOZWOLONE`, a CHECK
@@ -2576,6 +2674,173 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+### potwierdzenia_zadan_rodo
+Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
+obsłużone — **zamiast** bezterminowego dziennika osobowego.
+
+Powstało z `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C, która nie kwestionuje
+liczby, tylko kształt: trzy kategorie `audit_log` z listy
+`AuditLogEntry::NIGDY_NIE_KASUJ` trzymają dziś BEZTERMINOWO wpis z `actor_id`,
+`ip_hash` i dowolnym `metadata jsonb`. Ocena każe je zastąpić zamkniętym
+zestawem pól z określonym okresem trzymania; ocena proponowała **36 miesięcy od
+zakończenia obsługi**, ale **właściciel wstrzymał automatyczne kasowanie do
+potwierdzenia okresu przez prawnika** (D-233 — patrz „Retencja" niżej). Pełny projekt,
+razem z rozstrzygnięciem powiązania z wnioskodawcą i jego słabościami:
+`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`.
+
+**Kto do niej pisze (od 21.09.2026):** wyłącznie
+`App\Domain\Compliance\RejestrPotwierdzenRodo`. Wiersz `w_toku` powstaje przy
+zgłoszeniu żądania z `/ustawienia/twoje-dane` (w jednej transakcji
+z `users.markForDeletion()`), a domknięcie — `wykonane` albo `cofniete` — idzie
+**w tej samej transakcji** co `EraseAccountData` i `CancelAccountDeletion`.
+Potwierdzenie zapisane osobną transakcją potrafiłoby opisywać wykonanie,
+którego nie było, albo przemilczeć wykonanie, które było; dowodzi tego
+`tests/Feature/PotwierdzenieRodoIdzieWTejSamejTransakcjiTest.php`.
+
+Model `App\Models\PotwierdzenieZadaniaRodo` ma w `$fillable` **wyłącznie opis
+sprawy** (`rodzaj`, `otrzymano`, `wersja_procedury`, `wyjatki`). `numer`,
+`wynik`, `zakres`, `zakonczono`, `konto_id`, `wstrzymanie_do`
+i `wstrzymanie_sprawa` stoją **poza** `$fillable` — ta sama ostrożność co przy
+`status` i `role` użytkownika, tylko stawką jest tu prawdziwość dowodu, wskaźnik
+na dane osobowe i zegar retencji.
+
+**Czego nadal nie ma:** backfillu istniejących wpisów `account.*` i skasowania
+ich pełnych kopii — to osobne kroki właściciela (lista w projekcie wyżej), więc
+do ich wykonania dziennik i potwierdzenia stoją **obok siebie**, nie zamiast
+siebie. Numer sprawy też nie jest jeszcze nigdzie pokazywany ani wysyłany
+człowiekowi (brzmienie pisma to krok 2 właściciela).
+
+- `id uuid` PK, `DEFAULT gen_random_uuid()`;
+- **`numer varchar(19) UNIQUE`** — `RODO-XXXX-XXXX-XXXX`, losowany
+  z `App\Support\NumerZadaniaRodo` (alfabet bez `0`, `1`, `I`, `L`, `O`, `U`
+  wspólny z `NumerSprawy`, 12 znaków ≈ 59 bitów). To jest **jedyne powiązanie
+  wiersza z człowiekiem po wykonaniu usunięcia** — numer dostaje wnioskodawca,
+  baza nie trzyma niczego, z czego dałoby się go odtworzyć. Przedrostek inny
+  niż `KU` zgłoszeń moderacyjnych, żeby dwa rejestry nie mówiły tym samym
+  numerem. Wzór pilnuje CHECK `potwierdzenia_zadan_rodo_numer_check`,
+  **zamrożony w dniu migracji** — zmiana `NumerSprawy::ALFABET` wymaga nowej
+  migracji (tak samo jak przy `reports`);
+- **`rodzaj varchar(40)`** — CHECK po `SlownikPotwierdzenRodo::RODZAJE`. Dziś
+  jedna wartość: `usuniecie_konta`;
+- **`wynik varchar(30)`** — `w_toku` / `wykonane` / `cofniete` / `odmowa`.
+  Ta kolumna zastępuje TRZY kategorie dziennika jednym wierszem: cofnięcie
+  żądania jest **wynikiem**, nie osobnym zdarzeniem („Przechowuj właściwy stan
+  końcowy, nie trzy niekasowalne kopie wszelkich danych" — §C);
+- **`zakres varchar(20) NULL`** — `minimum` / `everything`, te same wartości co
+  `users.delete_scope` (D-022). CHECK wiąże je z wynikiem w OBIE strony:
+  `wykonane` musi mieć zakres, każdy inny wynik mieć go nie może;
+- **`otrzymano date`** + **`zakonczono date NULL`** — daty wpływu i zakończenia.
+  **`date`, nie `timestamptz`, i to jest minimalizacja**: sekunda zamknięcia
+  sprawy daje się zestawić z chwilą, w której czyjeś wpisy zmieniły autora na
+  „konto usunięte", czyli sama identyfikuje. Doba do wykazania terminu z art. 12
+  ust. 3 i do policzenia 36 miesięcy wystarcza. `zakonczono` jest **początkiem
+  zegara retencji**; `NULL` znaczy „sprawa w toku" i CHECK wiąże to z
+  `wynik = 'w_toku'` w obie strony, żeby bezterminowość nie wróciła przez pustą
+  kolumnę;
+- **`wersja_procedury varchar(20)`** — która wersja procedury usunięcia to
+  wykonała (`RRRR-MM-DD` daty obowiązywania). Bez niej „wykonane" znaczy tylko
+  „zrobiliśmy wtedy to, co wtedy robiliśmy";
+- **`wyjatki text NULL`** — czego NIE usunięto i z jakiej reguły to wynika
+  (przy `minimum` treści zostają zanonimizowane, `COMPLIANCE.md` §2; sprawa
+  moderacyjna ma własne 36 miesięcy). Tekst wskazuje **regułę**, nie opowiada
+  o człowieku;
+- **`konto_id uuid NULL`** → `users` (`ON DELETE SET NULL`) — powiązanie
+  z wnioskodawcą, **zostające także po wykonaniu żądania**.
+
+  **DECYZJA WŁAŚCICIELA Z 21.09.2026, nie rekomendacja oceny zewnętrznej.**
+  Pierwotny schemat miał tu CHECK
+  `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`, zabraniający `konto_id`
+  przy `wynik = 'wykonane'`: z chwilą wykonania konto jest anonimizowane,
+  a wskaźnik wiąże dowód usunięcia danych osobowych ze wszystkim, co po tym
+  koncie w serwisie zostało. Właściciel zdecydował inaczej — ma się dać
+  odpowiedzieć regulatorowi o konkretną osobę bez pytania jej o numer sprawy —
+  i CHECK zdejmuje migracja
+  `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo` (jej
+  `down()` zakłada go z powrotem i odmawia wąsko, gdy stoi wiersz, który by go
+  złamał).
+
+  **CENA TEJ DECYZJI I JEDYNE, CO PO NIEJ ZOSTAŁO Z OCHRONY.** Rejestr umie
+  teraz odpowiedzieć na pytanie „czy ta osoba usunęła konto" każdemu, kto ma
+  dostęp do bazy — a przy zakresie `minimum` treści tej osoby zostają pod tym
+  samym `user_id` (D-022), więc wskaźnik prowadzi od potwierdzenia wprost do
+  jej zachowanego dorobku. Decyzja brzmiała „ma się dać odpowiedzieć
+  regulatorowi", a **nie** „ma być wyszukiwarka", więc:
+  - **nie ma i nie będzie ekranu, trasy ani endpointu** czytającego tę tabelę
+    po `konto_id` — pilnuje tego
+    `tests/Feature/RejestrPotwierdzenRodoNieMaEkranuTest.php` (skan tras, skan
+    warstwy HTTP i widoków, zamknięta lista publicznych metod klasy piszącej,
+    zakaz wiązania modelu z adresu — każdy z kontrolą dodatnią);
+  - **kto i w jakim trybie ma prawo z tego skorzystać:** właściciel serwisu,
+    **odczytem ręcznym wprost w bazie**, przy konkretnej sprawie od organu
+    nadzorczego albo sądu, notując przy sprawie, czego odczyt dotyczył. To nie
+    jest funkcja produktu i nie ma być wygodne — niewygoda jest tu jedynym, co
+    zostało z ochrony zdjętej razem z CHECK-iem.
+
+  Pełny zapis decyzji, argumentów przeciw i tego zawężenia:
+  `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.2 punkt 3 i §3.3 punkt 7;
+- **`wstrzymanie_do date NULL`** + **`wstrzymanie_sprawa varchar(100) NULL`** —
+  udokumentowane wstrzymanie kasowania (§C: „o ile konkretna udokumentowana
+  sprawa nie wymaga dalszego zachowania"). CHECK wymusza parę: wstrzymanie bez
+  wskazanej sprawy to znów retencja bezterminowa, tylko pisana inną kolumną.
+  Data, nie flaga — blokada ma wygasać sama;
+- `created_at` / `updated_at` (`timestamptz`) — kiedy wiersz powstał. To **nie**
+  jest `otrzymano`; rozjazd między nimi jest jedynym sygnałem daty wpisanej
+  wstecz.
+
+**Czego tu nie ma, świadomie:** adresu e-mail (jawnego ani jako skrót), nazwy,
+biogramu, zdjęć, treści wniosku, korespondencji, `ip_hash` — oraz `metadata
+jsonb`, czyli tej jednej kolumny, przez którą wszystkie powyższe wróciłyby bez
+migracji i bez recenzji schematu.
+
+**Indeksy** (wszystkie częściowe — każdy pod jedno zapytanie):
+`potwierdzenia_zadan_rodo_retencja_idx (zakonczono) WHERE zakonczono IS NOT NULL`,
+`..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
+oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
+
+**Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
+D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.
+
+Powód nie jest niechęcią do retencji, tylko dwiema konkretnymi rzeczami:
+okresu **nie potwierdził jeszcze prawnik** (36 miesięcy było analogią do
+sprawy moderacyjnej, nie ustaleniem), a kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby" nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą" — czyli nie wiadomo nawet, jak długo istnieje droga odzysku.
+
+Wyłączenie stoi na **dwóch niezależnych barierach**: `retencja_wlaczona` jest
+`false`, a `kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte
+w `routes/console.php`**, więc nie wystartuje nawet przy przypadkowo ustawionej
+zmiennej. `retention_months` jest `null`, nie 36 — żeby samo przestawienie
+flagi nie uruchomiło kasowania według zgadniętego progu.
+
+Sam predykat istnieje, jest przetestowany i gotowy:
+`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo` liczy od `zakonczono`,
+pomija wiersze z `wstrzymanie_do` w przyszłości, a sprawy w toku (`zakonczono IS
+NULL`) nie są kandydatem w ogóle, bo kasowanie otwartej sprawy zamieniłoby
+retencję w sprzątanie dowodów zaniedbania. Próg liczony `subMonthsNoOverflow`,
+nie `subMonths` (A6-04) — przepełnienie daty przesuwa go w stronę nowszych
+wierszy i kasowałoby dowód wykonania art. 17 przed czasem.
+
+**Do przygotowania danych historycznych** służy
+`kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które działa mimo
+wyłączenia i nie wykonuje żadnego `DELETE` — pokazuje wyłącznie, ile wierszy
+wpadłoby pod dany próg.
+
+**Jak to włączyć, gdy prawnik potwierdzi okres:** trzy kroki opisane przy kluczu
+`potwierdzenia_rodo` w `config/kuking.php` i w `PROJEKT_POTWIERDZENIA_RODO.md`
+§6. `tests/Feature/RetencjaPotwierdzenRodoTest.php` pilnuje obu stron: że
+domyślnie nic się nie kasuje (z kontrolą dodatnią, że wiersz naprawdę był
+kandydatem) i że po jawnym włączeniu automat kasuje oraz omija wstrzymane.
+
+**Rollback:** `down()` kasuje tabelę, ale **odmawia**, gdy stoi w niej choć
+jeden wiersz z wypełnionym `zakonczono` — to dowód obsługi żądania, którego nie
+ma gdzie indziej. Odmowa jest wąska (AGENTS.md §6, D-088): pusta tabela i tabela
+z samymi sprawami w toku cofają się bez pytania, bo sprawa w toku żyje nadal
+w `users.delete_requested_at`. Kolejność: **najpierw kod, potem migracja**.
+Pilnuje tego `MinimalnePotwierdzenieRodoTest` (odmowa + dwie kontrole dodatnie).
 
 ### dziennik_zgod
 Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
@@ -3321,7 +3586,7 @@ razy dłużej, niż potrzeba. Pilnuje tego
 | `kind` | `blad` \| `pomysl` \| `inne`. CHECK w bazie (`contact_messages_kind_check`). **Świadomie rozłączne z `Report::REASONS`** — gdyby tu było „Mowa nienawiści", ludzie zgłaszaliby sąsiada formularzem technicznym. |
 | `message` | `text`, nie `string`: to jedyne miejsce, gdzie człowiek OPISUJE awarię. Górną granicę (5000 znaków) trzyma walidacja; w bazie stoi CHECK `contact_messages_message_not_blank`, żeby nie dało się zapisać samych spacji. |
 | `contact_email` | Tylko dla GOŚCIA. Dla zalogowanego zostaje `NULL` — jego adres jest już na koncie, a kopiowanie go tutaj byłoby powielaniem danych osobowych bez powodu (RODO, minimalizacja). Odpowiedni adres podaje `ContactMessage::adresDoOdpowiedzi()`. |
-| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. Kontroler przycina (`NapiszDoNasController::oczyscSciezke()`): adres z cudzego serwisu i fraza wyszukiwania w `?q=` do bazy nie trafiają. |
+| `page_path` | **Sama ścieżka z naszego serwisu**, bez domeny, bez parametrów zapytania i bez fragmentu. `PageContext::clean()` usuwa także wrażliwe segmenty ekranów konta. Kontroler oczyszcza przed walidacją (ochrona sesji), a akcja domenowa ponawia ochronę przed zapisem. Obca domena, parametry, fragmenty i niejednoznaczne ścieżki nie trafiają do bazy (#836). |
 | `wydanie` | `App\Support\Wersja::opisWydania()` w chwili wysłania. Nie jest daną osobową — to numer naszej wersji, i przy „u mnie nie działa" połowa diagnozy. |
 | `status` | `new` \| `in_progress` \| `done`, CHECK `contact_messages_status_check`. **Nie ma go w `$fillable`** — ta sama zasada, co dla `status` i `role` użytkownika (AGENTS.md §7). Jedyna droga zmiany: `ContactMessage::oznaczJako()`. |
 | `handled_by`, `handled_at` | Kto i kiedy. CHECK `contact_messages_handled_complete` (przez `num_nonnulls()`) wymusza komplet: status inny niż `new` MUSI mieć oba, a `new` — żadnego. Bez tego retencja nie miałaby od czego liczyć i wiersz zostawałby w bazie na zawsze. |
@@ -3561,6 +3826,124 @@ zostają. **Kolejność wycofywania: NAJPIERW KOD, POTEM MIGRACJA** — inaczej
 nieistniejącej tabeli (sonda zgłasza wtedy `slad_listow_niesprawdzalny`,
 a słuchacz zapisuje porażkę do dziennika i milczy dalej, żeby nie zabrać
 `failed_jobs` ostatniego zapisu).
+
+### sessions
+
+Tabela sterownika sesji Laravela (`SESSION_DRIVER=database` — wartość
+**domyślna** w `config/session.php`, ta sama w `.env.example`, w `docker/php.ini`
+i w `.railway/railway.ts`). Zakłada ją domyślna migracja frameworka
+`0001_01_01_000001_create_users_table`, nie nasza.
+
+**Jest tu opisana, chociaż nie jest naszą tabelą — i to jest cała rzecz.**
+Do 21.09.2026 `docs/DATABASE.md` nie wspominał o niej ani razu, a leżą w niej
+dane osobowe. Sześć kolejnych audytów prywatności czytało ten dokument jako
+spis danych i żaden nie zauważył, że serwis trzyma adres IP zalogowanego
+człowieka — bo nikt tej tabeli nie „dodawał", więc nikt nie przeszedł ścieżki
+„migracja + test + `docs/DATABASE.md`", która takie rzeczy wyłapuje
+(badanie RZ-01, 21.09.2026). Cisza w dokumencie nie znaczyła, że nic tam nie ma.
+
+| Kolumna | Uwagi |
+|---|---|
+| `id` | Identyfikator sesji z ciasteczka, `varchar` PRIMARY KEY. Nadaje go framework, nie my. |
+| `user_id` | Kto jest zalogowany; `null` dla gościa. **Kolumna, nie klucz obcy** — `foreignUuid()` bez `constrained()` tworzy samą kolumnę `uuid` z indeksem. Kasowanie konta zabiera te wiersze jawnie (`User::invalidateSessions()`, `EraseAccountData`), nie kaskadą. |
+| `ip_address` | **ZGRUBNY adres IP, nie dokładny** (RZ-01). IPv4 bez ostatniego oktetu (`203.0.113.0`), IPv6 obcięty do `/48` (`2001:db8:1234::`). Zapisuje go `App\Support\Sesja\UchwytSesjiBezPelnegoAdresu` — nasze nadpisanie `DatabaseSessionHandler::ipAddress()`, zarejestrowane w `AppServiceProvider`. `varchar(45)` (długość na pełny IPv6) zostaje ze schematu frameworka. |
+| `user_agent` | **Pełny nagłówek `User-Agent`, do 500 znaków** — obcina go framework, nie my. To jest niezły odcisk palca przeglądarki i **dana osobowa**, gdy stoi obok `user_id`. Nie maskujemy go: to osobna decyzja, nie porządek przy okazji. |
+| `payload` | Zawartość sesji (`text`, base64 + `serialize`). Jedyna kolumna, którą obejmuje `SESSION_ENCRYPT` — patrz niżej. |
+| `last_activity` | Uniksowy znacznik czasu (`integer`, nie `timestamptz`), aktualizowany przy każdym zapisie sesji. Po nim liczy się retencja. |
+
+```sql
+CREATE TABLE sessions (
+    id            varchar(255) PRIMARY KEY,
+    user_id       uuid NULL,
+    ip_address    varchar(45) NULL,
+    user_agent    text NULL,
+    payload       text NOT NULL,
+    last_activity integer NOT NULL
+);
+
+CREATE INDEX sessions_user_id_index ON sessions (user_id);
+CREATE INDEX sessions_last_activity_index ON sessions (last_activity);
+```
+
+#### `SESSION_ENCRYPT` NIE zasłania adresu ani przeglądarki
+
+To jest pułapka, na którą łatwo wejść przy czytaniu `.railway/railway.ts`
+(planuje `SESSION_ENCRYPT: "true"`). Flaga szyfruje **wyłącznie kolumnę
+`payload`**. `ip_address` i `user_agent` są dokładane OBOK, jako osobne
+kolumny, przez `DatabaseSessionHandler::addRequestInformation()`, i zostają
+jawne niezależnie od niej. Kto weźmie zrzut tej tabeli, dostaje parę
+(`user_id`, zgrubny adres, pełny `User-Agent`).
+
+#### Dlaczego adres jest zgrubny, a nie dokładny i nie pusty
+
+Po `App\Http\Middleware\NormalizeForwardedFor` `$request->ip()` zwraca
+**prawdziwy adres człowieka** zza łańcucha Cloudflare → Railway → kontener,
+czyli adres domowy albo komórkowy, a nie adres infrastruktury. RZ-01 ustaliło
+przy tym, że **nic tej kolumny nie czyta**: jedyne odwołania do tabeli
+w całym `app/` to dwa `->delete()` po `user_id` i deklaracja nazwy tabeli.
+Nie ma wykrywania przejęcia sesji ani ekranu „Twoje aktywne urządzenia".
+
+Pełna precyzja nie ma więc dziś odbiorcy, a ma koszt. Zgrubny adres zostawia
+tyle, ile wystarcza przy incydencie na ręczne pytanie „czy te sesje szły
+z jednego miejsca, czy z pół świata"; wyzerowanie kolumny zamknęłoby tę drogę
+bez powrotu i jest osobną decyzją, której nikt nie podjął.
+
+**Uczciwa granica: zamaskowany adres NADAL jest daną osobową**, gdy leży obok
+`user_id` — u operatora, który deleguje abonentowi całe `/48`, ta maska nie
+zabiera nic. Zmiana zmniejsza szkodę przy wycieku; **nie znosi obowiązku
+opisania tego przetwarzania w polityce prywatności**, którego ten dokument nie
+zastępuje i którego nie wolno domknąć zmianą w kodzie.
+
+#### Retencja — twarda, nie loteryjna
+
+`kuking:sprzataj-sesje` (`App\Domain\Compliance\PrzedawnioneSesje`), co noc
+o 05:10: kasuje wiersze bez aktywności od `config('kuking.sessions.retention_days')`
+dni (domyślnie 7), **nigdy jednak krócej niż `SESSION_LIFETIME`** — wiersz
+młodszy niż czas życia sesji należy do sesji ŻYWEJ, a jego skasowanie to
+wylogowanie człowieka w środku pracy.
+
+Do 21.09.2026 kasowała tu wyłącznie loteria frameworka
+(`config/session.php` → `'lottery' => [2, 100]`, czyli `gc()` przy 2% żądań).
+Przy małym ruchu wiersz leżał dłużej niż `lifetime`, bez żadnej gwarantowanej
+górnej granicy — `sessions` była jedyną tabelą z danymi osobowymi bez nocnego
+zadania. **Loteria zostaje włączona obok**, świadomie: dwa mechanizmy o różnych
+trybach awarii (loteria czyści przy ruchu nawet po śmierci harmonogramu,
+zadanie czyści co noc nawet bez ruchu).
+
+#### Czego tu świadomie nie ma i co zostało zrobione z wierszami sprzed zmiany
+
+**Nie ma migracji nadpisującej adresy, które już leżały w tabeli** — i to jest
+decyzja, nie przeoczenie. Powody, w kolejności ważności:
+
+1. **Te wiersze znikają same, bez żadnej destrukcyjnej operacji.**
+   `addRequestInformation()` przepisuje `ip_address` przy KAŻDYM zapisie sesji,
+   więc adres w sesji żywej zostaje zamaskowany przy pierwszym żądaniu po
+   wdrożeniu. Sesja, do której nikt nie wraca, wygasa i zabiera ją
+   `kuking:sprzataj-sesje`. Po okresie retencji nie zostaje ani jeden
+   niezamaskowany adres.
+2. **`down()` takiej migracji nie umiałby nic przywrócić.** `AGENTS.md` wymaga
+   działającego wycofania; migracja nadpisująca dane jest nieodwracalna
+   z definicji, a nieodwracalna migracja udająca odwracalną jest gorsza niż
+   jej brak.
+3. **Kasowanie i nadpisywanie danych na produkcji wymaga osobnej, jawnej zgody
+   właściciela** (zasady floty). Zatwierdzone zostało maskowanie zapisu, nie
+   operacja na istniejących wierszach.
+
+Gdyby właściciel zdecydował inaczej, jest to bezpieczne: jednorazowy
+`UPDATE sessions SET ip_address = …` nikogo nie wylogowuje (kolumny nie czyta
+ani framework, ani nasz kod), ale jest nieodwracalny i dlatego ma być osobną,
+wyraźną decyzją, a nie skutkiem ubocznym tej zmiany.
+
+Nie ma też ekranu „aktywne urządzenia" ani wykrywania przejęcia sesji —
+gdyby kiedyś powstały, będą czytały ZGRUBNY adres i to trzeba wiedzieć przed
+projektowaniem takiego ekranu.
+
+**Rollback.** Ta zmiana **nie dotyka schematu** — nie ma czego wycofywać
+migracją. Wycofanie samego zachowania to zdjęcie rejestracji
+`Session::extend('database', …)` z `AppServiceProvider` (wracają pełne adresy)
+oraz zdjęcie zadania z `routes/console.php` (wraca sama loteria). Adresy
+zamaskowane w międzyczasie **nie wracają** do pełnej postaci i wrócić nie mogą.
+
 
 ## V1 / V2
 
@@ -3967,8 +4350,13 @@ replice) liczba jest praktycznie ta sama: 4 + 1 + 1 = 6 w spoczynku,
 a wdrożenie z nakładaniem daje 12 + 1 = **13**.
 
 **Koszt każdej dodatkowej repliki `web`:** +4 w spoczynku, +8 w oknie
-wdrożenia. Przy 497 miejscach i budżecie 16 zapas starcza na ponad sto replik,
-zanim połączenia staną się ograniczeniem.
+wdrożenia. Przy 497 miejscach, jednym workerze i jednym schedulerze wzór
+wdrożeniowy to `8R + 8`: mieści się maksymalnie 61 replik web (496 miejsc),
+ale to wyczerpuje pulę i **nie jest bezpiecznym limitem skalowania**.
+Poniżej progu ostrzegawczego 50 mieści się 5 replik (48 miejsc).
+Wcześniejsze „ponad sto replik” pomijało nakładanie wdrożeń.
+Własny pomiar z 20.09.2026, ograniczenia tego wyliczenia i wariant z osobnym
+workerem media: [odbiór lokalny #598/#599](infra/MONITORING_ODBIOR_2026_09_20.md).
 
 ### D. Progi alarmowe i skąd się wzięły
 

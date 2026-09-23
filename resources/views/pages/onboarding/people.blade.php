@@ -44,10 +44,15 @@
             Wpisz imię albo nazwę użytkownika, żeby ją tu znaleźć.
         </p>
         <form method="GET" action="{{ route('onboarding.people') }}">
-            <div class="field">
+            @include('components.error-summary', ['errors' => $searchErrors])
+            <div class="field @if($searchErrors->has('q')) has-error @endif">
                 <label for="f-q">Imię lub nazwa użytkownika</label>
                 <input class="field-input" id="f-q" name="q" type="search"
-                       value="{{ $phrase }}" placeholder="np. Basia" autocomplete="off">
+                       value="{{ $phrase }}" placeholder="np. Basia" autocomplete="off"
+                       @if($searchErrors->has('q')) aria-invalid="true" aria-describedby="f-q-error" @endif>
+                @if($searchErrors->has('q'))
+                    <span class="field-error" id="f-q-error">{{ $searchErrors->first('q') }}</span>
+                @endif
             </div>
             <button class="btn btn-secondary mt-3" type="submit">Szukaj</button>
         </form>
@@ -56,7 +61,7 @@
     <form method="POST" action="{{ route('onboarding.people') }}">
         @csrf
 
-        @if($phrase !== '')
+        @if($phrase !== '' && $searchErrors->isEmpty())
             {{--
                 WYNIKI SZUKANIA — wyłącznie dopasowania do wpisanej frazy,
                 NIGDY pełna lista kont. To jest wyszukiwanie jednej znanej
@@ -85,6 +90,13 @@
                     @foreach($wynikiWyszukiwania as $profil)
                         <label class="choice">
                             <input type="checkbox" name="follow[]" value="{{ $profil->username }}">
+                            {{-- #793 rozszerzone na relacje: ten ekran ludzie
+                                 przerywają i wracają do niego, więc nazwa
+                                 zaznaczona teraz może przy wysłaniu należeć
+                                 już do kogoś innego. Kontroler porównuje ten
+                                 identyfikator z osobą, którą nazwa wskazuje
+                                 w chwili wysłania. --}}
+                            <input type="hidden" name="oczekiwani[{{ $profil->username }}]" value="{{ $profil->user_id }}">
                             <span class="flex gap-3 items-center flex-1">
                                 <x-avatar :user="$profil->user" :size="48" />
                                 <span>
@@ -126,6 +138,8 @@
                 @foreach($people as $person)
                     <label class="choice">
                         <input type="checkbox" name="follow[]" value="{{ $person->profile->username }}">
+                        {{-- Jak wyżej (#793 rozszerzone na relacje). --}}
+                        <input type="hidden" name="oczekiwani[{{ $person->profile->username }}]" value="{{ $person->getKey() }}">
                         <span class="flex gap-3 items-center flex-1">
                             <x-avatar :user="$person" :size="48" />
                             <span>

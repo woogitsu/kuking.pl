@@ -1,0 +1,17 @@
+
+  at tests/Feature/TagiAtomowyZapisTest.php:48
+     44▕         }
+     45▕         $this->assertSame(0, DB::transactionLevel());
+     46▕         // Nowe połączenie czyta wyłącznie to, co rzeczywiście zatwierdzono.
+     47▕         DB::purge();
+  ➜  48▕         $this->assertSame([$a->id], $user->followedTags()->pluck('tags.id')->all(), 'Pozostał częściowy zapis zamiast początkowego A.');
+     49▕
+     50▕         $this->put(route('settings.tags.update'), $data)->assertRedirect(route('settings.tags'));
+     51▕         DB::purge();
+     52▕         $this->assertSame([$b->id], $user->followedTags()->pluck('tags.id')->all());
+
+  1   tests/Feature/TagiAtomowyZapisTest.php:48
+
+
+  Tests:    1 failed (5 assertions)
+  Duration: 1.56s

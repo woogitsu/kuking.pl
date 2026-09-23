@@ -144,6 +144,17 @@
     box-shadow: var(--shadow-card);
   }
 
+  /* UWAGA (20.09.2026, D-223): ta reguła WYGRYWA z `7rem` w app.css — i też
+     NIE DOCHODZI DO PRZEGLĄDARKI. Jedyny nosiciel `.przepis-liczby` stoi
+     wewnątrz `.marka-przepis-tekst`, a `marka-przepis.css` (arkusz BEZ
+     WARSTWY, czyli ponad każdą warstwą nazwaną) robi z niego kontener flex.
+     Na flexie `grid-template-columns` nie znaczy nic.
+
+     Zmierzone: podmiana 10rem → 7rem nie zmienia ani jednego piksela
+     w 30 konfiguracjach. Nie „naprawiaj" tu wartości — najpierw rozstrzygnij,
+     czy nosiciel ma być siatką, czy flexem. Dowód i pełny opis:
+     `docs/design/evidence/kaskada223/` oraz D-223. Reguły nie usuwamy: to
+     osobna decyzja o zachowaniu, gdyby `marka-przepis.css` zniknął. */
   .przepis-liczby {
     grid-template-columns: repeat(auto-fit, minmax(min(10rem, 100%), 1fr));
   }
@@ -337,6 +348,36 @@
 
     .wyszukiwarka-pole-wiersz .wyszukiwarka-input {
       flex-basis: 100%;
+    }
+
+    /* PIERWSZY EKRAN STRONY POWITALNEJ (issue: hasło i akcja bez przewijania).
+       `STRONA-WWW.md:121` żąda, żeby hasło i akcja były widoczne bez
+       przewijania. Przy 320 px i skali tekstu 100% dół przycisku „Zostań
+       kuKINGiem" stał na 776 px przy oknie 568 px — 208 px za nisko.
+
+       Skracamy WYŁĄCZNIE odstępy nad przyciskiem. Żadna z tych reguł nie
+       rusza rozmiaru pisma ani wysokości celu dotknięcia: nagłówek zostaje
+       28 px, akapit 22 px, przycisk 48 px+ (progi z docs/UX_50_PLUS.md).
+
+       Te reguły MUSZĄ stać tutaj, w warstwie `marka`. Ich odpowiedniki
+       w `strony-publiczne.css` żyją w warstwie `components`, którą warstwa
+       `marka` przykrywa NIEZALEŻNIE od szczegółowości selektora i od
+       zapytania medialnego — reguła `.hero` ze `strony-publiczne.css`
+       nie obowiązuje nigdy. Sprawdzone przez `getComputedStyle`. */
+    .uklad-powitalny .pas:has(.hero) {
+      padding-block-start: var(--spacing-6);
+    }
+
+    .hero .nadtytul {
+      margin-bottom: var(--spacing-2);
+    }
+
+    .hero .hero-tytul {
+      margin-bottom: var(--spacing-3);
+    }
+
+    .hero .hero-lead {
+      margin-bottom: var(--spacing-4);
     }
   }
 }

@@ -1,0 +1,8 @@
+storage/ci611-baseline.yml:524:102: property access of object must be type of string but got "number" [expression]
+storage/ci611-baseline.yml:634:102: property access of object must be type of string but got "number" [expression]
+storage/ci611-baseline.yml:820:120: property access of object must be type of string but got "number" [expression]
+storage/ci611-baseline.yml:913:102: property access of object must be type of string but got "number" [expression]
+storage/ci611-baseline.yml:955:51: property access of object must be type of string but got "number" [expression]
+storage/ci611-baseline.yml:1013:102: property access of object must be type of string but got "number" [expression]
+storage/ci611-baseline.yml:1064:51: property access of object must be type of string but got "number" [expression]
+storage/ci611-baseline.yml:1150:102: property access of object must be type of string but got "number" [expression]

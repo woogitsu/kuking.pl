@@ -10,6 +10,7 @@ use App\Models\Notification;
 use App\Models\Post;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
@@ -61,13 +62,18 @@ class PanelBezOdpowiedziTest extends TestCase
 
     private function wpis(User $autor, string $tresc, mixed $kiedy = null): Post
     {
-        return Post::factory()->create([
+        $post = Post::factory()->create([
             'author_id' => $autor->getKey(),
             'body' => $tresc,
             'status' => Post::STATUS_PUBLISHED,
             'visibility' => 'public',
             'published_at' => $kiedy ?? now(),
         ]);
+
+        // Fixture historycznego wkładu obejmuje także trwały nośnik pierwszeństwa.
+        DB::table('first_post_events')->insertOrIgnore(['author_id' => $autor->getKey(), 'post_id' => $post->getKey()]);
+
+        return $post;
     }
 
     // ---------------------------------------------------------------

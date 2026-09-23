@@ -70,15 +70,15 @@ return [
     | a poprawna diagnoza wymagałaby wiedzy, że dwie zupełnie różne usługi
     | dzielą tu jeden komplet zmiennych.
     |
-    | Fallback na `AWS_*` zostaje, żeby nie zepsuć środowiska, w którym ktoś
-    | wpisał je świadomie — ale kolejność jest jednoznaczna: poczta najpierw
-    | pyta o SWOJE zmienne. Region domyślny to `eu-central-1` (Frankfurt),
-    | bo dane mają zostawać w UE (RODO, `docs/decyzje/POCZTA.md` §2).
+    | Nie ma fallbacku na `AWS_*`, także przy braku tylko jednego pola.
+    | Provider poczty odmawia budowy SES bez własnego klucza i sekretu,
+    | zanim SDK mogłoby samo poszukać poświadczeń R2 w środowisku (#1042).
+    | Region domyślny to niezależne `eu-central-1` (Frankfurt).
     */
     'ses' => [
-        'key' => env('MAIL_SES_KEY', env('AWS_ACCESS_KEY_ID')),
-        'secret' => env('MAIL_SES_SECRET', env('AWS_SECRET_ACCESS_KEY')),
-        'region' => env('MAIL_SES_REGION', env('AWS_DEFAULT_REGION', 'eu-central-1')),
+        'key' => env('MAIL_SES_KEY'),
+        'secret' => env('MAIL_SES_SECRET'),
+        'region' => env('MAIL_SES_REGION', 'eu-central-1'),
     ],
 
     'slack' => [

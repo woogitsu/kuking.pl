@@ -13,7 +13,7 @@
              data-tagi-min="{{ \App\Support\LimityTagow::minZnakow() }}"
              data-tagi-max="{{ config('kuking.tags.suggestions_query_max_length') }}">
             <x-field name="body" label="Napisz trochę więcej" type="textarea" :rows="5" help="Możesz dopisać, co już udało Ci się spróbować. Najwyżej 4000 znaków." />
-            <p class="field-help">Wpisz # i nazwę, na przykład #zupa. Tagi możesz też znaleźć poniżej.</p>
+            <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="3" :pytanie="true" />
         </div>
         @php
             $zachowane = \App\Models\Media::query()->whereIn('id', (array) old('media_ids', []))
@@ -39,7 +39,7 @@
         @endif
         @error('photos')<p class="field-error">{{ $message }}</p>@enderror
         @error('photos.*')<p class="field-error">{{ $message }}</p>@enderror
-        <x-tagi-formularz :tag-names="$tagNames" :sugestie-tagow="$sugestieTagow" :maks-tagow="3" :pytanie="true" />
+
         <button class="btn btn-primary" type="submit">Opublikuj pytanie</button>
     </form>
 </x-layout>
