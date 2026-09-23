@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Contact\Actions;
 
+use App\Domain\Security\DziennyBudzetListow;
 use App\Mail\OdpowiedzNaWiadomosc;
 use App\Models\AuditLogEntry;
 use App\Models\ContactMessage;
@@ -90,11 +91,52 @@ final class WyslijOdpowiedz
             return $odpowiedz;
         }
 
+        /*
+         |------------------------------------------------------------------
+         | WSPÓLNA PULA POCZTY — rezerwacja przed wysyłką (D-239)
+         |------------------------------------------------------------------
+         |
+         | Wpis przy `limits.kontakt_odpowiedz` w `config/kuking.php` mówił
+         | wprost: sufitu dobowego tu świadomie nie ma, ale „gdyby kiedyś
+         | powstał prawdziwy, WSPÓLNY licznik poczty, TO ON ma być jednym
+         | miejscem tej decyzji — nie osobny sufit dopisany tutaj". Licznik
+         | powstał 20 września 2026, więc odpowiedź przechodzi przez niego,
+         | a osobnego progu przy tej trasie nadal nie ma.
+         |
+         | KLASA `zwykla`: odpowiedź pisze człowiek własnymi słowami, więc
+         | fan-outu nie ma z czego zrobić — ale limit `kontakt_odpowiedz`
+         | (20 na 10 minut) przy przejętej sesji moderatora to nadal listy
+         | wychodzące na zewnątrz z naszej puli. Rezerwa transakcyjna (100
+         | listów) zostaje wtedy nietknięta dla potwierdzeń rejestracji.
+         |
+         | REZERWACJA DOPIERO PO ZAMKU `sending_started_at`: ponowiony POST
+         | tego samego formularza wraca wyżej i nie zajmuje drugiego miejsca.
+         |
+         | ODMOWA IDZIE TĄ SAMĄ DROGĄ CO NIEUDANA WYSYŁKA. Odpowiedź jest już
+         | zapisana i ZOSTAJE — treść napisana przez człowieka nie przepada,
+         | a panel pokazuje ją jako niewysłaną, z powodem mówiącym, co zrobić.
+         */
+        $budzet = DziennyBudzetListow::dlaListuObslugi();
+
+        if (! $budzet->sprobujZarezerwowac()) {
+            DB::transaction(fn () => $odpowiedz->oznaczNieudana(
+                'Dobowa pula listów jest na dziś wyczerpana, więc ta odpowiedź nie wyszła. '
+                .'Treść jest zapisana — wyślij ją jutro przyciskiem „Wyślij jako nową odpowiedź”.',
+            ));
+            $this->finishAudit($odpowiedz->refresh(), $wiadomosc, $ip);
+
+            return $odpowiedz;
+        }
+
         try {
             Mail::to($adres)->send(new OdpowiedzNaWiadomosc($wiadomosc, $tresc));
         } catch (Throwable $e) {
-            DB::transaction(function () use ($odpowiedz, $e): void {
+            DB::transaction(function () use ($odpowiedz, $e, $budzet): void {
                 if ($e instanceof OdmowaEmailLabs && $e->isConfirmedRejection()) {
+                    // List na pewno nie wyszedł, więc miejsce wraca do wspólnej
+                    // puli. Przy nieustalonym wyniku miejsca NIE oddajemy: list
+                    // mógł wyjść, a pula ma liczyć ostrożnie.
+                    $budzet->zwolnij();
                     $odpowiedz->oznaczNieudana($this->bezpiecznyPowod($e));
                 } else {
                     // Nieznany wyjątek nie jest dowodem odmowy. Zachowujemy

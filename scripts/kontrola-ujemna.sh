@@ -59,6 +59,8 @@
 #    4  ZLA_PRZYCZYNA           oblał, ale nie na tym, czego oczekiwano
 #    5  BRAK_KONTROLI_DODATNIEJ test oblewał JUŻ PRZED mutacją
 #    6  PRZYWROCENIE_NIEUDANE   plik nie wrócił do stanu sprzed przebiegu
+#    7  BLAD_POLECENIA          polecenie SIĘ NIE WYKONAŁO (126/127) — awaria
+#                               przyrządu, nigdy wynik próby
 #    9  BLAD_UZYCIA             złe argumenty, brak pliku, brudny katalog
 # =============================================================================
 
@@ -110,6 +112,66 @@ zle()  { printf "${CZERWONY}✗ %s${RESET}\n" "$1"; }
 suma() { md5sum "$1" | cut -d' ' -f1; }
 czas() { date -r "$1" +%s.%N 2>/dev/null || stat -c '%Y' "$1"; }
 
+# Jedyne miejsce, w którym uruchamiamy cudze polecenie. Ustawia WYJSCIE i KOD.
+#
+# 126 I 127 TO AWARIA PRZYRZĄDU, NIE WYNIK PRÓBY. Powłoka zwraca 127, gdy
+# polecenia nie ma, i 126, gdy jest, ale bez bitu wykonywalności (w worktree
+# na Windows ten bit ginie nagminnie). Obie liczby są niezerowe, więc naiwny
+# przyrząd czyta je jako „test oblał" — a przy tym „plik jest nietknięty" też
+# jest prawdą, bo nic się nie wykonało. Wychodzi komplet zielonych sprawdzeń
+# wokół próby, która nigdy nie ruszyła: fałszywa zieleń WEWNĄTRZ narzędzia
+# budowanego przeciw fałszywym zieleniom.
+# SKOMPILOWANE WIDOKI BLADE — pulapka zglaszana przez trzy sesje.
+#
+# Laravel rekompiluje szablon tylko wtedy, gdy zrodlo jest NOWSZE od kompilatu
+# (`Illuminate/View/Compilers/Compiler::isExpired()`:
+# `lastModified($path) >= lastModified($compiled)`). Kolejnosc zdarzen przy
+# kontroli ujemnej na pliku `.blade.php` jest wiec zabojcza:
+#
+#   1. zrodlo ma mtime T0, kompilat powstaje w T1 > T0;
+#   2. mutacja ustawia mtime na TERAZ (T2 > T1) -> Laravel rekompiluje
+#      ZMUTOWANY widok, kompilat ma T3;
+#   3. przywrocenie `cp -p` cofa mtime zrodla do T0, czyli PONIZEJ T3
+#      -> `isExpired()` zwraca false i Laravel dalej serwuje ZMUTOWANY
+#      kompilat. Zrodlo jest czyste, MD5 sie zgadza, a widok klamie.
+#
+# Najgorsze jest to, ze skutek PRZEZYWA przebieg: zatruwa kazdy nastepny test
+# w tej kopii, dopoki ktos nie wyczysci kompilatow recznie. Dlatego naprawa
+# siedzi TUTAJ, a nie u kazdego wolajacego — trzy sesje potknely sie o to
+# osobno, co znaczy, ze wolajacy o tym nie wiedza i wiedziec nie musza.
+#
+# Kasujemy KOMPILATY, nie zrodla. Laravel odtworzy je przy nastepnym renderze.
+unieważnij_kompilaty() {
+    case "$PLIK" in *.blade.php) ;; *) return 0 ;; esac
+    [ -d storage/framework/views ] || return 0
+    local ile
+    ile="$(find storage/framework/views -maxdepth 1 -name '*.php' -type f -print -delete 2>/dev/null | wc -l)"
+    [ "$ile" -gt 0 ] && printf '  (skasowano %s skompilowanych widokow — mutacja pliku Blade)
+' "$ile"
+    return 0
+}
+
+WYJSCIE=""; KOD=0
+uruchom_polecenie() {
+    WYJSCIE="$("${POLECENIE[@]}" 2>&1)"
+    KOD=$?
+    if [ "$KOD" -eq 126 ] || [ "$KOD" -eq 127 ]; then
+        zle "POLECENIE SIĘ NIE WYKONAŁO (kod $KOD) — to NIE jest wynik próby."
+        if [ "$KOD" -eq 127 ]; then
+            zle "127 = nie znaleziono polecenia: ${POLECENIE[0]}"
+        else
+            zle "126 = brak bitu wykonywalności na: ${POLECENIE[0]}"
+            zle "Napraw: chmod +x ${POLECENIE[0]}"
+            zle "a w repozytorium: git update-index --chmod=+x ${POLECENIE[0]}"
+        fi
+        printf '%s
+' "$WYJSCIE" | tail -5 | sed 's/^/    /'
+        WERDYKT="BLAD_POLECENIA"
+        zapisz_json "$WERDYKT"
+        exit 7
+    fi
+}
+
 KOPIA="$(mktemp -t kontrola-ujemna.XXXXXX)"
 cp -p "$PLIK" "$KOPIA"
 MD5_PRZED="$(suma "$PLIK")"
@@ -151,6 +213,10 @@ przywroc() {
             zapisz_json "PRZYWROCENIE_NIEUDANE"
             exit 6
         fi
+        # Krok krytyczny: po cofnieciu mtime kompilat zmutowanego widoku
+        # jest NOWSZY od zrodla i Laravel dalej by go serwowal. Patrz
+        # uzasadnienie przy `unieważnij_kompilaty` wyzej.
+        unieważnij_kompilaty
         PRZYWROCENIE="ok (MD5 $md5_po, mtime $mtime_po)"
         rm -f "$KOPIA"
         # JEDNO ŹRÓDŁO PRAWDY: do 21 września 2026 ten fakt był liczony w
@@ -204,11 +270,17 @@ printf '  plik:     %s\n  MD5 przed: %s\n  oczekuję:  %s\n\n' "$PLIK" "$MD5_PRZ
 
 # --- 1. Kontrola dodatnia PRZED mutacją -------------------------------------
 krok "1/4 — czy test w ogóle przechodzi na nietkniętym źródle"
-WYJSCIE_PRZED="$("${POLECENIE[@]}" 2>&1)"
-if [ $? -ne 0 ]; then
+uruchom_polecenie
+if [ "$KOD" -ne 0 ]; then
     KD_PRZED="OBLANY"
     zle "Test oblewa JUŻ PRZED mutacją. Czerwień po mutacji nie dowiodłaby niczego."
-    printf '%s\n' "$WYJSCIE_PRZED" | tail -15
+    # `$WYJSCIE`, nie `$WYJSCIE_PRZED`: od czasu przejscia na `uruchom_polecenie`
+    # ta druga nazwa nie jest juz nigdzie ustawiana. Pod `set -u` rozwiniecie
+    # padalo w podpowloce potoku, wiec SAM SKRYPT szedl dalej i konczyl sie
+    # poprawnym kodem 5 — a jedyne, co ginelo, to wypis mowiacy, DLACZEGO test
+    # byl czerwony. Werdykt bez uzasadnienia to dokladnie ta klasa usterki,
+    # przeciw ktorej ten przyrzad powstal.
+    printf '%s\n' "$WYJSCIE" | tail -15
     WERDYKT="BRAK_KONTROLI_DODATNIEJ"
     zapisz_json "$WERDYKT"
     exit 5
@@ -256,6 +328,7 @@ if [ "$LICZBA_PODMIAN" -eq 0 ] || [ "$MD5_PO_MUTACJI" = "$MD5_PRZED" ]; then
     exit 2
 fi
 MUTACJA_WESZLA=true
+unieważnij_kompilaty
 ok "Mutacja weszła: $LICZBA_PODMIAN podmian, MD5 $MD5_PRZED → $MD5_PO_MUTACJI."
 if command -v diff >/dev/null 2>&1; then
     printf '  różnica:
@@ -265,10 +338,10 @@ fi
 
 # --- 3. Test na zmutowanym źródle -------------------------------------------
 krok "3/4 — czy test to wykrywa, i czy z właściwego powodu"
-WYJSCIE_PO="$("${POLECENIE[@]}" 2>&1)"
-KOD_PO=$?
+uruchom_polecenie
+WYJSCIE_PO="$WYJSCIE"; KOD_PO="$KOD"
 
-if [ $KOD_PO -eq 0 ]; then
+if [ "$KOD_PO" -eq 0 ]; then
     WYNIK_PO="PASS"
     zle "Mutacja weszła, a test DALEJ PRZECHODZI — ten test nie pilnuje tego, co zepsuliśmy."
     printf '%s\n' "$WYJSCIE_PO" | tail -10
@@ -278,10 +351,24 @@ if [ $KOD_PO -eq 0 ]; then
 fi
 WYNIK_PO="FAIL (kod $KOD_PO)"
 
+# NIE `printf ... | grep -q`. Wyglada niewinnie i jest pulapka: `grep -q`
+# konczy sie na PIERWSZYM trafieniu i zamyka potok, `printf` dostaje SIGPIPE
+# i wychodzi z kodem 141, a przy `set -o pipefail` statusem CALEGO potoku
+# jest wlasnie 141 — mimo ze wzorzec ZOSTAL znaleziony.
+#
+# Objawia sie WYLACZNIE przy duzym wyjsciu: gdy printf zdazy zapisac calosc,
+# zanim grep wyjdzie, SIGPIPE nie ma. Przy krotkich atrapach w kontroli
+# ujemnej bylo wiec zielono, a przy prawdziwym pakiecie (158 kB wyjscia
+# PHPUnita) przyrzad meldowal ZLA_PRZYCZYNA dla kontroli, ktore byly
+# POPRAWNE. Kierunek bledu lagodniejszy niz falszywa zielen, skutek gorszy
+# niz wyglada: czlowiek zaczyna ROZLUZNIAC wzorzec --oczekuj, zeby „w koncu
+# trafil" — czyli sam kasuje rozroznienie, dla ktorego to pole istnieje.
+#
+# `<<<` nie tworzy potoku, wiec nie ma SIGPIPE i nie ma czego psuc.
 if grep -qE "$OCZEKUJ" <<< "$WYJSCIE_PO"; then
     PRZYCZYNA_OK=true
     ok "Test oblał Z OCZEKIWANEGO POWODU — wzorzec „$OCZEKUJ” wystąpił w wyjściu."
-    grep -E "$OCZEKUJ" <<< "$WYJSCIE_PO" | sed -n '1,3s/^/    /p'
+    grep -E "$OCZEKUJ" <<< "$WYJSCIE_PO" | head -3 | sed 's/^/    /'
 else
     PRZYCZYNA_OK=false
     zle "Test oblał, ale NIE z oczekiwanego powodu — wzorca „$OCZEKUJ” nie ma w wyjściu."
