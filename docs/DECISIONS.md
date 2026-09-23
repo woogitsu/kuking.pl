@@ -15782,3 +15782,109 @@ Odwrócić commit. **Przed** odwróceniem wyczyścić `OPENAI_MODERATION_KEY`
 na produkcji, bo odwrócenie przywraca znane drogi wysyłki treści
 niepublicznej, pełnowymiarowego zdjęcia i awatara. Danych nie trzeba
 cofać: zmiana niczego nie zapisuje w bazie.
+
+---
+
+## D-247 — Projekt priorytetu w kolejce moderacji z 10 września (zarezerwowane D-070, PR #1139): zapisany jako materiał, NIEWDROŻONY (23 września 2026)
+
+**Data:** 23 września 2026 (projekt z 10 września 2026) · Audyt moderacji:
+MOD-01, MOD-02, MOD-04 · **Decyzja właściciela** z 23.09: dokumentację
+z #1139 odświeżyć i scalić osobno · Status: **nie obowiązuje — to zapis
+projektu, nie opis działania serwisu**
+
+### Dlaczego ten wpis istnieje i czego NIE twierdzi
+
+Gałąź `claude/priorytet-w-kolejce-moderacji` (PR #1139) niosła dwa commity:
+implementację (`f571b342`) i jej dokumentację pod zarezerwowanym numerem
+D-070 (`d989a16d`). **Implementacja nie weszła na `main` i w tej postaci nie
+wejdzie** — gałąź jest ponad tysiąc commitów za `main`, nie ma testów,
+a równoległa praca (PR #1284, D-236) rozwiązuje kolejność w kolejce inaczej.
+Dokumentacja przeniesiona 1:1 opisywałaby kolumnę, ekran i przyciski, których
+serwis nie ma. Ten wpis zachowuje wyłącznie **rozumowanie** projektu, żeby
+nie trzeba go było odtwarzać, jeśli któraś z jego części wróci.
+
+**Numer.** Dla tej pracy zarezerwowano 10 września D-070 (tak piszą
+`docs/zlecenia/2026-09-10-przekazanie-pracy.md` i
+`docs/research/audyt-2026-09-10/CO_DALEJ.md`). Wpis nie bierze D-070, bo ten
+numer dalej stoi z inną treścią (opisem wdrożenia) na niescalonej gałęzi
+#1139 — dwa różne teksty pod jednym numerem to dokładnie duplikat, przed
+którym stoi `NumeryDecyzjiMajaWpisyTest`. D-070 zostaje pusty.
+
+### Stan `main` w dniu tego wpisu — sprawdzony w kodzie
+
+- Tabela `reports` **nie ma** kolumny priorytetu.
+- `/admin/zgloszenia` sortuje `created_at DESC, id DESC`
+  (`ModerationController`).
+- `Report::STATUS_TRIAGE` i `STATUS_REVIEWING` istnieją i są liczone
+  w zapytaniach o sprawy otwarte, ale **żaden kod ich nie nadaje** —
+  zakładka „W trakcie" jest pusta.
+- Panel **nie pokazuje** wcześniejszych kar autora.
+- List alarmowy (`PilnyAlarmModeracyjny`) wychodzi tylko z automatu
+  (`AlarmujModeratora`), nie ze zgłoszenia człowieka.
+
+Podręcznik moderacji (`docs/legal/MODERATION_PLAYBOOK.md`) opisuje ten stan
+zgodnie z prawdą i **ten wpis go nie zmienia**.
+
+### Co projekt proponował — i jakie argumenty warto zachować
+
+1. **Priorytet jako kolumna `reports.priorytet` (0–3, mniejsza = pilniejsza)**
+   nadawana przez serwer z `reason`, z mapowaniem kategoria → priorytet
+   w jednej klasie, z której korzystałyby model, migracja wypełniająca stare
+   wiersze i widoki. Liczba zamiast tekstu `'P0'`, żeby kolejka sortowała
+   indeksem częściowym `(priorytet, created_at) WHERE status IN
+   ('open','reviewing')` bez `ORDER BY CASE`. W obrębie priorytetu
+   **najstarsze pierwsze** — bo sprawa czekająca najdłużej jest najbliżej
+   przekroczenia celu z tabeli SLA.
+2. **Ręczna zmiana priorytetu z obowiązkowym uzasadnieniem**, osobnym
+   wejściem (poza `$fillable`), pilnowana `CHECK`-iem „powód i znacznik czasu
+   razem albo wcale". Moderatora **celowo nie było** w tym warunku: kolumna
+   z nim ma `nullOnDelete`, więc skasowanie konta moderatora zrobiłoby
+   z poprawnego wiersza niepoprawny i baza odmówiłaby usunięcia konta
+   (RODO art. 17). Główny powód istnienia ręcznej zmiany: automat czyta
+   kategorię, nie treść — „dane osobowe" bywają aktywnym doxxingiem (w górę),
+   „dotyczy dziecka" bywa zdjęciem wnuka przy torcie (w dół).
+3. **Nieodklikiwalne oznaczenie „P0 nieprzejrzane"** na każdym ekranie
+   `/admin/**`, liczone zapytaniem, nie z cache (nieświeży cache mówiłby
+   „nic pilnego" przy zgłoszeniu sprzed dwóch minut). Gasło tylko przez
+   podjęcie sprawy: decyzję, wzięcie do przeglądu albo obniżenie priorytetu
+   z uzasadnieniem.
+4. **`reviewing` wdrożony naprawdę, `triage` usunięty.** „Wziąłem do
+   przeglądu" z właścicielem i znacznikiem czasu, powrót do kolejki po
+   8 godzinach warunkiem w zapytaniu, nie zadaniem w tle (harmonogram, który
+   nie chodzi, zamieniłby się w cichą awarię bezpieczeństwa). Argument:
+   bez czynności „podejmuję", innej niż decyzja, moderator z alarmem P0
+   o sprawie już przeczytanej ma do wyboru fałszywą decyzję albo alarm,
+   który przestanie czytać.
+5. **Historia wcześniejszych sankcji autora na liście spraw** — data,
+   decyzja, podstawa, wynik odwołania; bez spraw odrzuconych (liczenie ich
+   byłoby karą za bycie zgłaszanym) i z decyzjami cofniętymi w odwołaniu
+   widocznymi, ale nieliczonymi do eskalacji. Liczona raz na stronę
+   (stała liczba zapytań), nie na sprawę.
+6. **Rollback przywracający stan gorszy miał odmawiać**, dopóki w kolejce
+   stoi nierozpatrzona sprawa P0/P1 albo istnieje choć jedno ręczne
+   uzasadnienie (ginie bezpowrotnie), z jawnym wymuszeniem przez zmienną
+   środowiska po kopii tabeli.
+
+### Jak to się ma do D-236 (PR #1284)
+
+PR #1284 (otwarty w dniu tego wpisu) wprowadza priorytet **liczony z danych,
+bez kolumny i bez migracji**, list alarmowy przy P0 z obu dróg zgłoszenia
+i **zachowuje** „najnowsze na górze" wewnątrz jednej wagi. Świadomie nie
+buduje punktów 2–6 i nazywa tamtą gałąź odrzuconą. Mapowanie kategorii jest
+w obu pracach zgodne co do rzeczy spornych: „dotyczy dziecka" → P0,
+„dane osobowe" → P1, „oszustwo" → P1, „niebezpieczna porada" → P2.
+**Ten wpis niczego w D-236 nie zmienia i niczego nie przesądza** — jeśli
+któryś z punktów 2–6 miałby wrócić, wraca jako nowa decyzja na tle tego, co
+wtedy będzie na `main`, z testami, a ten wpis służy za materiał.
+
+### Czego z #1139 NIE przeniesiono
+
+- Sekcji `docs/DATABASE.md` o kolumnach `priorytet*` i `przeglad_*` —
+  opisywałaby schemat, którego baza nie ma.
+- Zmian w `docs/legal/MODERATION_PLAYBOOK.md` („priorytet jest
+  w narzędziu", „panel pokazuje historię kar", „»W trakcie« działa") —
+  każde z tych zdań jest dziś nieprawdą, a podręcznik jest dokumentem
+  operacyjnym, według którego moderator klika.
+
+**Zmiana wymaga:** osobnej decyzji właściciela o wdrożeniu któregoś
+z punktów 2–6 — wtedy nowy wpis, a ten zostaje jako historia.
