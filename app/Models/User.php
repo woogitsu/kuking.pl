@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models;
 
-use App\Notifications\PotwierdzenieAdresu;
+use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Notifications\UstawienieNowegoHasla;
 use Database\Factories\UserFactory;
 use DateTimeInterface;
@@ -852,9 +852,23 @@ class User extends Authenticatable implements MustVerifyEmailContract
         ))));
     }
 
+    /**
+     * LIST POTWIERDZAJĄCY ADRES IDZIE PRZEZ AKCJĘ, NIE WPROST (20.09.2026).
+     *
+     * Framework woła tę metodę przy zdarzeniu `Registered`, a kontroler
+     * „Wyślij wiadomość jeszcze raz" wołał ją drugi raz — czyli ten sam list
+     * powstawał dwiema drogami. Od czasu, gdy jest liczony we wspólnej puli
+     * poczty (`DziennyBudzetListow::wspolny()`), obie muszą przechodzić przez
+     * to samo miejsce; inaczej licznik pokazywałby mniej listów, niż serwis
+     * naprawdę wysłał, i pula kończyłaby się bez ostrzeżenia.
+     *
+     * Wynik jest tu świadomie ignorowany: kontrakt frameworka to `void`,
+     * a listener po rejestracji nie ma komu przekazać odmowy. Droga, na
+     * której człowiek CZEKA na odpowiedź, woła akcję wprost i czyta `bool`.
+     */
     public function sendEmailVerificationNotification(): void
     {
-        $this->notify(new PotwierdzenieAdresu);
+        app(WyslijPotwierdzenieAdresu::class)->handle($this);
     }
 
     // ---------------------------------------------------------------------
