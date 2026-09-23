@@ -67,6 +67,11 @@ panelu w ogóle szukasz umowy.
 - **Co jeszcze odczytać przy okazji:** **region usługi**. Deklarowana jest
   UE; z repozytorium tego nie widać i widać nie będzie. Ten sam wpis jest
   potrzebny do `REJESTR_CZYNNOSCI_PRZETWARZANIA.md` §4.
+- **Dzienniki aplikacji (stderr → zakładka Logs):** trafiają do Railway
+  bez adresów e-mail, hashy haseł i komunikatów bazy z wartościami
+  (`App\Logging\BezDanychOsobowychWLogu`, `docs/infra/MONITORING_BLEDOW.md`
+  §2). **Okres przechowywania dzienników po stronie Railway: DO UZUPEŁNIENIA
+  PRZEZ WŁAŚCICIELA** — widać go tylko w umowie albo w panelu (plan konta).
 - **Dlaczego nie da się tego pominąć:** bez Railway nie ma serwisu. Ten
   odbiorca nie podlega wariantowi „ograniczyć liczbę odbiorców".
 - **Data potwierdzenia:** ______________  **Kto:** ______________

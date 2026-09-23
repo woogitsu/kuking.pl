@@ -134,6 +134,32 @@ Railway (serwis → zakładka Logs), bo `LOG_CHANNEL=stderr`
 (`.railway/railway.ts`). Webhook mówi „coś się zepsuło, sprawdź logi" —
 niczego więcej nie zastępuje.
 
+**Log serwera TEŻ jest bez e-maili i hashy haseł (od 23 września 2026).**
+Wcześniej ten akapit mówił, że „pełny komunikat zostaje w logu serwera, który
+nigdzie nie wychodzi". Połowa była nieprawdą: stderr czyta i przechowuje
+Railway, czyli zewnętrzny dostawca, a `JsonFormatter` wypisywał tam komunikat
+`QueryException` (i jego `previous`, `PDOException`) z wartościami — ten sam
+e-mail i hash hasła co wyżej. Teraz kanały `stderr`, `pomiary`, `single`
+i `daily` mają tap `App\Logging\FiltrDanychOsobowych`, który podpina procesor
+`App\Logging\BezDanychOsobowychWLogu`:
+
+- komunikat błędu bazy jest budowany OD NOWA z pól bez wartości, np.
+  `SQLSTATE[23505], insert into users, połączenie: pgsql, ograniczenie:
+  users_email_unique (treść komunikatu bazy z wartościami usunięta z logu)`;
+- wyjątek w kontekście jest zapisywany w tym samym kształcie co dotąd (klasa,
+  kod, plik:linia, ślad plik:linia, `previous`) — tylko z oczyszczonym
+  komunikatem;
+- w pozostałej treści i kontekście wszystko, co wygląda na adres e-mail albo
+  hash hasła (`$2y$…`, `$argon2id$…`), zamienia się na `[e-mail usunięty]` /
+  `[hash hasła usunięty]`. To siatka bezpieczeństwa, nie gwarancja: inne dane
+  (imię, treść wpisu) w zwykłym komunikacie nie są wykrywane — nie wkładaj ich
+  do `Log::…()`.
+
+Szukając błędu bazy w logach Railway, szukaj po SQLSTATE, nazwie ograniczenia
+albo pliku:linii — nie po adresie e-mail osoby, bo go tam nie ma. Pilnuje tego
+`tests/Feature/LogSerweraBezDanychOsobowychTest.php`. Kanał webhooka tego
+procesora nie ma i nie potrzebuje — tam komunikat nie wychodzi w ogóle.
+
 ### Czego ten kanał NIE robi (żeby nie było niespodzianek)
 
 - **Nie grupuje powtórzeń.** Ten sam błąd wywalający się 50 razy na minutę

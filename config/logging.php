@@ -2,6 +2,7 @@
 
 declare(strict_types=1);
 
+use App\Logging\FiltrDanychOsobowych;
 use App\Logging\WebhookBleduLogger;
 use Monolog\Handler\NullHandler;
 use Monolog\Handler\StreamHandler;
@@ -66,6 +67,7 @@ return [
             'path' => storage_path('logs/laravel.log'),
             'level' => env('LOG_LEVEL', 'debug'),
             'replace_placeholders' => true,
+            'tap' => [FiltrDanychOsobowych::class],
         ],
 
         'daily' => [
@@ -74,6 +76,7 @@ return [
             'level' => env('LOG_LEVEL', 'debug'),
             'max_files' => env('LOG_DAILY_DAYS', 14),
             'replace_placeholders' => true,
+            'tap' => [FiltrDanychOsobowych::class],
         ],
 
         'monthly' => [
@@ -162,6 +165,7 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+            'tap' => [FiltrDanychOsobowych::class],
         ],
 
         /*
@@ -210,6 +214,7 @@ return [
             ],
             'formatter' => env('LOG_STDERR_FORMATTER'),
             'processors' => [PsrLogMessageProcessor::class],
+            'tap' => [FiltrDanychOsobowych::class],
         ],
 
         'syslog' => [

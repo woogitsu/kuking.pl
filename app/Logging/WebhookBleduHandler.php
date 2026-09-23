@@ -59,9 +59,10 @@ use Throwable;
  *
  * CO Z TEGO TRACIMY I CZYM TO NADRABIAMY
  * Webhook przestaje być raportem, a staje się DZWONKIEM: mówi „coś się
- * zepsuło, tutaj, tego rodzaju". Pełny komunikat zostaje w logu serwera,
- * który nigdzie nie wychodzi. Żeby dało się jedno z drugim zestawić,
- * wiadomość niesie ODCISK — osiem znaków z klasy, pliku i linii. Ten sam
+ * zepsuło, tutaj, tego rodzaju". Komunikat zostaje w logu serwera — ale
+ * stderr czyta Railway, więc i tam przechodzi przez `BezDanychOsobowychWLogu`
+ * (e-mail, hash hasła i wartości z SQL-a są wycięte). Żeby dało się jedno
+ * z drugim zestawić, wiadomość niesie ODCISK — osiem znaków z klasy, pliku i linii. Ten sam
  * błąd ma zawsze ten sam odcisk, więc przy okazji widać, czy to nowa awaria,
  * czy dziesiąte powtórzenie tej samej.
  *
