@@ -1041,10 +1041,22 @@ lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
 >
 > **Decyzja „nie ruszamy oryginałów już wgranych" zostaje** — właściciel
 > potwierdził ją ponownie 9 września. Naprawa dotyczy wyłącznie nowych wgrań.
+>
+> **Uzupełnienie z 23 września — XMP i tekstowy profil EXIF w PNG (#1004).**
+> Dwie z trzech luk wyżej są zamknięte. XMP niesie własne współrzędne
+> (`exif:GPSLatitude`, `GPSDest*`, lokalizacje IPTC, pola producentów)
+> w dowolnych przestrzeniach nazw, więc nie szukamy w nim pól: **cały pakiet
+> XMP zamieniamy na spacje**, w miejscu, bez zmiany długości. To jest świadome,
+> wąskie odstępstwo od „reszta metadanych zostaje": aparat, obiektyw, data
+> i orientacja żyją w EXIF-ie, który zostaje; z XMP wypada zwykle historia
+> edycji. Tak samo wypadają PNG-owe „Raw profile type …". AVIF nadal jest
+> czyszczony wyłącznie szukaniem w bajtach (EXIF po nagłówku, XMP po ramce
+> pakietu) — bez parsera ISOBMFF. Decyzja o starych oryginałach bez zmian.
 
 📄 `app/Domain/Media/UsunGps.php` ·
 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
 `tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php` ·
+`tests/Feature/OryginalTraciGpsZXmpTest.php` ·
 `resources/legal/polityka-prywatnosci.md`
 
 ---
@@ -15785,6 +15797,59 @@ cofać: zmiana niczego nie zapisuje w bazie.
 
 ---
 
+## D-244 — Nikt nie rozstrzyga własnego zgłoszenia i nie karze konta równej lub wyższej roli (#1408, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (triaż nocny, P1) ·
+Status: **obowiązuje**
+
+### Co było
+
+`ModerationController::decide()` pytał wyłącznie `authorize('moderate', User::class)`,
+czyli „czy aktor jest moderatorem". Nie porównywał `reports.reporter_id`
+z aktorem ani roli osoby, którą decyzja karze (`ModeratedContent::osoba()`),
+a `applyAction()` wołał `suspend()` / `ban()` bez osobnej reguły. Jeden
+moderator mógł więc zgłosić administratora, sam to zgłoszenie rozstrzygnąć
+i go zbanować (ban unieważnia sesje). Przy kilku administratorach i w połączeniu
+z #1016 była to droga do odcięcia od panelu wszystkich, którzy rozpatrują
+odwołania.
+
+### Reguły
+
+1. **Nikt nie rozstrzyga sprawy, którą sam wniósł** — `ReportPolicy::decide()`.
+   Dotyczy każdej decyzji, także „Bez działania" (ona też zamyka sprawę
+   i odpisuje zgłaszającemu). Dotyczy także administratora. Zgłoszenie prawne
+   bez konta (`reporter_id IS NULL`) rozstrzyga każdy moderator.
+2. **Zawieszenie i blokada konta tylko wobec niższej roli** —
+   `UserPolicy::sanctionAccount()`. Moderator karze zwykłe konta,
+   administrator także moderatorów. **Konta administratora nie zawiesza ani
+   nie blokuje nikt z panelu** (równa ranga); sprawa administratora idzie do
+   właściciela serwisu, a rolę odbiera `kuking:nadaj-role`, która pilnuje
+   ostatniego czynnego administratora (#1016). Ta sama reguła rangi wyklucza
+   karanie samego siebie.
+3. **Ocena treści nie zależy od roli autora.** Ukrycie, usunięcie
+   i ostrzeżenie wpisu administratora działają jak przy każdym innym.
+
+Obie reguły są sprawdzane w `decide()` **pod blokadą wiersza zgłoszenia,
+przed `ModerationAction::create()`**. Odmowa wycofuje transakcję: zgłoszenie
+zostaje otwarte, nie powstaje decyzja, powiadomienie ani wpis
+`moderation.decided`. Wstępne sprawdzenie „własnej sprawy" przed transakcją
+służy tylko komunikatowi. Reguły żyją w politykach, więc przyszła droga
+wykonująca sankcję (endpoint, zadanie, komenda) pyta o te same ability.
+
+### Czego ta zmiana nie robi
+
+Nie rozwiązuje #1016 (ochrona ostatniego czynnego administratora przy
+zmianie statusu i współbieżności) — zamyka tylko drogę przez panel moderacji,
+która tamten problem czyniła osiągalnym dla moderatora. Nie ukrywa formularza
+decyzji przy własnym zgłoszeniu: formularz zostaje, a serwer odmawia
+z komunikatem, co zrobić.
+
+📄 `app/Policies/ReportPolicy.php`, `app/Policies/UserPolicy.php`,
+`app/Http/Controllers/Admin/ModerationController.php`,
+`tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php`
+
+---
+
 ## D-247 — Projekt priorytetu w kolejce moderacji z 10 września (zarezerwowane D-070, PR #1139): zapisany jako materiał, NIEWDROŻONY (23 września 2026)
 
 **Data:** 23 września 2026 (projekt z 10 września 2026) · Audyt moderacji:
@@ -15888,3 +15953,76 @@ wtedy będzie na `main`, z testami, a ten wpis służy za materiał.
 
 **Zmiana wymaga:** osobnej decyzji właściciela o wdrożeniu któregoś
 z punktów 2–6 — wtedy nowy wpis, a ten zostaje jako historia.
+
+---
+
+## D-249 — Wpis w dzienniku audytu: atomowy z decyzją albo pomocniczy za nią — i nic pomiędzy (#1343, #1373, #1363, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja zespołu (przegląd kodu gałęzi
+`claude/audyt-w-transakcji-g7`) · Prostuje podstawę `AuditLogEntry::recordBezWywracania()` ·
+Status: **obowiązuje**
+
+### Co było źle
+
+`recordBezWywracania()` i jego trzy miejsca wywołania powoływały się na
+**D-088** cytatem „dziennik audytu zostaje POZA transakcją… jest osobnym
+śladem, nie częścią relacji". D-088 dotyczy **odmowy rollbacku migracji**
+i o dzienniku audytu nie mówi nic. Cytat pochodzi z **D-090** i opisuje
+wyłącznie `BlockUser` (wpis ma powstać wtedy, gdy blokada naprawdę się
+zapisała). Na tej złej podstawie zbiorcze zamknięcie sygnałów automatu
+(#1343) poszło drogą „za transakcją" — wbrew issue, które wymagało wpisu
+w transakcji decyzji.
+
+### Reguła
+
+Każdy wpis `audit_log` należy do jednej z dwóch klas. Trzeciej nie ma.
+
+1. **Atomowy z decyzją — `record()` WEWNĄTRZ `DB::transaction` zmiany.**
+   Dla decyzji podjętych przez człowieka z uprawnieniami wobec cudzej
+   treści albo konta i dla zmian uprawnień: `moderation.decided`,
+   `moderation.automat_dismissed`, `user.role_changed`, a także
+   `post.published` (już tak zapisany). Tu wpis jest częścią decyzji —
+   „kto, kiedy i ile jednym kliknięciem" nie ma innego zapisu. Awaria
+   dziennika **cofa decyzję**, człowiek dostaje komunikat „nic się nie
+   zmieniło, spróbuj jeszcze raz", a ponowienie daje jeden komplet.
+   Decyzja bez wpisu jest gorsza niż decyzja, którą trzeba kliknąć drugi raz.
+2. **Pomocniczy — `recordBezWywracania()` PO zatwierdzeniu zmiany.** Dla
+   czynności samego człowieka, których autorytatywny ślad żyje w tabeli
+   zmiany: `account.registered` (wiersz `users` z `created_at`
+   i `age_confirmed_at`), `content.reported` (wiersz `reports` z terminami
+   DSA). Tu cofnięcie zmiany przez awarię dziennika byłoby szkodą dla
+   człowieka (utracone zgłoszenie z biegnącym terminem, rejestracja
+   odbijająca się od własnego adresu), a 500 po `COMMIT` — kłamstwem.
+   Awaria idzie do `report()` z nazwą brakującego wpisu; to nie jest cichy
+   sukces.
+
+Rozstrzyga pytanie: **czy bez tego wpisu zostaje w bazie pełny ślad tego,
+kto i co zdecydował?** Nie — klasa 1. Tak — klasa 2.
+
+Ta sama zasada dotyczy innych skutków po `COMMIT` rejestracji (#1373):
+`event(new Registered)` i obserwowanie gospodarza stoją w punkcie zapisu,
+ich awaria idzie do `report()`, a `ZalozKonto` zwraca `ZalozoneKonto`
+z flagą „list z potwierdzeniem nie wyszedł", żeby ekran po rejestracji nie
+kazał czekać na wiadomość, której nie ma. Ponowienie listu należy do
+człowieka („Wyślij potwierdzenie jeszcze raz" w Ustawieniach), naprawa
+obserwowania — do operatora (jedno `FollowUser` dla konta z raportu).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
+(`BlockUser` z D-090, zmiany adresu e-mail, logowania i inne). Zostają,
+jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
+klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
+
+### Dowód
+
+`tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
+awaria `moderation.automat_dismissed` → brak `ModerationAction`, grupa
+otwarta, komunikat błędu; ponowienie → jedna decyzja i jeden wpis. Awarie
+`account.registered`, `content.reported`, `Registered` i obserwowania
+gospodarza → konto albo sprawa istnieje, odpowiedź udana, `report()`
+z nazwą braku (rejestracja hasłem, Google i Facebook).
+
+### Wycofanie
+
+Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.
