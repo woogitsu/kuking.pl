@@ -235,7 +235,11 @@ class CommentEditTest extends TestCase
         $this->get(route('posts.show', $post))->assertOk();
     }
 
-    public function test_moderator_moze_usunac_dowolny_komentarz(): void
+    /**
+     * Issue #932: moderator nie usuwa cudzego komentarza zwykłym DELETE —
+     * tylko decyzją w panelu (`ModeratorUsuwaCudzaTrescTylkoZPaneluTest`).
+     */
+    public function test_moderator_nie_usuwa_cudzego_komentarza_zwyklym_delete(): void
     {
         $autorWpisu = $this->user('kucharka');
         $autorKomentarza = $this->user('gadatliwy');
@@ -247,9 +251,9 @@ class CommentEditTest extends TestCase
             'post_id' => $post->getKey(),
         ]);
 
-        $this->actingAs($moderator)->delete(route('comments.destroy', $comment))->assertRedirect();
+        $this->actingAs($moderator)->delete(route('comments.destroy', $comment))->assertForbidden();
 
-        $this->assertSoftDeleted($comment);
+        $this->assertNotSoftDeleted($comment);
     }
 
     /**

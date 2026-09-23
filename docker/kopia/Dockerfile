@@ -38,7 +38,8 @@
 #  CMS-em z `openssl`. Uzasadnienie w nagłówku tamtego pliku.
 # =============================================================================
 
-FROM postgres:18
+# Digest przypięty jak w głównym Dockerfile (#952); podbija go Dependabot.
+FROM postgres:18@sha256:86c951e05bf56c93d95d397747fb8820ac76cc3bedb78f43abd83eedbe3666ae
 
 LABEL org.opencontainers.image.title="kuking.pl — kopia bazy"
 LABEL org.opencontainers.image.source="https://github.com/woogitsu/kuking.pl"

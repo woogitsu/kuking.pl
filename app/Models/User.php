@@ -19,6 +19,7 @@ use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\UniqueConstraintViolationException;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
@@ -1226,6 +1227,25 @@ class User extends Authenticatable implements MustVerifyEmailContract
     }
 
     /**
+     * Od kiedy karencja się kończy — czyli do kiedy wolno jeszcze cofnąć
+     * usunięcie konta. `null`, gdy konto nie czeka na usunięcie.
+     *
+     * To jest TA SAMA granica, którą liczy `kuking:usun-wygasle-konta`
+     * (`PurgeExpiredAccountDeletions`: `delete_requested_at <= now() - dni`).
+     * Komenda chodzi z harmonogramu, więc wymazanie przychodzi przy jej
+     * pierwszym przebiegu PO tej chwili — nigdy przed nią. Data podana
+     * człowiekowi jest więc bezpieczna: do niej cofnięcie na pewno działa.
+     */
+    public function deletionGraceEndsAt(): ?Carbon
+    {
+        if ($this->status !== self::STATUS_PENDING_DELETE || $this->delete_requested_at === null) {
+            return null;
+        }
+
+        return $this->delete_requested_at->copy()->addDays((int) config('kuking.account.delete_grace_days'));
+    }
+
+    /**
      * STAN KOŃCOWY: karencja wykonana, dane wymazane (D-022).
      *
      * Osobna, nazwana metoda — a nie kolejne pole w `forceFill` gdzieś
@@ -1344,8 +1364,8 @@ class User extends Authenticatable implements MustVerifyEmailContract
         // Trzy wywołania w trzech kontrolerach dawałyby ten sam skutek do
         // czasu, gdy ktoś dopisze czwarte miejsce i o jednym z nich zapomni.
         // Objęte tą drogą jest więc wszystko naraz: zmiana hasła, reset hasła,
-        // „wyloguj mnie z innych urządzeń", blokada, zawieszenie i zgłoszenie
-        // usunięcia konta.
+        // „wyloguj mnie z innych urządzeń", włączenie 2FA (#930), blokada,
+        // zawieszenie i zgłoszenie usunięcia konta.
         //
         // `$exceptSessionId` NIE MA TU ODPOWIEDNIKA i mieć nie powinien:
         // wyjątek istnieje dla BIEŻĄCEJ przeglądarki osoby, która właśnie
