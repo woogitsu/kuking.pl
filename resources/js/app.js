@@ -22,7 +22,7 @@ import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
 import './licznik-znakow.js';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
@@ -475,127 +475,16 @@ document.addEventListener('DOMContentLoaded', () => {
  * w ./minutnik-krok.js, osobno testowalnym module bez DOM-u. Tu zostaje
  * wylacznie okablowanie DOM-u.
  */
-document.querySelectorAll('.cook-timer').forEach((blok) => {
-    const przycisk = blok.querySelector('.cook-timer-start');
-    const anuluj = blok.querySelector('.cook-timer-anuluj');
-    const odliczanie = blok.querySelector('.cook-timer-odliczanie');
-    const komunikat = blok.querySelector('.cook-timer-komunikat');
-    const etykieta = blok.dataset.timerEtykieta ?? '';
-    const sekundyCalkiem = parseInt(blok.dataset.timerSekundy ?? '', 10);
-    const recipeSlug = blok.dataset.timerRecipe ?? '';
-    const krok = blok.dataset.timerKrok ?? '';
-
-    if (!przycisk || !anuluj || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
-        return;
-    }
-
-    const klucz = kluczStanu(recipeSlug, krok);
-
-    // Callback moze wrocic z opoznieniem po usnieciu karty. Liczymy czas do
-    // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
-    // wywolanie setInterval oznacza dokladnie jedna sekunde.
-    let interwal = null;
-
-    const pokaz = (sekundy) => {
-        odliczanie.textContent = formatMinutySekundy(sekundy);
-    };
-
-    const zatrzymajOdliczanie = () => {
-        window.clearInterval(interwal);
-        interwal = null;
-        sessionStorage.removeItem(klucz);
-    };
-
-    const uruchomOdliczanie = (terminMonotoniczny) => {
-        pokaz(pozostaloSekund(terminMonotoniczny, performance.now()));
-
-        interwal = window.setInterval(() => {
-            const pozostalo = pozostaloSekund(terminMonotoniczny, performance.now());
-            pokaz(pozostalo);
-
-            if (pozostalo <= 0) {
-                zatrzymajOdliczanie();
-                zagrajAlarm();
-
-                komunikat.textContent = 'Czas minął!';
-                przycisk.textContent = 'Uruchom minutnik jeszcze raz';
-                przycisk.hidden = false;
-                przycisk.disabled = false;
-                anuluj.hidden = true;
-            }
-        }, 1000);
-    };
-
-    przycisk.addEventListener('click', () => {
-        if (interwal !== null) {
-            return;
-        }
-
-        przycisk.hidden = true;
-        anuluj.hidden = false;
-        odliczanie.hidden = false;
-        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
-
-        const terminMonotoniczny = performance.now() + sekundyCalkiem * 1000;
-        // Zapis PRZED startem -- zeby nawigacja albo oznaczenie kroku
-        // (oba przeladowuja strone -- issue #740) mialy co odczytac,
-        // nawet jesli czlowiek kliknął "Nastepny krok" sekunde po starcie.
-        sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000));
-        uruchomOdliczanie(terminMonotoniczny);
-    });
-
-    // Swiadome anulowanie (issue #755) -- ten sam odliczany krok da sie
-    // zatrzymac, zamiast czekac na dzwiek albo opuszczac tryb gotowania.
-    anuluj.addEventListener('click', () => {
-        if (interwal === null) {
-            return;
-        }
-
-        zatrzymajOdliczanie();
-        odliczanie.hidden = true;
-        anuluj.hidden = true;
-        przycisk.hidden = false;
-        przycisk.disabled = false;
-        przycisk.textContent = 'Uruchom minutnik w tej przeglądarce';
-        komunikat.textContent = 'Minutnik anulowany.';
-    });
-
-    /*
-     * PRZETRWANIE PRZELADOWANIA (issue #740). Nawigacja "Poprzedni/
-     * Nastepny krok" i oznaczenie kroku jako zrobiony to pelne
-     * przeladowania strony (patrz CookingModeController -- pierwsze to
-     * GET, drugie to POST z przekierowaniem). Oba zeruja caly stan
-     * JavaScriptu, laczenie z performance.now(). Jesli w sessionStorage
-     * czeka nieprzeterminowany termin TEGO kroku, wracamy do odliczania
-     * od razu, zamiast pokazywac przycisk startowy, jakby minutnik
-     * nigdy nie ruszyl.
-     */
-    const zapis = sessionStorage.getItem(klucz);
-    const zapisanyStan = odczytajStan(zapis, Date.now(), performance.now());
-
-    if (zapis !== null && !zapisanyStan) {
-        // Termin minął albo zapis jest uszkodzony -- sprzątamy, żeby pas
-        // alarmów innych kroków (niżej, issue #1301) nie zadzwonił później
-        // za minutnik, który ten krok właśnie pokazał jako nieuruchomiony.
-        sessionStorage.removeItem(klucz);
-    }
-
-    if (zapisanyStan) {
-        przycisk.hidden = true;
-        anuluj.hidden = false;
-        odliczanie.hidden = false;
-        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
-        uruchomOdliczanie(zapisanyStan.terminMonotoniczny);
-    } else {
-        przycisk.hidden = false;
-    }
-});
 /*
  * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
  * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
  * z oscylatora kosztuje zero bajtow transferu. Deklaracje funkcji (nie
- * `const`), bo korzystaja z nich oba miejsca: minutnik widocznego kroku
- * wyzej i pas alarmow innych krokow nizej.
+ * `const`), bo korzystaja z nich oba miejsca nizej: minutnik widocznego
+ * kroku i pas alarmow innych krokow. Cala sekcja stoi PRZED nimi: minutnik
+ * widocznego kroku potrafi zagrac alarm juz przy ladowaniu strony (termin
+ * minal, gdy karta lezala w tle -- przeglad #1301), a `let kontekstAlarmu`
+ * zadeklarowane nizej bylby wtedy jeszcze w martwej strefie (TDZ) --
+ * ReferenceError polkniety przez `catch` oznaczalby alarm bez dzwieku.
  *
  * DZWIEK NA TELEFONIE (przeglad #1301). Kazdy krok to swiezo zaladowana
  * strona, a przegladarki (iOS Safari, Chrome na Androidzie) startuja
@@ -650,7 +539,10 @@ function odblokujDzwiek() {
 }
 
 if (document.querySelector('.cook-timer, .cook-alarmy')) {
-    ['pointerdown', 'keydown'].forEach((zdarzenie) => {
+    // Aktywacja uzytkownika na dotyku przychodzi dopiero z pointerup,
+    // touchend albo click (iOS Safari nie odblokowuje dzwieku na samym
+    // pointerdown) -- sluchamy wszystkich, odblokowanie jest idempotentne.
+    ['pointerdown', 'pointerup', 'touchend', 'click', 'keydown'].forEach((zdarzenie) => {
         document.addEventListener(zdarzenie, odblokujDzwiek, {capture: true, passive: true});
     });
 
@@ -705,6 +597,163 @@ function zagrajAlarm() {
     }
 }
 
+
+document.querySelectorAll('.cook-timer').forEach((blok) => {
+    const przycisk = blok.querySelector('.cook-timer-start');
+    const anuluj = blok.querySelector('.cook-timer-anuluj');
+    const odliczanie = blok.querySelector('.cook-timer-odliczanie');
+    const komunikat = blok.querySelector('.cook-timer-komunikat');
+    const etykieta = blok.dataset.timerEtykieta ?? '';
+    const sekundyCalkiem = parseInt(blok.dataset.timerSekundy ?? '', 10);
+    const recipeSlug = blok.dataset.timerRecipe ?? '';
+    const krok = blok.dataset.timerKrok ?? '';
+
+    if (!przycisk || !anuluj || !odliczanie || !komunikat || !Number.isFinite(sekundyCalkiem) || sekundyCalkiem <= 0) {
+        return;
+    }
+
+    const klucz = kluczStanu(recipeSlug, krok);
+
+    // Callback moze wrocic z opoznieniem po usnieciu karty. Liczymy czas do
+    // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
+    // wywolanie setInterval oznacza dokladnie jedna sekunde.
+    let interwal = null;
+
+    const pokaz = (sekundy) => {
+        odliczanie.textContent = formatMinutySekundy(sekundy);
+    };
+
+    const pokazKoniec = () => {
+        komunikat.textContent = 'Czas minął!';
+        przycisk.textContent = 'Uruchom minutnik jeszcze raz';
+        przycisk.hidden = false;
+        przycisk.disabled = false;
+        anuluj.hidden = true;
+    };
+
+    const zatrzymajOdliczanie = () => {
+        window.clearInterval(interwal);
+        interwal = null;
+        sessionStorage.removeItem(klucz);
+    };
+
+    const uruchomOdliczanie = (terminMonotoniczny) => {
+        pokaz(pozostaloSekund(terminMonotoniczny, performance.now()));
+
+        interwal = window.setInterval(() => {
+            const pozostalo = pozostaloSekund(terminMonotoniczny, performance.now());
+            pokaz(pozostalo);
+
+            if (pozostalo <= 0) {
+                zatrzymajOdliczanie();
+                zagrajAlarm();
+                pokazKoniec();
+            }
+        }, 1000);
+    };
+
+    przycisk.addEventListener('click', () => {
+        if (interwal !== null) {
+            return;
+        }
+
+        przycisk.hidden = true;
+        anuluj.hidden = false;
+        odliczanie.hidden = false;
+        komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+
+        const terminMonotoniczny = performance.now() + sekundyCalkiem * 1000;
+        // Zapis PRZED startem -- zeby nawigacja albo oznaczenie kroku
+        // (oba przeladowuja strone -- issue #740) mialy co odczytac,
+        // nawet jesli czlowiek kliknął "Nastepny krok" sekunde po starcie.
+        sessionStorage.setItem(klucz, zapiszStan(sekundyCalkiem, Date.now() + sekundyCalkiem * 1000));
+        uruchomOdliczanie(terminMonotoniczny);
+    });
+
+    // Swiadome anulowanie (issue #755) -- ten sam odliczany krok da sie
+    // zatrzymac, zamiast czekac na dzwiek albo opuszczac tryb gotowania.
+    anuluj.addEventListener('click', () => {
+        if (interwal === null) {
+            return;
+        }
+
+        zatrzymajOdliczanie();
+        odliczanie.hidden = true;
+        anuluj.hidden = true;
+        przycisk.hidden = false;
+        przycisk.disabled = false;
+        przycisk.textContent = 'Uruchom minutnik w tej przeglądarce';
+        komunikat.textContent = 'Minutnik anulowany.';
+    });
+
+    /*
+     * PRZETRWANIE PRZELADOWANIA (issue #740). Nawigacja "Poprzedni/
+     * Nastepny krok" i oznaczenie kroku jako zrobiony to pelne
+     * przeladowania strony (patrz CookingModeController -- pierwsze to
+     * GET, drugie to POST z przekierowaniem). Oba zeruja caly stan
+     * JavaScriptu, laczenie z performance.now(). Jesli w sessionStorage
+     * czeka nieprzeterminowany termin TEGO kroku, wracamy do odliczania
+     * od razu, zamiast pokazywac przycisk startowy, jakby minutnik
+     * nigdy nie ruszyl.
+     */
+    const przywrocZapis = () => {
+        if (interwal !== null) {
+            return true;
+        }
+
+        const zapis = sessionStorage.getItem(klucz);
+
+        if (zapis === null) {
+            return false;
+        }
+
+        // odczytajTermin, nie odczytajStan (przeglad #1301): termin, ktory
+        // minal, gdy karta lezala w tle (telefon zablokowany, iOS wyrzucil
+        // karte z pamieci i przeladowal ja po powrocie), tez musi dac
+        // alarm -- inaczej zapis znikal po cichu, a razem z nim jedyny
+        // sygnal, ze garnek juz czeka.
+        const stan = odczytajTermin(zapis, Date.now(), performance.now());
+
+        if (!stan) {
+            // Uszkodzony albo porzucony dawno po terminie (ponad
+            // PRZETERMINOWANIE_NAJWYZEJ_MS) -- znika po cichu, bez alarmu.
+            sessionStorage.removeItem(klucz);
+            return false;
+        }
+
+        odliczanie.hidden = false;
+
+        if (stan.terminMonotoniczny > performance.now()) {
+            przycisk.hidden = true;
+            anuluj.hidden = false;
+            komunikat.textContent = `Minutnik ustawiony na ${etykieta}.`;
+            uruchomOdliczanie(stan.terminMonotoniczny);
+            return true;
+        }
+
+        // Spozniony, ale nie porzucony: alarm, a DOPIERO POTEM zapis
+        // znika -- zeby pas alarmow innych krokow (nizej) nie zadzwonil
+        // drugi raz za ten sam minutnik po przejsciu do kolejnego kroku.
+        pokaz(0);
+        pokazKoniec();
+        zagrajAlarm();
+        sessionStorage.removeItem(klucz);
+        return true;
+    };
+
+    if (!przywrocZapis()) {
+        przycisk.hidden = false;
+    }
+
+    // Powrot "Wstecz" z pamieci podrecznej przegladarki (bfcache) nie
+    // uruchamia skryptu od nowa -- zapis tego kroku mogl sie w miedzyczasie
+    // pojawic albo przeterminowac, wiec czytamy go jeszcze raz.
+    window.addEventListener('pageshow', (zdarzenie) => {
+        if (zdarzenie.persisted) {
+            przywrocZapis();
+        }
+    });
+});
 /*
  * MINUTNIKI INNYCH KROKOW (issue #1301).
  *

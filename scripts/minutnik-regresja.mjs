@@ -11,7 +11,9 @@ import http from 'node:http';
 const { chromium } = await import(process.env.PLAYWRIGHT_MODULE
   ? pathToFileURL(process.env.PLAYWRIGHT_MODULE).href : 'playwright');
 const source = readFileSync('resources/js/app.js', 'utf8');
-const begin = source.indexOf("document.querySelectorAll('.cook-timer').forEach");
+// Od wspólnego dźwięku alarmu (stoi nad blokiem `.cook-timer`, patrz TDZ
+// w komentarzu app.js) po koniec pasa alarmów innych kroków.
+const begin = source.indexOf('// --- Tryb gotowania: minutniki');
 const end = source.indexOf('// --- Karuzela zdjęć', begin);
 assert(begin >= 0 && end > begin, 'Nie znaleziono rzeczywistego bloku minutnika');
 // Od przeniesienia arytmetyki minutnika do osobnego modułu ten wycięty
@@ -306,6 +308,80 @@ try {
       assert.equal(await page.evaluate(() => window.alarmBeeps), 0, 'Porzucony minutnik nie może piszczeć');
       assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null,
         'Porzucony zapis znika po cichu');
+    } finally { await page.close(); }
+  });
+  // Zapis minutnika, którego termin minął `minutyPo` minut temu — tak jak
+  // po zablokowanym telefonie, z którego iOS wyrzucił kartę z pamięci.
+  const zapiszPoTerminie = (page, krok, minutyPo) => page.evaluate(({ krok, minutyPo }) => {
+    sessionStorage.setItem(`kuking.minutnik.zupa.${krok}`, JSON.stringify({
+      sekundyCalkiem: 1200, terminEpoka: Date.now() - minutyPo * 60 * 1000,
+    }));
+  }, { krok, minutyPo });
+  const obserwujKoniec = page => page.evaluate(() => {
+    window.timerEnds = [0];
+    const node = document.querySelector('.cook-timer-komunikat');
+    if (node.textContent === 'Czas minął!') window.timerEnds[0] += 1;
+    new MutationObserver(() => {
+      if (node.textContent === 'Czas minął!') window.timerEnds[0] += 1;
+    }).observe(node, { childList: true, characterData: true, subtree: true });
+  });
+  await check('widoczny_krok_po_terminie_alarmuje_po_przeladowaniu', async () => {
+    const page = await browser.newPage();
+    try {
+      // Krok 3, minutnik 20 min, telefon zablokowany, karta wyrzucona;
+      // człowiek wraca 10 min po czasie — strona przeładowuje się na kroku 3.
+      await openStep(page, 3, 1200);
+      await button(page).click();
+      await zapiszPoTerminie(page, 3, 10);
+      await openStep(page, 3, 1200);
+      await obserwujKoniec(page);
+      await page.waitForTimeout(600);
+      const komunikat = (await block(page).locator('.cook-timer-komunikat').textContent()).trim();
+      assert.equal(komunikat, 'Czas minął!', 'Spóźniony minutnik widocznego kroku musi ogłosić koniec');
+      assert.equal(await remaining(page), 0);
+      assert(await page.evaluate(() => window.alarmBeeps) >= 1, 'Spóźniony minutnik musi zagrać sygnał');
+      assert.equal((await button(page).innerText()).trim(), 'Uruchom minutnik jeszcze raz');
+      assert(await anulujButton(page).isHidden());
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null,
+        'Zapis znika po alarmie');
+      // Przejście do kroku 4 nie dubluje alarmu za ten sam minutnik.
+      await openStep(page, 4, 0);
+      await page.waitForTimeout(1300);
+      assert.equal(await page.locator('.cook-alarm').count(), 0, 'Jeden minutnik = jeden alarm');
+      assert.equal(await page.evaluate(() => window.alarmBeeps), 0);
+    } finally { await page.close(); }
+  });
+  await check('widoczny_krok_porzucony_minutnik_bez_alarmu', async () => {
+    // Kontrola ujemna: powyżej PRZETERMINOWANIE_NAJWYZEJ_MS (15 min) cisza.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 3, 1200);
+      await zapiszPoTerminie(page, 3, 20);
+      await openStep(page, 3, 1200);
+      await obserwujKoniec(page);
+      await page.waitForTimeout(1300);
+      assert.equal(await page.evaluate(() => window.timerEnds[0]), 0, 'Porzucony minutnik nie ogłasza końca');
+      assert.equal(await page.evaluate(() => window.alarmBeeps), 0, 'Porzucony minutnik nie piszczy');
+      assert(await button(page).isVisible(), 'Porzucony minutnik: zwykły przycisk startu');
+      assert.equal((await button(page).innerText()).trim(), 'Uruchom minutnik w tej przeglądarce');
+      assert(await block(page).locator('.cook-timer-odliczanie').isHidden());
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null,
+        'Porzucony zapis znika po cichu');
+    } finally { await page.close(); }
+  });
+  await check('inny_krok_10_min_po_terminie_alarmuje', async () => {
+    // Pilnuje progu: 10 min po terminie to wciąż minutnik spóźniony, nie porzucony.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 1, 0);
+      await zapiszPoTerminie(page, 3, 10);
+      await openStep(page, 1, 0);
+      await page.waitForTimeout(600);
+      assert.equal(await page.locator('.cook-alarm').count(), 1, 'Spóźniony minutnik innego kroku musi alarmować');
+      assert.equal((await page.locator('.cook-alarm-tekst').innerText()).trim(),
+        'Minutnik kroku 3 skończył odliczanie.');
+      assert(await page.evaluate(() => window.alarmBeeps) >= 1);
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null);
     } finally { await page.close(); }
   });
 } finally { await browser.close(); server.close(); }
