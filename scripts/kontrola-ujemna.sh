@@ -274,7 +274,13 @@ uruchom_polecenie
 if [ "$KOD" -ne 0 ]; then
     KD_PRZED="OBLANY"
     zle "Test oblewa JUŻ PRZED mutacją. Czerwień po mutacji nie dowiodłaby niczego."
-    printf '%s\n' "$WYJSCIE_PRZED" | tail -15
+    # `$WYJSCIE`, nie `$WYJSCIE_PRZED`: od czasu przejscia na `uruchom_polecenie`
+    # ta druga nazwa nie jest juz nigdzie ustawiana. Pod `set -u` rozwiniecie
+    # padalo w podpowloce potoku, wiec SAM SKRYPT szedl dalej i konczyl sie
+    # poprawnym kodem 5 — a jedyne, co ginelo, to wypis mowiacy, DLACZEGO test
+    # byl czerwony. Werdykt bez uzasadnienia to dokladnie ta klasa usterki,
+    # przeciw ktorej ten przyrzad powstal.
+    printf '%s\n' "$WYJSCIE" | tail -15
     WERDYKT="BRAK_KONTROLI_DODATNIEJ"
     zapisz_json "$WERDYKT"
     exit 5

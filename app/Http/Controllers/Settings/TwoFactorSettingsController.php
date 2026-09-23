@@ -8,6 +8,7 @@ use App\Domain\Security\TwoFactorAuthenticator;
 use App\Http\Controllers\Controller;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 use Illuminate\View\View;
@@ -125,10 +126,11 @@ class TwoFactorSettingsController extends Controller
 
     /**
      * Kody zapasowe — pokazane RAZ. Odświeżenie tej strony ich już nie
-     * pokaże (flash z poprzedniego żądania wygasł), co jest zamierzone:
-     * mają trafić na kartkę teraz, nie zostawać w historii przeglądarki.
+     * pokaże (flash z poprzedniego żądania wygasł). Flash chroni ponowne
+     * pobranie z serwera; no-store zabrania przechowywania odpowiedzi.
+     * Historię mierzy scripts/fixtures/ustawienia-2fa-historia.mjs.
      */
-    public function codes(Request $request): View|RedirectResponse
+    public function codes(Request $request): Response|RedirectResponse
     {
         $kody = $request->session()->get('kody_zapasowe');
 
@@ -146,7 +148,8 @@ class TwoFactorSettingsController extends Controller
             );
         }
 
-        return view('pages.settings.two_factor.codes', ['kody' => $kody]);
+        return response()->view('pages.settings.two_factor.codes', ['kody' => $kody])
+            ->header('Cache-Control', 'no-store, private');
     }
 
     /**
@@ -166,10 +169,10 @@ class TwoFactorSettingsController extends Controller
     {
         $user = $request->user();
 
-        $data = $request->validate([
+        $data = $request->validateWithBag('regenerate', [
             'password' => ['required', 'string'],
         ], [
-            'password.required' => 'Wpisz swoje hasło, żeby dostać nowe kody zapasowe.',
+            'password.required' => 'Wpisz hasło do Kuking, żeby dostać nowe kody zapasowe.',
         ]);
 
         if (! $user->hasTwoFactorConfirmed()) {
@@ -178,8 +181,8 @@ class TwoFactorSettingsController extends Controller
 
         if (! Hash::check($data['password'], $user->password)) {
             throw ValidationException::withMessages([
-                'password' => 'Hasło jest nieprawidłowe.',
-            ]);
+                'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
+            ])->errorBag('regenerate');
         }
 
         $kodyJawne = $this->totp->generateBackupCodes();
@@ -195,16 +198,16 @@ class TwoFactorSettingsController extends Controller
      */
     public function disable(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        $data = $request->validateWithBag('disable', [
             'password' => ['required', 'string'],
         ], [
-            'password.required' => 'Wpisz swoje hasło, żeby wyłączyć weryfikację dwuetapową.',
+            'password.required' => 'Wpisz hasło do Kuking, żeby wyłączyć weryfikację dwuetapową.',
         ]);
 
         if (! Hash::check($data['password'], $request->user()->password)) {
             throw ValidationException::withMessages([
-                'password' => 'Hasło jest nieprawidłowe.',
-            ]);
+                'password' => 'Wpisz ponownie hasło do Kuking. Jeśli go nie pamiętasz, skorzystaj z instrukcji przy formularzu.',
+            ])->errorBag('disable');
         }
 
         $request->user()->disableTwoFactor();

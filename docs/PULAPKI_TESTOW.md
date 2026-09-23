@@ -663,6 +663,68 @@ Ta druga jest przy okazji jedynym miejscem, które złapie odwrotną wadę:
 podpowiedź, która przy niskim oknie zaczyna zjadać ekran, nie zostawia już
 miejsca na gest i test mówi o tym wprost, zamiast po cichu celować byle gdzie.
 
+## 13. Strażnik CSS czytający ŹRÓDŁO mierzy inny arkusz, niż dostaje przeglądarka
+
+Ta pułapka jest odmianą §10 („stan stanowiska udaje wynik pomiaru"), ale
+stanowiskiem jest tu **budowanie arkusza**. Między `resources/css/*.css`
+a `public/build/assets/app-*.css` zmienia się na tyle dużo, że test czytający
+źródło potrafi opisywać układ, którego nikt nie zobaczy.
+
+Zmierzone 20 września 2026 przy strażniku martwych reguł (D-223), trzy różnice
+naraz, wszystkie milczące:
+
+**Instrukcja `@layer a, b, c;` nie przeżywa budowania.** W źródle stoi ona
+w `app.css` linia 1 i to ona ustala kolejność warstw. W zbudowanym arkuszu
+**jej nie ma** — zostają same bloki `@layer nazwa { … }`, a kolejność wynika
+z ich pierwszego wystąpienia. Strażnik szukający `CSSLayerStatementRule`
+dostawał pustą listę warstw, przez co **każdej regule przypisywał tę samą
+warstwę**, nie znajdował ani jednego kandydata i wypisywał „✓ nic nie jest
+przykryte". Zieleń była prawdziwa składniowo i bezwartościowa merytorycznie.
+Do zbudowanego arkusza dochodzi przy okazji wewnętrzna warstwa Tailwinda
+`properties`, PRZED `theme` — w źródle jej nie ma wcale.
+
+**Zapytania medialne są budowane w składni zakresowej.** W źródle bywa
+`@media (min-width: 48rem)`, w arkuszu stoi `(width >= 48rem)`. Wzorzec
+szukający `min-width` znajduje **zero** progów. Narzędzie mierzy wtedy tylko
+szerokości, które ktoś wpisał ręcznie, a każdą regułę schowaną pod progiem
+bierze za żywą albo za martwą — zależnie od tego, po której stronie progu
+przypadkiem stanęło.
+
+**Arkusz bez `@layer` bije każdą warstwę.** Osiem plików `resources/css/*.css`
+nie jest owiniętych w żadną warstwę. Kod spoza warstw jest w kaskadzie
+PÓŹNIEJSZY niż każda warstwa nazwana — także niż `utilities`. Istnieje więc
+warstwa najwyższa, której instrukcja `@layer` nie wymienia, a `grep '@layer'`
+po źródle jej nie pokaże, bo ona polega właśnie na BRAKU wpisu.
+
+### Co robić
+
+**Pytaj `getComputedStyle` na wyrenderowanej stronie, nie pliku.** Wynik
+kaskady jest jedyną odpowiedzią na pytanie „co widzi użytkownik". Tekst
+arkusza wolno wykorzystać do ZAWĘŻENIA listy kandydatów — nigdy do werdyktu.
+
+**Daj narzędziu samokontrolę na pustym przebiegu.** Zero wykrytych warstw,
+zero progów, zero zbadanych kandydatów — to są BŁĘDY PRZYRZĄDU, nie wyniki
+pozytywne. `scripts/kaskada-martwe-reguly.mjs` kończy się wtedy kodem 2
+i właśnie ta samokontrola złapała obie pomyłki opisane wyżej, zanim zrobiły
+z niego kolejnego strażnika meldującego zieleń bez pomiaru.
+
+**Przywracaj przez `cssText`, nie przez `setProperty`.** Pomiar, który zdejmuje
+deklarację i odtwarza ją z `getPropertyValue`, gubi skróty: dla `padding`
+o różnych składowych ta funkcja zwraca pusty łańcuch. „Przywrócona" reguła
+zostaje trwale okaleczona, a każdy następny pomiar na tej stronie biegnie po
+arkuszu, który poprzedni pomiar zepsuł. To jest §5b przeniesione z plików na
+CSSOM — i tak samo jak tam, przywrócenie trzeba SPRAWDZIĆ, a nie założyć.
+
+### Jedna różnica, której ta pułapka NIE dotyczy
+
+Nasze `data-text-scale` z profilu **nie jest** przykładem tej pułapki. Ono
+skaluje tokeny tekstu (`--user-text-scale`), a nie `font-size` korzenia, więc
+`rem` w regułach układu przy nim nie rośnie i progi zapytań medialnych się nie
+ruszają. Mylenie go z powiększeniem pisma w przeglądarce to osobna pomyłka —
+i to ona stoi za komentarzem uzasadniającym `7rem` „czytelnością przy skali
+tekstu 150%", podczas gdy skali 150% w tym produkcie nie ma w ogóle
+(`tokens.css` daje 70/80/90/112/125/140).
+
 ## Skąd ta lista
 
 Trzy warstwy zewnętrznego audytu z 10.09.2026

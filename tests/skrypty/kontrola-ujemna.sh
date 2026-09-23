@@ -174,6 +174,17 @@ kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
 sprawdz 'test czerwony już przed mutacją → BRAK_KONTROLI_DODATNIEJ (5)' 5 "$kod"
 sprawdz 'przy braku kontroli dodatniej plik nietknięty (MD5)' "$MD5_WZORCOWY" "$(md5sum "$PRACA/zrodlo.txt" | cut -d' ' -f1)"
 
+# REGRESJA: werdykt 5 musi POWIEDZIEC, dlaczego bylo czerwono. Sam kod wyjscia
+# nie wystarcza — gdy przyrzad siegal po nieustawione `$WYJSCIE_PRZED`, pod
+# `set -u` wypis ginal w podpowloce potoku, kod wyjscia zostawal poprawny (5)
+# i asercja kodu wyzej swiecila na zielono. Uzasadnienie werdyktu jest tu
+# calym przedmiotem sporu, wiec sprawdzamy TRESC, nie tylko liczbe.
+if grep -qF 'SQLSTATE[08006]' "$PRACA/wyjscie.log" && ! grep -qF 'unbound variable' "$PRACA/wyjscie.log"; then
+    printf "  ${ZIELONY}✓${RESET} werdykt 5 pokazuje POWOD czerwieni, nie samo „bylo czerwono”\n"; zdane=$((zdane + 1))
+else
+    printf "  ${CZERWONY}✗${RESET} werdykt 5 nie pokazuje wyjscia testu — uzasadnienie zginelo\n"; oblane=$((oblane + 1))
+fi
+
 # --- 6. Przywrócenie, gdy test ginie w połowie ------------------------------
 uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
         --oczekuj 'cokolwiek' -- ./test-ginie-w-polowie.sh zrodlo.txt >/dev/null
@@ -199,12 +210,31 @@ else
 ' 'x komunikat nie mowi, jak naprawic bit w repozytorium'; oblane=$((oblane + 1))
 fi
 
-# --- 9. Polecenia w ogole nie ma -> 127 --------------------------------------
+# --- 9. REGRESJA: JSON i konsola muszą meldować to samo przywrócenie -------
+# Do 21 września 2026 pole "przywrocenie" w JSON było liczone w INNYM
+# miejscu niż komunikat na konsolę: JSON zapisywał się w głównym biegu
+# skryptu, ZANIM `trap` na EXIT zdążył naprawdę przywrócić plik, więc
+# zostawał przy wartości startowej „nie wykonane" — mimo że przywrócenie
+# się udało i konsola poprawnie meldowała „Źródło przywrócone". Ten sam
+# fakt liczony dwa razy w dwóch miejscach dawał dwie różne odpowiedzi.
+JSON_9="$PRACA/wynik-9.json"
+rm -f "$JSON_9"
+( cd "$PRACA" && "$PRZYRZAD" --plik zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
+    --oczekuj 'BRAMKA_ZDJETA' --json "$JSON_9" -- ./test-dobry.sh zrodlo.txt ) >"$PRACA/wyjscie.log" 2>&1
+if [ -f "$JSON_9" ] && grep -qF '"przywrocenie": "ok' "$JSON_9"; then
+    printf "  ${ZIELONY}✓${RESET} JSON zgadza się z konsolą: przywrocenie zapisane jako „ok”, nie „nie wykonane”\n"; zdane=$((zdane + 1))
+else
+    printf "  ${CZERWONY}✗${RESET} JSON rozjeżdża się z konsolą — pole \"przywrocenie\" nie mówi „ok”\n"
+    [ -f "$JSON_9" ] && grep '"przywrocenie"' "$JSON_9" | sed 's/^/     /'
+    oblane=$((oblane + 1))
+fi
+
+# --- 10. Polecenia w ogole nie ma -> 127 --------------------------------------
 kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./polecenia-nie-ma.sh)"
 sprawdz 'polecenia nie ma (127) -> BLAD_POLECENIA (7), nie BRAK_KONTROLI_DODATNIEJ' 7 "$kod"
 sprawdz 'przy niewykonanym poleceniu plik nietkniety (MD5)' "$MD5_WZORCOWY" "$(md5sum "$PRACA/zrodlo.txt" | cut -d' ' -f1)"
 
-# --- 10. Tryb wsadowy nie gubi wpisow po cichu -------------------------------
+# --- 11. Tryb wsadowy nie gubi wpisow po cichu -------------------------------
 # Runner wsadowy, ktory po cichu pominie wpis, policzy mniej mutacji i nazwie
 # to sukcesem. Katalog nizej ma TRZY bloki o znanych werdyktach: zabita,
 # przezyla, wadliwa (no-op). Sprawdzamy liczbe i kazdy werdykt z osobna.
@@ -250,7 +280,7 @@ else
 ' 'x tabela nie zada rozstrzygniecia przy przezywajacej mutacji'; oblane=$((oblane + 1))
 fi
 
-# --- 11. Mutacja pliku Blade nie zostawia zmutowanego kompilatu -------------
+# --- 12. Mutacja pliku Blade nie zostawia zmutowanego kompilatu -------------
 # Laravel rekompiluje szablon tylko gdy zrodlo jest NOWSZE od kompilatu
 # (Compiler::isExpired). Po przywroceniu mtime zrodlo jest STARSZE niz
 # kompilat zmutowanego widoku, wiec bez tej poprawki Laravel dalej serwowalby
@@ -282,14 +312,14 @@ else
 ' 'x mutacja pliku nie-Blade skasowala kompilaty — nadmiar'; oblane=$((oblane + 1))
 fi
 
-# --- 12. Wzorzec na poczatku DUZEGO wyjscia ---------------------------------
+# --- 13. Wzorzec na poczatku DUZEGO wyjscia ---------------------------------
 # Bez poprawki (`printf | grep -q` pod pipefail) ta proba dostaje
 # ZLA_PRZYCZYNA (4) zamiast POTWIERDZONA (0) — przyrzad odmawia uznania
 # poprawnej kontroli ujemnej, bo SIGPIPE przykrywa trafienie grepa.
 kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./test-duze-wyjscie.sh zrodlo.txt)"
 sprawdz 'wzorzec na poczatku duzego wyjscia -> POTWIERDZONA (0), nie ZLA_PRZYCZYNA' 0 "$kod"
 
-# --- 13. mtime wraca CO DO UŁAMKA SEKUNDY ------------------------------------
+# --- 14. mtime wraca CO DO UŁAMKA SEKUNDY ------------------------------------
 # Do 20 września 2026 przyrząd twierdził „MD5 i mtime zgodne", nie porównując
 # mtime w ogóle, a `touch -d` dodatkowo UCINAŁ część podsekundową, którą
 # `cp -p` już poprawnie przywróciło. Ten przypadek by to złapał: przed
@@ -299,25 +329,6 @@ uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
         --oczekuj 'BRAMKA' -- ./test-dobry.sh zrodlo.txt >/dev/null
 sprawdz 'mtime wraca co do ułamka sekundy, nie tylko co do sekundy' \
         "$mtime_przed" "$(date -r "$PRACA/zrodlo.txt" +%s.%N)"
-
-# --- 14. REGRESJA: JSON i konsola muszą meldować to samo przywrócenie -------
-# Do 21 września 2026 pole "przywrocenie" w JSON było liczone w INNYM
-# miejscu niż komunikat na konsolę: JSON zapisywał się w głównym biegu
-# skryptu, ZANIM `trap` na EXIT zdążył naprawdę przywrócić plik, więc
-# zostawał przy wartości startowej „nie wykonane" — mimo że przywrócenie
-# się udało i konsola poprawnie meldowała „Źródło przywrócone". Ten sam
-# fakt liczony dwa razy w dwóch miejscach dawał dwie różne odpowiedzi.
-JSON_9="$PRACA/wynik-9.json"
-rm -f "$JSON_9"
-( cd "$PRACA" && "$PRZYRZAD" --plik zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' \
-    --oczekuj 'BRAMKA_ZDJETA' --json "$JSON_9" -- ./test-dobry.sh zrodlo.txt ) >"$PRACA/wyjscie.log" 2>&1
-if [ -f "$JSON_9" ] && grep -qF '"przywrocenie": "ok' "$JSON_9"; then
-    printf "  ${ZIELONY}✓${RESET} JSON zgadza się z konsolą: przywrocenie zapisane jako „ok”, nie „nie wykonane”\n"; zdane=$((zdane + 1))
-else
-    printf "  ${CZERWONY}✗${RESET} JSON rozjeżdża się z konsolą — pole \"przywrocenie\" nie mówi „ok”\n"
-    [ -f "$JSON_9" ] && grep '"przywrocenie"' "$JSON_9" | sed 's/^/     /'
-    oblane=$((oblane + 1))
-fi
 
 printf '\n'
 if [ "$oblane" -eq 0 ]; then
