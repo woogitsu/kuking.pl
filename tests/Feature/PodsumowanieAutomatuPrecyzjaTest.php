@@ -63,6 +63,7 @@ class PodsumowanieAutomatuPrecyzjaTest extends TestCase
                 'target_type' => 'post', 'target_id' => $post->getKey(),
                 'source' => Report::SOURCE_AUTOMAT, 'reason' => 'harassment',
                 'status' => $hours === 0 ? Report::STATUS_RESOLVED : Report::STATUS_OPEN,
+                'resolved_at' => $hours === 0 ? now() : null,
             ]);
             $report->forceFill(['created_at' => now()->subHours($hours)])->save();
         }
