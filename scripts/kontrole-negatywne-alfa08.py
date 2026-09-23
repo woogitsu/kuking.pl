@@ -94,6 +94,12 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Log serwera bez danych osobowych (audyt prywatności 23.09.2026). Test czyta
+# zapisany plik logu i asertuje na jego treści — bez mutacji nic nie dowodzi,
+# że asercje „nie zawiera e-maila/hasha" potrafią w ogóle zapalić.
+LOG_SERWERA = "app/Logging/BezDanychOsobowychWLogu.php"
+LOG_SERWERA_TEST = "LogSerweraBezDanychOsobowychTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -230,6 +236,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Komunikat bazy z wartościami w logu serwera", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $this->komunikatBazy($e);", "return $e->getMessage();")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -238,6 +246,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(LOG_SERWERA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
