@@ -87,6 +87,30 @@ Usuwać:
 - zbędny EXIF;
 - dane urządzenia.
 
+Warianty są przekodowane do WebP, więc nie niosą żadnych metadanych.
+Prywatny **oryginał** (dla eksportu danych) przechodzi przy wgraniu przez
+`UsunGps` i jego zakres jest dokładnie taki (D-023, issue #1004):
+
+| Rodzina metadanych | Co się dzieje w oryginale |
+|---|---|
+| EXIF — pod-IFD GPS | wartości i wpisy wyzerowane w miejscu |
+| EXIF — reszta (aparat, obiektyw, data, orientacja) | zostaje bez zmiany |
+| XMP (JPEG APP1 i XMP rozszerzony, PNG `iTXt`/`zTXt`/`tEXt`, WebP `XMP `, AVIF) | cały pakiet zamieniony na spacje — z każdą przestrzenią nazw, także `exif:GPS*` i lokalizacjami IPTC |
+| PNG „Raw profile type exif/xmp/iptc/…" | cały tekst zamieniony na spacje |
+| IPTC-IIM (JPEG APP13) | zostaje — nie ma pól współrzędnych |
+
+Długość pliku się nie zmienia (przesunięcia w EXIF-ie zostają ważne), a PNG
+dostaje nowe sumy CRC przepisanych chunków. AVIF jest czyszczony przez
+szukanie pakietu w bajtach, bez parsera ISOBMFF. Pilnują tego
+`OryginalTraciWspolrzedneGpsTest`, `OryginalTraciGpsTakzeWPngIWebpTest`
+i `OryginalTraciGpsZXmpTest` (fixture'y zapisane niezależną biblioteką,
+`tests/Fixtures/xmp-gps/`).
+
+Pliki położone do storage PRZED powstaniem wiersza `media` (oryginał,
+podgląd) `StoreUploadedImage` kasuje sama, gdy `Media::create()` padnie —
+bez wiersza nie znalazłoby ich żadne sprzątanie (issue #962). Nieudane
+kasowanie zostaje w dzienniku jako błąd z dyskiem i kluczem.
+
 ## Warianty
 
 W tle (`ProcessUploadedImage`, lista w `config/kuking.php`,
@@ -158,6 +182,17 @@ listę; po sukcesie lista znika. Lista jest osobna od `variants`, bo
 `wariantDoSerwowania()` pokazałaby po niej zdjęcie pod nazwą wariantu,
 którego plik może jeszcze nie istnieć. Pilnuje tego
 `tests/Feature/PrzerwanePrzetwarzanieNieZostawiaSierotyTest.php`.
+
+**Zadanie nie wskrzesza zdjęcia, które odchodzi (#1003).** `deleted` znaczy
+„kasowanie trwa" (D-083). Job przejmuje wiersz pod blokadą i odmawia pracy
+dla `deleted`; przed publikacją wariantów blokuje wiersz jeszcze raz i pyta
+o stan od nowa, bo kasowanie mogło zacząć się w trakcie dekodowania. Gdy
+wiersza już nie ma albo jest `deleted`, job kasuje pliki, które sam położył,
+i nie zmienia statusu (ani na `ready`, ani na `rejected`, także w `failed()`).
+Wymazanie konta przejmuje zdjęcia tak samo (`KasujZdjecie::przejmijDoWymazania()`)
+i kasuje pliki ze świeżego wiersza, nie z modelu wczytanego wcześniej.
+W transakcjach nie ma wejść na dysk. Pilnuje tego
+`tests/Feature/ZdjecieOdchodzaceNieWracaZWorkeraTest.php`.
 
 ### Co wolno pokazać
 

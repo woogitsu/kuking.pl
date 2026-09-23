@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\ZaproszenieWSesji;
 use App\Domain\Users\Actions\ZalozKonto;
+use App\Domain\Users\Actions\ZalozoneKonto;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Http\Controllers\Controller;
 use App\Models\User;
@@ -198,7 +199,7 @@ class RegisterController extends Controller
          * potwierdzony pochodzi dowodnie z wiersza w bazie, nie z żądania.
          */
         try {
-            $user = $zalozKonto->handle(
+            $konto = $zalozKonto->handle(
                 email: $data['email'],
                 displayName: $data['display_name'],
                 username: $data['username'],
@@ -235,10 +236,12 @@ class RegisterController extends Controller
                 ->withErrors(['email' => $e->getMessage()]);
         }
 
-        Auth::login($user, remember: true);
+        Auth::login($konto->user, remember: true);
         $request->session()->regenerate();
 
         return redirect()->route('onboarding.interests')
-            ->with('status', 'Konto gotowe. Miło Cię widzieć w Kuking.');
+            ->with('status', $konto->listPotwierdzajacyNieWyszedl
+                ? ZalozoneKonto::KOMUNIKAT_BEZ_LISTU
+                : 'Konto gotowe. Miło Cię widzieć w Kuking.');
     }
 }

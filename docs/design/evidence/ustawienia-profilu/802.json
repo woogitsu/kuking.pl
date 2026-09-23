@@ -1,0 +1,16 @@
+{
+  "nazwa": "802 opis awatara",
+  "plik": "resources/views/pages/settings/profile.blade.php",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "5382a9e84fe9b88d9ca5d6ced936d33c",
+  "md5_po_mutacji": "f3bf77495a8972cfbe2d42db045cdebd",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "Możesz zmienić lub usunąć",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:56:39Z"
+}
