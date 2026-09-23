@@ -41,4 +41,20 @@ final class BrakKonfiguracjiEmailLabs extends RuntimeException
             .'Poprawna wartość domyślna: https://api.emaillabs.io/v2.1/email.',
         );
     }
+
+    /**
+     * Adres jest HTTPS, ale prowadzi poza dostawcę (#991). W komunikacie NIE
+     * MA samego adresu: bywa, że ktoś wkleja w tę zmienną adres z tokenem.
+     *
+     * @param  list<string>  $hosty
+     */
+    public static function obcyHostApi(string $zmienna, array $hosty): self
+    {
+        return new self(
+            "Zmienna {$zmienna} wskazuje host spoza listy dostawcy EmailLabs. Wysyłka tam oznaczałaby, "
+            .'że klucz do API i treść listu trafiają do kogoś obcego, więc poczta nie wystartuje. '
+            .'Dozwolone hosty: '.implode(', ', $hosty).'. '
+            .'Poprawna wartość domyślna: https://api.emaillabs.io/v2.1/email.',
+        );
+    }
 }

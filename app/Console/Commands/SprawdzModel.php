@@ -58,6 +58,10 @@ class SprawdzModel extends Command
 
         $this->stanKonfiguracji();
 
+        if (! KlientOpenAI::adresZgodny()) {
+            return $this->obcyHost();
+        }
+
         $wynik = $this->zapytaj(
             [['type' => 'text', 'text' => self::ZDANIE_TESTOWE]],
             'tekst',
@@ -80,6 +84,17 @@ class SprawdzModel extends Command
         $this->line('Ocenę zdjęć sprawdzisz osobno: <options=bold>php artisan kuking:sprawdz-model --zdjecie</>');
 
         return self::SUCCESS;
+    }
+
+    private function obcyHost(): int
+    {
+        $this->error('Zmienna KUKING_MODEL_ENDPOINT wskazuje host spoza OpenAI. Żadne zapytanie nie wyszło.');
+        $this->newLine();
+        $this->line('Klucz i treść do oceny wolno wysłać tylko do: '.implode(', ', KlientOpenAI::HOSTY).'.');
+        $this->line('Aplikacja z tym adresem nie ocenia niczego. Usuń zmienną (wartość domyślna jest');
+        $this->line('poprawna) albo wpisz https://api.openai.com/v1/moderations.');
+
+        return self::FAILURE;
     }
 
     private function brakKlucza(): int

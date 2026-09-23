@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Support\DozwolonyHostApi;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -39,6 +40,14 @@ use Illuminate\Support\Facades\Log;
 class PurgePublicMediaCache implements ShouldQueue
 {
     use Queueable;
+
+    /**
+     * Jedyny host, któremu wolno dać token czyszczenia (#991).
+     * `CLOUDFLARE_PURGE_ENDPOINT` zmienia ścieżkę, nie dostawcę.
+     *
+     * @var list<string>
+     */
+    public const HOSTY = ['api.cloudflare.com'];
 
     public int $tries = 5;
 
@@ -92,6 +101,16 @@ class PurgePublicMediaCache implements ShouldQueue
             $zona,
             (string) config('kuking.media.cdn_purge.endpoint'),
         );
+
+        // Obcy host = zadanie pada, zanim token wyjdzie. Wyjątek, nie cichy
+        // `return`: nieudane czyszczenie ma zostać w `failed_jobs`. Adresu
+        // w komunikacie nie ma — bywa wklejany razem z tokenem.
+        if (! DozwolonyHostApi::zgodny($adres, self::HOSTY)) {
+            throw new \RuntimeException(
+                'CLOUDFLARE_PURGE_ENDPOINT wskazuje host spoza Cloudflare — czyszczenia cache nie wysłano. '
+                .'Dozwolone: '.implode(', ', self::HOSTY).'.',
+            );
+        }
 
         // Cloudflare przyjmuje najwyżej 30 adresów na żądanie.
         foreach (array_chunk($adresy, 30) as $partia) {

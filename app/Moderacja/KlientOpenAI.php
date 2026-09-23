@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Moderacja;
 
+use App\Support\DozwolonyHostApi;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Throwable;
@@ -44,10 +45,30 @@ use Throwable;
  */
 final class KlientOpenAI
 {
+    /**
+     * Jedyny host, któremu wolno dać klucz i cudzą treść do oceny (#991).
+     * `KUKING_MODEL_ENDPOINT` zmienia ścieżkę, nie dostawcę.
+     *
+     * @var list<string>
+     */
+    public const HOSTY = ['api.openai.com'];
+
     public static function oceniamy(): bool
     {
         return is_string(config('kuking.moderation.model.klucz'))
             && config('kuking.moderation.model.klucz') !== '';
+    }
+
+    /**
+     * Czy `KUKING_MODEL_ENDPOINT` prowadzi do OpenAI. Obcy host = klient
+     * odmawia każdego zapytania, zanim cokolwiek wyjdzie.
+     */
+    public static function adresZgodny(): bool
+    {
+        return DozwolonyHostApi::zgodny(
+            (string) config('kuking.moderation.model.endpoint'),
+            self::HOSTY,
+        );
     }
 
     /**
@@ -99,6 +120,20 @@ final class KlientOpenAI
     private function zapytaj(array $wejscie, string $czego): ?WynikOceny
     {
         if (! self::oceniamy()) {
+            return null;
+        }
+
+        // `error`, nie `warning`: to jest błąd konfiguracji, który ma dojść do
+        // kanału alarmowego. Bez adresu w kontekście — zmienna bywa wklejana
+        // razem z tokenem, a nazwa zmiennej wystarcza, żeby wiedzieć, co zmienić.
+        if (! self::adresZgodny()) {
+            Log::error('Adres modelu moderacji wskazuje host spoza OpenAI — nic nie wysłano.', [
+                'czego' => $czego,
+                'zmienna' => 'KUKING_MODEL_ENDPOINT',
+                'dozwolone' => self::HOSTY,
+                'stage' => 'openai_obcy_host',
+            ]);
+
             return null;
         }
 
