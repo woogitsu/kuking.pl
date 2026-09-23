@@ -496,11 +496,19 @@ document.addEventListener('DOMContentLoaded', () => {
  *    12 kontekstow);
  *  - pierwsze dotkniecie albo klawisz gdziekolwiek na stronie trybu
  *    gotowania odblokowuje go (`resume()` + cichy bufor dla starszego
- *    Safari), zanim alarm bedzie potrzebny;
+ *    Safari) -- jesli czlowiek dotknal ekranu, zanim minutnik skonczyl,
+ *    pierwszy sygnal zagra;
+ *  - jesli alarm przychodzi przed jakimkolwiek gestem (typowo: termin
+ *    minal, gdy telefon byl zablokowany, a iOS przeladowal karte po
+ *    powrocie), pierwszy sygnal PRZEMILCZY, a wibracja zwykle tez --
+ *    dlatego alarm w pasie (pokazAlarmWPasie) powtarza sygnal co kilka
+ *    sekund: pierwsze dotkniecie odblokowuje dzwiek, zagra kolejne
+ *    powtorzenie;
  *  - zamykamy go przy `pagehide`, a nie po zdarzeniu `ended` oscylatora,
  *    ktore przy zawieszonym kontekscie nigdy nie przychodzi.
  * Nawet tak nic nie gwarantuje dzwieku (wyciszony telefon, brak gestu),
- * wiec glownym sygnalem zostaje komunikat na ekranie (`role="alert"`),
+ * wiec glownym sygnalem jest WIDOCZNY komunikat w pasie `.cook-alarmy`
+ * (`role="alert"`) -- takze dla spoznionego minutnika widocznego kroku --
  * a UI nie obiecuje, ze cos zabrzmi.
  */
 let kontekstAlarmu = null;
@@ -578,6 +586,8 @@ function zagrajAlarm() {
                 // Zawieszony kontekst: probujemy go wznowic, ale sygnal gramy
                 // tylko, jesli wznowil sie od razu -- spozniony o minute
                 // "beep" przy pierwszym dotknieciu ekranu bylby mylacy.
+                // Bez gestu ten pojedynczy sygnal zwykle milczy; dlatego
+                // alarmy w pasie powtarzaja go (pokazAlarmWPasie).
                 const prosba = performance.now();
 
                 kontekst.resume().then(() => {
@@ -597,6 +607,80 @@ function zagrajAlarm() {
     }
 }
 
+
+/*
+ * WIDOCZNY ALARM W PASIE `.cook-alarmy` (issue #1301) -- wspolny dla
+ * minutnikow innych krokow i dla spoznionego minutnika widocznego kroku.
+ * Komunikat z `role="alert"` jest glownym sygnalem; dzwiek powtarza sie co
+ * POWTORZENIA_CO_MS, bo pierwszy sygnal bez gestu zwykle milczy (zawieszony
+ * AudioContext) -- dopiero pierwsze dotkniecie ekranu go odblokowuje,
+ * a zagra KOLEJNE powtorzenie. Najwyzej minute, zeby zapomniana karta nie
+ * piszczala bez konca.
+ */
+const POWTORZENIA_CO_MS = 5000;
+const POWTORZENIA_NAJWYZEJ = 12;
+
+function pokazAlarmWPasie(pas, tresc, przejscie = null) {
+    const alarm = document.createElement('div');
+    alarm.className = 'cook-alarm';
+    alarm.setAttribute('role', 'alert');
+
+    const tekst = document.createElement('p');
+    tekst.className = 'cook-alarm-tekst';
+    tekst.textContent = tresc;
+
+    const wylacz = document.createElement('button');
+    wylacz.type = 'button';
+    wylacz.className = 'btn btn-primary btn-cook cook-alarm-wylacz';
+    wylacz.textContent = 'Wyłącz alarm';
+
+    alarm.append(tekst, wylacz);
+
+    if (przejscie) {
+        const przejdz = document.createElement('a');
+        przejdz.className = 'btn btn-secondary btn-cook';
+        przejdz.href = przejscie.href;
+        przejdz.textContent = przejscie.tekst;
+        alarm.append(przejdz);
+    }
+
+    pas.append(alarm);
+    pas.hidden = false;
+
+    zagrajAlarm();
+    let powtorzenia = 1;
+    const powtarzanie = window.setInterval(() => {
+        zagrajAlarm();
+        powtorzenia += 1;
+
+        if (powtorzenia >= POWTORZENIA_NAJWYZEJ) {
+            window.clearInterval(powtarzanie);
+        }
+    }, POWTORZENIA_CO_MS);
+
+    wylacz.addEventListener('click', () => {
+        window.clearInterval(powtarzanie);
+
+        if ('vibrate' in navigator) {
+            navigator.vibrate(0);
+        }
+
+        alarm.remove();
+        pas.hidden = pas.childElementCount === 0;
+
+        // Fokus nie moze zostac na usunietym przycisku -- przechodzi
+        // na nastepny alarm albo na postep krokow u gory ekranu.
+        const nastepny = pas.querySelector('.cook-alarm-wylacz');
+        const postep = document.querySelector('.cook-progress');
+
+        if (nastepny) {
+            nastepny.focus();
+        } else if (postep) {
+            postep.setAttribute('tabindex', '-1');
+            postep.focus();
+        }
+    });
+}
 
 document.querySelectorAll('.cook-timer').forEach((blok) => {
     const przycisk = blok.querySelector('.cook-timer-start');
@@ -734,9 +818,23 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         // Spozniony, ale nie porzucony: alarm, a DOPIERO POTEM zapis
         // znika -- zeby pas alarmow innych krokow (nizej) nie zadzwonil
         // drugi raz za ten sam minutnik po przejsciu do kolejnego kroku.
+        //
+        // Sam komunikat w bloku minutnika tu nie wystarcza (przeglad #1301):
+        // `.cook-timer-komunikat` jest tylko dla czytnika ekranu, a jego
+        // aria-live przy ladowaniu strony zwykle nie jest odczytywane;
+        // sygnal bez gestu milczy. Dlatego widoczny alarm w pasie -- ten sam,
+        // co dla innych krokow -- z powtarzanym sygnalem.
         pokaz(0);
         pokazKoniec();
-        zagrajAlarm();
+
+        const pas = document.querySelector('.cook-alarmy');
+
+        if (pas) {
+            pokazAlarmWPasie(pas, 'Minutnik tego kroku skończył odliczanie.');
+        } else {
+            zagrajAlarm();
+        }
+
         sessionStorage.removeItem(klucz);
         return true;
     };
@@ -780,69 +878,13 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     const recipeSlug = pas.dataset.alarmyRecipe ?? '';
     const widocznyKrok = pas.dataset.alarmyKrok ?? '';
     const adres = pas.dataset.alarmyAdres ?? '';
-    const POWTORZENIA_CO_MS = 5000;
-    const POWTORZENIA_NAJWYZEJ = 12;
 
     const pokazAlarm = (krok) => {
-        const alarm = document.createElement('div');
-        alarm.className = 'cook-alarm';
-        alarm.setAttribute('role', 'alert');
-
-        const tekst = document.createElement('p');
-        tekst.className = 'cook-alarm-tekst';
-        tekst.textContent = `Minutnik kroku ${krok} skończył odliczanie.`;
-
-        const wylacz = document.createElement('button');
-        wylacz.type = 'button';
-        wylacz.className = 'btn btn-primary btn-cook cook-alarm-wylacz';
-        wylacz.textContent = 'Wyłącz alarm';
-
-        alarm.append(tekst, wylacz);
-
-        if (adres) {
-            const przejdz = document.createElement('a');
-            przejdz.className = 'btn btn-secondary btn-cook';
-            przejdz.href = `${adres}?krok=${encodeURIComponent(krok)}`;
-            przejdz.textContent = `Przejdź do kroku ${krok}`;
-            alarm.append(przejdz);
-        }
-
-        pas.append(alarm);
-        pas.hidden = false;
-
-        zagrajAlarm();
-        let powtorzenia = 1;
-        const powtarzanie = window.setInterval(() => {
-            zagrajAlarm();
-            powtorzenia += 1;
-
-            if (powtorzenia >= POWTORZENIA_NAJWYZEJ) {
-                window.clearInterval(powtarzanie);
-            }
-        }, POWTORZENIA_CO_MS);
-
-        wylacz.addEventListener('click', () => {
-            window.clearInterval(powtarzanie);
-
-            if ('vibrate' in navigator) {
-                navigator.vibrate(0);
-            }
-
-            alarm.remove();
-            pas.hidden = pas.childElementCount === 0;
-
-            // Fokus nie moze zostac na usunietym przycisku -- przechodzi
-            // na nastepny alarm albo na postep krokow u gory ekranu.
-            const nastepny = pas.querySelector('.cook-alarm-wylacz');
-            const postep = document.querySelector('.cook-progress');
-
-            if (nastepny) {
-                nastepny.focus();
-            } else if (postep) {
-                postep.setAttribute('tabindex', '-1');
-                postep.focus();
-            }
-        });
+        pokazAlarmWPasie(
+            pas,
+            `Minutnik kroku ${krok} skończył odliczanie.`,
+            adres ? {href: `${adres}?krok=${encodeURIComponent(krok)}`, tekst: `Przejdź do kroku ${krok}`} : null,
+        );
     };
 
     const odliczaj = (klucz, krok, zapis, terminMonotoniczny) => {

@@ -105,18 +105,45 @@ async function fixture(durations, run) {
 // Przejście do innego kroku to w aplikacji pełne przeładowanie strony
 // (GET ?krok=N) — tu też: nowy dokument pod tym samym originem, więc
 // sessionStorage zostaje, a cały stan JavaScriptu znika.
-async function openStep(page, krok, seconds, { exits = false } = {}) {
+// `telefon`: jak iOS Safari / Chrome na Androidzie — AudioContext bez gestu
+// startuje zawieszony, a `resume()` przechodzi tylko w trakcie gestu
+// (bezgłowy Chromium ignoruje --autoplay-policy, więc politykę odgrywamy tu).
+async function openStep(page, krok, seconds, { exits = false, telefon = false } = {}) {
   currentBody = exits ? withExits(stepPage(krok, seconds)) : stepPage(krok, seconds);
   await page.goto(baseUrl + '?krok=' + krok);
-  await page.evaluate(() => {
+  await page.evaluate((telefon) => {
     window.alarmBeeps = 0;
     window.audioContexts = 0;
+    // Gest liczymy z prawdziwych zdarzeń wejścia, nie z
+    // `navigator.userActivation` — `page.evaluate` Playwrighta sam daje
+    // przejściową aktywację, więc ta byłaby „aktywna” bez żadnego dotyku.
+    window.gestTrwa = false;
+    ['pointerup', 'touchend', 'click', 'keydown'].forEach(typ => document.addEventListener(typ, event => {
+      if (!event.isTrusted) return;
+      window.gestTrwa = true;
+      setTimeout(() => { window.gestTrwa = false; }, 0);
+    }, { capture: true }));
     const Original = window.AudioContext;
     window.AudioContext = class extends Original {
-      constructor(...args) { super(...args); window.audioContexts += 1; }
+      constructor(...args) {
+        super(...args);
+        window.audioContexts += 1;
+        this.odblokowany = !telefon;
+        if (telefon) super.suspend();
+      }
+      // `suspend()` jest asynchroniczne — do odblokowania stan to zawsze
+      // „suspended”, jak w kontekście utworzonym bez gestu na telefonie.
+      get state() { return this.odblokowany ? super.state : (super.state === 'closed' ? 'closed' : 'suspended'); }
+      resume() {
+        if (!this.odblokowany && !window.gestTrwa) {
+          return Promise.reject(new DOMException('Brak gestu', 'NotAllowedError'));
+        }
+        this.odblokowany = true;
+        return super.resume();
+      }
       createOscillator() { window.alarmBeeps += 1; return super.createOscillator(); }
     };
-  });
+  }, telefon);
   await page.addScriptTag({ type: 'module', content: importLine + source.slice(begin, end) });
 }
 const block = (page, index = 0) => page.locator('.cook-timer').nth(index);
@@ -344,6 +371,25 @@ try {
       assert(await anulujButton(page).isHidden());
       assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null,
         'Zapis znika po alarmie');
+      // Na telefonie komunikat w bloku minutnika jest tylko dla czytnika
+      // ekranu, a sygnał bez gestu milczy — alarm musi być WIDOCZNY.
+      const alarm = page.locator('.cook-alarm');
+      assert.equal(await alarm.count(), 1, 'Dokładnie jeden widoczny alarm spóźnionego minutnika');
+      assert(await alarm.isVisible(), 'Spóźniony minutnik widocznego kroku musi pokazać widoczny alarm');
+      assert.equal(await alarm.getAttribute('role'), 'alert');
+      assert.equal((await page.locator('.cook-alarm-tekst').innerText()).trim(),
+        'Minutnik tego kroku skończył odliczanie.');
+      assert.equal(await alarm.getByRole('link').count(), 0, 'Bez „Przejdź do kroku” — to jest ten krok');
+      await page.waitForTimeout(5300);
+      assert(await page.evaluate(() => window.alarmBeeps) >= 2, 'Sygnał spóźnionego alarmu musi się powtarzać');
+      await page.getByRole('button', { name: 'Wyłącz alarm' }).click();
+      assert.equal(await alarm.count(), 0, 'Wyłącz alarm musi usunąć komunikat');
+      assert(await page.locator('.cook-alarmy').isHidden());
+      assert(await page.locator('.cook-progress').evaluate(node => node === document.activeElement),
+        'Po wyłączeniu alarmu fokus przechodzi na postęp krokow');
+      const beepsAfterOff = await page.evaluate(() => window.alarmBeeps);
+      await page.waitForTimeout(5600);
+      assert.equal(await page.evaluate(() => window.alarmBeeps), beepsAfterOff, 'Po wyłączeniu sygnał nie może się powtarzać');
       // Przejście do kroku 4 nie dubluje alarmu za ten sam minutnik.
       await openStep(page, 4, 0);
       await page.waitForTimeout(1300);
@@ -362,6 +408,8 @@ try {
       await page.waitForTimeout(1300);
       assert.equal(await page.evaluate(() => window.timerEnds[0]), 0, 'Porzucony minutnik nie ogłasza końca');
       assert.equal(await page.evaluate(() => window.alarmBeeps), 0, 'Porzucony minutnik nie piszczy');
+      assert.equal(await page.locator('.cook-alarm').count(), 0, 'Porzucony minutnik nie pokazuje alarmu');
+      assert(await page.locator('.cook-alarmy').isHidden());
       assert(await button(page).isVisible(), 'Porzucony minutnik: zwykły przycisk startu');
       assert.equal((await button(page).innerText()).trim(), 'Uruchom minutnik w tej przeglądarce');
       assert(await block(page).locator('.cook-timer-odliczanie').isHidden());
@@ -382,6 +430,62 @@ try {
         'Minutnik kroku 3 skończył odliczanie.');
       assert(await page.evaluate(() => window.alarmBeeps) >= 1);
       assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null);
+    } finally { await page.close(); }
+  });
+  await check('widoczny_krok_minutnik_w_toku_bez_alarmu', async () => {
+    // Kontrola ujemna: przeładowanie PRZED terminem — odliczanie, bez alarmu.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 3, 1200);
+      await button(page).click();
+      await openStep(page, 3, 1200);
+      await page.waitForTimeout(1300);
+      assert.equal(await page.locator('.cook-alarm').count(), 0, 'Minutnik w toku nie alarmuje');
+      assert(await page.locator('.cook-alarmy').isHidden());
+      assert(await anulujButton(page).isVisible());
+      assert(await remaining(page) > 1100);
+    } finally { await page.close(); }
+  });
+  await check('pageshow_z_bfcache_spozniony_widoczny_krok_alarmuje', async () => {
+    // Powrót „Wstecz” z bfcache nie uruchamia skryptu od nowa — tylko
+    // `pageshow` z `persisted`. Zdarzenie wysyłamy syntetycznie: prawdziwy
+    // bfcache w bezgłowym Chromium nie jest powtarzalny.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 3, 1200);
+      await page.waitForTimeout(300);
+      assert.equal(await page.locator('.cook-alarm').count(), 0);
+      await zapiszPoTerminie(page, 3, 5);
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: false })));
+      await page.waitForTimeout(300);
+      assert.equal(await page.locator('.cook-alarm').count(), 0, 'pageshow bez persisted nie czyta zapisu ponownie');
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+      await page.waitForTimeout(300);
+      assert.equal(await page.locator('.cook-alarm').count(), 1, 'Po powrocie z bfcache spóźniony minutnik alarmuje raz');
+      assert(await page.locator('.cook-alarm').isVisible());
+      assert.equal(await remaining(page), 0);
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.3')), null);
+      await page.evaluate(() => window.dispatchEvent(new PageTransitionEvent('pageshow', { persisted: true })));
+      await page.waitForTimeout(300);
+      assert.equal(await page.locator('.cook-alarm').count(), 1, 'Drugi pageshow nie dubluje alarmu');
+    } finally { await page.close(); }
+  });
+  await check('spozniony_alarm_bez_gestu_gra_po_pierwszym_dotknieciu', async () => {
+    // Jak telefon: AudioContext bez gestu startuje zawieszony. Pierwszy
+    // sygnał milczy; dotknięcie ekranu odblokowuje dźwięk, a gra KOLEJNE
+    // powtórzenie alarmu.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 3, 1200, { telefon: true });
+      await zapiszPoTerminie(page, 3, 10);
+      await openStep(page, 3, 1200, { telefon: true });
+      await page.waitForTimeout(1200);
+      assert(await page.locator('.cook-alarm').isVisible(), 'Alarm widoczny także bez dźwięku');
+      assert.equal(await page.evaluate(() => window.alarmBeeps), 0,
+        'Bez gestu zawieszony kontekst nie gra (inaczej test nie udaje telefonu)');
+      await page.locator('.cook-alarm-tekst').click();
+      await page.waitForTimeout(5300);
+      assert(await page.evaluate(() => window.alarmBeeps) >= 1, 'Po pierwszym dotknięciu kolejne powtórzenie musi zagrać');
     } finally { await page.close(); }
   });
 } finally { await browser.close(); server.close(); }
