@@ -17,7 +17,11 @@ use RuntimeException;
 use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
-/** Tylko lokalna budowa transportu. Bez wysyłki, sieci, sekretów i bazy. */
+/**
+ * Tylko lokalna budowa transportu. Bez wysyłki, sieci, sekretów i bazy.
+ *
+ * @bez-kontroli-dodatniej base_path() podaje katalog podprocesowi i ładuje config przez require, a asercje tekstowe dotyczą wyjścia polecenia i komunikatu Poczta::przeszkoda(), nie treści źródła.
+ */
 class SesNieUzywaPoswiadczenR2Test extends TestCase
 {
     public function test_same_zmienne_r2_nie_wypelniaja_zadnego_pola_ses(): void

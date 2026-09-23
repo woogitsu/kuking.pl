@@ -8,7 +8,9 @@ use App\Domain\Tags\Actions\ResolvePostTags;
 use App\Domain\Tags\TagMutationLock;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\Post;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Edycja wpisu: tekst, widoczność, tagi (issue: menu „…" pokazywało tylko
@@ -29,12 +31,18 @@ final class EditPost
 
     /** @param  list<string>  $tagNames  to, co ktoś WPISAŁ jako tagi (wolny tekst, nie id) — D-021 */
     public function handle(
+        User $actor,
         Post $post,
         ?string $body,
         string $visibility,
         array $tagNames = [],
         ?string $questionTitle = null,
     ): Post {
+        // Kontroler nie jest jedyną drogą do akcji domenowej. Jawny aktor
+        // zamyka tę samą granicę także przed zadaniem, komendą albo testem,
+        // zanim odczytamy zdjęcia lub rozpoczniemy jakąkolwiek zmianę.
+        Gate::forUser($actor)->authorize('update', $post);
+
         $body = $this->cleanBody($body);
 
         // Ten sam twardy warunek co przy publikacji (PublishPost): wpis musi
