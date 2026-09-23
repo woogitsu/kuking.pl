@@ -23,10 +23,17 @@ use Tests\TestCase;
  * nie jego zapowiedź. Filtr po widoczności wpisu przepuszcza więc zapowiedź
  * przepisu, którego widz zobaczyć nie ma prawa.
  *
- * Pozostałe trzy strumienie mają na to `zWidocznymPrzepisem($widz)`:
+ * Pozostałe strumienie mają na to `zWidocznymPrzepisem($widz)`:
  * `FollowingFeed` (dwa razy), `DiscoverFeed`, `DailyBoard` (cztery razy).
- * `TagFeed` jako jedyny go nie miał, a że `with('recipe:id,title,slug,…')`
- * dociąga tytuł i zdjęcie główne, karta wypisywała jedno i drugie.
+ * `TagFeed` go nie miał, a że `with('recipe:id,title,slug,…')` dociąga tytuł
+ * i zdjęcie główne, karta wypisywała jedno i drugie.
+ *
+ * TEGO SAMEGO BRAKU DRUGI RAZ (issue #941). `TagFeed` obsługuje strumień
+ * obserwowanych tagów, ale STRONA TAGU ma własne zapytanie w
+ * `TagController::show()` — i tam bramki nie było, choć `TagCollage`
+ * i `TagPublicStats`, pytane o ten sam tag na tym samym ekranie, ją mają.
+ * Ekran był więc niespójny sam ze sobą: kolaż i licznik przepis pomijały,
+ * lista wpisów go pokazywała.
  *
  * CO DOKŁADNIE WYCIEKAŁO. Nie sam przepis — w niego nie da się wejść,
  * `RecipePolicy` trzyma. Wyciekał TYTUŁ i ZDJĘCIE GŁÓWNE, czyli to, co
@@ -68,23 +75,49 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
         );
     }
 
+    /**
+     * NAZWA TEGO TESTU MÓWI „NA STRONIE TAGU" — I MA W TO UDERZAĆ.
+     *
+     * Do issue #941 ten test wchodził na `route('home')`, czyli na strumień
+     * obserwowanych. `FollowingFeed` bramkę `zWidocznymPrzepisem()` MA, więc
+     * test był zielony od pierwszego dnia i nie pilnował niczego, co głosiła
+     * jego nazwa. `TagController::show()` — jedyne miejsce, o którym mówi ta
+     * nazwa — bramki NIE MIAŁ, a strona tagu rysuje `<x-post-card>` z tytułem
+     * przepisu i tekstem zastępczym zdjęcia głównego.
+     *
+     * Zielony test o cudzym ekranie jest gorszy od braku testu: wygląda na
+     * dowód i zdejmuje pytanie z listy. Stąd adres tutaj jest częścią asercji,
+     * a nie szczegółem technicznym.
+     */
     public function test_tytul_i_zdjecie_cudzego_przepisu_nie_pojawiaja_sie_na_stronie_tagu(): void
     {
-        [$ola] = $this->strumien();
+        [$ola, , $wpisPubliczny, , $tag] = $this->strumien();
 
-        $html = $this->actingAs($ola)->get(route('home'))->assertOk()->getContent();
+        $html = $this->actingAs($ola)->get(route('tags.show', $tag))->assertOk()->getContent();
+
+        // KONTROLA DODATNIA: to NA PEWNO strona tego tagu i NA PEWNO rysuje
+        // karty wpisów. Bez tego obie asercje niżej przechodziłyby także na
+        // pustej liście, na cudzym ekranie albo na stronie błędu — czyli
+        // dokładnie tak, jak przechodziły przed issue #941.
+        $this->assertStringContainsString(
+            $wpisPubliczny->body,
+            $html,
+            'Strona tagu nie pokazała nawet publicznego wpisu z tym tagiem — asercje niżej '
+            .'nie mówiłyby wtedy o widoczności przepisu, tylko o pustym ekranie.',
+        );
 
         $this->assertStringNotContainsString(
             'Bigos z kapusty kiszonej',
             $html,
-            'Tytuł przepisu „tylko dla obserwujących" stoi na ekranie osoby, która autora nie obserwuje.',
+            'Tytuł przepisu „tylko dla obserwujących" stoi na stronie tagu, którą ogląda osoba '
+            .'nieobserwująca autora. Obserwowanie tagu obeszło ustawienie prywatności przepisu.',
         );
 
         $this->assertStringNotContainsString(
             'Zdjęcie do przepisu: Bigos z kapusty kiszonej',
             $html,
-            'Zdjęcie główne przepisu „tylko dla obserwujących" stoi na ekranie osoby, '
-            .'która autora nie obserwuje.',
+            'Zdjęcie główne przepisu „tylko dla obserwujących" stoi na stronie tagu, '
+            .'którą ogląda osoba nieobserwująca autora.',
         );
     }
 
@@ -248,7 +281,10 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
      * obserwujących. Dopiero OBSERWUJĄCA odróżnia „przepis jest zawężony" od
      * „przepis jest wyłącznie dla autora".
      *
-     * @return array{0: User, 1: Post, 2: Post, 3: User}
+     * Tag stoi na KOŃCU, za Kasią: potrzebuje go tylko test strony tagu,
+     * a przesunięcie Kasi zabrałoby pomiar testowi wyżej.
+     *
+     * @return array{0: User, 1: Post, 2: Post, 3: User, 4: Tag}
      */
     private function strumien(string $widocznosc = 'followers'): array
     {
@@ -308,6 +344,6 @@ class FeedTagowNiePokazujeCudzegoPrzepisuTest extends TestCase
         ]);
         $wpisPubliczny->tags()->attach($tag->getKey(), ['position' => 0]);
 
-        return [$ola, $wpisPrzepisu, $wpisPubliczny, $kasia];
+        return [$ola, $wpisPrzepisu, $wpisPubliczny, $kasia, $tag];
     }
 }
