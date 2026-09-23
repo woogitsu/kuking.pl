@@ -2657,6 +2657,16 @@ usunięcie konta. Lista jest **zamkniętą stałą w kodzie**, nie w configu:
 w configu dałaby się wyczyścić jedną zmianą wdrożeniową bez recenzji kodu.
 Egzekwuje `kuking:sprzataj-audyt`, harmonogram codziennie o 04:10.
 
+**Wpis atomowy albo pomocniczy (D-249, #1343, #1373, #1363).** Wpis będący
+częścią decyzji (`moderation.decided`, `moderation.automat_dismissed`,
+`user.role_changed`, `post.published`) idzie przez `record()` **wewnątrz**
+transakcji zmiany: awaria dziennika cofa decyzję, a ponowienie daje jeden
+komplet. Wpis pomocniczy, powstający PO zatwierdzeniu czynności samego
+człowieka (`account.registered`, `content.reported`), idzie przez
+`AuditLogEntry::recordBezWywracania()`: awaria zapisu trafia do `report()`
+z nazwą brakującego wpisu, a człowiek dostaje odpowiedź udanej zmiany — nie
+błąd przy koncie czy sprawie, które już istnieją.
+
 **`user.role_changed`** — zmiana roli konta (`user` / `moderator` / `admin`),
 zapisywana przez `kuking:nadaj-role`. `actor_id` jest **pusty**, bo komendę
 uruchamia powłoka, a nie zalogowany człowiek; źródło stoi w metadanych
