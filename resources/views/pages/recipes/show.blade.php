@@ -4,6 +4,11 @@
     // Jedna odpowiedź na „ile porcji" dla znaczka i dla structured data
     // (audyt A28) — dwa osobne teksty to dwie okazje do rozjazdu.
     $porcje = $recipe->servingsLabel();
+    // Dokąd iść po wymianę odrzuconego zdjęcia (#752). Pyta Policy, tak jak
+    // przycisk edycji niżej — przepis ukryty przez moderację edycji nie ma.
+    $edycjaZdjecPrzepisu = auth()->user()?->can('update', $recipe)
+        ? route('recipes.edit', $recipe->slug)
+        : null;
 @endphp
 <x-layout
     :title="$recipe->title"
@@ -293,7 +298,8 @@
             </div>
             @if($recipe->heroMedia)
                 <div class="przepis-hero-zdjecie marka-przepis-zdjecie">
-                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo" />
+                    <x-photo :media="$recipe->heroMedia" variant="large" :priority="true" class="post-photo"
+                             tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-hero_photo' : null" />
                 </div>
             @endif
         </header>
@@ -419,7 +425,8 @@
                     @endif
                     @if($recipe->sourceScan)
                         <div class="mt-4">
-                            <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo" />
+                            <x-photo :media="$recipe->sourceScan" variant="feed" class="post-photo"
+                                     tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-source_scan' : null" />
                             <p class="meta">Kartka, z której jest ten przepis.</p>
                         </div>
                     @endif
@@ -536,7 +543,8 @@
                                     <p class="m-0 whitespace-pre-line">{{ $step->instruction }}</p>
                                     @if($step->media)
                                         <div class="mt-3 max-w-[20rem]">
-                                            <x-photo :media="$step->media" variant="feed" class="post-photo" />
+                                            <x-photo :media="$step->media" variant="feed" class="post-photo"
+                                                     tresc="przepis" :wymien-url="$edycjaZdjecPrzepisu ? $edycjaZdjecPrzepisu.'#f-steps-'.$loop->index.'-photo' : null" />
                                         </div>
                                     @endif
                                 </div>
