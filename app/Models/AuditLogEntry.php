@@ -7,7 +7,10 @@ namespace App\Models;
 use App\Support\Skrot;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
+use RuntimeException;
+use Throwable;
 
 /**
  * Wpis w dzienniku audytu.
@@ -110,5 +113,57 @@ class AuditLogEntry extends Model
             'ip_hash' => $ip === null ? null : Skrot::hmac($ip),
             'metadata' => $metadata,
         ]);
+    }
+
+    /**
+     * Zapisz zdarzenie PO ZATWIERDZONEJ zmianie — tak, żeby awaria dziennika
+     * nie zamieniła udanej zmiany w błąd dla człowieka (#1373, #1363).
+     *
+     * DLA KOGO: wpis POMOCNICZY, który stoi ZA transakcją zmiany (D-249,
+     * klasa 2) — czynność samego człowieka, której autorytatywny ślad żyje
+     * w tabeli zmiany (`account.registered`, `content.reported`). W tym
+     * miejscu zmiana jest już trwała i nic jej nie cofnie, więc wyjątek
+     * z `record()` dawał tylko jedno: odpowiedź „nie udało się" przy koncie
+     * albo zgłoszeniu, które istnieją. Ponowienie odbijało się wtedy od nich
+     * („adres zajęty") i też nie uzupełniało wpisu.
+     *
+     * CO ROBI Z AWARIĄ: nie połyka jej. `report()` oddaje ją do obsługi
+     * wyjątków (log, zewnętrzny monitoring) z nazwą zdarzenia i podmiotu,
+     * więc operator widzi, KTÓREGO wpisu brakuje — tak samo jak przy
+     * `NotifyReporterReceipt::potwierdzBezWywracaniaSprawy()`. Autorytatywny
+     * zapis tych zdarzeń żyje w tabelach zmiany (`users`, `reports`) —
+     * patrz komentarz przy `NIGDY_NIE_KASUJ`.
+     *
+     * PUNKT ZAPISU, a nie gołe `create()`: wołana wewnątrz CUDZEJ transakcji
+     * (komenda, test, przyszły endpoint) nieudany `INSERT` zerwałby ją
+     * w PostgreSQL (25P02) — wycofanie do punktu zapisu zostawia połączenie
+     * zdatne do dalszej pracy.
+     *
+     * NIE DLA wpisów, które są częścią decyzji i mają z nią stać albo paść
+     * razem (D-249, klasa 1: `moderation.decided`,
+     * `moderation.automat_dismissed`, `user.role_changed`, `post.published`):
+     * te wołają `record()` WEWNĄTRZ transakcji zmiany.
+     *
+     * @param  array<string, mixed>  $metadata
+     */
+    public static function recordBezWywracania(
+        string $action,
+        ?User $actor = null,
+        ?Model $subject = null,
+        array $metadata = [],
+        ?string $ip = null,
+    ): ?self {
+        try {
+            return DB::transaction(fn (): self => self::record($action, $actor, $subject, $metadata, $ip));
+        } catch (Throwable $awaria) {
+            report(new RuntimeException(
+                'Nie zapisał się wpis dziennika audytu „'.$action.'"'
+                .($subject === null ? '' : ' dla '.class_basename($subject).' '.$subject->getKey())
+                .' — zmiana, którą opisuje, jest już zatwierdzona.',
+                previous: $awaria,
+            ));
+
+            return null;
+        }
     }
 }

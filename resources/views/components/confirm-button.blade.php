@@ -43,6 +43,7 @@
             @foreach($fields as $nazwa => $wartosc)
                 <input type="hidden" name="{{ $nazwa }}" value="{{ $wartosc }}">
             @endforeach
+            {{ $slot }}
             <button class="btn btn-danger" type="submit">Tak, {{ mb_strtolower($label) }}</button>
         </form>
     </div>

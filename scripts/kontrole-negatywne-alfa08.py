@@ -100,6 +100,12 @@ PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 PODZIAL_WIERSZY = "tests/Feature/PoswiadczeniaPozaRepozytoriumTest.php"
 PODZIAL_WIERSZY_TEST = "PodzialWierszyNieRozrywaLiterTest"
 
+# Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
+# niezależną biblioteką — strażnik widzi odczyt pliku, więc kontrola dodatnia
+# wyłącza samo czyszczenie XMP i test ma wtedy oblać.
+USUN_GPS = "app/Domain/Media/UsunGps.php"
+XMP_TEST = "OryginalTraciGpsZXmpTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -238,6 +244,8 @@ checks = [
      mniejsze_pismo_na_pierwszym_ekranie),
     ("Podział wierszy przez \\R bez u", PODZIAL_WIERSZY, PODZIAL_WIERSZY_TEST,
      lambda s: replace_once(s, r"preg_split('/\r\n|\n|\r/', $tresc)", r"preg_split('/\R/', $tresc)")),
+    ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
+     lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -247,6 +255,7 @@ run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(PODZIAL_WIERSZY_TEST, True)
+run_test(XMP_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

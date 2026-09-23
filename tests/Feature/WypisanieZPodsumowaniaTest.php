@@ -10,6 +10,7 @@ use App\Models\CookedEvent;
 use App\Models\ProductSignal;
 use App\Models\Recipe;
 use App\Models\User;
+use App\Models\WpisZgody;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
 use Illuminate\Support\Facades\Mail;
@@ -132,6 +133,50 @@ class WypisanieZPodsumowaniaTest extends TestCase
             ->assertSee('Będziemy pisać dalej');
 
         $this->assertTrue((bool) $osoba->fresh()->wants_weekly_digest);
+    }
+
+    /**
+     * #1403: `GET` na odnośnik powrotny NIE włącza zgody. Adres z podpisem
+     * ląduje w historii przeglądarki i w podglądach linków, a przeglądarka
+     * potrafi pobrać stronę „na zapas" — udzielenie zgody musi być
+     * kliknięciem człowieka (`POST` z tokenem CSRF).
+     */
+    public function test_wejscie_get_na_odnosnik_powrotny_tylko_pyta(): void
+    {
+        $osoba = $this->user('prefetch1403');
+
+        $this->post(OdnosnikWypisania::dla($osoba))->assertOk();
+        $this->assertFalse((bool) $osoba->fresh()->wants_weekly_digest);
+        $dowody = WpisZgody::query()->where('user_id', $osoba->getKey())->count();
+
+        $this->get(OdnosnikWypisania::powrotDla($osoba))
+            ->assertOk()
+            ->assertSee('Chcesz znowu dostawać podsumowanie?')
+            ->assertSee('Tak, chcę je dostawać')
+            ->assertSee('method="POST"', false)
+            ->assertSee('action="'.e(OdnosnikWypisania::powrotDla($osoba)).'"', false)
+            ->assertSee('name="_token"', false)
+            ->assertDontSee('Będziemy pisać dalej');
+
+        $this->assertFalse((bool) $osoba->fresh()->wants_weekly_digest, 'GET włączył tygodniowy list bez kliknięcia.');
+        $this->assertSame($dowody, WpisZgody::query()->where('user_id', $osoba->getKey())->count());
+
+        // Kontrola dodatnia: przycisk z tej strony (POST) naprawdę włącza.
+        $this->post(OdnosnikWypisania::powrotDla($osoba))->assertOk()->assertSee('Będziemy pisać dalej');
+        $this->assertTrue((bool) $osoba->fresh()->wants_weekly_digest);
+    }
+
+    /** Droga powrotna bez tokenu CSRF nie zapisuje (nie jest na liście wyjątków). */
+    public function test_post_na_odnosnik_powrotny_bez_tokenu_csrf_nie_wlacza(): void
+    {
+        $osoba = $this->user('bez_tokenu1403', ['wants_weekly_digest' => false]);
+
+        // Framework pomija CSRF w testach; tu świadomie przywracamy walidację
+        // (ten sam zabieg co w `CloudflareCachePrivacyTest`).
+        $this->app->instance('env', 'local');
+        $this->post(OdnosnikWypisania::powrotDla($osoba))->assertStatus(419);
+
+        $this->assertFalse((bool) $osoba->fresh()->wants_weekly_digest);
     }
 
     public function test_wypisanie_zostawia_sygnal_ale_tylko_raz(): void

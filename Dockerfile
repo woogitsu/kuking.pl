@@ -76,8 +76,11 @@ COPY routes ./routes
 # Pomiar palety jest częścią polecenia budowania assetów.
 COPY scripts/kontrast-marki.mjs ./scripts/kontrast-marki.mjs
 COPY scripts/pwa-install.test.mjs ./scripts/pwa-install.test.mjs
+# Testy z listy `node --test` w skrypcie `build` MUSZĄ tu dojechać — inaczej
+# `npm run build` w tym etapie pada na brakującym pliku.
 COPY scripts/panel-komunikat.mjs ./scripts/panel-komunikat.mjs
 COPY scripts/panel-komunikat.test.mjs ./scripts/panel-komunikat.test.mjs
+COPY scripts/kopiowanie-adresu.test.mjs ./scripts/kopiowanie-adresu.test.mjs
 # `wyglad-komunikat.test.mjs` importuje `wyglad-komunikat.mjs` ORAZ
 # `panel-komunikat.mjs` (sprawdza, że komunikat przechodzi przez granicę
 # poświadczeń nieskrócony) — więc w obrazie muszą stać oba pliki.
@@ -89,7 +92,8 @@ COPY scripts/wyglad-komunikat.test.mjs ./scripts/wyglad-komunikat.test.mjs
 RUN test -f scripts/panel-komunikat.mjs \
  && test -f scripts/panel-komunikat.test.mjs \
  && test -f scripts/wyglad-komunikat.mjs \
- && test -f scripts/wyglad-komunikat.test.mjs
+ && test -f scripts/wyglad-komunikat.test.mjs \
+ && test -f scripts/kopiowanie-adresu.test.mjs
 RUN npm run build
 # Wynik: /app/public/build/{manifest.json,assets/*}
 
