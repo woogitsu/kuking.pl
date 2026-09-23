@@ -1,0 +1,17 @@
+  ✓ tag w feedzie nie omija prywatnosci ani blokady                      0.10s
+  ✓ ekran twoje tagi zapisuje wybor                                      0.07s
+  ✓ zapis ustawien nie gubi daty obserwowania                            0.08s
+  ✓ ekran pozwala odznaczyc tag spoza listy promowanej                   0.07s
+
+=== WYNIKI POMIARU #858 (Twoje tagi) ===
+Liczba tagów:  10 | HTML:  29.7 KB | Checkboxy:  10 | Czas odpowiedzi:  25.85 ms
+Liczba tagów:  40 | HTML:  42.9 KB | Checkboxy:  40 | Czas odpowiedzi:  16.52 ms
+Liczba tagów: 100 | HTML:  69.4 KB | Checkboxy: 100 | Czas odpowiedzi:  19.62 ms
+========================================
+
+
+   PASS  Tests\Feature\PomiarTagow858Test
+  ✓ 858 pomiar rozmiaru i struktury listy tagow                          0.25s
+
+  Tests:    42 passed (210 assertions)
+  Duration: 5.51s

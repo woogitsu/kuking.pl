@@ -28,6 +28,20 @@ class SocialController extends Controller
     public function follow(Request $request, string $username): RedirectResponse
     {
         $target = $this->findUser($username);
+
+        // SPRAWDZENIE TOŻSAMOŚCI PRZED `authorize()`, NIE PO NIM.
+        //
+        // Gdy nazwa zmieniła właściciela, Policy pyta o OSOBĘ, na którą nikt
+        // nie patrzył — i przy koncie zawieszonym odpowiedziałaby 403
+        // „to konto jest niedostępne". Człowiek zobaczyłby wtedy błąd o cudzym
+        // koncie zamiast prawdy o swoim formularzu. Najpierw więc mówimy, co
+        // się naprawdę stało, a dopiero potem pytamy, czy wolno.
+        try {
+            $this->assertToTaSamaOsoba($request, $target);
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withErrors(['follow' => $e->getMessage()]);
+        }
+
         $this->authorize('follow', $target);
 
         try {
@@ -44,6 +58,20 @@ class SocialController extends Controller
     public function unfollow(Request $request, string $username): RedirectResponse
     {
         $target = $this->findUser($username);
+
+        try {
+            // ODOBSERWOWANIE TEŻ, CHOĆ WYGLĄDA NIEGROŹNIE.
+            //
+            // „Przestań obserwować" nie tworzy niczego, więc łatwo uznać, że
+            // trafienie w cudze konto nic tu nie kosztuje. Kosztuje: żądanie
+            // pod starą nazwą CICHO KASUJE relację z osobą, którą widz
+            // obserwuje naprawdę i świadomie — tę, która akurat zajęła
+            // zwolnioną nazwę. Człowiek klika „przestań obserwować Anię",
+            // dostaje „Nie obserwujesz już Ani" i traci z feedu Basię.
+            $this->assertToTaSamaOsoba($request, $target);
+        } catch (BladDlaCzlowieka $e) {
+            return back()->withErrors(['follow' => $e->getMessage()]);
+        }
 
         $this->unfollowUser->handle($request->user(), $target);
 
@@ -95,18 +123,32 @@ class SocialController extends Controller
      *
      * Username da się zwolnić (zmiana w Ustawieniach) i od razu ponownie
      * zająć: `UsernameNotTaken` sprawdza tylko AKTUALNE zajęcie, nie
-     * historię. Stary, wciąż otwarty formularz „Zablokuj”/„Zdejmij blokadę”
-     * pod `/@stara-nazwa/blokuj` po takiej zmianie trafia więc w kogoś
-     * INNEGO, niż widział człowiek, który formularz otworzył — a ten
-     * człowiek nie ma jak się o tym dowiedzieć, bo strona nie krzyczy
-     * błędem, tylko cicho robi coś innego, niż pokazywała.
+     * historię. Stary, wciąż otwarty formularz pod `/@stara-nazwa/...` po
+     * takiej zmianie trafia więc w kogoś INNEGO, niż widział człowiek, który
+     * formularz otworzył — a ten człowiek nie ma jak się o tym dowiedzieć,
+     * bo strona nie krzyczy błędem, tylko cicho robi coś innego, niż
+     * pokazywała.
      *
-     * Każdy formularz blokady/odblokowania nosi więc ukryte pole
-     * `oczekiwany_id` z identyfikatorem osoby widzianej w chwili
-     * renderowania. Pole jest OPCJONALNE (starsze wywołania API i
-     * istniejące testy go nie wysyłają — Policy i tak broni samej akcji),
-     * ale kiedy jest obecne, MUSI się zgadzać z osobą, którą naprawdę
-     * rozwiązuje dzisiejsza nazwa użytkownika.
+     * OBEJMUJE WSZYSTKIE CZTERY AKCJE TEGO KONTROLERA, nie same blokady.
+     * #793 zamknęło tę lukę tylko dla „Zablokuj”/„Zdejmij blokadę” i zostawiło
+     * obserwowanie jako osobną decyzję o zakresie — bo relacja jest
+     * odwracalna i nie zostawia śladu u drugiej strony. To prawda o WADZE,
+     * nie o klasie błędu: identyfikator w formularzu dalej nie jest
+     * autoryzacją, a „zaczynam obserwować obcego człowieka” to dokładnie ten
+     * skutek, przed którym #793 broniło. Warunek jest jednolinijkowy
+     * i wspólny, więc trzymanie połowy formularzy poza nim kosztowałoby
+     * więcej niż objęcie ich wszystkich.
+     *
+     * Każdy formularz relacji/blokady nosi więc ukryte pole `oczekiwany_id`
+     * z identyfikatorem osoby widzianej w chwili renderowania. Pole jest
+     * OPCJONALNE (starsze wywołania API i istniejące testy go nie wysyłają —
+     * Policy i tak broni samej akcji), ale kiedy jest obecne, MUSI się
+     * zgadzać z osobą, którą naprawdę rozwiązuje dzisiejsza nazwa
+     * użytkownika.
+     *
+     * Hurtowy odpowiednik tego pola stoi w `OnboardingController::saveFollows()`
+     * (`oczekiwani[nazwa] => id`) — tamten formularz wskazuje osoby nazwami,
+     * ale nie przez adres trasy, więc nie da się go obsłużyć tą metodą.
      */
     private function assertToTaSamaOsoba(Request $request, User $target): void
     {

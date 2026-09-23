@@ -385,6 +385,18 @@ Reguła implementacyjna: centralny middleware `EnsureVisibilityHeaders`, dopinan
 
 ## 4. Sitemapy
 
+### Aktualna bramka kompletności (#1055)
+
+Obecna mapa `/sitemap.xml` czyta wpisy i przepisy partiami po 500,
+kursorem `chunkById`. Nie dodajemy do tych zapytań sortowania datą:
+porządek musi odpowiadać kluczowi kursora, inaczej kolejne partie
+pomijają adresy lub je powtarzają. Kolejność adresów w XML nie jest
+rankingiem treści. Test `SitemapChunkCompletenessTest` porównuje pełny
+zbiór i liczności adresów dla 1001 rekordów każdego typu, przy datach
+rosnących, malejących i równych; sprawdza także odczyt cache i wykluczenia.
+Poniższy podział na pliki pozostaje planem większej skali. Poprawka #1055
+nie zmienia czasu cache, reguł profili ani wyboru adresów pytań.
+
 Limity Google (2026, niezmienione od lat): **max 50 000 URL-i i 50 MB (nieskompresowane) na plik sitemap**; przekroczenie limitu URL-i → Google ignoruje nadmiar; przekroczenie 50 MB → ryzyko odrzucenia całego pliku. Rozwiązanie standardowe: **sitemap index**.
 
 ### 4.1 Struktura

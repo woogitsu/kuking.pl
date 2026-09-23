@@ -340,9 +340,9 @@
         JSON, a my nie renderujemy niczego surowego.
     --}}
     {{-- `wolnoNaTejStronie()` ZDEJMUJE beacona z adresów niosących żeton albo
-         adres e-mail (`/nowe-haslo/{token}?email=…`). Beacon melduje pełny
-         adres strony, więc bez tego warunku żywy żeton resetu hasła trafiałby
-         do cudzego panelu — uzasadnienie w komentarzu tamtej metody. --}}
+         adres e-mail (`/nowe-haslo/{token}?email=…`). Odczytany beacon usuwa
+         query, ale zostawia ścieżkę. Osobny nagłówek no-referrer chroni
+         przejście do kolejnego dokumentu — uzasadnienie w tamtej klasie. --}}
     @if(\App\Support\AnalitykaCloudflare::wlaczona() && \App\Support\AnalitykaCloudflare::wolnoNaTejStronie())
         <script defer
                 src="{{ \App\Support\AnalitykaCloudflare::adresSkryptu() }}"
@@ -948,6 +948,14 @@
                     @if(is_array($powrotPoAkcji) && isset($powrotPoAkcji['akcja'], $powrotPoAkcji['etykieta']))
                         <form class="flash-powrot" method="POST" action="{{ $powrotPoAkcji['akcja'] }}">
                             @csrf
+                            {{-- Cofnięcie wraca TAM, SKĄD WYJĘTO (D-231): bez
+                                 `collection_id` „Zapisz ponownie" po wyjęciu
+                                 z zeszytu „Obiady" odłożyłoby wpis do zeszytu
+                                 domyślnego, czyli cicho przeniosłoby go gdzie
+                                 indziej. --}}
+                            @foreach(($powrotPoAkcji['pola'] ?? []) as $nazwa => $wartosc)
+                                <input type="hidden" name="{{ $nazwa }}" value="{{ $wartosc }}">
+                            @endforeach
                             <button class="btn btn-secondary" type="submit" data-rola="powrot-po-akcji">{{ $powrotPoAkcji['etykieta'] }}</button>
                         </form>
                     @endif

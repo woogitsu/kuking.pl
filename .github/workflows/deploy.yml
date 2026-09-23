@@ -154,28 +154,60 @@ jobs:
     timeout-minutes: 10
 
     # -----------------------------------------------------------------------
-    #  BRAMKA. Zawężona świadomie — patrz sprostowanie niżej.
+    #  BRAMKA. Zawężona świadomie — i ZWERYFIKOWANA POMIAREM 22.09.2026.
     #
     #  BYŁO: warunek sprawdzał dodatkowo
     #      contains(fromJSON('["production","staging"]'), github.event.deployment.environment)
+    #  To jest człon, który zawodził. Dowód z REST API (400 wdrożeń
+    #  woogitsu/kuking.pl, 9–21.09.2026, 1131 statusów):
+    #      deployment.environment = 'ideal-exploration / production'  — 400/400
+    #      status.environment     = 'ideal-exploration / production'  — 1131/1131
+    #  Gołe `production` nie pada ANI RAZU, więc `contains` nigdy nie mógł
+    #  trafić. Dopasowanie nazwy środowiska jest teraz w kroku niżej, który
+    #  obcina człon po ostatnim ukośniku (i wypisuje, co dostał).
     #
-    #  Zmierzone 9 września 2026: workflow „Deploy" ma **249 przebiegów
-    #  i WSZYSTKIE mają conclusion `skipped`.** Ten test dymny nie uruchomił
-    #  się ANI RAZU — a to on miał wyłapywać „deploy się udał, ale strona nie
-    #  działa". Przebieg 249 wystartował o 16:44:20, czyli pięć sekund po tym,
-    #  jak wdrożenie zgłosiło sukces o 16:44:15 — i też został pominięty.
+    #  SKUTEK ZDJĘCIA TEGO CZŁONU — zmierzony, nie przewidywany. Workflow
+    #  „Deploy" ma dziś 885 przebiegów. Rozkład zdarzenia deployment_status:
+    #      629 skipped, 206 success, 6 cancelled, 2 failure
+    #  Pierwszy NIEpominięty przebieg: #290 z 9.09.2026 22:17 UTC.
+    #  Ostatni: #871 z 21.09.2026 10:40 UTC — w jego dzienniku stoi
+    #      deployment.environment  = 'ideal-exploration / production'
+    #      deployment_status.state = 'success'
+    #      środowisko po obcięciu  = 'production'
+    #  i dziesięć linii `OK` z testu dymnego na https://kuking.pl.
+    #  Notatka „249 przebiegów, WSZYSTKIE skipped" opisywała stan SPRZED tej
+    #  poprawki. Test dymny wykonał się od tamtej pory 206 razy.
     #
-    #  Czyli któryś człon tego warunku nie pasuje do tego, co naprawdę
-    #  przysyła Railway. NIE ZGADUJĘ KTÓRY: sprawdzenie nazwy środowiska
-    #  przeniesione jest do kroku niżej, który ją WYPISUJE. Po najbliższym
-    #  wdrożeniu będzie w dzienniku czarno na białym, zamiast kolejnej hipotezy.
+    #  `state == 'success'` ZOSTAJE — i liczba „pięć" też się broni, choć
+    #  mechanizm jest inny, niż zapisano poprzednio. Railway NIE wysyła pięciu
+    #  statusów na jedno wdrożenie. Rozkład (400 wdrożeń):
+    #      1 status:   9 wdrożeń      2 statusy: 183     3 statusy: 113
+    #      4 statusy: 84             5 i więcej:  11
+    #  Najczęstsze sekwencje stanów:
+    #      in_progress > inactive                       — 180 wdrożeń
+    #      in_progress > success > inactive             — 112
+    #      in_progress > success > inactive > inactive  —  84
+    #  Stany, jakich Railway używa: in_progress (413), inactive (489),
+    #  success (228), failure (1). Stosunek 1131 statusów do 228 sukcesów
+    #  wynosi 4,96 — TO jest te „pięć razy". Bez członu `state == 'success'`
+    #  ten workflow odpalałby się blisko pięciokrotnie częściej, więc
+    #  argument kosztowy z D-010 stoi.
     #
-    #  Dlaczego nie zdjąłem też `state == 'success'`: `deployment_status`
-    #  strzela kilka razy na jedno wdrożenie (zmierzone: pięć razy). Bez tego
-    #  członu każde wdrożenie płaciłoby za pięć przebiegów zamiast jednego,
-    #  a minuty Actions są w tym projekcie skończone i płatne (D-010). Jeśli
-    #  po tej zmianie przebieg NADAL będzie `skipped`, to znaczy, że winny
-    #  jest właśnie ten człon — i wtedy wiadomo, co poprawić.
+    #  CZEGO TA BRAMKA NIE ZŁAPIE — i nie da się tego naprawić warunkiem:
+    #  192 z 400 wdrożeń (48%) nie mają ANI JEDNEGO statusu `success`;
+    #  kończą się `in_progress > inactive`. Stanu `failure` Railway użył
+    #  przez dwanaście dni JEDEN raz. A gdy CI jest czerwone, Railway
+    #  (`checkSuites: true`) w ogóle nie tworzy wdrożenia, więc nie ma
+    #  żadnego zdarzenia deployment_status — i nie ma czego pomijać.
+    #  Zmierzone 22.09.2026 07:16 UTC: od ostatniego statusu `success`
+    #  (21.09 10:40 UTC) minęło 20,6 godziny ciszy. Dokładnie tyle stała
+    #  produkcja podczas awarii haka runnerów — a ten job nie miał jak
+    #  krzyknąć, bo krzyczy wyłącznie PO udanym wdrożeniu.
+    #  Wykrycie „nic się nie wdrożyło" wymaga wyzwalacza `schedule:`,
+    #  niezależnego od wdrożeń. To osobna decyzja właściciela (koszt minut),
+    #  a nie zmiana w tym warunku. Nie ruszaj `state == 'success'` w nadziei,
+    #  że to załatwi — to zapłaci pięciokrotnie za to samo i dalej nie
+    #  wykryje ciszy.
     # -----------------------------------------------------------------------
     if: >-
       github.event_name == 'deployment_status' &&
