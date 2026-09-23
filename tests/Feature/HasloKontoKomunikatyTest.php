@@ -114,7 +114,7 @@ class HasloKontoKomunikatyTest extends TestCase
         $totp = app(TwoFactorAuthenticator::class);
         $user->beginTwoFactorSetup($totp->generateSecret());
         $user->confirmTwoFactor($totp->hashBackupCodes(['ABCD-1234']));
-        $this->withSession(['logowanie.2fa.user_id' => $user->getKey()])->from(route('login.two_factor'));
+        $this->withSession(TwoFactorAuthenticator::oczekujaceLogowanie($user->fresh()))->from(route('login.two_factor'));
         $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.1'])
             ->post(route('login.two_factor.store'), ['code' => 'NIE-KOD'])->assertRedirect();
         $this->withServerVariables(['REMOTE_ADDR' => '192.0.2.2'])
@@ -141,7 +141,7 @@ class HasloKontoKomunikatyTest extends TestCase
         $totp = app(TwoFactorAuthenticator::class);
         $user->beginTwoFactorSetup($totp->generateSecret());
         $user->confirmTwoFactor($totp->hashBackupCodes(['ABCD-1234']));
-        $this->withSession(['logowanie.2fa.user_id' => $user->getKey()])
+        $this->withSession(TwoFactorAuthenticator::oczekujaceLogowanie($user->fresh()))
             ->from(route('login.two_factor'))
             ->post(route('login.two_factor.store'), ['code' => '123456', 'backup_code' => ['ABCD-1234']])
             ->assertRedirect(route('login.two_factor'));
@@ -172,7 +172,7 @@ class HasloKontoKomunikatyTest extends TestCase
                 RateLimiter::hit($key, 60);
             }
         }
-        $response = $this->withSession(['logowanie.2fa.user_id' => $user->getKey()])
+        $response = $this->withSession(TwoFactorAuthenticator::oczekujaceLogowanie($user->fresh()))
             ->from(route('login.two_factor'))->post(route('login.two_factor.store'), [$method => $value]);
         $response->assertRedirect(route('login.two_factor'));
         $this->assertArrayNotHasKey('code', session('_old_input', []));

@@ -6,9 +6,8 @@ namespace App\Domain\Digest;
 
 use App\Models\CookedEvent;
 use App\Models\Post;
-use App\Models\Profile;
-use App\Models\Recipe;
 use App\Models\User;
+use Illuminate\Database\Eloquent\Model;
 
 /**
  * Treść JEDNEGO tygodniowego podsumowania — to, co ma się znaleźć w liście
@@ -63,61 +62,63 @@ final class TrescDigestu
     ) {}
 
     /**
-     * SerializesModels na liście nie zagląda do wnętrza DTO (#583).
-     * Budujemy NOWE modele z jawną listą pól, bez kopiowania attributes/relations.
-     * Sześć pól i ich typy pozostają zgodne ze starszym workerem: podczas
-     * rolling deploy stary czytnik musi obsłużyć nowego producenta.
-     * Snapshot treści zostaje; żaden model nie jest odświeżany w workerze.
+     * DO KOLEJKI IDĄ SAME IDENTYFIKATORY (#1383; wcześniej #583).
+     *
+     * SerializesModels na liście nie zagląda do wnętrza DTO (#583), więc
+     * budujemy NOWE modele z jawną listą pól. Do 23 września 2026 była to
+     * migawka treści — `body` wpisu, `note` wykonania, imiona i tytuły —
+     * i list opóźniony w kolejce potrafił wysłać wpis, który autor zdążył
+     * usunąć, poprawić albo przestawić na prywatny. Teraz w zapisie zostają
+     * wyłącznie klucze; treść czyta świeżo, z tymi samymi bramkami
+     * widoczności, `ZbierzTresciDigestu::odswiez()` w chwili wysyłki
+     * (`PodsumowanieTygodnia::send()`).
+     *
+     * KSZTAŁT ZOSTAJE ZGODNY ZE STARSZYM WORKEREM: sześć pól, te same klasy
+     * modeli, relacje ustawione jawnie na `null` (bez leniwego doczytywania).
+     * Stary worker podczas rolling deploy nie wywróci się na tym zapisie; list,
+     * który zdąży wysłać, będzie ubogi (imiona zastąpi „Użytkownik Kuking",
+     * bez fragmentów wpisów) — ale nie wyśle treści, której nie wolno już
+     * pokazać. To jest świadomie ta strona pomyłki.
      *
      * @return Zapis
      */
     public function __serialize(): array
     {
         return [
-            'odbiorca' => self::kopiaOsoby($this->odbiorca),
-            'wykonania' => array_map(static function (CookedEvent $w): CookedEvent {
-                $kopia = new CookedEvent;
-                $kopia->setRawAttributes(['id' => (string) $w->getKey(), 'note' => $w->note]);
-                $kopia->setRelation('user', $w->user === null ? null : self::kopiaOsoby($w->user));
-                $kopia->setRelation('recipe', self::kopiaPrzepisu($w->recipe));
-
-                return $kopia;
-            }, $this->wykonania),
-            'nowiObserwujacy' => array_map(self::kopiaOsoby(...), $this->nowiObserwujacy),
+            'odbiorca' => self::sameId(new User, $this->odbiorca, ['profile']),
+            'wykonania' => array_map(
+                static fn (CookedEvent $w): CookedEvent => self::sameId(new CookedEvent, $w, ['user', 'recipe']),
+                $this->wykonania,
+            ),
+            'nowiObserwujacy' => array_map(
+                static fn (User $u): User => self::sameId(new User, $u, ['profile']),
+                $this->nowiObserwujacy,
+            ),
             'ileNowychObserwujacych' => $this->ileNowychObserwujacych,
-            'wpisyObserwowanych' => array_map(static function (Post $w): Post {
-                $kopia = new Post;
-                $kopia->setRawAttributes(['id' => (string) $w->getKey(), 'body' => $w->body]);
-                $kopia->setRelation('author', $w->author === null ? null : self::kopiaOsoby($w->author));
-                $kopia->setRelation('recipe', self::kopiaPrzepisu($w->recipe));
-
-                return $kopia;
-            }, $this->wpisyObserwowanych),
+            'wpisyObserwowanych' => array_map(
+                static fn (Post $w): Post => self::sameId(new Post, $w, ['author', 'recipe']),
+                $this->wpisyObserwowanych,
+            ),
             'pytanieGospodarza' => $this->pytanieGospodarza,
         ];
     }
 
-    private static function kopiaOsoby(User $oryginal): User
+    /**
+     * @template T of \Illuminate\Database\Eloquent\Model
+     *
+     * @param  T  $kopia
+     * @param  list<string>  $pusteRelacje
+     * @return T
+     */
+    private static function sameId(Model $kopia, Model $oryginal, array $pusteRelacje): Model
     {
-        $profil = new Profile;
-        $profil->setRawAttributes(['display_name' => $oryginal->displayName()]);
-        $osoba = new User;
-        $osoba->setRawAttributes(['id' => (string) $oryginal->getKey()]);
-        $osoba->setRelation('profile', $profil);
+        $kopia->setRawAttributes(['id' => (string) $oryginal->getKey()]);
 
-        return $osoba;
-    }
-
-    private static function kopiaPrzepisu(?Recipe $oryginal): ?Recipe
-    {
-        if ($oryginal === null) {
-            return null;
+        foreach ($pusteRelacje as $relacja) {
+            $kopia->setRelation($relacja, null);
         }
 
-        $przepis = new Recipe;
-        $przepis->setRawAttributes(['title' => $oryginal->title]);
-
-        return $przepis;
+        return $kopia;
     }
 
     public static function pusta(User $odbiorca): self

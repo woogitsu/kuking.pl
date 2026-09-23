@@ -51,6 +51,8 @@ class LicznikiKolejekPaneluTest extends TestCase
             'target_id' => (string) Str::uuid7(),
             'reason' => 'spam',
             'status' => $status,
+            // `reports_resolution_complete_check` (#997): stan końcowy ma datę.
+            'resolved_at' => in_array($status, [Report::STATUS_RESOLVED, Report::STATUS_REJECTED], true) ? now() : null,
         ]);
     }
 
