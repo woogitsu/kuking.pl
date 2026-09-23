@@ -1,0 +1,49 @@
+# Prywatnosc w paczce z danymi (RODO art. 15 i 20). Cena przeoczenia: paczka
+# jednej osoby niesie dane innych.
+nazwa: paczka nie niesie powiadomien ukrytych w serwisie
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: ->visibleTo($user)
+na: ->whereNotNull('id')
+oczekuj: Failed asserting|powiadom
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/DataExportTest.php
+ocena:
+---
+nazwa: biala lista kluczy data w powiadomieniach
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: array_intersect_key($data, array_flip(self::NOTIFICATION_DATA_KEYS))
+na: $data
+oczekuj: Failed asserting|identyfikator
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/DataExportTest.php
+ocena:
+---
+nazwa: cudze komentarze bez adresu e-mail autora
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: 'autor' => $comment->author?->displayName() ?? 'Konto usunięte',
+na: 'autor' => $comment->author?->displayName() ?? 'Konto usunięte',\n                'email' => $comment->author?->email,
+oczekuj: Failed asserting|email
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/DataExportTest.php
+ocena:
+---
+nazwa: listy osob bez adresu e-mail
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: 'nazwa_uzytkownika' => $person->profile?->username,
+na: 'nazwa_uzytkownika' => $person->profile?->username,\n                'email' => $person->email,
+oczekuj: Failed asserting|email
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/DataExportTest.php
+ocena:
+---
+nazwa: zapisane cudze wpisy przechodza te sama granice co ekran zeszytu
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: ->widoczneDla($user)
+na: ->whereNotNull('posts.id')
+oczekuj: Failed asserting|widoczn|zapisan
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/DataExportTest.php
+ocena:
+---
+nazwa: paczka mowi wprost, ilu zdjec w niej nie ma
+plik: app/Domain/Users/Exports/CollectUserExportData.php
+zamien: 'zdjec_jeszcze_w_przygotowaniu' => $photos->stillProcessingCount(),
+na: 'zdjec_jeszcze_w_przygotowaniu' => 0,
+oczekuj: Failed asserting|przygotowaniu
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/EksportMowiOZdjeciachWDrodzeTest.php
+ocena:
