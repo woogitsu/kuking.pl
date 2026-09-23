@@ -47,6 +47,20 @@ rozstrzyga to jawnie, a formularz pokazuje tylko decyzje możliwe dla danego
 zgłoszenia. „Ugotowałem" nie ma `hide`, bo `cooked_events` nie ma kolumny
 `status`: przycisk istniał i nie robił nic.
 
+### Kto może rozstrzygnąć i kogo ukarać (issue #1408, D-244)
+
+- **Nikt nie rozstrzyga zgłoszenia, które sam złożył** — także administrator
+  i także decyzją „Bez działania" (`ReportPolicy::decide()`). Zgłoszenie
+  prawne bez konta rozstrzyga każdy moderator.
+- **Zawieszenie i ban tylko wobec niższej roli** (`UserPolicy::sanctionAccount()`):
+  moderator karze zwykłe konta, administrator także moderatorów. Konta
+  administratora nie zawiesza ani nie banuje nikt z panelu — sprawa idzie
+  do właściciela serwisu, rolę odbiera `kuking:nadaj-role`.
+- Ukrycie, usunięcie i ostrzeżenie treści nie zależą od roli autora.
+
+Odmowa nie zamyka zgłoszenia i nie zostawia decyzji, powiadomienia ani wpisu
+w dzienniku.
+
 ### Przywracanie treści (issue #65)
 
 Ukrycie **musi** dać się cofnąć z poziomu serwisu. Podręcznik moderacji sam
