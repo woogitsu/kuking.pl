@@ -628,11 +628,13 @@ APP_KEY (production) = base64:................    [POTRZEBNE OD WŁAŚCICIELA �
 APP_KEY (staging)    = base64:................
 ```
 
-> **`APP_KEY` to najważniejszy sekret w systemie.** Szyfruje sesje i dane
-> w bazie. **Nigdy go nie rotuj na działającej produkcji** — unieważni to
-> wszystkie sesje i **trwale** uniemożliwi odszyfrowanie danych zapisanych
-> starym kluczem. Zapisz w menedżerze haseł (1Password / Bitwarden), nie
-> w notatniku i nie w repo.
+> **`APP_KEY` to najważniejszy sekret w systemie.** Szyfruje ciasteczka,
+> sekret 2FA i kody zapasowe w bazie, podpisuje linki z maili. **Nigdy nie
+> podmieniaj go „na gołym”** — sama podmiana wyloguje wszystkich i **trwale**
+> zablokuje 2FA każdemu, kto je ma. Rotacja jest możliwa, ale wyłącznie
+> procedurą z kroku 15 („Rotacja `APP_KEY`”), przez `APP_PREVIOUS_KEYS`.
+> Zapisz w menedżerze haseł (1Password / Bitwarden), nie w notatniku i nie
+> w repo.
 
 ---
 
@@ -648,7 +650,8 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 
 | Zmienna | Wartość | Sekret? | Opis |
 |---|---|---|---|
-| `APP_KEY` | `base64:...` (krok 7) | **TAK** | Klucz szyfrowania sesji i danych. Nie rotować. |
+| `APP_KEY` | `base64:...` (krok 7) | **TAK** | Klucz szyfrowania sesji i danych. Rotacja tylko procedurą z kroku 15 („Rotacja `APP_KEY`”). |
+| `APP_PREVIOUS_KEYS` | **nie ustawiaj** poza rotacją | **TAK** | Poprzednie `APP_KEY`, po przecinku, bez spacji. Istnieje tylko w okresie przejściowym rotacji (krok 15) — na co dzień zmiennej nie ma wcale |
 | `R2_ACCESS_KEY_ID` | z kroku 2.2 | **TAK** | Access Key ID tokenu obejmującego trzy buckety zdjęć |
 | `R2_SECRET_ACCESS_KEY` | z kroku 2.2 | **TAK** | Secret Access Key R2 |
 | `R2_BUCKET` | `kuking-oryginaly` | nie | Bucket **oryginałów** (pełny EXIF z GPS). `railway.ts` → `AWS_BUCKET` → dysk `r2` |
@@ -2387,7 +2390,128 @@ Zapewnia to, że rollback o jeden deploy w tył **zawsze** jest bezpieczny.
 Ta sama procedura dla kluczy EmailLabs (`EMAILLABS_APP_KEY` +
 `EMAILLABS_SECRET_KEY` generuje się parami, więc podmieniasz obie naraz)
 i dla tokenów Railway.
-**`APP_KEY` — nigdy nie rotuj** (patrz krok 7).
+**`APP_KEY` nie idzie tą drogą** — ma własną procedurę, niżej.
+
+### Rotacja `APP_KEY` — przez `APP_PREVIOUS_KEYS` (issue #1043)
+
+**Kiedy:** tylko z powodu — klucz wyciekł albo mógł wyciec (widział go ktoś,
+kto nie powinien; trafił do logu, zrzutu ekranu, repo, czatu), odchodzi osoba
+z dostępem do zmiennych Railway. **Nie** rotuj „profilaktycznie co pół roku”:
+każda rotacja kosztuje ludzi (patrz tabela skutków) i nic nie daje, jeśli
+klucz nie wyciekł.
+
+**Najpierw na stagingu.** Staging ma własny klucz (krok 7) — przejdź całą
+procedurę tam, dopiero potem na produkcji.
+
+#### Co zależy od `APP_KEY` i co się stanie przy rotacji
+
+Stan kodu na 23 IX 2026. `config/app.php` czyta `previous_keys` z
+`APP_PREVIOUS_KEYS`; Laravel przy **odczycie** próbuje kolejno bieżącego
+i poprzednich kluczy, przy **zapisie** używa wyłącznie bieżącego.
+
+| Co | Gdzie w kodzie | Po rotacji z `APP_PREVIOUS_KEYS` | Po usunięciu starego klucza |
+|---|---|---|---|
+| Sekret 2FA i kody zapasowe (`users.two_factor_secret`, `users.two_factor_backup_codes`, cast `encrypted`) | `App\Models\User` | działa (odczyt starym kluczem) | **nieczytelne → konto bez wejścia**, chyba że wcześniej przeszło `kuking:przeszyfruj-klucz` |
+| Ciasteczka (identyfikator sesji, „zapamiętaj mnie”, `XSRF-TOKEN`) i treść sesji w tabeli `sessions` (`SESSION_ENCRYPT=true` na produkcji, `.railway/railway.ts`) | middleware `EncryptCookies`, `EncryptedStore` | przeżywają; sesja używana w okresie przejściowym sama zapisuje się nowym kluczem przy następnym żądaniu | ciasteczka i sesje nieruszane od rotacji odrzucone → wylogowanie. Komenda ich nie przepisuje — sesje są ulotne |
+| Podpisane linki z maili: wypisanie z podsumowania (**bez daty ważności**), potwierdzenie zmiany adresu, odwołanie od decyzji, paczka danych RODO | `URL::signedRoute` / `temporarySignedRoute` | działają | **stare linki z maili przestają działać** — także wypisanie z podsumowania, które nie wygasa nigdy |
+| Tokeny `Crypt::encryptString` w formularzach i linkach: link zewnętrzny, obserwowanie tagu, podpowiedź instalacji aplikacji | `LinkiWTekscie`, `TagFollowForm`, `InstallPromptContext` | działają | stare odnośniki / otwarte formularze odrzucone (odświeżenie strony pomaga) |
+| **Link do logowania** (`login_link_tokens`) i **zaproszenie do rejestracji** (`registration_invites`) — w bazie HMAC tokenu z `APP_KEY` | `App\Support\Skrot::hmac()` | **przestają działać od razu po wdrożeniu** — HMAC nie zna poprzednich kluczy. Link żyje ≤ 30 min, zaproszenie ≤ 24 h: kto kliknie stary, prosi o nowy | — |
+| Klucze limitów prób (logowanie, link) | `App\Support\KluczeLimitow` | liczniki zaczynają się od zera — jednorazowe, akceptowalne | — |
+| `audit_log.ip_hash` | `App\Models\AuditLogEntry` | nowe wpisy mają inne skróty niż stare dla tego samego IP (nic ich dziś nie porównuje) | — |
+| Livewire: suma kontrolna stanu komponentu, adres aktualizacji, nazwy plików w trakcie wgrywania | pakiet Livewire | **otwarte strony z formularzem** dostają błąd przy następnej akcji — trzeba odświeżyć; zdjęcie wgrywane w chwili wdrożenia trzeba wybrać ponownie | — |
+| Tokeny resetu hasła | `password_reset_tokens` (`Hash::make`) | przeżywają | przeżywają |
+
+Wniosek: poprzedni klucz musi zostać w `APP_PREVIOUS_KEYS`, dopóki
+`kuking:przeszyfruj-klucz` nie skończy się sukcesem. Potem trzyma go już tylko
+wygoda (stare linki z maili i ciasteczka).
+
+#### Procedura krok po kroku
+
+```text
+0. Przygotuj (bez zmian w Railway):
+   - wygeneruj NOWY klucz: php artisan key:generate --show   (lokalnie; NIE --force na serwerze)
+   - zapisz w menedżerze haseł OBA: stary i nowy, z datą
+   - wybierz porę najmniejszego ruchu (otwarte formularze i linki logowania
+     przestaną działać — patrz tabela)
+   - upewnij się, że jest świeża kopia bazy (krok 6.4 / KOPIE_I_ODTWORZENIE.md)
+
+1. Railway → production → Variables — w KAŻDYM miejscu, gdzie siedzi APP_KEY
+   (Shared Variables albo wprost na serwisie, jeśli serwis klikany — patrz
+   „Ścieżka bez IaC”; muszą to widzieć i web, i worker):
+     APP_PREVIOUS_KEYS = <STARY klucz, w całości, z prefiksem base64:>
+     APP_KEY           = <NOWY klucz>
+   Obie zmiany w JEDNYM zatwierdzeniu zmian (jeden deploy). Kilka starych
+   kluczy: po przecinku, bez spacji, najnowszy pierwszy.
+   UWAGA: `.railway/railway.ts` NIE przekazuje dziś `APP_PREVIOUS_KEYS`
+   (przekazuje tylko `APP_KEY`). Sama Shared Variable nie dotrze więc do
+   serwisu — ustaw `APP_PREVIOUS_KEYS` wprost na serwisie web i worker
+   (albo `${{shared.APP_PREVIOUS_KEYS}}` jako wartość) i sprawdź w kroku 3.
+
+2. Wdróż (GitHub → Actions → Deploy → redeploy, albo deploy ze zmian
+   zmiennych). config:cache przebudowuje się przy starcie kontenera.
+
+3. SPRAWDŹ od razu:
+   - /health zwraca ok
+   - zmienna dotarła do kontenera (wypisuje tylko „jest”/„brak”, nie klucz):
+       railway ssh -- php -r 'echo getenv("APP_PREVIOUS_KEYS") ? "jest\n" : "brak\n";'
+     „brak” = STOP, wróć do kroku 1 — bez niej 2FA nie przejdzie nikomu
+   - jesteś nadal zalogowany (ciasteczko odczytane starym kluczem)
+   - konto z włączonym 2FA: wyloguj się i zaloguj z kodem z aplikacji
+
+4. Przepisz zaszyfrowane kolumny na nowy klucz (w kontenerze serwisu web):
+     railway ssh -- php artisan kuking:przeszyfruj-klucz --na-sucho   # tylko liczy
+     railway ssh -- php artisan kuking:przeszyfruj-klucz              # przepisuje
+   Komenda jest idempotentna — przerwaną puść jeszcze raz. Na końcu ma
+   być „Przepisano N wartości” i kod wyjścia 0. Drugie uruchomienie ma
+   pokazać „Przepisano 0 wartości”.
+   Jeśli zgłosi „Nieczytelne żadnym kluczem” — STOP: brakuje któregoś
+   klucza w APP_PREVIOUS_KEYS. Niczego nie usuwaj, dopisz brakujący klucz
+   i powtórz krok 4.
+
+5. Okres przejściowy — ile czekać, zanim usuniesz stary klucz:
+   - rotacja PLANOWA (klucz nie wyciekł): 30 dni. Przez ten czas działają
+     stare linki z maili i ciasteczka; potem ludzie zalogują się jeszcze
+     raz, a stare linki wypisania z podsumowania przestaną działać
+     (nowe listy mają już nowe).
+   - rotacja PO WYCIEKU: tak krótko, jak się da — zaraz po sukcesie kroku 4.
+     Dopóki stary klucz jest w APP_PREVIOUS_KEYS, jego posiadacz nadal może
+     podrobić podpisany link i zaszyfrowane ciasteczko, które serwis
+     przyjmie. Wszystkich wyloguje — to jest cena, nie błąd.
+     Po wycieku klucza RAZEM z kopią bazy sekrety 2FA trzeba uznać za
+     ujawnione: przepisanie ich nowym kluczem tego nie cofa. Wtedy decyzja
+     właściciela, czy wymusić ponowne włączenie 2FA (kuking:2fa-wylacz
+     per konto + wiadomość do tych osób).
+
+6. Usuń stary klucz: skasuj APP_PREVIOUS_KEYS (albo usuń z niej stary
+   klucz, jeśli są tam inne) → wdróż → sprawdź jak w kroku 3.
+   Przed tym krokiem uruchom jeszcze raz
+     php artisan kuking:przeszyfruj-klucz --na-sucho
+   — ma pokazać „Do przepisania: 0 wartości”. Inaczej wróć do kroku 4.
+
+7. Oznacz stary klucz w menedżerze haseł jako wycofany (z datą). NIE
+   kasuj go od razu: jest potrzebny do odtworzenia kopii bazy sprzed
+   rotacji (sekrety 2FA w starej kopii są zaszyfrowane starym kluczem).
+   Trzymaj go tak długo jak najstarszą kopię bazy.
+```
+
+#### Plan cofnięcia
+
+- **Po kroku 1–3, coś nie działa** (500, 2FA nie przechodzi): przywróć
+  `APP_KEY` = stary, **usuń** `APP_PREVIOUS_KEYS` (albo wpisz tam nowy klucz,
+  jeśli coś zdążyło się nim zaszyfrować — np. ktoś włączył 2FA po
+  wdrożeniu), wdróż. Nic w bazie nie zostało przepisane, więc stary klucz
+  czyta wszystko.
+- **Po kroku 4** (kolumny już przepisane nowym kluczem): cofnięcie = zamiana
+  ról — `APP_KEY` = stary, `APP_PREVIOUS_KEYS` = nowy, wdróż, uruchom
+  `kuking:przeszyfruj-klucz` (przepisze z powrotem na stary), dopiero potem
+  usuń nowy z `APP_PREVIOUS_KEYS`. **Nigdy** nie ustawiaj samego starego
+  klucza bez nowego w `APP_PREVIOUS_KEYS` — sekrety 2FA zaszyfrowane nowym
+  staną się nieczytelne.
+- **Po kroku 6** stary klucz jest już tylko w menedżerze haseł; cofnięcie
+  jak wyżej (wpisz go z powrotem do `APP_PREVIOUS_KEYS`).
+- **Kopia bazy sprzed rotacji** odtworzona po rotacji: sekrety 2FA w niej są
+  zaszyfrowane starym kluczem — dopisz stary klucz do `APP_PREVIOUS_KEYS`
+  i uruchom `kuking:przeszyfruj-klucz` (krok 7 wyżej: dlatego go trzymasz).
 
 ---
 

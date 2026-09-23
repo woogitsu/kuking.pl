@@ -55,10 +55,10 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
         $this->assertSame($code === 0 ? 0 : 1, $event->exitCode);
         $this->assertSame($code === 0 ? 1 : 0, $success);
         $this->assertSame($code === 0 ? 0 : 1, $failure);
-        if ($code === null) {
-            $this->assertInstanceOf(RuntimeException::class, $exception);
-        } else {
+        if ($code === 0) {
             $this->assertNull($exception);
+        } else {
+            $this->assertInstanceOf(RuntimeException::class, $exception);
         }
     }
 
@@ -110,10 +110,43 @@ class HarmonogramSprawdzaKodWyjsciaTest extends TestCase
             if ($code === null) {
                 $this->assertInstanceOf(RuntimeException::class, $exception);
                 $this->assertSame('Kontrolowana awaria komendy.', $exception->getMessage());
-            } else {
+            } elseif ($code === 0) {
                 $this->assertNull($exception);
+            } else {
+                // Wspólny adapter: nazwa komendy i kod, nic więcej.
+                $this->assertInstanceOf(RuntimeException::class, $exception, $event->description);
+                $this->assertMatchesRegularExpression(
+                    '/^kuking:[a-z-]+ zakończone kodem '.$code.' /u',
+                    $exception->getMessage(),
+                    'Zadanie nie przechodzi przez ScheduledArtisanCommand::artisan(): '.$event->description,
+                );
             }
         }
+    }
+
+    /**
+     * Kontrola dodatnia: gołe `Schedule::call(fn () => Artisan::call(...))`,
+     * czyli wzorzec sprzed #835, przy kodzie 1 kończy się jako SUKCES. Gdyby
+     * ta asercja kiedyś padła, test wyżej przestałby odróżniać adapter od
+     * gołego domknięcia. Działa na zdarzeniach, nie na tekście pliku, więc
+     * nie potrzebuje wpisu w `scripts/kontrole-negatywne-alfa08.py`.
+     */
+    public function test_kontrola_dodatnia_gole_domkniecie_przepuszcza_kod_bledu(): void
+    {
+        $event = (new Schedule('UTC'))
+            ->call(fn () => Artisan::call('kuking:kontrola-gola'))
+            ->name('kuking:kontrola-gola');
+        $kernel = Mockery::mock(Kernel::class);
+        $kernel->shouldReceive('call')->once()->andReturn(1);
+        Artisan::swap($kernel);
+        $mutex = Mockery::mock(EventMutex::class);
+        $mutex->shouldReceive('create')->andReturnTrue();
+        $mutex->shouldReceive('forget');
+        $event->mutex = $mutex;
+
+        $event->run($this->app);
+
+        $this->assertSame(0, $event->exitCode, 'Gołe domknięcie zaczęło zgłaszać kod 1 — kontrola nie odróżnia już adaptera.');
     }
 
     public function test_zajeta_blokada_nie_uruchamia_komendy(): void

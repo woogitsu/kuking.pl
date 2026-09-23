@@ -1,0 +1,16 @@
+{
+  "nazwa": "801 dotyk",
+  "plik": "resources/js/app.js",
+  "werdykt": "POTWIERDZONA",
+  "md5_przed": "a7e550a66880ffa11719bb24bc5d8c6e",
+  "md5_po_mutacji": "7b350d1f3ffbeb215a516e78081841ac",
+  "mutacja_weszla": true,
+  "liczba_podmian": 1,
+  "kontrola_dodatnia_przed": "PASS",
+  "wynik_po_mutacji": "FAIL (kod 1)",
+  "oczekiwana_przyczyna": "BRAK_INSTRUKCJI_DOTYKU",
+  "przyczyna_potwierdzona": true,
+  "kontrola_dodatnia_po_przywroceniu": "PASS",
+  "przywrocenie": "nie wykonane",
+  "data": "2026-09-20T17:57:18Z"
+}

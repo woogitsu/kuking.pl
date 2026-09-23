@@ -4,9 +4,10 @@
 
 Wszystkie 20 komend w `routes/console.php` korzysta z
 `App\Support\ScheduledArtisanCommand::artisan()`. Adapter wykonuje komendę w tym samym
-procesie PHP i zwraca `Artisan::call(...) === 0`. Laravel `CallbackEvent`
-uznaje wyłącznie `false` za porażkę; liczby 1 i 2 były sukcesem. Wyjątki
-pozostają wyjątkami. Nazwy, terminy i `withoutOverlapping()` nie zmieniają się.
+procesie PHP, a kod ≠ 0 zamienia w `RuntimeException` z nazwą komendy i kodem
+(bez parametrów — szczegóły są w logu komendy). Laravel `CallbackEvent`
+uznaje za porażkę tylko wyjątek albo `false`; liczby 1 i 2 były sukcesem.
+Wyjątki z samej komendy pozostają wyjątkami. Nazwy, terminy i `withoutOverlapping()` nie zmieniają się.
 Nie wymaga to `proc_open`, migracji ani dodatkowego pakietu.
 
 Dwudziestym zadaniem jest `kuking:sprzataj-sesje` (retencja tabeli `sessions`,
@@ -17,6 +18,24 @@ przy kodach 1, 2 i 137 — czyli nocne sprzątanie sesji mogło zwracać błąd
 i być raportowane jako sukces. To jest dokładnie ten tryb awarii, dla którego
 strażnik powstał, i powód, żeby wymagał adaptera od KAŻDEGO zadania, a nie
 tylko od tych, które istniały w dniu poprawki.
+
+## Scalenie z `main` — 23.09.2026
+
+Na `main` weszło #1440: `kuking:sprzataj-powiadomienia` miało własne domknięcie
+zamieniające kod ≠ 0 w `RuntimeException` (#1342). Decyzja właściciela z 23.09:
+jeden adapter dla wszystkich zadań. Adapter przejął więc wzorzec z #1440
+(wyjątek zamiast `false` — wyjątek trafia też do zgłaszania błędów), a zadanie
+powiadomień przepięto na adapter bez zmiany zachowania: nadal kończy się
+wyjątkiem z „zakończone kodem N” (`RetencjaPowiadomienCzesciowaPorazkaTest`).
+Blokady `withoutOverlapping(N)` z #1433, `onOneServer()`, nazwy i godziny
+wszystkich 20 zadań są identyczne jak na `main`.
+
+Strażnik `HarmonogramSprawdzaKodWyjsciaTest` wymaga przy kodach 1, 2 i 137
+wyjątku o treści `<komenda> zakończone kodem <N>` z KAŻDEGO zarejestrowanego
+zdarzenia. Kontrola dodatnia w tym samym pliku rejestruje gołe
+`Schedule::call(fn () => Artisan::call(...))` i dowodzi, że ono przy kodzie 1
+kończy się sukcesem — czyli że strażnik odróżnia adapter od starego wzorca.
+Test działa na `Schedule::events()`, nie na tekście pliku.
 
 ## Własne pomiary — 20.09.2026
 

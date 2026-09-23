@@ -61,6 +61,7 @@ class OdpowiedzDlaZglaszajacegoMowiPrawdeTest extends TestCase
             'notifier_email' => 'jan@przyklad.test',
             'target_url' => 'https://kuking.pl/wpisy/cos',
             'status' => Report::STATUS_RESOLVED,
+            'resolved_at' => now(),
         ]);
 
         $decyzja = new ModerationAction(['action' => $akcja]);
