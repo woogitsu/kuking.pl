@@ -716,7 +716,7 @@ zrzuty bazy z danymi użytkowników.
 | Hasło SMTP | co 12 mies. | Analogicznie |
 | Tokeny Railway | co 12 mies. | Nowy token → podmień sekret w GitHubie → uruchom `railway-iac.yml` → usuń stary |
 | Sentry DSN | tylko przy incydencie | DSN nie jest tajny w sensie ścisłym (jest w kliencie JS) |
-| **`APP_KEY`** | **nie rotować** | Rotacja unieważnia sesje i uniemożliwia odszyfrowanie starych danych |
+| **`APP_KEY`** | **tylko przy wycieku / odejściu osoby z dostępem** | Nigdy „na gołym” — wyłącznie przez `APP_PREVIOUS_KEYS` i `kuking:przeszyfruj-klucz`, procedura: `DEPLOYMENT_RUNBOOK.md` krok 15, „Rotacja `APP_KEY`” (issue #1043) |
 | Hasło Postgresa | zarządza Railway | Nie ruszać ręcznie |
 
 **Zasada rotacji bez przestoju:** zawsze **dodaj nowy klucz przed usunięciem
@@ -1037,7 +1037,7 @@ Zgodnie z `docs/COSTS.md`: **nie framework**. Kolejność wg wielkości:
 | 3 | **Rollback nie cofa migracji** | rollback kodu → błędy SQL | migracje backward-compatible (expand/contract), `contract` po dniach, PITR jako plan B |
 | 4 | **Cache'owanie stron zalogowanych na krawędzi** | wyciek danych osobowych | dwie niezależne warstwy: Cache Rule BYPASS na ciasteczko sesji + `no-store`/`Vary: Cookie` w Caddy |
 | 5 | **PITR nie działa retroaktywnie** | brak możliwości odtworzenia stanu z przed włączenia | włączyć **w dniu pierwszego deployu** |
-| 6 | **Zmiana `APP_KEY`** | utrata sesji i nieodwracalna utrata dostępu do zaszyfrowanych danych | zakaz rotacji, jasna adnotacja w runbooku |
+| 6 | **Zmiana `APP_KEY`** | utrata sesji i nieodwracalna utrata dostępu do zaszyfrowanych danych | zakaz podmiany „na gołym”; rotacja tylko przez `APP_PREVIOUS_KEYS` + `kuking:przeszyfruj-klucz` (runbook krok 15, issue #1043) |
 
 ### Średnie
 
