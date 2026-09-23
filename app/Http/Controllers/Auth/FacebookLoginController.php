@@ -634,7 +634,7 @@ class FacebookLoginController extends Controller
         // D-056 i co przy Google). Rolę sprawdzamy przy KAŻDYM wejściu, więc
         // powiązanie zrobione przed awansem przestaje działać z chwilą
         // nadania roli.
-        if ($user->isModerator()) {
+        if ($user->hasStaffRole()) {
             return redirect()->route('login')->with('status',
                 'Konta obsługi serwisu wchodzą hasłem i kodem z aplikacji — nie kontem Facebooka. '
                 .'Zaloguj się poniżej.',
@@ -691,7 +691,7 @@ class FacebookLoginController extends Controller
     private function wolnoPolaczyc(User $user, TozsamoscFacebook $tozsamosc): bool
     {
         return ! $user->hasFacebookConnected()
-            && ! $user->isModerator()
+            && ! $user->hasStaffRole()
             && ! in_array($user->status, User::STATUSY_ZAMKNIETEGO_KONTA, true)
             // To konto Facebooka nie może być w międzyczasie powiązane z KIMŚ
             // INNYM — inaczej zapis wpadłby na unikalne ograniczenie bazy.

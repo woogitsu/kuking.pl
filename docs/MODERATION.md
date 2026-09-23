@@ -248,6 +248,20 @@ transakcji. To ochrona przed równoległymi degradacjami, nie nowa blokada
 zawieszenia, bana ani usunięcia konta. Zakres i pomiar:
 [`OSTATNI_ADMINISTRATOR_1016.md`](security/OSTATNI_ADMINISTRATOR_1016.md).
 
+**Zawieszone konto obsługi nie ma uprawnień moderacji** (issue #1336, #1351).
+Zawieszenie nie zmienia roli, ale `User::isModerator()` i `User::isAdmin()`
+zwracają `true` tylko dla czynnego konta (`status = active`). Zawieszony
+moderator albo administrator czyta własne treści, może się wylogować i złożyć
+odwołanie jak każdy zawieszony — ale panel `/admin/**` daje mu 404, a Policy
+nie otwierają mu cudzych szkiców, prywatnych treści ani zdjęć.
+Zawiadomienia o odwołaniach (`appeal.filed`) widzi na liście, w liczniku
+i przez „Zobacz" tylko czynny administrator; po odebraniu roli albo przy
+zawieszeniu wiersz zostaje w bazie i wraca razem z uprawnieniami.
+`reinstate()` przywraca dostęp bez ponownego nadawania roli (2FA dalej
+obowiązuje). Zakaz wejścia kontem obsługi linkiem, przez Google albo
+Facebooka patrzy na samą rolę (`User::hasStaffRole()`), więc zawieszenie go
+nie zdejmuje.
+
 **Jak moderator zamyka sprawę** — `/admin/odwolania`: widzi słowa
 odwołującego się, decyzję wraz z powodem oraz dokładnie tę wiadomość, którą ta
 osoba wtedy dostała. Wybiera „podtrzymuję" albo „cofam" i **musi** napisać
