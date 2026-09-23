@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Console\Commands;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Support\Odmiana;
 use Illuminate\Console\Command;
@@ -245,7 +246,7 @@ class PrzeniesZdjeciaDoNowychBucketow extends Command
         } catch (Throwable $e) {
             Log::error('Nie udało się przenieść zdjęcia do nowych bucketów', [
                 'media_id' => $zdjecie->getKey(),
-                'error' => $e->getMessage(),
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             return [self::WYNIK_BLAD, 'wyjątek: '.$e->getMessage()];

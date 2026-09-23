@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Compliance;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Notification;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\Log;
@@ -131,7 +132,7 @@ final class PrzedawnionePowiadomienia
             } catch (Throwable $e) {
                 Log::error('Nie udało się skasować przedawnionego powiadomienia moderacyjnego', [
                     'notification_id' => $powiadomienie->getKey(),
-                    'error' => $e->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($e),
                 ]);
             }
         }

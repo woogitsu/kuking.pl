@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Jobs;
 
+use App\Logging\BezpiecznyBlad;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Support\Facades\Http;
@@ -117,7 +118,7 @@ class PurgePublicMediaCache implements ShouldQueue
         // ręcznie, a przy wymazaniu konta ktoś musi to dokończyć.
         Log::error('Nie udało się wyczyścić cache CDN po skasowaniu zdjęć', [
             'adresy' => $this->adresy,
-            'error' => $e?->getMessage() ?? 'brak wyjątku (przekroczony limit czasu)',
+            'error' => $e !== null ? BezpiecznyBlad::kontekst($e) : 'brak wyjątku (przekroczony limit czasu)',
         ]);
     }
 }

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Domain\Media;
 
 use App\Jobs\PurgePublicMediaCache;
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Support\Facades\DB;
@@ -406,7 +407,9 @@ final class KasujZdjecie
                 'media_id' => $zdjecie->getKey(),
                 'dysk' => $nazwaDysku,
                 'klucz' => $klucz,
-                'error' => $e->getMessage(),
+                // Klucz jest wyżej, z modelu. Z wyjątku klasa i kod —
+                // komunikat klienta storage niesie adres żądania (#973).
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             return false;

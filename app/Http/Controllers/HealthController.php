@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
+use App\Logging\BezpiecznyBlad;
 use App\Logging\WebhookBleduHandler;
 use App\Models\MailFailure;
 use App\Poczta\PowodOdmowy;
@@ -857,16 +858,17 @@ class HealthController extends Controller
         } catch (Throwable $e) {
             $powod = $e instanceof KontrolaZdrowiaNieprzeszla ? $e->kod : $powodDomyslny;
 
-            // Jedyne miejsce, w którym pełna treść wyjątku ma prawo się
-            // pojawić. Nie ma tu danych osobowych: sondy nie dotykają
-            // niczyich wpisów ani kont, chodzą po `select 1`, po liczniku
-            // migracji, po liczniku `failed_jobs`, po własnym pliku próbnym
-            // i po tym, czy Laravel umie zbudować transport poczty.
+            // Kiedyś tu szła pełna treść wyjątku („sondy nie dotykają
+            // niczyich danych"). Ale komunikat buduje sterownik bazy, klient
+            // storage albo transport poczty — z hostem, użytkownikiem bazy,
+            // kluczem pliku próbnego — i idzie to na stderr, który czyta
+            // Railway (#973). Zostaje kod powodu, klasa, klasy przyczyn
+            // i odcisk; powód szczegółowy i tak niesie `powod`.
             Log::error('Kontrola /health nie przeszła.', [
                 'kontrola' => $nazwa,
                 'powod' => $powod,
                 'wyjatek' => $e::class,
-                'komunikat' => $e->getMessage(),
+                'blad' => BezpiecznyBlad::kontekst($e),
             ]);
 
             $this->powiadomWebhook($nazwa, $powod);

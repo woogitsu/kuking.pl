@@ -100,6 +100,11 @@ PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 LOG_SERWERA = "app/Logging/BezDanychOsobowychWLogu.php"
 LOG_SERWERA_TEST = "LogSerweraBezDanychOsobowychTest"
 
+# Logi operacyjne bez komunikatu obcego wyjątku (#973). Test skanuje kod
+# `app/` i czyta kontekst loggera — mutacja przywraca surowe getMessage().
+LOG_OPERACYJNY = "app/Domain/Media/KasujZdjecie.php"
+LOG_OPERACYJNY_TEST = "LogOperacyjnyBezKomunikatuWyjatkuTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -238,6 +243,13 @@ checks = [
      mniejsze_pismo_na_pierwszym_ekranie),
     ("Komunikat bazy z wartościami w logu serwera", LOG_SERWERA, LOG_SERWERA_TEST,
      lambda s: replace_once(s, "return $this->komunikatBazy($e);", "return $e->getMessage();")),
+    ("Błąd PCRE w filtrze logu po cichu zeruje treść", LOG_SERWERA, LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "return $czysty ?? self::BLAD_FILTRA.' (długość: '.strlen($tekst).' B)';",
+                            "return (string) $czysty;")),
+    ("Filtr logu na loggerze zabiera webhookowi obiekt wyjątku", "app/Logging/FiltrDanychOsobowych.php", LOG_SERWERA_TEST,
+     lambda s: replace_once(s, "if ($handler instanceof ProcessableHandlerInterface) {", "if (false) {")),
+    ("Surowy komunikat wyjątku w logu kasowania zdjęcia", LOG_OPERACYJNY, LOG_OPERACYJNY_TEST,
+     lambda s: replace_once(s, "'error' => BezpiecznyBlad::kontekst($e),", "'error' => $e->getMessage(),")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -247,6 +259,7 @@ run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(LOG_SERWERA_TEST, True)
+run_test(LOG_OPERACYJNY_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

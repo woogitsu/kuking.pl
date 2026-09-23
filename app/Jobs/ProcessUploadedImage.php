@@ -6,6 +6,7 @@ namespace App\Jobs;
 
 use App\Domain\Media\OrientacjaZdjecia;
 use App\Domain\Media\PodgladOdRazu;
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
@@ -237,7 +238,8 @@ class ProcessUploadedImage implements ShouldQueue
         } catch (\Throwable $e) {
             Log::warning('Nie udało się przetworzyć zdjęcia', [
                 'media_id' => $media->getKey(),
-                'error' => $e->getMessage(),
+                // Klasa, kod i odcisk — nie komunikat dekodera/storage (#973).
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             $media->update([
@@ -285,7 +287,7 @@ class ProcessUploadedImage implements ShouldQueue
         Log::warning('Przetwarzanie zdjęcia nie powiodło się do końca', [
             'media_id' => $this->mediaId,
             // Bez treści wyjątku przy timeoucie — wtedy wyjątku po prostu nie ma.
-            'error' => $e?->getMessage() ?? 'przekroczony limit czasu zadania',
+            'error' => $e !== null ? BezpiecznyBlad::kontekst($e) : 'przekroczony limit czasu zadania',
         ]);
 
         $media->update([

@@ -146,19 +146,47 @@ i `daily` mają tap `App\Logging\FiltrDanychOsobowych`, który podpina procesor
 - komunikat błędu bazy jest budowany OD NOWA z pól bez wartości, np.
   `SQLSTATE[23505], insert into users, połączenie: pgsql, ograniczenie:
   users_email_unique (treść komunikatu bazy z wartościami usunięta z logu)`;
-- wyjątek w kontekście jest zapisywany w tym samym kształcie co dotąd (klasa,
-  kod, plik:linia, ślad plik:linia, `previous`) — tylko z oczyszczonym
-  komunikatem;
+- wyjątek w kontekście jest zapisywany jako tablica: klasa, oczyszczony
+  komunikat, kod, plik:linia, `previous` — i ZAWSZE ślad jako lista
+  plik:linia. To więcej niż dotąd: `JsonFormatter` z produkcji
+  (`LOG_STDERR_FORMATTER`) ma domyślnie `includeStacktraces = false`
+  i śladu nie wypisywał, a procesor oddaje formaterowi gotową tablicę, więc
+  tamto ustawienie jej już nie przycina. Ślad nie niesie danych (same ścieżki
+  plików z repozytorium i numery linii), za to wpis błędu jest dłuższy;
 - w pozostałej treści i kontekście wszystko, co wygląda na adres e-mail albo
   hash hasła (`$2y$…`, `$argon2id$…`), zamienia się na `[e-mail usunięty]` /
   `[hash hasła usunięty]`. To siatka bezpieczeństwa, nie gwarancja: inne dane
   (imię, treść wpisu) w zwykłym komunikacie nie są wykrywane — nie wkładaj ich
-  do `Log::…()`.
+  do `Log::…()`;
+- obiekt w kontekście (np. model `['user' => $user]`) jest serializowany
+  i czyszczony przez procesor, zanim zobaczy go formater; obiekt bez
+  `toArray()`/`jsonSerialize()`/`__toString()` zostaje samą nazwą klasy.
+  Klucze tablic są czyszczone jak wartości; zagnieżdżenie głębsze niż 8
+  poziomów zamienia się na znacznik;
+- gdy wyrażenie regularne filtra zawiedzie (błąd PCRE na bardzo długim,
+  złośliwie dobranym tekście), zamiast tekstu jest `[treść usunięta z logu:
+  filtr danych osobowych nie dał rady] (długość: N B)` — wpis nie znika
+  i nie wychodzi w oryginale.
+
+**Logi operacyjne nie niosą komunikatu obcego wyjątku (#973).** Sprzątanie
+eksportów, kasowanie i przetwarzanie zdjęć, eksport danych, retencja
+moderacji, czyszczenie CDN i `/health` zapisują w polu `error` wynik
+`App\Logging\BezpiecznyBlad::kontekst($e)`: klasę, kod o zamkniętym kształcie
+(SQLSTATE, kod błędu R2 z HTTP), klasy przyczyn i ośmioznakowy odcisk — ten
+sam, który niesie dzwonek webhooka. Etap nazywa treść wpisu, encję jego
+identyfikator (`media_id`, `data_export_id`, własny klucz obiektu z modelu).
+Komunikatu nie ma, bo buduje go biblioteka (SQL z wartościami, adres żądania
+z tokenem, CR/LF), a filtr wyżej rozpoznaje tylko e-mail, hash i SQL. Nowe
+`Log::…(…$e->getMessage()…)` w `app/` oblewa
+`tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php`.
 
 Szukając błędu bazy w logach Railway, szukaj po SQLSTATE, nazwie ograniczenia
 albo pliku:linii — nie po adresie e-mail osoby, bo go tam nie ma. Pilnuje tego
 `tests/Feature/LogSerweraBezDanychOsobowychTest.php`. Kanał webhooka tego
-procesora nie ma i nie potrzebuje — tam komunikat nie wychodzi w ogóle.
+procesora nie ma i nie potrzebuje — tam komunikat nie wychodzi w ogóle. Procesor
+wisi na HANDLERACH kanałów, nie na loggerze: kanał `stack` zbiera procesory
+loggerów swoich składowych, więc `LOG_STACK=single,blad_webhook` zamieniłby
+webhookowi obiekt wyjątku w tablicę (bez klasy, pliku:linii i odcisku).
 
 ### Czego ten kanał NIE robi (żeby nie było niespodzianek)
 

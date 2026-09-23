@@ -4,11 +4,16 @@ declare(strict_types=1);
 
 namespace App\Logging;
 
+use DateTimeInterface;
+use Illuminate\Contracts\Support\Arrayable;
 use Illuminate\Database\QueryException;
+use JsonSerializable;
 use Monolog\LogRecord;
 use Monolog\Processor\ProcessorInterface;
 use PDOException;
+use Stringable;
 use Throwable;
+use UnitEnum;
 
 /**
  * Procesor Monologa dla logów SERWERA (stderr → Railway, pliki lokalnie):
@@ -26,11 +31,14 @@ use Throwable;
  * `$e->getMessage()`). AGENTS.md §7: żadnego PII w logach.
  *
  * CO ROBI
- * 1. Każdy wyjątek w kontekście zamienia na tablicę o kształcie, jaki i tak
+ * 1. Każdy wyjątek w kontekście zamienia na tablicę o kształcie, jaki
  *    produkuje `NormalizerFormatter` (klasa, komunikat, kod, plik:linia,
- *    ślad jako plik:linia, `previous`) — z jedną różnicą: komunikat jest
- *    oczyszczony. Obiektu wyjątku nie da się „poprawić" w miejscu, a zostawiony
- *    trafiłby do formatera w całości.
+ *    ślad jako plik:linia, `previous`) — z oczyszczonym komunikatem. Obiektu
+ *    wyjątku nie da się „poprawić" w miejscu, a zostawiony trafiłby do
+ *    formatera w całości. UWAGA: ślad jest tu ZAWSZE — `JsonFormatter`
+ *    z produkcji ma `includeStacktraces = false` i dla obiektu wyjątku śladu
+ *    nie wypisywał, ale gotowej tablicy już nie przycina. Wpis jest więc
+ *    dłuższy niż przed tym procesorem (ślad to same plik:linia, bez danych).
  * 2. Komunikatu `QueryException`/`PDOException` NIE czyścimy wyrażeniem
  *    regularnym, tylko budujemy od nowa z pól bez wartości: SQLSTATE, rodzaj
  *    operacji i tabela (z SQL-a z `?`, nie z komunikatu), nazwa ograniczenia.
@@ -40,15 +48,43 @@ use Throwable;
  *    albo hash hasła (`$2y$…`, `$argon2id$…`) na znacznik. To siatka
  *    bezpieczeństwa, nie gwarancja — gwarancją jest punkt 2.
  *
+ * 4. Obiekty, które nie są wyjątkiem (model w `['user' => $user]`), są
+ *    serializowane TU (`toArray()`/`jsonSerialize()`/`__toString()`) i dopiero
+ *    wynik jest czyszczony — inaczej formater wypisałby je w całości za
+ *    plecami procesora. Obiekt bez żadnej z tych dróg → sama nazwa klasy.
+ *    Klucze tablic są czyszczone jak wartości. Głębiej niż `GLEBOKOSC`
+ *    zamiast wartości idzie znacznik `ZA_GLEBOKO`, nie surowa tablica.
+ * 5. Gdy wyrażenie regularne zawiedzie (błąd PCRE), cały tekst zamienia się
+ *    na `BLAD_FILTRA` — ani pusty łańcuch, ani oryginał.
+ *
  * CZEGO NIE RUSZA: rekord bez PII przechodzi bajt w bajt (test kontroli
- * dodatniej). Nie jest podpięty pod `blad_webhook` — tamten handler nie czyta
- * komunikatu w ogóle, więc tu nie ma czego dublować.
+ * dodatniej); liczby, daty i enumy zostają obiektami. Nie jest podpięty pod
+ * `blad_webhook` — tamten handler nie czyta komunikatu w ogóle, a POTRZEBUJE
+ * prawdziwego obiektu wyjątku w `context['exception']` (klasa, plik:linia,
+ * odcisk). Dlatego `FiltrDanychOsobowych` wiesza ten procesor na HANDLERZE,
+ * nie na loggerze: kanał `stack` zbiera procesory loggerów kanałów
+ * składowych i puściłby je także na handler webhooka.
+ *
+ * Komunikatów obcych wyjątków w logach operacyjnych nie należy tu „ratować"
+ * — do tego jest `BezpiecznyBlad::kontekst()` (#973): lista dozwolonych pól
+ * zamiast wyrażeń regularnych.
  */
 final class BezDanychOsobowychWLogu implements ProcessorInterface
 {
     public const EMAIL = '[e-mail usunięty]';
 
     public const HASH = '[hash hasła usunięty]';
+
+    /**
+     * Wstawiany ZAMIAST całego tekstu, gdy wyrażenie regularne zawiedzie
+     * (np. „JIT stack limit exhausted" na ~20 KB złośliwie dobranego tekstu).
+     * `preg_replace()` oddaje wtedy `null` — a `(string) null` to pusty
+     * łańcuch, czyli wpis po cichu znikał z logu. Oryginału w tym miejscu
+     * NIE zostawiamy: nie wiemy, czy niesie e-mail, bo sprawdzenie padło.
+     */
+    public const BLAD_FILTRA = '[treść usunięta z logu: filtr danych osobowych nie dał rady]';
+
+    public const ZA_GLEBOKO = '[pominięte: zagnieżdżenie głębsze niż filtr sprawdza]';
 
     private const WZORZEC_EMAIL = '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/';
 
@@ -109,13 +145,72 @@ final class BezDanychOsobowychWLogu implements ProcessorInterface
             return $this->oczyscTekst($wartosc);
         }
 
-        if (is_array($wartosc) && $glebokosc < self::GLEBOKOSC) {
-            foreach ($wartosc as $klucz => $element) {
-                $wartosc[$klucz] = $this->oczysc($element, $glebokosc + 1);
-            }
+        if ($wartosc === null || is_scalar($wartosc) || $wartosc instanceof UnitEnum || $wartosc instanceof DateTimeInterface) {
+            // Liczby, daty i enumy nie niosą e-maila ani hasha — a zostawione
+            // w oryginale formatują się dokładnie tak jak dotąd.
+            return $wartosc;
         }
 
+        if ($glebokosc >= self::GLEBOKOSC) {
+            // Dawniej: tablica głębiej niż limit szła do formatera SUROWA,
+            // razem z tym, co niosła. Znacznik zamiast wartości — nikt nie
+            // loguje dziewięciu poziomów tablic w dobrej wierze.
+            return self::ZA_GLEBOKO;
+        }
+
+        if (is_array($wartosc)) {
+            $czysta = [];
+
+            foreach ($wartosc as $klucz => $element) {
+                // Klucze też: `['basia@wp.pl' => 3]` to ten sam adres.
+                if (is_string($klucz)) {
+                    $klucz = $this->oczyscTekst($klucz);
+
+                    while (array_key_exists($klucz, $czysta)) {
+                        $klucz .= '*';
+                    }
+                }
+
+                $czysta[$klucz] = $this->oczysc($element, $glebokosc + 1);
+            }
+
+            return $czysta;
+        }
+
+        if (is_object($wartosc)) {
+            return $this->obiekt($wartosc, $glebokosc);
+        }
+
+        // Zasób (resource) — formater i tak wypisze tylko jego rodzaj.
         return $wartosc;
+    }
+
+    /**
+     * Obiekt, który nie jest wyjątkiem — np. model w `['user' => $user]`.
+     * Zostawiony formaterowi zostałby zserializowany Z CAŁĄ ZAWARTOŚCIĄ
+     * (`JsonSerializable`/`toArray()`: e-mail użytkownika), a procesor by go
+     * nie zobaczył. Więc serializujemy go tu i czyścimy wynik; obiekt bez
+     * żadnej z tych dróg zastępujemy samą nazwą klasy — formater wypisałby
+     * jego publiczne pola, których nie znamy.
+     */
+    private function obiekt(object $obiekt, int $glebokosc): mixed
+    {
+        try {
+            $dane = match (true) {
+                $obiekt instanceof Arrayable => $obiekt->toArray(),
+                $obiekt instanceof JsonSerializable => $obiekt->jsonSerialize(),
+                $obiekt instanceof Stringable => (string) $obiekt,
+                default => null,
+            };
+        } catch (Throwable) {
+            $dane = null;
+        }
+
+        if ($dane === null) {
+            return '['.$obiekt::class.']';
+        }
+
+        return [$obiekt::class => $this->oczysc($dane, $glebokosc + 1)];
     }
 
     /**
@@ -219,7 +314,7 @@ final class BezDanychOsobowychWLogu implements ProcessorInterface
             return $tekst;
         }
 
-        return (string) preg_replace(
+        $czysty = preg_replace(
             // Surowy komunikat sterownika wklejony jako tekst (np. ktoś
             // zalogował `$e->getMessage()` bez obiektu wyjątku): po
             // „SQLSTATE[xxxxx]:" idzie DETAIL i SQL z wartościami, więc ucinamy
@@ -229,5 +324,9 @@ final class BezDanychOsobowychWLogu implements ProcessorInterface
             ['SQLSTATE[$1]'.self::ZNACZNIK_BAZY, self::HASH, self::EMAIL],
             $tekst,
         );
+
+        // `null` = błąd PCRE (limit stosu JIT, backtracking). Ani pusty
+        // łańcuch (wpis znikał po cichu), ani oryginał (nie wiemy, co niesie).
+        return $czysty ?? self::BLAD_FILTRA.' (długość: '.strlen($tekst).' B)';
     }
 }

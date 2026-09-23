@@ -22,7 +22,8 @@ use RuntimeException;
  * To jest dokładnie ta sama usterka, którą audyt W7-07 znalazł w
  * `failure_reason` eksportu RODO, i domykamy ją tym samym wzorcem:
  * na zewnątrz idzie kod z zamkniętego zbioru (`HealthController::POWODY`),
- * szczegół techniczny zostaje wyłącznie w logu.
+ * a do logu klasa, SQLSTATE i klasy przyczyn (`BezpiecznyBlad`) — też bez
+ * komunikatu, bo stderr czyta Railway (#973).
  *
  * DLACZEGO KOD SIEDZI W WYJĄTKU, A NIE JEST ZGADYWANY Z TREŚCI
  * Rozpoznawanie awarii po treści komunikatu to ta sama kruchość, która raz

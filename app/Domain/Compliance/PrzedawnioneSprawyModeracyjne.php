@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Domain\Compliance;
 
+use App\Logging\BezpiecznyBlad;
 use App\Models\Appeal;
 use App\Models\ModerationAction;
 use App\Models\Report;
@@ -126,7 +127,7 @@ final class PrzedawnioneSprawyModeracyjne
                 Log::error('Nie udało się skasować przedawnionego odwołania', [
                     'appeal_id' => $odwolanie->getKey(),
                     'moderation_action_id' => $odwolanie->moderation_action_id,
-                    'error' => $e->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($e),
                 ]);
             }
         }
@@ -210,7 +211,7 @@ final class PrzedawnioneSprawyModeracyjne
                 $bledy++;
                 Log::error('Nie udało się skasować przedawnionej decyzji moderacyjnej', [
                     'moderation_action_id' => $decyzja->getKey(),
-                    'error' => $e->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($e),
                 ]);
             }
         }
@@ -242,7 +243,7 @@ final class PrzedawnioneSprawyModeracyjne
                 $bledy++;
                 Log::error('Nie udało się skasować przedawnionego zgłoszenia', [
                     'report_id' => $zgloszenie->getKey(),
-                    'error' => $e->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($e),
                 ]);
             }
         }
