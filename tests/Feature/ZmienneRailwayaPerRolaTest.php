@@ -219,7 +219,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             [],
             $brakujace,
             "`config/*.php` czyta te zmienne bez wartości domyślnej, a `.railway/railway.ts` nie przekazuje\n"
-            ."ich żadnej roli: ".implode(', ', $brakujace).".\n"
+            .'ich żadnej roli: '.implode(', ', $brakujace).".\n"
             .'Po rozdzieleniu usług (#595) funkcja, która od nich zależy, wyłączy się po cichu (#1014). '
             .'Dopisz zmienną do zestawu roli, która ją czyta (i do MACIERZ w tym teście), albo do WYJATKI z powodem.',
         );

@@ -708,7 +708,7 @@ nie czyta, oblewa go tak samo jak zmienna brakująca.
 | `DB_URL` | ✔ | ✔ | ✔ | baza, kolejka, cache i sesje w Postgresie |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET`, `AWS_ENDPOINT` | ✔ | ✔ | ✔ | web: upload i podpisane adresy; worker: przetwarzanie zdjęć i paczki RODO; scheduler: `kuking:sprzataj-osierocone-zdjecia`, `kuking:sprzataj-eksporty`, `kuking:usun-wygasle-konta` kasują pliki |
 | `LOG_BLAD_WEBHOOK_URL` | ✔ | ✔ | ✔ | kanał `blad_webhook` — błąd może paść w każdej roli |
-| `EMAILLABS_APP_KEY`, `EMAILLABS_SECRET_KEY`, `EMAILLABS_SMTP_ACCOUNT` (+ uśpione `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`) | ✔ | ✔ | — | web: synchroniczna odpowiedź „Napisz do nas”, `App\Support\Poczta` w `/health` i formularzach; worker: wszystkie listy z kolejki. Scheduler listy tylko kolejkuje |
+| `EMAILLABS_APP_KEY`, `EMAILLABS_SECRET_KEY`, `EMAILLABS_SMTP_ACCOUNT` (+ uśpione `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` — na planie Hobby SMTP nie działa, nie ustawiaj, D-116) | ✔ | ✔ | — | web: synchroniczna odpowiedź „Napisz do nas”, `App\Support\Poczta` w `/health` i formularzach; worker: wszystkie listy z kolejki. Scheduler listy tylko kolejkuje |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `CLOUDFLARE_ANALYTICS_TOKEN` | ✔ | — | — | formularze, trasy OAuth, HTML strony, `/health` |
 | `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | ✔ | ✔ | — | worker: `PurgePublicMediaCache`; web: tylko `/health` (sprawdzenie obecności) |
 | `OPENAI_MODERATION_KEY` | — | ✔ | — | `PrzeanalizujTresc` → `KlientOpenAI` |
