@@ -101,7 +101,7 @@ class NieudanyZapisZdjeciaNieZostawiaPlikowTest extends TestCase
             }
         });
 
-        Log::spy();
+        $dziennik = Log::spy();
 
         try {
             $this->wgraj();
@@ -114,7 +114,7 @@ class NieudanyZapisZdjeciaNieZostawiaPlikowTest extends TestCase
 
         $this->assertNotNull($klucz, 'Oryginał miał zostać — kasowanie odmówiło.');
 
-        Log::shouldHaveReceived('error')
+        $dziennik->shouldHaveReceived('error')
             ->withArgs(fn (string $wiadomosc, array $kontekst): bool => ($kontekst['dysk'] ?? null) === 'oryginal962'
                 && ($kontekst['klucz'] ?? null) === $klucz)
             ->once();
