@@ -15,6 +15,7 @@ use App\Support\Facebook;
 use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Http\Client\Factory;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
@@ -1194,5 +1195,55 @@ class LogowanieKontemFacebookiemTest extends TestCase
                     'sha256', 'token-dostepu-ktorego-nie-zapisujemy', 'sekret-testowy',
                 );
         });
+    }
+
+    public function test_wygasniecie_domkniecia_zachowuje_imie_i_nazwe_po_powrocie_tym_samym_kontem(): void
+    {
+        $this->wlaczFacebooka();
+        $this->wracamyZFacebooka()->assertRedirect(route('facebook.finish'));
+        $this->travel(31)->minutes();
+        $this->post(route('facebook.finish'), [
+            'display_name' => 'Własne imię', 'username' => 'moja_wlasna_nazwa',
+            'age_confirmed' => '1', 'terms_accepted' => '1',
+        ])->assertRedirect(route('login'));
+        $this->assertDatabaseCount('users', 0);
+        $this->get(route('login'))->assertOk();
+        $this->wracamyZFacebooka()->assertRedirect(route('facebook.finish'));
+        $html = $this->get(route('facebook.finish'))->assertOk()->getContent();
+        $this->assertStringContainsString('Własne imię', $this->element($html, 'f-display_name'));
+        $this->assertStringContainsString('moja_wlasna_nazwa', $this->element($html, 'f-username'));
+        $this->assertStringNotContainsString('checked', $this->element($html, 'f-age_confirmed'));
+        $this->assertStringNotContainsString('checked', $this->element($html, 'f-terms_accepted'));
+    }
+
+    public function test_szkic_domkniecia_nie_przechodzi_na_inne_konto_dostawcy(): void
+    {
+        $this->wlaczFacebooka();
+        $this->wracamyZFacebooka()->assertRedirect(route('facebook.finish'));
+        $this->travel(31)->minutes();
+        $this->post(route('facebook.finish'), ['display_name' => 'Własne imię', 'username' => 'moja_wlasna_nazwa'])
+            ->assertRedirect(route('login'));
+        Http::swap(new Factory);
+        $this->wracamyZFacebooka(['id' => '99999999999999999'])->assertRedirect(route('facebook.finish'));
+        $html = $this->get(route('facebook.finish'))->assertOk()->getContent();
+        $this->assertStringNotContainsString('Własne imię', $html);
+        $this->assertStringNotContainsString('moja_wlasna_nazwa', $html);
+        $this->assertStringContainsString('Basia', $this->element($html, 'f-display_name'));
+        $this->assertNull(session('registration_draft.facebook'));
+    }
+
+    public function test_szkic_domkniecia_wygasa_i_prosi_o_ponowne_wpisanie(): void
+    {
+        $this->wlaczFacebooka();
+        $this->wracamyZFacebooka()->assertRedirect(route('facebook.finish'));
+        $this->travel(31)->minutes();
+        $this->post(route('facebook.finish'), ['display_name' => 'Własne imię', 'username' => 'moja_wlasna_nazwa'])
+            ->assertRedirect(route('login'));
+        $this->travel(31)->minutes();
+        Http::swap(new Factory);
+        $this->wracamyZFacebooka([])->assertRedirect(route('facebook.finish'));
+        $response = $this->get(route('facebook.finish'))->assertOk();
+        $response->assertSee('Wpisz je ponownie')->assertDontSee('moja_wlasna_nazwa');
+        $this->assertNull(session('registration_draft.facebook'));
     }
 }

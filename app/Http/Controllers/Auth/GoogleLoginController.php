@@ -15,6 +15,7 @@ use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\ReservedUsername;
 use App\Rules\UsernameNotTaken;
+use App\Support\ExternalRegistrationDraft;
 use App\Support\Google;
 use App\Support\NazwaUzytkownika;
 use Illuminate\Http\RedirectResponse;
@@ -342,13 +343,15 @@ class GoogleLoginController extends Controller
             return $this->trzebaZaczacOdNowa();
         }
 
+        $draft = ExternalRegistrationDraft::restore($request, 'google', $tozsamosc->sub);
+
         return view('auth.google-finish', [
             'email' => $tozsamosc->email,
             // PODPOWIEDŹ, NIE NADANIE. Nazwa stoi w polu, które człowiek
             // widzi i może zmienić — decyzja właściciela z 10 września
             // (dwa pola przy rejestracji, nazwa podpowiadana z imienia).
-            'proponowanaNazwa' => $this->proponowanaNazwa($tozsamosc),
-            'proponowaneImie' => $tozsamosc->imie,
+            'proponowanaNazwa' => $draft['username'] ?? $this->proponowanaNazwa($tozsamosc),
+            'proponowaneImie' => $draft['display_name'] ?? $tozsamosc->imie,
         ]);
     }
 
@@ -366,9 +369,12 @@ class GoogleLoginController extends Controller
         // samego skutku — czyli nie zamykałoby jej wcale.
         abort_unless(config('kuking.account.registration_open'), 503);
 
+        $previousIdentity = $request->session()->get(self::KLUCZ_TOZSAMOSC.'.sub');
         $tozsamosc = $this->tozsamoscZSesji($request);
 
         if ($tozsamosc === null) {
+            ExternalRegistrationDraft::remember($request, 'google', $previousIdentity);
+
             return $this->trzebaZaczacOdNowa();
         }
 
@@ -435,6 +441,7 @@ class GoogleLoginController extends Controller
          */
         if (User::findByGoogleSub($tozsamosc->sub) !== null
             || User::where('email', $tozsamosc->email)->exists()) {
+            ExternalRegistrationDraft::forget($request, 'google');
             $this->zapomnijTozsamosc($request);
 
             return redirect()->route('login')->with('status',
@@ -464,6 +471,7 @@ class GoogleLoginController extends Controller
             dziennik: ['droga' => 'google'],
         )->user;
 
+        ExternalRegistrationDraft::forget($request, 'google');
         $this->zapomnijTozsamosc($request);
 
         Auth::login($user, remember: true);
@@ -778,7 +786,7 @@ class GoogleLoginController extends Controller
     private function trzebaZaczacOdNowa(): RedirectResponse
     {
         return redirect()->route('login')->with('status',
-            'Wejście kontem Google trwało zbyt długo i musimy zacząć od nowa — nic się nie stało. '
+            'Wejście kontem Google wymaga ponownego potwierdzenia. '
             .'Kliknij „Wejdź kontem Google" jeszcze raz. Możesz też zalogować się hasłem albo poprosić '
             .'o wiadomość z przyciskiem do zalogowania.',
         );
