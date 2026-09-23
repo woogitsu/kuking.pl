@@ -38,7 +38,7 @@
                 z kodami zamyka konto do czasu wejścia na serwer, droga do
                 nowych kodów musi być łatwa, dopóki człowiek ma jeszcze dostęp.
             --}}
-            <details class="mt-5">
+            <details class="mt-5" @if($errors->getBag('regenerate')->any()) open @endif>
                 <summary class="btn btn-secondary inline-flex">Wygeneruj nowe kody zapasowe</summary>
                 <div class="mt-4">
                     <p>
@@ -46,9 +46,11 @@
                         o to właśnie chodzi, jeśli nie wiesz, gdzie jest kartka z poprzednimi.
                         Aplikacja w telefonie działa dalej bez zmian, nie musisz nic w niej przestawiać.
                     </p>
+                    @include('pages.settings.two_factor._password-help')
                     <form method="POST" action="{{ route('settings.two_factor.regenerate') }}">
                         @csrf
-                        <x-field name="password" label="Wpisz swoje hasło" type="password" required
+                        <x-error-summary error-bag="regenerate" :field-ids="['password' => 'f-password-regenerate']" />
+                        <x-field name="password" id="f-password-regenerate" error-bag="regenerate" label="Hasło do Kuking" type="password" required
                                  autocomplete="current-password"
                                  help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
                         <button class="btn btn-secondary mt-4" type="submit">Wygeneruj nowe kody</button>
@@ -56,13 +58,14 @@
                 </div>
             </details>
 
-            <details class="mt-5">
+            <details class="mt-5" @if($errors->getBag('disable')->any()) open @endif>
                 <summary class="btn btn-secondary inline-flex">Wyłącz weryfikację dwuetapową</summary>
                 <div class="mt-4">
-                    <x-error-summary />
+                    @include('pages.settings.two_factor._password-help')
                     <form method="POST" action="{{ route('settings.two_factor.disable') }}">
                         @csrf
-                        <x-field name="password" label="Wpisz swoje hasło" type="password" required
+                        <x-error-summary error-bag="disable" :field-ids="['password' => 'f-password-disable']" />
+                        <x-field name="password" id="f-password-disable" error-bag="disable" label="Hasło do Kuking" type="password" required
                                  autocomplete="current-password"
                                  help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
                         <button class="btn btn-danger mt-4" type="submit">Wyłącz</button>
