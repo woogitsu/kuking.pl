@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Domain\Comments\Actions\PublishComment;
+use App\Domain\Notifications\QuestionNotificationContext;
 use App\Models\Notification;
 use App\Models\Post;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -91,21 +92,31 @@ class QuestionNotificationContextTest extends TestCase
         $owner = $this->user();
         $actor = $this->user();
         $this->actingAs($owner);
+        // Mierzymy koszt SAMYCH TYTUŁÓW — `QuestionNotificationContext::titles()`
+        // na tych powiadomieniach, które dostaje kontroler — a nie całej odpowiedzi:
+        // pełna strona rośnie z liczbą wierszy niezależnie od tej zmiany, bo
+        // `Notification::adresDocelowy()` liczy adres komentarza per wiersz
+        // (#759; zbiorcza wersja była w zamkniętym #1257).
         $counts = [];
         foreach ([2, 18] as $amount) {
             for ($i = 0; $i < $amount; $i++) {
                 $question = Post::factory()->question()->create(['author_id' => $owner->id]);
                 app(PublishComment::class)->handle($actor, $question, 'Dodaj trochę mąki.');
             }
+            $page = Notification::query()->where('user_id', $owner->id)->get()->all();
             DB::enableQueryLog();
             DB::flushQueryLog();
-            $response = $this->get(route('notifications.index'))->assertOk();
+            $titles = app(QuestionNotificationContext::class)->titles($page, $owner);
             $counts[] = count(DB::getQueryLog());
             DB::disableQueryLog();
-            $this->assertCount(array_sum(array_slice([2, 18], 0, count($counts))), $this->rows($response->getContent()));
+            $expected = array_sum(array_slice([2, 18], 0, count($counts)));
+            $this->assertCount($expected, $titles);
+            $response = $this->get(route('notifications.index'))->assertOk();
+            $this->assertCount($expected, $this->rows($response->getContent()));
             $response->assertSee($question->title);
         }
-        $this->assertSame($counts[0], $counts[1], json_encode($counts));
+        $this->assertSame($counts[0], $counts[1], 'Tytuły pytań nie mogą dokładać zapytania na wiersz: '.json_encode($counts));
+        $this->assertLessThanOrEqual(2, $counts[1], 'Tytuły pytań to najwyżej dwa zbiorcze odczyty: '.json_encode($counts));
     }
 
     private function rows(string $html): array
