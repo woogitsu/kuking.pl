@@ -81,7 +81,8 @@ final class OcenaModelem
 
         $sygnaly = [];
 
-        $tekst = trim((string) $tresc->body);
+        // Przy pytaniu razem z tytułem — bez opisu to on jest całą treścią (#831).
+        $tekst = $tresc instanceof Post ? $tresc->tekstDoOceny() : trim((string) $tresc->body);
 
         if ($tekst !== '' && $this->granica->publiczna($tresc)) {
             $sygnaly = $this->zWyniku($this->klient->ocenTekst($tekst), $sygnaly);
