@@ -94,6 +94,12 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Test dymny po wdrożeniu (#1012, #1332, #974). Strażnik czyta workflow, bo
+# GitHub Actions nie da się uruchomić z testu. Mutacja przywraca starą sondę
+# HTTPS, która przepuszczała każdy kod 30x bez względu na cel przekierowania.
+WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
+WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -197,6 +203,22 @@ def zdjecie_checku_przed_straznikiem_2fa(source):
     return replace_once(bez_zdjecia, straznik, zdjecie + straznik)
 
 
+def stara_sonda_https(source):
+    """KONTROLA DODATNIA: wróć do `case 301|302|307|308` bez sprawdzania celu.
+
+    `przekierowanie_https_sprawdza_cel_a_nie_sam_kod` ma zapalić (#1332).
+    """
+    return replace_once(
+        source,
+        '          sonda_https "${BASE_URL#https://}" || fail=1\n',
+        '          redirect=$(curl -sS -o /dev/null -w \'%{http_code}\' --max-time 20 "http://${BASE_URL#https://}/" || echo "000")\n'
+        '          case "$redirect" in\n'
+        '            301|302|307|308) echo "OK    HTTP przekierowuje ($redirect)" ;;\n'
+        '            *) echo "BLAD  HTTP nie przekierowuje na HTTPS ($redirect)"; fail=1 ;;\n'
+        '          esac\n',
+    )
+
+
 def mniejsze_pismo_na_pierwszym_ekranie(source):
     """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
 
@@ -230,6 +252,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
+     stara_sonda_https),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -238,6 +262,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(WDROZENIE_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

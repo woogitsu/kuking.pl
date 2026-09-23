@@ -2284,8 +2284,19 @@ railway logs --service web --environment production | tail -50
 
 Powtórz dla `worker` i `scheduler`. Czas: 2–5 minut.
 
-Albo z GitHuba: **Actions** → **Deploy** → **Run workflow** →
-environment `production`, action `redeploy`.
+**Z GitHuba rollbacku NIE zrobisz.** Action `redeploy` wdraża ponownie
+BIEŻĄCĄ wersję, a action `instrukcja-cofniecia` (do 23.09.2026: `rollback`)
+tylko wypisuje listę wdrożeń i tę instrukcję — niczego nie zmienia, wystawia
+ostrzeżenie i mówi to w podsumowaniu (issue #974). Railway CLI nie potrafi
+wskrzesić wybranego starszego wdrożenia; robi się to w panelu, jak wyżej.
+
+**Przed kliknięciem:** sprawdź, czy wdrożenia, które cofasz, nie niosły
+migracji `DROP`/`RENAME` (ścieżka C niżej) — stary kod musi pasować do
+schematu, który zostaje w bazie.
+
+**Po kliknięciu:** **Actions** → **Deploy** → **Run workflow** → action
+`smoke`, a pod `https://kuking.pl/wydanie` sprawdź, że pole `commit` wskazuje
+commit, do którego wracałeś.
 
 ### Ścieżka B — deploy Z migracją NIEDESTRUKCYJNĄ (dodanie kolumny/tabeli)
 
