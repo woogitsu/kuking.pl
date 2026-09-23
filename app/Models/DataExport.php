@@ -22,11 +22,35 @@ class DataExport extends Model
 
     public const STATUS_EXPIRED = 'expired';
 
+    /**
+     * Po ilu minutach bez ruchu rekord `queued` uznajemy za PORZUCONY
+     * i wolno go ponowić (audyt A02).
+     *
+     * Piętnaście, bo tyle wynosi `GenerateUserExport::$timeout` i tyle mówi
+     * człowiekowi komunikat po zgłoszeniu („To może potrwać kilkanaście
+     * minut"). Krótsza granica ponawiałaby zadania, które po prostu czekają
+     * w kolejce za czyjąś paczką; dłuższa trzymałaby człowieka w stanie,
+     * w którym ekran mówi „już przygotowujemy", a nie przygotowuje nikt.
+     *
+     * Stała, a nie `config/kuking.php`, i to jest DŁUG do spłacenia: ten
+     * plik konfiguracji jest zajęty przez otwarty PR #331, a limit ma
+     * mieszkać razem z pozostałymi (`AGENTS.md` §7). Przeniesienie go to
+     * jedna linijka po scaleniu tamtej gałęzi.
+     */
+    public const MINUT_NA_PODJECIE = 15;
+
     /** Konto zostało usunięte, zanim job zdążył zbudować paczkę (`GenerateUserExport::handle()`). */
     public const REASON_ACCOUNT_MISSING = 'account_missing';
 
     /** Zapis gotowej paczki do magazynu plików się nie udał (`App\Exceptions\DataExportStorageFailure`). */
     public const REASON_STORAGE = 'storage';
+
+    /**
+     * Zdjęcie, które miało wejść do paczki, nie dało się odczytać z magazynu
+     * (`App\Exceptions\DataExportPhotoUnreadable`, issue #1388). Paczka bez
+     * niego NIE jest gotowa — liczniki i odnośniki w środku by kłamały.
+     */
+    public const REASON_PHOTO_UNREADABLE = 'photo_unreadable';
 
     /** Budowa paczki przekroczyła limit czasu joba (15 minut, `GenerateUserExport::$timeout`). */
     public const REASON_TIMEOUT = 'timeout';
@@ -53,6 +77,8 @@ class DataExport extends Model
         self::REASON_ACCOUNT_MISSING => 'To konto już nie istnieje, więc nie mamy z czego przygotować paczki z danymi. '
             .'Jeśli uważasz, że to pomyłka, napisz do nas: {kontakt}.',
         self::REASON_STORAGE => 'Nie udało się zapisać paczki w naszym magazynie plików. '
+            .'Spróbuj przygotować paczkę jeszcze raz za kilka minut. Jeśli to się powtórzy, napisz do nas: {kontakt}.',
+        self::REASON_PHOTO_UNREADABLE => 'Nie udało się pobrać jednego z Twoich zdjęć do paczki, więc jej nie wydaliśmy — byłaby niepełna. '
             .'Spróbuj przygotować paczkę jeszcze raz za kilka minut. Jeśli to się powtórzy, napisz do nas: {kontakt}.',
         self::REASON_TIMEOUT => 'Przygotowanie paczki trwało za długo i zostało przerwane. '
             .'Spróbuj przygotować paczkę jeszcze raz. Jeśli to się powtórzy, napisz do nas: {kontakt}.',

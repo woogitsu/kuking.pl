@@ -252,8 +252,10 @@ Kuking stoi na fotografiach obiadów wrzucanych przez nieznajomych. Wersja
 której nikt nie przeczyta, dopóki ktoś jej nie zgłosi**. Zdjęcia mają
 pierwszeństwo przed tekstem przy wdrożeniu.
 
-Od issue #237 dotyczy to także **zdjęcia profilowego**, które jest oglądane
-częściej niż jakikolwiek wpis — patrz §9.
+Od issue #237 dotyczyło to także **zdjęcia profilowego**, które jest oglądane
+częściej niż jakikolwiek wpis — patrz §9. **Od D-240 już nie:** awatar bez
+potwierdzonej zgody nie wychodzi do OpenAI, a mechanizmu takiej zgody nie ma
+(§10).
 
 ### 8.3. Dane wychodzą poza EOG
 
@@ -447,3 +449,34 @@ filtering z poz. 3.16, odrzucony jako sprzeczny z art. 17 DSA.
 - **koszt w kolejce.** Endpoint jest bezpłatny, więc pieniędzy to nie kosztuje,
   ale pozycji w kolejce moderatora — tak. Progu nie ruszamy z góry: mierzymy
   na pierwszej setce kont (§6).
+
+## 10. Co wolno wysłać do OpenAI (D-240)
+
+Do dostawcy wychodzi **wyłącznie treść publiczna**: taka, którą gość bez konta
+zobaczyłby w serwisie w chwili wysyłki. Rozstrzyga `app/Moderacja/GranicaWysylki.php`,
+pytając te same Policy co strona dla gościa — więc komentarz pod wpisem albo
+przepisem przełączonym na prywatny, „dla obserwujących", ukrytym, usuniętym
+albo należącym do zbanowanego konta nie wychodzi (#827). Granica jest pytana
+przed **każdym** żądaniem, także przed każdym zdjęciem wpisu, i jeszcze raz
+przed postawieniem oznaczenia. Treść „dla obserwujących" nie jest już oceniana
+modelem — to świadome zawężenie wobec D-055.
+
+Zdjęcie wpisu wychodzi tylko z wariantu `thumb`, bez zastępstwa innym
+wariantem, i tylko gdy **bajty** — przed dekodowaniem i po przekodowaniu do
+JPEG — mają dłuższy bok najwyżej 320 px. Inaczej zdjęcie jest pomijane
+z wpisem w dzienniku (`stage=image_boundary`).
+
+**Zdjęcie profilowe nie wychodzi wcale.** `PrzeanalizujAwatar` zostaje pustym
+zadaniem tylko po to, żeby zlecenia sprzed wdrożenia nie kończyły się błędem.
+
+Brak klucza na produkcji zostawia w dzienniku `stage=openai_disabled` przy
+każdej nieocenionej treści. Odpowiedź bez ani jednej znanej kategorii,
+z pustymi albo uszkodzonymi wynikami, nie jest już oceną „czyste" — zostawia
+ostrzeżenie. Lokalne sygnały z §3 działają niezależnie od stanu modelu.
+
+**Granica lokalna jest szersza niż granica wysyłki (D-241).** Treść, która nie
+może wyjść do OpenAI, nadal sprawdzają lokalne wzorce spamu z §3. Dotyczy to
+wpisów „dla obserwujących”, treści zbanowanych kont i komentarzy pod zapowiedzią
+przepisu „dla obserwujących” (`GranicaWysylki::pozaAutorem()`). Te wzorce nie
+wysyłają niczego poza serwer. Poza obiema granicami zostają: treść prywatna,
+ukryta, usunięta oraz konto w karencji usunięcia albo wymazane.

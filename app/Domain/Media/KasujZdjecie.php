@@ -154,6 +154,36 @@ final class KasujZdjecie
         });
     }
 
+    /**
+     * Przejmuje zdjęcie do skasowania BEZ pytania, czy ktoś go używa —
+     * wyłącznie dla wymazania konta (`EraseAccountData`), które kasuje
+     * komplet zdjęć jednej osoby, choć wskazują na nie jej własne wpisy.
+     *
+     * DLACZEGO WYMAZANIE TEŻ MUSI PRZEJĄĆ WIERSZ (issue #1003)
+     * Wymazanie wczytuje modele zdjęć w swojej transakcji, a pliki kasuje po
+     * jej zatwierdzeniu. Zadanie `ProcessUploadedImage`, które skończyło
+     * pomiędzy, zapisało nowe warianty do `metadata` — a nieaktualny model
+     * ich nie zna, więc zostałyby w publicznym buckecie po skasowaniu
+     * wiersza. Blokada, znacznik `deleted` i ŚWIEŻY odczyt zamykają to okno
+     * z obu stron: zadanie, które przyjdzie po nas, widzi `deleted` i sprząta
+     * swoje pliki; zadanie, które skończyło przed nami, jest w tym odczycie.
+     *
+     * @return Media|null świeży, przejęty wiersz albo `null`, gdy wiersza już nie ma
+     */
+    public function przejmijDoWymazania(Media $zdjecie): ?Media
+    {
+        return DB::transaction(function () use ($zdjecie): ?Media {
+            $swieze = Media::query()->whereKey($zdjecie->getKey())->lockForUpdate()->first();
+
+            if ($swieze !== null && $swieze->status !== Media::STATUS_DELETED) {
+                $swieze->status = Media::STATUS_DELETED;
+                $swieze->save();
+            }
+
+            return $swieze;
+        });
+    }
+
     public function jestUzywane(Media $zdjecie): bool
     {
         foreach (self::ODWOLANIA as [$tabela, $kolumna]) {
