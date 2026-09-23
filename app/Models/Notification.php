@@ -479,6 +479,23 @@ class Notification extends Model
          * Powiadomienia bez sprawcy (`actor_id IS NULL`) przechodzą zawsze,
          * z tego samego powodu co przy blokadzie wyżej.
          */
+        /*
+         * ZAWIADOMIENIE SŁUŻBOWE PO ODEBRANIU UPRAWNIEŃ (issue #1351).
+         *
+         * `appeal.filed` niesie nazwę składającego, rodzaj sprawy i termin —
+         * dane z kolejki odwołań, do której wstęp ma tylko czynny
+         * administrator. Adresatów wybiera `PowiadomOOdwolaniu` w chwili
+         * złożenia odwołania, więc bez tego warunku zawiadomienie zostawało
+         * na liście (i w liczniku) po odebraniu roli albo przy zawieszeniu.
+         * Pytamy o `isAdmin()` PRZY ODCZYCIE, nie kasujemy wierszy: ponowne
+         * nadanie roli albo koniec zawieszenia pokazuje je z powrotem,
+         * a retencja tego typu zostaje bez zmian. `actor_id` jest tu NULL,
+         * więc filtr sprawcy niżej niczego by nie ukrył.
+         */
+        if (! $viewer->isAdmin()) {
+            $query->where('notifications.type', '!=', self::TYPE_APPEAL_FILED);
+        }
+
         $query->whereNotExists(function (QueryBuilder $sub): void {
             $sub->selectRaw('1')
                 ->from('users as sprawcy')

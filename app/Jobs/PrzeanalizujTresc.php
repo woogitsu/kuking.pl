@@ -10,6 +10,7 @@ use App\Domain\Moderation\Sygnaly\WykrywaczSygnalow;
 use App\Models\Comment;
 use App\Models\Post;
 use App\Moderacja\ExceptionContext;
+use App\Moderacja\GranicaWysylki;
 use App\Moderacja\OcenaModelem;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Bus\PendingDispatch;
@@ -105,6 +106,7 @@ class PrzeanalizujTresc implements ShouldQueue
         OcenaModelem $model,
         OznaczDoPrzegladu $oznacz,
         AlarmujModeratora $alarm,
+        GranicaWysylki $granica,
     ): void {
         if (! config('kuking.moderation.sygnaly.wlaczone')) {
             return;
@@ -113,11 +115,20 @@ class PrzeanalizujTresc implements ShouldQueue
         try {
             $tresc = $this->tresc();
 
-            if ($tresc === null) {
+            // #827: komentarz pod rodzicem, który przestał być widoczny, nie
+            // stawia oznaczenia. Do OpenAI wychodzi jeszcze mniej — tylko
+            // treść publiczna; tego pilnuje `OcenaModelem` (D-240).
+            if ($tresc === null || ! $granica->pozaAutorem($tresc)) {
                 return;
             }
 
             $sygnaly = array_merge($wykrywacz->dla($tresc), $model->dla($tresc));
+
+            // Ocena modelem trwa sekundy. Treść, która w tym czasie stała się
+            // prywatna, nie trafia też przed moderatora (D-240).
+            if (! $granica->pozaAutorem($tresc)) {
+                return;
+            }
 
             $oznaczenie = $oznacz->handle($tresc, $sygnaly);
 
@@ -150,6 +161,10 @@ class PrzeanalizujTresc implements ShouldQueue
      *     oznaczenie prywatnego wpisu położyłoby przed moderatorem tekst,
      *     którego autor świadomie nie pokazał nikomu. Spam kierowany do
      *     nikogo nie jest problemem, który warto rozwiązywać tym kosztem.
+     *
+     * To zapytanie jest tylko wstępnym sitem. Resztę rozstrzyga
+     * `GranicaWysylki` — także dla komentarza, którego rodzic mógł
+     * w międzyczasie przestać być widoczny (#827, D-240).
      */
     private function tresc(): Post|Comment|null
     {
