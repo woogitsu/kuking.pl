@@ -129,6 +129,7 @@ async function openStep(page, krok, seconds, { exits = false, telefon = false } 
         super(...args);
         window.audioContexts += 1;
         this.odblokowany = !telefon;
+        window.kontekstAudio = this;
         if (telefon) super.suspend();
       }
       // `suspend()` jest asynchroniczne — do odblokowania stan to zawsze
@@ -300,7 +301,11 @@ try {
       });
       await page.waitForTimeout(3300);
       assert.equal(await page.evaluate(() => window.timerEnds[0]), 1, 'Widoczny krok kończy swój minutnik raz');
-      assert.equal(await page.locator('.cook-alarm').count(), 0, 'Pas innych kroków nie dubluje alarmu widocznego kroku');
+      // Jeden widoczny alarm TEGO kroku (koniec na żywo) — pas innych
+      // kroków nie dokłada drugiego za ten sam minutnik.
+      assert.equal(await page.locator('.cook-alarm').count(), 1, 'Pas innych kroków nie dubluje alarmu widocznego kroku');
+      assert.equal((await page.locator('.cook-alarm-tekst').innerText()).trim(),
+        'Minutnik tego kroku skończył odliczanie.');
     } finally { await page.close(); }
   });
   await check('porzucony_minutnik_nie_alarmuje_po_powrocie', async () => {
@@ -486,6 +491,88 @@ try {
       await page.locator('.cook-alarm-tekst').click();
       await page.waitForTimeout(5300);
       assert(await page.evaluate(() => window.alarmBeeps) >= 1, 'Po pierwszym dotknięciu kolejne powtórzenie musi zagrać');
+    } finally { await page.close(); }
+  });
+  await check('restart_po_spoznionym_alarmie_wycisza_alarm_kroku', async () => {
+    // Przegląd #1301: „Uruchom minutnik jeszcze raz” po spóźnionym alarmie
+    // nie może zostawić obok nowego odliczania piszczącego „skończył”.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 3, 1200);
+      await zapiszPoTerminie(page, 3, 10);
+      await openStep(page, 3, 1200);
+      await page.waitForTimeout(600);
+      assert.equal(await page.locator('.cook-alarm').count(), 1);
+      await button(page).click();
+      assert.equal(await page.locator('.cook-alarm').count(), 0, 'Start nowego odliczania musi wyłączyć alarm tego kroku');
+      assert(await page.locator('.cook-alarmy').isHidden(), 'Pusty pas alarmów musi zniknąć');
+      assert(await anulujButton(page).isVisible(), 'Nowe odliczanie trwa');
+      const beeps = await page.evaluate(() => window.alarmBeeps);
+      await page.waitForTimeout(5500);
+      assert.equal(await page.evaluate(() => window.alarmBeeps), beeps, 'Po starcie alarm nie może się powtarzać');
+      assert(await remaining(page) > 1100);
+    } finally { await page.close(); }
+  });
+  await check('spozniony_alarm_bez_restartu_powtarza_sie', async () => {
+    // Kontrola ujemna do testu wyżej: bez kliku sygnał się powtarza.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 3, 1200);
+      await zapiszPoTerminie(page, 3, 10);
+      await openStep(page, 3, 1200);
+      await page.waitForTimeout(5500);
+      assert.equal(await page.locator('.cook-alarm').count(), 1);
+      assert(await page.evaluate(() => window.alarmBeeps) >= 2, 'Bez restartu alarm musi się powtarzać');
+    } finally { await page.close(); }
+  });
+  await check('koniec_na_zywo_widoczny_alarm_z_powtorzeniem', async () => {
+    // Przegląd #1301: „Czas minął!” jest tylko dla czytnika ekranu, więc
+    // koniec odliczania na żywo też musi dać widoczny, powtarzany alarm.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 1, 2);
+      await button(page).click();
+      await page.waitForTimeout(2600);
+      const alarm = page.locator('.cook-alarm');
+      assert.equal(await alarm.count(), 1, 'Koniec na żywo: dokładnie jeden widoczny alarm');
+      assert(await alarm.isVisible());
+      assert.equal((await page.locator('.cook-alarm-tekst').innerText()).trim(),
+        'Minutnik tego kroku skończył odliczanie.');
+      assert.equal(await remaining(page), 0);
+      await page.waitForTimeout(5300);
+      assert(await page.evaluate(() => window.alarmBeeps) >= 2, 'Sygnał końca na żywo musi się powtarzać');
+      await page.getByRole('button', { name: 'Wyłącz alarm' }).click();
+      assert.equal(await alarm.count(), 0);
+      assert(await page.locator('.cook-progress').evaluate(node => node === document.activeElement),
+        'Po wyłączeniu alarmu fokus przechodzi na postęp krokow');
+      // Restart po końcu na żywo — bez alarmu, dopóki nie minie nowy termin.
+      await button(page).click();
+      await page.waitForTimeout(1200);
+      assert.equal(await alarm.count(), 0);
+    } finally { await page.close(); }
+  });
+  await check('koniec_na_zywo_zamrozona_karta_telefonu_alarm_widoczny', async () => {
+    // Jak iOS zamrażający kartę bez wyrzucenia: start odblokował dźwięk,
+    // ale w tle kontekst znów jest zawieszony, a interwal odpala się po
+    // terminie bez gestu — pojedynczy sygnał milczy, alarm musi być widać.
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 1, 3, { telefon: true });
+      await button(page).click();
+      await page.evaluate(() => {
+        if (window.kontekstAudio) {
+          window.kontekstAudio.odblokowany = false;
+        }
+      });
+      const beeps = await page.evaluate(() => window.alarmBeeps);
+      const pausedMs = await pause(page, 4100);
+      assert(pausedMs >= 4000);
+      await page.waitForTimeout(600);
+      assert.equal(await remaining(page), 0);
+      assert.equal(await page.locator('.cook-alarm').count(), 1, 'Termin minął w tle — alarm musi być widoczny');
+      assert(await page.locator('.cook-alarm').isVisible());
+      assert.equal(await page.evaluate(() => window.alarmBeeps), beeps,
+        'Bez gestu zawieszony kontekst nie gra (inaczej test nie udaje telefonu)');
     } finally { await page.close(); }
   });
 } finally { await browser.close(); server.close(); }

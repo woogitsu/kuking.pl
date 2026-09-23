@@ -658,7 +658,17 @@ function pokazAlarmWPasie(pas, tresc, przejscie = null) {
         }
     }, POWTORZENIA_CO_MS);
 
-    wylacz.addEventListener('click', () => {
+    // Wylaczenie bez ruszania fokusu -- woła je tez blok minutnika, gdy
+    // czlowiek uruchamia odliczanie jeszcze raz (przeglad #1301: nowe
+    // odliczanie obok piszczacego "skonczyl odliczanie" to sprzeczny
+    // sygnal). Drugie wywolanie nic nie robi.
+    let wylaczony = false;
+    const wylaczAlarm = () => {
+        if (wylaczony) {
+            return;
+        }
+
+        wylaczony = true;
         window.clearInterval(powtarzanie);
 
         if ('vibrate' in navigator) {
@@ -667,6 +677,10 @@ function pokazAlarmWPasie(pas, tresc, przejscie = null) {
 
         alarm.remove();
         pas.hidden = pas.childElementCount === 0;
+    };
+
+    wylacz.addEventListener('click', () => {
+        wylaczAlarm();
 
         // Fokus nie moze zostac na usunietym przycisku -- przechodzi
         // na nastepny alarm albo na postep krokow u gory ekranu.
@@ -680,6 +694,8 @@ function pokazAlarmWPasie(pas, tresc, przejscie = null) {
             postep.focus();
         }
     });
+
+    return wylaczAlarm;
 }
 
 document.querySelectorAll('.cook-timer').forEach((blok) => {
@@ -702,6 +718,20 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
     // terminu na zegarze monotonicznym, zamiast zakladac, ze kazde
     // wywolanie setInterval oznacza dokladnie jedna sekunde.
     let interwal = null;
+    // Funkcja wylaczajaca alarm TEGO kroku w pasie (pokazAlarmWPasie) --
+    // start nowego odliczania musi go uciszyc.
+    let wylaczAlarmKroku = null;
+
+    const alarmKroku = () => {
+        const pas = document.querySelector('.cook-alarmy');
+
+        if (pas) {
+            wylaczAlarmKroku?.();
+            wylaczAlarmKroku = pokazAlarmWPasie(pas, 'Minutnik tego kroku skończył odliczanie.');
+        } else {
+            zagrajAlarm();
+        }
+    };
 
     const pokaz = (sekundy) => {
         odliczanie.textContent = formatMinutySekundy(sekundy);
@@ -730,8 +760,12 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
             if (pozostalo <= 0) {
                 zatrzymajOdliczanie();
-                zagrajAlarm();
                 pokazKoniec();
+                // Widoczny alarm z powtarzanym sygnalem, nie jedno "beep"
+                // (przeglad #1301): "Czas minął!" jest tylko dla czytnika
+                // ekranu, a gdy iOS zamrozil karte, interwal odpala sie po
+                // terminie bez gestu i pojedynczy sygnal milczy.
+                alarmKroku();
             }
         }, 1000);
     };
@@ -740,6 +774,10 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         if (interwal !== null) {
             return;
         }
+
+        // Bez przenoszenia fokusu -- czlowiek wlasnie kliknal ten przycisk.
+        wylaczAlarmKroku?.();
+        wylaczAlarmKroku = null;
 
         przycisk.hidden = true;
         anuluj.hidden = false;
@@ -826,14 +864,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         // co dla innych krokow -- z powtarzanym sygnalem.
         pokaz(0);
         pokazKoniec();
-
-        const pas = document.querySelector('.cook-alarmy');
-
-        if (pas) {
-            pokazAlarmWPasie(pas, 'Minutnik tego kroku skończył odliczanie.');
-        } else {
-            zagrajAlarm();
-        }
+        alarmKroku();
 
         sessionStorage.removeItem(klucz);
         return true;
