@@ -5,7 +5,9 @@ declare(strict_types=1);
 namespace App\Domain\Posts\Actions;
 
 use App\Models\Post;
+use App\Models\User;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Gate;
 
 /**
  * Kolejność zdjęć we wpisie i sposób ich wyświetlania (issue #92).
@@ -23,8 +25,12 @@ final class ArrangePostMedia
     /**
      * @param  list<string>  $orderedMediaIds  identyfikatory zdjęć w nowej kolejności
      */
-    public function handle(Post $post, array $orderedMediaIds, string $displayMode): void
+    public function handle(User $actor, Post $post, array $orderedMediaIds, string $displayMode): void
     {
+        // Ta akcja może zostać wywołana poza kontrolerem. Policy ma więc
+        // pilnować właściciela tutaj, przed odczytem pivotów i ich zmianą.
+        Gate::forUser($actor)->authorize('update', $post);
+
         /** @var list<string> $istniejace */
         $istniejace = $post->media()->pluck('media.id')->all();
 
