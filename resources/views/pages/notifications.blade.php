@@ -37,7 +37,11 @@
     <ul class="lista-naga marka-powiadomienia">
         @foreach($notifications as $notification)
         @php
-            $actor = $notification->actor;
+            // Partia zapisów (D-070) pokazuje pierwszą WIDOCZNĄ osobę,
+            // a nie `actor_id` — ten mógł zostać zablokowany po zapisie.
+            $actor = $notification->type === \App\Models\Notification::TYPE_SAVED
+                ? $notification->zapisujacyDoPokazania()
+                : $notification->actor;
             $data = $notification->data ?? [];
             $zwykleZdarzenie = in_array($notification->type, [
                 \App\Models\Notification::TYPE_COOKED,

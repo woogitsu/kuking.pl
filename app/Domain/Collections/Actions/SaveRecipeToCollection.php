@@ -83,6 +83,15 @@ final class SaveRecipeToCollection
         // do którego dopiero co dopisaliśmy) znaczy, że powiadomienie za tę
         // osobę już poszło przy jej pierwszym zeszycie — nowe by je
         // zdublowało.
+        //
+        // Liczymy POD blokadą partii (przegląd PR #1213): dwa równoległe
+        // zapisy tej samej osoby do dwóch jej zeszytów bez niej oba widzą
+        // tylko własny, niezatwierdzony wiersz, oba liczą „1” i oba uznają
+        // się za pierwszy zapis. Z blokadą drugi liczy dopiero po
+        // zatwierdzeniu pierwszego i widzi „2”. Jesteśmy w transakcji
+        // z `handle()`, więc blokada trzyma do jej końca.
+        $this->notify->zablokujPartie($recipe);
+
         $wlasneZeszytyZTymPrzepisem = $user->collections()
             ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
             ->count();
@@ -155,12 +164,21 @@ final class SaveRecipeToCollection
      */
     private function cofnijJesliNigdzieNieZostal(User $user, Recipe $recipe): void
     {
-        $zostal = $user->collections()
-            ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
-            ->exists();
+        // Ta sama blokada partii co przy zapisie: sprawdzenie „nigdzie nie
+        // został” i wycofanie z partii muszą być jednym krokiem względem
+        // równoległego zapisu tej osoby do innego zeszytu — inaczej zapis
+        // liczy wyjmowany jeszcze zeszyt, nie powiadamia, a wycofanie
+        // potem wyrzuca tę osobę z partii, choć przepis u niej leży.
+        DB::transaction(function () use ($user, $recipe): void {
+            $this->notify->zablokujPartie($recipe);
 
-        if (! $zostal) {
-            $this->notify->cofnij($user, $recipe);
-        }
+            $zostal = $user->collections()
+                ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+                ->exists();
+
+            if (! $zostal) {
+                $this->notify->cofnij($user, $recipe);
+            }
+        });
     }
 }

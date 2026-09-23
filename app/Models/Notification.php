@@ -10,6 +10,7 @@ use Illuminate\Database\Eloquent\Concerns\HasUuids;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Query\Builder as QueryBuilder;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Str;
 
 /**
@@ -499,9 +500,16 @@ class Notification extends Model
      */
     public function scopeVisibleTo(Builder $query, User $viewer): Builder
     {
+        // `recipe.saved` NIE idzie przez filtry sprawcy (ten niżej i ten po
+        // statusie): to partia wielu osób (D-070), a `actor_id` trzyma tylko
+        // pierwszą. Ukrycie całego „A oraz 2 inne osoby…” dlatego, że autor
+        // zablokował A PO jej zapisie, gubiło B i C — i każdą kolejną osobę
+        // dopisaną do tego ukrytego wiersza (przegląd PR #1213). Ta partia
+        // ma własny warunek, po całej liście, w `widocznaPartiaZapisow()`.
         $query->whereNotExists(function (QueryBuilder $sub) use ($viewer): void {
             $sub->selectRaw('1')
                 ->from('blocks')
+                ->where('notifications.type', '!=', self::TYPE_SAVED)
                 ->where(function (QueryBuilder $warunek) use ($viewer): void {
                     $warunek
                         ->where(function (QueryBuilder $ja) use ($viewer): void {
@@ -557,9 +565,12 @@ class Notification extends Model
         $query->whereNotExists(function (QueryBuilder $sub): void {
             $sub->selectRaw('1')
                 ->from('users as sprawcy')
+                ->where('notifications.type', '!=', self::TYPE_SAVED)
                 ->whereColumn('sprawcy.id', 'notifications.actor_id')
                 ->whereIn('sprawcy.status', User::STATUSY_UKRYWAJACE_TRESC);
         });
+
+        $this->widocznaPartiaZapisow($query, $viewer);
 
         /*
          * POWIADOMIENIE O KOMENTARZU, KTÓREGO TREŚĆ ZNIKŁA ALBO DO KTÓREJ
@@ -740,6 +751,62 @@ class Notification extends Model
     private const STATUS_TRESCI_OPUBLIKOWANA = 'published';
 
     /**
+     * Partia zapisów (D-070) jest widoczna, dopóki JEDNA osoba z `data.savers`
+     * jest dla odbiorcy widoczna — te same dwie reguły, co filtry sprawcy
+     * w `scopeVisibleTo()` (blokada w obie strony, `User::STATUSY_UKRYWAJACE_TRESC`),
+     * tylko liczone po liście, nie po `actor_id`.
+     *
+     * Gdy niewidoczni są WSZYSCY, wiersz znika z listy i z licznika —
+     * dokładnie jak pojedyncze powiadomienie od zablokowanej osoby. Blokady
+     * nie kasują wiersza: odblokowanie pokazuje go z powrotem.
+     *
+     * Wiersze sprzed zbiorczych zapisów nie mają `savers` — wtedy lista to
+     * sam `actor_id`. Brak sprawcy (`actor_id IS NULL`) przechodzi zawsze,
+     * z tego samego powodu co przy filtrach wyżej.
+     */
+    private function widocznaPartiaZapisow(Builder $query, User $viewer): void
+    {
+        $query->where(function (Builder $warunek) use ($viewer): void {
+            $warunek->where('notifications.type', '!=', self::TYPE_SAVED)
+                ->orWhereNull('notifications.actor_id')
+                ->orWhereExists(function (QueryBuilder $sub) use ($viewer): void {
+                    $sub->selectRaw('1')
+                        ->fromRaw(
+                            "jsonb_array_elements_text(COALESCE(notifications.data->'savers', jsonb_build_array(notifications.actor_id))) AS zapisujacy_z_partii(id)",
+                        )
+                        ->join('users as zapisujacy', 'zapisujacy.id', '=', DB::raw('zapisujacy_z_partii.id::uuid'))
+                        ->whereNotIn('zapisujacy.status', User::STATUSY_UKRYWAJACE_TRESC)
+                        ->whereNotExists(function (QueryBuilder $blokada) use ($viewer): void {
+                            self::blokadaZOdbiorca($blokada, 'zapisujacy.id', (string) $viewer->getKey());
+                        });
+                });
+        });
+    }
+
+    /**
+     * `blocks` w obie strony między kolumną z osobą a odbiorcą — jedno
+     * miejsce dla warunku widoczności partii i dla wyboru imienia do
+     * pokazania (`zapisujacyDoPokazania()`), żeby lista i nagłówek nie
+     * rozjechały się co do tego, kto jest widoczny.
+     */
+    private static function blokadaZOdbiorca(QueryBuilder $sub, string $kolumnaOsoby, string $odbiorcaId): void
+    {
+        $sub->selectRaw('1')
+            ->from('blocks')
+            ->where(function (QueryBuilder $warunek) use ($kolumnaOsoby, $odbiorcaId): void {
+                $warunek
+                    ->where(function (QueryBuilder $ja) use ($kolumnaOsoby, $odbiorcaId): void {
+                        $ja->where('blocks.blocker_id', $odbiorcaId)
+                            ->whereColumn('blocks.blocked_id', $kolumnaOsoby);
+                    })
+                    ->orWhere(function (QueryBuilder $on) use ($kolumnaOsoby, $odbiorcaId): void {
+                        $on->whereColumn('blocks.blocker_id', $kolumnaOsoby)
+                            ->where('blocks.blocked_id', $odbiorcaId);
+                    });
+            });
+    }
+
+    /**
      * Treść zbiorczego powiadomienia „X oraz Y innych osób zapisało Twój
      * przepis" — DECYZJA WŁAŚCICIELA z 20.09.2026 (issue #906).
      *
@@ -774,10 +841,12 @@ class Notification extends Model
      * Miejsce przejmuje pierwsza WIDOCZNA osoba z tej samej partii. Konto
      * USUNIĘTE (`erased`) NIE jest tu wyjątkiem — D-022 mówi wprost: tekst
      * zostaje, choć osoby nie ma, więc pokazujemy to, co zostało po
-     * anonimizacji profilu (tak samo jak przy autorstwie treści). Gdy
-     * WSZYSCY z partii są niewidoczni, wracamy do ogólnej liczby bez
-     * wymieniania nikogo z nazwy — licznik, nie imię, jest tu bezpieczny
-     * (D-081: „liczba, nie imiona”).
+     * anonimizacji profilu (tak samo jak przy autorstwie treści).
+     * Niewidoczne osoby NIE znikają z liczby „innych” — licznik, nie imię,
+     * jest tu bezpieczny (D-081: „liczba, nie imiona”). Gdy niewidoczni są
+     * WSZYSCY, lista i licznik w belce w ogóle tego wiersza nie pokażą
+     * (`widocznaPartiaZapisow()`); gałąź „N osób zapisało” niżej zostaje
+     * dla wywołań spoza `scopeVisibleTo()`, żeby nigdy nie wypisać imienia.
      */
     public function tresc(): string
     {
@@ -830,15 +899,13 @@ class Notification extends Model
     {
         $data = $this->data ?? [];
         $tytul = $data['recipe_title'] ?? 'przepis';
-        $savers = array_values($data['savers'] ?? array_filter([$this->actor_id]));
-
-        $widoczni = $this->widoczniZapisujacy($savers);
-        $liczbaCalkowita = count($savers);
+        $liczbaCalkowita = count($this->zapisujacy());
+        $pierwszy = $this->zapisujacyDoPokazania();
 
         // NIKT Z PARTII NIE JEST DO WYMIENIENIA Z NAZWY (blokada/ban objęły
         // wszystkich, do jednego zapisu włącznie) — zostaje sama liczba,
         // bez „inne”/„innych", bo nie ma względem kogo liczyć.
-        if ($widoczni === []) {
+        if ($pierwszy === null) {
             if ($liczbaCalkowita <= 1) {
                 return ['Ktoś ma Twój przepis', "„{$tytul}” w swoim zeszycie."];
             }
@@ -850,7 +917,6 @@ class Notification extends Model
             return [$naglowek, "„{$tytul}”."];
         }
 
-        $pierwszy = $widoczni[0];
         $reszta = $liczbaCalkowita - 1;
 
         if ($reszta <= 0) {
@@ -865,19 +931,69 @@ class Notification extends Model
     }
 
     /**
-     * @param  list<string>  $savers
-     * @return list<User>
+     * Identyfikatory osób z partii, w kolejności zapisu. Wiersze sprzed
+     * zbiorczych zapisów nie mają `savers` — wtedy to sam `actor_id`.
+     *
+     * @return list<string>
      */
-    private function widoczniZapisujacy(array $savers): array
+    private function zapisujacy(): array
     {
-        return User::query()
-            ->whereIn('id', $savers)
-            ->whereNotIn('status', User::STATUSY_UKRYWAJACE_TRESC)
-            ->get()
-            ->sortBy(fn (User $u) => array_search($u->getKey(), $savers, true))
-            ->filter(fn (User $u) => $this->user === null || ! $this->user->hasBlockRelationWith($u))
-            ->values()
-            ->all();
+        return array_values(array_filter(
+            $this->data['savers'] ?? [$this->actor_id],
+            fn ($id) => is_string($id) && $id !== '',
+        ));
+    }
+
+    /** Czy `zapisujacyDoPokazania()` już pytało bazę — `null` jest poprawnym wynikiem. */
+    private bool $zapisujacyDoPokazaniaPoliczony = false;
+
+    private ?User $zapisujacyDoPokazania = null;
+
+    /**
+     * Pierwsza osoba z partii, którą odbiorca może zobaczyć z imienia
+     * i awatarem — albo `null`, gdy nie może żadnej (D-070).
+     *
+     * JEDNO ZAPYTANIE, NIEZALEŻNIE OD WIELKOŚCI PARTII (przegląd PR #1213).
+     * Wcześniejsza wersja ładowała WSZYSTKICH zapisujących i dla każdego
+     * pytała osobno o blokadę — partia 200 osób to było ~200 zapytań na
+     * jedną pozycję listy, a widok woła nagłówek i resztę zdania osobno.
+     * Imię potrzebne jest jedno, więc blokada idzie do `NOT EXISTS`,
+     * kolejność zapisu do `array_position`, a wynik do `LIMIT 1`. Wynik
+     * jest zapamiętany na tym obiekcie.
+     *
+     * Gdy tą osobą jest `actor_id` z załadowaną już relacją (lista ładuje
+     * `actor.profile.avatar` hurtem), oddajemy TAMTEN obiekt — awatar nie
+     * kosztuje wtedy ani jednego zapytania więcej.
+     */
+    public function zapisujacyDoPokazania(): ?User
+    {
+        if ($this->zapisujacyDoPokazaniaPoliczony) {
+            return $this->zapisujacyDoPokazania;
+        }
+
+        $this->zapisujacyDoPokazaniaPoliczony = true;
+        $savers = $this->zapisujacy();
+
+        if ($savers === []) {
+            return null;
+        }
+
+        $odbiorcaId = (string) $this->user_id;
+
+        $pierwszy = User::query()
+            ->whereIn('users.id', $savers)
+            ->whereNotIn('users.status', User::STATUSY_UKRYWAJACE_TRESC)
+            ->whereNotExists(function (QueryBuilder $blokada) use ($odbiorcaId): void {
+                self::blokadaZOdbiorca($blokada, 'users.id', $odbiorcaId);
+            })
+            ->orderByRaw('array_position(?::uuid[], users.id)', ['{'.implode(',', $savers).'}'])
+            ->first();
+
+        if ($pierwszy !== null && $this->relationLoaded('actor') && $this->actor?->is($pierwszy)) {
+            $pierwszy = $this->actor;
+        }
+
+        return $this->zapisujacyDoPokazania = $pierwszy;
     }
 
     /**

@@ -16147,13 +16147,63 @@ Powiadomienia innych typów i innych przepisów się nie łączą.
 - **Wycofanie przed przeczytaniem:** kto wyjmie przepis ze **wszystkich**
   swoich zeszytów, znika z partii; jeśli był jedyny — powiadomienie znika.
   Wyjęcie z jednego z kilku zeszytów niczego nie zmienia.
-- Z nazwy wymieniamy pierwszą **widoczną** osobę; zablokowanych i kont
-  z `User::STATUSY_UKRYWAJACE_TRESC` nie wymieniamy, ale liczymy je w liczbie.
+- Z nazwy (i awatarem) wymieniamy pierwszą osobę z partii, która jest dla
+  autora **widoczna** — bez blokady w żadną stronę i bez statusu
+  z `User::STATUSY_UKRYWAJACE_TRESC`. Osoby niewidoczne **nie są wymieniane,
+  ale zostają w liczbie** „N innych osób” (liczba, nie imiona — D-081).
+  Blokada albo ban ustawione **po** zapisie działają tak samo: miejsce z imieniem
+  przejmuje następna widoczna osoba, reszta partii nie znika.
+- **Widoczność całego powiadomienia liczy się po `data.savers`, nie po
+  `actor_id`** (`Notification::scopeVisibleTo()`). Wiersz znika z listy
+  i z licznika dopiero wtedy, gdy niewidoczni są **wszyscy** z partii —
+  dokładnie jak pojedyncze powiadomienie od zablokowanej osoby. Blokada
+  nie kasuje wiersza, więc odblokowanie go przywraca. Wcześniej wystarczyło
+  zablokować pierwszą osobę, żeby zniknęło całe „A oraz 2 inne osoby…”,
+  a każdy następny zapis dopisywał się do ukrytego wiersza (przegląd PR #1213).
+- Otwarta partia, w której dziś nie widać nikogo, **przyjmuje** nową osobę:
+  ta właśnie przeszła kontrolę blokady, więc wiersz staje się widoczny
+  i pokazuje ją z imienia. Osobny wiersz złamałby zasadę jednej otwartej
+  partii na parę (autor, przepis).
+- `data.savers` trzyma **pełną** listę, bez obcinania: potrzebna do
+  pominięcia osoby już obecnej i do wycofania zapisu. Partia żyje tylko
+  do odczytania, a nagłówek kosztuje stałą liczbę zapytań niezależnie od
+  jej długości (jedno o pierwszą widoczną osobę + jej profil,
+  `Notification::zapisujacyDoPokazania()`).
+
+### Wiek partii
+
+Dołączenie nowej osoby **przesuwa `created_at` na teraz**. Lista jest
+ułożona od najnowszego, a retencja (`SprzatajPowiadomienia`, 3 miesiące)
+liczy wiek od `created_at` — bez tego świeży zapis lądował głęboko na liście
+i znikał razem z partią założoną miesiące wcześniej. Wycofanie zapisu
+`created_at` nie rusza.
+
+### Współbieżność
+
+Każda zmiana partii (zapis, dołączenie, wycofanie) idzie pod **blokadą
+doradczą** `pg_advisory_xact_lock(906, hashtext('<autor>:<przepis>'))`,
+trzymaną do końca transakcji. `SELECT … FOR UPDATE` sam nie wystarczał:
+przy braku partii nie ma czego zablokować, więc dwa równoległe pierwsze
+zapisy zakładały dwa wiersze. `SaveRecipeToCollection` bierze tę samą
+blokadę **przed** policzeniem zeszytów osoby, żeby równoległy zapis jednej
+osoby do dwóch jej zeszytów nie liczył się dwa razy. Pomiar na dwóch
+połączeniach: `tests/Dwa/ZbiorczyZapisNaDwochPolaczeniachTest.php`.
+
+**Odczytanie a dołączenie — świadomie zostawiony wyścig.** „Oznacz jako
+przeczytane” (`UPDATE … WHERE read_at IS NULL`) nie bierze blokady partii.
+Kiedy przegrywa z dołączeniem, czeka na blokadę wiersza i zamyka partię
+**razem** z osobą, która doszła, gdy autor miał otwartą starszą wersję
+listy — ta osoba jest w treści przeczytanego powiadomienia, ale autor mógł
+jej nie zauważyć jako nowej. Kiedy wygrywa, dołączenie widzi `read_at`
+i otwiera nową partię. Nic nie ginie z bazy ani z listy; najgorszy skutek to
+jedna osoba zaliczona do już przeczytanej wiadomości. Domknięcie tego
+wymagałoby wersjonowania treści przy odczycie — nie jest tego warte przy
+powiadomieniu, które tylko cieszy.
 
 ### Granice — te same co w `NotifyUser`
 
 Zbiorcze powiadomienie powstaje w `NotifyRecipeSaved`, nie w `NotifyUser`
-(musi aktualizować istniejący wiersz pod blokadą `FOR UPDATE`), więc powtarza
+(musi aktualizować istniejący wiersz pod blokadą partii), więc powtarza
 jego granice wprost: brak powiadomienia o własnej akcji, brak dla konta,
 które nie może czytać (`mozeCzytac()` — zawieszony autor DOSTAJE), brak przy
 blokadzie w którąkolwiek stronę. Czwarta granica jest właściwa zapisowi:

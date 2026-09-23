@@ -27,6 +27,7 @@ use App\Domain\Recipes\Actions\PublishRecipe;
 use App\Domain\Social\Actions\BlockUser;
 use App\Domain\Social\Actions\FollowUser;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Models\Collection;
 use App\Models\Post;
 use App\Models\Recipe;
 use App\Models\User;
@@ -173,6 +174,9 @@ try {
         'zapisz-przepis' => (string) app(SaveRecipeToCollection::class)->handle(
             user: User::query()->whereKey($argumenty['kto'])->firstOrFail(),
             recipe: Recipe::query()->whereKey($argumenty['przepis'])->firstOrFail(),
+            // Jawny zeszyt — jedna osoba zapisująca naraz do dwóch SWOICH
+            // zeszytów (przegląd PR #1213, D-070). Bez argumentu: domyślny.
+            collection: isset($argumenty['zeszyt']) ? Collection::query()->whereKey($argumenty['zeszyt'])->firstOrFail() : null,
         )->getKey(),
 
         'zapisz-wpis' => (string) app(SavePostToCollection::class)->handle(

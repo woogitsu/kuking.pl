@@ -31,14 +31,48 @@ use Illuminate\Support\Facades\DB;
  *     wiersza — dokłada się do tego samego, jeszcze NIEPRZECZYTANEGO
  *     powiadomienia. Odczytanie zamyka partię: następny zapis zaczyna nową.
  *
- * WZORZEC BLOKADY: `e89f28a5` (`NotifyReporterReceipt`) — warunkowy zapis
- * w transakcji zamiast liczenia na to, że dwa równoległe żądania grzecznie
- * poczekają w kolejce. Tutaj zamkiem jest `SELECT ... FOR UPDATE` na
- * otwartej (nieprzeczytanej) partii: dwa równoległe zapisy od dwóch różnych
- * osób mają dać DOKŁADNIE jedną zaktualizowaną partię, nie dwie.
+ * ZAMEK: BLOKADA DORADCZA NA PARZE (autor, przepis), NIE `FOR UPDATE`.
+ * Pierwsza wersja tej klasy zamykała się `SELECT ... FOR UPDATE` na otwartej
+ * partii — a gdy partii jeszcze NIE MA, `FOR UPDATE` nie ma czego zablokować.
+ * Dwa równoległe pierwsze zapisy (dwie różne osoby albo jedna osoba do
+ * dwóch swoich zeszytów naraz) oba widziały „brak partii” i oba zakładały
+ * wiersz (przegląd PR #1213). Blokada doradcza istnieje, zanim powstanie
+ * jakikolwiek wiersz, i trzyma do końca transakcji — także ZEWNĘTRZNEJ,
+ * w której siedzi `SaveRecipeToCollection`, więc drugi uczestnik szuka
+ * partii dopiero po zatwierdzeniu pierwszego. Pomiar:
+ * `tests/Dwa/ZbiorczyZapisNaDwochPolaczeniachTest.php`.
  */
 final class NotifyRecipeSaved
 {
+    /**
+     * Przestrzeń blokad doradczych partii zapisów (numer issue #906) —
+     * ten sam wzorzec co `PublishComment::PRZESTRZEN_BLOKAD`: pierwszy
+     * argument dzieli globalną przestrzeń PostgreSQL, żeby hasz pary nie
+     * trafił w blokadę założoną w zupełnie innej sprawie.
+     */
+    private const PRZESTRZEN_BLOKAD = 906;
+
+    /**
+     * Zamyka partię (autor, przepis) do końca BIEŻĄCEJ transakcji.
+     *
+     * Publiczna, bo `SaveRecipeToCollection` musi ją wziąć WCZEŚNIEJ niż
+     * `handle()` — przed policzeniem, ile zeszytów tej osoby ma już przepis.
+     * Inaczej dwa równoległe zapisy jednej osoby do dwóch zeszytów oba
+     * liczą „1” (drugi zeszyt jeszcze niezatwierdzony) i oba uznają się za
+     * pierwszy zapis. Blokady doradcze są wielokrotnego wejścia w obrębie
+     * jednego połączenia, więc ponowne wzięcie w `handle()` nie zakleszcza.
+     *
+     * Wymaga otwartej transakcji: poza nią `pg_advisory_xact_lock` zwalnia
+     * się po jednym zapytaniu i nie chroni niczego.
+     */
+    public function zablokujPartie(Recipe $recipe): void
+    {
+        DB::selectOne(
+            'SELECT pg_advisory_xact_lock('.self::PRZESTRZEN_BLOKAD.', hashtext(?))',
+            [$recipe->author_id.':'.$recipe->getKey()],
+        );
+    }
+
     public function handle(User $saver, Recipe $recipe): void
     {
         $recipient = $recipe->author;
@@ -65,13 +99,9 @@ final class NotifyRecipeSaved
         }
 
         DB::transaction(function () use ($saver, $recipe, $recipient): void {
-            $otwarta = Notification::query()
-                ->where('user_id', $recipient->getKey())
-                ->where('type', Notification::TYPE_SAVED)
-                ->where('data->recipe_id', $recipe->getKey())
-                ->whereNull('read_at')
-                ->lockForUpdate()
-                ->first();
+            $this->zablokujPartie($recipe);
+
+            $otwarta = $this->otwartaPartia($recipient->getKey(), $recipe);
 
             if ($otwarta === null) {
                 // PIERWSZA OSOBA — powiadamia NATYCHMIAST, osobnym wierszem.
@@ -101,14 +131,50 @@ final class NotifyRecipeSaved
 
             $savers[] = $saver->getKey();
 
+            // Partia, w której pierwsza osoba jest dziś niewidoczna dla
+            // autora (blokada albo ban po jej zapisie), PRZYJMUJE nową osobę
+            // i to jest bezpieczne: widoczność zapisu liczy się po całej
+            // liście `savers`, nie po `actor_id` (`Notification::scopeVisibleTo()`),
+            // a ta osoba właśnie przeszła kontrolę blokady wyżej — wiersz
+            // staje się więc widoczny i pokazuje ją z imienia. Osobny wiersz
+            // złamałby zasadę „jedna otwarta partia na (autor, przepis)”,
+            // na której stoi blokada doradcza.
+            //
+            // `created_at` IDZIE DO PRZODU: lista powiadomień jest ułożona
+            // od najnowszego, a retencja (`SprzatajPowiadomienia`) liczy wiek
+            // od `created_at`. Bez tego nowa osoba dopisana do partii sprzed
+            // tygodnia lądowała głęboko na liście, a partia żywa od trzech
+            // miesięcy znikała razem z dopiero co dopisanym zapisem.
             $otwarta->forceFill([
                 'actor_id' => $savers[0],
+                'created_at' => now(),
                 'data' => array_merge($otwarta->data, [
                     'savers' => $savers,
                     'others_count' => count($savers) - 1,
                 ]),
             ])->save();
         });
+    }
+
+    /**
+     * Otwarta (nieprzeczytana) partia tego autora dla tego przepisu.
+     *
+     * Wołana WYŁĄCZNIE pod `zablokujPartie()`, więc drugiej otwartej partii
+     * nowy kod nie założy. `orderByDesc` jest dla wierszy sprzed tej
+     * poprawki — wyścig mógł wtedy zostawić dwie — i wybiera zawsze tę samą,
+     * zamiast zdawać się na kolejność fizyczną tabeli.
+     */
+    private function otwartaPartia(string $autorId, Recipe $recipe): ?Notification
+    {
+        return Notification::query()
+            ->where('user_id', $autorId)
+            ->where('type', Notification::TYPE_SAVED)
+            ->where('data->recipe_id', $recipe->getKey())
+            ->whereNull('read_at')
+            ->orderByDesc('created_at')
+            ->orderByDesc('id')
+            ->lockForUpdate()
+            ->first();
     }
 
     /**
@@ -126,13 +192,9 @@ final class NotifyRecipeSaved
     public function cofnij(User $saver, Recipe $recipe): void
     {
         DB::transaction(function () use ($saver, $recipe): void {
-            $otwarta = Notification::query()
-                ->where('user_id', $recipe->author_id)
-                ->where('type', Notification::TYPE_SAVED)
-                ->where('data->recipe_id', $recipe->getKey())
-                ->whereNull('read_at')
-                ->lockForUpdate()
-                ->first();
+            $this->zablokujPartie($recipe);
+
+            $otwarta = $this->otwartaPartia((string) $recipe->author_id, $recipe);
 
             if ($otwarta === null) {
                 return;
