@@ -164,6 +164,58 @@ Przy jednoosobowym zespole to jest **tanio**.
 
 ---
 
+## 6. Co się dzieje, gdy pula 300 listów na dobę się kończy (D-239)
+
+Punkt 3 wyżej mówi „rozdziel streamy". Do D-239 rozdzielenia nie było
+nawet po naszej stronie: każda funkcja wysyłająca wiele listów miała własny sufit
+dobowy i widziała **tylko swój**, a listy bez sufitu (potwierdzenie rejestracji,
+przypomnienie hasła) nie liczyły się nigdzie. Pulę zjadał ten, kto był pierwszy.
+
+Zmierzone: `/nie-pamietam-hasla` przyjmuje 5 próśb na 10 minut z adresu IP, czyli
+720 na dobę, każdą na **inny** adres — jeden sprawca opróżniał całą pulę w około
+70 minut. Ponawianie potwierdzenia adresu (6 na minutę z konta, bez sufitu
+dobowego) robiło to samo w około 50 minut z jednego niepotwierdzonego konta.
+
+Od D-239 wszystkie drogi liczą się w **jednym** liczniku
+(`App\Domain\Security\DziennyBudzetListow::wspolny()`), a o tym, co gaśnie
+pierwsze, decyduje `kuking.poczta.progi_wygaszania`. Próg mówi, ile listów z puli
+dana klasa ma zostawić nietkniętych:
+
+| Klasa | Próg | Co obejmuje | Kiedy gaśnie |
+|---|---|---|---|
+| `podsumowanie` | 240 | tygodniowy digest | pierwsza — po 60 listach doby |
+| `zwykla` | 100 | przypomnienie hasła, odpowiedzi z „Napisz do nas" | gdy w puli zostaje 100 listów |
+| `wejscie` | 0 | potwierdzenie rejestracji (także ponowienie), logowanie linkiem | ostatnia — sięga po ostatni list doby |
+
+Kierunek jest zawsze ten sam i wynika z §5 pkt 4: podsumowanie, które nie doszło,
+jest niczym; list, bez którego nie da się wejść na konto, kończy komuś przygodę
+z serwisem, zanim się zaczęła.
+
+**Co widzi człowiek.** Przy pustej puli ekran mówi wprost, żeby nie czekać na
+list, i podaje adres kontaktowy, pod którym odpisuje człowiek — nigdy „coś poszło
+nie tak". Przy ścisku na blokadzie licznika (dwa żądania w tej samej
+milisekundzie) prosi o powtórzenie kliknięcia, bo tam drugie kliknięcie zwykle
+wystarcza.
+
+**Kiedy przejść na plan płatny.** Ostrzeżenie o zużyciu 80% sufitu idzie do
+dziennika i na kanał `blad_webhook` raz na dobę na funkcję
+(`poczta.prog_ostrzezenia_procent`, issue #234). Powtarzające się ostrzeżenie
+klasy `wejscie` znaczy, że plan STARTUP przestał wystarczać — patrz §4.
+
+**Czego ten licznik nie robi.** Nie gwarantuje, że link do logowania wyjdzie
+zawsze: klasa `wejscie` dzieli ostatnie listy doby między potwierdzenie
+rejestracji, jego ponowienie i logowanie linkiem. Masowe zakładanie kont albo
+klikanie „Wyślij wiadomość jeszcze raz" nadal może zjeść pulę do zera — wtedy
+ekran logowania linkiem mówi, że listu nie będzie, i podaje logowanie hasłem
+oraz adres kontaktowy (D-239). Nie dzieli też puli między konkretnych ludzi: jeden
+sprawca nadal wypali klasę `zwykla` na cały dzień. Nie obejmuje też jeszcze
+listów niskonakładowych z rodziny moderacyjnej (decyzje w sprawie zgłoszeń,
+potwierdzenia odwołań, dobowe podsumowanie automatu, eksport danych, ostrzeżenia
+o zmianie adresu) — każdy z nich to pojedyncze sztuki na dobę, ale dopóki się nie
+liczą, wspólna pula pokazuje mniej, niż serwis naprawdę wysłał.
+
+---
+
 ## Rekomendacja
 
 **Na alfę: EmailLabs STARTUP (0 zł)** — jedyny dostawca z listy, z którym podpiszesz umowę powierzenia po polsku, na polskim prawie, przy danych nieopuszczających EOG, a limit 300/dzień z zapasem pokrywa 50 kont. **Na skalę: EmailLabs Essential (99–129 zł/mies. do 100 tys.)**, bo przy 10 000 użytkowników szczyt digestu to 10 000 wiadomości w jedno przedpołudnie i dopiero plan bez limitu dziennego to udźwignie. **Resend i Postmark odrzucam nie z powodu ceny, tylko dlatego, że przechowują metadane i logi w USA** — Resend potwierdza to wprost w dokumentacji i nie daje ustawienia, które to zmieni, co przy serwisie dla grupy 50+ oznacza dodatkową ocenę transferu, dodatkowy akapit w polityce prywatności i gorszą rozmowę o zaufaniu. **Amazon SES w `eu-central-1` trzymaj jako plan awaryjny na wypadek eksplozji wolumenu** — jest 20× tańszy (~5 USD za 48 tys.), ale kosztuje kilka dni pracy na production access i własną obsługę bounce/complaint. **Zanim cokolwiek podpiszesz, zrób własny test 20 skrzynek** (wp.pl, o2.pl, interia.pl, onet.pl) — to jedyne dane o polskiej dostarczalności, którym można wierzyć.
