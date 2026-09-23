@@ -107,7 +107,8 @@ X-Frame-Options: DENY
     Links, bramki operatorów) otwierają linki z listów przed człowiekiem
     i zużyłyby token jednorazowy;
   - **unieważnienie razem z sesjami** — zmiana i reset hasła, „wyloguj mnie
-    z innych urządzeń", blokada, zawieszenie i zgłoszenie usunięcia konta
+    z innych urządzeń", blokada, zawieszenie, zgłoszenie usunięcia konta,
+    potwierdzenie nowego adresu e-mail (#979) i zmiana roli (#1315)
     (wisi na `User::invalidateSessions()`, żeby nie dało się o tym zapomnieć
     przy dopisywaniu kolejnego miejsca);
   - **2FA nie jest omijane**: konto z potwierdzoną weryfikacją dwuetapową
