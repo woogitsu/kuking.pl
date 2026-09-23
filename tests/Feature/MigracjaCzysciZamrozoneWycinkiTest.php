@@ -11,7 +11,7 @@ use Illuminate\Support\Str;
 use Tests\TestCase;
 
 /**
- * Strażnik migracji `2026_09_20_120000_usun_zamrozone_wycinki_komentarzy`.
+ * Strażnik migracji `2026_09_23_120000_usun_zamrozone_wycinki_komentarzy`.
  *
  * DLACZEGO TEST NA MIGRACJĘ DANYCH, A NIE SAMO JEJ URUCHOMIENIE.
  * Migracja danych wykonuje się raz i nikt jej potem nie ogląda. Jedyny

@@ -15358,6 +15358,15 @@ lista powiadomień 16 → 17 zapytań przy 2 wierszach i 66 → 67 przy 12
 (koszt wiersza bez zmiany, 5 zapytań — to oś #759, nie ta zmiana);
 eksport 25 → 26 zapytań, niezależnie od liczby powiadomień.
 
+**Stare kopie znikają z bazy, nie tylko z ekranu.** Migracja danych
+`2026_09_23_120000_usun_zamrozone_wycinki_komentarzy` zdejmuje `excerpt`
+z `notifications.data` wyłącznie w `comment.created` i `comment.replied` —
+„nie trzymamy", a nie tylko „nie czytamy". Decyzja właściciela z 23 września
+2026: wchodzi **bez kopii bazy** („to jeszcze nie produkcja, nie ma
+prawdziwych użytkowników"), więc skasowanych wycinków nic już nie odtworzy.
+`down()` jest świadomie pusty i nie odmawia — uzasadnienie według D-088
+w `docs/DATABASE.md`, w sekcji tej migracji.
+
 ## D-231 — Jedna droga wyjęcia wpisu z zeszytu, a zakres wybiera ekran (#775, #776 + D-224, 20 września 2026)
 
 Dwie prace powstały równolegle i nie wiedziały o sobie. #789 (D-224) dało

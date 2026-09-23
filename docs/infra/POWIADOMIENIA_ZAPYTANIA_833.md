@@ -84,7 +84,7 @@ Nie jest to w pełni zielony zestaw i raport go takim nie przedstawia.
 
 **Odtworzona osobno przeszkoda z bazy gałęzi:**
 `KazdaMigracjaMaWycofanieTest::test_zaden_down_nie_jest_pusty_ani_samym_komentarzem`
-odrzuca `2026_09_20_120000_usun_zamrozone_wycinki_komentarzy.php`:
+odrzuca `2026_09_23_120000_usun_zamrozone_wycinki_komentarzy.php`:
 brak deklaracji `WYCOFANIE_NIC_NIE_ROBI`. Test i migracja są identyczne
 z bazą `f8e6b444` (`git diff HEAD --` dla obu plików jest pusty).
 Nie poprawiano cudzej migracji w zadaniu dotyczącym adresów powiadomień.

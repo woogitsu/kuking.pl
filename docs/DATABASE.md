@@ -4592,7 +4592,7 @@ Czego w tych liniach nie ma: nazwy bazy, hosta, użytkownika, treści zapytań,
 
 ## Migracja danych: zamrożone wycinki komentarzy (20.09.2026)
 
-`2026_09_20_120000_usun_zamrozone_wycinki_komentarzy` — **migracja danych, nie
+`2026_09_23_120000_usun_zamrozone_wycinki_komentarzy` — **migracja danych, nie
 schematu.** Nie dodaje, nie usuwa i nie zmienia ani jednej kolumny.
 
 **Co robi.** Zdejmuje klucz `excerpt` z `notifications.data` w wierszach typu
@@ -4614,8 +4614,27 @@ której nic nie odtworzy.
 **WYCOFANIE NIE PRZYWRACA DANYCH.** `down()` jest świadomie puste: kasujemy
 wartości, których nie ma skąd odczytać z powrotem, a `down()` wpisujące
 cokolwiek wpisałoby wartość zmyśloną. Migrację można cofnąć bez błędu, ale
-**to nie jest przywrócenie**. Jedynym źródłem tych wartości po uruchomieniu
-jest kopia zapasowa bazy sprzed migracji.
+**to nie jest przywrócenie**.
+
+**Bez kopii bazy — decyzja właściciela z 23.09.2026.** Migracja wchodzi bez
+osobnej kopii zapasowej przed uruchomieniem: „to jeszcze nie produkcja, nie ma
+prawdziwych użytkowników". Po jej wykonaniu skasowanych wycinków nie odtworzy
+**nic** — ani `down()`, ani kopia. Gdyby Kuking miał już prawdziwych
+użytkowników, ta sama migracja wymagałaby kopii przed uruchomieniem.
+
+**Dlaczego rollback tu NIE odmawia (D-088, AGENTS.md §6).** Odmowa w `down()`
+jest dla wartości semantycznych, które cykl `down()` → `migrate` po cichu
+odwraca (zgoda, zakres usunięcia, widoczność). Tu takiej wartości nie ma:
+ponowne `up()` znów tylko zdejmuje klucz, a kod sprzed tej zmiany, który
+czytał `data.excerpt`, przy braku klucza pokazuje powiadomienie **bez
+wycinka** — mniej treści, nie inna decyzja człowieka. Odmowa musiałaby być
+przy tym bezwarunkowa (w bazie nie zostaje ślad, które wiersze straciły
+wycinek), czyli blokowałaby `migrate:refresh` w CI na zawsze — a to D-088
+nazywa błędem tej samej wagi w drugą stronę. Stąd świadomie pusty `down()`
+z uzasadnieniem w kodzie.
+
+Numer `2026_09_23_120000` — przenumerowane z `2026_09_20_120000` przy scalaniu
+z main (PR #1180), żeby migracja stała po najnowszej migracji na main.
 
 Strażnik: `tests/Feature/MigracjaCzysciZamrozoneWycinkiTest.php` — sprawdza
 trzy kierunki naraz (wycinek znika, reszta kluczy zostaje, obce typy są

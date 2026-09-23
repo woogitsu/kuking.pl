@@ -29,9 +29,15 @@ use Illuminate\Support\Facades\DB;
  * a nie jest. Utraty nie ma czego żałować (wycinek liczy się teraz
  * z komentarza), ale powiedzieć o niej trzeba.
  *
- * Plan wycofania dla człowieka: jeśli te wartości okażą się potrzebne,
- * jedynym źródłem jest kopia zapasowa bazy sprzed uruchomienia migracji.
- * Sama migracja nie umie ich odtworzyć i nie udaje, że umie.
+ * BEZ KOPII BAZY — DECYZJA WŁAŚCICIELA Z 23.09.2026: migracja wchodzi bez
+ * osobnej kopii zapasowej, bo „to jeszcze nie produkcja, nie ma prawdziwych
+ * użytkowników". Skasowanych wycinków nie odtworzy więc już NIC — ani ta
+ * migracja, ani kopia. Dlaczego `down()` mimo to nie odmawia (D-088):
+ * patrz `docs/DATABASE.md`, sekcja o tej migracji.
+ *
+ * Numer 2026_09_23_120000 (wcześniej 2026_09_20_120000): przenumerowane przy
+ * scalaniu z main, żeby migracja stała PO najnowszej migracji na main
+ * i nie wykonała się „w przeszłości" na bazie, która ma już nowsze.
  */
 return new class extends Migration
 {
@@ -42,8 +48,8 @@ return new class extends Migration
         .'czyli zamrożone kopie cudzej treści sprzed decyzji D-229. Tych wartości nie ma skąd '
         .'odczytać z powrotem: wycinek liczy się teraz z ŻYWEJ treści komentarza, a kopii nigdzie '
         .'indziej nie trzymamy. `down()`, które cokolwiek wpisuje, wpisałoby wartość zmyśloną — '
-        .'i to byłoby gorsze niż brak wycofania, bo wyglądałoby na prawdziwe. Jedynym źródłem '
-        .'tych danych jest kopia zapasowa bazy sprzed uruchomienia migracji.';
+        .'i to byłoby gorsze niż brak wycofania, bo wyglądałoby na prawdziwe. Kopii bazy '
+        .'przed migracją świadomie nie robimy (decyzja właściciela z 23.09.2026).';
 
     public function up(): void
     {
