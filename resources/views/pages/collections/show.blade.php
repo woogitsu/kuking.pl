@@ -75,7 +75,10 @@
             <h2 class="mt-8">Zapisane wpisy</h2>
             <div class="stack">
                 @foreach($posts as $post)
-                    <x-post-card :post="$post" />
+                    {{-- `:zeszyt` daje karcie kontekst TEGO zeszytu, więc
+                         zamiast odnośnika „Masz to w zeszycie" pokazuje
+                         przycisk usuwający TYLKO stąd (issue #775, #776). --}}
+                    <x-post-card :post="$post" :zeszyt="$collection" />
                 @endforeach
             </div>
             <x-show-more :paginator="$posts" czego="zapisanych wpisów" />
@@ -97,6 +100,19 @@
                 Te zapisy nadal są w tym zeszycie.
             </p>
         @endif
+    @endif
+
+    @if(auth()->id() === $collection->owner_id)
+        {{--
+            COFNIĘCIE PUBLICZNEGO UDOSTĘPNIENIA BEZ KASOWANIA ZESZYTU (#777).
+
+            Do tej zmiany jedyną widoczną drogą do zamknięcia publicznego
+            zeszytu było usunięcie go w całości — razem z nazwą, opisem
+            i wszystkimi zapisami. „Edytuj zeszyt" prowadzi na formularz
+            z tymi samymi trzema polami co przy zakładaniu, więc zmiana
+            widoczności nie wymaga już utraty niczego innego.
+        --}}
+        <a class="btn btn-secondary mt-6" href="{{ route('collections.edit', $collection) }}">Edytuj zeszyt</a>
     @endif
 
     @if(auth()->id() === $collection->owner_id && ! $collection->is_default)

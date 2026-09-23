@@ -6,7 +6,11 @@ namespace Tests\Feature;
 
 use Tests\TestCase;
 
-/** Pilnuje faktów historycznych raportów, nie zamraża wyboru SQL ani progów. */
+/**
+ * Pilnuje faktów historycznych raportów, nie zamraża wyboru SQL ani progów.
+ *
+ * @bez-kontroli-dodatniej Pilnuje treści historycznych raportów w docs/infra, nie źródeł aplikacji — żadna mutacja kodu nie uczyni go fałszywie zielonym, a zniknięcie raportu czerwieni na readReport.
+ */
 class RaportyPomiarowRozdzielajaStanIDowodTest extends TestCase
 {
     public function test_raport_feedu_odnotowuje_dostarczenie_pakietu(): void
