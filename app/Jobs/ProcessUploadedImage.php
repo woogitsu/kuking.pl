@@ -10,6 +10,7 @@ use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
 use Intervention\Image\ImageManager;
@@ -69,13 +70,26 @@ class ProcessUploadedImage implements ShouldQueue
 
     public function handle(): void
     {
-        $media = Media::find($this->mediaId);
+        // PRZEJĘCIE POD BLOKADĄ, NIE `find()` + `update()` (issue #1003).
+        //
+        // `deleted` znaczy w tym serwisie „kasowanie trwa" (D-083) i jest
+        // TRWAŁĄ deklaracją, że nic już tego zdjęcia nie pokaże. Stary kod
+        // odpuszczał wyłącznie `ready`, więc zadanie, które doczekało się
+        // workera po rozpoczęciu kasowania, przestawiało `deleted` z powrotem
+        // na `processing` i zapisywało świeże warianty do publicznego bucketu.
+        //
+        // Klucze wariantów (#601) zapisujemy W TEJ SAMEJ transakcji: kasowanie,
+        // które przejmie wiersz po nas, widzi je od razu i posprząta każdy
+        // plik, który zdążymy położyć.
+        $media = $this->przejmij();
 
-        if ($media === null || $media->status === Media::STATUS_READY) {
+        if ($media === null) {
             return;
         }
 
-        $media->update(['status' => Media::STATUS_PROCESSING]);
+        // Pliki, które TO zadanie naprawdę położyło w publicznym buckecie.
+        // Tylko te wolno mu skasować, gdy okaże się, że zdjęcie odchodzi.
+        $zapisane = [];
 
         try {
             // DWA DYSKI, NIE JEDEN (audyt G-01). Oryginał czytamy z bucketu
@@ -143,41 +157,6 @@ class ProcessUploadedImage implements ShouldQueue
 
             $orientation = $media->metadata['exif_orientation'] ?? null;
 
-            // KLUCZE WARIANTÓW ZAPISUJEMY, ZANIM POWSTANĄ PLIKI (#601).
-            //
-            // `KasujZdjecie` chodzi WYŁĄCZNIE po `metadata.variants`, a ta
-            // tablica zapisuje się dopiero na końcu, razem ze statusem
-            // `ready`. Dopóki zadanie nie skończy, pliki wariantów, które
-            // już poszły do publicznego bucketu, NIE MAJĄ w bazie żadnego
-            // klucza — więc nie skasuje ich ani usunięcie wpisu, ani
-            // wymazanie konta (RODO), ani sprzątanie osieroconych.
-            //
-            // Zmierzone: zadanie przerwane na drugim wariancie zostawiało
-            // plik pierwszego w publicznym buckecie NA ZAWSZE. Ta ścieżka
-            // nie jest hipotetyczna — `$timeout` przy zdjęciu 50 Mpx ubija
-            // proces W ŚRODKU pętli, bez żadnego `catch` (patrz `failed()`).
-            //
-            // Klucze są POLICZALNE Z GÓRY (`kluczPublicznegoWariantu` liczy
-            // je z `object_key` i nazwy wariantu), więc zapisujemy całą listę
-            // JEDNYM `update()` przed pętlą — zamiast dopisywać po każdym
-            // pliku. Kasowanie klucza, pod którym plik nigdy nie powstał,
-            // jest nieszkodliwe: `KasujZdjecie` sprawdza `exists()`.
-            //
-            // OSOBNY KLUCZ, NIE `variants`: `Media::wariantDoSerwowania()`
-            // czyta `variants` i pokazałoby zdjęcie w połowie przetwarzania
-            // pod nazwą wariantu, którego plik może jeszcze nie istnieć.
-            $kluczeWTrakcie = [];
-
-            foreach (array_keys(config('kuking.media.variants')) as $nazwaWariantu) {
-                $kluczeWTrakcie[] = Media::kluczPublicznegoWariantu($media->object_key, (string) $nazwaWariantu);
-            }
-
-            $media->update([
-                'metadata' => array_merge($media->metadata ?? [], [
-                    Media::METADANE_WARIANTY_W_TRAKCIE => $kluczeWTrakcie,
-                ]),
-            ]);
-
             $sourceImage = $manager->read($original);
             OrientacjaZdjecia::zastosuj($sourceImage, $orientation);
 
@@ -210,6 +189,7 @@ class ProcessUploadedImage implements ShouldQueue
                 // wcale — podanie tu widoczności byłoby dziś błędem, nie
                 // pustym gestem, i padnie od razu.
                 $publiczny->put($variantKey, (string) $encoded);
+                $zapisane[] = $variantKey;
 
                 $variants[$name] = [
                     'key' => $variantKey,
@@ -219,22 +199,49 @@ class ProcessUploadedImage implements ShouldQueue
                 ];
             }
 
-            // Lista „w trakcie" znika po sukcesie: od tej chwili KAŻDY plik
-            // ma swój klucz w `variants`, a dwa źródła prawdy o tym samym
-            // pliku rozjechałyby się przy pierwszej zmianie listy wariantów.
-            $metadane = array_merge($media->metadata ?? [], [
-                'variants' => $variants,
-                'exif_stripped' => true,
-                'orientation_applied' => $orientation !== null && $orientation !== 1,
-                'processed_at' => now()->toIso8601String(),
-            ]);
+            // PUBLIKACJA POD BLOKADĄ, Z PONOWNYM PYTANIEM O STAN (issue #1003).
+            //
+            // Kasowanie mogło zacząć się W TRAKCIE dekodowania — sprawdzenie
+            // na początku zadania tego nie powie. Najgorszy przeplot:
+            // kasowanie przejmuje wiersz, kasuje znane pliki i usuwa wiersz,
+            // a dopiero potem to zadanie kładzie warianty. Końcowy `UPDATE`
+            // nie ma już czego zmienić, a pliki zostają w publicznym buckecie
+            // bez klucza w bazie — nic ich już nie znajdzie.
+            //
+            // Blokada wiersza szereguje nas z `KasujZdjecie::przejmij()`:
+            // albo publikujemy pierwsi (i kasowanie zobaczy komplet w
+            // `variants`), albo widzimy `deleted`/brak wiersza i sprzątamy
+            // własne pliki. W transakcji nie ma ani jednego wejścia na dysk.
+            $opublikowane = DB::transaction(function () use ($variants, $orientation): bool {
+                $swieze = Media::query()->whereKey($this->mediaId)->lockForUpdate()->first();
 
-            unset($metadane[Media::METADANE_WARIANTY_W_TRAKCIE]);
+                if ($this->odchodzi($swieze)) {
+                    return false;
+                }
 
-            $media->update([
-                'status' => Media::STATUS_READY,
-                'metadata' => $metadane,
-            ]);
+                // Lista „w trakcie" znika po sukcesie: od tej chwili KAŻDY plik
+                // ma swój klucz w `variants`, a dwa źródła prawdy o tym samym
+                // pliku rozjechałyby się przy pierwszej zmianie listy wariantów.
+                $metadane = array_merge($swieze->metadata ?? [], [
+                    'variants' => $variants,
+                    'exif_stripped' => true,
+                    'orientation_applied' => $orientation !== null && $orientation !== 1,
+                    'processed_at' => now()->toIso8601String(),
+                ]);
+
+                unset($metadane[Media::METADANE_WARIANTY_W_TRAKCIE]);
+
+                $swieze->update([
+                    'status' => Media::STATUS_READY,
+                    'metadata' => $metadane,
+                ]);
+
+                return true;
+            });
+
+            if (! $opublikowane) {
+                $this->sprzatnijWlasnePliki($media, $zapisane);
+            }
         } catch (\Throwable $e) {
             Log::warning('Nie udało się przetworzyć zdjęcia', [
                 'media_id' => $media->getKey(),
@@ -242,14 +249,152 @@ class ProcessUploadedImage implements ShouldQueue
                 'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
+            // `rejected` NIE nadpisuje `deleted` (issue #1003). Zdjęcie, które
+            // w międzyczasie zaczęło odchodzić, dostaje zamiast tego sprzątnięcie
+            // plików, które to zadanie zdążyło położyć przed błędem.
+            $odrzucone = DB::transaction(function (): bool {
+                $swieze = Media::query()->whereKey($this->mediaId)->lockForUpdate()->first();
+
+                if ($this->odchodzi($swieze)) {
+                    return false;
+                }
+
+                $swieze->update([
+                    'status' => Media::STATUS_REJECTED,
+                    'metadata' => array_merge($swieze->metadata ?? [], [
+                        'failure_reason' => 'processing_failed',
+                    ]),
+                ]);
+
+                return true;
+            });
+
+            if (! $odrzucone) {
+                $this->sprzatnijWlasnePliki($media, $zapisane);
+
+                return;
+            }
+
+            throw $e;
+        }
+    }
+
+    /**
+     * Przejmuje zdjęcie do przetworzenia: blokada wiersza, decyzja POD
+     * blokadą i — w tej samej transakcji — status `processing` razem
+     * z kluczami wariantów w trakcie.
+     *
+     * `null`, gdy wiersza nie ma, gdy zdjęcie jest już gotowe (spóźniona
+     * kopia zadania) albo gdy odchodzi (`deleted`, issue #1003). Każdy inny
+     * stan — `pending`, `processing` po przerwanej próbie, `rejected` przed
+     * ponowieniem — wolno przetworzyć.
+     */
+    private function przejmij(): ?Media
+    {
+        return DB::transaction(function (): ?Media {
+            $media = Media::query()->whereKey($this->mediaId)->lockForUpdate()->first();
+
+            if ($media === null
+                || $media->status === Media::STATUS_READY
+                || $media->status === Media::STATUS_DELETED) {
+                return null;
+            }
+
+            // KLUCZE WARIANTÓW ZAPISUJEMY, ZANIM POWSTANĄ PLIKI (#601).
+            //
+            // `KasujZdjecie` chodzi WYŁĄCZNIE po `metadata.variants`, a ta
+            // tablica zapisuje się dopiero na końcu, razem ze statusem
+            // `ready`. Dopóki zadanie nie skończy, pliki wariantów, które
+            // już poszły do publicznego bucketu, NIE MAJĄ w bazie żadnego
+            // klucza — więc nie skasuje ich ani usunięcie wpisu, ani
+            // wymazanie konta (RODO), ani sprzątanie osieroconych.
+            //
+            // Zmierzone: zadanie przerwane na drugim wariancie zostawiało
+            // plik pierwszego w publicznym buckecie NA ZAWSZE. Ta ścieżka
+            // nie jest hipotetyczna — `$timeout` przy zdjęciu 50 Mpx ubija
+            // proces W ŚRODKU pętli, bez żadnego `catch` (patrz `failed()`).
+            //
+            // Klucze są POLICZALNE Z GÓRY (`kluczPublicznegoWariantu` liczy
+            // je z `object_key` i nazwy wariantu), więc zapisujemy całą listę
+            // JEDNYM `update()` przed pętlą — zamiast dopisywać po każdym
+            // pliku. Kasowanie klucza, pod którym plik nigdy nie powstał,
+            // jest nieszkodliwe: `KasujZdjecie` sprawdza `exists()`.
+            //
+            // OSOBNY KLUCZ, NIE `variants`: `Media::wariantDoSerwowania()`
+            // czyta `variants` i pokazałoby zdjęcie w połowie przetwarzania
+            // pod nazwą wariantu, którego plik może jeszcze nie istnieć.
+            $kluczeWTrakcie = [];
+
+            foreach (array_keys(config('kuking.media.variants')) as $nazwaWariantu) {
+                $kluczeWTrakcie[] = Media::kluczPublicznegoWariantu($media->object_key, (string) $nazwaWariantu);
+            }
+
             $media->update([
-                'status' => Media::STATUS_REJECTED,
+                'status' => Media::STATUS_PROCESSING,
                 'metadata' => array_merge($media->metadata ?? [], [
-                    'failure_reason' => 'processing_failed',
+                    Media::METADANE_WARIANTY_W_TRAKCIE => $kluczeWTrakcie,
                 ]),
             ]);
 
-            throw $e;
+            return $media;
+        });
+    }
+
+    /**
+     * Czy zdjęcie odchodzi: wiersza już nie ma albo kasowanie go przejęło.
+     *
+     * Wymazanie konta i sprzątanie osieroconych przejmują wiersz przez
+     * `KasujZdjecie`, więc oba zostawiają tu ten sam ślad (issue #1003).
+     */
+    private function odchodzi(?Media $media): bool
+    {
+        return $media === null || $media->status === Media::STATUS_DELETED;
+    }
+
+    /**
+     * Kasuje warianty, które TO zadanie położyło w publicznym buckecie,
+     * gdy okazało się, że zdjęcie odchodzi (issue #1003).
+     *
+     * Wyłącznie własne pliki: podgląd z wgrania i warianty sprzed tej próby
+     * zna już `KasujZdjecie` z `metadata`. Kasujemy z weryfikacją przez
+     * `exists()` — ten sam wzorzec co `KasujZdjecie::skasujZDysku()` — bo
+     * cichy `false` z dysku `throw => false` nie jest dowodem. Porażka zostaje
+     * w dzienniku z kluczem i dyskiem, bo bez nich nie da się tego dokończyć
+     * ręcznie; wiersza, do którego można by klucz dopisać, może już nie być.
+     *
+     * @param  list<string>  $klucze
+     */
+    private function sprzatnijWlasnePliki(Media $media, array $klucze): void
+    {
+        $nazwaDysku = $media->variantsDisk();
+
+        foreach ($klucze as $klucz) {
+            try {
+                $dysk = Storage::disk($nazwaDysku);
+
+                if ($dysk->exists($klucz)) {
+                    $dysk->delete($klucz);
+                }
+
+                if (! $dysk->exists($klucz)) {
+                    continue;
+                }
+            } catch (\Throwable $e) {
+                Log::error('Nie udało się usunąć wariantu zdjęcia, które odchodzi', [
+                    'media_id' => $this->mediaId,
+                    'dysk' => $nazwaDysku,
+                    'klucz' => $klucz,
+                    'error' => $e->getMessage(),
+                ]);
+
+                continue;
+            }
+
+            Log::error('Wariant zdjęcia, które odchodzi, nadal istnieje po próbie usunięcia', [
+                'media_id' => $this->mediaId,
+                'dysk' => $nazwaDysku,
+                'klucz' => $klucz,
+            ]);
         }
     }
 
@@ -280,7 +425,12 @@ class ProcessUploadedImage implements ShouldQueue
         // `ready` zostawiamy nietknięte: `failed()` może dojść po spóźnionej
         // próbie, która i tak zakończyła się sukcesem. Cofnięcie gotowego
         // zdjęcia do `rejected` skasowałoby je z widoków bez powodu.
-        if ($media === null || $media->status === Media::STATUS_READY) {
+        //
+        // `deleted` też (issue #1003): to trwała deklaracja „zdjęcie odchodzi"
+        // (D-083), a nie stan przejściowy, który wolno nadpisać porażką.
+        if ($media === null
+            || $media->status === Media::STATUS_READY
+            || $media->status === Media::STATUS_DELETED) {
             return;
         }
 
