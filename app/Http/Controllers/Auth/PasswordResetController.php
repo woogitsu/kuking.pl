@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Security\DziennyBudzetListow;
 use App\Domain\Security\LimitProbHasla;
 use App\Domain\Users\Actions\CancelEmailChange;
 use App\Http\Controllers\Controller;
@@ -73,13 +74,78 @@ class PasswordResetController extends Controller
             return back()->with('status', Poczta::komunikatBrakuPoczty());
         }
 
-        Password::sendResetLink([
+        /*
+         |------------------------------------------------------------------
+         | BUDŻET POCZTY — MIEJSCE REZERWUJEMY PRZED WYSYŁKĄ (20.09.2026)
+         |------------------------------------------------------------------
+         |
+         | Do tej pory ta droga nie miała ANI sufitu na adres, ANI budżetu
+         | poczty. Zmierzone: `limits.password_reset` to 5 próśb na 10 minut
+         | z adresu IP, czyli 720 na dobę — a każda z nich mogła iść na INNY
+         | adres. Jeden sprawca z jednego łącza wysyłał listy na 300 różnych
+         | skrzynek i opróżniał całą dobową pulę EmailLabs w około 70 minut.
+         | Pierwszą rzeczą, która wtedy przestawała działać, było potwierdzenie
+         | rejestracji i logowanie linkiem — czyli wejście dla nowych ludzi.
+         |
+         | KLASA `zwykla`, NIE `wejscie`, i to jest cała treść tej zmiany.
+         | Przypomnienie hasła też jest drogą powrotu na konto, ale prosi
+         | o nie KTOKOLWIEK Z ZEWNĄTRZ, na CUDZY adres, bez dowodu, że ten
+         | adres do niego należy. Gdyby dostało próg zero, dzieliłoby ostatnie
+         | listy doby z listem, który ma chronić. Gaśnie więc nad rezerwą
+         | transakcyjną: przestaje wysyłać, gdy w puli zostaje 100 listów,
+         | i tych stu nie dotyka (`kuking.poczta.progi_wygaszania`).
+         |
+         | Rezerwacja stoi PRZED wysyłką, bo po wysyłce jest już za późno —
+         | a miejsce, z którego nie wyszedł żaden list (adres bez konta),
+         | wraca do puli niżej. Bez tego automat wpisujący zmyślone adresy
+         | wyczerpywałby klasę `zwykla` w kilka minut, nie wysławszy nic.
+         */
+        $budzet = DziennyBudzetListow::dlaOdzyskaniaHasla();
+
+        if (! $budzet->sprobujZarezerwowac()) {
+            return back()->with('status', $this->komunikatWyczerpanejPuli($budzet));
+        }
+
+        $status = Password::sendResetLink([
             'email' => User::normalizeEmail((string) $request->input('email', '')),
         ]);
+
+        if ($status !== Password::ResetLinkSent) {
+            // NA TYM ADRESIE NIE MA KONTA (albo trwa własny limit Laravela na
+            // powtórne wysłanie tego samego tokenu), więc żaden list nie
+            // wyszedł i miejsce wraca do puli. Odpowiedź dla człowieka NIE
+            // ZMIENIA SIĘ ani o słowo — inaczej formularz odpowiadałby na
+            // pytanie, kto ma tu konto.
+            $budzet->zwolnij();
+        }
 
         return back()->with('status',
             'Jeśli na ten adres jest założone konto, wysłaliśmy na niego wiadomość z linkiem do ustawienia nowego hasła. Sprawdź też folder „Spam”.',
         );
+    }
+
+    /**
+     * DWA POWODY ODMOWY, DWA RÓŻNE ZDANIA — wzorzec z `LoginLinkController`.
+     * Przy pustej puli czekanie na list jest bezcelowe i trzeba to powiedzieć
+     * wprost; przy ścisku na blokadzie licznika drugie kliknięcie wystarcza.
+     *
+     * Odczyt puli służy WYŁĄCZNIE doborowi treści — o wysyłce rozstrzygnęła
+     * już atomowa rezerwacja (D-076). Oba zdania są takie same niezależnie od
+     * tego, czy na podanym adresie jest konto.
+     */
+    private function komunikatWyczerpanejPuli(DziennyBudzetListow $budzet): string
+    {
+        $adres = (string) config('kuking.community.contact_email');
+
+        if ($budzet->jestMiejsce()) {
+            return 'Nie udało nam się w tej chwili wypuścić tego listu — kilka próśb trafiło na siebie '
+                .'w tej samej sekundzie. Kliknij „Wyślij link” jeszcze raz. Jeśli znowu nie wyjdzie, '
+                .'napisz do nas na '.$adres.', a pomożemy Ci wrócić na konto. Odpisuje człowiek.';
+        }
+
+        return 'Dzisiaj wysłaliśmy już wszystkie listy z linkiem do nowego hasła, jakie mieliśmy na dziś, '
+            .'więc ten nie wyjdzie — nie czekaj na niego. Spróbuj jutro albo napisz do nas na '
+            .$adres.', a pomożemy Ci wrócić na konto. Odpisuje człowiek.';
     }
 
     public function resetForm(Request $request, string $token): View

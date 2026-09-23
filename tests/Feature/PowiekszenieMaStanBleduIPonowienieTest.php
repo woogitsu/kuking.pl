@@ -26,6 +26,8 @@ use Tests\TestCase;
  *      zdarzenie z POPRZEDNIEGO zdjęcia nadpisze stan NASTĘPNEGO
  *      (porównanie `obraz.src === biezacyAdres`);
  *   3. ponowienie faktycznie zmienia adres (nie jest no-opem).
+ *
+ * @bez-kontroli-dodatniej assertNotFalse na obu granicach bloku w app.js sprawia, że zniknięcie bloku daje czerwień, nie zieleń nad pustym wycinkiem.
  */
 class PowiekszenieMaStanBleduIPonowienieTest extends TestCase
 {

@@ -1,6 +1,7 @@
 /*
  * =============================================================================
- *  Kuking.pl — pomiar przycisku „Usuń z zeszytu" na karcie wpisu (audyt L1)
+ *  Kuking.pl — pomiar przycisku wyjęcia wpisu z zeszytu na karcie (audyt L1,
+ *  po ujednoliceniu dwóch dróg — D-231)
  * =============================================================================
  *
  *  PO CO TO JEST
@@ -196,7 +197,15 @@ const POMIAR = () => {
     };
   };
 
-  const wyjmij = document.querySelector('[data-rola="wyjmij-z-zeszytu"]');
+  /*
+   * JEDEN SELEKTOR NA OBIE DROGI WYJĘCIA (D-231).
+   *
+   * Ten sam przycisk nazywa się inaczej w zależności od zakresu: w środku
+   * zeszytu „Usuń z tego zeszytu" (`wyjmij-z-tego-zeszytu`), poza nim
+   * „Usuń z zeszytu" (`wyjmij-z-zeszytu`). Mierzymy ten, który akurat stoi
+   * na ekranie — a `napis` niżej mówi, który to był.
+   */
+  const wyjmij = document.querySelector('[data-rola^="wyjmij-z-"]');
   const stan = document.querySelector('[data-rola="stan-zapisu"]');
   const powrot = document.querySelector('[data-rola="powrot-po-akcji"]');
 
@@ -272,7 +281,7 @@ try {
       const strona = await kontekst.newPage();
 
       await strona.goto(adres + ekran.sciezka);
-      await strona.waitForSelector('[data-rola="wyjmij-z-zeszytu"]', { timeout: 15000 });
+      await strona.waitForSelector('[data-rola^="wyjmij-z-"]', { timeout: 15000 });
 
       /*
        * SKALĘ TEKSTU USTAWIAMY PO ZAŁADOWANIU, NIE `addInitScript`.
@@ -298,15 +307,18 @@ try {
 
       console.log(`=== ${wariant.nazwa} · ${ekran.nazwa} ===`);
       console.log(`  „${p.wyjmij.napis}"  ${p.wyjmij.szerokosc} × ${p.wyjmij.wysokosc} px, pismo ${p.wyjmij.pismo} px`);
-      console.log(`  „${p.stan.napis}"  ${p.stan.szerokosc} × ${p.stan.wysokosc} px`);
-      console.log(`  przerwa od „Masz to w zeszycie": ${p.przerwaOdStanu} px`);
+      console.log(`  „${p.stan?.napis ?? '— (w zeszycie nie ma odnośnika stanu)'}"  ${p.stan?.szerokosc ?? '—'} × ${p.stan?.wysokosc ?? '—'} px`);
+      console.log(`  przerwa od „Masz to w zeszycie": ${p.przerwaOdStanu ?? 'nie dotyczy (ekran zeszytu)'}`);
       console.log(`  scrollWidth ${p.scrollWidth} px przy oknie ${p.okno} px`);
 
       sprawdz(p.wyjmij.wysokosc >= PROG_PRZYCISK,
         `${wariant.nazwa} · ${ekran.nazwa}: przycisk ma ${p.wyjmij.wysokosc} px wysokości, próg to ${PROG_PRZYCISK}.`);
       sprawdz(p.wyjmij.pismo >= PROG_TEKST,
         `${wariant.nazwa} · ${ekran.nazwa}: pismo w przycisku ma ${p.wyjmij.pismo} px, próg to ${PROG_TEKST}.`);
-      sprawdz(p.przerwaOdStanu > 0,
+      // Przerwa ma sens tylko tam, gdzie odnośnik „Masz to w zeszycie" w ogóle
+      // stoi — czyli POZA zeszytem (D-231). W zeszycie przycisk jest jedyną
+      // rzeczą w tym miejscu paska i nie ma się z czym stykać.
+      sprawdz(p.stan === null || p.przerwaOdStanu > 0,
         `${wariant.nazwa} · ${ekran.nazwa}: przycisk kasujący styka się z „Masz to w zeszycie" (${p.przerwaOdStanu} px).`);
       sprawdz(p.scrollWidth <= p.okno,
         `${wariant.nazwa} · ${ekran.nazwa}: strona przewija się w bok (${p.scrollWidth} px przy oknie ${p.okno} px).`);
@@ -373,18 +385,18 @@ try {
 
   const przed = await strona.evaluate(POMIAR).catch(() => null);
   console.log('=== bez JavaScriptu · zeszyt ===');
-  console.log(`  przycisk widoczny: ${await strona.locator('[data-rola="wyjmij-z-zeszytu"]').count() === 1}`);
+  console.log(`  przycisk widoczny: ${await strona.locator('[data-rola^="wyjmij-z-"]').count() === 1}`);
 
   await Promise.all([
     strona.waitForNavigation({ timeout: 15000 }),
-    strona.click('[data-rola="wyjmij-z-zeszytu"]'),
+    strona.click('[data-rola^="wyjmij-z-"]'),
   ]);
 
   const po = await strona.evaluate(POMIAR);
 
   console.log(`  komunikat: „${po.flash}"`);
   console.log(`  powrót: „${po.powrot?.napis}"  ${po.powrot?.szerokosc} × ${po.powrot?.wysokosc} px, pismo ${po.powrot?.pismo} px`);
-  console.log(`  wpis nadal w zeszycie: ${await strona.locator('[data-rola="wyjmij-z-zeszytu"]').count() > 0}`);
+  console.log(`  wpis nadal w zeszycie: ${await strona.locator('[data-rola^="wyjmij-z-"]').count() > 0}`);
   console.log(`  scrollWidth ${po.scrollWidth} px przy oknie ${po.okno} px`);
 
   sprawdz(przed !== null, 'Bez JavaScriptu nie udało się w ogóle zmierzyć ekranu zeszytu.');
