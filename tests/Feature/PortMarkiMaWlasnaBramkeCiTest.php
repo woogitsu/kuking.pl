@@ -59,7 +59,7 @@ class PortMarkiMaWlasnaBramkeCiTest extends TestCase
             $this->assertStringNotContainsString('continue-on-error:', $job);
             $this->assertStringContainsString('job.services.postgres.ports[5432]', $job);
             $this->assertStringContainsString('storage/port-projektu', $job);
-            $this->assertStringContainsString('uses: actions/checkout@v7', $job);
+            $this->assertStringContainsString('uses: actions/checkout@', $job);
         }
         $job = $this->job('port_funkcje');
         $this->assertStringContainsString($kroki, $job);

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\ZalozKonto;
 use App\Domain\Users\ZamekKonta;
 use App\Google\KlientGoogle;
@@ -599,7 +600,7 @@ class GoogleLoginController extends Controller
          */
         if ($user->hasTwoFactorConfirmed()) {
             $request->session()->regenerate();
-            $request->session()->put('logowanie.2fa.user_id', $user->getKey());
+            $request->session()->put(TwoFactorAuthenticator::oczekujaceLogowanie($user));
 
             return redirect()->route('login.two_factor');
         }
