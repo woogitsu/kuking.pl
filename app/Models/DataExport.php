@@ -22,6 +22,23 @@ class DataExport extends Model
 
     public const STATUS_EXPIRED = 'expired';
 
+    /**
+     * Po ilu minutach bez ruchu rekord `queued` uznajemy za PORZUCONY
+     * i wolno go ponowić (audyt A02).
+     *
+     * Piętnaście, bo tyle wynosi `GenerateUserExport::$timeout` i tyle mówi
+     * człowiekowi komunikat po zgłoszeniu („To może potrwać kilkanaście
+     * minut"). Krótsza granica ponawiałaby zadania, które po prostu czekają
+     * w kolejce za czyjąś paczką; dłuższa trzymałaby człowieka w stanie,
+     * w którym ekran mówi „już przygotowujemy", a nie przygotowuje nikt.
+     *
+     * Stała, a nie `config/kuking.php`, i to jest DŁUG do spłacenia: ten
+     * plik konfiguracji jest zajęty przez otwarty PR #331, a limit ma
+     * mieszkać razem z pozostałymi (`AGENTS.md` §7). Przeniesienie go to
+     * jedna linijka po scaleniu tamtej gałęzi.
+     */
+    public const MINUT_NA_PODJECIE = 15;
+
     /** Konto zostało usunięte, zanim job zdążył zbudować paczkę (`GenerateUserExport::handle()`). */
     public const REASON_ACCOUNT_MISSING = 'account_missing';
 
