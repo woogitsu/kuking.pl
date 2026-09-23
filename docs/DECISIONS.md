@@ -16180,5 +16180,16 @@ przy człowieku: „groźby zagrażające życiu" (P0 w tabeli) wchodzą jako
 (P0) wchodzi jako `personal_data`, czyli P1, z tego samego powodu. Oba są
 nazwane wprost w podręczniku, zamiast udawać, że kod je rozpoznaje.
 
+**Obok D-244, D-249 i #1446 (scalenie 23 września).** Priorytet zmienia
+wyłącznie kolejność czytania, więc nie dotyka reguł, KTO rozstrzyga i CO się
+wtedy zapisuje: własnej sprawy nadal nie rozstrzyga nikt (D-244), decyzja
+i jej wpis w dzienniku audytu powstają razem albo wcale (D-249), a usunięcie
+treści idzie wyłącznie przez formularz decyzji w panelu (#1446). Alarm nie
+zapisuje niczego do audytu i nie prowadzi do żadnej akcji poza kolejką.
+Jedno zdanie listu trzeba było zmienić: „Decyzja należy do Ciebie" byłoby
+nieprawdą, gdy zgłosił sam moderator, a list trafia na wspólny adres
+alarmowy — list mówi teraz, że rozstrzyga moderator, który zgłoszenia nie
+wniósł.
+
 Dowody: `tests/Feature/KolejkaModeracjiStawiaPilneNaGorzeTest.php`
 i `tests/Feature/KolejkiModeracjiMajaStabilnyPorzadekTest.php`.

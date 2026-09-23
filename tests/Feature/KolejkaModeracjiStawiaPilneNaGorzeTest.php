@@ -238,6 +238,24 @@ class KolejkaModeracjiStawiaPilneNaGorzeTest extends TestCase
         Notification::assertSentOnDemandTimes(PilneZgloszenieOdCzlowieka::class, 1);
     }
 
+    /**
+     * LIST NIE MÓWI ADRESATOWI „DECYZJA NALEŻY DO CIEBIE" (D-244).
+     *
+     * Adres alarmowy jest wspólny, a zgłosić może też moderator. Własnej
+     * sprawy nie rozstrzyga nikt, więc list mówi, kto rozstrzyga — zamiast
+     * zapraszać do decyzji, której serwer i tak odmówi.
+     */
+    public function test_list_alarmowy_nie_zaprasza_zglaszajacego_do_wlasnej_sprawy(): void
+    {
+        $zgloszenie = $this->zglosWpis('minor');
+
+        $list = (new PilneZgloszenieOdCzlowieka($zgloszenie))->toMail(new \stdClass);
+        $tresc = implode("\n", [...$list->introLines, ...$list->outroLines]);
+
+        $this->assertStringNotContainsString('Decyzja należy do Ciebie', $tresc);
+        $this->assertStringContainsString('Rozstrzyga moderator, który tego zgłoszenia nie wniósł.', $tresc);
+    }
+
     // ---------------------------------------------------------------
     // Reguła: PHP i SQL liczą to samo
     // ---------------------------------------------------------------

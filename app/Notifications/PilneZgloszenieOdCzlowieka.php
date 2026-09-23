@@ -72,9 +72,14 @@ final class PilneZgloszenieOdCzlowieka extends Notification implements ShouldQue
             ->line('**Kategoria:** '.$this->zgloszenie->reasonLabel())
             ->line('Nr sprawy: **'.$this->zgloszenie->numer_sprawy.'**')
             ->action('Otwórz kolejkę zgłoszeń', route('admin.reports'))
+            // „Decyzja należy do Ciebie" — jak w alarmie automatu — byłoby
+            // tu nieprawdą w jednym przypadku: gdy zgłosił sam moderator,
+            // a list trafia na wspólny adres alarmowy. Własnego zgłoszenia
+            // nie rozstrzyga nikt (D-244), więc list mówi, KTO rozstrzyga.
             ->line('Kategorię wybrał zgłaszający i nikt jej jeszcze nie sprawdził. '
                 .'Treść jest w serwisie widoczna normalnie — samo zgłoszenie niczego '
-                .'nie ukryło ani nie zablokowało. Decyzja należy do Ciebie.')
+                .'nie ukryło ani nie zablokowało. Rozstrzyga moderator, który tego '
+                .'zgłoszenia nie wniósł.')
             ->salutation('Kuking');
     }
 
