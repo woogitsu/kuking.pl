@@ -118,6 +118,8 @@ use Tests\TestCase;
  * i kontrola z drugiej strony — `Hash::make(Str::random(64))`
  * w `TrescZalazkowaSeeder` trafieniem NIE jest, bo wyrażenie liczy literał,
  * a nie słowo „Hash".
+ *
+ * @bez-kontroli-dodatniej Każdy z pięciu skanów pilnuje własnej liczebności przez assertGreaterThanOrEqual, więc przebieg nad pustym zbiorem plików czerwieni.
  */
 class PoswiadczeniaPozaRepozytoriumTest extends TestCase
 {
