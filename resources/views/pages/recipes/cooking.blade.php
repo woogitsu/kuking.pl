@@ -83,8 +83,11 @@
                             <li>
                                 {{ $ingredient->ingredient_text }}
                                 {{-- „do smaku” tylko wtedy, gdy autor NIE napisał
-                                     tego sam w tekście składnika (issue #44),
-                                     ten sam warunek co na stronie przepisu. --}}
+                                     tego sam w tekście składnika (issue #44).
+                                     DOPISEK JEST CELOWY I TYLKO TUTAJ (D-232): to widok
+                                     roboczy przy garnku, gdzie gołe „sól” wygląda jak
+                                     brak informacji. Strona przepisu dopisku NIE daje
+                                     i tak ma zostać — nie zbieraj tych wierszy w jeden. --}}
                                 @if($ingredient->no_amount && ! str_contains(mb_strtolower($ingredient->ingredient_text), 'do smaku'))
                                     <span class="meta"> — do smaku</span>
                                 @endif
