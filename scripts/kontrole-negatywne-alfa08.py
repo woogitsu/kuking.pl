@@ -94,6 +94,13 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Polityka prywatności a lokalizacja zdjęć (#619, domknięcie #1278). Strażnik
+# skanuje CAŁY dokument w poszukiwaniu zdania łączącego zdjęcia z UE bez
+# zastrzeżenia. Mutacja przywraca dokładnie to zdanie §3, które przetrwało #1278
+# i które znalazł dopiero audyt przed wdrożeniem 23.09.2026.
+POLITYKA_PRYWATNOSCI = "resources/legal/polityka-prywatnosci.md"
+POLITYKA_ZDJECIA_UE_TEST = "test_polityka_nigdzie_nie_obiecuje_zdjec_w_ue_bez_pokrycia_w_endpoincie"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -211,6 +218,19 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
     )
 
 
+def zdjecia_z_powrotem_w_ue(source):
+    """KONTROLA DODATNIA: przywróć w §3 obietnicę, że zdjęcia są dziś w UE.
+
+    Wiersz Cloudflare R2 i streszczenie zostają prawdziwe, więc test #1278
+    nadal przechodzi — zapalić ma wyłącznie skan całego dokumentu.
+    """
+    return replace_once(
+        source,
+        "dziś tak jest w przypadku hostingu, bazy i poczty.",
+        "dziś tak jest w przypadku hostingu, bazy, zdjęć i poczty.",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -230,6 +250,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Polityka znów obiecuje zdjęcia w UE", POLITYKA_PRYWATNOSCI, POLITYKA_ZDJECIA_UE_TEST,
+     zdjecia_z_powrotem_w_ue),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -238,6 +260,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(POLITYKA_ZDJECIA_UE_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

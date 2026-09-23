@@ -234,24 +234,7 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
     {
         $tresc = $this->tresc('polityka-prywatnosci.md');
 
-        $endpoint = (string) config('filesystems.disks.r2.endpoint');
-        $host = strtolower((string) parse_url($endpoint, PHP_URL_HOST));
-        $ogonEndpointuR2 = '.r2.cloudflarestorage.com';
-
-        $jurysdykcja = null;
-
-        if ($host !== '' && str_ends_with($host, $ogonEndpointuR2)) {
-            $czesci = array_values(array_filter(
-                explode('.', substr($host, 0, -strlen($ogonEndpointuR2))),
-                static fn (string $c): bool => $c !== '',
-            ));
-
-            if (count($czesci) === 2) {
-                $jurysdykcja = $czesci[1];
-            }
-        }
-
-        $potwierdzoneUE = $jurysdykcja === 'eu';
+        $potwierdzoneUE = self::endpointR2NiesieJurysdykcjeUE();
 
         // Wiersz tabeli sekcji 3, gdzie R2 obiecuje lokalizację zdjęć.
         // Kotwicą jest nazwa dostawcy z pierwszej kolumny, tak jak przy
@@ -311,6 +294,96 @@ class DokumentyPrawneNieKlamiaTest extends TestCase
                 .'leżą w Unii Europejskiej, choć R2 tego nie potwierdza.',
             );
         }
+    }
+
+    /**
+     * Segment jurysdykcji `eu` w hoście `<konto>.eu.r2.cloudflarestorage.com`
+     * — to samo sprawdzenie, które robi `BramkaR2::endpointNiesieJurysdykcjeUE()`.
+     * Wspólne dla obu pomiarów obietnicy o zdjęciach niżej i wyżej.
+     */
+    private static function endpointR2NiesieJurysdykcjeUE(): bool
+    {
+        $endpoint = (string) config('filesystems.disks.r2.endpoint');
+        $host = strtolower((string) parse_url($endpoint, PHP_URL_HOST));
+        $ogonEndpointuR2 = '.r2.cloudflarestorage.com';
+
+        if ($host === '' || ! str_ends_with($host, $ogonEndpointuR2)) {
+            return false;
+        }
+
+        $czesci = array_values(array_filter(
+            explode('.', substr($host, 0, -strlen($ogonEndpointuR2))),
+            static fn (string $c): bool => $c !== '',
+        ));
+
+        return count($czesci) === 2 && $czesci[1] === 'eu';
+    }
+
+    /**
+     * Zdania, które mówią o zdjęciach i o Unii Europejskiej naraz, a nie
+     * zastrzegają, że lokalizacji nie potwierdzono. Zdanie to kawałek między
+     * kropką (wykrzyknikiem, pytajnikiem) a następnym, albo jedna linia —
+     * wiersz tabeli jest więc osobnym „zdaniem".
+     *
+     * @return list<string>
+     */
+    private static function zdaniaObiecujaceZdjeciaWUE(string $tekst): array
+    {
+        $zdania = preg_split('/(?<=[.!?])\s+|\R+/u', $tekst) ?: [];
+
+        return array_values(array_filter(
+            $zdania,
+            static fn (string $zdanie): bool => preg_match('/zdję/ui', $zdanie) === 1
+                && preg_match('/\bUE\b|Unii Europejskiej|Unia Europejska|Unię Europejską/u', $zdanie) === 1
+                && preg_match('/nie potwierdzi/ui', $zdanie) !== 1,
+        ));
+    }
+
+    /**
+     * DOMKNIĘCIE #1278 (#619). Test wyżej pilnuje wiersza Cloudflare R2
+     * i streszczenia, ale nie reszty pliku — i dlatego po #1278 akapit
+     * o przekazywaniu poza EOG nadal mówił, że w UE są dziś „hosting, baza,
+     * zdjęcia i poczta" (znalezisko audytu przed wdrożeniem 23.09.2026).
+     * Ta sama obietnica w innym akapicie jest tą samą nieprawdą, więc dopóki
+     * `AWS_ENDPOINT` nie niesie segmentu `eu`, ŻADNE zdanie polityki nie może
+     * łączyć zdjęć z Unią Europejską bez zastrzeżenia, że tego nie
+     * potwierdziliśmy.
+     */
+    public function test_polityka_nigdzie_nie_obiecuje_zdjec_w_ue_bez_pokrycia_w_endpoincie(): void
+    {
+        // KONTROLA wykrywacza, zanim zmierzy dokument: łapie zdanie, które
+        // stało w §3 do 23.09.2026, i przepuszcza te, które #1278 wprowadził.
+        $this->assertNotEmpty(self::zdaniaObiecujaceZdjeciaWUE(
+            'Staramy się, żeby wszystkie dane pozostawały w UE, i dziś tak jest w przypadku hostingu, bazy, zdjęć i poczty. Wyjątki są trzy.',
+        ), 'Kontrola: wykrywacz nie złapał zdania, które obiecywało zdjęcia w UE.');
+        $this->assertNotEmpty(self::zdaniaObiecujaceZdjeciaWUE(
+            '| Cloudflare R2 | Przechowywanie zdjęć | Unia Europejska |',
+        ), 'Kontrola: wykrywacz nie złapał wiersza tabeli, który obiecuje zdjęcia w UE.');
+        $this->assertSame([], self::zdaniaObiecujaceZdjeciaWUE(
+            "Serwer, na którym działa Kuking, stoi w Unii Europejskiej. Miejsca przechowywania zdjęć dziś nie potwierdziliśmy — piszemy o tym dokładniej w sekcji 3.\n"
+            .'| Cloudflare R2 | Przechowywanie zdjęć | Nie potwierdziliśmy, że zdjęcia leżą wyłącznie w Unii Europejskiej |',
+        ), 'Kontrola: wykrywacz zapalił na zdaniach, które mówią prawdę o zdjęciach.');
+
+        $tresc = $this->tresc('polityka-prywatnosci.md');
+
+        // KONTROLA: dokument w ogóle mówi o zdjęciach i o UE — inaczej skan
+        // niżej mierzyłby pustkę (`docs/PULAPKI_TESTOW.md` §2).
+        $this->assertMatchesRegularExpression('/zdję/ui', $tresc, 'Kontrola: polityka nie wspomina o zdjęciach.');
+        $this->assertMatchesRegularExpression('/Unii Europejskiej/u', $tresc, 'Kontrola: polityka nie wspomina o Unii Europejskiej.');
+
+        if (self::endpointR2NiesieJurysdykcjeUE()) {
+            // Obietnica ma wtedy pokrycie; kierunek „musi to powiedzieć"
+            // pilnuje test wyżej, na wierszu Cloudflare R2.
+            return;
+        }
+
+        $this->assertSame(
+            [],
+            self::zdaniaObiecujaceZdjeciaWUE($tresc),
+            'Polityka łączy zdjęcia z Unią Europejską bez zastrzeżenia, choć `AWS_ENDPOINT` '
+            .'nie niesie segmentu jurysdykcji `eu` — tej obietnicy nie da się dziś potwierdzić '
+            .'z konfiguracji (#619, #1278). Zdania:',
+        );
     }
 
     /**
