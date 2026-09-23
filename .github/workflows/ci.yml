@@ -338,40 +338,43 @@ jobs:
           fi
 
   # ===========================================================================
-  #  0b. Podbicie wersji — bramka reguły z `config/kuking.php`
+  #  0b. Wpis w CHANGELOG — bramka reguły „Wersja i CHANGELOG" z AGENTS.md
   #
-  #  Reguła nad `wersja.etykieta` mówi, że cyfra rośnie przy każdej zmianie,
-  #  którą człowiek zobaczy, i że każde podbicie ma wpis w `CHANGELOG.md`.
-  #  Do 22 września 2026 stała wyłącznie jako komentarz i przez to przestała
-  #  działać: etykieta `Alfa 0.67` nie ruszyła się przez 292 commity.
+  #  Zmiana w warstwie widocznej dla człowieka (widoki, style, JS, `lang/`,
+  #  `public/`) ma dopisać linię w sekcji `## Nieopublikowane` na górze
+  #  `CHANGELOG.md` — albo nieść `Bez-podbicia-wersji: <powód>` w opisie PR-a
+  #  lub w commicie. Numeru wersji PR NIE podbija: rośnie raz, przy wydaniu
+  #  (decyzja właściciela 23.09.2026 — podbicie w każdym PR-ze dawało
+  #  konflikty między równoległymi gałęziami).
   #
   #  DLACZEGO TU, A NIE W `check.sh`. Hook przed pchnięciem chodzi przy KAŻDYM
-  #  pchnięciu, także przy pierwszym z pięciu na tej samej gałęzi — a wersję
-  #  podbija się raz, na końcu. Bramka w hooku blokowałaby pracę w toku
-  #  i nauczyłaby wszystkich `--no-verify`. Tutaj zna dokładną bazę PR-a
-  #  (`base.sha`) i pełną historię, czyli mierzy naprawdę „to, co wchodzi
-  #  do main", a nie „to, co akurat mam pod ręką".
+  #  pchnięciu, także przy pierwszym z pięciu na tej samej gałęzi, i nie zna
+  #  opisu PR-a. Tutaj bramka zna dokładną bazę (`base.sha`), pełną historię
+  #  i opis, czyli mierzy „to, co wchodzi do main".
   #
   #  Logika siedzi w `scripts/bramka-wersji.sh`, nie w tym YAML-u — żeby dało
   #  się ją uruchomić ręcznie i odtworzyć czerwień bez pchania do CI.
   # ===========================================================================
   bramka_wersji:
-    name: Podbicie wersji i wpis w CHANGELOG
+    name: Wpis w CHANGELOG przy zmianie widocznej
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
     timeout-minutes: 5
 
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           # Pełna historia — bramka czyta treści WSZYSTKICH commitów zakresu
-          # (tam stoi furtka `Bez-podbicia-wersji:`) i plik z bazy.
+          # (tam może stać furtka `Bez-podbicia-wersji:`) i plik z bazy.
           fetch-depth: 0
 
-      - name: Czy warstwa widoczna dla człowieka pociągnęła wersję
+      - name: Czy zmiana widoczna dla człowieka ma wpis w „Nieopublikowane"
         env:
           BAZA: ${{ github.event_name == 'pull_request' && github.event.pull_request.base.sha || github.event.before }}
+          # Opis PR-a idzie ZMIENNĄ, nie wklejką w skrypt — to tekst od
+          # dowolnego autora PR-a i nie może stać się kodem powłoki.
+          KUKING_OPIS_PR: ${{ github.event.pull_request.body || '' }}
         run: |
           set -uo pipefail
 

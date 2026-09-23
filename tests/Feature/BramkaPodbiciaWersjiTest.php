@@ -4,87 +4,215 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use Illuminate\Support\Facades\File;
+use Symfony\Component\Process\Process;
 use Tests\TestCase;
 
 /**
- * Bramka podbicia wersji — czy nadal stoi w CI i czy furtka nadal jest furtką.
+ * Bramka wpisu w CHANGELOG — czy stoi w CI i czy naprawdę odróżnia zieleń od czerwieni.
  *
- * DWA KIERUNKI TEJ SAMEJ REGUŁY — I DLACZEGO SĄ DWA STRAŻNIKI.
- * Komentarz nad `'etykieta'` w `config/kuking.php` wiąże dwie rzeczy:
+ * DWA STRAŻNIKI TEJ SAMEJ REGUŁY („Wersja i CHANGELOG" w AGENTS.md):
  *
- *   (a) „KAŻDE PODBICIE CYFRY MA WPIS W `CHANGELOG.md`" — czyli
- *       podbito wersję ⇒ musi być wpis. Tego pilnuje
- *       `PodbicieWersjiWymagaWpisuWChangelogTest` (21.09.2026): porównuje
- *       aktualną etykietę z nagłówkiem najświeższego wpisu, BEZ gita, więc
- *       chodzi też tam, gdzie historii nie ma (runtime floty z rsynca).
+ *   (a) `PodbicieWersjiWymagaWpisuWChangelogTest` — niezmiennik stanu drzewa,
+ *       bez gita: CHANGELOG zaczyna się sekcją `## Nieopublikowane`, a pierwszy
+ *       nagłówek wersji pod nią to aktualna `wersja.etykieta`.
  *
- *   (b) „CYFRA ROŚNIE PRZY KAŻDEJ ZMIANIE, KTÓRĄ CZŁOWIEK ZOBACZY" — czyli
- *       zmiana w warstwie widocznej ⇒ musi być podbicie. Tego nie pilnowało
- *       NIC, i to właśnie ten kierunek zgłosił właściciel: etykieta
- *       „Alfa 0.67" weszła 18 września 2026 (06c8c7e5) i stała cztery dni,
- *       przez 292 commity na `main`, w tym kilkanaście zmieniających rzeczy
- *       widoczne dla człowieka. Tego pilnuje `scripts/bramka-wersji.sh`.
+ *   (b) `scripts/bramka-wersji.sh` — pytanie o RÓŻNICĘ: zakres, który rusza
+ *       warstwę widoczną dla człowieka, dopisuje linię do „Nieopublikowane"
+ *       (albo jest wydaniem, albo niesie furtkę `Bez-podbicia-wersji:`).
  *
- * To NIE są dwie kopie tej samej bramki. (a) jest niezmiennikiem stanu drzewa
- * i nie potrzebuje zakresu; (b) jest pytaniem o RÓŻNICĘ i bez zakresu gita nie
- * da się go zadać. Żadne z nich nie łapie tego, co drugie: (a) przechodzi
- * zielono przy zmianie widoku bez podbicia, (b) przechodzi zielono przy
- * podbiciu, którego nikt nie wymusił.
+ * Żaden nie łapie tego, co drugi: (a) jest zielony przy zmianie widoku bez
+ * wpisu, (b) przy CHANGELOG-u, któremu ktoś skasował sekcję poza zakresem.
  *
- * CZEGO TEN TEST NIE ROBI. Nie odtwarza czerwieni bramki — ta liczy na
- * ZAKRESIE gita i mierzy się ją uruchomieniem skryptu na przygotowanych
- * gałęziach, nie PHPUnitem. Ten test pilnuje dwóch rzeczy, których skrypt
- * o sobie nie powie: że jest podpięty i że nie został po cichu rozbrojony.
+ * JAK TEN TEST SPRAWDZA SKRYPT. Nie czyta jego treści, tylko go URUCHAMIA:
+ * kopiuje `scripts/bramka-wersji.sh` do świeżego repozytorium w katalogu
+ * tymczasowym, robi tam commity i patrzy na kod wyjścia. Każdy przypadek
+ * czerwony ma bliźniaka zielonego, różniącego się jedną rzeczą — inaczej
+ * czerwień mogłaby brać się z czegokolwiek innego niż reguła.
  */
 class BramkaPodbiciaWersjiTest extends TestCase
 {
-    private function workflow(): string
+    private string $repo;
+
+    private const CHANGELOG = "# Co się zmieniło w Kuking\n\n"
+        ."## Nieopublikowane\n\n> Tu trafia wpis.\n\n"
+        ."## Alfa 0.68 — minutnik\n\n- Stary wpis.\n";
+
+    private const CONFIG = "<?php\n\nreturn [\n    'wersja' => [\n        'etykieta' => 'Alfa 0.68',\n    ],\n];\n";
+
+    protected function setUp(): void
     {
-        return (string) file_get_contents(base_path('.github/workflows/ci.yml'));
+        parent::setUp();
+
+        $this->repo = sys_get_temp_dir().'/kuking-bramka-'.bin2hex(random_bytes(6));
+        File::ensureDirectoryExists($this->repo.'/scripts');
+        File::copy(base_path('scripts/bramka-wersji.sh'), $this->repo.'/scripts/bramka-wersji.sh');
+
+        $this->git('init', '-q', '-b', 'main');
+        $this->zapisz('CHANGELOG.md', self::CHANGELOG);
+        $this->zapisz('config/kuking.php', self::CONFIG);
+        $this->zapisz('resources/views/strona.blade.php', "<p>Stara</p>\n");
+        $this->zapisz('lang/pl.json', "{}\n");
+        $this->commit('baza');
+    }
+
+    protected function tearDown(): void
+    {
+        File::deleteDirectory($this->repo);
+
+        parent::tearDown();
+    }
+
+    public function test_zmiana_widoku_bez_wpisu_oblewa(): void
+    {
+        $this->zapisz('resources/views/strona.blade.php', "<p>Nowa</p>\n");
+        $this->commit('zmiana widoku');
+
+        [$kod, $wyjscie] = $this->bramka();
+
+        $this->assertSame(1, $kod, $wyjscie);
+        $this->assertStringContainsString('resources/views/strona.blade.php', $wyjscie);
+    }
+
+    public function test_zmiana_widoku_z_wpisem_w_nieopublikowanych_przechodzi(): void
+    {
+        $this->zapisz('resources/views/strona.blade.php', "<p>Nowa</p>\n");
+        $this->zapisz('CHANGELOG.md', str_replace(
+            "> Tu trafia wpis.\n",
+            "> Tu trafia wpis.\n\n- Strona mówi „Nowa”.\n",
+            self::CHANGELOG,
+        ));
+        $this->commit('zmiana widoku z wpisem');
+
+        [$kod, $wyjscie] = $this->bramka();
+
+        $this->assertSame(0, $kod, $wyjscie);
+        $this->assertStringContainsString('Strona mówi „Nowa”', $wyjscie);
+    }
+
+    public function test_wpis_dopisany_pod_stara_wersja_nie_jest_wpisem_do_nieopublikowanych(): void
+    {
+        $this->zapisz('resources/views/strona.blade.php', "<p>Nowa</p>\n");
+        $this->zapisz('CHANGELOG.md', self::CHANGELOG."- Doklejone do wydanej wersji.\n");
+        $this->commit('wpis w złym miejscu');
+
+        [$kod, $wyjscie] = $this->bramka();
+
+        $this->assertSame(1, $kod, $wyjscie);
+    }
+
+    public function test_tekst_interfejsu_w_lang_to_zmiana_widoczna(): void
+    {
+        $this->zapisz('lang/pl.json', "{\"Zapisz\": \"Zachowaj\"}\n");
+        $this->commit('zmiana tekstu');
+
+        [$kod, $wyjscie] = $this->bramka();
+
+        $this->assertSame(1, $kod, $wyjscie);
+        $this->assertStringContainsString('lang/pl.json', $wyjscie);
+    }
+
+    public function test_zmiana_poza_warstwa_widoczna_przechodzi_bez_wpisu(): void
+    {
+        $this->zapisz('app/Cos.php', "<?php\n");
+        $this->zapisz('resources/js/kalkulator.test.mjs', "// test\n");
+        $this->commit('zmiana techniczna');
+
+        [$kod, $wyjscie] = $this->bramka();
+
+        $this->assertSame(0, $kod, $wyjscie);
+    }
+
+    public function test_furtka_w_opisie_pr_przepuszcza_tylko_z_powodem(): void
+    {
+        $this->zapisz('resources/views/strona.blade.php', "<p>Stara</p>\n<!-- komentarz -->\n");
+        $this->commit('komentarz w widoku');
+
+        [$bezPowodu] = $this->bramka("Opis.\n\nBez-podbicia-wersji:\n");
+        [$zPowodem, $wyjscie] = $this->bramka("Opis.\r\n\r\nBez-podbicia-wersji: sam komentarz w Blade\r\n");
+
+        $this->assertSame(1, $bezPowodu, 'Furtka bez powodu nie może przepuszczać.');
+        $this->assertSame(0, $zPowodem, $wyjscie);
+    }
+
+    public function test_furtka_w_commicie_przepuszcza(): void
+    {
+        $this->zapisz('resources/views/strona.blade.php', "<p>Stara</p>\n<!-- komentarz -->\n");
+        $this->commit("komentarz w widoku\n\nBez-podbicia-wersji: sam komentarz w Blade");
+
+        [$kod, $wyjscie] = $this->bramka();
+
+        $this->assertSame(0, $kod, $wyjscie);
+    }
+
+    public function test_wydanie_z_nowym_naglowkiem_przechodzi(): void
+    {
+        $this->zapisz('resources/views/strona.blade.php', "<p>Nowa</p>\n");
+        $this->zapisz('config/kuking.php', str_replace('Alfa 0.68', 'Alfa 0.69', self::CONFIG));
+        $this->zapisz('CHANGELOG.md', str_replace(
+            '## Alfa 0.68',
+            "## Alfa 0.69 — wydanie\n\n- Strona mówi „Nowa”.\n\n## Alfa 0.68",
+            self::CHANGELOG,
+        ));
+        $this->commit('wydanie 0.69');
+
+        [$kod, $wyjscie] = $this->bramka();
+
+        $this->assertSame(0, $kod, $wyjscie);
     }
 
     public function test_bramka_jest_podpieta_w_ci_i_naprawde_blokuje(): void
     {
-        $this->assertFileExists(base_path('scripts/bramka-wersji.sh'));
+        $workflow = (string) file_get_contents(base_path('.github/workflows/ci.yml'));
 
-        $matched = preg_match('/^  bramka_wersji:\R(.*?)(?=^  [a-z_]+:|\z)/ms', $this->workflow(), $matches);
+        $matched = preg_match('/^  bramka_wersji:\R(.*?)(?=^  [a-z_]+:|\z)/ms', $workflow, $matches);
         $this->assertSame(1, $matched,
-            'Zniknął job CI `bramka_wersji` — reguła wersji znowu jest samym komentarzem.');
+            'Zniknął job CI `bramka_wersji` — reguła CHANGELOG-u znowu jest samym komentarzem.');
 
         $job = (string) $matches[1];
 
         $this->assertStringContainsString('bash scripts/bramka-wersji.sh', $job,
             'Job istnieje, ale nie woła bramki.');
+        $this->assertStringContainsString('KUKING_OPIS_PR:', $job,
+            'Bramka nie dostaje opisu PR-a, więc furtka w opisie przestała działać.');
 
-        // `continue-on-error` zrobiłoby z bramki ozdobę: czerwień byłaby
-        // widoczna i nic by nie blokowała, czyli dokładnie stan sprzed niej.
+        // `continue-on-error` zrobiłoby z bramki ozdobę: czerwień widoczna,
+        // a nic nie blokuje — czyli stan sprzed niej.
         $this->assertStringNotContainsString('continue-on-error:', $job);
 
-        // Bramka czyta treści WSZYSTKICH commitów zakresu (tam stoi furtka)
-        // oraz `config/kuking.php` z bazy. Płytki checkout ją oślepia.
         $this->assertStringContainsString('fetch-depth: 0', $job,
-            'Bez pełnej historii bramka nie zobaczy ani zakresu, ani furtki.');
+            'Bez pełnej historii bramka nie zobaczy ani zakresu, ani furtki w commitach.');
     }
 
-    public function test_furtka_wymaga_powodu_a_nie_samej_nazwy(): void
+    /** @return array{0: int, 1: string} */
+    private function bramka(string $opisPr = ''): array
     {
-        // Umowa z nagłówka bramki: `Bez-podbicia-wersji:` musi mieć po
-        // dwukropku treść. Rozluźnienie tego wzorca zamieniłoby świadomą
-        // decyzję w jednolinijkowy wyłącznik bez śladu, po co go użyto.
-        $skrypt = (string) file_get_contents(base_path('scripts/bramka-wersji.sh'));
-
-        $this->assertStringContainsString(
-            'Bez-podbicia-wersji:[[:space:]]*[^[:space:]]',
-            $skrypt,
-            'Wzorzec furtki przestał wymagać powodu po dwukropku.',
+        $proces = new Process(
+            ['bash', 'scripts/bramka-wersji.sh', 'HEAD~1', 'HEAD'],
+            $this->repo,
+            ['KUKING_OPIS_PR' => $opisPr],
         );
+        $proces->run();
 
-        // Warstwa widoczna dla człowieka to co najmniej te trzy katalogi.
-        // Zawężenie listy wyciszyłoby bramkę bez jednego czerwonego przebiegu.
-        $this->assertStringContainsString(
-            '^resources/(views|css|js)/',
-            $skrypt,
-            'Bramka przestała obejmować którąś z trzech warstw widocznych dla człowieka.',
-        );
+        return [(int) $proces->getExitCode(), $proces->getOutput().$proces->getErrorOutput()];
+    }
+
+    private function zapisz(string $sciezka, string $tresc): void
+    {
+        File::ensureDirectoryExists(dirname($this->repo.'/'.$sciezka));
+        File::put($this->repo.'/'.$sciezka, $tresc);
+    }
+
+    private function commit(string $komunikat): void
+    {
+        $this->git('add', '-A');
+        $this->git('-c', 'user.name=Test', '-c', 'user.email=test@kuking.invalid',
+            '-c', 'commit.gpgsign=false', '-c', 'core.hooksPath=/dev/null', 'commit', '-q', '-m', $komunikat);
+    }
+
+    private function git(string ...$argumenty): void
+    {
+        $proces = new Process(['git', ...$argumenty], $this->repo);
+        $proces->mustRun();
     }
 }

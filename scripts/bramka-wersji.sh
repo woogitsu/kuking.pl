@@ -1,87 +1,80 @@
 #!/usr/bin/env bash
 #
-# Kuking — bramka podbicia wersji.
+# Kuking — bramka wpisu w CHANGELOG.
 #
 # CO PILNUJE
-# Reguły, która od 11 września 2026 stoi w komentarzu nad
-# `config/kuking.php` → `wersja.etykieta`:
+# Zmiana, którą człowiek zobaczy, zostawia ślad w `CHANGELOG.md`: przynajmniej
+# jedną linię `- …` dopisaną w sekcji `## Nieopublikowane` na górze pliku.
+# Reguła stoi w AGENTS.md („Wersja i CHANGELOG") i w komentarzu nad
+# `config/kuking.php` → `wersja.etykieta`.
 #
-#   „CYFRA ROŚNIE PRZY KAŻDEJ ZMIANIE, KTÓRĄ CZŁOWIEK ZOBACZY (…).
-#    KAŻDE PODBICIE CYFRY MA WPIS W `CHANGELOG.md` — jedno pilnuje drugiego."
+# DLACZEGO WPIS, A NIE PODBICIE NUMERU (decyzja właściciela, 23.09.2026).
+# Pierwsza wersja tej bramki kazała każdemu PR-owi podbić `wersja.etykieta`.
+# Przy kilkunastu równoległych PR-ach każdy podbija tę samą linię na ten sam
+# numer — i każdy kolejny scala się z konfliktem w `config/kuking.php`
+# i w nagłówku CHANGELOG-u. Dlatego PR dopisuje tylko linię w sekcji
+# „Nieopublikowane" (linie dopisane w różnych miejscach listy git scala sam),
+# a numer rośnie RAZ, przy wydaniu: wtedy lista przechodzi pod nowy nagłówek
+# `## Alfa 0.N — …`.
 #
-# DLACZEGO TO W OGÓLE POWSTAŁO. Reguła istniała WYŁĄCZNIE jako komentarz.
-# `tests/Feature/WersjaWStopceTest.php` sprawdza jedenaście rzeczy o tym, jak
-# wersja się WYŚWIETLA, i ani jednej o tym, czy została PODBITA. Skutek dał się
-# zmierzyć: etykieta `Alfa 0.67` weszła 18 września 2026 commitem 06c8c7e5
-# i przestała się ruszać, mimo że przez kolejne cztery dni na `main` weszły
-# 292 commity, w tym kilkanaście zmieniających rzeczy widoczne dla człowieka.
-# Reguła bez bramki przestaje działać dokładnie w tym momencie, w którym
-# zaczyna być potrzebna.
-#
-# CZEGO TA BRAMKA NIE PILNUJE — I KTO PILNUJE TEGO ZAMIAST NIEJ.
-# Reguła ma dwa kierunki. „Podbito wersję ⇒ jest wpis w CHANGELOG-u" to
-# niezmiennik stanu drzewa i sprawdza go `PodbicieWersjiWymagaWpisuWChangelog-
-# Test` — bez gita, więc chodzi też tam, gdzie historii nie ma. Tutaj idzie
-# kierunek drugi: „zmiana widoczna dla człowieka ⇒ podbicie", czyli pytanie
-# o RÓŻNICĘ, którego bez zakresu gita nie da się zadać. Dwa strażniki, dwa
-# różne pytania; żaden z nich nie łapie tego, co drugi.
+# DLACZEGO TA BRAMKA W OGÓLE POWSTAŁA. Reguła istniała wyłącznie jako
+# komentarz: etykieta `Alfa 0.67` weszła 18.09.2026 (06c8c7e5) i stała przez
+# 292 commity na `main`, w tym kilkanaście widocznych dla człowieka. Reguła
+# bez bramki przestaje działać dokładnie wtedy, gdy zaczyna być potrzebna.
 #
 # ZAKRES — „TO, CO WCHODZI DO MAIN", NIE POJEDYNCZY COMMIT.
-# Gałąź ma zwykle kilka commitów, a wersję podbija się RAZ, na końcu.
-# Bramka liczona per commit oblewałaby każdy commit poza ostatnim i nauczyłaby
-# wszystkich ją obchodzić. Dlatego porównujemy punkt odcięcia gałęzi
-# (`git merge-base`) ze szczytem — czyli cały wkład, który zobaczy `main`.
+# Gałąź ma kilka commitów, a wpis dopisuje się raz. Porównujemy bazę (w CI:
+# `base.sha` PR-a, lokalnie: `git merge-base origin/main HEAD`) ze szczytem.
 #
-# FURTKA — `Bez-podbicia-wersji: <powód>` w treści dowolnego commita z zakresu.
-# Zmiana w `resources/` bywa czysto techniczna i takie przypadki są w tej
-# historii realne: `a25c52b3` skreśla reguły CSS bez nosiciela, `46ea92b5`
-# usuwa martwą klasę `lead` z widoków, `feabfa4f` dokłada ekranom błędu
-# nagłówki bezpieczeństwa. Żadna z nich nie zmienia niczego, co człowiek
-# zobaczy, a bramka bez furtki kazałaby przy nich podbić wersję i dopisać
-# wpis o niczym — czyli zaśmiecić CHANGELOG, którego ta sama reguła broni.
-#
-# Dlaczego linia w commicie, a nie plik-wyłącznik ani etykieta na PR:
-#   * zostaje w historii na zawsze i widać ją w recenzji razem ze zmianą,
-#     więc świadoma decyzja jest udokumentowana tam, gdzie jej szukamy;
-#   * nie da się jej zapomnieć w repozytorium — plik `.bez-wersji` zostałby
-#     po pierwszym użyciu i wyłączył bramkę na stałe, po cichu;
-#   * działa lokalnie, bez sieci i bez GitHuba, więc ten sam przebieg da się
-#     odtworzyć ręcznie przy diagnozie;
-#   * wymaga POWODU (sama nazwa bez treści nie wystarcza), więc jest decyzją,
-#     a nie odruchem.
+# TRZY DROGI NA ZIELONO, gdy zakres rusza warstwę widoczną:
+#   1. w diffie `CHANGELOG.md` przybyła linia `- …` wewnątrz sekcji
+#      `## Nieopublikowane` (liczymy numer linii w pliku po zmianie,
+#      nie samą treść — linia dopisana pod nagłówkiem starej wersji
+#      NIE jest wpisem do nieopublikowanych);
+#   2. WYDANIE: `wersja.etykieta` urosła, a CHANGELOG ma nagłówek
+#      `## <nowa etykieta>` — PR wydania przenosi listę, nie dopisuje do niej;
+#   3. FURTKA: linia `Bez-podbicia-wersji: <powód>` w opisie PR-a
+#      (zmienna `KUKING_OPIS_PR`, podaje ją CI) albo w treści dowolnego
+#      commita z zakresu. Wymaga POWODU — sama nazwa nie wystarcza.
+#      Zmiana w `resources/` bywa czysto techniczna (a25c52b3 skreśla martwy
+#      CSS, 46ea92b5 usuwa martwą klasę z widoków); bez furtki bramka
+#      kazałaby dopisać wpis o niczym i zaśmiecić CHANGELOG, którego broni.
+#      Nazwa furtki zostaje z pierwszej wersji bramki, bo tak ją zna
+#      opis decyzji i historia commitów.
 #
 # UŻYCIE
 #   scripts/bramka-wersji.sh                # merge-base origin/main..HEAD
 #   scripts/bramka-wersji.sh BAZA           # BAZA..HEAD
 #   scripts/bramka-wersji.sh BAZA SZCZYT    # dokładny zakres (CI podaje base.sha)
+#   KUKING_OPIS_PR="…" scripts/bramka-wersji.sh BAZA SZCZYT
 #
-# Wyjście: 0 — w porządku; 1 — brak podbicia; 2 — błąd użycia.
+# Wyjście: 0 — w porządku; 1 — brak wpisu; 2 — błąd użycia.
 
 set -uo pipefail
 cd "$(dirname "$0")/.." || exit 2
 
 CZERWONY='\033[0;31m'; ZIELONY='\033[0;32m'; RESET='\033[0m'
 
-# WARSTWA WIDOCZNA DLA CZŁOWIEKA. Celowo wąska: szablony, style i skrypty
-# przeglądarki. Nie ma tu `app/` ani `routes/` — tam zmiana widoczna dla
-# człowieka prawie zawsze ma odpowiednik w widoku, a zmiana niewidoczna
-# (walidacja, zapytanie, polityka) jest regułą, nie wyjątkiem. Szeroka lista
-# oblewałaby częściej niż trafiała i to ją zabiłoby jako pierwsze.
-WZORZEC_WIDOCZNE='^resources/(views|css|js)/'
+# WARSTWA WIDOCZNA DLA CZŁOWIEKA — ta sama lista co w AGENTS.md: szablony,
+# style, skrypty przeglądarki, teksty interfejsu i pliki podawane wprost
+# (`public/`: manifest, strona offline, ikony). Nie ma tu `app/` ani `routes/`:
+# zmiana niewidoczna (walidacja, zapytanie, polityka) jest tam regułą,
+# a szeroka lista oblewałaby częściej, niż trafiała.
+WZORZEC_WIDOCZNE='^(resources/(views|css|js)|lang|public)/'
 
-# Testy JS leżą obok kodu, który testują, ale reguła wymienia je wprost jako
-# zmianę BEZ śladu w interfejsie. Ten sam wyjątek dotyczy `*.test.mjs`.
-WZORZEC_NIEWIDOCZNE='(\.test\.mjs|\.test\.js)$'
+# Testy JS leżą obok kodu, który testują, ale śladu w interfejsie nie mają.
+WZORZEC_NIEWIDOCZNE='\.test\.m?js$'
+
+WZORZEC_FURTKI='^[[:space:]]*Bez-podbicia-wersji:[[:space:]]*[^[:space:]]'
+NAGLOWEK_NIEOPUBLIKOWANE='## Nieopublikowane'
 
 SZCZYT="${2:-HEAD}"
 
 if [ "$#" -ge 1 ]; then
     BAZA="$1"
 else
-    # Punkt odcięcia od `main`. `origin/main` bywa nieosiągalne (świeży klon
-    # bez remote'a, przebieg w kontenerze) — wtedy NIE ZGADUJEMY zakresu,
-    # tylko mówimy to wprost i przepuszczamy. Bramka, która przy braku punktu
-    # odniesienia wymyśla sobie zakres, oblewa losowo.
+    # `origin/main` bywa nieosiągalne (świeży klon bez remote'a) — wtedy NIE
+    # ZGADUJEMY zakresu, tylko mówimy to wprost i przepuszczamy.
     _ref=""
     for _kandydat in origin/main main; do
         if git rev-parse --verify --quiet "$_kandydat^{commit}" >/dev/null; then
@@ -91,7 +84,7 @@ else
     done
 
     if [ -z "$_ref" ]; then
-        printf "Bramka wersji: brak %s — nie ma z czym porównać zakresu. Pomijam.\n" "origin/main"
+        printf "Bramka wersji: brak origin/main — nie ma z czym porównać zakresu. Pomijam.\n"
         exit 0
     fi
 
@@ -102,46 +95,60 @@ else
     fi
 fi
 
-if ! git rev-parse --verify --quiet "$BAZA^{commit}" >/dev/null; then
-    printf "Bramka wersji: nieosiągalna baza %s\n" "$BAZA" >&2
-    exit 2
-fi
+for _rev in "$BAZA" "$SZCZYT"; do
+    if ! git rev-parse --verify --quiet "$_rev^{commit}" >/dev/null; then
+        printf "Bramka wersji: nieosiągalny commit %s\n" "$_rev" >&2
+        exit 2
+    fi
+done
 
+ZAKRES="$(git rev-parse --short "$BAZA")..$(git rev-parse --short "$SZCZYT")"
 ZMIENIONE="$(git diff --name-only "$BAZA" "$SZCZYT")"
 WIDOCZNE="$(printf '%s\n' "$ZMIENIONE" \
     | grep -E "$WZORZEC_WIDOCZNE" \
     | grep -vE "$WZORZEC_NIEWIDOCZNE" || true)"
 
 if [ -z "$WIDOCZNE" ]; then
-    printf "${ZIELONY}✓ Bramka wersji: zakres %s..%s nie rusza warstwy widocznej dla człowieka.${RESET}\n" \
-        "$(git rev-parse --short "$BAZA")" "$(git rev-parse --short "$SZCZYT")"
+    printf "${ZIELONY}✓ Bramka wersji: zakres %s nie rusza warstwy widocznej dla człowieka.${RESET}\n" "$ZAKRES"
     exit 0
 fi
 
-# --- Furtka ---------------------------------------------------------------
-# Czytamy PEŁNE treści commitów z zakresu (`%B`), więc linia może stać
-# w stopce commita, w opisie scalenia albo w połączonym komunikacie squasha.
-# Commit po commicie, a nie jednym strumieniem, żeby dało się POWIEDZIEĆ,
-# kto tę decyzję podjął — furtka bez autora byłaby anonimowym wyłącznikiem.
-FURTKA=""
-for _sha in $(git rev-list "$BAZA".."$SZCZYT"); do
-    _powod="$(git log -1 --format=%B "$_sha" \
-        | grep -iE '^[[:space:]]*Bez-podbicia-wersji:[[:space:]]*[^[:space:]]' \
-        | head -n 1 || true)"
-    if [ -n "$_powod" ]; then
-        FURTKA="$(git log -1 --format='%h %an: %s' "$_sha")
-    $(printf '%s' "$_powod" | sed 's/^[[:space:]]*//')"
-        break
-    fi
-done
+# --- 1. Linia dopisana w sekcji „Nieopublikowane" -------------------------
+# Granice sekcji w pliku PO zmianie: od nagłówka do następnego `## ` (albo
+# końca pliku). Potem numery linii dodanych w diffie (`-U0`, nagłówki hunków
+# `@@ -a,b +c,d @@`) i pytanie, czy któraś dodana linia `- …` leży w środku.
+ZAKRES_SEKCJI="$(git show "$SZCZYT:CHANGELOG.md" 2>/dev/null | awk -v naglowek="$NAGLOWEK_NIEOPUBLIKOWANE" '
+    $0 == naglowek && !start { start = NR; next }
+    start && !koniec && /^## / { koniec = NR - 1 }
+    END { if (start) { if (!koniec) koniec = NR; print start, koniec } }
+')"
 
-if [ -n "$FURTKA" ]; then
-    printf "${ZIELONY}✓ Bramka wersji: świadoma decyzja o pominięciu podbicia.${RESET}\n"
-    printf '  %s\n' "$FURTKA"
+WPIS=""
+if [ -n "$ZAKRES_SEKCJI" ]; then
+    read -r OD DO <<<"$ZAKRES_SEKCJI"
+    WPIS="$(git diff -U0 "$BAZA" "$SZCZYT" -- CHANGELOG.md | awk -v od="$OD" -v do_="$DO" '
+        /^@@ / {
+            split($3, nowe, ",")
+            linia = substr(nowe[1], 2) + 0
+            next
+        }
+        /^\+\+\+ / { next }
+        /^\+/ {
+            if (linia > od && linia <= do_ && $0 ~ /^\+[-*][[:space:]]+[^[:space:]]/) {
+                print substr($0, 2)
+                exit
+            }
+            linia++
+        }
+    ')"
+fi
+
+if [ -n "$WPIS" ]; then
+    printf "${ZIELONY}✓ Bramka wersji: zakres %s dopisuje do „Nieopublikowane”:${RESET}\n  %s\n" "$ZAKRES" "$WPIS"
     exit 0
 fi
 
-# --- Etykieta -------------------------------------------------------------
+# --- 2. Wydanie ------------------------------------------------------------
 etykieta_z() {
     git show "$1:config/kuking.php" 2>/dev/null \
         | sed -n "s/^[[:space:]]*'etykieta'[[:space:]]*=>[[:space:]]*'\([^']*\)'.*/\1/p" \
@@ -151,68 +158,61 @@ etykieta_z() {
 ETYKIETA_PRZED="$(etykieta_z "$BAZA")"
 ETYKIETA_PO="$(etykieta_z "$SZCZYT")"
 
-if [ -z "$ETYKIETA_PO" ]; then
-    printf "${CZERWONY}✗ Bramka wersji: nie umiem odczytać 'wersja.etykieta' z config/kuking.php.${RESET}\n" >&2
-    printf "  To jest błąd bramki albo zmiana kształtu klucza — napraw jedno z dwóch, nie omijaj.\n" >&2
-    exit 1
-fi
-
-# --- CHANGELOG ------------------------------------------------------------
-# Dwa warunki, bo każdy sam z osobna da się spełnić przypadkiem: plik musi
-# być RUSZONY w tym zakresie i musi mieć nagłówek DOKŁADNIE tej etykiety.
-CHANGELOG_RUSZONY="$(printf '%s\n' "$ZMIENIONE" | grep -xF 'CHANGELOG.md' || true)"
-CHANGELOG_MA_WPIS="$(git show "$SZCZYT:CHANGELOG.md" 2>/dev/null \
-    | grep -xF "## ${ETYKIETA_PO}" || true)"
-
-# Nagłówek bywa w formie „## Alfa 0.68 — nazwa", więc dopuszczamy oba zapisy.
-if [ -z "$CHANGELOG_MA_WPIS" ]; then
-    CHANGELOG_MA_WPIS="$(git show "$SZCZYT:CHANGELOG.md" 2>/dev/null \
-        | grep -E "^## ${ETYKIETA_PO}([[:space:]]|$)" || true)"
-fi
-
-BLAD=0
-[ "$ETYKIETA_PRZED" = "$ETYKIETA_PO" ] && BLAD=1
-[ -z "$CHANGELOG_RUSZONY" ] && BLAD=1
-[ -z "$CHANGELOG_MA_WPIS" ] && BLAD=1
-
-if [ "$BLAD" -eq 0 ]; then
-    printf "${ZIELONY}✓ Bramka wersji: %s → %s, wpis w CHANGELOG.md jest.${RESET}\n" \
+if [ -n "$ETYKIETA_PO" ] && [ "$ETYKIETA_PRZED" != "$ETYKIETA_PO" ] \
+   && git show "$SZCZYT:CHANGELOG.md" 2>/dev/null \
+        | grep -qxE "## ${ETYKIETA_PO}( — .*)?" ; then
+    printf "${ZIELONY}✓ Bramka wersji: wydanie %s → %s z nagłówkiem w CHANGELOG.md.${RESET}\n" \
         "$ETYKIETA_PRZED" "$ETYKIETA_PO"
     exit 0
 fi
 
-printf "${CZERWONY}✗ Bramka wersji: zmiana dotyka warstwy widocznej dla człowieka, a wersja nie urosła.${RESET}\n" >&2
-printf "\nZakres: %s..%s\n" "$(git rev-parse --short "$BAZA")" "$(git rev-parse --short "$SZCZYT")" >&2
-printf "\nPliki z warstwy widocznej:\n" >&2
-printf '%s\n' "$WIDOCZNE" | sed 's/^/  /' >&2
+# --- 3. Furtka -------------------------------------------------------------
+FURTKA=""
+_z_opisu="$(printf '%s\n' "${KUKING_OPIS_PR:-}" | tr -d '\r' | grep -iE "$WZORZEC_FURTKI" | head -n 1 || true)"
+if [ -n "$_z_opisu" ]; then
+    FURTKA="opis PR-a: $(printf '%s' "$_z_opisu" | sed 's/^[[:space:]]*//')"
+else
+    # Commit po commicie, żeby dało się POWIEDZIEĆ, kto podjął decyzję.
+    for _sha in $(git rev-list "$BAZA".."$SZCZYT"); do
+        _powod="$(git log -1 --format=%B "$_sha" | grep -iE "$WZORZEC_FURTKI" | head -n 1 || true)"
+        if [ -n "$_powod" ]; then
+            FURTKA="$(git log -1 --format='%h %an: %s' "$_sha")
+    $(printf '%s' "$_powod" | sed 's/^[[:space:]]*//')"
+            break
+        fi
+    done
+fi
 
-printf "\nCo nie gra:\n" >&2
-if [ "$ETYKIETA_PRZED" = "$ETYKIETA_PO" ]; then
-    printf "  • wersja stoi na '%s' — podbij cyfrę w config/kuking.php (wersja.etykieta).\n" "$ETYKIETA_PO" >&2
+if [ -n "$FURTKA" ]; then
+    printf "${ZIELONY}✓ Bramka wersji: świadoma decyzja — zmiana bez wpisu w CHANGELOG.md.${RESET}\n"
+    printf '  %s\n' "$FURTKA"
+    exit 0
 fi
-if [ -z "$CHANGELOG_RUSZONY" ]; then
-    printf "  • CHANGELOG.md nietknięty w tym zakresie.\n" >&2
-fi
-if [ -n "$CHANGELOG_RUSZONY" ] && [ -z "$CHANGELOG_MA_WPIS" ]; then
-    printf "  • CHANGELOG.md nie ma nagłówka '## %s'.\n" "$ETYKIETA_PO" >&2
+
+# --- Czerwień --------------------------------------------------------------
+printf "${CZERWONY}✗ Bramka wersji: zmiana dotyka warstwy widocznej dla człowieka, a CHANGELOG.md nie ma nowego wpisu w „Nieopublikowane”.${RESET}\n" >&2
+printf "\nZakres: %s\n\nPliki z warstwy widocznej:\n" "$ZAKRES" >&2
+printf '%s\n' "$WIDOCZNE" | sed 's/^/  /' >&2
+if [ -z "$ZAKRES_SEKCJI" ]; then
+    printf "\n  • CHANGELOG.md nie ma sekcji '%s' — dodaj ją na samej górze, nad najnowszą wersją.\n" "$NAGLOWEK_NIEOPUBLIKOWANE" >&2
 fi
 
 cat >&2 <<'POMOC'
 
 Dwie drogi wyjścia — obie są poprawne, wybierz świadomie:
 
-  1. Człowiek to zobaczy. Podbij cyfrę w `config/kuking.php`
-     (`wersja.etykieta`) i dopisz na górze `CHANGELOG.md` nagłówek
-     `## <nowa etykieta> — <krótka nazwa>` z punktami językiem użytkownika.
+  1. Człowiek to zobaczy. Dopisz w `CHANGELOG.md`, w sekcji
+     `## Nieopublikowane` na górze pliku, linię językiem użytkownika:
+
+         - Pole filtra mieści się w wąskim oknie także przy dużym piśmie.
+
+     NIE podbijaj numeru w `config/kuking.php` — ten rośnie raz, przy wydaniu.
 
   2. Człowiek tego nie zobaczy (martwy CSS, komentarz w Blade, nagłówek
-     HTTP, przeniesienie pliku). Dopisz do treści dowolnego commita z tej
-     gałęzi linię z POWODEM:
+     HTTP, przeniesienie pliku). Dopisz do opisu PR-a albo do treści
+     dowolnego commita z tej gałęzi linię z POWODEM:
 
          Bez-podbicia-wersji: usunięcie reguł CSS bez nosiciela, render bez zmian
-
-SŁOWO („Alfa"/„Beta") zmienia się osobno, przy kamieniach milowych
-z `docs/ROADMAP.md` — nie tutaj.
 POMOC
 
 exit 1

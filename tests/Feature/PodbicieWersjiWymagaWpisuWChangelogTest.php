@@ -31,14 +31,18 @@ use Tests\TestCase;
  * bez ruszania wersji, obie wartości zostają takie, jak były, i test dalej
  * jest zielony: reguła pilnuje PODBICIA, nie każdej zmiany.
  *
+ * SEKCJA „NIEOPUBLIKOWANE" (decyzja właściciela, 23.09.2026)
+ * PR-y nie podbijają numeru — dopisują linię w `## Nieopublikowane` na samej
+ * górze CHANGELOG-u, a numer rośnie raz, przy wydaniu. Dlatego ten test
+ * pilnuje dwóch rzeczy: że sekcja stoi PIERWSZA (bez niej bramka CI nie ma
+ * gdzie szukać wpisu i każdy PR z widokiem oblewa) i że pierwszy nagłówek
+ * WERSJI pod nią to aktualna etykieta — sekcję „Nieopublikowane" pomija.
+ *
  * DRUGI KIERUNEK TEJ REGUŁY STOI GDZIE INDZIEJ
- * Ten test pyta „podbito wersję — czy jest wpis?". Nie pyta i NIE MOŻE
- * zapytać „zmieniono coś, co człowiek zobaczy — czy podbito wersję?", bo to
- * jest pytanie o RÓŻNICĘ, a tu świadomie nie ma gita (powód wyżej). Drugiego
- * kierunku pilnuje `scripts/bramka-wersji.sh`, wołany przez job CI
- * `bramka_wersji`; jego podpięcia pilnuje `BramkaPodbiciaWersjiTest`.
- * To nie są dwie kopie: każdy z nich przechodzi zielono w sytuacji, którą
- * łapie drugi.
+ * Ten test nie pyta „zmieniono coś, co człowiek zobaczy — czy jest wpis?",
+ * bo to pytanie o RÓŻNICĘ, a tu świadomie nie ma gita (powód wyżej). Tego
+ * pilnuje `scripts/bramka-wersji.sh`, wołany przez job CI `bramka_wersji`;
+ * jego zachowania i podpięcia pilnuje `BramkaPodbiciaWersjiTest`.
  *
  * GDZIE TO CHODZI, A GDZIE NIE
  * Chodzi wszędzie, gdzie leży pełne drzewo repozytorium z `CHANGELOG.md`:
@@ -47,11 +51,11 @@ use Tests\TestCase;
  * NIE chodzi w obrazie produkcyjnym z Railify/Dockera — `.dockerignore`
  * wycina `*.md` i `docs/`, a testy tam i tak się nie wykonują. To jest guard
  * na etapie code review / CI, nie strażnik uruchamiany na produkcji.
- *
- * @bez-kontroli-dodatniej Brak szukanego nagłówka w CHANGELOG.md daje czerwień przez assertMatchesRegularExpression, więc reguła nie może po cichu przestać obowiązywać.
  */
 class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
 {
+    private const NIEOPUBLIKOWANE = 'Nieopublikowane';
+
     public function test_aktualna_etykieta_wersji_ma_wpis_na_gorze_changelog(): void
     {
         $etykieta = Wersja::etykieta();
@@ -70,6 +74,19 @@ class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
             "CHANGELOG.md mówi „{$najnowszyWpis}”. Podbicie etykiety wersji MA ".
             'mieć własny wpis na górze CHANGELOG.md — patrz komentarz trzy '.
             "linie nad 'etykieta' w config/kuking.php.",
+        );
+    }
+
+    public function test_changelog_zaczyna_sie_od_sekcji_nieopublikowane(): void
+    {
+        preg_match('/^##[ \t]+(.+)$/mu', (string) file_get_contents(base_path('CHANGELOG.md')), $pierwszy);
+
+        $this->assertSame(
+            self::NIEOPUBLIKOWANE,
+            trim($pierwszy[1] ?? ''),
+            'Pierwszą sekcją CHANGELOG.md ma być „## '.self::NIEOPUBLIKOWANE.'" — tam PR-y '.
+            'dopisują wpisy, a numer wersji rośnie dopiero przy wydaniu (AGENTS.md, '.
+            '„Wersja i CHANGELOG"). Bez niej bramka CI nie znajdzie żadnego wpisu.',
         );
     }
 
@@ -97,9 +114,9 @@ class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
     }
 
     /**
-     * Pierwszy nagłówek `## …` w CHANGELOG.md, obcięty do samej etykiety
-     * wersji (część przed „ — "). `null`, gdy pliku nie da się przeczytać albo
-     * nie ma w nim żadnego nagłówka drugiego poziomu.
+     * Pierwszy nagłówek `## …` w CHANGELOG.md poza „Nieopublikowane", obcięty
+     * do samej etykiety wersji (część przed „ — "). `null`, gdy pliku nie da
+     * się przeczytać albo nie ma w nim żadnego nagłówka wersji.
      */
     private function etykietaNajnowszegoWpisu(): ?string
     {
@@ -115,10 +132,16 @@ class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
             return null;
         }
 
-        if (! preg_match('/^##\s+(.+?)\s+—/mu', $tresc, $dopasowanie)) {
-            return null;
+        preg_match_all('/^##[ \t]+(.+)$/mu', $tresc, $naglowki);
+
+        foreach ($naglowki[1] as $naglowek) {
+            $etykieta = trim(explode(' — ', $naglowek, 2)[0]);
+
+            if ($etykieta !== self::NIEOPUBLIKOWANE) {
+                return $etykieta;
+            }
         }
 
-        return trim($dopasowanie[1]);
+        return null;
     }
 }

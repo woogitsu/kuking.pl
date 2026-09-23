@@ -563,7 +563,24 @@ użytkowników produkcyjnych.
 - ryzyka,
 - plan rollbacku,
 - aktualizację `docs/`,
-- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu.
+- opis zmiany w UI albo zrzut ekranu, jeśli dotyczy interfejsu,
+- wpis w `CHANGELOG.md`, jeśli człowiek zobaczy zmianę — patrz niżej.
+
+### Wersja i CHANGELOG
+
+- **Zmiana widoczna dla człowieka** = PR rusza `resources/views/`,
+  `resources/css/`, `resources/js/` (bez `*.test.mjs`), `lang/` albo `public/`.
+- Taki PR **dopisuje linię `- …` w sekcji `## Nieopublikowane`** na górze
+  `CHANGELOG.md`, językiem użytkownika. **Numeru wersji nie podbija** —
+  `wersja.etykieta` w `config/kuking.php` rośnie raz, przy wydaniu, a lista
+  „Nieopublikowane” przechodzi wtedy pod nowy nagłówek `## Alfa 0.N — …`.
+  Powód: podbicie w każdym PR-ze dawało konflikty między równoległymi
+  gałęziami (decyzja właściciela, 23.09.2026).
+- Zmiana w tych katalogach bez śladu w interfejsie (martwy CSS, komentarz)
+  → linia `Bez-podbicia-wersji: <powód>` w opisie PR-a albo w commicie.
+- Pilnuje tego job CI `bramka_wersji` (`scripts/bramka-wersji.sh`, da się
+  uruchomić lokalnie). Opis PR-a bramka czyta ze zdarzenia — po jego edycji
+  trzeba nowego pushu, samo „Re-run” widzi stary opis.
 
 ### Bugfix zawsze zawiera test regresyjny
 

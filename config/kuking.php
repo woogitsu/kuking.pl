@@ -2947,10 +2947,13 @@ return [
         // potem 1.0. Bez SemVera — nie wydajemy biblioteki, której ktoś
         // pilnuje zgodności API, tylko serwis dla ludzi.
         //
-        // CYFRA ROŚNIE PRZY KAŻDEJ ZMIANIE, KTÓRĄ CZŁOWIEK ZOBACZY: nowy
-        // ekran, zmieniony układ, nowa funkcja, inne zachowanie formularza.
-        // Poprawki bez śladu w interfejsie (testy, refaktor, dokumentacja)
-        // jej NIE ruszają.
+        // CYFRA ROŚNIE PRZY WYDANIU, NIE W KAŻDYM PR-ZE (decyzja właściciela
+        // 23.09.2026 — równoległe PR-y podbijające tę linię kłóciły się
+        // konfliktami). PR ze zmianą, którą człowiek zobaczy — nowy ekran,
+        // układ, funkcja, inne zachowanie formularza — dopisuje linię
+        // w sekcji `## Nieopublikowane` w `CHANGELOG.md`; przy wydaniu ta
+        // lista dostaje nagłówek nowej etykiety. Pilnuje job CI
+        // `bramka_wersji`, reguła w AGENTS.md („Wersja i CHANGELOG").
         //
         // DLACZEGO TA REGUŁA W OGÓLE TU STOI. Do 11 września 2026 reguła
         // mówiła tylko, kiedy zmienia się SŁOWO — i przez to cyfra nie

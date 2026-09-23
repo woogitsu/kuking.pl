@@ -118,6 +118,15 @@ OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
 
+# Wpis w CHANGELOG przy zmianie widocznej (decyzja właściciela 23.09.2026).
+# Strażnik z main czyta CHANGELOG, bramka jest skryptem — test uruchamia go na
+# repozytorium w katalogu tymczasowym. Mutacje: CHANGELOG bez sekcji
+# „Nieopublikowane" i bramka, która przestała liczyć `lang/` albo granice sekcji.
+CHANGELOG = "CHANGELOG.md"
+CHANGELOG_TEST = "PodbicieWersjiWymagaWpisuWChangelogTest"
+BRAMKA_WERSJI = "scripts/bramka-wersji.sh"
+BRAMKA_WERSJI_TEST = "BramkaPodbiciaWersjiTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -303,6 +312,12 @@ checks = [
      bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("CHANGELOG bez sekcji Nieopublikowane", CHANGELOG, CHANGELOG_TEST,
+     lambda s: replace_once(s, "## Nieopublikowane\n", "")),
+    ("Bramka CHANGELOG-u nie widzi lang/", BRAMKA_WERSJI, BRAMKA_WERSJI_TEST,
+     lambda s: replace_once(s, "WZORZEC_WIDOCZNE='^(resources/(views|css|js)|lang|public)/'", "WZORZEC_WIDOCZNE='^(resources/(views|css|js)|public)/'")),
+    ("Bramka CHANGELOG-u liczy wpis pod starą wersją", BRAMKA_WERSJI, BRAMKA_WERSJI_TEST,
+     lambda s: replace_once(s, "if (linia > od && linia <= do_ && ", "if (")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -315,6 +330,8 @@ run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(WDROZENIE_TEST, True)
 run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
+run_test(CHANGELOG_TEST, True)
+run_test(BRAMKA_WERSJI_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
