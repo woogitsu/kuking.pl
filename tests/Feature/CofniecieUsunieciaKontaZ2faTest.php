@@ -162,10 +162,18 @@ class CofniecieUsunieciaKontaZ2faTest extends TestCase
         $this->assertNull(session()->getOldInput('code'));
         $this->assertNull(session()->getOldInput('password'));
 
-        $this->get(route('account.delete.cancel'))
+        // Strona po przekierowaniu: komunikat jest, kodu nie ma nigdzie
+        // w HTML-u (także w `value` pola `code`).
+        $this->followingRedirects()->from(route('account.delete.cancel'))
+            ->post(route('account.delete.cancel.store'), [
+                'login' => 'basia',
+                'password' => self::HASLO,
+                'code' => 'ABCDE-23456',
+            ])
             ->assertOk()
             ->assertSee('Za dużo prób')
             ->assertDontSee('ABCDE-23456');
+        $this->followRedirects = false;
     }
 
     /**
@@ -177,13 +185,12 @@ class CofniecieUsunieciaKontaZ2faTest extends TestCase
     {
         $basia = $this->kontoZ2fa('basia', ['status' => User::STATUS_ACTIVE]);
 
-        $this->from(route('account.delete.cancel'))->post(route('account.delete.cancel.store'), [
+        $this->followingRedirects()->from(route('account.delete.cancel'))->post(route('account.delete.cancel.store'), [
             'login' => 'basia',
             'password' => self::HASLO,
             'code' => 'abcde-23456',
-        ])->assertSessionHasErrors('login');
-
-        $this->get(route('account.delete.cancel'))->assertSee('nie ma czego cofać');
+        ])->assertOk()->assertSee('nie ma czego cofać');
+        $this->followRedirects = false;
 
         $basia = $basia->fresh();
         $this->assertSame(User::STATUS_ACTIVE, $basia->status);
