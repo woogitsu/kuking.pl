@@ -257,17 +257,30 @@ class CookedEventController extends Controller
             ->where('data->cooked_event_id', $cookedEvent->getKey())
             ->first();
 
-        if ($notification !== null && $notification->isUnread() === false) {
+        // ISSUE #770: „Zobacz" z listy ustawia `read_at` PRZED tym ekranem
+        // (`NotificationController::open()`), więc samo `read_at` nie mówi,
+        // czy ekran był już pokazany. Flash z tego jednego kliknięcia mówi:
+        // „to pierwsze otwarcie". Po odświeżeniu flasha już nie ma, a `read_at`
+        // stoi — i ekran pokazuje się raz, jak dotąd.
+        $pierwszeOtwarcie = $notification !== null
+            && $request->session()->get(Notification::SESJA_PIERWSZE_OTWARCIE) === (string) $notification->getKey();
+
+        if ($notification !== null && $notification->isUnread() === false && ! $pierwszeOtwarcie) {
             return redirect()->route('cooked.show', $cookedEvent);
         }
 
-        // `update()` przechodzi przez `fill()`, a `read_at` CELOWO nie jest
-        // w `$fillable` Notification (żadne pole zapisywane z requestu nie
-        // powinno tam trafić przez masowe przypisanie) — `update()` po cichu
-        // by je zgubił, zamiast rzucić błąd, i ten ekran nigdy by się nie
-        // "zapamiętywał". `forceFill()` to ten sam wzorzec co przy zmianie
-        // `status`/`role` w User (tam z tego samego powodu).
-        $notification?->forceFill(['read_at' => now()])->save();
+        // `read_at` CELOWO nie jest w `$fillable` Notification, więc
+        // `$model->update()` po cichu by je zgubił. Zapis idzie zapytaniem
+        // z `whereNull('read_at')` w samym `UPDATE` (D-079, jak
+        // w `NotificationController::open()`): przy pierwszym otwarciu z listy
+        // znacznik już stoi i nie wolno go przesuwać w przód — od niego
+        // liczy się retencja.
+        if ($notification !== null) {
+            Notification::query()
+                ->whereKey($notification->getKey())
+                ->whereNull('read_at')
+                ->update(['read_at' => now()]);
+        }
 
         $cookedEvent->load(['user.profile.avatar', 'recipe', 'media']);
 
