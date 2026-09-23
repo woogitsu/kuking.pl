@@ -17,7 +17,11 @@ use RuntimeException;
 use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
-/** Pomiar HTTP i granicy sprzątania kontekstu; nie dowód propagacji do workera. */
+/**
+ * Pomiar HTTP i granicy sprzątania kontekstu; nie dowód propagacji do workera.
+ *
+ * @bez-kontroli-dodatniej file_get_contents czyta tylko plik logu, który setUp() tworzy pod losową nazwą w storage/logs, a asercje tekstowe dotyczą odpowiedzi HTTP, tego logu i treści alarmu, nie źródła aplikacji.
+ */
 final class KodBleduLaczyZadanieZAlarmemTest extends TestCase
 {
     use WycinaObudoweEkranu;

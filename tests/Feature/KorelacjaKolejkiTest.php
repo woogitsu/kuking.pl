@@ -23,7 +23,11 @@ use Tests\Support\CorrelationProbeJob;
 use Tests\TestCase;
 use WeakReference;
 
-/** Database queue i ten sam prawdziwy Worker; bez Queue::fake i ręcznych eventów. */
+/**
+ * Database queue i ten sam prawdziwy Worker; bez Queue::fake i ręcznych eventów.
+ *
+ * @bez-kontroli-dodatniej file_get_contents czyta tylko plik logu kolejki ustawiony w setUp(), a asercje tekstowe dotyczą payloadu, logu i treści alarmu z prawdziwego workera, nie źródła aplikacji.
+ */
 final class KorelacjaKolejkiTest extends TestCase
 {
     use RefreshDatabase;
