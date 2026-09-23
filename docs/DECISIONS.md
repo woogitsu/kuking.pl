@@ -16106,3 +16106,64 @@ wspólnego komponentu nie jest dowodem, że test jest zły — jest dowodem, że
 komponent zgubił tę różnicę. Jeden wspólny wiersz składnika jest dopuszczalny
 tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
+
+## D-070 — Zapisy przepisu przez różne osoby łączą się w jedno powiadomienie, dopóki autor go nie przeczyta (#906, PR #1213, 23 września 2026)
+
+**Data:** 23 września 2026 · **Decyzja właściciela** (20.09 — kształt
+powiadomienia, 23.09 — potwierdzenie łączenia różnych osób) · Status:
+**obowiązuje**
+
+> Numer D-070 był wcześniej rezerwacją niescalonej gałęzi
+> `claude/priorytet-w-kolejce-moderacji` (patrz przekazanie pracy z 10.09);
+> rezerwacja została zwolniona i numer nadano tej decyzji.
+
+### Co się łączy
+
+Powiadomienia typu `recipe.saved` („ktoś ma Twój przepis w swoim zeszycie")
+dla **tego samego autora i tego samego przepisu**. Zapisy od RÓŻNYCH osób nie
+tworzą osobnych wierszy — dokładają się do jednego powiadomienia, dopóki jest
+ono **nieprzeczytane** (`read_at IS NULL`). Treść: „Jan ma Twój przepis …"
+przy jednej osobie, „Jan oraz 3 inne osoby zapisały Twój przepis …" przy
+kilku, z pełną polską odmianą liczebnika (`Notification::tresc()`).
+Powiadomienia innych typów i innych przepisów się nie łączą.
+
+### Kiedy powstaje nowe powiadomienie
+
+- **Pierwsza osoba** — gdy dla tego przepisu nie ma otwartego
+  (nieprzeczytanego) powiadomienia. Autor dostaje je **natychmiast**, bez
+  czekania na partię.
+- **Po przeczytaniu** — przeczytane powiadomienie jest zamkniętą historią
+  i nie zmienia się. Następny zapis (także osoby, która już była w tamtej
+  partii, jeśli w międzyczasie wyjęła przepis ze wszystkich zeszytów i zapisała
+  go od nowa) otwiera nowe powiadomienie.
+
+### Jak liczymy osoby
+
+- Liczą się **osoby, nie zeszyty**. Jedna osoba zapisująca przepis do kilku
+  SWOICH zeszytów liczy się **raz** — powiadomienie idzie przy pierwszym
+  zeszycie, kolejne nic nie dokładają (`SaveRecipeToCollection`).
+- Osoba już obecna w otwartej partii nie jest dopisywana drugi raz
+  (`data.savers` to lista unikalnych identyfikatorów w kolejności zapisu).
+- **Wycofanie przed przeczytaniem:** kto wyjmie przepis ze **wszystkich**
+  swoich zeszytów, znika z partii; jeśli był jedyny — powiadomienie znika.
+  Wyjęcie z jednego z kilku zeszytów niczego nie zmienia.
+- Z nazwy wymieniamy pierwszą **widoczną** osobę; zablokowanych i kont
+  z `User::STATUSY_UKRYWAJACE_TRESC` nie wymieniamy, ale liczymy je w liczbie.
+
+### Granice — te same co w `NotifyUser`
+
+Zbiorcze powiadomienie powstaje w `NotifyRecipeSaved`, nie w `NotifyUser`
+(musi aktualizować istniejący wiersz pod blokadą `FOR UPDATE`), więc powtarza
+jego granice wprost: brak powiadomienia o własnej akcji, brak dla konta,
+które nie może czytać (`mozeCzytac()` — zawieszony autor DOSTAJE), brak przy
+blokadzie w którąkolwiek stronę. Czwarta granica jest właściwa zapisowi:
+zapis z konta, które nie jest aktywne, nikogo nie powiadamia (#926). Każda
+granica dotyczy i nowego wiersza, i dołączenia do otwartej partii —
+`tests/Feature/ZbiorczyZapisTrzymaGranicePowiadomienTest.php`,
+`tests/Feature/ZbiorczePowiadomienieOZapisieTest.php`.
+
+### Co musiałoby się stać, żeby to zmienić
+
+Sygnał, że autorzy przegapiają nowe osoby w partii (np. chcą osobnej
+wiadomości za każdego), albo powiadomienia z ustawieniami użytkownika —
+wtedy granice trzeba przenieść do jednego miejsca, zamiast je powtarzać.

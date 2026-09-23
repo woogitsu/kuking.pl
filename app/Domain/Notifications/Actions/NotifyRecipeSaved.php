@@ -11,7 +11,14 @@ use Illuminate\Support\Facades\DB;
 
 /**
  * Powiadomienie autora o zapisaniu jego przepisu do cudzego zeszytu —
- * DECYZJA WŁAŚCICIELA z 20.09.2026, domyka issue #906 i idzie dalej.
+ * DECYZJA WŁAŚCICIELA z 20.09.2026, domyka issue #906 i idzie dalej
+ * (zapisana jako D-070 w `docs/DECISIONS.md`).
+ *
+ * GRANICE `NotifyUser` POWTÓRZONE TU WPROST (D-070): ta klasa nie woła
+ * `NotifyUser`, bo musi zaktualizować istniejący wiersz pod blokadą, więc
+ * własna akcja, konto autora, które nie może czytać, i blokada w obie
+ * strony są sprawdzane niżej — dla nowego wiersza i dla dołączenia do
+ * partii jednakowo.
  *
  * DWIE RZECZY NARAZ, BO SĄ TYM SAMYM PROBLEMEM:
  *
@@ -45,6 +52,15 @@ final class NotifyRecipeSaved
         }
 
         if ($recipient->hasBlockRelationWith($saver)) {
+            return;
+        }
+
+        // Zapis spoza aktywnego konta nie mówi autorowi nic, co mógłby
+        // zobaczyć: zawieszona osoba zapisuje najwyżej do PRYWATNEGO zeszytu
+        // (decyzja właściciela #926), a konta zamknięte nie zapisują wcale.
+        // Stoi TU, a nie w `SaveRecipeToCollection`, bo ta klasa jest jedynym
+        // miejscem, przez które powstaje powiadomienie o zapisie (D-070).
+        if (! $saver->isActive()) {
             return;
         }
 
@@ -111,6 +127,7 @@ final class NotifyRecipeSaved
     {
         DB::transaction(function () use ($saver, $recipe): void {
             $otwarta = Notification::query()
+                ->where('user_id', $recipe->author_id)
                 ->where('type', Notification::TYPE_SAVED)
                 ->where('data->recipe_id', $recipe->getKey())
                 ->whereNull('read_at')
