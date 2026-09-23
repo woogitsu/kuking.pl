@@ -152,8 +152,12 @@ class NotificationController extends Controller
         // wśród powiadomień TEJ osoby, więc cudzy identyfikator nie wybierze
         // żadnego wiersza i kończy się na 404 — bez ujawnienia, czy taki
         // wiersz w ogóle istnieje.
+        //
+        // `visibleTo()` — ta sama granica co lista (issue #1351): wiersz
+        // schowany na liście nie otwiera się też wprost po identyfikatorze.
         $powiadomienie = $request->user()
             ->notifications()
+            ->visibleTo($request->user())
             ->whereKey($notification)
             ->firstOrFail();
 

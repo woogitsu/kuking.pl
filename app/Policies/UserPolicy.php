@@ -71,4 +71,42 @@ class UserPolicy
     {
         return $viewer->isAdmin();
     }
+
+    /**
+     * Zawieszenie albo blokada KONTA decyzją moderacyjną (#1408, D-244).
+     *
+     * Karać wolno wyłącznie konto o NIŻSZEJ roli niż własna:
+     *  - moderator zawiesza i blokuje zwykłe konta,
+     *  - administrator także konta moderatorów,
+     *  - konta administratora nie zawiesza ani nie blokuje nikt z panelu
+     *    (równa ranga) — sprawa administratora idzie do właściciela serwisu,
+     *    a rolę odbiera się komendą `kuking:nadaj-role`, która pilnuje
+     *    ostatniego czynnego administratora (#1016).
+     *
+     * Wcześniej wystarczało `moderate()`: przejęte albo złośliwe konto
+     * moderatora mogło zbanować administratora (ban unieważnia sesje), a przy
+     * kilku kolejnych decyzjach — odciąć od panelu wszystkich administratorów
+     * i tym samym całą drogę rozpatrywania odwołań.
+     *
+     * Reguła dotyczy KARY NA KONCIE. Ocena treści (ukrycie, usunięcie,
+     * ostrzeżenie) nie zależy od roli autora — wpis administratora łamiący
+     * zasady ukrywa się tak samo jak każdy inny.
+     *
+     * Własne konto jest równej rangi, więc tą samą regułą nikt nie zawiesza
+     * sam siebie.
+     */
+    public function sanctionAccount(User $actor, User $target): bool
+    {
+        return $actor->isModerator()
+            && self::ranga($actor) > self::ranga($target);
+    }
+
+    private static function ranga(User $user): int
+    {
+        return match ($user->role) {
+            User::ROLE_ADMIN => 2,
+            User::ROLE_MODERATOR => 1,
+            default => 0,
+        };
+    }
 }

@@ -6,19 +6,24 @@ namespace Tests\Feature;
 
 use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\EraseAccountData;
+use App\Domain\Users\Actions\ZalozoneKonto;
 use App\Models\TozsamoscZewnetrzna;
 use App\Models\User;
 use App\Notifications\PotwierdzenieAdresu;
 use App\Notifications\ProbaWejsciaKontemFacebooka;
 use App\Support\Facebook;
+use Illuminate\Auth\Events\Registered;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\Client\Request;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use Illuminate\Testing\TestResponse;
 use PHPUnit\Framework\Attributes\Test;
+use RuntimeException;
 use Tests\Support\WycinaObudoweEkranu;
 use Tests\TestCase;
 
@@ -631,6 +636,36 @@ class LogowanieKontemFacebookiemTest extends TestCase
         ])->assertSessionHasErrors('age_confirmed');
 
         $this->assertDatabaseCount('users', 0);
+    }
+
+    /**
+     * Awaria `Registered` po założeniu konta (#1373): konto z Facebooka
+     * istnieje, człowiek wchodzi, a ekran NIE mówi „wysłaliśmy Ci
+     * wiadomość", skoro nie wysłaliśmy — tylko co kliknąć, żeby przyszła.
+     */
+    #[Test]
+    public function test_awaria_listu_po_zalozeniu_konta_nie_daje_500_ani_obietnicy_wiadomosci(): void
+    {
+        $this->wlaczFacebooka();
+        $this->wracamyZFacebooka();
+        Exceptions::fake();
+        Event::listen(Registered::class, function (): void {
+            throw new RuntimeException('Wstrzyknięta awaria zlecenia listu');
+        });
+
+        $this->post(route('facebook.finish.store'), [
+            'display_name' => 'Basia',
+            'username' => 'basia',
+            'age_confirmed' => '1',
+            'terms_accepted' => '1',
+        ])
+            ->assertRedirect(route('onboarding.interests'))
+            ->assertSessionHas('status', ZalozoneKonto::KOMUNIKAT_BEZ_LISTU);
+
+        $basia = User::where('email', 'basia@example.test')->firstOrFail();
+        $this->assertAuthenticatedAs($basia);
+        $this->assertSame(self::FB_ID, $this->identyfikatorFacebooka($basia));
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), 'nie wyszło zdarzenie Registered'));
     }
 
     /**
