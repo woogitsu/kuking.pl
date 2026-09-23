@@ -207,10 +207,14 @@ on:
 permissions:
   contents: read
 
-# Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg.
+# Nowy push do tej samej gałęzi/PR anuluje poprzedni przebieg — ale NIE na
+# main: Railway wdraża dopiero po zielonym CI main („Wait for CI”), a anulowany
+# przebieg nie daje wyniku i wdrożenie commita zostaje pominięte (23.09: 112
+# ze 138 przebiegów main anulowanych, produkcja 18 h bez wdrożenia). Na main
+# przebiegi kolejkują się zamiast się ścinać.
 concurrency:
   group: ci-${{ github.ref }}
-  cancel-in-progress: true
+  cancel-in-progress: ${{ github.ref != 'refs/heads/main' }}
 
 env:
   PHP_VERSION: "8.4"
@@ -580,7 +584,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -1055,7 +1059,9 @@ jobs:
       - name: Panel — logowanie z TOTP, faza pusta i pełna
         run: node scripts/panel-marki-run.mjs
       - name: Dowody panelu bez sesji i poświadczeń
-        if: always()
+        # Tylko po czerwieni: zrzuty zielonego panelu to ~33 MB na przebieg
+        # i ponad połowa zużytego miejsca na artefakty (audyt CI 23.09).
+        if: failure()
         continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
@@ -1067,7 +1073,7 @@ jobs:
             storage/port-panelu/details/*.png
             storage/port-panelu/details-zoom/*.json
             storage/port-panelu/details-zoom/*.png
-          retention-days: 14
+          retention-days: 5
 
   port_marki:
     name: Port marki (kompozycje, zoom i kontrole ujemne)
@@ -1326,7 +1332,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true' && needs.zakres.outputs.widok == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     services:
       postgres:
@@ -1726,7 +1732,7 @@ jobs:
     needs: zakres
     if: needs.zakres.outputs.kod == 'true'
     runs-on: ${{ fromJSON(vars.CI_RUNS_ON || '"ubuntu-latest"') }}
-    timeout-minutes: 20
+    timeout-minutes: 25
 
     steps:
       - uses: actions/checkout@v7
