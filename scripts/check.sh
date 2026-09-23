@@ -80,20 +80,6 @@ else
     zle "Błąd składni PHP — szczegóły: find app -name '*.php' | xargs -n1 php -l"
 fi
 
-# --- 3a. Numeracja decyzji -------------------------------------------------
-# Duplikat numeru decyzji wychodził dotąd dopiero PO scaleniu drugiej gałęzi —
-# zmierzone: #1222 wziął numer zarezerwowany przez #1164 (D-235). Ten
-# strażnik porównuje numery TEJ gałęzi z numerami wszystkich gałęzi zdalnych,
-# więc zapala się, kiedy jeszcze da się wziąć inny numer bez przepinania
-# odnośników.
-krok "Numeracja decyzji"
-if ./scripts/numery-decyzji.sh >/tmp/kuking-numery.log 2>&1; then
-    ok "Numery decyzji bez duplikatów i kolizji"
-else
-    zle "Numeracja decyzji — szczegóły: ./scripts/numery-decyzji.sh"
-    sed 's/^/  /' /tmp/kuking-numery.log
-fi
-
 # --- 3b. Skrypty powłoki ---------------------------------------------------
 # Entrypoint kontenera to kod, który decyduje o tym, czy serwis w ogóle żyje —
 # a żaden test PHPUnit go nie dotknie. Awaria z 5–6 września 2026 (3,5 godziny

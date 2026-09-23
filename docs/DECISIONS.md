@@ -15172,19 +15172,9 @@ mierzonych stronach i reguł o zasięgu masowym (ponad 300 elementów — wewnę
 reguły Tailwinda). Wszystkie trzy są RAPORTOWANE jako `niezmierzone`, nigdy
 pomijane po cichu: cisza wyglądałaby jak wynik pozytywny.
 
-## D-237 — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
+## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem (21 września 2026)
 
-**Ta decyzja nosiła najpierw nagłówek `## D-1009-ROBOCZA`** i czekała na numer
-(„numer ostateczny przydziela koordynator przy scalaniu"). Numer nadano
-22 września, regułą z D-235. Najpierw był to D-233, ale zanim ta gałąź się
-scaliła, D-233 wszedł na `main` jako rejestr potwierdzeń RODO — więc ten wpis,
-jako strona, której numer nie był jeszcze na `main`, ustąpił na D-237. Zapis roboczy trzeba było zdjąć z dwóch powodów:
-czytało się go jako D-100 — numer, który w tym dzienniku NIE MA wpisu, więc
-odnośnik do niego byłby martwy — a dla `NumeryDecyzjiMajaWpisyTest` nagłówek
-w tym kształcie był NIEWIDOCZNY (wzorzec `^## D-(\d{3})\b` nie dopasowuje
-`D-1009`), czyli wpis nie liczył się ani jako istniejący, ani jako duplikat.
-
-Właściciel rozstrzygnął
+Numer ostateczny przydziela koordynator przy scalaniu. Właściciel rozstrzygnął
 wprost: pierwszy wkład nie powtarza się po usunięciu wpisu. Zatwierdził także
 odtworzenie tylko na podstawie zachowanych danych, bez zaległych alertów;
 pełna gwarancja zaczyna się od wdrożenia.
@@ -15263,12 +15253,7 @@ klienta nie wystawia sesji. Ta decyzja nie dopuszcza cache HTML z sesją
 ani nie ustala opóźnienia ukrycia HTML. Projekt reguł, bramka i ograniczenia:
 `docs/infra/CLOUDFLARE_CACHE_597_610.md`. Konfiguracji Cloudflare nie zmieniono.
 
-## D-234 — Próg prezentacji publicznej aktywności (uzupełnienie #369, 20 września 2026)
-
-**Ten wpis wisiał na końcu dziennika jako „Uzupełnienie #369", bez numeru.**
-Numer nadano 22 września, regułą z D-235. Wpis bez numeru nie jest wpisem
-pomocniczym — jest wpisem, na który nie da się powołać z kodu, bo cały
-mechanizm odnośników w tym repozytorium stoi na numerze.
+## Uzupełnienie #369 — Próg prezentacji publicznej aktywności (20 września 2026)
 
 Właściciel zatwierdził pozostawienie **5 zdjęć / 3 osób wyłącznie jako progu
 prezentacji publicznej aktywności, bez obietnicy anonimowości**. Nie jest to
@@ -16123,71 +16108,6 @@ tylko wtedy, gdy rozróżnia ekran-cytat od ekranu-roboczego, i tylko po
 ponownej decyzji właściciela.
 
 ---
-
-## D-235 — Numer decyzji bierze się po sprawdzeniu gałęzi, nie po `main` (22 września 2026)
-
-**Numeracja NIE jest rozjechana — jest uzgodniona**, i to jest punkt wyjścia
-tej decyzji, a nie jej wniosek. Właściciel potwierdził przydziały: **D-223**
-kaskada, **D-227** #1164 (`flota/prog-postgresa`), **D-228** #966, **D-229**
-#1180, **D-230** #1168. Ten sam numer widoczny na kilkunastu gałęziach to ta
-sama decyzja rozniesiona przez scalenia, nie spór.
-
-Jest więc czego pilnować, a nie co naprawiać. **Nie
-przenumerowujemy cudzych, niescalonych gałęzi** — one są w robocie u innych
-sesji.
-
-### Co było naprawdę zepsute — dwie rzeczy, obie na `main`
-
-Dwa wpisy stały poza formatem, więc były dla strażników NIEWIDOCZNE:
-`## D-1009-ROBOCZA` (między D-222 a D-224, czytany jako D-100 — numer, który
-wpisu nie ma) oraz wiszące na końcu `## Uzupełnienie #369`, bez numeru w
-ogóle. Taki wpis nie liczy się ani jako istniejący, ani jako duplikat, a
-odnośnik do niego z kodu byłby martwy. Dostały numery: D-237 i D-234.
-
-### Jedna kolizja, która jest kolizją
-
-**#1222 (`naprawa/skladnik-bez-ilosci-jeden-kontrakt`) wziął D-227**, należący
-do #1164. Zmierzone: obie gałęzie mają własny wpis `## D-227` i osobno obie
-są zielone. Poprawia to **ta strona, która wzięła numer cudzy** — kto następny
-dotknie #1222, przestawia jego wpis na pierwszy wolny numer powyżej D-231
-(sesja #8 zmierzyła, że D-232 jest wolny). Nie ruszamy #1164.
-
-### Reguła
-
-Numer bierze się **po sprawdzeniu wszystkich gałęzi zdalnych**, nie po samym
-`main`: numer wzięty wczoraj na cudzej gałęzi jest zajęty, choć na `main` go
-jeszcze nie ma. Podpowiedź (`--nastepny-wolny`) oddaje numer o jeden wyższy
-niż najwyższy użyty gdziekolwiek, a **nie pierwszą wolną lukę**. Luki niosą
-informację: D-067, D-070, D-073, D-074 są zarezerwowane, D-084, D-086, D-094
-puste świadomie i na stałe, a D-108…D-112 to odstęp od numeracji systemu
-projektowego v3.1. Reguła „pierwsza wolna luka" oddaje tu D-067 — zmierzone.
-
-Ta decyzja bierze D-234…D-237 i zostawia D-231 oraz D-232 nietknięte.
-
-**Reguła zadziałała na tej samej gałęzi, która ją wprowadza.** Wpis „Pierwszy
-wkład" dostał tu najpierw D-233. Zanim gałąź się scaliła, D-233 wszedł na `main`
-jako rejestr potwierdzeń RODO — konflikt scalenia na końcu dziennika, dokładnie
-ten przypadek, dla którego „weź obie strony" jest groźne. Rozstrzygnięcie było
-mechaniczne: ustępuje strona, której numeru nie ma jeszcze na `main`, więc wpis
-przeszedł na D-237. Numer z `main` zostaje nietknięty.
-
-### Mechanizm
-
-`scripts/numery-decyzji.sh` (w `scripts/check.sh`, czyli przed PR-em) zgłasza
-duplikat w pliku, nagłówek poza formatem oraz **kolizję międzygałęziową**:
-numer dołożony na tej gałęzi ponad `origin/main`, który dokłada też inna
-gałąź zdalna. To jest ta kontrola, której `NumeryDecyzjiMajaWpisyTest`
-wykonać nie może — tamten czyta jeden plik w jednym drzewie, więc obie strony
-sporu o D-227 widzi zielone aż do scalenia drugiej. Sprawdzone na prawdziwych
-danych: podstawiony D-230 zapala się z nazwą gałęzi `flota/scal-zeszyt-775`.
-
-Skrypt **niczego nie przenumerowuje sam**. Przy kolizji nazywa gałąź i
-zostawia rozstrzygnięcie człowiekowi, bo „kto ustępuje" jest ustaleniem
-właściciela, a nie funkcją treści pliku. Ma własną kontrolę ujemną
-(`--kontrola-ujemna`). Bez dostępu do gałęzi zdalnych kontrola
-międzygałęziowa kończy się jawnym ostrzeżeniem, nie cichą zielenią.
-
-Format nagłówka pilnuje osobno `NumeracjaDecyzjiMaJedenFormatTest`.
 
 ## D-236 — Kolejka moderacji czyta się od rzeczy, która nie może czekać (22 września 2026)
 
