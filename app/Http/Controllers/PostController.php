@@ -803,6 +803,7 @@ class PostController extends Controller
 
         try {
             $this->editPost->handle(
+                actor: $request->user(),
                 post: $post,
                 body: $data['body'] ?? null,
                 visibility: $data['visibility'],

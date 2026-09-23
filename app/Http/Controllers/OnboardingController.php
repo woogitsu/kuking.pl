@@ -99,16 +99,17 @@ class OnboardingController extends Controller
         // Nietekstowe `q` znaczy dokładnie to samo co brak frazy.
         $qSurowe = $request->query('q', '');
         $phrase = trim(is_string($qSurowe) ? $qSurowe : '');
+        $searchErrors = SearchQuery::phraseValidator($phrase, 'Imię lub nazwa użytkownika')->errors();
 
         // Ten sam próg co `SearchController` — MUSI się zgadzać z tym,
         // co i tak robi `SearchQuery::people()` (poniżej dwóch znaków
         // w ogóle nie odpytuje bazy), inaczej ekran pokazałby „nic nie
         // znaleźliśmy" tam, gdzie baza w ogóle nie została zapytana.
-        $zaKrotka = $phrase !== '' && mb_strlen($phrase) < 2;
+        $zaKrotka = $phrase !== '' && mb_strlen(SearchQuery::peoplePhrase($phrase)) < 2;
 
         $wynikiWyszukiwania = null;
 
-        if ($phrase !== '' && ! $zaKrotka) {
+        if ($phrase !== '' && ! $zaKrotka && $searchErrors->isEmpty()) {
             $user = $request->user();
 
             $wynikiWyszukiwania = $this->search
@@ -123,6 +124,7 @@ class OnboardingController extends Controller
         return view('pages.onboarding.people', [
             'people' => $this->board->peopleToFollow($request->user(), 8),
             'phrase' => $phrase,
+            'searchErrors' => $searchErrors,
             'zaKrotka' => $zaKrotka,
             'wynikiWyszukiwania' => $wynikiWyszukiwania?->take(self::WYNIKI_WYSZUKIWANIA),
             'jestWiecejWynikow' => ($wynikiWyszukiwania?->count() ?? 0) > self::WYNIKI_WYSZUKIWANIA,
