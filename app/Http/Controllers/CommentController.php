@@ -13,7 +13,8 @@ use Illuminate\Http\Request;
  * Edycja i usunięcie komentarza.
  *
  * Reguły KTO MOŻE CO żyją w CommentPolicy (edycja — autor, 15 minut od
- * publikacji; usunięcie — autor komentarza, autor treści albo moderator).
+ * publikacji; usunięcie — autor komentarza albo autor treści; moderator
+ * zdejmuje cudzy komentarz wyłącznie z panelu moderacji, issue #932).
  * Kontroler woła Policy i waliduje dane. Akcja DeleteComment pilnuje dwóch
  * rzeczy, których Policy świadomie nie robi:
  *  - wątek nie może się rozsypać, gdy usunięty komentarz ma odpowiedzi,
