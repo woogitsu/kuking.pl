@@ -130,6 +130,73 @@ class DataExportTest extends TestCase
         $this->assertStringContainsString('Kliknij dwa razy', $readme);
     }
 
+    public function test_dwa_przepisy_o_wspolnym_poczatku_nazwy_i_uuid_maja_osobne_strony_w_paczce(): void
+    {
+        Mail::fake();
+
+        $basia = $this->user('basia');
+        $wspolnySlug = str_repeat('a', 70);
+
+        $pierwszy = Recipe::factory()->for($basia, 'author')->make([
+            'title' => 'Pierwszy przepis',
+            'slug' => $wspolnySlug.'-pierwszy',
+        ]);
+        $pierwszy->setAttribute('id', '01995a80-0000-7000-8000-000000000001');
+        $pierwszy->save();
+
+        $drugi = Recipe::factory()->for($basia, 'author')->make([
+            'title' => 'Drugi przepis',
+            'slug' => $wspolnySlug.'-drugi',
+        ]);
+        $drugi->setAttribute('id', '01995a80-0000-7000-8000-000000000002');
+        $drugi->save();
+
+        $export = $this->runExportFor($basia);
+        $strony = array_values(array_filter(
+            $this->filesInArchive($export),
+            fn (string $file): bool => str_starts_with($file, 'przepisy/') && str_ends_with($file, '.html'),
+        ));
+
+        $this->assertCount(2, $strony, 'Oba przepisy muszą dostać osobne strony HTML w gotowej paczce.');
+        $this->assertCount(2, array_unique($strony), 'Dwie strony przepisu mają tę samą nazwę w ZIP.');
+        $this->assertStringContainsString('Pierwszy przepis', $this->readFromArchive($export, 'przepisy/'.ExportFileNames::recipeFile($pierwszy)));
+        $this->assertStringContainsString('Drugi przepis', $this->readFromArchive($export, 'przepisy/'.ExportFileNames::recipeFile($drugi)));
+    }
+
+    public function test_dwa_kolejne_eksporty_tego_samego_konta_nie_nadpisuja_sie_i_sprzatanie_nie_kasuje_nowszego(): void
+    {
+        Mail::fake();
+
+        $basia = $this->user('basia');
+        $pierwszy = $this->runExportForWithId($basia, '01995a80-0000-7000-8000-000000000011');
+
+        Recipe::factory()->for($basia, 'author')->create(['title' => 'Nowy przepis']);
+
+        $drugi = $this->runExportForWithId($basia, '01995a80-0000-7000-8000-000000000012');
+
+        $this->assertSame(DataExport::STATUS_READY, $pierwszy->status);
+        $this->assertSame(DataExport::STATUS_READY, $drugi->status);
+        $this->assertNotSame($pierwszy->object_key, $drugi->object_key, 'Kolejne paczki mają ten sam klucz i nadpisują się w magazynie.');
+        Storage::disk('local')->assertExists((string) $pierwszy->object_key);
+        Storage::disk('local')->assertExists((string) $drugi->object_key);
+        $this->assertCount(0, $this->jsonFromArchive($pierwszy)['przepisy']);
+        $this->assertCount(1, $this->jsonFromArchive($drugi)['przepisy']);
+
+        $this->actingAs($basia)->get($this->downloadUrl($pierwszy))->assertOk();
+        $this->actingAs($basia)->get($this->downloadUrl($drugi))->assertOk();
+
+        $staryKlucz = (string) $pierwszy->object_key;
+        $nowyKlucz = (string) $drugi->object_key;
+        $pierwszy->update(['expires_at' => now()->subDay()]);
+
+        $this->artisan('kuking:sprzataj-eksporty')->assertSuccessful();
+
+        Storage::disk('local')->assertMissing($staryKlucz);
+        Storage::disk('local')->assertExists($nowyKlucz);
+        $this->assertSame(DataExport::STATUS_READY, $drugi->refresh()->status);
+        $this->actingAs($basia)->get($this->downloadUrl($drugi))->assertOk();
+    }
+
     public function test_eksport_zawiera_prywatne_wpisy_i_szkice_przepisow(): void
     {
         $basia = $this->user('basia', ['display_name' => 'Basia']);
@@ -709,6 +776,21 @@ class DataExportTest extends TestCase
         ]);
 
         (new GenerateUserExport((string) $export->getKey()))->handle();
+
+        return $export->refresh();
+    }
+
+    private function runExportForWithId(User $user, string $id): DataExport
+    {
+        $export = new DataExport;
+        $export->forceFill([
+            'id' => $id,
+            'user_id' => $user->getKey(),
+            'status' => DataExport::STATUS_QUEUED,
+        ]);
+        $export->save();
+
+        (new GenerateUserExport($id))->handle();
 
         return $export->refresh();
     }

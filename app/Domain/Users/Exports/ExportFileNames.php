@@ -15,7 +15,7 @@ use Illuminate\Support\Str;
  */
 final class ExportFileNames
 {
-    /** Plik HTML jednego przepisu, np. `rosol-z-kury.html`. */
+    /** Plik HTML jednego przepisu, np. `rosol-z-kury-<uuid>.html`. */
     public static function recipeFile(Recipe $recipe): string
     {
         $slug = Str::limit(Str::slug((string) ($recipe->slug ?: $recipe->title)), 70, '');
@@ -24,9 +24,9 @@ final class ExportFileNames
             $slug = 'przepis';
         }
 
-        // Krótki fragment identyfikatora na końcu: dwa szkice o tym samym
-        // tytule nie mogą nadpisać sobie plików.
-        return $slug.'-'.Str::substr((string) $recipe->getKey(), 0, 6).'.html';
+        // Pełny identyfikator rozróżnia też przepisy utworzone blisko siebie:
+        // UUID v7 ma wtedy wspólny początek, więc krótki fragment koliduje.
+        return $slug.'-'.(string) $recipe->getKey().'.html';
     }
 
     /** Nazwa pliku ZIP, jaką zobaczy człowiek w katalogu Pobrane. */
@@ -42,7 +42,7 @@ final class ExportFileNames
     {
         return sprintf('eksporty/%s/%s-%s',
             $export->user_id,
-            Str::substr((string) $export->getKey(), 0, 8),
+            (string) $export->getKey(),
             self::archiveFile($export),
         );
     }

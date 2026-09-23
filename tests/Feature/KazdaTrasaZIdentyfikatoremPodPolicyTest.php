@@ -116,7 +116,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
      * Tą trasą wychodzą bajty z `storage/app/private` — czyli m.in. PACZKA
      * RODO, bo `kuking.exports.disk` to lokalnie i w testach `local`.
      * Sam identyfikator paczki jest zgadywalny w stopniu, o który nie warto
-     * się spierać (`eksporty/<id konta>/<8 znaków id paczki>-…`), więc
+     * się spierać (`eksporty/<id konta>/<id paczki>-…`), więc
      * ochroną nie może być to, że nikt nie zna ścieżki — i nie jest:
      * `ServeFile` wymaga podpisu, bo dysk `local` nie ma `visibility =>
      * 'public'`. TO JEST WARUNEK, KTÓRY WOLNO ZGUBIĆ JEDNĄ LINIJKĄ
