@@ -13,7 +13,11 @@ use Illuminate\Support\Str;
 use PHPUnit\Framework\Attributes\Group;
 use Symfony\Component\Process\Process;
 
-/** Rzeczywiste commity i obserwowana blokada autora przed rozstrzygnięciem pierwszeństwa. */
+/**
+ * Rzeczywiste commity i obserwowana blokada autora przed rozstrzygnięciem pierwszeństwa.
+ *
+ * @bez-kontroli-dodatniej base_path() podaje tylko katalog roboczy podprocesowi, a preg_match czyta PID z jego wyjścia — ten test nie asertuje na treści żadnego źródła aplikacji.
+ */
 #[Group('dwa-polaczenia')]
 class FirstPostConcurrentAtomicTest extends TestDwochPolaczen
 {
