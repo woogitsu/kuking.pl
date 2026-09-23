@@ -3272,7 +3272,8 @@ Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
   zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
   `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
 - Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
-  `<tmp>/kuking-eksport/<data_export_id>/` na dysku **workera** i znikają
+  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport` katalogu
+  tymczasowego systemu, nazwany identyfikatorem eksportu) na dysku **workera** i znikają
   w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
   instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
   godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
