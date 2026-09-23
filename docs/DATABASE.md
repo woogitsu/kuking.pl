@@ -2616,8 +2616,15 @@ kopia przy decyzji, czytana przez `RestoreContent`.
 
 - `moderation_actions_tresc_sprzed_zdjecia_check`:
   `tresc_sprzed_zdjecia IS NULL OR (target_type = 'comment' AND action = 'remove')`.
-- Wypełniana w tej samej transakcji, zaraz po utworzeniu wiersza decyzji
-  (to jedyny zapis po `INSERT` poza czyszczeniem niżej).
+- Wypełniana w **tym samym `INSERT`-cie** co wiersz decyzji
+  (`ZdejmijTresc::tekstDoZachowania()` przed `ModerationAction::create()`).
+  Po `INSERT` kolumna tylko się **zeruje**, nigdy nie zmienia na inny tekst:
+  przy przywróceniu tekstu (`RestoreContent` — tekst wrócił do komentarza,
+  kopia nie ma celu) i przy czyszczeniu RODO niżej. `UPDATE … SET
+  tresc_sprzed_zdjecia = NULL` CHECK przepuszcza (`IS NULL`).
+- `RestoreContent` bierze kopię tylko z **najnowszej** decyzji
+  `hide`/`remove`/`unhide` o komentarzu i tylko gdy to `remove`. Napis
+  postawiony przez autora po „cofam” nie wyciąga starej kopii.
 - **RODO:** usunięcie konta z zakresem „wszystko” (`EraseAccountData::usunTresci()`)
   ustawia ją na `NULL` dla decyzji dotyczących tej osoby — razem
   z `forceDelete()` jej komentarzy. Sama decyzja zostaje. Przy zakresie
@@ -2626,7 +2633,10 @@ kopia przy decyzji, czytana przez `RestoreContent`.
 
 **Rollback:** `down()` **odmawia**, gdy kolumna ma choć jedną niepustą
 wartość (D-088) — bez niej „cofam” po odwołaniu zostawiłoby napis zamiast
-tekstu. Na świeżej bazie przechodzi. Świadome wymuszenie (najpierw kopia
+tekstu. Po zerowaniu przy przywróceniu niepusta wartość zostaje tylko przy
+komentarzu, który nadal stoi z napisem po decyzji moderacji — więc odmowa
+dotyczy dokładnie tekstów, które odwołanie może jeszcze przywrócić. Na
+świeżej bazie przechodzi. Świadome wymuszenie (najpierw kopia
 wierszy z niepustą kolumną):
 `KUKING_ROLLBACK_KASUJE_TRESC_ZDJETYCH_KOMENTARZY=1`. Test:
 `tests/Feature/ZdejmijZUrzeduTest.php`.

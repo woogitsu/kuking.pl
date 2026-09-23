@@ -380,6 +380,12 @@ class ModerationController extends Controller
                 ]);
             }
 
+            // Kopia tekstu komentarza, który zostanie zastąpiony napisem —
+            // w tym samym INSERT-cie co decyzja (`ZdejmijTresc`, D-251).
+            $kopia = $wykonanaAkcja === ModerationAction::ACTION_REMOVE && $aktywnyCel !== null
+                ? $this->zdejmij->tekstDoZachowania($aktywnyCel)
+                : null;
+
             $akcja = ModerationAction::create([
                 'moderator_id' => $moderator->getKey(),
                 'report_id' => $report->getKey(),
@@ -391,6 +397,7 @@ class ModerationController extends Controller
                 'reason_code' => $data['reason_code'],
                 'note' => $data['note'] ?? null,
                 'user_message' => $data['user_message'] ?? null,
+                'tresc_sprzed_zdjecia' => $kopia,
             ]);
 
             $this->applyAction($aktywnyCel, $osoba, $wykonanaAkcja, $akcja, $termin);

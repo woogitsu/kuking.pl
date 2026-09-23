@@ -8,6 +8,7 @@ use App\Domain\Moderation\ModeratedContent;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\Comment;
+use App\Models\CookedEvent;
 use App\Models\ModerationAction;
 use App\Models\Post;
 use App\Models\Recipe;
@@ -44,6 +45,9 @@ use Illuminate\Support\Facades\Gate;
  *  - kto: `removeExOfficio` w polityce treści (2FA, niższa rola autora);
  *  - co: wpis, przepis, komentarz. „Ugotowałem” nie — patrz
  *    `CookedEventPolicy::removeExOfficio()`;
+ *  - czyje: tylko treść WIDOCZNA DLA INNYCH (`widocznaDlaInnych()`) —
+ *    szkicu i treści prywatnej moderator z urzędu nie ogląda ani nie zdejmuje
+ *    (D-251 pkt „Zakres”);
  *  - kiedy nie: treść już zdjęta albo z otwartym zgłoszeniem. Tamto
  *    zgłoszenie ma swojego zgłaszającego i swój termin odpowiedzi — decyzja
  *    zapada tam, żeby nie było dwóch spraw o jedną treść.
@@ -56,6 +60,33 @@ final class ZdejmijZUrzedu
         'recipe' => Recipe::class,
         'comment' => Comment::class,
     ];
+
+    /**
+     * Czy tę treść widzi ktoś poza autorem — czyli czy w ogóle jest czymś,
+     * co moderacja „znajduje, przeglądając serwis” (D-251, zakres).
+     *
+     * Wpis i przepis: opublikowane, publiczne albo dla obserwujących. Szkic,
+     * treść ukryta i treść prywatna — nie. Komentarz: opublikowany i pod
+     * treścią widoczną dla innych (komentarz pod prywatnym wpisem widzi tylko
+     * jego autor). „Ugotowałem” — tyle, ile przepis, z którego ugotowano.
+     */
+    public static function widocznaDlaInnych(?Model $tresc): bool
+    {
+        return match (true) {
+            $tresc instanceof Post, $tresc instanceof Recipe => $tresc->isPublished()
+                && in_array($tresc->visibility, [Post::VISIBILITY_PUBLIC, Post::VISIBILITY_FOLLOWERS], true),
+            $tresc instanceof Comment => $tresc->status === Comment::STATUS_PUBLISHED
+                && self::widocznaDlaInnych($tresc->subject()),
+            $tresc instanceof CookedEvent => self::widocznaDlaInnych($tresc->recipe),
+            default => false,
+        };
+    }
+
+    /** Czy przycisk „Zdejmij z urzędu” ma przy tej treści sens (bez martwych przycisków). */
+    public static function dostepna(Model $tresc): bool
+    {
+        return self::widocznaDlaInnych($tresc) && ! ModeratedContent::jestZdjeta($tresc);
+    }
 
     public function __construct(
         private readonly ZdejmijTresc $zdejmij,
@@ -89,6 +120,11 @@ final class ZdejmijZUrzedu
                 throw new BladDlaCzlowieka('Ta treść jest już zdjęta. Odśwież stronę, żeby zobaczyć jej stan.');
             }
 
+            // Zakres pod blokadą: autor mógł w międzyczasie schować treść.
+            if (! self::widocznaDlaInnych($cel)) {
+                throw new BladDlaCzlowieka('Tej treści nie widzi już nikt poza autorem, więc nie ma czego zdejmować z urzędu.');
+            }
+
             // Policy pod blokadą — wynik ma zależeć od stanu, w którym
             // decyzja zapada (ten sam wzorzec co `decide()`, #1408).
             Gate::forUser($moderator)->authorize('removeExOfficio', $cel);
@@ -106,6 +142,7 @@ final class ZdejmijZUrzedu
             }
 
             $osoba = ModeratedContent::osoba($cel);
+            $kopia = $this->zdejmij->tekstDoZachowania($cel);
 
             $decyzja = ModerationAction::create([
                 'moderator_id' => $moderator->getKey(),
@@ -119,6 +156,7 @@ final class ZdejmijZUrzedu
                 'reason_code' => $reasonCode,
                 'note' => $note,
                 'user_message' => $userMessage,
+                'tresc_sprzed_zdjecia' => $kopia,
             ]);
 
             $this->zdejmij->handle($cel, $decyzja);

@@ -84,7 +84,9 @@ final class RestoreContent
 
         if ($bylZastapiony && $tekst === null) {
             // Napis postawił autor komentarza albo autor treści pod nim
-            // (`DeleteComment`) — tekst skasowali sami i moderacja go nie ma.
+            // (`DeleteComment`) — tekst skasowali sami. Także wtedy, gdy
+            // WCZEŚNIEJ zdjęła go moderacja, a po cofnięciu tamtej decyzji
+            // autor sam go usunął: stara kopia nie jest zgodą na powrót.
             throw new BladDlaCzlowieka('Ten komentarz usunęła osoba, która go napisała, albo autor treści, '
                 .'pod którą stał. Moderacja nie ma jego tekstu, więc nie da się go przywrócić.');
         }
@@ -127,6 +129,16 @@ final class RestoreContent
 
         if ($tekst !== null) {
             $target->forceFill(['body' => $tekst, 'body_removed_at' => null]);
+
+            // Tekst wrócił do komentarza — kopia przy decyzji nie ma już
+            // celu (minimalizacja danych, RODO art. 5 ust. 1 lit. c). Jedyna
+            // zmiana istniejącego wiersza rejestru, na jaką pozwala D-251:
+            // zerowanie materiału sprawy, nigdy przepisanie decyzji.
+            ModerationAction::query()
+                ->where('target_type', 'comment')
+                ->where('target_id', $target->getKey())
+                ->whereNotNull('tresc_sprzed_zdjecia')
+                ->update(['tresc_sprzed_zdjecia' => null]);
         }
 
         $target->forceFill(['status' => $docelowy])->save();
@@ -163,20 +175,30 @@ final class RestoreContent
     }
 
     /**
-     * Tekst komentarza zapisany przy OSTATNIEJ decyzji `remove`, która go
-     * zastąpiła napisem (`ZdejmijTresc`, G31).
+     * Tekst komentarza do przywrócenia — tylko wtedy, gdy NAJNOWSZA decyzja
+     * `hide`/`remove`/`unhide` o nim to `remove`, która zastąpiła go napisem
+     * i zachowała kopię (`ZdejmijTresc`, G31).
+     *
+     * Nie „ostatnia decyzja `remove` z kopią”: po `unhide` (np. „cofam” po
+     * odwołaniu) autor mógł sam usunąć komentarz. Napis stoi wtedy znowu,
+     * a stara kopia wyglądałaby jak materiał do przywrócenia — i moderator
+     * przywróciłby tekst, który autor świadomie skasował.
      */
     private function trescSprzedZdjecia(string $id): ?string
     {
-        $tekst = ModerationAction::query()
+        $ostatnia = ModerationAction::query()
             ->where('target_type', 'comment')
             ->where('target_id', $id)
-            ->where('action', ModerationAction::ACTION_REMOVE)
-            ->whereNotNull('tresc_sprzed_zdjecia')
+            ->whereIn('action', [ModerationAction::ACTION_HIDE, ModerationAction::ACTION_REMOVE, ModerationAction::ACTION_UNHIDE])
             ->orderByDesc('created_at')
-            ->value('tresc_sprzed_zdjecia');
+            ->orderByDesc('id')
+            ->first();
 
-        return is_string($tekst) ? $tekst : null;
+        if ($ostatnia?->action !== ModerationAction::ACTION_REMOVE) {
+            return null;
+        }
+
+        return is_string($ostatnia->tresc_sprzed_zdjecia) ? $ostatnia->tresc_sprzed_zdjecia : null;
     }
 
     /**

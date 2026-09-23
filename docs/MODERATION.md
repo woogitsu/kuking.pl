@@ -99,9 +99,20 @@ się więc zdjąć wcale. Stąd akcja **„Zdejmij z urzędu”**.
   (DSA art. 17 ust. 3 lit. b). Odwołanie idzie **tą samą ścieżką** co od
   decyzji ze zgłoszenia (`/odwolanie/{decyzja}`, rozstrzyga administrator),
   a „cofam” przywraca treść.
-- **Kiedy nie:** treść już zdjęta albo z **otwartym zgłoszeniem** — wtedy
-  decyzja zapada w kolejce zgłoszeń, żeby zgłaszający dostał odpowiedź
-  (art. 16 ust. 5) i żeby o jedną treść nie toczyły się dwie sprawy.
+- **Tylko treść widoczna dla innych:** opublikowana, publiczna albo dla
+  obserwujących (komentarz — pod taką treścią). Szkic, treść prywatna
+  i ukryta dają **404** — moderator nie ogląda prywatnych treści po UUID.
+  Nielegalna treść prywatna trafia do moderacji zgłoszeniem nielegalnej
+  treści (DSA art. 16, wklejony adres), nakazem organu albo kolejką
+  automatu — i tam się ją rozstrzyga (D-251 pkt 7).
+- **Kiedy nie:** treść już zdjęta (ekran mówi to od razu, przycisk się nie
+  rysuje, druga karta dostaje błąd bez drugiej decyzji) albo z **otwartym
+  zgłoszeniem** — wtedy decyzja zapada w kolejce zgłoszeń, żeby zgłaszający
+  dostał odpowiedź (art. 16 ust. 5) i żeby o jedną treść nie toczyły się
+  dwie sprawy.
+- **Po decyzji** panel przechodzi do historii konta autora
+  (`/admin/uzytkownicy/{id}`) — tam decyzja z urzędu jest widoczna; w kolejce
+  zgłoszeń jej nie ma, bo zgłoszenia nie było.
 - **„Ugotowałem” — nie.** `cooked_events` nie ma soft delete, więc zdjęcie
   kasowałoby wpis na stałe, a „cofam” po odwołaniu nie miałoby czego
   przywrócić. Ten sam powód, dla którego zdjęcie (`media`) nie ma `remove`.
@@ -115,8 +126,10 @@ odpowiedział, nie kasuje wiersza. Zostawia napis „Komentarz usunięty.”
 reguła co w `DeleteComment`. Wcześniej `applyAction()` robił zwykły soft
 delete i wątek się rozsypywał. Tekst komentarza zostaje przy decyzji
 (`moderation_actions.tresc_sprzed_zdjecia`), więc „cofam” po odwołaniu
-przywraca go w całości (`RestoreContent`). Komentarz bez odpowiedzi znika
-jak dotąd (soft delete).
+przywraca go w całości (`RestoreContent`), a kopia jest wtedy zerowana.
+Jeśli po cofnięciu decyzji autor sam usunął komentarz, „Przywróć treść” przy
+starym zgłoszeniu **odmawia** — stara kopia nie jest zgodą na powrót tekstu,
+który autor skasował. Komentarz bez odpowiedzi znika jak dotąd (soft delete).
 
 ### Przywracanie treści (issue #65)
 

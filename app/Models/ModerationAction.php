@@ -185,6 +185,9 @@ class ModerationAction extends Model
         'reason_code',
         'note',
         'user_message',
+        // Kopia tekstu komentarza zastąpionego napisem (G31, D-251) — ląduje
+        // w tym samym INSERT-cie co decyzja. Pole nie steruje niczym.
+        'tresc_sprzed_zdjecia',
     ];
 
     protected function casts(): array

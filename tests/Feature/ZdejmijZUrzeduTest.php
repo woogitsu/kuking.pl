@@ -72,8 +72,14 @@ class ZdejmijZUrzeduTest extends TestCase
 
         $this->actingAs($moderator)
             ->post($this->adres($typ, $tresc), $this->dane())
-            ->assertRedirect(route('admin.reports'))
+            ->assertRedirect(route('admin.users.show', ['user' => $autor->getKey()]))
             ->assertSessionHasNoErrors();
+
+        // Tam, dokąd przekierowujemy, decyzję naprawdę widać.
+        $this->actingAs($moderator)
+            ->get(route('admin.users.show', ['user' => $autor->getKey()]))
+            ->assertOk()
+            ->assertSee('Treść zdjęta z urzędu.');
 
         $this->assertSoftDeleted($tresc);
         $this->assertSame(0, Report::count(), 'Decyzja z urzędu nie tworzy zgłoszenia.');
@@ -167,11 +173,12 @@ class ZdejmijZUrzeduTest extends TestCase
     public function test_administrator_zdejmuje_tresc_moderatora(): void
     {
         // Kontrola dodatnia do testu wyżej: reguła rangi nie blokuje wszystkiego.
-        $post = $this->tresc('post', $this->user('mod', ['role' => User::ROLE_MODERATOR]));
+        $mod = $this->user('mod', ['role' => User::ROLE_MODERATOR]);
+        $post = $this->tresc('post', $mod);
 
         $this->actingAs($this->admin())
             ->post($this->adres('post', $post), $this->dane())
-            ->assertRedirect(route('admin.reports'));
+            ->assertRedirect(route('admin.users.show', ['user' => $mod->getKey()]));
 
         $this->assertSoftDeleted($post);
     }
@@ -306,6 +313,162 @@ class ZdejmijZUrzeduTest extends TestCase
         $przywrocony = $komentarz->fresh();
         $this->assertSame($tekst, $przywrocony->body);
         $this->assertNull($przywrocony->body_removed_at);
+        $this->assertNull($decyzja->fresh()->tresc_sprzed_zdjecia, 'Kopia tekstu przetrwała przywrócenie (RODO: minimalizacja).');
+    }
+
+    public function test_komentarz_usuniety_przez_autora_po_cofnieciu_decyzji_nie_wraca_ze_starej_kopii(): void
+    {
+        // Regresja z przeglądu G31: R1 → „Usuń” (napis, kopia) → odwołanie
+        // „cofam” (tekst wraca) → autor SAM usuwa komentarz (napis bez kopii)
+        // → „Przywróć treść” przy R1 wyciągało starą kopię i przywracało
+        // tekst, który autor świadomie skasował.
+        $autor = $this->user('autor');
+        $komentarz = $this->tresc('comment', $autor);
+        Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
+        $report = Report::create([
+            'reporter_id' => $this->user('zglasza')->getKey(),
+            'target_type' => 'comment',
+            'target_id' => $komentarz->getKey(),
+            'reason' => 'spam',
+            'status' => Report::STATUS_OPEN,
+        ]);
+        $moderator = $this->moderator();
+
+        $this->actingAs($moderator)
+            ->post(route('admin.reports.decide', $report), [
+                'action' => ModerationAction::ACTION_REMOVE,
+                'reason_code' => 'spam-reklama',
+                'user_message' => 'Komentarz był reklamą.',
+            ])
+            ->assertSessionHasNoErrors();
+        $decyzja = ModerationAction::sole();
+
+        $this->travel(1)->minutes();
+        $this->actingAs($autor)->post(route('appeals.store', $decyzja), ['body' => 'To nie była reklama, tylko pytanie.']);
+        $this->actingAs($this->admin())
+            ->post(route('admin.appeals.resolve', Appeal::sole()), [
+                'outcome' => Appeal::STATUS_OVERTURNED,
+                'decision_note' => 'Masz rację, komentarz wraca.',
+            ])
+            ->assertSessionHasNoErrors();
+        $this->assertNull($komentarz->fresh()->body_removed_at);
+
+        $this->travel(1)->minutes();
+        app(DeleteComment::class)->handle($autor, $komentarz->fresh());
+        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $komentarz->fresh()->body);
+
+        $decyzjiPrzed = ModerationAction::count();
+
+        $this->travel(1)->minutes();
+        $this->actingAs($moderator)
+            ->from(route('admin.reports'))
+            ->post(route('admin.reports.restore', $report), ['reason_code' => 'odwolanie-uwzglednione'])
+            ->assertSessionHasErrors(['reason_code' => 'Ten komentarz usunęła osoba, która go napisała, albo autor treści, '
+                .'pod którą stał. Moderacja nie ma jego tekstu, więc nie da się go przywrócić.']);
+
+        $this->assertSame(DeleteComment::DELETED_PLACEHOLDER, $komentarz->fresh()->body);
+        $this->assertNotNull($komentarz->fresh()->body_removed_at);
+        $this->assertSame($decyzjiPrzed, ModerationAction::count());
+    }
+
+    /** @return array<string, array{0: string}> */
+    public static function niewidoczneDlaInnych(): array
+    {
+        return [
+            'szkic wpisu' => ['szkic-wpisu'],
+            'prywatny wpis' => ['prywatny-wpis'],
+            'szkic przepisu' => ['szkic-przepisu'],
+            'prywatny przepis' => ['prywatny-przepis'],
+            'komentarz pod prywatnym wpisem' => ['komentarz-pod-prywatnym'],
+        ];
+    }
+
+    #[DataProvider('niewidoczneDlaInnych')]
+    public function test_tresci_widocznej_tylko_dla_autora_moderator_nie_oglada_ani_nie_zdejmuje(string $przypadek): void
+    {
+        $autor = $this->user('autor');
+        [$typ, $tresc] = match ($przypadek) {
+            'szkic-wpisu' => ['post', Post::factory()->create([
+                'author_id' => $autor->getKey(), 'status' => Post::STATUS_DRAFT, 'published_at' => null,
+            ])],
+            'prywatny-wpis' => ['post', Post::factory()->create([
+                'author_id' => $autor->getKey(), 'visibility' => Post::VISIBILITY_PRIVATE,
+            ])],
+            'szkic-przepisu' => ['recipe', Recipe::factory()->create([
+                'author_id' => $autor->getKey(), 'status' => Recipe::STATUS_DRAFT, 'published_at' => null,
+            ])],
+            'prywatny-przepis' => ['recipe', Recipe::factory()->create([
+                'author_id' => $autor->getKey(), 'visibility' => 'private',
+            ])],
+            'komentarz-pod-prywatnym' => ['comment', Comment::factory()->create([
+                'author_id' => $autor->getKey(),
+                'post_id' => Post::factory()->create([
+                    'author_id' => $autor->getKey(), 'visibility' => Post::VISIBILITY_PRIVATE,
+                ])->getKey(),
+            ])],
+        };
+        $moderator = $this->moderator();
+
+        $this->actingAs($moderator)
+            ->get(route('admin.z-urzedu.create', ['typ' => $typ, 'id' => $tresc->getKey()]))
+            ->assertNotFound();
+        $this->actingAs($moderator)
+            ->post($this->adres($typ, $tresc), $this->dane())
+            ->assertNotFound();
+
+        $this->assertModelExists($tresc);
+        $this->assertNotSoftDeleted($tresc);
+        $this->assertSame(0, ModerationAction::count());
+    }
+
+    public function test_druga_karta_na_zdjetym_wpisie_nie_daje_drugiej_decyzji_a_usuniety_to_404(): void
+    {
+        $moderator = $this->moderator();
+        $post = $this->tresc('post', $this->user('autor'));
+        $formularz = route('admin.z-urzedu.create', ['typ' => 'post', 'id' => $post->getKey()]);
+
+        // Obie karty otwarte, zanim cokolwiek zapadło.
+        $this->actingAs($moderator)->get($formularz)->assertOk()->assertSee('Zdejmij tę treść');
+
+        $this->actingAs($moderator)->post($this->adres('post', $post), $this->dane())->assertSessionHasNoErrors();
+
+        // Druga karta: treść jest już miękko usunięta → 404, bez drugiej decyzji.
+        $this->actingAs($moderator)->post($this->adres('post', $post), $this->dane())->assertNotFound();
+        $this->actingAs($moderator)->get($formularz)->assertNotFound();
+
+        $this->assertSame(1, ModerationAction::count());
+        $this->assertSame(1, Notification::query()->where('type', Notification::TYPE_MODERATION)->count());
+    }
+
+    public function test_komentarz_juz_zastapiony_napisem_ekran_odmawia_od_razu_a_drugie_wyslanie_nic_nie_zapisuje(): void
+    {
+        $moderator = $this->moderator();
+        $komentarz = $this->tresc('comment', $this->user('autor'));
+        Comment::factory()->create(['post_id' => $komentarz->post_id, 'parent_id' => $komentarz->getKey()]);
+        $formularz = route('admin.z-urzedu.create', ['typ' => 'comment', 'id' => $komentarz->getKey()]);
+
+        $this->actingAs($moderator)->post($this->adres('comment', $komentarz), $this->dane())->assertSessionHasNoErrors();
+
+        $this->actingAs($moderator)
+            ->get($formularz)
+            ->assertOk()
+            ->assertSee('Ta treść jest już zdjęta z serwisu')
+            ->assertDontSee('Zdejmij tę treść')
+            ->assertDontSee('name="user_message"', false);
+
+        $this->actingAs($moderator)
+            ->from($formularz)
+            ->post($this->adres('comment', $komentarz), $this->dane())
+            ->assertRedirect($formularz)
+            ->assertSessionHasErrors(['reason_code' => 'Ta treść jest już zdjęta. Odśwież stronę, żeby zobaczyć jej stan.']);
+
+        $this->assertSame(1, ModerationAction::count());
+
+        // Przycisk przy treści też znika — nie prowadzi na ekran odmowy.
+        $this->actingAs($moderator)
+            ->get(route('posts.show', $komentarz->post_id))
+            ->assertOk()
+            ->assertDontSee($formularz, false);
     }
 
     public function test_decyzja_usun_ze_zgloszenia_tez_nie_rozsypuje_watku(): void

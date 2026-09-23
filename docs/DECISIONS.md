@@ -16161,6 +16161,41 @@ drugą osobę”.
    kolumnie `moderation_actions.tresc_sprzed_zdjecia`, bo napis go
    nadpisuje, a „cofam” ma go przywrócić. Kolumnę czyści „usuń wszystko”
    przy usuwaniu konta (RODO).
+7. **Zakres: tylko treść widoczna dla innych.** Wpis i przepis opublikowane,
+   publiczne albo dla obserwujących; komentarz opublikowany pod taką treścią
+   (`ZdejmijZUrzedu::widocznaDlaInnych()`). Szkic, treść prywatna i ukryta
+   dają **404** już na ekranie (`ZUrzeduController::cel()`), także przy
+   wysyłce formularza — moderator nie ogląda prywatnych treści po samym UUID
+   i nie dowiaduje się nawet, że istnieją. Powody:
+   - „z urzędu” znaczy „znaleźliśmy, przeglądając serwis” — a treści, której
+     nie widzi nikt poza autorem, przy przeglądzie serwisu znaleźć nie
+     można. Gdyby ekran ją pokazywał, UUID w adresie stawałby się drogą do
+     cudzego szkicu i prywatnych notatek (AGENTS.md §7: UUID to nie
+     autoryzacja);
+   - brak ogólnego obowiązku monitorowania (DSA art. 8) — nie ma powodu
+     przeglądać treści prywatnych „na wszelki wypadek”.
+   Treść prywatna, która mimo to jest nielegalna, trafia do moderacji innymi
+   drogami, każdą z własnym śladem: formularzem zgłoszenia nielegalnej
+   treści (DSA art. 16 — przyjmuje wklejony adres), nakazem organu (art. 9,
+   przez właściciela serwisu) albo kolejką automatu (D-052; lokalne wzorce
+   spamu sprawdzają także treść niepubliczną, D-241). Tam decyzja zapada
+   przy zgłoszeniu — `decide()` widoczności nie ogranicza.
+8. **Treść już zdjęta:** ekran od razu mówi „już zdjęta” zamiast formularza
+   (komentarz z napisem też), przycisk przy treści się nie rysuje, a drugie
+   wysłanie (druga karta) kończy się błędem bez drugiej decyzji — blokada
+   wiersza w `ZdejmijZUrzedu`. Treść miękko usunięta → 404.
+9. **Rejestr decyzji jest dopisywany, nie edytowany.** Kopia tekstu idzie
+   w TYM SAMYM `INSERT`-cie co decyzja (`ZdejmijTresc::tekstDoZachowania()`
+   przed `ModerationAction::create()`), a nie osobnym `UPDATE`-em na świeżym
+   wierszu. Jedyne zmiany istniejących wierszy to **zerowanie**
+   `tresc_sprzed_zdjecia`: przy „usuń wszystko” i przy przywróceniu tekstu
+   (tekst wrócił do komentarza, kopia nie ma celu — RODO art. 5 ust. 1
+   lit. c). Samej decyzji nic nie przepisuje.
+10. **Przywrócenie bierze kopię tylko z NAJNOWSZEJ decyzji** `hide`/`remove`/
+    `unhide` o komentarzu, i tylko gdy to `remove` z kopią. Po `unhide`
+    (np. „cofam”) autor mógł sam usunąć komentarz — stara kopia nie jest
+    wtedy zgodą na powrót, a przywrócenie odmawia z komunikatem, że komentarz
+    usunęła osoba, która go napisała (`RestoreContent`).
 
 ### Czego ta decyzja nie robi
 
@@ -16184,5 +16219,8 @@ drugą osobę”.
 
 Odwrócić commit. Migracja cofa się sama, dopóki nie ma zapisanych tekstów
 zdjętych komentarzy. Gdy są — odmawia (D-088, opis w `docs/DATABASE.md`).
+Odmowa ma sens także po pkt 9: kopia zostaje tylko przy komentarzu, który
+NADAL stoi z napisem po decyzji moderacji (przywrócone mają kopię wyzerowaną)
+— czyli dokładnie tam, gdzie odwołanie jeszcze może ją przywrócić.
 Decyzje z urzędu już zapisane zostają w rejestrze jako zwykłe `remove`
 z pustym `report_id`.

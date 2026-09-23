@@ -37,6 +37,9 @@ class ZUrzeduController extends Controller
         return view('pages.admin.z-urzedu', [
             'typ' => $typ,
             'cel' => $cel,
+            // Już zdjęta (także komentarz z napisem) — ekran mówi to od razu,
+            // zamiast dawać formularz, który po wysłaniu i tak odmówi.
+            'zdjeta' => ModeratedContent::jestZdjeta($cel),
             'opis' => CelZgloszenia::dla($cel),
             'powrot' => $this->adresTresci($cel),
         ]);
@@ -62,7 +65,7 @@ class ZUrzeduController extends Controller
         ]);
 
         try {
-            $this->zdejmij->handle(
+            $decyzja = $this->zdejmij->handle(
                 moderator: $request->user(),
                 target: $cel,
                 reasonCode: $data['reason_code'],
@@ -74,18 +77,30 @@ class ZUrzeduController extends Controller
             return back()->withInput()->withErrors(['reason_code' => $blad->getMessage()]);
         }
 
-        return redirect()->route('admin.reports')
-            ->with('status', 'Treść zdjęta z urzędu. Decyzja jest w rejestrze, a autor dostał powiadomienie z uzasadnieniem i może się odwołać.');
+        // Tam, gdzie decyzję widać: historia moderacji konta autora
+        // (`UzytkownicyController::show()` czyta rejestr po `subject_user_id`).
+        // Kolejka zgłoszeń jej nie pokazuje — zgłoszenia przecież nie ma.
+        $status = 'Treść zdjęta z urzędu. Decyzja jest w historii konta autora, a autor dostał powiadomienie '
+            .'z uzasadnieniem i może się odwołać.';
+
+        return $decyzja->subject_user_id !== null
+            ? redirect()->route('admin.users.show', ['user' => $decyzja->subject_user_id])->with('status', $status)
+            : redirect()->route('admin.reports')->with('status', 'Treść zdjęta z urzędu. Decyzja jest w rejestrze.');
     }
 
-    /** Cel po typie i UUID — 404 dla typu spoza listy i dla treści już usuniętej. */
+    /**
+     * Cel po typie i UUID — 404 dla typu spoza listy, dla treści miękko
+     * usuniętej i dla treści, której nie widzi nikt poza autorem (szkic,
+     * prywatna, ukryta). Tej ostatniej moderator z urzędu nie ogląda wcale:
+     * po samym UUID nie dowie się nawet, że istnieje (D-251, zakres).
+     */
     private function cel(string $typ, string $id): Model
     {
         $klasa = ZdejmijZUrzedu::TYPY[$typ] ?? abort(404);
 
         $cel = ModeratedContent::znajdz($typ, $id);
 
-        abort_unless($cel instanceof $klasa, 404);
+        abort_unless($cel instanceof $klasa && ZdejmijZUrzedu::widocznaDlaInnych($cel), 404);
 
         return $cel;
     }
