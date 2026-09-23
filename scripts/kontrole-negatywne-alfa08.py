@@ -112,6 +112,8 @@ XMP_TEST = "OryginalTraciGpsZXmpTest"
 # i adres alarmów zabrany schedulerowi — każda z trzech ma zapalić test.
 RAILWAY_IAC = ".railway/railway.ts"
 ZMIENNE_ROL_TEST = "ZmienneRailwayaPerRolaTest"
+# Scheduler budujący mailer w digeście musi mieć klucze EmailLabs (przegląd #1013).
+HARMONOGRAM_POCZTA_TEST = "harmonogram_budujacy_mailer_ma_klucze_poczty"
 
 
 def digest(path):
@@ -270,7 +272,12 @@ checks = [
     ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
      lambda s: replace_once(s, "    ...modelEnv,\n", "")),
     ("Scheduler bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
-     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };", "const schedulerEnv = { ...appEnv, ...kopieOdczytEnv };")),
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };", "const schedulerEnv = { ...appEnv, ...pocztaEnv, ...kopieOdczytEnv };")),
+    # Filtr na samą metodę strażnika, nie całą klasę: ta sama mutacja zapala
+    # też macierz, a kontrola ma dowieść, że parser `routes/console.php`
+    # i komend WIDZI digest wołający `Mail::` z procesu schedulera.
+    ("Scheduler bez kluczy poczty przy digeście", RAILWAY_IAC, HARMONOGRAM_POCZTA_TEST,
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...pocztaEnv, ", "const schedulerEnv = { ...appEnv, ")),
 ]
 
 run_test(COLLECTION_TEST, True)

@@ -659,7 +659,7 @@ sekretów.
 | Zmienna | Wartość | Sekret? | Opis |
 |---|---|---|---|
 | `APP_KEY` | `base64:...` (krok 7) | **TAK** | Klucz szyfrowania sesji i danych. Rotacja tylko procedurą z kroku 15 („Rotacja `APP_KEY`”). |
-| `APP_PREVIOUS_KEYS` | **nie ustawiaj** poza rotacją | **TAK** | Poprzednie `APP_KEY`, po przecinku, bez spacji. Istnieje tylko w okresie przejściowym rotacji (krok 15) — na co dzień zmiennej nie ma wcale. `railway.ts` przekazuje ją web, workerowi i schedulerowi (#1014) `[do weryfikacji: czy `railway config plan` przyjmuje referencję do Shared Variable, której nie ma — jeśli nie, załóż ją z pustą wartością]` |
+| `APP_PREVIOUS_KEYS` | **pusta** poza rotacją | **TAK** | Poprzednie `APP_KEY`, po przecinku, bez spacji. Wartość ma tylko w okresie przejściowym rotacji (krok 15). **Załóż ją jako Shared Variable z pustą wartością, zanim pierwszy raz uruchomisz `railway config plan`**, i po rotacji nie kasuj jej, tylko wyczyść wartość: `railway.ts` przekazuje ją web, workerowi i schedulerowi (#1014) jako `${{shared.APP_PREVIOUS_KEYS}}`, a na referencję do zmiennej, której nie ma, nie polegamy. Pusta wartość jest nieszkodliwa — `config/app.php` odfiltrowuje puste pozycje (`array_filter`) |
 | `R2_ACCESS_KEY_ID` | z kroku 2.2 | **TAK** | Access Key ID tokenu obejmującego trzy buckety zdjęć |
 | `R2_SECRET_ACCESS_KEY` | z kroku 2.2 | **TAK** | Secret Access Key R2 |
 | `R2_BUCKET` | `kuking-oryginaly` | nie | Bucket **oryginałów** (pełny EXIF z GPS). `railway.ts` → `AWS_BUCKET` → dysk `r2` |
@@ -708,7 +708,7 @@ nie czyta, oblewa go tak samo jak zmienna brakująca.
 | `DB_URL` | ✔ | ✔ | ✔ | baza, kolejka, cache i sesje w Postgresie |
 | `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET`, `AWS_ENDPOINT` | ✔ | ✔ | ✔ | web: upload i podpisane adresy; worker: przetwarzanie zdjęć i paczki RODO; scheduler: `kuking:sprzataj-osierocone-zdjecia`, `kuking:sprzataj-eksporty`, `kuking:usun-wygasle-konta` kasują pliki |
 | `LOG_BLAD_WEBHOOK_URL` | ✔ | ✔ | ✔ | kanał `blad_webhook` — błąd może paść w każdej roli |
-| `EMAILLABS_APP_KEY`, `EMAILLABS_SECRET_KEY`, `EMAILLABS_SMTP_ACCOUNT` (+ uśpione `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` — na planie Hobby SMTP nie działa, nie ustawiaj, D-116) | ✔ | ✔ | — | web: synchroniczna odpowiedź „Napisz do nas”, `App\Support\Poczta` w `/health` i formularzach; worker: wszystkie listy z kolejki. Scheduler listy tylko kolejkuje |
+| `EMAILLABS_APP_KEY`, `EMAILLABS_SECRET_KEY`, `EMAILLABS_SMTP_ACCOUNT` (+ uśpione `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD` — na planie Hobby SMTP nie działa, nie ustawiaj, D-116) | ✔ | ✔ | ✔ | web: synchroniczna odpowiedź „Napisz do nas”, `App\Support\Poczta` w `/health` i formularzach; worker: wszystkie listy z kolejki; scheduler: digest `kuking:wyslij-podsumowania` woła w swoim procesie `Mail::to()->queue()`, a `Mail::to()` buduje transport od razu — bez kluczy `BrakKonfiguracjiEmailLabs`, digest nie wychodzi, a pierwszy odbiorca traci tydzień |
 | `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `CLOUDFLARE_ANALYTICS_TOKEN` | ✔ | — | — | formularze, trasy OAuth, HTML strony, `/health` |
 | `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | ✔ | ✔ | — | worker: `PurgePublicMediaCache`; web: tylko `/health` (sprawdzenie obecności) |
 | `OPENAI_MODERATION_KEY` | — | ✔ | — | `PrzeanalizujTresc` → `KlientOpenAI` |
@@ -2534,8 +2534,10 @@ wygoda (stare linki z maili i ciasteczka).
      właściciela, czy wymusić ponowne włączenie 2FA (kuking:2fa-wylacz
      per konto + wiadomość do tych osób).
 
-6. Usuń stary klucz: skasuj APP_PREVIOUS_KEYS (albo usuń z niej stary
-   klucz, jeśli są tam inne) → wdróż → sprawdź jak w kroku 3.
+6. Usuń stary klucz: wyczyść wartość APP_PREVIOUS_KEYS — samej zmiennej
+   NIE kasuj, `railway.ts` się do niej odwołuje (albo usuń z niej stary
+   klucz, jeśli są tam inne) → wdróż → sprawdź jak w kroku 3 (tym razem
+   oczekiwane „brak”, jeśli wartość jest pusta).
    Przed tym krokiem uruchom jeszcze raz
      php artisan kuking:przeszyfruj-klucz --na-sucho
    — ma pokazać „Do przepisania: 0 wartości”. Inaczej wróć do kroku 4.
@@ -2549,7 +2551,7 @@ wygoda (stare linki z maili i ciasteczka).
 #### Plan cofnięcia
 
 - **Po kroku 1–3, coś nie działa** (500, 2FA nie przechodzi): przywróć
-  `APP_KEY` = stary, **usuń** `APP_PREVIOUS_KEYS` (albo wpisz tam nowy klucz,
+  `APP_KEY` = stary, **wyczyść** wartość `APP_PREVIOUS_KEYS` (albo wpisz tam nowy klucz,
   jeśli coś zdążyło się nim zaszyfrować — np. ktoś włączył 2FA po
   wdrożeniu), wdróż. Nic w bazie nie zostało przepisane, więc stary klucz
   czyta wszystko.

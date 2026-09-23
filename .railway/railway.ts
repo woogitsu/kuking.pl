@@ -453,7 +453,7 @@ export default defineRailway((ctx) => {
   //  konkretnej usługi (https://docs.railway.com/variables). Wspólny zestaw
   //  dla wszystkich trzech ról znaczył, że przejęcie workera dekodującego
   //  nieufne zdjęcia dawało sekret OAuth i Turnstile, a przejęcie schedulera —
-  //  klucze poczty.
+  //  sekret OAuth, Turnstile i token czyszczenia CDN.
   //
   //  Macierz „zmienna → rola → który kod ją czyta" pilnuje test
   //  `ZmienneRailwayaPerRolaTest`. Dopisując tu zmienną, dopisz ją też tam —
@@ -463,14 +463,27 @@ export default defineRailway((ctx) => {
   //  więc dostaje sumę trzech zestawów.
   // ---------------------------------------------------------------------------
 
-  //  --- Poczta: web + worker ------------------------------------------------
+  //  --- Poczta: web + worker + scheduler -------------------------------------
   //  web wysyła SYNCHRONICZNIE odpowiedź na „Napisz do nas"
   //  (`WyslijOdpowiedz`, świadomie bez kolejki) i sprawdza gotowość poczty
   //  w `/health` oraz w formularzach (`App\Support\Poczta`); worker wysyła
   //  wszystkie listy z kolejki i paczkę RODO (`GenerateUserExport`).
-  //  Scheduler tylko KOLEJKUJE (`Notification::...->notify()` na
-  //  powiadomieniach `ShouldQueue`, `Mail::queue()` w digeście) — transportu
-  //  nie buduje, więc kluczy nie dostaje.
+  //
+  //  Scheduler TEŻ BUDUJE TRANSPORT, choć sam niczego nie wysyła. Digest
+  //  (`kuking:wyslij-podsumowania`, `Schedule::call()` = ten sam proces)
+  //  woła `Mail::to(...)->queue($list)`, a `Mail::to()` najpierw rozwiązuje
+  //  mailer domyślny — `MailManager::resolve()` buduje transport od razu,
+  //  a `PocztaServiceProvider::transport()` przy pustym EMAILLABS_APP_KEY
+  //  rzuca `BrakKonfiguracjiEmailLabs`. Bez kluczy digest nie wyszedłby
+  //  wcale, a pierwszy odbiorca straciłby tydzień: jego wiersz
+  //  w `weekly_digest_sends` jest zajmowany PRZED `Mail::queue()`.
+  //  Powiadomienia `ShouldQueue` (`Notification::route()->notify()`) mailera
+  //  przy kolejkowaniu nie budują — ale digest wystarcza. Pilnuje tego
+  //  `ZmienneRailwayaPerRolaTest::harmonogram_budujacy_mailer_ma_klucze_poczty`.
+  //
+  //  SMTP (uśpione, niżej) idzie razem z kluczami EmailLabs: przestawienie
+  //  `MAIL_MAILER` na `smtp` albo `failover` musi zadziałać w każdej roli,
+  //  która buduje transport, bez drugiej zmiany w tym pliku.
   const pocztaEnv = {
     //  DWA KLUCZE, NIE JEDEN: żądanie niesie nagłówek `Application-Key`
     //  (EMAILLABS_APP_KEY) i `Authorization` (EMAILLABS_SECRET_KEY, 128
@@ -658,7 +671,7 @@ export default defineRailway((ctx) => {
     ...modelEnv,
     ...alarmModeratoraEnv,
   };
-  const schedulerEnv = { ...appEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };
+  const schedulerEnv = { ...appEnv, ...pocztaEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };
   const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------

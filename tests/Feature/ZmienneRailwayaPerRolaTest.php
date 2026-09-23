@@ -21,7 +21,9 @@ use Tests\TestCase;
  *
  *  #1013: web, worker i scheduler dostawały ten sam komplet sekretów przez
  *  jeden `...appEnv`. Worker dekodujący nieufne zdjęcia miał sekret OAuth
- *  i Turnstile, scheduler klucze poczty, web token odczytu kopii bazy.
+ *  i Turnstile, scheduler sekret OAuth, web token odczytu kopii bazy.
+ *  (Klucze poczty scheduler MA mieć — digest buduje mailer w jego procesie,
+ *  patrz `harmonogram_budujacy_mailer_ma_klucze_poczty`.)
  *
  * Obie są tym samym rozjazdem: między tym, co KOD czyta, a tym, co IaC
  * przekazuje KONKRETNEJ usłudze. Railway nie daje procesowi Shared Variable
@@ -87,20 +89,21 @@ class ZmienneRailwayaPerRolaTest extends TestCase
                 .'alarm kopii (`AlarmKopii`) wysyła scheduler.',
         ],
         'EMAILLABS_APP_KEY' => [
-            'role' => ['web', 'worker'],
+            'role' => ['web', 'worker', 'scheduler'],
             'powod' => 'Transport poczty: web wysyła synchronicznie `WyslijOdpowiedz` i sprawdza `App\Support\Poczta` '
-                .'(`/health`, formularze); worker wysyła listy z kolejki i `GenerateUserExport`. '
-                .'Scheduler tylko kolejkuje.',
+                .'(`/health`, formularze); worker wysyła listy z kolejki i `GenerateUserExport`; scheduler '
+                .'w digeście (`kuking:wyslij-podsumowania`) woła `Mail::to()->queue()`, a `Mail::to()` buduje '
+                .'transport od razu — bez klucza `BrakKonfiguracjiEmailLabs` i digest nie wychodzi.',
         ],
-        'EMAILLABS_SECRET_KEY' => ['role' => ['web', 'worker'], 'powod' => 'Jak EMAILLABS_APP_KEY.'],
-        'EMAILLABS_SMTP_ACCOUNT' => ['role' => ['web', 'worker'], 'powod' => 'Jak EMAILLABS_APP_KEY.'],
+        'EMAILLABS_SECRET_KEY' => ['role' => ['web', 'worker', 'scheduler'], 'powod' => 'Jak EMAILLABS_APP_KEY.'],
+        'EMAILLABS_SMTP_ACCOUNT' => ['role' => ['web', 'worker', 'scheduler'], 'powod' => 'Jak EMAILLABS_APP_KEY.'],
         'MAIL_HOST' => [
-            'role' => ['web', 'worker'],
+            'role' => ['web', 'worker', 'scheduler'],
             'powod' => 'Uśpione SMTP (`config/mail.php`, mailer `smtp`) — te same role, które budują transport.',
         ],
-        'MAIL_PORT' => ['role' => ['web', 'worker'], 'powod' => 'Jak MAIL_HOST.'],
-        'MAIL_USERNAME' => ['role' => ['web', 'worker'], 'powod' => 'Jak MAIL_HOST.'],
-        'MAIL_PASSWORD' => ['role' => ['web', 'worker'], 'powod' => 'Jak MAIL_HOST.'],
+        'MAIL_PORT' => ['role' => ['web', 'worker', 'scheduler'], 'powod' => 'Jak MAIL_HOST.'],
+        'MAIL_USERNAME' => ['role' => ['web', 'worker', 'scheduler'], 'powod' => 'Jak MAIL_HOST.'],
+        'MAIL_PASSWORD' => ['role' => ['web', 'worker', 'scheduler'], 'powod' => 'Jak MAIL_HOST.'],
         'TURNSTILE_SITE_KEY' => [
             'role' => ['web'],
             'powod' => 'Widget na formularzach publicznych i `/health` (`App\Support\Turnstile`).',
@@ -316,7 +319,10 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             );
         }
 
-        $this->assertArrayNotHasKey('EMAILLABS_SECRET_KEY', $role['scheduler'], 'Scheduler listy tylko kolejkuje (#1013).');
+        // Tu stało kiedyś `assertArrayNotHasKey('EMAILLABS_SECRET_KEY', scheduler)`
+        // z uzasadnieniem „scheduler listy tylko kolejkuje". To było nieprawdą:
+        // `Mail::to()` w digeście buduje transport — patrz
+        // `harmonogram_budujacy_mailer_ma_klucze_poczty`.
 
         $this->assertSame(
             'ctx.shared.OPENAI_MODERATION_KEY',
@@ -365,6 +371,93 @@ class ZmienneRailwayaPerRolaTest extends TestCase
             $this->assertNotSame([], $wpis['role'], "{$zmienna} nie ma żadnej roli.");
             $this->assertNotSame('', trim($wpis['powod']), "{$zmienna} nie ma powodu.");
         }
+    }
+
+    /**
+     * Regresja z przeglądu #1013: scheduler bez kluczy poczty.
+     *
+     * `Schedule::call()` wykonuje komendę W PROCESIE schedulera. Komenda, która
+     * woła `Mail::` (także `Mail::to()->queue()`), rozwiązuje mailer domyślny,
+     * a `MailManager::resolve()` buduje transport od razu —
+     * `PocztaServiceProvider::transport()` przy pustym EMAILLABS_APP_KEY rzuca
+     * `BrakKonfiguracjiEmailLabs`. Digest nie wychodzi, a pierwszy odbiorca
+     * traci tydzień (wiersz `weekly_digest_sends` zajęty przed wysyłką).
+     *
+     * Powiadomienia `ShouldQueue` przez `->notify()` transportu przy
+     * kolejkowaniu nie budują, więc strażnik patrzy na `Mail::` i `notifyNow(`.
+     * Czyta sam plik komendy — zależność schowana głębiej (serwis wołający
+     * `Mail::`) wymaga dopisania tu wprost; lista w raporcie przeglądu.
+     */
+    #[Test]
+    public function harmonogram_budujacy_mailer_ma_klucze_poczty(): void
+    {
+        $budujaMailer = $this->komendyHarmonogramuBudujaceMailer();
+
+        // Kontrola niepustości: parser, który nie rozpozna żadnej komendy,
+        // przepuściłby scheduler bez kluczy nad pustym zbiorem.
+        $this->assertContains(
+            'kuking:wyslij-podsumowania',
+            $budujaMailer,
+            'Strażnik nie widzi, że digest woła `Mail::` z procesu schedulera — parser `routes/console.php` '
+            .'albo komend przestał działać.',
+        );
+
+        $scheduler = $this->zmienneRol()['scheduler'];
+
+        foreach (['EMAILLABS_APP_KEY', 'EMAILLABS_SECRET_KEY', 'EMAILLABS_SMTP_ACCOUNT'] as $zmienna) {
+            $this->assertSame(
+                'ctx.shared.'.$zmienna,
+                $scheduler[$zmienna] ?? null,
+                'Scheduler uruchamia w swoim procesie komendy, które budują mailer ('.implode(', ', $budujaMailer).'), '
+                ."a nie dostaje {$zmienna}. `PocztaServiceProvider::transport()` rzuci `BrakKonfiguracjiEmailLabs` "
+                .'i list nie wyjdzie. Dodaj `...pocztaEnv` do `schedulerEnv` w `.railway/railway.ts`.',
+            );
+        }
+    }
+
+    /**
+     * Komendy uruchamiane z `routes/console.php` przez `Artisan::call()`
+     * (wszystkie w `Schedule::call()`), których plik woła `Mail::` albo
+     * `notifyNow(` poza komentarzem.
+     *
+     * @return list<string>
+     */
+    private function komendyHarmonogramuBudujaceMailer(): array
+    {
+        $konsola = (string) file_get_contents(base_path('routes/console.php'));
+        preg_match_all("/Artisan::call\('([\w:-]+)'\)/", $konsola, $trafienia);
+        $nazwy = array_values(array_unique($trafienia[1]));
+        $this->assertNotEmpty($nazwy, 'Nie znalazłem żadnego `Artisan::call()` w `routes/console.php`.');
+
+        $pliki = [];
+        foreach (glob(app_path('Console/Commands/*.php')) ?: [] as $plik) {
+            if (preg_match('/\$signature\s*=\s*[\'"]([\w:-]+)/', (string) file_get_contents($plik), $m) === 1) {
+                $pliki[$m[1]] = $plik;
+            }
+        }
+
+        $wynik = [];
+        foreach ($nazwy as $nazwa) {
+            $this->assertArrayHasKey($nazwa, $pliki, "Nie znalazłem klasy komendy `{$nazwa}` w `app/Console/Commands`.");
+
+            // Komentarze wycina tokenizer PHP, nie wyrażenie na liniach:
+            // `preg_split('/\R/')` bez `/u` tnie polskie „ą" (bajty C4 85,
+            // a 0x85 to NEL), więc linia docblocka traciła gwiazdkę i `Mail::`
+            // z komentarza liczyło się jako kod — strażnik świeciłby zawsze.
+            $kod = '';
+            foreach (token_get_all((string) file_get_contents($pliki[$nazwa])) as $token) {
+                if (is_array($token) && in_array($token[0], [T_COMMENT, T_DOC_COMMENT], true)) {
+                    continue;
+                }
+                $kod .= is_array($token) ? $token[1] : $token;
+            }
+
+            if (preg_match('/\bMail::|->notifyNow\(/', $kod) === 1) {
+                $wynik[] = $nazwa;
+            }
+        }
+
+        return $wynik;
     }
 
     // =========================================================================
@@ -491,7 +584,7 @@ class ZmienneRailwayaPerRolaTest extends TestCase
         $sciezka = base_path(self::RAILWAY);
         $this->assertFileExists($sciezka);
 
-        $linie = preg_split('/\R/', (string) file_get_contents($sciezka)) ?: [];
+        $linie = preg_split('/\R/u', (string) file_get_contents($sciezka)) ?: [];
         // Komentarz po przecinku kończącym wpis (`APP_KEY: ctx.shared.APP_KEY, // ...`).
         $linie = array_map(static fn (string $linia): string => (string) preg_replace('#,\s*//.*$#', ',', $linia), $linie);
 
