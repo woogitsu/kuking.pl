@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
-use App\Logging\WebhookBleduHandler;
 use App\Jobs\PurgePublicMediaCache;
+use App\Logging\WebhookBleduHandler;
 use App\Models\MailFailure;
 use App\Poczta\PowodOdmowy;
 use App\Support\AnalitykaCloudflare;
@@ -608,7 +608,7 @@ class HealthController extends Controller
             // i na webhook, a zmienna bywa wklejana razem z tokenem.
             throw new KontrolaZdrowiaNieprzeszla(
                 self::POWOD_CZYSZCZENIE_CDN_ZLY_ADRES,
-                "Czyszczenie cache CDN NIE DZIAŁA: CLOUDFLARE_PURGE_ENDPOINT razem z CLOUDFLARE_ZONE_ID "
+                'Czyszczenie cache CDN NIE DZIAŁA: CLOUDFLARE_PURGE_ENDPOINT razem z CLOUDFLARE_ZONE_ID '
                 ."nie dają adresu czyszczenia Cloudflare ({$powod}). Zadanie odmawia wysłania tokenu "
                 .'i każde czyszczenie ląduje w failed_jobs. Usuń CLOUDFLARE_PURGE_ENDPOINT (wartość '
                 .'domyślna jest poprawna) i sprawdź, czy CLOUDFLARE_ZONE_ID to sam identyfikator strefy.',
