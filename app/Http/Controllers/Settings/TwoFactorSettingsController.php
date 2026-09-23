@@ -136,6 +136,17 @@ class TwoFactorSettingsController extends Controller
         $kodyJawne = $this->totp->generateBackupCodes();
         $user->confirmTwoFactor($this->totp->hashBackupCodes($kodyJawne));
 
+        // STARE POŚWIADCZENIA JEDNOSKŁADNIKOWE GASNĄ (#930, D-245).
+        //
+        // Sesje i ciasteczka „zapamiętaj mnie" sprzed tej chwili powstały bez
+        // drugiego składnika. Zostawione, dalej otwierałyby konto bez kodu —
+        // a konto moderatora od tej sekundy także `/admin`, bo
+        // `moderator.2fa` sprawdza stan konta, nie przebieg logowania.
+        // Bieżąca sesja zostaje: to w niej właściciel właśnie podał hasło
+        // i kod. Zły kod albo złe hasło kończą się wyjątkiem wyżej, więc
+        // niczego nie odwołują.
+        $user->invalidateSessions($request->session()->getId());
+
         // Kody zapasowe idą do sesji TYLKO na ten jeden, następny widok
         // (`->with()` = flash na jedno żądanie) — to jest jedyny moment,
         // w którym serwis w ogóle zna ich jawną treść.

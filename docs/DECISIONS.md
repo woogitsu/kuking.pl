@@ -15828,12 +15828,23 @@ założone wyłącznie przez Google nie włączy 2FA samo — ekran mówi to wpr
 i kieruje do „Napisz do nas". Świeże ponowne logowanie przez Google jako
 dowód tożsamości to osobna decyzja, tu niepodjęta.
 
-### Czego ta zmiana nie robi
+### Włączenie 2FA gasi poświadczenia sprzed niego (#930)
 
-Nie odwołuje starych sesji ani ciasteczek „zapamiętaj mnie" po włączeniu 2FA —
-to #930, osobny krok.
+Po udanym potwierdzeniu (dobre hasło **i** dobry kod) `confirm()` woła
+istniejące `User::invalidateSessions()` z wyjątkiem bieżącej sesji — tą samą
+drogą co zmiana hasła i „Wyloguj inne urządzenia" (#584). Znika więc każda
+inna sesja `database`, rotuje `remember_token` (stare ciasteczka „zapamiętaj
+mnie" przestają odtwarzać logowanie) i giną oczekujące linki do logowania.
+Wszystkie te poświadczenia powstały bez drugiego składnika; zostawione,
+otwierałyby konto bez kodu, a konto moderatora od tej chwili także `/admin`,
+bo `moderator.2fa` sprawdza stan konta, nie przebieg logowania. Bieżąca sesja
+zostaje, kody zapasowe są pokazane jak dotąd. Złe hasło albo zły kod kończą
+się przed tą linią, więc niczego nie odwołują. Nowe ciasteczko pamiętania dla
+bieżącej przeglądarki nie jest wystawiane — jak w #584.
 
 📄 `app/Http/Controllers/Settings/TwoFactorSettingsController.php`,
 `routes/web.php`, `resources/views/pages/settings/two_factor/enable.blade.php`,
 `resources/views/pages/settings/two_factor/_password-help.blade.php`,
-`tests/Feature/WlaczenieDwuetapowejWymagaHaslaTest.php`
+`tests/Feature/WlaczenieDwuetapowejWymagaHaslaTest.php`,
+`tests/Feature/ZapamietaneLogowanieUniewaznienieTest.php`,
+`docs/security/ZAPAMIETANE_LOGOWANIE_584.md`
