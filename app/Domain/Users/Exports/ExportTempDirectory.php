@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace App\Domain\Users\Exports;
 
+use ErrorException;
 use FilesystemIterator;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
 use SplFileInfo;
+use UnexpectedValueException;
 
 /**
  * Katalog tymczasowy JEDNEGO eksportu (issue #993).
@@ -22,8 +24,20 @@ use SplFileInfo;
  * sprząta tylko obiekty znane bazie.
  *
  * Teraz ścieżka wynika z samego identyfikatora eksportu
- * (`<tmp>/kuking-eksport/<data_export_id>/`). Każda instancja joba — także ta
+ * (`<katalog główny>/<data_export_id>/`). Każda instancja joba — także ta
  * w `failed()` i ta przy ponowieniu — umie więc usunąć pliki poprzedniej.
+ *
+ * KATALOG GŁÓWNY JEST OSOBNY DLA UŻYTKOWNIKA SYSTEMU (`kuking-eksport.u<uid>`)
+ * albo ustawiony wprost (`kuking.exports.temp_dir`). Wspólny
+ * `<tmp>/kuking-eksport` założony z prawami 0700 przez jednego użytkownika był
+ * nieczytelny dla drugiego (kilka runnerów CI na jednym hoście), a
+ * `sweepStale()` rzucało wtedy z `FilesystemIterator` i wywracało eksport,
+ * zanim cokolwiek zbudował. Kropka, nie myślnik: glob starego układu
+ * (`kuking-eksport-*`) nie może złapać nowego katalogu głównego.
+ *
+ * SPRZĄTANIE NIGDY NIE WYWRACA EKSPORTU. Nieczytelny katalog albo wpis to
+ * jeden `Log::warning` (klasa wyjątku, bez ścieżki i bez komunikatu, który ją
+ * zawiera) i idziemy dalej — sprzątanie to higiena, nie warunek paczki.
  *
  * SPRZĄTANIE STARYCH KATALOGÓW ROBI WORKER, NIE HARMONOGRAM. Na Railway
  * worker i scheduler to osobne usługi z osobnymi dyskami (`docker/entrypoint.sh`),
@@ -48,7 +62,23 @@ final class ExportTempDirectory
 
     public static function root(): string
     {
-        return sys_get_temp_dir().'/'.self::ROOT_NAME;
+        $configured = config('kuking.exports.temp_dir');
+
+        if (is_string($configured) && $configured !== '') {
+            return rtrim($configured, '/');
+        }
+
+        return sys_get_temp_dir().'/'.self::ROOT_NAME.'.u'.self::processOwner();
+    }
+
+    /** Identyfikator użytkownika systemu, pod którym działa proces. */
+    private static function processOwner(): string
+    {
+        if (function_exists('posix_geteuid')) {
+            return (string) posix_geteuid();
+        }
+
+        return preg_replace('/[^A-Za-z0-9_]/', '_', get_current_user()) ?: 'nieznany';
     }
 
     public static function forExport(string $dataExportId): string
@@ -79,11 +109,21 @@ final class ExportTempDirectory
 
         $failed = 0;
 
-        foreach (new FilesystemIterator($dir, FilesystemIterator::SKIP_DOTS) as $entry) {
-            /** @var SplFileInfo $entry */
-            if (! @unlink($entry->getPathname()) && file_exists($entry->getPathname())) {
-                $failed++;
+        try {
+            foreach (new FilesystemIterator($dir, FilesystemIterator::SKIP_DOTS) as $entry) {
+                /** @var SplFileInfo $entry */
+                if (! @unlink($entry->getPathname()) && file_exists($entry->getPathname())) {
+                    $failed++;
+                }
             }
+        } catch (UnexpectedValueException|ErrorException $e) {
+            // Katalogu nie da się nawet przeczytać — nic z niego nie zeszło.
+            Log::warning('Nie udało się odczytać katalogu tymczasowego eksportu danych', [
+                'data_export_id' => $dataExportId,
+                'blad' => $e::class,
+            ]);
+
+            return false;
         }
 
         if ($failed === 0 && ! @rmdir($dir) && is_dir($dir)) {
@@ -130,15 +170,35 @@ final class ExportTempDirectory
             return $removed;
         }
 
-        foreach (new FilesystemIterator($root, FilesystemIterator::SKIP_DOTS) as $entry) {
-            /** @var SplFileInfo $entry */
-            if (! $entry->isDir() || self::lastTouched($entry->getPathname()) >= $threshold) {
-                continue;
-            }
+        $unreadable = null;
 
-            if (self::remove($entry->getFilename())) {
-                $removed++;
+        try {
+            foreach (new FilesystemIterator($root, FilesystemIterator::SKIP_DOTS) as $entry) {
+                /** @var SplFileInfo $entry */
+                try {
+                    if (! $entry->isDir() || self::lastTouched($entry->getPathname()) >= $threshold) {
+                        continue;
+                    }
+                } catch (UnexpectedValueException|ErrorException $e) {
+                    // Nieczytelny wpis pomijamy; pozostałe sprzątamy dalej.
+                    $unreadable ??= $e::class;
+
+                    continue;
+                }
+
+                if (self::remove($entry->getFilename())) {
+                    $removed++;
+                }
             }
+        } catch (UnexpectedValueException|ErrorException $e) {
+            $unreadable ??= $e::class;
+        }
+
+        if ($unreadable !== null) {
+            // Raz na przebieg, bez ścieżki: komunikat wyjątku ją zawiera.
+            Log::warning('Nie udało się odczytać katalogu tymczasowego eksportów — sprzątanie pominięte', [
+                'blad' => $unreadable,
+            ]);
         }
 
         return $removed;
