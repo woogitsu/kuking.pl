@@ -1,5 +1,28 @@
 # Issue 583 — minimalny i kompatybilny payload digestu
 
+> **Aktualizacja 23 września 2026 (#1383, #1328).** Opisany niżej kontrakt
+> „treść pozostaje snapshotem, worker nie dobiera treści i nie odświeża kont"
+> **już nie obowiązuje**. Migawka wysyłała po opóźnieniu wpis usunięty,
+> poprawiony albo przestawiony na prywatny, a list szedł też do osoby, która
+> zdążyła się wypisać, i na adres sprzed zmiany. Teraz:
+>
+> - `TrescDigestu::__serialize()` zapisuje te same sześć pól i te same klasy
+>   modeli, ale każdy model ma **wyłącznie `id`**, a relacje jawnie `null`
+>   (bez `body`, `note`, imion i tytułów);
+> - `PodsumowanieTygodnia::send()` w chwili wysyłki woła
+>   `ZbierzTresciDigestu::odswiez()`: adresat czytany od nowa przez
+>   `OdbiorcyDigestu::kwalifikujacySie()` (brak zgody / konto nieczynne /
+>   adres niepotwierdzony → brak listu), adres doręczenia aktualny z konta,
+>   pozycje czytane świeżo tymi samymi zapytaniami i bramkami co przy
+>   składaniu paczki, ograniczone do identyfikatorów z zapisu; pusty wynik →
+>   brak listu;
+> - stary worker (rolling deploy) dalej odczytuje zapis bez błędu i bez bazy,
+>   ale list, który zdąży wysłać, jest ubogi („Użytkownik Kuking", bez
+>   fragmentów wpisów) — świadomie ta strona pomyłki.
+>
+> Pilnują tego `DigestNieKolejkujeSekretowTest` (przepisany na nowy kontrakt)
+> i `DigestSprawdzaWChwiliWysylkiTest`.
+
 ## Wynik końcowy
 
 Obecny format zachowuje sześć dawnych pól DTO i typy modeli. Do kolejki trafiają NOWE minimalne modele z jawną listą atrybutów i relacji. Nie ma klonowania oryginałów, kopiowania pełnych attributes/relations ani własnego __unserialize. Stary worker może odczytać nowy payload podczas rolling deploy.

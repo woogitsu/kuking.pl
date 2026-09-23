@@ -13,12 +13,32 @@
 <x-layout :title="$question ? 'Edytuj pytanie' : 'Edytuj wpis'" :noindex="true">
     <h1>{{ $question ? 'Edytuj pytanie' : 'Edytuj wpis' }}</h1>
 
-    <x-error-summary />
+    {{-- Konflikt wersji (#981) nie jest błędem żadnego pola — link prowadzi
+         do sekcji z zapisaną wersją tuż pod podsumowaniem. --}}
+    <x-error-summary :field-ids="['wersja' => 'wersja-zapisana']" />
+
+    {{-- Issue #981: zapis odrzucony, bo wpis zmienił się w innej karcie.
+         Obie wersje na jednym ekranie: zapisana tutaj, Twoja w formularzu. --}}
+    @if(session('konflikt_edycji') === true)
+        <section class="panel-formularza mb-6" aria-labelledby="wersja-zapisana">
+            <h2 id="wersja-zapisana" tabindex="-1">Tak ten wpis jest zapisany teraz</h2>
+            @if($question)
+                <p><strong>Pytanie:</strong> {{ $post->title }}</p>
+            @endif
+            <p class="whitespace-pre-line">{{ $post->body ?? '(bez tekstu)' }}</p>
+            <p><strong>Kto widzi:</strong> {{ ['public' => 'Wszyscy', 'followers' => 'Tylko osoby, które mnie obserwują', 'private' => 'Tylko ja'][$post->visibility] ?? $post->visibility }}</p>
+            @if($post->tags->isNotEmpty())
+                <p><strong>Tagi:</strong> {{ $post->tags->pluck('name')->implode(', ') }}</p>
+            @endif
+            <p>Twoja wersja jest niżej, w formularzu — nic z niej nie zginęło.</p>
+        </section>
+    @endif
 
     <form class="panel-formularza" method="POST" action="{{ route('posts.update', $post) }}">
         @csrf
         @method('PUT')
         <input type="hidden" name="_tag_form_post_id" value="{{ $post->getKey() }}">
+        <input type="hidden" name="wersja_edycji" value="{{ $wersjaEdycji }}">
         @if($question)
             <x-field name="title" label="O co chcesz zapytać?" :value="$post->title" help="Od 10 do 180 znaków." required />
         @endif
