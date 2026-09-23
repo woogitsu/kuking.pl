@@ -81,6 +81,8 @@ use Tests\TestCase;
  *  - `test_kryterium_odroznia_czas_od_popularnosci` — czy klasyfikator ma moc,
  *    gdy dostanie sortowanie po popularności. Bez tej drugiej skan mógłby
  *    czytać wszystko i nie umieć niczego odrzucić.
+ *
+ * @bez-kontroli-dodatniej Skan pilnuje własnego zasięgu (assertGreaterThanOrEqual na liczbie plików, sortowań i kolumn schematu), więc skurczony skan czerwieni zamiast przechodzić nad pustką.
  */
 class FeedNieSortujePoMierzeReakcjiTest extends TestCase
 {
