@@ -38,6 +38,8 @@ use Tests\TestCase;
  * NIE chodzi w obrazie produkcyjnym z Railify/Dockera — `.dockerignore`
  * wycina `*.md` i `docs/`, a testy tam i tak się nie wykonują. To jest guard
  * na etapie code review / CI, nie strażnik uruchamiany na produkcji.
+ *
+ * @bez-kontroli-dodatniej Brak szukanego nagłówka w CHANGELOG.md daje czerwień przez assertMatchesRegularExpression, więc reguła nie może po cichu przestać obowiązywać.
  */
 class PodbicieWersjiWymagaWpisuWChangelogTest extends TestCase
 {
