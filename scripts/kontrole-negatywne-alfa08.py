@@ -94,6 +94,14 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Format nagłówków dziennika decyzji. Strażnik czyta `docs/DECISIONS.md`
+# i asertuje na jego treści, więc bez tej kontroli mógłby zzielenieć bez
+# pomiaru. Mutacja przywraca DOKŁADNIE usterkę, którą ten strażnik złapał
+# na `main` 22 września: nagłówek poza formatem „## D-NNN", dla pozostałych
+# strażników numeracji niewidoczny.
+FORMAT_DZIENNIKA = "docs/DECISIONS.md"
+FORMAT_DZIENNIKA_TEST = "NumeracjaDecyzjiMaJedenFormatTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -211,6 +219,22 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
     )
 
 
+def naglowek_poza_formatem(source):
+    """KONTROLA DODATNIA: wpis dziennika wraca pod roboczym nagłówkiem.
+
+    Tak stał na `main` przed naprawą: `## D-1009-ROBOCZA`, czytany jak numer,
+    który w dzienniku nie ma wpisu. Wzorzec `^## D-(\\d{3})\\b` go nie dopasowuje, więc
+    `NumeryDecyzjiMajaWpisyTest` nie widzi go wcale — ani jako wpisu, ani jako
+    duplikatu. `test_kazdy_naglowek_wygladajacy_na_wpis_decyzji_ma_numer_w_jednym_ksztalcie`
+    ma zapalić.
+    """
+    return replace_once(
+        source,
+        "## D-237 — Pierwszy wkład jest jednorazowym zdarzeniem",
+        "## D-1009-ROBOCZA — Pierwszy wkład jest jednorazowym zdarzeniem",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -230,6 +254,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Nagłówek dziennika decyzji poza formatem", FORMAT_DZIENNIKA, FORMAT_DZIENNIKA_TEST,
+     naglowek_poza_formatem),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -238,6 +264,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(FORMAT_DZIENNIKA_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
