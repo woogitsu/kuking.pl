@@ -2000,13 +2000,22 @@ return [
     |   ---
     |   300
     |
-    | Rezerwa transakcyjna nie jest licznikiem — nic jej nie zajmuje i nic
-    | nie sprawdza, czy została. To LICZBA W RACHUNKU: tyle listów zostawiamy
-    | wolnych na potwierdzenia rejestracji, przypomnienia hasła, ostrzeżenia
-    | o zmianie adresu i powiadomienia moderacyjne. One nie mają sufitu
-    | i mieć go nie mogą — reset hasła, który nie doszedł, kończy komuś
-    | przygodę z serwisem, a podsumowanie, które nie doszło, jest niczym.
-    | Sufity mają wyłącznie funkcje, które wolno przyhamować.
+    | REZERWA TRANSAKCYJNA PRZESTAŁA BYĆ SAMĄ LICZBĄ W RACHUNKU
+    | (decyzja właściciela z 20 września 2026). Do tej pory nic jej nie
+    | zajmowało i nic nie sprawdzało, czy została — był to wyłącznie zapis
+    | w tym komentarzu. Pomiar pokazał, ile to warte: `/nie-pamietam-hasla`
+    | nie miał ani sufitu na adres, ani budżetu poczty, więc jeden sprawca
+    | z jednego adresu IP (`limits.password_reset` = 5 na 10 minut, czyli
+    | 720 próśb na dobę) wysyłał listy na 300 różnych adresów i opróżniał
+    | CAŁĄ pulę w około 70 minut. Ponawianie potwierdzenia adresu
+    | (`limits.verification_resend` = 6 na minutę, bez sufitu dobowego)
+    | robiło to samo z jednego niepotwierdzonego konta w około 50 minut.
+    | Rezerwa nie chroniła niczego, bo nie istniał nikt, kto by jej pilnował.
+    |
+    | Od teraz pilnuje jej WSPÓLNY LICZNIK CAŁEJ POCZTY
+    | (`App\Domain\Security\DziennyBudzetListow::wspolny()`) i sekcja
+    | `progi_wygaszania` niżej — patrz tam po kolejność wygaszania i po
+    | uzasadnienie każdej z trzech liczb.
     |
     | CO SIEDZI W TEJ REZERWIE Z KOLEJKI MODERACJI (D-060, dopisane
     | 10 września): dobowe podsumowanie kolejki automatu
@@ -2028,6 +2037,58 @@ return [
 
         // Ile listów zostawiamy wolnych na pocztę bez sufitu (patrz wyżej).
         'rezerwa_transakcyjna' => (int) env('KUKING_POCZTA_REZERWA', 100),
+
+        /*
+         |--------------------------------------------------------------
+         | PROGI WYGASZANIA — KOMU GASIMY PIERWSZEMU, GDY PULA SIĘ KOŃCZY
+         |--------------------------------------------------------------
+         |
+         | To jest JEDNO miejsce tej decyzji. Wpis przy `limits.kontakt_odpowiedz`
+         | zapowiadał to wprost: „gdyby kiedyś powstał prawdziwy, WSPÓLNY
+         | licznik poczty, TO ON ma być jednym miejscem tej decyzji — nie
+         | osobny sufit dopisany tutaj". Licznik powstał 20 września 2026,
+         | więc osobnych progów przy poszczególnych drogach NIE DOPISUJEMY.
+         |
+         | CO ZNACZY LICZBA: ile listów z puli `limit_dostawcy_dobowy` dana
+         | klasa ma zostawić NIETKNIĘTYCH. Wyższa liczba = gaśnie wcześniej.
+         | Klasa może wysłać dopóki `limit - zużyte > próg`.
+         |
+         |   240  `podsumowanie`  gaśnie PIERWSZE
+         |   100  `zwykla`
+         |     0  `wejscie`       gaśnie OSTATNIE
+         |
+         | SKĄD TE TRZY LICZBY — ŻADNA NIE JEST NOWA.
+         |
+         | 240 = 300 − 60, czyli dokładnie tyle, ile zostaje po tygodniowym
+         | podsumowaniu z jego własnym sufitem `digest.dzienny_limit`. Biuletyn
+         | i dziś może zabrać najwyżej 60 listów; teraz dodatkowo NIE MOŻE ich
+         | zabrać z dnia, w którym resztę puli zjadło już coś innego.
+         |
+         | 100 = `rezerwa_transakcyjna`. Ta liczba od dawna opisuje pulę
+         | zostawianą na listy wpuszczające ludzi na konto. Próg 100 jest
+         | pierwszym mechanizmem, który tę obietnicę naprawdę dowozi.
+         |
+         | 0 dla klasy `wejscie` jest sednem całej decyzji: potwierdzenie
+         | rejestracji i link do logowania sięgają po OSTATNI list doby. Bez
+         | nich nowy człowiek nie wchodzi tu wcale, a osoba, dla której link
+         | jest jedyną drogą — nie wraca.
+         |
+         | CZEGO TE PROGI NIE ROBIĄ. Nie dzielą puli między KONKRETNYCH ludzi.
+         | Jeden sprawca zalewający `/nie-pamietam-hasla` nadal wypali klasę
+         | `zwykla` i zabierze tego dnia odpowiedzi z „Napisz do nas" oraz
+         | listy moderacyjne. Nie zabierze natomiast ani jednego listu klasie
+         | `wejscie` — i to jest ta jedna rzecz, którą ta zmiana miała załatwić.
+         | Sufit na adres w `/nie-pamietam-hasla` to osobna decyzja, świadomie
+         | tu nie podjęta.
+         |
+         | ZMIANA KTÓREJKOLWIEK Z TYCH LICZB JEST DECYZJĄ, NIE SZCZEGÓŁEM.
+         | Rachunek pilnuje `PodzialLimituPocztyTest`.
+         */
+        'progi_wygaszania' => [
+            'podsumowanie' => (int) env('KUKING_POCZTA_PROG_PODSUMOWANIE', 240),
+            'zwykla' => (int) env('KUKING_POCZTA_PROG_ZWYKLA', 100),
+            'wejscie' => (int) env('KUKING_POCZTA_PROG_WEJSCIE', 0),
+        ],
 
         /*
          * ILE DNI TRZYMAMY ODHACZONE ŚLADY NIEUDANYCH LISTÓW
@@ -2372,6 +2433,62 @@ return [
         // zmianą wdrożeniową bez recenzji kodu — dokładnie tego ta lista ma
         // nie dopuścić.
         'retention_months' => (int) env('KUKING_AUDIT_LOG_RETENTION_MONTHS', 12),
+    ],
+
+    'potwierdzenia_rodo' => [
+        // RETENCJA POTWIERDZEŃ OBSŁUGI ŻĄDAŃ RODO —
+        // `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`, decyzja D-233.
+        //
+        // ┌──────────────────────────────────────────────────────────────┐
+        // │ KASOWANIE JEST WYŁĄCZONE. TO DECYZJA WŁAŚCICIELA Z 22.09.2026 │
+        // │ (D-233), NIE NIEDOPATRZENIE I NIE TYMCZASOWY OBEJŚCIE BŁĘDU.  │
+        // │ NIE WŁĄCZAJ TEGO „przy okazji" ANI „bo autor tak chciał".     │
+        // └──────────────────────────────────────────────────────────────┘
+        //
+        // Autor gałęzi `naprawa/minimalne-potwierdzenie-rodo` włączał
+        // kasowanie po 36 miesiącach domyślnie i bez przełącznika,
+        // argumentując, że „wyłącznik retencji to bezterminowość pod inną
+        // nazwą". Argument jest sensowny i dlatego stoi tu zapisany —
+        // właściciel rozstrzygnął jednak inaczej, i to z dwóch konkretnych
+        // powodów, nie z niechęci do retencji:
+        //
+        //  1. OKRESU NIE POTWIERDZIŁ JESZCZE PRAWNIK. 36 miesięcy to analogia
+        //     do dokumentacji sprawy moderacyjnej (art. 442¹ k.c.), nie
+        //     ustalenie. Domyślnik, który kasuje dowody po niepotwierdzonym
+        //     okresie, jest gorszy niż brak automatu.
+        //  2. KASOWANIE JEST TWARDYM `DELETE`, NIEODWRACALNYM — bez
+        //     soft-delete i bez eksportu. Po jego włączeniu, dla kont, których
+        //     ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy
+        //     i kiedy usunęliście dane tej osoby" NIE ZOSTAJE NIC. A polityka
+        //     prywatności mówi dziś o kopiach zapasowych: „Nie podajemy tu
+        //     liczby dni, bo nie ustaliliśmy jej jeszcze z dostawcą" — czyli
+        //     nie wiadomo nawet, jak długo istnieje droga odzysku.
+        //
+        // Dane historyczne mają być najpierw przygotowane. Służy do tego
+        // `kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które
+        // działa NAWET przy wyłączonej retencji i niczego nie kasuje — pokazuje
+        // wyłącznie, ile wierszy wpadłoby pod dany próg.
+        //
+        // JAK TO WŁĄCZYĆ, GDY PRAWNIK POTWIERDZI OKRES — trzy kroki, wszystkie
+        // poza kodem, opisane w `PROJEKT_POTWIERDZENIA_RODO.md` §6:
+        //   1. `KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS=<potwierdzony okres>`
+        //   2. `KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA=true`
+        //   3. dopisać `kuking:sprzataj-potwierdzenia-rodo` do
+        //      `routes/console.php` (wolny slot: 05:20 — 05:00 i 05:10 są zajęte)
+        // Kroku 3 nie ma dziś celowo: zadanie nieobecne w harmonogramie nie
+        // wystartuje nawet przy przypadkowo ustawionej zmiennej.
+        //
+        // Domyślnika retencji pilnuje `RetencjaPotwierdzenRodoTest`.
+        'retencja_wlaczona' => (bool) env('KUKING_POTWIERDZENIA_RODO_RETENCJA_WLACZONA', false),
+
+        // BRAK WARTOŚCI DOMYŚLNEJ — I TO JEST ISTOTA POWODU 1 WYŻEJ.
+        // Gdyby stało tu `36`, samo przestawienie flagi wyżej uruchomiłoby
+        // nieodwracalne kasowanie według okresu, którego nikt nie potwierdził.
+        // `null` znaczy „nieustalony": komenda odmawia kasowania i mówi
+        // dlaczego, zamiast zgadywać.
+        'retention_months' => env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS') !== null
+            ? (int) env('KUKING_POTWIERDZENIA_RODO_RETENTION_MONTHS')
+            : null,
     ],
 
     'sessions' => [

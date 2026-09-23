@@ -13,6 +13,8 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Support\Str;
 use PragmaRX\Google2FA\Google2FA;
+use Random\Engine\Secure;
+use Random\Randomizer;
 
 /**
  * Cała logika TOTP w jednym miejscu (issue #12, część 2FA).
@@ -42,9 +44,12 @@ class TwoFactorAuthenticator
 {
     private Google2FA $engine;
 
-    public function __construct()
+    private readonly Randomizer $random;
+
+    public function __construct(?Randomizer $random = null)
     {
         $this->engine = new Google2FA;
+        $this->random = $random ?? new Randomizer(new Secure);
     }
 
     /**
@@ -151,16 +156,25 @@ class TwoFactorAuthenticator
     /**
      * Nowy komplet kodów zapasowych, w postaci jawnej — do pokazania RAZ.
      *
-     * Format „XXXX-XXXX" (litery i cyfry, bez znaków łatwych do pomylenia
-     * przy przepisywaniu z kartki — Str::random domyślnie miesza wielkość
-     * liter i cyfry z alfanumerycznego zbioru).
+     * Format „XXXXX-XXXXX”, alfabet 32 znaków bez 0/O i 1/I.
+     * Dziesięć niezależnych znaków daje 50 bitów — więcej niż górna granica
+     * starego formatu: 8 × log2(36), czyli 41,36 bitu po zamianie na wersaliki.
+     * Weryfikacja starych kompletów pozostaje bez zmian.
      */
     public function generateBackupCodes(): array
     {
         $ile = (int) config('kuking.two_factor.recovery_codes');
 
         return collect(range(1, $ile))
-            ->map(fn (): string => Str::upper(Str::random(4).'-'.Str::random(4)))
+            ->map(function (): string {
+                $alphabet = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+                $code = '';
+                for ($i = 0; $i < 10; $i++) {
+                    $code .= $alphabet[$this->random->getInt(0, strlen($alphabet) - 1)];
+                }
+
+                return substr($code, 0, 5).'-'.substr($code, 5);
+            })
             ->all();
     }
 

@@ -1,0 +1,51 @@
+# $fillable i masowe przypisanie. AGENTS.md §7: `status` i `role` NIGDY
+# w $fillable; zadne poswiadczenie w zadnej tabeli.
+nazwa: status i rola nie przychodza z zadania
+plik: app/Models/User.php
+zamien:         'wants_weekly_digest',
+na:         'wants_weekly_digest',\n        'status',\n        'role',
+oczekuj: Failed asserting|status|role
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/SecurityTest.php tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php
+ocena:
+---
+nazwa: adres e-mail zmienia wylacznie jawna akcja domenowa
+plik: app/Models/User.php
+zamien:         'age_confirmed_at',
+na:         'age_confirmed_at',\n        'email',\n        'email_verified_at',
+oczekuj: Failed asserting|email
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/AdresEmailPozaMasowymPrzypisaniemTest.php tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php
+ocena:
+---
+nazwa: haslo poza masowym przypisaniem
+plik: app/Models/User.php
+zamien:         'memories_enabled',
+na:         'memories_enabled',\n        'password',
+oczekuj: Failed asserting|password|haslo
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php
+ocena:
+---
+nazwa: stan obslugi wiadomosci ustawia operator, nie formularz publiczny
+plik: app/Models/ContactMessage.php
+zamien:         'wydanie',
+na:         'wydanie',\n        'status',\n        'handled_by',\n        'handled_at',
+oczekuj: Failed asserting|wrazliw|status
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php
+ocena:
+---
+# ROZSTRZYGNIETE 20.09.2026. Przezyla takze CALY pakiet — i slusznie.
+# WrazliweKolumnyPozaMasowymPrzypisaniemTest ma DWA poziomy: NIETYKALNE
+# i REJESTR (komentarz w tescie, l. 112-128). `resolved_by` i `resolved_at`
+# stoja w REJESTRZE z uzasadnieniem (l. 282-283): „Wypelnia wylacznie panel
+# moderacji razem ze statusem". Test z zalozenia POZWALA im byc w $fillable,
+# wiec mutacja nie ma prawa go oblac.
+#
+# To nie jest dziura. Do odnotowania jako obserwacja: rejestr czyni straznika
+# permisywnym dokladnie dla kolumn, ktore najbardziej chcialoby sie pilnowac —
+# ale to jest swiadoma decyzja wlasciciela, zapisana z uzasadnieniem.
+nazwa: rozstrzygniecie zgloszenia nie jest polem formularza
+plik: app/Models/Report.php
+zamien:         'illegality_explanation',
+na:         'illegality_explanation',\n        'resolved_by',\n        'resolved_at',
+oczekuj: Failed asserting|wrazliw|resolved
+polecenie: vendor/bin/phpunit --no-coverage tests/Feature/WrazliweKolumnyPozaMasowymPrzypisaniemTest.php
+ocena: MUTACJA BEZ ZNACZENIA — kolumny sa w jawnym REJESTRZE wyjatkow testu

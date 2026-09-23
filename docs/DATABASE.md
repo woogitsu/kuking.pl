@@ -654,12 +654,29 @@ użytkownik nadal dostaje 404 z `EnsureUserIsModerator`, zanim dotrze do
 sprawdzenia 2FA. Moderator bez potwierdzonego 2FA widzi jasny ekran
 z przyciskiem do włączenia (403), nie ścianę.
 
-**Rollback:** `down()` zdejmuje CHECK i wszystkie cztery kolumny. To NIE jest
-bezstratne — każde konto z włączonym 2FA traci zapisany sekret i kody
-zapasowe, czyli wraca do logowania samym hasłem. To świadomy powrót do stanu
-SPRZED tej zmiany (nikt nie zostaje zablokowany — wymóg drugiego składnika
-znika razem z danymi, które go przechowywały), sensowny wyłącznie jako
-awaryjne wyłączenie całej funkcji, nie jako operacja codzienna.
+**Rollback: ODMAWIA, gdy ktokolwiek ma 2FA potwierdzone** (D-238, zasada
+D-088). `down()` zdejmuje CHECK i wszystkie cztery kolumny, więc każde konto
+z włączonym 2FA traci sekret i kody zapasowe — bezpowrotnie, bo sekret jest
+zaszyfrowany i nie ma go skąd odtworzyć.
+
+Stało tu wcześniej, że to „świadomy powrót do stanu sprzed tej zmiany,
+nikt nie zostaje zablokowany". To prawda i dlatego właśnie jest groźne:
+cofnięcie nie wybija nikogo z serwisu, tylko po cichu ZDEJMUJE OCHRONĘ.
+Cykl `rollback` → `migrate` (czyli to, co robi `migrate:refresh`) zostawia
+kolumny puste, a razem z nimi znika CHECK pilnujący niezmiennika — konto
+moderatora, o którym właściciel wie, że jest chronione dwoma składnikami,
+wraca do samego hasła i nikt się o tym nie dowiaduje.
+
+Dlatego `down()` liczy `two_factor_confirmed_at IS NOT NULL` i przy
+niezerowym wyniku rzuca wyjątek z instrukcją, **zanim** wykona cokolwiek
+niszczącego — także zanim zdejmie CHECK. Świadome cofnięcie przepuszcza
+zmienna `KUKING_ROLLBACK_KASUJE_DRUGI_SKLADNIK=1`.
+
+Sam sekret **bez** potwierdzenia nie blokuje niczego: to konto w trakcie
+włączania 2FA, które po prostu zaczyna włączanie od nowa. Na świeżym
+środowisku cofnięcie działa bez pytania, więc `migrate:refresh` w CI
+i u dewelopera chodzi jak dotąd. Pilnuje tego
+`tests/Feature/CofniecieMigracji2faOdmawiaTest.php`.
 
 **Zgubiony telefon i kody zapasowe naraz — jak wrócić do konta.** Serwis nie
 ma dziś SMTP, więc nie ma samoobsługowego „wyślij link odzyskiwania".
@@ -2132,6 +2149,18 @@ pierwszej wolnej nazwy („Zapisane”, „Zapisane 2”, …), bo ktoś mógł 
 zeszyt „Zapisane”, zanim cokolwiek zapisał. Bez tego pierwsze „Zapisuję”
 kończyłoby się błędem 500.
 
+Równoległe pierwsze zapisy (#778) rozstrzyga indeks
+`collections_one_default_per_owner_idx`, który nadal dopuszcza tylko jeden
+zeszyt domyślny na właściciela. `User::defaultCollection()` próbuje wstawić
+wiersz w osobnej transakcji (PostgreSQL savepoint, gdy akcja już jest
+w transakcji), a złapane 23505 sprawdza po nazwie tego właśnie indeksu
+i dopiero wtedy odczytuje zwycięski wiersz — kolizja nazwy zeszytu ani inna
+przyszła reguła unikalności nie zniknie pod pozornie udanym zapisem.
+Szukamy po `is_default`, nigdy po nazwie publicznego zeszytu właściciela.
+Pomiar dwóch procesów i ograniczenia: `tests/Dwa/PierwszyZapisDoZeszytuTest.php`
+oraz `docs/research/2026-09-20-zeszyt-zapisy-778-779.md`. Schemat nie zmienia
+się; wycofanie poprawki jest wyłącznie wycofaniem kodu, bez kasowania zapisów.
+
 ### first_post_events
 
 Trwała pamięć jednorazowego pierwszego wkładu autora (#1009), niezależna od
@@ -2645,6 +2674,173 @@ po drodze do czegoś innego, a przy tysiącach kont wpisy z niej zalałyby
 dziennik tak, że prawdziwe wejścia utonęłyby w szumie. Retencja zwykła —
 ten wpis NIE należy do `AuditLogEntry::NIGDY_NIE_KASUJ`, bo nie jest jedynym
 dowodem wykonania żądania z RODO art. 17.
+
+### potwierdzenia_zadan_rodo
+Minimalne potwierdzenie, że żądanie usunięcia konta (RODO art. 17) zostało
+obsłużone — **zamiast** bezterminowego dziennika osobowego.
+
+Powstało z `docs/decyzje/OCENA_RETENCJI_ZEWNETRZNA.md` §C, która nie kwestionuje
+liczby, tylko kształt: trzy kategorie `audit_log` z listy
+`AuditLogEntry::NIGDY_NIE_KASUJ` trzymają dziś BEZTERMINOWO wpis z `actor_id`,
+`ip_hash` i dowolnym `metadata jsonb`. Ocena każe je zastąpić zamkniętym
+zestawem pól z określonym okresem trzymania; ocena proponowała **36 miesięcy od
+zakończenia obsługi**, ale **właściciel wstrzymał automatyczne kasowanie do
+potwierdzenia okresu przez prawnika** (D-233 — patrz „Retencja" niżej). Pełny projekt,
+razem z rozstrzygnięciem powiązania z wnioskodawcą i jego słabościami:
+`docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md`.
+
+**Kto do niej pisze (od 21.09.2026):** wyłącznie
+`App\Domain\Compliance\RejestrPotwierdzenRodo`. Wiersz `w_toku` powstaje przy
+zgłoszeniu żądania z `/ustawienia/twoje-dane` (w jednej transakcji
+z `users.markForDeletion()`), a domknięcie — `wykonane` albo `cofniete` — idzie
+**w tej samej transakcji** co `EraseAccountData` i `CancelAccountDeletion`.
+Potwierdzenie zapisane osobną transakcją potrafiłoby opisywać wykonanie,
+którego nie było, albo przemilczeć wykonanie, które było; dowodzi tego
+`tests/Feature/PotwierdzenieRodoIdzieWTejSamejTransakcjiTest.php`.
+
+Model `App\Models\PotwierdzenieZadaniaRodo` ma w `$fillable` **wyłącznie opis
+sprawy** (`rodzaj`, `otrzymano`, `wersja_procedury`, `wyjatki`). `numer`,
+`wynik`, `zakres`, `zakonczono`, `konto_id`, `wstrzymanie_do`
+i `wstrzymanie_sprawa` stoją **poza** `$fillable` — ta sama ostrożność co przy
+`status` i `role` użytkownika, tylko stawką jest tu prawdziwość dowodu, wskaźnik
+na dane osobowe i zegar retencji.
+
+**Czego nadal nie ma:** backfillu istniejących wpisów `account.*` i skasowania
+ich pełnych kopii — to osobne kroki właściciela (lista w projekcie wyżej), więc
+do ich wykonania dziennik i potwierdzenia stoją **obok siebie**, nie zamiast
+siebie. Numer sprawy też nie jest jeszcze nigdzie pokazywany ani wysyłany
+człowiekowi (brzmienie pisma to krok 2 właściciela).
+
+- `id uuid` PK, `DEFAULT gen_random_uuid()`;
+- **`numer varchar(19) UNIQUE`** — `RODO-XXXX-XXXX-XXXX`, losowany
+  z `App\Support\NumerZadaniaRodo` (alfabet bez `0`, `1`, `I`, `L`, `O`, `U`
+  wspólny z `NumerSprawy`, 12 znaków ≈ 59 bitów). To jest **jedyne powiązanie
+  wiersza z człowiekiem po wykonaniu usunięcia** — numer dostaje wnioskodawca,
+  baza nie trzyma niczego, z czego dałoby się go odtworzyć. Przedrostek inny
+  niż `KU` zgłoszeń moderacyjnych, żeby dwa rejestry nie mówiły tym samym
+  numerem. Wzór pilnuje CHECK `potwierdzenia_zadan_rodo_numer_check`,
+  **zamrożony w dniu migracji** — zmiana `NumerSprawy::ALFABET` wymaga nowej
+  migracji (tak samo jak przy `reports`);
+- **`rodzaj varchar(40)`** — CHECK po `SlownikPotwierdzenRodo::RODZAJE`. Dziś
+  jedna wartość: `usuniecie_konta`;
+- **`wynik varchar(30)`** — `w_toku` / `wykonane` / `cofniete` / `odmowa`.
+  Ta kolumna zastępuje TRZY kategorie dziennika jednym wierszem: cofnięcie
+  żądania jest **wynikiem**, nie osobnym zdarzeniem („Przechowuj właściwy stan
+  końcowy, nie trzy niekasowalne kopie wszelkich danych" — §C);
+- **`zakres varchar(20) NULL`** — `minimum` / `everything`, te same wartości co
+  `users.delete_scope` (D-022). CHECK wiąże je z wynikiem w OBIE strony:
+  `wykonane` musi mieć zakres, każdy inny wynik mieć go nie może;
+- **`otrzymano date`** + **`zakonczono date NULL`** — daty wpływu i zakończenia.
+  **`date`, nie `timestamptz`, i to jest minimalizacja**: sekunda zamknięcia
+  sprawy daje się zestawić z chwilą, w której czyjeś wpisy zmieniły autora na
+  „konto usunięte", czyli sama identyfikuje. Doba do wykazania terminu z art. 12
+  ust. 3 i do policzenia 36 miesięcy wystarcza. `zakonczono` jest **początkiem
+  zegara retencji**; `NULL` znaczy „sprawa w toku" i CHECK wiąże to z
+  `wynik = 'w_toku'` w obie strony, żeby bezterminowość nie wróciła przez pustą
+  kolumnę;
+- **`wersja_procedury varchar(20)`** — która wersja procedury usunięcia to
+  wykonała (`RRRR-MM-DD` daty obowiązywania). Bez niej „wykonane" znaczy tylko
+  „zrobiliśmy wtedy to, co wtedy robiliśmy";
+- **`wyjatki text NULL`** — czego NIE usunięto i z jakiej reguły to wynika
+  (przy `minimum` treści zostają zanonimizowane, `COMPLIANCE.md` §2; sprawa
+  moderacyjna ma własne 36 miesięcy). Tekst wskazuje **regułę**, nie opowiada
+  o człowieku;
+- **`konto_id uuid NULL`** → `users` (`ON DELETE SET NULL`) — powiązanie
+  z wnioskodawcą, **zostające także po wykonaniu żądania**.
+
+  **DECYZJA WŁAŚCICIELA Z 21.09.2026, nie rekomendacja oceny zewnętrznej.**
+  Pierwotny schemat miał tu CHECK
+  `potwierdzenia_zadan_rodo_wykonane_bez_konta_check`, zabraniający `konto_id`
+  przy `wynik = 'wykonane'`: z chwilą wykonania konto jest anonimizowane,
+  a wskaźnik wiąże dowód usunięcia danych osobowych ze wszystkim, co po tym
+  koncie w serwisie zostało. Właściciel zdecydował inaczej — ma się dać
+  odpowiedzieć regulatorowi o konkretną osobę bez pytania jej o numer sprawy —
+  i CHECK zdejmuje migracja
+  `2026_09_21_140000_zdejmij_zakaz_konta_przy_wykonanym_zadaniu_rodo` (jej
+  `down()` zakłada go z powrotem i odmawia wąsko, gdy stoi wiersz, który by go
+  złamał).
+
+  **CENA TEJ DECYZJI I JEDYNE, CO PO NIEJ ZOSTAŁO Z OCHRONY.** Rejestr umie
+  teraz odpowiedzieć na pytanie „czy ta osoba usunęła konto" każdemu, kto ma
+  dostęp do bazy — a przy zakresie `minimum` treści tej osoby zostają pod tym
+  samym `user_id` (D-022), więc wskaźnik prowadzi od potwierdzenia wprost do
+  jej zachowanego dorobku. Decyzja brzmiała „ma się dać odpowiedzieć
+  regulatorowi", a **nie** „ma być wyszukiwarka", więc:
+  - **nie ma i nie będzie ekranu, trasy ani endpointu** czytającego tę tabelę
+    po `konto_id` — pilnuje tego
+    `tests/Feature/RejestrPotwierdzenRodoNieMaEkranuTest.php` (skan tras, skan
+    warstwy HTTP i widoków, zamknięta lista publicznych metod klasy piszącej,
+    zakaz wiązania modelu z adresu — każdy z kontrolą dodatnią);
+  - **kto i w jakim trybie ma prawo z tego skorzystać:** właściciel serwisu,
+    **odczytem ręcznym wprost w bazie**, przy konkretnej sprawie od organu
+    nadzorczego albo sądu, notując przy sprawie, czego odczyt dotyczył. To nie
+    jest funkcja produktu i nie ma być wygodne — niewygoda jest tu jedynym, co
+    zostało z ochrony zdjętej razem z CHECK-iem.
+
+  Pełny zapis decyzji, argumentów przeciw i tego zawężenia:
+  `docs/decyzje/PROJEKT_POTWIERDZENIA_RODO.md` §3.2 punkt 3 i §3.3 punkt 7;
+- **`wstrzymanie_do date NULL`** + **`wstrzymanie_sprawa varchar(100) NULL`** —
+  udokumentowane wstrzymanie kasowania (§C: „o ile konkretna udokumentowana
+  sprawa nie wymaga dalszego zachowania"). CHECK wymusza parę: wstrzymanie bez
+  wskazanej sprawy to znów retencja bezterminowa, tylko pisana inną kolumną.
+  Data, nie flaga — blokada ma wygasać sama;
+- `created_at` / `updated_at` (`timestamptz`) — kiedy wiersz powstał. To **nie**
+  jest `otrzymano`; rozjazd między nimi jest jedynym sygnałem daty wpisanej
+  wstecz.
+
+**Czego tu nie ma, świadomie:** adresu e-mail (jawnego ani jako skrót), nazwy,
+biogramu, zdjęć, treści wniosku, korespondencji, `ip_hash` — oraz `metadata
+jsonb`, czyli tej jednej kolumny, przez którą wszystkie powyższe wróciłyby bez
+migracji i bez recenzji schematu.
+
+**Indeksy** (wszystkie częściowe — każdy pod jedno zapytanie):
+`potwierdzenia_zadan_rodo_retencja_idx (zakonczono) WHERE zakonczono IS NOT NULL`,
+`..._w_toku_idx (otrzymano) WHERE zakonczono IS NULL` (przegląd zaległości, §F.7
+oceny), `..._konto_idx (konto_id) WHERE konto_id IS NOT NULL`.
+
+**Retencja: WYŁĄCZONA — decyzja właściciela z 22.09.2026, `docs/DECISIONS.md`
+D-233.** Wiersze nie są dziś kasowane przez nic i przez nikogo.
+
+Powód nie jest niechęcią do retencji, tylko dwiema konkretnymi rzeczami:
+okresu **nie potwierdził jeszcze prawnik** (36 miesięcy było analogią do
+sprawy moderacyjnej, nie ustaleniem), a kasowanie jest **twardym `DELETE`,
+nieodwracalnym** — bez soft-delete i bez eksportu. Po jego włączeniu, dla kont,
+których ostatnie zdarzenie RODO jest starsze od progu, na pytanie „czy i kiedy
+usunęliście dane tej osoby" nie zostaje nic. Polityka prywatności mówi przy tym
+o kopiach zapasowych: „Nie podajemy tu liczby dni, bo nie ustaliliśmy jej
+jeszcze z dostawcą" — czyli nie wiadomo nawet, jak długo istnieje droga odzysku.
+
+Wyłączenie stoi na **dwóch niezależnych barierach**: `retencja_wlaczona` jest
+`false`, a `kuking:sprzataj-potwierdzenia-rodo` **nie jest wpięte
+w `routes/console.php`**, więc nie wystartuje nawet przy przypadkowo ustawionej
+zmiennej. `retention_months` jest `null`, nie 36 — żeby samo przestawienie
+flagi nie uruchomiło kasowania według zgadniętego progu.
+
+Sam predykat istnieje, jest przetestowany i gotowy:
+`App\Domain\Compliance\PrzedawnionePotwierdzeniaRodo` liczy od `zakonczono`,
+pomija wiersze z `wstrzymanie_do` w przyszłości, a sprawy w toku (`zakonczono IS
+NULL`) nie są kandydatem w ogóle, bo kasowanie otwartej sprawy zamieniłoby
+retencję w sprzątanie dowodów zaniedbania. Próg liczony `subMonthsNoOverflow`,
+nie `subMonths` (A6-04) — przepełnienie daty przesuwa go w stronę nowszych
+wierszy i kasowałoby dowód wykonania art. 17 przed czasem.
+
+**Do przygotowania danych historycznych** służy
+`kuking:sprzataj-potwierdzenia-rodo --na-sucho --miesiace=N`, które działa mimo
+wyłączenia i nie wykonuje żadnego `DELETE` — pokazuje wyłącznie, ile wierszy
+wpadłoby pod dany próg.
+
+**Jak to włączyć, gdy prawnik potwierdzi okres:** trzy kroki opisane przy kluczu
+`potwierdzenia_rodo` w `config/kuking.php` i w `PROJEKT_POTWIERDZENIA_RODO.md`
+§6. `tests/Feature/RetencjaPotwierdzenRodoTest.php` pilnuje obu stron: że
+domyślnie nic się nie kasuje (z kontrolą dodatnią, że wiersz naprawdę był
+kandydatem) i że po jawnym włączeniu automat kasuje oraz omija wstrzymane.
+
+**Rollback:** `down()` kasuje tabelę, ale **odmawia**, gdy stoi w niej choć
+jeden wiersz z wypełnionym `zakonczono` — to dowód obsługi żądania, którego nie
+ma gdzie indziej. Odmowa jest wąska (AGENTS.md §6, D-088): pusta tabela i tabela
+z samymi sprawami w toku cofają się bez pytania, bo sprawa w toku żyje nadal
+w `users.delete_requested_at`. Kolejność: **najpierw kod, potem migracja**.
+Pilnuje tego `MinimalnePotwierdzenieRodoTest` (odmowa + dwie kontrole dodatnie).
 
 ### dziennik_zgod
 Kiedy i skąd zgoda została udzielona, a kiedy wycofana — tabela
@@ -4154,8 +4350,13 @@ replice) liczba jest praktycznie ta sama: 4 + 1 + 1 = 6 w spoczynku,
 a wdrożenie z nakładaniem daje 12 + 1 = **13**.
 
 **Koszt każdej dodatkowej repliki `web`:** +4 w spoczynku, +8 w oknie
-wdrożenia. Przy 497 miejscach i budżecie 16 zapas starcza na ponad sto replik,
-zanim połączenia staną się ograniczeniem.
+wdrożenia. Przy 497 miejscach, jednym workerze i jednym schedulerze wzór
+wdrożeniowy to `8R + 8`: mieści się maksymalnie 61 replik web (496 miejsc),
+ale to wyczerpuje pulę i **nie jest bezpiecznym limitem skalowania**.
+Poniżej progu ostrzegawczego 50 mieści się 5 replik (48 miejsc).
+Wcześniejsze „ponad sto replik” pomijało nakładanie wdrożeń.
+Własny pomiar z 20.09.2026, ograniczenia tego wyliczenia i wariant z osobnym
+workerem media: [odbiór lokalny #598/#599](infra/MONITORING_ODBIOR_2026_09_20.md).
 
 ### D. Progi alarmowe i skąd się wzięły
 
