@@ -94,6 +94,12 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Obrazy bazowe przypięte do digestów (#952). Strażnik parsuje linie FROM
+# w Dockerfile'ach; mutacja zdejmuje digest z obrazu kopii i ma go zapalić —
+# dowód, że parser widzi też drugi Dockerfile, a nie tylko główny.
+OBRAZ_KOPII = "docker/kopia/Dockerfile"
+OBRAZY_DIGEST_TEST = "ObrazyBazowePrzypieteDoDigestowTest"
+
 # Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
 # niezależną biblioteką — strażnik widzi odczyt pliku, więc kontrola dodatnia
 # wyłącza samo czyszczenie XMP i test ma wtedy oblać.
@@ -210,6 +216,18 @@ def zdjecie_checku_przed_straznikiem_2fa(source):
     return replace_once(bez_zdjecia, straznik, zdjecie + straznik)
 
 
+def bez_digestu_obrazu_kopii(source):
+    """KONTROLA DODATNIA: wróć w obrazie kopii do gołego, ruchomego tagu.
+
+    `FROM postgres:18` buduje się dalej zielono — dlatego tylko mutacja
+    dowodzi, że `test_kazdy_from_w_kazdym_dockerfile_ma_digest` to zauważy.
+    """
+    start = source.index("FROM postgres:18@sha256:")
+    end = source.index("\n", start)
+
+    return source[:start] + "FROM postgres:18" + source[end:]
+
+
 def mniejsze_pismo_na_pierwszym_ekranie(source):
     """KONTROLA DODATNIA: zmieść przycisk pod zgięciem mniejszym pismem.
 
@@ -243,6 +261,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Obraz bazowy bez digestu", OBRAZ_KOPII, OBRAZY_DIGEST_TEST,
+     bez_digestu_obrazu_kopii),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
     ("Sekret OAuth w workerze", RAILWAY_IAC, ZMIENNE_ROL_TEST,
@@ -259,6 +279,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(OBRAZY_DIGEST_TEST, True)
 run_test(XMP_TEST, True)
 run_test(ZMIENNE_ROL_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
