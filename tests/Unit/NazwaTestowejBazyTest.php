@@ -16,6 +16,8 @@ use PHPUnit\Framework\TestCase;
  *
  * Świadomie `PHPUnit\Framework\TestCase`, nie `Tests\TestCase`: ten test nie
  * dotyka bazy danych w ogóle.
+ *
+ * @bez-kontroli-dodatniej Testuje zachowanie funkcji z tests/nazwa-bazy.php na katalogach tymczasowych; file_get_contents czyta plik rejestru, który ta funkcja sama przed chwilą zapisała, nie źródło aplikacji.
  */
 class NazwaTestowejBazyTest extends TestCase
 {

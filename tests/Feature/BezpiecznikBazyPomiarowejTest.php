@@ -34,6 +34,8 @@ use Tests\TestCase;
  *
  * @see scripts/bezpiecznik-bazy.mjs
  * @see scripts/bezpiecznik-bazy.test.mjs
+ *
+ * @bez-kontroli-dodatniej base_path() podaje tylko ścieżkę do node --test, a asercje tekstowe czytają wyjście tego przebiegu (liczbę zdanych i nazwę skanu), nie treść źródła; kontrolę ujemną niesie sam skan (próg 15 skryptów) i bezpiecznik-bazy.test.mjs.
  */
 class BezpiecznikBazyPomiarowejTest extends TestCase
 {

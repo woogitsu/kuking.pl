@@ -33,6 +33,8 @@ use Tests\TestCase;
  * @see tests/skrypty/sprzatanie-baz-testowych.sh
  * @see scripts/cleanup-test-dbs.sh
  * @see tests/nazwa-bazy.php
+ *
+ * @bez-kontroli-dodatniej base_path() wskazuje tylko skrypt dowodu uruchamiany w piaskownicy, a asercje czytają jego wyjście (liczbę i nazwy przypadków), nie treść źródła; pusty albo okrojony dowód zapala asercję na liczbie przypadków.
  */
 class SprzatanieBazTestowychTest extends TestCase
 {
