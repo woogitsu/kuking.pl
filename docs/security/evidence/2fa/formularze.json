@@ -1,0 +1,57 @@
+{
+  "browser": "153.0.8010.12",
+  "results": [
+    {
+      "javascript": true,
+      "operation": "regenerate",
+      "visible": true,
+      "open": true,
+      "focusCorrect": true,
+      "idsUnique": true,
+      "blank": true,
+      "onlyOneInvalid": true,
+      "noOverflow": true,
+      "font": 18,
+      "targetHeight": 50.5
+    },
+    {
+      "javascript": true,
+      "operation": "disable",
+      "visible": true,
+      "open": true,
+      "focusCorrect": true,
+      "idsUnique": true,
+      "blank": true,
+      "onlyOneInvalid": true,
+      "noOverflow": true,
+      "font": 18,
+      "targetHeight": 50.5
+    },
+    {
+      "javascript": false,
+      "operation": "regenerate",
+      "visible": true,
+      "open": true,
+      "focusCorrect": true,
+      "idsUnique": true,
+      "blank": true,
+      "onlyOneInvalid": true,
+      "noOverflow": true,
+      "font": 18,
+      "targetHeight": 50.5
+    },
+    {
+      "javascript": false,
+      "operation": "disable",
+      "visible": true,
+      "open": true,
+      "focusCorrect": true,
+      "idsUnique": true,
+      "blank": true,
+      "onlyOneInvalid": true,
+      "noOverflow": true,
+      "font": 18,
+      "targetHeight": 50.5
+    }
+  ]
+}
