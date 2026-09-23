@@ -37,6 +37,9 @@ use Illuminate\View\View;
  */
 class ModerationController extends Controller
 {
+    private const WLASNA_SPRAWA = 'To zgłoszenie pochodzi od Ciebie, więc rozstrzygnie je ktoś inny z moderacji. '
+        .'Nikt nie decyduje we własnej sprawie.';
+
     public function __construct(
         private readonly NotifyModerationDecision $powiadom,
         private readonly NotifyReporterDecision $powiadomZglaszajacego,
@@ -166,6 +169,10 @@ class ModerationController extends Controller
         // Wstępne sprawdzenie — tanie i daje sensowny komunikat bez wchodzenia
         // w transakcję. NIE JEST GWARANCJĄ: prawdziwe rozstrzygnięcie stoi
         // niżej, pod blokadą wiersza.
+        if ($request->user()->cannot('decide', $report)) {
+            return back()->withInput()->withErrors(['action' => self::WLASNA_SPRAWA]);
+        }
+
         if ($report->status !== Report::STATUS_OPEN) {
             return back()->withErrors([
                 'action' => 'To zgłoszenie zostało już rozstrzygnięte. Odśwież stronę, żeby zobaczyć decyzję.',
@@ -341,6 +348,12 @@ class ModerationController extends Controller
                 return null;
             }
 
+            // Ta sama reguła co na wejściu, ale już na zablokowanym wierszu:
+            // wynik ma zależeć od stanu, pod którym zapada decyzja (#1408).
+            if ($moderator->cannot('decide', $zablokowane)) {
+                throw ValidationException::withMessages(['action' => self::WLASNA_SPRAWA]);
+            }
+
             // Cel i osobę wyznaczamy PRZED zapisaniem decyzji i przed jej
             // wykonaniem. Powodów są teraz dwa:
             //  - `remove` kasuje cel, a wtedy nie ma już kogo zapytać o autora;
@@ -366,6 +379,25 @@ class ModerationController extends Controller
                 : $data['action'];
             $aktywnyCel = $celNiedostepny ? null : $cel;
             $osoba = $aktywnyCel === null ? null : ModeratedContent::osoba($aktywnyCel);
+
+            // KARA NA KONCIE TYLKO WOBEC NIŻSZEJ ROLI (#1408, D-244).
+            //
+            // Sprawdzane TU, przed `ModerationAction::create()`: odmowa
+            // wycofuje transakcję, więc nie zostaje decyzja, powiadomienie
+            // ani wpis w dzienniku sugerujący wykonaną sankcję. Cel kary
+            // bywa autorem zgłoszonej treści, nie tylko zgłoszonym profilem —
+            // dlatego pytamy o `$osoba`, a nie o `target_type === 'user'`.
+            if (in_array($wykonanaAkcja, [ModerationAction::ACTION_SUSPEND, ModerationAction::ACTION_BAN], true)
+                && $osoba !== null
+                && $moderator->cannot('sanctionAccount', $osoba)) {
+                throw ValidationException::withMessages([
+                    'action' => $osoba->isAdmin()
+                        ? 'Konta administratora nie da się zawiesić ani zablokować z panelu moderacji. '
+                            .'Jeśli sprawa jest poważna, przekaż ją właścicielowi serwisu.'
+                        : 'Konto moderatora może zawiesić albo zablokować tylko administrator. '
+                            .'Wybierz inną decyzję albo przekaż sprawę administratorowi.',
+                ]);
+            }
 
             $akcja = ModerationAction::create([
                 'moderator_id' => $moderator->getKey(),

@@ -60,9 +60,17 @@ class RecipePolicy
         return RecipeStatusTransitions::authorMayEdit($recipe->status);
     }
 
+    /**
+     * Zwykłe usunięcie (`DELETE` ze strony treści) — wyłącznie autor.
+     *
+     * Issue #932: moderator NIE usuwa tędy cudzej treści, nawet z 2FA.
+     * Ta droga omija panel `/admin` (2FA — `moderator.2fa`), uzasadnienie,
+     * wiersz w `moderation_actions`, powiadomienie i odwołanie (DSA art. 17
+     * i 20). Cudzą treść zdejmuje się decyzją „Usuń" w `/admin/zgloszenia`.
+     */
     public function delete(User $user, Recipe $recipe): bool
     {
-        return $user->getKey() === $recipe->author_id || $user->isModerator();
+        return $user->getKey() === $recipe->author_id;
     }
 
     /**

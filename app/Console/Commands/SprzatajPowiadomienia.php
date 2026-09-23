@@ -46,6 +46,15 @@ class SprzatajPowiadomienia extends Command
             $this->warn("Pominięto {$raport->bezPowiazanejDecyzji} powiadomień moderacyjnych bez ustalalnej decyzji — nie skasowano, szczegóły w logu.");
         }
 
+        // CZĘŚCIOWA PORAŻKA TO PORAŻKA (#1342). Kod ≠ 0 jest jedynym
+        // sygnałem, który widzi harmonogram — `routes/console.php` zamienia
+        // go w wyjątek, bo `Schedule::call()` sam liczby nie sprawdza.
+        if ($raport->czesciowaPorazka()) {
+            $this->error("Nie udało się skasować {$raport->nieudaneModeracyjne} powiadomień moderacyjnych po terminie — zostały w bazie, następny przebieg spróbuje ponownie. Szczegóły w logu.");
+
+            return self::FAILURE;
+        }
+
         return self::SUCCESS;
     }
 }
