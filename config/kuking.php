@@ -1487,7 +1487,9 @@ return [
         // bez zmian, zmieniło się tylko miejsce, w którym się ją czyta.
         // Sześć na minutę: człowiek klika „wyślij jeszcze raz", nie widzi
         // listu (poczta potrafi iść minutę), klika znowu. Każde kliknięcie
-        // to jeden e-mail z naszej puli.
+        // to jeden e-mail z naszej puli. TO JEST LIMIT NA MINUTĘ, NIE NA
+        // DOBĘ — sufit dobowy na konto stoi w
+        // `poczta.ponowienie_potwierdzenia_na_dobe` (D-246).
         'verification_resend' => '6,1',
 
         /*
@@ -2009,7 +2011,9 @@ return [
     | 720 próśb na dobę) wysyłał listy na 300 różnych adresów i opróżniał
     | CAŁĄ pulę w około 70 minut. Ponawianie potwierdzenia adresu
     | (`limits.verification_resend` = 6 na minutę, bez sufitu dobowego)
-    | robiło to samo z jednego niepotwierdzonego konta w około 50 minut.
+    | robiło to samo z jednego niepotwierdzonego konta w około 50 minut
+    | (domknięte dopiero w D-246: klasa `ponowienie` i sufit na konto,
+    | bo sam wspólny licznik z progiem zero tego nie zatrzymywał).
     | Rezerwa nie chroniła niczego, bo nie istniał nikt, kto by jej pilnował.
     |
     | Od teraz pilnuje jej WSPÓLNY LICZNIK CAŁEJ POCZTY
@@ -2055,6 +2059,7 @@ return [
          |
          |   240  `podsumowanie`  gaśnie PIERWSZE
          |   100  `zwykla`
+         |   100  `ponowienie`    (D-246, ponowne wysłanie potwierdzenia adresu)
          |     0  `wejscie`       gaśnie OSTATNIE
          |
          | SKĄD TE TRZY LICZBY — ŻADNA NIE JEST NOWA.
@@ -2073,6 +2078,21 @@ return [
          | nich nowy człowiek nie wchodzi tu wcale, a osoba, dla której link
          | jest jedyną drogą — nie wraca.
          |
+         | 100 dla klasy `ponowienie` (D-246, 23 września 2026) — też nie
+         | nowa liczba: to znowu `rezerwa_transakcyjna`. Do D-246 ponowienie
+         | potwierdzenia stało w klasie `wejscie` z progiem zero, więc
+         | ponowienia z wielu kont (albo z jednego — patrz
+         | `ponowienie_potwierdzenia_na_dobe` niżej) zjadały dokładnie te
+         | ostatnie listy, które miały zostać dla rejestracji i logowania
+         | linkiem. Ponowienie klika ktoś, kto JUŻ MA konto i korzysta z niego
+         | normalnie bez potwierdzonego adresu (potwierdzenie jest potrzebne
+         | dopiero do eksportu danych i odzyskania hasła), więc nie ma prawa
+         | sięgać do rezerwy, którą obiecujemy listom WPUSZCZAJĄCYM na konto.
+         | Osobna klasa zamiast dopisania do `zwykla`, bo to jest osobna
+         | decyzja: właściciel może ją przesunąć bez ruszania przypomnienia
+         | hasła i listów moderacyjnych. Warunek, który MUSI zostać:
+         | `ponowienie` > `wejscie` (pilnuje `PodzialLimituPocztyTest`).
+         |
          | CZEGO TE PROGI NIE ROBIĄ. Nie dzielą puli między KONKRETNYCH ludzi.
          | Jeden sprawca zalewający `/nie-pamietam-hasla` nadal wypali klasę
          | `zwykla` i zabierze tego dnia odpowiedzi z „Napisz do nas" oraz
@@ -2087,8 +2107,37 @@ return [
         'progi_wygaszania' => [
             'podsumowanie' => (int) env('KUKING_POCZTA_PROG_PODSUMOWANIE', 240),
             'zwykla' => (int) env('KUKING_POCZTA_PROG_ZWYKLA', 100),
+            'ponowienie' => (int) env('KUKING_POCZTA_PROG_PONOWIENIE', 100),
             'wejscie' => (int) env('KUKING_POCZTA_PROG_WEJSCIE', 0),
         ],
+
+        /*
+         * ILE RAZY NA DOBĘ JEDNO KONTO MOŻE KLIKNĄĆ „WYŚLIJ WIADOMOŚĆ JESZCZE
+         * RAZ" (D-246, 23 września 2026). Liczy się doba kalendarzowa, jak
+         * w całej puli — o północy licznik zaczyna się od nowa.
+         *
+         * PO CO, SKORO JEST `limits.verification_resend`: tamten limit to
+         * 6 na MINUTĘ i nic więcej, czyli 8640 listów na dobę z jednego
+         * konta. Zmierzone (audyt bezpieczeństwa 23.09, znalezisko 2): jedno
+         * niepotwierdzone konto opróżniało całą pulę 300 listów w około
+         * 50 minut. Próg klasy `ponowienie` wyżej zatrzymuje to przed
+         * rezerwą dla wejścia, ale sam nie broni reszty serwisu przed jednym
+         * kontem — to robi ta liczba.
+         *
+         * SKĄD 5: ten sam rząd co `login_link.limit_na_adres` (3 na godzinę),
+         * tylko liczony na dobę, bo ten list nie jest drogą na konto.
+         * Człowiek, któremu list nie doszedł, klika raz, po minucie drugi raz,
+         * po godzinie trzeci — piąty to zapas. Pierwszy list przy rejestracji
+         * się tu NIE liczy (to nie jest ponowienie). Pięć listów to 1,7% puli,
+         * więc do wyczerpania klasy `ponowienie` (200 listów) trzeba
+         * czterdziestu kont, a każde z nich to osobna rejestracja pod
+         * `limits.register`. Po przekroczeniu ekran mówi, ile listów już
+         * wysłaliśmy i od kiedy można prosić znowu (`EmailVerificationController`).
+         *
+         * Zero znaczy „ponowień dziś nie wysyłamy" — świadome awaryjne
+         * odcięcie, tak samo jak przy pozostałych sufitach.
+         */
+        'ponowienie_potwierdzenia_na_dobe' => (int) env('KUKING_PONOWIENIE_POTWIERDZENIA_NA_DOBE', 5),
 
         /*
          * ILE DNI TRZYMAMY ODHACZONE ŚLADY NIEUDANYCH LISTÓW
