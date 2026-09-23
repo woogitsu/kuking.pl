@@ -3247,8 +3247,9 @@ Trzyma jeden z zamkniętego zbioru kodów z `App\Models\DataExport::REASONS`
 |---|---|
 | `account_missing` | Konto zniknęło, zanim job zdążył zbudować paczkę. |
 | `storage` | Zapis gotowej paczki do magazynu plików się nie udał. |
+| `photo_unreadable` | Zdjęcie `ready` nie dało się odczytać z magazynu albo magazyn oddał mniej bajtów, niż sam podaje w `size()` — paczka bez niego byłaby niepełna, więc nie jest wydawana (issue #1388). Skutek dla obsługi: patrz „Trwale brakujące zdjęcie blokuje eksport” niżej. |
 | `timeout` | Budowa paczki przekroczyła limit czasu joba (15 minut). |
-| `unknown` | Worek na resztę — każda inna awaria. |
+| `unknown` | Worek na resztę — każda inna awaria, w tym awaria **lokalnego** dysku tymczasowego workera przy kopii zdjęcia (`App\Exceptions\DataExportTempFailure`: nieudany `fopen`, pełny dysk, kopia krótsza niż odczyt). To nie jest wina zdjęcia, więc ekran o zdjęciu nie mówi. |
 
 `DataExport::failureReasonLabel()` zamienia kod na zdanie po polsku (z adresem
 kontaktowym z `config('kuking.community.contact_email')`) i **nigdy** nie
@@ -3256,7 +3257,7 @@ pokazuje surowego kodu ani starego wolnego tekstu — nieznany albo pusty kod
 dostaje tekst spod `unknown`. Pełny `$e->getMessage()` zostaje wyłącznie
 w logu aplikacji (`Log::warning` w `GenerateUserExport::handle()`).
 
-Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych czterech
+Kolumna świadomie NIE ma CHECK-a ograniczającego ją do tych pięciu
 wartości — dokładnie jak `reports.reason` (patrz wyżej), które też jest
 kodem z zamkniętym mapowaniem w PHP, a nie w bazie.
 
@@ -3265,6 +3266,74 @@ zamienia istniejące wiersze z wolnego tekstu na kody (backfill po dokładnym
 dopasowaniu dwóch znanych literałów, reszta na `unknown`) i cofa się do
 `NULL` — oryginalne komunikaty nigdy nie były tu źródłem prawdy i zostają
 wyłącznie w logu.
+
+#### Eksport a wymazanie konta i pliki pośrednie (issues #1307, #993)
+
+Bez zmiany schematu — zmiana dotyczy tego, KIEDY wiersz dostaje `ready`.
+
+- `GenerateUserExport` nie zaczyna pracy dla konta `erased` ani dla eksportu,
+  któremu `EraseAccountData` przestawiło `expires_at` w przeszłość (`failed`,
+  `account_missing`). Karencja `pending_delete` eksportu nie blokuje.
+- Przejście w `ready` idzie w krótkiej transakcji z `lockForUpdate()` na
+  wierszu `users` (ta sama kolejność blokad co w `EraseAccountData`) i na
+  wierszu eksportu, z ponownym sprawdzeniem obu warunków. Przegrany wyścig:
+  wiersz dostaje `expired` z **zachowanym** `disk`/`object_key` i terminem
+  w przeszłości, job kasuje plik z weryfikacją `exists()` i dopiero wtedy
+  zeruje adres. Gdy kasowanie się nie uda, adres zostaje, a
+  `kuking:sprzataj-eksporty` ponawia je jak przy każdej wygasłej paczce.
+- Pliki pośrednie (ZIP w budowie, `dane.json`, kopie zdjęć) leżą w
+  osobnym katalogu każdego eksportu (podkatalog `kuking-eksport` katalogu
+  tymczasowego systemu, nazwany identyfikatorem eksportu) na dysku **workera** i znikają
+  w `finally`, w `failed()` (po identyfikatorze, także na odtworzonej
+  instancji joba) oraz na starcie kolejnej próby. Katalog nieruszany od
+  godziny (`ExportTempDirectory::STALE_AFTER_SECONDS`, cztery limity czasu
+  jednej próby) usuwa start każdego następnego eksportu na tym workerze —
+  czyli po twardym przerwaniu procesu pliki pośrednie żyją najdłużej do
+  pierwszego eksportu po upływie godziny albo do restartu kontenera
+  (dysk Railway jest ulotny). Nieudane usunięcie zostawia `Log::warning`
+  z identyfikatorem eksportu, bez ścieżek. Sprzątanie stoi na samym
+  początku `handle()`, **przed** wczesnymi powrotami (konto wymazane,
+  eksport już `ready`, brak wiersza) — inaczej kopia z przerwanej próby
+  wymazanego konta czekałaby na cudzy eksport.
+- List „paczka gotowa” wychodzi po **świeżym** odczycie wiersza eksportu
+  i konta, po commicie `ready`. Wymazanie, które czekało na blokadę
+  finalizacji i zatwierdziło się tuż po niej, odcina list (adres jest już
+  zanonimizowany, a paczka niepobieralna). Wymazanie wchodzące między tym
+  odczytem a wysyłką daje co najwyżej jeden list na prawdziwy adres
+  właściciela z linkiem, który już nie wyda paczki — bez danych w treści.
+
+#### Trwale brakujące zdjęcie blokuje eksport RODO (issue #1388)
+
+Skutek wybranego kontraktu „paczka niepełna nie jest wydawana”, nazwany
+wprost: jeśli plik JEDNEGO zdjęcia `ready` zniknął z magazynu na stałe
+(np. utracony przy przenosinach bucketów, #1031), **każda** próba eksportu
+tego konta kończy się `failed` / `photo_unreadable` — ponowienie nic nie
+zmieni, a człowiek nie dostanie paczki z pozostałymi danymi. Ekran mówi mu,
+żeby spróbował za kilka minut, a gdy się powtarza — napisał do nas. Nie ma
+tu automatu i świadomie go nie dokładamy: „pomiń zdjęcie i wydaj resztę”
+po cichu to dokładnie usterka #1388.
+
+Ścieżka dla obsługi (admin z dostępem do produkcji, **za jawną zgodą
+właściciela danych** — to zapis na produkcji, AGENTS.md):
+
+1. W dzienniku znaleźć `Nie udało się zbudować paczki z danymi użytkownika`
+   dla tego `data_export_id` — `error` niesie identyfikator zdjęcia
+   i przyczynę (`brak pliku w storage`, klasa wyjątku albo
+   „odczytano X z Y bajtów”). Bez ścieżek i bez komunikatu dostawcy.
+2. `php artisan kuking:sprawdz-zdjecia-po-przenosinach` (tylko odczyt)
+   rozstrzyga: **DO ODZYSKANIA** — plik leży w starym buckecie; naprawa jak
+   w opisie tej komendy, potem człowiek zamawia paczkę ponownie. Przyczyna
+   chwilowa (plik jest, odczyt się urywał) — zwykłe ponowienie.
+3. **UTRACONE** — bajtów nie odzyska nic. Decyzja właściciela danych:
+   zdjęcie przestaje być `ready` — `status = rejected` („przygotowanie
+   pliku padło, oryginał wolno wgrać jeszcze raz”), NIE `deleted`, które
+   README tłumaczy jako decyzję samego człowieka (D-083). Wtedy
+   `ExportPhotoPlan` go nie planuje, a README paczki liczy je jawnie
+   (`ExportPhotoPlan::rejectedCount()`). Dopiero potem nowy eksport. Człowiekowi
+   odpisujemy, którego zdjęcia brakuje — paczka nie może tego przemilczeć.
+
+Nie ma do tego komendy; jeśli zgłoszeń będzie więcej niż pojedyncze, to
+jest powód na osobne issue, nie na obejście w `GenerateUserExport`.
 
 Indeksy: `(user_id, created_at)` — lista paczek danego użytkownika
 w kolejności; `data_exports_one_active_per_user` — patrz niżej.
