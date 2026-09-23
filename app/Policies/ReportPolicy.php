@@ -37,4 +37,31 @@ class ReportPolicy
 
         return $report->reporter_id === $user->getKey();
     }
+
+    /**
+     * Kto może ROZSTRZYGNĄĆ zgłoszenie w panelu moderacji (#1408, D-244).
+     *
+     * NIKT NIE JEST SĘDZIĄ WE WŁASNEJ SPRAWIE. Zgłoszenie złożone przez
+     * moderatora (albo administratora) rozstrzyga ktoś inny z moderacji.
+     * Bez tej reguły jedna osoba z uprawnieniami mogła sama wnieść sprawę,
+     * sama ją rozstrzygnąć i zostawić w logu ślad wyglądający jak zwykła,
+     * niezależna decyzja — także „Bez działania", które zamyka sprawę
+     * i odpisuje zgłaszającemu, czyli samemu sobie.
+     *
+     * `reporter_id IS NULL` (zgłoszenie prawne bez konta) nie ma w serwisie
+     * strony, która mogłaby się z moderatorem pokrywać — rozstrzyga je każdy
+     * moderator.
+     *
+     * To jest osobna reguła od rangi celu (`UserPolicy::sanctionAccount()`):
+     * tamta pilnuje, KOGO wolno ukarać, ta — KTO w ogóle zamyka sprawę.
+     */
+    public function decide(User $user, Report $report): bool
+    {
+        if (! $user->isModerator()) {
+            return false;
+        }
+
+        return $report->reporter_id === null
+            || $report->reporter_id !== $user->getKey();
+    }
 }

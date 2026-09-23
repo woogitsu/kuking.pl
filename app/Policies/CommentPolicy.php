@@ -84,7 +84,13 @@ class CommentPolicy
         // Edycja komentarza tylko przez 15 minut od publikacji. Krótkie okno
         // wystarcza na poprawienie literówki, a nie pozwala zmienić sensu
         // rozmowy po tym, jak ktoś już odpowiedział.
+        //
+        // Issue #937: komentarz ukryty albo zdjęty przez moderację nie jest
+        // już edytowalny. Inaczej autor mógł w oknie 15 minut podmienić treść,
+        // którą moderator właśnie ocenił — a przy odwołaniu (DSA art. 20)
+        // moderator oglądałby inny tekst niż ten, o którym zdecydował.
         return $user->getKey() === $comment->author_id
+            && $comment->status === Comment::STATUS_PUBLISHED
             && $comment->getAttribute('body_removed_at') === null
             && $comment->created_at?->diffInMinutes(now()) < 15;
     }
