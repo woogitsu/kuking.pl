@@ -688,9 +688,11 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
             route('collections.unsave-post', $wpis), [], [$W, $W, $W, $W, $O]);
         $dodaj('wspomnienia.ukryj', 'ukrycie wspomnienia', 'post',
             route('wspomnienia.ukryj', $wpisDoWspomnien), [], [$W, $O, $O, $O, $O]);
-        // Moderator kasuje z urzędu (`PostPolicy::delete`).
+        // Moderator NIE kasuje tędy cudzej treści (issue #932) — tylko
+        // decyzją „Usuń" w panelu, z rejestrem i odwołaniem. To samo przy
+        // `recipes.destroy`, `cooked.destroy` i `comments.destroy` niżej.
         $dodaj('posts.destroy', 'usunięcie wpisu', 'delete',
-            route('posts.destroy', $wpisDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('posts.destroy', $wpisDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── PRZEPISY ────────────────────────────────────────────────────
         $dodaj('recipes.show', 'przepis prywatny', 'get',
@@ -717,7 +719,7 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('collections.unsave', 'wyjęcie przepisu z własnego zeszytu', 'delete',
             route('collections.unsave', $przepisPrywatny), [], [$W, $W, $W, $W, $O]);
         $dodaj('recipes.destroy', 'usunięcie przepisu', 'delete',
-            route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('recipes.destroy', $przepisDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── WYKONANIA („Ugotowałem") ────────────────────────────────────
         $dodaj('cooked.show', 'wykonanie publicznego przepisu', 'get',
@@ -731,13 +733,13 @@ class KazdaTrasaZIdentyfikatoremPodPolicyTest extends TestCase
         $dodaj('cooked.thank', 'podziękowanie za wykonanie', 'post',
             route('cooked.thank', $wykonanie), ['body' => 'Dziękuję za ugotowanie.'], [$W, $O, $O, $O, $O]);
         $dodaj('cooked.destroy', 'usunięcie wykonania', 'delete',
-            route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('cooked.destroy', $wykonanieDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── KOMENTARZE ──────────────────────────────────────────────────
         $dodaj('comments.update', 'poprawienie komentarza', 'put',
             route('comments.update', $komentarz), ['body' => 'Poprawiona treść komentarza.'], [$W, $O, $O, $O, $O]);
         $dodaj('comments.destroy', 'usunięcie komentarza', 'delete',
-            route('comments.destroy', $komentarzDoKasacji), [], [$W, $O, $O, $W, $O]);
+            route('comments.destroy', $komentarzDoKasacji), [], [$W, $O, $O, $O, $O]);
 
         // ─── ZESZYTY ─────────────────────────────────────────────────────
         $dodaj('collections.show', 'prywatny zeszyt', 'get',

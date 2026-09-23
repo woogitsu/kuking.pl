@@ -145,7 +145,7 @@ class Sledztwo914PomiarPanoluOdwolanTest extends TestCase
             'reason' => 'harassment',
         ]);
         // `status` NIE jest w $fillable (AGENTS.md §7) — ustawiane wprost.
-        DB::table('reports')->where('id', $report->getKey())->update(['status' => Report::STATUS_RESOLVED]);
+        DB::table('reports')->where('id', $report->getKey())->update(['status' => Report::STATUS_RESOLVED, 'resolved_at' => now()]);
 
         $action = ModerationAction::create([
             'moderator_id' => $moderator->getKey(),
