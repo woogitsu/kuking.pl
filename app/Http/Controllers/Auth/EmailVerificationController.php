@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Http\Controllers\Auth;
 
+use App\Domain\Security\DziennyBudzetListow;
+use App\Domain\Security\WyslijPotwierdzenieAdresu;
 use App\Http\Controllers\Controller;
 use App\Models\MailFailure;
 use App\Notifications\PotwierdzenieAdresu;
@@ -54,14 +56,58 @@ class EmailVerificationController extends Controller
         return redirect()->route('home')->with('status', 'Adres e-mail potwierdzony. Dziękujemy.');
     }
 
-    public function resend(Request $request): RedirectResponse
+    /**
+     * „Wyślij wiadomość jeszcze raz".
+     *
+     * NIE MÓWI „WYSŁALIŚMY", GDY NIC NIE WYSZŁO (20 września 2026). Ten
+     * przycisk ma limit 6 na minutę (`limits.verification_resend`) i nie miał
+     * żadnego sufitu dobowego, więc jedno niepotwierdzone konto wypalało całą
+     * pulę 300 listów w około 50 minut — a ekran przy każdym kliknięciu
+     * zapewniał, że wiadomość poszła. Od teraz list jest liczony we wspólnej
+     * puli poczty, a gdy pula odmówi, człowiek czyta, co z tym zrobić.
+     *
+     * TEN LIST GAŚNIE OSTATNI ZE WSZYSTKICH (klasa `wejscie`, próg 0), więc
+     * odmowa tutaj znaczy, że na dziś nie ma ANI JEDNEGO listu — nie że ta
+     * jedna funkcja wyczerpała swój przydział.
+     */
+    public function resend(Request $request, WyslijPotwierdzenieAdresu $wyslij): RedirectResponse
     {
         if ($request->user()->hasVerifiedEmail()) {
             return redirect()->route('home');
         }
 
-        $request->user()->sendEmailVerificationNotification();
+        if (! $wyslij->handle($request->user())) {
+            return back()->with('status', $this->komunikatOdmowy());
+        }
 
         return back()->with('status', 'Wysłaliśmy wiadomość jeszcze raz. Sprawdź też folder „Spam”.');
+    }
+
+    /**
+     * DWA POWODY ODMOWY, DWA RÓŻNE ZDANIA — ta sama zasada i ten sam wzorzec
+     * co przy wyczerpanym budżecie logowania linkiem
+     * (`LoginLinkController::send`). Rezerwacja mówi tylko „nie", a te dwa
+     * „nie" znaczą dla człowieka coś zupełnie innego: przy pustej puli
+     * czekanie na list jest bezcelowe, a przy ścisku na blokadzie drugie
+     * kliknięcie zwykle wystarcza.
+     *
+     * Odczyt puli jest tu WYŁĄCZNIE doborem treści komunikatu — o wysyłce
+     * rozstrzygnęła już atomowa rezerwacja w akcji i nic tego nie odwraca
+     * (D-076).
+     */
+    private function komunikatOdmowy(): string
+    {
+        $adres = (string) config('kuking.community.contact_email');
+
+        if (DziennyBudzetListow::dlaPotwierdzeniaAdresu()->jestMiejsce()) {
+            return 'Nie udało nam się w tej chwili wypuścić tej wiadomości — kilka próśb trafiło na siebie '
+                .'w tej samej sekundzie. Kliknij „Wyślij wiadomość jeszcze raz” za moment. Jeśli znowu nie '
+                .'wyjdzie, napisz do nas na '.$adres.'. Odpisuje człowiek.';
+        }
+
+        return 'Dzisiaj wysłaliśmy już wszystkie e-maile, jakie mieliśmy na dziś, więc ta wiadomość nie '
+            .'wyjdzie — nie czekaj na nią. Z konta korzystasz normalnie także bez potwierdzonego adresu. '
+            .'Kliknij ten przycisk jutro, a jeśli potwierdzenie jest Ci potrzebne dziś — napisz do nas na '
+            .$adres.'. Odpisuje człowiek.';
     }
 }
