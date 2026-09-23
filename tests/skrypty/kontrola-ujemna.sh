@@ -229,7 +229,7 @@ else
     oblane=$((oblane + 1))
 fi
 
-# --- 10. Polecenia w ogole nie ma -> 127 -------------------------------------
+# --- 10. Polecenia w ogole nie ma -> 127 --------------------------------------
 kod="$(uruchom zrodlo.txt --zamien 'BRAMKA=wlaczona' --na 'BRAMKA=wylaczona' --oczekuj 'BRAMKA_ZDJETA' -- ./polecenia-nie-ma.sh)"
 sprawdz 'polecenia nie ma (127) -> BLAD_POLECENIA (7), nie BRAK_KONTROLI_DODATNIEJ' 7 "$kod"
 sprawdz 'przy niewykonanym poleceniu plik nietkniety (MD5)' "$MD5_WZORCOWY" "$(md5sum "$PRACA/zrodlo.txt" | cut -d' ' -f1)"
@@ -280,7 +280,7 @@ else
 ' 'x tabela nie zada rozstrzygniecia przy przezywajacej mutacji'; oblane=$((oblane + 1))
 fi
 
-# --- 12. Mutacja pliku Blade nie zostawia zmutowanego kompilatu --------------
+# --- 12. Mutacja pliku Blade nie zostawia zmutowanego kompilatu -------------
 # Laravel rekompiluje szablon tylko gdy zrodlo jest NOWSZE od kompilatu
 # (Compiler::isExpired). Po przywroceniu mtime zrodlo jest STARSZE niz
 # kompilat zmutowanego widoku, wiec bez tej poprawki Laravel dalej serwowalby
@@ -312,7 +312,7 @@ else
 ' 'x mutacja pliku nie-Blade skasowala kompilaty — nadmiar'; oblane=$((oblane + 1))
 fi
 
-# --- 13. Wzorzec na poczatku DUZEGO wyjscia ----------------------------------
+# --- 13. Wzorzec na poczatku DUZEGO wyjscia ---------------------------------
 # Bez poprawki (`printf | grep -q` pod pipefail) ta proba dostaje
 # ZLA_PRZYCZYNA (4) zamiast POTWIERDZONA (0) — przyrzad odmawia uznania
 # poprawnej kontroli ujemnej, bo SIGPIPE przykrywa trafienie grepa.
