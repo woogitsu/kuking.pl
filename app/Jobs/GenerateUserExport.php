@@ -217,6 +217,7 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
                 'data_export_id' => $export->getKey(),
+                'media_id' => $e instanceof DataExportPhotoUnreadable ? $e->mediaId : null,
                 // `DataExportStorageFailure` zawija oryginalny wyjątek — jego
                 // klasę i SQLSTATE niesie `przyczyny`, miejsce awarii `miejsce`.
                 // Komunikatu nie: sterownik bazy wkłada w niego wartości, klient
@@ -750,6 +751,7 @@ class GenerateUserExport implements ShouldQueue
     {
         return new DataExportPhotoUnreadable(
             'Nie udało się odczytać zdjęcia '.$photo->getKey().' do paczki ('.$cause.').',
+            (string) $photo->getKey(),
         );
     }
 
