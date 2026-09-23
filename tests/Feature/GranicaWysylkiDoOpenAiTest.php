@@ -215,7 +215,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
         $wpis->media()->attach($this->zdjecie($autor, ['thumb' => [320, 240]]));
 
         match ($stan) {
-            'private', 'followers' => app(EditPost::class)->handle($wpis, $wpis->body, $stan),
+            'private', 'followers' => app(EditPost::class)->handle($autor, $wpis, $wpis->body, $stan),
             'hidden' => $wpis->forceFill(['status' => Post::STATUS_HIDDEN])->save(),
             'deleted' => $wpis->delete(),
             'banned' => $autor->forceFill(['status' => User::STATUS_BANNED])->save(),
@@ -396,7 +396,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
     private function zmienWidocznosc(Post|Recipe $tresc, string $widocznosc): void
     {
         if ($tresc instanceof Post) {
-            app(EditPost::class)->handle($tresc, $tresc->body, $widocznosc);
+            app(EditPost::class)->handle($tresc->author, $tresc, $tresc->body, $widocznosc);
 
             return;
         }
