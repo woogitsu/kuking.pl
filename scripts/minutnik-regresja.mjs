@@ -31,6 +31,17 @@ assert(template, 'Nie znaleziono rzeczywistego HTML minutnika');
 const html = seconds => template.replace(/\{\{--[\s\S]*?--\}\}/g, '')
   .replaceAll('{{ $aktualnyKrok->timer_seconds }}', String(seconds))
   .replaceAll('{{ $timerLabel }}', `${seconds} sekund`);
+// Pas alarmów minutników z innych kroków (issue #1301) — też z realnego Blade.
+const alarmyTemplate = blade.match(/<div class="cook-alarmy[^"]*"[^\n]*? hidden><\/div>/)?.[0];
+assert(alarmyTemplate, 'Nie znaleziono rzeczywistego pasa alarmów innych kroków');
+const importLine = `import { pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza } from './${moduleFileName}';\n`;
+// Jedna strona trybu gotowania = jeden krok: pas alarmów + (opcjonalnie)
+// minutnik tego kroku, jak w cooking.blade.php.
+const stepPage = (krok, seconds) => '<p class="cook-progress">Krok ' + krok + '</p>'
+  + alarmyTemplate.replaceAll('{{ $recipe->slug }}', 'zupa')
+    .replaceAll('{{ $krok }}', String(krok))
+    .replace(/\{\{ route\([^}]*\}\}/, '/gotuj')
+  + (seconds ? html(seconds).replaceAll('{{ $recipe->slug }}', 'zupa').replaceAll('{{ $krok }}', String(krok)) : '');
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 
 // Prawdziwe pochodzenie (origin) zamiast `page.setContent`. Dwa niezależne
@@ -78,11 +89,25 @@ async function fixture(durations, run) {
     });
     await page.addScriptTag({
       type: 'module',
-      content: `import { pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan } from './${moduleFileName}';\n`
-        + source.slice(begin, end),
+      content: importLine + source.slice(begin, end),
     });
     await run(page);
   } finally { await page.close(); }
+}
+// Przejście do innego kroku to w aplikacji pełne przeładowanie strony
+// (GET ?krok=N) — tu też: nowy dokument pod tym samym originem, więc
+// sessionStorage zostaje, a cały stan JavaScriptu znika.
+async function openStep(page, krok, seconds) {
+  currentBody = stepPage(krok, seconds);
+  await page.goto(baseUrl + '?krok=' + krok);
+  await page.evaluate(() => {
+    window.alarmBeeps = 0;
+    const Original = window.AudioContext;
+    window.AudioContext = class extends Original {
+      createOscillator() { window.alarmBeeps += 1; return super.createOscillator(); }
+    };
+  });
+  await page.addScriptTag({ type: 'module', content: importLine + source.slice(begin, end) });
 }
 const block = (page, index = 0) => page.locator('.cook-timer').nth(index);
 const button = (page, index = 0) => block(page, index).locator('.cook-timer-start');
@@ -183,6 +208,60 @@ try {
     assert.match(await counter.ariaSnapshot(), /0:06|6\s+sekund/);
     assert.match(await block(page).locator('.cook-timer-komunikat').innerText(), /Minutnik ustawiony/);
   }));
+  await check('minutnik_poprzedniego_kroku_alarmuje_w_nastepnym', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 1, 2);
+      await button(page).click();
+      assert.equal(await remaining(page), 2);
+      // Następny krok, zanim minutnik kroku 1 skończył — krok 2 bez minutnika.
+      await openStep(page, 2, 0);
+      const pas = page.locator('.cook-alarmy');
+      assert(await pas.isHidden(), 'Pas alarmów nie może się pokazać przed końcem odliczania');
+      await page.waitForTimeout(2600);
+      const alarm = page.locator('.cook-alarm');
+      assert.equal(await alarm.count(), 1, 'Dokładnie jeden alarm dla jednego minutnika');
+      assert(await alarm.isVisible(), 'Alarm minutnika kroku 1 musi być widoczny na kroku 2');
+      assert.equal(await alarm.getAttribute('role'), 'alert');
+      assert.equal((await page.locator('.cook-alarm-tekst').innerText()).trim(),
+        'Minutnik kroku 1 skończył odliczanie.');
+      assert(await page.evaluate(() => window.alarmBeeps) >= 1, 'Alarm musi zagrać sygnał');
+      const wylacz = page.getByRole('button', { name: 'Wyłącz alarm' });
+      assert.equal(await page.getByRole('link', { name: 'Przejdź do kroku 1' }).getAttribute('href'), '/gotuj?krok=1');
+      // Zapis zniknął przed alarmem — nic nie zadzwoni drugi raz.
+      assert.equal(await page.evaluate(() => sessionStorage.getItem('kuking.minutnik.zupa.1')), null);
+      await wylacz.click();
+      assert.equal(await alarm.count(), 0, 'Wyłącz alarm musi usunąć komunikat');
+      assert(await pas.isHidden());
+      const beepsAfterOff = await page.evaluate(() => window.alarmBeeps);
+      await page.waitForTimeout(5600);
+      assert.equal(await page.evaluate(() => window.alarmBeeps), beepsAfterOff, 'Po wyłączeniu sygnał nie może się powtarzać');
+      // Powrót do kroku 1: zwykły przycisk startu, bez drugiego alarmu.
+      await openStep(page, 1, 2);
+      await page.waitForTimeout(1200);
+      assert(await button(page).isVisible(), 'Po alarmie krok 1 pokazuje przycisk startu');
+      assert.equal(await page.locator('.cook-alarm').count(), 0);
+    } finally { await page.close(); }
+  });
+  await check('powrot_do_kroku_minutnika_bez_podwojnego_alarmu', async () => {
+    const page = await browser.newPage();
+    try {
+      await openStep(page, 1, 3);
+      await button(page).click();
+      await openStep(page, 2, 0);
+      await openStep(page, 1, 3);
+      await page.evaluate(() => {
+        window.timerEnds = [0];
+        const node = document.querySelector('.cook-timer-komunikat');
+        new MutationObserver(() => {
+          if (node.textContent === 'Czas minął!') window.timerEnds[0] += 1;
+        }).observe(node, { childList: true, characterData: true, subtree: true });
+      });
+      await page.waitForTimeout(3300);
+      assert.equal(await page.evaluate(() => window.timerEnds[0]), 1, 'Widoczny krok kończy swój minutnik raz');
+      assert.equal(await page.locator('.cook-alarm').count(), 0, 'Pas innych kroków nie dubluje alarmu widocznego kroku');
+    } finally { await page.close(); }
+  });
 } finally { await browser.close(); server.close(); }
 console.log(JSON.stringify({ source: 'resources/js/app.js', markup: 'resources/views/pages/recipes/cooking.blade.php', results }, null, 2));
 if (results.some(result => result.result !== 'PASS')) process.exitCode = 1;

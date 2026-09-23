@@ -22,7 +22,7 @@ import './panel-tabela.js';
 import './panel-menu.js';
 import './tagi-w-opisie.js';
 import './licznik-znakow.js';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
 import {utworzKontrolerWakeLock} from './wake-lock-gotowania.js';
 
 // --- Podgląd wybranych zdjęć ---------------------------------------------
@@ -500,31 +500,6 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         odliczanie.textContent = formatMinutySekundy(sekundy);
     };
 
-    /*
-     * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
-     * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
-     * z oscylatora kosztuje zero bajtow transferu.
-     */
-    const zagraj = () => {
-        try {
-            const KlasaAudio = window.AudioContext || window.webkitAudioContext;
-            const kontekst = new KlasaAudio();
-            const oscylator = kontekst.createOscillator();
-            const glosnosc = kontekst.createGain();
-
-            oscylator.connect(glosnosc);
-            glosnosc.connect(kontekst.destination);
-            oscylator.frequency.value = 880;
-            glosnosc.gain.value = 0.2;
-            oscylator.start();
-            oscylator.stop(kontekst.currentTime + 0.6);
-            oscylator.addEventListener('ended', () => kontekst.close());
-        } catch {
-            // Brak dzwieku nie moze wywalic reszty minutnika -- wibracja
-            // i komunikat tekstowy nizej dzialaja od niego niezaleznie.
-        }
-    };
-
     const zatrzymajOdliczanie = () => {
         window.clearInterval(interwal);
         interwal = null;
@@ -540,11 +515,7 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 
             if (pozostalo <= 0) {
                 zatrzymajOdliczanie();
-                zagraj();
-
-                if ('vibrate' in navigator) {
-                    navigator.vibrate([300, 150, 300, 150, 300]);
-                }
+                zagrajAlarm();
 
                 komunikat.textContent = 'Czas minął!';
                 przycisk.textContent = 'Uruchom minutnik jeszcze raz';
@@ -599,7 +570,15 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
      * od razu, zamiast pokazywac przycisk startowy, jakby minutnik
      * nigdy nie ruszyl.
      */
-    const zapisanyStan = odczytajStan(sessionStorage.getItem(klucz), Date.now(), performance.now());
+    const zapis = sessionStorage.getItem(klucz);
+    const zapisanyStan = odczytajStan(zapis, Date.now(), performance.now());
+
+    if (zapis !== null && !zapisanyStan) {
+        // Termin minął albo zapis jest uszkodzony -- sprzątamy, żeby pas
+        // alarmów innych kroków (niżej, issue #1301) nie zadzwonił później
+        // za minutnik, który ten krok właśnie pokazał jako nieuruchomiony.
+        sessionStorage.removeItem(klucz);
+    }
 
     if (zapisanyStan) {
         przycisk.hidden = true;
@@ -611,6 +590,179 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
         przycisk.hidden = false;
     }
 });
+/*
+ * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
+ * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
+ * z oscylatora kosztuje zero bajtow transferu. Deklaracja funkcji (nie
+ * `const`), bo korzystaja z niej oba miejsca: minutnik widocznego kroku
+ * wyzej i pas alarmow innych krokow nizej.
+ */
+function zagrajAlarm() {
+    try {
+        const KlasaAudio = window.AudioContext || window.webkitAudioContext;
+        const kontekst = new KlasaAudio();
+        const oscylator = kontekst.createOscillator();
+        const glosnosc = kontekst.createGain();
+
+        oscylator.connect(glosnosc);
+        glosnosc.connect(kontekst.destination);
+        oscylator.frequency.value = 880;
+        glosnosc.gain.value = 0.2;
+        oscylator.start();
+        oscylator.stop(kontekst.currentTime + 0.6);
+        oscylator.addEventListener('ended', () => kontekst.close());
+    } catch {
+        // Brak dzwieku nie moze wywalic reszty minutnika -- wibracja
+        // i komunikat tekstowy dzialaja od niego niezaleznie.
+    }
+
+    if ('vibrate' in navigator) {
+        navigator.vibrate([300, 150, 300, 150, 300]);
+    }
+}
+
+/*
+ * MINUTNIKI INNYCH KROKOW (issue #1301).
+ *
+ * Kazdy krok to osobne przeladowanie strony, a blok wyzej obsluguje
+ * wylacznie `.cook-timer` WIDOCZNEGO kroku. Minutnik uruchomiony w kroku 1
+ * zostawal po przejsciu do kroku 2 tylko zapisem w sessionStorage, ktorego
+ * nikt nie odliczal -- czyli nie dzwonil, a potrawa sie przypalala.
+ *
+ * Tu odliczamy wszystkie zapisane minutniki TEGO przepisu z POZA
+ * widocznego kroku (widoczny ma swoj blok -- dwa zegary na jeden minutnik
+ * oznaczalyby dwa alarmy). Koniec: zapis znika PRZED alarmem, wiec kazdy
+ * minutnik dzwoni najwyzej raz, a powrot do jego kroku pokazuje zwykly
+ * przycisk startu. Alarm powtarza sygnal, dopoki czlowiek go nie wylaczy
+ * duzym przyciskiem (garnek bywa w drugim koncu kuchni) -- ale najwyzej
+ * minute, zeby zapomniana karta nie piszczala bez konca.
+ */
+(() => {
+    const pas = document.querySelector('.cook-alarmy');
+
+    if (!pas) {
+        return;
+    }
+
+    const recipeSlug = pas.dataset.alarmyRecipe ?? '';
+    const widocznyKrok = pas.dataset.alarmyKrok ?? '';
+    const adres = pas.dataset.alarmyAdres ?? '';
+    const POWTORZENIA_CO_MS = 5000;
+    const POWTORZENIA_NAJWYZEJ = 12;
+
+    const pokazAlarm = (krok) => {
+        const alarm = document.createElement('div');
+        alarm.className = 'cook-alarm';
+        alarm.setAttribute('role', 'alert');
+
+        const tekst = document.createElement('p');
+        tekst.className = 'cook-alarm-tekst';
+        tekst.textContent = `Minutnik kroku ${krok} skończył odliczanie.`;
+
+        const wylacz = document.createElement('button');
+        wylacz.type = 'button';
+        wylacz.className = 'btn btn-primary btn-cook cook-alarm-wylacz';
+        wylacz.textContent = 'Wyłącz alarm';
+
+        alarm.append(tekst, wylacz);
+
+        if (adres) {
+            const przejdz = document.createElement('a');
+            przejdz.className = 'btn btn-secondary btn-cook';
+            przejdz.href = `${adres}?krok=${encodeURIComponent(krok)}`;
+            przejdz.textContent = `Przejdź do kroku ${krok}`;
+            alarm.append(przejdz);
+        }
+
+        pas.append(alarm);
+        pas.hidden = false;
+
+        zagrajAlarm();
+        let powtorzenia = 1;
+        const powtarzanie = window.setInterval(() => {
+            zagrajAlarm();
+            powtorzenia += 1;
+
+            if (powtorzenia >= POWTORZENIA_NAJWYZEJ) {
+                window.clearInterval(powtarzanie);
+            }
+        }, POWTORZENIA_CO_MS);
+
+        wylacz.addEventListener('click', () => {
+            window.clearInterval(powtarzanie);
+
+            if ('vibrate' in navigator) {
+                navigator.vibrate(0);
+            }
+
+            alarm.remove();
+            pas.hidden = pas.childElementCount === 0;
+
+            // Fokus nie moze zostac na usunietym przycisku -- przechodzi
+            // na nastepny alarm albo na postep krokow u gory ekranu.
+            const nastepny = pas.querySelector('.cook-alarm-wylacz');
+            const postep = document.querySelector('.cook-progress');
+
+            if (nastepny) {
+                nastepny.focus();
+            } else if (postep) {
+                postep.setAttribute('tabindex', '-1');
+                postep.focus();
+            }
+        });
+    };
+
+    const odliczaj = (klucz, krok, zapis, terminMonotoniczny) => {
+        const sprawdz = () => {
+            if (pozostaloSekund(terminMonotoniczny, performance.now()) > 0) {
+                return false;
+            }
+
+            // Tylko jesli to wciaz TEN SAM minutnik -- nikt go w miedzyczasie
+            // nie anulowal ani nie uruchomil od nowa.
+            if (sessionStorage.getItem(klucz) === zapis) {
+                sessionStorage.removeItem(klucz);
+                pokazAlarm(krok);
+            }
+
+            return true;
+        };
+
+        if (sprawdz()) {
+            return;
+        }
+
+        const interwal = window.setInterval(() => {
+            if (sprawdz()) {
+                window.clearInterval(interwal);
+            }
+        }, 1000);
+    };
+
+    const klucze = [];
+
+    for (let i = 0; i < sessionStorage.length; i += 1) {
+        klucze.push(sessionStorage.key(i));
+    }
+
+    klucze.forEach((klucz) => {
+        const krok = krokZKlucza(klucz, recipeSlug);
+
+        if (krok === null || krok === widocznyKrok) {
+            return;
+        }
+
+        const zapis = sessionStorage.getItem(klucz);
+        const stan = odczytajTermin(zapis, Date.now(), performance.now());
+
+        if (!stan) {
+            sessionStorage.removeItem(klucz);
+            return;
+        }
+
+        odliczaj(klucz, krok, zapis, stan.terminMonotoniczny);
+    });
+})();
 // --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------
 
 /*

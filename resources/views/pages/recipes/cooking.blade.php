@@ -29,6 +29,16 @@
             </a>
         </div>
 
+        {{--
+            Alarmy minutników z INNYCH kroków (issue #1301). Każdy krok to
+            osobne przeładowanie strony, więc minutnik uruchomiony w kroku 1
+            nie miał tu już żadnego kodu, który by go odliczał — po przejściu
+            do kroku 2 nikt nie dzwonił. Skrypt wypełnia ten pas tylko wtedy,
+            gdy taki minutnik się skończy. Bez JavaScriptu zostaje pusty
+            i ukryty: minutnika w przeglądarce i tak wtedy nie ma.
+        --}}
+        <div class="cook-alarmy stack" data-alarmy-recipe="{{ $recipe->slug }}" data-alarmy-krok="{{ $krok }}" data-alarmy-adres="{{ route('cooking.show', $recipe->slug) }}" hidden></div>
+
         <p class="meta m-0">{{ $recipe->title }}</p>
 
         {{--

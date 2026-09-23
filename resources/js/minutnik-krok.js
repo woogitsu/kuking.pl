@@ -83,6 +83,23 @@ export function zapiszStan(sekundyCalkiem, terminEpoka) {
  * minutnika, nie zero.
  */
 export function odczytajStan(zapisany, terazEpoka, terazMonotoniczny) {
+    const stan = odczytajTermin(zapisany, terazEpoka, terazMonotoniczny);
+
+    if (!stan || stan.terminMonotoniczny <= terazMonotoniczny) {
+        return null;
+    }
+
+    return stan;
+}
+
+/**
+ * Jak `odczytajStan`, ale termin, który JUŻ minął, nie znika — wraca
+ * z terminem w przeszłości. Potrzebne minutnikowi INNEGO kroku niż
+ * widoczny (issue #1301): jeśli skończył się akurat w trakcie
+ * przeładowania strony, alarm i tak musi zabrzmieć, a nie przepaść.
+ * `null` tylko dla zapisu pustego albo uszkodzonego.
+ */
+export function odczytajTermin(zapisany, terazEpoka, terazMonotoniczny) {
     if (!zapisany) return null;
 
     let dane;
@@ -99,14 +116,26 @@ export function odczytajStan(zapisany, terazEpoka, terazMonotoniczny) {
         return null;
     }
 
-    const pozostaleMs = terminEpoka - terazEpoka;
+    return {
+        sekundyCalkiem,
+        terminMonotoniczny: terazMonotoniczny + (terminEpoka - terazEpoka),
+    };
+}
 
-    if (pozostaleMs <= 0) {
+/**
+ * Numer kroku z klucza `kluczStanu(recipeSlug, krok)` albo `null`, gdy
+ * klucz należy do innego przepisu (albo w ogóle nie jest kluczem
+ * minutnika). Odwrotność `kluczStanu` — po niej tryb gotowania znajduje
+ * minutniki uruchomione w krokach, których teraz nie widać (issue #1301).
+ */
+export function krokZKlucza(klucz, recipeSlug) {
+    const przedrostek = kluczStanu(recipeSlug, '');
+
+    if (typeof klucz !== 'string' || !klucz.startsWith(przedrostek)) {
         return null;
     }
 
-    return {
-        sekundyCalkiem,
-        terminMonotoniczny: terazMonotoniczny + pozostaleMs,
-    };
+    const krok = klucz.slice(przedrostek.length);
+
+    return /^[1-9]\d*$/.test(krok) ? krok : null;
 }
