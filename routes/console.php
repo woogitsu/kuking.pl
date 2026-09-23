@@ -139,7 +139,18 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-audyt'))
 // `config('kuking.notifications.retention_months')` miesięcy od
 // `created_at`, niezależnie od `read_at`.
 // `Schedule::call()`, nie `command()` — uzasadnienie przy pierwszym zadaniu.
-Schedule::call(fn () => Artisan::call('kuking:sprzataj-powiadomienia'))
+//
+// KOD WYJŚCIA ZAMIENIAMY W WYJĄTEK (#1342). `CallbackEvent` uznaje za porażkę
+// tylko wyjątek albo `false` — liczba zwrócona przez `Artisan::call()`,
+// także 1, przechodziłaby jako sukces. Wyjątek oznacza przebieg jako nieudany
+// (`ScheduledTaskFailed`) i trafia do zgłaszania błędów.
+Schedule::call(function (): void {
+    $kod = Artisan::call('kuking:sprzataj-powiadomienia');
+
+    if ($kod !== 0) {
+        throw new RuntimeException("kuking:sprzataj-powiadomienia zakończone kodem {$kod} — część przedawnionych powiadomień nie została skasowana, szczegóły w logu.");
+    }
+})
     ->name('kuking:sprzataj-powiadomienia')
     ->dailyAt('04:20')
     ->onOneServer()
