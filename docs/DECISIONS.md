@@ -1041,10 +1041,22 @@ lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
 >
 > **Decyzja „nie ruszamy oryginałów już wgranych" zostaje** — właściciel
 > potwierdził ją ponownie 9 września. Naprawa dotyczy wyłącznie nowych wgrań.
+>
+> **Uzupełnienie z 23 września — XMP i tekstowy profil EXIF w PNG (#1004).**
+> Dwie z trzech luk wyżej są zamknięte. XMP niesie własne współrzędne
+> (`exif:GPSLatitude`, `GPSDest*`, lokalizacje IPTC, pola producentów)
+> w dowolnych przestrzeniach nazw, więc nie szukamy w nim pól: **cały pakiet
+> XMP zamieniamy na spacje**, w miejscu, bez zmiany długości. To jest świadome,
+> wąskie odstępstwo od „reszta metadanych zostaje": aparat, obiektyw, data
+> i orientacja żyją w EXIF-ie, który zostaje; z XMP wypada zwykle historia
+> edycji. Tak samo wypadają PNG-owe „Raw profile type …". AVIF nadal jest
+> czyszczony wyłącznie szukaniem w bajtach (EXIF po nagłówku, XMP po ramce
+> pakietu) — bez parsera ISOBMFF. Decyzja o starych oryginałach bez zmian.
 
 📄 `app/Domain/Media/UsunGps.php` ·
 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
 `tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php` ·
+`tests/Feature/OryginalTraciGpsZXmpTest.php` ·
 `resources/legal/polityka-prywatnosci.md`
 
 ---
