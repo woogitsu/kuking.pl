@@ -94,6 +94,13 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Bramka zakresu w `ci.yml` (#1273): filtr warstwy widoku obejmuje lokalne
+# akcje `.github/actions/`, bo joby przeglądarkowe wołają je przez `uses: ./…`.
+# Strażnik pyta PRAWDZIWY skrypt bramki, ale czyta go z `ci.yml`, więc tylko
+# mutacja dowodzi, że zapala się, gdy akcje wypadną z filtra.
+BRAMKA_CI = ".github/workflows/ci.yml"
+BRAMKA_AKCJE_TEST = "test_zmiana_lokalnej_akcji_uruchamia_joby_ktore_jej_uzywaja"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -211,6 +218,19 @@ def mniejsze_pismo_na_pierwszym_ekranie(source):
     )
 
 
+def akcje_poza_filtrem_widoku(source):
+    """KONTROLA DODATNIA: wyjmij `.github/actions/` z filtra warstwy widoku.
+
+    Zmiana lokalnej akcji znowu daje `widok=false`, więc joby przeglądarkowe,
+    które jej używają, byłyby pominięte. Strażnik bramki ma zapalić.
+    """
+    return replace_once(
+        source,
+        r"|\.github/(workflows/ci\.yml|actions/))'",
+        r"|\.github/workflows/ci\.yml)'",
+    )
+
+
 checks = [
     ("Format UUID", CONTROLLER, COLLECTION_TEST,
      lambda s: replace_once(s, "'bail', 'nullable', 'uuid',", "'bail', 'nullable',")),
@@ -230,6 +250,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Lokalne akcje poza filtrem widoku", BRAMKA_CI, BRAMKA_AKCJE_TEST,
+     akcje_poza_filtrem_widoku),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -238,6 +260,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(BRAMKA_AKCJE_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
