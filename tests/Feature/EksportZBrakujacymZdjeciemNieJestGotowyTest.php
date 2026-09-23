@@ -80,7 +80,7 @@ class EksportZBrakujacymZdjeciemNieJestGotowyTest extends TestCase
 
         $export = DataExport::create(['user_id' => $basia->getKey(), 'status' => DataExport::STATUS_QUEUED]);
 
-        Log::spy();
+        $dziennik = Log::spy();
 
         try {
             (new GenerateUserExport((string) $export->getKey()))->handle();
@@ -101,7 +101,7 @@ class EksportZBrakujacymZdjeciemNieJestGotowyTest extends TestCase
         $this->assertStringContainsString('Spróbuj przygotować paczkę jeszcze raz', $export->failureReasonLabel());
 
         // Dziennik: identyfikator zdjęcia tak, ścieżka z komunikatu magazynu nie.
-        Log::shouldHaveReceived('warning')
+        $dziennik->shouldHaveReceived('warning')
             ->withArgs(function (string $wiadomosc, array $kontekst) use ($zepsute): bool {
                 $caly = json_encode($kontekst, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
 

@@ -137,11 +137,11 @@ class EksportNieZostawiaKopiiKontaWKataloguTymczasowymTest extends TestCase
         // Podkatalogu nie zdejmie `unlink()` — także uruchomionemu jako root.
         mkdir($katalog.'/nie-do-usuniecia');
 
-        Log::spy();
+        $dziennik = Log::spy();
 
         $this->assertFalse(ExportTempDirectory::remove($id));
 
-        Log::shouldHaveReceived('warning')
+        $dziennik->shouldHaveReceived('warning')
             ->withArgs(function (string $wiadomosc, array $kontekst) use ($id): bool {
                 $caly = $wiadomosc.' '.json_encode($kontekst, JSON_UNESCAPED_SLASHES);
 
