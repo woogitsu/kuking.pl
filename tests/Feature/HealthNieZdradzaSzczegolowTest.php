@@ -37,8 +37,9 @@ use Tests\TestCase;
  *
  * DRUGA POŁOWA REGUŁY
  * Zamilknięcie nie jest rozwiązaniem. Każdy test sprawdza też, że szczegół
- * techniczny NADAL gdzieś jest — w logu, gdzie ma dostęp do niego wyłącznie
- * właściciel. Inaczej „naprawa" polegałaby na oślepieniu monitoringu.
+ * techniczny NADAL jest w logu — ale jako klasa, SQLSTATE i klasy przyczyn
+ * (`BezpiecznyBlad`), nie komunikat z hostem czy ścieżką: stderr czyta
+ * Railway (#973). Inaczej „naprawa" polegałaby na oślepieniu monitoringu.
  */
 class HealthNieZdradzaSzczegolowTest extends TestCase
 {
@@ -104,7 +105,13 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
         // wyłącznie właściciel.
         $wLogu = $this->wpisyOZdrowiu();
         $this->assertNotEmpty($wLogu, 'Awaria /health nie zostawiła w logu ani jednej linijki.');
-        $this->assertStringContainsString('127.0.0.1', json_encode($wLogu, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES));
+        $log = json_encode($wLogu, JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $this->assertStringContainsString('08006', $log, 'W logu nie ma SQLSTATE awarii połączenia.');
+        $this->assertStringContainsString('PDOException', $log);
+
+        foreach (['127.0.0.1', 'sekretna-nazwa-bazy', 'sekretny-uzytkownik'] as $tajemnica) {
+            $this->assertStringNotContainsString($tajemnica, $log, "Log /health niesie „{$tajemnica}\" z komunikatu PDO (#973).");
+        }
     }
 
     public function test_awaria_dysku_nie_pokazuje_sciezki_na_serwerze(): void
@@ -131,10 +138,9 @@ class HealthNieZdradzaSzczegolowTest extends TestCase
         $this->assertSame('zapis_niemozliwy', $odpowiedz->json('checks.media.error'));
         $this->assertContains($odpowiedz->json('checks.media.error'), HealthController::POWODY);
 
-        $this->assertStringContainsString(
-            '/proc/nie-ma-takiego-katalogu',
-            json_encode($this->wpisyOZdrowiu(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES),
-        );
+        $log = json_encode($this->wpisyOZdrowiu(), JSON_THROW_ON_ERROR | JSON_UNESCAPED_SLASHES);
+        $this->assertStringContainsString('UnableToCreateDirectory', $log);
+        $this->assertStringNotContainsString('/proc/nie-ma-takiego-katalogu', $log);
     }
 
     public function test_martwa_droga_publiczna_nie_pokazuje_katalogu_dysku(): void
