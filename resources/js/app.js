@@ -593,24 +593,108 @@ document.querySelectorAll('.cook-timer').forEach((blok) => {
 /*
  * Krotki sygnal przez Web Audio API zamiast pliku dzwiekowego -- ten
  * artefakt musi dzialac bez dodatkowego zasobu do pobrania, a "beep"
- * z oscylatora kosztuje zero bajtow transferu. Deklaracja funkcji (nie
- * `const`), bo korzystaja z niej oba miejsca: minutnik widocznego kroku
+ * z oscylatora kosztuje zero bajtow transferu. Deklaracje funkcji (nie
+ * `const`), bo korzystaja z nich oba miejsca: minutnik widocznego kroku
  * wyzej i pas alarmow innych krokow nizej.
+ *
+ * DZWIEK NA TELEFONIE (przeglad #1301). Kazdy krok to swiezo zaladowana
+ * strona, a przegladarki (iOS Safari, Chrome na Androidzie) startuja
+ * AudioContext utworzony bez gestu czlowieka jako ZAWIESZONY -- sygnal
+ * alarmu z pasa innych krokow po prostu by nie zagral, a `vibrate` bez
+ * gestu bywa ignorowane. Dlatego:
+ *  - jeden wspolny kontekst na strone (a nie nowy na kazdy sygnal --
+ *    przegladarki limituja liczbe kontekstow, a 12 powtorzen alarmu to
+ *    12 kontekstow);
+ *  - pierwsze dotkniecie albo klawisz gdziekolwiek na stronie trybu
+ *    gotowania odblokowuje go (`resume()` + cichy bufor dla starszego
+ *    Safari), zanim alarm bedzie potrzebny;
+ *  - zamykamy go przy `pagehide`, a nie po zdarzeniu `ended` oscylatora,
+ *    ktore przy zawieszonym kontekscie nigdy nie przychodzi.
+ * Nawet tak nic nie gwarantuje dzwieku (wyciszony telefon, brak gestu),
+ * wiec glownym sygnalem zostaje komunikat na ekranie (`role="alert"`),
+ * a UI nie obiecuje, ze cos zabrzmi.
  */
+let kontekstAlarmu = null;
+
+function wspolnyKontekstAudio() {
+    if (kontekstAlarmu && kontekstAlarmu.state !== 'closed') {
+        return kontekstAlarmu;
+    }
+
+    const KlasaAudio = window.AudioContext || window.webkitAudioContext;
+
+    kontekstAlarmu = KlasaAudio ? new KlasaAudio() : null;
+
+    return kontekstAlarmu;
+}
+
+function odblokujDzwiek() {
+    try {
+        const kontekst = wspolnyKontekstAudio();
+
+        if (!kontekst || kontekst.state === 'running') {
+            return;
+        }
+
+        kontekst.resume().catch(() => {});
+
+        // Starsze iOS Safari odblokowuje dzwiek dopiero po odegraniu
+        // czegokolwiek w trakcie gestu -- jedna cicha probka wystarcza.
+        const cisza = kontekst.createBufferSource();
+        cisza.buffer = kontekst.createBuffer(1, 1, 22050);
+        cisza.connect(kontekst.destination);
+        cisza.start(0);
+    } catch {
+        // Bez dzwieku minutnik i tak dziala -- komunikat na ekranie.
+    }
+}
+
+if (document.querySelector('.cook-timer, .cook-alarmy')) {
+    ['pointerdown', 'keydown'].forEach((zdarzenie) => {
+        document.addEventListener(zdarzenie, odblokujDzwiek, {capture: true, passive: true});
+    });
+
+    window.addEventListener('pagehide', () => {
+        if (kontekstAlarmu && kontekstAlarmu.state !== 'closed') {
+            kontekstAlarmu.close().catch(() => {});
+        }
+
+        kontekstAlarmu = null;
+    });
+}
+
 function zagrajAlarm() {
     try {
-        const KlasaAudio = window.AudioContext || window.webkitAudioContext;
-        const kontekst = new KlasaAudio();
-        const oscylator = kontekst.createOscillator();
-        const glosnosc = kontekst.createGain();
+        const kontekst = wspolnyKontekstAudio();
 
-        oscylator.connect(glosnosc);
-        glosnosc.connect(kontekst.destination);
-        oscylator.frequency.value = 880;
-        glosnosc.gain.value = 0.2;
-        oscylator.start();
-        oscylator.stop(kontekst.currentTime + 0.6);
-        oscylator.addEventListener('ended', () => kontekst.close());
+        if (kontekst) {
+            const zagraj = () => {
+                const oscylator = kontekst.createOscillator();
+                const glosnosc = kontekst.createGain();
+
+                oscylator.connect(glosnosc);
+                glosnosc.connect(kontekst.destination);
+                oscylator.frequency.value = 880;
+                glosnosc.gain.value = 0.2;
+                oscylator.start();
+                oscylator.stop(kontekst.currentTime + 0.6);
+            };
+
+            if (kontekst.state === 'running') {
+                zagraj();
+            } else {
+                // Zawieszony kontekst: probujemy go wznowic, ale sygnal gramy
+                // tylko, jesli wznowil sie od razu -- spozniony o minute
+                // "beep" przy pierwszym dotknieciu ekranu bylby mylacy.
+                const prosba = performance.now();
+
+                kontekst.resume().then(() => {
+                    if (kontekst.state === 'running' && performance.now() - prosba < 1000) {
+                        zagraj();
+                    }
+                }).catch(() => {});
+            }
+        }
     } catch {
         // Brak dzwieku nie moze wywalic reszty minutnika -- wibracja
         // i komunikat tekstowy dzialaja od niego niezaleznie.
@@ -739,28 +823,73 @@ function zagrajAlarm() {
         }, 1000);
     };
 
-    const klucze = [];
+    const kluczeTegoPrzepisu = () => {
+        const klucze = [];
 
-    for (let i = 0; i < sessionStorage.length; i += 1) {
-        klucze.push(sessionStorage.key(i));
-    }
+        for (let i = 0; i < sessionStorage.length; i += 1) {
+            const klucz = sessionStorage.key(i);
 
-    klucze.forEach((klucz) => {
-        const krok = krokZKlucza(klucz, recipeSlug);
-
-        if (krok === null || krok === widocznyKrok) {
-            return;
+            if (krokZKlucza(klucz, recipeSlug) !== null) {
+                klucze.push(klucz);
+            }
         }
 
-        const zapis = sessionStorage.getItem(klucz);
-        const stan = odczytajTermin(zapis, Date.now(), performance.now());
+        return klucze;
+    };
 
-        if (!stan) {
-            sessionStorage.removeItem(klucz);
-            return;
+    // Zapisy juz odliczane na tej stronie -- ponowny przeglad (pageshow
+    // nizej) nie moze uruchomic drugiego zegara dla tego samego minutnika.
+    const odliczane = new Set();
+
+    const przejrzyjZapisy = () => {
+        kluczeTegoPrzepisu().forEach((klucz) => {
+            const krok = krokZKlucza(klucz, recipeSlug);
+
+            if (krok === widocznyKrok) {
+                return;
+            }
+
+            const zapis = sessionStorage.getItem(klucz);
+            // Uszkodzony albo porzucony dawno po terminie (przeglad #1301):
+            // znika po cichu, bez alarmu.
+            const stan = odczytajTermin(zapis, Date.now(), performance.now());
+
+            if (!stan) {
+                sessionStorage.removeItem(klucz);
+                return;
+            }
+
+            if (odliczane.has(`${klucz}|${zapis}`)) {
+                return;
+            }
+
+            odliczane.add(`${klucz}|${zapis}`);
+            odliczaj(klucz, krok, zapis, stan.terminMonotoniczny);
+        });
+    };
+
+    przejrzyjZapisy();
+
+    // Powrot "Wstecz" z pamieci podrecznej przegladarki (bfcache) nie
+    // uruchamia skryptu od nowa, a w innym kroku mogl w miedzyczasie
+    // ruszyc nowy minutnik -- przegladamy zapisy jeszcze raz.
+    window.addEventListener('pageshow', (zdarzenie) => {
+        if (zdarzenie.persisted) {
+            przejrzyjZapisy();
         }
+    });
 
-        odliczaj(klucz, krok, zapis, stan.terminMonotoniczny);
+    /*
+     * "Zakoncz gotowanie" i "Ugotowalem" to zwykle linki i dzialaja bez
+     * JavaScriptu. Tu tylko DOKLADKA: wychodzac z trybu gotowania czlowiek
+     * konczy tez minutniki tego przepisu, wiec ich zapisy znikaja -- inaczej
+     * powrot do przepisu w tej samej karcie zaczynalby sie od alarmu za
+     * garnek, ktorego dawno nie ma na ogniu (przeglad #1301).
+     */
+    document.querySelectorAll('[data-minutniki-koniec]').forEach((link) => {
+        link.addEventListener('click', () => {
+            kluczeTegoPrzepisu().forEach((klucz) => sessionStorage.removeItem(klucz));
+        });
     });
 })();
 // --- Karuzela zdjęć i wybór wyglądu (issue #92) ----------------------------

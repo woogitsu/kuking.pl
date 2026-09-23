@@ -24,7 +24,7 @@
                 nie kasuje. Dlatego to zwykły link, bez potwierdzenia —
                 potwierdzenie miałoby sens tylko, gdyby coś dało się stracić.
             --}}
-            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}">
+            <a class="btn btn-secondary cook-exit" href="{{ route('recipes.show', $recipe->slug) }}" data-minutniki-koniec>
                 Zakończ gotowanie
             </a>
         </div>
@@ -209,7 +209,7 @@
                 <h2 class="mt-0">To już ostatni krok.</h2>
                 @auth
                     <p>Koniec gotowania? To najlepszy moment, żeby dodać zdjęcie efektu.</p>
-                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}">Ugotowałem</a>
+                    <a class="btn btn-primary btn-cook" href="{{ route('cooked.create', $recipe->slug) }}" data-minutniki-koniec>Ugotowałem</a>
                 @else
                     <p>Załóż konto, żeby dać znać autorowi, że Ci wyszło.</p>
                     <a class="btn btn-primary btn-cook" href="{{ route('register') }}">Załóż konto</a>

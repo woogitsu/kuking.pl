@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza} from './minutnik-krok.js';
+import {pozostaloSekund, formatMinutySekundy, kluczStanu, zapiszStan, odczytajStan, odczytajTermin, krokZKlucza, PRZETERMINOWANIE_NAJWYZEJ_MS} from './minutnik-krok.js';
 
 test('pozostaloSekund liczy z zegara monotonicznego, nie ze zegara sciennego (issue #751)', () => {
     // Start minutnika: 5 minut = 300 sekund, na dowolnym punkcie zegara
@@ -64,6 +64,19 @@ test('odczytajTermin nie gubi terminu, ktory minal w trakcie przeladowania (issu
     assert.equal(odczytajTermin(null, 0, 0), null);
     assert.equal(odczytajTermin('{niepoprawny json', 0, 0), null);
     assert.equal(odczytajTermin(JSON.stringify({sekundyCalkiem: 'x', terminEpoka: 1}), 0, 0), null);
+});
+
+test('odczytajTermin pomija minutnik porzucony dawno po terminie (przeglad #1301)', () => {
+    // 20 minut w kroku 3, "Zakoncz gotowanie" bez "Anuluj", powrot po 3 godzinach.
+    const terminEpoka = 1_000_000;
+    const poTrzechGodzinach = terminEpoka + 3 * 60 * 60 * 1000;
+
+    assert.equal(odczytajTermin(zapiszStan(1200, terminEpoka), poTrzechGodzinach, 0), null,
+        'Zapis sprzed godzin to porzucony minutnik, nie alarm do zagrania');
+
+    // Na granicy jeszcze dzwoni, tuz za nia juz nie.
+    assert.ok(odczytajTermin(zapiszStan(1200, terminEpoka), terminEpoka + PRZETERMINOWANIE_NAJWYZEJ_MS, 0));
+    assert.equal(odczytajTermin(zapiszStan(1200, terminEpoka), terminEpoka + PRZETERMINOWANIE_NAJWYZEJ_MS + 1, 0), null);
 });
 
 test('krokZKlucza odczytuje krok tylko z kluczy minutnika TEGO przepisu (issue #1301)', () => {

@@ -93,11 +93,27 @@ export function odczytajStan(zapisany, terazEpoka, terazMonotoniczny) {
 }
 
 /**
+ * Jak długo po terminie zapis minutnika wciąż zasługuje na alarm.
+ *
+ * Minutnik, który skończył się podczas przeładowania albo gdy karta była
+ * w tle, ma zadzwonić — to jego sens. Ale zapis sprzed godzin to minutnik
+ * porzucony: człowiek kliknął „Zakończ gotowanie” bez „Anuluj”, a potem
+ * wrócił do trybu gotowania tego samego przepisu w tej samej karcie.
+ * Alarm „Minutnik kroku 3 skończył odliczanie.” byłby wtedy fałszywy —
+ * garnka dawno nie ma na ogniu (przegląd #1301). 15 minut to dużo więcej
+ * niż jakiekolwiek przeładowanie i mniej niż powrót do przepisu „na
+ * później”.
+ */
+export const PRZETERMINOWANIE_NAJWYZEJ_MS = 15 * 60 * 1000;
+
+/**
  * Jak `odczytajStan`, ale termin, który JUŻ minął, nie znika — wraca
  * z terminem w przeszłości. Potrzebne minutnikowi INNEGO kroku niż
  * widoczny (issue #1301): jeśli skończył się akurat w trakcie
  * przeładowania strony, alarm i tak musi zabrzmieć, a nie przepaść.
- * `null` tylko dla zapisu pustego albo uszkodzonego.
+ * `null` dla zapisu pustego, uszkodzonego albo przeterminowanego o więcej
+ * niż `PRZETERMINOWANIE_NAJWYZEJ_MS` — taki minutnik jest porzucony,
+ * nie spóźniony.
  */
 export function odczytajTermin(zapisany, terazEpoka, terazMonotoniczny) {
     if (!zapisany) return null;
@@ -113,6 +129,10 @@ export function odczytajTermin(zapisany, terazEpoka, terazMonotoniczny) {
     const {sekundyCalkiem, terminEpoka} = dane;
 
     if (!Number.isFinite(sekundyCalkiem) || !Number.isFinite(terminEpoka)) {
+        return null;
+    }
+
+    if (terazEpoka - terminEpoka > PRZETERMINOWANIE_NAJWYZEJ_MS) {
         return null;
     }
 
