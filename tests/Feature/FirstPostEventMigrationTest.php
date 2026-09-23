@@ -14,6 +14,9 @@ use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 use Tests\TestCase;
 
+/**
+ * @bez-kontroli-dodatniej database_path() służy do require migracji, a assertStringContainsString sprawdza komunikat wyjątku przy cofaniu, nie treść źródła.
+ */
 class FirstPostEventMigrationTest extends TestCase
 {
     use RefreshDatabase;
