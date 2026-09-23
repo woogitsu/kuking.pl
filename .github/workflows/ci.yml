@@ -931,6 +931,12 @@ jobs:
       # Artefakt przydaje się do debugowania "u mnie działa" oraz do
       # ręcznego porównania rozmiarów bundle'a między PR-ami.
       - name: Zapis artefaktu
+        # Artefakty są materiałem diagnostycznym, nie bramką. Wyczerpany limit
+        # miejsca na artefakty (23.09, run 35849156800) nie może czerwienić CI
+        # i wstrzymywać wdrożenia: tu i w `port_panelu` zapis ma
+        # continue-on-error, a joby przeglądarkowe (strażnik zabrania im
+        # continue-on-error) wysyłają dowody tylko po czerwieni — `failure()`.
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: vite-build-${{ github.sha }}
@@ -1050,6 +1056,7 @@ jobs:
         run: node scripts/panel-marki-run.mjs
       - name: Dowody panelu bez sesji i poświadczeń
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v7
         with:
           name: panel-marki-${{ github.sha }}
@@ -1169,7 +1176,7 @@ jobs:
         run: node scripts/port-projektu.mjs
 
       - name: Zrzuty portu marki
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: port-marki-${{ github.sha }}
@@ -1305,7 +1312,7 @@ jobs:
           node scripts/minutnik-fokus.mjs
 
       - name: Zrzuty portu marki
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: port-funkcje-${{ github.sha }}
@@ -1573,7 +1580,7 @@ jobs:
       # Wynik zapisujemy ZAWSZE, także przy porażce — po to jest, żeby dało
       # się zobaczyć, co konkretnie się zepsuło, bez odtwarzania u siebie.
       - name: Zapis wyniku (dostępność)
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: dostepnosc-${{ github.sha }}
@@ -1618,7 +1625,7 @@ jobs:
         run: node scripts/wydajnosc.mjs
 
       - name: Zapis wyniku (wydajność)
-        if: always()
+        if: failure()
         uses: actions/upload-artifact@v7
         with:
           name: wydajnosc-${{ github.sha }}
