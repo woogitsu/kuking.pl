@@ -6,6 +6,7 @@ namespace App\Http\Controllers;
 
 use App\Exceptions\KontrolaZdrowiaNieprzeszla;
 use App\Logging\WebhookBleduHandler;
+use App\Jobs\PurgePublicMediaCache;
 use App\Models\MailFailure;
 use App\Poczta\PowodOdmowy;
 use App\Support\AnalitykaCloudflare;
@@ -137,6 +138,7 @@ class HealthController extends Controller
         self::POWOD_LIMIT_POCZTY_WYCZERPANY,
         self::POWOD_SLAD_LISTOW_NIESPRAWDZALNY,
         self::POWOD_CZYSZCZENIE_CDN_WYLACZONE,
+        self::POWOD_CZYSZCZENIE_CDN_ZLY_ADRES,
     ];
 
     /** Baza nie odpowiada albo odpowiada błędem — powód domyślny obu krytycznych sprawdzeń. */
@@ -249,6 +251,15 @@ class HealthController extends Controller
      * wywrócone wymazywanie konta.
      */
     private const POWOD_CZYSZCZENIE_CDN_WYLACZONE = 'czyszczenie_cdn_wylaczone';
+
+    /**
+     * Strefa i token są, ale `CLOUDFLARE_PURGE_ENDPOINT` (albo strefa
+     * podstawiona w adres) nie daje adresu czyszczenia Cloudflare (#991,
+     * D-250). Zadanie odmawia wysłania tokenu i pada — czyszczenie nie działa
+     * NIGDY, więc to ten sam rodzaj cichej porażki co brak zmiennych, tylko
+     * z inną naprawą.
+     */
+    private const POWOD_CZYSZCZENIE_CDN_ZLY_ADRES = 'czyszczenie_cdn_zly_adres';
 
     /**
      * Ile minut milczymy na webhooku o TEJ SAMEJ nazwanej kontroli, zanim
@@ -587,7 +598,21 @@ class HealthController extends Controller
         $token = (string) config('kuking.media.cdn_purge.token');
 
         if ($zona !== '' && $token !== '') {
-            return;
+            $powod = PurgePublicMediaCache::powodZlegoAdresu();
+
+            if ($powod === null) {
+                return;
+            }
+
+            // Nazwa złej części, bez adresu — ten komunikat idzie do logu
+            // i na webhook, a zmienna bywa wklejana razem z tokenem.
+            throw new KontrolaZdrowiaNieprzeszla(
+                self::POWOD_CZYSZCZENIE_CDN_ZLY_ADRES,
+                "Czyszczenie cache CDN NIE DZIAŁA: CLOUDFLARE_PURGE_ENDPOINT razem z CLOUDFLARE_ZONE_ID "
+                ."nie dają adresu czyszczenia Cloudflare ({$powod}). Zadanie odmawia wysłania tokenu "
+                .'i każde czyszczenie ląduje w failed_jobs. Usuń CLOUDFLARE_PURGE_ENDPOINT (wartość '
+                .'domyślna jest poprawna) i sprawdź, czy CLOUDFLARE_ZONE_ID to sam identyfikator strefy.',
+            );
         }
 
         // Stary, JEDYNY dysk zdjęć z publicznym adresem (`r2_legacy`). Gdy jest

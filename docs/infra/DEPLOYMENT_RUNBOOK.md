@@ -1021,6 +1021,7 @@ lokalnie, staging).
 | `HTTP 429` | limit tempa; odczekaj minutę |
 | `HTTP 5xx` | awaria OpenAI; nasz kod przepuszcza wtedy wpisy dalej |
 | `nie ma pola results` | rozmawiamy z czymś innym niż API moderacji — sprawdź `KUKING_MODEL_ENDPOINT` |
+| `nie prowadzi do API moderacji OpenAI` | `KUKING_MODEL_ENDPOINT` to nie `https://api.openai.com/v1/moderations` (#991, D-250); nic nie wyszło — usuń zmienną |
 
 Ocenę zdjęć sprawdza się osobno: `php artisan kuking:sprawdz-model --zdjecie`.
 To jest przy tym serwisie ważniejsze od tekstu — zdjęcia są tym, czego nikt nie

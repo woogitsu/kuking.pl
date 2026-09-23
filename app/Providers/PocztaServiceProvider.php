@@ -49,6 +49,9 @@ class PocztaServiceProvider extends ServiceProvider
      */
     public const HOSTY_API = ['api.emaillabs.io'];
 
+    /** Jedyna ścieżka, pod którą transport wysyła list (D-250). */
+    public const SCIEZKA_API = '#^/v2\\.1/email$#';
+
     /**
      * Sekundy. Wysyłka idzie z workera kolejki, więc czekanie nie blokuje
      * nikomu strony — ale zawieszone połączenie nie może trzymać workera
@@ -183,8 +186,10 @@ class PocztaServiceProvider extends ServiceProvider
 
         // Sam HTTPS nie wystarcza: klucze i treść listu szłyby na DOWOLNY
         // host z tej zmiennej. Odmowa przy budowie, nie przy pierwszym liście.
-        if (! DozwolonyHostApi::zgodny($adresApi, self::HOSTY_API)) {
-            throw BrakKonfiguracjiEmailLabs::obcyHostApi('EMAILLABS_ENDPOINT', self::HOSTY_API);
+        $powod = DozwolonyHostApi::powod($adresApi, self::HOSTY_API, self::SCIEZKA_API);
+
+        if ($powod !== null) {
+            throw BrakKonfiguracjiEmailLabs::obcyHostApi('EMAILLABS_ENDPOINT', $powod);
         }
 
         $dziennik = $this->app->make('log');
