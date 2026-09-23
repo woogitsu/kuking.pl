@@ -101,14 +101,66 @@ final class SaveRecipeToCollection
         return $collection;
     }
 
-    public function remove(User $user, Recipe $recipe): void
+    /**
+     * Usuwa zapis — z JEDNEGO zeszytu, jeśli go podano, inaczej ze WSZYSTKICH
+     * własnych zeszytów tej osoby (issue #775).
+     *
+     * PRZED TĄ ZMIANĄ ten sam przepis zapisany w dwóch zeszytach dawał się
+     * wykasować obydwu naraz jednym przyciskiem „Usuń z zeszytu” na stronie
+     * przepisu — bez wyboru, bez potwierdzenia zakresu i z utratą notatki
+     * w zeszycie, o którym człowiek nawet nie myślał. „Poprawne dane nigdy
+     * nie znikają" (AGENTS.md §5) dotyczy też danych w INNYM zeszycie niż
+     * ten, z którego ktoś akurat usuwał.
+     *
+     * `$collection` jest tu zaufany przez wywołującego —
+     * `CollectionController::selectedCollection()` już sprawdził, że należy
+     * do tej samej osoby (`owner_id`), zanim dotarł tutaj.
+     */
+    public function remove(User $user, Recipe $recipe, ?Collection $collection = null): int
     {
-        $user->collections()->each(
-            fn (Collection $collection) => $collection->recipes()->detach($recipe->getKey()),
-        );
+        if ($collection !== null) {
+            $ile = $collection->recipes()->detach($recipe->getKey()) > 0 ? 1 : 0;
 
-        // Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
-        // zbiorczego powiadomienia — patrz `NotifyRecipeSaved::cofnij()`.
-        $this->notify->cofnij($user, $recipe);
+            // Wyjęcie z JEDNEGO zeszytu nie wycofuje zapisu, dopóki przepis
+            // leży w innym zeszycie tej osoby — powiadomienie za nią poszło
+            // raz (#906) i zostaje, póki jej zapis trwa gdziekolwiek.
+            $this->cofnijJesliNigdzieNieZostal($user, $recipe);
+
+            return $ile;
+        }
+
+        // ODDAJEMY LICZBĘ ZESZYTÓW, Z KTÓRYCH NAPRAWDĘ WYJĘTO (D-231).
+        //
+        // Komunikat po akcji nazywa zakres („wyjęty z 3 Twoich zeszytów"),
+        // a nazwać go da się tylko licząc FAKTYCZNE odpięcia — nie liczbę
+        // zeszytów, które ta osoba ma. `detach()` oddaje liczbę skasowanych
+        // wierszy, więc zeszyt bez tego zapisu nie podbija licznika i drugie
+        // kliknięcie nie kłamie, że znowu coś zabrało.
+        $ile = 0;
+
+        $user->collections()->each(function (Collection $collection) use ($recipe, &$ile): void {
+            $ile += $collection->recipes()->detach($recipe->getKey()) > 0 ? 1 : 0;
+        });
+
+        $this->cofnijJesliNigdzieNieZostal($user, $recipe);
+
+        return $ile;
+    }
+
+    /**
+     * Wycofanie PRZED przeczytaniem cofa też udział tej osoby w partii
+     * zbiorczego powiadomienia — patrz `NotifyRecipeSaved::cofnij()`.
+     * Tylko gdy przepisu nie ma już w ŻADNYM jej zeszycie: to lustro
+     * warunku z zapisu, który powiadamia wyłącznie przy pierwszym zeszycie.
+     */
+    private function cofnijJesliNigdzieNieZostal(User $user, Recipe $recipe): void
+    {
+        $zostal = $user->collections()
+            ->whereHas('recipes', fn ($q) => $q->whereKey($recipe->getKey()))
+            ->exists();
+
+        if (! $zostal) {
+            $this->notify->cofnij($user, $recipe);
+        }
     }
 }

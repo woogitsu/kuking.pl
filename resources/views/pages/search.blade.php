@@ -31,7 +31,8 @@
         etykieta i tekst pomocy zostają bez zmian.
     --}}
     <form class="panel-formularza" method="GET" action="{{ route('search') }}">
-        <div class="field">
+        @include('components.error-summary', ['errors' => $searchErrors])
+        <div class="field @if($searchErrors->has('q')) has-error @endif">
             <label for="f-q">Czego szukasz?</label>
             <span class="field-help" id="f-q-help">
                 Możesz wpisać nazwę dania, składnik albo imię osoby. Polskie znaki nie mają znaczenia —
@@ -40,8 +41,13 @@
             <div class="wyszukiwarka-pole-wiersz">
                 <x-ikona nazwa="search" :rozmiar="24" class="wyszukiwarka-ikona" />
                 <input class="field-input wyszukiwarka-input" id="f-q" name="q" type="search" value="{{ $phrase }}"
-                       aria-describedby="f-q-help" placeholder="żurek, pierogi, Basia">
+                       aria-describedby="f-q-help{{ $searchErrors->has('q') ? ' f-q-error' : '' }}"
+                       @if($searchErrors->has('q')) aria-invalid="true" @endif
+                       placeholder="żurek, pierogi, Basia">
             </div>
+            @if($searchErrors->has('q'))
+                <span class="field-error" id="f-q-error">{{ $searchErrors->first('q') }}</span>
+            @endif
         </div>
         <input type="hidden" name="sekcja" value="{{ $section }}">
         <button class="btn btn-primary mt-4" type="submit">Szukaj</button>
@@ -104,7 +110,7 @@
             tłumaczy dlaczego: przy jednym znaku silnik w ogóle nie szukał).
         --}}
         <p class="meta">Fraza „{{ $phrase }}” jest za krótka, żeby zacząć szukać. Wpisz co najmniej dwa znaki.</p>
-    @else
+    @elseif($searchErrors->isEmpty())
         @php
             // Puste jest dopiero wtedy, gdy pusty jest KAŻDY przeszukiwany
             // zakres. Przy „Wszystko" samo zero przepisów nie znaczy jeszcze

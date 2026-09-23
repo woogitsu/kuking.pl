@@ -59,11 +59,33 @@ final class SavePostToCollection
         return $collection;
     }
 
-    public function remove(User $user, Post $post): void
+    /**
+     * Usuwa zapis — z JEDNEGO zeszytu, jeśli go podano, inaczej ze WSZYSTKICH
+     * własnych zeszytów tej osoby. Bliźniak `SaveRecipeToCollection::remove()`
+     * (issue #775) i z tego samego powodu: `$collection` jest tu zaufany
+     * przez wywołującego, bo `CollectionController::selectedCollection()`
+     * już sprawdził własność.
+     */
+    public function remove(User $user, Post $post, ?Collection $collection = null): int
     {
-        $user->collections()->each(
-            fn (Collection $collection) => $collection->posts()->detach($post->getKey()),
-        );
+        if ($collection !== null) {
+            return $collection->posts()->detach($post->getKey()) > 0 ? 1 : 0;
+        }
+
+        // ODDAJEMY LICZBĘ ZESZYTÓW, Z KTÓRYCH NAPRAWDĘ WYJĘTO (D-231).
+        //
+        // Komunikat po akcji nazywa zakres („wyjęty z 3 Twoich zeszytów"),
+        // a nazwać go da się tylko licząc FAKTYCZNE odpięcia — nie liczbę
+        // zeszytów, które ta osoba ma. `detach()` oddaje liczbę skasowanych
+        // wierszy, więc zeszyt bez tego zapisu nie podbija licznika i drugie
+        // kliknięcie nie kłamie, że znowu coś zabrało.
+        $ile = 0;
+
+        $user->collections()->each(function (Collection $collection) use ($post, &$ile): void {
+            $ile += $collection->posts()->detach($post->getKey()) > 0 ? 1 : 0;
+        });
+
+        return $ile;
     }
 
     /** Czy ta osoba ma już ten wpis w którymkolwiek ze swoich zeszytów. */

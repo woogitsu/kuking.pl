@@ -204,6 +204,35 @@ class ZbiorczePowiadomienieOZapisieTest extends TestCase
         );
     }
 
+    public function test_wyjecie_z_jednego_z_dwoch_zeszytow_nie_cofa_powiadomienia(): void
+    {
+        // Main (#775, D-231) pozwala wyjąć przepis z JEDNEGO zeszytu. Zapis tej
+        // osoby trwa wtedy w drugim, więc jej udział w partii zostaje; znika
+        // dopiero, gdy przepisu nie ma w żadnym jej zeszycie.
+        $autor = $this->user('autor_dwa_zeszyty');
+        $przepis = Recipe::factory()->create(['author_id' => $autor->getKey()]);
+        $osoba = $this->user('osoba_dwa_zeszyty');
+
+        $zeszytA = $osoba->defaultCollection();
+        $zeszytB = $osoba->collections()->create(['name' => 'Na obiad', 'visibility' => 'private']);
+
+        $save = app(SaveRecipeToCollection::class);
+        $save->handle($osoba, $przepis, $zeszytA);
+        $save->handle($osoba, $przepis, $zeszytB);
+
+        $this->assertSame(1, $save->remove($osoba, $przepis, $zeszytA));
+
+        $zapytanie = fn () => Notification::query()
+            ->where('user_id', $autor->getKey())
+            ->where('type', Notification::TYPE_SAVED);
+
+        $this->assertSame(1, $zapytanie()->count(), 'Przepis leży jeszcze w drugim zeszycie — powiadomienie zostaje.');
+
+        $this->assertSame(1, $save->remove($osoba, $przepis, $zeszytB));
+
+        $this->assertSame(0, $zapytanie()->count(), 'Po wyjęciu z ostatniego zeszytu zapis jest wycofany przed przeczytaniem.');
+    }
+
     public function test_po_przeczytaniu_kolejny_zapis_zaczyna_nowa_partie(): void
     {
         $autor = $this->user('autor_nowa_partia');
