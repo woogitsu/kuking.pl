@@ -886,8 +886,9 @@ export default defineRailway((ctx) => {
   // ===========================================================================
   //  SERWIS: scheduler  (tylko produkcja)
   //
-  //  Uruchamia `php artisan schedule:work` — długożyjący proces wywołujący
-  //  schedule:run co minutę.
+  //  Uruchamia pętlę `schedule:run` wyrównaną do początku każdej minuty
+  //  (`docker/entrypoint.sh`, `petla_harmonogramu`). NIE `schedule:work` —
+  //  ten wymaga `proc_open`, wyłączonego w `docker/php.ini`.
   //
   //  DLACZEGO NIE Railway Cron (mimo że DSL ma pole deploy.cronSchedule):
   //    Railway Cron ma minimalną granulację 5 MINUT i nie gwarantuje

@@ -473,3 +473,10 @@ Brak klucza na produkcji zostawia w dzienniku `stage=openai_disabled` przy
 każdej nieocenionej treści. Odpowiedź bez ani jednej znanej kategorii,
 z pustymi albo uszkodzonymi wynikami, nie jest już oceną „czyste" — zostawia
 ostrzeżenie. Lokalne sygnały z §3 działają niezależnie od stanu modelu.
+
+**Granica lokalna jest szersza niż granica wysyłki (D-241).** Treść, która nie
+może wyjść do OpenAI, nadal sprawdzają lokalne wzorce spamu z §3. Dotyczy to
+wpisów „dla obserwujących”, treści zbanowanych kont i komentarzy pod zapowiedzią
+przepisu „dla obserwujących” (`GranicaWysylki::pozaAutorem()`). Te wzorce nie
+wysyłają niczego poza serwer. Poza obiema granicami zostają: treść prywatna,
+ukryta, usunięta oraz konto w karencji usunięcia albo wymazane.

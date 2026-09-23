@@ -1041,10 +1041,22 @@ lepszy kierunek naprawy niż przepisywanie obietnicy pod kod.
 >
 > **Decyzja „nie ruszamy oryginałów już wgranych" zostaje** — właściciel
 > potwierdził ją ponownie 9 września. Naprawa dotyczy wyłącznie nowych wgrań.
+>
+> **Uzupełnienie z 23 września — XMP i tekstowy profil EXIF w PNG (#1004).**
+> Dwie z trzech luk wyżej są zamknięte. XMP niesie własne współrzędne
+> (`exif:GPSLatitude`, `GPSDest*`, lokalizacje IPTC, pola producentów)
+> w dowolnych przestrzeniach nazw, więc nie szukamy w nim pól: **cały pakiet
+> XMP zamieniamy na spacje**, w miejscu, bez zmiany długości. To jest świadome,
+> wąskie odstępstwo od „reszta metadanych zostaje": aparat, obiektyw, data
+> i orientacja żyją w EXIF-ie, który zostaje; z XMP wypada zwykle historia
+> edycji. Tak samo wypadają PNG-owe „Raw profile type …". AVIF nadal jest
+> czyszczony wyłącznie szukaniem w bajtach (EXIF po nagłówku, XMP po ramce
+> pakietu) — bez parsera ISOBMFF. Decyzja o starych oryginałach bez zmian.
 
 📄 `app/Domain/Media/UsunGps.php` ·
 `app/Domain/Media/Actions/StoreUploadedImage.php` ·
 `tests/Feature/OryginalTraciGpsTakzeWPngIWebpTest.php` ·
+`tests/Feature/OryginalTraciGpsZXmpTest.php` ·
 `resources/legal/polityka-prywatnosci.md`
 
 ---
@@ -15783,6 +15795,75 @@ na produkcji, bo odwrócenie przywraca znane drogi wysyłki treści
 niepublicznej, pełnowymiarowego zdjęcia i awatara. Danych nie trzeba
 cofać: zmiana niczego nie zapisuje w bazie.
 
+## D-241 — Lokalne wzorce spamu sprawdzają także treść niepubliczną; wysyłka do OpenAI bez zmian (22 września 2026)
+
+**Data:** 22 września 2026 · **Decyzja właściciela** (22.09, doprecyzowana
+o 23:30) · Uzupełnia D-240 w części „lokalne sygnały”, D-052 bez zmian ·
+Status: **obowiązuje**
+
+Decyzja w brzmieniu właściciela: OpenAI ocenia całą treść publiczną (obrazy
+pomniejszone). Treść niepubliczna nie wychodzi poza serwer, ale nadal sprawdzają
+ją lokalne wzorce spamu. #1298 (D-240) miał wejść bez zmian, bo zamyka
+incydent. Lokalną analizę przywraca osobny PR.
+
+### Co było zepsute
+
+D-240 pytało o granicę lokalną (`GranicaWysylki::pozaAutorem()`) tę samą
+Policy gościa co o wysyłkę. Podmieniało tylko widoczność samego wpisu
+z „dla obserwujących” na publiczną. Policy odrzucała jednak także:
+
+- wpis i przepis **zbanowanego konta**, oraz komentarz pod nim;
+- komentarz, którego autor jest zbanowany;
+- komentarz pod **zapowiedzią przepisu „dla obserwujących”**. Bramką
+  zapowiedzi jest przepis, a przepisu nikt nie podmieniał.
+
+Wszystkie te treści traciły lokalne oznaczenie, choć przed D-240 je
+dostawały. Sama wysyłka była w porządku: żadna z nich nie wychodziła do
+OpenAI i dalej nie wychodzi.
+
+### Co obowiązuje
+
+- `pozaAutorem()` pyta Policy gościa o **kopię** treści, której nigdy się
+  nie zapisuje (`kopiaDlaLokalnej()`). W kopii „dla obserwujących” zmienia
+  się w „publiczny”, konto **zbanowane** udaje aktywne, a przepis zapowiedzi
+  (rekurencyjnie) przechodzi te same dwie podmiany. O resztę warunków decyduje
+  dalej Policy: status, usunięcie, ślad usunięcia komentarza, prywatność.
+- Komentarz zbanowanego autora znów dostaje lokalną analizę.
+- **Poza granicą lokalną zostają:** treść prywatna (D-052 pkt 3), ukryta,
+  usunięta oraz konto **w karencji usunięcia** albo **wymazane**. Ban jest
+  karą nałożoną przez nas. Karencję człowiek wybrał sam, bo obiecujemy mu
+  „konto zniknie od razu”, więc nie kładziemy jego treści przed moderatorem.
+- `publiczna()` i `zdjecieWpisu()`, czyli granica wysyłki, **nie zmieniają
+  się ani o wiersz**. `OcenaModelem` pyta tylko je.
+
+### Czego nie przywrócono i dlaczego
+
+`ZgodaNaOceneAwatara` z lokalnej wersji równoległej (`2acfc098`). D-240 usunęło
+drogę awatara na sztywno: nie ma zlecenia, zadanie jest puste. Klasa zgody,
+która dziś zawsze odpowiada „nie”, dodałaby odczyt pliku i zlecenie tylko po
+to, żeby je zaraz zatrzymać. Awatar nie ma też lokalnych wzorców, bo te
+pracują na tekście, więc do przywrócenia nie ma tu nic. Mechanizm zgody
+wymaga osobnej decyzji (D-240, „Awatar nie wychodzi”).
+
+### Dowód
+
+`tests/Feature/LokalnaAnalizaTresciNiepublicznejTest.php` — 7 przypadków,
+tylko `Http::fake()` przy **ustawionym** kluczu. Każdy przypadek niepubliczny
+sprawdza naraz, że lokalne oznaczenie istnieje i że `Http::assertNothingSent()`.
+Na kodzie D-240 **oblewają 4**: wpis zbanowanego konta, komentarz pod
+zapowiedzią przepisu „dla obserwujących”, komentarz zbanowanego autora
+i komentarz pod wpisem zbanowanego konta. Trzy pozostałe to kontrole:
+zapowiedź przepisu prywatnego i konto w karencji dalej bez oznaczenia
+i bez wysyłki, a publiczny komentarz dalej wychodzi (zabezpieczenie przed
+zepsutą atrapą). W `GranicaWysylkiDoOpenAiTest` oczekiwania dla zbanowanego
+autora zmieniono z „0 oznaczeń” na „1 oznaczenie”. `Http::assertNothingSent()`
+zostało w tych przypadkach bez zmian.
+
+### Wycofanie
+
+Odwrócić commit. Nic się nie zapisuje w bazie ani nie wychodzi poza serwer.
+Po odwróceniu wracają tylko luki w lokalnych oznaczeniach opisane wyżej.
+
 ---
 
 ## D-244 — Nikt nie rozstrzyga własnego zgłoszenia i nie karze konta równej lub wyższej roli (#1408, 23 września 2026)
@@ -15835,3 +15916,76 @@ z komunikatem, co zrobić.
 📄 `app/Policies/ReportPolicy.php`, `app/Policies/UserPolicy.php`,
 `app/Http/Controllers/Admin/ModerationController.php`,
 `tests/Feature/ModeratorNieJestSedziaWeWlasnejSprawieTest.php`
+
+---
+
+## D-249 — Wpis w dzienniku audytu: atomowy z decyzją albo pomocniczy za nią — i nic pomiędzy (#1343, #1373, #1363, 23 września 2026)
+
+**Data:** 23 września 2026 · Decyzja zespołu (przegląd kodu gałęzi
+`claude/audyt-w-transakcji-g7`) · Prostuje podstawę `AuditLogEntry::recordBezWywracania()` ·
+Status: **obowiązuje**
+
+### Co było źle
+
+`recordBezWywracania()` i jego trzy miejsca wywołania powoływały się na
+**D-088** cytatem „dziennik audytu zostaje POZA transakcją… jest osobnym
+śladem, nie częścią relacji". D-088 dotyczy **odmowy rollbacku migracji**
+i o dzienniku audytu nie mówi nic. Cytat pochodzi z **D-090** i opisuje
+wyłącznie `BlockUser` (wpis ma powstać wtedy, gdy blokada naprawdę się
+zapisała). Na tej złej podstawie zbiorcze zamknięcie sygnałów automatu
+(#1343) poszło drogą „za transakcją" — wbrew issue, które wymagało wpisu
+w transakcji decyzji.
+
+### Reguła
+
+Każdy wpis `audit_log` należy do jednej z dwóch klas. Trzeciej nie ma.
+
+1. **Atomowy z decyzją — `record()` WEWNĄTRZ `DB::transaction` zmiany.**
+   Dla decyzji podjętych przez człowieka z uprawnieniami wobec cudzej
+   treści albo konta i dla zmian uprawnień: `moderation.decided`,
+   `moderation.automat_dismissed`, `user.role_changed`, a także
+   `post.published` (już tak zapisany). Tu wpis jest częścią decyzji —
+   „kto, kiedy i ile jednym kliknięciem" nie ma innego zapisu. Awaria
+   dziennika **cofa decyzję**, człowiek dostaje komunikat „nic się nie
+   zmieniło, spróbuj jeszcze raz", a ponowienie daje jeden komplet.
+   Decyzja bez wpisu jest gorsza niż decyzja, którą trzeba kliknąć drugi raz.
+2. **Pomocniczy — `recordBezWywracania()` PO zatwierdzeniu zmiany.** Dla
+   czynności samego człowieka, których autorytatywny ślad żyje w tabeli
+   zmiany: `account.registered` (wiersz `users` z `created_at`
+   i `age_confirmed_at`), `content.reported` (wiersz `reports` z terminami
+   DSA). Tu cofnięcie zmiany przez awarię dziennika byłoby szkodą dla
+   człowieka (utracone zgłoszenie z biegnącym terminem, rejestracja
+   odbijająca się od własnego adresu), a 500 po `COMMIT` — kłamstwem.
+   Awaria idzie do `report()` z nazwą brakującego wpisu; to nie jest cichy
+   sukces.
+
+Rozstrzyga pytanie: **czy bez tego wpisu zostaje w bazie pełny ślad tego,
+kto i co zdecydował?** Nie — klasa 1. Tak — klasa 2.
+
+Ta sama zasada dotyczy innych skutków po `COMMIT` rejestracji (#1373):
+`event(new Registered)` i obserwowanie gospodarza stoją w punkcie zapisu,
+ich awaria idzie do `report()`, a `ZalozKonto` zwraca `ZalozoneKonto`
+z flagą „list z potwierdzeniem nie wyszedł", żeby ekran po rejestracji nie
+kazał czekać na wiadomość, której nie ma. Ponowienie listu należy do
+człowieka („Wyślij potwierdzenie jeszcze raz" w Ustawieniach), naprawa
+obserwowania — do operatora (jedno `FollowUser` dla konta z raportu).
+
+### Czego ta decyzja NIE rozstrzyga
+
+Nie przegląda wszystkich pozostałych wywołań `record()` za transakcją
+(`BlockUser` z D-090, zmiany adresu e-mail, logowania i inne). Zostają,
+jak są; każde następne przeniesienie ma przypisać wpis do jednej z dwóch
+klas powyżej, a nie wymyślać trzeciej. D-090 zostaje w mocy dla `BlockUser`.
+
+### Dowód
+
+`tests/Feature/AwariaAudytuNiePrzewracaZatwierdzonejZmianyTest.php`:
+awaria `moderation.automat_dismissed` → brak `ModerationAction`, grupa
+otwarta, komunikat błędu; ponowienie → jedna decyzja i jeden wpis. Awarie
+`account.registered`, `content.reported`, `Registered` i obserwowania
+gospodarza → konto albo sprawa istnieje, odpowiedź udana, `report()`
+z nazwą braku (rejestracja hasłem, Google i Facebook).
+
+### Wycofanie
+
+Odwrócić commit. Schemat się nie zmienia; danych nie trzeba cofać.

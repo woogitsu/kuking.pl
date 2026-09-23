@@ -237,8 +237,10 @@ blokowania to decyzja właściciela, nie agenta.
    `ci.yml` (`checkout@v7`, `setup-php@v2`, `cache@v6`, `setup-node@v7`,
    `upload-artifact@v7`, `setup-buildx-action@v4`, `build-push-action@v7`),
    `deploy.yml` (`action-release@v3`), `railway-iac.yml` (`config@v1`),
-   `Dockerfile` (`node:22-bookworm-slim`, `dunglas/frankenphp:1-php8.4-trixie`
-   ×2, `composer:2`), `ci.yml` (`postgres:18-alpine` w dwóch jobach).
+   `ci.yml` (`postgres:18-alpine` w dwóch jobach). Obrazy bazowe w `Dockerfile`
+   (`node:22-bookworm-slim`, `dunglas/frankenphp:1-php8.4-trixie` ×2,
+   `composer:2`) i `docker/kopia/Dockerfile` (`postgres:18`) są już przypięte
+   do digestów i objęte Dependabotem (#952).
 
 ---
 
