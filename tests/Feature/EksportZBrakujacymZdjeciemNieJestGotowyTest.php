@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Tests\Feature;
 
 use App\Exceptions\DataExportPhotoUnreadable;
+use App\Exceptions\DataExportTempFailure;
 use App\Jobs\GenerateUserExport;
 use App\Mail\DataExportReady;
 use App\Models\DataExport;
@@ -36,6 +37,15 @@ use ZipArchive;
  * KONTROLA UJEMNA (wykonana): przywrócenie w `copyToTemp()` starego
  * `Log::warning` + `return null` (i `continue` w `addPhotos()`) oblewa oba
  * przypadki z dostawcy — job kończy się bez błędu, czyli paczką `ready`.
+ *
+ * DRUGA RUNDA (przegląd kodu, 23 września 2026): wynik kopiowania nie był
+ * sprawdzany, a awaria NASZEGO dysku tymczasowego szła na ekran jako „nie
+ * udało się pobrać zdjęcia". KONTROLA UJEMNA (wykonana): przywrócenie
+ * starego `copyToTemp()` (jeden `catch`, `stream_copy_to_stream()` bez
+ * sprawdzenia wyniku) oblewa przypadek „odczyt urwany w połowie" — paczka
+ * `ready` z połową zdjęcia — i przypadek `/dev/full`: Laravel zamienia
+ * notice o nieudanym zapisie w `ErrorException`, a jeden `catch` robił z
+ * niego `DataExportPhotoUnreadable`, czyli „nie udało się pobrać zdjęcia".
  */
 class EksportZBrakujacymZdjeciemNieJestGotowyTest extends TestCase
 {
@@ -58,12 +68,13 @@ class EksportZBrakujacymZdjeciemNieJestGotowyTest extends TestCase
         ]);
     }
 
-    /** @return array<string, array{0: 'false'|'wyjatek'}> */
+    /** @return array<string, array{0: 'false'|'wyjatek'|'uciety'}> */
     public static function odmowy(): array
     {
         return [
             'readStream oddaje false' => ['false'],
             'readStream rzuca wyjątek' => ['wyjatek'],
+            'readStream urywa się w połowie pliku' => ['uciety'],
         ];
     }
 
@@ -109,6 +120,50 @@ class EksportZBrakujacymZdjeciemNieJestGotowyTest extends TestCase
                     && ! str_contains($caly, '/sciezka/do/');
             })
             ->once();
+    }
+
+    /**
+     * Pełny dysk tymczasowy: `/dev/full` odrzuca każdy zapis z ENOSPC, czyli
+     * dokładnie tym błędem, który jądro daje przy braku miejsca.
+     */
+    public function test_brak_miejsca_na_dysku_tymczasowym_nie_daje_paczki_i_nie_obwinia_zdjecia(): void
+    {
+        $this->assertFileExists('/dev/full', 'Test potrzebuje /dev/full (Linux).');
+
+        $basia = $this->user('basiapelnydysk');
+        $this->zdjecie($basia, 'rosol');
+
+        $export = DataExport::create(['user_id' => $basia->getKey(), 'status' => DataExport::STATUS_QUEUED]);
+
+        $job = new class((string) $export->getKey()) extends GenerateUserExport
+        {
+            protected function openTempTarget(string $path)
+            {
+                return fopen('/dev/full', 'wb');
+            }
+        };
+
+        try {
+            $job->handle();
+            $this->fail('Job powinien rzucić, żeby kolejka ponowiła próbę.');
+        } catch (DataExportTempFailure) {
+            // Oczekiwane: awaria lokalna, nie „nieczytelne zdjęcie".
+        }
+
+        $export->refresh();
+
+        $this->assertSame(DataExport::STATUS_FAILED, $export->status);
+        $this->assertSame(DataExport::REASON_UNKNOWN, $export->failure_reason);
+        $this->assertStringNotContainsString('zdjęć', $export->failureReasonLabel());
+        $this->assertNull($export->object_key);
+        $this->assertSame([], Storage::disk('local')->allFiles(), 'Paczka z pustym zdjęciem nie może wylądować w magazynie.');
+        Mail::assertNotSent(DataExportReady::class);
+
+        // To samo po ostatniej próbie, na nowej instancji joba.
+        (new GenerateUserExport((string) $export->getKey()))
+            ->failed(new DataExportTempFailure('Kopia zdjęcia jest niepełna.'));
+
+        $this->assertSame(DataExport::REASON_UNKNOWN, $export->refresh()->failure_reason);
     }
 
     public function test_po_ostatniej_probie_powod_jest_ten_sam(): void

@@ -20,9 +20,11 @@ use League\Flysystem\Local\LocalFilesystemAdapter;
  *    Tu test wymazuje konto, zamiast liczyć na szczęśliwy `sleep`.
  *  - `$odmowUsuniecia` — `delete()` nie usuwa niczego i zwraca `false`,
  *    jak dysk z `throw => false` przy awarii magazynu.
- *  - `$odmowOdczytu` — klucz → `'false'` albo `'wyjatek'`: `readStream()`
- *    tego klucza oddaje `false` (dysk z `throw => false`) albo rzuca, choć
- *    plik leży na dysku (issue #1388, zdjęcie `ready` nie do odczytania).
+ *  - `$odmowOdczytu` — klucz → `'false'`, `'wyjatek'` albo `'uciety'`:
+ *    `readStream()` tego klucza oddaje `false` (dysk z `throw => false`),
+ *    rzuca, choć plik leży na dysku (issue #1388, zdjęcie `ready` nie do
+ *    odczytania), albo oddaje tylko połowę pliku, a `size()` całość — jak
+ *    połączenie zerwane w trakcie pobierania.
  *
  * Reszta zachowania to zwykły `FilesystemAdapter` na katalogu w
  * `storage/framework/testing/disks/`, tak jak przy `Storage::fake()`.
@@ -33,7 +35,7 @@ final class DyskEksportuZHakiem extends FilesystemAdapter
 
     public bool $odmowUsuniecia = false;
 
-    /** @var array<string, 'false'|'wyjatek'> */
+    /** @var array<string, 'false'|'wyjatek'|'uciety'> */
     public array $odmowOdczytu = [];
 
     public static function zarejestruj(string $nazwa): self
@@ -69,8 +71,19 @@ final class DyskEksportuZHakiem extends FilesystemAdapter
         return match ($this->odmowOdczytu[$path] ?? null) {
             'false' => false,
             'wyjatek' => throw new \RuntimeException('Udawana awaria magazynu: /sciezka/do/'.$path),
+            'uciety' => $this->polowa((string) $this->get($path)),
             default => parent::readStream($path),
         };
+    }
+
+    /** @return resource */
+    private function polowa(string $tresc)
+    {
+        $strumien = fopen('php://memory', 'w+b');
+        fwrite($strumien, substr($tresc, 0, intdiv(strlen($tresc), 2)));
+        rewind($strumien);
+
+        return $strumien;
     }
 
     public function delete($paths)

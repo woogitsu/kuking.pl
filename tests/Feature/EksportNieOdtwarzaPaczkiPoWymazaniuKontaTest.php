@@ -11,6 +11,7 @@ use App\Models\DataExport;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Artisan;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\Storage;
 use Tests\Support\DyskEksportuZHakiem;
@@ -37,7 +38,9 @@ use Tests\TestCase;
  * w `GenerateUserExport` oblewa `test_wymazanie_miedzy_zapisem_a_gotowoscia_…`
  * i `test_nieudane_usuniecie_…` — paczka wraca jako `ready` z terminem
  * w przyszłości. Usunięcie sprawdzenia na starcie oblewa
- * `test_eksport_zamowiony_przed_wymazaniem_…`.
+ * `test_eksport_zamowiony_przed_wymazaniem_…`. Przywrócenie
+ * `notifyOwner($export->refresh())` bez świeżego sprawdzenia oblewa
+ * `test_wymazanie_tuz_po_gotowosci_…` — list idzie na zanonimizowany adres.
  */
 class EksportNieOdtwarzaPaczkiPoWymazaniuKontaTest extends TestCase
 {
@@ -92,6 +95,46 @@ class EksportNieOdtwarzaPaczkiPoWymazaniuKontaTest extends TestCase
         $this->dysk->assertMissing($zapisanyKlucz);
         $this->assertNull($export->object_key, 'Plik usunięty, więc adres nie ma już na co wskazywać.');
 
+        Mail::assertNotSent(DataExportReady::class);
+    }
+
+    /**
+     * Wymazanie czekało na blokadę `finalize()` i zatwierdziło się zaraz po
+     * jej commicie — paczka jest już `ready`, ale listu wysłać nie wolno:
+     * adres jest zanonimizowany, a link prowadzi do paczki, której nikt już
+     * nie pobierze. Wymazanie wchodzi przez `DB::afterCommit()` zarejestrowane
+     * w chwili zapisu `ready`, czyli dokładnie po commicie finalizacji,
+     * a przed listem.
+     */
+    public function test_wymazanie_tuz_po_gotowosci_nie_wysyla_listu(): void
+    {
+        [$basia, $export] = $this->kontoWKarencjiZZamowionymEksportem();
+        $prawdziwyAdres = $basia->email;
+
+        $wymazano = false;
+
+        DataExport::updated(function (DataExport $zmieniony) use ($basia, &$wymazano): void {
+            if ($wymazano || $zmieniony->status !== DataExport::STATUS_READY || ! $zmieniony->wasChanged('status')) {
+                return;
+            }
+
+            $wymazano = true;
+
+            DB::afterCommit(function () use ($basia): void {
+                $this->assertTrue(app(EraseAccountData::class)->handle($basia->fresh()));
+            });
+        });
+
+        (new GenerateUserExport((string) $export->getKey()))->handle();
+
+        // KONTROLA DODATNIA: finalizacja naprawdę przeszła w `ready`,
+        // a wymazanie naprawdę weszło po niej.
+        $this->assertTrue($wymazano, 'Eksport nie doszedł do `ready` — test nie zmierzyłby okna.');
+        $this->assertSame(DataExport::STATUS_READY, $export->refresh()->status);
+        $this->assertNotNull(User::query()->whereKey($basia->getKey())->value('data_erased_at'));
+        $this->assertNotSame($prawdziwyAdres, User::query()->whereKey($basia->getKey())->value('email'));
+
+        $this->assertFalse($export->isDownloadable());
         Mail::assertNotSent(DataExportReady::class);
     }
 

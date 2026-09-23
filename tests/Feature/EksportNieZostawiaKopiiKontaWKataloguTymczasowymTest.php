@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature;
 
+use App\Domain\Users\Actions\EraseAccountData;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Jobs\GenerateUserExport;
 use App\Models\DataExport;
@@ -27,6 +28,8 @@ use Tests\TestCase;
  * KONTROLA UJEMNA (wykonana): usunięcie `ExportTempDirectory::sweepStale()`
  * ze startu `handle()` oblewa test o osieroconych plikach; usunięcie
  * `ExportTempDirectory::remove()` z `failed()` oblewa test o timeoucie.
+ * Przeniesienie sprzątania z powrotem pod sprawdzenie wymazania (tam było
+ * do przeglądu kodu 23 września 2026) oblewa test o wczesnym powrocie.
  */
 class EksportNieZostawiaKopiiKontaWKataloguTymczasowymTest extends TestCase
 {
@@ -127,6 +130,37 @@ class EksportNieZostawiaKopiiKontaWKataloguTymczasowymTest extends TestCase
 
         $this->assertSame(DataExport::REASON_TIMEOUT, $export->refresh()->failure_reason);
         $this->assertDirectoryDoesNotExist($katalog);
+    }
+
+    /**
+     * Przerwana próba zostawiła kopię konta, a zanim kolejka ponowiła,
+     * konto zostało wymazane (albo paczka zdążyła wejść w `ready`). Oba
+     * przypadki kończą `handle()` wczesnym powrotem — i ten powrót stał
+     * PRZED sprzątaniem, więc świeża kopia wymazanego konta zostawała na
+     * dysku workera do `sweepStale()` któregoś następnego eksportu.
+     */
+    public function test_wczesny_powrot_z_handle_tez_usuwa_kopie_z_przerwanej_proby(): void
+    {
+        $basia = $this->user('basiatmpwymazana');
+        $basia->markForDeletion();
+        $wymazany = DataExport::create(['user_id' => $basia->getKey(), 'status' => DataExport::STATUS_PROCESSING]);
+        $katalogWymazanego = $this->katalogEksportu((string) $wymazany->getKey(), mtime: time());
+
+        $this->assertTrue(app(EraseAccountData::class)->handle($basia->fresh()));
+
+        $gotowy = $this->zamowienie(DataExport::STATUS_READY);
+        $katalogGotowego = $this->katalogEksportu((string) $gotowy->getKey(), mtime: time());
+
+        (new GenerateUserExport((string) $wymazany->getKey()))->handle();
+        (new GenerateUserExport((string) $gotowy->getKey()))->handle();
+
+        // KONTROLA DODATNIA: oba naprawdę wyszły wczesnym powrotem.
+        $this->assertSame(DataExport::REASON_ACCOUNT_MISSING, $wymazany->refresh()->failure_reason);
+        $this->assertSame(DataExport::STATUS_READY, $gotowy->refresh()->status);
+        $this->assertNull($gotowy->object_key);
+
+        $this->assertDirectoryDoesNotExist($katalogWymazanego, 'Kopia wymazanego konta została w katalogu tymczasowym.');
+        $this->assertDirectoryDoesNotExist($katalogGotowego);
     }
 
     public function test_nieudane_usuniecie_jest_widoczne_w_dzienniku_bez_sciezki(): void

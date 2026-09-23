@@ -10,6 +10,7 @@ use App\Domain\Users\Exports\ExportPhotoPlan;
 use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
+use App\Exceptions\DataExportTempFailure;
 use App\Mail\DataExportReady;
 use App\Models\DataExport;
 use App\Models\Media;
@@ -115,6 +116,15 @@ class GenerateUserExport implements ShouldQueue
 
     public function handle(): void
     {
+        // Pozostałości po twardo przerwanych eksportach (issue #993) — także
+        // po poprzedniej próbie TEGO eksportu, której `finally` nie zdążyło.
+        // PRZED każdym wczesnym powrotem niżej: przerwana próba mogła zostawić
+        // tu pełną kopię konta, a konto wymazane w międzyczasie (albo eksport
+        // już gotowy) kończy handle() od razu — i ta kopia czekałaby godzinę
+        // na `sweepStale()` innego eksportu, o ile jakiś w ogóle przyjdzie.
+        ExportTempDirectory::sweepStale();
+        ExportTempDirectory::remove($this->dataExportId);
+
         $export = DataExport::with('user.profile')->find($this->dataExportId);
 
         if ($export === null) {
@@ -142,11 +152,6 @@ class GenerateUserExport implements ShouldQueue
 
             return;
         }
-
-        // Pozostałości po twardo przerwanych eksportach (issue #993) — także
-        // po poprzedniej próbie TEGO eksportu, której `finally` nie zdążyło.
-        ExportTempDirectory::sweepStale();
-        ExportTempDirectory::remove($this->dataExportId);
 
         $export->update(['status' => DataExport::STATUS_PROCESSING]);
 
@@ -192,7 +197,7 @@ class GenerateUserExport implements ShouldQueue
             $bytes = (int) filesize($this->tempZip);
 
             if ($this->finalize($export, $disk, $objectKey, $bytes, $generatedAt)) {
-                $this->notifyOwner($export->refresh());
+                $this->notifyOwner();
             }
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
@@ -579,42 +584,129 @@ class GenerateUserExport implements ShouldQueue
      * paczkę `ready` z martwymi odnośnikami i fałszywą liczbą zdjęć — bez
      * słowa dla człowieka. Kolejka ponawia (`$backoff`), a po ostatniej
      * próbie ekran mówi, co zrobić (`DataExport::REASON_PHOTO_UNREADABLE`).
+     *
+     * DWIE RÓŻNE AWARIE, DWA RÓŻNE WYJĄTKI. Do 23 września 2026 cała metoda
+     * siedziała w jednym `catch`, więc brak miejsca na NASZYM dysku
+     * tymczasowym (albo nieudany `fopen`) szedł na ekran jako „nie udało się
+     * pobrać jednego z Twoich zdjęć" — zdanie o czymś, co się nie stało.
+     * A wynik `stream_copy_to_stream()` nie był sprawdzany wcale: odczyt
+     * urwany w połowie kończy się zwykłym końcem strumienia, więc ucięta
+     * kopia wchodziła do paczki `ready` jako zepsuty plik (ta sama wada co
+     * #1388, tylko po cichu — zmierzone testem). Teraz:
+     *
+     *  - magazyn nie oddał pliku albo oddał go krótszego, niż sam deklaruje
+     *    (`size()`) → `DataExportPhotoUnreadable`;
+     *  - nie udało się utworzyć, zapisać albo domknąć kopii lokalnej, albo
+     *    na dysku leży mniej bajtów, niż przeczytaliśmy → `DataExportTempFailure`.
+     *
+     * W obu przypadkach paczka NIE jest `ready`.
      */
     private function copyToTemp(Media $photo): string
     {
+        [$source, $expectedBytes] = $this->openPhotoSource($photo);
+
+        $target = false;
+
         try {
-            $source = Storage::disk($photo->disk)->readStream($photo->object_key);
-
-            if ($source === null || $source === false) {
-                throw new \RuntimeException('Brak pliku w storage.');
-            }
-
             $path = $this->tempPath('bin');
-            $target = fopen($path, 'wb');
+            $target = $this->openTempTarget($path);
 
             if ($target === false) {
-                throw new \RuntimeException('Nie udało się utworzyć pliku tymczasowego.');
+                throw new DataExportTempFailure('Nie udało się utworzyć kopii zdjęcia '.$photo->getKey().' na dysku tymczasowym.');
             }
 
-            try {
-                stream_copy_to_stream($source, $target);
-            } finally {
-                fclose($target);
+            $copied = 0;
 
-                if (is_resource($source)) {
-                    fclose($source);
+            while (! feof($source)) {
+                $chunk = @fread($source, 1024 * 1024);
+
+                if ($chunk === false || ($chunk === '' && ! feof($source))) {
+                    throw $this->photoUnreadable($photo, 'przerwany odczyt');
                 }
+
+                if ($chunk === '') {
+                    break;
+                }
+
+                if (@fwrite($target, $chunk) !== strlen($chunk)) {
+                    throw new DataExportTempFailure('Nie udało się zapisać kopii zdjęcia '.$photo->getKey().' na dysku tymczasowym.');
+                }
+
+                $copied += strlen($chunk);
+            }
+
+            $flushed = @fflush($target);
+            $closed = @fclose($target);
+            $target = false;
+
+            clearstatcache(true, $path);
+
+            if (! $flushed || ! $closed || @filesize($path) !== $copied) {
+                throw new DataExportTempFailure('Kopia zdjęcia '.$photo->getKey().' na dysku tymczasowym jest niepełna.');
+            }
+
+            if ($copied !== $expectedBytes) {
+                throw $this->photoUnreadable($photo, "odczytano {$copied} z {$expectedBytes} bajtów");
             }
 
             return $path;
-        } catch (Throwable $e) {
-            // Bez `previous`: `handle()` logowałby wtedy surowy komunikat
-            // magazynu (ścieżka, szczegół dostawcy). Identyfikator zdjęcia
-            // i klasa błędu wystarczą do diagnozy.
-            throw new DataExportPhotoUnreadable(
-                'Nie udało się odczytać zdjęcia '.$photo->getKey().' do paczki ('.$e::class.').',
-            );
+        } finally {
+            if (is_resource($target)) {
+                @fclose($target);
+            }
+
+            if (is_resource($source)) {
+                fclose($source);
+            }
         }
+    }
+
+    /**
+     * Strumień zdjęcia z magazynu razem z rozmiarem, jaki magazyn podaje.
+     * Rozmiar to jedyna miara, po której da się poznać odczyt urwany w połowie:
+     * strumień sieciowy kończy się wtedy zwykłym końcem pliku.
+     *
+     * @return array{0: resource, 1: int}
+     */
+    private function openPhotoSource(Media $photo): array
+    {
+        try {
+            $disk = Storage::disk($photo->disk);
+            $expectedBytes = $disk->size($photo->object_key);
+            $source = $disk->readStream($photo->object_key);
+        } catch (Throwable $e) {
+            throw $this->photoUnreadable($photo, $e::class);
+        }
+
+        if (! is_resource($source)) {
+            throw $this->photoUnreadable($photo, 'brak pliku w storage');
+        }
+
+        return [$source, $expectedBytes];
+    }
+
+    /**
+     * Otwarcie kopii lokalnej. Osobna metoda, żeby test mógł podstawić
+     * `/dev/full` — prawdziwy „brak miejsca na dysku" z jądra, bez
+     * zapełniania dysku maszyny, na której chodzą testy.
+     *
+     * @return resource|false
+     */
+    protected function openTempTarget(string $path)
+    {
+        return @fopen($path, 'wb');
+    }
+
+    /**
+     * Bez `previous`: `handle()` logowałby wtedy surowy komunikat magazynu
+     * (ścieżka, szczegół dostawcy). Identyfikator zdjęcia i krótka przyczyna
+     * wystarczą do diagnozy.
+     */
+    private function photoUnreadable(Media $photo, string $cause): DataExportPhotoUnreadable
+    {
+        return new DataExportPhotoUnreadable(
+            'Nie udało się odczytać zdjęcia '.$photo->getKey().' do paczki ('.$cause.').',
+        );
     }
 
     // -----------------------------------------------------------------
@@ -657,8 +749,34 @@ class GenerateUserExport implements ShouldQueue
         }
     }
 
-    private function notifyOwner(DataExport $export): void
+    /**
+     * List „paczka gotowa" — po ŚWIEŻYM odczycie eksportu i konta.
+     *
+     * `finalize()` sprawdza wymazanie pod blokadą, ale blokada puszcza przy
+     * commicie. `EraseAccountData`, które na nią czekało, zatwierdza się
+     * w następnej chwili: przestawia termin paczki w przeszłość
+     * i anonimizuje adres. Do 23 września 2026 szło tu
+     * `$export->refresh()` — przeładowanie razem z relacją `user` — więc
+     * list wychodził na ZANONIMIZOWANY adres, z linkiem, który już nie
+     * otwiera paczki. Teraz: konto wymazane albo paczka niepobieralna =
+     * brak listu.
+     *
+     * Zostaje okno między tym odczytem a wysłaniem. Wymazanie, które wejdzie
+     * właśnie w nie, NIE zmienia adresu listu (odczytany przed nim, czyli
+     * prawdziwy adres właściciela) — a link i tak prowadzi do paczki, której
+     * `isDownloadable()` już nie wyda. Nie ma tu wycieku danych, jest jeden
+     * list za dużo.
+     */
+    private function notifyOwner(): void
     {
+        $export = DataExport::with('user.profile')->find($this->dataExportId);
+
+        if ($export === null
+            || ! $export->isDownloadable()
+            || $this->revoked($export, $export->user)) {
+            return;
+        }
+
         $email = $export->user?->email;
 
         if ($email === null) {
@@ -712,6 +830,9 @@ class GenerateUserExport implements ShouldQueue
         return match (true) {
             $e instanceof DataExportStorageFailure => DataExport::REASON_STORAGE,
             $e instanceof DataExportPhotoUnreadable => DataExport::REASON_PHOTO_UNREADABLE,
+            // Awaria NASZEGO dysku tymczasowego: nie magazyn i nie zdjęcie
+            // człowieka, więc ekran nie może mówić o żadnym z nich.
+            $e instanceof DataExportTempFailure => DataExport::REASON_UNKNOWN,
             default => DataExport::REASON_UNKNOWN,
         };
     }
