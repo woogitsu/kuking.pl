@@ -7,13 +7,17 @@ namespace Tests\Feature;
 use App\Logging\BezDanychOsobowychWLogu;
 use App\Logging\FiltrDanychOsobowych;
 use App\Models\User;
+use DateTimeImmutable;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
 use Monolog\Formatter\JsonFormatter;
+use Monolog\Level;
+use Monolog\LogRecord;
 use PDOException;
+use ReflectionClassConstant;
 use RuntimeException;
 use Tests\TestCase;
 
@@ -148,17 +152,25 @@ class LogSerweraBezDanychOsobowychTest extends TestCase
 
     /**
      * Regresja: `preg_replace()` przy błędzie PCRE („JIT stack limit
-     * exhausted") oddaje `null`, a `(string) null` wycinał CAŁĄ treść wpisu —
-     * po cichu. Teraz zostaje znacznik, nigdy oryginał.
+     * exhausted", „Backtrack limit exhausted") oddaje `null`, a `(string) null`
+     * wycinał CAŁĄ treść wpisu — po cichu. Teraz zostaje znacznik, nigdy
+     * oryginał. Wzorzec e-maila już nie pada na złośliwym komentarzu (test
+     * niżej), więc błąd PCRE wymuszamy tu niskim limitem nawrotów.
      */
     public function test_blad_wyrazenia_regularnego_zostawia_znacznik_a_nie_pustke_ani_oryginal(): void
     {
-        $zlosliwy = 'x@'.str_repeat('a.', 10000).' '.self::EMAIL;
+        $tekst = 'x@'.str_repeat('a.', 1000).' '.self::EMAIL;
+        $limit = (string) ini_get('pcre.backtrack_limit');
+        ini_set('pcre.backtrack_limit', '50');
 
-        // Warunek wstępny: ten tekst naprawdę wywraca wzorzec e-maila.
-        $this->assertNull(@preg_replace('/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/', 'E', $zlosliwy));
+        try {
+            // Warunek wstępny: przy tym limicie wzorzec e-maila naprawdę pada.
+            $this->assertNull(@preg_replace($this->wzorzecEmail(), 'E', $tekst));
 
-        Log::warning('Wpis z komentarzem', ['tresc' => $zlosliwy, 'post_id' => 7]);
+            Log::warning('Wpis z komentarzem', ['tresc' => $tekst, 'post_id' => 7]);
+        } finally {
+            ini_set('pcre.backtrack_limit', $limit);
+        }
 
         $wpis = json_decode(trim((string) file_get_contents($this->plik)), true);
 
@@ -167,6 +179,68 @@ class LogSerweraBezDanychOsobowychTest extends TestCase
         $this->assertSame(7, $wpis['context']['post_id']);
         $this->assertStringStartsWith(BezDanychOsobowychWLogu::BLAD_FILTRA, $wpis['context']['tresc']);
         $this->assertStringNotContainsString(self::EMAIL, (string) file_get_contents($this->plik));
+    }
+
+    /**
+     * Regresja: dawny wzorzec e-maila nawracał katastrofalnie — ~20 KB tekstu
+     * z „@" i kropkami (`x@a.a.a.…`) wyczerpywało stos JIT i cała wartość
+     * zamieniała się w `BLAD_FILTRA`. Jeden złośliwy komentarz wycinał więc
+     * z logu wpis, który miał pomóc w dochodzeniu. Teraz tekst zostaje,
+     * a znika tylko adres.
+     */
+    public function test_zlosliwy_tekst_z_malpa_i_kropkami_nie_zamienia_wartosci_w_znacznik(): void
+    {
+        $zlosliwe = [
+            'x@'.str_repeat('a.', 10000),
+            'x@'.str_repeat('1.', 10000),
+            str_repeat('a.', 5000).'@'.str_repeat('a1.', 3000).'1',
+            str_repeat('a@a.', 5000),
+        ];
+
+        // Warunek wstępny: dawny wzorzec naprawdę się na tym wywraca.
+        $this->assertNull(@preg_replace('/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/', 'E', $zlosliwe[0]));
+
+        foreach ($zlosliwe as $i => $szum) {
+            $this->assertGreaterThan(19000, strlen($szum));
+            Log::warning('Wpis z komentarzem', ['tresc' => $szum.' '.self::EMAIL.' koniec', 'nr' => $i]);
+        }
+
+        $log = (string) file_get_contents($this->plik);
+        $wpisy = array_map(static fn (string $linia): array => json_decode($linia, true), explode("\n", trim($log)));
+
+        $this->assertCount(count($zlosliwe), $wpisy);
+        $this->assertStringNotContainsString(self::EMAIL, $log);
+        $this->assertStringNotContainsString(BezDanychOsobowychWLogu::BLAD_FILTRA, $log);
+
+        foreach ($wpisy as $wpis) {
+            $this->assertStringEndsWith(' '.BezDanychOsobowychWLogu::EMAIL.' koniec', $wpis['context']['tresc']);
+        }
+
+        // Pierwszy szum nie ma domeny z literami na końcu — zostaje bajt w bajt.
+        $this->assertStringStartsWith($zlosliwe[0], $wpisy[0]['context']['tresc']);
+    }
+
+    /** Kontrola dodatnia wzorca: adresy z prawdziwego życia dalej znikają. */
+    public function test_wzorzec_emaila_lapie_zwykle_adresy_i_zostawia_to_co_nie_jest_adresem(): void
+    {
+        $przypadki = [
+            'napisz: basia@wp.pl.' => 'napisz: [E].',
+            'x a.b+c%d@sub.dom-ena.co.uk!' => 'x [E]!',
+            'jan-kowalski@poczta.onet.pl, ewa@o2.pl' => '[E], [E]',
+            '<basia@wp.pl>: Recipient address rejected' => '<[E]>: Recipient address rejected',
+            'foo@bar' => 'foo@bar',
+            'user@host.123' => 'user@host.123',
+            'wersja 1.2@3.4' => 'wersja 1.2@3.4',
+        ];
+
+        foreach ($przypadki as $wejscie => $oczekiwane) {
+            $this->assertSame($oczekiwane, preg_replace($this->wzorzecEmail(), '[E]', $wejscie), $wejscie);
+        }
+    }
+
+    private function wzorzecEmail(): string
+    {
+        return (string) (new ReflectionClassConstant(BezDanychOsobowychWLogu::class, 'WZORZEC_EMAIL'))->getValue();
     }
 
     /** Model w kontekście, klucz-adres i tablica głębsza niż limit filtra. */
@@ -193,6 +267,41 @@ class LogSerweraBezDanychOsobowychTest extends TestCase
         $this->assertSame([BezDanychOsobowychWLogu::EMAIL => 3], $wpis['context']['licznik']);
         $this->assertArrayHasKey(User::class, $wpis['context']['user']);
         $this->assertStringContainsString(BezDanychOsobowychWLogu::ZA_GLEBOKO, $log);
+    }
+
+    /**
+     * Głębokość sprawdzana NA PROCESORZE, nie na pliku: `JsonFormatter` sam
+     * ucina normalizację na 9. poziomie, więc „w logu nie ma e-maila" byłoby
+     * prawdą także wtedy, gdyby procesor oddał za głęboką tablicę surową.
+     * Tu widać, że w miejscu za głębokiej tablicy stoi znacznik.
+     */
+    public function test_tablica_glebsza_niz_limit_zamienia_sie_w_znacznik_na_procesorze(): void
+    {
+        $gleboko = ['e' => self::EMAIL];
+        for ($i = 0; $i < 12; $i++) {
+            $gleboko = ['poziom' => $gleboko];
+        }
+
+        $wynik = (new BezDanychOsobowychWLogu)(new LogRecord(
+            datetime: new DateTimeImmutable,
+            channel: 'test',
+            level: Level::Info,
+            message: 'Głęboko',
+            context: ['gleboko' => $gleboko],
+        ));
+
+        $wezel = $wynik->context['gleboko'];
+        $poziomy = 1;
+
+        while (is_array($wezel)) {
+            $this->assertSame(['poziom'], array_keys($wezel));
+            $wezel = $wezel['poziom'];
+            $poziomy++;
+        }
+
+        $this->assertSame(BezDanychOsobowychWLogu::ZA_GLEBOKO, $wezel);
+        // Znacznik stoi dokładnie na granicy filtra, nie wcześniej.
+        $this->assertSame((new ReflectionClassConstant(BezDanychOsobowychWLogu::class, 'GLEBOKOSC'))->getValue(), $poziomy);
     }
 
     /**

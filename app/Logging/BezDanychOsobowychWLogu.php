@@ -55,7 +55,9 @@ use UnitEnum;
  *    Klucze tablic są czyszczone jak wartości. Głębiej niż `GLEBOKOSC`
  *    zamiast wartości idzie znacznik `ZA_GLEBOKO`, nie surowa tablica.
  * 5. Gdy wyrażenie regularne zawiedzie (błąd PCRE), cały tekst zamienia się
- *    na `BLAD_FILTRA` — ani pusty łańcuch, ani oryginał.
+ *    na `BLAD_FILTRA` — ani pusty łańcuch, ani oryginał. Wzorce są pisane
+ *    tak, żeby do tego nie dochodziło (patrz `WZORZEC_EMAIL`); znacznik to
+ *    bezpiecznik na tekst rzędu megabajtów, nie na złośliwy komentarz.
  *
  * CZEGO NIE RUSZA: rekord bez PII przechodzi bajt w bajt (test kontroli
  * dodatniej); liczby, daty i enumy zostają obiektami. Nie jest podpięty pod
@@ -77,7 +79,7 @@ final class BezDanychOsobowychWLogu implements ProcessorInterface
 
     /**
      * Wstawiany ZAMIAST całego tekstu, gdy wyrażenie regularne zawiedzie
-     * (np. „JIT stack limit exhausted" na ~20 KB złośliwie dobranego tekstu).
+     * (np. „Backtrack limit exhausted" na tekście rzędu megabajtów).
      * `preg_replace()` oddaje wtedy `null` — a `(string) null` to pusty
      * łańcuch, czyli wpis po cichu znikał z logu. Oryginału w tym miejscu
      * NIE zostawiamy: nie wiemy, czy niesie e-mail, bo sprawdzenie padło.
@@ -86,7 +88,22 @@ final class BezDanychOsobowychWLogu implements ProcessorInterface
 
     public const ZA_GLEBOKO = '[pominięte: zagnieżdżenie głębsze niż filtr sprawdza]';
 
-    private const WZORZEC_EMAIL = '/[A-Za-z0-9._%+\-]+@[A-Za-z0-9\-]+(?:\.[A-Za-z0-9\-]+)*\.[A-Za-z]{2,}/';
+    /**
+     * Adres e-mail BEZ katastrofalnego nawracania. Dawny wzorzec
+     * (`…+@[…]+(?:\.[…]+)*\.[A-Za-z]{2,}`) na ~20 KB tekstu `x@a.a.a.…`
+     * wyczerpywał stos JIT — a wtedy CAŁA wartość zamieniała się w
+     * `BLAD_FILTRA`, czyli ktoś jednym komentarzem wycinał z logu wpis.
+     *
+     * - `(?<!…)` — lokalną część zaczynamy tylko na początku ciągu jej znaków
+     *   (start w środku dałby ten sam przyrostek, więc nic nie gubimy), zamiast
+     *   próbować od każdej pozycji — koniec z kosztem kwadratowym;
+     * - kwantyfikatory posesywne (`++`, `*+`) — domena nie oddaje raz
+     *   zjedzonych etykiet, więc nie ma stosu nawrotów;
+     * - wymóg „kropka i dwie litery" w domenie jest w lookahead, a nie na końcu
+     *   wzorca. Różnica wobec dawnego: znacznik obejmuje całą domenę
+     *   (`a@b.com1` → cały znacznik), co jest nadmiarem ostrożności, nie luką.
+     */
+    private const WZORZEC_EMAIL = '/(?<![A-Za-z0-9._%+\-])[A-Za-z0-9._%+\-]++@(?=[A-Za-z0-9\-.]*?\.[A-Za-z]{2})[A-Za-z0-9\-]++(?:\.[A-Za-z0-9\-]++)*+/';
 
     private const WZORZEC_HASH = '/\$2[abxy]?\$\d{2}\$[.\/A-Za-z0-9]{53}|\$argon2(?:id|i|d)\$[^\s,)\'"]+/';
 

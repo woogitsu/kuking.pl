@@ -384,7 +384,7 @@ class ProcessUploadedImage implements ShouldQueue
                     'media_id' => $this->mediaId,
                     'dysk' => $nazwaDysku,
                     'klucz' => $klucz,
-                    'error' => $e->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($e),
                 ]);
 
                 continue;

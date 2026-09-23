@@ -11,6 +11,7 @@ use App\Domain\Users\Exports\ExportTempDirectory;
 use App\Exceptions\DataExportPhotoUnreadable;
 use App\Exceptions\DataExportStorageFailure;
 use App\Exceptions\DataExportTempFailure;
+use App\Logging\BezpiecznyBlad;
 use App\Mail\DataExportReady;
 use App\Mail\DataExportReadyInGracePeriod;
 use App\Models\DataExport;
@@ -70,8 +71,9 @@ use ZipArchive;
  * `App\Domain\Users\Exports\ExportTempDirectory`.
  *
  * `failure_reason` to KOD z `DataExport::REASONS`, nie zdanie (audyt W7-07)
- * — patrz `reasonFor()`. Pełny `$e->getMessage()` (bywa nim SQLSTATE albo
- * ścieżka na dysku tymczasowym) zostaje wyłącznie w `Log::warning` niżej.
+ * — patrz `reasonFor()`. Log dostaje `BezpiecznyBlad::kontekst()` (klasa,
+ * SQLSTATE, miejsce), nigdy `$e->getMessage()` — ten bywa SQL-em z
+ * wartościami albo ścieżką na dysku tymczasowym (#973).
  */
 class GenerateUserExport implements ShouldQueue
 {
@@ -215,12 +217,12 @@ class GenerateUserExport implements ShouldQueue
         } catch (Throwable $e) {
             Log::warning('Nie udało się zbudować paczki z danymi użytkownika', [
                 'data_export_id' => $export->getKey(),
-                // `DataExportStorageFailure` zawija oryginalny wyjątek — tu, w logu,
-                // ma zostać JEGO pełny komunikat (SQLSTATE, ścieżka na dysku...),
-                // nie zdanie po polsku z opakowania. Do bazy idzie wyłącznie kod
-                // (patrz reasonFor()), więc to jest jedyne miejsce, gdzie ten
-                // szczegół w ogóle zostaje.
-                'error' => $e->getPrevious()?->getMessage() ?? $e->getMessage(),
+                // `DataExportStorageFailure` zawija oryginalny wyjątek — jego
+                // klasę i SQLSTATE niesie `przyczyny`, miejsce awarii `miejsce`.
+                // Komunikatu nie: sterownik bazy wkłada w niego wartości, klient
+                // storage pełny klucz obiektu (#973). Do bazy idzie wyłącznie
+                // kod (patrz reasonFor()).
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
 
             $this->markFailed($export, $this->reasonFor($e));

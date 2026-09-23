@@ -9,11 +9,13 @@ use App\Logging\BezpiecznyBlad;
 use App\Models\DataExport;
 use App\Models\Media;
 use App\Models\User;
+use App\Support\PhpIniRozmiar;
 use Illuminate\Contracts\Filesystem\Filesystem;
 use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
+use InvalidArgumentException;
 use Mockery;
 use PDOException;
 use RecursiveDirectoryIterator;
@@ -73,6 +75,39 @@ final class LogOperacyjnyBezKomunikatuWyjatkuTest extends TestCase
         $this->assertSame(
             $kontekst['odcisk'],
             substr(sha1(RuntimeException::class.'|'.$opakowanie->getFile().'|'.$opakowanie->getLine()), 0, 8),
+        );
+    }
+
+    /**
+     * Wywołania `BezpiecznyBlad` połykają wyjątek — webhook nie dzwoni, więc
+     * z samego odcisku nie da się znaleźć miejsca awarii. Miejsce idzie jako
+     * ścieżka względem projektu (to nie dana osobowa), a dla przyczyn —
+     * pierwsza ramka z `app/`.
+     */
+    public function test_kontekst_mowi_gdzie_padl_wyjatek_i_jego_przyczyna(): void
+    {
+        try {
+            PhpIniRozmiar::naBajty('basia@example.com');
+            $this->fail('Oczekiwano wyjątku z PhpIniRozmiar.');
+        } catch (InvalidArgumentException $zApp) {
+        }
+
+        $linia = __LINE__ + 1;
+        $opakowanie = new RuntimeException(self::ZLY_KOMUNIKAT, 0, $zApp);
+
+        $kontekst = BezpiecznyBlad::kontekst($opakowanie);
+
+        $this->assertBezZakazanych($kontekst);
+        $this->assertSame('tests/Feature/LogOperacyjnyBezKomunikatuWyjatkuTest.php:'.$linia, $kontekst['miejsce']);
+        // Rzut spoza `app/`, a stos testu nie przechodzi przez `app/`.
+        $this->assertArrayNotHasKey('miejsce_w_app', $kontekst);
+        $this->assertSame(['app/Support/PhpIniRozmiar.php:'.$zApp->getLine()], $kontekst['miejsca_przyczyn']);
+        $this->assertStringNotContainsString(base_path(), (string) json_encode($kontekst, JSON_UNESCAPED_SLASHES));
+
+        // Odcisk dalej liczy się z pełnej ścieżki — tak jak w webhooku.
+        $this->assertSame(
+            substr(sha1(RuntimeException::class.'|'.$opakowanie->getFile().'|'.$opakowanie->getLine()), 0, 8),
+            $kontekst['odcisk'],
         );
     }
 
@@ -163,27 +198,25 @@ final class LogOperacyjnyBezKomunikatuWyjatkuTest extends TestCase
 
     /**
      * Skan całego `app/`: żadne wywołanie `Log::…()` nie przekazuje
-     * `->getMessage()` (poza `BezpiecznyKomunikat::z()` z modułu poczty).
+     * `->getMessage()` (poza `BezpiecznyKomunikat::z()` z modułu poczty) —
+     * także przez metodę pomocniczą, która oddaje loggerowi swój parametr
+     * jako kontekst (`KlientTurnstile::nieWiemy()`).
      * Nowe miejsce z surowym komunikatem ma oblać ten test, nie czekać na
      * kolejny audyt.
      */
     public function test_zadne_wywolanie_loggera_w_app_nie_przekazuje_surowego_komunikatu(): void
     {
-        // Świadome wyjątki, z datą ważności: `GenerateUserExport` przebudowuje
-        // PR #1436 (`claude/g3-eksport-karencja-list`) — drugi z tych wpisów
-        // usuwa, a import `BezpiecznyBlad` wszedłby w konflikt z jego nowym
-        // importem. Poprawka po scaleniu #1436. Do tego czasu filtr
-        // `BezDanychOsobowychWLogu` na stderr wycina z nich e-mail, hash i SQL.
-        $dopuszczone = [
-            "Log::warning('Nie udało się zbudować paczki z danymi użytkownika'",
-            "Log::warning('Pominięto zdjęcie w paczce z danymi'",
-        ];
-
         $wywolanie = '/Log::(?:channel\([^)]*\)->|stack\([^)]*\)->)?(?:debug|info|notice|warning|error|critical|alert|emergency|log)\((?:[^;]|;(?!\s*$))*?\);/ms';
         $surowy = '/(?<!BezpiecznyKomunikat::z\()\$\w+\??->(?:getPrevious\(\)\??->)?getMessage\(\)/';
 
+        // Metoda, która przekazuje SWÓJ parametr jako kontekst loggera
+        // (`nieWiemy($powod, $kontekst)` → `Log::warning(…, $kontekst)`):
+        // wtedy kontekst powstaje przy wywołaniu metody, nie przy `Log::`.
+        $metoda = '/function\s+(\w+)\s*\(([^)]*)\)[^{;]*\{(.*?)\n    \}/s';
+
         $naruszenia = [];
         $sprawdzone = 0;
+        $pomocnicy = [];
 
         foreach (new RecursiveIteratorIterator(new RecursiveDirectoryIterator(app_path())) as $plik) {
             if (! str_ends_with((string) $plik, '.php')) {
@@ -191,21 +224,42 @@ final class LogOperacyjnyBezKomunikatuWyjatkuTest extends TestCase
             }
 
             $kod = (string) file_get_contents((string) $plik);
+            $sciezka = substr((string) $plik, strlen(base_path()) + 1);
             preg_match_all($wywolanie, $kod, $trafienia, PREG_OFFSET_CAPTURE);
+            $wywolania = $trafienia[0];
 
-            foreach ($trafienia[0] as [$tekst, $pozycja]) {
+            preg_match_all($metoda, $kod, $metody, PREG_SET_ORDER);
+
+            foreach ($metody as [, $nazwa, $parametry, $cialo]) {
+                preg_match_all('/\$(\w+)/', $parametry, $nazwyParametrow);
+                preg_match_all($wywolanie, $cialo, $wCiele);
+
+                foreach ($wCiele[0] as $wywolanieLoggera) {
+                    foreach ($nazwyParametrow[1] as $parametr) {
+                        if (preg_match('/,\s*\$'.$parametr.'\s*\);$/', $wywolanieLoggera) !== 1) {
+                            continue;
+                        }
+
+                        $pomocnicy[] = $sciezka.'::'.$nazwa;
+                        preg_match_all('/(?:\$this->|self::|static::)'.$nazwa.'\((?:[^;]|;(?!\s*$))*?\);/ms', $kod, $przezPomocnika, PREG_OFFSET_CAPTURE);
+                        array_push($wywolania, ...$przezPomocnika[0]);
+                    }
+                }
+            }
+
+            foreach ($wywolania as [$tekst, $pozycja]) {
                 $sprawdzone++;
 
-                $dopuszczony = array_filter($dopuszczone, static fn (string $d): bool => str_starts_with($tekst, $d)) !== [];
-
-                if (! $dopuszczony && preg_match($surowy, $tekst) === 1) {
-                    $naruszenia[] = substr((string) $plik, strlen(base_path()) + 1).':'.(substr_count(substr($kod, 0, $pozycja), "\n") + 1);
+                if (preg_match($surowy, $tekst) === 1) {
+                    $naruszenia[] = $sciezka.':'.(substr_count(substr($kod, 0, $pozycja), "\n") + 1);
                 }
             }
         }
 
-        // KONTROLA DODATNIA: skan naprawdę widzi wywołania loggera.
+        // KONTROLA DODATNIA: skan naprawdę widzi wywołania loggera i metody,
+        // które budują mu kontekst na zewnątrz.
         $this->assertGreaterThan(50, $sprawdzone);
+        $this->assertContains('app/Turnstile/KlientTurnstile.php::nieWiemy', $pomocnicy);
 
         $this->assertSame([], $naruszenia, "Surowe getMessage() w logu (użyj BezpiecznyBlad::kontekst()):\n".implode("\n", $naruszenia));
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Turnstile;
 
+use App\Logging\BezpiecznyBlad;
 use App\Support\Turnstile;
 use Illuminate\Http\Client\ConnectionException;
 use Illuminate\Support\Facades\Http;
@@ -93,17 +94,17 @@ final class KlientTurnstile
         } catch (ConnectionException $e) {
             // Najczęstszy przypadek „nie wiem": Cloudflare nie odpowiedział
             // w zadanym czasie albo nie było wyjścia na HTTPS.
+            // Bez komunikatu wyjątku: klient HTTP wkleja w niego adres
+            // żądania i fragment odpowiedzi (#973).
             return $this->nieWiemy('Cloudflare nie odpowiedział na weryfikację Turnstile.', [
-                'wyjatek' => $e::class,
-                'komunikat' => $e->getMessage(),
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
         } catch (Throwable $e) {
             // `Throwable`, nie `Exception`: nie zgadujemy, czym potrafi się
             // wywrócić cudzy klient HTTP. Wysłanie formularza jest ważniejsze
             // niż nasza pewność co do tego, co poszło nie tak.
             return $this->nieWiemy('Weryfikacja Turnstile wywróciła się w nieoczekiwany sposób.', [
-                'wyjatek' => $e::class,
-                'komunikat' => $e->getMessage(),
+                'error' => BezpiecznyBlad::kontekst($e),
             ]);
         }
 

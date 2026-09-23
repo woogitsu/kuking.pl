@@ -9,6 +9,7 @@ use App\Domain\Media\PodgladOdRazu;
 use App\Domain\Media\UsunGps;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Jobs\ProcessUploadedImage;
+use App\Logging\BezpiecznyBlad;
 use App\Models\Media;
 use App\Models\User;
 use App\Support\RozpoznanieZdjecia;
@@ -314,7 +315,7 @@ final class StoreUploadedImage
                 Log::error('Nie udało się usunąć pliku zdjęcia bez wiersza media', [
                     'dysk' => $nazwaDysku,
                     'klucz' => $klucz,
-                    'error' => $blad->getMessage(),
+                    'error' => BezpiecznyBlad::kontekst($blad),
                 ]);
             }
         }

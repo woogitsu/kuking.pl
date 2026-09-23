@@ -29,6 +29,16 @@ use Throwable;
  * plik, linia), więc wpis z logu da się zestawić z dzwonkiem na webhooku.
  * Identyfikator encji (media_id, data_export_id, własny klucz obiektu) każde
  * wywołanie dokłada samo — to jest to, czego potrzeba do ręcznej naprawy.
+ *
+ * MIEJSCE, BO WEBHOOK TU NIE DZWONI
+ * Wywołania tej klasy połykają wyjątek (sprzątanie, warianty, kasowanie) —
+ * handler wyjątków go nie zobaczy, więc nie ma dzwonka z plikiem i linią,
+ * a sam odcisk nie mówi, GDZIE szukać. Stąd `miejsce`: plik względem
+ * katalogu projektu i linia rzutu, a gdy rzut padł w bibliotece (vendor/),
+ * dodatkowo `miejsce_w_app` — pierwsza ramka z naszego `app/`. Przyczyny
+ * dostają swoje miejsca w `miejsca_przyczyn` (ta sama kolejność co
+ * `przyczyny`). Ścieżka pliku w repozytorium to nie dana osobowa; pliki spoza
+ * katalogu projektu (np. kod z `eval`, katalog tymczasowy) idą samą nazwą.
  */
 final class BezpiecznyBlad
 {
@@ -36,7 +46,7 @@ final class BezpiecznyBlad
     private const PRZYCZYNY = 4;
 
     /**
-     * @return array{wyjatek: class-string<Throwable>, kod?: int|string, przyczyny?: list<string>, odcisk: string}
+     * @return array{wyjatek: class-string<Throwable>, kod?: int|string, miejsce: string, miejsce_w_app?: string, przyczyny?: list<string>, miejsca_przyczyn?: list<string|null>, odcisk: string}
      */
     public static function kontekst(Throwable $e): array
     {
@@ -48,20 +58,60 @@ final class BezpiecznyBlad
             $opis['kod'] = $kod;
         }
 
+        $opis['miejsce'] = self::sciezka($e->getFile()).':'.$e->getLine();
+
+        $wApp = self::miejsceWApp($e);
+
+        if ($wApp !== null && $wApp !== $opis['miejsce']) {
+            $opis['miejsce_w_app'] = $wApp;
+        }
+
         $przyczyny = [];
+        $miejscaPrzyczyn = [];
 
         for ($p = $e->getPrevious(); $p !== null && count($przyczyny) < self::PRZYCZYNY; $p = $p->getPrevious()) {
             $kodPrzyczyny = self::kod($p);
             $przyczyny[] = $p::class.($kodPrzyczyny !== null ? ' ('.$kodPrzyczyny.')' : '');
+            $miejscaPrzyczyn[] = self::miejsceWApp($p);
         }
 
         if ($przyczyny !== []) {
             $opis['przyczyny'] = $przyczyny;
+            $opis['miejsca_przyczyn'] = $miejscaPrzyczyn;
         }
 
         $opis['odcisk'] = substr(sha1($e::class.'|'.$e->getFile().'|'.$e->getLine()), 0, 8);
 
         return $opis;
+    }
+
+    /**
+     * Pierwsza ramka z `app/`: sam rzut, jeśli padł w naszym kodzie, inaczej
+     * najpłytsza ramka stosu z `app/`. Null, gdy stos nie dotyka `app/`.
+     */
+    private static function miejsceWApp(Throwable $e): ?string
+    {
+        $app = rtrim(app_path(), '/').'/';
+
+        if (str_starts_with($e->getFile(), $app)) {
+            return self::sciezka($e->getFile()).':'.$e->getLine();
+        }
+
+        foreach ($e->getTrace() as $ramka) {
+            if (isset($ramka['file'], $ramka['line']) && str_starts_with($ramka['file'], $app)) {
+                return self::sciezka($ramka['file']).':'.$ramka['line'];
+            }
+        }
+
+        return null;
+    }
+
+    /** Ścieżka względem katalogu projektu; spoza niego — sama nazwa pliku. */
+    private static function sciezka(string $plik): string
+    {
+        $baza = rtrim(base_path(), '/').'/';
+
+        return str_starts_with($plik, $baza) ? substr($plik, strlen($baza)) : basename($plik);
     }
 
     /**
