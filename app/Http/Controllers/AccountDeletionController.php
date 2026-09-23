@@ -5,16 +5,19 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Domain\Security\LimitProbHasla;
+use App\Domain\Security\TwoFactorAuthenticator;
 use App\Domain\Users\Actions\CancelAccountDeletion;
 use App\Exceptions\BladDlaCzlowieka;
 use App\Models\AuditLogEntry;
 use App\Models\User;
 use App\Rules\TurnstileJestPotwierdzony;
 use App\Support\Turnstile;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Validation\ValidationException;
+use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\Validator;
 use Illuminate\View\View;
 
 /**
@@ -59,12 +62,24 @@ use Illuminate\View\View;
  * audyt bezpieczeństwa uzna, że sama karencja na usunięcie konta zasługuje na
  * silniejsze potwierdzenie niż odwołanie od bana, to samo rozumowanie
  * powinno objąć oba formularze naraz, nie tylko ten.
+ *
+ * KONTO Z WŁĄCZONĄ WERYFIKACJĄ DWUETAPOWĄ (issue #1314)
+ * Akapit wyżej odrzuca link z maila jako DODATKOWY składnik — i to zostaje.
+ * Czym innym jest konto, którego właściciel SAM włączył kod z aplikacji: tam
+ * samo hasło nie loguje (`LoginController` → `TwoFactorChallengeController`),
+ * więc nie może też cofać usunięcia. Inaczej ten publiczny formularz byłby
+ * furtką obok logowania — kto zna tylko hasło, przywracałby cudze konto
+ * i mógł się potem na nie zalogować hasłem z tego samego wycieku. Kod
+ * sprawdza TEN SAM `TwoFactorAuthenticator` co przy logowaniu (ochrona
+ * przed powtórzeniem kodu, kody zapasowe jednorazowe) i próby liczą się
+ * w TYM SAMYM koszyku konta. Konto bez 2FA — bez zmian.
  */
 class AccountDeletionController extends Controller
 {
     public function __construct(
         private readonly CancelAccountDeletion $cofnij,
         private readonly LimitProbHasla $limit,
+        private readonly TwoFactorAuthenticator $totp,
     ) {}
 
     public function showCancelForm(): View
@@ -76,9 +91,14 @@ class AccountDeletionController extends Controller
 
     public function cancel(Request $request): RedirectResponse
     {
-        $data = $request->validate([
+        // `Validator::make` zamiast `$request->validate()`: wyjątek walidacji
+        // odkłada w sesji całe wejście poza hasłem, czyli także `code` —
+        // a kod zapasowy jest sekretem (ta sama zasada co w
+        // `TwoFactorChallengeController`). Wraca wyłącznie `login`.
+        $walidator = Validator::make($request->all(), [
             'login' => ['required', 'string', 'max:255'],
             'password' => ['required', 'string'],
+            'code' => ['nullable', 'string', 'max:64'],
             /*
              * Turnstile (D-050) — WARUNEK WYSŁANIA, nie filtr.
              *
@@ -97,7 +117,15 @@ class AccountDeletionController extends Controller
         ], [
             'login.required' => 'Podaj swój adres e-mail albo nazwę użytkownika.',
             'password.required' => 'Wpisz hasło do swojego konta.',
+            'code.string' => 'Wpisz kod z aplikacji albo kod zapasowy.',
+            'code.max' => 'Ten kod jest za długi. Wpisz sześciocyfrowy kod z aplikacji albo kod zapasowy.',
         ]);
+
+        if ($walidator->fails()) {
+            $this->odmow($request, $walidator->errors()->toArray());
+        }
+
+        $data = $walidator->validated();
 
         // TEN FORMULARZ SPRAWDZA HASŁO, więc chodzi po TYCH SAMYCH TRZECH
         // KOSZYKACH CO `/login` (`App\Domain\Security\LimitProbHasla`) —
@@ -122,7 +150,7 @@ class AccountDeletionController extends Controller
         if ($osoba === null || ! Hash::check($data['password'], (string) $osoba->password)) {
             $this->limit->zapiszNieudanaProbe($data['login'], $adres);
 
-            throw ValidationException::withMessages([
+            $this->odmow($request, [
                 'login' => 'Nie rozpoznajemy tych danych. Sprawdź, czy e-mail albo nazwa i hasło są wpisane poprawnie. '
                     .'Jeśli nie pamiętasz hasła, kliknij „Nie pamiętam hasła” — to działa także dla konta '
                     .'oznaczonego do usunięcia.',
@@ -132,16 +160,82 @@ class AccountDeletionController extends Controller
         // DOBRE HASŁO CZYŚCI PARĘ I KONTO, NIGDY ADRES (`KluczeLimitow`).
         $this->limit->wyczyscPoUdanej($data['login'], $adres);
 
+        // Drugi składnik PRZED `CancelAccountDeletion`: bez kodu formularz nie
+        // mówi nawet, w jakim stanie jest konto.
+        if ($osoba->hasTwoFactorConfirmed()) {
+            $this->sprawdzKodDwuetapowy($request, $osoba, trim((string) ($data['code'] ?? '')));
+        }
+
         try {
             $this->cofnij->handle($osoba);
         } catch (BladDlaCzlowieka $blad) {
-            throw ValidationException::withMessages(['login' => $blad->getMessage()]);
+            $this->odmow($request, ['login' => $blad->getMessage()]);
         }
 
         AuditLogEntry::record('account.delete_cancelled', $osoba, $osoba, ip: $request->ip());
 
         return redirect()->route('login')->with('status',
             'Usunięcie konta zostało cofnięte. Możesz się teraz zalogować jak wcześniej.',
+        );
+    }
+
+    /**
+     * Kod z aplikacji albo kod zapasowy — jedno pole, bo to jeden formularz.
+     *
+     * Same cyfry idą do `verifyCode()`, reszta do `consumeBackupCode()`
+     * (kody zapasowe mają litery, `XXXXX-XXXXX`). Limit to ten sam koszyk
+     * konta co na ekranie logowania (`TwoFactorAuthenticator::kluczLimituProb`)
+     * i tak samo liczy się tylko ZŁY kod, nie puste pole.
+     */
+    private function sprawdzKodDwuetapowy(Request $request, User $osoba, string $kod): void
+    {
+        if ($kod === '') {
+            $this->odmow($request, [
+                'code' => 'To konto ma włączoną weryfikację dwuetapową. Otwórz aplikację uwierzytelniającą '
+                    .'w telefonie i wpisz sześciocyfrowy kod (albo jeden z kodów zapasowych), '
+                    .'a potem wpisz jeszcze raz hasło i kliknij „Cofnij usunięcie konta”.',
+            ]);
+        }
+
+        [$maxProb, $decayMinuty] = TwoFactorAuthenticator::limitProb();
+        $klucz = TwoFactorAuthenticator::kluczLimituProb($osoba);
+
+        if (RateLimiter::tooManyAttempts($klucz, $maxProb)) {
+            $minuty = max(1, (int) ceil(RateLimiter::availableIn($klucz) / 60));
+
+            $this->odmow($request, [
+                'code' => "Za dużo prób kodu. Spróbuj ponownie za {$minuty} min.",
+            ]);
+        }
+
+        $cyfry = (string) preg_replace('/\s+/', '', $kod);
+
+        $poprawny = ctype_digit($cyfry)
+            ? $this->totp->verifyCode($osoba, (string) $osoba->two_factor_secret, $cyfry)
+            : $this->totp->consumeBackupCode($osoba, $kod);
+
+        if (! $poprawny) {
+            RateLimiter::hit($klucz, $decayMinuty * 60);
+
+            $this->odmow($request, [
+                'code' => 'Kod jest nieprawidłowy albo już wykorzystany. Sprawdź godzinę w telefonie, '
+                    .'wpisz nowy kod z aplikacji (albo niewykorzystany kod zapasowy) i jeszcze raz hasło.',
+            ]);
+        }
+
+        RateLimiter::clear($klucz);
+    }
+
+    /**
+     * Powrót na formularz z błędami. Wraca wyłącznie `login` — nigdy hasło
+     * ani kod (sekrety, patrz `Validator::make` wyżej).
+     *
+     * @param  array<string, string|array<int, string>>  $bledy
+     */
+    private function odmow(Request $request, array $bledy): never
+    {
+        throw new HttpResponseException(
+            back()->withErrors($bledy)->withInput($request->only('login')),
         );
     }
 }

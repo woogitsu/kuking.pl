@@ -53,6 +53,29 @@ class TwoFactorAuthenticator
     }
 
     /**
+     * Klucz limitu prób drugiego składnika — JEDEN na konto (issue #1314).
+     *
+     * Kod pada nie tylko na ekranie logowania (`TwoFactorChallengeController`),
+     * ale też przy cofaniu usunięcia konta (`AccountDeletionController`). Oba
+     * ekrany liczą próby w TYM SAMYM koszyku: osobne koszyki dawałyby
+     * zgadującemu podwójny budżet na sześć cyfr jednego konta.
+     */
+    public static function kluczLimituProb(User $user): string
+    {
+        return 'weryfikacja-2fa|'.$user->getKey();
+    }
+
+    /**
+     * @return array{0: int, 1: int} [maksimum prób, minuty do odblokowania]
+     */
+    public static function limitProb(): array
+    {
+        [$max, $minuty] = explode(',', (string) config('kuking.limits.two_factor'));
+
+        return [(int) $max, (int) $minuty];
+    }
+
+    /**
      * Nowy sekret TOTP — losowy, jeszcze niczyj.
      */
     public function generateSecret(): string
