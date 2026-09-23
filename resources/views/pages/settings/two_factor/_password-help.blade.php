@@ -4,13 +4,18 @@
 </p>
 @if(\App\Support\Poczta::dziala())
     <p>
-        Najpierw upewnij się, że masz dostęp do swojej skrzynki i kodu z aplikacji.
+        Najpierw upewnij się, że masz dostęp do swojej skrzynki{{ ($wlaczanie ?? false) ? '' : ' i kodu z aplikacji' }}.
         Wtedy wybierz „Wyloguj się”, potem „Zaloguj się” i „Nie pamiętam hasła”.
-        Po ustawieniu hasła zaloguj się nim i kodem z aplikacji, otwórz
-        „Ustawienia” → „Weryfikacja dwuetapowa” i wróć do tego formularza.
+        @if($wlaczanie ?? false)
+            Po ustawieniu hasła zaloguj się nim, otwórz
+            „Ustawienia” → „Weryfikacja dwuetapowa” i wróć do tego formularza.
+        @else
+            Po ustawieniu hasła zaloguj się nim i kodem z aplikacji, otwórz
+            „Ustawienia” → „Weryfikacja dwuetapowa” i wróć do tego formularza.
+        @endif
     </p>
     <p>
-        Jeśli nie masz dostępu do skrzynki lub kodu z aplikacji, pozostań na swoim koncie
+        Jeśli nie masz dostępu do skrzynki{{ ($wlaczanie ?? false) ? '' : ' lub kodu z aplikacji' }}, pozostań na swoim koncie
         i <a href="{{ route('kontakt') }}">napisz do nas</a>.
     </p>
 @else

@@ -51,6 +51,13 @@
         <x-field name="code" label="Sześciocyfrowy kod z aplikacji" required
                  inputmode="numeric" autocomplete="one-time-code" />
 
+        {{-- Hasło jak przy wyłączaniu i nowych kodach (#1376, D-245): kod
+             dowodzi, że nowy telefon działa, hasło — że to właściciel konta. --}}
+        @include('pages.settings.two_factor._password-help', ['wlaczanie' => true])
+        <x-field name="password" label="Hasło do Kuking" type="password" required
+                 autocomplete="current-password"
+                 help="Pytamy o hasło, żeby mieć pewność, że to naprawdę Ty." />
+
         <div class="form-actions">
             <button class="btn btn-primary" type="submit">Potwierdź i włącz</button>
             <a class="btn btn-quiet" href="{{ route('settings.two_factor.edit') }}">Anuluj</a>
