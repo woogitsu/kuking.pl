@@ -104,8 +104,8 @@ final class AlarmujModeratora
         // PRZED tą zmianą albo przy drodze, na której alarm liczy pilność
         // z innego zestawu sygnałów niż ten, który stworzył wiersz — żeby
         // stan na wierszu nigdy nie był pusty przy sprawie pilnej.
-        if ($oznaczenie->alarm_pilny_stan === null) {
-            $this->zapisz($oznaczenie, Report::ALARM_ZALEGLY);
+        if ($oznaczenie->alarm_pilny_stan === null && ! $this->zapisz($oznaczenie, Report::ALARM_ZALEGLY)) {
+            return self::JUZ_ZLECONY;
         }
 
         $adres = config('kuking.moderation.model.alarm_email');
@@ -120,9 +120,9 @@ final class AlarmujModeratora
              * `return false` jak dawniej, tylko nazwany, zapisany stan —
              * człowiek naprawia go wpisaniem adresu, nie ponowieniem.
              */
-            $this->zapisz($oznaczenie, Report::ALARM_BEZ_ADRESU);
-
-            return Report::ALARM_BEZ_ADRESU;
+            return $this->zapisz($oznaczenie, Report::ALARM_BEZ_ADRESU)
+                ? Report::ALARM_BEZ_ADRESU
+                : self::JUZ_ZLECONY;
         }
 
         try {
@@ -138,10 +138,11 @@ final class AlarmujModeratora
              * tu trwałym śladem, bo baza jest jedyną rzeczą, która w tym
              * przebiegu na pewno odpowiada.
              */
-            $this->zapisz($oznaczenie, Report::ALARM_NIEUDANY);
             report($awaria);
 
-            return Report::ALARM_NIEUDANY;
+            return $this->zapisz($oznaczenie, Report::ALARM_NIEUDANY)
+                ? Report::ALARM_NIEUDANY
+                : self::JUZ_ZLECONY;
         }
 
         $this->zapisz($oznaczenie, Report::ALARM_ZLECONY, znacznik: true);
@@ -157,17 +158,36 @@ final class AlarmujModeratora
      * cofnąć czyjejś decyzji, zapisując model wczytany trzy sekundy
      * wcześniej. Model w ręku wołającego dostaje te same wartości wprost,
      * bo `update()` go nie odświeża.
+     *
+     * PORAŻKA NIE NADPISUJE SUKCESU. Stany bez znacznika (`zalegly`,
+     * `bez_adresu`, `nieudany`) zapisujemy tylko pod
+     * `alarm_pilny_zlecony_at IS NULL`: drugie zadanie o tej samej sprawie,
+     * któremu padła poczta, nie ma prawa zamienić zleconego już alarmu
+     * w „nie dotarł" — sonda zapaliłaby się na czerwono przy sprawie,
+     * o której moderator wie. Baza pilnuje tego samego CHECK-iem
+     * `reports_alarm_pilny_spojny_check`.
+     *
+     * @return bool `false`, gdy wiersz ma już zlecony alarm i nic nie zmieniono
      */
-    private function zapisz(Report $oznaczenie, string $stan, bool $znacznik = false): void
+    private function zapisz(Report $oznaczenie, string $stan, bool $znacznik = false): bool
     {
         $zmiana = ['alarm_pilny_stan' => $stan];
+        $zapytanie = Report::query()->whereKey($oznaczenie->getKey());
 
         if ($znacznik) {
             $zmiana['alarm_pilny_zlecony_at'] = now();
+        } else {
+            $zapytanie->whereNull('alarm_pilny_zlecony_at');
         }
 
-        Report::query()->whereKey($oznaczenie->getKey())->update($zmiana);
+        if ($zapytanie->update($zmiana) === 0) {
+            $oznaczenie->refresh();
+
+            return false;
+        }
 
         $oznaczenie->forceFill($zmiana);
+
+        return true;
     }
 }

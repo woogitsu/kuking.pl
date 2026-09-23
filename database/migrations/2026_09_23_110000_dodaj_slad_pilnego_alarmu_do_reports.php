@@ -78,6 +78,32 @@ use Illuminate\Support\Facades\Schema;
  * alarm_pilny_zlecony_at IS NULL` obejmuje dokładnie te wiersze, o które
  * pyta sonda, więc indeks jest mały i zostaje taki na zawsze: wiersz
  * z niego WYCHODZI w chwili, w której alarm dochodzi do skutku.
+ *
+ * ────────────────────────────────────────────────────────────────────────
+ *  CHECK: ZAMKNIĘTY SŁOWNIK I PARA, KTÓRA SIĘ ZGADZA
+ * ────────────────────────────────────────────────────────────────────────
+ *
+ * `reports_alarm_pilny_spojny_check` pilnuje dwóch rzeczy naraz:
+ *
+ *   `alarm_pilny_stan` należy do zamkniętego zbioru (`Report::ALARM_*`)
+ *       — literówka w napisie nie może stworzyć stanu, którego sonda nie zna;
+ *   `alarm_pilny_zlecony_at` jest ustawiony  ⇔  stan = `zlecony`
+ *       — znacznik przy stanie `nieudany` albo `zlecony` bez znacznika to
+ *       dwa sprzeczne zdania o tej samej sprawie, a sonda wierzy znacznikowi.
+ *
+ * Drugi warunek ma realną drogę złamania: dwa zadania z kolejki alarmują
+ * o tej samej sprawie, pierwszemu się udaje, drugiemu pada poczta i zapisuje
+ * `nieudany` PO pierwszym. `AlarmujModeratora` pisze stany porażki tylko pod
+ * `alarm_pilny_zlecony_at IS NULL`; CHECK jest tym samym na poziomie bazy,
+ * dla każdej przyszłej drogi, która o tym zapomni.
+ *
+ * `status` i daty rozstrzygnięcia (`reports_resolution_complete_check`,
+ * #997 / #1441) są od tych kolumn niezależne: alarm nie zmienia statusu
+ * sprawy, a zamknięcie sprawy nie zmienia stanu alarmu (patrz
+ * `Report::scopePilneBezAlarmu()`). Oba CHECK-i leżą obok siebie bez styku.
+ *
+ * Kolumny są świeże i puste, więc CHECK zakładamy wprost — nie ma czego
+ * walidować osobnym krokiem.
  */
 return new class extends Migration
 {
@@ -88,6 +114,18 @@ return new class extends Migration
     private const KOLUMNA_ZNACZNIK = 'alarm_pilny_zlecony_at';
 
     private const INDEKS = 'reports_pilny_alarm_bez_sladu';
+
+    private const OGRANICZENIE = 'reports_alarm_pilny_spojny_check';
+
+    /*
+     * `alarm_pilny_stan IS NOT NULL` w gałęziach drugiej i trzeciej NIE jest
+     * nadmiarowe. CHECK przepuszcza wiersz, dla którego warunek daje NULL,
+     * a `NULL IN (...)` i `NULL = 'zlecony'` dają właśnie NULL — bez tego
+     * wiersz „niepilny ze znacznikiem zlecenia" przechodziłby przez bazę.
+     */
+    private const WARUNEK = '(alarm_pilny_stan IS NULL AND alarm_pilny_zlecony_at IS NULL) '
+        ."OR (alarm_pilny_stan IS NOT NULL AND alarm_pilny_stan IN ('zalegly','bez_adresu','nieudany') AND alarm_pilny_zlecony_at IS NULL) "
+        ."OR (alarm_pilny_stan IS NOT NULL AND alarm_pilny_stan = 'zlecony' AND alarm_pilny_zlecony_at IS NOT NULL)";
 
     public function up(): void
     {
@@ -110,6 +148,9 @@ return new class extends Migration
             .' ('.self::KOLUMNA_STAN.') WHERE '.self::KOLUMNA_STAN.' IS NOT NULL'
             .' AND '.self::KOLUMNA_ZNACZNIK.' IS NULL',
         );
+
+        DB::statement('ALTER TABLE '.self::TABELA.' DROP CONSTRAINT IF EXISTS '.self::OGRANICZENIE);
+        DB::statement('ALTER TABLE '.self::TABELA.' ADD CONSTRAINT '.self::OGRANICZENIE.' CHECK ('.self::WARUNEK.')');
     }
 
     /**
@@ -148,6 +189,7 @@ return new class extends Migration
             );
         }
 
+        DB::statement('ALTER TABLE '.self::TABELA.' DROP CONSTRAINT IF EXISTS '.self::OGRANICZENIE);
         DB::statement('DROP INDEX IF EXISTS '.self::INDEKS);
 
         Schema::table(self::TABELA, function (Blueprint $table): void {

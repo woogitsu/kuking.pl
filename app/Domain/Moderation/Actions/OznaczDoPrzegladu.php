@@ -79,7 +79,7 @@ final class OznaczDoPrzegladu
          * (issue #1051).
          *
          * Do 22 września 2026 oddawały `null`, a `PrzeanalizujTresc`
-         * i `PrzeanalizujAwatar` mają obie ten sam warunek:
+         * i `PrzeanalizujAwatar` (od D-240 bez modelu) miały ten sam warunek:
          * `if ($oznaczenie !== null) { $alarm->handle(...); }`. Skutek był
          * taki, że ISTNIENIE wiersza w `reports` WYŁĄCZAŁO alarm — czyli
          * dokładnie w sytuacji, w której sprawa już jest zapisana, nikt się
@@ -148,7 +148,18 @@ final class OznaczDoPrzegladu
             return $this->istniejace($typ, (string) $tresc->getKey());
         }
 
-        AuditLogEntry::record(
+        /*
+         * WPIS POMOCNICZY (D-249, klasa 2) — i to jest tu warunek alarmu,
+         * nie kosmetyka. Sprawa jest już zatwierdzona i ma pełny własny ślad
+         * w `reports` (`source = automat`, powód, opis sygnałów, `created_at`,
+         * `alarm_pilny_stan`). Gołe `record()` za transakcją rzucało przy
+         * awarii dziennika PRZED powrotem do `PrzeanalizujTresc`, a tamten
+         * blankietowy `catch` połykał wyjątek — czyli awaria `audit_log`
+         * zjadała pilny alarm o sprawie, która już stoi w kolejce
+         * (issue #1051). Teraz awaria idzie do `report()` z nazwą braku,
+         * a alarm idzie dalej.
+         */
+        AuditLogEntry::recordBezWywracania(
             action: 'content.flagged_by_automat',
             actor: null,
             subject: $zgloszenie,

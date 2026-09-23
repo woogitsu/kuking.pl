@@ -8,13 +8,16 @@ use App\Domain\Moderation\Actions\AlarmujModeratora;
 use App\Domain\Moderation\Actions\OznaczDoPrzegladu;
 use App\Domain\Moderation\Sygnaly\Sygnal;
 use App\Jobs\PrzeanalizujTresc;
+use App\Models\AuditLogEntry;
 use App\Models\Post;
 use App\Models\Report;
 use App\Models\User;
 use App\Notifications\PilnyAlarmModeracyjny;
 use Illuminate\Contracts\Notifications\Dispatcher as DyspozytorPowiadomien;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Exceptions;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Notification;
 use RuntimeException;
@@ -409,5 +412,82 @@ class PilnyAlarmModeracyjnyNieGinieTest extends TestCase
             Report::ALARM_BEZ_ADRESU,
             $alarm->handle($sprawa, [new Sygnal('automat_model', 'Pilne.', pilny: true)]),
         );
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    //  7. AWARIA MIĘDZY ZAPISEM SPRAWY A ALARMEM (D-249)
+    // ═══════════════════════════════════════════════════════════════════
+
+    /**
+     * Awaria `audit_log` PO zatwierdzeniu sprawy, a PRZED alarmem.
+     *
+     * Na gałęzi przed scaleniem z D-249 `OznaczDoPrzegladu` wołał gołe
+     * `record()` za transakcją: wyjątek wracał do blankietowego `catch`
+     * w `PrzeanalizujTresc` i alarm nie szedł wcale — dokładnie szczelina
+     * z #1051, tylko otwarta przez dziennik zamiast przez martwego workera.
+     */
+    public function test_awaria_dziennika_audytu_nie_zjada_pilnego_alarmu(): void
+    {
+        Notification::fake();
+        Exceptions::fake();
+        $this->modelWidziPilne();
+
+        DB::listen(static function ($zapytanie): void {
+            if (str_contains($zapytanie->sql, 'insert into "audit_log"')
+                && in_array('content.flagged_by_automat', $zapytanie->bindings, true)) {
+                throw new RuntimeException('Wstrzyknięta awaria dziennika: content.flagged_by_automat');
+            }
+        });
+
+        $this->analizuj($this->wpis($this->osoba('dziennik')));
+
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+        $this->assertSame(Report::ALARM_ZLECONY, $this->oznaczenie()?->alarm_pilny_stan);
+
+        // Brak wpisu nie jest cichy: idzie do `report()` z nazwą akcji.
+        $this->assertSame(0, AuditLogEntry::query()->where('action', 'content.flagged_by_automat')->count());
+        Exceptions::assertReported(fn (RuntimeException $e): bool => str_contains($e->getMessage(), '„content.flagged_by_automat"'));
+    }
+
+    public function test_kontrola_dodatnia_bez_awarii_dziennik_ma_wpis_oznaczenia(): void
+    {
+        Notification::fake();
+        $this->modelWidziPilne();
+
+        $this->analizuj($this->wpis($this->osoba('dziennikok')));
+
+        Notification::assertSentOnDemandTimes(PilnyAlarmModeracyjny::class, 1);
+        $this->assertSame(1, AuditLogEntry::query()->where('action', 'content.flagged_by_automat')->count());
+    }
+
+    /**
+     * Dwa zadania o tej samej sprawie: pierwsze zleciło alarm, drugie
+     * (z wierszem wczytanym wcześniej) trafia na padniętą pocztę.
+     * Porażka nie ma prawa nadpisać sukcesu — sonda zapaliłaby się przy
+     * sprawie, o której moderator już wie, a CHECK
+     * `reports_alarm_pilny_spojny_check` i tak by ten zapis odrzucił.
+     */
+    public function test_spozniona_porazka_nie_nadpisuje_zleconego_alarmu(): void
+    {
+        $wpis = $this->wpis($this->osoba('wyscig'));
+        $pilne = [new Sygnal('automat_model', 'Model wskazał treść seksualną z udziałem dziecka.', pilny: true)];
+
+        $stara = app(OznaczDoPrzegladu::class)->handle($wpis, $pilne);
+        $this->assertNotNull($stara);
+
+        // Pierwsze zadanie zdążyło: w bazie alarm zlecony, `$stara` o tym nie wie.
+        Report::query()->whereKey($stara->getKey())->update([
+            'alarm_pilny_stan' => Report::ALARM_ZLECONY,
+            'alarm_pilny_zlecony_at' => now(),
+        ]);
+
+        $this->poczcieBrakujeSkrzydel();
+
+        $this->assertSame(AlarmujModeratora::JUZ_ZLECONY, app(AlarmujModeratora::class)->handle($stara, $pilne));
+
+        $sprawa = $this->oznaczenie();
+        $this->assertSame(Report::ALARM_ZLECONY, $sprawa?->alarm_pilny_stan);
+        $this->assertNotNull($sprawa?->alarm_pilny_zlecony_at);
+        $this->assertTrue($this->get('/health')->json('checks.alarmy_moderacji.ok'));
     }
 }
