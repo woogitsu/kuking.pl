@@ -639,7 +639,15 @@ APP_KEY (staging)    = base64:................
 ## KROK 8. Zmienne środowiskowe w Railway
 
 Wpisujemy je jako **Shared Variables na środowisku** — raz, a `railway.ts`
-rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów.
+przekazuje każdą **tylko tym serwisom, które jej używają** (#1013, tabela
+„Który serwis dostaje którą zmienną" niżej). To dlatego w `railway.ts` nie ma
+sekretów.
+
+> **Shared Variable sama nie dochodzi do procesu.** Railway tworzy referencję
+> osobno w bloku `env` każdego serwisu (https://docs.railway.com/variables).
+> Zmienna wpisana w panelu, a nieprzekazana w `railway.ts`, po rozdzieleniu
+> usług (#595) po prostu znika z nowo utworzonych serwisów — tak działała luka
+> #1014 z kluczem moderacji modelem.
 
 → Railway → środowisko **production** → **Variables** → sekcja
 **Shared Variables** → **New Shared Variable**
@@ -665,8 +673,13 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 | ~~`MAIL_PORT`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_USERNAME`~~ | — | — | jw. — nie ustawiaj na Hobby |
 | ~~`MAIL_PASSWORD`~~ | — | — | jw. — nie ustawiaj na Hobby |
-| `SENTRY_LARAVEL_DSN` | z kroku 4 | nie | DSN projektu Sentry |
-| `POSTHOG_KEY` | z kroku 5 | nie | Project API Key PostHog |
+| `APP_PREVIOUS_KEYS` | puste; w czasie rotacji — poprzedni `APP_KEY` | **TAK** | **Opcjonalne.** Poprzednie klucze szyfrowania rozdzielone przecinkami, tylko na czas rotacji `APP_KEY` (PR #1437). Web, worker, scheduler |
+| `OPENAI_MODERATION_KEY` | z panelu OpenAI (projekt z dostępem tylko do `/v1/moderations`) | **TAK** | Moderacja modelem (D-055). **Tylko worker** (`PrzeanalizujTresc`). Pusto = moderacja modelem wyłączona bez błędu — zielony `/health` tego nie pokaże, sprawdź KROKIEM 8B |
+| `KUKING_MODEL_ALARM_EMAIL` | adres skrzynki moderatora | nie (dana osobowa, nie klucz) | Pilne alarmy i dzienne podsumowania automatu moderacji. Worker (`AlarmujModeratora`) i scheduler (`kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan`). Pusto = te listy nie wychodzą |
+| `CLOUDFLARE_ZONE_ID` | Cloudflare → strefa `kuking.pl` → Overview → Zone ID | nie | Czyszczenie cache CDN po skasowaniu zdjęcia (#959). Worker (`PurgePublicMediaCache`) i web (`/health` sprawdza obecność) |
+| `CLOUDFLARE_PURGE_TOKEN` | token API z jedynym uprawnieniem **Zone → Cache Purge** dla tej jednej strefy | **TAK** | jw. |
+| ~~`SENTRY_LARAVEL_DSN`~~ | — | — | **Nieprzekazywane** (#1013). Sentry'ego nie ma w `composer.json` i nic tej zmiennej nie czyta (D-041). Gdy integracja powstanie, zmienną dopisuje się w `railway.ts` do ról, które ją wykonują |
+| ~~`POSTHOG_KEY`~~ | — | — | **Nieprzekazywane** (#1013) — jw., PostHoga w kodzie nie ma |
 | `TURNSTILE_SITE_KEY` | z kroku 8A | nie | Site Key widgetu Turnstile — wchodzi do HTML-a, nie jest sekretem |
 | `TURNSTILE_SECRET_KEY` | z kroku 8A | **TAK** | Secret Key widgetu Turnstile |
 | `GOOGLE_CLIENT_ID` | z kroku 8D | nie | Client ID OAuth — wchodzi do adresu przekierowania, nie jest sekretem |
@@ -677,6 +690,35 @@ rozdziela je do wszystkich serwisów. To dlatego w `railway.ts` nie ma sekretów
 
 Zaznacz **Sealed** przy wszystkich oznaczonych „**TAK**" — Railway przestanie
 wtedy pokazywać wartość w panelu i w CLI.
+
+### Który serwis dostaje którą zmienną (po rozdzieleniu usług, #595)
+
+`railway.ts` składa zestaw każdego serwisu z mniejszych grup (`appEnv`,
+`pocztaEnv`, `wejscieEnv`, `czyszczenieCdnEnv`, `modelEnv`,
+`alarmModeratoraEnv`, `kopieOdczytEnv`). Serwis w roli `all` (staging,
+preview i dzisiejsza produkcja `kuking.pl`) dostaje **sumę** trzech kolumn.
+Macierz pilnuje test `ZmienneRailwayaPerRolaTest` — zmienna w roli, która jej
+nie czyta, oblewa go tak samo jak zmienna brakująca.
+
+| Zmienne (nazwa w aplikacji) | web | worker | scheduler | Kto w kodzie je czyta |
+|---|:-:|:-:|:-:|---|
+| `APP_KEY`, `APP_PREVIOUS_KEYS` | ✔ | ✔ | ✔ | szyfrowanie sesji, ładunków zadań, cache |
+| `DB_URL` | ✔ | ✔ | ✔ | baza, kolejka, cache i sesje w Postgresie |
+| `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`, `AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET`, `AWS_ENDPOINT` | ✔ | ✔ | ✔ | web: upload i podpisane adresy; worker: przetwarzanie zdjęć i paczki RODO; scheduler: `kuking:sprzataj-osierocone-zdjecia`, `kuking:sprzataj-eksporty`, `kuking:usun-wygasle-konta` kasują pliki |
+| `LOG_BLAD_WEBHOOK_URL` | ✔ | ✔ | ✔ | kanał `blad_webhook` — błąd może paść w każdej roli |
+| `EMAILLABS_APP_KEY`, `EMAILLABS_SECRET_KEY`, `EMAILLABS_SMTP_ACCOUNT` (+ uśpione `MAIL_HOST`, `MAIL_PORT`, `MAIL_USERNAME`, `MAIL_PASSWORD`) | ✔ | ✔ | — | web: synchroniczna odpowiedź „Napisz do nas”, `App\Support\Poczta` w `/health` i formularzach; worker: wszystkie listy z kolejki. Scheduler listy tylko kolejkuje |
+| `TURNSTILE_SITE_KEY`, `TURNSTILE_SECRET_KEY`, `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FACEBOOK_CLIENT_ID`, `FACEBOOK_CLIENT_SECRET`, `CLOUDFLARE_ANALYTICS_TOKEN` | ✔ | — | — | formularze, trasy OAuth, HTML strony, `/health` |
+| `CLOUDFLARE_ZONE_ID`, `CLOUDFLARE_PURGE_TOKEN` | ✔ | ✔ | — | worker: `PurgePublicMediaCache`; web: tylko `/health` (sprawdzenie obecności) |
+| `OPENAI_MODERATION_KEY` | — | ✔ | — | `PrzeanalizujTresc` → `KlientOpenAI` |
+| `KUKING_MODEL_ALARM_EMAIL` | — | ✔ | ✔ | worker: `AlarmujModeratora`; scheduler: `kuking:podsumowanie-automatu`, `kuking:pilnuj-terminow-odwolan` |
+| `AWS_KOPIE_BUCKET`, `AWS_KOPIE_ACCESS_KEY_ID`, `AWS_KOPIE_SECRET_ACCESS_KEY` | — | — | ✔ | `kuking:sprawdz-kopie` z harmonogramu |
+
+Serwis `kopia-bazy` ma własną, zamkniętą listę bez żadnego zestawu aplikacji
+(`KopiaBazyPozaRailwayemTest`).
+
+**Staging i preview** biorą wartości z Shared Variables **własnego**
+środowiska. Klucz modelu i adres alarmów zostaw tam puste albo wpisz osobne,
+testowe — nigdy wartości produkcji.
 
 ### Zmienne ustawiane automatycznie przez `railway.ts`
 
@@ -691,9 +733,8 @@ wtedy pokazywać wartość w panelu i w CLI.
 `AWS_BUCKET`, `AWS_PUBLIC_BUCKET`, `AWS_EXPORTS_BUCKET`, `AWS_KOPIE_BUCKET`,
 `AWS_KOPIE_ACCESS_KEY_ID`, `AWS_KOPIE_SECRET_ACCESS_KEY`, `AWS_ENDPOINT`,
 `KUKING_EXPORT_DISK`, `MAIL_MAILER`, `MAIL_SCHEME`,
-`MAIL_FROM_ADDRESS`, `KUKING_CONTACT_EMAIL`, `SENTRY_ENVIRONMENT`,
-`SENTRY_TRACES_SAMPLE_RATE`, `SENTRY_PROFILES_SAMPLE_RATE`, `SENTRY_RELEASE`,
-`POSTHOG_HOST`, `PHP_WORKER_MEMORY_LIMIT`
+`MAIL_FROM_ADDRESS`, `KUKING_CONTACT_EMAIL`, `PHP_WORKER_MEMORY_LIMIT`
+(`SENTRY_*` i `POSTHOG_HOST` usunięte w #1013 — nic ich nie czyta)
 
 Railway dostarcza też sam: `PORT`, `RAILWAY_PUBLIC_DOMAIN`,
 `RAILWAY_PRIVATE_DOMAIN`, `RAILWAY_GIT_COMMIT_SHA`, `RAILWAY_ENVIRONMENT`.
@@ -832,7 +873,8 @@ EMAILLABS_SMTP_ACCOUNT=
 MAIL_FROM_ADDRESS=kontakt@kuking.pl
 ```
 
-oraz opcjonalnie `SENTRY_LARAVEL_DSN` i `POSTHOG_KEY`.
+oraz — jeśli moderacja modelem ma działać — `OPENAI_MODERATION_KEY`
+i `KUKING_MODEL_ALARM_EMAIL`, a na czas rotacji klucza `APP_PREVIOUS_KEYS`.
 
 > **Trzy pułapki w tym bloku, każda już raz zapłacona:**
 >
@@ -993,6 +1035,20 @@ php artisan kuking:sprawdz-model
 
 W konsoli Railway (zakładka *Console* przy serwisie `kuking.pl`) — jesteś już
 wtedy w kontenerze, więc bez `railway ssh`.
+
+**Po rozdzieleniu usług (#595) — w konsoli serwisu `worker`, nie `web`.**
+Klucz dostaje wyłącznie worker (#1013), więc na `web` komenda uczciwie powie
+`WYŁĄCZONA — nie ma klucza`, choć moderacja działa. Obecność adresu alarmów
+sprawdź w konsoli serwisów `worker` **i** `scheduler`, bez wypisywania wartości
+i bez wysyłania listu:
+
+```
+[ -n "$KUKING_MODEL_ALARM_EMAIL" ] && echo ustawiony || echo PUSTY
+```
+
+(`kuking:podsumowanie-automatu` też to powie, ale gdy są nowe oznaczenia —
+naprawdę wyśle list.) Zielony `/health` **nie dowodzi**, że moderacja modelem
+działa.
 
 **Dlaczego to jest osobny krok, a nie sprawdzenie w `/health`.** Klient modelu
 (`App\Moderacja\KlientOpenAI`) celowo zwraca `null` przy KAŻDEJ porażce: brak

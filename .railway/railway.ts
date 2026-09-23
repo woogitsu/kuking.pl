@@ -176,6 +176,13 @@ export default defineRailway((ctx) => {
     APP_ENV: isProduction ? "production" : "staging",
     APP_DEBUG: "false", // NIGDY "true" na czymkolwiek dostępnym z internetu
     APP_KEY: ctx.shared.APP_KEY, // inny dla każdego środowiska
+    // Poprzednie klucze szyfrowania, rozdzielone przecinkami — OPCJONALNE.
+    // Potrzebne wyłącznie na czas rotacji APP_KEY (PR #1437): nowy klucz
+    // szyfruje, stare jeszcze odszyfrowują sesje, ciasteczka i zadania
+    // w kolejce (`config/app.php`, `previous_keys`). Poza rotacją — puste.
+    // Dostają je wszystkie trzy role, bo każda odszyfrowuje: web sesje,
+    // worker ładunki zadań, scheduler zaszyfrowany cache.
+    APP_PREVIOUS_KEYS: ctx.shared.APP_PREVIOUS_KEYS,
     APP_URL: isProduction
       ? "https://kuking.pl"
       : isStaging
@@ -302,20 +309,9 @@ export default defineRailway((ctx) => {
     // kontenerze, a szukano go w drugim — w bazie `ready`, u człowieka 404
     // (audyt W3-01).
     KUKING_EXPORT_DISK: "r2_eksporty",
-    // --- Bucket kopii bazy: DLA APLIKACJI TYLKO DO CZYTANIA (#193) ----------
-    //
-    //  Zrzut robi osobny serwis `kopia-bazy` niżej, własnym tokenem z prawem
-    //  ZAPISU. Aplikacja dostaje token z prawem WYŁĄCZNIE do odczytu tego
-    //  jednego bucketu i używa go do jednej rzeczy: raz na dobę sprawdza,
-    //  czy w buckecie leży świeża kopia (`kuking:sprawdz-kopie`).
-    //
-    //  Po co dwa tokeny do jednego bucketu: gdyby aplikacja miała prawo
-    //  zapisu, udany atak na nią mógłby SKASOWAĆ kopie — czyli dokładnie to,
-    //  przed czym ta warstwa ma chronić. Kopia, którą da się zniszczyć
-    //  z zaatakowanego serwisu, nie jest kopią offsite.
-    AWS_KOPIE_BUCKET: ctx.shared.R2_KOPIE_BUCKET,
-    AWS_KOPIE_ACCESS_KEY_ID: ctx.shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID,
-    AWS_KOPIE_SECRET_ACCESS_KEY: ctx.shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY,
+    // --- Bucket kopii bazy: poświadczenie odczytu ŻYJE W `kopieOdczytEnv` ---
+    //  niżej i trafia WYŁĄCZNIE do schedulera (#1013), bo tylko on wykonuje
+    //  `kuking:sprawdz-kopie`.
     AWS_ENDPOINT: ctx.shared.R2_ENDPOINT, // https://<ACCOUNT_ID>.r2.cloudflarestorage.com
     //  AWS_URL ZOSTAŁO USUNIĘTE, A NIE PRZENIESIONE (audyt W7-02, P0).
     //
@@ -361,33 +357,9 @@ export default defineRailway((ctx) => {
     //  jej nikomu — dlatego nie wolno go tu wpisać „na chwilę".
     MAIL_MAILER: "emaillabs",
 
-    //  DWA KLUCZE, NIE JEDEN: żądanie niesie nagłówek `Application-Key`
-    //  (EMAILLABS_APP_KEY) i `Authorization` (EMAILLABS_SECRET_KEY, 128
-    //  znaków). Oba generuje się RAZEM w panelu EmailLabs:
-    //  Konto → Ustawienia → API → „Generuj klucz API". Po przeładowaniu
-    //  strony klucza autoryzacyjnego nie da się już podejrzeć.
-    //
-    //  TO NIE SĄ LOGIN I HASŁO SMTP. Dane z sekcji „Konta SMTP" panelu służą
-    //  wyłącznie do wysyłki portem 587; API odpowie na nie 401. Pomylenie
-    //  jednego z drugim jest tu najbardziej prawdopodobnym błędem
-    //  konfiguracji.
-    EMAILLABS_APP_KEY: ctx.shared.EMAILLABS_APP_KEY,
-    EMAILLABS_SECRET_KEY: ctx.shared.EMAILLABS_SECRET_KEY,
-    //  Konto wysyłkowe w kształcie `1.nazwa.smtp` — wymagane pole
-    //  `smtpAccount` w każdym żądaniu API. Mimo nazwy NIE jest to login SMTP.
-    EMAILLABS_SMTP_ACCOUNT: ctx.shared.EMAILLABS_SMTP_ACCOUNT,
-
-    //  --- SMTP: UŚPIONE, NIE USUNIĘTE ---------------------------------------
-    //
-    //  Te pięć zmiennych nie konfiguruje dziś niczego, bo `MAIL_MAILER` to
-    //  `emaillabs`. Zostają świadomie, jako gotowa droga na wypadek przejścia
-    //  na plan Pro (wtedy Railway odblokowuje SMTP) i jako drugie ramię
-    //  ewentualnego `failover` u innego dostawcy. Przestawienie `MAIL_MAILER`
-    //  z powrotem na `smtp` PRZED zmianą planu przywróci awarię z 9 września.
-    MAIL_HOST: ctx.shared.MAIL_HOST,
-    MAIL_PORT: ctx.shared.MAIL_PORT,
-    MAIL_USERNAME: ctx.shared.MAIL_USERNAME,
-    MAIL_PASSWORD: ctx.shared.MAIL_PASSWORD,
+    //  Klucze EmailLabs (i uśpione SMTP) żyją w `pocztaEnv` niżej: dostają je
+    //  tylko web i worker, bo tylko one budują transport poczty (#1013).
+    //  Scheduler listy wyłącznie KOLEJKUJE, więc kluczy nie potrzebuje.
     // UWAGA: Symfony przyjmuje TYLKO `smtp` i `smtps`. Stało tu `tls` —
     // wygląda sensownie, opisuje prawdziwą intencję (STARTTLS na 587)
     // i NIE DZIAŁA: transport się nie buduje, a każdy list kończy się
@@ -439,18 +411,11 @@ export default defineRailway((ctx) => {
       : "staging@kuking.pl",
 
     // --- Obserwowalność -------------------------------------------------------
-    SENTRY_LARAVEL_DSN: ctx.shared.SENTRY_LARAVEL_DSN,
-    SENTRY_ENVIRONMENT: envName,
-    // 100% błędów, ale tracing tylko próbkowany — tracing najszybciej zjada
-    // darmowy limit planu.
-    SENTRY_TRACES_SAMPLE_RATE: isProduction ? "0.1" : "0",
-    SENTRY_PROFILES_SAMPLE_RATE: "0",
-    // Railway wstrzykuje SHA commita → Sentry przypisze błąd do wydania
-    // i pokaże, który commit go wprowadził.
-    SENTRY_RELEASE: "${{RAILWAY_GIT_COMMIT_SHA}}",
-
-    POSTHOG_KEY: ctx.shared.POSTHOG_KEY,
-    POSTHOG_HOST: "https://eu.i.posthog.com", // instancja EU — dane w UE (RODO)
+    // SENTRY_* i POSTHOG_* USUNIĘTE, A NIE PRZENIESIONE (#1013). Żadna linijka
+    // w `config/` ich nie czyta: Sentry'ego i PostHoga nie ma w `composer.json`
+    // (D-041, D-104). Rozsyłanie nieczytanego sekretu do trzech procesów
+    // poszerza powierzchnię ataku i niczego nie włącza. Gdy integracja
+    // powstanie, jej zmienne dopisuje się do roli, która ją wykonuje.
 
     // Powiadomienie o błędzie 500 na Slacku/Discordzie, dopóki nie da się
     // zainstalować Sentry wyżej (`docs/infra/MONITORING_BLEDOW.md`,
@@ -459,10 +424,88 @@ export default defineRailway((ctx) => {
     // sharedowej w panelu (Environment → Variables → Shared Variables).
     // Treść wysyłana na ten adres nie niesie danych osobowych, ale sam adres
     // to sekret (kto go zna, może pisać na kanał właściciela) — dlatego
-    // idzie przez `ctx.shared`, tak jak SENTRY_LARAVEL_DSN wyżej, a nie jako
+    // idzie przez `ctx.shared`, tak jak klucze niżej, a nie jako
     // wartość wpisana w tym pliku.
     LOG_BLAD_WEBHOOK_URL: ctx.shared.LOG_BLAD_WEBHOOK_URL,
 
+    // --- Turnstile, Google, Facebook, analityka odwiedzin -------------------
+    // Żyją w `wejscieEnv` niżej i trafiają WYŁĄCZNIE do web (#1013): czyta je
+    // tylko warstwa HTTP (formularze, trasy logowania, HTML strony, `/health`).
+
+    // --- Runtime kontenera ----------------------------------------------------
+    // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
+    // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,
+    // więc entrypoint podaje to flagą `php -d`.
+    PHP_WORKER_MEMORY_LIMIT: "512M",
+  };
+
+  // ---------------------------------------------------------------------------
+  //  ZESTAWY PER ROLA (#1013, #1014)
+  //
+  //  `appEnv` wyżej to WYŁĄCZNIE to, czego potrzebują wszystkie trzy role
+  //  aplikacji: niesekretny rdzeń plus APP_KEY, baza, buckety zdjęć i paczek
+  //  RODO (web wgrywa i podpisuje adresy, worker przetwarza i buduje paczki,
+  //  scheduler sprząta osierocone zdjęcia, wygasłe paczki i skasowane konta)
+  //  oraz adres kanału błędów 500 (błąd może paść w każdej roli).
+  //
+  //  Wszystko inne dostaje TYLKO rola, która to czyta. Railway nie przekazuje
+  //  Shared Variable procesowi samo z siebie — referencję tworzy blok `env`
+  //  konkretnej usługi (https://docs.railway.com/variables). Wspólny zestaw
+  //  dla wszystkich trzech ról znaczył, że przejęcie workera dekodującego
+  //  nieufne zdjęcia dawało sekret OAuth i Turnstile, a przejęcie schedulera —
+  //  klucze poczty.
+  //
+  //  Macierz „zmienna → rola → który kod ją czyta" pilnuje test
+  //  `ZmienneRailwayaPerRolaTest`. Dopisując tu zmienną, dopisz ją też tam —
+  //  inaczej test zapali, i o to chodzi.
+  //
+  //  Rola `all` (staging, preview, dzisiejsza produkcja) robi wszystko naraz,
+  //  więc dostaje sumę trzech zestawów.
+  // ---------------------------------------------------------------------------
+
+  //  --- Poczta: web + worker ------------------------------------------------
+  //  web wysyła SYNCHRONICZNIE odpowiedź na „Napisz do nas"
+  //  (`WyslijOdpowiedz`, świadomie bez kolejki) i sprawdza gotowość poczty
+  //  w `/health` oraz w formularzach (`App\Support\Poczta`); worker wysyła
+  //  wszystkie listy z kolejki i paczkę RODO (`GenerateUserExport`).
+  //  Scheduler tylko KOLEJKUJE (`Notification::...->notify()` na
+  //  powiadomieniach `ShouldQueue`, `Mail::queue()` w digeście) — transportu
+  //  nie buduje, więc kluczy nie dostaje.
+  const pocztaEnv = {
+    //  DWA KLUCZE, NIE JEDEN: żądanie niesie nagłówek `Application-Key`
+    //  (EMAILLABS_APP_KEY) i `Authorization` (EMAILLABS_SECRET_KEY, 128
+    //  znaków). Oba generuje się RAZEM w panelu EmailLabs:
+    //  Konto → Ustawienia → API → „Generuj klucz API". Po przeładowaniu
+    //  strony klucza autoryzacyjnego nie da się już podejrzeć.
+    //
+    //  TO NIE SĄ LOGIN I HASŁO SMTP. Dane z sekcji „Konta SMTP" panelu służą
+    //  wyłącznie do wysyłki portem 587; API odpowie na nie 401. Pomylenie
+    //  jednego z drugim jest tu najbardziej prawdopodobnym błędem
+    //  konfiguracji.
+    EMAILLABS_APP_KEY: ctx.shared.EMAILLABS_APP_KEY,
+    EMAILLABS_SECRET_KEY: ctx.shared.EMAILLABS_SECRET_KEY,
+    //  Konto wysyłkowe w kształcie `1.nazwa.smtp` — wymagane pole
+    //  `smtpAccount` w każdym żądaniu API. Mimo nazwy NIE jest to login SMTP.
+    EMAILLABS_SMTP_ACCOUNT: ctx.shared.EMAILLABS_SMTP_ACCOUNT,
+
+    //  --- SMTP: UŚPIONE, NIE USUNIĘTE ---------------------------------------
+    //
+    //  Te pięć zmiennych nie konfiguruje dziś niczego, bo `MAIL_MAILER` to
+    //  `emaillabs`. Zostają świadomie, jako gotowa droga na wypadek przejścia
+    //  na plan Pro (wtedy Railway odblokowuje SMTP) i jako drugie ramię
+    //  ewentualnego `failover` u innego dostawcy. Przestawienie `MAIL_MAILER`
+    //  z powrotem na `smtp` PRZED zmianą planu przywróci awarię z 9 września.
+    MAIL_HOST: ctx.shared.MAIL_HOST,
+    MAIL_PORT: ctx.shared.MAIL_PORT,
+    MAIL_USERNAME: ctx.shared.MAIL_USERNAME,
+    MAIL_PASSWORD: ctx.shared.MAIL_PASSWORD,
+  };
+
+  //  --- Wejście i ochrona formularzy: TYLKO web -----------------------------
+  //  Formularze z Turnstile, trasy OAuth Google i Facebooka (w tym podpis
+  //  żądania usunięcia danych od Meta), beacon analityki w HTML-u oraz
+  //  `/health`. Żaden job ani komenda harmonogramu tych kluczy nie czyta.
+  const wejscieEnv = {
     // --- Cloudflare Turnstile (D-050, issue #217) -----------------------------
     // Sprawdzenie „czy to człowiek" na formularzach publicznych. Oba klucze
     // idą przez `ctx.shared`, bo powstają w panelu Cloudflare i różnią się
@@ -551,13 +594,72 @@ export default defineRailway((ctx) => {
     // zostaje pusty — nasz ruch jest niemal w całości unijny. Krok po kroku:
     // docs/infra/DEPLOYMENT_RUNBOOK.md, KROK 8F.
     CLOUDFLARE_ANALYTICS_TOKEN: ctx.shared.CLOUDFLARE_ANALYTICS_TOKEN,
-
-    // --- Runtime kontenera ----------------------------------------------------
-    // Worker dekoduje zdjęcia do 24 Mpx (gd potrzebuje ~4 B/piksel);
-    // web tyle nie potrzebuje. php.ini nie umie wartości domyślnych,
-    // więc entrypoint podaje to flagą `php -d`.
-    PHP_WORKER_MEMORY_LIMIT: "512M",
   };
+
+  //  --- Czyszczenie cache CDN: worker + web ---------------------------------
+  //  Worker wykonuje `App\Jobs\PurgePublicMediaCache` (issue #959). Web
+  //  dostaje je WYŁĄCZNIE dlatego, że `/health` na produkcji sprawdza, czy
+  //  czyszczenie ma z czym ruszyć (`HealthController::sprawdzCzyszczenieCdn`);
+  //  bez nich rozdzielony web meldowałby `degraded` przy poprawnym workerze.
+  //  Scheduler tylko KOLEJKUJE ten job (`KasujZdjecie`), więc ich nie dostaje.
+  //  Token ma mieć w Cloudflare wyłącznie uprawnienie „Cache Purge" jednej
+  //  strefy — w panelu Railway zaznacz „Sealed".
+  const czyszczenieCdnEnv = {
+    CLOUDFLARE_ZONE_ID: ctx.shared.CLOUDFLARE_ZONE_ID,
+    CLOUDFLARE_PURGE_TOKEN: ctx.shared.CLOUDFLARE_PURGE_TOKEN,
+  };
+
+  //  --- Moderacja modelem: TYLKO worker (#1014) -----------------------------
+  //  Ocenę treści robi job `App\Jobs\PrzeanalizujTresc` przez
+  //  `App\Moderacja\KlientOpenAI`. PUSTE = moderacja modelem WYŁĄCZONA bez
+  //  błędu (świadomy fail-open, D-055) — dlatego zielony `/health` NIE
+  //  dowodzi, że działa. Sprawdzenie: `php artisan kuking:sprawdz-model`
+  //  w konsoli serwisu `worker` (DEPLOYMENT_RUNBOOK.md, KROK 8B).
+  //  Staging i preview biorą wartość z WŁASNYCH Shared Variables — pusto
+  //  albo osobny klucz testowy, nigdy klucz produkcji. „Sealed".
+  const modelEnv = {
+    OPENAI_MODERATION_KEY: ctx.shared.OPENAI_MODERATION_KEY,
+  };
+
+  //  --- Adres alarmów moderacji: worker + scheduler (#1014) -----------------
+  //  Worker: pilny alarm z `PrzeanalizujTresc` (`AlarmujModeratora`).
+  //  Scheduler: `kuking:podsumowanie-automatu` i `kuking:pilnuj-terminow-odwolan`.
+  //  To adres skrzynki, nie klucz, ale jest daną osobową i różni się między
+  //  środowiskami, dlatego idzie przez `ctx.shared`. PUSTE = te listy nie
+  //  wychodzą (komendy mówią, że nie ma dokąd wysłać).
+  const alarmModeratoraEnv = {
+    KUKING_MODEL_ALARM_EMAIL: ctx.shared.KUKING_MODEL_ALARM_EMAIL,
+  };
+
+  //  --- Odczyt bucketu kopii bazy: TYLKO scheduler --------------------------
+  //  Jedynym konsumentem jest `kuking:sprawdz-kopie` (`StanKopiiBazy`),
+  //  uruchamiane z harmonogramu. Ani trasa HTTP, ani job tego nie czytają.
+  //
+  //  Zrzut robi osobny serwis `kopia-bazy` niżej, własnym tokenem z prawem
+  //  ZAPISU. Aplikacja dostaje token z prawem WYŁĄCZNIE do odczytu tego
+  //  jednego bucketu i używa go do jednej rzeczy: raz na dobę sprawdza,
+  //  czy w buckecie leży świeża kopia (`kuking:sprawdz-kopie`).
+  //
+  //  Po co dwa tokeny do jednego bucketu: gdyby aplikacja miała prawo
+  //  zapisu, udany atak na nią mógłby SKASOWAĆ kopie — czyli dokładnie to,
+  //  przed czym ta warstwa ma chronić. Kopia, którą da się zniszczyć
+  //  z zaatakowanego serwisu, nie jest kopią offsite.
+  const kopieOdczytEnv = {
+    AWS_KOPIE_BUCKET: ctx.shared.R2_KOPIE_BUCKET,
+    AWS_KOPIE_ACCESS_KEY_ID: ctx.shared.R2_KOPIE_ODCZYT_ACCESS_KEY_ID,
+    AWS_KOPIE_SECRET_ACCESS_KEY: ctx.shared.R2_KOPIE_ODCZYT_SECRET_ACCESS_KEY,
+  };
+
+  const webEnv = { ...appEnv, ...pocztaEnv, ...wejscieEnv, ...czyszczenieCdnEnv };
+  const workerEnv = {
+    ...appEnv,
+    ...pocztaEnv,
+    ...czyszczenieCdnEnv,
+    ...modelEnv,
+    ...alarmModeratoraEnv,
+  };
+  const schedulerEnv = { ...appEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };
+  const wszystkieRoleEnv = { ...webEnv, ...workerEnv, ...schedulerEnv };
 
   // ---------------------------------------------------------------------------
   //  ŹRÓDŁO KODU
@@ -808,11 +910,13 @@ export default defineRailway((ctx) => {
     domains: isProduction ? PROD_DOMAINS : isStaging ? STAGING_DOMAINS : [],
 
     env: {
-      ...appEnv,
       // Rola "all" = web + worker + scheduler w jednym kontenerze.
       // Oszczędza ~2/3 kosztu (płacisz per serwis za RAM i CPU), za cenę
       // izolacji awarii. Na staging/preview zawsze; na produkcji tylko
       // w fazie alfy (PRODUCTION_SPLIT_SERVICES = false).
+      // Rozdzielony web dostaje TYLKO swój zestaw; `all` robi pracę trzech
+      // ról, więc dostaje ich sumę (patrz „ZESTAWY PER ROLA").
+      ...(splitServices ? webEnv : wszystkieRoleEnv),
       APP_ROLE: splitServices ? "web" : "all",
     },
   });
@@ -880,7 +984,7 @@ export default defineRailway((ctx) => {
       },
     },
 
-    env: { ...appEnv, APP_ROLE: "worker" },
+    env: { ...workerEnv, APP_ROLE: "worker" },
   });
 
   // ===========================================================================
@@ -931,7 +1035,7 @@ export default defineRailway((ctx) => {
       },
     },
 
-    env: { ...appEnv, APP_ROLE: "scheduler" },
+    env: { ...schedulerEnv, APP_ROLE: "scheduler" },
   });
 
   // ===========================================================================
@@ -1131,6 +1235,13 @@ export default defineRailway((ctx) => {
 //      KOPIA_KLUCZ_PUBLICZNY. Klucza PRYWATNEGO nie wolno tu wstawić —
 //      to jedyna rzecz, która NIE MA prawa mieszkać w Railwayu.
 //   3. Shared variables — wartości sekretów (ten plik je tylko referencuje).
+//   3b. Zmienne sharedowe dopisane w #1013/#1014 — do założenia w KAŻDYM
+//      środowisku (staging: puste albo testowe, nigdy wartości produkcji):
+//      OPENAI_MODERATION_KEY (Sealed), KUKING_MODEL_ALARM_EMAIL,
+//      CLOUDFLARE_ZONE_ID, CLOUDFLARE_PURGE_TOKEN (Sealed),
+//      APP_PREVIOUS_KEYS (Sealed; puste poza rotacją APP_KEY).
+//      Które serwisy je dostają: „ZESTAWY PER ROLA" wyżej
+//      i DEPLOYMENT_RUNBOOK.md, KROK 8.
 //   4. Alerty budżetowe — Workspace → Usage → Usage Limits.
 //
 //  Uzupełniające: jeśli `railway config plan` odrzuci którekolwiek pole

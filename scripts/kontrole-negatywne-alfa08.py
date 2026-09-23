@@ -100,6 +100,13 @@ PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 USUN_GPS = "app/Domain/Media/UsunGps.php"
 XMP_TEST = "OryginalTraciGpsZXmpTest"
 
+# Zmienne Railwaya per rola (#1013, #1014). Strażnik czyta `.railway/railway.ts`
+# statycznie, więc tylko mutacja dowodzi, że parser widzi bloki usług, a nie
+# pusty zbiór: sekret OAuth dopisany workerowi, klucz modelu zabrany workerowi
+# i adres alarmów zabrany schedulerowi — każda z trzech ma zapalić test.
+RAILWAY_IAC = ".railway/railway.ts"
+ZMIENNE_ROL_TEST = "ZmienneRailwayaPerRolaTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -238,6 +245,12 @@ checks = [
      mniejsze_pismo_na_pierwszym_ekranie),
     ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
      lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
+    ("Sekret OAuth w workerze", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, 'env: { ...workerEnv, APP_ROLE: "worker" },', 'env: { ...workerEnv, GOOGLE_CLIENT_SECRET: ctx.shared.GOOGLE_CLIENT_SECRET, APP_ROLE: "worker" },')),
+    ("Worker bez klucza moderacji modelem", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "    ...modelEnv,\n", "")),
+    ("Scheduler bez adresu alarmów moderacji", RAILWAY_IAC, ZMIENNE_ROL_TEST,
+     lambda s: replace_once(s, "const schedulerEnv = { ...appEnv, ...alarmModeratoraEnv, ...kopieOdczytEnv };", "const schedulerEnv = { ...appEnv, ...kopieOdczytEnv };")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -247,6 +260,7 @@ run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(XMP_TEST, True)
+run_test(ZMIENNE_ROL_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
