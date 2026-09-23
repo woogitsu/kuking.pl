@@ -2465,6 +2465,66 @@ samego powodu: ciche skasowanie „nadmiarowego" zgłoszenia byłoby skasowaniem
 sprawy DSA, na którą ktoś mógł się powołać. Który wiersz obowiązuje,
 rozstrzyga człowiek.
 
+**`reports_resolution_complete_check` — status związany z datą rozstrzygnięcia**
+(issue #997, migracja `2026_09_23_100000_powiaz_status_zgloszenia_z_rozstrzygnieciem`).
+
+```sql
+CHECK (
+  (status IN ('open','triage','reviewing')
+     AND resolved_at IS NULL AND resolved_by IS NULL AND resolution_note IS NULL)
+  OR (status IN ('resolved','rejected') AND resolved_at IS NOT NULL)
+)
+```
+
+Retencja liczy od `resolved_at` i bierze tylko `resolved`/`rejected`, więc
+zamknięta sprawa bez daty nie zostałaby skasowana **nigdy**, a otwarta z datą
+wisiałaby w kolejce z fałszywym śladem rozstrzygnięcia. To trzeci przypadek
+tego samego niezmiennika co `appeals_decision_complete_check`
+i `contact_messages_handled_complete`.
+
+- **`resolved_by` w stanie końcowym nie jest wymagane** — klucz ma świadome
+  `nullOnDelete()`; fizyczne usunięcie konta operatora nie może unieważnić
+  historycznej sprawy. Kto rozstrzygnął, zapisuje też niemutowalny
+  `moderation_actions.moderator_id`.
+- **`resolution_note` w stanie końcowym nie jest wymagane** — wewnętrzna
+  notatka, formularz decyzji i odrzucenie oznaczeń automatu pozwalają ją
+  pominąć (uzasadnienie dla człowieka: `moderation_actions.user_message`).
+- **Lista statusów wypisana wprost** — nowy status w `reports_status_check`
+  bez przemyślenia tej reguły odbije się o bazę. Celowo.
+- Status zmieniają dziś dwie ścieżki i obie zapisują status, datę
+  i moderatora jednym `update()`: `ModerationController::decide()`
+  i `SygnalyController::odrzucGrupe()` (`StatusZgloszeniaZwiazanyZRozstrzygnieciemTest`).
+
+**`up()` najpierw liczy niespójne wiersze i ODMAWIA**, gdy jakiekolwiek są —
+z liczbami w komunikacie. Nie zgaduje: `created_at` jako data zamknięcia
+przyspieszyłoby retencję i skasowało sprawę przed czasem. Potem
+`ADD CONSTRAINT … NOT VALID` i osobno `VALIDATE CONSTRAINT`
+(`$withinTransaction = false`, więc walidacja nie blokuje zapisów). Gdy
+`VALIDATE` padnie (niespójny zapis w trakcie wdrożenia), CHECK jest zdejmowany,
+żeby ponowne `migrate` zaczęło od czystego stanu.
+
+**Zapytanie kontrolne przed wdrożeniem (tylko odczyt, dla właściciela):**
+
+```sql
+SELECT id, numer_sprawy, source, status, resolved_at, resolved_by,
+       resolution_note IS NOT NULL AS ma_notatke, created_at,
+       (SELECT min(ma.created_at) FROM moderation_actions ma WHERE ma.report_id = r.id) AS data_decyzji
+FROM reports r
+WHERE (status IN ('resolved','rejected') AND resolved_at IS NULL)
+   OR (status IN ('open','triage','reviewing')
+       AND (resolved_at IS NOT NULL OR resolved_by IS NOT NULL OR resolution_note IS NOT NULL))
+ORDER BY created_at;
+```
+
+Pusty wynik = migracja przejdzie. Wiersze w wyniku poprawia człowiek: datę
+zamknięcia bierze z `data_decyzji`, a nie z `created_at`; otwarta sprawa
+z polami rozstrzygnięcia jest albo zamknięta (popraw status), albo otwarta
+(wyczyść trzy pola).
+
+**Rollback:** `DROP CONSTRAINT IF EXISTS reports_resolution_complete_check`.
+Bezstratnie — poluzowanie reguły nie dotyka żadnego wiersza, więc nie ma
+czego odmawiać (inaczej niż w przypadkach z D-088).
+
 ### moderation_actions
 Decyzje moderatorów.
 

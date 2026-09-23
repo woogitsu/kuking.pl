@@ -47,6 +47,8 @@ class CofniecieMigracjiSygnalowAutomatuTest extends TestCase
             'reason' => 'automat_wzorzec',
             'details' => 'Automat oznaczył tę treść do przeglądu.',
             'status' => $status,
+            // `reports_resolution_complete_check` (#997): stan końcowy ma datę.
+            'resolved_at' => in_array($status, [Report::STATUS_RESOLVED, Report::STATUS_REJECTED], true) ? now() : null,
         ]);
     }
 
