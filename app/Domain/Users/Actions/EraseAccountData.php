@@ -561,6 +561,14 @@ final class EraseAccountData
         $skasowane = 0;
 
         foreach ($zdjecia as $zdjecie) {
+            // Świeży, przejęty wiersz, nie model wczytany w transakcji
+            // wymazania — patrz `KasujZdjecie::przejmijDoWymazania()` (#1003).
+            $zdjecie = $this->kasujZdjecie->przejmijDoWymazania($zdjecie);
+
+            if ($zdjecie === null) {
+                continue;
+            }
+
             if ($this->kasujZdjecie->skasujPliki($zdjecie)) {
                 $zdjecie->delete();
                 $skasowane++;

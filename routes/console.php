@@ -20,7 +20,20 @@ Artisan::command('inspire', function () {
 // kont dłużej, niż potrzeba na ich pobranie). Codziennie w nocy, bo sprzątanie
 // dotyka storage, a w nocy nikt nie czeka na odpowiedź serwisu.
 // `withoutOverlapping` — przy dużej liczbie plików jedno uruchomienie może
-// trwać dłużej niż dobę i nie chcemy dwóch naraz.
+// trwać długo i nie chcemy dwóch naraz.
+//
+// CZAS WYGAŚNIĘCIA BLOKADY JEST W KAŻDYM ZADANIU JAWNY (issue #1002).
+// Gołe `withoutOverlapping()` trzyma blokadę 24 godziny (1440 minut). Blokada
+// jest zdejmowana po przebiegu albo przy SIGTERM — ale nie wtedy, gdy proces
+// zginie bez sygnału (SIGKILL, OOM, ubity kontener przy wdrożeniu). Wtedy
+// wisi w `cache_locks` do wygaśnięcia, a zadanie co pięć minut milczy DOBĘ;
+// dzienne gubi nawet dwa terminy, bo blokada z 03:20 wygasa o 03:20 następnego
+// dnia, tuż PO starcie kolejnego przebiegu. Reguła: blokada wygasa przed
+// następnym planowym terminem, a jest dłuższa niż realny przebieg.
+//   co 5 min → 4 · co 15 min → 10 · co godzinę → 50 · codziennie → 120.
+// Przy zadaniach dziennych przebieg dłuższy niż 120 minut nie grozi
+// nakładaniem: następny termin jest dopiero jutro. Pilnuje tego
+// `HarmonogramWygasaniaBlokadTest` — przez `Schedule::events()`, nie tekst.
 // UWAGA NA `Schedule::command()` — NIE UŻYWAMY GO TUTAJ.
 //
 // `Schedule::command()` uruchamia zadanie przez Symfony Process, a ten wymaga
@@ -48,13 +61,13 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-osierocone-zdjecia'))
     ->dailyAt('03:40')
     ->name('sprzataj-osierocone-zdjecia')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 Schedule::call(fn () => Artisan::call('kuking:sprzataj-eksporty'))
     ->name('kuking:sprzataj-eksporty')
     ->dailyAt('03:20')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Zdejmowanie kar, którym minął termin (issue #40).
 //
@@ -93,7 +106,7 @@ Schedule::call(fn () => Artisan::call('kuking:zdejmij-wygasle-kary'))
     ->name('kuking:zdejmij-wygasle-kary')
     ->hourly()
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(50);
 
 // Egzekucja 30-dniowej karencji po zgłoszeniu usunięcia konta (audyt A8).
 //
@@ -108,7 +121,7 @@ Schedule::call(fn () => Artisan::call('kuking:usun-wygasle-konta'))
     ->name('kuking:usun-wygasle-konta')
     ->dailyAt('03:50')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Retencja sygnałów produktowych (issue #115): `product_signals` starsze niż
 // `config('kuking.analytics.signal_retention_days')` (domyślnie 90 dni) nie
@@ -120,7 +133,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sygnaly'))
     ->name('kuking:sprzataj-sygnaly')
     ->dailyAt('04:00')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Retencja `audit_log` (issue #19, docs/decyzje/ADR_RETENCJE.md §5.1):
 // `config('kuking.audit_log.retention_months')` miesięcy od `created_at`,
@@ -133,7 +146,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-audyt'))
     ->name('kuking:sprzataj-audyt')
     ->dailyAt('04:10')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Retencja `notifications` (issue #19, ADR_RETENCJE.md §5.2):
 // `config('kuking.notifications.retention_months')` miesięcy od
@@ -143,7 +156,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-powiadomienia'))
     ->name('kuking:sprzataj-powiadomienia')
     ->dailyAt('04:20')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Retencja sprawy moderacyjnej — `appeals` + `moderation_actions` + `reports`
 // razem, w tej kolejności (issue #19, ADR_RETENCJE.md §4, §5.3-5.5):
@@ -157,7 +170,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sprawy-moderacyjne'))
     ->name('kuking:sprzataj-sprawy-moderacyjne')
     ->dailyAt('04:30')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Retencja `contact_messages` — wiadomości z „Napisz do nas".
 // `config('kuking.kontakt.retention_months')` miesięcy od ZAŁATWIENIA
@@ -170,7 +183,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-wiadomosci'))
     ->name('kuking:sprzataj-wiadomosci')
     ->dailyAt('04:40')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Wygasłe żądania zmiany adresu e-mail (issue #195). Wiersz
 // `pending_email_changes` trzyma adres skrzynki, więc po wygaśnięciu jest już
@@ -193,7 +206,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zmiany-adresu'))
     ->name('kuking:sprzataj-zmiany-adresu')
     ->dailyAt('04:50')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // 05:00 — dziesięć minut po sprzątaniu zmian adresu, tak jak rozsunięta jest
 // cała reszta tej listy (uzasadnienie odstępów wyżej).
@@ -206,7 +219,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-zaproszenia'))
     ->name('kuking:sprzataj-zaproszenia')
     ->dailyAt('05:00')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // 05:10 — dziesięć minut po zaproszeniach, tak jak rozsunięta jest cała reszta
 // tej listy (uzasadnienie odstępów wyżej).
@@ -229,7 +242,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprzataj-sesje'))
     ->name('kuking:sprzataj-sesje')
     ->dailyAt('05:10')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // CZUJKA KOPII BAZY (issue #193, decyzja D-043).
 //
@@ -257,7 +270,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprawdz-kopie'))
     ->name('kuking:sprawdz-kopie')
     ->dailyAt('06:15')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Budżet połączeń PostgreSQL (issue #598). Wyczerpanie `max_connections` jest
 // awarią SKOKOWĄ: dopóki zostaje jedno wolne miejsce, `/health` odpowiada
@@ -278,7 +291,7 @@ Schedule::call(fn () => Artisan::call('kuking:budzet-polaczen'))
     ->name('kuking:budzet-polaczen')
     ->hourlyAt(25)
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(50);
 
 // Czujka kolejki (issue #599). Pole `kolejka` w `/health` liczy WSZYSTKIE
 // wiersze `failed_jobs`, więc od 9 września 2026 świeci nieprzerwanie przez
@@ -295,7 +308,7 @@ Schedule::call(fn () => Artisan::call('kuking:sprawdz-kolejke'))
     ->name('kuking:sprawdz-kolejke')
     ->everyFifteenMinutes()
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(10);
 
 // Licznik społeczności w stopce (issue #38): „{n} kuKINGów". Co godzinę,
 // nie na żądanie — stopka jest na KAŻDEJ stronie serwisu, a COUNT(*) na
@@ -306,7 +319,7 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kukingow'))
     ->name('kuking:policz-kukingow')
     ->hourly()
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(50);
 
 // Liczniki przy pozycjach panelu moderacji („Odwołania 2"). Ten sam powód co
 // wyżej — menu boczne stoi na KAŻDEJ stronie panelu, więc pięć `COUNT(*)` na
@@ -322,7 +335,7 @@ Schedule::call(fn () => Artisan::call('kuking:policz-kolejki'))
     ->name('kuking:policz-kolejki')
     ->everyFiveMinutes()
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(4);
 
 // Codzienne podsumowanie kolejki automatu (D-055). JEDEN list zamiast stu:
 // przy setkach kont list na każde oznaczenie zamieniłby skrzynkę moderatora
@@ -339,7 +352,7 @@ Schedule::call(fn () => Artisan::call('kuking:podsumowanie-automatu'))
     ->name('kuking:podsumowanie-automatu')
     ->dailyAt('07:00')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Pilnowanie terminu odpowiedzi na odwołanie (DSA art. 20, D-060).
 //
@@ -356,7 +369,7 @@ Schedule::call(fn () => Artisan::call('kuking:pilnuj-terminow-odwolan'))
     ->name('kuking:pilnuj-terminow-odwolan')
     ->dailyAt('07:10')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
 
 // Tygodniowe podsumowanie od gospodarza (issue #11, docs/DECISIONS.md D-057).
 //
@@ -400,4 +413,4 @@ Schedule::call(fn () => Artisan::call('kuking:wyslij-podsumowania'))
     ->name('kuking:wyslij-podsumowania')
     ->dailyAt('08:30')
     ->onOneServer()
-    ->withoutOverlapping();
+    ->withoutOverlapping(120);
