@@ -6,7 +6,9 @@
     $porcje = $recipe->servingsLabel();
     // Dokąd iść po wymianę odrzuconego zdjęcia (#752). Pyta Policy, tak jak
     // przycisk edycji niżej — przepis ukryty przez moderację edycji nie ma.
-    $edycjaZdjecPrzepisu = auth()->user()?->can('update', $recipe)
+    // Konto zawieszone edycję otworzy, ale jej nie zapisze
+    // (`EnsureAccountIsActive`), więc link byłby martwym przyciskiem.
+    $edycjaZdjecPrzepisu = auth()->user()?->isActive() && auth()->user()->can('update', $recipe)
         ? route('recipes.edit', $recipe->slug)
         : null;
 @endphp

@@ -167,6 +167,20 @@ class KomunikatyZdjecMowiaPrawdeTest extends TestCase
     }
 
     #[Test]
+    public function test_zawieszone_konto_nie_dostaje_linku_do_edycji_ktorej_nie_zapisze(): void
+    {
+        $autor = $this->user('basia');
+        $przepis = $this->przepisZOdrzuconymiZdjeciami($autor);
+        $autor->suspend(now()->addWeek());
+
+        $this->actingAs($autor)
+            ->get(route('recipes.show', $przepis->slug))
+            ->assertOk()
+            ->assertDontSee('Wymień zdjęcie', false)
+            ->assertDontSee(self::RADA_O_USUNIECIU, false);
+    }
+
+    #[Test]
     public function test_obcy_widz_nie_dostaje_instrukcji_edycji_a_poprawne_zdjecie_dalej_sie_pokazuje(): void
     {
         $autor = $this->user('basia');
