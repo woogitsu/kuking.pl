@@ -80,7 +80,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $kod = $this->aktualnyKod($basia->two_factor_secret);
 
         $response = $this->actingAs($basia)
-            ->post(route('settings.two_factor.confirm'), ['code' => $kod]);
+            ->post(route('settings.two_factor.confirm'), ['code' => $kod, 'password' => 'haslo-testowe-123']);
 
         $response->assertRedirect(route('settings.two_factor.codes'));
         $response->assertSessionHas('kody_zapasowe');
@@ -110,7 +110,7 @@ class DwuetapowaWeryfikacjaTest extends TestCase
         $basia->refresh();
 
         $this->actingAs($basia)
-            ->post(route('settings.two_factor.confirm'), ['code' => '000000'])
+            ->post(route('settings.two_factor.confirm'), ['code' => '000000', 'password' => 'haslo-testowe-123'])
             ->assertSessionHasErrors('code');
 
         $this->assertFalse($basia->refresh()->hasTwoFactorConfirmed());
