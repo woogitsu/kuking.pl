@@ -804,8 +804,11 @@ class PostController extends Controller
             );
         } catch (KonfliktEdycjiWpisu $e) {
             // Nic nie zapisano; tekst z formularza wraca do pól (`withInput`),
-            // a widok pokazuje obok wersję zapisaną w bazie.
-            return back()->withInput()->withErrors(['body' => $e->getMessage()])->with('konflikt_edycji', true);
+            // a widok pokazuje obok wersję zapisaną w bazie. Osobny klucz
+            // `wersja`, nie `body`: tekst jest poprawny, więc pole nie może
+            // dostać `aria-invalid`; odnośnik w podsumowaniu prowadzi do
+            // sekcji z zapisaną wersją (`#wersja-zapisana`).
+            return back()->withInput()->withErrors(['wersja' => $e->getMessage()])->with('konflikt_edycji', true);
         } catch (BladDlaCzlowieka $e) {
             // Poprawnie wpisany tekst nie ginie po nieudanej walidacji
             // domenowej (AGENTS.md §5, docs/UX_50_PLUS.md). Ten sam rozdział
