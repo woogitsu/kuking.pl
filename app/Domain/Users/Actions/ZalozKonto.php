@@ -177,7 +177,9 @@ final class ZalozKonto
          */
         event(new Registered($user));
 
-        AuditLogEntry::record(
+        // Zmiana jest już zatwierdzona — awaria dziennika nie może jej
+        // zamienić w błąd dla człowieka (D-088, `recordBezWywracania()`).
+        AuditLogEntry::recordBezWywracania(
             action: 'account.registered',
             actor: $user,
             subject: $user,

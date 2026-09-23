@@ -173,7 +173,9 @@ final class ReportContent
             return $this->dokonczPotwierdzenie($rownolegle);
         }
 
-        AuditLogEntry::record(
+        // Zmiana jest już zatwierdzona — awaria dziennika nie może jej
+        // zamienić w błąd dla człowieka (D-088, `recordBezWywracania()`).
+        AuditLogEntry::recordBezWywracania(
             action: 'content.reported',
             actor: $reporter,
             subject: $report,
