@@ -100,6 +100,12 @@ PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 WDROZENIE_WORKFLOW = ".github/workflows/deploy.yml"
 WDROZENIE_TEST = "TestDymnyNieUdajeCudzegoWydaniaTest"
 
+# Oryginał zdjęcia traci XMP (issue #1004). Test czyta fixture'y zapisane
+# niezależną biblioteką — strażnik widzi odczyt pliku, więc kontrola dodatnia
+# wyłącza samo czyszczenie XMP i test ma wtedy oblać.
+USUN_GPS = "app/Domain/Media/UsunGps.php"
+XMP_TEST = "OryginalTraciGpsZXmpTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -254,6 +260,8 @@ checks = [
      mniejsze_pismo_na_pierwszym_ekranie),
     ("Test dymny przepuszcza każde przekierowanie", WDROZENIE_WORKFLOW, WDROZENIE_TEST,
      stara_sonda_https),
+    ("Oryginał zdjęcia z nietkniętym XMP", USUN_GPS, XMP_TEST,
+     lambda s: replace_once(s, "return self::usunXmp(self::usunGpsZExif($bajty));", "return self::usunGpsZExif($bajty);")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -263,6 +271,7 @@ run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
 run_test(WDROZENIE_TEST, True)
+run_test(XMP_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:

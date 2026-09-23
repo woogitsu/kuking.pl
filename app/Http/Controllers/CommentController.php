@@ -26,6 +26,17 @@ class CommentController extends Controller
 
     public function update(Request $request, Comment $comment): RedirectResponse
     {
+        // Issue #937: autor widzi własny ukryty komentarz, ale nie może go
+        // poprawić (CommentPolicy::update). Zamiast gołego 403 mówimy mu,
+        // co może zrobić — o istnieniu komentarza wie, bo to jego tekst.
+        if ($request->user()->getKey() === $comment->author_id
+            && $comment->status !== Comment::STATUS_PUBLISHED) {
+            return back()->withInput()->withErrors([
+                'body' => 'Moderacja ukryła ten komentarz, więc nie da się go już poprawić. '
+                    .'Jeśli uważasz, że to pomyłka, odwołaj się od decyzji — znajdziesz ją w powiadomieniach.',
+            ]);
+        }
+
         $this->authorize('update', $comment);
 
         $data = $request->validate([

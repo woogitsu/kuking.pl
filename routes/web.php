@@ -170,6 +170,8 @@ Route::match(['get', 'post'], '/podsumowanie/wypisz/{user}', [PodsumowanieTygodn
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('podsumowanie.wypisz');
 
+// Droga powrotna: `GET` tylko pyta (strona z przyciskiem), zgodę włącza
+// wyłącznie `POST` z tokenem CSRF — rozgałęzienie w kontrolerze (#1403).
 Route::match(['get', 'post'], '/podsumowanie/wracam/{user}', [PodsumowanieTygodniaController::class, 'wracam'])
     ->middleware(['signed', "throttle:{$limits['ustawienia']},ustawienia"])
     ->name('podsumowanie.wracam');
