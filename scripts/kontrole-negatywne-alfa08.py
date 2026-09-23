@@ -94,6 +94,13 @@ MIGRACJA_2FA_TEST = "CofniecieMigracji2faOdmawiaTest"
 PIERWSZY_EKRAN_CSS = "resources/css/marka-ekrany.css"
 PIERWSZY_EKRAN_TEST = "PierwszyEkranMiesciPrzyciskTest"
 
+# Podpowiedź przy polu zdjęć (#1195): łączny limit liczy także zdjęcia
+# zachowane po poprzednim wysłaniu. Test liczy się jako strażnik tekstu, bo
+# zapisuje wyrenderowane formularze przez `base_path(...)` do pomiaru w
+# przeglądarce. Mutacja zabiera z podpowiedzi zdanie o zachowanych zdjęciach.
+LIMITY_ZDJEC = "app/Support/LimityZdjec.php"
+LIMITY_ZDJEC_TEST = "LimityIPodgladZdjecTest"
+
 
 def digest(path):
     return hashlib.md5(path.read_bytes()).hexdigest()
@@ -230,6 +237,8 @@ checks = [
      zdjecie_checku_przed_straznikiem_2fa),
     ("Pierwszy ekran opłacony mniejszym pismem", PIERWSZY_EKRAN_CSS, PIERWSZY_EKRAN_TEST,
      mniejsze_pismo_na_pierwszym_ekranie),
+    ("Podpowiedź zdjęć bez zachowanych po poprzednim wysłaniu", LIMITY_ZDJEC, LIMITY_ZDJEC_TEST,
+     lambda s: replace_once(s, "', wliczając zdjęcia zachowane po poprzednim wysłaniu. Każdy plik do '", "'. Każdy plik do '")),
 ]
 
 run_test(COLLECTION_TEST, True)
@@ -238,6 +247,7 @@ run_test(STRAZNIK_TEKSTU_TEST, True)
 run_test(OBRAZ_ASSETOW_TEST, True)
 run_test(MIGRACJA_2FA_TEST, True)
 run_test(PIERWSZY_EKRAN_TEST, True)
+run_test(LIMITY_ZDJEC_TEST, True)
 with tempfile.TemporaryDirectory(prefix="kuking-kontrola-") as directory:
     backup = Path(directory) / "oryginal"
     for label, filename, test, mutate in checks:
