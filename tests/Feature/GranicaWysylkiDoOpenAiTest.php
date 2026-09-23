@@ -96,7 +96,8 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'dla_obserwujacych' => [false, true],
             'ukryty_przez_moderacje' => [false, false],
             'usuniety' => [false, false],
-            'autor_zbanowany' => [false, false],
+            // D-241: do dostawcy nie, ale lokalny sygnał spamu działa dalej.
+            'autor_zbanowany' => [false, true],
             'autor_w_karencji_usuniecia' => [false, false],
         ];
 
@@ -167,7 +168,6 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'ukryty przez moderacje' => ['ukryty'],
             'zastapiony sladem usuniecia' => ['slad'],
             'usuniety' => ['usuniety'],
-            'autor komentarza zbanowany' => ['zbanowany'],
         ];
     }
 
@@ -185,7 +185,6 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'ukryty' => $komentarz->forceFill(['status' => Comment::STATUS_HIDDEN])->save(),
             'slad' => $komentarz->forceFill(['body_removed_at' => now()])->save(),
             'usuniety' => $komentarz->delete(),
-            'zbanowany' => $autor->forceFill(['status' => User::STATUS_BANNED])->save(),
         };
 
         $this->analizuj(PrzeanalizujTresc::TYP_KOMENTARZ, $komentarz);
@@ -203,7 +202,8 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
             'dla obserwujacych' => ['followers', 1],
             'ukryty przez moderacje' => ['hidden', 0],
             'usuniety' => ['deleted', 0],
-            'autor zbanowany' => ['banned', 0],
+            // D-241: ban nie zdejmuje lokalnej analizy — tylko wysyłkę.
+            'autor zbanowany' => ['banned', 1],
         ];
     }
 
@@ -215,7 +215,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
         $wpis->media()->attach($this->zdjecie($autor, ['thumb' => [320, 240]]));
 
         match ($stan) {
-            'private', 'followers' => app(EditPost::class)->handle($wpis, $wpis->body, $stan),
+            'private', 'followers' => app(EditPost::class)->handle($wpis->author, $wpis, $wpis->body, $stan),
             'hidden' => $wpis->forceFill(['status' => Post::STATUS_HIDDEN])->save(),
             'deleted' => $wpis->delete(),
             'banned' => $autor->forceFill(['status' => User::STATUS_BANNED])->save(),
@@ -396,7 +396,7 @@ class GranicaWysylkiDoOpenAiTest extends TestCase
     private function zmienWidocznosc(Post|Recipe $tresc, string $widocznosc): void
     {
         if ($tresc instanceof Post) {
-            app(EditPost::class)->handle($tresc, $tresc->body, $widocznosc);
+            app(EditPost::class)->handle($tresc->author, $tresc, $tresc->body, $widocznosc);
 
             return;
         }
