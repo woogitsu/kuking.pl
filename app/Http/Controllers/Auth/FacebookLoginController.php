@@ -6,6 +6,7 @@ namespace App\Http\Controllers\Auth;
 
 use App\Domain\Security\KomunikatZamknietegoKonta;
 use App\Domain\Users\Actions\ZalozKonto;
+use App\Domain\Users\Actions\ZalozoneKonto;
 use App\Domain\Users\ZamekKonta;
 use App\Facebook\KlientFacebook;
 use App\Facebook\TozsamoscFacebook;
@@ -486,7 +487,7 @@ class FacebookLoginController extends Controller
             );
         }
 
-        $user = $zalozKonto->handle(
+        $konto = $zalozKonto->handle(
             email: $tozsamosc->email,
             displayName: $dane['display_name'],
             username: $dane['username'],
@@ -515,11 +516,17 @@ class FacebookLoginController extends Controller
             ip: $request->ip(),
             dziennik: ['droga' => 'facebook'],
         );
+        $user = $konto->user;
 
         $this->zapomnijTozsamosc($request);
 
         Auth::login($user, remember: true);
         $request->session()->regenerate();
+
+        // „Wysłaliśmy Ci wiadomość" pada tylko wtedy, gdy to prawda (#1373).
+        if ($konto->listPotwierdzajacyNieWyszedl) {
+            return redirect()->route('onboarding.interests')->with('status', ZalozoneKonto::KOMUNIKAT_BEZ_LISTU);
+        }
 
         return redirect()->route('onboarding.interests')->with('status',
             'Konto gotowe. Miło Cię widzieć w Kuking. Wysłaliśmy Ci jeszcze wiadomość na '

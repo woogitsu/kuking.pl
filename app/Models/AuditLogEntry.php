@@ -117,30 +117,31 @@ class AuditLogEntry extends Model
 
     /**
      * Zapisz zdarzenie PO ZATWIERDZONEJ zmianie — tak, żeby awaria dziennika
-     * nie zamieniła udanej zmiany w błąd dla człowieka (#1373, #1343, #1363).
+     * nie zamieniła udanej zmiany w błąd dla człowieka (#1373, #1363).
      *
-     * DLA KOGO: wpis, który stoi ZA transakcją zmiany (D-088: „dziennik
-     * audytu zostaje POZA transakcją… jest osobnym śladem, nie częścią
-     * relacji"). W tym miejscu zmiana jest już trwała i nic jej nie cofnie,
-     * więc wyjątek z `record()` dawał tylko jedno: odpowiedź „nie udało
-     * się" przy koncie, zgłoszeniu albo decyzji, które istnieją. Ponowienie
-     * odbijało się wtedy od nich („adres zajęty", „już zamknięte") i też
-     * nie uzupełniało wpisu.
+     * DLA KOGO: wpis POMOCNICZY, który stoi ZA transakcją zmiany (D-249,
+     * klasa 2) — czynność samego człowieka, której autorytatywny ślad żyje
+     * w tabeli zmiany (`account.registered`, `content.reported`). W tym
+     * miejscu zmiana jest już trwała i nic jej nie cofnie, więc wyjątek
+     * z `record()` dawał tylko jedno: odpowiedź „nie udało się" przy koncie
+     * albo zgłoszeniu, które istnieją. Ponowienie odbijało się wtedy od nich
+     * („adres zajęty") i też nie uzupełniało wpisu.
      *
      * CO ROBI Z AWARIĄ: nie połyka jej. `report()` oddaje ją do obsługi
      * wyjątków (log, zewnętrzny monitoring) z nazwą zdarzenia i podmiotu,
      * więc operator widzi, KTÓREGO wpisu brakuje — tak samo jak przy
      * `NotifyReporterReceipt::potwierdzBezWywracaniaSprawy()`. Autorytatywny
-     * zapis tych zdarzeń żyje w tabelach zmiany (`users`, `reports`,
-     * `moderation_actions`) — patrz komentarz przy `NIGDY_NIE_KASUJ`.
+     * zapis tych zdarzeń żyje w tabelach zmiany (`users`, `reports`) —
+     * patrz komentarz przy `NIGDY_NIE_KASUJ`.
      *
      * PUNKT ZAPISU, a nie gołe `create()`: wołana wewnątrz CUDZEJ transakcji
      * (komenda, test, przyszły endpoint) nieudany `INSERT` zerwałby ją
      * w PostgreSQL (25P02) — wycofanie do punktu zapisu zostawia połączenie
      * zdatne do dalszej pracy.
      *
-     * NIE DLA wpisów, które są częścią zmiany i mają z nią stać albo paść
-     * razem (`moderation.decided`, `user.role_changed`, `post.published`):
+     * NIE DLA wpisów, które są częścią decyzji i mają z nią stać albo paść
+     * razem (D-249, klasa 1: `moderation.decided`,
+     * `moderation.automat_dismissed`, `user.role_changed`, `post.published`):
      * te wołają `record()` WEWNĄTRZ transakcji zmiany.
      *
      * @param  array<string, mixed>  $metadata

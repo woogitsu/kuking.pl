@@ -442,6 +442,10 @@ class GoogleLoginController extends Controller
             );
         }
 
+        // Listu z potwierdzeniem tu nie ma (adres potwierdziło Google), więc
+        // `listPotwierdzajacyNieWyszedl` jest zawsze `false` — nie ma o czym
+        // mówić człowiekowi. Awarie po zatwierdzeniu konta idą do `report()`
+        // w `ZalozKonto` i nie dają 500 (#1373).
         $user = $zalozKonto->handle(
             email: $tozsamosc->email,
             displayName: $dane['display_name'],
@@ -457,7 +461,7 @@ class GoogleLoginController extends Controller
             googleSub: $tozsamosc->sub,
             ip: $request->ip(),
             dziennik: ['droga' => 'google'],
-        );
+        )->user;
 
         $this->zapomnijTozsamosc($request);
 
