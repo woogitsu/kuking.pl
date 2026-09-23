@@ -16,7 +16,13 @@
 --}}
 @props(['errorBag' => 'default', 'fieldIds' => []])
 @php
-    $formErrors = $errors->getBag($errorBag);
+    // Strony z walidacją GET (wyszukiwarka, onboarding „ludzie") przekazują
+    // tu gotowy `MessageBag` z własnego walidatora, nie `ViewErrorBag` z
+    // sesji. `MessageBag` nie ma worków (`getBag()`), więc bez tej gałęzi
+    // cała strona kończyła się błędem 500.
+    $formErrors = $errors instanceof \Illuminate\Support\ViewErrorBag
+        ? $errors->getBag($errorBag)
+        : $errors;
     // `aktywnyWiersz()` odrzuca `_wiersz` przesłane jako tablica/obiekt
     // zamiast rzutować je wprost na string — inaczej ten sam błąd renderu
     // co w x-field (issue #745), tyle że tu, w podsumowaniu błędów.
