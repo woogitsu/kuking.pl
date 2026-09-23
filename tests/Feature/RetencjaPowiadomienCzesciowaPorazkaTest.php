@@ -152,11 +152,11 @@ class RetencjaPowiadomienCzesciowaPorazkaTest extends TestCase
     {
         $wszystkie = $this->piecPrzedawnionych();
         $this->wadliwe = [$wszystkie[0]->getKey()];
-        Log::spy();
+        $log = Log::spy();
 
         (new PrzedawnionePowiadomienia)->posprzataj(3);
 
-        Log::shouldHaveReceived('error')->once()->withArgs(function (string $wiadomosc, array $kontekst) use ($wszystkie): bool {
+        $log->shouldHaveReceived('error')->once()->withArgs(function (string $wiadomosc, array $kontekst) use ($wszystkie): bool {
             $this->assertSame($wszystkie[0]->getKey(), $kontekst['notification_id']);
             $this->assertSame(RuntimeException::class, $kontekst['exception']);
             $this->assertStringNotContainsString(self::TRESC, $wiadomosc.json_encode($kontekst));
