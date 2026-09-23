@@ -52,6 +52,8 @@ use Tests\TestCase;
  *
  * @see scripts/check.sh — krok 5 „Testy”
  * @see docs/PULAPKI_TESTOW.md §1
+ *
+ * @bez-kontroli-dodatniej Wycinek check.sh ma własną ochronę przed pustką (assertNotFalse na obu granicach i assertStringContainsString na znacznikach), więc zgubiony krok daje czerwień, nie cichą zieleń.
  */
 class BramkaZrownoleglaBaterieTylkoNaZadanieTest extends TestCase
 {
